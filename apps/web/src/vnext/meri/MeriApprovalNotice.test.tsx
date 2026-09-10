@@ -50,13 +50,29 @@ describe('MeriApprovalNotice', () => {
 
   test('one sentence for a single proposed action, plus a Review it link', () => {
     render(<MeriApprovalNotice approvals={[approval()]} onReview={vi.fn()} />);
-    expect(screen.getByText('Send follow-up email needs your approval before Meri runs it.')).toBeTruthy();
+    expect(
+      screen.getByText('Send follow-up email needs your approval before Meri runs it.'),
+    ).toBeTruthy();
     expect(screen.getByRole('button', { name: /Review it/ })).toBeTruthy();
   });
 
-  test('summarises multiple actions from the same turn instead of only showing the first', () => {
-    render(<MeriApprovalNotice approvals={[approval({ proposalId: 'p1' }), approval({ proposalId: 'p2' })]} onReview={vi.fn()} />);
-    expect(screen.getByText('Meri has 2 governed actions from this turn awaiting your review.')).toBeTruthy();
+  test('summarises all conversation actions without claiming completed actions await review', () => {
+    render(
+      <MeriApprovalNotice
+        approvals={[
+          approval({ proposalId: 'p1' }),
+          approval({ proposalId: 'p2', status: 'succeeded' }),
+        ]}
+        onReview={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(
+        'Meri has 2 governed actions from this conversation. Review their status and results.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/awaiting your review|from this turn/)).toBeNull();
+    expect(screen.getByRole('button', { name: /Review/ })).toBeTruthy();
   });
 
   test.each([

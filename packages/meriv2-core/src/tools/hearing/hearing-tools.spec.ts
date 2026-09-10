@@ -179,7 +179,9 @@ describe('generate_post_hearing_summary tool', () => {
     expect(prompt).toContain('autonomous systems (watchlist)');
     expect(prompt).toContain('- A funding cut would hit FY27 orders');
     // The client block precedes the hearing so the model reads the lens first.
-    expect(prompt.indexOf('Client: Anduril')).toBeLessThan(prompt.indexOf('Hearing: "HASC Hearing"'));
+    expect(prompt.indexOf('Client: Anduril')).toBeLessThan(
+      prompt.indexOf('Hearing: "HASC Hearing"'),
+    );
     expect(out.clientContext).toBe('applied');
   });
 
@@ -217,11 +219,19 @@ describe('generate_post_hearing_summary tool', () => {
     const client = {
       clientId: 'c1',
       name: 'Anduril',
-      relevance: { band: 'NONE' as const, whyItMatters: 'No match.', matchedPriorities: [], implications: [] },
+      relevance: {
+        band: 'NONE' as const,
+        whyItMatters: 'No match.',
+        matchedPriorities: [],
+        implications: [],
+      },
     };
     const base = { sessionId: 's1', title: 'T', quotes: [], mentions: [], actionItems: [], client };
     expect((await tool.handler(base, ctx)).clientContext).toBe('unavailable');
-    const steered: MeriContext = { ...ctx, clientSteering: { compass: 'Protect the autonomy line.' } };
+    const steered: MeriContext = {
+      ...ctx,
+      clientSteering: { compass: 'Protect the autonomy line.' },
+    };
     expect((await tool.handler(base, steered)).clientContext).toBe('applied');
   });
 });

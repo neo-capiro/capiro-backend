@@ -51,6 +51,7 @@ jobs:
           node-version: '20'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @capiro/shared build
       - run: pnpm --filter @capiro/auth build
       - run: pnpm --filter @capiro/defense-contracts build
       - run: pnpm --filter @capiro/defense-domain build
@@ -58,8 +59,8 @@ jobs:
       - run: node scripts/verify-phase8-session2.mjs
       - run: pnpm --filter @capiro/defense-api prisma:validate
       - run: pnpm --filter @capiro/defense-api typecheck
-      - run: pnpm --filter @capiro/defense-api test
       - run: pnpm --filter @capiro/defense-api build
+      - run: pnpm --filter @capiro/defense-api test
       - name: Entrypoint negative controls
         shell: bash
         run: |
@@ -84,6 +85,8 @@ jobs:
           node-version: '20'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build dependencies and generated client for database acceptance
+        run: pnpm -r --filter @capiro/defense-api... build
       - name: Disposable-database migration-from-zero and role/RLS rehearsal
         # The script manages its own disposable pgvector/pgvector:pg16
         # container (docker is available on ubuntu-latest runners), the same

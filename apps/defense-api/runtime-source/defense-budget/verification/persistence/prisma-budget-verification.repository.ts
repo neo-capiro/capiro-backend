@@ -157,7 +157,18 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const { candidateIdentity, result, proofSnapshots, checks, discrepancies } = input;
+        // Phase 10B-31: `proofFindings` was previously destructured out of
+        // `input` here yet never read again -- silently dropped, never
+        // persisted anywhere, so the exact ProofFindingV1[] behind any past
+        // REJECT/REVIEW driven by a proof finding (as opposed to a rule
+        // check) was unrecoverable from the database once the run's
+        // ephemeral container was gone. It is used below to add one more
+        // row to the SAME existing `budget_verification_proof` table this
+        // method already writes `proofSnapshots` to -- the table
+        // `BudgetVerificationRepositoryV1.readProofSnapshots`'s own doc
+        // comment already calls "proof findings (as snapshots)" -- so no new
+        // table, column, or migration is needed to close this gap.
+        const { candidateIdentity, result, proofFindings, proofSnapshots, checks, discrepancies } = input;
 
         // R3: Idempotent — check for existing terminal candidate
         const existing = await tx.budgetExtractionCandidateV1.findUnique({
@@ -296,14 +307,37 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
           },
         });
 
-        // R3: Insert proof snapshots
-        if (proofSnapshots.length > 0) {
-          await tx.budgetVerificationProofV1.createMany({
-            data: proofSnapshots.map((s) =>
-              mapProofSnapshotToRow(runId, s),
-            ) as Prisma.BudgetVerificationProofV1CreateManyInput[],
-          });
-        }
+        // R3: Insert proof snapshots.
+        //
+        // Phase 10B-31: one extra 'proof_findings' snapshot is always
+        // appended, carrying the complete raw ProofFindingV1[] list this run
+        // actually saw (candidate + reference-artifact) verbatim. Before this,
+        // `proofFindings` was destructured out of `input` above yet never
+        // read again -- silently dropped, never persisted anywhere -- so the
+        // exact findings behind any past REJECT/REVIEW driven by a proof
+        // finding (as opposed to a rule check) were unrecoverable from the
+        // database once the run's ephemeral container was gone. This reuses
+        // the SAME existing `budget_verification_proof` table every other
+        // snapshot already goes to -- the table
+        // `BudgetVerificationRepositoryV1.readProofSnapshots`'s own doc
+        // comment already calls "proof findings (as snapshots)" -- so no new
+        // table, column, or migration is needed. Always appended, even when
+        // `proofFindings` is empty, so an absent row is never mistaken for
+        // "predates this fix". `status` follows the table's own documented
+        // vocabulary ("verified | not_applicable | missing | mismatch").
+        const allProofSnapshots = [
+          ...proofSnapshots,
+          {
+            proofKind: 'proof_findings',
+            status: proofFindings.some((f) => f.severity === 'blocking') ? 'mismatch' : 'verified',
+            evidenceJson: { findings: proofFindings },
+          },
+        ];
+        await tx.budgetVerificationProofV1.createMany({
+          data: allProofSnapshots.map((s) =>
+            mapProofSnapshotToRow(runId, s),
+          ) as Prisma.BudgetVerificationProofV1CreateManyInput[],
+        });
 
         // R3: Insert checks
         if (checks.length > 0) {

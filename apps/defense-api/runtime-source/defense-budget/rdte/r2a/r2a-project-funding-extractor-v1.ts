@@ -129,9 +129,19 @@ interface R2aDetectedTable {
   headerRowIndices: number[];
   rows: R2aDetectedRow[];
   repeatedHeaderRowIndices: number[];
+  /**
+   * Phase 10B-35: rows labelled "Total Program Element". A PE total is never
+   * a project amount. Such a row only appears inside a project group when an
+   * Exhibit R-2 PE-summary page was wrongly attributed to a project section;
+   * its numeric cells are refused with an explicit omission reason instead
+   * of being asserted as `project_funding`.
+   */
+  peTotalRows: Array<{ rowIndex: number; label: string; cells: Array<{ columnIndex: number; text: string }> }>;
 }
 
 const NUMBER_RE = /^-?[\d,]+(?:\.\d+)?$/;
+/** R-2 PE-level summary row -- must never be classified as a project row. */
+const PE_TOTAL_ROW_RE = /^\s*total\s+program\s+element\b/i;
 const BASE_ROW_RE = /^\s*(?:base|base\s+budget|base\s+request|base\s+funding)\s*:?\s*$/i;
 const OCO_ROW_RE =
   /^\s*(?:oco|overseas\s+contingency|overseas\s+contingency\s+operations)\s*:?\s*$/i;
@@ -151,7 +161,7 @@ const R2A_TABLE_LABEL_RE = /\bcost\b|\bfunding\b|\bbudget\b/i;
 function detectR2aFundingTablesOnPage(page: ParserPageResultV1): R2aDetectedTable[] {
   const detected: R2aDetectedTable[] = [];
   for (const table of page.tables) {
-    const result = analyzeR2aTable(page.page, page.printedPage, table);
+    const result = analyzeR2aTable(page.page, page.printedPage ?? undefined, table);
     if (result != null) detected.push(result);
   }
   return detected;
@@ -181,6 +191,7 @@ function analyzeR2aTable(
   const headerRowIndices: number[] = [];
   const repeatedHeaderRowIndices: number[] = [];
   const dataRows: R2aDetectedRow[] = [];
+  const peTotalRows: R2aDetectedTable['peTotalRows'] = [];
   let headerSeen = false;
 
   for (const [rowIndex, cells] of rows) {
@@ -195,6 +206,17 @@ function analyzeR2aTable(
     /* Unit/caption rows are metadata unless they also carry fiscal header
      * vocabulary (then they are header rows). */
     if (UNIT_RE.test(rowText) && !HEADER_HINT_RE.test(rowText)) {
+      continue;
+    }
+
+    /* Phase 10B-35: a PE "Total Program Element" row is R-2 (PE-level)
+     * structure. It is never a project row -- refused below, never asserted. */
+    if (PE_TOTAL_ROW_RE.test(firstText)) {
+      peTotalRows.push({
+        rowIndex,
+        label: firstText,
+        cells: cells.map((c) => ({ columnIndex: c.columnIndex, text: c.text })),
+      });
       continue;
     }
 
@@ -268,7 +290,7 @@ function analyzeR2aTable(
     }
   }
 
-  if (dataRows.length === 0 || headerRowIndices.length === 0) {
+  if ((dataRows.length === 0 && peTotalRows.length === 0) || headerRowIndices.length === 0) {
     return null;
   }
 
@@ -279,6 +301,7 @@ function analyzeR2aTable(
     headerRowIndices,
     rows: dataRows,
     repeatedHeaderRowIndices,
+    peTotalRows,
   };
 }
 
@@ -577,6 +600,27 @@ export function extractR2aProjectFunding(input: {
               header.columns.find((c) => c.columnIndex === cell.columnIndex)?.normalizedText ?? '',
             direct: true,
             positionCycle,
+          });
+        }
+      }
+
+      /* Phase 10B-35: refuse every numeric cell of a PE "Total Program
+       * Element" row with an explicit reason. A PE total is not a project
+       * amount; asserting it under this group's project identity would be
+       * a wrong identity binding, not an evidence limitation. */
+      for (const peTotalRow of table.peTotalRows) {
+        for (const cell of peTotalRow.cells) {
+          if (cell.columnIndex === 0) continue;
+          const text = cell.text.trim();
+          if (text === '' || text === '-' || text === '—') continue;
+          omissions.push({
+            parentPeCode,
+            projectCode,
+            page: table.page,
+            rowIndex: peTotalRow.rowIndex,
+            columnIndex: cell.columnIndex,
+            reason: 'pe_total_row_in_project_table',
+            rawText: text,
           });
         }
       }

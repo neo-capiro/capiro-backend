@@ -3,6 +3,7 @@ import {
   legacyMeriWindowRedirect,
   mapPersistedAttachments,
   mapPersistedCharts,
+  mapPersistedDocuments,
   mapPersistedContextPacketId,
   mapPersistedWorkPerformed,
   meriContextRequest,
@@ -119,6 +120,19 @@ describe('vNext Meri route state', () => {
       { id: 'att-1', filename: 'memo.pdf', kind: 'document', status: 'parsed' },
     ]);
     expect(mapPersistedCharts(message)).toEqual([{ id: 'chart-1', title: 'Funding by year' }]);
+  });
+
+  test('restores saved Word and PDF specs for canvas reopening without promoting charts or malformed rows', () => {
+    const bodyText = JSON.stringify({ title: 'Saved briefing', sections: [{ heading: 'Facts', paragraphs: ['BLUE-ORBIT-47'] }] });
+    const word = { id: 'word-1', kind: 'word_document', title: 'Saved briefing', bodyText };
+    const pdf = { ...word, id: 'pdf-1', kind: 'pdf_document' };
+    const restored = mapPersistedDocuments(JSON.parse(JSON.stringify({ artifacts: [
+      word, pdf, word,
+      { ...word, id: undefined }, { ...word, id: '../other' }, { ...word, bodyText: {} },
+      { ...word, kind: 'analysis_chart' }, null,
+    ] })));
+    expect(restored).toEqual([word, pdf]);
+    expect(mapPersistedDocuments({})).toEqual([]);
   });
 });
 

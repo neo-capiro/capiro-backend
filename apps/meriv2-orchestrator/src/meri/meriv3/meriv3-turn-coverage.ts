@@ -1,6 +1,10 @@
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { meriToolCoverageCatalogEntry } from '../retrieval/meri-tool-catalog.js';
-import { coalesceMeriMailPages, observeMeriToolCoverage, type MeriMailPageReceipt } from '../retrieval/meri-retrieval-coverage.js';
+import {
+  coalesceMeriMailPages,
+  observeMeriToolCoverage,
+  type MeriMailPageReceipt,
+} from '../retrieval/meri-retrieval-coverage.js';
 
 type InitialRetrieval = MeriGovernedTurnContext['retrieval'];
 type Status = InitialRetrieval['coverage']['sourceHealth'][number]['status'];
@@ -101,49 +105,84 @@ function receipt(
   );
   const evaluated = count(raw.recordsEvaluated, fallback.recordsEvaluated);
   const matched = count(raw.totalMatches, raw.total, fallback.totalMatches, fallback.total);
-  const displayed = count(options.displayed, raw.recordsDisplayed, projection?.shownRecordCount,
+  const displayed = count(
+    options.displayed,
+    raw.recordsDisplayed,
+    projection?.shownRecordCount,
     fallback.recordsDisplayed,
     // A section projection preserves its original sourceReturned separately.
     raw.sourceReturned !== undefined ? raw.returned : undefined,
     ...['records', 'results', 'documents', 'data', 'items', 'messages'].map((key) =>
       Array.isArray(fallback[key]) ? fallback[key].length : undefined,
-    ));
+    ),
+  );
   // A receipt-only returned count does not prove that any record body was
   // displayed. Keep that count unknown unless the visible payload establishes it.
-  const omitted = returned !== null && displayed !== null && displayed <= returned
-    ? returned - displayed : null;
+  const omitted =
+    returned !== null && displayed !== null && displayed <= returned ? returned - displayed : null;
   const hasMore =
-    raw.hasMore === true || raw.nextCursor != null || pagination?.hasMore === true ||
-    fallback.hasMore === true || fallback.nextCursor != null;
+    raw.hasMore === true ||
+    raw.nextCursor != null ||
+    pagination?.hasMore === true ||
+    fallback.hasMore === true ||
+    fallback.nextCursor != null;
   const truncated =
     (omitted !== null && omitted > 0) ||
-    raw.truncated === true || raw.truncatedByProjection === true || options.projected === true ||
-    fallback.truncated === true || fallback.contentTruncated === true || projection?.truncated === true;
+    raw.truncated === true ||
+    raw.truncatedByProjection === true ||
+    options.projected === true ||
+    fallback.truncated === true ||
+    fallback.contentTruncated === true ||
+    projection?.truncated === true;
   const paginationComplete =
     hasMore || raw.paginationComplete === false || pagination?.complete === false
       ? false
       : raw.paginationComplete === true || pagination?.complete === true
-        ? true : null;
-  const sourceStatus = String(raw.sourceStatus ?? raw.status ?? fallback.sourceStatus ?? fallback.status ?? '');
-  const unavailable = /^(unavailable|disabled|unsupported|not_configured|unauthorized)$/.test(sourceStatus);
-  const failed = Boolean(raw.error || fallback.error || fallback.blocked || /^(error|failed)$/.test(sourceStatus));
+        ? true
+        : null;
+  const sourceStatus = String(
+    raw.sourceStatus ?? raw.status ?? fallback.sourceStatus ?? fallback.status ?? '',
+  );
+  const unavailable = /^(unavailable|disabled|unsupported|not_configured|unauthorized)$/.test(
+    sourceStatus,
+  );
+  const failed = Boolean(
+    raw.error || fallback.error || fallback.blocked || /^(error|failed)$/.test(sourceStatus),
+  );
   const fullyRead =
-    (raw.coverageComplete === true || raw.complete === true) && !truncated && !hasMore &&
-    paginationComplete !== false && raw.partial !== true && fallback.partial !== true &&
+    (raw.coverageComplete === true || raw.complete === true) &&
+    !truncated &&
+    !hasMore &&
+    paginationComplete !== false &&
+    raw.partial !== true &&
+    fallback.partial !== true &&
     !['partial', 'degraded', 'unknown'].includes(sourceStatus);
-  const status: Status = unavailable ? 'unavailable' : failed ? 'error' : fullyRead ? 'complete' : 'partial';
+  const status: Status = unavailable
+    ? 'unavailable'
+    : failed
+      ? 'error'
+      : fullyRead
+        ? 'complete'
+        : 'partial';
   return {
-    source, tool, status,
+    source,
+    tool,
+    status,
     recordsReturned: returned,
     recordsEvaluated: evaluated,
     recordsMatched: matched,
     recordsDisplayed: displayed,
     recordsOmitted: omitted,
-    paginationComplete, truncated,
+    paginationComplete,
+    truncated,
     ...(date(raw.lastSyncAt) ? { lastSyncAt: date(raw.lastSyncAt) } : {}),
-    ...(typeof raw.stopReason === 'string' ? { detail: raw.stopReason }
-      : typeof fallback.sourceReason === 'string' ? { detail: fallback.sourceReason }
-      : failed ? { detail: 'source_read_failed' } : {}),
+    ...(typeof raw.stopReason === 'string'
+      ? { detail: raw.stopReason }
+      : typeof fallback.sourceReason === 'string'
+        ? { detail: fallback.sourceReason }
+        : failed
+          ? { detail: 'source_read_failed' }
+          : {}),
   };
 }
 
@@ -159,22 +198,34 @@ export function observeMeriTurnToolCoverage(
     // view and must never replace canonical message totals or mail sync health.
     const observed = observeMeriToolCoverage(tool, {}, payload);
     const mailboxes = Array.isArray(payload.searchedMailboxes) ? payload.searchedMailboxes : [];
-    const mailCoverageKnown = mailboxes.length > 0 && mailboxes.every((box) => object(object(box)?.mailCoverage));
+    const mailCoverageKnown =
+      mailboxes.length > 0 && mailboxes.every((box) => object(object(box)?.mailCoverage));
     const unavailable = Array.isArray(payload.searchedMailboxes) && mailboxes.length === 0;
-    return [{ ...receipt(tool, 'mail', {
-      returned: observed.returned,
-      recordsEvaluated: count(payload.recordsEvaluated),
-      totalMatches: observed.total,
-      hasMore: observed.hasMore,
-      truncated: payload.truncated === true,
-      complete: mailCoverageKnown && observed.status === 'complete',
-      paginationComplete: !observed.hasMore && payload.hasMore === false,
-      sourceStatus: unavailable ? 'unavailable' : observed.status,
-      ...(unavailable ? { stopReason: 'no_connected_mailbox' }
-        : observed.sourceHealth.find((source) => source.detail)?.detail
-          ? { stopReason: observed.sourceHealth.find((source) => source.detail)!.detail }
-          : {}),
-    }, payload), ...(observed.mailPage ? { mailPage: observed.mailPage } : {}) }];
+    return [
+      {
+        ...receipt(
+          tool,
+          'mail',
+          {
+            returned: observed.returned,
+            recordsEvaluated: count(payload.recordsEvaluated),
+            totalMatches: observed.total,
+            hasMore: observed.hasMore,
+            truncated: payload.truncated === true,
+            complete: mailCoverageKnown && observed.status === 'complete',
+            paginationComplete: !observed.hasMore && payload.hasMore === false,
+            sourceStatus: unavailable ? 'unavailable' : observed.status,
+            ...(unavailable
+              ? { stopReason: 'no_connected_mailbox' }
+              : observed.sourceHealth.find((source) => source.detail)?.detail
+                ? { stopReason: observed.sourceHealth.find((source) => source.detail)!.detail }
+                : {}),
+          },
+          payload,
+        ),
+        ...(observed.mailPage ? { mailPage: observed.mailPage } : {}),
+      },
+    ];
   }
   const coverage = object(payload.coverage);
   if (Array.isArray(coverage?.sources)) {
@@ -182,14 +233,21 @@ export function observeMeriTurnToolCoverage(
     return sources.flatMap((value) => {
       const source = object(value);
       return source && typeof source.domain === 'string'
-        ? [receipt(tool, source.domain, source, payload, {
-            isolated: sources.length > 1,
-            // Domain-bearing projected rows can be counted at the source scope.
-            ...(Array.isArray(payload.records) && payload.records.every((row) => typeof object(row)?.domain === 'string')
-              ? { displayed: payload.records.filter((row) => object(row)?.domain === source.domain).length }
-              : {}),
-            projected: object(payload.projection)?.truncated === true,
-          })]
+        ? [
+            receipt(tool, source.domain, source, payload, {
+              isolated: sources.length > 1,
+              // Domain-bearing projected rows can be counted at the source scope.
+              ...(Array.isArray(payload.records) &&
+              payload.records.every((row) => typeof object(row)?.domain === 'string')
+                ? {
+                    displayed: payload.records.filter(
+                      (row) => object(row)?.domain === source.domain,
+                    ).length,
+                  }
+                : {}),
+              projected: object(payload.projection)?.truncated === true,
+            }),
+          ]
         : [];
     });
   }
@@ -211,7 +269,8 @@ export function observeMeriTurnToolCoverage(
         {
           isolated: true,
           displayed: Array.isArray(object(payload.profile)?.[name])
-            ? (object(payload.profile)![name] as unknown[]).length : null,
+            ? (object(payload.profile)![name] as unknown[]).length
+            : null,
           projected: section.truncatedByProjection === true,
         },
       );
@@ -220,26 +279,51 @@ export function observeMeriTurnToolCoverage(
   }
   if (tool === 'search_sam_opportunities') {
     const freshness = Array.isArray(payload.sourceFreshness)
-      ? payload.sourceFreshness.map(object).find((row) => row?.source === 'sam_gov') : null;
-    return [receipt(tool, 'contracts_opportunities', {
-      ...(coverage ?? {}), lastSyncAt: freshness?.lastSyncedAt,
-    }, payload)];
+      ? payload.sourceFreshness.map(object).find((row) => row?.source === 'sam_gov')
+      : null;
+    return [
+      receipt(
+        tool,
+        'contracts_opportunities',
+        {
+          ...(coverage ?? {}),
+          lastSyncAt: freshness?.lastSyncedAt,
+        },
+        payload,
+      ),
+    ];
   }
   const coveredDomains = domains(tool);
-  if (coveredDomains.length <= 1) return coveredDomains.map((domain) => receipt(tool, domain, coverage ?? {}, payload));
+  if (coveredDomains.length <= 1)
+    return coveredDomains.map((domain) => receipt(tool, domain, coverage ?? {}, payload));
   // The catalog records a tool's capabilities, not a per-source inventory. A
   // combined grants/contracts result cannot assign its entire count to both.
-  const { returned: _returned, recordsReturned: _recordsReturned, sourceReturned: _sourceReturned,
-    total: _total, totalMatches: _totalMatches, recordsEvaluated: _recordsEvaluated,
-    recordsDisplayed: _recordsDisplayed, ...health } = coverage ?? {};
-  return coveredDomains.map((domain) => receipt(tool, domain, {
-    ...health,
-    complete: false,
-    coverageComplete: false,
-    sourceStatus: health.sourceStatus ?? payload.sourceStatus ?? payload.status,
-    error: health.error ?? payload.error ?? payload.blocked,
-    stopReason: health.stopReason ?? payload.sourceReason ?? 'per_source_counts_not_reported',
-  }, {}, { isolated: true, projected: object(payload.projection)?.truncated === true }));
+  const {
+    returned: _returned,
+    recordsReturned: _recordsReturned,
+    sourceReturned: _sourceReturned,
+    total: _total,
+    totalMatches: _totalMatches,
+    recordsEvaluated: _recordsEvaluated,
+    recordsDisplayed: _recordsDisplayed,
+    ...health
+  } = coverage ?? {};
+  return coveredDomains.map((domain) =>
+    receipt(
+      tool,
+      domain,
+      {
+        ...health,
+        complete: false,
+        coverageComplete: false,
+        sourceStatus: health.sourceStatus ?? payload.sourceStatus ?? payload.status,
+        error: health.error ?? payload.error ?? payload.blocked,
+        stopReason: health.stopReason ?? payload.sourceReason ?? 'per_source_counts_not_reported',
+      },
+      {},
+      { isolated: true, projected: object(payload.projection)?.truncated === true },
+    ),
+  );
 }
 
 /**
@@ -257,18 +341,39 @@ export function reconcileMeriTurnCoverage(
   const mailPages = reads.filter((read) => read.mailPage);
   reads = [
     ...reads.filter((read) => !read.mailPage),
-    ...coalesceMeriMailPages(mailPages.map((read) => ({
-      tool: read.tool, domains: ['mail'], returned: read.recordsDisplayed ?? read.recordsReturned ?? 0,
-      total: read.recordsMatched ?? null, hasMore: read.paginationComplete === false,
-      truncated: read.truncated, status: read.status === 'error' ? 'error'
-        : read.status === 'unavailable' ? 'unavailable' : read.status === 'complete' ? 'complete' : 'partial',
-      sourceHealth: [], mailPage: read.mailPage, detail: read.detail,
-    }))).map((observed): MeriToolCoverageReceipt => ({
-      source: 'mail', tool: observed.tool, status: observed.status,
-      recordsReturned: observed.returned, recordsEvaluated: null, recordsMatched: observed.total,
-      paginationComplete: !observed.hasMore, truncated: observed.truncated,
-      ...(observed.detail ? { detail: observed.detail } : {}),
-    })),
+    ...coalesceMeriMailPages(
+      mailPages.map((read) => ({
+        tool: read.tool,
+        domains: ['mail'],
+        returned: read.recordsDisplayed ?? read.recordsReturned ?? 0,
+        total: read.recordsMatched ?? null,
+        hasMore: read.paginationComplete === false,
+        truncated: read.truncated,
+        status:
+          read.status === 'error'
+            ? 'error'
+            : read.status === 'unavailable'
+              ? 'unavailable'
+              : read.status === 'complete'
+                ? 'complete'
+                : 'partial',
+        sourceHealth: [],
+        mailPage: read.mailPage,
+        detail: read.detail,
+      })),
+    ).map(
+      (observed): MeriToolCoverageReceipt => ({
+        source: 'mail',
+        tool: observed.tool,
+        status: observed.status,
+        recordsReturned: observed.returned,
+        recordsEvaluated: null,
+        recordsMatched: observed.total,
+        paginationComplete: !observed.hasMore,
+        truncated: observed.truncated,
+        ...(observed.detail ? { detail: observed.detail } : {}),
+      }),
+    ),
   ];
   const coverage = initial.coverage;
   const usable = new Set(

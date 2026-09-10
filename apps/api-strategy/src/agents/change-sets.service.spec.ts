@@ -467,7 +467,9 @@ describe('ChangeSetsService.approve', () => {
       svc.approve(T, 'user-2', cs.id, { opIndexes: [1] }),
     ]);
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-    const rejected = results.find((result) => result.status === 'rejected') as PromiseRejectedResult;
+    const rejected = results.find(
+      (result) => result.status === 'rejected',
+    ) as PromiseRejectedResult;
     expect(rejected.reason).toBeInstanceOf(ConflictException);
     expect(rejected.reason.message).toMatch(/Change-set is approved/);
   });
@@ -804,10 +806,17 @@ describe('ChangeSetsService.apply', () => {
     const cs = (await svc.create(T, U, createDto())) as Rec;
     await svc.approve(T, U, cs.id, {});
     let entered!: () => void;
-    const didEnter = new Promise<void>((resolve) => { entered = resolve; });
+    const didEnter = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
     let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
-    applyEditSet.mockImplementationOnce(async () => { entered(); await gate; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    applyEditSet.mockImplementationOnce(async () => {
+      entered();
+      await gate;
+    });
     const applying = svc.apply(T, U, cs.id);
     await didEnter;
     const rejecting = svc.reject(T, 'user-2', cs.id).catch((err: unknown) => err);

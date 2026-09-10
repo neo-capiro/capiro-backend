@@ -1,31 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
-import { fetchMeriArtifactDownload, saveMeriDownloadBlob, type MeriArtifactAuthHeaders } from './meri-artifact-download.js';
+import { fetchMeriArtifactDownload, saveMeriDownloadBlob, type MeriArtifactAuthHeaders, type MeriDocumentExportFormat } from './meri-artifact-download.js';
 
 /** An artifact or auth-context change cancels the old request. A fresh click
  * always resolves current auth and fetches the same durable artifact identity. */
 export function useMeriArtifactDownload({
-  artifactId, apiBaseUrl, getAuthHeaders, fallbackFilename, expectedFormat,
+  artifactId, apiBaseUrl, getAuthHeaders, fallbackFilename, expectedFormat, format,
 }: {
   artifactId?: string;
   apiBaseUrl?: string;
   getAuthHeaders?: MeriArtifactAuthHeaders;
   fallbackFilename?: string;
   expectedFormat?: string;
+  format?: string;
 }) {
   const [downloading, setDownloading] = useState(false);
+  const [downloadingFormat, setDownloadingFormat] = useState<string | undefined>();
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const active = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setDownloading(false);
+    setDownloadingFormat(undefined);
     setDownloadError(null);
     return () => {
       active.current?.abort();
       active.current = null;
     };
-  }, [artifactId, apiBaseUrl, getAuthHeaders]);
+  }, [artifactId, apiBaseUrl, getAuthHeaders, format, expectedFormat]);
 
-  const downloadOfficeDoc = async () => {
+  const downloadDocument = async (alternate?: { format: MeriDocumentExportFormat; fallbackFilename?: string }) => {
     if (active.current) return;
     if (!artifactId) {
       setDownloadError('This document is not available for download yet — try regenerating it in chat.');
@@ -34,12 +37,14 @@ export function useMeriArtifactDownload({
     const request = new AbortController();
     active.current = request;
     setDownloading(true);
+    setDownloadingFormat(alternate?.format ?? format ?? expectedFormat);
     setDownloadError(null);
     const timeout = window.setTimeout(() => request.abort(new Error('The download timed out. Please retry.')), 120_000);
     try {
       const { blob, filename } = await fetchMeriArtifactDownload({
         artifactId, apiBaseUrl: apiBaseUrl ?? '', getAuthHeaders,
-        signal: request.signal, fallbackFilename, expectedFormat,
+        signal: request.signal, fallbackFilename: alternate?.fallbackFilename ?? fallbackFilename,
+        expectedFormat, format: alternate?.format ?? format,
       });
       if (active.current === request) saveMeriDownloadBlob(blob, filename);
     } catch (error) {
@@ -53,9 +58,10 @@ export function useMeriArtifactDownload({
       if (active.current === request) {
         active.current = null;
         setDownloading(false);
+        setDownloadingFormat(undefined);
       }
     }
   };
 
-  return { downloading, downloadError, downloadOfficeDoc };
+  return { downloading, downloadingFormat, downloadError, downloadDocument, downloadOfficeDoc: () => downloadDocument() };
 }

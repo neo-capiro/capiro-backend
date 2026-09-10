@@ -67,7 +67,9 @@ describe('strategy-prompt — attachment grounding (CRT-5/MRI-7)', () => {
  * the web editor's memberName: first+last name, id as last-resort fallback).
  */
 describe('strategy-prompt — plan ownership rendering (F02)', () => {
-  function assistantInput(nodes: StrategyAssistantInput['strategy']['nodes']): StrategyAssistantInput {
+  function assistantInput(
+    nodes: StrategyAssistantInput['strategy']['nodes'],
+  ): StrategyAssistantInput {
     return {
       scope: 'strategy',
       instruction: 'which steps still need an owner?',
@@ -79,8 +81,13 @@ describe('strategy-prompt — plan ownership rendering (F02)', () => {
   it('renders the resolved owner name for an assigned step, matching the editor', () => {
     const input = assistantInput([
       {
-        id: 'n1', kind: 'action', subject: 'deliverable', title: 'QA ONLY internal checklist',
-        ownerUserId: 'user_neo', status: 'in_progress', startsOn: '2027-01-01',
+        id: 'n1',
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'QA ONLY internal checklist',
+        ownerUserId: 'user_neo',
+        status: 'in_progress',
+        startsOn: '2027-01-01',
       },
     ]);
     input.ownerNames = { user_neo: 'Neo Martinez' };
@@ -91,7 +98,15 @@ describe('strategy-prompt — plan ownership rendering (F02)', () => {
 
   it('renders "Owner: unassigned" only for a step with a null ownerUserId', () => {
     const input = assistantInput([
-      { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Unowned step', ownerUserId: null, status: 'draft', startsOn: '2027-01-01' },
+      {
+        id: 'n1',
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'Unowned step',
+        ownerUserId: null,
+        status: 'draft',
+        startsOn: '2027-01-01',
+      },
     ]);
     const sys = buildAssistantSystemPrompt(input, '(pack)');
     expect(sys).toContain('Owner: unassigned');
@@ -99,7 +114,15 @@ describe('strategy-prompt — plan ownership rendering (F02)', () => {
 
   it('falls back to the raw clerk id when ownerNames has no entry (never silently drops ownership)', () => {
     const input = assistantInput([
-      { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Step', ownerUserId: 'user_unknown', status: 'draft', startsOn: '2027-01-01' },
+      {
+        id: 'n1',
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'Step',
+        ownerUserId: 'user_unknown',
+        status: 'draft',
+        startsOn: '2027-01-01',
+      },
     ]);
     const sys = buildAssistantSystemPrompt(input, '(pack)');
     expect(sys).toContain('Owner: user_unknown');
@@ -107,8 +130,24 @@ describe('strategy-prompt — plan ownership rendering (F02)', () => {
 
   it('never renders "no steps have owners" language when every step is actually assigned', () => {
     const input = assistantInput([
-      { id: 'n1', kind: 'action', subject: 'deliverable', title: 'Step A', ownerUserId: 'user_neo', status: 'in_progress', startsOn: '2027-01-01' },
-      { id: 'n2', kind: 'action', subject: 'deliverable', title: 'Step B', ownerUserId: 'user_neo', status: 'draft', startsOn: '2027-02-01' },
+      {
+        id: 'n1',
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'Step A',
+        ownerUserId: 'user_neo',
+        status: 'in_progress',
+        startsOn: '2027-01-01',
+      },
+      {
+        id: 'n2',
+        kind: 'action',
+        subject: 'deliverable',
+        title: 'Step B',
+        ownerUserId: 'user_neo',
+        status: 'draft',
+        startsOn: '2027-02-01',
+      },
     ]);
     input.ownerNames = { user_neo: 'Neo Martinez' };
     const sys = buildAssistantSystemPrompt(input, '(pack)');

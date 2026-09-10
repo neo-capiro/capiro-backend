@@ -126,9 +126,7 @@ export function composeReportNarrativePrompt(input: ReportNarrativeInput): {
     input.audience === 'client'
       ? 'Audience: the CLIENT’s leadership. The packet has already been filtered to client-safe material; write as a polished client deliverable.'
       : 'Audience: Capiro’s INTERNAL team. Working-plan and internal notes may appear in the evidence and may be discussed plainly.';
-  const sections = input.sections
-    .map((id) => `- ${id}: ${SECTION_GUIDANCE[id]}`)
-    .join('\n');
+  const sections = input.sections.map((id) => `- ${id}: ${SECTION_GUIDANCE[id]}`).join('\n');
   const evidence = input.evidence.map((entry) => `[${entry.id}] ${entry.text}`).join('\n');
   const user = [
     `Report: ${input.strategy.title} (${input.strategy.type}) for ${input.strategy.clientName}, plan as of ${input.strategy.asOf}.`,
@@ -152,13 +150,16 @@ export function composeReportNarrativePrompt(input: ReportNarrativeInput): {
 export function parseReportNarrativeInput(body: unknown): ReportNarrativeInput | null {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
   const record = body as Record<string, unknown>;
-  const audience = record.audience === 'internal' ? 'internal' : record.audience === 'client' ? 'client' : null;
+  const audience =
+    record.audience === 'internal' ? 'internal' : record.audience === 'client' ? 'client' : null;
   if (!audience) return null;
   const strategy = record.strategy as Record<string, unknown> | undefined;
   const title = str(strategy?.title);
   const clientName = str(strategy?.clientName);
   if (!title || !clientName) return null;
-  const requested = Array.isArray(record.sections) ? record.sections : [...REPORT_NARRATIVE_SECTION_IDS];
+  const requested = Array.isArray(record.sections)
+    ? record.sections
+    : [...REPORT_NARRATIVE_SECTION_IDS];
   const sections = requested.filter((id): id is ReportNarrativeSectionId =>
     (REPORT_NARRATIVE_SECTION_IDS as readonly string[]).includes(String(id)),
   );
@@ -174,7 +175,8 @@ export function parseReportNarrativeInput(body: unknown): ReportNarrativeInput |
     const text = str((entry as Record<string, unknown>).text);
     if (!id || !text || seen.has(id) || !/^[a-z0-9:_.-]{1,120}$/i.test(id)) continue;
     chars += text.length;
-    if (evidence.length >= MAX_NARRATIVE_EVIDENCE_ITEMS || chars > MAX_NARRATIVE_EVIDENCE_CHARS) break;
+    if (evidence.length >= MAX_NARRATIVE_EVIDENCE_ITEMS || chars > MAX_NARRATIVE_EVIDENCE_CHARS)
+      break;
     seen.add(id);
     evidence.push({ id, text });
   }

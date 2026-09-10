@@ -287,11 +287,22 @@ export function planProofBoundRdteCanonicalProjection(input: {
   bundle: RdteCycleBundleV1;
   artifacts: readonly DefenseBudgetExtractionArtifactV1[];
   canonicalRows?: RdteCanonicalRowSnapshotV1;
+  /**
+   * Phase 10B-15 Part H -- set of verification-run IDs backed by a real,
+   * validated, immutable `BudgetReviewDecisionV1` acceptance (see
+   * governed-acceptance/rdte-projection-review-acceptance-resolver-v1.ts,
+   * the only module that may construct this set). Never build this by
+   * hand at a call site.
+   */
+  allowedReviewedAcceptances?: ReadonlySet<string>;
 }): { plan: ProofBoundRdteCanonicalProjectionPlanV1 } {
   const mapped = planRdteCanonicalProjection({
     bundle: input.bundle,
     artifacts: input.artifacts,
     ...(input.canonicalRows ? { canonicalRows: input.canonicalRows } : {}),
+    ...(input.allowedReviewedAcceptances
+      ? { allowedReviewedAcceptances: input.allowedReviewedAcceptances }
+      : {}),
   });
   const verificationByKey = new Map(
     input.bundle.verifications.map((verification) => [

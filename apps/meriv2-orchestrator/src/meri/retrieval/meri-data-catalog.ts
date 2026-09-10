@@ -1,7 +1,4 @@
-import type {
-  MeriRetrievalDomain,
-  MeriRetrievalRecipeTool,
-} from './meri-retrieval-plan.js';
+import type { MeriRetrievalDomain, MeriRetrievalRecipeTool } from './meri-retrieval-plan.js';
 
 export type MeriCatalogEntityType =
   | 'client'
@@ -69,7 +66,9 @@ export interface MeriRecipeCatalogEntry {
 const caps = (
   exactFiltering: boolean,
   semanticSearch: boolean,
-  options: Partial<Pick<MeriDatasetCapabilities, 'dateRange' | 'pagination' | 'exhaustiveScan'>> = {},
+  options: Partial<
+    Pick<MeriDatasetCapabilities, 'dateRange' | 'pagination' | 'exhaustiveScan'>
+  > = {},
 ): MeriDatasetCapabilities => ({
   exactFiltering,
   semanticSearch,
@@ -453,7 +452,14 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
       'outreach',
       'legislation',
     ],
-    optionalDomains: ['budget', 'opportunities', 'memory', 'hearings', 'regulatory', 'intelligence'],
+    optionalDomains: [
+      'budget',
+      'opportunities',
+      'memory',
+      'hearings',
+      'regulatory',
+      'intelligence',
+    ],
     recommendedTools: [
       'query_portfolio_changes',
       'query_tasks',
@@ -488,7 +494,8 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
   },
   query_portfolio_overlap: {
     tool: 'query_portfolio_overlap',
-    description: 'Evidence-backed external-company comparison against every authorized active client.',
+    description:
+      'Evidence-backed external-company comparison against every authorized active client.',
     requiredDomains: ['identity', 'clients', 'internal_research'],
     optionalDomains: ['public_web', 'awards', 'opportunities', 'budget', 'memory'],
     recommendedTools: [
@@ -585,13 +592,12 @@ export function meriToolCatalogEntry(tool: string): MeriToolCatalogEntry {
   const datasets = meriDatasetsForTool(tool);
   return {
     domains: [...new Set(datasets.flatMap((dataset) => dataset.domains))],
-    exhaustive: datasets.length > 0 && datasets.every((dataset) => dataset.capabilities.exhaustiveScan),
+    exhaustive:
+      datasets.length > 0 && datasets.every((dataset) => dataset.capabilities.exhaustiveScan),
     datasetIds: datasets.map((dataset) => dataset.id),
   };
 }
 
-export function meriRecipeCatalogEntry(
-  tool: MeriRetrievalRecipeTool,
-): MeriRecipeCatalogEntry {
+export function meriRecipeCatalogEntry(tool: MeriRetrievalRecipeTool): MeriRecipeCatalogEntry {
   return MERI_RECIPE_CATALOG[tool];
 }

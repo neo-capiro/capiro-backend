@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { meriArtifactIdFromDownloadUrl, type MeriArtifactAuthHeaders } from '../../components/chat/meri-artifact-download.js';
+import { meriArtifactDownloadFromUrl, type MeriArtifactAuthHeaders } from '../../components/chat/meri-artifact-download.js';
 import { useMeriArtifactDownload } from '../../components/chat/useMeriArtifactDownload.js';
 
 export function MeriArtifactDownloadLink({ href, children, apiBaseUrl, getAuthHeaders }: {
@@ -8,11 +8,12 @@ export function MeriArtifactDownloadLink({ href, children, apiBaseUrl, getAuthHe
   apiBaseUrl: string;
   getAuthHeaders?: MeriArtifactAuthHeaders;
 }) {
-  const artifactId = meriArtifactIdFromDownloadUrl(href, apiBaseUrl);
+  const download = meriArtifactDownloadFromUrl(href, apiBaseUrl);
   const { downloading, downloadError, downloadOfficeDoc } = useMeriArtifactDownload({
-    artifactId: artifactId ?? undefined, apiBaseUrl, getAuthHeaders,
+    artifactId: download?.artifactId, format: download?.format, apiBaseUrl, getAuthHeaders,
   });
-  if (!artifactId) return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+  if (!download && href?.trimStart().toLowerCase().startsWith('sandbox:')) return <span>{children}</span>;
+  if (!download) return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
   return (
     <span>
       <button

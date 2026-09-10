@@ -20,7 +20,12 @@
  * always has: plain language naming the real node/date/label involved.
  */
 
-import { fyOfIso, validIso, isStrategyStepOverdue, type Violation } from '@capiro/strategy-verifier';
+import {
+  fyOfIso,
+  validIso,
+  isStrategyStepOverdue,
+  type Violation,
+} from '@capiro/strategy-verifier';
 import type { PlanEdit } from '../meri/meri.types.js';
 
 export const FINDING_SEVERITIES = ['info', 'warning', 'critical'] as const;

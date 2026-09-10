@@ -35,7 +35,6 @@ jest.mock('../clients/representation-resolver.service.js', () => ({
 }));
 jest.mock('./meri-docgen.service.js', () => ({ MeriDocgenService: jest.fn() }));
 jest.mock('./meri-context-plane.service.js', () => ({ MeriContextPlaneService: jest.fn() }));
-jest.mock('../retrieval/retrieval-v2.service.js', () => ({ RetrievalV2Service: jest.fn() }));
 jest.mock('../funding-opportunities/meri-opportunity-tools.adapter.js', () => ({
   MeriOpportunityToolsAdapter: jest.fn(),
 }));
@@ -280,15 +279,8 @@ describe('Meri tool registration', () => {
           };
         if (property === 'contextPlane')
           return {
-            securityEnvelope: async () => ({
-              authorizedClientIds: [],
-              authorizedMailboxConnectionIds: [],
-            }),
-          };
-        if (property === 'sharedRetrieval')
-          return {
-            retrieve: async () => {
-              calls.push('retrieve');
+            searchToolData: async () => {
+              calls.push('searchToolData');
               return sentinel;
             },
           };

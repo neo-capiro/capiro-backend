@@ -100,7 +100,8 @@ const ONTOLOGY: OntologyRule[] = [
     ],
   },
   {
-    pattern: /\b(?:fiber|optic|communications?|data[-\s]?link|command|control|c2|network|rf|spectrum|video)\b/i,
+    pattern:
+      /\b(?:fiber|optic|communications?|data[-\s]?link|command|control|c2|network|rf|spectrum|video)\b/i,
     missions: [
       'assured command and control',
       'RF-denied mission continuity',
@@ -181,10 +182,7 @@ const ONTOLOGY: OntologyRule[] = [
       'Marine Corps littoral forces',
     ],
     acquisitions: ['Naval Aviation Systems Consortium', 'Navy maritime prototype OTA'],
-    capabilityAliases: [
-      'littoral-qualified subsystem',
-      'maritime autonomous systems integration',
-    ],
+    capabilityAliases: ['littoral-qualified subsystem', 'maritime autonomous systems integration'],
   },
   {
     pattern: /\b(?:sensor|payload|isr|surveillance|targeting|reconnaissance)\b/i,
@@ -206,10 +204,7 @@ const ONTOLOGY: OntologyRule[] = [
       'human-machine teaming',
       'operational analytics',
     ],
-    customers: [
-      'service autonomy offices',
-      'Chief Digital and Artificial Intelligence Office',
-    ],
+    customers: ['service autonomy offices', 'Chief Digital and Artificial Intelligence Office'],
     acquisitions: [
       'Tradewinds solutions marketplace',
       'AI prototype OTA',
@@ -263,7 +258,10 @@ function normalizedMaterial(target: string, signals: MeriFederalMarketSignals): 
 }
 
 function shortTerms(values: readonly string[], max: number): string[] {
-  return unique(values.filter((value) => value.length >= 4), max);
+  return unique(
+    values.filter((value) => value.length >= 4),
+    max,
+  );
 }
 
 function queryKey(query: MeriFederalMarketResearchQuery): string {
@@ -280,8 +278,8 @@ function balancedQueries(
     seen.add(key);
     return true;
   });
-  const selected = (Object.keys(WAVE_LIMITS) as MeriFederalMarketResearchWave[]).flatMap(
-    (wave) => deduped.filter((query) => query.wave === wave).slice(0, WAVE_LIMITS[wave]),
+  const selected = (Object.keys(WAVE_LIMITS) as MeriFederalMarketResearchWave[]).flatMap((wave) =>
+    deduped.filter((query) => query.wave === wave).slice(0, WAVE_LIMITS[wave]),
   );
   return selected.map((query, index) => ({ ...query, id: `${query.wave}-${index + 1}` }));
 }
@@ -618,7 +616,9 @@ export function evaluateMeriFederalMarketStrategyCoverage(input: {
     );
   }
   if (!evidence.has('budget_programs')) {
-    criticFindings.push('No load-bearing Program Element or procurement account has been validated.');
+    criticFindings.push(
+      'No load-bearing Program Element or procurement account has been validated.',
+    );
   }
   if (!evidence.has('contracts_otas')) {
     criticFindings.push(

@@ -23,9 +23,7 @@ function plan(recipeTool: MeriRetrievalPlan['recipeTool']): MeriRetrievalPlan {
 
 describe('Meri external company research skill', () => {
   test('requires full reporting for resolved or provisional identities', () => {
-    const prompt = meriExternalCompanyResearchSkillPrompt(
-      plan('research_external_company'),
-    );
+    const prompt = meriExternalCompanyResearchSkillPrompt(plan('research_external_company'));
 
     expect(MERI_EXTERNAL_COMPANY_RESEARCH_SKILL_VERSION).toBe(1);
     expect(prompt).toMatch(/Call research_external_company first/i);

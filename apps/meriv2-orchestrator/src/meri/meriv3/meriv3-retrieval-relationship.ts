@@ -41,20 +41,21 @@ function normalizedTargetTokens(target: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .split(/\s+/)
-    .filter((token) => token.length >= 3 && !['company', 'group', 'strategies', 'strategy'].includes(token));
+    .filter(
+      (token) =>
+        token.length >= 3 && !['company', 'group', 'strategies', 'strategy'].includes(token),
+    );
 }
 
 function domainFromIdentifier(value: string): string | null {
-  const candidate = value.includes('@') ? value.split('@').pop() ?? '' : value;
+  const candidate = value.includes('@') ? (value.split('@').pop() ?? '') : value;
   const normalized = candidate
     .replace(/^https?:\/\//i, '')
     .replace(/^www\./i, '')
     .split(/[/?#]/, 1)[0]
     ?.toLowerCase()
     .replace(/[),.;!?]+$/g, '');
-  return normalized && /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,24}$/.test(normalized)
-    ? normalized
-    : null;
+  return normalized && /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,24}$/.test(normalized) ? normalized : null;
 }
 
 function collectContactIdentifiers(value: unknown, output: Set<string>, depth = 0): void {
@@ -206,8 +207,7 @@ function mailboxCoverage(
     recordsReturned: communications.length,
     paginationComplete: !paginationIncomplete,
     truncated: paginationIncomplete,
-    partialSources:
-      paginationIncomplete || healthIssues.length > 0 ? ['search_emails'] : [],
+    partialSources: paginationIncomplete || healthIssues.length > 0 ? ['search_emails'] : [],
     unavailableSources: [
       ...errors.map((source) => ({
         source: 'mail',
@@ -324,9 +324,7 @@ export async function executeMeriRelationshipBrief(
   const manifest = mailboxCoverage(sources, communications);
   const domains = [
     ...new Set(
-      participants
-        .map(domainFromIdentifier)
-        .filter((value): value is string => Boolean(value)),
+      participants.map(domainFromIdentifier).filter((value): value is string => Boolean(value)),
     ),
   ];
   const optionalFailures = sources

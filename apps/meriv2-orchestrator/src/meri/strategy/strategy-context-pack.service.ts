@@ -68,10 +68,7 @@ export class StrategyContextPackService {
     }
 
     const coverage = governed.retrieval.coverage;
-    const unavailable = new Set([
-      ...coverage.missingDomains,
-      ...coverage.partialDomains,
-    ]);
+    const unavailable = new Set([...coverage.missingDomains, ...coverage.partialDomains]);
     const missingRequired = [...REQUIRED_DOMAINS].filter((domain) => unavailable.has(domain));
     const omittedOptional = [...unavailable].filter((domain) => !REQUIRED_DOMAINS.has(domain));
     const degraded =

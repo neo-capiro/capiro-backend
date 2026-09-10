@@ -69,7 +69,8 @@ function companyResearchMock(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
               id: 'web-1',
               title: 'Kinetic Industries Inc.',
               url: 'https://kineticindustries.com',
-              snippet: 'Supply chain logistics, distribution management, inventory readiness and analytics.',
+              snippet:
+                'Supply chain logistics, distribution management, inventory readiness and analytics.',
             },
           ],
         };
@@ -184,7 +185,9 @@ describe('MeriV3 deeper retrieval recipes', () => {
       url: 'https://kineticindustries.com',
     });
     expect(result.qualificationGaps).not.toContain('UEI was not verified in retrieved evidence.');
-    expect(result.qualificationGaps).not.toContain('CAGE code was not verified in retrieved evidence.');
+    expect(result.qualificationGaps).not.toContain(
+      'CAGE code was not verified in retrieved evidence.',
+    );
   });
 
   test('portfolio overlap resolves each client to a UUID before loading opportunity posture', async () => {

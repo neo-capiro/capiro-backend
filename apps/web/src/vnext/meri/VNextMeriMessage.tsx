@@ -36,6 +36,7 @@ import type { MeriThinkingTabProps } from './MeriThinkingTab.js';
 import type { MeriEvidenceTabProps } from './MeriEvidenceTab.js';
 import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
 import { MeriArtifactDownloadLink } from './MeriArtifactDownloadLink.js';
+import { canonicalMeriArtifactSandboxUrl } from '../../components/chat/meri-artifact-download.js';
 import { config } from '../../env.js';
 import { MeriSavePromptButton } from './MeriSavedPromptWorkflow.js';
 
@@ -345,7 +346,7 @@ function VNextMeriAssistantMessage({
           {markdownSource ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize]}
+              rehypePlugins={[rehypeMeriArtifactDownloadUrls, rehypeSanitize]}
               components={markdownComponents}
             >
               {markdownSource}
@@ -686,6 +687,25 @@ function VNextMeriAssistantMessage({
             ))}
           </div>
         ) : null}
+        {message.documentArtifacts?.length ? (
+          <div aria-label="Saved documents" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+            {message.documentArtifacts.map((artifact) => (
+              <div key={artifact.id} role="group" aria-label={`${artifact.title} exports`}
+                style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingRight: 10 }}>
+                <button type="button" className="vnext-meri__inline-action-btn"
+                  onClick={() => controller.setActiveArtifact(artifact)}
+                  style={{ width: 'auto', height: 'auto', padding: '9px 12px', gap: 8, textAlign: 'left' }}>
+                  <MeriIcon name="File04" size={15} />
+                  <span>Open {artifact.title}</span>
+                </button>
+                {artifact.kind === 'word_document' || artifact.kind === 'pdf_document' ? <>
+                  <MeriArtifactDownloadLink href={`/api/clio/artifacts/${artifact.id}/download?format=docx`} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={controller.authHeaders}>Download Word</MeriArtifactDownloadLink>
+                  <MeriArtifactDownloadLink href={`/api/clio/artifacts/${artifact.id}/download?format=pdf`} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={controller.authHeaders}>Download PDF</MeriArtifactDownloadLink>
+                </> : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -755,6 +775,27 @@ function injectCitations(
     if (last < child.length) parts.push(child.slice(last));
     return parts.length ? parts : child;
   });
+}
+
+/** Rewrite the narrow saved-artifact alias before either Markdown sanitizer
+ * removes its scheme. All other URLs still pass through the default rules. */
+function rehypeMeriArtifactDownloadUrls() {
+  return (tree: unknown) => {
+    const pending: unknown[] = [tree];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== 'object' || Array.isArray(node)) continue;
+      const element = node as Record<string, unknown>;
+      if (element.type === 'element' && element.tagName === 'a' && element.properties && typeof element.properties === 'object') {
+        const properties = element.properties as Record<string, unknown>;
+        if (typeof properties.href === 'string') {
+          const canonical = canonicalMeriArtifactSandboxUrl(properties.href);
+          if (canonical) properties.href = canonical;
+        }
+      }
+      if (Array.isArray(element.children)) pending.push(...element.children);
+    }
+  };
 }
 
 function buildMarkdownComponents(

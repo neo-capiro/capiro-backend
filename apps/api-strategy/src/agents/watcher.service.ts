@@ -63,43 +63,95 @@ export class WatcherService {
 
   /** Read monitoring independently of proposal count; an empty queue is not proof of a check. */
   async monitoring(tenantId: string, strategyId: string) {
-    const available = await this.flags.isAgenticFlagEnabled(tenantId, AGENTIC_FLAGS.strategyWatcher);
+    const available = await this.flags.isAgenticFlagEnabled(
+      tenantId,
+      AGENTIC_FLAGS.strategyWatcher,
+    );
     return this.prisma.withTenant(tenantId, async (tx) => {
-      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId, archivedAt: null }, select: { id: true } });
+      const strategy = await tx.spStrategy.findFirst({
+        where: { id: strategyId, archivedAt: null },
+        select: { id: true },
+      });
       if (!strategy) throw new NotFoundException('Strategy not found or archived');
       const missions = await tx.spAgentMission.findMany({
         where: { strategyId, ...WATCH_MISSION_WHERE },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       });
       const mission = missions.find((m) => m.state === 'active') ?? missions[0] ?? null;
-      const latest = mission ? await tx.spAgentRun.findFirst({
-        where: { missionId: { in: missions.map((m) => m.id) } },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      }) : null;
-      const payload = latest?.findings && typeof latest.findings === 'object' && !Array.isArray(latest.findings)
-        ? latest.findings as Record<string, unknown> : null;
-      const checkedAt = typeof payload?.checkedAt === 'string' ? payload.checkedAt
-        : Array.isArray(payload?.findings) && typeof payload?.checkedOn === 'string' ? latest?.createdAt.toISOString() ?? null : null;
+      const latest = mission
+        ? await tx.spAgentRun.findFirst({
+            where: { missionId: { in: missions.map((m) => m.id) } },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          })
+        : null;
+      const payload =
+        latest?.findings && typeof latest.findings === 'object' && !Array.isArray(latest.findings)
+          ? (latest.findings as Record<string, unknown>)
+          : null;
+      const checkedAt =
+        typeof payload?.checkedAt === 'string'
+          ? payload.checkedAt
+          : Array.isArray(payload?.findings) && typeof payload?.checkedOn === 'string'
+            ? (latest?.createdAt.toISOString() ?? null)
+            : null;
       return {
-        strategyId, available,
-        schedulerEnabled: process.env.STRATEGY_AGENTS_ENABLED === 'true' && process.env.STRATEGY_WATCHER_SCHEDULER === 'true',
-        mission: mission ? { id: mission.id, state: mission.state, cadence: mission.cadence, nextRunAt: mission.nextRunAt?.toISOString() ?? null } : null,
-        duplicateMissionCount: missions.filter((m) => m.state === 'active' && m.id !== mission?.id).length,
-        lastRun: latest ? { id: latest.id, state: latest.state, startedAt: latest.startedAt?.toISOString() ?? latest.createdAt.toISOString(), checkedAt, error: latest.error, findingCount: Array.isArray(payload?.findings) ? payload.findings.length : null } : null,
+        strategyId,
+        available,
+        schedulerEnabled:
+          process.env.STRATEGY_AGENTS_ENABLED === 'true' &&
+          process.env.STRATEGY_WATCHER_SCHEDULER === 'true',
+        mission: mission
+          ? {
+              id: mission.id,
+              state: mission.state,
+              cadence: mission.cadence,
+              nextRunAt: mission.nextRunAt?.toISOString() ?? null,
+            }
+          : null,
+        duplicateMissionCount: missions.filter((m) => m.state === 'active' && m.id !== mission?.id)
+          .length,
+        lastRun: latest
+          ? {
+              id: latest.id,
+              state: latest.state,
+              startedAt: latest.startedAt?.toISOString() ?? latest.createdAt.toISOString(),
+              checkedAt,
+              error: latest.error,
+              findingCount: Array.isArray(payload?.findings) ? payload.findings.length : null,
+            }
+          : null,
       };
     });
   }
 
   /** A strategy-row lock serializes create-if-absent across tabs and people. */
-  async configureMonitoring(tenantId: string, userId: string, strategyId: string, mode: 'paused' | 'manual' | 'daily' | 'weekly') {
-    const available = await this.flags.isAgenticFlagEnabled(tenantId, AGENTIC_FLAGS.strategyWatcher);
-    if (!available) throw new ForbiddenException('Strategy monitoring is not enabled for your organization');
-    if ((mode === 'daily' || mode === 'weekly') && (process.env.STRATEGY_AGENTS_ENABLED !== 'true' || process.env.STRATEGY_WATCHER_SCHEDULER !== 'true')) {
-      throw new BadRequestException('Scheduled monitoring is unavailable. Choose manual checks until scheduling is enabled by your administrator.');
+  async configureMonitoring(
+    tenantId: string,
+    userId: string,
+    strategyId: string,
+    mode: 'paused' | 'manual' | 'daily' | 'weekly',
+  ) {
+    const available = await this.flags.isAgenticFlagEnabled(
+      tenantId,
+      AGENTIC_FLAGS.strategyWatcher,
+    );
+    if (!available)
+      throw new ForbiddenException('Strategy monitoring is not enabled for your organization');
+    if (
+      (mode === 'daily' || mode === 'weekly') &&
+      (process.env.STRATEGY_AGENTS_ENABLED !== 'true' ||
+        process.env.STRATEGY_WATCHER_SCHEDULER !== 'true')
+    ) {
+      throw new BadRequestException(
+        'Scheduled monitoring is unavailable. Choose manual checks until scheduling is enabled by your administrator.',
+      );
     }
     await this.prisma.withTenantUser(tenantId, userId, async (tx) => {
       await tx.$queryRaw`SELECT id FROM sp_strategy WHERE id = ${strategyId}::uuid FOR UPDATE`;
-      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId, archivedAt: null }, select: { id: true } });
+      const strategy = await tx.spStrategy.findFirst({
+        where: { id: strategyId, archivedAt: null },
+        select: { id: true },
+      });
       if (!strategy) throw new NotFoundException('Strategy not found or archived');
       const missions = await tx.spAgentMission.findMany({
         where: { strategyId, ...WATCH_MISSION_WHERE },
@@ -109,16 +161,58 @@ export class WatcherService {
       const duplicates = missions.filter((m) => m.id !== existing?.id);
       if (!existing && mode === 'paused') return;
       const cadence = mode === 'daily' || mode === 'weekly' ? mode : null;
-      const state = mode === 'paused' ? 'paused' as const : 'active' as const;
-      const nextRunAt = cadence ? existing?.state === 'active' && existing.cadence === cadence && existing.nextRunAt ? existing.nextRunAt : new Date() : null;
-      if (existing && existing.purpose === 'watch' && existing.state === state && existing.cadence === cadence && existing.nextRunAt?.getTime() === nextRunAt?.getTime() && !duplicates.some((m) => m.state === 'active' || m.cadence !== null || m.nextRunAt !== null)) return;
-      const mission = existing ? await tx.spAgentMission.update({ where: { id: existing.id }, data: { purpose: 'watch', state, cadence, nextRunAt, updatedByUserId: userId } })
-        : await tx.spAgentMission.create({ data: { tenantId, strategyId, name: WATCH_MISSION_NAME, purpose: 'watch', state, cadence, nextRunAt, createdByUserId: userId } });
+      const state = mode === 'paused' ? ('paused' as const) : ('active' as const);
+      const nextRunAt = cadence
+        ? existing?.state === 'active' && existing.cadence === cadence && existing.nextRunAt
+          ? existing.nextRunAt
+          : new Date()
+        : null;
+      if (
+        existing &&
+        existing.purpose === 'watch' &&
+        existing.state === state &&
+        existing.cadence === cadence &&
+        existing.nextRunAt?.getTime() === nextRunAt?.getTime() &&
+        !duplicates.some((m) => m.state === 'active' || m.cadence !== null || m.nextRunAt !== null)
+      )
+        return;
+      const mission = existing
+        ? await tx.spAgentMission.update({
+            where: { id: existing.id },
+            data: { purpose: 'watch', state, cadence, nextRunAt, updatedByUserId: userId },
+          })
+        : await tx.spAgentMission.create({
+            data: {
+              tenantId,
+              strategyId,
+              name: WATCH_MISSION_NAME,
+              purpose: 'watch',
+              state,
+              cadence,
+              nextRunAt,
+              createdByUserId: userId,
+            },
+          });
       // Historical duplicate Watch missions are paused, never deleted; their checks stay available.
       for (const duplicate of duplicates) {
-        await tx.spAgentMission.update({ where: { id: duplicate.id }, data: { purpose: 'watch', state: 'paused', cadence: null, nextRunAt: null, updatedByUserId: userId } });
+        await tx.spAgentMission.update({
+          where: { id: duplicate.id },
+          data: {
+            purpose: 'watch',
+            state: 'paused',
+            cadence: null,
+            nextRunAt: null,
+            updatedByUserId: userId,
+          },
+        });
       }
-      await this.versioning.logActivity(tx, { tenantId, actorUserId: userId, authorKind: 'person', action: 'watch.monitoring_configured', entityType: 'mission', entityId: mission.id,
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: userId,
+        authorKind: 'person',
+        action: 'watch.monitoring_configured',
+        entityType: 'mission',
+        entityId: mission.id,
         before: existing ? { state: existing.state, cadence: existing.cadence } : null,
         after: { strategyId, mode, pausedDuplicateIds: duplicates.map((m) => m.id) },
       });
@@ -444,7 +538,9 @@ export class WatcherService {
         include: { nodes: { where: { ...LIVE_NODE_WHERE } }, artifacts: true },
       });
       if (!current || checkSnapshot(current) !== expectedSnapshot) {
-        throw new ConflictException('The plan changed during the Watch check. Run the check again.');
+        throw new ConflictException(
+          'The plan changed during the Watch check. Run the check again.',
+        );
       }
 
       // Same head total order ChangeSetsService.headOf pins (and apply's stale
@@ -792,4 +888,3 @@ export function computeArtifactMismatches(
   }
   return [...mismatched];
 }
-

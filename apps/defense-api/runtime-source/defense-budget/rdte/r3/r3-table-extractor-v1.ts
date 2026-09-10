@@ -129,7 +129,7 @@ interface R3DetectedTable {
 function detectR3TablesOnPage(page: ParserPageResultV1): R3DetectedTable[] {
   const detected: R3DetectedTable[] = [];
   for (const table of page.tables) {
-    const result = analyzeR3Table(page.page, page.printedPage, table);
+    const result = analyzeR3Table(page.page, page.printedPage ?? undefined, table);
     if (result != null) detected.push(result);
   }
   return detected;

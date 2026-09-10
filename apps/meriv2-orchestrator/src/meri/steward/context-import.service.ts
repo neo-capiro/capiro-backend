@@ -178,7 +178,9 @@ export class ContextImportService {
     }
     const tools = Array.isArray(response.content)
       ? response.content.filter(
-          (block): block is {
+          (
+            block,
+          ): block is {
             type: 'tool_use';
             id: string;
             name: string;

@@ -4,9 +4,9 @@ describe('ContextPlaneAuditService Phase 18', () => {
   test('writes one tenant-scoped bounded decision record and no context bodies', async () => {
     const execute = jest.fn().mockResolvedValue(1);
     const prisma = {
-      withTenant: jest.fn().mockImplementation(async (_tenantId, run) =>
-        run({ $executeRaw: execute }),
-      ),
+      withTenant: jest
+        .fn()
+        .mockImplementation(async (_tenantId, run) => run({ $executeRaw: execute })),
     };
     const service = new ContextPlaneAuditService(prisma as never);
 
@@ -52,9 +52,11 @@ describe('ContextPlaneAuditService Phase 18', () => {
 
   test('fails closed when the audit row cannot be written', async () => {
     const prisma = {
-      withTenant: jest.fn().mockImplementation(async (_tenantId, run) =>
-        run({ $executeRaw: jest.fn().mockResolvedValue(0) }),
-      ),
+      withTenant: jest
+        .fn()
+        .mockImplementation(async (_tenantId, run) =>
+          run({ $executeRaw: jest.fn().mockResolvedValue(0) }),
+        ),
     };
     const service = new ContextPlaneAuditService(prisma as never);
 

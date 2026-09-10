@@ -138,11 +138,12 @@ export function humanizeExternalCompanyInput(raw: string): string {
   } catch {
     // Keep the original string when it is not valid URI encoding.
   }
-  value = value
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/^mailto:/i, '')
-    .split(/[/?#]/, 1)[0] ?? value;
+  value =
+    value
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/^mailto:/i, '')
+      .split(/[/?#]/, 1)[0] ?? value;
   if (value.includes('@')) value = value.split('@').pop() ?? value;
 
   // Corporate suffixes are commonly typed as if they were a TLD. Preserve
@@ -307,7 +308,8 @@ function webCandidates(
       const domain = domainFromUrl(url);
       const title = rowString(raw, ['companyName', 'name', 'title', 'headline']);
       const titleName = title ? cleanSearchTitle(title) : null;
-      const domainName = domain && isLikelyOfficialDomain(domain) ? candidateNameFromDomain(domain) : null;
+      const domainName =
+        domain && isLikelyOfficialDomain(domain) ? candidateNameFromDomain(domain) : null;
       const name = titleName ?? domainName;
       if (!name) continue;
       const domains = domain && isLikelyOfficialDomain(domain) ? [domain] : [];
@@ -341,11 +343,12 @@ function webCandidates(
       const domains = [...candidate.domains];
       const evidenceBoost = Math.min(0.18, Math.max(0, candidate.evidenceCount - 1) * 0.045);
       const officialDomainBoost = domains.length ? 0.12 : 0;
-      const corporateNameBoost = /\b(inc|llc|corp|corporation|ltd|limited|group|industries|systems|solutions|technologies)\b/i.test(
-        candidate.canonicalName,
-      )
-        ? 0.04
-        : 0;
+      const corporateNameBoost =
+        /\b(inc|llc|corp|corporation|ltd|limited|group|industries|systems|solutions|technologies)\b/i.test(
+          candidate.canonicalName,
+        )
+          ? 0.04
+          : 0;
       const score = Math.min(
         1,
         candidate.similarity * 0.72 + evidenceBoost + officialDomainBoost + corporateNameBoost,
@@ -397,11 +400,13 @@ function selectedCandidateForResolution(
   );
 }
 
-function provisionalCandidate(
-  candidates: MeriExternalCompanyCandidate[],
-): { candidate: MeriExternalCompanyCandidate | null; ambiguityReason: string | null } {
+function provisionalCandidate(candidates: MeriExternalCompanyCandidate[]): {
+  candidate: MeriExternalCompanyCandidate | null;
+  ambiguityReason: string | null;
+} {
   const first = candidates[0];
-  if (!first) return { candidate: null, ambiguityReason: 'No credible company candidate was found.' };
+  if (!first)
+    return { candidate: null, ambiguityReason: 'No credible company candidate was found.' };
   const second = candidates[1];
   const lead = second ? first.score - second.score : first.score;
   const corroborated = first.evidenceCount >= 2 || first.supportingQueries.length >= 2;
@@ -487,9 +492,7 @@ export async function executeMeriExternalCompanyDiscovery(
     : provisionalCandidate(candidates);
   const selectedCandidate = provisional.candidate;
   const domain =
-    resolvedDomains(resolution)[0] ??
-    selectedCandidate?.domains[0] ??
-    probableDomain(input);
+    resolvedDomains(resolution)[0] ?? selectedCandidate?.domains[0] ?? probableDomain(input);
   const officialSite = domain
     ? await safeInvoke(invoke, 'scrape_web_page', { url: `https://${domain}` })
     : null;
@@ -497,10 +500,7 @@ export async function executeMeriExternalCompanyDiscovery(
 
   const officialSiteUsable =
     officialSite != null &&
-    !(
-      isRecord(officialSite.result) &&
-      typeof officialSite.result.error === 'string'
-    );
+    !(isRecord(officialSite.result) && typeof officialSite.result.error === 'string');
   const resolved = resolutionIsResolved(resolution);
   const provisionalUsable = Boolean(selectedCandidate && officialSiteUsable);
   const identityStatus: MeriExternalCompanyIdentityStatus = resolved
@@ -517,8 +517,7 @@ export async function executeMeriExternalCompanyDiscovery(
     input,
     normalizedInput,
     queryVariants,
-    correctionApplied:
-      normalizedComparable(researchName) !== normalizedComparable(input),
+    correctionApplied: normalizedComparable(researchName) !== normalizedComparable(input),
     identityStatus,
     researchName,
     resolution,

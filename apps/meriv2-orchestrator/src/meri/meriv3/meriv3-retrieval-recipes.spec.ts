@@ -462,9 +462,7 @@ describe('MeriV3 retrieval recipes', () => {
     );
     expect(result.carryoverAttention.map((item) => item.id)).toContain('task-old');
     expect(
-      calls
-        .filter((call) => call.name === 'query_debriefs')
-        .map((call) => call.input.clientId),
+      calls.filter((call) => call.name === 'query_debriefs').map((call) => call.input.clientId),
     ).toEqual(expect.arrayContaining(['Client A', 'Client B']));
     expect(
       calls
@@ -482,7 +480,8 @@ describe('MeriV3 retrieval recipes', () => {
               id: 'web-company',
               title: 'Kinetic Industries Inc.',
               url: 'https://kineticindustries.com',
-              snippet: 'Supply chain logistics, readiness, inventory and Navy distribution consulting.',
+              snippet:
+                'Supply chain logistics, readiness, inventory and Navy distribution consulting.',
             },
           ],
         };
@@ -498,10 +497,7 @@ describe('MeriV3 retrieval recipes', () => {
               },
             },
             profile: {
-              capabilities: [
-                { name: 'Supply Chain Logistics' },
-                { name: 'Inventory Readiness' },
-              ],
+              capabilities: [{ name: 'Supply Chain Logistics' }, { name: 'Inventory Readiness' }],
             },
           };
         }

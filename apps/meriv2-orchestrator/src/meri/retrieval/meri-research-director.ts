@@ -17,8 +17,7 @@ export const MERI_FEDERAL_MARKET_RESEARCH_DOMAINS = [
   'risks',
 ] as const;
 
-export type MeriFederalMarketResearchDomain =
-  (typeof MERI_FEDERAL_MARKET_RESEARCH_DOMAINS)[number];
+export type MeriFederalMarketResearchDomain = (typeof MERI_FEDERAL_MARKET_RESEARCH_DOMAINS)[number];
 
 export type MeriResearchReasoningMode = 'fast' | 'standard' | 'deep' | 'max';
 
@@ -99,7 +98,11 @@ function domainHypotheses(request: string): string[] {
       'Launched effects, small UAS, attritable autonomous systems, loitering systems, operational experimentation, and component-inclusive drone acquisition channels may be material adjacencies.',
     );
   }
-  if (/\b(?:fiber|communications?|data[-\s]?link|command\s+and\s+control|c2|rf[-\s]?denied)\b/.test(text)) {
+  if (
+    /\b(?:fiber|communications?|data[-\s]?link|command\s+and\s+control|c2|rf[-\s]?denied)\b/.test(
+      text,
+    )
+  ) {
     hypotheses.push(
       'The capability should be searched as assured command-and-control, payload data transport, contested-spectrum resilience, network extension, and mission continuity—not only by its component name.',
     );
@@ -128,7 +131,8 @@ export function buildMeriResearchDirectorPlan(
     waves: [
       {
         id: 'identity',
-        objective: 'Resolve the correct company and authoritative public identity before market analysis.',
+        objective:
+          'Resolve the correct company and authoritative public identity before market analysis.',
         requiredDomains: ['identity', 'company_profile'],
         guidance: [
           'Normalize misspellings, joined words, domains, aliases, legal suffixes, and trade names.',
@@ -137,7 +141,8 @@ export function buildMeriResearchDirectorPlan(
       },
       {
         id: 'capability',
-        objective: 'Translate products into capabilities, operational effects, constraints, proof requirements, and federal vocabulary.',
+        objective:
+          'Translate products into capabilities, operational effects, constraints, proof requirements, and federal vocabulary.',
         requiredDomains: ['capability_model', 'compliance'],
         guidance: [
           'Separate verified product facts from inferred mission applications.',
@@ -146,8 +151,14 @@ export function buildMeriResearchDirectorPlan(
       },
       {
         id: 'mission',
-        objective: 'Generate and test mission, platform, customer, program-family, and transition hypotheses.',
-        requiredDomains: ['mission_map', 'budget_programs', 'procurement', 'operational_validation'],
+        objective:
+          'Generate and test mission, platform, customer, program-family, and transition hypotheses.',
+        requiredDomains: [
+          'mission_map',
+          'budget_programs',
+          'procurement',
+          'operational_validation',
+        ],
         guidance: [
           'Search direct fits, conditional niches, and material adjacencies.',
           'Do not let the first few Program Element matches define the whole strategy.',
@@ -155,7 +166,8 @@ export function buildMeriResearchDirectorPlan(
       },
       {
         id: 'acquisition',
-        objective: 'Find concrete acquisition access: solicitations, OTAs, consortia, marketplaces, primes, OEMs, test organizations, and innovation programs.',
+        objective:
+          'Find concrete acquisition access: solicitations, OTAs, consortia, marketplaces, primes, OEMs, test organizations, and innovation programs.',
         requiredDomains: ['contracts_otas', 'grants_innovation', 'partners', 'stakeholders'],
         guidance: [
           'Treat current notices, recurring channels, and partner routes as separate evidence classes.',
@@ -164,7 +176,8 @@ export function buildMeriResearchDirectorPlan(
       },
       {
         id: 'congressional',
-        objective: 'Search authorization, appropriations, report language, program increases, and viable congressional advocacy pathways.',
+        objective:
+          'Search authorization, appropriations, report language, program increases, and viable congressional advocacy pathways.',
         requiredDomains: ['congressional'],
         guidance: [
           'Search exact capability terms plus broader mission/program language.',
@@ -173,7 +186,8 @@ export function buildMeriResearchDirectorPlan(
       },
       {
         id: 'scale',
-        objective: 'Assess domestic production, industrial-base, compliance, financing, and defensibility requirements.',
+        objective:
+          'Assess domestic production, industrial-base, compliance, financing, and defensibility requirements.',
         requiredDomains: ['industrial_base', 'compliance', 'risks'],
         guidance: [
           'Use scale-up capital after demand and transition sponsorship are credible.',
@@ -182,8 +196,16 @@ export function buildMeriResearchDirectorPlan(
       },
       {
         id: 'verification',
-        objective: 'Verify load-bearing programs, amounts, report language, deadlines, eligibility, performers, and stakeholder identities before synthesis.',
-        requiredDomains: ['budget_programs', 'procurement', 'contracts_otas', 'grants_innovation', 'congressional', 'stakeholders'],
+        objective:
+          'Verify load-bearing programs, amounts, report language, deadlines, eligibility, performers, and stakeholder identities before synthesis.',
+        requiredDomains: [
+          'budget_programs',
+          'procurement',
+          'contracts_otas',
+          'grants_innovation',
+          'congressional',
+          'stakeholders',
+        ],
         guidance: [
           'Validate Program Element and procurement-line type, current-cycle budget stage, and report language with specialist readers.',
           'Challenge omissions, contradictions, over-conservative conclusions, and speculative recommendations before writing.',

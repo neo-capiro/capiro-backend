@@ -42,7 +42,9 @@ export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
       type: 'object',
       additionalProperties: false,
       properties: {
-        entity: stringSchema('Company, organization, or person whose relationship history is requested'),
+        entity: stringSchema(
+          'Company, organization, or person whose relationship history is requested',
+        ),
         withinDays: integerSchema('Optional recency window in days (1-3650)'),
       },
       required: ['entity'],

@@ -57,9 +57,19 @@ function matches(rec: Rec, where: Record<string, unknown> | undefined): boolean 
   if (!where) return true;
   for (const [key, cond] of Object.entries(where)) {
     if (cond === undefined) continue;
-    if (key === 'OR') { if (!(cond as Array<Record<string, unknown>>).some((w) => matches(rec, w))) return false; continue; }
-    if (key === 'NOT') { if (matches(rec, cond as Record<string, unknown>)) return false; continue; }
-    if (key === 'runs') { if (!(rec.runs as Rec[] ?? []).some((run) => matches(run, (cond as any).some))) return false; continue; }
+    if (key === 'OR') {
+      if (!(cond as Array<Record<string, unknown>>).some((w) => matches(rec, w))) return false;
+      continue;
+    }
+    if (key === 'NOT') {
+      if (matches(rec, cond as Record<string, unknown>)) return false;
+      continue;
+    }
+    if (key === 'runs') {
+      if (!((rec.runs as Rec[]) ?? []).some((run) => matches(run, (cond as any).some)))
+        return false;
+      continue;
+    }
     if (key === 'findings' && typeof cond === 'object' && 'path' in (cond as object)) {
       const value = (rec.findings as any)?.[(cond as any).path[0]];
       if (value === null || value === undefined) return false;
@@ -83,7 +93,12 @@ function matches(rec: Rec, where: Record<string, unknown> | undefined): boolean 
         continue;
       }
       if ('startsWith' in c) {
-        if (typeof val !== 'string' || typeof c.startsWith !== 'string' || !val.startsWith(c.startsWith)) return false;
+        if (
+          typeof val !== 'string' ||
+          typeof c.startsWith !== 'string' ||
+          !val.startsWith(c.startsWith)
+        )
+          return false;
         continue;
       }
       throw new Error(`fake tx: unmodelled where operator for '${key}': ${JSON.stringify(cond)}`);
@@ -346,7 +361,14 @@ function makeTx(store: Store, heldLocks: Array<() => void> = []) {
     findFirst: async (args: {
       where?: Record<string, unknown>;
       orderBy?: OrderSpec | OrderSpec[];
-    }) => findFirstGeneric([...store.missions.values()].map((m) => ({ ...m, runs: [...store.runs.values()].filter((r) => r.missionId === m.id) })), args),
+    }) =>
+      findFirstGeneric(
+        [...store.missions.values()].map((m) => ({
+          ...m,
+          runs: [...store.runs.values()].filter((r) => r.missionId === m.id),
+        })),
+        args,
+      ),
   };
 
   const spAgentRun = {
@@ -1011,7 +1033,12 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
   it('keeps a custom Watch mission selected when a newer Execution mission exists', async () => {
     const store = makeStore();
     const { svc } = await seedOneOpenProposal(store, { id: 'N1' });
-    store.missions.set('execute-mission', { ...store.missions.get(MID)!, id: 'execute-mission', name: 'Execute this strategy', createdAt: new Date() });
+    store.missions.set('execute-mission', {
+      ...store.missions.get(MID)!,
+      id: 'execute-mission',
+      name: 'Execute this strategy',
+      createdAt: new Date(),
+    });
     expect((await svc.getState(T, SID)).mission?.id).toBe(MID);
   });
 
@@ -1037,7 +1064,11 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
     const run = [...store.runs.values()][0]!;
     const yesterday = new Date(`${daysFromToday(-1)}T12:00:00.000Z`);
     run.createdAt = yesterday;
-    run.findings = { ...(run.findings as object), checkedOn: daysFromToday(-1), checkedAt: yesterday.toISOString() };
+    run.findings = {
+      ...(run.findings as object),
+      checkedOn: daysFromToday(-1),
+      checkedAt: yesterday.toISOString(),
+    };
     const spy = jest.spyOn(watcher, 'runCheckNow');
 
     const result = await svc.revalidate(T, U, SID, 'panel-open');
@@ -1068,16 +1099,23 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
     seedVersion(store, 'v2', new Date());
     const first = await svc.revalidate(T, U, SID, 'panel-open');
     expect(first.lastRecheck!.state).toBe('complete');
-    const recheck = [...store.runs.values()].find((r) => String(r.idempotencyKey).startsWith('recheck:'))!;
+    const recheck = [...store.runs.values()].find((r) =>
+      String(r.idempotencyKey).startsWith('recheck:'),
+    )!;
     recheck.state = 'failed_terminal';
     recheck.createdAt = new Date(Date.now() + 1);
     const spy = jest.spyOn(watcher, 'runCheckNow');
 
     const result = await svc.revalidate(T, U, SID, 'panel-open');
 
-    expect(spy).toHaveBeenCalledWith(T, U, MID, expect.objectContaining({
-      idempotencyKey: expect.stringContaining(`:retry:${recheck.id}`),
-    }));
+    expect(spy).toHaveBeenCalledWith(
+      T,
+      U,
+      MID,
+      expect.objectContaining({
+        idempotencyKey: expect.stringContaining(`:retry:${recheck.id}`),
+      }),
+    );
     expect(result.lastRecheck!.state).toBe('complete');
     expect(store.runs.size).toBe(3);
   });
@@ -1087,22 +1125,36 @@ describe('WatchReviewService.revalidate — panel-open fast no-op vs refresh-aft
     const { svc, watcher } = await seedOneOpenProposal(store, { id: 'N1' });
     for (const run of store.runs.values()) run.createdAt = new Date(Date.now() - 1000);
     await svc.revalidate(T, U, SID, 'manual-check');
-    const failed = [...store.runs.values()].find((run) => String(run.idempotencyKey).startsWith('recheck:'))!;
+    const failed = [...store.runs.values()].find((run) =>
+      String(run.idempotencyKey).startsWith('recheck:'),
+    )!;
     failed.state = 'failed_terminal';
     failed.createdAt = new Date(Date.now() - 100);
     expect((await svc.revalidate(T, U, SID, 'manual-check')).lastRecheck!.state).toBe('complete');
-    const retry = [...store.runs.values()].find((run) => String(run.idempotencyKey).includes(':retry:'))!;
+    const retry = [...store.runs.values()].find((run) =>
+      String(run.idempotencyKey).includes(':retry:'),
+    )!;
     const spy = jest.spyOn(watcher, 'runCheckNow');
 
     const refresh = await svc.revalidate(T, U, SID, 'manual-check');
     expect(refresh.lastRecheck!.state).toBe('complete');
-    expect(spy).toHaveBeenLastCalledWith(T, U, MID, expect.objectContaining({ idempotencyKey: retry.idempotencyKey }));
+    expect(spy).toHaveBeenLastCalledWith(
+      T,
+      U,
+      MID,
+      expect.objectContaining({ idempotencyKey: retry.idempotencyKey }),
+    );
     expect(store.runs.size).toBe(3);
 
     // A separate scheduled/manual check must not hide the successful retry lineage.
     await watcher.runCheckNow(T, U, MID, { idempotencyKey: 'independent-check' });
     expect((await svc.revalidate(T, U, SID, 'manual-check')).lastRecheck!.state).toBe('complete');
-    expect(spy).toHaveBeenLastCalledWith(T, U, MID, expect.objectContaining({ idempotencyKey: retry.idempotencyKey }));
+    expect(spy).toHaveBeenLastCalledWith(
+      T,
+      U,
+      MID,
+      expect.objectContaining({ idempotencyKey: retry.idempotencyKey }),
+    );
     expect(store.runs.size).toBe(4);
   });
 
@@ -1817,7 +1869,9 @@ describe('Phase 6 §4 — revalidate under concurrency', () => {
     const store = makeStore();
     const { svc, watcher, csId } = await seedOneOpenProposal(store, { id: 'N1' });
     seedVersion(store, 'v2', new Date());
-    jest.spyOn(watcher, 'runCheckNow').mockResolvedValue({ runId: 'checked', findings: [], changeSetsProposed: [] });
+    jest
+      .spyOn(watcher, 'runCheckNow')
+      .mockResolvedValue({ runId: 'checked', findings: [], changeSetsProposed: [] });
 
     const held: Array<() => void> = [];
     const reviewer = makeTx(store, held);
@@ -1831,8 +1885,12 @@ describe('Phase 6 §4 — revalidate under concurrency', () => {
       // strategy lock. The old reconciliation order held it while waiting on
       // this proposal, producing a real lock cycle.
       const acquired = await Promise.race([
-        reviewer.$queryRaw`SELECT id FROM sp_strategy WHERE id = ${SID} AND tenant_id = ${T} FOR UPDATE`.then(() => true),
-        new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), 100); }),
+        reviewer.$queryRaw`SELECT id FROM sp_strategy WHERE id = ${SID} AND tenant_id = ${T} FOR UPDATE`.then(
+          () => true,
+        ),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(false), 100);
+        }),
       ]);
       expect(acquired).toBe(true);
     } finally {

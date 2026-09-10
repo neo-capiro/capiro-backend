@@ -317,10 +317,7 @@ export class MemoryReviewNotificationDispatcherService {
     );
   }
 
-  private async releaseAfterFailure(
-    row: ClaimedNotificationRow,
-    error: unknown,
-  ): Promise<boolean> {
+  private async releaseAfterFailure(row: ClaimedNotificationRow, error: unknown): Promise<boolean> {
     const terminal = row.attempts >= MAX_ATTEMPTS;
     const delayMinutes = Math.min(60, 2 ** Math.min(row.attempts, 6));
     const code = dispatcherErrorCode(error);

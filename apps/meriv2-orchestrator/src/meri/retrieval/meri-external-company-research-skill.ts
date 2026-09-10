@@ -11,9 +11,7 @@ export const MERI_EXTERNAL_COMPANY_RESEARCH_SKILL_VERSION = 1 as const;
  * becoming an unnecessary user handoff after the recipe has already discovered
  * a credible corrected company identity.
  */
-export function meriExternalCompanyResearchSkillPrompt(
-  plan: MeriRetrievalPlan,
-): string {
+export function meriExternalCompanyResearchSkillPrompt(plan: MeriRetrievalPlan): string {
   if (plan.recipeTool !== 'research_external_company') return '';
 
   return `EXTERNAL COMPANY RESEARCH SKILL v${MERI_EXTERNAL_COMPANY_RESEARCH_SKILL_VERSION}

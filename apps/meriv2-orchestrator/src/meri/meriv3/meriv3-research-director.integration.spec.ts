@@ -59,9 +59,7 @@ describe('MeriV3 Research Director integration', () => {
 
     const [, scopedDto] = downstream.mock.calls[0] ?? [];
     expect(scopedDto?.reasoningMode).toBe('deep');
-    expect(scopedDto?.skillAddendum).toContain(
-      'Call research_federal_market_strategy FIRST.',
-    );
+    expect(scopedDto?.skillAddendum).toContain('Call research_federal_market_strategy FIRST.');
     expect(scopedDto?.skillAddendum).toContain(
       '# Research Director — mandatory comprehensive workflow',
     );

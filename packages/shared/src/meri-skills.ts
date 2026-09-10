@@ -1,9 +1,4 @@
-export const MERI_SKILL_SCOPES = [
-  'general',
-  'client',
-  'portfolio',
-  'external_entity',
-] as const;
+export const MERI_SKILL_SCOPES = ['general', 'client', 'portfolio', 'external_entity'] as const;
 
 export type MeriSkillScope = (typeof MERI_SKILL_SCOPES)[number];
 
@@ -74,15 +69,7 @@ export const MERI_SKILL_REGISTRY = [
     starterPrompt:
       'Tell me everything I should know about [person or organization]. Build a relationship brief across every authorized source that may contain relevant history, including email, meetings, contacts, notes, memory, documents, and commitments. Separate verified facts from inference and identify any incomplete source coverage.',
     requiredEntitlements: [],
-    semanticDomains: [
-      'identity',
-      'mail',
-      'meetings',
-      'contacts',
-      'documents',
-      'memory',
-      'tasks',
-    ],
+    semanticDomains: ['identity', 'mail', 'meetings', 'contacts', 'documents', 'memory', 'tasks'],
     readOnly: true,
     knowledgePlaneReplacement: 'query_relationship',
   },
@@ -365,7 +352,9 @@ export function listMeriSkills(options: ListMeriSkillsOptions = {}): MeriSkillDe
     }));
 }
 
-export function listMeriQuickActions(options: Omit<ListMeriSkillsOptions, 'quickActionsOnly'> = {}) {
+export function listMeriQuickActions(
+  options: Omit<ListMeriSkillsOptions, 'quickActionsOnly'> = {},
+) {
   return listMeriSkills({ ...options, quickActionsOnly: true });
 }
 

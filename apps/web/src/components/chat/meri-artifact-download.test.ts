@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { fetchMeriArtifactDownload, meriArtifactIdFromDownloadUrl, saveMeriDownloadBlob } from './meri-artifact-download.js';
+import { canonicalMeriArtifactSandboxUrl, fetchMeriArtifactDownload, meriArtifactDownloadFromUrl, meriArtifactIdFromDownloadUrl, saveMeriDownloadBlob } from './meri-artifact-download.js';
 
 const apiBaseUrl = 'https://api.example.test';
 const route = '/api/clio/artifacts/saved-artifact-1/download';
@@ -13,6 +13,24 @@ function response(type = docxMime, disposition?: string, bytes = 'PK-document') 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('canonical authenticated Meri downloads', () => {
+  test.each(['', '?format=pdf', '?format=docx'])('normalizes only the exact historical sandbox artifact alias %s', (query) => {
+    expect(canonicalMeriArtifactSandboxUrl(`sandbox:${route}${query}`)).toBe(`${route}${query}`);
+    expect(meriArtifactDownloadFromUrl(`sandbox:${route}${query}`, apiBaseUrl)).toEqual({
+      artifactId: 'saved-artifact-1', ...(query ? { format: query.split('=')[1] } : {}),
+    });
+  });
+
+  test.each([
+    `sandbox://evil.example.test${route}`, `sandbox:/https://evil.example.test${route}`,
+    `sandbox:${route}/../../secrets`, 'sandbox:/mnt/data/private.pdf',
+    'sandbox:/api/clio/artifacts/id%2fother/download', 'sandbox:/api/clio/artifacts/../download',
+    `sandbox:${route}?format=pdf&token=secret`, `sandbox:${route}?format=html`,
+    `sandbox:${route}?format=pdf&format=docx`, `sandbox:${route}#document`,
+  ])('rejects sandbox hosts, paths and decorations outside the canonical alias: %s', (href) => {
+    expect(canonicalMeriArtifactSandboxUrl(href)).toBeNull();
+    expect(meriArtifactDownloadFromUrl(href, apiBaseUrl)).toBeNull();
+  });
+
   test.each([route, `${apiBaseUrl}${route}`, `${window.location.origin}${route}`, `${route}?download=1#document`, `${route}?token=secret`])('recognizes the saved identity in %s', (href) => {
     expect(meriArtifactIdFromDownloadUrl(href, apiBaseUrl)).toBe('saved-artifact-1');
   });
@@ -29,6 +47,7 @@ describe('canonical authenticated Meri downloads', () => {
     [docxMime, 'docx'],
     ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'],
     ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx'],
+    ['application/pdf', 'pdf'],
   ])('preserves %s bytes and canonical filename', async (type, extension) => {
     const res = response(type, `attachment; filename="original-saved-name.${extension}"`);
     const fetchMock = vi.fn().mockResolvedValue(res);
@@ -42,6 +61,56 @@ describe('canonical authenticated Meri downloads', () => {
       signal: options.signal, cache: 'no-store', redirect: 'error',
     });
     expect(fetchMock.mock.calls[0]![0]).not.toContain('token');
+  });
+
+  test('preserves only an explicit PDF format from a decorated saved link and uses current auth', async () => {
+    const link = meriArtifactDownloadFromUrl(`${route}?format=pdf&token=never-forward#document`, apiBaseUrl);
+    expect(link).toEqual({ artifactId: 'saved-artifact-1', format: 'pdf' });
+    const fetchMock = vi.fn().mockResolvedValue(response('application/pdf', 'attachment; filename="saved.pdf"', '%PDF-1.7'));
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await fetchMeriArtifactDownload({ ...input(), ...link })).filename).toBe('saved.pdf');
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBaseUrl}${route}?format=pdf`, expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer fresh-token' }),
+    }));
+  });
+
+  test.each(['html', '', 'pdf&token=secret'])('rejects unsupported format %s before authenticating or fetching', async (format) => {
+    const auth = vi.fn();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchMeriArtifactDownload({ ...input(), getAuthHeaders: auth, format })).rejects.toThrow('requested format');
+    expect(auth).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('rejects ambiguous repeated format parameters instead of using an unvalidated download URL', () => {
+    expect(meriArtifactDownloadFromUrl(`${route}?format=pdf&format=docx`, apiBaseUrl)?.format).toBe('');
+  });
+
+  test('rejects Word bytes returned for a PDF conversion', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response()));
+    await expect(fetchMeriArtifactDownload({ ...input(), format: 'pdf' })).rejects.toThrow('expected document');
+  });
+
+  test.each([
+    [422, 'MERI_DOCUMENT_RENDER_FAILED', 'PDF conversion failed'],
+    [400, 'MERI_DOCUMENT_FORMAT_UNSUPPORTED', 'requested format'],
+    [422, 'UNKNOWN', 'could not be downloaded'],
+  ])('reports render/format errors safely for %s %s', async (status, code, message) => {
+    const blob = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status, blob, json: async () => ({ code, message: 'private server details' }) }));
+    await expect(fetchMeriArtifactDownload({ ...input(), format: 'pdf' })).rejects.toThrow(message);
+    expect(blob).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['unsupported_text', 'Download Word to preserve the full text'],
+    ['document_too_large', 'split it into smaller documents'],
+    ['invalid_image', 'check the chart'],
+  ])('provides an actionable recovery for the known PDF render reason %s', async (reason, recovery) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({ code: 'MERI_DOCUMENT_RENDER_FAILED', reason, format: 'pdf' }) }));
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow(`The PDF could not be generated.`);
+    await expect(fetchMeriArtifactDownload(input())).rejects.toThrow(recovery);
   });
 
   test('preserves an encoded filename, strips paths and ignores a misleading extension', async () => {

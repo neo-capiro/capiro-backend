@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   NotFoundException,
+  UnprocessableEntityException,
   Query,
   Req,
   Res,
@@ -48,6 +49,7 @@ import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
 import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 import { withMeriToolRequestControl } from './meri-tool-request-control.js';
+import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -814,19 +816,32 @@ export class MeriController {
     res.send(html);
   }
 
-  // Download a Meri-generated Office document (.docx/.xlsx/.pptx). The binary is
+  // Download a Meri-generated document. Word/PDF share the same saved spec. The binary is
   // regenerated on demand from the spec stored on the artifact — no blob storage.
   @Get('artifacts/:id/download')
   async downloadArtifact(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Res() res: Response,
+    @Query('format') format?: string,
   ) {
-    const doc = await this.tools.getDocumentArtifact(ctx, id);
+    const doc = await this.tools.getDocumentArtifact(ctx, id, format);
     if (!doc) {
       throw new NotFoundException('Document artifact not found');
     }
-    const buffer = await this.tools.renderStoredDocument(doc.format, doc.specJson);
+    let buffer: Buffer;
+    try {
+      buffer = await this.tools.renderStoredDocument(doc.format, doc.specJson);
+    } catch (error) {
+      throw new UnprocessableEntityException({
+        code: 'MERI_DOCUMENT_RENDER_FAILED',
+        format: doc.format,
+        reason: error instanceof MeriPdfRenderError ? error.reason : 'render_failed',
+        message: error instanceof MeriPdfRenderError
+          ? `${error.message} Download Word or adjust the document and try again.`
+          : 'The document could not be rendered. Try again or choose another available format.',
+      });
+    }
     res.setHeader('Content-Type', doc.mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${doc.filename}"`);
     // The authenticated web client needs the canonical saved filename when

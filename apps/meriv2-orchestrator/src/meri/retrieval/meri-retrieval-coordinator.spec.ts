@@ -19,34 +19,60 @@ function plan(): MeriRetrievalPlan {
 }
 
 describe('MeriRetrievalCoordinator', () => {
-  test.each(['list_emails', 'search_emails'])('%s does not mistake a recent calendar sync for healthy inbox coverage', async (tool) => {
-    const coordinator = new MeriRetrievalCoordinator();
-    const observation = await coordinator.run(plan(), async () => {
-      coordinator.observe(tool, { withinDays: 14, folder: 'inbox' }, {
-        totalMatches: 0, returned: 0, count: 0, hasMore: false, messages: [], threads: [],
-        searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected',
-          lastSyncAt: new Date().toISOString(), syncedMessages: 100,
-          mailCoverage: { sourceStatus: 'degraded', reason: 'mail_capture_repair_required', lastMailSyncAt: null } }],
+  test.each(['list_emails', 'search_emails'])(
+    '%s does not mistake a recent calendar sync for healthy inbox coverage',
+    async (tool) => {
+      const coordinator = new MeriRetrievalCoordinator();
+      const observation = await coordinator.run(plan(), async () => {
+        coordinator.observe(
+          tool,
+          { withinDays: 14, folder: 'inbox' },
+          {
+            totalMatches: 0,
+            returned: 0,
+            count: 0,
+            hasMore: false,
+            messages: [],
+            threads: [],
+            searchedMailboxes: [
+              {
+                provider: 'microsoft_365',
+                status: 'connected',
+                lastSyncAt: new Date().toISOString(),
+                syncedMessages: 100,
+                mailCoverage: {
+                  sourceStatus: 'degraded',
+                  reason: 'mail_capture_repair_required',
+                  lastMailSyncAt: null,
+                },
+              },
+            ],
+          },
+        );
+        return coordinator.observations()[0];
       });
-      return coordinator.observations()[0];
-    });
-    expect(observation?.status).toBe('partial');
-    expect(observation?.detail).toContain('mail_capture_repair_required');
-  });
+      expect(observation?.status).toBe('partial');
+      expect(observation?.detail).toContain('mail_capture_repair_required');
+    },
+  );
 
   test('does not let a non-authoritative composite recipe hide a partial underlying search', async () => {
     const coordinator = new MeriRetrievalCoordinator();
 
     const manifest = await coordinator.run(plan(), async () => {
       coordinator.observe('search_research_sources', {}, { results: [] });
-      coordinator.observe('query_relationship_brief', {}, {
-        coverage: {
-          complete: true,
-          requestedEntityCount: 1,
-          searchedEntityCount: 1,
+      coordinator.observe(
+        'query_relationship_brief',
+        {},
+        {
+          coverage: {
+            complete: true,
+            requestedEntityCount: 1,
+            searchedEntityCount: 1,
+          },
+          results: [],
         },
-        results: [],
-      });
+      );
       return coordinator.coverage();
     });
 
@@ -63,25 +89,33 @@ describe('MeriRetrievalCoordinator', () => {
     };
 
     const manifest = await coordinator.run(mailPlan, async () => {
-      coordinator.observe('search_emails', { query: 'Victory Six', limit: 50 }, {
-        totalMatches: 60,
-        returned: 50,
-        hasMore: true,
-        messages: Array.from({ length: 50 }, (_, index) => ({ id: `mail-${index}` })),
-      });
-      coordinator.observe('query_relationship_brief', {}, {
-        coverage: {
-          complete: true,
-          authoritative: true,
-          requestedEntityCount: 1,
-          searchedEntityCount: 1,
-          recordsEvaluated: 60,
-          recordsReturned: 60,
-          paginationComplete: true,
-          truncated: false,
+      coordinator.observe(
+        'search_emails',
+        { query: 'Victory Six', limit: 50 },
+        {
+          totalMatches: 60,
+          returned: 50,
+          hasMore: true,
+          messages: Array.from({ length: 50 }, (_, index) => ({ id: `mail-${index}` })),
         },
-        results: Array.from({ length: 60 }, (_, index) => ({ id: `mail-${index}` })),
-      });
+      );
+      coordinator.observe(
+        'query_relationship_brief',
+        {},
+        {
+          coverage: {
+            complete: true,
+            authoritative: true,
+            requestedEntityCount: 1,
+            searchedEntityCount: 1,
+            recordsEvaluated: 60,
+            recordsReturned: 60,
+            paginationComplete: true,
+            truncated: false,
+          },
+          results: Array.from({ length: 60 }, (_, index) => ({ id: `mail-${index}` })),
+        },
+      );
       return coordinator.coverage();
     });
 
@@ -117,21 +151,25 @@ describe('MeriRetrievalCoordinator', () => {
     const coordinator = new MeriRetrievalCoordinator();
 
     const observation = await coordinator.run(plan(), async () => {
-      coordinator.observe('search_emails', { query: 'Victory Six' }, {
-        totalMatches: 1,
-        returned: 1,
-        hasMore: false,
-        messages: [{ id: 'mail-1' }],
-        searchedMailboxes: [
-          {
-            accountEmail: 'neo@example.com',
-            provider: 'microsoft_365',
-            status: 'connected',
-            syncedMessages: 100,
-            lastSyncAt: '2020-01-01T00:00:00.000Z',
-          },
-        ],
-      });
+      coordinator.observe(
+        'search_emails',
+        { query: 'Victory Six' },
+        {
+          totalMatches: 1,
+          returned: 1,
+          hasMore: false,
+          messages: [{ id: 'mail-1' }],
+          searchedMailboxes: [
+            {
+              accountEmail: 'neo@example.com',
+              provider: 'microsoft_365',
+              status: 'connected',
+              syncedMessages: 100,
+              lastSyncAt: '2020-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      );
       return coordinator.observations()[0];
     });
 
@@ -143,21 +181,25 @@ describe('MeriRetrievalCoordinator', () => {
     const coordinator = new MeriRetrievalCoordinator();
 
     const observation = await coordinator.run(plan(), async () => {
-      coordinator.observe('search_emails', { query: 'Victory Six' }, {
-        totalMatches: 1,
-        returned: 1,
-        hasMore: false,
-        messages: [{ id: 'mail-1' }],
-        searchedMailboxes: [
-          {
-            accountEmail: 'neo@example.com',
-            provider: 'microsoft_365',
-            status: 'connected',
-            syncedMessages: 100,
-            lastSyncAt: new Date().toISOString(),
-          },
-        ],
-      });
+      coordinator.observe(
+        'search_emails',
+        { query: 'Victory Six' },
+        {
+          totalMatches: 1,
+          returned: 1,
+          hasMore: false,
+          messages: [{ id: 'mail-1' }],
+          searchedMailboxes: [
+            {
+              accountEmail: 'neo@example.com',
+              provider: 'microsoft_365',
+              status: 'connected',
+              syncedMessages: 100,
+              lastSyncAt: new Date().toISOString(),
+            },
+          ],
+        },
+      );
       return coordinator.observations()[0];
     });
 
@@ -170,21 +212,26 @@ describe('MeriRetrievalCoordinator', () => {
       coordinator.recordModelTool('query_relationship_brief');
       coordinator.recordModelTool('search_public_web');
       coordinator.observe('query_tasks', { limit: 50 }, { tasks: [] }, 12);
-      coordinator.observe('search_emails', { query: 'Victory Six' }, {
-        totalMatches: 1,
-        returned: 1,
-        hasMore: false,
-        messages: [{ id: 'mail-1' }],
-        searchedMailboxes: [
-          {
-            accountEmail: 'neo@example.com',
-            provider: 'microsoft_365',
-            status: 'connected',
-            syncedMessages: 10,
-            lastSyncAt: new Date().toISOString(),
-          },
-        ],
-      }, 8);
+      coordinator.observe(
+        'search_emails',
+        { query: 'Victory Six' },
+        {
+          totalMatches: 1,
+          returned: 1,
+          hasMore: false,
+          messages: [{ id: 'mail-1' }],
+          searchedMailboxes: [
+            {
+              accountEmail: 'neo@example.com',
+              provider: 'microsoft_365',
+              status: 'connected',
+              syncedMessages: 10,
+              lastSyncAt: new Date().toISOString(),
+            },
+          ],
+        },
+        8,
+      );
       return coordinator.trace(Date.now() + 25);
     });
 
@@ -217,20 +264,24 @@ describe('MeriRetrievalCoordinator', () => {
     const [first, second] = await Promise.all([
       coordinator.run(firstPlan, async () => {
         await Promise.resolve();
-        coordinator.observe('search_emails', {}, {
-          totalMatches: 2,
-          returned: 2,
-          messages: [{ id: 'a' }, { id: 'b' }],
-          searchedMailboxes: [
-            {
-              accountEmail: 'first@example.com',
-              provider: 'microsoft_365',
-              status: 'connected',
-              syncedMessages: 2,
-              lastSyncAt: new Date().toISOString(),
-            },
-          ],
-        });
+        coordinator.observe(
+          'search_emails',
+          {},
+          {
+            totalMatches: 2,
+            returned: 2,
+            messages: [{ id: 'a' }, { id: 'b' }],
+            searchedMailboxes: [
+              {
+                accountEmail: 'first@example.com',
+                provider: 'microsoft_365',
+                status: 'connected',
+                syncedMessages: 2,
+                lastSyncAt: new Date().toISOString(),
+              },
+            ],
+          },
+        );
         return coordinator.observations().map((observation) => observation.tool);
       }),
       coordinator.run(secondPlan, async () => {

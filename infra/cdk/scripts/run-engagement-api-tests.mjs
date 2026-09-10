@@ -13,11 +13,13 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const CDK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEST_DIR = path.join(CDK_ROOT, 'test');
+const tsNodeCli = createRequire(import.meta.url).resolve('ts-node/dist/bin.js');
 
 const specs = readdirSync(TEST_DIR)
   .filter((name) => name.startsWith('engagement-api-') && name.endsWith('.spec.ts'))
@@ -38,11 +40,10 @@ for (const spec of specs) {
   let output;
   let status = 0;
   try {
-    output = execFileSync(
-      process.execPath,
-      ['C:/Users/neoma/AppData/Local/hermes/node/node_modules/corepack/dist/pnpm.js', 'exec', 'ts-node', '--prefer-ts-exts', relative],
-      { cwd: CDK_ROOT, encoding: 'utf8' },
-    );
+    output = execFileSync(process.execPath, [tsNodeCli, '--prefer-ts-exts', relative], {
+      cwd: CDK_ROOT,
+      encoding: 'utf8',
+    });
   } catch (error) {
     status = error.status ?? 1;
     output = `${error.stdout ?? ''}${error.stderr ?? ''}`;

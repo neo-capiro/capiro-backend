@@ -30,6 +30,10 @@ import {
   mergeR2aProjectSections,
   type R2aProjectSection,
 } from './r2a-project-section-extractor.js';
+import {
+  extractR2aStructuralHeaderV1,
+  groupR2aPagesByStructuralIdentityV1,
+} from './r2a-structural-project-header-parser-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Input context (pre-segmented by WS E)                                */
@@ -80,6 +84,7 @@ export interface R2aProjectConflict {
   parentPeCode: string;
   projectCode: string;
   field: 'title' | 'narrative';
+  narrativeKind?: string;
   values: string[];
   pages: number[];
 }
@@ -102,59 +107,38 @@ export interface R2aProjectExtractionResult {
 }
 
 /* ------------------------------------------------------------------ */
-/* Header / identity extraction                                        */
+/* Supplementary (non-identity) header fields                          */
+/*                                                                      */
+/* Phase 10B-25: parent-PE / project-code IDENTITY is resolved ONLY by  */
+/* the shared structural module (r2a-structural-project-header-parser- */
+/* v1.ts), from self-labeled table cells. The inline-text regexes below */
+/* are a genuinely separate, still-valid concern: an OPTIONAL printed   */
+/* "Project Title:" / "Budget Activity:" line that supplements (never   */
+/* replaces) the structural project name. Do not re-add an inline      */
+/* parent-PE / project-code regex here -- that was the root cause this  */
+/* module was written to eliminate.                                     */
 /* ------------------------------------------------------------------ */
 
-const PE_HEADER_RE = /\bPE\s+([0-9]{7}[A-Z][A-Z0-9]*)\b/i;
-/* Capture the raw post-label text so we can detect internal whitespace and
- * reject codes that violate the bounded nonblank token policy. */
-const PROJECT_CODE_RE = /\bproject\s+code\s*[:.\-]?\s*(\S+(?:\s+\S+)*)/i;
 const PROJECT_TITLE_RE = /\bproject\s+title\s*[:.\-]?\s*(.+)/i;
 const BUDGET_ACTIVITY_RE = /\bbudget\s+activity\s*[:.\-]?\s*(.+)/i;
-const R2A_HEADER_RE = /\bR-2A\b/i;
-const RDT_PROJECT_JUSTIFICATION_RE = /\bRDT&E\s+Project\s+Justification\b/i;
 
-interface PageHeaderInfo {
-  parentPeCode?: string;
-  projectCode?: string;
-  projectTitle?: string;
+interface PageSupplementaryInfo {
+  /** Optional printed "Project Title:" line -- takes precedence over the
+   * structural table's project name when present (a document can print a
+   * fuller title alongside the compact table-cell name). */
+  printedProjectTitle?: string;
   budgetActivity?: string;
-  isR2aPage: boolean;
 }
 
-function extractPageHeaderInfo(page: ParserPageResultV1): PageHeaderInfo {
-  const info: PageHeaderInfo = { isR2aPage: false };
-  const allText = page.text ?? '';
+function extractPageSupplementaryInfo(page: ParserPageResultV1): PageSupplementaryInfo {
+  const info: PageSupplementaryInfo = {};
   const blockTexts = page.blocks.map((b) => b.text);
 
-  /* Detect R-2A exhibit markers. */
-  if (R2A_HEADER_RE.test(allText) || RDT_PROJECT_JUSTIFICATION_RE.test(allText)) {
-    info.isR2aPage = true;
-  }
   for (const text of blockTexts) {
-    if (R2A_HEADER_RE.test(text) || RDT_PROJECT_JUSTIFICATION_RE.test(text)) {
-      info.isR2aPage = true;
-      break;
-    }
-  }
-
-  /* Scan blocks for identity fields; tables are not used for identity on
-   * R-2A pages (identity is in header blocks). */
-  for (const text of blockTexts) {
-    const peMatch = PE_HEADER_RE.exec(text);
-    if (peMatch?.[1] != null && isValidPeCode(peMatch[1])) {
-      info.parentPeCode = peMatch[1];
-    }
-
-    const codeMatch = PROJECT_CODE_RE.exec(text);
-    if (codeMatch?.[1] != null && isValidR2aProjectCode(codeMatch[1])) {
-      info.projectCode = codeMatch[1];
-    }
-
     const titleMatch = PROJECT_TITLE_RE.exec(text);
     if (titleMatch?.[1] != null) {
       const title = titleMatch[1].trim();
-      if (title.length > 0) info.projectTitle = title;
+      if (title.length > 0) info.printedProjectTitle = title;
     }
 
     const baMatch = BUDGET_ACTIVITY_RE.exec(text);
@@ -165,6 +149,15 @@ function extractPageHeaderInfo(page: ParserPageResultV1): PageHeaderInfo {
   }
 
   return info;
+}
+
+/** Structural project name for a page (from its own table evidence only),
+ * or `undefined` if the page carries no resolvable structural header (e.g.
+ * a continuation page inheriting identity from a prior page, or a page
+ * that is not itself an R-2A identity page at all). */
+function structuralProjectNameFor(page: ParserPageResultV1): string | undefined {
+  const result = extractR2aStructuralHeaderV1(page);
+  return result.status === 'ok' ? result.header.projectName : undefined;
 }
 
 /* ------------------------------------------------------------------ */
@@ -210,20 +203,33 @@ export function extractR2aProjectsFromGroups(input: {
     }
 
     /* Collect per-page header info and sections. */
-    const pageHeaders: Array<{ page: number; printedPage?: string; info: PageHeaderInfo }> = [];
+    const pageHeaders: Array<{
+      page: number;
+      printedPage?: string;
+      supplementary: PageSupplementaryInfo;
+      structuralProjectName?: string;
+    }> = [];
     const allSections: R2aProjectSection[] = [];
 
     for (const page of pages) {
-      const info = extractPageHeaderInfo(page);
-      pageHeaders.push({ page: page.page, printedPage: page.printedPage, info });
+      pageHeaders.push({
+        page: page.page,
+        printedPage: page.printedPage ?? undefined,
+        supplementary: extractPageSupplementaryInfo(page),
+        structuralProjectName: structuralProjectNameFor(page),
+      });
 
       const sections = extractR2aProjectSectionsFromPage(page);
       allSections.push(...sections);
     }
 
-    /* Determine canonical title from the first page that provides one. */
+    /* Determine canonical title from the first page that provides one.
+     * A printed "Project Title:" line wins when present; otherwise fall
+     * back to the structural table's project name (the real government
+     * R-2A layout never prints a separate "Project Title:" line -- the
+     * name lives in the same cell as the code). */
     const titles = pageHeaders
-      .map((h) => h.info.projectTitle)
+      .map((h) => h.supplementary.printedProjectTitle ?? h.structuralProjectName)
       .filter((t): t is string => t != null && t.length > 0);
     const uniqueTitles = [...new Set(titles)];
     const title = uniqueTitles[0] ?? '';
@@ -235,13 +241,15 @@ export function extractR2aProjectsFromGroups(input: {
         projectCode,
         field: 'title',
         values: uniqueTitles,
-        pages: pageHeaders.filter((h) => h.info.projectTitle != null).map((h) => h.page),
+        pages: pageHeaders
+          .filter((h) => (h.supplementary.printedProjectTitle ?? h.structuralProjectName) != null)
+          .map((h) => h.page),
       });
     }
 
     /* Budget activity: printed on page wins; otherwise inherit from verified PE context. */
     const printedBa = pageHeaders
-      .map((h) => h.info.budgetActivity)
+      .map((h) => h.supplementary.budgetActivity)
       .find((ba): ba is string => ba != null && ba.length > 0);
     const budgetActivity = printedBa ?? peContext?.budgetActivity;
     const budgetActivityName = peContext?.budgetActivityName;
@@ -277,27 +285,23 @@ export function extractR2aProjectsFromGroups(input: {
       });
     }
 
-    /* Narrative conflicts: same section kind with materially different text
-     * across pages (after normalization). */
-    const narrativeByKind = new Map<string, Array<{ text: string; page: number }>>();
-    for (const section of allSections) {
-      const key = section.kind;
-      const existing = narrativeByKind.get(key) ?? [];
-      existing.push({ text: section.text, page: section.page });
-      narrativeByKind.set(key, existing);
-    }
-    for (const [kind, values] of narrativeByKind) {
-      const uniqueTexts = [...new Set(values.map((v) => v.text))];
-      if (uniqueTexts.length > 1) {
-        conflicts.push({
-          parentPeCode,
-          projectCode,
-          field: 'narrative',
-          values: uniqueTexts,
-          pages: values.map((v) => v.page),
-        });
-      }
-    }
+    /* Phase 10B-25: narrative-conflict detection across multiple same-kind
+     * sections was removed. The real R-2A layout routinely prints MULTIPLE
+     * distinct sub-activities on the SAME page (and across a project's
+     * pages), each contributing its own "description"/"accomplishments"/
+     * "plans" text -- this is normal, real government document structure,
+     * not an extraction disagreement. `mergeR2aProjectSections` above
+     * already concatenates every genuine fragment losslessly, in reading
+     * order, with full block-index evidence preserved; there is no lost or
+     * competing value to flag. A prior version of this check flagged every
+     * such multi-activity page as a blocking `r2a_duplicate_natural_key_
+     * conflict` warning, which never fired in practice while the R-2A
+     * grouping defect (Defect 1, this same phase) prevented real multi-page
+     * project groups from ever forming -- fixing Defect 1 exposed this
+     * second, independent false-positive defect on the same real document.
+     * Title conflicts (field: 'title', a project genuinely printing two
+     * DIFFERENT titles) remain a real, distinct check above and are
+     * unaffected by this removal. */
 
     /* Identity omissions: missing title, missing project code on page, etc. */
     if (title.length === 0) {
@@ -309,26 +313,25 @@ export function extractR2aProjectsFromGroups(input: {
         rawText: `project ${projectCode} on pages ${physicalPages.join(', ')}`,
       });
     }
-    for (const header of pageHeaders) {
-      if (header.info.projectCode == null) {
-        omissions.push({
-          parentPeCode,
-          projectCode,
-          page: header.page,
-          reason: 'missing_project_code_on_page',
-          rawText: `page ${header.page} has no project code header`,
-        });
-      }
-      if (header.info.parentPeCode == null) {
-        omissions.push({
-          parentPeCode,
-          projectCode,
-          page: header.page,
-          reason: 'missing_parent_pe_on_page',
-          rawText: `page ${header.page} has no parent PE header`,
-        });
-      }
-    }
+    /* Phase 10B-25: per-page "missing project code / parent PE" omission
+     * checks used to be re-derived here from inline body text -- now
+     * redundant AND actively wrong, because a page only ever reaches this
+     * point as a MEMBER of a group the shared structural grouper
+     * (`groupR2aPagesByStructuralIdentityV1`) already resolved as
+     * carrying valid identity (either directly, or by lawful continuation
+     * inheritance from a preceding valid page in the same open section).
+     * Re-deriving from inline text here would spuriously flag every
+     * legitimate continuation page as "missing" and would duplicate the
+     * SAME root omission the grouper already recorded for any page that
+     * genuinely failed to resolve -- see
+     * `groupR2aPagesByStructuralIdentityV1(...).omissions`, which is the
+     * single source of missing-identity omissions for the
+     * `extractR2aProjectsFromPages` entry point below. A caller that
+     * supplies pre-formed groups directly to `extractR2aProjectsFromGroups`
+     * (bypassing the shared grouper) is responsible for its own identity
+     * validation before grouping; this function only validates the group
+     * key itself (parent PE / project code bounded-policy checks above).
+     */
   }
 
   /* Cross-group duplicate detection: same (parentPeCode, projectCode) in
@@ -345,7 +348,11 @@ export function extractR2aProjectsFromGroups(input: {
     if (groups.length <= 1) continue;
     const [parentPeCode, projectCode] = key.split('|');
     const allTitles = groups
-      .flatMap((g) => g.pages.flatMap((p) => extractPageHeaderInfo(p).projectTitle ?? []))
+      .flatMap((g) =>
+        g.pages.flatMap(
+          (p) => extractPageSupplementaryInfo(p).printedProjectTitle ?? structuralProjectNameFor(p) ?? [],
+        ),
+      )
       .filter((t): t is string => t != null && t.length > 0);
     const uniqueTitles = [...new Set(allTitles)];
     if (uniqueTitles.length > 1) {
@@ -364,8 +371,12 @@ export function extractR2aProjectsFromGroups(input: {
 
 /**
  * Convenience wrapper: extract from a flat list of pages by grouping
- * contiguous pages with the same (parentPeCode, projectCode) headers.
- * Useful when segmentation is not yet available.
+ * contiguous pages with the same (parentPeCode, projectCode) structural
+ * identity, using the single shared grouper
+ * (`groupR2aPagesByStructuralIdentityV1`). Useful when pre-segmentation
+ * (Workstream E) is not available. This is the ONE lawful entry point for
+ * grouping a flat page list -- it must never re-implement its own
+ * inline-text grouping loop (Phase 10B-25 root-cause fix).
  */
 export function extractR2aProjectsFromPages(input: {
   pages: readonly ParserPageResultV1[];
@@ -375,47 +386,27 @@ export function extractR2aProjectsFromPages(input: {
   };
 }): R2aProjectExtractionResult {
   const { pages, peContext } = input;
-  const groups: R2aProjectPageGroup[] = [];
+  const structural = groupR2aPagesByStructuralIdentityV1(pages);
 
-  let currentKey: string | null = null;
-  let currentPages: ParserPageResultV1[] = [];
-  let currentParentPe = '';
-  let currentProjectCode = '';
+  const groups: R2aProjectPageGroup[] = structural.groups.map((g) => ({
+    parentPeCode: g.parentPeCode,
+    projectCode: g.projectCode,
+    pages: g.pages,
+    ...(peContext != null ? { peContext } : {}),
+  }));
 
-  const flushCurrent = (): void => {
-    if (currentKey == null) return;
-    groups.push({
-      parentPeCode: currentParentPe,
-      projectCode: currentProjectCode,
-      pages: currentPages,
-      ...(peContext != null ? { peContext } : {}),
-    });
-    currentKey = null;
-    currentPages = [];
-  };
+  const result = extractR2aProjectsFromGroups({ groups });
 
-  for (const page of pages) {
-    const info = extractPageHeaderInfo(page);
+  /* Single source of missing-identity omissions for this entry point:
+   * the shared grouper's own omissions (pages that failed to resolve
+   * structural identity at all -- never re-derived here). */
+  const structuralOmissions: R2aProjectOmission[] = structural.omissions.map((o) => ({
+    ...(o.parentPeCode != null ? { parentPeCode: o.parentPeCode } : {}),
+    ...(o.projectCode != null ? { projectCode: o.projectCode } : {}),
+    page: o.page,
+    reason: o.reason,
+    rawText: o.rawText,
+  }));
 
-    /* Skip non-R-2A pages. */
-    if (!info.isR2aPage) continue;
-
-    const parentPeCode = info.parentPeCode ?? '';
-    const projectCode = info.projectCode ?? '';
-    const key = `${parentPeCode}|${projectCode}`;
-
-    if (currentKey === key) {
-      currentPages.push(page);
-    } else {
-      flushCurrent();
-      currentKey = key;
-      currentParentPe = parentPeCode;
-      currentProjectCode = projectCode;
-      currentPages = [page];
-    }
-  }
-
-  flushCurrent();
-
-  return extractR2aProjectsFromGroups({ groups });
+  return { ...result, omissions: [...result.omissions, ...structuralOmissions] };
 }

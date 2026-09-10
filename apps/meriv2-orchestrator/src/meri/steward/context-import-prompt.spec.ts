@@ -128,7 +128,7 @@ describe('context import whole-result source validation', () => {
   // fabrication — and the raw `.includes()`/`!==` grounding checks treated
   // that cosmetic drift as invented evidence.
   it('accepts evidence that differs from the source only by typographic normalization (F01)', () => {
-    const source = "Owner: Program Director\nDates: Effective 2026-09-01 through 2026-12-31.";
+    const source = 'Owner: Program Director\nDates: Effective 2026-09-01 through 2026-12-31.';
     const input: StrategyContextImportInput = {
       ...INPUT,
       sections: [{ ref: 'text:1', text: source }],
@@ -136,7 +136,8 @@ describe('context import whole-result source validation', () => {
     // Model reproduces the same words with curly apostrophes/quotes are N/A
     // here, but joins the two lines with a single space and swaps the
     // straight hyphen for a non-breaking-space + en dash, as real providers do.
-    const modelQuote = 'Owner: Program Director Dates: Effective 2026\u201109\u201101 through 2026\u201112\u201131.';
+    const modelQuote =
+      'Owner: Program Director Dates: Effective 2026\u201109\u201101 through 2026\u201112\u201131.';
     const raw = {
       documents: [
         {

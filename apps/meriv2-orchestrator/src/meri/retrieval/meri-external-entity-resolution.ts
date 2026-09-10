@@ -89,10 +89,12 @@ function firstString(record: Record<string, unknown>, fields: readonly string[])
 
 function rowEntityType(row: Record<string, unknown>): string | null {
   return (
-    stringValue(row.entityType) ??
-    stringValue(row.type) ??
-    stringValue(row.kind)
-  )?.toLowerCase() ?? null;
+    (
+      stringValue(row.entityType) ??
+      stringValue(row.type) ??
+      stringValue(row.kind)
+    )?.toLowerCase() ?? null
+  );
 }
 
 function rowMayRepresentCompany(tool: string, row: Record<string, unknown>): boolean {
@@ -126,8 +128,7 @@ function sourceRows(source: MeriEntityResolutionSource): unknown[] {
     if (Array.isArray(value)) rows.push(...value);
   }
   return rows.filter(
-    (row, index, all) =>
-      all.findIndex((candidate) => candidate === row) === index,
+    (row, index, all) => all.findIndex((candidate) => candidate === row) === index,
   );
 }
 
@@ -252,7 +253,11 @@ function candidateFromRow(
     confidence,
     sourceTools: [tool],
     matchReasons: [
-      domainMatch ? 'exact-domain' : similarity >= 0.99 ? 'exact-name' : `name-similarity:${similarity.toFixed(2)}`,
+      domainMatch
+        ? 'exact-domain'
+        : similarity >= 0.99
+          ? 'exact-name'
+          : `name-similarity:${similarity.toFixed(2)}`,
     ],
   };
 }
@@ -368,10 +373,7 @@ export function buildMeriExternalEntityResolution(
   const identityStrength =
     exactDomain || corroborated || (authoritative && exactName && (top?.confidence ?? 0) >= 0.9);
   const confident = Boolean(
-    top &&
-      top.confidence >= 0.86 &&
-      separatedFromRunnerUp &&
-      identityStrength,
+    top && top.confidence >= 0.86 && separatedFromRunnerUp && identityStrength,
   );
   const resolutionStatus: MeriExternalEntityResolution['resolutionStatus'] = confident
     ? 'resolved'

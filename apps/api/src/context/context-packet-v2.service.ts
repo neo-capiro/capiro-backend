@@ -169,9 +169,7 @@ export function buildContextPacketRetrievalContext(
   };
 }
 
-function mapResolvedEntities(
-  resolution: ContextResolutionResult,
-): ContextPacketResolvedEntity[] {
+function mapResolvedEntities(resolution: ContextResolutionResult): ContextPacketResolvedEntity[] {
   const out: ContextPacketResolvedEntity[] = [];
   const seen = new Set<string>();
   if (resolution.subjectEntity) {
@@ -280,9 +278,7 @@ function missingRetrievalCoverageManifest(
   };
 }
 
-function mapSourceHealth(
-  retrieval: RetrievalResponse,
-): Record<string, ContextPacketSourceStatus> {
+function mapSourceHealth(retrieval: RetrievalResponse): Record<string, ContextPacketSourceStatus> {
   const out: Record<string, ContextPacketSourceStatus> = {};
   for (const [domain, status] of Object.entries(retrieval.observability.sourceHealth)) {
     if (status) out[domain] = status;

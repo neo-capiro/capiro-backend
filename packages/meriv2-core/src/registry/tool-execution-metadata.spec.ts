@@ -81,7 +81,7 @@ describe('canonical tool execution metadata', () => {
     ];
     const prompt = actionBehaviorPrompt(tools);
 
-    expect(prompt).toContain('Create Word document (create_word)');
+    expect(prompt).toContain('Create Word or PDF document (create_word)');
     expect(prompt).toContain('Create task (create_task)');
     expect(prompt).toContain('Send email (send_email)');
     const immediateLine =

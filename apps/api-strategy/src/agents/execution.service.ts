@@ -211,14 +211,38 @@ export class ExecutionService {
 
   /** Read-only readiness: uses the same current-plan gate as planning/execution. */
   async preflight(tenantId: string, userId: string | null, dto: ExecutionPreflightDto) {
-    const { strategy, targetNode, headVersionId } = await this.loadPlanState(tenantId, dto.strategyId, dto.nodeId);
+    const { strategy, targetNode, headVersionId } = await this.loadPlanState(
+      tenantId,
+      dto.strategyId,
+      dto.nodeId,
+    );
     const check = async (kind: ExecutionKindValue) => {
-      const flag = kind === 'workspace' ? AGENTIC_FLAGS.executionAgentWorkspace : AGENTIC_FLAGS.executionAgentOutreach;
+      const flag =
+        kind === 'workspace'
+          ? AGENTIC_FLAGS.executionAgentWorkspace
+          : AGENTIC_FLAGS.executionAgentOutreach;
       const enabled = await this.flags.isAgenticFlagEnabled(tenantId, flag);
-      if (!enabled) return { enabled, eligible: false, reasons: [`${kind === 'workspace' ? 'Workspace preparation' : 'Outreach staging'} is not enabled for your team.`] };
-      const { g0, blockReason } = await this.evaluateG0(tenantId, {
-        kind, nodeId: targetNode.id, strategyId: strategy.id, missionId: '', pinnedVersionId: headVersionId,
-      }, strategy, targetNode, headVersionId);
+      if (!enabled)
+        return {
+          enabled,
+          eligible: false,
+          reasons: [
+            `${kind === 'workspace' ? 'Workspace preparation' : 'Outreach staging'} is not enabled for your team.`,
+          ],
+        };
+      const { g0, blockReason } = await this.evaluateG0(
+        tenantId,
+        {
+          kind,
+          nodeId: targetNode.id,
+          strategyId: strategy.id,
+          missionId: '',
+          pinnedVersionId: headVersionId,
+        },
+        strategy,
+        targetNode,
+        headVersionId,
+      );
       const eligibility = g0.eligibility as EligibilityResult;
       const chainErrors = g0.verifierChainErrors as Array<{ message: string }>;
       const missingRequired = Array.isArray(g0.missingRequired)
@@ -241,9 +265,13 @@ export class ExecutionService {
     };
     const [workspace, outreach] = await Promise.all([check('workspace'), check('outreach')]);
     return {
-      strategyId: strategy.id, nodeId: targetNode.id, checkedAt: new Date().toISOString(),
-      headVersionId, nodeUpdatedAt: targetNode.updatedAt ? new Date(targetNode.updatedAt).toISOString() : null,
-      workspace, outreach,
+      strategyId: strategy.id,
+      nodeId: targetNode.id,
+      checkedAt: new Date().toISOString(),
+      headVersionId,
+      nodeUpdatedAt: targetNode.updatedAt ? new Date(targetNode.updatedAt).toISOString() : null,
+      workspace,
+      outreach,
     };
   }
 
@@ -268,15 +296,35 @@ export class ExecutionService {
     // Recheck before createRun so an intervening edit does not leave an ineligible run.
     if (dto.expectedNodeUpdatedAt) {
       const state = await this.loadPlanState(tenantId, strategyId, dto.nodeId);
-      if (!state.targetNode.updatedAt || new Date(state.targetNode.updatedAt).toISOString() !== new Date(dto.expectedNodeUpdatedAt).toISOString()) {
-        throw new ConflictException('This step changed. Check readiness again before preparing work.');
+      if (
+        !state.targetNode.updatedAt ||
+        new Date(state.targetNode.updatedAt).toISOString() !==
+          new Date(dto.expectedNodeUpdatedAt).toISOString()
+      ) {
+        throw new ConflictException(
+          'This step changed. Check readiness again before preparing work.',
+        );
       }
-      const { blockReason } = await this.evaluateG0(tenantId, {
-        kind: dto.kind, nodeId: dto.nodeId, strategyId, missionId: dto.missionId,
-        pinnedVersionId: dto.pinnedVersionId ?? null,
-      }, state.strategy, state.targetNode, state.headVersionId);
+      const { blockReason } = await this.evaluateG0(
+        tenantId,
+        {
+          kind: dto.kind,
+          nodeId: dto.nodeId,
+          strategyId,
+          missionId: dto.missionId,
+          pinnedVersionId: dto.pinnedVersionId ?? null,
+        },
+        state.strategy,
+        state.targetNode,
+        state.headVersionId,
+      );
       if (blockReason) throw new ConflictException(blockReason);
-      const constraint = await this.preparationConstraint(tenantId, dto.kind, state.strategy, state.targetNode);
+      const constraint = await this.preparationConstraint(
+        tenantId,
+        dto.kind,
+        state.strategy,
+        state.targetNode,
+      );
       if (constraint) throw new ConflictException(constraint);
     }
     const idempotencyKey = `exec:${dto.nodeId}:${dto.kind}`;
@@ -621,7 +669,9 @@ export class ExecutionService {
     // part of any gate; fails soft to [] (mirrors MeriService.stewardContext).
     // F06: name the strategy so its own strategy-scoped documents ground this
     // generation; other strategies' scoped material stays excluded.
-    const stewardFacts = await this.fetchStewardFactsSafely(tenantId, strategy.clientId, { strategyId: strategy.id });
+    const stewardFacts = await this.fetchStewardFactsSafely(tenantId, strategy.clientId, {
+      strategyId: strategy.id,
+    });
 
     const results: Record<string, unknown> = {};
     let sendApproval: Record<string, unknown> | null = null;
@@ -1298,7 +1348,13 @@ export class ExecutionService {
         entityType: 'node',
         entityId: node.id,
         strategyId,
-        after: { runId, artifactType, artifactRef, nodeStatusAdvanced: advanced.count > 0, ...provenance },
+        after: {
+          runId,
+          artifactType,
+          artifactRef,
+          nodeStatusAdvanced: advanced.count > 0,
+          ...provenance,
+        },
       });
     });
   }
@@ -1742,11 +1798,18 @@ export class ExecutionService {
   }
 
   /** The same outreach constraints checked again immediately before staging. */
-  private async preparationConstraint(tenantId: string, kind: ExecutionKindValue, strategy: StrategyRow, node: NodeRow): Promise<string | null> {
+  private async preparationConstraint(
+    tenantId: string,
+    kind: ExecutionKindValue,
+    strategy: StrategyRow,
+    node: NodeRow,
+  ): Promise<string | null> {
     if (kind !== 'outreach') return null;
     if (!strategy.clientId) return 'Select a client for this strategy before staging outreach.';
     const constraint = await this.checkClientConstraints(tenantId, strategy.clientId, node);
-    return constraint.blocked ? 'Client-approved instructions prohibit outreach. Review the client constraints in Context review.' : null;
+    return constraint.blocked
+      ? 'Client-approved instructions prohibit outreach. Review the client constraints in Context review.'
+      : null;
   }
 
   // ---- client constraint (do-not-contact) ----------------------------------
@@ -1816,8 +1879,12 @@ export class ExecutionService {
           'mission has no strategy — pass strategyId for a firm-level mission',
         );
       }
-      const strategy = await tx.spStrategy.findFirst({ where: { id: strategyId }, select: { id: true, archivedAt: true } });
-      if (!strategy || strategy.archivedAt != null) throw new NotFoundException('Active strategy not found');
+      const strategy = await tx.spStrategy.findFirst({
+        where: { id: strategyId },
+        select: { id: true, archivedAt: true },
+      });
+      if (!strategy || strategy.archivedAt != null)
+        throw new NotFoundException('Active strategy not found');
       // P0-1: an archived node is not executable — it reads as not part of the
       // strategy, so no run can be planned against plan history.
       const node = await tx.spNode.findFirst({
@@ -1847,7 +1914,8 @@ export class ExecutionService {
           },
         },
       });
-      if (!strategy || strategy.archivedAt != null) throw new NotFoundException('Active strategy not found');
+      if (!strategy || strategy.archivedAt != null)
+        throw new NotFoundException('Active strategy not found');
       const s = strategy as unknown as StrategyRow;
       const targetNode = s.nodes.find((n) => n.id === nodeId);
       if (!targetNode) throw new BadRequestException('node is not part of the target strategy');

@@ -122,7 +122,10 @@ describe('AnalysisChartCard', () => {
     // text appears. Asserting it synchronously made this flaky under a heavier
     // suite — wait for the effect rather than for the machine to be fast.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Request/ })).toHaveAttribute('aria-pressed', 'true'),
+      expect(screen.getByRole('button', { name: /Request/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
     );
     expect(mocks.get).toHaveBeenCalledWith('/api/clio/analysis-artifacts/chart-1');
     expect(mocks.get).toHaveBeenCalledWith('/api/clio/analysis-artifacts/chart-1/image', {

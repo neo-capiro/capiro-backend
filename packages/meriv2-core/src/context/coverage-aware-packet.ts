@@ -1,10 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { CompiledContextPacketV2, ContextPacketHealth } from './contract';
 
-export type ContextPacketRetrievalCompleteness =
-  | 'not_requested'
-  | 'complete'
-  | 'incomplete';
+export type ContextPacketRetrievalCompleteness = 'not_requested' | 'complete' | 'incomplete';
 
 export type ContextPacketSourceStatus =
   | 'healthy'

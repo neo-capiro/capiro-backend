@@ -11,56 +11,92 @@ const FILING_TOOLS = new Set(['save_note', 'save_chat_attachments']);
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown> : {};
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function confirmedSummary(entries: FilingEvidence[]): string {
-  if (!entries.length) return 'I have not saved a note or filed documents in this turn. A save needs the actual content, the intended client, and a confirmed write result.';
-  return entries.map(({ tool, result }) => {
-    const row = record(result);
-    if (row.pendingApproval === true) return 'The save is proposed and awaits your approval. It has not run; use the approval card to continue.';
-    const summary = record(row.resultSummary);
-    const value = Object.keys(summary).length ? summary : row;
-    if (row.blocked === true) return 'The save was blocked. No successful save was confirmed.';
-    const client = typeof value.clientName === 'string' ? ` under ${value.clientName}` : '';
-    if (tool === 'save_note' && (typeof record(value.note).id === 'string' || typeof value.documentId === 'string')) {
-      if (value.status === 'pending') return `Your note is stored${client}, but document scanning is still pending. It is not ready to use yet.`;
-      if (value.status === 'failed') return `Your note${client} is unavailable under the document readiness policy. Review its action status before retrying.`;
-    }
-    if (tool === 'save_note' && value.status === 'saved'
-      && (typeof record(value.note).id === 'string' || typeof value.documentId === 'string')) {
-      return `Your note was saved${client}.${typeof value.location === 'string' && value.location.startsWith('/clients?')
-        ? ` [Open saved note](${value.location})` : ''}${value.indexingStatus === 'pending' ? ' Search indexing is still pending.' : ''}`;
-    }
-    if (tool === 'save_chat_attachments' && Array.isArray(value.files)) {
-      const files = value.files.map(record);
-      const saved = files.filter((f) => f.status === 'saved' && typeof f.documentId === 'string').length;
-      const pending = files.filter((f) => f.status === 'pending' && typeof f.documentId === 'string').length;
-      const failed = files.length - saved - pending;
-      return `Client filing${client}: ${saved} saved, ${pending} still processing, ${failed} failed.${typeof value.location === 'string' && value.location.startsWith('/clients?')
-        ? ` [Open client documents](${value.location})` : ''}${failed ? ' Review the file results before retrying the failed files.' : ''}`;
-    }
-    return 'The save did not return a confirmed record. Check its action status before retrying.';
-  }).join('\n\n');
+  if (!entries.length)
+    return 'I have not saved a note or filed documents in this turn. A save needs the actual content, the intended client, and a confirmed write result.';
+  return entries
+    .map(({ tool, result }) => {
+      const row = record(result);
+      if (row.pendingApproval === true)
+        return 'The save is proposed and awaits your approval. It has not run; use the approval card to continue.';
+      const summary = record(row.resultSummary);
+      const value = Object.keys(summary).length ? summary : row;
+      if (row.blocked === true) return 'The save was blocked. No successful save was confirmed.';
+      const client = typeof value.clientName === 'string' ? ` under ${value.clientName}` : '';
+      if (
+        tool === 'save_note' &&
+        (typeof record(value.note).id === 'string' || typeof value.documentId === 'string')
+      ) {
+        if (value.status === 'pending')
+          return `Your note is stored${client}, but document scanning is still pending. It is not ready to use yet.`;
+        if (value.status === 'failed')
+          return `Your note${client} is unavailable under the document readiness policy. Review its action status before retrying.`;
+      }
+      if (
+        tool === 'save_note' &&
+        value.status === 'saved' &&
+        (typeof record(value.note).id === 'string' || typeof value.documentId === 'string')
+      ) {
+        return `Your note was saved${client}.${
+          typeof value.location === 'string' && value.location.startsWith('/clients?')
+            ? ` [Open saved note](${value.location})`
+            : ''
+        }${value.indexingStatus === 'pending' ? ' Search indexing is still pending.' : ''}`;
+      }
+      if (tool === 'save_chat_attachments' && Array.isArray(value.files)) {
+        const files = value.files.map(record);
+        const saved = files.filter(
+          (f) => f.status === 'saved' && typeof f.documentId === 'string',
+        ).length;
+        const pending = files.filter(
+          (f) => f.status === 'pending' && typeof f.documentId === 'string',
+        ).length;
+        const failed = files.length - saved - pending;
+        return `Client filing${client}: ${saved} saved, ${pending} still processing, ${failed} failed.${
+          typeof value.location === 'string' && value.location.startsWith('/clients?')
+            ? ` [Open client documents](${value.location})`
+            : ''
+        }${failed ? ' Review the file results before retrying the failed files.' : ''}`;
+      }
+      return 'The save did not return a confirmed record. Check its action status before retrying.';
+    })
+    .join('\n\n');
 }
 
 /** Receipt guard for direct completion assertions, independent of optional
  * evidence assurance. It does not infer note content or decide whether to write;
  * those remain provider decisions and canonical tool/approval operations. */
 export function enforceClientFilingConfirmation(args: {
-  reply: string; request: string; entries: FilingEvidence[];
+  reply: string;
+  request: string;
+  entries: FilingEvidence[];
 }): string {
   const writes = args.entries.filter((entry) => FILING_TOOLS.has(entry.tool));
   const filingRequest = /\b(?:notes?|log|logging|file|filing|save|saving)\b/i.test(args.request);
   if (!writes.length && !filingRequest) return args.reply;
   const claim = (line: string) => {
-    const text = line.replace(/\*\*|__/g, '').trim()
-      .replace(/^(?:(?:[-*+] |\d+[.)] |#{1,6} )|[\p{Extended_Pictographic}\uFE0F\u200D]\s*)+/u, '').trim();
+    const text = line
+      .replace(/\*\*|__/g, '')
+      .trim()
+      .replace(/^(?:(?:[-*+] |\d+[.)] |#{1,6} )|[\p{Extended_Pictographic}\uFE0F\u200D]\s*)+/u, '')
+      .trim();
     if (/^[>"“`]/.test(text)) return false;
-    return /(?:^|[.!?]\s+)(?:I(?:['’]ve| have)?|We(?:['’]ve| have)?)\s+(?:successfully\s+|already\s+)?(?:saved|filed|logged|stored|recorded)\b/i.test(text)
-      || /^(?:Your |The |These |Those )?(?:notes?|documents?|attachments?|files?)\s+(?:(?:have|has) been|(?:are|is)(?: now)?|were|was)\s+(?:successfully\s+)?(?:saved|filed|logged|stored|recorded)\b/i.test(text)
-      || /^(?:Successfully\s+)?(?:Saved|Filed|Logged|Recorded)\b.*\b(?:notes?|documents?|attachments?|files?)\b/i.test(text)
-      || /^(?:Done|Saved|Filed|Logged)[.!]?$/i.test(text);
+    return (
+      /(?:^|[.!?]\s+)(?:I(?:['’]ve| have)?|We(?:['’]ve| have)?)\s+(?:successfully\s+|already\s+)?(?:saved|filed|logged|stored|recorded)\b/i.test(
+        text,
+      ) ||
+      /^(?:Your |The |These |Those )?(?:notes?|documents?|attachments?|files?)\s+(?:(?:have|has) been|(?:are|is)(?: now)?|were|was)\s+(?:successfully\s+)?(?:saved|filed|logged|stored|recorded)\b/i.test(
+        text,
+      ) ||
+      /^(?:Successfully\s+)?(?:Saved|Filed|Logged|Recorded)\b.*\b(?:notes?|documents?|attachments?|files?)\b/i.test(
+        text,
+      ) ||
+      /^(?:Done|Saved|Filed|Logged)[.!]?$/i.test(text)
+    );
   };
   let replaced = false;
   const paragraphs = args.reply.split(/\n\s*\n/).map((paragraph) => {

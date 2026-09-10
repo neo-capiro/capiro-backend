@@ -169,7 +169,10 @@ export function assertNoAiSelfCorroboration(
 export function assertEvidencePresentWhenProposingMemory(
   input: Pick<CaptureLearningSignalInput, 'proposedMemoryLayer' | 'evidenceRefs'>,
 ): void {
-  if (input.proposedMemoryLayer != null && (!input.evidenceRefs || input.evidenceRefs.length === 0)) {
+  if (
+    input.proposedMemoryLayer != null &&
+    (!input.evidenceRefs || input.evidenceRefs.length === 0)
+  ) {
     throw new Error(
       'assertEvidencePresentWhenProposingMemory: a signal proposing a memory layer must carry at least one evidence reference.',
     );
@@ -218,7 +221,11 @@ export interface CaptureLearningSignalInput {
  * than this module reading it internally, so it stays trivially testable.
  */
 export function learningSignalCaptureEnabled(raw: string | undefined): boolean {
-  return String(raw ?? '').trim().toLowerCase() !== 'disabled';
+  return (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase() !== 'disabled'
+  );
 }
 
 /**

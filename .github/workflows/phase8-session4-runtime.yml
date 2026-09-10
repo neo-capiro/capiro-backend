@@ -48,19 +48,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Pin pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
       - name: Use Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Pin pnpm
-        run: corepack prepare pnpm@9.12.0 --activate
 
       - name: Frozen workspace install
         run: pnpm install --frozen-lockfile
 
       - name: Build shared defense boundaries
         run: |
+          pnpm --filter @capiro/shared build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/defense-contracts build
           pnpm --filter @capiro/defense-domain build
@@ -75,11 +78,14 @@ jobs:
         run: pnpm --filter @capiro/defense-api verify:session4
 
       - name: Validate defense-api
+        env:
+          # Prisma validates datasource configuration without connecting.
+          DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
         run: |
           pnpm --filter @capiro/defense-api prisma:validate
           pnpm --filter @capiro/defense-api typecheck
-          pnpm --filter @capiro/defense-api test
           pnpm --filter @capiro/defense-api build
+          pnpm --filter @capiro/defense-api test
 
       - name: Re-run trusted Phase 1-7 static gates
         run: |

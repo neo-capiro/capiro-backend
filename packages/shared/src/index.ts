@@ -3096,7 +3096,11 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
   const market = federalMarketCitationRows(tool, payload);
   if (market) return market;
   if (Array.isArray(payload.data)) return payload.data as unknown[];
-  if (Array.isArray(payload.results) && !(tool === 'search_memory' && Array.isArray(payload.records))) return payload.results as unknown[];
+  if (
+    Array.isArray(payload.results) &&
+    !(tool === 'search_memory' && Array.isArray(payload.records))
+  )
+    return payload.results as unknown[];
   // Shared retrieval returns evidence envelopes, not the legacy data/results
   // rows. Preserve the authoritative record ID when rendering source popovers.
   if (Array.isArray(payload.records)) {
@@ -3122,7 +3126,9 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
           sourceDomain: record.domain,
           sourceVersion: provenance.sourceVersion,
           sourceUpdatedAt: record.updatedAt,
-          ...(data.sourceKind === 'governed_memory' && typeof data.value === 'string' ? { snippet: data.value } : {}),
+          ...(data.sourceKind === 'governed_memory' && typeof data.value === 'string'
+            ? { snippet: data.value }
+            : {}),
           title:
             firstCitationString(data, CITATION_TITLE_FIELDS) ??
             firstCitationString(data, ['issueTitle', 'peCode']) ??
@@ -3138,28 +3144,65 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
 }
 
 /** A locator is data returned by a source owner, never a title or current picker inference. */
-function sourceLocatorForCitation(tool: string, row: Record<string, unknown>, result: Record<string, unknown>, id: string): MeriSourceLocator | undefined {
+function sourceLocatorForCitation(
+  tool: string,
+  row: Record<string, unknown>,
+  result: Record<string, unknown>,
+  id: string,
+): MeriSourceLocator | undefined {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const exact = (value: unknown) => typeof value === 'string' && uuid.test(value) ? value : undefined;
+  const exact = (value: unknown) =>
+    typeof value === 'string' && uuid.test(value) ? value : undefined;
   const observedAt = typeof result.generatedAt === 'string' ? result.generatedAt : undefined;
   if (tool === 'read_client_documents' && citationObject(result.document)) {
-    const recordId = exact(result.document.id), clientId = exact(result.clientId);
-    return recordId && clientId ? { kind: 'document', recordId, clientId,
-      ...(typeof result.document.contentHash === 'string' ? { version: result.document.contentHash } : {}), observedAt } : undefined;
+    const recordId = exact(result.document.id),
+      clientId = exact(result.clientId);
+    return recordId && clientId
+      ? {
+          kind: 'document',
+          recordId,
+          clientId,
+          ...(typeof result.document.contentHash === 'string'
+            ? { version: result.document.contentHash }
+            : {}),
+          observedAt,
+        }
+      : undefined;
   }
   const recordId = exact(id);
   if (!recordId) return undefined;
   if (isMeriMailReadTool(tool) || row.sourceDomain === 'mail') {
-    return { kind: 'email', recordId, threadId: exact(row.threadId ?? result.threadId), observedAt };
+    return {
+      kind: 'email',
+      recordId,
+      threadId: exact(row.threadId ?? result.threadId),
+      observedAt,
+    };
   }
-  if (tool === 'search_memory' || row.sourceKind === 'governed_memory' || row.sourceDomain === 'institutional_knowledge' && row.sourceKind === 'governed_memory') {
-    return { kind: 'memory', recordId, clientId: exact(row.clientId), observedAt,
-      ...(citationObject(row.content) && typeof row.content.hash === 'string' ? { version: `content:${row.content.hash}` } : {}) };
+  if (
+    tool === 'search_memory' ||
+    row.sourceKind === 'governed_memory' ||
+    (row.sourceDomain === 'institutional_knowledge' && row.sourceKind === 'governed_memory')
+  ) {
+    return {
+      kind: 'memory',
+      recordId,
+      clientId: exact(row.clientId),
+      observedAt,
+      ...(citationObject(row.content) && typeof row.content.hash === 'string'
+        ? { version: `content:${row.content.hash}` }
+        : {}),
+    };
   }
   if (tool === 'get_client_context') {
-    return { kind: 'client', recordId, clientId: exact(row.sourceClientId),
-      ...(typeof row.sourceSection === 'string' ? { section: row.sourceSection } : {}), observedAt,
-      ...(typeof row.updatedAt === 'string' ? { version: row.updatedAt } : {}) };
+    return {
+      kind: 'client',
+      recordId,
+      clientId: exact(row.sourceClientId),
+      ...(typeof row.sourceSection === 'string' ? { section: row.sourceSection } : {}),
+      observedAt,
+      ...(typeof row.updatedAt === 'string' ? { version: row.updatedAt } : {}),
+    };
   }
   if (row.sourceDomain === 'clients') return { kind: 'client', recordId, observedAt };
   return undefined;
@@ -3201,7 +3244,9 @@ export function extractCitationsFromToolResult(
       url: url && /^https?:\/\//i.test(url) ? url : null,
       snippet: snippetRaw ? truncateCitation(snippetRaw, 240) : null,
       tool: toolName,
-      ...(sourceLocatorForCitation(toolName, r, rec, id) ? { source: sourceLocatorForCitation(toolName, r, rec, id) } : {}),
+      ...(sourceLocatorForCitation(toolName, r, rec, id)
+        ? { source: sourceLocatorForCitation(toolName, r, rec, id) }
+        : {}),
       ...(toolName === 'read_client_documents' &&
       citationObject(rec.document) &&
       typeof rec.clientId === 'string' &&
@@ -4139,7 +4184,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'create_word',
     description:
-      'Generate a downloadable Microsoft Word (.docx) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Use when the user asks for a Word doc, memo, report, or briefing as a file.',
+      'Generate a downloadable Word (.docx) or PDF (.pdf) document from a structured spec (title, optional subtitle, and sections with paragraphs, bullets, and tables). Set format to pdf for a PDF; docx is the default. Both export formats use the same saved content. Use when the user asks for a Word document, PDF, memo, report, or briefing as a file.',
     backend: 'meri',
     readOnly: false,
     surfaces: ['full_chat'],

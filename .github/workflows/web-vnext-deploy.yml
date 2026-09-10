@@ -72,6 +72,10 @@ jobs:
         run: pnpm --filter @capiro/web typecheck
 
       - name: Build web
+        env:
+          # Match the Docker build budget: Rollup chunk rendering exceeds
+          # Node's default heap before the image/deploy steps can run.
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/web build
 
       - name: Configure AWS credentials

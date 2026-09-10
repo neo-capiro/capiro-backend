@@ -19,7 +19,15 @@ export const WATCH_MISSION_WHERE: Prisma.SpAgentMissionWhereInput = {
 
 /** Active monitoring wins over older paused history; every caller uses this ordering. */
 export async function findWatchMission(tx: Prisma.TransactionClient, strategyId: string) {
-  const orderBy: Prisma.SpAgentMissionOrderByWithRelationInput[] = [{ createdAt: 'asc' }, { id: 'asc' }];
-  return await tx.spAgentMission.findFirst({ where: { strategyId, ...WATCH_MISSION_WHERE, state: 'active' }, orderBy })
-    ?? await tx.spAgentMission.findFirst({ where: { strategyId, ...WATCH_MISSION_WHERE }, orderBy });
+  const orderBy: Prisma.SpAgentMissionOrderByWithRelationInput[] = [
+    { createdAt: 'asc' },
+    { id: 'asc' },
+  ];
+  return (
+    (await tx.spAgentMission.findFirst({
+      where: { strategyId, ...WATCH_MISSION_WHERE, state: 'active' },
+      orderBy,
+    })) ??
+    (await tx.spAgentMission.findFirst({ where: { strategyId, ...WATCH_MISSION_WHERE }, orderBy }))
+  );
 }

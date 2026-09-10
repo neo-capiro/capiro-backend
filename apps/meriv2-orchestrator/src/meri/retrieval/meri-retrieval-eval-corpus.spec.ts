@@ -60,28 +60,20 @@ describe('Meri retrieval production eval corpus', () => {
       recipe: 'query_client_changes',
       complete: true,
     },
-  ])(
-    '$prompt',
-    ({ prompt, selectedClientId, subjectScope, queryClass, recipe, complete }) => {
-      const intent = classifyMeriRetrievalIntent(prompt, selectedClientId);
-      const plan = buildMeriRetrievalPlan(prompt, intent, ctx);
+  ])('$prompt', ({ prompt, selectedClientId, subjectScope, queryClass, recipe, complete }) => {
+    const intent = classifyMeriRetrievalIntent(prompt, selectedClientId);
+    const plan = buildMeriRetrievalPlan(prompt, intent, ctx);
 
-      expect(intent.subjectScope).toBe(subjectScope);
-      expect(intent.queryClass).toBe(queryClass);
-      expect(plan.recipeTool).toBe(recipe);
-      expect(plan.requireCompleteCoverage).toBe(complete);
-      expect(plan.requiredDomains.length).toBeGreaterThan(0);
-    },
-  );
+    expect(intent.subjectScope).toBe(subjectScope);
+    expect(intent.queryClass).toBe(queryClass);
+    expect(plan.recipeTool).toBe(recipe);
+    expect(plan.requireCompleteCoverage).toBe(complete);
+    expect(plan.requiredDomains.length).toBeGreaterThan(0);
+  });
 
   test('carries the researched company into the terse Search across clients follow-up', () => {
     const intent = classifyMeriRetrievalIntent('Search across clients', 'client-a');
-    const plan = buildMeriRetrievalPlan(
-      'Search across clients',
-      intent,
-      ctx,
-      'Kinetic Industries',
-    );
+    const plan = buildMeriRetrievalPlan('Search across clients', intent, ctx, 'Kinetic Industries');
 
     expect(plan.recipeTool).toBe('query_portfolio_overlap');
     expect(plan.targetHint).toBe('Kinetic Industries');

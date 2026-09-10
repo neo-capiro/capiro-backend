@@ -217,9 +217,13 @@ export class MemoryCandidateReviewService {
       }
       // Resolve labels only for the rows that survived candidate authorization
       // and reviewer assignment. The workspace's current client is unrelated.
-      const clientIds = [...new Set(visible.flatMap((candidate) =>
-        candidate.scope === 'client' && candidate.clientId ? [candidate.clientId] : [],
-      ))];
+      const clientIds = [
+        ...new Set(
+          visible.flatMap((candidate) =>
+            candidate.scope === 'client' && candidate.clientId ? [candidate.clientId] : [],
+          ),
+        ),
+      ];
       const clients = clientIds.length
         ? await tx.client.findMany({
             where: { tenantId: ctx.tenantId, id: { in: clientIds } },
@@ -229,7 +233,7 @@ export class MemoryCandidateReviewService {
       const names = new Map(clients.map((client) => [client.id, client.name]));
       return visible.map((candidate) => ({
         ...candidate,
-        clientName: candidate.clientId ? names.get(candidate.clientId) ?? null : null,
+        clientName: candidate.clientId ? (names.get(candidate.clientId) ?? null) : null,
       }));
     });
 

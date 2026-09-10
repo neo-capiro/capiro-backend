@@ -129,7 +129,7 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
     tools: ['search_emails', 'get_email_thread', 'send_email', 'reply_email'],
   },
   {
-    pattern: /\b(?:word|docx|document|memo|briefing|report)\b/i,
+    pattern: /\b(?:word|docx|pdf|document|memo|briefing|report)\b/i,
     tools: ['create_artifact', 'create_word', 'draft_policy_memo', 'create_meeting_brief'],
   },
   {

@@ -20,13 +20,12 @@ const CTX = {
   },
 } as MeriContext;
 
-function governed(
-  overrides: Partial<MeriGovernedTurnContext> = {},
-): MeriGovernedTurnContext {
+function governed(overrides: Partial<MeriGovernedTurnContext> = {}): MeriGovernedTurnContext {
   return {
     version: 1,
     operationId: 'strategies.generate',
-    prompt: '<capiro_strategy_context_plane>governed client history</capiro_strategy_context_plane>',
+    prompt:
+      '<capiro_strategy_context_plane>governed client history</capiro_strategy_context_plane>',
     contextPacket: {
       packetId: '44444444-4444-4444-8444-444444444444',
       persisted: true,
@@ -139,10 +138,7 @@ describe('StrategyContextPackService — governed Context Plane projection', () 
     expect(pack.health.status).toBe('degraded');
     expect(pack.health.missingRequired).toEqual(['clients', 'strategies_work']);
     expect(pack.provenance.omitted).toEqual(
-      expect.arrayContaining([
-        'Retrieval domain: clients',
-        'Retrieval domain: strategies_work',
-      ]),
+      expect.arrayContaining(['Retrieval domain: clients', 'Retrieval domain: strategies_work']),
     );
   });
 

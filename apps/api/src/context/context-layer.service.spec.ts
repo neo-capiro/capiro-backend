@@ -3,25 +3,18 @@ import {
   CONTEXT_LAYER_ORDER,
   type ContextRequest,
 } from '@capiro/meriv2-core';
-import {
-  RETRIEVAL_DOMAINS,
-  type RetrievalDomain,
-} from '../retrieval/retrieval-v2.types.js';
-import {
-  CONTEXT_LAYER_BY_RETRIEVAL_DOMAIN,
-  ContextLayerService,
-} from './context-layer.service.js';
-import type {
-  ContextResolutionResult,
-  ContextSubjectScope,
-} from './context-resolver.types.js';
+import { RETRIEVAL_DOMAINS, type RetrievalDomain } from '../retrieval/retrieval-v2.types.js';
+import { CONTEXT_LAYER_BY_RETRIEVAL_DOMAIN, ContextLayerService } from './context-layer.service.js';
+import type { ContextResolutionResult, ContextSubjectScope } from './context-resolver.types.js';
 
-function makeResolution(input: {
-  kind?: ContextSubjectScope;
-  clientIds?: string[];
-  uiClientId?: string;
-  domains?: RetrievalDomain[];
-} = {}): ContextResolutionResult {
+function makeResolution(
+  input: {
+    kind?: ContextSubjectScope;
+    clientIds?: string[];
+    uiClientId?: string;
+    domains?: RetrievalDomain[];
+  } = {},
+): ContextResolutionResult {
   const domains = input.domains ?? [];
   const retrievalRequest = domains.length
     ? {
@@ -72,13 +65,7 @@ function compilerRequest(input: Partial<ContextRequest> = {}): ContextRequest {
     tenantId: 'tenant-1',
     userId: 'user-1',
     surface: 'chat',
-    layers: [
-      'firm-identity',
-      'firm-playbook',
-      'user-voice',
-      'client-steering',
-      'client-people',
-    ],
+    layers: ['firm-identity', 'firm-playbook', 'user-voice', 'client-steering', 'client-people'],
     ...input,
   };
 }
@@ -132,15 +119,9 @@ describe('Knowledge Plane Phase 16 five context layers', () => {
   test('keeps the existing SteeringLayer vocabulary as sub-layers of A-C', () => {
     const layers = service.fromCompilerRequest(compilerRequest({ clientId: 'client-1' }));
 
-    expect(byId(layers, 'A').selectedSteeringLayers).toEqual([
-      'firm-identity',
-      'firm-playbook',
-    ]);
+    expect(byId(layers, 'A').selectedSteeringLayers).toEqual(['firm-identity', 'firm-playbook']);
     expect(byId(layers, 'B').selectedSteeringLayers).toEqual(['user-voice']);
-    expect(byId(layers, 'C').selectedSteeringLayers).toEqual([
-      'client-steering',
-      'client-people',
-    ]);
+    expect(byId(layers, 'C').selectedSteeringLayers).toEqual(['client-steering', 'client-people']);
     expect(byId(layers, 'D').selectedSteeringLayers).toEqual([]);
     expect(byId(layers, 'E').selectedSteeringLayers).toEqual([]);
   });
@@ -224,9 +205,6 @@ describe('Knowledge Plane Phase 16 five context layers', () => {
     expect(bridge.compilerRequest.clientId).toBeNull();
     expect(bridge.compilerRequest.layers).not.toContain('client-steering');
     expect(bridge.compilerRequest.layers).not.toContain('client-people');
-    expect(byId(bridge.contextLayers, 'C').subjectClientIds).toEqual([
-      'client-1',
-      'client-2',
-    ]);
+    expect(byId(bridge.contextLayers, 'C').subjectClientIds).toEqual(['client-1', 'client-2']);
   });
 });

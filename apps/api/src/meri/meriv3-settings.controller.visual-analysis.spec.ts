@@ -1,7 +1,9 @@
+import { EventEmitter } from 'node:events';
 import { NotFoundException } from '@nestjs/common';
 import { EventEmitter } from 'node:events';
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
+import type { Request } from 'express';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 
 const ctx = {
@@ -11,6 +13,14 @@ const ctx = {
   clerkUserId: 'clerk-1',
   role: 'standard_user',
 } as TenantContext;
+
+function request(): Request {
+  return Object.assign(new EventEmitter(), {
+    headers: {},
+    aborted: false,
+    res: Object.assign(new EventEmitter(), { writableEnded: false, destroyed: false }),
+  }) as unknown as Request;
+}
 
 function make(options?: { enabled?: boolean; sandboxAvailable?: boolean }) {
   const prisma = { withTenant: jest.fn() };

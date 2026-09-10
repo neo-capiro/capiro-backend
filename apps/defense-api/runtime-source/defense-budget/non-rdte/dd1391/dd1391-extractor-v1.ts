@@ -264,7 +264,7 @@ export function extractDd1391FromPages(input: {
       const detected = detectProjectIdentityFromText(
         page.text,
         page.page,
-        page.printedPage,
+        page.printedPage ?? undefined,
         component,
         account,
       );

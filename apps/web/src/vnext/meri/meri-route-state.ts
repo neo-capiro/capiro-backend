@@ -1,6 +1,7 @@
 import { normalizeMeriSourceLocator } from './meri-source-api.js';
 import { persistedMeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { meriRetrievalMetadata } from '../../components/chat/meri-retrieval-metadata.js';
+import { readMeriSavedDocumentArtifact, type MeriSavedDocumentArtifact } from '../../components/chat/meri-artifact-download.js';
 import type {
   ChatMessage,
   ChatMessageRetrieval,
@@ -298,6 +299,13 @@ export function mapPersistedCharts(message: PersistedMessage): PersistedChartArt
       id: String(item.id),
       title: String(item.title ?? '').trim() || 'Analysis chart',
     }));
+}
+
+export function mapPersistedDocuments(message: PersistedMessage): MeriSavedDocumentArtifact[] {
+  const documents = (Array.isArray(message.artifacts) ? message.artifacts : [])
+    .map(readMeriSavedDocumentArtifact)
+    .filter((artifact): artifact is MeriSavedDocumentArtifact => Boolean(artifact));
+  return [...new Map(documents.map((artifact) => [artifact.id, artifact])).values()];
 }
 
 export function normalizeConversation(value: unknown): MeriConversation | null {

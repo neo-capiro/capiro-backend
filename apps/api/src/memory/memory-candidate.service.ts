@@ -304,7 +304,9 @@ export class MemoryCandidateService {
     const contradictsMemoryItemId =
       typeof record.contradictsMemoryItemId === 'string' ? record.contradictsMemoryItemId : null;
     const conflictStatus =
-      typeof record.conflictStatus === 'string' && record.conflictStatus ? record.conflictStatus : 'none';
+      typeof record.conflictStatus === 'string' && record.conflictStatus
+        ? record.conflictStatus
+        : 'none';
 
     const sourceExcerpt =
       typeof record.sourceExcerpt === 'string' ? record.sourceExcerpt.slice(0, 4_000) : null;

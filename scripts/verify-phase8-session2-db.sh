@@ -51,10 +51,12 @@ else
     -e POSTGRES_USER="$SUPERUSER" -e POSTGRES_PASSWORD="$SUPERPASS" -e POSTGRES_DB="$DB_NAME" \
     -p "$PORT:5432" "$IMAGE" >/dev/null
   for _ in $(seq 1 60); do
-    docker exec "$NAME" pg_isready -U "$SUPERUSER" -d "$DB_NAME" >/dev/null 2>&1 && break
+    # The image's initialization server accepts Unix sockets before restarting.
+    # Wait for TCP so migration begins only after the final server is ready.
+    docker exec "$NAME" pg_isready -h 127.0.0.1 -U "$SUPERUSER" -d "$DB_NAME" >/dev/null 2>&1 && break
     sleep 1
   done
-  docker exec "$NAME" pg_isready -U "$SUPERUSER" -d "$DB_NAME" >/dev/null 2>&1 \
+  docker exec "$NAME" pg_isready -h 127.0.0.1 -U "$SUPERUSER" -d "$DB_NAME" >/dev/null 2>&1 \
     || fail "PostgreSQL did not become ready"
   REHEARSAL_DATABASE_URL="postgresql://$SUPERUSER:$SUPERPASS@localhost:$PORT/$DB_NAME"
 fi

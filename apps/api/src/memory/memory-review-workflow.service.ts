@@ -149,12 +149,7 @@ export class MemoryReviewWorkflowService {
         throw new ForbiddenException(`Memory operation denied: ${decision.reason}`);
       }
 
-      await this.ensureRowInTx(
-        tx,
-        ctx,
-        workflowCandidate(ctx.tenantId, candidate),
-        subject,
-      );
+      await this.ensureRowInTx(tx, ctx, workflowCandidate(ctx.tenantId, candidate), subject);
 
       const workflow = await this.lockWorkflowInTx(tx, ctx.tenantId, candidateId);
       if (workflow.status !== 'pending') {
@@ -167,7 +162,9 @@ export class MemoryReviewWorkflowService {
           throw new ForbiddenException('A non-admin proposer cannot review their own submission.');
         }
         if (workflow.assignedTo !== ctx.userId) {
-          throw new ForbiddenException('Only the assigned reviewer or an administrator may request changes.');
+          throw new ForbiddenException(
+            'Only the assigned reviewer or an administrator may request changes.',
+          );
         }
       }
 
@@ -283,10 +280,14 @@ export class MemoryReviewWorkflowService {
       }
       if (!isMemoryReviewAdminRole(ctx.role)) {
         if (workflow.requestedBy === ctx.userId) {
-          throw new ForbiddenException('A non-admin proposer cannot decide their own memory submission.');
+          throw new ForbiddenException(
+            'A non-admin proposer cannot decide their own memory submission.',
+          );
         }
         if (workflow.assignedTo !== ctx.userId) {
-          throw new ForbiddenException('Only the assigned reviewer or an administrator may decide this submission.');
+          throw new ForbiddenException(
+            'Only the assigned reviewer or an administrator may decide this submission.',
+          );
         }
       }
       const decision = await this.authorization.evaluateInTx(tx, ctx, subject, operation);
@@ -508,8 +509,8 @@ export class MemoryReviewWorkflowService {
   ): Promise<MemoryReviewWorkflowSnapshot> {
     const identities = await this.identitiesInTx(
       tx,
-      [row.requestedBy, row.assignedTo, row.decidedBy].filter(
-        (value): value is string => Boolean(value),
+      [row.requestedBy, row.assignedTo, row.decidedBy].filter((value): value is string =>
+        Boolean(value),
       ),
     );
     const submittedBy = identities.get(row.requestedBy) ?? {
@@ -540,8 +541,7 @@ export class MemoryReviewWorkflowService {
       viewerIsAssignedReviewer,
       capabilities: {
         requestChanges:
-          status === 'pending' &&
-          (admin || (viewerIsAssignedReviewer && !viewerIsSubmitter)),
+          status === 'pending' && (admin || (viewerIsAssignedReviewer && !viewerIsSubmitter)),
         reassign: status === 'pending' && admin,
       },
     };
@@ -562,10 +562,7 @@ export class MemoryReviewWorkflowService {
       WHERE id IN (${Prisma.join(uniqueIds.map((id) => Prisma.sql`${id}::uuid`))})
     `);
     return new Map(
-      rows.map((row) => [
-        row.userId,
-        { userId: row.userId, name: memoryReviewerDisplayName(row) },
-      ]),
+      rows.map((row) => [row.userId, { userId: row.userId, name: memoryReviewerDisplayName(row) }]),
     );
   }
 

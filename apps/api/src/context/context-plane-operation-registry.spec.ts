@@ -49,9 +49,7 @@ describe('Knowledge Plane Context Plane operation registry', () => {
     );
     expect(remaining).toEqual([]);
     expect(
-      CONTEXT_PLANE_OPERATIONS.every(
-        (entry) => entry.registration.mode === 'packet_required',
-      ),
+      CONTEXT_PLANE_OPERATIONS.every((entry) => entry.registration.mode === 'packet_required'),
     ).toBe(true);
   });
 

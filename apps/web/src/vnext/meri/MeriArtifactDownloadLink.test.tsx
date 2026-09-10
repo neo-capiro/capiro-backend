@@ -17,6 +17,14 @@ function setupBlob() {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe('inline Meri artifact download', () => {
+  test.each([`sandbox://untrusted.example.test${href}`, 'sandbox:/mnt/data/private.pdf'])('never links or authenticates unrecognized sandbox destinations: %s', (unrecognized) => {
+    const getAuthHeaders = vi.fn();
+    render(<MeriArtifactDownloadLink href={unrecognized} apiBaseUrl={apiBaseUrl} getAuthHeaders={getAuthHeaders}>Unrecognized file</MeriArtifactDownloadLink>);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(getAuthHeaders).not.toHaveBeenCalled();
+  });
+
   test('intercepts the protected Markdown link and downloads the same saved artifact after reopening', async () => {
     const fetchMock = vi.fn().mockResolvedValue(success());
     vi.stubGlobal('fetch', fetchMock);
@@ -48,6 +56,37 @@ describe('inline Meri artifact download', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     expect(fetchMock.mock.calls[1]![1].headers.Authorization).toBe('Bearer renewed');
     expect(fetchMock.mock.calls[1]![0]).toBe(`${apiBaseUrl}${href}`);
+  });
+
+  test('downloads PDF through the same protected inline link after history replay', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'Content-Type': 'application/pdf' }), blob: async () => new Blob(['%PDF-1.7'], { type: 'application/pdf' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { click } = setupBlob();
+    const getAuthHeaders = vi.fn(async () => ({ Authorization: 'Bearer current-user' }));
+    const pdfHref = `${href}?format=pdf&token=discard`;
+    const view = render(<MeriArtifactDownloadLink href={pdfHref} apiBaseUrl={apiBaseUrl} getAuthHeaders={getAuthHeaders}>Download PDF</MeriArtifactDownloadLink>);
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(click).toHaveBeenCalledOnce());
+    view.unmount();
+    render(<MeriArtifactDownloadLink href={pdfHref} apiBaseUrl={apiBaseUrl} getAuthHeaders={getAuthHeaders}>Download PDF</MeriArtifactDownloadLink>);
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([`${apiBaseUrl}${href}?format=pdf`, `${apiBaseUrl}${href}?format=pdf`]);
+    expect(getAuthHeaders).toHaveBeenCalledTimes(2);
+  });
+
+  test('cancels the old format when a saved link changes while its download is in flight', async () => {
+    let resolveResponse!: (response: ReturnType<typeof success>) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => { resolveResponse = resolve; })));
+    const { create } = setupBlob();
+    const getAuthHeaders = async () => ({ Authorization: 'Bearer current-user' });
+    const view = render(<MeriArtifactDownloadLink href={href} apiBaseUrl={apiBaseUrl} getAuthHeaders={getAuthHeaders}>Download Word</MeriArtifactDownloadLink>);
+    fireEvent.click(screen.getByRole('button'));
+    await waitFor(() => expect(resolveResponse).toBeTypeOf('function'));
+    view.rerender(<MeriArtifactDownloadLink href={`${href}?format=pdf`} apiBaseUrl={apiBaseUrl} getAuthHeaders={getAuthHeaders}>Download PDF</MeriArtifactDownloadLink>);
+    await act(async () => resolveResponse(success()));
+    expect(create).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
   });
 
   test('does not dispatch an old artifact after the identity context changes during auth', async () => {

@@ -212,8 +212,7 @@ export function evidenceRows(tool: string, result: unknown, max = 8): MeriRecipe
     const title = firstString(raw, NAME_FIELDS) ?? `${tool} result ${index + 1}`;
     const snippet = firstString(raw, SNIPPET_FIELDS) ?? `Structured record returned by ${tool}.`;
     const clientId =
-      stringValue(raw.clientId) ??
-      (isRecord(raw.client) ? stringValue(raw.client.id) : null);
+      stringValue(raw.clientId) ?? (isRecord(raw.client) ? stringValue(raw.client.id) : null);
     const clientName = firstClientName(raw);
     const occurredAt = firstIsoDate(raw);
     const metadata = selectedMetadata(raw);
@@ -254,7 +253,9 @@ export function resultHasMore(result: unknown): boolean {
   if (!isRecord(result)) return false;
   const returned = numberValue(result.returned) ?? resultRows(result).length;
   const total = numberValue(result.total) ?? numberValue(result.totalMatches);
-  return result.hasMore === true || result.nextCursor != null || (total != null && total > returned);
+  return (
+    result.hasMore === true || result.nextCursor != null || (total != null && total > returned)
+  );
 }
 
 function hasExplicitCompleteness(result: unknown): boolean {
@@ -335,16 +336,13 @@ export async function parallelMapLimit<T, R>(
   if (!values.length) return [];
   const out = new Array<R>(values.length);
   let cursor = 0;
-  const workers = Array.from(
-    { length: Math.min(Math.max(limit, 1), values.length) },
-    async () => {
-      while (cursor < values.length) {
-        const index = cursor;
-        cursor += 1;
-        out[index] = await mapper(values[index]!, index);
-      }
-    },
-  );
+  const workers = Array.from({ length: Math.min(Math.max(limit, 1), values.length) }, async () => {
+    while (cursor < values.length) {
+      const index = cursor;
+      cursor += 1;
+      out[index] = await mapper(values[index]!, index);
+    }
+  });
   await Promise.all(workers);
   return out;
 }
@@ -417,7 +415,7 @@ export function parseWindow(
   const requestedDays =
     typeof input.withinDays === 'number' && Number.isFinite(input.withinDays)
       ? Math.min(Math.max(Math.floor(input.withinDays), 1), 365)
-      : plan.timeWindow?.withinDays ?? 7;
+      : (plan.timeWindow?.withinDays ?? 7);
   const parsedFrom = typeof input.from === 'string' ? new Date(input.from) : null;
   const parsedTo = typeof input.to === 'string' ? new Date(input.to) : null;
   const to = parsedTo && Number.isFinite(parsedTo.getTime()) ? parsedTo : now;

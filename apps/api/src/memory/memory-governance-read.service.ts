@@ -1,10 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import { memoryGovernanceCenterEnabled } from './memory-governance-center.switch.js';
+import { readGovernedMemorySourceEvidence } from './memory-governance-source-evidence.helpers.js';
 import { fetchDeniedClientIds, wallExclusionSql } from './memory-wall.helpers.js';
 
 export type MemoryGovernanceBucket = 'all' | 'active' | 'review_due' | 'conflicts' | 'history';
@@ -233,8 +239,12 @@ export class MemoryGovernanceReadService {
     };
   }
 
-  async listItems(ctx: TenantContext, bucket: MemoryGovernanceBucket, limit = 100) {
+  async listItems(ctx: TenantContext, bucket: MemoryGovernanceBucket, limit = 100, query = '') {
     if (!memoryGovernanceCenterEnabled()) return { enabled: false, items: [] };
+    if (typeof query !== 'string') throw new BadRequestException('Memory search must be text.');
+    const search = query.trim();
+    if (search.length > 200)
+      throw new BadRequestException('Memory search must be at most 200 characters.');
     const bounded = Math.min(250, Math.max(1, Math.floor(limit)));
 
     const items = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -276,6 +286,7 @@ export class MemoryGovernanceReadService {
         WHERE mi.tenant_id = ${ctx.tenantId}::uuid
           AND (mi.visibility = 'tenant' OR mi.owner_user_id = ${ctx.userId}::uuid)
           ${bucketSql(bucket)}
+          ${search ? Prisma.sql`AND strpos(lower(mi.title), lower(${search})) > 0` : Prisma.empty}
           ${Prisma.raw(wallExclusionSql(denied, 'mi.client_id'))}
         ORDER BY
           CASE WHEN mi.governed_status = 'conflicted' THEN 0
@@ -374,6 +385,10 @@ export class MemoryGovernanceReadService {
       const read = await this.authorization.evaluateInTx(tx, ctx, subject, 'read');
       if (!read.allowed) throw new ForbiddenException(`Memory operation denied: ${read.reason}`);
 
+      const sourceEvidence =
+        subject.clientId === row.clientId
+          ? await readGovernedMemorySourceEvidence(tx, ctx, row)
+          : null;
       const versions = await this.versionLineage(tx, ctx.tenantId, itemId);
       const transitions = await this.itemTransitions(tx, ctx.tenantId, itemId);
       const projection = await this.itemProjection(tx, ctx.tenantId, itemId);
@@ -395,6 +410,7 @@ export class MemoryGovernanceReadService {
           ...presentItem(row, capabilities),
           slug: row.slug,
           sections: Array.isArray(row.sections) ? row.sections : [],
+          sourceEvidence,
           provenance: {
             source: row.source,
             sourceRef: row.sourceRef,

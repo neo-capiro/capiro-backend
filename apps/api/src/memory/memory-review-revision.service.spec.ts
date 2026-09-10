@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
@@ -94,7 +95,7 @@ function harness(
         },
       ];
     });
-  const auditCreate = jest.fn(async (_input: unknown) => ({}));
+  const auditCreate = jest.fn(async (_args: Prisma.AuditLogCreateArgs) => ({}));
   const tx = { $queryRaw: queryRaw, auditLog: { create: auditCreate } };
   const prisma = {
     withTenantUser: jest.fn(

@@ -7,10 +7,7 @@ import type {
 } from '@capiro/meriv2-core';
 import { ContextPlaneGatewayService } from './context-plane-gateway.service.js';
 import type { Phase17CompiledContextPacket } from './context-packet-v2.service.js';
-import type {
-  ContextResolutionRequest,
-  ContextRetrievalResult,
-} from './context-resolver.types.js';
+import type { ContextResolutionRequest, ContextRetrievalResult } from './context-resolver.types.js';
 import type {
   RetrievalDomain,
   RetrievalRecord,
@@ -175,13 +172,7 @@ export class StrategyContextPlaneService {
       actorUserId: security.userId,
       clientId: input.clientId,
       surface: route.packetSurface,
-      layers: [
-        'firm-identity',
-        'firm-playbook',
-        'user-voice',
-        'client-steering',
-        'client-people',
-      ],
+      layers: ['firm-identity', 'firm-playbook', 'user-voice', 'client-steering', 'client-people'],
       render: 'all',
       tokenBudget: 8_000,
       budgetUnit: 'tokens',
@@ -406,10 +397,7 @@ export class StrategyContextPlaneService {
             id: input.clientId,
             tenantId: input.tenantId,
             status: { not: 'archived' },
-            OR: [
-              { memoryWall: false },
-              { memoryAccessGrants: { some: { userId: user.id } } },
-            ],
+            OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: user.id } } }],
           },
           select: { id: true, name: true },
         }),
@@ -417,10 +405,7 @@ export class StrategyContextPlaneService {
           where: {
             tenantId: input.tenantId,
             status: { not: 'archived' },
-            OR: [
-              { memoryWall: false },
-              { memoryAccessGrants: { some: { userId: user.id } } },
-            ],
+            OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: user.id } } }],
           },
           select: { id: true },
           orderBy: { id: 'asc' },
@@ -547,9 +532,7 @@ function projectRecords(records: RetrievalRecord[]): { text: string; truncated: 
     const block = [
       `[${record.domain}:${record.recordId}]`,
       boundedJson(safePayload, RECORD_CHAR_BUDGET),
-      record.provenance
-        ? `provenance=${boundedJson(record.provenance, 500)}`
-        : '',
+      record.provenance ? `provenance=${boundedJson(record.provenance, 500)}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -602,14 +585,7 @@ function safePayloadFor(record: RetrievalRecord): Record<string, unknown> {
       'debriefSummary',
     ],
     tasks: [...common, 'description', 'dueAt', 'completedAt', 'meetingId', 'contactId'],
-    outreach: [
-      ...common,
-      'subject',
-      'channel',
-      'sentAt',
-      'recipientCount',
-      'deliveryStatus',
-    ],
+    outreach: [...common, 'subject', 'channel', 'sentAt', 'recipientCount', 'deliveryStatus'],
     mail: [
       ...common,
       'subject',
@@ -787,7 +763,7 @@ function toPacketSummary(
     degradedReason:
       kind === 'release_switch_rollback'
         ? 'context_packet_release_switch_rollback'
-        : healthReasons[0] ?? (!persisted ? 'context_packet_not_persisted' : null),
+        : (healthReasons[0] ?? (!persisted ? 'context_packet_not_persisted' : null)),
   };
 }
 

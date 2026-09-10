@@ -1,6 +1,10 @@
 import { buildMeriActionPreview } from './meri-action-preview.js';
 
 describe('client filing action preview', () => {
+  it('names the requested PDF format while retaining the document governance preview', () => {
+    expect(buildMeriActionPreview({ tool: 'create_word', input: { format: 'pdf', title: 'Brief' }, reason: 'Internal artifact' }))
+      .toMatchObject({ label: 'Create PDF document', leavesFirm: false, reversible: true, fields: { title: 'Brief' } });
+  });
   it('shows the target client and document count without exposing attachment bodies or IDs', () => {
     const preview = buildMeriActionPreview({
       tool: 'save_chat_attachments',

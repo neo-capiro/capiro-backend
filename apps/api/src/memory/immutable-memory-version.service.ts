@@ -377,7 +377,11 @@ export class ImmutableMemoryVersionService {
     const cleanReason = (reason ?? '').trim();
 
     const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      const candidate = await this.lockLearningSignalConflictCandidate(tx, ctx.tenantId, candidateId);
+      const candidate = await this.lockLearningSignalConflictCandidate(
+        tx,
+        ctx.tenantId,
+        candidateId,
+      );
       await this.authorizeCandidate(tx, ctx, candidateId, 'resolve_conflict');
       if (
         candidate.scope !== 'user_private' &&

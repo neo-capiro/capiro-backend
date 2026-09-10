@@ -1,6 +1,10 @@
 import { HttpException } from '@nestjs/common';
 import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
+import type {
+  FederalMarketMeriToolName,
+  FederalMarketMeriToolsService,
+} from '../federal-spending/federal-market-meri-tools.service.js';
 import { createGovernedMeriToolsService } from './governed-meri-tools.proxy.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
@@ -9,6 +13,17 @@ const ctx = {
   userId: '22222222-2222-4222-8222-222222222222',
   role: 'standard_user',
 } as TenantContext;
+
+function federalTools(): FederalMarketMeriToolsService {
+  const tools = {
+    has: (_name: string): _name is FederalMarketMeriToolName => false,
+    anthropicSchemas: () => [],
+    execute: jest.fn(async () => {
+      throw new Error('Unexpected federal-market tool dispatch');
+    }),
+  } satisfies Pick<FederalMarketMeriToolsService, 'has' | 'anthropicSchemas' | 'execute'>;
+  return tools as unknown as FederalMarketMeriToolsService;
+}
 
 function rawWith(errorOrResult: unknown, rejects = true): MeriToolsService {
   const execute = rejects
@@ -35,7 +50,7 @@ describe('governed Meri tools adapter', () => {
         202,
       ),
     );
-    const tools = createGovernedMeriToolsService(raw, undefined, { has: () => false } as never);
+    const tools = createGovernedMeriToolsService(raw, undefined, federalTools());
 
     await expect(tools.execute(ctx, 'correct_memory', {})).resolves.toEqual({
       corrected: false,
@@ -61,7 +76,7 @@ describe('governed Meri tools adapter', () => {
         208,
       ),
     );
-    const tools = createGovernedMeriToolsService(raw, undefined, { has: () => false } as never);
+    const tools = createGovernedMeriToolsService(raw, undefined, federalTools());
 
     await expect(tools.executeFromAuthenticatedUser(ctx, 'correct_memory', {})).resolves.toEqual({
       corrected: false,
@@ -75,15 +90,15 @@ describe('governed Meri tools adapter', () => {
 
   test('unrelated results and errors preserve the original MeriToolsService contract', async () => {
     const result = { ok: true };
-    const successful = createGovernedMeriToolsService(rawWith(result, false), undefined, {
-      has: () => false,
-    } as never);
+    const successful = createGovernedMeriToolsService(
+      rawWith(result, false),
+      undefined,
+      federalTools(),
+    );
     await expect(successful.execute(ctx, 'search_memory', {})).resolves.toBe(result);
 
     const failure = new Error('real tool failure');
-    const failing = createGovernedMeriToolsService(rawWith(failure), undefined, {
-      has: () => false,
-    } as never);
+    const failing = createGovernedMeriToolsService(rawWith(failure), undefined, federalTools());
     await expect(failing.execute(ctx, 'search_memory', {})).rejects.toBe(failure);
   });
 });

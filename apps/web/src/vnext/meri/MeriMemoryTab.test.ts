@@ -31,7 +31,10 @@ describe('Meri institutional memory', () => {
     expect(source).toContain('candidate.capabilities.approve');
     expect(source).toContain('candidate.capabilities.reject');
     expect(source).toContain('candidate.capabilities.withdraw');
-    expect(source).toContain('candidateRejectRequiresReason');
+    // Every canonical rejection now requires a reason, regardless of kind.
+    expect(source).toContain('disabled={!rejectReason.trim() || decision.isPending}');
+    expect(source).toContain('reason: rejectReason.trim()');
+    expect(source).toContain("decision: 'reject'");
   });
 
   test('the rail passes the real packet and uses governed counts', () => {

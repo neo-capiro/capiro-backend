@@ -71,6 +71,21 @@ function plan(recipeTool: MeriRetrievalPlan['recipeTool'] = 'query_relationship_
 }
 
 describe('MeriSemanticToolGateway', () => {
+  test('exposes canonical document generation for a PDF-only request', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: '*',
+      }),
+    );
+    const selected = gateway.select({
+      schemas,
+      tenantId: 'tenant-1',
+      request: 'Make a PDF.',
+      plan: plan(null),
+    });
+    expect(selected.decision.exposedNames).toContain('create_word');
+  });
   test.each([
     'Please find the attached documents. Save this information in Sightline Intelligence.',
     'Save these files under Sightline.',

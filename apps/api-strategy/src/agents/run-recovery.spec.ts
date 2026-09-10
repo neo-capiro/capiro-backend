@@ -184,19 +184,31 @@ describe('detectRecovery — (4) artifact created but the run never advanced', (
 
   it('preserves human input and approval parks even when an artifact already exists', () => {
     for (const kind of ['workspace', 'outreach']) {
-      expect(codes(input({
-        run: { ...input().run, state: 'waiting_for_input' },
-        execution: { kind, nodeId: 'n1', pinnedVersionId: null },
-        artifacts: [{ artifactType: kind === 'workspace' ? 'workspace_draft' : 'outreach_record', artifactRef: 'artifact-1', detachedAt: null }],
-      }))).not.toContain('ARTIFACT_NOT_ADVANCED');
+      expect(
+        codes(
+          input({
+            run: { ...input().run, state: 'waiting_for_input' },
+            execution: { kind, nodeId: 'n1', pinnedVersionId: null },
+            artifacts: [
+              {
+                artifactType: kind === 'workspace' ? 'workspace_draft' : 'outreach_record',
+                artifactRef: 'artifact-1',
+                detachedAt: null,
+              },
+            ],
+          }),
+        ),
+      ).not.toContain('ARTIFACT_NOT_ADVANCED');
     }
   });
 
   it('finishes a workspace run stranded between staging and completion', () => {
-    const finding = detectRecovery(input({
-      run: { ...input().run, state: 'staged' },
-      artifacts: [{ artifactType: 'workspace_draft', artifactRef: 'ws-1', detachedAt: null }],
-    })).find((row) => row.code === 'ARTIFACT_NOT_ADVANCED');
+    const finding = detectRecovery(
+      input({
+        run: { ...input().run, state: 'staged' },
+        artifacts: [{ artifactType: 'workspace_draft', artifactRef: 'ws-1', detachedAt: null }],
+      }),
+    ).find((row) => row.code === 'ARTIFACT_NOT_ADVANCED');
     expect(finding?.transition?.to).toBe('completed');
   });
 
@@ -231,10 +243,13 @@ describe('recovery and lifecycle agreement', () => {
           const facts = input({
             run: { ...input().run, state, heartbeatAt: minsAgo(60) },
             nodeLive,
-            artifacts: hasArtifact ? [{ artifactType: 'workspace_draft', artifactRef: 'ws-1', detachedAt: null }] : [],
+            artifacts: hasArtifact
+              ? [{ artifactType: 'workspace_draft', artifactRef: 'ws-1', detachedAt: null }]
+              : [],
           });
           for (const finding of detectRecovery(facts)) {
-            if (finding.transition) expect(isLegalTransition(state, finding.transition.to)).toBe(true);
+            if (finding.transition)
+              expect(isLegalTransition(state, finding.transition.to)).toBe(true);
           }
         }
       }

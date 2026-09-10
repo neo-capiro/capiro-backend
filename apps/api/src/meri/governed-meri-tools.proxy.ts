@@ -150,14 +150,14 @@ export function createGovernedMeriToolsService(
       if (property === 'manifest') {
         return () => {
           const manifest = target.manifest();
-          return { ...manifest, tools: [...manifest.tools, ...MERI_FEDERAL_MARKET_TOOL_DEFINITIONS] };
+          return {
+            ...manifest,
+            tools: [...manifest.tools, ...MERI_FEDERAL_MARKET_TOOL_DEFINITIONS],
+          };
         };
       }
       if (property === 'anthropicToolSchemas') {
-        return () => [
-          ...target.anthropicToolSchemas(),
-          ...federalMarketTools.anthropicSchemas(),
-        ];
+        return () => [...target.anthropicToolSchemas(), ...federalMarketTools.anthropicSchemas()];
       }
       if (property === 'isConcurrencySafe') {
         return (name: string) =>
@@ -184,9 +184,7 @@ export function createGovernedMeriToolsService(
           const [ctx, rawName, rawInput] = args;
           const name = typeof rawName === 'string' ? rawName.trim() : '';
           if (federalMarketTools.has(name)) {
-            return present(() =>
-              federalMarketTools.execute(ctx as TenantContext, name, rawInput),
-            );
+            return present(() => federalMarketTools.execute(ctx as TenantContext, name, rawInput));
           }
           return present(async () => {
             await assertOwnedChartArtifacts(prisma, ctx, String(name), rawInput);

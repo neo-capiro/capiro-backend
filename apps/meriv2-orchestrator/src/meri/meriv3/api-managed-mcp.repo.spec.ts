@@ -35,23 +35,24 @@ describe('ApiManagedMcpRepo', () => {
         INTERNAL_SERVICE_SECRET: 'service-secret',
       }) as never,
     );
-    const fetchMock = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          schemas: [
-            {
-              name: HUBSPOT_SEARCH,
-              description: 'Search contacts',
-              input_schema: { type: 'object' },
-              source: 'managed_mcp',
-              appId: 'hubspot',
-              appName: 'HubSpot',
-              readOnly: true,
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: HUBSPOT_SEARCH,
+                description: 'Search contacts',
+                input_schema: { type: 'object' },
+                source: 'managed_mcp',
+                appId: 'hubspot',
+                appName: 'HubSpot',
+                readOnly: true,
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
     );
     global.fetch = fetchMock as typeof fetch;
 
@@ -82,8 +83,8 @@ describe('ApiManagedMcpRepo', () => {
         MERIV2_TOOL_TIMEOUT_MS: '60000',
       }) as never,
     );
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify({ contacts: [{ id: '123' }] }), { status: 200 }),
+    const fetchMock = jest.fn(
+      async () => new Response(JSON.stringify({ contacts: [{ id: '123' }] }), { status: 200 }),
     );
     global.fetch = fetchMock as typeof fetch;
 

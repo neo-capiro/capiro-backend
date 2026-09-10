@@ -70,6 +70,8 @@ export function VNextMemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
   const [tab, setTab] = useState<GovernanceTabKey>('overview');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [action, setAction] = useState<ActionState | null>(null);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [search, setSearch] = useState('');
 
   const overview = useQuery<GovernanceOverview>({
     queryKey: ['memory-governance-overview'],
@@ -81,11 +83,11 @@ export function VNextMemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
 
   const bucket = governanceBucketForTab(tab);
   const items = useQuery<{ enabled: boolean; items: GovernanceItem[] }>({
-    queryKey: ['memory-governance-items', bucket],
+    queryKey: ['memory-governance-items', bucket, search],
     queryFn: async () =>
       (
         await api.get<{ enabled: boolean; items: GovernanceItem[] }>(
-          `/api/memory/governance/items?bucket=${bucket}&limit=250`,
+          `/api/memory/governance/items?bucket=${bucket}&limit=250${search ? `&q=${encodeURIComponent(search)}` : ''}`,
         )
       ).data,
     enabled: shouldRenderMemoryGovernanceCenter(isAdmin, overview.data) && bucket !== null,
@@ -206,7 +208,53 @@ export function VNextMemoryGovernanceCenter({ isAdmin }: { isAdmin: boolean }) {
     );
   } else {
     body = (
-      <MemoryItemTable items={items.data?.items ?? []} loading={items.isLoading} onOpen={setSelectedId} />
+      <div className="stv-stack">
+        <form
+          className="stv-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const next = searchDraft.trim();
+            if (next === search) void items.refetch();
+            else setSearch(next);
+          }}
+        >
+          <CapiroInput
+            label="Search memory by title"
+            placeholder="Search memory by title"
+            maxLength={200}
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+          />
+          <CapiroButton type="submit">Search</CapiroButton>
+          {search && (
+            <CapiroButton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setSearchDraft('');
+                setSearch('');
+              }}
+            >
+              Clear search
+            </CapiroButton>
+          )}
+        </form>
+        <p className="stv-muted">Search checks matching titles beyond the displayed list.</p>
+        {items.isError ? (
+          <SvCallout
+            kind="error"
+            title="Memory items could not be loaded"
+            description="Refresh or try the search again."
+          />
+        ) : (
+          <MemoryItemTable
+            key={`${bucket}:${search}`}
+            items={items.data?.items ?? []}
+            loading={items.isLoading}
+            onOpen={setSelectedId}
+          />
+        )}
+      </div>
     );
   }
 
@@ -357,11 +405,7 @@ function MemoryDetailDrawer({
 }) {
   if (!open && !loading) return null;
   return (
-    <CapiroDrawer
-      open={open || loading}
-      title={data?.title ?? 'Memory detail'}
-      onClose={onClose}
-    >
+    <CapiroDrawer open={open || loading} title={data?.title ?? 'Memory detail'} onClose={onClose}>
       <div className="stv-drawer-wide" />
       {loading && (
         <div className="stv-stack" aria-label="Loading memory detail">
@@ -397,8 +441,12 @@ function MemoryDetailDrawer({
               ))
             )}
           </DetailBlock>
+          <MemorySourceEvidence evidence={data.sourceEvidence} />
           <ObjectDescriptions title="Provenance" value={data.provenance} />
-          <ObjectDescriptions title="Approvals" value={withActorNames(data.approvals, data.actors)} />
+          <ObjectDescriptions
+            title="Approvals"
+            value={withActorNames(data.approvals, data.actors)}
+          />
           <ObjectDescriptions title="Temporal validity" value={data.temporal} />
           <ObjectDescriptions
             title="Governance"
@@ -682,7 +730,12 @@ function MemoryGrantManager() {
   });
 
   const submitGrant = () => {
-    if (!form.userId.trim() || form.permissions.length === 0 || !form.reason.trim() || !form.expiresAt) {
+    if (
+      !form.userId.trim() ||
+      form.permissions.length === 0 ||
+      !form.reason.trim() ||
+      !form.expiresAt
+    ) {
       setFormError('User ID, permissions, reason and expiration are required.');
       return;
     }
@@ -839,7 +892,10 @@ function TransitionPanel({ data, loading }: { data: GovernanceTransition[]; load
   return (
     <div className="stv-stack stv-stack--tight">
       {data.map((transition) => (
-        <div key={transition.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--stv-border)' }}>
+        <div
+          key={transition.id}
+          style={{ padding: '8px 0', borderBottom: '1px solid var(--stv-border)' }}
+        >
           <span className="stv-strong">{humanize(transition.reasonCode)}</span>
           <div>{transition.reason}</div>
           <div className="stv-muted stv-small">
@@ -917,6 +973,40 @@ function ProjectionPanel({
         </div>
       )}
     </div>
+  );
+}
+
+/** Original evidence is separate from the approved body and has no write action. */
+export function MemorySourceEvidence({
+  evidence,
+}: {
+  evidence: NonNullable<GovernanceDetailResponse['item']>['sourceEvidence'];
+}) {
+  if (!evidence) return null;
+  return (
+    <DetailBlock title="Original source for correction">
+      <p>{evidence.explanation}</p>
+      {evidence.status === 'available' && (
+        <>
+          <span className="stv-strong">Accepted client finding</span>
+          <p className="stv-prewrap">{evidence.factText}</p>
+          {evidence.acceptedAt && (
+            <p className="stv-muted">Accepted {dateText(evidence.acceptedAt)}</p>
+          )}
+          {Boolean(evidence.links?.length) && (
+            <ul>
+              {evidence.links!.map((link) => (
+                <li key={link.url}>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </DetailBlock>
   );
 }
 

@@ -29,7 +29,10 @@
  *     `QualityTelemetryCaptureService.recordEvent`.
  */
 import type { SteeringLayer } from '../context/contract.js';
-import { QUALITY_TELEMETRY_SURFACES, type QualityTelemetrySurface } from '../quality-telemetry/contract.js';
+import {
+  QUALITY_TELEMETRY_SURFACES,
+  type QualityTelemetrySurface,
+} from '../quality-telemetry/contract.js';
 
 export { QUALITY_TELEMETRY_SURFACES as EVALUATION_SURFACES };
 export type EvaluationSurface = QualityTelemetrySurface;
@@ -100,7 +103,11 @@ export type EvaluationProjectionPolicy = (typeof EVALUATION_PROJECTION_POLICIES)
  * without env mutation.
  */
 export function evaluationEnabled(raw: string | undefined): boolean {
-  return String(raw ?? '').trim().toLowerCase() === 'enabled';
+  return (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase() === 'enabled'
+  );
 }
 
 const DEFAULT_SAMPLE_RATE = 0;

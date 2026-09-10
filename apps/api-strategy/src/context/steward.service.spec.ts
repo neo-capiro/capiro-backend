@@ -70,6 +70,10 @@ type Store = ReturnType<typeof makeStore>;
 /** Prisma-ish where matcher: scalars, { not }, { in }, and top-level AND/OR. */
 function matches(rec: Rec, where: Record<string, unknown>): boolean {
   for (const [k, v] of Object.entries(where)) {
+    if (k === 'AND') {
+      if (!(v as Array<Record<string, unknown>>).every((branch) => matches(rec, branch))) return false;
+      continue;
+    }
     if (k === 'document') {
       const document = rec.document as Rec | undefined;
       if (!document || !matches(document, (v as { is: Record<string, unknown> }).is)) return false;
@@ -1332,6 +1336,23 @@ describe('StewardService.factsForOrchestrator (wire-contract 2 pack lines)', () 
 
     expect(own.map((l) => l.fact)).toEqual(['Own strategy evidence.']);
     expect(fresh.map((l) => l.fact)).toEqual([]);
+  });
+
+  it('a named strategy excludes expired source facts while retaining current and undated evidence', async () => {
+    const store = makeStore();
+    const strategyId = '77777777-7777-4777-8777-777777777777';
+    const today = new Date(new Date().toISOString().slice(0, 10));
+    seedDoc(store, { id: DOC_ID, scope: 'strategy', scopeRef: strategyId, validUntil: new Date(today.getTime() - 86_400_000) });
+    seedDoc(store, { id: OTHER_DOC_ID, scope: 'strategy', scopeRef: strategyId, validUntil: today });
+    seedDoc(store, { id: 'undated-client', scope: 'client', validUntil: null });
+    seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Expired evidence.' });
+    seedFact(store, { id: OTHER_CLIENT_FACT_ID, documentId: OTHER_DOC_ID, fact: 'Current evidence.' });
+    seedFact(store, { id: 'undated-fact', documentId: 'undated-client', fact: 'Undated evidence.' });
+    const { svc } = makeService(store);
+
+    const lines = await svc.factsForOrchestrator(T, CLIENT_ID, { strategyId });
+
+    expect(lines.map((line) => line.fact).sort()).toEqual(['Current evidence.', 'Undated evidence.']);
   });
 
   // Review fix (2026-09-10 audit): the spread of documentScopeForStrategy

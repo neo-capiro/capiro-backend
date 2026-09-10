@@ -1,8 +1,5 @@
 import type { MeriContext } from '@capiro/meriv2-core';
-import {
-  MERI_SKILL_REGISTRY,
-  hydrateMeriStarterPrompt,
-} from '@capiro/shared/meri-skills';
+import { MERI_SKILL_REGISTRY, hydrateMeriStarterPrompt } from '@capiro/shared/meri-skills';
 import { classifyMeriRetrievalIntent } from './meri-retrieval-intent.js';
 import { buildMeriRetrievalPlan } from './meri-retrieval-plan.js';
 

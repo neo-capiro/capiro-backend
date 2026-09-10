@@ -68,6 +68,31 @@ describe('budgetCycleManifestV1Schema', () => {
       budgetCycleManifestV1Schema.parse(manifest({}, [doc({ expectedSourceSha256: 'not-a-sha' })])),
     ).toThrow();
   });
+
+  it('accepts a manifest document without expectedSourceKey (every manifest that predates Phase 10B-31)', () => {
+    const parsed = parseBudgetCycleManifestV1(manifest());
+    expect(parsed.documents[0]!.expectedSourceKey).toBeUndefined();
+    expect(validateBudgetCycleManifestV1(parsed)).toEqual([]);
+  });
+
+  it('accepts a manifest document with expectedSourceKey set, distinct from sourceLocator', () => {
+    const parsed = parseBudgetCycleManifestV1(
+      manifest({}, [
+        doc({
+          sourceLocator: '/tmp/scratch/some-uuid.bin',
+          expectedSourceKey: 'defense-budget-observation-abc123',
+        }),
+      ]),
+    );
+    expect(parsed.documents[0]!.expectedSourceKey).toBe('defense-budget-observation-abc123');
+    expect(parsed.documents[0]!.sourceLocator).toBe('/tmp/scratch/some-uuid.bin');
+  });
+
+  it('rejects a blank expectedSourceKey', () => {
+    expect(() =>
+      budgetCycleManifestV1Schema.parse(manifest({}, [doc({ expectedSourceKey: '' })])),
+    ).toThrow();
+  });
 });
 
 describe('validateBudgetCycleManifestV1', () => {

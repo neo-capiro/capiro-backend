@@ -46,6 +46,7 @@ describe('MemoryGovernanceController', () => {
 
     await controller.overview(ctx);
     await controller.listItems(ctx, 'active', '25');
+    await controller.listItems(ctx, 'active', '25', 'crm_finding_accepted');
     await controller.getItem(ctx, 'item-1');
     await controller.listTransitions(ctx, '50');
     await controller.projectionHealth(ctx);
@@ -58,7 +59,8 @@ describe('MemoryGovernanceController', () => {
     await controller.secondApprove(ctx, 'item-1');
 
     expect(governance.overview).toHaveBeenCalledWith(ctx);
-    expect(governance.listItems).toHaveBeenCalledWith(ctx, 'active', 25);
+    expect(governance.listItems).toHaveBeenCalledWith(ctx, 'active', 25, undefined);
+    expect(governance.listItems).toHaveBeenCalledWith(ctx, 'active', 25, 'crm_finding_accepted');
     expect(governance.getItem).toHaveBeenCalledWith(ctx, 'item-1');
     expect(governance.listTransitions).toHaveBeenCalledWith(ctx, 50);
     expect(governance.projectionHealth).toHaveBeenCalledWith(ctx);

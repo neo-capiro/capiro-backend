@@ -9,6 +9,7 @@ import type {
   ParserPageResultV1,
 } from '../../parser-router/parser-runtime-contract-v1.js';
 import { isValidPeCode } from '../../extractors/types.js';
+import type { R1RowContextV1 } from './r1-text-row-reconstructor-v1.js';
 
 export interface R1DetectedRow {
   page: number;
@@ -18,6 +19,13 @@ export interface R1DetectedRow {
   peCode: string;
   title: string;
   cells: Array<{ columnIndex: number; text: string }>;
+  /**
+   * Optional row-level context (budget activity, section heading,
+   * component, ...) supplied by a text-reconstruction caller (see
+   * `R1RowContextV1`). Absent for structural-table pages, where no such
+   * side channel exists today -- behavior for those pages is unchanged.
+   */
+  rowContext?: R1RowContextV1;
 }
 
 export interface R1DetectedTable {
@@ -43,11 +51,19 @@ const HEADER_HINT_RE =
  * cell matches the PE code pattern AND at least one header row containing
  * fiscal/title vocabulary.
  */
-export function detectR1TablesOnPage(page: ParserPageResultV1): R1DetectedTable[] {
+export function detectR1TablesOnPage(
+  page: ParserPageResultV1,
+  rowContextByRowIndex?: ReadonlyMap<number, R1RowContextV1>,
+): R1DetectedTable[] {
   const detected: R1DetectedTable[] = [];
 
   for (const table of page.tables) {
-    const tableResult = analyzeR1Table(page.page, page.printedPage, table);
+    const tableResult = analyzeR1Table(
+      page.page,
+      page.printedPage ?? undefined,
+      table,
+      rowContextByRowIndex,
+    );
     if (tableResult != null) {
       detected.push(tableResult);
     }
@@ -60,6 +76,7 @@ function analyzeR1Table(
   page: number,
   printedPage: string | undefined,
   table: ParsedTableV1,
+  rowContextByRowIndex?: ReadonlyMap<number, R1RowContextV1>,
 ): R1DetectedTable | null {
   const rows = groupCellsByRow(table);
   const headerRowIndices: number[] = [];
@@ -75,6 +92,7 @@ function analyzeR1Table(
     /* PE row: first cell is a valid PE code. */
     if (PE_CODE_CELL_RE.test(firstText) && isValidPeCode(firstText)) {
       const title = cells[1]?.text.trim() ?? '';
+      const rowContext = rowContextByRowIndex?.get(rowIndex);
       peRows.push({
         page,
         printedPage,
@@ -83,6 +101,7 @@ function analyzeR1Table(
         peCode: firstText,
         title,
         cells: cells.map((c) => ({ columnIndex: c.columnIndex, text: c.text })),
+        ...(rowContext != null ? { rowContext } : {}),
       });
       continue;
     }

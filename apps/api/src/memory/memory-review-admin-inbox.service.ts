@@ -73,12 +73,10 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
       counts: {
         needsMyReview: pending.items.filter(
           (item) =>
-            item.status === 'pending' &&
-            (item.capabilities.approve || item.capabilities.reject),
+            item.status === 'pending' && (item.capabilities.approve || item.capabilities.reject),
         ).length,
-        submittedByMe: pending.items.filter(
-          (item) => item.submittedBy.userId === ctx.userId,
-        ).length,
+        submittedByMe: pending.items.filter((item) => item.submittedBy.userId === ctx.userId)
+          .length,
         allPending: pending.items.length,
         blocked: pending.items.filter((item) => Boolean(item.blockedReason)).length,
         history: history.items.length,
@@ -87,10 +85,7 @@ export class MemoryReviewAdminInboxService extends MemoryReviewInboxService {
     };
   }
 
-  override async detail(
-    ctx: TenantContext,
-    candidateId: string,
-  ): Promise<MemoryReviewDetail> {
+  override async detail(ctx: TenantContext, candidateId: string): Promise<MemoryReviewDetail> {
     const detail = await super.detail(ctx, candidateId);
     if (!isMemoryReviewAdminRole(ctx.role)) return detail;
     const [projected] = await this.withAdminCapabilities(ctx, [detail]);

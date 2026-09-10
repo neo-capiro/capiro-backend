@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 25
     env:
       DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

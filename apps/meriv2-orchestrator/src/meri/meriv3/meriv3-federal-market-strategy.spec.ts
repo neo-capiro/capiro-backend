@@ -85,10 +85,14 @@ function mockInvoker(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
           results: [
             {
               id: `award-${query || 'kinetic'}`,
-              recipientName: query.includes('vendors') ? 'Example UAS Integrator' : 'Kinetic Industries, Inc.',
+              recipientName: query.includes('vendors')
+                ? 'Example UAS Integrator'
+                : 'Kinetic Industries, Inc.',
               description:
                 'Domestic fiber-optic command-and-control and full-motion-video data-link integration for tactical unmanned systems operating in RF-denied environments.',
-              agency: query.includes('special') ? 'U.S. Special Operations Command' : 'Department of the Army',
+              agency: query.includes('special')
+                ? 'U.S. Special Operations Command'
+                : 'Department of the Army',
               cageCode: '1AWH1',
               uei: 'KINETICUEI123',
               naicsCode: '334419',
@@ -131,7 +135,9 @@ function mockInvoker(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
             snippet: 'Operational evaluation and prototype pathway for autonomous systems.',
           });
         }
-        if (/program increase|appropriations|congressional report|fiber optic.*report/.test(query)) {
+        if (
+          /program increase|appropriations|congressional report|fiber optic.*report/.test(query)
+        ) {
           results.push({
             id: 'house-report',
             title: 'House Report 119-715',
@@ -140,7 +146,9 @@ function mockInvoker(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
               'Aircraft Procurement, Army, Small Unmanned Aircraft Systems: $5,000,000 program increase for fiber optic drones.',
           });
         }
-        if (/apfit|production scale|industrial base|strategic capital|blue list|cmmc|nist/.test(query)) {
+        if (
+          /apfit|production scale|industrial base|strategic capital|blue list|cmmc|nist/.test(query)
+        ) {
           results.push({
             id: 'scale-path',
             title: 'Defense production and market access pathway',
@@ -167,15 +175,13 @@ function mockInvoker(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
           return {
             url,
             title: 'Kinetic Industries, Inc.',
-            text:
-              'Kinetic builds a U.S.-manufactured fiber-optic control and data-link subsystem for Group 1 and Group 2 tactical UAS. The system transports command, control, payload data and full-motion video without a conventional RF control link.',
+            text: 'Kinetic builds a U.S.-manufactured fiber-optic control and data-link subsystem for Group 1 and Group 2 tactical UAS. The system transports command, control, payload data and full-motion video without a conventional RF control link.',
           };
         }
         return {
           url,
           title: 'Authoritative program source',
-          text:
-            'Official source describing launched effects, component-inclusive prototypes, operational testing, congressional program increases, domestic production and market-access requirements.',
+          text: 'Official source describing launched effects, component-inclusive prototypes, operational testing, congressional program increases, domestic production and market-access requirements.',
         };
       }
       case 'search_sam_opportunities':
@@ -214,7 +220,8 @@ function mockInvoker(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
           results.push({
             peCode: '0605345A',
             title: programNames['0605345A']!.title,
-            description: 'Small UAS, universal products and air-launched effects systems development.',
+            description:
+              'Small UAS, universal products and air-launched effects systems development.',
             service: 'Army',
           });
         }
@@ -283,9 +290,7 @@ function mockInvoker(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
       case 'get_pe_contractors':
         return {
           peCode: String(input.peCode),
-          results: [
-            { contractorName: 'Example UAS Prime', role: 'platform integrator' },
-          ],
+          results: [{ contractorName: 'Example UAS Prime', role: 'platform integrator' }],
         };
       case 'get_pe_bills':
         return {
@@ -384,8 +389,16 @@ describe('MeriV3 comprehensive federal-market strategy recipe', () => {
     );
     expect(result.validatedPrograms).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ peCode: '0605345A', programType: 'program_element', verified: true }),
-        expect.objectContaining({ peCode: '1109N4757', programType: 'procurement_line', verified: true }),
+        expect.objectContaining({
+          peCode: '0605345A',
+          programType: 'program_element',
+          verified: true,
+        }),
+        expect.objectContaining({
+          peCode: '1109N4757',
+          programType: 'procurement_line',
+          verified: true,
+        }),
         expect.objectContaining({ peCode: '1160408BB', verified: true }),
       ]),
     );

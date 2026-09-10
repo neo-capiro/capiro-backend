@@ -165,7 +165,10 @@ const BANNED_CONTENT_KEYS = new Set([
 const MAX_SAFE_STRING_LENGTH = 200;
 
 export function assertNoConfidentialContent(
-  input: Pick<RecordQualityTelemetryEventInput, 'provenance' | 'editMetrics' | 'contextLayerCounts'>,
+  input: Pick<
+    RecordQualityTelemetryEventInput,
+    'provenance' | 'editMetrics' | 'contextLayerCounts'
+  >,
 ): void {
   for (const [label, value] of [
     ['provenance', input.provenance],
@@ -222,7 +225,11 @@ export function assertKnownContextLayer(layer: SteeringLayer): void {
  * the caller so this stays trivially testable.
  */
 export function qualityTelemetryEnabled(raw: string | undefined): boolean {
-  return String(raw ?? '').trim().toLowerCase() === 'enabled';
+  return (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase() === 'enabled'
+  );
 }
 
 /**

@@ -19,6 +19,8 @@ import type { RdteCycleReconciliationResult } from './rdte-cycle-reconciler-v1.j
 import type { JsonValue } from '../../contracts/canonical-json.js';
 
 export interface RdteCycleCertifyInput {
+  governedCycleId: string;
+  /** Callers MUST pass exactly { family, fiscalYear, manifestContentSha256 }. */
   cycleIdIdentity: JsonValue;
   fiscalYear: number;
   manifestContentSha256: string;
@@ -242,9 +244,12 @@ export function certifyRdteCycle(input: RdteCycleCertifyInput): RdteCycleCertifi
     reason = `Cycle needs review: ${blockingFindings.length} blocking finding(s)`;
   }
 
+  // bundleId is the stable logical identity of the family/FY/manifest corpus;
+  // contentSha256 below is the content-addressed proof of what was certified.
   const bundleWithoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
-    cycleId: rdteCycleBundleId(input.cycleIdIdentity),
+    cycleId: input.governedCycleId,
+    bundleId: rdteCycleBundleId(input.cycleIdIdentity),
     fiscalYear: input.fiscalYear,
     manifestContentSha256: input.manifestContentSha256,
     sourceDocuments: [...input.sourceDocuments].sort((left, right) =>

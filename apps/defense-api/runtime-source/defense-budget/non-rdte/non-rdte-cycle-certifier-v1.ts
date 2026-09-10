@@ -24,6 +24,8 @@ import type { JsonValue } from '../contracts/canonical-json.js';
 /* ------------------------------------------------------------------ */
 
 export interface NonRdteCycleCertifyInput {
+  governedCycleId: string;
+  /** Callers MUST pass exactly { family, fiscalYear, manifestContentSha256 }. */
   cycleIdIdentity: JsonValue;
   fiscalYear: number;
   family: 'procurement' | 'om' | 'milcon';
@@ -193,14 +195,16 @@ export function certifyNonRdteCycle(
     reason = `Cycle needs review: ${blockingFindings.length} blocking finding(s)`;
   }
 
-  const cycleId = nonRdteCycleBundleId(input.cycleIdIdentity);
   const coverage = [...input.reconciliation.coverage].sort((a, b) =>
     a.category.localeCompare(b.category),
   );
 
+  // bundleId is the stable logical identity of the family/FY/manifest corpus;
+  // contentSha256 below is the content-addressed proof of what was certified.
   const bundleWithoutHash = {
     schemaVersion: 'non_rdte_cycle_bundle_v1' as const,
-    cycleId,
+    cycleId: input.governedCycleId,
+    bundleId: nonRdteCycleBundleId(input.cycleIdIdentity),
     fiscalYear: input.fiscalYear,
     family: input.family,
     manifestContentSha256: input.manifestContentSha256,

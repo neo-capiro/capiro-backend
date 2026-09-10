@@ -33,12 +33,12 @@ describe('MeriAgentSteps (shared step-row rendering)', () => {
 describe('MeriWorkPerformed', () => {
   test('reuses the shared intent-label map rather than a second copy of it', () => {
     const source = readMeri('MeriWorkPerformed.tsx');
-    expect(source).toContain("import { INTENT_LABELS");
+    expect(source).toContain('import { INTENT_LABELS');
     // The single copy lives in the UI-free work-performed-shared module —
     // importing WorkPerformed.js itself would pull antd + ContextInspector.css
     // into the vNext runtime graph.
-    expect(source).toContain("../../components/chat/work-performed-shared.js");
-    expect(source).not.toContain("components/chat/WorkPerformed.js");
+    expect(source).toContain('../../components/chat/work-performed-shared.js');
+    expect(source).not.toContain('components/chat/WorkPerformed.js');
     expect(source).not.toContain('INTENT_LABELS =');
   });
 
@@ -66,7 +66,12 @@ describe('MeriWorkPerformed', () => {
     expect(workPerformed).not.toMatch(/animation:\s*tone\.spin/);
     expect(workPerformed).toContain('vnext-meri__work-source-dot');
     expect(steps).not.toMatch(/animation:\s*tone\.spin/);
-    expect(steps).toContain('vnext-meri__work-step-icon');
+    expect(steps).toContain('meri-agent-step__dot');
+    const stepCss = readMeri('meri-agent-steps.css');
+    expect(stepCss).toContain('.meri-agent-step__dot.is-running');
+    expect(stepCss).toMatch(
+      /prefers-reduced-motion[\s\S]*\.meri-agent-step__dot\.is-running[\s\S]*animation: none/,
+    );
     const css = readMeri('vnext-meri.css');
     expect(css).toContain('.vnext-meri__work-step-icon.is-running');
     expect(css).toContain('.vnext-meri__work-source-dot.is-live');

@@ -7,8 +7,6 @@
  * extraction may add assertions in later phases, but this bridge never emits
  * a non-contract pseudo-artifact and never fabricates cell geometry.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   ArtifactBuilderV1,
   evidenceIdV1,
@@ -33,7 +31,9 @@ import type {
   ComposedPageOutputV1,
   PageLineageEntry,
   SelectedPageResultV1,
+  ParserRunResultEntry,
 } from './page-result-compositor.js';
+import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 
 export function pagesToContiguousRanges(pages: number[]): PageRangeV1[] {
   if (pages.length === 0) return [];
@@ -59,6 +59,7 @@ export function buildContributingParserRuns(
   lineages: PageLineageEntry[],
   selectedPages: SelectedPageResultV1[],
   providerJobIdsByParserRunId: Readonly<Record<string, string>> = {},
+  parserRunEntries: readonly ParserRunResultEntry[] = [],
 ): ParserRunV1[] {
   const selectedRunIds = new Set(
     selectedPages
@@ -94,19 +95,40 @@ export function buildContributingParserRuns(
     });
   }
 
+  const entryByRunId = new Map(parserRunEntries.map((entry) => [entry.parserRunId, entry]));
+
   return [...grouped.entries()]
-    .map(([parserRunId, run]) => ({
-      parserRunId,
-      method: run.method,
-      parserVersion: run.parserVersion,
-      parserConfigSha256: run.parserConfigSha256,
-      inputSourceSha256: run.inputSourceSha256,
-      outputArtifactSha256: run.outputArtifactSha256,
-      ...(providerJobIdsByParserRunId[parserRunId]
-        ? { providerJobId: providerJobIdsByParserRunId[parserRunId] }
-        : {}),
-      pageRanges: pagesToContiguousRanges(run.pages),
-    }))
+    .map(([parserRunId, run]) => {
+      const entry = entryByRunId.get(parserRunId);
+      return {
+        parserRunId,
+        method: run.method,
+        parserVersion: run.parserVersion,
+        parserConfigSha256: run.parserConfigSha256,
+        inputSourceSha256: run.inputSourceSha256,
+        outputArtifactSha256: run.outputArtifactSha256,
+        ...(providerJobIdsByParserRunId[parserRunId]
+          ? { providerJobId: providerJobIdsByParserRunId[parserRunId] }
+          : {}),
+        /* Evidence coverage: pages this run actually contributed selected
+         * evidence for. NEVER the run's identity -- see requestedPages. */
+        pageRanges: pagesToContiguousRanges(run.pages),
+        /* Canonical run identity (Phase 10B-25): the run's own complete
+         * requested-page set, sourced from the original execution result
+         * carried on the composed output -- never reconstructed from
+         * evidence/selection. Omitted only if the entry is unavailable
+         * (should not happen for a freshly-composed artifact). */
+        ...(entry
+          ? {
+              requestedPages: [...entry.result.requestedPages].sort((a, b) => a - b),
+              succeededPages: [...entry.result.succeededPages].sort((a, b) => a - b),
+              failedPages: entry.result.failedPages
+                .map((failure) => ({ page: failure.page, code: failure.code, message: failure.message }))
+                .sort((a, b) => a.page - b.page),
+            }
+          : {}),
+      };
+    })
     .sort((a, b) => a.parserRunId.localeCompare(b.parserRunId));
 }
 
@@ -151,14 +173,15 @@ function parseFiscalYear(value: number | string): number {
   return fiscalYear;
 }
 
-export function buildExtractionArtifact(
+export async function buildExtractionArtifact(
   input: ExtractionArtifactBridgeInput,
-  outputDir: string,
-): ExtractionArtifactBridgeOutput {
+  store: ExtractionArtifactStoreV1,
+): Promise<ExtractionArtifactBridgeOutput> {
   const parserRuns = buildContributingParserRuns(
     input.composedOutput.lineages,
     input.composedOutput.pages,
     input.providerJobIdsByParserRunId,
+    input.composedOutput.parserRunEntries,
   );
   const fiscalYear = parseFiscalYear(input.fiscalYear);
   const family = budgetFamilyV1Schema.parse(input.budgetFamily);
@@ -278,17 +301,14 @@ export function buildExtractionArtifact(
 
   const artifact = builder.finalize();
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  const artifactDir = join(outputDir, 'artifacts');
-  mkdirSync(artifactDir, { recursive: true });
-  const artifactLocator = join(artifactDir, `${artifact.artifactId}.extraction-v1.json`);
-  writeFileSync(artifactLocator, serialized, 'utf8');
+  const persisted = await store.putImmutable({ bytes: Buffer.from(serialized, 'utf8') });
 
   return {
     artifact,
     artifactId: artifact.artifactId,
     artifactContentSha256: artifact.contentSha256,
-    artifactByteSha256: sha256Bytes(Buffer.from(serialized, 'utf8')),
-    artifactLocator,
+    artifactByteSha256: persisted.byteSha256,
+    artifactLocator: persisted.locator,
     parserRuns: artifact.parserRuns,
     sourceFactCount: artifact.sourceFacts.length,
     assertionCount: artifact.assertions.length,

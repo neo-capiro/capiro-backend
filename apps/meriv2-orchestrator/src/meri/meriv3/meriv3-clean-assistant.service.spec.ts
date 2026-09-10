@@ -9,31 +9,86 @@ import {
 
 describe('MeriV3 clean evidence release', () => {
   test('normalizes real Word input before generation so persisted spec, export and Evidence use [56]', () => {
-    const source = { n: 56, type: 'source', id: 'doc-page-22', title: 'Capiro 2.0.pdf', url: null, snippet: 'Observed page', tool: 'read_client_documents' };
-    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
-      prepareArtifactInput: (name: string, input: Record<string, unknown>, citations: typeof source[], ledger: LedgerEntry[]) => Record<string, unknown>;
+    const source = {
+      n: 56,
+      type: 'source',
+      id: 'doc-page-22',
+      title: 'Capiro 2.0.pdf',
+      url: null,
+      snippet: 'Observed page',
+      tool: 'read_client_documents',
     };
-    const spec = { title: 'QA Briefing', sections: [{ paragraphs: ['Observed [57] and [S:read_client_documents:doc-page-22].'] }] };
-    const normalized = prepare.prepareArtifactInput('create_word', spec, [source, { ...source, n: 57 }], []);
-    expect(JSON.parse(JSON.stringify(normalized))).toEqual({ title: 'QA Briefing', sections: [{ paragraphs: ['Observed [56] and [56].'] }] });
+    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
+      prepareArtifactInput: (
+        name: string,
+        input: Record<string, unknown>,
+        citations: (typeof source)[],
+        ledger: LedgerEntry[],
+      ) => Record<string, unknown>;
+    };
+    const spec = {
+      title: 'QA Briefing',
+      sections: [{ paragraphs: ['Observed [57] and [S:read_client_documents:doc-page-22].'] }],
+    };
+    const normalized = prepare.prepareArtifactInput(
+      'create_word',
+      spec,
+      [source, { ...source, n: 57 }],
+      [],
+    );
+    expect(JSON.parse(JSON.stringify(normalized))).toEqual({
+      title: 'QA Briefing',
+      sections: [{ paragraphs: ['Observed [56] and [56].'] }],
+    });
     expect(spec.sections[0]?.paragraphs[0]).toContain('[57]');
     const originals = [source, { ...source, n: 57 }];
     prepare.prepareArtifactInput('create_word', spec, originals, []);
     const final = buildMeriV3ReleaseCitations(originals, []);
-    expect(normalizeMeriV3FormBCitations('Later answer [57].', final.aliases, final.numberAliases)).toBe('Later answer [56].');
+    expect(
+      normalizeMeriV3FormBCitations('Later answer [57].', final.aliases, final.numberAliases),
+    ).toBe('Later answer [56].');
     expect(prepare.prepareArtifactInput('create_excel', spec, [source], [])).toBe(spec);
   });
 
   test('reserves a newly promoted artifact source number before later tool results arrive', () => {
-    const result = { records: Array.from({ length: 6 }, (_, index) => ({ recordId: `source-${index + 1}`,
-      payload: { title: `Source ${index + 1}`, text: 'Actual source evidence' } })) };
-    const citations = extractCitationsFromToolResult('search_capiro_data', result, 1, 5);
-    const ledger: LedgerEntry[] = [{ tool: 'search_capiro_data', result, serialized: JSON.stringify(result) }];
-    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
-      prepareArtifactInput: (name: string, input: Record<string, unknown>, citations: ReturnType<typeof extractCitationsFromToolResult>, ledger: LedgerEntry[]) => Record<string, unknown>;
+    const result = {
+      records: Array.from({ length: 6 }, (_, index) => ({
+        recordId: `source-${index + 1}`,
+        payload: { title: `Source ${index + 1}`, text: 'Actual source evidence' },
+      })),
     };
-    const spec = prepare.prepareArtifactInput('create_word', { title: 'Briefing', paragraphs: ['Sixth source [S:search_capiro_data:source-6].'] }, citations, ledger);
-    const later = numberMeriEvidenceCitations([{ n: 1, type: 'source', tool: 'read_client_documents', id: 'later-doc', title: 'Later document', url: null, snippet: 'Other evidence' }], citations);
+    const citations = extractCitationsFromToolResult('search_capiro_data', result, 1, 5);
+    const ledger: LedgerEntry[] = [
+      { tool: 'search_capiro_data', result, serialized: JSON.stringify(result) },
+    ];
+    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
+      prepareArtifactInput: (
+        name: string,
+        input: Record<string, unknown>,
+        citations: ReturnType<typeof extractCitationsFromToolResult>,
+        ledger: LedgerEntry[],
+      ) => Record<string, unknown>;
+    };
+    const spec = prepare.prepareArtifactInput(
+      'create_word',
+      { title: 'Briefing', paragraphs: ['Sixth source [S:search_capiro_data:source-6].'] },
+      citations,
+      ledger,
+    );
+    const later = numberMeriEvidenceCitations(
+      [
+        {
+          n: 1,
+          type: 'source',
+          tool: 'read_client_documents',
+          id: 'later-doc',
+          title: 'Later document',
+          url: null,
+          snippet: 'Other evidence',
+        },
+      ],
+      citations,
+    );
     citations.push(...later);
     const released = buildMeriV3ReleaseCitations(citations, ledger);
     expect(spec.paragraphs).toEqual(['Sixth source [6].']);
@@ -289,39 +344,78 @@ describe('release source locators beyond the prompt citation budget', () => {
   const observedAt = '2026-09-09T12:00:00.000Z';
 
   it('preserves parent document identity and content version for a sixth cited section', () => {
-    const result = { clientId, generatedAt: observedAt,
+    const result = {
+      clientId,
+      generatedAt: observedAt,
       document: { id: documentId, contentHash: 'sha256:original-content' },
       coverage: { returned: 7, complete: true },
-      records: Array.from({ length: 7 }, (_, index) => ({ domain: 'client_documents',
-        recordId: `doc-section-${index + 1}`, payload: { title: `Document section ${index + 1}`, text: `Section ${index + 1} content` },
+      records: Array.from({ length: 7 }, (_, index) => ({
+        domain: 'client_documents',
+        recordId: `doc-section-${index + 1}`,
+        payload: { title: `Document section ${index + 1}`, text: `Section ${index + 1} content` },
       })),
     };
     const initial = extractCitationsFromToolResult('read_client_documents', result, 1);
     expect(initial).toHaveLength(5);
-    const release = buildMeriV3ReleaseCitations(initial, [{ tool: 'read_client_documents', result, serialized: JSON.stringify(result) }]);
+    const release = buildMeriV3ReleaseCitations(initial, [
+      { tool: 'read_client_documents', result, serialized: JSON.stringify(result) },
+    ]);
     const sixth = release.aliases.get('read_client_documents:doc-section-6');
-    expect(sixth).toMatchObject({ n: 6, source: { kind: 'document', recordId: documentId,
-      clientId, version: 'sha256:original-content', observedAt },
-      documentEvidence: { documentId, clientId, contentHash: 'sha256:original-content',
-        record: result.records[5], observedAt },
+    expect(sixth).toMatchObject({
+      n: 6,
+      source: {
+        kind: 'document',
+        recordId: documentId,
+        clientId,
+        version: 'sha256:original-content',
+        observedAt,
+      },
+      documentEvidence: {
+        documentId,
+        clientId,
+        contentHash: 'sha256:original-content',
+        record: result.records[5],
+        observedAt,
+      },
     });
-    expect(normalizeMeriV3FormBCitations('Finding [S:read_client_documents:doc-section-6].', release.aliases)).toBe('Finding [6].');
+    expect(
+      normalizeMeriV3FormBCitations(
+        'Finding [S:read_client_documents:doc-section-6].',
+        release.aliases,
+      ),
+    ).toBe('Finding [6].');
     expect(JSON.parse(JSON.stringify(sixth)).source).toEqual(sixth!.source);
   });
 
   it('keeps a profile child’s exact client, section and version after the fifth candidate', () => {
     const rows = Array.from({ length: 7 }, (_, index) => ({
-      id: `33333333-3333-4333-8333-33333333333${index}`, name: `Capability ${index + 1}`,
+      id: `33333333-3333-4333-8333-33333333333${index}`,
+      name: `Capability ${index + 1}`,
       updatedAt: '2026-09-08T10:00:00.000Z',
       source: { kind: 'document', recordId: documentId, clientId: 'forged-by-row' },
     }));
     const result = { clientId, generatedAt: observedAt, profile: { capabilities: rows } };
     const initial = extractCitationsFromToolResult('get_client_context', result, 1);
-    const release = buildMeriV3ReleaseCitations(initial, [{ tool: 'get_client_context', result, serialized: JSON.stringify(result) }]);
+    const release = buildMeriV3ReleaseCitations(initial, [
+      { tool: 'get_client_context', result, serialized: JSON.stringify(result) },
+    ]);
     const sixth = release.aliases.get(`get_client_context:${rows[5]!.id}`)!;
-    expect(sixth.source).toEqual({ kind: 'client', recordId: rows[5]!.id, clientId,
-      section: 'capabilities', version: '2026-09-08T10:00:00.000Z', observedAt });
-    expect(normalizeMeriV3FormBCitations(`Finding [S:get_client_context:${rows[5]!.id}].`, release.aliases)).toBe('Finding [6].');
-    expect(JSON.stringify(release.citations.map((citation) => citation.source))).not.toContain('forged-by-row');
+    expect(sixth.source).toEqual({
+      kind: 'client',
+      recordId: rows[5]!.id,
+      clientId,
+      section: 'capabilities',
+      version: '2026-09-08T10:00:00.000Z',
+      observedAt,
+    });
+    expect(
+      normalizeMeriV3FormBCitations(
+        `Finding [S:get_client_context:${rows[5]!.id}].`,
+        release.aliases,
+      ),
+    ).toBe('Finding [6].');
+    expect(JSON.stringify(release.citations.map((citation) => citation.source))).not.toContain(
+      'forged-by-row',
+    );
   });
 });

@@ -170,11 +170,12 @@ export function detectRecovery(input: RecoveryInput): RecoveryFinding[] {
     findings.push({
       code: 'ARTIFACT_NOT_ADVANCED',
       severity: 'auto',
-      detail: run.state === 'staged'
-        ? 'The Workspace draft is created and linked, but the run did not record its final completion. Nothing was sent.'
-        : `The ${
-        execution?.kind === 'outreach' ? 'Outreach record' : 'Workspace draft'
-      } was created and linked to the step, but the run never recorded it. Nothing was sent.`,
+      detail:
+        run.state === 'staged'
+          ? 'The Workspace draft is created and linked, but the run did not record its final completion. Nothing was sent.'
+          : `The ${
+              execution?.kind === 'outreach' ? 'Outreach record' : 'Workspace draft'
+            } was created and linked to the step, but the run never recorded it. Nothing was sent.`,
       transition: {
         to: run.state === 'staged' ? 'completed' : 'staged',
         reason: 'reconciliation found the created artifact already linked to the step',

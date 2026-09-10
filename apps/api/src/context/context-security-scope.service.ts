@@ -28,9 +28,7 @@ export class ContextSecurityScopeService {
     const tenantId = requiredId(input.tenantId, 'tenantId');
     const actorUserId = requiredId(input.actorUserId, 'actorUserId');
     const requestedClientIds = normalizeIds(input.securityScope.authorizedClientIds);
-    const requestedMailboxIds = normalizeIds(
-      input.securityScope.authorizedMailboxConnectionIds,
-    );
+    const requestedMailboxIds = normalizeIds(input.securityScope.authorizedMailboxConnectionIds);
     const clientConstraintProvided = input.securityScope.authorizedClientIds !== undefined;
     const mailboxConstraintProvided =
       input.securityScope.authorizedMailboxConnectionIds !== undefined;
@@ -74,10 +72,7 @@ export class ContextSecurityScopeService {
     const rows = await tx.client.findMany({
       where: {
         ...(constraintProvided ? { id: { in: requestedIds } } : {}),
-        OR: [
-          { memoryWall: false },
-          { memoryAccessGrants: { some: { userId: actorUserId } } },
-        ],
+        OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: actorUserId } } }],
       },
       select: { id: true },
       orderBy: { id: 'asc' },
@@ -127,11 +122,7 @@ export class ContextSecurityScopeService {
 function requiredId(value: string, field: string): string {
   const normalized = value.trim();
   if (!normalized) {
-    throw new ContextResolutionError(
-      'invalid_context_request',
-      `${field} is required.`,
-      { field },
-    );
+    throw new ContextResolutionError('invalid_context_request', `${field} is required.`, { field });
   }
   return normalized;
 }

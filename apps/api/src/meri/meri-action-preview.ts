@@ -156,7 +156,9 @@ export function buildMeriActionPreview(args: {
   const irreversible = leavesFirm || tool === 'forget_memory';
 
   return {
-    label: TOOL_LABELS[tool] ?? `Run ${tool}`,
+    label: tool === 'create_word' && input.format === 'pdf'
+      ? 'Create PDF document'
+      : TOOL_LABELS[tool] ?? `Run ${tool}`,
     riskTier: args.riskTier ?? null,
     leavesFirm,
     reversible: !irreversible,

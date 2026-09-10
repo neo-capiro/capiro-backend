@@ -15,11 +15,7 @@ function positiveInt(raw: string | undefined, fallback: number, min: number, max
 }
 
 function effort(raw: string | undefined, fallback: MeriV3ReasoningEffort): MeriV3ReasoningEffort {
-  return raw === 'low' ||
-    raw === 'medium' ||
-    raw === 'high' ||
-    raw === 'xhigh' ||
-    raw === 'max'
+  return raw === 'low' || raw === 'medium' || raw === 'high' || raw === 'xhigh' || raw === 'max'
     ? raw
     : fallback;
 }

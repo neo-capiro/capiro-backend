@@ -140,6 +140,12 @@ export const nonRdteCycleBundleV1Schema = z
   .object({
     schemaVersion: z.literal(NON_RDTE_CYCLE_BUNDLE_SCHEMA_VERSION),
     cycleId: nonBlank,
+    /**
+     * Stable logical identity over { family, fiscalYear, manifestContentSha256 }.
+     * The same logical subject keeps this ID across certified-content or
+     * governed-cycle changes; contentSha256 proves the exact bundle content.
+     */
+    bundleId: nonBlank,
     fiscalYear,
     family: nonRdteFamilyV1Schema,
     manifestContentSha256: sha256Schema,
@@ -160,6 +166,7 @@ export type NonRdteCycleBundleV1 = z.infer<typeof nonRdteCycleBundleV1Schema>;
 /* Deterministic ID + content hash                                     */
 /* ------------------------------------------------------------------ */
 
+/** Stable logical bundle ID; contentSha256 is the content-addressed proof. */
 export function nonRdteCycleBundleId(identity: JsonValue): string {
   return `non_rdte_cycle_${sha256CanonicalJson(identity)}`;
 }

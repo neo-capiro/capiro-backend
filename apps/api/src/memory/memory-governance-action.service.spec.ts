@@ -216,9 +216,7 @@ describe('MemoryGovernanceActionService', () => {
   it('requires a non-empty reason to approve', async () => {
     await withCenter(true, async () => {
       const h = harness({ governedStatus: 'pending_review' });
-      await expect(h.service.approve(ctx, ITEM, '   ')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(h.service.approve(ctx, ITEM, '   ')).rejects.toBeInstanceOf(BadRequestException);
       expect(h.tx.$executeRaw).not.toHaveBeenCalled();
     });
   });

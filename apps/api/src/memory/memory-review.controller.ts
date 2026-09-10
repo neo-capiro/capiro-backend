@@ -1,12 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -106,6 +98,9 @@ export class MemoryReviewController {
         'decision must be one of duplicate, corroborate_existing, supersede_existing, conflict_requires_review.',
       );
     }
-    return { ok: true, ...(await this.review.resolveConflict(ctx, id, body.decision, body?.reason)) };
+    return {
+      ok: true,
+      ...(await this.review.resolveConflict(ctx, id, body.decision, body?.reason)),
+    };
   }
 }

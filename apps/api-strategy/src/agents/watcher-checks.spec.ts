@@ -141,7 +141,9 @@ describe('(b) overdue', () => {
     ];
     const overdue = byCode(runWatcherChecks(input({ nodes })), 'overdue');
     expect(overdue.map((finding) => finding.nodeIds[0])).toEqual(['single', 'active']);
-    expect(overdue[0]?.proposedOps).toEqual([{ op: 'retime', nodeId: 'single', startsOn: '2026-07-25', endsOn: '2026-07-25' }]);
+    expect(overdue[0]?.proposedOps).toEqual([
+      { op: 'retime', nodeId: 'single', startsOn: '2026-07-25', endsOn: '2026-07-25' },
+    ]);
   });
 
   it('a step ending today (or later) is not overdue', () => {

@@ -8,6 +8,7 @@ import {
   type LearningSignalCandidateEligibility,
 } from '@capiro/meriv2-core';
 import type { SteeringLayer } from '@capiro/meriv2-core';
+import { factTextFromValue } from './learning-signal-fact-content.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
@@ -52,7 +53,11 @@ interface LoadedLearningSignal {
  * callers pass `process.env.LEARNING_CANDIDATE_GENERATION` explicitly.
  */
 export function learningCandidateGenerationEnabled(raw: string | undefined): boolean {
-  return String(raw ?? '').trim().toLowerCase() === 'enabled';
+  return (
+    String(raw ?? '')
+      .trim()
+      .toLowerCase() === 'enabled'
+  );
 }
 
 /**
@@ -196,7 +201,8 @@ export class LearningSignalCandidateService {
     if (signal.sourceSurface === 'crm.fill_with_meri' && !factText) {
       return this.recordOutcome(tenantId, signal, {
         eligibility: 'insufficient_evidence',
-        reason: 'The accepted client finding has no available fact content in the same client scope; no metadata-only memory candidate was created.',
+        reason:
+          'The accepted client finding has no available fact content in the same client scope; no metadata-only memory candidate was created.',
       });
     }
     const conflictMatch = factText
@@ -313,7 +319,10 @@ export class LearningSignalCandidateService {
   /** Convenience batch entry point for a scheduled/manual trigger — see
    *  scripts/run-learning-signal-candidate-generation.mjs. Processes the
    *  oldest not-yet-decided captured signals for one tenant first. */
-  async processBatch(tenantId: string, limit = 50): Promise<LearningSignalCandidateOutcomeResult[]> {
+  async processBatch(
+    tenantId: string,
+    limit = 50,
+  ): Promise<LearningSignalCandidateOutcomeResult[]> {
     if (!learningCandidateGenerationEnabled(process.env.LEARNING_CANDIDATE_GENERATION)) {
       return [];
     }
@@ -374,8 +383,10 @@ export class LearningSignalCandidateService {
     // followed by a fresh proposal before this change shipped), the newer
     // pending row's status is what should suppress/permit the next signal,
     // not whichever row happens to be oldest.
-    const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ id: string; status: string }>>`
+    const rows = await this.prisma.withTenant(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<Array<{ id: string; status: string }>>`
         SELECT id::text AS id, status
         FROM memory_candidate
         WHERE tenant_id = ${tenantId}::uuid
@@ -428,8 +439,10 @@ export class LearningSignalCandidateService {
           (ref as { type?: unknown }).type === 'client_profile_fill_finding',
       );
       if (!findingRef?.id) return null;
-      const rows = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.$queryRaw<Array<{ proposedValue: unknown }>>`
+      const rows = await this.prisma.withTenant(
+        tenantId,
+        (tx) =>
+          tx.$queryRaw<Array<{ proposedValue: unknown }>>`
           SELECT proposed_value_jsonb AS "proposedValue"
           FROM client_profile_fill_finding
           WHERE id = ${findingRef.id}::uuid AND tenant_id = ${tenantId}::uuid
@@ -444,7 +457,9 @@ export class LearningSignalCandidateService {
     if (signal.sourceSurface === 'meri.chat') {
       const messageRef = evidenceRefs.find(
         (ref): ref is { type: string; id: string } =>
-          Boolean(ref) && typeof ref === 'object' && (ref as { type?: unknown }).type === 'clio_message',
+          Boolean(ref) &&
+          typeof ref === 'object' &&
+          (ref as { type?: unknown }).type === 'clio_message',
       );
       if (!messageRef?.id) return null;
       const message = await this.prisma.withTenant(tenantId, (tx) =>
@@ -454,11 +469,15 @@ export class LearningSignalCandidateService {
         }),
       );
       const metadata =
-        message?.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
+        message?.metadata &&
+        typeof message.metadata === 'object' &&
+        !Array.isArray(message.metadata)
           ? (message.metadata as Record<string, unknown>)
           : null;
       const feedback =
-        metadata?.feedback && typeof metadata.feedback === 'object' && !Array.isArray(metadata.feedback)
+        metadata?.feedback &&
+        typeof metadata.feedback === 'object' &&
+        !Array.isArray(metadata.feedback)
           ? (metadata.feedback as Record<string, unknown>)
           : null;
       const note = typeof feedback?.note === 'string' ? feedback.note.trim() : null;
@@ -509,25 +528,6 @@ export class LearningSignalCandidateService {
   }
 }
 
-/**
- * `client_profile_fill_finding.proposed_value_jsonb` has no single fixed
- * shape — it varies by `kind` (a person finding carries name/email/role, a
- * capability finding carries name/type/description, ...). Rather than
- * special-case every kind, preserve structured field values, including lists and numeric attributes, in
- * one embeddable line — good enough for a similarity search, not intended
- * to be a polished human-facing sentence.
- */
-function factTextFromValue(value: unknown): string | null {
-  if (typeof value === 'string') return value.trim() || null;
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  if (typeof value === 'boolean') return String(value);
-  if (!value || typeof value !== 'object') return null;
-  const parts = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v != null && (typeof v !== 'string' || v.trim()))
-    .map(([k, v]) => `${k}: ${typeof v === 'string' ? v.trim() : JSON.stringify(v)}`);
-  return parts.length ? parts.join('; ') : null;
-}
-
 function isSourceUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -575,7 +575,8 @@ function buildCandidateValueSummary(
     (reasons.length
       ? `Reason code(s) selected on this rating: ${reasons.join(', ')}.`
       : 'No structured fact text was available for this signal — review the linked evidence before approving.');
-  const reasonsTrailer = factText && reasons.length ? ` Reason code(s): ${reasons.join(', ')}.` : '';
+  const reasonsTrailer =
+    factText && reasons.length ? ` Reason code(s): ${reasons.join(', ')}.` : '';
   const sourceLabel = describeCandidateSourceForBody(signal, provenance);
 
   return (
@@ -590,7 +591,8 @@ function describeCandidateSourceForBody(
   provenance: Record<string, unknown>,
 ): string {
   if (signal.sourceSurface === 'crm.fill_with_meri') {
-    const kind = typeof provenance.kind === 'string' ? provenance.kind.replace(/_/g, ' ') : 'finding';
+    const kind =
+      typeof provenance.kind === 'string' ? provenance.kind.replace(/_/g, ' ') : 'finding';
     const source = typeof provenance.source === 'string' ? provenance.source : 'unknown';
     return `Fill-with-Meri ${kind} finding accepted (${source})`;
   }

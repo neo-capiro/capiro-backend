@@ -532,17 +532,28 @@ describe('RunsService.transition', () => {
     seedMission(store, 'M1', 'active');
     const { svc } = makeService(store);
     const run = await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'firm' });
-    store.runs.set(run.id, { ...store.runs.get(run.id)!, strategyId: null, state: 'ready_for_review' });
+    store.runs.set(run.id, {
+      ...store.runs.get(run.id)!,
+      strategyId: null,
+      state: 'ready_for_review',
+    });
 
     for (const dto of [
       { to: 'approved' },
       { to: 'completed', findings: { execution: { kind: 'workspace' } } },
     ]) {
-      await expect(svc.transition(T, U, run.id, dto as TransitionRunDto, { reviewOnly: true }))
-        .rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        svc.transition(T, U, run.id, dto as TransitionRunDto, { reviewOnly: true }),
+      ).rejects.toBeInstanceOf(BadRequestException);
       expect(store.runs.get(run.id)!.state).toBe('ready_for_review');
     }
-    const acknowledged = await svc.transition(T, U, run.id, { to: 'completed' }, { reviewOnly: true });
+    const acknowledged = await svc.transition(
+      T,
+      U,
+      run.id,
+      { to: 'completed' },
+      { reviewOnly: true },
+    );
     expect(acknowledged.state).toBe('completed');
   });
 
@@ -550,10 +561,14 @@ describe('RunsService.transition', () => {
     const store = makeStore();
     seedMission(store, 'M1', 'active');
     const { svc } = makeService(store);
-    const run = await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'exec:node:workspace' });
+    const run = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'exec:node:workspace',
+    });
     store.runs.set(run.id, { ...store.runs.get(run.id)!, state: 'ready_for_review' });
-    await expect(svc.transition(T, U, run.id, { to: 'completed' }, { reviewOnly: true }))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      svc.transition(T, U, run.id, { to: 'completed' }, { reviewOnly: true }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(store.runs.get(run.id)!.state).toBe('ready_for_review');
   });
 
@@ -870,11 +885,26 @@ describe('RunsService.retry', () => {
     const store = makeStore();
     seedMission(store, 'M1', 'active');
     const { svc } = makeService(store);
-    const run = await svc.createRun(T, U, 'M1', { trigger: 'manual', idempotencyKey: 'exec:N1:workspace' });
-    store.runs.set(run.id, { ...store.runs.get(run.id)!, state: 'failed_recoverable', findings: {
-      execution: { kind: 'workspace', nodeId: 'N1', strategyId: 'S1', missionId: 'M1', pinnedVersionId: 'v-old' },
-      tasks: [{ type: 'workspace_draft' }], results: { artifactRef: 'old' }, approval: { status: 'approved' },
-    } });
+    const run = await svc.createRun(T, U, 'M1', {
+      trigger: 'manual',
+      idempotencyKey: 'exec:N1:workspace',
+    });
+    store.runs.set(run.id, {
+      ...store.runs.get(run.id)!,
+      state: 'failed_recoverable',
+      findings: {
+        execution: {
+          kind: 'workspace',
+          nodeId: 'N1',
+          strategyId: 'S1',
+          missionId: 'M1',
+          pinnedVersionId: 'v-old',
+        },
+        tasks: [{ type: 'workspace_draft' }],
+        results: { artifactRef: 'old' },
+        approval: { status: 'approved' },
+      },
+    });
     return { store, svc, run };
   }
 
@@ -883,9 +913,15 @@ describe('RunsService.retry', () => {
     const next = await svc.retry(T, U, run.id);
     expect(next.attempt).toBe(2);
     expect(next.retryOfRunId).toBe(run.id);
-    expect(next.findings).toEqual({ execution: {
-      kind: 'workspace', nodeId: 'N1', strategyId: 'S1', missionId: 'M1', pinnedVersionId: null,
-    } });
+    expect(next.findings).toEqual({
+      execution: {
+        kind: 'workspace',
+        nodeId: 'N1',
+        strategyId: 'S1',
+        missionId: 'M1',
+        pinnedVersionId: null,
+      },
+    });
     expect(store.runs.get(run.id)!.state).toBe('superseded');
     expect((await svc.retry(T, U, run.id)).id).toBe(next.id);
     expect(store.runs.size).toBe(2);
@@ -901,7 +937,12 @@ describe('RunsService.retry', () => {
 
   it('rejects a retry key collision instead of returning an unrelated attempt', async () => {
     const { store, svc, run } = await retryable();
-    store.runs.set('unrelated', { ...store.runs.get(run.id)!, id: 'unrelated', idempotencyKey: 'exec:N1:workspace#2', retryOfRunId: 'someone-else' });
+    store.runs.set('unrelated', {
+      ...store.runs.get(run.id)!,
+      id: 'unrelated',
+      idempotencyKey: 'exec:N1:workspace#2',
+      retryOfRunId: 'someone-else',
+    });
     await expect(svc.retry(T, U, run.id)).rejects.toBeInstanceOf(ConflictException);
     expect(store.runs.get(run.id)!.state).toBe('failed_recoverable');
   });

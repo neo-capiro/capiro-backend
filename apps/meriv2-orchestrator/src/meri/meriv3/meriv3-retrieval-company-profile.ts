@@ -48,8 +48,8 @@ function recordsFrom(result: unknown): Record<string, unknown>[] {
 
 function hostname(value: string): string | null {
   try {
-    return new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
-      .hostname.toLowerCase()
+    return new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`).hostname
+      .toLowerCase()
       .replace(/^www\./, '');
   } catch {
     return null;
@@ -73,7 +73,14 @@ function domainsFrom(sources: readonly SourceResult[]): string[] {
   const candidates: string[] = [];
   for (const source of sources) {
     for (const record of recordsFrom(source.result)) {
-      for (const field of ['domain', 'verifiedDomain', 'companyDomain', 'website', 'url', 'officialWebsite']) {
+      for (const field of [
+        'domain',
+        'verifiedDomain',
+        'companyDomain',
+        'website',
+        'url',
+        'officialWebsite',
+      ]) {
         const raw = stringValue(record[field]);
         const domain = raw ? hostname(raw) : null;
         if (usableOfficialDomain(domain)) candidates.push(domain);
@@ -141,9 +148,7 @@ export async function executeMeriQuickCompanyProfile(
   const sources: SourceResult[] = [clientRegistry, internalResearch, publicWeb];
   const domains = domainsFrom(sources);
   if (domains[0]) {
-    sources.push(
-      await safeInvoke(ctx.invoke, 'scrape_web_page', { url: `https://${domains[0]}` }),
-    );
+    sources.push(await safeInvoke(ctx.invoke, 'scrape_web_page', { url: `https://${domains[0]}` }));
   }
 
   const name = canonicalName(target, sources);
@@ -192,7 +197,6 @@ export async function executeMeriQuickCompanyProfile(
     answerDirective:
       'Answer the company-description question directly and concisely from the retrieved client/official/public evidence. Explain the company’s core product or service, who it serves, and the practical outcome. Use only the numbered [N] citations supplied with this tool result; never expose internal [S:tool:id] markers. Do not discuss LDA, SEC, awards, SAM, grants, Program Elements, legislative context, entity fan-out, tool execution, coverage plumbing, or failed optional sources unless the user asked for those subjects.',
     nextRecommendedTools: [],
-    note:
-      'This is the bounded company-profile lane. Federal-market and opportunity research was intentionally not run because the request did not require it.',
+    note: 'This is the bounded company-profile lane. Federal-market and opportunity research was intentionally not run because the request did not require it.',
   };
 }

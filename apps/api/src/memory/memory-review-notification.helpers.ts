@@ -9,8 +9,7 @@ export const MEMORY_REVIEW_NOTIFICATION_EVENTS = [
   'review_rejected',
 ] as const;
 
-export type MemoryReviewNotificationEvent =
-  (typeof MEMORY_REVIEW_NOTIFICATION_EVENTS)[number];
+export type MemoryReviewNotificationEvent = (typeof MEMORY_REVIEW_NOTIFICATION_EVENTS)[number];
 
 export interface MemoryReviewNotificationWorkflowState {
   status: string;
@@ -21,9 +20,7 @@ export interface MemoryReviewNotificationWorkflowState {
 export function isMemoryReviewNotificationEvent(
   value: unknown,
 ): value is MemoryReviewNotificationEvent {
-  return MEMORY_REVIEW_NOTIFICATION_EVENTS.includes(
-    value as MemoryReviewNotificationEvent,
-  );
+  return MEMORY_REVIEW_NOTIFICATION_EVENTS.includes(value as MemoryReviewNotificationEvent);
 }
 
 export function memoryReviewNotificationOperation(
@@ -54,9 +51,7 @@ export function normalizeNotificationTitle(value: unknown): string {
   return (clean || 'Memory proposal').slice(0, 300);
 }
 
-function isReviewerAssignmentEvent(
-  eventType: MemoryReviewNotificationEvent,
-): boolean {
+function isReviewerAssignmentEvent(eventType: MemoryReviewNotificationEvent): boolean {
   return (
     eventType === 'review_assigned' ||
     eventType === 'review_revision_assigned' ||

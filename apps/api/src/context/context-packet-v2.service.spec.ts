@@ -49,13 +49,7 @@ function compilerRequest(): ContextRequest {
     userId: '22222222-2222-2222-2222-222222222222',
     clientId: '99999999-9999-9999-9999-999999999999',
     surface: 'research',
-    layers: [
-      'firm-identity',
-      'firm-playbook',
-      'user-voice',
-      'client-steering',
-      'client-people',
-    ],
+    layers: ['firm-identity', 'firm-playbook', 'user-voice', 'client-steering', 'client-people'],
   };
 }
 
@@ -234,11 +228,9 @@ describe('ContextPacketV2Service Phase 17', () => {
 
   test('planned retrieval with no response preserves requested domains and cannot masquerade as complete', async () => {
     const compiler = { compile: jest.fn().mockResolvedValue(basePacket()) };
-    const service = new ContextPacketV2Service(
-      compiler as never,
-      new ContextLayerService(),
-      { withTenant: jest.fn() } as never,
-    );
+    const service = new ContextPacketV2Service(compiler as never, new ContextLayerService(), {
+      withTenant: jest.fn(),
+    } as never);
 
     const packet = await service.compile(
       compilerRequest(),
@@ -301,11 +293,9 @@ describe('ContextPacketV2Service Phase 17', () => {
       items: [],
     } as never;
     const compiler = { compile: jest.fn().mockResolvedValue(v1) };
-    const service = new ContextPacketV2Service(
-      compiler as never,
-      new ContextLayerService(),
-      { withTenant: jest.fn() } as never,
-    );
+    const service = new ContextPacketV2Service(compiler as never, new ContextLayerService(), {
+      withTenant: jest.fn(),
+    } as never);
 
     const packet = await service.compile(compilerRequest(), retrievalResult());
 

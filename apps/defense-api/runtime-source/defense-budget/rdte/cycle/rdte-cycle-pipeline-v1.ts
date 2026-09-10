@@ -27,7 +27,7 @@ import { buildCompleteR2Artifact } from '../r2/r2-complete-artifact-builder-v1.j
 import { extractR2aProjectsFromPages } from '../r2a/r2a-project-extractor-v1.js';
 import { extractR2aProjectFunding } from '../r2a/r2a-project-funding-extractor-v1.js';
 import type { R2aProjectFundingValue } from '../r2a/r2a-project-funding-extractor-v1.js';
-import type { R2aProjectPageGroup } from '../r2a/r2a-project-extractor-v1.js';
+import { groupR2aPagesByStructuralIdentityV1 } from '../r2a/r2a-structural-project-header-parser-v1.js';
 import { buildR2aProjectArtifact } from '../r2a/r2a-artifact-builder-v1.js';
 import {
   reconcileR2aProjectColumn,
@@ -63,6 +63,10 @@ import {
   collectBlockingOmissionPeCodes,
   collectDuplicateNaturalKeys,
 } from './rdte-cycle-integrity-v1.js';
+import {
+  reconstructR2PeTotalCellsFromArtifact,
+  reconstructR2aProjectFundingValuesFromArtifact,
+} from './rdte-artifact-reconciliation-input-v1.js';
 
 export interface RdteCycleArtifactBuildInput {
   fiscalYear: number;
@@ -71,6 +75,17 @@ export interface RdteCycleArtifactBuildInput {
   manifestDocuments?: readonly BudgetCycleManifestDocumentV1[];
   /** Supplied documents that completed the Phase 3 parser boundary. */
   documents: readonly RdteCycleDocumentInputV1[];
+  reviewedNewPeExceptions?: readonly string[];
+}
+
+export interface RdtePersistedArtifactBuildInput {
+  fiscalYear: number;
+  manifestContentSha256: string;
+  manifestDocuments?: readonly BudgetCycleManifestDocumentV1[];
+  documents: readonly {
+    document: BudgetCycleManifestDocumentV1;
+    artifact: DefenseBudgetExtractionArtifactV1;
+  }[];
   reviewedNewPeExceptions?: readonly string[];
 }
 
@@ -104,10 +119,13 @@ export interface RdteCycleArtifactBuildResult {
 }
 
 export interface RdteCycleFinalizeInput {
+  governedCycleId: string;
   cycleIdIdentity: JsonValue;
   build: RdteCycleArtifactBuildResult;
   verifications: readonly RdteCycleVerificationRefV1[];
   canonicalRows?: RdteCanonicalRowSnapshotV1;
+  /** Phase 10B-15 Part H -- see rdte-proof-bound-projection-planner-v1.ts. */
+  allowedReviewedAcceptances?: ReadonlySet<string>;
 }
 
 export interface RdteCyclePipelineResult {
@@ -120,6 +138,7 @@ export interface RdteCyclePipelineResult {
 }
 
 export interface RdteCyclePipelineInput extends RdteCycleArtifactBuildInput {
+  governedCycleId: string;
   cycleIdIdentity: JsonValue;
   verifications: readonly RdteCycleVerificationRefV1[];
   canonicalRows?: RdteCanonicalRowSnapshotV1;
@@ -226,7 +245,7 @@ function r2aExtractionParts(input: { document: RdteCycleDocumentInputV1; fiscalY
   fundingValues: R2aProjectFundingValue[];
 } {
   const projects = extractR2aProjectsFromPages({ pages: input.document.pages });
-  const funding = groupR2aPages(input.document.pages).map((group) =>
+  const funding = groupR2aPagesByStructuralIdentityV1(input.document.pages).groups.map((group) =>
     extractR2aProjectFunding({ group, cycleFiscalYear: input.fiscalYear }),
   );
   const fundingValues = funding.flatMap((value) => value.values);
@@ -558,11 +577,133 @@ export function buildRdteCycleArtifacts(
   };
 }
 
+/**
+ * Restart-safe Phase 4 entrypoint. It consumes only byte-verified, accepted
+ * extraction artifacts and reconstructs the inputs to the unchanged R-2A
+ * reconciler; no parser pages are needed at this boundary.
+ */
+export function buildRdteCycleArtifactsFromPersistedArtifacts(
+  input: RdtePersistedArtifactBuildInput,
+): RdteCycleArtifactBuildResult {
+  const supplied = [...input.documents].sort((left, right) => {
+    const rank = (EXHIBIT_ORDER[left.document.exhibit] ?? 99) - (EXHIBIT_ORDER[right.document.exhibit] ?? 99);
+    return rank || left.document.documentKey.localeCompare(right.document.documentKey);
+  });
+  const manifestDocuments = orderedManifestDocuments(
+    input.manifestDocuments ?? supplied.map((value) => value.document),
+  );
+  const documents: RdteCycleDocumentInputV1[] = supplied.map(({ document, artifact }) => {
+    if (artifact.source.manifestDocumentKey !== document.documentKey) {
+      throw new Error(`persisted artifact/document mismatch for ${document.documentKey}`);
+    }
+    if (artifact.source.sourceDocumentId == null) {
+      throw new Error(`persisted artifact ${artifact.artifactId} has no sourceDocumentId`);
+    }
+    const unresolvedPages = artifact.sourceFacts.flatMap((fact) => {
+      const match = /^phase3\/unresolved\/page:(\d+)$/.exec(fact.sourcePath);
+      return match == null ? [] : [Number(match[1])];
+    });
+    return {
+      document,
+      source: { ...artifact.source, sourceDocumentId: artifact.source.sourceDocumentId },
+      pages: [],
+      parserRuns: artifact.parserRuns,
+      unresolvedPages,
+    };
+  });
+  const artifacts = supplied.map(({ document, artifact }) => builtArtifact(document.documentKey, artifact));
+  const artifactValues = artifacts.map((value) => value.artifact);
+  const sourceDocuments: RdteCycleSourceDocumentV1[] = documents.map((value) => ({
+    manifestDocumentKey: value.document.documentKey,
+    sourceDocumentId: value.source.sourceDocumentId,
+    exhibitRole: exhibitRoleOf(value.document.exhibit),
+    required: value.document.required,
+    sourcePdfSha256: value.source.sourcePdfSha256,
+    sourceLocator: value.source.sourceLocator,
+    parserRunIds: value.parserRuns.map((run) => run.parserRunId).sort(),
+    unresolvedPages: [...value.unresolvedPages].sort((a, b) => a - b),
+  }));
+  const comparisons = buildR1R2CycleComparisons(artifactValues);
+  const r1PeCodes = artifactValues
+    .filter((artifact) => artifact.source.exhibit === 'R-1')
+    .flatMap((artifact) => artifact.assertions
+      .filter((assertion) => assertion.assertionKind === 'program_element_identity')
+      .map((assertion) => assertion.identity.peCode));
+  const otherPeCodes = artifactValues
+    .filter((artifact) => artifact.source.exhibit !== 'R-1')
+    .flatMap((artifact) => artifact.assertions.map(peCodeOf).filter((value): value is string => !!value));
+  const projectKeys = artifactValues.flatMap((artifact) => artifact.assertions
+    .filter((assertion) => assertion.assertionKind === 'project')
+    .map((assertion) => ({ peCode: assertion.parentPeCode, projectCode: assertion.projectCode })));
+  const peTotals = artifactValues.flatMap(reconstructR2PeTotalCellsFromArtifact);
+  const r2aProjectValues = artifactValues.flatMap(reconstructR2aProjectFundingValuesFromArtifact);
+  const projectSums = peTotals
+    .filter((total) => total.columnRole === 'budget_year_request' || total.columnRole === 'outyear_projection')
+    .map((total) => reconcileR2aProjectColumn({
+      peCode: total.peCode,
+      fiscalYear: total.fiscalYear,
+      columnRole: total.columnRole,
+      peTotal: total,
+      projectValues: r2aProjectValues.filter((project) =>
+        project.parentPeCode === total.peCode && project.fiscalYear === total.fiscalYear && project.columnRole === total.columnRole),
+      unit: total.unit,
+      ...(() => {
+        const expectedProjectCodes = projectKeys.filter((project) => project.peCode === total.peCode).map((project) => project.projectCode);
+        return expectedProjectCodes.length > 0 ? { expectedProjectCodes } : {};
+      })(),
+    }));
+  const reconciliation = reconcileRdteCycle({
+    identity: {
+      r1PeCodes,
+      otherExhibitPeCodes: otherPeCodes,
+      ...(input.reviewedNewPeExceptions ? { reviewedNewPeExceptions: input.reviewedNewPeExceptions } : {}),
+    },
+    fundingComparisons: comparisons.map((comparison) => ({
+      peCode: comparison.peCode,
+      fiscalYear: comparison.fiscalYear,
+      columnRole: comparison.columnRole,
+      result: comparison.result,
+      message: comparison.message,
+      evidenceIds: comparison.evidenceIds,
+    })),
+    projectSumReconciliations: projectSums,
+    projectRelationships: projectRelationships(artifactValues),
+    coverageInputs: buildManifestCoverageInputs({ documents: manifestDocuments, artifacts: artifactValues }),
+    blockingOmissionPeCodes: collectBlockingOmissionPeCodes(artifactValues),
+    unresolvedPages: documents.flatMap((value) => value.unresolvedPages),
+    duplicateNaturalKeys: collectDuplicateNaturalKeys(artifactValues),
+  });
+  const count = (kind: DefenseBudgetAssertionV1['assertionKind']) =>
+    artifactValues.reduce((sum, artifact) => sum + artifact.assertions.filter((assertion) => assertion.assertionKind === kind).length, 0);
+  return {
+    fiscalYear: input.fiscalYear,
+    manifestContentSha256: input.manifestContentSha256,
+    manifestDocuments,
+    documents,
+    sourceDocuments,
+    artifacts,
+    comparisons,
+    reconciliation,
+    ...(input.reviewedNewPeExceptions ? { reviewedNewPeExceptions: input.reviewedNewPeExceptions } : {}),
+    counts: {
+      r1PeCount: new Set(r1PeCodes).size,
+      r2PeCount: new Set(artifactValues.filter((artifact) => artifact.source.exhibit === 'R-2').flatMap((artifact) => artifact.assertions.map(peCodeOf).filter((value): value is string => !!value))).size,
+      r2NarrativeSectionCount: count('narrative'),
+      r2aProjectCount: count('project'),
+      r3PerformerCount: count('performer'),
+      r4MilestoneCount: count('milestone'),
+      comparisonCount: comparisons.length,
+      blockingFindingCount: reconciliation.findings.filter((finding) => finding.severity === 'blocking').length,
+    },
+  };
+}
+
 export function finalizeRdteCycle(input: RdteCycleFinalizeInput): RdteCyclePipelineResult {
   const requiredManifestDocumentKeys = input.build.manifestDocuments
     .filter((value) => value.required)
     .map((value) => value.documentKey);
   const common = {
+    governedCycleId: input.governedCycleId,
     cycleIdIdentity: input.cycleIdIdentity,
     fiscalYear: input.build.fiscalYear,
     manifestContentSha256: input.build.manifestContentSha256,
@@ -595,6 +736,9 @@ export function finalizeRdteCycle(input: RdteCycleFinalizeInput): RdteCyclePipel
     preflightBundle: preflight.bundle,
     artifacts: input.build.artifacts.map((value) => value.artifact),
     ...(input.canonicalRows ? { canonicalRows: input.canonicalRows } : {}),
+    ...(input.allowedReviewedAcceptances
+      ? { allowedReviewedAcceptances: input.allowedReviewedAcceptances }
+      : {}),
   });
   const final = certifyRdteCycle({
     ...common,
@@ -616,6 +760,7 @@ export function finalizeRdteCycle(input: RdteCycleFinalizeInput): RdteCyclePipel
 
 export function runRdteCyclePipeline(input: RdteCyclePipelineInput): RdteCyclePipelineResult {
   return finalizeRdteCycle({
+    governedCycleId: input.governedCycleId,
     cycleIdIdentity: input.cycleIdIdentity,
     build: buildRdteCycleArtifacts(input),
     verifications: input.verifications,
@@ -639,42 +784,10 @@ function collectR2Value(value: R2FundingValue, peTotals: R2PeTotalCell[]): void 
   }
 }
 
-const R2A_MARKER_RE = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
-const PE_RE = /\bPE\s+([0-9]{7}[A-Z][A-Z0-9]*)\b/i;
-const PROJECT_CODE_RE = /\bproject\s+code\s*[:.\-]?\s*(\S+(?:\s+\S+)*)/i;
-
-function groupR2aPages(pages: RdteCycleDocumentInputV1['pages']): R2aProjectPageGroup[] {
-  const groups: R2aProjectPageGroup[] = [];
-  let currentKey: string | null = null;
-  let currentParentPe = '';
-  let currentProjectCode = '';
-  let currentPages: RdteCycleDocumentInputV1['pages'][number][] = [];
-  const flush = () => {
-    if (!currentKey) return;
-    groups.push({
-      parentPeCode: currentParentPe,
-      projectCode: currentProjectCode,
-      pages: [...currentPages],
-    });
-    currentKey = null;
-    currentPages = [];
-  };
-  for (const page of pages) {
-    const texts = [page.text ?? '', ...page.blocks.map((block) => block.text)];
-    if (!texts.some((text) => R2A_MARKER_RE.test(text))) continue;
-    const parentPeCode = texts.map((text) => PE_RE.exec(text)?.[1]).find(Boolean) ?? '';
-    const projectCode =
-      texts.map((text) => PROJECT_CODE_RE.exec(text)?.[1]?.trim()).find(Boolean) ?? '';
-    const key = `${parentPeCode}|${projectCode}`;
-    if (key === currentKey) currentPages.push(page);
-    else {
-      flush();
-      currentKey = key;
-      currentParentPe = parentPeCode;
-      currentProjectCode = projectCode;
-      currentPages = [page];
-    }
-  }
-  flush();
-  return groups;
-}
+/* Phase 10B-25: R-2A project-page grouping used to be independently
+ * re-implemented here against an inline-text "project code:" regex that
+ * never matches the real government layout (identity lives in self-labeled
+ * TABLE CELLS -- see r2a-structural-project-header-parser-v1.ts for the
+ * full root-cause writeup). Grouping is now delegated entirely to the one
+ * shared structural grouper; this file must never re-derive its own
+ * grouping logic again. */

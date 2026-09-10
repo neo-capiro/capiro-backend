@@ -60,9 +60,9 @@ export function meriWordArtifactText(document: WordArtifactDocument): string {
   ].join('\n\n');
 }
 
-export function MeriWordArtifactPreview({ document }: { document: WordArtifactDocument }) {
+export function MeriWordArtifactPreview({ document, format = 'Word' }: { document: WordArtifactDocument; format?: 'Word' | 'PDF' }) {
   return (
-    <article aria-label="Word document preview">
+    <article aria-label={`${format} document preview`}>
       <h1 style={{ margin: '0 0 12px', fontSize: 24, lineHeight: 1.25, color: '#101828', fontWeight: 700 }}>
         {document.title}
       </h1>

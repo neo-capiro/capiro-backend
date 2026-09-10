@@ -12,12 +12,7 @@ describe('Meri retrieval recipe utilities', () => {
       { tool: 'search_public_web', result: { results: [{ title: 'Company' }] } },
     ];
 
-    const manifest = recipeCoverage(
-      ['identity', 'memory', 'public_web'],
-      sources,
-      1,
-      1,
-    );
+    const manifest = recipeCoverage(['identity', 'memory', 'public_web'], sources, 1, 1);
 
     expect(manifest.complete).toBe(false);
     expect(manifest.searchedDomains).toEqual(

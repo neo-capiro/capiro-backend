@@ -183,5 +183,8 @@ describe('evaluateEligibility — outreach kind', () => {
 
 it('requires reopening completed work before staging another output', () => {
   expect(evaluateEligibility(ws({ status: 'completed' }))).toMatchObject({ eligible: false });
-  expect(evaluateEligibility(ws({ status: 'in_progress' }))).toEqual({ eligible: true, reasons: [] });
+  expect(evaluateEligibility(ws({ status: 'in_progress' }))).toEqual({
+    eligible: true,
+    reasons: [],
+  });
 });

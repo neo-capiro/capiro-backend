@@ -8,7 +8,7 @@
  * and produces the actual binary buffers.
  */
 
-export type DocFormat = 'docx' | 'xlsx' | 'pptx';
+export type DocFormat = 'docx' | 'pdf' | 'xlsx' | 'pptx';
 
 export interface DocTable {
   /** Column header labels. */
@@ -275,6 +275,8 @@ export function slugifyDocName(title: string): string {
 /** MIME type for a generated document format. */
 export function mimeForFormat(format: DocFormat): string {
   switch (format) {
+    case 'pdf':
+      return 'application/pdf';
     case 'docx':
       return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     case 'xlsx':

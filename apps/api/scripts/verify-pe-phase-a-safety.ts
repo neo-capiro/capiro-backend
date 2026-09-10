@@ -184,7 +184,11 @@ function verifyPromotionSafety(): void {
   const summaryStart = source.indexOf('function parseSummary(');
   assert(summaryStart >= 0, 'parseSummary must exist');
   const summaryBody = source.slice(summaryStart, source.indexOf('\n}', summaryStart));
-  assert.doesNotMatch(summaryBody, /\bjson\b/, 'the emitted parse summary must omit the artifact body');
+  assert.doesNotMatch(
+    summaryBody,
+    /\bjson\b/,
+    'the emitted parse summary must omit the artifact body',
+  );
   // Artifact replay must PROVE the bytes are the ones originally parsed, not merely
   // recompute a digest, and the head flip must be deferred into the transaction.
   assert.match(source, /recordedArtifactSha256 !== actualArtifactSha256/);
@@ -193,10 +197,7 @@ function verifyPromotionSafety(): void {
   assert.match(source, /supersedeSourceDocumentHead\(/);
 
   const mainStart = source.indexOf('async function main(): Promise<void>');
-  const approvalParse = source.indexOf(
-    "requireApprovedSha256(arg('approved-sha256'))",
-    mainStart,
-  );
+  const approvalParse = source.indexOf("requireApprovedSha256(arg('approved-sha256'))", mainStart);
   const commitDispatch = source.indexOf(': await runCommit(', approvalParse);
   assert(
     mainStart >= 0 && approvalParse > mainStart && commitDispatch > approvalParse,
@@ -281,7 +282,10 @@ function verifyPromotionSafety(): void {
 
 function verifyAuditIsReadOnly(): void {
   const source = apiFile('scripts/audit-llamaparse-pe-units.ts');
-  assert.doesNotMatch(source, /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(/);
+  assert.doesNotMatch(
+    source,
+    /\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(/,
+  );
   assert.doesNotMatch(source, /\$executeRaw|\$executeRawUnsafe|\$queryRawUnsafe/);
   // b5 forbids a mutation transaction as well as direct mutation calls; the audit
   // opens no interactive transaction at all, which is the strongest form of that.
@@ -305,7 +309,11 @@ function verifyAuditIsReadOnly(): void {
     'provenAffected',
   );
   for (const weakened of [
-    { canonicalIsLlama: false, classifications: ['candidate_1000x_reference'] as const, ...documented },
+    {
+      canonicalIsLlama: false,
+      classifications: ['candidate_1000x_reference'] as const,
+      ...documented,
+    },
     {
       canonicalIsLlama: true,
       classifications: ['candidate_1000x_reference'] as const,

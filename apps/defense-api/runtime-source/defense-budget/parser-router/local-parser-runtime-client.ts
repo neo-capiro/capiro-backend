@@ -30,6 +30,14 @@ export interface ParserRuntimeVersionInfoV1 {
   engines: Partial<Record<ExtractionMethodV1, string>>;
 }
 
+/** Phase 10B-21A: mirrors the Python runtime's `ENGINE_UNAVAILABLE` sentinel
+ * exactly (`engine_versions.py`, `docling_engine.py`) -- an engine this
+ * runtime image genuinely does not have installed reports this exact value
+ * rather than a version-shaped placeholder string, so callers can refuse
+ * to dispatch to it with an explicit equality check instead of relying only
+ * on truthiness. */
+export const PARSER_ENGINE_UNAVAILABLE_SENTINEL = 'ENGINE_UNAVAILABLE';
+
 export class LocalParserRuntimeClient {
   private readonly command: string;
   private readonly commandArgs: string[];
@@ -52,12 +60,43 @@ export class LocalParserRuntimeClient {
     writeFileSync(jobPath, `${JSON.stringify(job, null, 2)}\n`, 'utf8');
 
     const processResult = await this.invokeRuntime(['run', '--job', jobPath, '--out', resultPath]);
-    if (processResult.exitCode !== 0 && processResult.exitCode !== 5) {
+
+    // Phase 10B-17 Blocker 1: exit 0 (SUCCESS) and 5 (PARTIAL) always carry a
+    // written, schema-conformant result -- the CLI's own contract
+    // (`_write_result` then `_exit_code_from_result` in cli.py) calls
+    // `_write_result` unconditionally before computing either exit code.
+    // Exit 6 (TOTAL_FAILURE) is ambiguous in that same contract: it covers
+    // BOTH "the engine ran validly and every requested page failed with a
+    // real per-page reason code" (e.g. an OCR engine dependency is
+    // genuinely unavailable for this whole batch -- a valid result WAS
+    // written) AND "the engine raised an uncaught exception before ever
+    // writing a result" (no file exists). Previously this client treated
+    // exit 6 identically to a hard contract violation and threw without
+    // even attempting to read the result, which meant one escalation-tier
+    // step failing for a subset of pages aborted the entire multi-step
+    // parse plan and discarded already-successful earlier steps' real
+    // results. A page that genuinely cannot be parsed by any available
+    // engine belongs in that step's `failedPages` (already-established
+    // per-page failure vocabulary), not in a document-wide fatal error --
+    // so exit 6 now attempts the same read-and-validate path as exit 5,
+    // falling back to the original stderr-based hard failure only when no
+    // valid result was actually written (the true uncaught-exception case).
+    let result: ParserRuntimeResultV1;
+    if (processResult.exitCode === 0 || processResult.exitCode === 5) {
+      result = parseParserRuntimeResultV1(JSON.parse(readFileSync(resultPath, 'utf8')));
+    } else if (processResult.exitCode === 6) {
+      try {
+        result = parseParserRuntimeResultV1(JSON.parse(readFileSync(resultPath, 'utf8')));
+      } catch {
+        throw new Error(
+          `parser runtime exited ${processResult.exitCode}: ${processResult.stderr || 'no stderr'}`,
+        );
+      }
+    } else {
       throw new Error(
         `parser runtime exited ${processResult.exitCode}: ${processResult.stderr || 'no stderr'}`,
       );
     }
-    const result = parseParserRuntimeResultV1(JSON.parse(readFileSync(resultPath, 'utf8')));
     if (result.engine !== job.engine) {
       throw new Error(
         `parser method relabeling detected: job=${job.engine} result=${result.engine}`,

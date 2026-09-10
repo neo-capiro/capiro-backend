@@ -409,4 +409,3 @@ export function fingerprintCalendars(cal: ReferenceCalendars): string {
     )
     .digest('hex');
 }
-

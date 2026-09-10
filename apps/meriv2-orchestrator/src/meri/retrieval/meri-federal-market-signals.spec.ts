@@ -28,7 +28,8 @@ describe('Meri federal-market signals', () => {
           results: [
             {
               title: 'Capabilities',
-              description: 'Supply chain logistics, distribution management, inventory readiness and analytics.',
+              description:
+                'Supply chain logistics, distribution management, inventory readiness and analytics.',
             },
           ],
         },

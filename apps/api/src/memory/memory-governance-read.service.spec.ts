@@ -6,6 +6,8 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import type { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import { MemoryGovernanceReadService } from './memory-governance-read.service.js';
+import * as centerSwitch from './memory-governance-center.switch.js';
+import type { Prisma } from '@prisma/client';
 
 const ctx: TenantContext = {
   tenantId: '11111111-1111-4111-8111-111111111111',
@@ -21,6 +23,94 @@ function restore(key: string, value: string | undefined): void {
 }
 
 describe('MemoryGovernanceReadService', () => {
+  it('binds title search before the limit and retains tenant, wall, and per-item authorization', async () => {
+    const enabled = jest.spyOn(centerSwitch, 'memoryGovernanceCenterEnabled').mockReturnValue(true);
+    const query = "crm_finding_accepted:%_' OR true --";
+    const deniedClient = '33333333-3333-4333-8333-333333333333';
+    const rows = ['allowed', 'denied'].map((id) => ({
+      id,
+      title: query,
+      governedStatus: 'active',
+      updatedAt: new Date('2026-09-10'),
+    }));
+    const tx = {
+      $queryRawUnsafe: jest.fn(async () => [{ id: deniedClient }]),
+      $queryRaw: jest.fn(async (_sql: Prisma.Sql) => rows),
+    };
+    const withTenantUser = jest.fn(
+      async (_tenant: string, _user: string, run: (tx: unknown) => Promise<unknown>) => run(tx),
+    );
+    const authorization = {
+      loadItemInTx: jest.fn(async (_tx: unknown, _tenant: string, id: string) => ({ id })),
+      evaluateInTx: jest.fn(
+        async (_tx: unknown, _ctx: unknown, item: { id: string }, action: string) => ({
+          allowed: item.id === 'allowed' && action === 'read',
+        }),
+      ),
+    };
+    try {
+      const service = new MemoryGovernanceReadService(
+        { withTenantUser } as unknown as PrismaService,
+        authorization as unknown as MemoryAuthorizationService,
+        {} as MemoryCandidateReviewService,
+      );
+      const result = await service.listItems(ctx, 'active', 250, `  ${query}  `);
+      expect(result.items.map((item) => item.id)).toEqual(['allowed']);
+      const sql = tx.$queryRaw.mock.calls[0]![0];
+      expect(sql.sql).toContain('strpos(lower(mi.title), lower(?)) > 0');
+      expect(sql.sql.indexOf('strpos')).toBeLessThan(sql.sql.indexOf('LIMIT'));
+      expect(sql.sql).not.toContain(query);
+      expect(sql.values).toEqual([ctx.tenantId, ctx.userId, query, 250]);
+      expect(sql.sql).toContain("mi.visibility = 'tenant' OR mi.owner_user_id");
+      expect(sql.sql).toContain(deniedClient);
+      expect(withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function));
+      expect(authorization.evaluateInTx).toHaveBeenCalledWith(tx, ctx, { id: 'denied' }, 'read');
+    } finally {
+      enabled.mockRestore();
+    }
+  });
+
+  it('keeps the existing bounded listing when search is empty', async () => {
+    const enabled = jest.spyOn(centerSwitch, 'memoryGovernanceCenterEnabled').mockReturnValue(true);
+    const tx = {
+      $queryRawUnsafe: jest.fn(async () => []),
+      $queryRaw: jest.fn(async (_sql: Prisma.Sql) => []),
+    };
+    try {
+      const service = new MemoryGovernanceReadService(
+        {
+          withTenantUser: async (_t: string, _u: string, run: (tx: unknown) => Promise<unknown>) =>
+            run(tx),
+        } as unknown as PrismaService,
+        {} as MemoryAuthorizationService,
+        {} as MemoryCandidateReviewService,
+      );
+      await service.listItems(ctx, 'active', 999, '   ');
+      expect(tx.$queryRaw.mock.calls[0]![0].sql).not.toContain('strpos');
+      expect(tx.$queryRaw.mock.calls[0]![0].values.at(-1)).toBe(250);
+    } finally {
+      enabled.mockRestore();
+    }
+  });
+
+  it('rejects an oversized search before querying memory', async () => {
+    const enabled = jest.spyOn(centerSwitch, 'memoryGovernanceCenterEnabled').mockReturnValue(true);
+    const withTenantUser = jest.fn();
+    try {
+      const service = new MemoryGovernanceReadService(
+        { withTenantUser } as unknown as PrismaService,
+        {} as MemoryAuthorizationService,
+        {} as MemoryCandidateReviewService,
+      );
+      await expect(service.listItems(ctx, 'active', 250, 'x'.repeat(201))).rejects.toThrow(
+        'at most 200 characters',
+      );
+      expect(withTenantUser).not.toHaveBeenCalled();
+    } finally {
+      enabled.mockRestore();
+    }
+  });
+
   it('returns empty disabled projections without touching governed tables while dark', async () => {
     const prior = {
       center: process.env.MEMORY_GOVERNANCE_CENTER,

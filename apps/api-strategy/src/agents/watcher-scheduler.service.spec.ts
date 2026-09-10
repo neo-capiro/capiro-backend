@@ -734,7 +734,10 @@ describe('WatcherSchedulerService — poisoned-mission isolation', () => {
       T,
       null,
       'R1',
-      expect.objectContaining({ to: 'failed_terminal', error: expect.stringContaining('poisoned mission') }),
+      expect.objectContaining({
+        to: 'failed_terminal',
+        error: expect.stringContaining('poisoned mission'),
+      }),
     );
   });
 
@@ -872,4 +875,3 @@ describe('WatcherSchedulerService — env gates (dark by default)', () => {
     expect(spy).toHaveBeenCalledWith(expect.any(Function), 15_000);
   });
 });
-

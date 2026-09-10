@@ -280,7 +280,7 @@ const TOOL_LABELS: Record<string, string> = {
   save_note: 'Save a note',
   save_chat_attachments: 'File chat attachments under a client',
   save_memory: 'Saved a memory',
-  create_word: 'Generated a Word document',
+  create_word: 'Generated a document',
   create_excel: 'Generated an Excel workbook',
   create_powerpoint: 'Generated a PowerPoint deck',
   create_meeting_brief: 'Created a meeting brief',

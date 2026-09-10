@@ -100,7 +100,10 @@ export function gmailFolderFromLabelIds(labelIds: readonly string[] | undefined)
 export function foldGmailHistory(
   history: NonNullable<GmailHistoryResponse['history']>,
 ): Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }> {
-  const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
+  const ops = new Map<
+    string,
+    { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }
+  >();
   for (const entry of history) {
     for (const added of entry.messagesAdded ?? []) {
       const msg = added.message;
@@ -174,7 +177,7 @@ interface MailLabelSyncState {
   updatedAt?: string | null;
 }
 
-interface SyncStats {
+export interface SyncStats {
   scanned: number;
   matched: number;
   skipped: number;
@@ -566,7 +569,15 @@ export class GoogleSyncService {
               externalId: event.id!,
             },
           },
-          select: { id: true, clientId: true, isInternal: true, associationScore: true, associationReason: true, associationSignals: true, status: true },
+          select: {
+            id: true,
+            clientId: true,
+            isInternal: true,
+            associationScore: true,
+            associationReason: true,
+            associationSignals: true,
+            status: true,
+          },
         });
         // Resurrection guard: a previously-deleted meeting must not be
         // revived when a full calendar refresh re-encounters its id.
@@ -624,15 +635,26 @@ export class GoogleSyncService {
             webLink: event.htmlLink ?? null,
             provider: 'google_calendar',
           } as Prisma.InputJsonValue,
-          associationScore: existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
-            ? existing.associationScore : association.score,
-          associationReason: existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
-            ? existing.associationReason : association.reason,
-          associationSignals: (
-            existing && (existing.isInternal || hasManualOverride || hasManualAssociationSignal(existing.associationSignals))
-              ? existing.associationSignals
-              : association.signals
-          ) as Prisma.InputJsonValue,
+          associationScore:
+            existing &&
+            (existing.isInternal ||
+              hasManualOverride ||
+              hasManualAssociationSignal(existing.associationSignals))
+              ? existing.associationScore
+              : association.score,
+          associationReason:
+            existing &&
+            (existing.isInternal ||
+              hasManualOverride ||
+              hasManualAssociationSignal(existing.associationSignals))
+              ? existing.associationReason
+              : association.reason,
+          associationSignals: (existing &&
+          (existing.isInternal ||
+            hasManualOverride ||
+            hasManualAssociationSignal(existing.associationSignals))
+            ? existing.associationSignals
+            : association.signals) as Prisma.InputJsonValue,
         };
         const meeting = existing
           ? await tx.meeting.update({
@@ -920,7 +942,10 @@ export class GoogleSyncService {
     // pages too). A message that is added and then trashed inside one run
     // must end as 'remove', and vice versa; the old first-seen Set kept
     // whichever event came first.
-    const ops = new Map<string, { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }>();
+    const ops = new Map<
+      string,
+      { action: 'upsert' | 'remove'; reason?: 'deleted' | 'trashed' | 'spam' }
+    >();
     // Resume exactly where a prior capped run left off, rather than always
     // starting a fresh page chain from startHistoryId — a mailbox with more
     // than MAX_MAIL_PAGES_PER_LABEL_PER_RUN pages of change would otherwise
@@ -1684,7 +1709,9 @@ function findGmailTextPart(
  *  gmailGet hydrates whichever part this selects, and extractGmailBodyText
  *  selects the SAME part later -- they must agree, or a hydration fetch goes
  *  to a part extraction never reads. */
-function findPreferredGmailTextPart(payload: GmailMessagePart | undefined): GmailMessagePart | null {
+function findPreferredGmailTextPart(
+  payload: GmailMessagePart | undefined,
+): GmailMessagePart | null {
   if (!payload) return null;
   return findGmailTextPart(payload, 'text/plain') ?? findGmailTextPart(payload, 'text/html');
 }

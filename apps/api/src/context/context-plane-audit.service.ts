@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  ContextOperationEnforcementDecision,
-  ContextPacketMode,
-} from '@capiro/meriv2-core';
+import type { ContextOperationEnforcementDecision, ContextPacketMode } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ContextStageTimings } from './context-stage-timer.service.js';
 

@@ -143,12 +143,7 @@ export class MeriRetrievalCoordinator {
     state.modelTools.push(tool);
   }
 
-  observe(
-    tool: string,
-    input: Record<string, unknown>,
-    result: unknown,
-    durationMs = 0,
-  ): void {
+  observe(tool: string, input: Record<string, unknown>, result: unknown, durationMs = 0): void {
     const state = this.storage.getStore();
     if (!state) return;
     const observation = observeMeriToolCoverage(tool, input, result);

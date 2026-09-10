@@ -36,8 +36,7 @@ export interface MemoryReviewCursor {
   id: string;
 }
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function parseMemoryReviewInboxView(value: unknown): MemoryReviewInboxView {
   if (
@@ -53,17 +52,13 @@ export function parseMemoryReviewPageSize(value: unknown): number {
   if (value === undefined || value === null || value === '') return 25;
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
-    throw new BadRequestException(
-      'Memory review page size must be an integer from 1 to 50.',
-    );
+    throw new BadRequestException('Memory review page size must be an integer from 1 to 50.');
   }
   return parsed;
 }
 
 export function encodeMemoryReviewCursor(cursor: MemoryReviewCursor): string {
-  return Buffer.from(JSON.stringify({ v: 1, ...cursor }), 'utf8').toString(
-    'base64url',
-  );
+  return Buffer.from(JSON.stringify({ v: 1, ...cursor }), 'utf8').toString('base64url');
 }
 
 export function decodeMemoryReviewCursor(value: unknown): MemoryReviewCursor | null {
@@ -72,9 +67,10 @@ export function decodeMemoryReviewCursor(value: unknown): MemoryReviewCursor | n
     throw new BadRequestException('Memory review cursor is invalid.');
   }
   try {
-    const decoded = JSON.parse(
-      Buffer.from(value, 'base64url').toString('utf8'),
-    ) as Record<string, unknown>;
+    const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
     const createdAt = typeof decoded.createdAt === 'string' ? decoded.createdAt : '';
     const id = typeof decoded.id === 'string' ? decoded.id : '';
     if (
@@ -118,10 +114,7 @@ export function memoryReviewCandidateKindFromSource(
     return 'correction';
   }
   if (metadataKind === 'restore' || sourceKind === 'memory_restore') return 'restore';
-  if (
-    metadataKind === 'contradiction' ||
-    sourceKind === 'memory_contradiction'
-  ) {
+  if (metadataKind === 'contradiction' || sourceKind === 'memory_contradiction') {
     return 'contradiction';
   }
   return 'standard';
@@ -161,11 +154,7 @@ export function memoryReviewNextAction(input: {
   ) {
     return 'review';
   }
-  if (
-    input.status === 'changes_requested' &&
-    input.viewerIsSubmitter &&
-    input.canRevise
-  ) {
+  if (input.status === 'changes_requested' && input.viewerIsSubmitter && input.canRevise) {
     return 'revise';
   }
   if (input.status === 'pending' && input.viewerIsAdmin && input.canReassign) {

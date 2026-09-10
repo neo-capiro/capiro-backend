@@ -198,6 +198,48 @@ describe('runWithSyncRun (Phase 0 shared watermark)', () => {
 });
 
 describe('runWithSyncRun observability (W4.3 / M5-G — pageable failures)', () => {
+  test.each(['legacy', 'json'] as const)(
+    'a failed SAM request emits incomplete coverage in %s metrics and preserves the successful watermark',
+    async (metricFormat) => {
+      const watermark = new Date('2026-09-01T00:00:00Z');
+      const { prisma, calls } = makePrisma({ lastSuccess: watermark });
+      const lines: string[] = [];
+      const spy = jest.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+        if (typeof value === 'string') lines.push(value);
+      });
+      try {
+        await expect(
+          runWithSyncRun(
+            prisma,
+            'sync-sam-opportunities',
+            async () => {
+              throw new Error('SAM.gov 401 unauthorized');
+            },
+            { metricFormat },
+          ),
+        ).rejects.toThrow('SAM.gov 401 unauthorized');
+        const metrics = lines.map((line) => JSON.parse(line.replace(/^INGESTION_METRIC /, '')));
+        expect(metrics).toHaveLength(1);
+        expect(metrics[0]).toMatchObject({
+          source: 'sync-sam-opportunities',
+          rows_inserted: 0,
+          rows_updated: 0,
+          error_count: 1,
+          complete: false,
+        });
+        expect(calls.update).toHaveLength(1);
+        expect(calls.update[0].data).toMatchObject({ status: 'error', errorCount: 1 });
+        expect(await lastSuccessfulWatermark(prisma, 'sync-sam-opportunities')).toEqual(watermark);
+        expect(calls.findFirst.at(-1).where).toEqual({
+          source: 'sync-sam-opportunities',
+          status: 'success',
+        });
+      } finally {
+        spy.mockRestore();
+      }
+    },
+  );
+
   function captureMetrics() {
     const lines: string[] = [];
     const spy = jest.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
@@ -205,7 +247,10 @@ describe('runWithSyncRun observability (W4.3 / M5-G — pageable failures)', () 
     });
     return {
       restore: () => spy.mockRestore(),
-      metrics: () => lines.filter((l) => l.startsWith('INGESTION_METRIC ')).map((l) => JSON.parse(l.slice('INGESTION_METRIC '.length))),
+      metrics: () =>
+        lines
+          .filter((l) => l.startsWith('INGESTION_METRIC '))
+          .map((l) => JSON.parse(l.slice('INGESTION_METRIC '.length))),
       skips: () => lines.filter((l) => l.startsWith('INGESTION_SKIP ')),
     };
   }
@@ -226,9 +271,9 @@ describe('runWithSyncRun observability (W4.3 / M5-G — pageable failures)', () 
       },
     };
     try {
-      await expect(
-        runWithSyncRun(prisma, 'sync-x', async () => emptyCounts()),
-      ).rejects.toThrow('db down at create');
+      await expect(runWithSyncRun(prisma, 'sync-x', async () => emptyCounts())).rejects.toThrow(
+        'db down at create',
+      );
       const m = cap.metrics();
       expect(m).toHaveLength(1);
       expect(m[0].error_count).toBeGreaterThanOrEqual(1);

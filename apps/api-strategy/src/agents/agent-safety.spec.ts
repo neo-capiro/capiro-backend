@@ -194,9 +194,21 @@ function makeTx(store: Store) {
   };
 
   const spNode = {
-    updateMany: async ({ where, data }: { where: { id: string; strategyId: string; status: { in: string[] } }; data: Rec }) => {
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: { id: string; strategyId: string; status: { in: string[] } };
+      data: Rec;
+    }) => {
       const node = store.nodes.get(where.id);
-      if (!node || node.strategyId !== where.strategyId || node.archivedAt != null || !where.status.in.includes(String(node.status))) return { count: 0 };
+      if (
+        !node ||
+        node.strategyId !== where.strategyId ||
+        node.archivedAt != null ||
+        !where.status.in.includes(String(node.status))
+      )
+        return { count: 0 };
       store.nodes.set(node.id, { ...node, ...data });
       return { count: 1 };
     },

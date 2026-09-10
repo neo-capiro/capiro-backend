@@ -23,6 +23,7 @@
     "incremental": false
   },
   "include": [
+    "src/types/word-extractor.d.ts",
     "scripts/generate-sam-opportunity-candidates.ts",
     "scripts/generate-funding-grant-candidates.ts",
     "scripts/generate-funding-grant-candidates.spec.ts",

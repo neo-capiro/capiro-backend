@@ -45,7 +45,17 @@ function run(script: string, args: readonly string[], env: Record<string, string
     const stdout = execFileSync(process.execPath, [script, ...args], {
       cwd: appRoot,
       encoding: 'utf8',
-      env: { ...process.env, ...env },
+      // These CLI fixtures exercise the explicitly configured scenario. Never
+      // inherit a developer database or CI's schema-validation placeholder.
+      env: {
+        ...process.env,
+        DATABASE_URL: '',
+        DB_HOST: '',
+        DB_NAME: '',
+        DB_USER: '',
+        DB_PASSWORD: '',
+        ...env,
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     return { status: 0, stdout, stderr: '' };
@@ -105,7 +115,11 @@ describe('Phase 9 job runtime — property 1: dry-run performs zero DB writes', 
       '2026-08-22T00:00:00.000Z',
     ]);
 
-    assert.equal(result.status, 0, `expected clean dry run, got ${result.status}: ${result.stderr}`);
+    assert.equal(
+      result.status,
+      0,
+      `expected clean dry run, got ${result.status}: ${result.stderr}`,
+    );
     assert.match(result.stdout, /DRY RUN: in-memory store/);
     assert.match(result.stdout, /PHASE9_BACKFILL_DRY_RUN_PASS/);
     // The dry run must not claim a commit, in any casing.
@@ -115,11 +129,9 @@ describe('Phase 9 job runtime — property 1: dry-run performs zero DB writes', 
 
   it('a dry run stays side-effect-free even when live discovery is enabled in the env', () => {
     // A dry run must never depend on ambient environment to stay network-free.
-    const result = run(
-      JOB,
-      ['backfill-run', '--fiscal-years', '2024', '--max-adapters', '1'],
-      { PHASE8_SESSION8_LIVE_DISCOVERY: 'true' },
-    );
+    const result = run(JOB, ['backfill-run', '--fiscal-years', '2024', '--max-adapters', '1'], {
+      PHASE8_SESSION8_LIVE_DISCOVERY: 'true',
+    });
 
     assert.equal(result.status, 0);
     assert.match(result.stdout, /DRY RUN: in-memory store \+ manifest discovery/);
@@ -157,18 +169,14 @@ describe('Phase 9 job runtime — property 2: commit without a real store is ref
   });
 
   it('refuses --commit when production database config is absent', () => {
-    const result = run(
-      JOB,
-      ['backfill-run', '--fiscal-years', '2024', '--commit'],
-      {
-        PHASE9_BACKFILL_COMMIT_AUTHORIZED: 'true',
-        DATABASE_URL: '',
-        DB_HOST: '',
-        DB_NAME: '',
-        DB_USER: '',
-        DB_PASSWORD: '',
-      },
-    );
+    const result = run(JOB, ['backfill-run', '--fiscal-years', '2024', '--commit'], {
+      PHASE9_BACKFILL_COMMIT_AUTHORIZED: 'true',
+      DATABASE_URL: '',
+      DB_HOST: '',
+      DB_NAME: '',
+      DB_USER: '',
+      DB_PASSWORD: '',
+    });
     assert.equal(result.status, 78);
     assert.match(result.stderr, /missing production database configuration/);
     assert.doesNotMatch(result.stdout, /COMMITTED/);
@@ -179,19 +187,15 @@ describe('Phase 9 job runtime — property 2: commit without a real store is ref
     // compare. `capiro_master` is refused because the capability proof cannot be
     // satisfied — here the connection itself fails, so the run refuses rather
     // than proceeding on an unverified identity. Either way: 77, never a write.
-    const result = run(
-      JOB,
-      ['backfill-run', '--fiscal-years', '2024', '--commit'],
-      {
-        PHASE9_BACKFILL_COMMIT_AUTHORIZED: 'true',
-        DATABASE_URL: '',
-        DB_HOST: 'db.example.invalid',
-        DB_PORT: '5432',
-        DB_NAME: 'capiro',
-        DB_USER: 'capiro_master',
-        DB_PASSWORD: 'unused-secret-value',
-      },
-    );
+    const result = run(JOB, ['backfill-run', '--fiscal-years', '2024', '--commit'], {
+      PHASE9_BACKFILL_COMMIT_AUTHORIZED: 'true',
+      DATABASE_URL: '',
+      DB_HOST: 'db.example.invalid',
+      DB_PORT: '5432',
+      DB_NAME: 'capiro',
+      DB_USER: 'capiro_master',
+      DB_PASSWORD: 'unused-secret-value',
+    });
     assert.equal(result.status, 77);
     assert.match(result.stderr, /could not verify database identity\/capability/);
     assert.doesNotMatch(result.stdout, /COMMITTED/);
@@ -289,9 +293,7 @@ describe('Phase 9 job runtime — property 3: commit with a real store persists 
   });
 
   it('reserveHostSlot reserves atomically in a single statement', async () => {
-    const sql = new RecordingSql(() => [
-      { wait_ms: 0, reserved_at: '2026-08-22T00:00:03.000Z' },
-    ]);
+    const sql = new RecordingSql(() => [{ wait_ms: 0, reserved_at: '2026-08-22T00:00:03.000Z' }]);
     const store = new PrismaDiscoveryAuditStore(sql);
 
     const reservation = await store.reserveHostSlot({
@@ -461,7 +463,7 @@ describe('Phase 9 explicit fiscal-year support', () => {
  * actually calls it at the one call site that matters.
  */
 describe('Phase 10 historical-discovery horizon fix — job composes discovery with the explicit scope', () => {
-  it('buildLiveDiscoveryOptions passes the job\'s parsed fiscal years through unchanged', () => {
+  it("buildLiveDiscoveryOptions passes the job's parsed fiscal years through unchanged", () => {
     assert.deepEqual(buildLiveDiscoveryOptions([2024]), { horizonFiscalYears: [2024] });
     assert.deepEqual(buildLiveDiscoveryOptions([2024, 2026, 2028]), {
       horizonFiscalYears: [2024, 2026, 2028],
@@ -504,9 +506,14 @@ describe('Phase 10 historical-discovery horizon fix — job composes discovery w
     // the fix is additive to the live-discovery branch only.
     const manifestLine = stripped
       .split('\n')
-      .findIndex((line) => line.includes('discovery = new ManifestSourceDiscoveryAdapter(registry);'));
+      .findIndex((line) =>
+        line.includes('discovery = new ManifestSourceDiscoveryAdapter(registry);'),
+      );
     assert.ok(manifestLine >= 0);
-    const nearby = stripped.split('\n').slice(Math.max(0, manifestLine - 3), manifestLine + 3).join('\n');
+    const nearby = stripped
+      .split('\n')
+      .slice(Math.max(0, manifestLine - 3), manifestLine + 3)
+      .join('\n');
     assert.doesNotMatch(nearby, /buildLiveDiscoveryOptions|horizonFiscalYears/);
   });
 
@@ -515,7 +522,15 @@ describe('Phase 10 historical-discovery horizon fix — job composes discovery w
     // this fix's own regression suite locks the behavior it must not disturb.
     const result = run(
       JOB,
-      ['backfill-run', '--fiscal-years', '2024', '--max-adapters', '1', '--now', '2026-08-22T00:00:00.000Z'],
+      [
+        'backfill-run',
+        '--fiscal-years',
+        '2024',
+        '--max-adapters',
+        '1',
+        '--now',
+        '2026-08-22T00:00:00.000Z',
+      ],
       { PHASE8_SESSION8_LIVE_DISCOVERY: 'false' },
     );
     assert.equal(result.status, 0, result.stderr);

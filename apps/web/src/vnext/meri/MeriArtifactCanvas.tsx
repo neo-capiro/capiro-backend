@@ -17,6 +17,7 @@ const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Ar
 
 const DOC_KINDS: Record<string, { ext: string; label: string }> = {
   word_document: { ext: 'docx', label: 'WORD DOCUMENT' },
+  pdf_document: { ext: 'pdf', label: 'PDF DOCUMENT' },
   excel_workbook: { ext: 'xlsx', label: 'EXCEL WORKBOOK' },
   powerpoint_deck: { ext: 'pptx', label: 'POWERPOINT DECK' },
 };
@@ -33,7 +34,8 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
 
   const title = artifact.title?.trim() || 'Document';
   const body = artifact.bodyText ?? '';
-  const isStructuredWord = artifact.kind === 'word_document' && /^\s*[\[{]/.test(body);
+  const isWordOrPdf = artifact.kind === 'word_document' || artifact.kind === 'pdf_document';
+  const isStructuredWord = isWordOrPdf && /^\s*[\[{]/.test(body);
   const wordDocument = useMemo(() => isStructuredWord ? readMeriWordArtifact(body) : null, [body, isStructuredWord]);
   const previewUnavailable = isStructuredWord && !wordDocument;
   const copyText = useMemo(() => wordDocument ? meriWordArtifactText(wordDocument) : body, [wordDocument, body]);
@@ -47,7 +49,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
       .replace(/^-+|-+$/g, '')
       .toLowerCase() || 'document';
 
-  const { downloading, downloadError, downloadOfficeDoc } = useMeriArtifactDownload({
+  const { downloading, downloadingFormat, downloadError, downloadOfficeDoc, downloadDocument } = useMeriArtifactDownload({
     artifactId: artifact.id, apiBaseUrl, getAuthHeaders,
     expectedFormat: docKind?.ext,
     fallbackFilename: docKind ? `${slugify()}.${docKind.ext}` : undefined,
@@ -125,6 +127,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
             type="button"
             onClick={download}
             disabled={downloading}
+            aria-busy={downloading && downloadingFormat === docKind?.ext}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -141,9 +144,26 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
           >
             <MeriIcon name="DownloadCloud01" size={13} color="#ffffff" />
             <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ffffff' }}>
-              {downloading ? 'Downloading…' : isOfficeDoc ? `Download .${docKind!.ext}` : 'Download'}
+              {downloading && downloadingFormat === docKind?.ext ? 'Downloading…' : isOfficeDoc ? `Download .${docKind!.ext}` : 'Download'}
             </span>
           </button>
+          {isWordOrPdf ? (
+            <button
+              type="button"
+              onClick={() => void downloadDocument({
+                format: artifact.kind === 'pdf_document' ? 'docx' : 'pdf',
+                fallbackFilename: `${slugify()}.${artifact.kind === 'pdf_document' ? 'docx' : 'pdf'}`,
+              })}
+              disabled={downloading}
+              aria-busy={downloading && downloadingFormat !== docKind?.ext}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 30, padding: '0 11px', borderRadius: 8, border: '1px solid #D0D5DD', background: 'transparent', cursor: downloading ? 'default' : 'pointer', opacity: downloading ? 0.7 : 1 }}
+            >
+              <MeriIcon name="DownloadCloud01" size={13} color="#344054" />
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#344054' }}>
+                {downloading && downloadingFormat !== docKind?.ext ? 'Downloading…' : `Download .${artifact.kind === 'pdf_document' ? 'docx' : 'pdf'}`}
+              </span>
+            </button>
+          ) : null}
         </div>
         {downloadError ? (
           <div
@@ -177,8 +197,8 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
             wordBreak: 'break-word',
           }}
         >
-          {wordDocument ? <MeriWordArtifactPreview document={wordDocument} /> : previewUnavailable ? (
-            <p role="status">This document preview is unavailable. Download the Word file to view its content.</p>
+          {wordDocument ? <MeriWordArtifactPreview document={wordDocument} format={artifact.kind === 'pdf_document' ? 'PDF' : 'Word'} /> : previewUnavailable ? (
+            <p role="status">This document preview is unavailable. Download the Word or PDF file to view its content.</p>
           ) : body || 'This document has no content yet.'}
         </div>
       </div>

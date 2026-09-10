@@ -1,4 +1,6 @@
 import { useState, type CSSProperties } from 'react';
+import { saveMeriDownloadBlob } from './meri-artifact-download.js';
+import { useMeriArtifactDownload } from './useMeriArtifactDownload.js';
 
 export interface CanvasArtifact {
   id?: string;
@@ -18,6 +20,7 @@ interface MeriCanvasProps {
 
 const DOC_KINDS: Record<string, { ext: string }> = {
   word_document: { ext: 'docx' },
+  pdf_document: { ext: 'pdf' },
   excel_workbook: { ext: 'xlsx' },
   powerpoint_deck: { ext: 'pptx' },
 };
@@ -33,12 +36,11 @@ const DOC_KINDS: Record<string, { ext: string }> = {
  */
 export function MeriCanvas({ artifact, onClose, apiBaseUrl, getAuthHeaders }: MeriCanvasProps) {
   const [copied, setCopied] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const title = artifact.title?.trim() || 'Document';
   const body = artifact.bodyText ?? '';
   const docKind = artifact.kind ? DOC_KINDS[artifact.kind] : undefined;
-  const isOfficeDoc = Boolean(docKind && artifact.id);
+  const isOfficeDoc = Boolean(docKind);
+  const isWordOrPdf = artifact.kind === 'word_document' || artifact.kind === 'pdf_document';
 
   const copy = async () => {
     try {
@@ -58,44 +60,13 @@ export function MeriCanvas({ artifact, onClose, apiBaseUrl, getAuthHeaders }: Me
 
   const downloadMarkdown = () => {
     const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${slugify()}.md`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    saveMeriDownloadBlob(blob, `${slugify()}.md`);
   };
 
-  const downloadOfficeDoc = async () => {
-    if (!artifact.id || !apiBaseUrl) {
-      setDownloadError('This document is not available for download yet — try regenerating it in chat.');
-      return;
-    }
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      const headers = getAuthHeaders ? await getAuthHeaders() : {};
-      const res = await fetch(`${apiBaseUrl}/api/clio/artifacts/${artifact.id}/download`, {
-        headers,
-      });
-      if (!res.ok) throw new Error(`Download failed (${res.status})`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${slugify()}.${docKind!.ext}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : 'Download failed — please retry.');
-    } finally {
-      setDownloading(false);
-    }
-  };
+  const { downloading, downloadingFormat, downloadError, downloadOfficeDoc, downloadDocument } = useMeriArtifactDownload({
+    artifactId: artifact.id, apiBaseUrl, getAuthHeaders, expectedFormat: docKind?.ext,
+    fallbackFilename: docKind ? `${slugify()}.${docKind.ext}` : undefined,
+  });
 
   const download = isOfficeDoc ? downloadOfficeDoc : downloadMarkdown;
 
@@ -142,8 +113,17 @@ export function MeriCanvas({ artifact, onClose, apiBaseUrl, getAuthHeaders }: Me
           aria-label="Download document"
           disabled={downloading}
         >
-          {downloading ? 'Downloading…' : isOfficeDoc ? `Download .${docKind!.ext}` : 'Download'}
+          {downloading && downloadingFormat === docKind?.ext ? 'Downloading…' : isOfficeDoc ? `Download .${docKind!.ext}` : 'Download'}
         </button>
+        {isWordOrPdf ? (
+          <button type="button" className="meri-canvas-btn" disabled={downloading}
+            onClick={() => void downloadDocument({
+              format: artifact.kind === 'pdf_document' ? 'docx' : 'pdf',
+              fallbackFilename: `${slugify()}.${artifact.kind === 'pdf_document' ? 'docx' : 'pdf'}`,
+            })}>
+            {downloading && downloadingFormat !== docKind?.ext ? 'Downloading…' : `Download .${artifact.kind === 'pdf_document' ? 'docx' : 'pdf'}`}
+          </button>
+        ) : null}
         <button type="button" onClick={onClose} className="meri-canvas-btn" aria-label="Close canvas">
           ✕
         </button>

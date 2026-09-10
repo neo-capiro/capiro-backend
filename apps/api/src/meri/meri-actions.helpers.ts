@@ -46,7 +46,7 @@ const VERBS: Record<string, string> = {
   save_memory: 'updated memory',
   draft_policy_memo: 'drafted a policy memo',
   create_meeting_brief: 'created a meeting brief',
-  create_word: 'generated a Word document',
+  create_word: 'generated a document',
   create_excel: 'generated an Excel workbook',
   create_powerpoint: 'generated a PowerPoint deck',
   schedule_task: 'scheduled a recurring task',

@@ -446,6 +446,7 @@ function certifiedBundle(input: {
   const withoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
     cycleId: 'rdte-cycle-projection-spec',
+    bundleId: 'rdte-bundle-projection-spec',
     fiscalYear: FY,
     manifestContentSha256: MANIFEST_SHA,
     sourceDocuments,

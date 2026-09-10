@@ -18,12 +18,14 @@ import { describe, it, expect } from '@jest/globals';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { runNonRdteCyclePipeline } from './non-rdte-cycle-pipeline-v1.js';
-import type { NonRdteCycleVerificationRefV1 } from './non-rdte-cycle-bundle-v1.js';
+import { nonRdteCycleBundleId, type NonRdteCycleVerificationRefV1 } from './non-rdte-cycle-bundle-v1.js';
+import { planNonRdteCanonicalProjection } from './non-rdte-projection-planner-v1.js';
 import type { DefenseBudgetExtractionArtifactV1 } from '../contracts/extraction-artifact-v1.js';
 import type { BudgetCycleManifestDocumentV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { ProcurementFamilyReport } from '../procurement/procurement-composer-v1.js';
 import type { OmFamilyReport } from '../om/om-composer-v1.js';
 import type { MilconFamilyReport } from '../milcon/milcon-composer-v1.js';
+import { buildProjectionPlanRecordV1 } from '../projection-plan/projection-plan-record-v1.js';
 
 const SHA = 'a'.repeat(64);
 
@@ -199,7 +201,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
   it('procurement family certifies when complete', () => {
     const report = makeProcurementReport(true);
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -229,7 +232,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
     const report = makeProcurementReport(false);
     report.missingExhibits = ['P-40'];
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -249,7 +253,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
   it('rejected artifact blocks certification', () => {
     const report = makeProcurementReport(true);
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -276,7 +281,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
   it('needs-review without allowed acceptance blocks', () => {
     const report = makeProcurementReport(true);
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -304,7 +310,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
     const report = makeProcurementReport(true);
     const decisionId = 'vd_p40';
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -332,7 +339,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
   it('funding mismatch blocks certification', () => {
     const report = makeProcurementReport(false);
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -360,7 +368,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
   it('OM family certifies when complete', () => {
     const report = makeOmReport();
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'om' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'om', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'om',
       manifestContentSha256: SHA,
@@ -387,7 +396,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
   it('MILCON family certifies when complete', () => {
     const report = makeMilconReport();
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'milcon' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'milcon', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'milcon',
       manifestContentSha256: SHA,
@@ -426,7 +436,8 @@ describe('non-rdte-cycle-pipeline-v1', () => {
       assertionCount: 0,
     };
     const result = runNonRdteCyclePipeline({
-      cycleIdIdentity: { fy: 2027, family: 'procurement' },
+      governedCycleId: 'cycle-fy2027-authorization',
+      cycleIdIdentity: { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA },
       fiscalYear: 2027,
       family: 'procurement',
       manifestContentSha256: SHA,
@@ -442,8 +453,9 @@ describe('non-rdte-cycle-pipeline-v1', () => {
 
   it('deterministic: same input produces same content SHA', () => {
     const report = makeProcurementReport(true);
-    const identity = { fy: 2027, family: 'procurement' };
+    const identity = { family: 'procurement', fiscalYear: 2027, manifestContentSha256: SHA };
     const commonInput = {
+      governedCycleId: 'cycle-fy2027-authorization',
       cycleIdIdentity: identity,
       fiscalYear: 2027,
       family: 'procurement' as const,
@@ -468,6 +480,48 @@ describe('non-rdte-cycle-pipeline-v1', () => {
     const r1 = runNonRdteCyclePipeline(commonInput);
     const r2 = runNonRdteCyclePipeline(commonInput);
     expect(r1.bundle.contentSha256).toBe(r2.bundle.contentSha256);
+    expect(r1.bundle.bundleId).toBe(r2.bundle.bundleId);
+    expect(nonRdteCycleBundleId(identity)).toBe(nonRdteCycleBundleId(identity));
+
+    const record = (result: typeof r1) => {
+      const projection = planNonRdteCanonicalProjection({
+        bundle: result.bundle,
+        artifacts: commonInput.documents.map((value) => value.artifact),
+        familyReport: report,
+      });
+      return buildProjectionPlanRecordV1({
+        family: 'procurement',
+        producerVersion: 'identity-invariant-test',
+        certificationId: result.bundle.bundleId,
+        certificationSha256: result.bundle.contentSha256,
+        planDocument: projection.plan,
+      });
+    };
+    expect(record(r1).projectionPlanId).toBe(record(r2).projectionPlanId);
+
+    const changedContent = runNonRdteCyclePipeline({
+      ...commonInput,
+      documents: commonInput.documents.map((value) =>
+        value.document.documentKey === 'p1'
+          ? { ...value, artifact: { ...value.artifact, contentSha256: 'b'.repeat(64) } }
+          : value,
+      ),
+    });
+    expect(changedContent.bundle.bundleId).toBe(r1.bundle.bundleId);
+    expect(changedContent.bundle.contentSha256).not.toBe(r1.bundle.contentSha256);
+    expect(record(changedContent).projectionPlanId).not.toBe(record(r1).projectionPlanId);
+    expect(nonRdteCycleBundleId({ ...identity, manifestContentSha256: 'b'.repeat(64) })).not.toBe(
+      r1.bundle.bundleId,
+    );
+
+    const differentGovernedCycle = runNonRdteCyclePipeline({
+      ...commonInput,
+      governedCycleId: 'cycle-fy2027-appropriation',
+    });
+    expect(differentGovernedCycle.bundle.bundleId).toBe(r1.bundle.bundleId);
+    expect(differentGovernedCycle.bundle.cycleId).toBe('cycle-fy2027-appropriation');
+    expect(record(differentGovernedCycle).cycleId).toBe('cycle-fy2027-appropriation');
+    expect(record(differentGovernedCycle).projectionPlanId).not.toBe(record(r1).projectionPlanId);
   });
 
   it('no canonical writer imports in pipeline module', () => {

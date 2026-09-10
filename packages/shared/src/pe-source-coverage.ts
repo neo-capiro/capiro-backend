@@ -167,7 +167,10 @@ export function unsupportedOrBlockedSourceFamilies(): readonly PeSourceFamilyCov
  */
 export function sourceKeyForbiddenForCanonical(sourceKey: string | null | undefined): boolean {
   if (!sourceKey) return false;
-  const value = sourceKey.trim().toLowerCase().replace(/[-\s]+/g, '_');
+  const value = sourceKey
+    .trim()
+    .toLowerCase()
+    .replace(/[-\s]+/g, '_');
   for (const family of PE_SOURCE_FAMILY_COVERAGE) {
     if (family.canWriteCanonical) continue;
     for (const prefix of family.sourceKeyPrefixes ?? []) {
@@ -185,9 +188,7 @@ export function peSourceCoverageModelCaveat(): string {
     (row) => row.status === 'unsupported' || row.status === 'blocked',
   );
   if (!missing.length) {
-    return (
-      'All documented PE source families are at least partially loaded; still verify per-line tools before asserting coverage.'
-    );
+    return 'All documented PE source families are at least partially loaded; still verify per-line tools before asserting coverage.';
   }
   const labels = missing.map((row) => `${row.label} (${row.status})`).join('; ');
   return (

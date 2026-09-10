@@ -651,4 +651,3 @@ export async function parseAnthropicToolStream(
 
   return { content, stopReason, stopDetails, usage };
 }
-

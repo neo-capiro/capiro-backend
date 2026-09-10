@@ -82,39 +82,45 @@ describe('get_client_context tool', () => {
     expect(createGetClientContextTool(repo).readOnly).toBe(true);
   });
 
-  it.each(['submissionHistory', 'advocacyMatters', 'advocacyRecords'] as const)('preserves %s inventory options through the native registry', async (section) => {
-    const { repo, seen } = fakeRepo();
-    const registry = new InMemoryToolRegistry();
-    registry.register(createGetClientContextTool(repo));
-    await registry.invoke(
-      'get_client_context',
-      {
-        clientId: VALID_CLIENT_ID,
+  it.each(['submissionHistory', 'advocacyMatters', 'advocacyRecords'] as const)(
+    'preserves %s inventory options through the native registry',
+    async (section) => {
+      const { repo, seen } = fakeRepo();
+      const registry = new InMemoryToolRegistry();
+      registry.register(createGetClientContextTool(repo));
+      await registry.invoke(
+        'get_client_context',
+        {
+          clientId: VALID_CLIENT_ID,
+          section,
+          cursor: 'next-page',
+          limit: 50,
+          representation: 'summary',
+        },
+        ctx,
+      );
+      expect(seen[0]?.options).toEqual({
         section,
         cursor: 'next-page',
         limit: 50,
         representation: 'summary',
-      },
-      ctx,
-    );
-    expect(seen[0]?.options).toEqual({
-      section,
-      cursor: 'next-page',
-      limit: 50,
-      representation: 'summary',
-    });
-  });
-
-  it.each([{ section: 'secrets' }, { limit: 51 }, { limit: 0 }, { limit: 1.5 }, { representation: 'all' }])(
-    'rejects unsupported profile options %p',
-    async (options) => {
-      const { repo, seen } = fakeRepo();
-      const registry = new InMemoryToolRegistry();
-      registry.register(createGetClientContextTool(repo));
-      await expect(
-        registry.invoke('get_client_context', { clientId: VALID_CLIENT_ID, ...options }, ctx),
-      ).rejects.toBeInstanceOf(ToolInputValidationError);
-      expect(seen).toHaveLength(0);
+      });
     },
   );
+
+  it.each([
+    { section: 'secrets' },
+    { limit: 51 },
+    { limit: 0 },
+    { limit: 1.5 },
+    { representation: 'all' },
+  ])('rejects unsupported profile options %p', async (options) => {
+    const { repo, seen } = fakeRepo();
+    const registry = new InMemoryToolRegistry();
+    registry.register(createGetClientContextTool(repo));
+    await expect(
+      registry.invoke('get_client_context', { clientId: VALID_CLIENT_ID, ...options }, ctx),
+    ).rejects.toBeInstanceOf(ToolInputValidationError);
+    expect(seen).toHaveLength(0);
+  });
 });

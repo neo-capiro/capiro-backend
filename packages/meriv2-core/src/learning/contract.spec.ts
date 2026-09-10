@@ -13,7 +13,9 @@ import {
 } from './contract';
 import { MEMORY_AUTHORITIES } from '../memory/governance';
 
-function baseInput(overrides: Partial<CaptureLearningSignalInput> = {}): CaptureLearningSignalInput {
+function baseInput(
+  overrides: Partial<CaptureLearningSignalInput> = {},
+): CaptureLearningSignalInput {
   return {
     tenantId: 'tenant-1',
     actorUserId: 'user-1',
@@ -47,39 +49,56 @@ describe('LearningSignal contract (Phase 27A)', () => {
   describe('assertNoAiSelfCorroboration', () => {
     it('allows a human-tier authority when provenance is human_explicit', () => {
       expect(() =>
-        assertNoAiSelfCorroboration({ provenanceKind: 'human_explicit', sourceAuthority: 'user_asserted' }),
+        assertNoAiSelfCorroboration({
+          provenanceKind: 'human_explicit',
+          sourceAuthority: 'user_asserted',
+        }),
       ).not.toThrow();
     });
 
     it('allows a human-tier authority when provenance is human_implicit', () => {
       expect(() =>
-        assertNoAiSelfCorroboration({ provenanceKind: 'human_implicit', sourceAuthority: 'analyst_verified' }),
+        assertNoAiSelfCorroboration({
+          provenanceKind: 'human_implicit',
+          sourceAuthority: 'analyst_verified',
+        }),
       ).not.toThrow();
     });
 
     it('allows any provenance when sourceAuthority is null', () => {
       for (const provenanceKind of LEARNING_SIGNAL_PROVENANCE_KINDS) {
-        expect(() => assertNoAiSelfCorroboration({ provenanceKind, sourceAuthority: null })).not.toThrow();
+        expect(() =>
+          assertNoAiSelfCorroboration({ provenanceKind, sourceAuthority: null }),
+        ).not.toThrow();
       }
     });
 
     it('allows a non-human-tier authority (model_inferred) with ai_generated_only', () => {
       expect(() =>
-        assertNoAiSelfCorroboration({ provenanceKind: 'ai_generated_only', sourceAuthority: 'model_inferred' }),
+        assertNoAiSelfCorroboration({
+          provenanceKind: 'ai_generated_only',
+          sourceAuthority: 'model_inferred',
+        }),
       ).not.toThrow();
     });
 
     it('REJECTS a human-tier authority claimed from ai_generated_only provenance — the core anti-feedback-loop invariant', () => {
       for (const authority of HUMAN_TIER_MEMORY_AUTHORITIES) {
         expect(() =>
-          assertNoAiSelfCorroboration({ provenanceKind: 'ai_generated_only', sourceAuthority: authority }),
+          assertNoAiSelfCorroboration({
+            provenanceKind: 'ai_generated_only',
+            sourceAuthority: authority,
+          }),
         ).toThrow(/AI-generated content cannot be its own evidence/);
       }
     });
 
     it('REJECTS a human-tier authority claimed from system_derived provenance', () => {
       expect(() =>
-        assertNoAiSelfCorroboration({ provenanceKind: 'system_derived', sourceAuthority: 'firm_approved' }),
+        assertNoAiSelfCorroboration({
+          provenanceKind: 'system_derived',
+          sourceAuthority: 'firm_approved',
+        }),
       ).toThrow();
     });
   });
@@ -91,7 +110,13 @@ describe('LearningSignal contract (Phase 27A)', () => {
     });
 
     it('accepts exactly the five frozen layers', () => {
-      const frozen = ['firm-identity', 'firm-playbook', 'user-voice', 'client-steering', 'client-people'] as const;
+      const frozen = [
+        'firm-identity',
+        'firm-playbook',
+        'user-voice',
+        'client-steering',
+        'client-people',
+      ] as const;
       for (const layer of frozen) expect(() => assertKnownSteeringLayer(layer)).not.toThrow();
     });
 
@@ -105,13 +130,17 @@ describe('LearningSignal contract (Phase 27A)', () => {
   describe('computeLearningSignalIdempotencyKey', () => {
     it('is deterministic for identical inputs', () => {
       const input = baseInput();
-      expect(computeLearningSignalIdempotencyKey(input)).toBe(computeLearningSignalIdempotencyKey(input));
+      expect(computeLearningSignalIdempotencyKey(input)).toBe(
+        computeLearningSignalIdempotencyKey(input),
+      );
     });
 
     it('differs when signalType differs (a rating flip is a new signal, not a dedupe collision)', () => {
       const up = baseInput({ signalType: 'meri_feedback_positive' });
       const down = baseInput({ signalType: 'meri_feedback_negative' });
-      expect(computeLearningSignalIdempotencyKey(up)).not.toBe(computeLearningSignalIdempotencyKey(down));
+      expect(computeLearningSignalIdempotencyKey(up)).not.toBe(
+        computeLearningSignalIdempotencyKey(down),
+      );
     });
 
     it('differs across tenants scoping components (sourceObjectId, actorUserId)', () => {
@@ -125,7 +154,9 @@ describe('LearningSignal contract (Phase 27A)', () => {
     it('is identical for a retried/duplicated identical event (the idempotency guarantee)', () => {
       const first = baseInput();
       const retry = baseInput();
-      expect(computeLearningSignalIdempotencyKey(first)).toBe(computeLearningSignalIdempotencyKey(retry));
+      expect(computeLearningSignalIdempotencyKey(first)).toBe(
+        computeLearningSignalIdempotencyKey(retry),
+      );
     });
   });
 
@@ -147,7 +178,10 @@ describe('LearningSignal contract (Phase 27A)', () => {
 
     it('REJECTS a proposed layer with zero evidence — "missing evidence fails where required"', () => {
       expect(() =>
-        assertEvidencePresentWhenProposingMemory({ proposedMemoryLayer: 'client-steering', evidenceRefs: [] }),
+        assertEvidencePresentWhenProposingMemory({
+          proposedMemoryLayer: 'client-steering',
+          evidenceRefs: [],
+        }),
       ).toThrow(/must carry at least one evidence reference/);
     });
   });
@@ -172,7 +206,11 @@ describe('LearningSignal contract (Phase 27A)', () => {
   });
 
   it('vocabularies are non-empty and closed (no accidental duplicate entries)', () => {
-    for (const vocab of [LEARNING_SIGNAL_SOURCE_SURFACES, LEARNING_SIGNAL_TYPES, LEARNING_SIGNAL_PROVENANCE_KINDS]) {
+    for (const vocab of [
+      LEARNING_SIGNAL_SOURCE_SURFACES,
+      LEARNING_SIGNAL_TYPES,
+      LEARNING_SIGNAL_PROVENANCE_KINDS,
+    ]) {
       expect(vocab.length).toBeGreaterThan(0);
       expect(new Set(vocab).size).toBe(vocab.length);
     }

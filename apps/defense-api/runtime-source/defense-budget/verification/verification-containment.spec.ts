@@ -78,12 +78,30 @@ const APPROVED_VERIFICATION_OPERATOR_SCRIPTS = new Set([
   'verify-defense-budget-non-rdte.ts',
   'certify-defense-budget-non-rdte.ts',
   'plan-defense-budget-non-rdte-projection.ts',
+  'verify-defense-budget-rdte.ts',
+  'certify-defense-budget-rdte.ts',
   // Phase 7 Gap 5 decision 1. Non-promoting by construction: it writes only
   // `family` and `extraction_method` on `budget_extraction_candidate_v1`, an
   // audit table, and refuses `--promote` outright. Listed here rather than
   // exempted from the rule, so the "approved operators import no canonical
   // writers" check below covers it too.
   'backfill-budget-candidate-source-metadata-v1.ts',
+  // Phase 10B-15/#1361. Governed REVIEW acceptance: imports
+  // `createPrismaBudgetVerificationRepository` to read/append immutable
+  // verification-review records only -- never a canonical PE/PE-year
+  // writer, never `--promote`. Missed when #1361 merged; added here so
+  // this containment gate actually covers it going forward, per the same
+  // "approved operators import no canonical writers" re-check below.
+  'accept-defense-budget-ingestion-review-v1.ts',
+  // Phase 10B-31. Isolated evidence-replay harness: feeds a recovered
+  // production extraction artifact through the real persist-mode
+  // verification wiring against a local Postgres + local versioned S3
+  // store. It calls `persistCompletedVerification` (an audit write, the
+  // same call every drain/CLI verification path makes) but writes nothing
+  // to any canonical PE/PE-year table and has no `--promote` flag --
+  // non-promoting by construction, covered by the same
+  // "approved operators import no canonical writers" re-check below.
+  'phase10b31-replay-recovered-artifact.ts',
 ]);
 
 const CANONICAL_WRITER_PATTERNS = [

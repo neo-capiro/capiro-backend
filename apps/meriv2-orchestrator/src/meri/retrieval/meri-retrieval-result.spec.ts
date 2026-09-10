@@ -41,7 +41,9 @@ describe('compactMeriRetrievalRecipeResult', () => {
         title: `${prefix} evidence ${index}`,
         url: `https://example.gov/${prefix}/${index}`,
         snippet:
-          'Authoritative evidence about a federal program, acquisition pathway, congressional hook, partner, compliance requirement, or scale-up mechanism. '.repeat(3),
+          'Authoritative evidence about a federal program, acquisition pathway, congressional hook, partner, compliance requirement, or scale-up mechanism. '.repeat(
+            3,
+          ),
         sourceTool: 'search_public_web',
       }));
     const compacted = compactMeriRetrievalRecipeResult({
@@ -63,7 +65,16 @@ describe('compactMeriRetrievalRecipeResult', () => {
           stopConditions: Array.from({ length: 8 }, (_, index) => `Gate ${index}`),
         },
         blueprint: {
-          wavesExecuted: ['capability', 'mission', 'budget', 'acquisition', 'congressional', 'partners', 'scale', 'verification'],
+          wavesExecuted: [
+            'capability',
+            'mission',
+            'budget',
+            'acquisition',
+            'congressional',
+            'partners',
+            'scale',
+            'verification',
+          ],
           queryCount: 72,
         },
         criticChecklist: Array.from({ length: 20 }, (_, index) => `Critic item ${index}`),

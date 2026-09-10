@@ -76,6 +76,9 @@ export interface ContextRetrievalDirective {
   /** Null requests an unfiltered scoped read; omission keeps the legacy task-text fallback. */
   query?: string | null;
   exactLexical?: ExactLexicalQuery;
+  /** Exact authorized memory reads and bounded hearing evidence selectors. */
+  memoryItemId?: RetrievalRequest['memoryItemId'];
+  hearingFilters?: RetrievalRequest['hearingFilters'];
   asOf?: Date;
   windowStart?: Date;
   windowEnd?: Date;

@@ -8,7 +8,10 @@ import type { MemoryAuthorizationService } from './memory-authorization.service.
 import type { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import type { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
 import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
-import { MemoryCandidateReviewService, candidateKindFor } from './memory-candidate-review.service.js';
+import {
+  MemoryCandidateReviewService,
+  candidateKindFor,
+} from './memory-candidate-review.service.js';
 import type { MemoryCandidateService } from './memory-candidate.service.js';
 import type { MemoryReviewWorkflowService } from './memory-review-workflow.service.js';
 
@@ -32,7 +35,11 @@ const TARGET = 'a5555555-5555-4555-8555-555555555555';
 const CANDIDATE = 'a6666666-6666-4666-8666-666666666666';
 const CREATED = 'a7777777-7777-4777-8777-777777777777';
 
-const proposerContext = { tenantId: TENANT, userId: PROPOSER, role: 'standard_user' } as TenantContext;
+const proposerContext = {
+  tenantId: TENANT,
+  userId: PROPOSER,
+  role: 'standard_user',
+} as TenantContext;
 const reviewerContext = { tenantId: TENANT, userId: REVIEWER, role: 'user_admin' } as TenantContext;
 
 interface TargetFixture {
@@ -64,7 +71,12 @@ function target(overrides: Partial<TargetFixture> = {}): TargetFixture {
     slug: 'client:steering:cadence',
     title: 'Reporting cadence',
     sections_jsonb: [
-      { key: 'memory', heading: 'Memory', owner: 'human', body: 'Client wants monthly congressional updates.' },
+      {
+        key: 'memory',
+        heading: 'Memory',
+        owner: 'human',
+        body: 'Client wants monthly congressional updates.',
+      },
     ],
     status: 'active',
     governed_status: 'active',
@@ -146,8 +158,11 @@ function makeVersionHarness(
 
   const prisma = {
     withTenantUser: jest.fn(
-      async <T>(_tenantId: string, _userId: string, fn: (arg: Prisma.TransactionClient) => Promise<T>) =>
-        fn(tx),
+      async <T>(
+        _tenantId: string,
+        _userId: string,
+        fn: (arg: Prisma.TransactionClient) => Promise<T>,
+      ) => fn(tx),
     ),
     $queryRawUnsafe: jest.fn(async () => [{ content_hash: 'irrelevant' }]),
   } as unknown as PrismaService;
@@ -172,11 +187,31 @@ function makeVersionHarness(
         : { allowed: true, basis: 'admin' as const },
     ),
   } as unknown as MemoryAuthorizationService;
-  const audit = { record: jest.fn(async () => 'audit-id') } as unknown as MemoryTransitionAuditService;
-  const outbox = { enqueue: jest.fn(async () => undefined) } as unknown as MemoryCleanupOutboxService;
+  const audit = {
+    record: jest.fn(async () => 'audit-id'),
+  } as unknown as MemoryTransitionAuditService;
+  const outbox = {
+    enqueue: jest.fn(async () => undefined),
+  } as unknown as MemoryCleanupOutboxService;
 
-  const service = new ImmutableMemoryVersionService(prisma, tenantCtx, authorization, audit, outbox);
-  return { service, executeSql, querySql, audit, outbox, authorization, candidate, targetRow, created };
+  const service = new ImmutableMemoryVersionService(
+    prisma,
+    tenantCtx,
+    authorization,
+    audit,
+    outbox,
+  );
+  return {
+    service,
+    executeSql,
+    querySql,
+    audit,
+    outbox,
+    authorization,
+    candidate,
+    targetRow,
+    created,
+  };
 }
 
 async function governed<T>(fn: () => Promise<T>): Promise<T> {
@@ -192,7 +227,11 @@ async function governed<T>(fn: () => Promise<T>): Promise<T> {
 
 /** MemoryCandidateReviewService.enabled() requires all three review-surface switches armed. */
 async function reviewEnabled<T>(fn: () => Promise<T>): Promise<T> {
-  const keys = ['MEMORY_CLIENT_REVIEW', 'MEMORY_GOVERNANCE_LIFECYCLE', 'MEMORY_GOVERNANCE_ENFORCE'] as const;
+  const keys = [
+    'MEMORY_CLIENT_REVIEW',
+    'MEMORY_GOVERNANCE_LIFECYCLE',
+    'MEMORY_GOVERNANCE_ENFORCE',
+  ] as const;
   const originals = keys.map((key) => process.env[key]);
   for (const key of keys) process.env[key] = 'enforce';
   try {
@@ -218,7 +257,11 @@ describe('candidateKindFor', () => {
 
   test('a learning_signal candidate with no conflict flag is standard — nothing to govern', () => {
     expect(
-      candidateKindFor({ sourceKind: 'learning_signal', contradictsMemoryItemId: null, conflictStatus: null }),
+      candidateKindFor({
+        sourceKind: 'learning_signal',
+        contradictsMemoryItemId: null,
+        conflictStatus: null,
+      }),
     ).toBe('standard');
     expect(
       candidateKindFor({
@@ -231,10 +274,18 @@ describe('candidateKindFor', () => {
 
   test('correction/restore/contradiction sourceKinds are unaffected', () => {
     expect(
-      candidateKindFor({ sourceKind: 'memory_correction', contradictsMemoryItemId: null, conflictStatus: null }),
+      candidateKindFor({
+        sourceKind: 'memory_correction',
+        contradictsMemoryItemId: null,
+        conflictStatus: null,
+      }),
     ).toBe('correction');
     expect(
-      candidateKindFor({ sourceKind: 'memory_contradiction', contradictsMemoryItemId: null, conflictStatus: null }),
+      candidateKindFor({
+        sourceKind: 'memory_contradiction',
+        contradictsMemoryItemId: null,
+        conflictStatus: null,
+      }),
     ).toBe('contradiction');
   });
 });
@@ -243,7 +294,11 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
   test('duplicate: existing memory stays canonical, no new active row', async () => {
     await governed(async () => {
       const h = makeVersionHarness();
-      const result = await h.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'duplicate');
+      const result = await h.service.decideLearningSignalCandidate(
+        reviewerContext,
+        CANDIDATE,
+        'duplicate',
+      );
       expect(result).toMatchObject({
         decision: 'duplicate',
         outcome: 'duplicate',
@@ -272,14 +327,22 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
         CANDIDATE,
         'corroborate_existing',
       );
-      expect(result).toMatchObject({ decision: 'corroborate_existing', outcome: 'corroborated', memoryItemId: TARGET });
+      expect(result).toMatchObject({
+        decision: 'corroborate_existing',
+        outcome: 'corroborated',
+        memoryItemId: TARGET,
+      });
     });
   });
 
   test('repeated corroboration never escalates authority (AI self-loop cannot compound)', async () => {
     await governed(async () => {
       const h = makeVersionHarness();
-      await h.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'corroborate_existing');
+      await h.service.decideLearningSignalCandidate(
+        reviewerContext,
+        CANDIDATE,
+        'corroborate_existing',
+      );
       const second = await h.service.decideLearningSignalCandidate(
         reviewerContext,
         CANDIDATE,
@@ -328,7 +391,12 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
         CANDIDATE,
         'conflict_requires_review',
       );
-      expect(result).toMatchObject({ decision: 'conflict_requires_review', outcome: 'conflict', memoryItemId: CREATED, controllingItemId: TARGET });
+      expect(result).toMatchObject({
+        decision: 'conflict_requires_review',
+        outcome: 'conflict',
+        memoryItemId: CREATED,
+        controllingItemId: TARGET,
+      });
       expect(result.conflictGroupId).toBeTruthy();
       expect(h.executeSql.some((sql) => /governed_status = 'conflicted'/i.test(sql))).toBe(true);
       // Old row's own status column is untouched by a conflict outcome —
@@ -342,12 +410,20 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
     await governed(async () => {
       const held = makeVersionHarness({ target: target({ legal_hold: true }) });
       await expect(
-        held.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'supersede_existing'),
+        held.service.decideLearningSignalCandidate(
+          reviewerContext,
+          CANDIDATE,
+          'supersede_existing',
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       const heldToo = makeVersionHarness({ target: target({ legal_hold: true }) });
       await expect(
-        heldToo.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'conflict_requires_review'),
+        heldToo.service.decideLearningSignalCandidate(
+          reviewerContext,
+          CANDIDATE,
+          'conflict_requires_review',
+        ),
       ).resolves.toMatchObject({ outcome: 'conflict' });
     });
   });
@@ -361,7 +437,7 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
     });
   });
 
-  test('SECURITY: a candidate cannot resolve a conflict against a different client\'s memory item', async () => {
+  test("SECURITY: a candidate cannot resolve a conflict against a different client's memory item", async () => {
     await governed(async () => {
       const otherClient = 'a8888888-8888-4888-8888-888888888888';
       const h = makeVersionHarness({ target: target({ client_id: otherClient }) });
@@ -402,19 +478,27 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
         },
         $executeRaw: async () => 1,
       } as unknown as Prisma.TransactionClient;
-      (brokenHarness.service as unknown as { prisma: { withTenantUser: unknown } }).prisma.withTenantUser =
-        jest.fn(async (_t: string, _u: string, fn: (arg: Prisma.TransactionClient) => Promise<unknown>) =>
+      (
+        brokenHarness.service as unknown as { prisma: { withTenantUser: unknown } }
+      ).prisma.withTenantUser = jest.fn(
+        async (_t: string, _u: string, fn: (arg: Prisma.TransactionClient) => Promise<unknown>) =>
           fn(tx),
-        );
+      );
       await expect(
-        brokenHarness.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'duplicate'),
+        brokenHarness.service.decideLearningSignalCandidate(
+          reviewerContext,
+          CANDIDATE,
+          'duplicate',
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
   test('a target that is no longer controlling rejects with 400, not a stale write', async () => {
     await governed(async () => {
-      const h = makeVersionHarness({ target: target({ status: 'superseded', governed_status: 'superseded' }) });
+      const h = makeVersionHarness({
+        target: target({ status: 'superseded', governed_status: 'superseded' }),
+      });
       await expect(
         h.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'supersede_existing'),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -435,15 +519,22 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
         $executeRaw: async () => 1,
       } as unknown as Prisma.TransactionClient;
       const prisma = {
-        withTenantUser: jest.fn(async (_t: string, _u: string, fn: (arg: Prisma.TransactionClient) => Promise<unknown>) =>
-          fn(tx),
+        withTenantUser: jest.fn(
+          async (_t: string, _u: string, fn: (arg: Prisma.TransactionClient) => Promise<unknown>) =>
+            fn(tx),
         ),
       } as unknown as PrismaService;
       const authorization = {} as unknown as MemoryAuthorizationService;
       const audit = {} as unknown as MemoryTransitionAuditService;
       const outbox = {} as unknown as MemoryCleanupOutboxService;
       const tenantCtx = { require: jest.fn() } as unknown as TenantContextStore;
-      const service = new ImmutableMemoryVersionService(prisma, tenantCtx, authorization, audit, outbox);
+      const service = new ImmutableMemoryVersionService(
+        prisma,
+        tenantCtx,
+        authorization,
+        audit,
+        outbox,
+      );
       await expect(
         service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'duplicate'),
       ).rejects.toBeInstanceOf(NotFoundException);
@@ -468,7 +559,11 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
         executeOverride: (sql) => (/governed_status = 'conflicted'/i.test(sql) ? 0 : null),
       });
       await expect(
-        h.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'conflict_requires_review'),
+        h.service.decideLearningSignalCandidate(
+          reviewerContext,
+          CANDIDATE,
+          'conflict_requires_review',
+        ),
       ).rejects.toThrow(/conflict/i);
       expect(h.executeSql.some((sql) => /committed_memory_item_id/i.test(sql))).toBe(false);
     });
@@ -478,11 +573,7 @@ describe('ImmutableMemoryVersionService.decideLearningSignalCandidate', () => {
     await governed(async () => {
       const h = makeVersionHarness();
       await expect(
-        h.service.decideLearningSignalCandidate(
-          reviewerContext,
-          CANDIDATE,
-          'approve_new' as never,
-        ),
+        h.service.decideLearningSignalCandidate(reviewerContext, CANDIDATE, 'approve_new' as never),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
@@ -497,8 +588,8 @@ describe('MemoryCandidateReviewService.resolveConflict', () => {
     );
     const tx = { memoryCandidate: { findFirst } };
     const prisma = {
-      withTenantUser: jest.fn(async (_t: string, _u: string, fn: (arg: unknown) => Promise<unknown>) =>
-        fn(tx),
+      withTenantUser: jest.fn(
+        async (_t: string, _u: string, fn: (arg: unknown) => Promise<unknown>) => fn(tx),
       ),
     } as unknown as PrismaService;
     const authorization = {} as unknown as MemoryAuthorizationService;
@@ -513,24 +604,45 @@ describe('MemoryCandidateReviewService.resolveConflict', () => {
     const versions = { decideLearningSignalCandidate } as unknown as ImmutableMemoryVersionService;
     const assertAssignedForDecision = jest.fn(async () => undefined);
     const completeDecision = jest.fn(async () => ({}) as never);
-    const workflow = { assertAssignedForDecision, completeDecision } as unknown as MemoryReviewWorkflowService;
-    const service = new MemoryCandidateReviewService(prisma, authorization, candidates, versions, workflow);
+    const workflow = {
+      assertAssignedForDecision,
+      completeDecision,
+    } as unknown as MemoryReviewWorkflowService;
+    const service = new MemoryCandidateReviewService(
+      prisma,
+      authorization,
+      candidates,
+      versions,
+      workflow,
+    );
     return { service, decideLearningSignalCandidate, assertAssignedForDecision, completeDecision };
   }
 
   test('routes a valid decision on a learning_signal_conflict candidate through to the version service', async () => {
     await reviewEnabled(async () => {
       const h = makeReviewHarness('learning_signal_conflict');
-      const result = await h.service.resolveConflict(reviewerContext, CANDIDATE, 'supersede_existing', 'looks right');
+      const result = await h.service.resolveConflict(
+        reviewerContext,
+        CANDIDATE,
+        'supersede_existing',
+        'looks right',
+      );
       expect(h.decideLearningSignalCandidate).toHaveBeenCalledWith(
         reviewerContext,
         CANDIDATE,
         'supersede_existing',
         'looks right',
       );
-      expect(h.assertAssignedForDecision).toHaveBeenCalledWith(reviewerContext, CANDIDATE, 'resolve_conflict');
+      expect(h.assertAssignedForDecision).toHaveBeenCalledWith(
+        reviewerContext,
+        CANDIDATE,
+        'resolve_conflict',
+      );
       expect(h.completeDecision).toHaveBeenCalledWith(reviewerContext, CANDIDATE, 'approved');
-      expect(result).toMatchObject({ candidateKind: 'learning_signal_conflict', outcome: 'activated' });
+      expect(result).toMatchObject({
+        candidateKind: 'learning_signal_conflict',
+        outcome: 'activated',
+      });
     });
   });
 

@@ -6,10 +6,7 @@ import {
   type NormalizedContextLayers,
   type SteeringLayer,
 } from '@capiro/meriv2-core';
-import {
-  RETRIEVAL_DOMAINS,
-  type RetrievalDomain,
-} from '../retrieval/retrieval-v2.types.js';
+import { RETRIEVAL_DOMAINS, type RetrievalDomain } from '../retrieval/retrieval-v2.types.js';
 import type { ContextResolutionResult } from './context-resolver.types.js';
 
 /**
@@ -39,10 +36,7 @@ export const CONTEXT_LAYER_BY_RETRIEVAL_DOMAIN: Readonly<
   institutional_knowledge: 'institutional-knowledge',
 };
 
-const CLIENT_STEERING_LAYERS = new Set<SteeringLayer>([
-  'client-steering',
-  'client-people',
-]);
+const CLIENT_STEERING_LAYERS = new Set<SteeringLayer>(['client-steering', 'client-people']);
 
 export interface ContextLayerCompilerBridge {
   /** The universal five-layer architecture produced between resolver and compiler. */
@@ -55,9 +49,7 @@ export interface ContextLayerCompilerBridge {
 export class ContextLayerService {
   /** Map a Phase 15 resolver result into exactly five normalized architecture slots. */
   fromResolution(resolution: ContextResolutionResult): NormalizedContextLayers {
-    const sources = splitRetrievalDomains(
-      resolution.retrievalRequest?.requestedDomains ?? [],
-    );
+    const sources = splitRetrievalDomains(resolution.retrievalRequest?.requestedDomains ?? []);
     return normalizeContextLayers({
       subjectClientIds: resolution.subjectScope.clientIds,
       liveAuthoritativeSources: sources.liveAuthoritativeSources,
@@ -91,9 +83,7 @@ export class ContextLayerService {
     const selectedSteeringLayers = request.layers.filter(
       (layer) => singleClientId !== null || !CLIENT_STEERING_LAYERS.has(layer),
     );
-    const sources = splitRetrievalDomains(
-      resolution.retrievalRequest?.requestedDomains ?? [],
-    );
+    const sources = splitRetrievalDomains(resolution.retrievalRequest?.requestedDomains ?? []);
 
     return {
       contextLayers: normalizeContextLayers({
@@ -135,7 +125,5 @@ function uniqueRetrievalDomains(domains: readonly RetrievalDomain[]): RetrievalD
 }
 
 function uniqueStrings(values: readonly string[]): string[] {
-  return [
-    ...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)),
-  ];
+  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
 }

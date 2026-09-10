@@ -164,6 +164,7 @@ function bundle(input: {
   const withoutHash = {
     schemaVersion: 'rdte_cycle_bundle_v1' as const,
     cycleId: `rdte-cycle-${documentKey}-test`,
+    bundleId: `rdte-bundle-${documentKey}-test`,
     fiscalYear: 2027,
     manifestContentSha256: MANIFEST_SHA,
     sourceDocuments: [

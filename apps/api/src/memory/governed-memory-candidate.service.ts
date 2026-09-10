@@ -213,11 +213,15 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         }
         // A restricted proposal keeps its status/withdrawal capability, but
         // neither its body nor its client's name may cross the current wall.
-        const clientIds = [...new Set(own.flatMap((candidate) =>
-          !candidate.restricted && candidate.scope === 'client' && candidate.clientId
-            ? [candidate.clientId]
-            : [],
-        ))];
+        const clientIds = [
+          ...new Set(
+            own.flatMap((candidate) =>
+              !candidate.restricted && candidate.scope === 'client' && candidate.clientId
+                ? [candidate.clientId]
+                : [],
+            ),
+          ),
+        ];
         const clients = clientIds.length
           ? await tx.client.findMany({
               where: { tenantId: ctx.tenantId, id: { in: clientIds } },
@@ -227,9 +231,10 @@ export class GovernedMemoryCandidateService extends MemoryCandidateService {
         const names = new Map(clients.map((client) => [client.id, client.name]));
         return own.map((candidate) => ({
           ...candidate,
-          clientName: !candidate.restricted && candidate.clientId
-            ? names.get(candidate.clientId) ?? null
-            : null,
+          clientName:
+            !candidate.restricted && candidate.clientId
+              ? (names.get(candidate.clientId) ?? null)
+              : null,
         }));
       },
     );

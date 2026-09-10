@@ -84,7 +84,8 @@ export function evaluateEligibility(input: EligibilityInput): EligibilityResult 
   }
 
   // Completed work must be reopened before creating more execution artifacts.
-  if (node.status === 'completed') reasons.push('step is completed; reopen it before preparing more work');
+  if (node.status === 'completed')
+    reasons.push('step is completed; reopen it before preparing more work');
 
   // Common gates (both kinds).
   if (!hasOwner) {

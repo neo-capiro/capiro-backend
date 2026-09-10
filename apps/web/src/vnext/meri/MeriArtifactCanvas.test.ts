@@ -11,7 +11,9 @@ function readMeri(name: string): string {
 describe('MeriArtifactCanvas — in-rail doc canvas, real fields only', () => {
   test('takes the real CanvasArtifact shape', () => {
     const source = readMeri('MeriArtifactCanvas.tsx');
-    expect(source).toContain("import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js'");
+    expect(source).toContain(
+      "import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js'",
+    );
     expect(source).toContain('artifact: CanvasArtifact');
   });
 
@@ -28,11 +30,20 @@ describe('MeriArtifactCanvas — in-rail doc canvas, real fields only', () => {
 
   test('downloads office docs from the real artifact download endpoint, falls back to a markdown blob otherwise', () => {
     const source = readMeri('MeriArtifactCanvas.tsx');
-    expect(source).toContain('/api/clio/artifacts/${artifact.id}/download');
+    expect(source).toContain('useMeriArtifactDownload');
+    expect(source).toContain('artifactId: artifact.id');
+    expect(source).toContain('getAuthHeaders');
+    const download = readFileSync(
+      resolve(process.cwd(), 'src/components/chat/meri-artifact-download.ts'),
+      'utf8',
+    );
+    expect(download).toContain('/api/clio/artifacts/${artifactId}/download');
+    expect(download).toContain("redirect: 'error'");
+    expect(source).toContain('isOfficeDoc ? downloadOfficeDoc : downloadMarkdown');
     expect(source).toContain("type: 'text/markdown;charset=utf-8'");
   });
 
-  test('is reachable as the rail\'s ARTIFACT panel, replacing the legacy fixed-overlay MeriCanvas in vNext', () => {
+  test("is reachable as the rail's ARTIFACT panel, replacing the legacy fixed-overlay MeriCanvas in vNext", () => {
     const rail = readMeri('VNextMeriContextRail.tsx');
     expect(rail).toContain('activeArtifact');
     expect(rail).toContain('<MeriArtifactCanvas');

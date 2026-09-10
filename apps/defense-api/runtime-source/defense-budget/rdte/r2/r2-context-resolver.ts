@@ -29,7 +29,12 @@ export interface R2ResolvedPage {
   /** Resolved project context (undefined for PE-level or unresolved). */
   projectCode?: string;
   /** How the context was established. */
-  contextSource: 'explicit_header' | 'deterministic_continuation' | 'unresolved';
+  contextSource:
+    | 'explicit_header'
+    | 'deterministic_continuation'
+    | 'non_semantic'
+    | 'r1_summary'
+    | 'unresolved';
   /** Evidence strings supporting the resolution. */
   evidence: string[];
   /** For unresolved pages: why resolution failed. */
@@ -137,6 +142,25 @@ export function resolveR2Contexts(segmentation: R2SegmentationResult): R2Context
             resolved.peCode = segment.peCode;
             resolvedPeCodes.add(segment.peCode);
           }
+          break;
+        }
+
+        case 'non_semantic': {
+          /* Phase 10B-21 Part D: proven-non-semantic pages carry no PE
+           * context and are deliberately NOT added to unresolvedPages --
+           * they are not a completeness gap, they simply have no required
+           * R-2 identity to resolve. */
+          resolved.contextSource = 'non_semantic';
+          break;
+        }
+
+        case 'r1_summary': {
+          /* Phase 10B-23A Part E: same completeness posture as
+           * 'non_semantic' (no PE context, not an omission) but kept as its
+           * own contextSource so downstream code can distinguish real,
+           * preserved-but-not-projected government budget data from
+           * genuinely blank/front-matter pages. */
+          resolved.contextSource = 'r1_summary';
           break;
         }
 

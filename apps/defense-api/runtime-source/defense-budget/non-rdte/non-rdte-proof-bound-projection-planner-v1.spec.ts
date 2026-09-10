@@ -186,7 +186,12 @@ function certifiedBundle(artifact: DefenseBudgetExtractionArtifactV1) {
     coverageInputs: [],
   });
   return certifyNonRdteCycle({
-    cycleIdIdentity: { cycle: 'pb_fy2027', family: 'procurement' },
+    governedCycleId: 'cycle-fy2027-authorization',
+    cycleIdIdentity: {
+      family: 'procurement',
+      fiscalYear: CYCLE_FY,
+      manifestContentSha256: MANIFEST_SHA,
+    },
     fiscalYear: CYCLE_FY,
     family: 'procurement',
     manifestContentSha256: MANIFEST_SHA,

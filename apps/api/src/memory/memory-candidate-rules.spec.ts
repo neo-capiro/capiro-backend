@@ -89,7 +89,11 @@ describe('evaluateMemoryCandidate — Phase 27B learning-signal candidates never
   it.each(['personal', 'firm', 'client'] as const)(
     'keeps a learning-signal-sourced candidate pending for scope=%s, including personal (which would otherwise auto-commit)',
     (scope) => {
-      const decision = evaluateMemoryCandidate({ scope, isAdmin: false, sourceKind: 'learning_signal' });
+      const decision = evaluateMemoryCandidate({
+        scope,
+        isAdmin: false,
+        sourceKind: 'learning_signal',
+      });
       expect(decision.outcome).toBe('WARN');
       expect(decision.ruleId).toBe('memory.learning_signal.requires_review');
     },

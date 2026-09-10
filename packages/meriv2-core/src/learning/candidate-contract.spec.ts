@@ -66,29 +66,43 @@ describe('classifyLearningSignalEligibility (Phase 27B)', () => {
 
   it('AI-only provenance is never eligible, even with a note and evidence', () => {
     const decision = classifyLearningSignalEligibility(
-      baseEligibilityInput({ provenanceKind: 'ai_generated_only', hasNote: true, evidenceRefCount: 3 }),
+      baseEligibilityInput({
+        provenanceKind: 'ai_generated_only',
+        hasNote: true,
+        evidenceRefCount: 3,
+      }),
     );
     expect(decision.eligibility).toBe('ai_only');
   });
 
   it('restricted sensitivity is blocked_by_policy regardless of other fields', () => {
-    const decision = classifyLearningSignalEligibility(baseEligibilityInput({ sensitivity: 'restricted' }));
+    const decision = classifyLearningSignalEligibility(
+      baseEligibilityInput({ sensitivity: 'restricted' }),
+    );
     expect(decision.eligibility).toBe('blocked_by_policy');
   });
 
   it('no proposed memory layer is unsupported_scope', () => {
-    const decision = classifyLearningSignalEligibility(baseEligibilityInput({ proposedMemoryLayer: null }));
+    const decision = classifyLearningSignalEligibility(
+      baseEligibilityInput({ proposedMemoryLayer: null }),
+    );
     expect(decision.eligibility).toBe('unsupported_scope');
   });
 
   it('zero evidence refs is insufficient_evidence', () => {
-    const decision = classifyLearningSignalEligibility(baseEligibilityInput({ evidenceRefCount: 0 }));
+    const decision = classifyLearningSignalEligibility(
+      baseEligibilityInput({ evidenceRefCount: 0 }),
+    );
     expect(decision.eligibility).toBe('insufficient_evidence');
   });
 
   it('CORE RULE: a bare thumbs up/down with no note and no reason codes is insufficient_evidence — not every rating becomes memory', () => {
     const decision = classifyLearningSignalEligibility(
-      baseEligibilityInput({ signalType: 'meri_feedback_positive', hasNote: false, reasonCount: 0 }),
+      baseEligibilityInput({
+        signalType: 'meri_feedback_positive',
+        hasNote: false,
+        reasonCount: 0,
+      }),
     );
     expect(decision.eligibility).toBe('insufficient_evidence');
   });
@@ -102,7 +116,11 @@ describe('classifyLearningSignalEligibility (Phase 27B)', () => {
 
   it('a bare rating WITH structured reason codes but no note is eligible', () => {
     const decision = classifyLearningSignalEligibility(
-      baseEligibilityInput({ signalType: 'meri_feedback_negative', hasNote: false, reasonCount: 2 }),
+      baseEligibilityInput({
+        signalType: 'meri_feedback_negative',
+        hasNote: false,
+        reasonCount: 2,
+      }),
     );
     expect(decision.eligibility).toBe('eligible');
   });

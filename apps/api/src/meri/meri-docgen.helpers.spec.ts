@@ -87,6 +87,7 @@ describe('clio-docgen helpers', () => {
       expect(mimeForFormat('docx')).toContain('wordprocessingml');
       expect(mimeForFormat('xlsx')).toContain('spreadsheetml');
       expect(mimeForFormat('pptx')).toContain('presentationml');
+      expect(mimeForFormat('pdf')).toBe('application/pdf');
     });
   });
 });

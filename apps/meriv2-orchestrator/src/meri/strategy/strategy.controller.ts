@@ -62,7 +62,9 @@ export class StrategyController {
     requireInternalContextProxy(req);
     const input = parseReportNarrativeInput(dto);
     if (!input) {
-      throw new BadRequestException('Report narrative requires an audience, strategy and evidence packet');
+      throw new BadRequestException(
+        'Report narrative requires an audience, strategy and evidence packet',
+      );
     }
     const ctx = await this.resolver.resolveIdentity(tc);
     return this.scoped(req, () => this.reportNarrative.generate(ctx, input));
@@ -175,7 +177,9 @@ function requireGovernedContext(
     !governed.retrieval ||
     !governed.retrieval.coverage
   ) {
-    throw new BadRequestException('Strategy reasoning requires matching governed Context Plane input');
+    throw new BadRequestException(
+      'Strategy reasoning requires matching governed Context Plane input',
+    );
   }
   return governed;
 }

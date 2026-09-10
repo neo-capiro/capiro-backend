@@ -4,6 +4,7 @@ import { mergeMeriRuntimeStatus } from './meri-runtime-status.js';
 import { useEffect, useState } from 'react';
 import type { MeriRect } from './meri-geometry.js';
 import type { TrustStep } from './WorkPerformed.js';
+import type { MeriSavedDocumentArtifact } from './meri-artifact-download.js';
 
 export type MeriSurfaceMode = 'closed' | 'docked' | 'undocked';
 
@@ -168,6 +169,7 @@ export interface ChatMessage {
   feedback?: 'up' | 'down' | null;
   attachments?: ChatMessageAttachment[];
   chartArtifacts?: ChatMessageChartArtifact[];
+  documentArtifacts?: MeriSavedDocumentArtifact[];
   /** Server-computed grounding posture for this assistant turn. */
   groundingStatement?: string;
   /** Immutable server context packet that grounded this specific assistant turn. */
@@ -497,6 +499,14 @@ export function addChatMessageChartArtifact(id: string, chart: ChatMessageChartA
     m.id === id ? { ...m, chartArtifacts: [...(m.chartArtifacts ?? []), chart] } : m,
   );
   state = { ...state, messages };
+  notify();
+}
+
+/** Keep saved documents available after the automatic canvas is closed. */
+export function addChatMessageDocumentArtifact(id: string, artifact: MeriSavedDocumentArtifact): void {
+  state = { ...state, messages: state.messages.map((message) => message.id === id
+    ? { ...message, documentArtifacts: [...(message.documentArtifacts ?? []).filter((item) => item.id !== artifact.id), artifact] }
+    : message) };
   notify();
 }
 

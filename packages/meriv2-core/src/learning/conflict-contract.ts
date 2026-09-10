@@ -65,7 +65,9 @@ export interface MemoryConflictMatchInput {
  * means `possible_related` exists precisely so a mid-confidence match is
  * never silently promoted to `probable_contradiction`.
  */
-export function classifyMemoryConflictMatch(input: MemoryConflictMatchInput): MemoryConflictMatchKind {
+export function classifyMemoryConflictMatch(
+  input: MemoryConflictMatchInput,
+): MemoryConflictMatchKind {
   if (input.score >= MEMORY_CONFLICT_SIMILARITY_THRESHOLDS.CONTRADICTION_MIN) {
     return input.textsEqual ? 'duplicate' : 'probable_contradiction';
   }

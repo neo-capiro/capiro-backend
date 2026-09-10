@@ -142,11 +142,7 @@ describe('ContextPlaneGatewayService Phase 18-26', () => {
 
     expect(result.kind).toBe('governed_packet');
     expect(h.resolver.resolveAndRetrieve).toHaveBeenCalledWith(resolverReq);
-    expect(h.packets.compile).toHaveBeenCalledWith(
-      compilerReq,
-      h.context,
-      resolverReq.retrieval,
-    );
+    expect(h.packets.compile).toHaveBeenCalledWith(compilerReq, h.context, resolverReq.retrieval);
     expect(h.audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: expect.objectContaining({ reason: 'governed_packet' }),

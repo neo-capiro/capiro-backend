@@ -99,6 +99,15 @@ export interface GovernanceDetailResponse {
     | (GovernanceItem & {
         slug: string;
         sections: Array<{ key?: string; heading?: string; owner?: string; body?: string }>;
+        sourceEvidence?: {
+          status: 'available' | 'unavailable';
+          explanation: string;
+          findingId?: string;
+          runId?: string;
+          factText?: string;
+          acceptedAt?: string | null;
+          links?: Array<{ label: string; url: string }>;
+        } | null;
         provenance: Record<string, unknown>;
         temporal: Record<string, unknown>;
         approvals: Record<string, unknown>;

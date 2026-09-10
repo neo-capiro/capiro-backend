@@ -192,14 +192,30 @@ function makeTx(store: Store) {
       const rec = store.strategies.get(where.id);
       if (!rec) return null;
       const out: Rec = { ...rec };
-      if (include?.nodes) out.nodes = store.nodesFor(rec.id).filter((n) => n.archivedAt == null).map((n) => ({ ...n }));
+      if (include?.nodes)
+        out.nodes = store
+          .nodesFor(rec.id)
+          .filter((n) => n.archivedAt == null)
+          .map((n) => ({ ...n }));
       return out;
     },
   };
   const spNode = {
-    updateMany: async ({ where, data }: { where: { id: string; strategyId: string; status: { in: string[] } }; data: Rec }) => {
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: { id: string; strategyId: string; status: { in: string[] } };
+      data: Rec;
+    }) => {
       const node = store.nodes.get(where.id);
-      if (!node || node.strategyId !== where.strategyId || node.archivedAt != null || !where.status.in.includes(String(node.status))) return { count: 0 };
+      if (
+        !node ||
+        node.strategyId !== where.strategyId ||
+        node.archivedAt != null ||
+        !where.status.in.includes(String(node.status))
+      )
+        return { count: 0 };
       store.nodes.set(node.id, { ...node, ...data });
       return { count: 1 };
     },
@@ -567,9 +583,14 @@ describe('ExecutionService.retry', () => {
     const { svc, createWorkspaceDraft, createOutreachRecord } = makeService(store);
     const prior = await svc.plan(T, U, 'bearer-x', wsPlan());
     const previousFindings = store.runs.get(prior.id)!.findings as Record<string, unknown>;
-    store.runs.set(prior.id, { ...store.runs.get(prior.id)!, findings: {
-      ...previousFindings, approval: { status: 'approved' }, results: { stale: true },
-    } });
+    store.runs.set(prior.id, {
+      ...store.runs.get(prior.id)!,
+      findings: {
+        ...previousFindings,
+        approval: { status: 'approved' },
+        results: { stale: true },
+      },
+    });
 
     const next = await svc.retry(T, U, prior.id);
     expect(next.state).toBe('ready_for_review');
@@ -1834,17 +1855,29 @@ describe('ExecutionService — lifecycle guards', () => {
   });
 });
 
-
 describe('Execution readiness before creating records', () => {
   const revision = '2026-09-08T12:00:00.000Z';
 
   it('returns every requirement for both actions without a mission, run, activity, or artifact write', async () => {
     const store = makeStore();
     seedStrategy(store);
-    seedNode(store, { id: NID, ownerUserId: null, startsOn: null, endsOn: null, updatedAt: new Date(revision) });
-    const { svc, createWorkspaceDraft, createOutreachRecord } = makeService(store, { openMaterialConflicts: [{ id: 'conflict-1' }] });
+    seedNode(store, {
+      id: NID,
+      ownerUserId: null,
+      startsOn: null,
+      endsOn: null,
+      updatedAt: new Date(revision),
+    });
+    const { svc, createWorkspaceDraft, createOutreachRecord } = makeService(store, {
+      openMaterialConflicts: [{ id: 'conflict-1' }],
+    });
     const result = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
-    expect(result).toMatchObject({ headVersionId: 'v1', nodeUpdatedAt: revision, workspace: { enabled: true, eligible: false }, outreach: { enabled: true, eligible: false } });
+    expect(result).toMatchObject({
+      headVersionId: 'v1',
+      nodeUpdatedAt: revision,
+      workspace: { enabled: true, eligible: false },
+      outreach: { enabled: true, eligible: false },
+    });
     expect(result.workspace.reasons.join(' ')).toMatch(/owner.*target date.*material conflict/);
     expect(result.outreach.reasons.join(' ')).toContain('node subject');
     expect(store.missions.size).toBe(0);
@@ -1863,60 +1896,108 @@ describe('Execution readiness before creating records', () => {
     const result = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
     expect(result.workspace).toMatchObject({ enabled: false, eligible: false });
     expect(result.outreach).toMatchObject({ enabled: false, eligible: false });
-    await expect(svc.preflight(T, U, { strategyId: SID, nodeId: 'missing' })).rejects.toThrow('node is not part');
+    await expect(svc.preflight(T, U, { strategyId: SID, nodeId: 'missing' })).rejects.toThrow(
+      'node is not part',
+    );
     seedNode(store, { id: 'archived-node', archivedAt: new Date() });
-    await expect(svc.preflight(T, U, { strategyId: SID, nodeId: 'archived-node' })).rejects.toThrow('node is not part');
+    await expect(svc.preflight(T, U, { strategyId: SID, nodeId: 'archived-node' })).rejects.toThrow(
+      'node is not part',
+    );
     store.strategies.set(SID, { ...store.strategies.get(SID)!, archivedAt: new Date() });
-    await expect(svc.preflight(T, U, { strategyId: SID, nodeId: NID })).rejects.toThrow('Active strategy not found');
+    await expect(svc.preflight(T, U, { strategyId: SID, nodeId: NID })).rejects.toThrow(
+      'Active strategy not found',
+    );
     expect(store.runs.size).toBe(0);
   });
 
   it('blocks changed node revisions, changed plan heads, and new conflicts before creating a run', async () => {
     for (const change of ['node', 'version', 'conflict'] as const) {
       const store = makeStore();
-      seedStrategy(store); seedMission(store);
+      seedStrategy(store);
+      seedMission(store);
       seedNode(store, { id: NID, updatedAt: new Date(revision) });
       const opts = { openMaterialConflicts: [] as Rec[] };
       const { svc } = makeService(store, opts);
       await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
-      if (change === 'node') store.nodes.set(NID, { ...store.nodes.get(NID)!, updatedAt: new Date('2026-09-08T12:01:00.000Z') });
-      if (change === 'version') store.versions.set('v2', { id: 'v2', strategyId: SID, createdAt: new Date() });
+      if (change === 'node')
+        store.nodes.set(NID, {
+          ...store.nodes.get(NID)!,
+          updatedAt: new Date('2026-09-08T12:01:00.000Z'),
+        });
+      if (change === 'version')
+        store.versions.set('v2', { id: 'v2', strategyId: SID, createdAt: new Date() });
       if (change === 'conflict') opts.openMaterialConflicts.push({ id: 'new-conflict' });
-      await expect(svc.plan(T, U, 'bearer', wsPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: 'v1' }))).rejects.toThrow(ConflictException);
+      await expect(
+        svc.plan(
+          T,
+          U,
+          'bearer',
+          wsPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: 'v1' }),
+        ),
+      ).rejects.toThrow(ConflictException);
       expect(store.runs.size).toBe(0);
       expect(store.activity).toEqual([]);
     }
   });
 
   it('surfaces existing client outreach constraints before planning and rechecks newly added constraints', async () => {
-    const store = makeStore(); seedStrategy(store); seedMission(store);
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
     seedNode(store, { id: NID, subject: 'member', updatedAt: new Date(revision) });
     const { svc } = makeService(store);
     const ready = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
     expect(ready.outreach.eligible).toBe(true);
-    store.facts.push({ id: 'constraint', state: 'active', authority: 'client_approved', clientId: 'C1', fact: 'No outreach until the client confirms the plan.' });
+    store.facts.push({
+      id: 'constraint',
+      state: 'active',
+      authority: 'client_approved',
+      clientId: 'C1',
+      fact: 'No outreach until the client confirms the plan.',
+    });
     const blocked = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
     expect(blocked.outreach.eligible).toBe(false);
-    expect(blocked.outreach.reasons).toContain('Client-approved instructions prohibit outreach. Review the client constraints in Context review.');
-    await expect(svc.plan(T, U, 'bearer', outreachPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: ready.headVersionId! }))).rejects.toThrow('Client-approved instructions prohibit outreach');
+    expect(blocked.outreach.reasons).toContain(
+      'Client-approved instructions prohibit outreach. Review the client constraints in Context review.',
+    );
+    await expect(
+      svc.plan(
+        T,
+        U,
+        'bearer',
+        outreachPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: ready.headVersionId! }),
+      ),
+    ).rejects.toThrow('Client-approved instructions prohibit outreach');
     expect(store.runs.size).toBe(0);
   });
 
   it('rejects a mission belonging to a different strategy before creating a run', async () => {
-    const store = makeStore(); seedStrategy(store); seedMission(store); seedNode(store, { id: NID });
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    seedNode(store, { id: NID });
     const { svc } = makeService(store);
-    await expect(svc.plan(T, U, 'bearer', wsPlan({ strategyId: 'another-strategy' }))).rejects.toThrow('Mission belongs to another strategy');
+    await expect(
+      svc.plan(T, U, 'bearer', wsPlan({ strategyId: 'another-strategy' })),
+    ).rejects.toThrow('Mission belongs to another strategy');
     expect(store.runs.size).toBe(0);
   });
 
   it('creates a reviewable run after current readiness passes, without staging an artifact', async () => {
-    const store = makeStore(); seedStrategy(store); seedMission(store);
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
     seedNode(store, { id: NID, updatedAt: new Date(revision) });
     const { svc, createWorkspaceDraft } = makeService(store);
     const checked = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
     expect(checked.workspace.eligible).toBe(true);
     expect(checked.outreach.eligible).toBe(false);
-    const run = await svc.plan(T, U, 'bearer', wsPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: checked.headVersionId! }));
+    const run = await svc.plan(
+      T,
+      U,
+      'bearer',
+      wsPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: checked.headVersionId! }),
+    );
     expect(run.state).toBe('ready_for_review');
     expect(createWorkspaceDraft).not.toHaveBeenCalled();
   });

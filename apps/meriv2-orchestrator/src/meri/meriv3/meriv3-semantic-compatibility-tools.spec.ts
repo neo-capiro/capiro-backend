@@ -174,6 +174,43 @@ describe('MeriV3SemanticCompatibilityTools', () => {
     );
   });
 
+  test('PDF delegates to the governed Word service with the same client and conversation', async () => {
+    const tools = new MeriV3SemanticCompatibilityTools(
+      config({ MERI_ARTIFACT_TOOL_V2_ENABLED: 'true', MERI_ARTIFACT_TOOL_V2_TENANTS: '*' }),
+    );
+    const prepared = tools.prepareSchemas([schema('create_word')], 'tenant-1');
+    expect(JSON.stringify(prepared)).toContain('"pdf"');
+    const invoke = jest.fn().mockResolvedValue({ format: 'pdf' });
+    await tools.execute(
+      'create_artifact',
+      {
+        type: 'pdf',
+        clientId: 'client-1',
+        conversationId: 'conversation-1',
+        spec: { title: 'Brief', sections: [], format: 'docx' },
+      },
+      invoke,
+    );
+    expect(invoke).toHaveBeenCalledWith('create_word', {
+      title: 'Brief',
+      sections: [],
+      format: 'pdf',
+      clientId: 'client-1',
+      conversationId: 'conversation-1',
+    });
+    invoke.mockClear();
+    await tools.execute(
+      'create_artifact',
+      {
+        type: 'pdf',
+        clientId: 'client-1',
+        spec: { clientId: 'client-2', title: 'Wrong scope', sections: [] },
+      },
+      invoke,
+    );
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   test('policy memo requires a client while meeting brief only inherits the conversation', async () => {
     const tools = new MeriV3SemanticCompatibilityTools(
       config({

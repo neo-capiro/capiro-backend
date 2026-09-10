@@ -409,7 +409,8 @@ function makeCertifiedBundle(
   });
   const verifications = overrides?.verifications ?? makeVerifications(artifacts);
   const result = certifyNonRdteCycle({
-    cycleIdIdentity: { fy: CYCLE_FY, cycle: 'pb', family },
+    governedCycleId: 'cycle-fy2027-authorization',
+    cycleIdIdentity: { family, fiscalYear: CYCLE_FY, manifestContentSha256: SHA },
     fiscalYear: CYCLE_FY,
     family,
     manifestContentSha256: SHA,

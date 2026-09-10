@@ -305,7 +305,13 @@ describe('MemorySettingsReviewReadinessService', () => {
     const h = harness({
       memberRows: [
         ...members,
-        { userId: rejectOnly, role: 'standard_user', email: 'rejector@example.com', firstName: 'Reese', lastName: 'Reviewer' },
+        {
+          userId: rejectOnly,
+          role: 'standard_user',
+          email: 'rejector@example.com',
+          firstName: 'Reese',
+          lastName: 'Reviewer',
+        },
       ],
       candidate: {
         id: candidateId,
@@ -314,7 +320,12 @@ describe('MemorySettingsReviewReadinessService', () => {
         scope: 'firm',
         clientId: null,
         createdAt: new Date('2026-08-05T12:00:00.000Z'),
-        payload: { canonicalItem: { title: 'Firm Soul', sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Review me.' }] } },
+        payload: {
+          canonicalItem: {
+            title: 'Firm Soul',
+            sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Review me.' }],
+          },
+        },
       },
       subjects: { [candidateId]: subject(candidateId, PROPOSER) },
       authorization: (userId, _candidate, operation) =>
@@ -344,7 +355,13 @@ describe('MemorySettingsReviewReadinessService', () => {
     const h = harness({
       memberRows: [
         ...members,
-        { userId: unrelated, role: 'standard_user', email: 'viewer@example.com', firstName: 'Una', lastName: 'Related' },
+        {
+          userId: unrelated,
+          role: 'standard_user',
+          email: 'viewer@example.com',
+          firstName: 'Una',
+          lastName: 'Related',
+        },
       ],
       candidate: {
         id: candidateId,
@@ -353,7 +370,12 @@ describe('MemorySettingsReviewReadinessService', () => {
         scope: 'firm',
         clientId: null,
         createdAt: new Date('2026-08-05T12:00:00.000Z'),
-        payload: { canonicalItem: { title: 'Firm Soul', sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Unapproved.' }] } },
+        payload: {
+          canonicalItem: {
+            title: 'Firm Soul',
+            sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Unapproved.' }],
+          },
+        },
       },
       subjects: { [candidateId]: subject(candidateId, PROPOSER) },
       authorization: (userId, _candidate, operation) =>

@@ -20,10 +20,7 @@ const kineticSignals = {
 
 describe('federal-market strategy research planner', () => {
   test('expands a product into mission, acquisition, congressional and scale searches', () => {
-    const blueprint = buildMeriFederalMarketStrategyBlueprint(
-      'Kinetic Industries',
-      kineticSignals,
-    );
+    const blueprint = buildMeriFederalMarketStrategyBlueprint('Kinetic Industries', kineticSignals);
 
     expect(blueprint.missionTerms).toEqual(
       expect.arrayContaining([
@@ -55,7 +52,9 @@ describe('federal-market strategy research planner', () => {
       blueprint.queries.some(
         (query) =>
           query.domain === 'congressional' &&
-          String(query.input.query ?? '').toLowerCase().includes('program increase'),
+          String(query.input.query ?? '')
+            .toLowerCase()
+            .includes('program increase'),
       ),
     ).toBe(true);
     expect(blueprint.queries.length).toBeLessThanOrEqual(72);

@@ -1,4 +1,7 @@
-import type { ContextRetrievalDirective, ContextRetrievalResult } from './context-resolver.types.js';
+import type {
+  ContextRetrievalDirective,
+  ContextRetrievalResult,
+} from './context-resolver.types.js';
 import { buildContextPacketRetrievalContext } from './context-packet-v2.service.js';
 
 const planned: ContextRetrievalDirective = {

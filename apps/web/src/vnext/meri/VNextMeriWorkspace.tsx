@@ -47,6 +47,7 @@ import {
 import {
   mapPersistedAttachments,
   mapPersistedCharts,
+  mapPersistedDocuments,
   mapPersistedFeedback,
   mapPersistedCitations,
   mapPersistedContextPacketId,
@@ -76,6 +77,13 @@ interface ClientOption {
   name: string;
 }
 
+interface ArchivedRouteThread {
+  id: string;
+  title: string;
+  identityKey: string;
+  sequence: number;
+}
+
 type SendArgs = Parameters<MeriChatController['sendMessage']>;
 
 function historyMessage(value: unknown): ChatMessage | null {
@@ -83,6 +91,7 @@ function historyMessage(value: unknown): ChatMessage | null {
   const message = value as PersistedMessage;
   const attachments = mapPersistedAttachments(message);
   const chartArtifacts = mapPersistedCharts(message);
+  const documentArtifacts = mapPersistedDocuments(message);
   const citations = mapPersistedCitations(message);
   const verification = mapPersistedVerification(message);
   const groundingCaveat = mapPersistedGroundingCaveat(message);
@@ -103,6 +112,7 @@ function historyMessage(value: unknown): ChatMessage | null {
     turnScope: mapPersistedTurnScope(message),
     ...(attachments.length ? { attachments } : {}),
     ...(chartArtifacts.length ? { chartArtifacts } : {}),
+    ...(documentArtifacts.length ? { documentArtifacts } : {}),
     ...(citations.length ? { citations } : {}),
     ...(verification ? { verification } : {}),
     ...(groundingCaveat ? { groundingCaveat } : {}),
@@ -154,6 +164,10 @@ export function VNextMeriWorkspace() {
   const [routeClients, setRouteClients] = useState<ClientOption[]>([]);
   const [routeClientsError, setRouteClientsError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [archivedRouteThread, setArchivedRouteThread] = useState<ArchivedRouteThread | null>(null);
+  const [archivedRestoreError, setArchivedRestoreError] = useState<string | null>(null);
+  const [isRestoringArchivedThread, setIsRestoringArchivedThread] = useState(false);
+  const archivedRestoreRef = useRef<ArchivedRouteThread | null>(null);
   // Set when a LegiWatch handoff is actually consumed on `/meri/new`; cleared
   // with it so the chip can never outlive the handoff that produced it.
   const [handoffChip, setHandoffChip] = useState<{ hearingId: string; title: string } | null>(null);
@@ -236,6 +250,10 @@ export function VNextMeriWorkspace() {
     setSelectedClientId(null);
     setRouteClientsError(null);
     setRouteError(null);
+    setArchivedRouteThread(null);
+    setArchivedRestoreError(null);
+    setIsRestoringArchivedThread(false);
+    archivedRestoreRef.current = null;
     setHandoffChip(null);
     handledLegiwatchRef.current = null;
     setHistoryError(null);
@@ -583,6 +601,10 @@ export function VNextMeriWorkspace() {
     let cancelled = false;
     setRouteReady(false);
     setRouteError(null);
+    setArchivedRouteThread(null);
+    setArchivedRestoreError(null);
+    setIsRestoringArchivedThread(false);
+    archivedRestoreRef.current = null;
     setHistoryError(null);
     setRouteClientsError(null);
     // A record-free hearing launch does not need to resolve durable history.
@@ -645,7 +667,42 @@ export function VNextMeriWorkspace() {
 
         if (requestedThreadId) {
           if (!history.some((conversation) => conversation.id === requestedThreadId)) {
-            throw new Error('This Meri thread is not available in your conversation history.');
+            // Active history omits archived rows. Resolve only this exact deep
+            // link through the same tenant/user-authorized conversation lookup;
+            // restoration remains an explicit action and never reads messages.
+            if (!userId) return;
+            const requestIdentityKey = identityKeyRef.current;
+            const isCurrentRequest = () => !cancelled &&
+              mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+              threadIdFromPath(window.location.pathname) === requestedThreadId &&
+              mayCommitRouteHydration(
+                { sequence, threadId: requestedThreadId },
+                bootSequenceRef.current,
+                threadIdFromPath(window.location.pathname),
+              );
+            const headers = await authHeaders();
+            if (!isCurrentRequest()) return;
+            const unavailable = 'This Meri thread is not available in your conversation history.';
+            const response = await fetch(
+              `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(requestedThreadId)}`,
+              { headers },
+            ).catch(() => { throw new Error(unavailable); });
+            if (!isCurrentRequest()) return;
+            if (!response.ok) throw new Error(unavailable);
+            const body: unknown = await response.json().catch(() => { throw new Error(unavailable); });
+            if (!isCurrentRequest()) return;
+            const row = body && typeof body === 'object' ? body as Record<string, unknown> : null;
+            const archived = normalizeConversation(row);
+            if (!archived || archived.id !== requestedThreadId ||
+              typeof row?.archivedAt !== 'string' || !row.archivedAt) {
+              throw new Error(unavailable);
+            }
+            setMeriSurfaceMode('closed');
+            setArchivedRouteThread({
+              id: archived.id, title: archived.title, identityKey: requestIdentityKey, sequence,
+            });
+            setRouteReady(true);
+            return;
           }
           const snapshot = getChatStateSnapshot();
           if (
@@ -684,11 +741,13 @@ export function VNextMeriWorkspace() {
 
     return () => {
       cancelled = true;
+      if (sequence === bootSequenceRef.current) bootSequenceRef.current += 1;
     };
   }, [
     controller.discardRouteState,
     controller.invalidateRouteStream,
     controller.setSessionTitle,
+    authHeaders,
     hydrateConversation,
     isIntegrationsRoute,
     isNewRoute,
@@ -700,6 +759,7 @@ export function VNextMeriWorkspace() {
     requestedThreadId,
     historyEpoch,
     identityKey,
+    userId,
   ]);
 
   // First Send is the durable creation boundary for `/meri/new`. A synchronous
@@ -1050,21 +1110,48 @@ export function VNextMeriWorkspace() {
   );
 
   const restoreThread = useCallback(
-    async (conversationId: string): Promise<boolean> => {
+    async (conversationId: string, route?: ArchivedRouteThread): Promise<boolean> => {
       const requestIdentityKey = identityKeyRef.current;
+      const isCurrentRequest = () => mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+        (!route || (route.identityKey === requestIdentityKey &&
+          threadIdFromPath(window.location.pathname) === route.id && mayCommitRouteHydration(
+          { sequence: route.sequence, threadId: route.id }, bootSequenceRef.current,
+          threadIdFromPath(window.location.pathname),
+        )));
+      if (!isCurrentRequest()) return false;
       const headers = await authHeaders();
-      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
+      if (!isCurrentRequest()) return false;
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/restore`,
         { method: 'PATCH', headers },
       );
+      if (!isCurrentRequest()) return false;
       if (!response.ok) throw new Error(`Restore failed (${response.status}).`);
-      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
       setHistoryEpoch((value) => value + 1);
       return true;
     },
     [authHeaders],
   );
+
+  const restoreArchivedRouteThread = useCallback(async () => {
+    const target = archivedRouteThread;
+    if (!target || !userId || archivedRestoreRef.current) return;
+    archivedRestoreRef.current = target;
+    setIsRestoringArchivedThread(true);
+    setArchivedRestoreError(null);
+    try {
+      await restoreThread(target.id, target);
+    } catch {
+      if (target.identityKey === identityKeyRef.current && target.sequence === bootSequenceRef.current) {
+        setArchivedRestoreError('This thread could not be restored. Try again or open Meri.');
+      }
+    } finally {
+      if (archivedRestoreRef.current === target) {
+        archivedRestoreRef.current = null;
+        setIsRestoringArchivedThread(false);
+      }
+    }
+  }, [archivedRouteThread, restoreThread, userId]);
 
   const renameThread = useCallback(
     async (conversationId: string, title: string) => {
@@ -1199,6 +1286,24 @@ export function VNextMeriWorkspace() {
   // A failed durable deep link must never reveal an unrelated active thread
   // under the requested URL. The old store value is intentionally left intact
   // for recovery, but the route itself fails closed.
+  if (archivedRouteThread && archivedRouteThread.id === requestedThreadId &&
+    archivedRouteThread.identityKey === identityKey) {
+    return (
+      <div className="meri-v3-workspace-loading">
+        <strong>Archived thread</strong>
+        <span>{archivedRouteThread.title}</span>
+        <span>Restore this thread to reopen its saved conversation.</span>
+        {archivedRestoreError ? <span role="alert">{archivedRestoreError}</span> : null}
+        <button type="button" disabled={isRestoringArchivedThread} onClick={() => void restoreArchivedRouteThread()}>
+          {isRestoringArchivedThread ? 'Restoring…' : 'Restore thread'}
+        </button>
+        <button type="button" onClick={() => navigate('/meri', { replace: true })}>
+          Open Meri
+        </button>
+      </div>
+    );
+  }
+
   if (routeError && requestedThreadId) {
     return (
       <div className="meri-v3-workspace-loading" role="alert">

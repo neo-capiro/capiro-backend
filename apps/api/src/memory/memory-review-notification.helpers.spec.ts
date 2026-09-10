@@ -8,15 +8,9 @@ import {
 describe('memory review notification helpers', () => {
   it('routes assignment events through current approve authorization', () => {
     expect(memoryReviewNotificationOperation('review_assigned')).toBe('approve');
-    expect(memoryReviewNotificationOperation('review_revision_assigned')).toBe(
-      'approve',
-    );
-    expect(memoryReviewNotificationOperation('review_reassigned')).toBe(
-      'approve',
-    );
-    expect(memoryReviewNotificationOperation('review_changes_requested')).toBe(
-      'read',
-    );
+    expect(memoryReviewNotificationOperation('review_revision_assigned')).toBe('approve');
+    expect(memoryReviewNotificationOperation('review_reassigned')).toBe('approve');
+    expect(memoryReviewNotificationOperation('review_changes_requested')).toBe('read');
     expect(memoryReviewNotificationOperation('review_approved')).toBe('read');
     expect(memoryReviewNotificationOperation('review_rejected')).toBe('read');
   });
@@ -39,26 +33,18 @@ describe('memory review notification helpers', () => {
       }),
     ).toBe(false);
     expect(
-      memoryReviewNotificationMatchesWorkflow(
-        'review_changes_requested',
-        proposer,
-        {
-          status: 'changes_needed',
-          assignedTo: reviewer,
-          requestedBy: proposer,
-        },
-      ),
+      memoryReviewNotificationMatchesWorkflow('review_changes_requested', proposer, {
+        status: 'changes_needed',
+        assignedTo: reviewer,
+        requestedBy: proposer,
+      }),
     ).toBe(true);
     expect(
-      memoryReviewNotificationMatchesWorkflow(
-        'review_changes_requested',
-        proposer,
-        {
-          status: 'superseded',
-          assignedTo: reviewer,
-          requestedBy: proposer,
-        },
-      ),
+      memoryReviewNotificationMatchesWorkflow('review_changes_requested', proposer, {
+        status: 'superseded',
+        assignedTo: reviewer,
+        requestedBy: proposer,
+      }),
     ).toBe(false);
     expect(
       memoryReviewNotificationMatchesWorkflow('review_approved', proposer, {

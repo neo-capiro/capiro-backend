@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
@@ -12,6 +12,7 @@ import type {
 import { ContextPlaneGatewayService } from '../context/context-plane-gateway.service.js';
 import type {
   ContextResolutionRequest,
+  ContextRetrievalDirective,
   ContextSubjectScope,
 } from '../context/context-resolver.types.js';
 import type {
@@ -19,6 +20,7 @@ import type {
   RetrievalQueryClass,
   RetrievalRecord,
   RetrievalSourceStatus,
+  RetrievalResponse,
 } from '../retrieval/retrieval-v2.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -54,6 +56,9 @@ interface SecurityEnvelope {
   authorizedMailboxConnectionIds: string[];
 }
 
+/** Explicit tool selectors only; authority always comes from the server. */
+export type MeriToolRetrievalInput = ContextRetrievalDirective & { clientId?: string };
+
 /**
  * Phase 19 adoption seam for Meri.
  *
@@ -69,6 +74,58 @@ export class MeriContextPlaneService {
     private readonly prisma: PrismaService,
     private readonly contextPlane: ContextPlaneGatewayService,
   ) {}
+
+  /**
+   * On-demand reads use the same adopted gateway as automatic chat context.
+   * These validated tool selectors are already explicit: do not re-plan their
+   * query, infer a company from a search term, or apply the initial prompt cap.
+   */
+  async searchToolData(ctx: TenantContext, input: MeriToolRetrievalInput): Promise<RetrievalResponse> {
+    const security = await this.securityEnvelope(ctx);
+    if (input.clientId && !security.authorizedClientIds.includes(input.clientId)) {
+      throw new NotFoundException('Client not found');
+    }
+    const { clientId, ...retrieval } = input;
+    const subjectScope = clientId ? 'client' as const : 'general' as const;
+    const result = await this.contextPlane.requestContext({
+      operationId: 'meri.chat',
+      resolverRequest: {
+        tenantId: ctx.tenantId,
+        actorUserId: ctx.userId,
+        surface: 'chat',
+        task: input.query?.trim() || 'Read the explicitly requested Capiro sources',
+        subjectScope,
+        ...(clientId ? { clientId } : {}),
+        securityScope: { ...security, allowExternalLookup: false },
+        // Null keeps a scoped enumeration unfiltered instead of searching the
+        // descriptive task above. Preserve exact empty authorization arrays.
+        retrieval: { ...retrieval, query: input.query?.trim() || null },
+        maxTokens: 12_000,
+      },
+      contextRequest: {
+        tenantId: ctx.tenantId,
+        effectiveTenantId: ctx.tenantId,
+        actorUserId: ctx.userId,
+        userId: ctx.userId,
+        ...(clientId ? { clientId } : {}),
+        surface: 'chat',
+        layers: [
+          'firm-identity', 'firm-playbook', 'user-voice',
+          ...(clientId ? ['client-steering', 'client-people'] as const : []),
+        ],
+        render: 'all',
+        tokenBudget: 12_000,
+        ref: { operationId: 'meri.chat', subjectScope },
+      },
+    });
+    if (result.kind === 'migration_exception' || !result.context.retrieval) {
+      throw new ServiceUnavailableException('Governed retrieval did not run; no data was searched');
+    }
+    // The gateway has resolved, compiled, audited and enforced the operation.
+    // Return full evidence and canonical coverage; packet projection is only
+    // for the initial prompt and must not truncate an explicit source read.
+    return result.context.retrieval;
+  }
 
   async resolveChat(
     ctx: TenantContext,

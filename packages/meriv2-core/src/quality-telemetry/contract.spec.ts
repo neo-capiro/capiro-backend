@@ -26,7 +26,13 @@ describe('QualityTelemetryEvent contract (Phase 27E)', () => {
 
   describe('assertKnownContextLayer', () => {
     it('accepts each of the five frozen layers', () => {
-      for (const layer of ['firm-identity', 'firm-playbook', 'user-voice', 'client-steering', 'client-people'] as const) {
+      for (const layer of [
+        'firm-identity',
+        'firm-playbook',
+        'user-voice',
+        'client-steering',
+        'client-people',
+      ] as const) {
         expect(() => assertKnownContextLayer(layer)).not.toThrow();
       }
     });
@@ -42,7 +48,10 @@ describe('QualityTelemetryEvent contract (Phase 27E)', () => {
     it('accepts short, metadata-shaped provenance/editMetrics/contextLayerCounts', () => {
       expect(() =>
         assertNoConfidentialContent({
-          provenance: { reasonCode: 'auto_generated', sampledFrom: 'outreach.draft_version.generate' },
+          provenance: {
+            reasonCode: 'auto_generated',
+            sampledFrom: 'outreach.draft_version.generate',
+          },
           editMetrics: { percentChanged: 12.5, versionsCount: 3 },
           contextLayerCounts: { firmIdentity: 2, clientSteering: 1 },
         }),
@@ -55,12 +64,24 @@ describe('QualityTelemetryEvent contract (Phase 27E)', () => {
       ).toThrow(/carries a string of 201 chars/);
     });
 
-    it.each(['body', 'text', 'content', 'transcript', 'prompt', 'response', 'message', 'summary', 'note', 'excerpt', 'draft', 'subject'])(
-      'rejects the banned key "%s" even with a short value',
-      (key) => {
-        expect(() => assertNoConfidentialContent({ provenance: { [key]: 'short' } })).toThrow(/banned field name/);
-      },
-    );
+    it.each([
+      'body',
+      'text',
+      'content',
+      'transcript',
+      'prompt',
+      'response',
+      'message',
+      'summary',
+      'note',
+      'excerpt',
+      'draft',
+      'subject',
+    ])('rejects the banned key "%s" even with a short value', (key) => {
+      expect(() => assertNoConfidentialContent({ provenance: { [key]: 'short' } })).toThrow(
+        /banned field name/,
+      );
+    });
 
     it('rejects a banned key nested inside an array', () => {
       expect(() =>
@@ -78,7 +99,9 @@ describe('QualityTelemetryEvent contract (Phase 27E)', () => {
         eventType: 'approved' as const,
         artifactVersionSeq: 2,
       };
-      expect(computeQualityTelemetryIdempotencyKey(input)).toBe(computeQualityTelemetryIdempotencyKey({ ...input }));
+      expect(computeQualityTelemetryIdempotencyKey(input)).toBe(
+        computeQualityTelemetryIdempotencyKey({ ...input }),
+      );
     });
 
     it('differs when the artifact version changes — a new lifecycle step is a new row, not a dedupe collision', () => {
@@ -94,8 +117,15 @@ describe('QualityTelemetryEvent contract (Phase 27E)', () => {
     });
 
     it('handles missing artifact fields (e.g. Meri feedback with no versioned artifact) without colliding across event types', () => {
-      const base = { surface: 'meri' as const, artifactType: null, artifactId: null, artifactVersionSeq: null };
-      expect(computeQualityTelemetryIdempotencyKey({ ...base, eventType: 'feedback_positive' })).not.toBe(
+      const base = {
+        surface: 'meri' as const,
+        artifactType: null,
+        artifactId: null,
+        artifactVersionSeq: null,
+      };
+      expect(
+        computeQualityTelemetryIdempotencyKey({ ...base, eventType: 'feedback_positive' }),
+      ).not.toBe(
         computeQualityTelemetryIdempotencyKey({ ...base, eventType: 'feedback_negative' }),
       );
     });

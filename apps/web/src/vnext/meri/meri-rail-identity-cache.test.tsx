@@ -46,6 +46,7 @@ vi.mock('./meri-vnext-api.js', () => ({
 import { VNextMeriThreadRail } from './VNextMeriThreadRail.js';
 
 const CONTROLLER = {
+  clients: [],
   isStreaming: false,
   sessionId: null,
 } as unknown as Parameters<typeof VNextMeriThreadRail>[0]['controller'];
@@ -126,7 +127,9 @@ describe('vNext Meri thread rail — query cache identity boundary', () => {
     expect(
       queryClient.getQueryData(['meri-vnext', 'tenant-a:user-a', 'saved-prompts']),
     ).toBeUndefined();
-    expect(queryClient.getQueryData(['meri-vnext', 'tenant-a:user-a', 'workspaces'])).toBeUndefined();
+    expect(
+      queryClient.getQueryData(['meri-vnext', 'tenant-a:user-a', 'workspaces']),
+    ).toBeUndefined();
   });
 
   test('an in-place identity change evicts the previous identity but keeps the new one', async () => {

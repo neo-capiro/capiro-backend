@@ -61,7 +61,7 @@ const DISPLAY_VERBS: Readonly<Record<string, string>> = {
   confirm_memory: 'Confirm memory',
   correct_memory: 'Correct memory',
   forget_memory: 'Forget memory',
-  create_word: 'Create Word document',
+  create_word: 'Create Word or PDF document',
   create_excel: 'Create workbook',
   create_powerpoint: 'Create presentation',
   create_meeting_brief: 'Create meeting brief',

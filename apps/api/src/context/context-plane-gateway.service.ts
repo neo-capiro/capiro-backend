@@ -28,10 +28,7 @@ import {
   type Phase17CompiledContextPacket,
 } from './context-packet-v2.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
-import type {
-  ContextResolutionRequest,
-  ContextRetrievalResult,
-} from './context-resolver.types.js';
+import type { ContextResolutionRequest, ContextRetrievalResult } from './context-resolver.types.js';
 import { contextStageTimer } from './context-stage-timer.service.js';
 import { MeetingsContextPlaneRuntime } from './meetings-context-plane.runtime.js';
 
@@ -72,9 +69,7 @@ export type ContextPlaneGatewayResult =
  * the same gateway instance that enforces operation/scope/surface policy.
  */
 @Injectable()
-export class ContextPlaneGatewayService
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class ContextPlaneGatewayService implements OnApplicationBootstrap, OnApplicationShutdown {
   private meetingsRuntime: MeetingsContextPlaneRuntime | null = null;
 
   constructor(
@@ -92,11 +87,7 @@ export class ContextPlaneGatewayService
     // application and own the Phase 24 runtime installation.
     if (!this.moduleRef) return;
     if (!this.prisma) throw new Error('phase24_meetings_prisma_dependency_required');
-    this.meetingsRuntime = new MeetingsContextPlaneRuntime(
-      this,
-      this.prisma,
-      this.moduleRef,
-    );
+    this.meetingsRuntime = new MeetingsContextPlaneRuntime(this, this.prisma, this.moduleRef);
     this.meetingsRuntime.install();
   }
 
@@ -184,11 +175,7 @@ export class ContextPlaneGatewayService
     // it records them as unchecked/unavailable rather than falsely calling the
     // turn "not requested" and complete.
     const packet = await contextStageTimer.time('compile', () =>
-      this.packets.compile(
-        request.contextRequest,
-        context,
-        request.resolverRequest.retrieval,
-      ),
+      this.packets.compile(request.contextRequest, context, request.resolverRequest.retrieval),
     );
     const decision = evaluateContextOperationEnforcement({
       operationId: request.operationId,
@@ -291,9 +278,7 @@ function resolutionSummary(context: ContextRetrievalResult): ContextPlaneAuditRe
  * truncated or unsupported source has to stay visibly distinct in telemetry, or
  * the Phase 27 baseline would score a blind operation as a healthy one.
  */
-function coverageSummary(
-  context: ContextRetrievalResult,
-): ContextPlaneAuditCoverageSummary {
+function coverageSummary(context: ContextRetrievalResult): ContextPlaneAuditCoverageSummary {
   const coverage = context.retrieval?.coverage;
   if (!coverage) {
     // Retrieval that never ran is NOT complete coverage.

@@ -60,6 +60,45 @@ function providerResponse(stopReason: string | null): Response {
   return new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), { status: 200 });
 }
 
+describe('archived Meri thread deep-link recovery', () => {
+  function archivedHarness() {
+    const row = { id: 'conversation', tenantId: ctx.tenantId, userId: ctx.userId,
+      archivedAt: new Date('2026-09-10T10:00:00Z'), status: 'archived', clientId: null };
+    const tx = {
+      clioConversation: {
+        findFirst: jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
+          where.tenantId === row.tenantId && where.userId === row.userId &&
+          where.id === row.id && (!('archivedAt' in where) || row.archivedAt === where.archivedAt) ? row : null),
+        update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(row, data)),
+      },
+      clioMessage: { findMany: jest.fn(async () => [{ id: 'saved-answer', body: 'Saved before archive.' }]) },
+    };
+    const service = Object.assign(Object.create(MeriService.prototype), {
+      prisma: { withTenant: jest.fn(async (_id: string, fn: (db: typeof tx) => unknown) => fn(tx)) },
+    }) as MeriService;
+    return { service, tx, row };
+  }
+
+  it('discovers the owned archived row without restoring or reading its messages, then restores the saved conversation', async () => {
+    const h = archivedHarness();
+    await expect(h.service.getConversation(ctx, 'conversation')).resolves.toMatchObject({ status: 'archived' });
+    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();
+    expect(h.tx.clioMessage.findMany).not.toHaveBeenCalled();
+    await expect(h.service.listMessages(ctx, 'conversation')).rejects.toThrow('Meri conversation not found');
+    await h.service.restoreConversation(ctx, 'conversation');
+    expect(h.row).toMatchObject({ archivedAt: null, status: 'active' });
+    await expect(h.service.listMessages(ctx, 'conversation')).resolves.toEqual([{ id: 'saved-answer', body: 'Saved before archive.' }]);
+  });
+
+  it.each([{ tenantId: 'other-tenant' }, { userId: 'other-user' }])('rejects archive discovery and restore outside the owner (%j)', async (scope) => {
+    const h = archivedHarness();
+    const foreign = { ...ctx, ...scope };
+    await expect(h.service.getConversation(foreign, 'conversation')).rejects.toThrow('Meri conversation not found');
+    await expect(h.service.restoreConversation(foreign, 'conversation')).rejects.toThrow('Meri conversation not found');
+    expect(h.tx.clioConversation.update).not.toHaveBeenCalled();
+  });
+});
+
 describe('native Meri lifecycle persistence matches the final stream receipt', () => {
   afterEach(() => jest.restoreAllMocks());
 

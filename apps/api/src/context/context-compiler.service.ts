@@ -173,9 +173,7 @@ export class ContextCompilerService {
   }
 
   private async persistPacket(packet: TruthfulCompiledContextPacket): Promise<string> {
-    return contextStageTimer.time('persistence', () =>
-      this.persistPacketInner(packet),
-    );
+    return contextStageTimer.time('persistence', () => this.persistPacketInner(packet));
   }
 
   private async persistPacketInner(packet: TruthfulCompiledContextPacket): Promise<string> {

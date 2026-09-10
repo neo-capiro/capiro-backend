@@ -27,7 +27,14 @@ const SUBJECTS = [
   'outcome',
   'optics',
 ] as const;
-const STATUSES = ['draft', 'in_progress', 'internal_review', 'active', 'suggested', 'completed'] as const;
+const STATUSES = [
+  'draft',
+  'in_progress',
+  'internal_review',
+  'active',
+  'suggested',
+  'completed',
+] as const;
 
 // ---- request shapes (what api-strategy forwards) ----
 
@@ -548,7 +555,9 @@ function renderFirmPhases(rows?: FirmPhaseRow[]): string {
 
 function renderReference(ref?: ReferenceGrounding): string {
   if (!ref) return '(reference calendars not provided)';
-  const lines: string[] = ['These are planning reference windows, not verified official deadlines. Their year is part of the evidence: never cite a 2026 reference as support for a 2027 event. Reference windows alone cannot establish an actual budget release, committee deadline, markup or enactment date. Prefer an attached dated primary source; otherwise explicitly describe the date as estimated and needing confirmation.'];
+  const lines: string[] = [
+    'These are planning reference windows, not verified official deadlines. Their year is part of the evidence: never cite a 2026 reference as support for a 2027 event. Reference windows alone cannot establish an actual budget release, committee deadline, markup or enactment date. Prefer an attached dated primary source; otherwise explicitly describe the date as estimated and needing confirmation.',
+  ];
   if (ref.congress?.length) {
     lines.push('Legislative milestones:');
     for (const r of ref.congress.slice(0, 24)) {

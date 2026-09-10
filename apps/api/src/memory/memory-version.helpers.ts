@@ -32,7 +32,8 @@ export const LEARNING_SIGNAL_GOVERNANCE_DECISIONS = [
   'supersede_existing',
   'conflict_requires_review',
 ] as const;
-export type LearningSignalGovernanceDecision = (typeof LEARNING_SIGNAL_GOVERNANCE_DECISIONS)[number];
+export type LearningSignalGovernanceDecision =
+  (typeof LEARNING_SIGNAL_GOVERNANCE_DECISIONS)[number];
 
 export function isLearningSignalGovernanceDecision(
   value: unknown,

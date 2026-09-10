@@ -740,4 +740,98 @@ describe('CompositeProofResolver — R8.1 fail-closed production proof', () => {
     expect(result.proofBundle.sourceDocument.sourceSha256).toBe(SOURCE_SHA);
     expect(result.proofBundle.archive.status).toBe('verified');
   });
+
+  /* ------------------------------------------------------------------ */
+  /* Phase 10B-31: sourceKey vs sourceLocator metadata-agreement repair  */
+  /* ------------------------------------------------------------------ */
+  //
+  // Reproduces the confirmed production bug (Phase 10B-31): the lifecycle
+  // bridge's synthetic manifest set `sourceLocator` to an ephemeral LOCAL
+  // DISK scratch path (`/tmp/.../<uuid>.bin`), structurally never equal to
+  // the persisted SourceDocument's stable `sourceKey`
+  // (`defense-budget-observation-<dedupKey>`) -- so every real lifecycle-
+  // bridge candidate deterministically produced a blocking
+  // `source_metadata_mismatch` finding and REJECTed, regardless of whether
+  // anything was actually wrong with the document. These tests exercise the
+  // fix (the manifest's dedicated `expectedSourceKey` field) directly against
+  // the real resolver, not just the isolated schema/builder unit above.
+
+  function makeDepsWithManifestOverride(manifestDocumentOverrides: Record<string, unknown>) {
+    const artifact = buildArtifact(SOURCE_SHA);
+    const manifest = buildManifest('/tmp/phase10b1-obs-bridge-replay-abc123/deadbeef.bin');
+    Object.assign(manifest.documents[0] as Record<string, unknown>, manifestDocumentOverrides);
+    const reader = makeReader({
+      '/manifest.json': Buffer.from(JSON.stringify(manifest)),
+      '/artifact.json': Buffer.from(JSON.stringify(artifact)),
+      // Note: the ephemeral scratch-path sourceLocator above is deliberately
+      // NOT registered in the reader -- production_proof mode never reads
+      // bytes from it (see production_proof-only assertion below); only
+      // local_inspect mode would fall back to it.
+      's3://b/k?versionId=v1': SRC_BYTES,
+    });
+    return makeDeps({
+      byteLocatorReader: reader,
+      sourceDocumentClient: makeSourceDocClient({
+        id: 'sd-1',
+        sourceKey: 'defense-budget-observation-cf5b34c86b34b7e75d9c5be7d18f4dc5a8bbea08aec23611bc2020efce6f74c4',
+        sha256: SOURCE_SHA,
+        // Matches buildManifest()'s own fixture values exactly (fiscalYear
+        // 2027 on the manifest envelope, component/budgetCycle/documentType
+        // on the document) so ONLY the sourceKey comparison this test targets
+        // can possibly disagree -- never an incidental mismatch on some
+        // other field.
+        fiscalYear: 2027,
+        component: 'ARMY',
+        budgetCycle: 'pb',
+        documentType: 'exhibit',
+        archiveBucket: 'b',
+        archiveS3Key: 'k',
+        archiveVersionId: 'v1',
+      }),
+    });
+  }
+
+  it('production_proof: a manifest sourceLocator that is an unrelated scratch path does NOT fire a mismatch when expectedSourceKey matches the persisted sourceKey', async () => {
+    const deps = makeDepsWithManifestOverride({
+      expectedSourceKey:
+        'defense-budget-observation-cf5b34c86b34b7e75d9c5be7d18f4dc5a8bbea08aec23611bc2020efce6f74c4',
+    });
+    const resolver = new CompositeProofResolver(deps);
+    const result = await resolver.resolve(makeInput());
+    expect(
+      result.proofFindings.some((f: { code: string }) => f.code === 'source_metadata_mismatch'),
+    ).toBe(false);
+  });
+
+  it('production_proof: expectedSourceKey disagreeing with the persisted sourceKey still fires a blocking mismatch', async () => {
+    const deps = makeDepsWithManifestOverride({
+      expectedSourceKey: 'defense-budget-observation-some-other-document-entirely',
+    });
+    const resolver = new CompositeProofResolver(deps);
+    const result = await resolver.resolve(makeInput());
+    const finding = result.proofFindings.find(
+      (f: { code: string; severity: string; message: string }) => f.code === 'source_metadata_mismatch' && f.message.includes('sourceKey'),
+    );
+    expect(finding).toBeDefined();
+    expect(finding.severity).toBe('blocking');
+    expect(finding.message).toContain('expectedSourceKey');
+  });
+
+  it('production_proof: an absent expectedSourceKey preserves the prior behavior of comparing against sourceLocator (backward compatible with every curated manifest that predates this field)', async () => {
+    // No expectedSourceKey override: the manifest's sourceLocator is the
+    // scratch path, which does NOT match the persisted sourceKey below --
+    // this is the EXACT pre-existing (imprecise but long-standing) fallback
+    // comparison, unchanged for any caller that has not adopted the new field.
+    const deps = makeDepsWithManifestOverride({});
+    const resolver = new CompositeProofResolver(deps);
+    const result = await resolver.resolve(makeInput());
+    const finding = result.proofFindings.find(
+      (f: { code: string; message: string }) => f.code === 'source_metadata_mismatch' && f.message.includes('sourceKey'),
+    );
+    expect(finding).toBeDefined();
+    // The message names sourceLocator, not expectedSourceKey, confirming the
+    // fallback (not the new field) drove this particular finding.
+    expect(finding.message).toContain('sourceLocator');
+    expect(finding.message).not.toContain('expectedSourceKey');
+  });
 });

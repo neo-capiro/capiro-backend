@@ -710,8 +710,14 @@ export class ChatAssistantService {
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });
     const suppliedClient = typeof input.clientId === 'string' ? input.clientId.trim() : '';
-    if (isMeriMailReadTool(name) && scopeClientId && suppliedClient && suppliedClient !== scopeClientId) {
-      const detail = 'This conversation is pinned to a different client. I did not run the cross-client request.';
+    if (
+      isMeriMailReadTool(name) &&
+      scopeClientId &&
+      suppliedClient &&
+      suppliedClient !== scopeClientId
+    ) {
+      const detail =
+        'This conversation is pinned to a different client. I did not run the cross-client request.';
       steps.push({ tool: name, label, status: 'blocked', detail });
       emit({ type: 'tool_done', tool: name, label, status: 'blocked', detail });
       return { blocked: true, error: detail };

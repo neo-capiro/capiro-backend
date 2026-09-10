@@ -162,7 +162,9 @@ export async function runWithSyncRun(
     if (metricEmitted) return;
     emitMetricLine(
       source,
-      { inserted: 0, updated: 0, skipped: 0, errors: 1 },
+      // A thrown request/setup failure did not finish the source window. Keep
+      // the metric consistent with the canonical error receipt and watermark.
+      { inserted: 0, updated: 0, skipped: 0, errors: 1, complete: false },
       (Date.now() - t0) / 1000,
       options.metricFormat,
     );

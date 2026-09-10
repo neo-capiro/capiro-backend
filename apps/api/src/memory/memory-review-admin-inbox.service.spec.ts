@@ -70,11 +70,7 @@ function item(): MemoryReviewInboxItem {
 function harness(allowed = true) {
   const tx = {};
   const withTenantUser = jest.fn(
-    async (
-      _tenantId: string,
-      _userId: string,
-      work: (value: typeof tx) => unknown,
-    ) => work(tx),
+    async (_tenantId: string, _userId: string, work: (value: typeof tx) => unknown) => work(tx),
   );
   const loadCandidateInTx = jest.fn(async () => subject);
   const evaluateInTx = jest.fn(async () =>
@@ -95,14 +91,12 @@ afterEach(() => {
 
 describe('MemoryReviewAdminInboxService', () => {
   it('shows an admin proposer in Needs my review with decision capabilities', async () => {
-    const baseList = jest
-      .spyOn(MemoryReviewInboxService.prototype, 'list')
-      .mockResolvedValue({
-        enabled: true,
-        view: 'all_pending',
-        items: [item()],
-        nextCursor: null,
-      });
+    const baseList = jest.spyOn(MemoryReviewInboxService.prototype, 'list').mockResolvedValue({
+      enabled: true,
+      view: 'all_pending',
+      items: [item()],
+      nextCursor: null,
+    });
     const h = harness(true);
 
     await expect(
@@ -131,13 +125,9 @@ describe('MemoryReviewAdminInboxService', () => {
     );
     expect(h.withTenantUser).toHaveBeenCalledTimes(1);
     expect(h.loadCandidateInTx).toHaveBeenCalledWith(txMatcher(), adminCtx.tenantId, CANDIDATE);
-    expect(h.evaluateInTx).toHaveBeenCalledWith(
-      txMatcher(),
-      adminCtx,
-      subject,
-      'approve',
-      { emitDenialMetrics: false },
-    );
+    expect(h.evaluateInTx).toHaveBeenCalledWith(txMatcher(), adminCtx, subject, 'approve', {
+      emitDenialMetrics: false,
+    });
   });
 
   it('does not manufacture capabilities when current authorization denies the admin', async () => {
@@ -163,9 +153,7 @@ describe('MemoryReviewAdminInboxService', () => {
       items: [item()],
       nextCursor: null,
     };
-    const baseList = jest
-      .spyOn(MemoryReviewInboxService.prototype, 'list')
-      .mockResolvedValue(page);
+    const baseList = jest.spyOn(MemoryReviewInboxService.prototype, 'list').mockResolvedValue(page);
     const h = harness(true);
 
     await expect(h.service.list(standardCtx, { view: 'needs_my_review' })).resolves.toBe(page);

@@ -187,6 +187,10 @@ describe('ParserRouterV1Service executable workflow', () => {
         sourceDocumentId: 'source-document-1',
         expectedSourcePdfSha256: SOURCE_SHA,
         expectedExtractionArtifactSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        // Phase 10B-28R: the router hands the verifier ITS governed cycle id
+        // (the lifecycle cycle on the bridge path), so persisted candidate
+        // identity never depends on the proof manifest's cycleId label.
+        cycleId: 'fy2027-pb',
       }),
     );
     const artifact = JSON.parse(readFileSync(output.artifactLocator, 'utf8'));
@@ -260,5 +264,31 @@ describe('ParserRouterV1Service executable workflow', () => {
     expect(computeParserConfigSha256(getDefaultParserConfig('deterministic_pdfplumber'))).toMatch(
       /^[a-f0-9]{64}$/,
     );
+  });
+
+  it('refuses to dispatch to an engine reported ENGINE_UNAVAILABLE instead of crashing inside the runtime (Phase 10B-21A regression, independent-review Finding 3)', async () => {
+    // `mixed_layout` policy selects docling as the FIRST engine for the
+    // page (route-planner.ts `initialEngineForPolicy`), so this exercises
+    // the TypeScript routing defense directly rather than via an
+    // escalation round. Matches the real Phase 10B-20 production shape: a
+    // specialized image that deliberately omits the docling extra reports
+    // it as unavailable via `parserVersions`, and the router must refuse
+    // BEFORE ever invoking the runtime client for that engine -- never a
+    // raw crash surfaced from inside the Python process.
+    const parserRuntime = runtime();
+    const verifier = verification(async (request) => result(request, 'PASS'));
+    const service = new ParserRouterV1Service(
+      { ...config(), parserPolicy: 'mixed_layout', parserVersions: { ...versions, docling: 'ENGINE_UNAVAILABLE' } },
+      {
+        artifactStore: new FilesystemParserArtifactStore(join(workDir, 'cache')),
+        runtimeClient: parserRuntime,
+        verificationService: verifier,
+      },
+    );
+
+    await expect(service.execute([profile], [1])).rejects.toThrow(
+      /docling is not available in this runtime image.*ENGINE_UNAVAILABLE/s,
+    );
+    expect((parserRuntime.executeJob as jest.Mock).mock.calls).toHaveLength(0);
   });
 });

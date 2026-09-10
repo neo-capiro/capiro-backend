@@ -90,6 +90,26 @@ function routeFetch(stream: (init?: RequestInit) => Response | Promise<Response>
 }
 
 describe('Meri work belongs to its pending turn', () => {
+  test('keeps streamed saved documents on their assistant turn after closing the canvas and starting a new turn', async () => {
+    const stream = controlledStream();
+    const artifact = { id: 'saved-pdf', title: 'Glass Harbor', kind: 'pdf_document',
+      bodyText: JSON.stringify({ title: 'Glass Harbor', sections: [{ heading: 'Facts', paragraphs: ['BLUE-ORBIT-47'] }] }) };
+    stream.emit({ type: 'start' }, { type: 'artifact', artifact }, { type: 'artifact', artifact },
+      { type: 'text', text: 'Your document is ready.' }, { type: 'done', messageId: 'saved-document-turn' });
+    stream.close();
+    let turns = 0;
+    routeFetch(() => ++turns === 1 ? stream.response : completeInventory());
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await act(async () => { await result.current.sendMessage('Create a PDF'); });
+    expect(result.current.activeArtifact).toEqual(artifact);
+    act(() => result.current.setActiveArtifact(null));
+    expect(result.current.activeArtifact).toBeNull();
+    expect(result.current.messages.find((message) => message.id === 'saved-document-turn')?.documentArtifacts).toEqual([artifact]);
+    await act(async () => { await result.current.sendMessage('Inventory'); });
+    expect(result.current.messages.find((message) => message.id === 'saved-document-turn')?.documentArtifacts).toEqual([artifact]);
+    expect(result.current.messages.find((message) => message.id === 'saved-inventory')?.documentArtifacts).toBeUndefined();
+  });
+
   test('a workspace client conflict restores the saved scope and shows the actionable message', async () => {
     setConversations([{ id: 'conversation-1', title: 'Client chat', clientId: 'client-a',
       client: { id: 'client-a', name: 'Client A' }, workspaceId: 'workspace-a',

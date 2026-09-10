@@ -53,10 +53,7 @@ describe('MemoryReviewInboxController', () => {
     await controller.list(ctx, 'history', 'cursor', '10');
     await controller.summary(ctx);
     await controller.detail(ctx, '33333333-3333-4333-8333-333333333333');
-    await controller.detailByRequest(
-      ctx,
-      '44444444-4444-4444-8444-444444444444',
-    );
+    await controller.detailByRequest(ctx, '44444444-4444-4444-8444-444444444444');
     await controller.notifications(ctx, 'cursor', '10');
     await controller.unreadCount(ctx);
     await controller.readOne(ctx, '55555555-5555-4555-8555-555555555555');
@@ -67,13 +64,7 @@ describe('MemoryReviewInboxController', () => {
       cursor: 'cursor',
       limit: '10',
     });
-    expect(detailByReviewRequest).toHaveBeenCalledWith(
-      ctx,
-      '44444444-4444-4444-8444-444444444444',
-    );
-    expect(markNotificationRead).toHaveBeenCalledWith(
-      ctx,
-      '55555555-5555-4555-8555-555555555555',
-    );
+    expect(detailByReviewRequest).toHaveBeenCalledWith(ctx, '44444444-4444-4444-8444-444444444444');
+    expect(markNotificationRead).toHaveBeenCalledWith(ctx, '55555555-5555-4555-8555-555555555555');
   });
 });

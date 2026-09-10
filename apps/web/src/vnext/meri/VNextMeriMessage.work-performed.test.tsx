@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ChatMessage } from '../../components/chat/chat-store.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { meriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
@@ -31,6 +31,10 @@ vi.mock('./MeriResearchProgress.js', () => ({
 }));
 
 import { VNextMeriMessage } from './VNextMeriMessage.js';
+import { mapPersistedDocuments } from './meri-route-state.js';
+import { MeriArtifactCanvas } from './MeriArtifactCanvas.js';
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 const savedStep: TrustStep = {
   tool: 'get_client_context',
@@ -82,6 +86,75 @@ function props(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Meri message work performed', () => {
+  test.each([
+    ['', 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
+    ['?format=pdf', 'PDF', 'application/pdf', 'pdf'],
+    ['?format=docx', 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
+  ])('replays and downloads the observed historical sandbox artifact link %s through Markdown sanitation', async (query, label, mime, extension) => {
+    const route = '/api/clio/artifacts/829ed073-157b-4d51-856c-8fbc64ec98ab/download';
+    const content = `[Download the ${label} briefing](sandbox:${route}${query})`;
+    const blob = new Blob([extension === 'pdf' ? '%PDF-1.7' : 'PK-document'], { type: mime });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers({ 'Content-Type': mime,
+      'Content-Disposition': `attachment; filename="briefing.${extension}"` }), blob: async () => blob });
+    vi.stubGlobal('fetch', fetchMock);
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:saved-briefing');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    let filename: string | undefined;
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { filename = this.download; });
+    const authHeaders = vi.fn(async () => ({ Authorization: 'Bearer current-user' }));
+    const original = props({ message: message({ content }), controller: controller({ authHeaders }) });
+    const view = render(<VNextMeriMessage {...original} />);
+    expect(screen.queryByRole('link', { name: `Download the ${label} briefing` })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: `Download the ${label} briefing` }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith(blob));
+    view.unmount();
+    render(<VNextMeriMessage {...original} message={{ ...original.message, content: JSON.parse(JSON.stringify(content)) }} />);
+    fireEvent.click(screen.getByRole('button', { name: `Download the ${label} briefing` }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    expect(filename).toBe(`briefing.${extension}`);
+    expect(authHeaders).toHaveBeenCalledTimes(2);
+    for (const [url, options] of fetchMock.mock.calls) {
+      expect(url).toMatch(new RegExp(`${route.replaceAll('/', '\\/')}${query ? '\\?format=' + extension : ''}$`));
+      expect(url).not.toContain('sandbox:');
+      expect(options).toMatchObject({ headers: { Authorization: 'Bearer current-user' }, redirect: 'error', cache: 'no-store' });
+    }
+  });
+
+  test.each([
+    'sandbox://evil.example.test/api/clio/artifacts/saved-briefing/download',
+    'sandbox:/api/clio/artifacts/saved-briefing/download/../../private',
+    'sandbox:/mnt/data/private.pdf',
+    'sandbox:/api/clio/artifacts/saved-briefing/download?format=pdf&token=secret',
+    'javascript:alert(1)',
+  ])('keeps Markdown sanitation and auth isolation for unrecognized links: %s', (href) => {
+    const authHeaders = vi.fn();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(<VNextMeriMessage {...props({ message: message({ content: `[Unrecognized file](${href})` }), controller: controller({ authHeaders }) })} />);
+    expect(screen.queryByRole('button', { name: 'Unrecognized file' })).toBeNull();
+    expect(container.querySelector('a[href^="sandbox:"], a[href^="javascript:"]')).toBeNull();
+    expect(authHeaders).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('reopens the persisted PDF document from a historical message with both export controls', () => {
+    const saved = { id: 'saved-pdf', title: 'Glass Harbor QA', kind: 'pdf_document', bodyText: JSON.stringify({
+      title: 'Glass Harbor QA', sections: [{ heading: 'Evidence', paragraphs: ['Checksum BLUE-ORBIT-47; no approval claimed.'] }],
+    }) };
+    const documentArtifacts = mapPersistedDocuments(JSON.parse(JSON.stringify({ artifacts: [saved] })));
+    const setActiveArtifact = vi.fn();
+    render(<VNextMeriMessage {...props({ message: message({ documentArtifacts }), controller: controller({ setActiveArtifact }) })} />);
+    const exports = within(screen.getByRole('group', { name: 'Glass Harbor QA exports' }));
+    expect(exports.getByRole('button', { name: 'Download Word' })).toBeEnabled();
+    expect(exports.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open Glass Harbor QA' }));
+    expect(setActiveArtifact).toHaveBeenCalledWith(saved);
+    render(<MeriArtifactCanvas artifact={setActiveArtifact.mock.calls[0]![0]} onClose={vi.fn()} />);
+    expect(screen.getByRole('article', { name: 'PDF document preview' })).toHaveTextContent('BLUE-ORBIT-47');
+    expect(screen.getByRole('button', { name: 'Download .pdf' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Download .docx' })).toBeEnabled();
+  });
+
   test('keeps stopped-before-text work inspectable without offering copy or feedback for an empty response', () => {
     const original = props({ message: message({ content: '', planSteps: [], trustSteps: [], orchestratorIntent: null,
       runtimeStatus: meriRuntimeStatus({ finishReason: 'aborted', partial: true }),

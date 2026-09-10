@@ -16,11 +16,7 @@ import {
   type SourceResult,
 } from './meriv3-retrieval-recipe-utils.js';
 
-function datedAndCarryover(
-  sources: readonly SourceResult[],
-  from: Date,
-  to: Date,
-) {
+function datedAndCarryover(sources: readonly SourceResult[], from: Date, to: Date) {
   const allEvidence = uniqueEvidence(
     sources.flatMap((source) => evidenceRows(source.tool, source.result, 50)),
   );
@@ -29,9 +25,7 @@ function datedAndCarryover(
     changes: allEvidence
       .filter((row) => withinWindow(row, from, to))
       .sort((a, b) => Date.parse(b.occurredAt ?? '') - Date.parse(a.occurredAt ?? '')),
-    carryover: allEvidence.filter(
-      (row) => !withinWindow(row, from, to) && attentionItem(row),
-    ),
+    carryover: allEvidence.filter((row) => !withinWindow(row, from, to) && attentionItem(row)),
   };
 }
 
@@ -99,10 +93,9 @@ export async function executeMeriClientChanges(
     results: changes.slice(0, 80),
     carryoverAttention: carryover.slice(0, 30),
     coverage: manifest,
-    note:
-      manifest.complete
-        ? 'All required supported sources were completely covered for the selected client and requested window.'
-        : 'This selected-client change scan is partial. Do not confirm a negative statement such as “nothing happened” unless coverage.complete is true. Current opportunity posture is not labeled a change without a dated underlying record.',
+    note: manifest.complete
+      ? 'All required supported sources were completely covered for the selected client and requested window.'
+      : 'This selected-client change scan is partial. Do not confirm a negative statement such as “nothing happened” unless coverage.complete is true. Current opportunity posture is not labeled a change without a dated underlying record.',
   };
 }
 
@@ -151,9 +144,7 @@ export async function executeMeriPortfolioChanges(
       const source = entry.sources.find(
         (candidate) => candidate.tool === 'get_opportunity_client_context',
       );
-      return source
-        ? opportunityPosture(source.result, entry.realId, entry.client.name)
-        : null;
+      return source ? opportunityPosture(source.result, entry.realId, entry.client.name) : null;
     })
     .filter((entry): entry is Record<string, unknown> => Boolean(entry));
   const clientCoverage = fanout.map((entry) => ({
@@ -193,9 +184,8 @@ export async function executeMeriPortfolioChanges(
     results: changes.slice(0, 80),
     carryoverAttention: carryover.slice(0, 30),
     coverage: manifest,
-    note:
-      manifest.complete
-        ? 'All authorized active clients and required supported sources were completely covered for this window.'
-        : 'This portfolio scan is partial. Current opportunity posture is included where a client resolved to a UUID, but it is not labeled as a historical change unless the underlying record has a date in the requested window. Do not state that nothing changed across the portfolio unless coverage.complete is true.',
+    note: manifest.complete
+      ? 'All authorized active clients and required supported sources were completely covered for this window.'
+      : 'This portfolio scan is partial. Current opportunity posture is included where a client resolved to a UUID, but it is not labeled as a historical change unless the underlying record has a date in the requested window. Do not state that nothing changed across the portfolio unless coverage.complete is true.',
   };
 }

@@ -45,7 +45,10 @@ import {
   type ExtractionArtifactBridgeInput,
   type ExtractionArtifactBridgeOutput,
 } from './extraction-artifact-bridge.js';
+import type { ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
+import { FilesystemExtractionArtifactStore } from './extraction-artifact-store.js';
 import type { LocalParserRuntimeClient } from './local-parser-runtime-client.js';
+import { PARSER_ENGINE_UNAVAILABLE_SENTINEL } from './local-parser-runtime-client.js';
 import {
   executeLlamaParsePages,
   selectParseMode,
@@ -63,6 +66,7 @@ import {
   type ParserRunRecorderV1,
 } from './parser-artifact-store.js';
 import { getDefaultParserConfig } from './parser-engine-defaults.js';
+import { buildParserRunIdentityV1 } from './parser-run-identity-v1.js';
 import { CostAccumulator, type ParserCostReportV1 } from './cost-accounting.js';
 import { assertRouterStateTransition } from './router-state-machine.js';
 
@@ -128,6 +132,7 @@ export interface ParserRouterDependencies {
   artifactStore: ParserArtifactStoreV1;
   runtimeClient: LocalParserRuntimeClient;
   verificationService: BudgetVerificationV1Service;
+  extractionArtifactStore?: ExtractionArtifactStoreV1;
   parserRunRecorder?: ParserRunRecorderV1;
   llamaparseAuthorization?: PaidAuthorization | null;
   llamaparseClient?: LlamaParseClient;
@@ -139,8 +144,8 @@ export interface ParserRouterDependencies {
   };
   artifactFactory?: (
     input: ExtractionArtifactBridgeInput,
-    outputDir: string,
-  ) => ExtractionArtifactBridgeOutput;
+    store: ExtractionArtifactStoreV1,
+  ) => Promise<ExtractionArtifactBridgeOutput> | ExtractionArtifactBridgeOutput;
 }
 
 interface StepExecution {
@@ -210,7 +215,11 @@ export class ParserRouterV1Service {
         parserRunEntries: this.allParserResults,
         plan: activePlan,
       });
-      bridgeOutput = this.artifactFactory(this.buildBridgeInput(composed), this.config.workDir);
+      bridgeOutput = await this.artifactFactory(
+        this.buildBridgeInput(composed),
+        this.dependencies.extractionArtifactStore ??
+          new FilesystemExtractionArtifactStore(`${this.config.workDir}/artifacts`),
+      );
 
       this.transitionTo('VERIFYING');
       verificationResult = await this.runVerification(bridgeOutput);
@@ -362,16 +371,31 @@ export class ParserRouterV1Service {
         `missing exact runtime version for ${engine}; call parser runtime version --json first`,
       );
     }
+    /* Phase 10B-21A: explicit, typed routing defense -- matches the Python
+     * runtime's `ENGINE_UNAVAILABLE` sentinel (`engine_versions.py`,
+     * `docling_engine.py`) exactly, rather than relying only on the falsy
+     * check above. A version string that merely LOOKS real (the pre-fix
+     * "docling-unavailable-cpu" shape) would have passed that check and
+     * still been dispatched to an engine that cannot run -- the Phase
+     * 10B-20 production finding. This check is independent of whatever the
+     * Python side currently does: even if a future engine reintroduces a
+     * version-shaped placeholder instead of using the sentinel, refusing on
+     * this exact, greppable value is the second half of the defense. */
+    if (parserVersion === PARSER_ENGINE_UNAVAILABLE_SENTINEL) {
+      throw new Error(
+        `parser engine ${engine} is not available in this runtime image (reported ${PARSER_ENGINE_UNAVAILABLE_SENTINEL}); ` +
+          'this image cannot gracefully escalate to it -- repair the specialized image rather than routing a step to it',
+      );
+    }
     const parserConfig = getDefaultParserConfig(engine);
     const parserConfigSha256 = computeParserConfigSha256(parserConfig);
-    const identity = {
+    const identity = buildParserRunIdentityV1({
       sourceSha256: this.config.sourceSha256,
       method: engine,
       parserVersion,
       parserConfigSha256,
-      pages: step.pages,
-      runtimeContractVersion: 'defense_budget_parser_job_v1',
-    } as const;
+      requestedPages: step.pages,
+    });
 
     const replay = await reuseOrCreate(this.dependencies.artifactStore, identity, async () => {
       const execution = await this.dependencies.runtimeClient.executeJob({
@@ -457,14 +481,13 @@ export class ParserRouterV1Service {
       pageType,
     );
     const parserVersion = this.config.parserVersions?.llamaparse ?? 'llamaparse-v1';
-    const identity = {
+    const identity = buildParserRunIdentityV1({
       sourceSha256: this.config.sourceSha256,
-      method: 'llamaparse' as const,
+      method: 'llamaparse',
       parserVersion,
       parserConfigSha256,
-      pages: step.pages,
-      runtimeContractVersion: 'defense_budget_parser_job_v1',
-    };
+      requestedPages: step.pages,
+    });
     // Mutable box so proof assigned inside produce() remains visible to TS after await.
     const freshProofBox: { value: LlamaParseRunProofV1 | null } = { value: null };
 
@@ -632,6 +655,14 @@ export class ParserRouterV1Service {
       mode: this.config.persistVerificationAudit ? 'persist_audit' : 'inspect',
       expectedSourcePdfSha256: this.config.sourceSha256,
       expectedExtractionArtifactSha256: bridgeOutput.artifactByteSha256,
+      // Phase 10B-28R: the candidate is persisted under THIS router's governed
+      // cycle id -- the lifecycle DefenseBudgetCycle.id on the ingestion-bridge
+      // path (the same value readiness/eligibility readers query by), the
+      // manifest's own cycleId on curated CLI paths (identical to the manifest
+      // label there). The proof manifest may carry a fiscal-year-tagged label
+      // instead (see lifecycle-bridge-manifest-cycle-id-v1.ts); that label
+      // stays hash-bound and is recorded on the manifest proof snapshot.
+      cycleId: this.config.cycleId,
     };
     return this.dependencies.verificationService.verify(request);
   }

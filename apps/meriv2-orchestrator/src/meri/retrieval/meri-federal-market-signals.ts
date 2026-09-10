@@ -99,7 +99,10 @@ const AGENCY_PATTERNS: Array<[RegExp, string]> = [
   [/\bdepartment of defense\b|\bdefense department\b|\bdod\b/i, 'Department of Defense'],
   [/\bdepartment of the army\b|\bu\.s\. army\b|\bus army\b/i, 'Department of the Army'],
   [/\bdepartment of the navy\b|\bu\.s\. navy\b|\bus navy\b/i, 'Department of the Navy'],
-  [/\bdepartment of the air force\b|\bu\.s\. air force\b|\bus air force\b/i, 'Department of the Air Force'],
+  [
+    /\bdepartment of the air force\b|\bu\.s\. air force\b|\bus air force\b/i,
+    'Department of the Air Force',
+  ],
   [/\bspace force\b|\bussf\b/i, 'U.S. Space Force'],
   [/\bmarine corps\b|\busmc\b/i, 'U.S. Marine Corps'],
   [/\bspecial operations command\b|\bussocom\b|\bsocom\b/i, 'U.S. Special Operations Command'],
@@ -248,9 +251,7 @@ export function extractMeriFederalMarketSignals(
 }
 
 export function meriFederalMarketSearchTerms(signals: MeriFederalMarketSignals): string[] {
-  return [...new Set(signals.capabilityTerms)]
-    .filter((term) => term.length >= 4)
-    .slice(0, 6);
+  return [...new Set(signals.capabilityTerms)].filter((term) => term.length >= 4).slice(0, 6);
 }
 
 export function meriFederalMarketQualificationGaps(input: {

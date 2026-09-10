@@ -38,11 +38,8 @@ describe('MemoryCandidateReviewService assignment authorization', () => {
       const tx = {};
       const prisma = {
         withTenantUser: jest.fn(
-          async (
-            _tenantId: string,
-            _userId: string,
-            work: (value: typeof tx) => unknown,
-          ) => work(tx),
+          async (_tenantId: string, _userId: string, work: (value: typeof tx) => unknown) =>
+            work(tx),
         ),
       } as unknown as PrismaService;
       const authorization = {

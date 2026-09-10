@@ -1,6 +1,7 @@
-import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { RETRIEVAL_DOMAINS, type RetrievalDomain, type RetrievalRequest, type RetrievalResponse } from '../retrieval/retrieval-v2.types.js';
+import { RETRIEVAL_DOMAINS, type RetrievalDomain } from '../retrieval/retrieval-v2.types.js';
+import type { MeriContextPlaneService } from './meri-context-plane.service.js';
 
 export const MERI_DATA_QUERY_CLASSES = [
   'lookup', 'semantic_recall', 'comparison', 'entity_history', 'change_detection', 'exhaustive_search', 'federal_market_analysis',
@@ -77,29 +78,18 @@ export function parseCapiroDataSearchInput(input: Record<string, unknown>): Data
     queryClass: queryClass as DataSearchInput['queryClass'], pageSize, cursors, windowStart, windowEnd };
 }
 
-interface SecurityEnvelope {
-  authorizedClientIds: string[];
-  authorizedMailboxConnectionIds: string[];
-}
-
-/** Thin tool seam over the shared retrieval plane. Scope is recomputed from the
- * authenticated actor on EVERY call, including follow-up pages. Tool input can
- * narrow the subject; it can never create an authorization envelope. */
+/** Validate tool selectors, then enter Meri's adopted Context Plane boundary.
+ * That service recomputes authority on every page before the gateway runs. */
 export async function searchCapiroData(
   ctx: TenantContext,
   rawInput: Record<string, unknown>,
-  retrieval?: { retrieve: (request: RetrievalRequest) => Promise<RetrievalResponse> },
-  resolveSecurity?: (ctx: TenantContext) => Promise<SecurityEnvelope>,
+  contextPlane?: Pick<MeriContextPlaneService, 'searchToolData'>,
 ) {
   const input = parseCapiroDataSearchInput(rawInput);
-  if (!retrieval || !resolveSecurity) {
+  if (!contextPlane) {
     throw new ServiceUnavailableException('Shared retrieval is unavailable; no data was searched');
   }
-  const security = await resolveSecurity(ctx);
-  if (input.clientId && !security.authorizedClientIds.includes(input.clientId)) {
-    throw new NotFoundException('Client not found');
-  }
-  const result = await retrieval.retrieve({
+  const result = await contextPlane.searchToolData(ctx, {
     query: input.query || undefined,
     ...(input.memoryItemId ? { memoryItemId: input.memoryItemId } : {}),
     queryClass: input.queryClass,
@@ -109,15 +99,7 @@ export async function searchCapiroData(
     windowStart: input.windowStart,
     windowEnd: input.windowEnd,
     requireComplete: input.queryClass === 'exhaustive_search',
-    caller: {
-      tenantId: ctx.tenantId,
-      userId: ctx.userId,
-      authorizedClientIds: security.authorizedClientIds,
-      // Keep an explicit empty envelope: a disconnected mailbox is not license
-      // to broaden retrieval. The source reports its availability separately.
-      authorizedMailboxConnectionIds: security.authorizedMailboxConnectionIds,
-      ...(input.clientId ? { clientIds: [input.clientId] } : {}),
-    },
+    ...(input.clientId ? { clientId: input.clientId } : {}),
   });
   // Preserve source provenance, cursors and coverage truth verbatim. Do not
   // manufacture completeness from the count or silently discard failed domains.

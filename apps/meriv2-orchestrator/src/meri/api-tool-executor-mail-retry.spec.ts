@@ -3,7 +3,7 @@ import { RequestCredentialsStore } from '../request/request-credentials.store.js
 import type { ToolExecutionControl } from '@capiro/meriv2-core';
 
 const CAPACITY = { statusCode: 503, message: 'The database is temporarily busy. Please retry.' };
-const config = { get: (key: string) => key === 'MERIV2_TOOL_TIMEOUT_MS' ? '60000' : undefined };
+const config = { get: (key: string) => (key === 'MERIV2_TOOL_TIMEOUT_MS' ? '60000' : undefined) };
 const originalFetch = global.fetch;
 
 function busy(retryAfter: string | null = '2', payload: unknown = CAPACITY, status = 503) {
@@ -16,13 +16,18 @@ function busy(retryAfter: string | null = '2', payload: unknown = CAPACITY, stat
 function execute(tool = 'list_emails', control?: ToolExecutionControl) {
   return RequestCredentialsStore.run({ bearerToken: 'caller-bearer' }, () =>
     new ApiToolExecutorRepo(config as never).execute(
-      {} as never, tool, { withinDays: 14, folder: 'inbox' }, control,
+      {} as never,
+      tool,
+      { withinDays: 14, folder: 'inbox' },
+      control,
     ),
   );
 }
 
 describe('mail read retry after explicit API capacity failure', () => {
-  beforeEach(() => { jest.useFakeTimers(); });
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
   afterEach(() => {
     global.fetch = originalFetch;
     jest.useRealTimers();
@@ -32,7 +37,9 @@ describe('mail read retry after explicit API capacity failure', () => {
     '%s recovers once, retaining request scope, identity and original deadline',
     async (tool) => {
       const receipt = { totalMatches: 389, returned: 15, hasMore: true };
-      const fetchMock = jest.fn().mockResolvedValueOnce(busy())
+      const fetchMock = jest
+        .fn()
+        .mockResolvedValueOnce(busy())
         .mockResolvedValueOnce(new Response(JSON.stringify(receipt)));
       global.fetch = fetchMock;
       const deadlineAt = Date.now() + 5_000;
@@ -45,7 +52,8 @@ describe('mail read retry after explicit API capacity failure', () => {
       expect(fetchMock.mock.calls[1]).toEqual(fetchMock.mock.calls[0]);
       const request = fetchMock.mock.calls[1][1] as RequestInit;
       expect(request.headers).toMatchObject({
-        authorization: 'Bearer caller-bearer', 'x-meri-deadline-at': String(deadlineAt),
+        authorization: 'Bearer caller-bearer',
+        'x-meri-deadline-at': String(deadlineAt),
       });
       expect(jest.getTimerCount()).toBe(0);
     },
@@ -78,7 +86,8 @@ describe('mail read retry after explicit API capacity failure', () => {
   });
 
   test.each(['send_email', 'save_note', 'save_chat_attachments', 'search_memory'])(
-    'never adds a retry to %s', async (tool) => {
+    'never adds a retry to %s',
+    async (tool) => {
       const fetchMock = jest.fn().mockResolvedValue(busy());
       global.fetch = fetchMock;
       await expect(execute(tool)).rejects.toThrow('failed: 503');
@@ -89,7 +98,9 @@ describe('mail read retry after explicit API capacity failure', () => {
   test('does not retry when the server delay would consume the remaining turn deadline', async () => {
     const fetchMock = jest.fn().mockResolvedValue(busy());
     global.fetch = fetchMock;
-    await expect(execute('list_emails', { deadlineAt: Date.now() + 1_000 })).rejects.toThrow('failed: 503');
+    await expect(execute('list_emails', { deadlineAt: Date.now() + 1_000 })).rejects.toThrow(
+      'failed: 503',
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(jest.getTimerCount()).toBe(0);
   });
@@ -98,8 +109,9 @@ describe('mail read retry after explicit API capacity failure', () => {
     const abort = new AbortController();
     const fetchMock = jest.fn().mockResolvedValue(busy());
     global.fetch = fetchMock;
-    const result = expect(execute('search_emails', { signal: abort.signal }))
-      .rejects.toMatchObject({ name: 'AbortError' });
+    const result = expect(execute('search_emails', { signal: abort.signal })).rejects.toMatchObject(
+      { name: 'AbortError' },
+    );
     await jest.advanceTimersByTimeAsync(500);
     abort.abort();
     await result;
@@ -108,14 +120,21 @@ describe('mail read retry after explicit API capacity failure', () => {
   });
 
   test('the retry fetch uses the remaining deadline rather than a fresh timeout', async () => {
-    const fetchMock = jest.fn().mockResolvedValueOnce(busy()).mockImplementationOnce(
-      async (_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
-        init.signal!.addEventListener('abort', () => reject(init.signal!.reason), { once: true });
-      }),
-    );
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(busy())
+      .mockImplementationOnce(
+        async (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal!.addEventListener('abort', () => reject(init.signal!.reason), {
+              once: true,
+            });
+          }),
+      );
     global.fetch = fetchMock;
-    const result = expect(execute('list_emails', { deadlineAt: Date.now() + 2_500 }))
-      .rejects.toMatchObject({ name: 'TimeoutError' });
+    const result = expect(
+      execute('list_emails', { deadlineAt: Date.now() + 2_500 }),
+    ).rejects.toMatchObject({ name: 'TimeoutError' });
     await jest.advanceTimersByTimeAsync(2_500);
     await result;
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -124,7 +143,9 @@ describe('mail read retry after explicit API capacity failure', () => {
 
   test('accepts a short HTTP-date Retry-After', async () => {
     const retryAt = new Date(Date.now() + 2_000).toUTCString();
-    const fetchMock = jest.fn().mockResolvedValueOnce(busy(retryAt))
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(busy(retryAt))
       .mockResolvedValueOnce(new Response('{"returned":0,"totalMatches":0}'));
     global.fetch = fetchMock;
     const result = execute();

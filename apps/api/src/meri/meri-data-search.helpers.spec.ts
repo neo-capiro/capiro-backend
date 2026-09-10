@@ -1,6 +1,13 @@
+jest.mock('../context/context-plane-gateway.service.js', () => ({ ContextPlaneGatewayService: class ContextPlaneGatewayService {} }));
+jest.mock('../knowledge/entities/universal-entity-resolution-orchestrator.service.js', () => ({ UniversalEntityResolutionOrchestratorService: class UniversalEntityResolutionOrchestratorService {} }));
+jest.mock('../retrieval/retrieval-v2.service.js', () => ({ RetrievalV2Service: class RetrievalV2Service {} }));
+
 import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { RetrievalResponse } from '../retrieval/retrieval-v2.types';
+import { ContextResolverService } from '../context/context-resolver.service.js';
+import type { ContextResolutionRequest } from '../context/context-resolver.types.js';
+import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { parseCapiroDataSearchInput, searchCapiroData } from './meri-data-search.helpers';
 import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
 
@@ -17,10 +24,24 @@ const response = {
 } as unknown as RetrievalResponse;
 
 function fixture() {
-  return {
-    retrieve: jest.fn(async () => response),
-    security: jest.fn(async () => ({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: ['mailbox-a'] })),
+  const retrieve = jest.fn(async () => response);
+  const resolver = new ContextResolverService({} as never, { retrieve } as never);
+  const gateway = {
+    requestContext: jest.fn(async ({ resolverRequest }: { resolverRequest: ContextResolutionRequest }) => ({
+      kind: 'governed_packet',
+      context: await resolver.resolveAndRetrieve(resolverRequest),
+    })),
   };
+  const tx = {
+    client: { findMany: jest.fn(async () => [{ id: clientId }]) },
+    integrationConnection: { findMany: jest.fn(async () => [{ id: 'mailbox-a' }]) },
+  };
+  const prisma = {
+    withTenantUser: jest.fn(async (_tenant: string, _actor: string, read: (client: typeof tx) => unknown) => read(tx)),
+  };
+  const contextPlane = new MeriContextPlaneService(prisma as never, gateway as never);
+  const security = jest.spyOn(contextPlane, 'securityEnvelope');
+  return { retrieve, security, contextPlane, gateway, prisma, tx };
 }
 
 describe('search_capiro_data tool seam', () => {
@@ -29,7 +50,7 @@ describe('search_capiro_data tool seam', () => {
     f.retrieve.mockResolvedValue({ ...response, records: [
       { domain: 'strategies_work', recordId: 'long-record', payload: { text: 'x'.repeat(30000) } },
     ] });
-    const result = await searchCapiroData(ctx, input, f, f.security);
+    const result = await searchCapiroData(ctx, input, f.contextPlane);
     const prompt = wrapToolResultForPrompt('search_capiro_data', result, 12000);
     expect(prompt).toContain('strategy-page-2');
     expect(prompt).toContain('mailbox_not_connected');
@@ -42,8 +63,13 @@ describe('search_capiro_data tool seam', () => {
     const result = await searchCapiroData(ctx, {
       ...input, caller: { tenantId: 'tenant-b', userId: 'user-b' }, authorizedClientIds: [otherClient],
       authorizedMailboxConnectionIds: ['other-mailbox'], cursors: { strategies_work: 'strategy-page-2' }, pageSize: 100,
-    }, f, f.security);
+    }, f.contextPlane);
     expect(f.security).toHaveBeenCalledWith(ctx);
+    expect(f.prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function));
+    expect(f.gateway.requestContext).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: 'meri.chat',
+      resolverRequest: expect.objectContaining({ subjectScope: 'client', clientId, surface: 'chat' }),
+    }));
     expect(f.retrieve).toHaveBeenCalledWith(expect.objectContaining({
       query: input.query, requestedDomains: input.domains, queryClass: 'lookup',
       cursors: { strategies_work: 'strategy-page-2' }, pageSize: 100,
@@ -56,9 +82,9 @@ describe('search_capiro_data tool seam', () => {
 
   it('rechecks grants on follow-up pages and rejects a revoked client before retrieving', async () => {
     const f = fixture();
-    await searchCapiroData(ctx, input, f, f.security);
+    await searchCapiroData(ctx, input, f.contextPlane);
     f.security.mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] });
-    await expect(searchCapiroData(ctx, { ...input, cursors: { strategies_work: 'strategy-page-2' } }, f, f.security))
+    await expect(searchCapiroData(ctx, { ...input, cursors: { strategies_work: 'strategy-page-2' } }, f.contextPlane))
       .rejects.toBeInstanceOf(NotFoundException);
     expect(f.security).toHaveBeenCalledTimes(2);
     expect(f.retrieve).toHaveBeenCalledTimes(1);
@@ -67,7 +93,7 @@ describe('search_capiro_data tool seam', () => {
   it('does not broaden an empty mailbox/client envelope for a portfolio request', async () => {
     const f = fixture();
     f.security.mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] });
-    await searchCapiroData(ctx, { query: 'recent work', domains: ['mail'] }, f, f.security);
+    await searchCapiroData(ctx, { query: 'recent work', domains: ['mail'] }, f.contextPlane);
     expect(f.retrieve).toHaveBeenCalledWith(expect.objectContaining({ caller: {
       tenantId: ctx.tenantId, userId: ctx.userId, authorizedClientIds: [], authorizedMailboxConnectionIds: [],
     } }));
@@ -76,15 +102,12 @@ describe('search_capiro_data tool seam', () => {
   it('fails closed when authorization cannot be resolved', async () => {
     const f = fixture();
     f.security.mockRejectedValue(new Error('Security scope unavailable'));
-    await expect(searchCapiroData(ctx, input, f, f.security)).rejects.toThrow('Security scope unavailable');
+    await expect(searchCapiroData(ctx, input, f.contextPlane)).rejects.toThrow('Security scope unavailable');
     expect(f.retrieve).not.toHaveBeenCalled();
   });
 
   it('reports an unavailable service without pretending it searched or found no data', async () => {
     await expect(searchCapiroData(ctx, input)).rejects.toBeInstanceOf(ServiceUnavailableException);
-    const f = fixture();
-    await expect(searchCapiroData(ctx, input, f)).rejects.toBeInstanceOf(ServiceUnavailableException);
-    expect(f.retrieve).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -95,7 +118,7 @@ describe('search_capiro_data tool seam', () => {
     { windowStart: '2026-09-06T00:00:00Z', windowEnd: '2026-09-05T00:00:00Z' },
   ])('rejects unsupported options before data access: %p', async (options) => {
     const f = fixture();
-    await expect(searchCapiroData(ctx, { ...input, ...options }, f, f.security)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(searchCapiroData(ctx, { ...input, ...options }, f.contextPlane)).rejects.toBeInstanceOf(BadRequestException);
     expect(f.security).not.toHaveBeenCalled();
     expect(f.retrieve).not.toHaveBeenCalled();
   });
@@ -104,7 +127,7 @@ describe('search_capiro_data tool seam', () => {
     const f = fixture();
     await searchCapiroData(ctx, { ...input, queryClass: 'exhaustive_search',
       windowStart: '2026-09-01T00:00:00Z', windowEnd: '2026-09-06T00:00:00Z',
-    }, f, f.security);
+    }, f.contextPlane);
     expect(f.retrieve).toHaveBeenCalledWith(expect.objectContaining({ requireComplete: true,
       windowStart: new Date('2026-09-01T00:00:00Z'), windowEnd: new Date('2026-09-06T00:00:00Z'),
     }));
@@ -115,7 +138,7 @@ describe('search_capiro_data tool seam', () => {
     const f = fixture();
     await searchCapiroData(ctx, { query: '', domains: ['strategies_work', 'action_recommendations'], clientId,
       queryClass: 'exhaustive_search',
-    }, f, f.security);
+    }, f.contextPlane);
     expect(f.retrieve).toHaveBeenCalledWith(expect.objectContaining({ query: undefined,
       queryClass: 'exhaustive_search', requireComplete: true,
       requestedDomains: ['strategies_work', 'action_recommendations'],
@@ -128,7 +151,7 @@ describe('search_capiro_data tool seam', () => {
 describe('exact canonical memory reads', () => {
   it('passes exact item narrowing through the authenticated shared plane', async () => {
     const f = fixture();
-    await searchCapiroData(ctx, { query: 'Read approved memory', domains: ['institutional_knowledge'], queryClass: 'lookup', memoryItemId: otherClient, clientId }, f, f.security);
+    await searchCapiroData(ctx, { query: 'Read approved memory', domains: ['institutional_knowledge'], queryClass: 'lookup', memoryItemId: otherClient, clientId }, f.contextPlane);
     expect(f.retrieve).toHaveBeenCalledWith(expect.objectContaining({ memoryItemId: otherClient, caller: expect.objectContaining({ clientIds: [clientId] }) }));
   });
   it.each([

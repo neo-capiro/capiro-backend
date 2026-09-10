@@ -100,12 +100,10 @@ function serviceHarness(tx: Record<string, unknown>, evaluate?: jest.Mock) {
   const authorization = {
     loadCandidateInTx: jest.fn(async () => subject),
     evaluateInTx:
-      evaluate ??
-      jest.fn(async () => ({ allowed: true as const, basis: 'admin' as const })),
+      evaluate ?? jest.fn(async () => ({ allowed: true as const, basis: 'admin' as const })),
   } as unknown as MemoryAuthorizationService;
   const withTenantUser = jest.fn(
-    async (_tenantId: string, _userId: string, work: (value: unknown) => unknown) =>
-      work(tx),
+    async (_tenantId: string, _userId: string, work: (value: unknown) => unknown) => work(tx),
   );
   const prisma = { withTenantUser } as unknown as PrismaService;
   return {
@@ -189,9 +187,9 @@ describe('MemoryReviewWorkflowService', () => {
 
   it('requires bounded feedback before opening a transaction', async () => {
     const h = serviceHarness({});
-    await expect(
-      h.service.requestChanges(reviewerCtx, CANDIDATE, '   '),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(h.service.requestChanges(reviewerCtx, CANDIDATE, '   ')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(h.withTenantUser).not.toHaveBeenCalled();
   });
 
@@ -204,9 +202,20 @@ describe('MemoryReviewWorkflowService', () => {
       decidedAt: new Date('2026-08-05T20:05:00.000Z'),
     });
     const queryRaw = mockQueryRaw()
-      .mockResolvedValueOnce([{ id: CANDIDATE, clientId: null, proposedBy: PROPOSER, sourceKind: 'settings_sections', scope: 'firm', payload: { canonicalItem: { title: 'Firm Soul' } } }])
+      .mockResolvedValueOnce([
+        {
+          id: CANDIDATE,
+          clientId: null,
+          proposedBy: PROPOSER,
+          sourceKind: 'settings_sections',
+          scope: 'firm',
+          payload: { canonicalItem: { title: 'Firm Soul' } },
+        },
+      ])
       .mockResolvedValueOnce([pending])
-      .mockResolvedValueOnce([activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer')])
+      .mockResolvedValueOnce([
+        activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer'),
+      ])
       .mockResolvedValueOnce([pending])
       .mockResolvedValueOnce(identities());
     const update = jest.fn(async () => updated);
@@ -226,16 +235,31 @@ describe('MemoryReviewWorkflowService', () => {
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: REQUEST },
-      data: expect.objectContaining({ status: 'changes_needed', reason: 'Add the underlying source.', decidedBy: REVIEWER }),
+      data: expect.objectContaining({
+        status: 'changes_needed',
+        reason: 'Add the underlying source.',
+        decidedBy: REVIEWER,
+      }),
     });
   });
 
   it('still rejects an authorized but unassigned standard reviewer', async () => {
     const pending = workflowRow({ assignedTo: OTHER_REVIEWER });
     const queryRaw = mockQueryRaw()
-      .mockResolvedValueOnce([{ id: CANDIDATE, clientId: null, proposedBy: PROPOSER, sourceKind: 'settings_sections', scope: 'firm', payload: { canonicalItem: { title: 'Firm Soul' } } }])
+      .mockResolvedValueOnce([
+        {
+          id: CANDIDATE,
+          clientId: null,
+          proposedBy: PROPOSER,
+          sourceKind: 'settings_sections',
+          scope: 'firm',
+          payload: { canonicalItem: { title: 'Firm Soul' } },
+        },
+      ])
       .mockResolvedValueOnce([pending])
-      .mockResolvedValueOnce([activeMember(OTHER_REVIEWER, 'capiro_admin', 'admin@example.com', 'Casey', 'Administrator')])
+      .mockResolvedValueOnce([
+        activeMember(OTHER_REVIEWER, 'capiro_admin', 'admin@example.com', 'Casey', 'Administrator'),
+      ])
       .mockResolvedValueOnce([pending]);
     const tx = {
       $queryRaw: queryRaw,
@@ -253,7 +277,16 @@ describe('MemoryReviewWorkflowService', () => {
   it('allows the admin proposer to approve even when another reviewer is assigned', async () => {
     const pending = workflowRow({ assignedTo: OTHER_REVIEWER });
     const queryRaw = mockQueryRaw()
-      .mockResolvedValueOnce([{ id: CANDIDATE, clientId: null, proposedBy: PROPOSER, sourceKind: 'settings_sections', scope: 'firm', payload: { canonicalItem: { title: 'Firm Soul' } } }])
+      .mockResolvedValueOnce([
+        {
+          id: CANDIDATE,
+          clientId: null,
+          proposedBy: PROPOSER,
+          sourceKind: 'settings_sections',
+          scope: 'firm',
+          payload: { canonicalItem: { title: 'Firm Soul' } },
+        },
+      ])
       .mockResolvedValueOnce([pending])
       .mockResolvedValueOnce(identities())
       .mockResolvedValueOnce([pending]);
@@ -267,34 +300,79 @@ describe('MemoryReviewWorkflowService', () => {
     await expect(
       h.service.assertAssignedForDecision(proposerAdminCtx, CANDIDATE, 'approve'),
     ).resolves.toBeUndefined();
-    expect(h.authorization.evaluateInTx).toHaveBeenLastCalledWith(tx, proposerAdminCtx, subject, 'approve');
+    expect(h.authorization.evaluateInTx).toHaveBeenLastCalledWith(
+      tx,
+      proposerAdminCtx,
+      subject,
+      'approve',
+    );
   });
 
   it('requires a reason and writes the bounded DB token for rejection completion', async () => {
     const pending = workflowRow();
-    const updated = workflowRow({ status: 'rejected', reason: 'The source does not support this claim.', decidedBy: REVIEWER, decidedAt: new Date('2026-08-05T20:10:00.000Z') });
-    const queryRaw = mockQueryRaw().mockResolvedValueOnce([pending]).mockResolvedValueOnce(identities());
+    const updated = workflowRow({
+      status: 'rejected',
+      reason: 'The source does not support this claim.',
+      decidedBy: REVIEWER,
+      decidedAt: new Date('2026-08-05T20:10:00.000Z'),
+    });
+    const queryRaw = mockQueryRaw()
+      .mockResolvedValueOnce([pending])
+      .mockResolvedValueOnce(identities());
     const update = jest.fn(async () => updated);
-    const tx = { $queryRaw: queryRaw, reviewRequest: { update }, auditLog: { create: jest.fn(async () => ({})) } } as unknown as Prisma.TransactionClient;
+    const tx = {
+      $queryRaw: queryRaw,
+      reviewRequest: { update },
+      auditLog: { create: jest.fn(async () => ({})) },
+    } as unknown as Prisma.TransactionClient;
     const h = serviceHarness(tx as unknown as Record<string, unknown>);
 
-    await expect(h.service.completeDecision(reviewerCtx, CANDIDATE, 'rejected', 'The source does not support this claim.')).resolves.toMatchObject({ status: 'rejected' });
-    expect(update).toHaveBeenCalledWith({ where: { id: REQUEST }, data: expect.objectContaining({ status: 'rejected', decidedBy: REVIEWER }) });
+    await expect(
+      h.service.completeDecision(
+        reviewerCtx,
+        CANDIDATE,
+        'rejected',
+        'The source does not support this claim.',
+      ),
+    ).resolves.toMatchObject({ status: 'rejected' });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: REQUEST },
+      data: expect.objectContaining({ status: 'rejected', decidedBy: REVIEWER }),
+    });
   });
 
   it('allows an administrator to reassign to a currently eligible reviewer', async () => {
     const pending = workflowRow({ assignedTo: OTHER_REVIEWER });
     const queryRaw = mockQueryRaw()
-      .mockResolvedValueOnce([{ id: CANDIDATE, clientId: null, proposedBy: PROPOSER, sourceKind: 'settings_sections', scope: 'firm', payload: { canonicalItem: { title: 'Firm Soul' } } }])
+      .mockResolvedValueOnce([
+        {
+          id: CANDIDATE,
+          clientId: null,
+          proposedBy: PROPOSER,
+          sourceKind: 'settings_sections',
+          scope: 'firm',
+          payload: { canonicalItem: { title: 'Firm Soul' } },
+        },
+      ])
       .mockResolvedValueOnce([pending])
-      .mockResolvedValueOnce([activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer')])
+      .mockResolvedValueOnce([
+        activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer'),
+      ])
       .mockResolvedValueOnce([pending])
-      .mockResolvedValueOnce([activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer')])
+      .mockResolvedValueOnce([
+        activeMember(REVIEWER, 'user_admin', 'reviewer@example.com', 'Riley', 'Reviewer'),
+      ])
       .mockResolvedValueOnce(identities());
     const update = jest.fn(async () => workflowRow({ assignedTo: REVIEWER }));
-    const tx = { $queryRaw: queryRaw, reviewRequest: { create: jest.fn(), update }, auditLog: { create: jest.fn(async () => ({})) } } as unknown as Prisma.TransactionClient;
+    const tx = {
+      $queryRaw: queryRaw,
+      reviewRequest: { create: jest.fn(), update },
+      auditLog: { create: jest.fn(async () => ({})) },
+    } as unknown as Prisma.TransactionClient;
     const h = serviceHarness(tx as unknown as Record<string, unknown>);
 
-    await expect(h.service.assignReviewer(reviewerCtx, CANDIDATE, REVIEWER, 'Reviewer coverage changed.')).resolves.toMatchObject({ assignedReviewer: { userId: REVIEWER } });
+    await expect(
+      h.service.assignReviewer(reviewerCtx, CANDIDATE, REVIEWER, 'Reviewer coverage changed.'),
+    ).resolves.toMatchObject({ assignedReviewer: { userId: REVIEWER } });
   });
 });

@@ -88,8 +88,7 @@ function kineticDiscoveryMock(): jest.MockedFunction<MeriUnderlyingToolInvoker> 
         return {
           url: 'https://kineticindustries.com',
           title: 'Kinetic Industries Inc.',
-          text:
-            'Kinetic Industries provides supply chain logistics, distribution management, inventory readiness and analytics for government customers.',
+          text: 'Kinetic Industries provides supply chain logistics, distribution management, inventory readiness and analytics for government customers.',
         };
       default:
         return emptyResult();
@@ -99,9 +98,7 @@ function kineticDiscoveryMock(): jest.MockedFunction<MeriUnderlyingToolInvoker> 
 
 describe('Meri external company discovery skill', () => {
   test('humanizes pseudo-domain company inputs before discovery', () => {
-    expect(humanizeExternalCompanyInput('kindeticindustries.inc')).toBe(
-      'kindetic industries inc',
-    );
+    expect(humanizeExternalCompanyInput('kindeticindustries.inc')).toBe('kindetic industries inc');
     expect(externalCompanyQueryVariants('kindeticindustries.inc')).toEqual(
       expect.arrayContaining([
         'kindetic industries inc',
@@ -113,17 +110,12 @@ describe('Meri external company discovery skill', () => {
 
   test('corrects a malformed company input through broad web discovery and registry corroboration', async () => {
     const invoke = kineticDiscoveryMock();
-    const result = await executeMeriExternalCompanyDiscovery(
-      'kindeticindustries.inc',
-      invoke,
-    );
+    const result = await executeMeriExternalCompanyDiscovery('kindeticindustries.inc', invoke);
 
     expect(result.identityStatus).toBe('resolved');
     expect(result.researchName.toUpperCase()).toContain('KINETIC INDUSTRIES');
     expect(result.correctionApplied).toBe(true);
-    expect(result.resolution.resolvedEntity?.domains).toContain(
-      'kineticindustries.com',
-    );
+    expect(result.resolution.resolvedEntity?.domains).toContain('kineticindustries.com');
     expect(result.officialSite?.tool).toBe('scrape_web_page');
     expect(result.queryVariants).toEqual(
       expect.arrayContaining(['kindetic industries inc company']),
@@ -165,10 +157,7 @@ describe('Meri external company discovery skill', () => {
       return emptyResult();
     }) as jest.MockedFunction<MeriUnderlyingToolInvoker>;
 
-    const result = await executeMeriExternalCompanyDiscovery(
-      'apexsystems.inc',
-      invoke,
-    );
+    const result = await executeMeriExternalCompanyDiscovery('apexsystems.inc', invoke);
 
     expect(['ambiguous', 'not_found']).toContain(result.identityStatus);
     expect(result.resolution.resolutionStatus).not.toBe('resolved');
@@ -183,10 +172,7 @@ describe('Meri external company discovery skill', () => {
       return emptyResult();
     }) as jest.MockedFunction<MeriUnderlyingToolInvoker>;
 
-    const result = await executeMeriExternalCompanyDiscovery(
-      'zzzz-no-such-company-12345',
-      invoke,
-    );
+    const result = await executeMeriExternalCompanyDiscovery('zzzz-no-such-company-12345', invoke);
 
     expect(result.identityStatus).toBe('not_found');
     expect(result.candidates).toHaveLength(0);

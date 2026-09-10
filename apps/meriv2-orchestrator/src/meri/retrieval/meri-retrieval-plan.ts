@@ -30,8 +30,7 @@ export const MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS = [
   'research_federal_market_strategy',
 ] as const;
 
-export type MeriRuntimeRetrievalRecipeTool =
-  (typeof MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS)[number];
+export type MeriRuntimeRetrievalRecipeTool = (typeof MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS)[number];
 
 export type MeriRetrievalDomain =
   | 'identity'
@@ -304,8 +303,9 @@ export function buildMeriRetrievalPlan(
   const timeWindow = inferTimeWindow(request);
   // Only the existing explicit portfolio-overlap follow-up inherits an entity.
   // A formatting or client-scoped turn must not silently carry an old subject.
-  const targetHint = intent.targetHint
-    ?? (recipeTool === 'query_portfolio_overlap' ? priorTargetHint ?? null : null);
+  const targetHint =
+    intent.targetHint ??
+    (recipeTool === 'query_portfolio_overlap' ? (priorTargetHint ?? null) : null);
   const mailHistoryFocus =
     recipeTool === 'query_relationship_brief' && MAIL_HISTORY_RE.test(request);
   const quickCompanyProfile =
@@ -329,7 +329,7 @@ export function buildMeriRetrievalPlan(
           ? (['mail', 'contacts', 'memory'] as MeriRetrievalDomain[])
           : quickCompanyProfile
             ? (['public_web'] as MeriRetrievalDomain[])
-            : catalogRecipe?.requiredDomains ?? [];
+            : (catalogRecipe?.requiredDomains ?? []);
   const optionalDomains =
     recipeTool === 'research_federal_market_strategy'
       ? RESEARCH_DIRECTOR_OPTIONAL_DOMAINS
@@ -346,7 +346,7 @@ export function buildMeriRetrievalPlan(
             ] as MeriRetrievalDomain[])
           : quickCompanyProfile
             ? (['clients', 'internal_research'] as MeriRetrievalDomain[])
-            : catalogRecipe?.optionalDomains ?? [];
+            : (catalogRecipe?.optionalDomains ?? []);
   const recommendedTools =
     recipeTool === 'research_federal_market_strategy'
       ? RESEARCH_DIRECTOR_RECOMMENDED_TOOLS
@@ -356,7 +356,7 @@ export function buildMeriRetrievalPlan(
           ? RELATIONSHIP_RECOMMENDED_TOOLS
           : quickCompanyProfile
             ? QUICK_COMPANY_RECOMMENDED_TOOLS
-            : catalogRecipe?.recommendedTools ?? [];
+            : (catalogRecipe?.recommendedTools ?? []);
 
   return {
     version: 1,

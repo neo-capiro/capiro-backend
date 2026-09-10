@@ -144,6 +144,19 @@ describe('ContextDocumentsService.availability (F06 new-strategy scope)', () => 
     expect(result.excluded.strategyScoped).toBe(1);
   });
 
+  it('excludes a strategy-scoped document even when its strategy reference is missing', async () => {
+    const store = makeStore();
+    seedDoc(store, { id: 'orphaned-brief', scope: 'strategy', scopeRef: null });
+    seedFact(store, { id: 'orphaned-fact', documentId: 'orphaned-brief', fact: 'Unbound strategy evidence.' });
+    const { svc } = makeService(store);
+
+    const result = await svc.availability(T, CLIENT_ID);
+
+    expect(result.eligibleDocumentIds).toEqual([]);
+    expect(result.eligibleFactCount).toBe(0);
+    expect(result.excluded.strategyScoped).toBe(1);
+  });
+
   it('counts one eligible client document and only facts whose PARENT document is eligible', async () => {
     const store = makeStore();
     seedDoc(store, { id: 'client-constraints', title: 'Client constraints' });

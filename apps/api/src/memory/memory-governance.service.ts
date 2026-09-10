@@ -30,8 +30,8 @@ export class MemoryGovernanceService {
     return this.reads.overview(ctx);
   }
 
-  listItems(ctx: TenantContext, bucket: MemoryGovernanceBucket, limit?: number) {
-    return this.reads.listItems(ctx, bucket, limit);
+  listItems(ctx: TenantContext, bucket: MemoryGovernanceBucket, limit?: number, query?: string) {
+    return this.reads.listItems(ctx, bucket, limit, query);
   }
 
   getItem(ctx: TenantContext, itemId: string) {

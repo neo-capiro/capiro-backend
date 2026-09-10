@@ -5,10 +5,7 @@ const API_ROOT = process.cwd();
 const REPO_ROOT = join(API_ROOT, '../..');
 const servicePath = join(API_ROOT, 'src/context/context-packet-v2.service.ts');
 const modulePath = join(API_ROOT, 'src/context/context.module.ts');
-const contractPath = join(
-  REPO_ROOT,
-  'packages/meriv2-core/src/context/coverage-aware-packet.ts',
-);
+const contractPath = join(REPO_ROOT, 'packages/meriv2-core/src/context/coverage-aware-packet.ts');
 const migrationPath = join(
   API_ROOT,
   'prisma/migrations/20260817233500_context_packet_retrieval_context/migration.sql',

@@ -24,12 +24,20 @@ const input: ReportNarrativeInput = {
   sections: ['executive_summary', 'situation'],
   maxParagraphsPerSection: 4,
   evidence: [
-    { id: 'plan:strategy', text: 'Strategy title: Authorization Strategy. Target date: Dec 15, 2026.' },
+    {
+      id: 'plan:strategy',
+      text: 'Strategy title: Authorization Strategy. Target date: Dec 15, 2026.',
+    },
     { id: 'plan:health', text: 'Delivery readiness score 84 of 100 (On track).' },
   ],
 };
 
-const ctx = { tenantId: 'tenant-1', userId: 'user-1', clerkUserId: 'clerk-1', role: 'admin' } as unknown as MeriContext;
+const ctx = {
+  tenantId: 'tenant-1',
+  userId: 'user-1',
+  clerkUserId: 'clerk-1',
+  role: 'admin',
+} as unknown as MeriContext;
 
 function toolResponse(sections: unknown, overrides: Record<string, unknown> = {}) {
   return {
@@ -60,7 +68,11 @@ describe('parseReportNarrativeInput', () => {
     const parsed = parseReportNarrativeInput({
       audience: 'internal',
       strategy: { title: 'T', clientName: 'C' },
-      evidence: [{ id: 'a', text: 'x' }, { id: 'a', text: 'dup' }, { id: 'bad id!', text: 'y' }],
+      evidence: [
+        { id: 'a', text: 'x' },
+        { id: 'a', text: 'dup' },
+        { id: 'bad id!', text: 'y' },
+      ],
       maxParagraphsPerSection: 9,
     });
     expect(parsed).toEqual({
@@ -82,12 +94,23 @@ describe('parseReportNarrativeInput', () => {
 
   it('rejects packets without an audience, strategy identity or evidence', () => {
     expect(parseReportNarrativeInput(null)).toBeNull();
-    expect(parseReportNarrativeInput({ audience: 'client', strategy: { title: 'T' }, evidence: [] })).toBeNull();
     expect(
-      parseReportNarrativeInput({ audience: 'nobody', strategy: { title: 'T', clientName: 'C' }, evidence: [{ id: 'a', text: 'x' }] }),
+      parseReportNarrativeInput({ audience: 'client', strategy: { title: 'T' }, evidence: [] }),
     ).toBeNull();
     expect(
-      parseReportNarrativeInput({ audience: 'client', strategy: { title: 'T', clientName: 'C' }, sections: ['made_up'], evidence: [{ id: 'a', text: 'x' }] }),
+      parseReportNarrativeInput({
+        audience: 'nobody',
+        strategy: { title: 'T', clientName: 'C' },
+        evidence: [{ id: 'a', text: 'x' }],
+      }),
+    ).toBeNull();
+    expect(
+      parseReportNarrativeInput({
+        audience: 'client',
+        strategy: { title: 'T', clientName: 'C' },
+        sections: ['made_up'],
+        evidence: [{ id: 'a', text: 'x' }],
+      }),
     ).toBeNull();
   });
 });
@@ -111,14 +134,31 @@ describe('sanitizeSections', () => {
           {
             id: 'executive_summary',
             paragraphs: [
-              { text: 'Northstar Systems is on track with a readiness score of 84 of 100.', evidenceIds: ['plan:health'] },
+              {
+                text: 'Northstar Systems is on track with a readiness score of 84 of 100.',
+                evidenceIds: ['plan:health'],
+              },
               { text: 'short', evidenceIds: ['plan:health'] },
               { text: 'No citation for this otherwise reasonable paragraph.', evidenceIds: [] },
-              { text: '- bullet style paragraph that should be rejected', evidenceIds: ['plan:health'] },
+              {
+                text: '- bullet style paragraph that should be rejected',
+                evidenceIds: ['plan:health'],
+              },
             ],
           },
-          { id: 'stakeholders', paragraphs: [{ text: 'Not requested section content.', evidenceIds: ['plan:health'] }] },
-          { id: 'executive_summary', paragraphs: [{ text: 'Duplicate section that must be ignored entirely.', evidenceIds: ['plan:health'] }] },
+          {
+            id: 'stakeholders',
+            paragraphs: [{ text: 'Not requested section content.', evidenceIds: ['plan:health'] }],
+          },
+          {
+            id: 'executive_summary',
+            paragraphs: [
+              {
+                text: 'Duplicate section that must be ignored entirely.',
+                evidenceIds: ['plan:health'],
+              },
+            ],
+          },
         ],
       },
       input,
@@ -127,7 +167,10 @@ describe('sanitizeSections', () => {
       {
         id: 'executive_summary',
         paragraphs: [
-          { text: 'Northstar Systems is on track with a readiness score of 84 of 100.', evidenceIds: ['plan:health'] },
+          {
+            text: 'Northstar Systems is on track with a readiness score of 84 of 100.',
+            evidenceIds: ['plan:health'],
+          },
         ],
       },
     ]);
@@ -149,8 +192,14 @@ describe('StrategyReportNarrativeService', () => {
           id: 'executive_summary',
           paragraphs: [
             { text: 'Northstar Systems is on track at 84 of 100.', evidenceIds: ['plan:health'] },
-            { text: 'This cites an id that does not exist in the packet.', evidenceIds: ['plan:missing'] },
-            { text: 'The brief says "the sky is falling" which is not in the evidence.', evidenceIds: ['plan:strategy'] },
+            {
+              text: 'This cites an id that does not exist in the packet.',
+              evidenceIds: ['plan:missing'],
+            },
+            {
+              text: 'The brief says "the sky is falling" which is not in the evidence.',
+              evidenceIds: ['plan:strategy'],
+            },
           ],
         },
       ]),
@@ -165,7 +214,9 @@ describe('StrategyReportNarrativeService', () => {
     expect(result.sections).toEqual([
       {
         id: 'executive_summary',
-        paragraphs: [{ text: 'Northstar Systems is on track at 84 of 100.', evidenceIds: ['plan:health'] }],
+        paragraphs: [
+          { text: 'Northstar Systems is on track at 84 of 100.', evidenceIds: ['plan:health'] },
+        ],
       },
     ]);
     expect(result.droppedParagraphs).toBe(2);
@@ -183,7 +234,12 @@ describe('StrategyReportNarrativeService', () => {
         toolResponse([
           {
             id: 'situation',
-            paragraphs: [{ text: 'The plan targets Dec 15, 2026 for completion.', evidenceIds: ['plan:strategy'] }],
+            paragraphs: [
+              {
+                text: 'The plan targets Dec 15, 2026 for completion.',
+                evidenceIds: ['plan:strategy'],
+              },
+            ],
           },
         ]),
       );
@@ -200,7 +256,11 @@ describe('StrategyReportNarrativeService', () => {
 
   it('returns an empty narrative (never throws) on a refusal', async () => {
     const completeWithTools = jest.fn(async () =>
-      toolResponse([], { content: [{ type: 'text', text: 'no' }], stopReason: 'refusal', stopDetails: { category: 'x', explanation: null } }),
+      toolResponse([], {
+        content: [{ type: 'text', text: 'no' }],
+        stopReason: 'refusal',
+        stopDetails: { category: 'x', explanation: null },
+      }),
     );
     const service = build(completeWithTools);
 

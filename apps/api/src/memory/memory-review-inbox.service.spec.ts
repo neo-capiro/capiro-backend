@@ -77,22 +77,13 @@ function harness(queryResults: unknown[][]) {
   };
   const prisma = {
     withTenantUser: jest.fn(
-      async (
-        _tenantId: string,
-        _userId: string,
-        work: (value: typeof tx) => unknown,
-      ) => work(tx),
+      async (_tenantId: string, _userId: string, work: (value: typeof tx) => unknown) => work(tx),
     ),
   } as unknown as PrismaService;
   const authorization = {
     loadCandidateInTx: jest.fn(async () => subject),
     evaluateInTx: jest.fn(
-      async (
-        _tx: unknown,
-        _viewer: unknown,
-        _subject: unknown,
-        operation: string,
-      ) => ({
+      async (_tx: unknown, _viewer: unknown, _subject: unknown, operation: string) => ({
         allowed: ['read', 'approve', 'review', 'propose'].includes(operation),
         basis: 'admin',
       }),
@@ -148,9 +139,7 @@ describe('MemoryReviewInboxService', () => {
       payload: {},
     });
     const h = harness([[{ userId: USER, role: 'standard_user' }], [row]]);
-    await expect(h.service.detail(formerCtx, CANDIDATE)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(h.service.detail(formerCtx, CANDIDATE)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('marks only a currently visible recipient notification as read', async () => {
@@ -171,10 +160,7 @@ describe('MemoryReviewInboxService', () => {
     ]);
     h.tx.$executeRaw = jest.fn(async () => 1);
     await expect(
-      h.service.markNotificationRead(
-        ctx,
-        '77777777-7777-4777-8777-777777777777',
-      ),
+      h.service.markNotificationRead(ctx, '77777777-7777-4777-8777-777777777777'),
     ).resolves.toBeUndefined();
     expect(h.tx.$executeRaw).toHaveBeenCalledTimes(1);
   });
@@ -200,15 +186,8 @@ describe('MemoryReviewInboxService', () => {
         ) => void;
       }
     ).mockImplementation(
-      async (
-        _tx: unknown,
-        viewer: { userId?: string },
-        _subject: unknown,
-        operation: string,
-      ) => ({
-        allowed:
-          operation === 'read' ||
-          (operation === 'review' && viewer.userId === USER),
+      async (_tx: unknown, viewer: { userId?: string }, _subject: unknown, operation: string) => ({
+        allowed: operation === 'read' || (operation === 'review' && viewer.userId === USER),
         basis: 'admin',
       }),
     );

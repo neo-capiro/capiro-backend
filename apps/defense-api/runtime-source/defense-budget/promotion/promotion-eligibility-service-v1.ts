@@ -105,6 +105,22 @@ export interface TrustedCycleCertificationRecordV1 {
   status: string;
 }
 
+/**
+ * Phase 10B-2C — the family groups that self-certify INSIDE their own
+ * `defense_budget_projection_plan` bundle document, as opposed to `committee`
+ * which certifies via a separate `phase6_cycle_certification` row. Kept here,
+ * next to the port this fact governs, rather than only in the readiness
+ * module, since both `PrismaFamilyReconciliationCertificationV1` and
+ * `PrismaPromotionEligibilityReadRepositoryV1` must agree on exactly which
+ * families this applies to.
+ */
+export const EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1 = [
+  'rdte',
+  'procurement',
+  'om',
+  'milcon',
+] as const satisfies readonly BudgetFamilyV1[];
+
 export interface TrustedActiveSnapshotRecordV1 {
   snapshotId: string;
   snapshotHash: string;
@@ -115,9 +131,22 @@ export interface TrustedActiveSnapshotRecordV1 {
  * family so an implementation cannot accidentally widen the query.
  */
 export interface PromotionEligibilityRepositoryV1 {
+  /**
+   * Phase 10B-2C: `families` scopes which family groups' certification a
+   * caller may cite. `committee` certifications are read from the separate
+   * `phase6_cycle_certification` row (unchanged); every other supported
+   * family group (see `EMBEDDED_BUNDLE_CERTIFICATION_FAMILIES_V1`) is read
+   * from the embedded bundle certification on its own
+   * `defense_budget_projection_plan` row, scoped to exactly that family — an
+   * RDT&E certification can never satisfy an O&M eligibility request, and a
+   * different fiscal year's cycle can never satisfy this one, because both
+   * are bound into the underlying `cycleId`/`family` scoping the same way
+   * `loadCandidates`/`loadProjectionPlans` already scope by family.
+   */
   loadCycleCertifications(
     cycleId: string,
     fiscalYear: number,
+    families: BudgetFamilyV1[],
   ): Promise<TrustedCycleCertificationRecordV1[]>;
 
   loadCandidates(cycleId: string, families: BudgetFamilyV1[]): Promise<TrustedCandidateRecordV1[]>;
@@ -286,7 +315,7 @@ export class DefenseBudgetPromotionEligibilityServiceV1 {
       unsupported,
       activeSnapshot,
     ] = await Promise.all([
-      this.repository.loadCycleCertifications(request.cycleId, request.fiscalYear),
+      this.repository.loadCycleCertifications(request.cycleId, request.fiscalYear, request.families),
       this.repository.loadCandidates(request.cycleId, request.families),
       this.repository.loadProjectionPlans(request.cycleId, request.families),
       this.repository.countOpenBlockingConflicts(request.cycleId, request.families),

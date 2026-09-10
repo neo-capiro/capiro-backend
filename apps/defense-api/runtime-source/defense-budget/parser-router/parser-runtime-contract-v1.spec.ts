@@ -110,6 +110,133 @@ describe('parser-runtime-contract-v1', () => {
       bad.contentSha256 = realSha2;
       expect(() => parserRuntimeResultV1Schema.parse(bad)).toThrow();
     });
+
+    it('accepts Python-style JSON null on optional page/metrics fields', () => {
+      // Live pdfplumber engines emit null (Pydantic Optional) rather than
+      // omitting keys. Zod .optional() rejects null; .nullish() is required.
+      const result = fixtures.valid_result as Record<string, unknown>;
+      const pages = (result.pages as Record<string, unknown>[]).map((page) => ({
+        ...page,
+        rotation: null,
+        markdown: null,
+        printedPage: null,
+        confidence: null,
+        text: page.text ?? null,
+      }));
+      const metrics = {
+        ...((result.metrics as Record<string, unknown>) ?? {}),
+        modelVersions: null,
+      };
+      const withNulls: Record<string, unknown> = { ...result, pages, metrics };
+      const { contentSha256: _ignored, ...rest } = withNulls;
+      const realSha = computeResultContentSha256(rest as never);
+      const parsed = parseParserRuntimeResultV1({ ...rest, contentSha256: realSha });
+      expect(parsed.pages[0]!.rotation ?? null).toBeNull();
+      expect(parsed.pages[0]!.markdown ?? null).toBeNull();
+      expect(parsed.metrics.modelVersions ?? null).toBeNull();
+    });
+
+    /* Phase 10B-16 Part B: the real FY2024 Army R-2 Volume 1 BA1 document
+     * (143 real structural tables, 7,905 real cells, pdfplumber `lines`
+     * strategy) emits explicit JSON `null` -- never omits the key -- for
+     * every cell's rowSpan/colSpan/boundingBox/confidence and every table's
+     * label/parserReportAccuracy. This shape, reproduced verbatim below
+     * from real page 43 table 0 cell 0/1, is what the fix in Blocker A
+     * (`.nullish()` on those six fields) must accept. R-1 never exercised
+     * this path at all: its real document has zero structural tables. */
+    it('accepts real R-2 table/cell shape with explicit nulls on rowSpan/colSpan/boundingBox/confidence/label/parserReportAccuracy', () => {
+      const result = fixtures.valid_result as Record<string, unknown>;
+      const pages = (result.pages as Record<string, unknown>[]).map((page, index) =>
+        index === 0
+          ? {
+              ...page,
+              tables: [
+                {
+                  tableIndex: 0,
+                  label: null,
+                  rowCount: 18,
+                  columnCount: 13,
+                  parserReportAccuracy: null,
+                  warnings: [],
+                  boundingBox: { x0: '36.0', y0: '50.0', x1: '756.0', y1: '560.0' },
+                  cells: [
+                    {
+                      rowIndex: 0,
+                      columnIndex: 0,
+                      text: 'Exhibit R-2, RDT&E Budget Item Justification: PB 2024 Army',
+                      rowSpan: null,
+                      colSpan: null,
+                      boundingBox: null,
+                      confidence: null,
+                    },
+                    {
+                      rowIndex: 3,
+                      columnIndex: 6,
+                      text: '296.670',
+                      rowSpan: null,
+                      colSpan: null,
+                      boundingBox: null,
+                      confidence: null,
+                    },
+                  ],
+                },
+              ],
+            }
+          : page,
+      );
+      const withRealShape: Record<string, unknown> = { ...result, pages };
+      const { contentSha256: _ignored, ...rest } = withRealShape;
+      const realSha = computeResultContentSha256(rest as never);
+      const parsed = parseParserRuntimeResultV1({ ...rest, contentSha256: realSha });
+      expect(parsed.pages[0]!.tables).toHaveLength(1);
+      expect(parsed.pages[0]!.tables[0]!.label ?? null).toBeNull();
+      expect(parsed.pages[0]!.tables[0]!.parserReportAccuracy ?? null).toBeNull();
+      expect(parsed.pages[0]!.tables[0]!.cells[0]!.rowSpan ?? null).toBeNull();
+      expect(parsed.pages[0]!.tables[0]!.cells[0]!.colSpan ?? null).toBeNull();
+      expect(parsed.pages[0]!.tables[0]!.cells[0]!.boundingBox ?? null).toBeNull();
+      expect(parsed.pages[0]!.tables[0]!.cells[0]!.confidence ?? null).toBeNull();
+      expect(parsed.pages[0]!.tables[0]!.cells[1]!.text).toBe('296.670');
+    });
+
+    it('still rejects a cell with a genuinely malformed required field (text) even after the nullish widening', () => {
+      const result = fixtures.valid_result as Record<string, unknown>;
+      const pages = (result.pages as Record<string, unknown>[]).map((page, index) =>
+        index === 0
+          ? {
+              ...page,
+              tables: [
+                {
+                  tableIndex: 0,
+                  label: null,
+                  rowCount: 1,
+                  columnCount: 1,
+                  parserReportAccuracy: null,
+                  warnings: [],
+                  cells: [
+                    {
+                      rowIndex: 0,
+                      columnIndex: 0,
+                      // `text` is required (never nullable) -- null here
+                      // must still fail closed, proving Blocker A's fix
+                      // widened only the six empirically-confirmed fields
+                      // and nothing else.
+                      text: null,
+                      rowSpan: null,
+                      colSpan: null,
+                      boundingBox: null,
+                      confidence: null,
+                    },
+                  ],
+                },
+              ],
+            }
+          : page,
+      );
+      const withBadShape: Record<string, unknown> = { ...result, pages };
+      const { contentSha256: _ignored, ...rest } = withBadShape;
+      const realSha = computeResultContentSha256(rest as never);
+      expect(() => parseParserRuntimeResultV1({ ...rest, contentSha256: realSha })).toThrow();
+    });
   });
 
   /* A4: Page failure contract */

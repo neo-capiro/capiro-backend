@@ -239,10 +239,11 @@ describe('held-write honesty (the "submitted for processing" fabrication)', () =
   });
 });
 
-
 it('requires specific material evidence and canonical fact reads in both chat prompt projections', () => {
   const prompt = buildChatSystemPrompt({ clientId: 'client-1' }, ctx);
-  expect(prompt).toContain('every material amount, fiscal year, legislative stage, deadline, or ranked opportunity');
+  expect(prompt).toContain(
+    'every material amount, fiscal year, legislative stage, deadline, or ranked opportunity',
+  );
   expect(prompt).toContain('specific claim');
   expect(prompt).toContain('assumptions or unverified');
   expect(prompt).toContain('metadata_only or empty');

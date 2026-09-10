@@ -245,12 +245,7 @@ const NON_APPLYABLE_ADVANCED_KINDS = new Set([
   'district_nexus',
   'profile_completion',
 ]);
-const TERMINAL_TASK_STATUSES = new Set<string>([
-  'completed',
-  'failed',
-  'skipped',
-  'cancelled',
-]);
+const TERMINAL_TASK_STATUSES = new Set<string>(['completed', 'failed', 'skipped', 'cancelled']);
 const TASK_SWEEP_MS = 1_500;
 const TASK_STALE_MS = 5 * 60_000;
 const TASK_TIMEOUT_MS = 5 * 60_000;
@@ -864,26 +859,28 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       : [];
     const allTasks = [...coreTasks, ...tasks];
     const progress = mergeFillProgress(allTasks);
-    const pending = core.status !== 'cancelled' && allTasks.some(
-      (task) => task.status === 'queued' || task.status === 'running',
-    );
+    const pending =
+      core.status !== 'cancelled' &&
+      allTasks.some((task) => task.status === 'queued' || task.status === 'running');
     const allTerminal =
-      allTasks.length > 0 && allTasks.every((task) => TERMINAL_TASK_STATUSES.has(String(task.status)));
+      allTasks.length > 0 &&
+      allTasks.every((task) => TERMINAL_TASK_STATUSES.has(String(task.status)));
     const anyFailed = allTasks.some((task) => task.status === 'failed');
     const anyCompleted = allTasks.some(
       (task) => task.status === 'completed' || task.status === 'skipped',
     );
-    const status = core.status === 'cancelled'
-      ? 'cancelled'
-      : pending
-        ? 'running'
-        : allTerminal
-          ? anyFailed
-            ? anyCompleted
-              ? 'partial'
-              : 'failed'
-            : 'completed'
-          : core.status;
+    const status =
+      core.status === 'cancelled'
+        ? 'cancelled'
+        : pending
+          ? 'running'
+          : allTerminal
+            ? anyFailed
+              ? anyCompleted
+                ? 'partial'
+                : 'failed'
+              : 'completed'
+            : core.status;
     const stage = pending
       ? tasks.some(
           (task) =>
@@ -1923,12 +1920,16 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       if (currentCount + count >= MAX_ADVOCACY_FINDINGS) break;
       const isConfirmed = confirmedRegistrationNumbers.has(row.registrationNumber);
       const registrantMatches = matchesAdvocacyOrganization(clientName, row.registrantName);
-      const principalMatches = row.foreignPrincipal.split(';').some((name) => matchesAdvocacyOrganization(clientName, name));
+      const principalMatches = row.foreignPrincipal
+        .split(';')
+        .some((name) => matchesAdvocacyOrganization(clientName, name));
       if (!isConfirmed && !registrantMatches && !principalMatches) continue;
-      const roleMatch = isConfirmed ? resolveFaraMatchedRole(row.registrantSimilarity, row.principalSimilarity) : {
-        role: principalMatches ? 'foreign_principal' as const : 'registrant' as const,
-        similarity: 1,
-      };
+      const roleMatch = isConfirmed
+        ? resolveFaraMatchedRole(row.registrantSimilarity, row.principalSimilarity)
+        : {
+            role: principalMatches ? ('foreign_principal' as const) : ('registrant' as const),
+            similarity: 1,
+          };
       const confidence = faraMatchConfidence(isConfirmed, roleMatch.similarity);
       const externalKey = `fara:${row.registrationNumber}`;
       const proposedValue = {
@@ -2707,9 +2708,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         }),
       );
       clientStates = new Set(
-        facilities
-          .map((f) => (f.state ?? '').trim().toUpperCase())
-          .filter((s) => s.length === 2),
+        facilities.map((f) => (f.state ?? '').trim().toUpperCase()).filter((s) => s.length === 2),
       );
     } catch (error) {
       this.logger.warn(
@@ -2956,9 +2955,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     const checkpointAt = priorWasComplete
       ? lastCreatedAt
       : (asString(priorCheckpoint.createdAt) ?? lastCreatedAt);
-    const checkpointKey = priorWasComplete
-      ? lastKey
-      : (asString(priorCheckpoint.key) ?? lastKey);
+    const checkpointKey = priorWasComplete ? lastKey : (asString(priorCheckpoint.key) ?? lastKey);
 
     let scanRows: FundingRow[] = [];
     try {
@@ -3019,8 +3016,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       newestKey = last.id;
     }
 
-    const resolved: Array<{ row: FundingRow; decision: CommunityFundingMatchDecision; requestId: string }> =
-      [];
+    const resolved: Array<{
+      row: FundingRow;
+      decision: CommunityFundingMatchDecision;
+      requestId: string;
+    }> = [];
     for (const row of scanRows) {
       // Confirmed rows already handled above; still "examined" for cursor.
       if (confirmedRequestIds.has(row.id)) {
@@ -3448,7 +3448,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         suggestions.push(
           ...matterSuggestions.map((suggestion) => ({ matterId: matter.id, ...suggestion })),
         );
-        await this.emitRegulatoryOutcomeFindings(ctx, clientId, runId, matter.id, matterSuggestions);
+        await this.emitRegulatoryOutcomeFindings(
+          ctx,
+          clientId,
+          runId,
+          matter.id,
+          matterSuggestions,
+        );
       }
       const complete = backfillComplete || matters.length < 50;
       return {
@@ -3511,7 +3517,9 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     matterId: string,
     suggestions: FederalRegisterCorrelationSuggestion[],
   ): Promise<void> {
-    const deterministic = suggestions.filter((suggestion) => suggestion.matchedDocketIds.length > 0);
+    const deterministic = suggestions.filter(
+      (suggestion) => suggestion.matchedDocketIds.length > 0,
+    );
     if (deterministic.length === 0) return;
     const earliest = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRawUnsafe<Array<{ earliestActivityDate: Date | null }>>(
@@ -3526,7 +3534,11 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     );
     const attributableActivityDate = earliest[0]?.earliestActivityDate ?? null;
     for (const suggestion of deterministic) {
-      const proposedValue = buildRegulatoryOutcomeFinding(matterId, suggestion, attributableActivityDate);
+      const proposedValue = buildRegulatoryOutcomeFinding(
+        matterId,
+        suggestion,
+        attributableActivityDate,
+      );
       if (!proposedValue) continue;
       const docketId = proposedValue.docketId as string;
       await this.addFinding(ctx.tenantId, clientId, runId, {
@@ -3633,14 +3645,16 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         // CPF/CDS path: ONLY deterministic appropriations correlation. Never fall
         // back to title/temporal similarity — that would invent "secured funding"
         // from weak signals (handoff after #1345).
-        if (isCommunityFundingAdvocacyRecord({
-          externalKey,
-          recordType: asString(record.recordType),
-          sourceType: asString(record.sourceType),
-          sourceId: asString(record.sourceId),
-          communityFundingRequestId:
-            asString(metadata.communityFundingRequestId) ?? asString(record.sourceId),
-        })) {
+        if (
+          isCommunityFundingAdvocacyRecord({
+            externalKey,
+            recordType: asString(record.recordType),
+            sourceType: asString(record.sourceType),
+            sourceId: asString(record.sourceId),
+            communityFundingRequestId:
+              asString(metadata.communityFundingRequestId) ?? asString(record.sourceId),
+          })
+        ) {
           const cpfMatch = matchCommunityFundingAppropriationsDeterministically(
             {
               externalKey,
@@ -3652,9 +3666,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
               appropriationsAccountRaw:
                 asString(metadata.appropriationsAccountRaw) ??
                 asString(metadata.appropriations_account_raw),
-              appropriationsAccountNormalized: asString(
-                metadata.appropriationsAccountNormalized,
-              ),
+              appropriationsAccountNormalized: asString(metadata.appropriationsAccountNormalized),
               fiscalYear:
                 typeof metadata.fiscalYear === 'number'
                   ? metadata.fiscalYear
@@ -3666,15 +3678,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
                 asString(evidence.appropriationsAccountRaw) ??
                 asString(evidence.appropriations_account_raw) ??
                 asString(evidence.account),
-              appropriationsAccountNormalized: asString(
-                evidence.appropriationsAccountNormalized,
-              ),
+              appropriationsAccountNormalized: asString(evidence.appropriationsAccountNormalized),
               fiscalYear:
                 typeof evidence.fiscalYear === 'number' || typeof evidence.fiscalYear === 'string'
                   ? evidence.fiscalYear
                   : typeof evidence.fy === 'number' || typeof evidence.fy === 'string'
                     ? evidence.fy
-                    : asString(evidence.fiscalYear) ?? asString(evidence.fy),
+                    : (asString(evidence.fiscalYear) ?? asString(evidence.fy)),
               amountStage: asString(evidence.amountStage) ?? asString(evidence.stage),
               amountFrom:
                 typeof evidence.amountFrom === 'number' || typeof evidence.amountFrom === 'string'
@@ -4332,13 +4342,24 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     // (and a corrected matter assignment) are not proof of client attribution.
     if (sourceType === 'fara' || sourceType === 'testimony') {
       const metadata = asRecord(proposed.metadata);
-      const sourceKey = sourceType === 'fara' ? asString(metadata.registrationNumber)
-        : `${asString(metadata.hearingId) ?? ''}::${asString(metadata.witness) ?? ''}`;
+      const sourceKey =
+        sourceType === 'fara'
+          ? asString(metadata.registrationNumber)
+          : `${asString(metadata.hearingId) ?? ''}::${asString(metadata.witness) ?? ''}`;
       const confirmed = await this.getConfirmedIntelMappingKeys(ctx, clientId, sourceType);
       if (!sourceKey || !confirmed.has(sourceKey)) {
-        throw new BadRequestException('Verify this record’s organization-to-client mapping before accepting it as advocacy. A name match alone is insufficient.');
+        throw new BadRequestException(
+          'Verify this record’s organization-to-client mapping before accepting it as advocacy. A name match alone is insufficient.',
+        );
       }
-      proposed.metadata = { ...metadata, clientMatch: { ...asRecord(metadata.clientMatch), method: 'confirmed_client_intel_mapping', verifiedAt: new Date().toISOString() } };
+      proposed.metadata = {
+        ...metadata,
+        clientMatch: {
+          ...asRecord(metadata.clientMatch),
+          method: 'confirmed_client_intel_mapping',
+          verifiedAt: new Date().toISOString(),
+        },
+      };
     }
     const evidenceClass = normalizeEvidenceClass(proposed.evidenceClass);
     const activityDate = asString(proposed.activityDate);
@@ -4581,7 +4602,10 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   ): Promise<void> {
     const proposed = asRecord(finding.proposedValue);
     const matterId = requiredString(proposed.matterId, 'Advocacy matter');
-    const documentNumber = requiredString(proposed.documentNumber, 'Federal Register document number');
+    const documentNumber = requiredString(
+      proposed.documentNumber,
+      'Federal Register document number',
+    );
     const docketId = requiredString(proposed.docketId, 'Docket id');
     const publicationDate = asString(proposed.publicationDate);
     const evidence = {
@@ -4618,7 +4642,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         linkType: 'outcome_event',
         linkKey: outcomeEvent.id,
         label: `Observed government movement: ${evidence.documentType ?? 'Federal Register document'} on docket ${docketId}`,
-        metadata: { causationClaimed: false, matchedOn: 'docket_id', relationship: 'strongly_aligned', documentNumber },
+        metadata: {
+          causationClaimed: false,
+          matchedOn: 'docket_id',
+          relationship: 'strongly_aligned',
+          documentNumber,
+        },
       });
     } catch (error) {
       this.logger.warn(
@@ -4848,7 +4877,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
             AND tenant_id = $2::uuid AND status <> 'cancelled' FOR UPDATE`,
-          run.runId, run.tenantId,
+          run.runId,
+          run.tenantId,
         );
         if (!locked.length) return;
         const statuses = await tx.$queryRawUnsafe<Array<{ status: string }>>(

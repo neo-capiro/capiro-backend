@@ -142,10 +142,7 @@ describe('Knowledge Plane Phase 26 production-readiness architecture', () => {
 
   test('Strategy-owned Retrieval V2 projection excludes execution authority and private conversations', () => {
     const adapter = read(
-      join(
-        API_ROOT,
-        'src/retrieval/adapters/strategy-work-retrieval.adapter.ts',
-      ),
+      join(API_ROOT, 'src/retrieval/adapters/strategy-work-retrieval.adapter.ts'),
     );
     const retrievalModule = read(join(API_ROOT, 'src/retrieval/retrieval.module.ts'));
 
@@ -169,12 +166,8 @@ describe('Knowledge Plane Phase 26 production-readiness architecture', () => {
   });
 
   test('Context packets do not grant execution or send authority', () => {
-    const strategyPrompt = read(
-      join(API_ROOT, 'src/context/strategy-context-plane.service.ts'),
-    );
-    const execution = read(
-      join(REPO_ROOT, 'apps/api-strategy/src/agents/execution.service.ts'),
-    );
+    const strategyPrompt = read(join(API_ROOT, 'src/context/strategy-context-plane.service.ts'));
+    const execution = read(join(REPO_ROOT, 'apps/api-strategy/src/agents/execution.service.ts'));
     const artifactClient = read(
       join(REPO_ROOT, 'apps/api-strategy/src/agents/execution-artifact.client.ts'),
     );

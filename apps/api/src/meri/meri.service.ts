@@ -374,7 +374,9 @@ export class MeriService implements MeriTurnMaintenance {
   }
 
   async getConversation(ctx: TenantContext, conversationId: string) {
-    return this.ensureConversation(ctx, conversationId);
+    // Exact links may discover an owned archived row so the user can explicitly
+    // restore it. Transcript reads and new turns still require an active row.
+    return this.ensureConversationAnyStatus(ctx, conversationId);
   }
 
   async updateConversation(

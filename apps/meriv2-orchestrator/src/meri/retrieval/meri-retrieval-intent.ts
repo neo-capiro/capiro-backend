@@ -1,11 +1,6 @@
 import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
 
-export const MERI_SUBJECT_SCOPES = [
-  'client',
-  'portfolio',
-  'external_entity',
-  'general',
-] as const;
+export const MERI_SUBJECT_SCOPES = ['client', 'portfolio', 'external_entity', 'general'] as const;
 export type MeriSubjectScope = (typeof MERI_SUBJECT_SCOPES)[number];
 
 export const MERI_QUERY_CLASSES = [
@@ -67,12 +62,7 @@ const FEDERAL_MARKET_PATTERNS = [
   /\bcapabilit(?:y|ies)\b.*\b(?:contracts?|grants?|programs?|federal)\b/i,
 ];
 
-const COMPARISON_PATTERNS = [
-  /\bcompare\b/i,
-  /\bversus\b/i,
-  /\bvs\.?\b/i,
-  /\brelative\s+to\b/i,
-];
+const COMPARISON_PATTERNS = [/\bcompare\b/i, /\bversus\b/i, /\bvs\.?\b/i, /\brelative\s+to\b/i];
 
 const EXHAUSTIVE_PATTERNS = [
   /\beverything\b/i,

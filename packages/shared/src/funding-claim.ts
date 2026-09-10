@@ -123,10 +123,7 @@ export type MissingMarkStatus =
  * canonical snapshot to make an endpoint reproducible. Enrichment is allowed to
  * be live; it just has to say so.
  */
-export type MeasureProvenanceKind =
-  | 'canonical_snapshot'
-  | 'live_external'
-  | 'legacy_compatibility';
+export type MeasureProvenanceKind = 'canonical_snapshot' | 'live_external' | 'legacy_compatibility';
 
 /** A measure read out of an immutable, content-addressed canonical snapshot. */
 export interface CanonicalSnapshotProvenance {
@@ -217,10 +214,7 @@ export function sumAttributedMeasures(measures: readonly AttributedMeasure[]): n
   return measures.reduce((total, measure) => total + measure.amountM, 0);
 }
 
-export type ContractorEvidenceClass =
-  | 'accepted_direct'
-  | 'candidate'
-  | 'unmatched_dollars';
+export type ContractorEvidenceClass = 'accepted_direct' | 'candidate' | 'unmatched_dollars';
 
 export interface ContractorEvidenceBucket {
   evidenceClass: ContractorEvidenceClass;
@@ -300,9 +294,9 @@ export function buildFundingClaim(input: {
  * Pick the latest FY's value WITHOUT skipping zeros. A year whose value is
  * exactly 0 beats an older non-zero year. Null (missing) years are skipped.
  */
-export function selectLatestPreservingZero<T extends { fy: number; value: number | null | undefined }>(
-  years: readonly T[],
-): T | null {
+export function selectLatestPreservingZero<
+  T extends { fy: number; value: number | null | undefined },
+>(years: readonly T[]): T | null {
   let best: T | null = null;
   for (const y of years) {
     if (y.value == null || (typeof y.value === 'number' && !Number.isFinite(y.value))) continue;
@@ -378,7 +372,8 @@ function sameMoneyTrack(
 ): boolean {
   const track = (v: FundingClaimLegislativeVehicle): 'auth' | 'approps' | 'request' | 'other' => {
     if (v === 'authorization' || v === 'authorization_conference') return 'auth';
-    if (v === 'appropriations' || v === 'appropriations_conference' || v === 'enacted') return 'approps';
+    if (v === 'appropriations' || v === 'appropriations_conference' || v === 'enacted')
+      return 'approps';
     if (v === 'request') return 'request';
     return 'other';
   };
@@ -406,9 +401,7 @@ export function percentDeltaBetweenClaims(a: FundingClaim, b: FundingClaim): num
  * currentFunding() picks can be promoted to claims without track loss.
  * 'conference' on the ladder is appropriations conference, never NDAA.
  */
-export function fundingStageToClaimStage(
-  stage: string | null | undefined,
-): FundingClaimStage {
+export function fundingStageToClaimStage(stage: string | null | undefined): FundingClaimStage {
   switch (stage) {
     case 'enacted':
       return 'enacted';
@@ -516,7 +509,11 @@ export function buildMovementKpi(input: {
     avgDeltaPct,
     totalRequestM,
     totalEnactedM,
-    coverage: coverageDenominator(input.populationSize, contributed, 'Matched request/enacted pairs'),
+    coverage: coverageDenominator(
+      input.populationSize,
+      contributed,
+      'Matched request/enacted pairs',
+    ),
   };
 }
 

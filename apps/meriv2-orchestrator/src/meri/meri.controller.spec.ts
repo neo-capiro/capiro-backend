@@ -14,7 +14,11 @@ import type { OrchestratorTenantContext } from '../auth/tenant-context';
  */
 const CLIENT_ID = '3f2b9c4e-8d1a-4b6f-9e2c-1a2b3c4d5e6f';
 
-const tc = { tenantId: 't1', clerkUserId: 'cu1', role: 'standard_user' } as OrchestratorTenantContext;
+const tc = {
+  tenantId: 't1',
+  clerkUserId: 'cu1',
+  role: 'standard_user',
+} as OrchestratorTenantContext;
 const req = { headers: {} } as unknown as Request;
 
 function makeController() {

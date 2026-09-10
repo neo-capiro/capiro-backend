@@ -166,8 +166,13 @@ export function proposeLearningSignalCandidateAuthority(
 ): LearningSignalCandidateAuthorityProposal {
   const reasons: string[] = [];
 
-  if (input.signalType === 'meri_feedback_positive' || input.signalType === 'meri_feedback_negative') {
-    reasons.push("A human explicitly rated Meri's own output about themselves (human_explicit provenance).");
+  if (
+    input.signalType === 'meri_feedback_positive' ||
+    input.signalType === 'meri_feedback_negative'
+  ) {
+    reasons.push(
+      "A human explicitly rated Meri's own output about themselves (human_explicit provenance).",
+    );
     let confidence = 0.45;
     if (input.hasNote) {
       confidence += 0.15;

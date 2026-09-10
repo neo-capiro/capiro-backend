@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  checkGroundedCitations,
-  type GroundedClaim,
-  type MeriContext,
-} from '@capiro/meriv2-core';
+import { checkGroundedCitations, type GroundedClaim, type MeriContext } from '@capiro/meriv2-core';
 import { recordAiUsageEvent } from '@capiro/shared';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import {
@@ -200,7 +196,10 @@ export function sanitizeSections(
   const allowed = new Set<string>(input.sections);
   const seen = new Set<string>();
   const sections: ReportNarrativeSectionOut[] = [];
-  const maxParagraphs = Math.min(input.maxParagraphsPerSection, MAX_NARRATIVE_PARAGRAPHS_PER_SECTION);
+  const maxParagraphs = Math.min(
+    input.maxParagraphsPerSection,
+    MAX_NARRATIVE_PARAGRAPHS_PER_SECTION,
+  );
   for (const entry of list) {
     if (!entry || typeof entry !== 'object') continue;
     const record = entry as Record<string, unknown>;
@@ -221,7 +220,13 @@ export function sanitizeSections(
       const value = paragraph as Record<string, unknown>;
       const text = typeof value.text === 'string' ? value.text.replace(/\s+/g, ' ').trim() : '';
       const evidenceIds = Array.isArray(value.evidenceIds)
-        ? [...new Set(value.evidenceIds.filter((item): item is string => typeof item === 'string' && item.trim().length > 0))]
+        ? [
+            ...new Set(
+              value.evidenceIds.filter(
+                (item): item is string => typeof item === 'string' && item.trim().length > 0,
+              ),
+            ),
+          ]
         : [];
       if (text.length < 20 || text.length > 1_400) {
         problems.push(`${id}: paragraph text must be 20–1400 characters`);

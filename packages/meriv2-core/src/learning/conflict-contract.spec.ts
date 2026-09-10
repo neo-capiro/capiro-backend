@@ -19,7 +19,9 @@ describe('classifyMemoryConflictMatch (Phase 27C)', () => {
   });
 
   it('CORE EXAMPLE: high score + different text (monthly vs weekly) = probable_contradiction, never silently overwritten', () => {
-    expect(classifyMemoryConflictMatch({ score: 0.93, textsEqual: false })).toBe('probable_contradiction');
+    expect(classifyMemoryConflictMatch({ score: 0.93, textsEqual: false })).toBe(
+      'probable_contradiction',
+    );
   });
 
   it('mid score = possible_related regardless of text equality — insufficient confidence to assert a specific relationship', () => {
@@ -39,8 +41,12 @@ describe('classifyMemoryConflictMatch (Phase 27C)', () => {
     expect(
       classifyMemoryConflictMatch({ score: CONTRADICTION_MIN - 0.001, textsEqual: false }),
     ).toBe('possible_related');
-    expect(classifyMemoryConflictMatch({ score: REVIEW_MIN, textsEqual: false })).toBe('possible_related');
-    expect(classifyMemoryConflictMatch({ score: REVIEW_MIN - 0.001, textsEqual: false })).toBe('unrelated');
+    expect(classifyMemoryConflictMatch({ score: REVIEW_MIN, textsEqual: false })).toBe(
+      'possible_related',
+    );
+    expect(classifyMemoryConflictMatch({ score: REVIEW_MIN - 0.001, textsEqual: false })).toBe(
+      'unrelated',
+    );
   });
 });
 
@@ -59,7 +65,11 @@ describe('normalizeFactText', () => {
 describe('describeMemoryConflictMatch', () => {
   it('every message fits the 240-char reason cap', () => {
     for (const kind of MEMORY_CONFLICT_MATCH_KINDS) {
-      const msg = describeMemoryConflictMatch(kind, 'memory_items 11111111-1111-4111-8111-111111111111', 0.934);
+      const msg = describeMemoryConflictMatch(
+        kind,
+        'memory_items 11111111-1111-4111-8111-111111111111',
+        0.934,
+      );
       expect(msg.length).toBeLessThanOrEqual(240);
     }
   });

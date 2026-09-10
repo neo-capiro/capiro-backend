@@ -34,15 +34,11 @@ function compactCompanySections(value: Record<string, unknown>) {
     ...(Array.isArray(publicCapabilities)
       ? { publicCapabilities: publicCapabilities.slice(0, 8) }
       : {}),
-    ...(Array.isArray(historicalAwards)
-      ? { historicalAwards: historicalAwards.slice(0, 10) }
-      : {}),
+    ...(Array.isArray(historicalAwards) ? { historicalAwards: historicalAwards.slice(0, 10) } : {}),
     ...(Array.isArray(candidateOpportunities)
       ? { candidateOpportunities: candidateOpportunities.slice(0, 12) }
       : {}),
-    ...(Array.isArray(candidateGrants)
-      ? { candidateGrants: candidateGrants.slice(0, 8) }
-      : {}),
+    ...(Array.isArray(candidateGrants) ? { candidateGrants: candidateGrants.slice(0, 8) } : {}),
     ...(Array.isArray(candidateProgramElements)
       ? { candidateProgramElements: candidateProgramElements.slice(0, 12) }
       : {}),
@@ -106,14 +102,17 @@ export function compactMeriRetrievalRecipeResult(value: unknown): unknown {
     ...(candidateOpportunities !== undefined
       ? { candidateOpportunities: compactArray(candidateOpportunities, 12) }
       : {}),
-    ...(candidateGrants !== undefined
-      ? { candidateGrants: compactArray(candidateGrants, 8) }
-      : {}),
+    ...(candidateGrants !== undefined ? { candidateGrants: compactArray(candidateGrants, 8) } : {}),
     ...(candidateProgramElements !== undefined
       ? { candidateProgramElements: compactArray(candidateProgramElements, 12) }
       : {}),
     ...(validatedProgramElements !== undefined
-      ? { validatedProgramElements: compactArray(validatedProgramElements, MAX_VALIDATED_PE_RESULTS) }
+      ? {
+          validatedProgramElements: compactArray(
+            validatedProgramElements,
+            MAX_VALIDATED_PE_RESULTS,
+          ),
+        }
       : {}),
     ...(chronology !== undefined
       ? { chronology: compactArray(chronology, MAX_CHRONOLOGY_RESULTS) }
@@ -125,9 +124,7 @@ export function compactMeriRetrievalRecipeResult(value: unknown): unknown {
     ...(communications !== undefined
       ? { communications: compactArray(communications, MAX_SECTION_RESULTS) }
       : {}),
-    ...(documents !== undefined
-      ? { documents: compactArray(documents, MAX_SECTION_RESULTS) }
-      : {}),
+    ...(documents !== undefined ? { documents: compactArray(documents, MAX_SECTION_RESULTS) } : {}),
     ...(currentOpportunityPosture !== undefined
       ? {
           currentOpportunityPosture: compactArray(

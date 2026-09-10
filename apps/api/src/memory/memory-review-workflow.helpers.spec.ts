@@ -10,9 +10,7 @@ import {
 
 describe('memory review workflow helpers', () => {
   it('normalizes and bounds reviewer feedback', () => {
-    expect(normalizeMemoryReviewReason('  Needs\nmore   sourcing. ')).toBe(
-      'Needs more sourcing.',
-    );
+    expect(normalizeMemoryReviewReason('  Needs\nmore   sourcing. ')).toBe('Needs more sourcing.');
     expect(normalizeMemoryReviewReason('   ')).toBeNull();
     expect(normalizeMemoryReviewReason(null)).toBeNull();
     expect(normalizeMemoryReviewReason('x'.repeat(600))).toHaveLength(500);

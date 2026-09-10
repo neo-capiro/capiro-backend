@@ -22,6 +22,7 @@ function omPlanRecord(overrides: { cycleId?: string; certificationSha256?: strin
     schemaVersion: NON_RDTE_PROJECTION_PLAN_SCHEMA_VERSION,
     cycleId: overrides.cycleId ?? CYCLE,
     cycleBundleContentSha256: SHA('1'),
+    cycleBundleId: 'non_rdte_cycle_fixture',
     cycleCertification: 'CERTIFIED_NON_RDTE_READY_FOR_PROJECTION' as const,
     fiscalYear: 2027,
     family: 'om' as const,

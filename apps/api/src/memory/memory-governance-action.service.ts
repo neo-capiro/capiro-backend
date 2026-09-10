@@ -90,9 +90,7 @@ export class MemoryGovernanceActionService {
         );
       }
       if (row.assertedByUserId && row.assertedByUserId === ctx.userId) {
-        throw new ForbiddenException(
-          'Approval must come from someone other than the proposer.',
-        );
+        throw new ForbiddenException('Approval must come from someone other than the proposer.');
       }
       assertMemoryTransition('pending_review', 'active');
 

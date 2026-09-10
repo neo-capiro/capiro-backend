@@ -470,7 +470,11 @@ describe('WatcherService.runCheckNow — deterministic check run', () => {
     health.mockImplementationOnce(async () => {
       // Steward loading is between the check snapshot and proposal locking.
       // A human resolves the overdue step and creates a new head in that gap.
-      store.nodes.set('N1', { ...store.nodes.get('N1')!, startsOn: daysFromToday(3), endsOn: daysFromToday(7) });
+      store.nodes.set('N1', {
+        ...store.nodes.get('N1')!,
+        startsOn: daysFromToday(3),
+        endsOn: daysFromToday(7),
+      });
       store.strategies.set(SID, { ...store.strategies.get(SID)!, lastEditedAt: new Date() });
       store.versions.set('v2', { ...store.versions.get('v1')!, id: 'v2', createdAt: new Date() });
       return healthValue;
@@ -1099,4 +1103,3 @@ describe('Phase 3 — permanent Watch dismissals', () => {
     expect(cs.watchKey).toBe('overdue:N1');
   });
 });
-

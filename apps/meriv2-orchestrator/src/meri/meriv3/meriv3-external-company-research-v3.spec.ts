@@ -98,8 +98,7 @@ function mock(): jest.MockedFunction<MeriUnderlyingToolInvoker> {
         return {
           url: 'https://kineticindustries.com',
           title: 'Kinetic Industries Inc.',
-          text:
-            'Kinetic Industries provides supply chain logistics, inventory readiness, distribution management, aviation logistics and analytics.',
+          text: 'Kinetic Industries provides supply chain logistics, inventory readiness, distribution management, aviation logistics and analytics.',
         };
       case 'search_research_sources':
       case 'search_memory':
@@ -200,14 +199,14 @@ describe('Meri external-company research V3', () => {
     expect(result.candidateGrants.length).toBeGreaterThan(0);
     expect(result.candidateProgramElements.length).toBeGreaterThan(0);
     expect(result.validatedProgramElements).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ peCode: '0605053A', verified: true }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ peCode: '0605053A', verified: true })]),
     );
     expect(result.federalMarketSignals.naicsCodes).toContain('541614');
     expect(result.federalMarketSignals.pscCodes).toContain('R706');
     expect(result.federalMarketSignals.peCodes).toContain('0605053A');
-    expect(result.answerDirective).toMatch(/Produce the full company and federal-market report now/i);
+    expect(result.answerDirective).toMatch(
+      /Produce the full company and federal-market report now/i,
+    );
     expect(result.answerDirective).not.toMatch(/send.*legal name/i);
 
     expect(invoke).toHaveBeenCalledWith(

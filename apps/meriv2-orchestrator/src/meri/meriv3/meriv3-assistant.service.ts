@@ -1,4 +1,8 @@
-import { MERI_CAPABILITY_REGISTRY, selectMeriCapabilitySchemas, isMeriMailReadTool } from '@capiro/shared';
+import {
+  MERI_CAPABILITY_REGISTRY,
+  selectMeriCapabilitySchemas,
+  isMeriMailReadTool,
+} from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -45,7 +49,11 @@ import {
 } from '../chat/chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
-import { meriEvidenceManifest, seedMeriContextEvidence, numberMeriEvidenceCitations } from './meriv3-context-evidence.js';
+import {
+  meriEvidenceManifest,
+  seedMeriContextEvidence,
+  numberMeriEvidenceCitations,
+} from './meriv3-context-evidence.js';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
   observeMeriTurnToolCoverage,
@@ -564,7 +572,11 @@ export class MeriV3AssistantService {
     const released = this.finalizeReply({
       ctx,
       dto,
-      reply: enforceClientFilingConfirmation({ reply: finalText, request: lastUserText, entries: ledgerEntries }),
+      reply: enforceClientFilingConfirmation({
+        reply: finalText,
+        request: lastUserText,
+        entries: ledgerEntries,
+      }),
       artifactBodies: artifacts.map((artifact) => artifact.bodyText ?? ''),
       citations,
       ledgerEntries,
@@ -750,7 +762,11 @@ export class MeriV3AssistantService {
         });
         continue;
       }
-      const augmented = this.augmentToolInput(args.dto, this.prepareArtifactInput(call.name, parsed, args.citations, args.ledgerEntries), schema);
+      const augmented = this.augmentToolInput(
+        args.dto,
+        this.prepareArtifactInput(call.name, parsed, args.citations, args.ledgerEntries),
+        schema,
+      );
       args.toolsUsed.push(call.name);
       const result = await this.invokeTool({
         ctx: args.ctx,
@@ -775,9 +791,14 @@ export class MeriV3AssistantService {
       if (this.registry.get(call.name)?.readOnly === true) {
         args.toolCoverage.push(...observeMeriTurnToolCoverage(call.name, visibleResult));
       }
-      const cites = numberMeriEvidenceCitations(extractCitationsFromToolResult(call.name, visibleResult, 1), args.citations);
+      const cites = numberMeriEvidenceCitations(
+        extractCitationsFromToolResult(call.name, visibleResult, 1),
+        args.citations,
+      );
       for (const cite of cites) {
-        const index = args.citations.findIndex((source) => source.tool === cite.tool && source.id === cite.id);
+        const index = args.citations.findIndex(
+          (source) => source.tool === cite.tool && source.id === cite.id,
+        );
         if (index < 0) args.citations.push(cite);
         else args.citations[index] = cite;
       }
@@ -790,8 +811,13 @@ export class MeriV3AssistantService {
   }
 
   protected prepareArtifactInput(
-    _name: string, input: Record<string, unknown>, _citations: MeriCitation[], _ledgerEntries: LedgerEntry[],
-  ): Record<string, unknown> { return input; }
+    _name: string,
+    input: Record<string, unknown>,
+    _citations: MeriCitation[],
+    _ledgerEntries: LedgerEntry[],
+  ): Record<string, unknown> {
+    return input;
+  }
 
   private augmentToolInput(
     dto: MeriV3ChatInput,
@@ -934,8 +960,13 @@ export class MeriV3AssistantService {
           const detail = proposal.error?.message || 'The action did not confirm a successful save.';
           args.steps.push({ tool: args.name, label, status: 'error', detail });
           args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
-          return { error: true, status: proposal.status, proposalId: proposal.proposalId,
-            resultSummary: proposal.resultSummary, message: detail };
+          return {
+            error: true,
+            status: proposal.status,
+            proposalId: proposal.proposalId,
+            resultSummary: proposal.resultSummary,
+            message: detail,
+          };
         }
         args.noteComplianceOutcome('BLOCK');
         const detail = proposal.reason || 'Blocked by the authoritative policy pack.';

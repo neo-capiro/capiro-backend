@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
+import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import { ContextResolverService } from '../context/context-resolver.service.js';
+import type { ContextResolutionRequest } from '../context/context-resolver.types.js';
 import { wrapToolResultForPrompt } from '@capiro/meriv2-core';
 
 // This suite supplies the engagement port below. Loading its entire mail and
@@ -25,7 +28,8 @@ jest.mock('../acquisition-personnel/acquisition-personnel-read.service.js', () =
 jest.mock('./meri-docgen.service.js', () => ({ MeriDocgenService: jest.fn() }));
 jest.mock('../embeddings/client-kb.service.js', () => ({ ClientKbService: jest.fn() }));
 jest.mock('../funding-opportunities/meri-opportunity-tools.adapter.js', () => ({ MeriOpportunityToolsAdapter: jest.fn() }));
-jest.mock('./meri-context-plane.service.js', () => ({ MeriContextPlaneService: jest.fn() }));
+jest.mock('../context/context-plane-gateway.service.js', () => ({ ContextPlaneGatewayService: jest.fn() }));
+jest.mock('../knowledge/entities/universal-entity-resolution-orchestrator.service.js', () => ({ UniversalEntityResolutionOrchestratorService: jest.fn() }));
 jest.mock('../retrieval/retrieval-v2.service.js', () => ({ RetrievalV2Service: jest.fn() }));
 jest.mock('../memory/memory-ingest.service.js', () => ({ MemoryIngestService: jest.fn() }));
 jest.mock('../memory/memory-candidate.service.js', () => ({ MemoryCandidateService: jest.fn() }));
@@ -41,7 +45,7 @@ jest.mock('../memory/memory-store.service.js', () => ({ MemoryStoreService: jest
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
 
-function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } = {}) {
+function makeMocks(extra: { downstreamRetrieval?: unknown; contextPlane?: { securityEnvelope: (actor: TenantContext) => Promise<{ authorizedClientIds: string[]; authorizedMailboxConnectionIds: string[] }> } } = {}) {
   const findClient = jest.fn().mockResolvedValue({ id: 'client-1' });
   const tx = {
     client: {
@@ -140,6 +144,22 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     listRecords: jest.fn().mockResolvedValue({ items: [], total: 0, hasMore: false }),
   };
 
+  // Exercise the real Meri service and canonical resolver on every retrieval
+  // dispatch; only the gateway's compilation work and downstream source are stubbed.
+  const resolver = new ContextResolverService({} as never, extra.downstreamRetrieval as never);
+  const gateway = {
+    requestContext: jest.fn(async ({ resolverRequest }: { resolverRequest: ContextResolutionRequest }) => ({
+      kind: 'governed_packet',
+      context: await resolver.resolveAndRetrieve(resolverRequest),
+    })),
+  };
+  const contextPlane = extra.downstreamRetrieval
+    ? new MeriContextPlaneService(prisma as never, gateway as never)
+    : undefined;
+  if (contextPlane && extra.contextPlane) {
+    jest.spyOn(contextPlane, 'securityEnvelope').mockImplementation(extra.contextPlane.securityEnvelope);
+  }
+
   const service = new MeriToolsService(
     prisma as never,
     { get: jest.fn() } as never,
@@ -166,13 +186,13 @@ function makeMocks(extra: { sharedRetrieval?: unknown; contextPlane?: unknown } 
     { proposeSaveMemory: jest.fn() } as never, // memoryCandidates
     { confirmMemory: jest.fn(), correctMemory: jest.fn(), forgetMemory: jest.fn() } as never, // memoryStore
     opportunityTools as never,
-    extra.sharedRetrieval as never,
-    extra.contextPlane as never,
+    contextPlane as never,
     clientAdvocacy as never,
   );
 
   return {
     service,
+    gateway,
     tx,
     prisma,
     engagement,
@@ -901,7 +921,7 @@ describe('search_capiro_data canonical dispatch', () => {
     const coverage = { complete: false, sources: [{ domain: 'strategies_work', nextCursor: 'next-strategy' }] };
     const retrieve = jest.fn().mockResolvedValue({ records: [], coverage });
     const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
     const schema = m.service.anthropicToolSchemas().find((tool) => tool.name === 'search_capiro_data');
     expect(schema?.input_schema.required).toEqual(['query', 'domains']);
     const result = await m.service.executeFromAuthenticatedUser(ctx, 'search_capiro_data', {
@@ -917,7 +937,7 @@ describe('search_capiro_data canonical dispatch', () => {
 
   it('rejects unauthorized client scopes before invoking any retrieval adapter', async () => {
     const retrieve = jest.fn();
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: {
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: {
       securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] }),
     } });
     await expect(m.service.executeFromAuthenticatedUser(ctx, 'search_capiro_data', {
@@ -968,7 +988,7 @@ describe('search_memory canonical recall dispatch', () => {
     const coverage = { complete: false, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'degraded', nextCursor: 'memory:8' }] };
     const retrieve = jest.fn().mockResolvedValue({ records: [record], coverage });
     const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
     const result = await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', {
       query: 'What do you remember about this client?', clientId, cursor: 'memory:3', k: 5,
     }) as any;
@@ -993,7 +1013,7 @@ describe('search_memory canonical recall dispatch', () => {
     const legacy = { ...record, payload: { ...record.payload, contentStatus: 'metadata_only',
       contentLimitation: 'The original source must be reviewed.', value: '{"summary":"crm_finding_accepted on crm.fill_with_meri"}' } };
     const retrieve = jest.fn().mockResolvedValue({ records: [legacy], coverage: { complete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy' }] } });
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] }) } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] }) } });
     const result = await m.service.readGovernedMemorySource(ctx, { memoryItemId: record.recordId, clientId }) as any;
     expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ queryClass: 'lookup', memoryItemId: record.recordId, pageSize: 1 }));
     expect(result.contentStatus).toBe('metadata_only');
@@ -1004,14 +1024,14 @@ describe('search_memory canonical recall dispatch', () => {
 
   it('rejects invalid exact memory IDs before dispatching the source-panel read', async () => {
     const retrieve = jest.fn();
-    const m = makeMocks({ sharedRetrieval: { retrieve } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve } });
     await expect(m.service.readGovernedMemorySource(ctx, { memoryItemId: 'not-a-uuid' })).rejects.toThrow('exact canonical memory UUID');
     expect(retrieve).not.toHaveBeenCalled();
   });
 
   it('rejects a client that is no longer in the current authorization envelope', async () => {
     const retrieve = jest.fn();
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] }) } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [], authorizedMailboxConnectionIds: [] }) } });
     await expect(m.service.executeFromAuthenticatedUser(ctx, 'search_memory', { query: 'funding', clientId })).rejects.toThrow('Client not found');
     expect(retrieve).not.toHaveBeenCalled();
   });
@@ -1025,7 +1045,7 @@ describe('search_memory canonical recall dispatch', () => {
     const coverage = { complete: true, sources: [{ domain: 'institutional_knowledge', sourceStatus: 'healthy' }] };
     const retrieve = jest.fn(async () => ({ records: eligible ? [record] : [], coverage }));
     const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] });
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
     let args: Record<string, unknown> = { query: 'Read approved funding constraint', memoryItemId: record.recordId, clientId };
     let recovered = '';
     let pages = 0;
@@ -1060,7 +1080,7 @@ describe('search_memory canonical recall dispatch', () => {
     } }, provenance: { ...record.provenance, sourceId: 's'.repeat(200), sourceRef: 'r'.repeat(600), sourceVersion: 'v'.repeat(200) } };
     const retrieve = jest.fn(async (request: { pageSize: number }) => ({ records: Array.from({ length: request.pageSize }, () => heavy),
       coverage: { complete: false, sources: [{ domain: 'institutional_knowledge', nextCursor: `memory:${3 + request.pageSize}` }] } }));
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] }) } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope: jest.fn().mockResolvedValue({ authorizedClientIds: [clientId], authorizedMailboxConnectionIds: [] }) } });
     const page = await m.service.executeFromAuthenticatedUser(ctx, 'search_memory', { query: 'funding', clientId, cursor: 'memory:3' }) as any;
     expect(retrieve).toHaveBeenCalledTimes(2);
     expect(retrieve).toHaveBeenLastCalledWith(expect.objectContaining({ pageSize: 1, cursors: { institutional_knowledge: 'memory:3' } }));
@@ -1110,11 +1130,18 @@ describe('search_committee_hearings canonical transcript reads', () => {
     const coverage = { complete: false, sources: [{ domain: 'hearings', nextCursor: 'official:source:0000000002' }] };
     const retrieve = jest.fn().mockResolvedValue({ coverage, records });
     const securityEnvelope = jest.fn().mockResolvedValue({ authorizedClientIds: ['client-1'], authorizedMailboxConnectionIds: [] });
-    const m = makeMocks({ sharedRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
+    const m = makeMocks({ downstreamRetrieval: { retrieve }, contextPlane: { securityEnvelope } });
     const result = await m.service.execute(ctx, 'search_committee_hearings', {
       hearingId: 'hearing-1', clientId: 'client-1', chamber: 'House', committeeName: 'Appropriations', cursor: 'official:source:0000000001',
     }) as any;
-    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ requestedDomains: ['hearings'], pageSize: 1,
+    expect(securityEnvelope).toHaveBeenCalledWith(ctx);
+    expect(m.gateway.requestContext).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: 'meri.chat', resolverRequest: expect.objectContaining({
+        subjectScope: 'client', clientId: 'client-1',
+        retrieval: expect.objectContaining({ query: null }),
+      }),
+    }));
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ query: undefined, requestedDomains: ['hearings'], pageSize: 1,
       hearingFilters: { hearingId: 'hearing-1', chamber: 'House', committeeName: 'Appropriations' },
       cursors: { hearings: 'official:source:0000000001' },
       caller: expect.objectContaining({ tenantId: ctx.tenantId, userId: ctx.userId, clientIds: ['client-1'], authorizedClientIds: ['client-1'] }) }));

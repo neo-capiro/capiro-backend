@@ -11,7 +11,9 @@ function readMeri(name: string): string {
 describe('MeriSourceDetail — rebuilt against real citations', () => {
   test('takes real MeriCitation[] rather than evidence fixtures', () => {
     const source = readMeri('MeriSourceDetail.tsx');
-    expect(source).toContain("import type { MeriCitation } from '../../components/chat/chat-store.js'");
+    expect(source).toContain(
+      "import type { MeriCitation } from '../../components/chat/chat-store.js'",
+    );
     expect(source).toContain('citations: MeriCitation[]');
     expect(source).not.toContain('MERI_EVIDENCE_SOURCES');
   });
@@ -25,22 +27,38 @@ describe('MeriSourceDetail — rebuilt against real citations', () => {
     expect(source).not.toContain('for this session');
   });
 
-  test('OPEN SOURCE only renders when the citation actually has a URL', () => {
-    expect(readMeri('MeriSourceDetail.tsx')).toContain('citation.url ? (');
+  test('OPEN SOURCE only renders for a safe URL from the canonical reader or original citation', () => {
+    const source = readMeri('MeriSourceDetail.tsx');
+    expect(source).toContain(
+      'safeMeriSourceUrl(first?.location) ?? safeMeriSourceUrl(citation?.url)',
+    );
+    expect(source).toContain('sourceUrl ? (');
+    expect(source).toContain('href={sourceUrl}');
   });
 
   test('is reachable from a real citation click through Shell, Conversation, Message and Rail', () => {
     const message = readMeri('VNextMeriMessage.tsx');
     expect(message).toContain('onOpenSourceDetail(citations, index');
     expect(message).toContain('VIEW FULL SOURCE');
-    expect(readMeri('VNextMeriConversation.tsx')).toContain('onOpenSourceDetail={onOpenSourceDetail}');
-    expect(readMeri('VNextMeriShell.tsx')).toContain('setActiveSourceDetail({ citations, index })');
+    expect(readMeri('VNextMeriConversation.tsx')).toContain(
+      'onOpenSourceDetail={onOpenSourceDetail}',
+    );
+    expect(readMeri('VNextMeriShell.tsx')).toContain(
+      'sourceSelection.open(citations, index, turnScope)',
+    );
     expect(readMeri('VNextMeriContextRail.tsx')).toContain('<MeriSourceDetail');
   });
 
   test('resets when the active thread changes', () => {
-    expect(readMeri('VNextMeriShell.tsx')).toMatch(
-      /setActiveSourceDetail\(null\);\s*\}, \[controller\.activeConversationId\]\);/,
+    const shell = readMeri('VNextMeriShell.tsx');
+    expect(shell).toContain('conversationId: controller.activeConversationId');
+    const selection = readMeri('useMeriSourceSelection.ts');
+    expect(selection).toContain(
+      'selection?.key === key && selection?.conversationId === input.conversationId',
     );
+    expect(selection).toContain(
+      'transient?.key === key && transient?.conversationId === input.conversationId',
+    );
+    expect(selection).toContain('[key, input.conversationId]');
   });
 });

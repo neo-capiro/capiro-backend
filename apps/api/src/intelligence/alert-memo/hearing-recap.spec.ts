@@ -12,10 +12,16 @@ const ctx = {
 } as unknown as TenantContext;
 
 function harness(opts: { session?: boolean; existing?: boolean } = {}) {
-  const createAttachmentFromBuffer = jest.fn(async (_ctx, input) => ({
-    id: '33333333-3333-3333-3333-333333333333',
-    fileName: input.fileName,
-  }));
+  const createAttachmentFromBuffer = jest.fn(
+    async (
+      _ctx: TenantContext,
+      input: Parameters<ClientDocumentWriterService['createAttachmentFromBuffer']>[1],
+    ) => ({
+      id: '33333333-3333-3333-3333-333333333333',
+      fileName: input.fileName,
+      s3Key: 'hearing-recaps/recap.docx',
+    }),
+  );
   const supersedeAttachment = jest.fn(async () => undefined);
   const tx = {
     client: {
@@ -40,12 +46,12 @@ function harness(opts: { session?: boolean; existing?: boolean } = {}) {
   const prisma = {
     withTenant: async (_tenantId: string, fn: (scoped: typeof tx) => unknown) => fn(tx),
   } as unknown as PrismaService;
-  const engagement = {
+  const documents = {
     createAttachmentFromBuffer,
     supersedeAttachment,
-  } as unknown as ClientDocumentWriterService;
+  } satisfies Pick<ClientDocumentWriterService, 'createAttachmentFromBuffer' | 'supersedeAttachment'>;
   return {
-    svc: new HearingRecapService(engagement, prisma),
+    svc: new HearingRecapService(documents as unknown as ClientDocumentWriterService, prisma),
     tx,
     createAttachmentFromBuffer,
     supersedeAttachment,

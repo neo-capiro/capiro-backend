@@ -1,8 +1,5 @@
 import type { Request } from 'express';
-import type {
-  MeriContext,
-  MeriGovernedTurnContext,
-} from '@capiro/meriv2-core';
+import type { MeriContext, MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { assuranceReleaseArmedFor } from '@capiro/meriv2-core';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import type { MeriContextResolver } from '../meri-context.resolver.js';
@@ -26,9 +23,7 @@ const CONTEXT = {
   role: 'standard_user',
 } as MeriContext;
 
-function governed(
-  kind: 'workspace_draft' | 'outreach_record',
-): MeriGovernedTurnContext {
+function governed(kind: 'workspace_draft' | 'outreach_record'): MeriGovernedTurnContext {
   const operationId = kind === 'workspace_draft' ? 'workspace.generate' : 'outreach.generate';
   return {
     version: 1,
@@ -124,12 +119,7 @@ describe('StrategyController governed document assurance scope', () => {
     const draftDocument = jest.fn(async (_ctx: MeriContext, dto: StrategyDocumentDraftInput) => {
       const selectedSurface = dto.kind === 'outreach_record' ? 'outreach' : 'strategy';
       return {
-        armed: assuranceReleaseArmedFor(
-          selectedSurface,
-          'strategy',
-          'enforce',
-          'tenant-a',
-        ),
+        armed: assuranceReleaseArmedFor(selectedSurface, 'strategy', 'enforce', 'tenant-a'),
       };
     });
     const controller = new StrategyController(

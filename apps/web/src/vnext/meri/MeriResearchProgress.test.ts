@@ -14,12 +14,12 @@ function readChat(name: string): string {
 }
 
 describe('MeriResearchProgress', () => {
-  test('renders a real time-based bar, not a fabricated percentage', () => {
+  test('renders elapsed time with an indeterminate bar, never a completion percentage from a time budget', () => {
     const source = readMeri('MeriResearchProgress.tsx');
     expect(source).toContain('progress.elapsedMs');
-    expect(source).toContain('progress!.budgetMs');
-    // Without a budget it must show a sweeping indeterminate fill, never a
-    // percentage computed against nothing.
+    expect(source).toContain("' ELAPSED'");
+    expect(source).not.toMatch(/progress[!?]?\.budgetMs/);
+    // A deadline is not work completed, even when a server budget is present.
     expect(source).toContain('vnext-meri__research-bar-indeterminate');
   });
 
@@ -43,19 +43,26 @@ describe('research progress plumbing (useMeriChatController)', () => {
     const source = readChat('useMeriChatController.ts');
     // Both the plan-stream and gather/synthesize handlers must capture the
     // event into researchProgress, not just interpolate it into a string.
-    const progressSetCalls = source.match(/setResearchProgress\(\{ note: e\.note/g);
+    const progressSetCalls = source.match(
+      /setResearchProgress\(\{\s*note: e\.note,\s*elapsedMs: e\.elapsedMs \?\? 0,\s*budgetMs: e\.budgetMs,/g,
+    );
     expect(progressSetCalls?.length).toBe(2);
   });
 
-  test('isResearchStreaming is reset on every exit path of the run, via finally', () => {
+  test('plan and gather finally reset research state only for their own stream epoch', () => {
     const source = readChat('useMeriChatController.ts');
-    expect(source).toMatch(/finally\s*\{\s*setIsResearchStreaming\(false\);\s*setResearchProgress\(null\);\s*\}/);
+    const cleanups = source.match(
+      /finally\s*\{\s*if \(streamEpoch === streamEpochRef\.current\) \{\s*(?:setStreaming\(false\);\s*)?setIsResearchStreaming\(false\);\s*setResearchProgress\(null\);\s*\}/g,
+    );
+    expect(cleanups?.length).toBe(2);
   });
 
   test('formatElapsed is exported and shared rather than reimplemented in the component', () => {
     const controller = readChat('useMeriChatController.ts');
     const component = readMeri('MeriResearchProgress.tsx');
     expect(controller).toContain('export function formatElapsed');
-    expect(component).toContain("import { formatElapsed } from '../../components/chat/useMeriChatController.js'");
+    expect(component).toContain(
+      "import { formatElapsed } from '../../components/chat/useMeriChatController.js'",
+    );
   });
 });

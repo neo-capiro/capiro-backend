@@ -30,10 +30,7 @@ describe('classifyMeriRetrievalIntent', () => {
   });
 
   test('recognizes the exact company-description prompt as a bounded external lookup', () => {
-    const result = classifyMeriRetrievalIntent(
-      'what does overland ai do',
-      'stale-ui-client',
-    );
+    const result = classifyMeriRetrievalIntent('what does overland ai do', 'stale-ui-client');
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -152,10 +149,7 @@ describe('classifyMeriRetrievalIntent', () => {
   });
 
   test('retains the selected client only as a deliberate comparison anchor', () => {
-    const result = classifyMeriRetrievalIntent(
-      'Compare my client with Shield AI',
-      'client-a',
-    );
+    const result = classifyMeriRetrievalIntent('Compare my client with Shield AI', 'client-a');
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -239,7 +233,6 @@ describe('meriRetrievalIntentPrompt', () => {
   });
 });
 
-
 describe('MW-07 fallback uses the same explicit subject contract', () => {
   test.each([
     'QA Sep 9: In one sentence, explain authorization versus appropriations.',
@@ -257,15 +250,24 @@ describe('MW-07 fallback uses the same explicit subject contract', () => {
     'Reply with exactly "Research READY. Tell me about PDF".',
     'Rewrite this paragraph: Research QA. Tell me about READY.',
   ])('does not turn instruction words into named subjects: %s', (task) => {
-    expect(classifyMeriRetrievalIntent(task)).toMatchObject({ subjectScope: 'general', targetHint: null });
+    expect(classifyMeriRetrievalIntent(task)).toMatchObject({
+      subjectScope: 'general',
+      targetHint: null,
+    });
     expect(classifyMeriRetrievalIntent(task, 'client-a')).toMatchObject({
-      subjectScope: 'client', targetHint: null, includeFocusedClientContext: true,
+      subjectScope: 'client',
+      targetHint: null,
+      includeFocusedClientContext: true,
     });
     expect(meriRetrievalTargetHint(task)).toBeNull();
   });
   test('explicit client-purpose instructions remain authoritative during a comparison', () => {
-    expect(classifyMeriRetrievalIntent('Compare RTX and LMT for this client', 'client-a')).toMatchObject({
-      subjectScope: 'client', targetHint: null, includeFocusedClientContext: true,
+    expect(
+      classifyMeriRetrievalIntent('Compare RTX and LMT for this client', 'client-a'),
+    ).toMatchObject({
+      subjectScope: 'client',
+      targetHint: null,
+      includeFocusedClientContext: true,
     });
   });
 });

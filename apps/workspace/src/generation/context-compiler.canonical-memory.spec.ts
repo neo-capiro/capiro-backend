@@ -145,9 +145,9 @@ describe('Workspace Context Plane client — Phase 21', () => {
   });
 
   it('fails closed when the governed runtime projection is missing', async () => {
-    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ packet: PACKET }), { status: 200 }),
-    );
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ packet: PACKET }), { status: 200 }));
     const service = new WorkspaceContextCompilerService();
     await expect(
       service.compileForClerkOwner(

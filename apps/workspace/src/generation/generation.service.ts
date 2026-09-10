@@ -1621,9 +1621,7 @@ export class GenerationService {
         ...(firmBlocks.length ? { firmContext: firmBlocks.join('\n\n') } : {}),
         ...(userVoiceContext ? { userVoiceContext } : {}),
         ...(clientBlocks.length ? { clientContext: clientBlocks.join('\n\n') } : {}),
-        ...(packet.supplementalEvidence
-          ? { retrievedContext: packet.supplementalEvidence }
-          : {}),
+        ...(packet.supplementalEvidence ? { retrievedContext: packet.supplementalEvidence } : {}),
         memoryFiles,
         contextPacketId: packet.persisted ? packet.packetId : null,
         contextTraceHash: packet.traceHash,

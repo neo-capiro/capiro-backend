@@ -38,9 +38,7 @@ class EngagementAiService {
         model: 'test-model',
         max_tokens: 800,
         system: 'Debrief only from supplied notes.',
-        messages: [
-          { role: 'user', content: `CURRENT TRANSCRIPT:\n${JSON.stringify(value)}` },
-        ],
+        messages: [{ role: 'user', content: `CURRENT TRANSCRIPT:\n${JSON.stringify(value)}` }],
       }),
     });
     return { recap: 'debrief' };
@@ -146,10 +144,12 @@ function gatewayResult(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function harness(options: {
-  authorized?: boolean;
-  gatewayResult?: Record<string, unknown>;
-} = {}) {
+function harness(
+  options: {
+    authorized?: boolean;
+    gatewayResult?: Record<string, unknown>;
+  } = {},
+) {
   const ai = new EngagementAiService();
   const caller = new MeetingCaller(ai);
   const providers = new Map([
@@ -172,12 +172,10 @@ function harness(options: {
   };
   const tx = {
     client: {
-      findFirst: jest.fn().mockResolvedValue(
-        options.authorized === false ? null : { id: CLIENT, name: 'Acme Corp' },
-      ),
-      findMany: jest.fn().mockResolvedValue(
-        options.authorized === false ? [] : [{ id: CLIENT }],
-      ),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(options.authorized === false ? null : { id: CLIENT, name: 'Acme Corp' }),
+      findMany: jest.fn().mockResolvedValue(options.authorized === false ? [] : [{ id: CLIENT }]),
     },
     integrationConnection: {
       findMany: jest.fn().mockResolvedValue([{ id: MAILBOX }]),
@@ -185,14 +183,11 @@ function harness(options: {
   };
   const prisma = {
     withTenantUser: jest.fn(
-      async (_tenantId: string, _userId: string, fn: (value: typeof tx) => unknown) =>
-        fn(tx),
+      async (_tenantId: string, _userId: string, fn: (value: typeof tx) => unknown) => fn(tx),
     ),
   };
   const gateway = {
-    requestContext: jest.fn().mockResolvedValue(
-      options.gatewayResult ?? gatewayResult(),
-    ),
+    requestContext: jest.fn().mockResolvedValue(options.gatewayResult ?? gatewayResult()),
   };
   const runtime = new MeetingsContextPlaneRuntime(
     gateway as never,

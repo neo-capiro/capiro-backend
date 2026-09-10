@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  CompiledContextPacket,
-  ContextRequest,
-} from '@capiro/meriv2-core/context/contract';
+import type { CompiledContextPacket, ContextRequest } from '@capiro/meriv2-core/context/contract';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import {
   clearContextPersistenceHold,
@@ -79,7 +76,9 @@ export class WorkspaceContextCompilerService {
       }
       return Object.assign(response.packet, {
         ...(response.governedContext ? { governedContext: response.governedContext } : {}),
-        ...(response.supplementalEvidence ? { supplementalEvidence: response.supplementalEvidence } : {}),
+        ...(response.supplementalEvidence
+          ? { supplementalEvidence: response.supplementalEvidence }
+          : {}),
       });
     } catch (error) {
       if (draftId) {

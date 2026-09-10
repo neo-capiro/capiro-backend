@@ -187,9 +187,7 @@ describe('buildMeriRetrievalPlan', () => {
   });
 
   test('renders the mailbox-history contract', () => {
-    const prompt = meriRetrievalPlanPrompt(
-      plan('tell me my email history with c2 strategies'),
-    );
+    const prompt = meriRetrievalPlanPrompt(plan('tell me my email history with c2 strategies'));
 
     expect(prompt).toContain('Call query_relationship_brief FIRST.');
     expect(prompt).toContain('mailbox-history request');
@@ -207,7 +205,6 @@ describe('buildMeriRetrievalPlan', () => {
     expect(prompt).toContain('senior-reviewer gap check');
   });
 });
-
 
 describe('MW-07 prior subjects do not leak into ordinary follow-ups', () => {
   test.each([

@@ -24,6 +24,7 @@ import { useClientFilter } from '../../state/client-filter.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import {
   addChatMessageChartArtifact,
+  addChatMessageDocumentArtifact,
   appendChatMessage,
   completeChatMessage,
   claimMeriIdentity,
@@ -58,6 +59,7 @@ import {
   upsertConversation,
   useChatStore,
 } from './chat-store.js';
+import { readMeriSavedDocumentArtifact } from './meri-artifact-download.js';
 import { MERI_CONTEXT_PROMPT_EVENT, type MeriContextPromptRequest } from './meri-prompt.js';
 import {
   mayApplyApprovalResult,
@@ -2259,6 +2261,8 @@ export function useMeriChatController({
                   });
                 }
               } else if (event.artifact?.bodyText) {
+                const savedDocument = readMeriSavedDocumentArtifact(event.artifact);
+                if (savedDocument) addChatMessageDocumentArtifact(assistantId, savedDocument);
                 setActiveArtifact(event.artifact);
               }
             } else if (event.type === 'research_offer') {

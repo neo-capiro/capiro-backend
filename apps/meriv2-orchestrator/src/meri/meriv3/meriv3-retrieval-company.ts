@@ -66,9 +66,7 @@ export async function executeMeriExternalCompanyResearch(
     ...discovery.sources,
   ];
 
-  const domain =
-    resolution.resolvedEntity?.domains[0] ??
-    discovery.selectedCandidate?.domains[0];
+  const domain = resolution.resolvedEntity?.domains[0] ?? discovery.selectedCandidate?.domains[0];
   sources.push(
     ...(await Promise.all([
       safeInvoke(ctx.invoke, 'search_public_web', {
@@ -106,14 +104,10 @@ export async function executeMeriExternalCompanyResearch(
     );
   }
   for (const naics of initialSignals.naicsCodes.slice(0, 3)) {
-    discoveryWave.push(
-      safeInvoke(ctx.invoke, 'search_sam_opportunities', { naics, limit: 20 }),
-    );
+    discoveryWave.push(safeInvoke(ctx.invoke, 'search_sam_opportunities', { naics, limit: 20 }));
   }
   for (const term of searchTerms.slice(0, 3)) {
-    discoveryWave.push(
-      safeInvoke(ctx.invoke, 'search_federal_grants', { query: term, limit: 15 }),
-    );
+    discoveryWave.push(safeInvoke(ctx.invoke, 'search_federal_grants', { query: term, limit: 15 }));
   }
   for (const term of searchTerms.slice(0, 4)) {
     discoveryWave.push(
@@ -136,9 +130,7 @@ export async function executeMeriExternalCompanyResearch(
         detail: detail.result,
         budgetTimeline: budgetTimeline.result,
         reportLanguage: reportLanguage.result,
-        verified:
-          !resultHasError(detail.result) &&
-          !resultHasError(budgetTimeline.result),
+        verified: !resultHasError(detail.result) && !resultHasError(budgetTimeline.result),
       };
     }),
   );
@@ -166,15 +158,15 @@ export async function executeMeriExternalCompanyResearch(
   const byTool = (tool: string, max: number) =>
     evidence.filter((row) => row.sourceTool === tool).slice(0, max);
   const identityUsable =
-    discovery.identityStatus === 'resolved' ||
-    discovery.identityStatus === 'provisional';
+    discovery.identityStatus === 'resolved' || discovery.identityStatus === 'provisional';
   const manifest = recipeCoverage(
     ['identity', 'public_web', 'registries', 'awards', 'opportunities'],
     sources,
     1,
     identityUsable ? 1 : 0,
   );
-  const researchEntity = resolution.resolvedEntity ??
+  const researchEntity =
+    resolution.resolvedEntity ??
     (discovery.selectedCandidate
       ? {
           canonicalName: discovery.selectedCandidate.canonicalName,
@@ -208,10 +200,10 @@ export async function executeMeriExternalCompanyResearch(
     federalMarketSignals: signals,
     searchTermsUsed: searchTerms,
     qualificationGaps,
-    publicCapabilities: [
-      ...byTool('scrape_web_page', 8),
-      ...byTool('search_public_web', 16),
-    ].slice(0, 20),
+    publicCapabilities: [...byTool('scrape_web_page', 8), ...byTool('search_public_web', 16)].slice(
+      0,
+      20,
+    ),
     historicalAwards: byTool('search_federal_awards', 25),
     candidateOpportunities: byTool('search_sam_opportunities', 35),
     candidateGrants: byTool('search_federal_grants', 20),
@@ -219,16 +211,14 @@ export async function executeMeriExternalCompanyResearch(
     validatedProgramElements: peValidation,
     results: evidence.slice(0, 100),
     coverage: manifest,
-    answerDirective:
-      identityUsable
-        ? 'Produce the full company and federal-market report now. Do not ask the user to provide the legal name, website, UEI, CAGE, or capabilities when this result already contains a resolved or high-confidence provisional identity and retrieved official/public evidence. Clearly label provisional identity, verified facts, inferred fit, qualification gaps, and candidate opportunities.'
-        : 'Do not stop merely because the literal input did not resolve. Use the discovered candidates and evidence to explain the ambiguity, provide any useful conditional findings that are safe, and ask for clarification only when two materially plausible companies remain after the full discovery workflow.',
+    answerDirective: identityUsable
+      ? 'Produce the full company and federal-market report now. Do not ask the user to provide the legal name, website, UEI, CAGE, or capabilities when this result already contains a resolved or high-confidence provisional identity and retrieved official/public evidence. Clearly label provisional identity, verified facts, inferred fit, qualification gaps, and candidate opportunities.'
+      : 'Do not stop merely because the literal input did not resolve. Use the discovered candidates and evidence to explain the ambiguity, provide any useful conditional findings that are safe, and ask for clarification only when two materially plausible companies remain after the full discovery workflow.',
     nextRecommendedTools: [
       'specialist opportunity tools before treating a SAM/NOFO search match as a pursue recommendation',
       'government-directory/acquisition-personnel tools when a validated PE needs a stakeholder engagement plan',
     ],
-    note:
-      'External-company research is discovery-first and typo-tolerant. A failed literal lookup is not a stopping condition. Verified company facts, high-confidence provisional identity, candidate federal-market matches, and strategic inference are separate layers. Capability-driven SAM/grant/PE searches are discovery, not proof of eligibility, customer demand, appropriability, or program alignment. Up to five discovered PE codes are checked against canonical PE detail, budget, and report-language readers. Ask the user for identity information only after broad unquoted discovery, candidate reconciliation, registry follow-up, and official-site verification still leave material ambiguity.',
+    note: 'External-company research is discovery-first and typo-tolerant. A failed literal lookup is not a stopping condition. Verified company facts, high-confidence provisional identity, candidate federal-market matches, and strategic inference are separate layers. Capability-driven SAM/grant/PE searches are discovery, not proof of eligibility, customer demand, appropriability, or program alignment. Up to five discovered PE codes are checked against canonical PE detail, budget, and report-language readers. Ask the user for identity information only after broad unquoted discovery, candidate reconciliation, registry follow-up, and official-site verification still leave material ambiguity.',
   };
 }
 
@@ -284,9 +274,7 @@ function programCode(record: Record<string, unknown>): string | null {
   ]);
   if (!code) return null;
   const normalized = code.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-  return /^(?:\d{7}[A-Z]|\d{4}[A-Z]\d{4}|\d{8,12})$/.test(normalized)
-    ? normalized
-    : null;
+  return /^(?:\d{7}[A-Z]|\d{4}[A-Z]\d{4}|\d{8,12})$/.test(normalized) ? normalized : null;
 }
 
 function programCandidateText(record: Record<string, unknown>): string {
@@ -420,10 +408,7 @@ function waveToolResult(
     wave: query.wave,
     tool: source.tool,
     result: source.result,
-    query:
-      stringValue(query.input.query) ??
-      stringValue(query.input.naics) ??
-      query.reason,
+    query: stringValue(query.input.query) ?? stringValue(query.input.naics) ?? query.reason,
   };
 }
 
@@ -504,70 +489,72 @@ export async function executeMeriFederalMarketStrategyResearch(
   ]);
   const candidates = rankedProgramCandidates(observed, expandedSignals, blueprint.missionTerms);
 
-  const validatedPrograms = await parallelMapLimit(candidates.slice(0, 10), 4, async (candidate, index) => {
-    const core = await Promise.all([
-      safeInvoke(ctx.invoke, 'get_program_element', { peCode: candidate.peCode }),
-      safeInvoke(ctx.invoke, 'get_pe_budget_timeline', { peCode: candidate.peCode }),
-      safeInvoke(ctx.invoke, 'get_pe_report_language', { peCode: candidate.peCode }),
-    ]);
-    const [detail, budgetTimeline, reportLanguage] = core;
-    observed.push(
-      validationSource('budget_programs', 'verification', detail, candidate.peCode),
-      validationSource('budget_programs', 'verification', budgetTimeline, candidate.peCode),
-      validationSource('congressional', 'verification', reportLanguage, candidate.peCode),
-    );
-
-    let contractors: SourceResult | null = null;
-    let bills: SourceResult | null = null;
-    let personnel: SourceResult | null = null;
-    if (index < 6) {
-      [contractors, bills, personnel] = await Promise.all([
-        safeInvoke(ctx.invoke, 'get_pe_contractors', { peCode: candidate.peCode }),
-        safeInvoke(ctx.invoke, 'get_pe_bills', { peCode: candidate.peCode }),
-        safeInvoke(ctx.invoke, 'search_acquisition_personnel', {
-          peCode: candidate.peCode,
-          limit: 25,
-        }),
+  const validatedPrograms = await parallelMapLimit(
+    candidates.slice(0, 10),
+    4,
+    async (candidate, index) => {
+      const core = await Promise.all([
+        safeInvoke(ctx.invoke, 'get_program_element', { peCode: candidate.peCode }),
+        safeInvoke(ctx.invoke, 'get_pe_budget_timeline', { peCode: candidate.peCode }),
+        safeInvoke(ctx.invoke, 'get_pe_report_language', { peCode: candidate.peCode }),
       ]);
+      const [detail, budgetTimeline, reportLanguage] = core;
       observed.push(
-        validationSource('partners', 'verification', contractors, candidate.peCode),
-        validationSource('congressional', 'verification', bills, candidate.peCode),
-        validationSource('stakeholders', 'verification', personnel, candidate.peCode),
+        validationSource('budget_programs', 'verification', detail, candidate.peCode),
+        validationSource('budget_programs', 'verification', budgetTimeline, candidate.peCode),
+        validationSource('congressional', 'verification', reportLanguage, candidate.peCode),
       );
-    }
 
-    const detailRecord = isRecord(detail.result) ? detail.result : null;
-    const exhibitType = detailRecord
-      ? textField(detailRecord, ['budgetExhibitType', 'exhibitType', 'appropriationType'])
-      : null;
-    const programType = /p-?1|p-?40|procurement/i.test(exhibitType ?? '')
-      ? 'procurement_line'
-      : /r-?1|r-?2|rdt&e|research/i.test(exhibitType ?? '')
-        ? 'program_element'
-        : 'budget_line_unconfirmed';
+      let contractors: SourceResult | null = null;
+      let bills: SourceResult | null = null;
+      let personnel: SourceResult | null = null;
+      if (index < 6) {
+        [contractors, bills, personnel] = await Promise.all([
+          safeInvoke(ctx.invoke, 'get_pe_contractors', { peCode: candidate.peCode }),
+          safeInvoke(ctx.invoke, 'get_pe_bills', { peCode: candidate.peCode }),
+          safeInvoke(ctx.invoke, 'search_acquisition_personnel', {
+            peCode: candidate.peCode,
+            limit: 25,
+          }),
+        ]);
+        observed.push(
+          validationSource('partners', 'verification', contractors, candidate.peCode),
+          validationSource('congressional', 'verification', bills, candidate.peCode),
+          validationSource('stakeholders', 'verification', personnel, candidate.peCode),
+        );
+      }
 
-    return {
-      ...candidate,
-      programType,
-      budgetExhibitType: exhibitType,
-      detail: detail.result,
-      budgetTimeline: budgetTimeline.result,
-      reportLanguage: reportLanguage.result,
-      contractors: contractors?.result ?? null,
-      bills: bills?.result ?? null,
-      acquisitionPersonnel: personnel?.result ?? null,
-      verified:
-        !resultHasError(detail.result) &&
-        !resultHasError(budgetTimeline.result),
-      evidenceLimitations: [
-        ...(resultHasError(detail.result) ? ['Program detail unavailable.'] : []),
-        ...(resultHasError(budgetTimeline.result) ? ['Budget timeline unavailable.'] : []),
-        ...(resultRows(reportLanguage.result).length === 0
-          ? ['No linked committee report language was retrieved for this code.']
-          : []),
-      ],
-    };
-  });
+      const detailRecord = isRecord(detail.result) ? detail.result : null;
+      const exhibitType = detailRecord
+        ? textField(detailRecord, ['budgetExhibitType', 'exhibitType', 'appropriationType'])
+        : null;
+      const programType = /p-?1|p-?40|procurement/i.test(exhibitType ?? '')
+        ? 'procurement_line'
+        : /r-?1|r-?2|rdt&e|research/i.test(exhibitType ?? '')
+          ? 'program_element'
+          : 'budget_line_unconfirmed';
+
+      return {
+        ...candidate,
+        programType,
+        budgetExhibitType: exhibitType,
+        detail: detail.result,
+        budgetTimeline: budgetTimeline.result,
+        reportLanguage: reportLanguage.result,
+        contractors: contractors?.result ?? null,
+        bills: bills?.result ?? null,
+        acquisitionPersonnel: personnel?.result ?? null,
+        verified: !resultHasError(detail.result) && !resultHasError(budgetTimeline.result),
+        evidenceLimitations: [
+          ...(resultHasError(detail.result) ? ['Program detail unavailable.'] : []),
+          ...(resultHasError(budgetTimeline.result) ? ['Budget timeline unavailable.'] : []),
+          ...(resultRows(reportLanguage.result).length === 0
+            ? ['No linked committee report language was retrieved for this code.']
+            : []),
+        ],
+      };
+    },
+  );
 
   const finalSignals = extractMeriFederalMarketSignals([
     { tool: 'research_external_company', result: companyResearch },
@@ -632,10 +619,7 @@ export async function executeMeriFederalMarketStrategyResearch(
         wavesExecuted: [...new Set(blueprint.queries.map((query) => query.wave))],
       },
       coverageGate,
-      criticChecklist: [
-        ...directorPlan.stopConditions,
-        ...coverageGate.criticFindings,
-      ],
+      criticChecklist: [...directorPlan.stopConditions, ...coverageGate.criticFindings],
     },
     identityUsable,
     federalMarketSignals: finalSignals,
@@ -663,8 +647,7 @@ export async function executeMeriFederalMarketStrategyResearch(
     coverage,
     answerDirective:
       'Write an artifact-quality, client-ready federal growth and capture strategy using the Research Director plan. Do not collapse this into a short company profile or three-program shortlist. Cover every required section, rank Direct match / Conditional niche / Adjacency, distinguish current notices from recurring channels and future watch items, state the correct PE/procurement exhibit type and budget stage, connect each funding account to an acquisition/customer/partner path, include congressional and industrial-base lanes when supported, and provide a measurable 90-day plus 12–18 month roadmap. A searched miss is not proof the market lane is absent. Clearly identify remaining evidence gaps without handing the research task back to the user.',
-    note:
-      'This dossier was produced by deterministic multi-wave research across internal Capiro data and public sources, followed by specialist validation of the highest-ranked budget lines. The outer Meri runtime must perform its request-local senior-reviewer audit and final synthesis before releasing the answer.',
+    note: 'This dossier was produced by deterministic multi-wave research across internal Capiro data and public sources, followed by specialist validation of the highest-ranked budget lines. The outer Meri runtime must perform its request-local senior-reviewer audit and final synthesis before releasing the answer.',
   };
 }
 
@@ -693,8 +676,7 @@ export async function executeMeriPortfolioOverlap(
   const ranked = contexts
     .sort(
       (a, b) =>
-        b.match.score - a.match.score ||
-        b.match.evidenceCoverage - a.match.evidenceCoverage,
+        b.match.score - a.match.score || b.match.evidenceCoverage - a.match.evidenceCoverage,
     )
     .map((entry) => ({
       id: entry.realId ?? entry.client.id ?? entry.client.name,
@@ -723,9 +705,7 @@ export async function executeMeriPortfolioOverlap(
     entry.profile,
     ...(entry.opportunity ? [entry.opportunity] : []),
   ]);
-  const searchedClients = contexts.filter(
-    (entry) => !resultHasError(entry.profile.result),
-  ).length;
+  const searchedClients = contexts.filter((entry) => !resultHasError(entry.profile.result)).length;
   const manifest = recipeCoverage(
     ['identity', 'clients', 'internal_research'],
     sourceResults,
@@ -739,7 +719,6 @@ export async function executeMeriPortfolioOverlap(
     companySignals,
     results: ranked.slice(0, 50),
     coverage: manifest,
-    note:
-      'Overlap is multi-signal: capability language, shared Program Elements, agencies/customers, military services, NAICS and PSC are scored separately and confidence is calibrated to evidence coverage. It is candidate generation, not evidence that two companies have a relationship or should team.',
+    note: 'Overlap is multi-signal: capability language, shared Program Elements, agencies/customers, military services, NAICS and PSC are scored separately and confidence is calibrated to evidence coverage. It is candidate generation, not evidence that two companies have a relationship or should team.',
   };
 }

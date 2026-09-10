@@ -55,9 +55,7 @@ function stringValue(value: unknown): string | null {
 function truncate(value: unknown, max: number): unknown {
   if (typeof value !== 'string') return value;
   const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length > max
-    ? `${normalized.slice(0, Math.max(0, max - 1))}…`
-    : normalized;
+  return normalized.length > max ? `${normalized.slice(0, Math.max(0, max - 1))}…` : normalized;
 }
 
 function compactArray(value: unknown, max: number): unknown {
@@ -98,10 +96,7 @@ function compactUnknown(value: unknown, depth = 0): unknown {
   );
 }
 
-function compactEvidence(
-  value: unknown,
-  snippetLimit = 260,
-): Record<string, unknown> | null {
+function compactEvidence(value: unknown, snippetLimit = 260): Record<string, unknown> | null {
   if (!isRecord(value)) return null;
   const id = firstString(value, [
     'id',
@@ -445,8 +440,10 @@ function identityDirective(value: Record<string, unknown>): string {
       'Present a concise candidate comparison, identify which evidence belongs to each candidate, provide only clearly conditional market observations, and ask one targeted clarification that would select the correct company.',
     ].join(' ');
   }
-  return stringValue(value.answerDirective) ??
-    'Write the complete client-ready federal growth and capture strategy from the Research Director evidence packet.';
+  return (
+    stringValue(value.answerDirective) ??
+    'Write the complete client-ready federal growth and capture strategy from the Research Director evidence packet.'
+  );
 }
 
 function strategyPacket(
@@ -485,11 +482,7 @@ function strategyPacket(
           }),
         }
       : {}),
-    evidenceByDomain: evidenceIndex(
-      value,
-      options.evidencePerSection,
-      options.snippetLimit,
-    ),
+    evidenceByDomain: evidenceIndex(value, options.evidencePerSection, options.snippetLimit),
     // Shared citation extraction reads top-level results/data and currently
     // keeps only a handful of rows. Round-robin across domains so those rows do
     // not all come from the first evidence family.

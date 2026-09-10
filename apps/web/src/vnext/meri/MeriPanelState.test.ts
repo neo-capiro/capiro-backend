@@ -20,12 +20,15 @@ describe('MeriPanelState', () => {
 
   test('replaces bare-text rail states in the context rail — every real loading/error/empty flag gets the icon treatment', () => {
     const source = readMeri('VNextMeriContextRail.tsx');
-    const usages = source.match(/<MeriPanelState/g);
-    expect(usages?.length).toBe(8);
-    // The old plain "Select an action…" footnote under Skills was removed by
-    // #1060 (friendly skills render rich per-action copy instead); this
-    // assertion previously pinned that footnote and went stale with it. The
-    // rich replacements are copy, not states — they must stay plain.
-    expect(source).toContain('Works across your portfolio');
+    // Pin the actual state boundaries, not a count of component usages: other
+    // sections now own their states inside their extracted components.
+    expect(source).toMatch(/packetLoading\s*\?\s*<MeriPanelState tone="loading">/);
+    expect(source).toMatch(/packetError\s*\?\s*<MeriPanelState tone="error">/);
+    expect(source).toMatch(/!packetLoading && !packetError\s*\?\s*<MeriPanelState tone="empty">/);
+    // Empty-state content comes from the actual compiled packet, preserving
+    // unknown/empty context rather than claiming portfolio-wide coverage.
+    expect(source).toContain(
+      '<MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState>',
+    );
   });
 });

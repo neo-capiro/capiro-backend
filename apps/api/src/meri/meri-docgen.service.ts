@@ -21,6 +21,7 @@ import {
 } from 'docx';
 import * as ExcelJS from 'exceljs';
 import PptxGenJS from 'pptxgenjs';
+import { buildMeriPdf } from './meri-docgen-pdf.js';
 import type {
   DocTable,
   ExcelSpec,
@@ -33,6 +34,11 @@ const CAPIRO_NAVY = '1C2E4A';
 @Injectable()
 export class MeriDocgenService {
   private readonly logger = new Logger(MeriDocgenService.name);
+
+  /** Render the same canonical document content used by Word as a real PDF. */
+  buildPdf(spec: WordSpec): Promise<Buffer> {
+    return buildMeriPdf(spec);
+  }
 
   /** Build a Word .docx buffer from a normalized spec. */
   async buildDocx(spec: WordSpec): Promise<Buffer> {

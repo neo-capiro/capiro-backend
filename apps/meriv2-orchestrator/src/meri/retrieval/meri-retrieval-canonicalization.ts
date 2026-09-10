@@ -1,7 +1,4 @@
-import type {
-  MeriRetrievalDomain,
-  MeriRetrievalPlan,
-} from './meri-retrieval-plan.js';
+import type { MeriRetrievalDomain, MeriRetrievalPlan } from './meri-retrieval-plan.js';
 
 const REQUIRED_DOMAINS: MeriRetrievalDomain[] = [
   'identity',

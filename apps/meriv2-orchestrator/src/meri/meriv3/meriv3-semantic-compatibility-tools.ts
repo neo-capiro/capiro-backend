@@ -32,13 +32,20 @@ const LEGACY_ARTIFACT_TOOLS = new Set([
 
 const ARTIFACT_TOOL_BY_TYPE: Record<string, string> = {
   word: 'create_word',
+  pdf: 'create_word',
   spreadsheet: 'create_excel',
   presentation: 'create_powerpoint',
   meeting_brief: 'create_meeting_brief',
   policy_memo: 'draft_policy_memo',
 };
 
-const CLIENT_AWARE_ARTIFACT_TYPES = new Set(['word', 'spreadsheet', 'presentation', 'policy_memo']);
+const CLIENT_AWARE_ARTIFACT_TYPES = new Set([
+  'word',
+  'pdf',
+  'spreadsheet',
+  'presentation',
+  'policy_memo',
+]);
 
 const ANALYZE_FUNDING_OPPORTUNITY_SCHEMA: MeriSemanticCompatibilitySchema = {
   name: 'analyze_funding_opportunity',
@@ -69,19 +76,19 @@ const ANALYZE_FUNDING_OPPORTUNITY_SCHEMA: MeriSemanticCompatibilitySchema = {
 const CREATE_ARTIFACT_SCHEMA: MeriSemanticCompatibilitySchema = {
   name: 'create_artifact',
   description:
-    'Generate and persist one governed Capiro artifact through the existing document services. OpenAI owns the reasoning and writing; Capiro owns generation, formatting, storage, versions, provenance, approvals and export. Put clientId and conversationId at the TOP LEVEL, not inside `spec`; Meri pins both to the active conversation when applicable. `spec` is the structured input accepted by the backing artifact type: Word uses title/subtitle/sections; spreadsheet uses sheets with headers and rows; presentation uses a title slide and content slides; meeting_brief uses meetingId/title; policy_memo uses title/objective/body. This gateway never bypasses the underlying write/compliance gate.',
+    'Generate and persist one governed Capiro artifact through the existing document services. OpenAI owns the reasoning and writing; Capiro owns generation, formatting, storage, versions, provenance, approvals and export. Put clientId and conversationId at the TOP LEVEL, not inside `spec`; Meri pins both to the active conversation when applicable. `spec` is the structured input accepted by the backing artifact type: Word and PDF use title/subtitle/sections with paragraphs, bullets and tables, and support both Word and PDF downloads from the same saved content; spreadsheet uses sheets with headers and rows; presentation uses a title slide and content slides; meeting_brief uses meetingId/title; policy_memo uses title/objective/body. This gateway never bypasses the underlying write/compliance gate.',
   input_schema: {
     type: 'object',
     additionalProperties: false,
     properties: {
       type: {
         type: 'string',
-        enum: ['word', 'spreadsheet', 'presentation', 'meeting_brief', 'policy_memo'],
+        enum: ['word', 'pdf', 'spreadsheet', 'presentation', 'meeting_brief', 'policy_memo'],
       },
       clientId: {
         type: 'string',
         description:
-          'Authorized Capiro client UUID. Required for policy_memo; optional for generated Word, spreadsheet and presentation artifacts.',
+          'Authorized Capiro client UUID. Required for policy_memo; optional for generated Word, PDF, spreadsheet and presentation artifacts.',
       },
       conversationId: {
         type: 'string',
@@ -298,6 +305,7 @@ export class MeriV3SemanticCompatibilityTools {
     }
     if (clientId && CLIENT_AWARE_ARTIFACT_TYPES.has(type)) spec.clientId = clientId;
     if (conversationId) spec.conversationId = conversationId;
+    if (type === 'pdf') spec.format = 'pdf';
 
     return invoke(backingTool, spec);
   }

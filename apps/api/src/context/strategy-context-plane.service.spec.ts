@@ -167,22 +167,22 @@ const LIVE_ANCHORS = [
   { anchor: 'node', anchorId: NODE, clientId: CLIENT, strategyId: STRATEGY },
 ];
 
-function harness(opts: {
-  userFound?: boolean;
-  membershipFound?: boolean;
-  clientFound?: boolean;
-  packetSurface?: string;
-  contextOverrides?: Record<string, unknown>;
-  anchorRows?: Record<string, unknown>[];
-} = {}) {
+function harness(
+  opts: {
+    userFound?: boolean;
+    membershipFound?: boolean;
+    clientFound?: boolean;
+    packetSurface?: string;
+    contextOverrides?: Record<string, unknown>;
+    anchorRows?: Record<string, unknown>[];
+  } = {},
+) {
   const tx = {
     client: {
-      findFirst: jest.fn().mockResolvedValue(
-        opts.clientFound === false ? null : { id: CLIENT, name: 'Acme Corp' },
-      ),
-      findMany: jest.fn().mockResolvedValue(
-        opts.clientFound === false ? [] : [{ id: CLIENT }],
-      ),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(opts.clientFound === false ? null : { id: CLIENT, name: 'Acme Corp' }),
+      findMany: jest.fn().mockResolvedValue(opts.clientFound === false ? [] : [{ id: CLIENT }]),
     },
     integrationConnection: {
       findMany: jest.fn().mockResolvedValue([{ id: MAILBOX }]),
@@ -190,9 +190,9 @@ function harness(opts: {
     // The active-membership probe runs inside withTenant, because
     // tenant_memberships is FORCE RLS and capiro_app has no BYPASSRLS.
     tenantMembership: {
-      findFirst: jest.fn().mockResolvedValue(
-        opts.membershipFound === false ? null : { id: MEMBERSHIP },
-      ),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(opts.membershipFound === false ? null : { id: MEMBERSHIP }),
     },
     // sp_strategy/sp_node anchor projection. api-strategy owns those tables and
     // apps/api has no Prisma model for them, so the bridge reads them raw.
@@ -200,9 +200,7 @@ function harness(opts: {
   };
   const prisma = {
     user: {
-      findFirst: jest.fn().mockResolvedValue(
-        opts.userFound === false ? null : { id: USER },
-      ),
+      findFirst: jest.fn().mockResolvedValue(opts.userFound === false ? null : { id: USER }),
     },
     withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
     withTenantUser: jest.fn(
@@ -273,9 +271,7 @@ describe('StrategyContextPlaneService Phase 26', () => {
 
   test('Strategy assistant excludes the duplicate current-plan retrieval record', async () => {
     const h = harness();
-    h.gateway.requestContext.mockResolvedValue(
-      gatewayResult({ type: 'strategy', id: STRATEGY }),
-    );
+    h.gateway.requestContext.mockResolvedValue(gatewayResult({ type: 'strategy', id: STRATEGY }));
 
     const result = await h.service.resolve({
       tenantId: TENANT,
@@ -544,9 +540,7 @@ describe('StrategyContextPlaneService Phase 26', () => {
 
     test('a node whose owning Strategy belongs to another client fails closed', async () => {
       const h = harness({
-        anchorRows: [
-          { anchor: 'node', anchorId: NODE, clientId: CLIENT_B, strategyId: STRATEGY },
-        ],
+        anchorRows: [{ anchor: 'node', anchorId: NODE, clientId: CLIENT_B, strategyId: STRATEGY }],
       });
       await expect(
         h.service.resolve({
@@ -601,9 +595,7 @@ describe('StrategyContextPlaneService Phase 26', () => {
 
     test('a valid Strategy under the requested client is admitted', async () => {
       const h = harness();
-      h.gateway.requestContext.mockResolvedValue(
-        gatewayResult({ type: 'strategy', id: STRATEGY }),
-      );
+      h.gateway.requestContext.mockResolvedValue(gatewayResult({ type: 'strategy', id: STRATEGY }));
       const result = await h.service.resolve({
         tenantId: TENANT,
         clerkUserId: 'user_test',

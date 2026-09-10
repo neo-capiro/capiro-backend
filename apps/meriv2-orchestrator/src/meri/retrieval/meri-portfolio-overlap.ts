@@ -74,10 +74,7 @@ function addCode(target: Set<string>, raw: string, kind: 'naics' | 'psc' | 'pe')
     const value = part.toUpperCase().replace(/[^A-Z0-9-]/g, '');
     if (kind === 'naics' && /^\d{6}$/.test(value)) target.add(value);
     if (kind === 'psc' && /^[A-Z0-9]{4}$/.test(value)) target.add(value);
-    if (
-      kind === 'pe' &&
-      (/^\d{7}[A-Z]$/.test(value) || /^\d{4}[A-Z]\d{4}$/.test(value))
-    ) {
+    if (kind === 'pe' && (/^\d{7}[A-Z]$/.test(value) || /^\d{4}[A-Z]\d{4}$/.test(value))) {
       target.add(value);
     }
   }
@@ -119,7 +116,8 @@ export function extractMeriClientOverlapSignals(
         strings.forEach((item) => services.add(item));
       }
       if (/naics/.test(lower)) strings.forEach((item) => addCode(naics, item, 'naics'));
-      if (/psc|productservicecode/.test(lower)) strings.forEach((item) => addCode(psc, item, 'psc'));
+      if (/psc|productservicecode/.test(lower))
+        strings.forEach((item) => addCode(psc, item, 'psc'));
       if (/pecode|penumber|penumbers|programelement/.test(lower)) {
         strings.forEach((item) => addCode(pe, item, 'pe'));
       }
@@ -202,10 +200,8 @@ export function scoreMeriPortfolioOverlap(
     0,
   );
   const raw = availableWeight
-    ? weighted.reduce(
-        (sum, item) => sum + (item.value == null ? 0 : item.value * item.weight),
-        0,
-      ) / availableWeight
+    ? weighted.reduce((sum, item) => sum + (item.value == null ? 0 : item.value * item.weight), 0) /
+      availableWeight
     : 0;
   const calibrated = raw * (0.65 + 0.35 * availableWeight);
   const structuredMatches =
@@ -217,8 +213,7 @@ export function scoreMeriPortfolioOverlap(
   const confidence: MeriPortfolioOverlapScore['confidence'] =
     availableWeight >= 0.65 && structuredMatches >= 2
       ? 'high'
-      : structuredMatches >= 1 ||
-          (availableWeight >= 0.55 && capability.matches.length >= 3)
+      : structuredMatches >= 1 || (availableWeight >= 0.55 && capability.matches.length >= 3)
         ? 'medium'
         : 'low';
 
@@ -247,11 +242,9 @@ export function scoreMeriPortfolioOverlap(
     confidence,
     dimensions: {
       capability: capability.score == null ? null : Number(capability.score.toFixed(3)),
-      programElement:
-        programElement.score == null ? null : Number(programElement.score.toFixed(3)),
+      programElement: programElement.score == null ? null : Number(programElement.score.toFixed(3)),
       agency: agency.score == null ? null : Number(agency.score.toFixed(3)),
-      serviceBranch:
-        serviceBranch.score == null ? null : Number(serviceBranch.score.toFixed(3)),
+      serviceBranch: serviceBranch.score == null ? null : Number(serviceBranch.score.toFixed(3)),
       naics: naics.score == null ? null : Number(naics.score.toFixed(3)),
       psc: psc.score == null ? null : Number(psc.score.toFixed(3)),
     },

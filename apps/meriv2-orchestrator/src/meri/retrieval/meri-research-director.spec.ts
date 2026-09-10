@@ -14,9 +14,12 @@ describe('Meri research director', () => {
         'Give me a comprehensive strategy on kindeticindustries.inc. Tell me what Program Elements, grants, or government contracts they should pursue.',
       ),
     ).toBe(true);
-    expect(isComprehensiveFederalMarketResearch('What should Anduril pursue?', 'federal_market_analysis')).toBe(
-      true,
-    );
+    expect(
+      isComprehensiveFederalMarketResearch(
+        'What should Anduril pursue?',
+        'federal_market_analysis',
+      ),
+    ).toBe(true);
     expect(isComprehensiveFederalMarketResearch('What time is the meeting?')).toBe(false);
   });
 
@@ -64,7 +67,9 @@ describe('Meri research director', () => {
 
   test('emits mandatory director, critic and synthesis contracts', () => {
     const plan = buildMeriResearchDirectorPlan('comprehensive capture strategy', 'Example Co');
-    expect(meriResearchDirectorPrompt(plan)).toMatch(/dedicated federal-market strategy recipe first/i);
+    expect(meriResearchDirectorPrompt(plan)).toMatch(
+      /dedicated federal-market strategy recipe first/i,
+    );
     expect(meriResearchDirectorPrompt(plan)).toMatch(/do not synthesize early/i);
     expect(meriResearchCriticInstructions(plan)).toMatch(/senior federal capture executive/i);
     expect(meriResearchCriticInstructions(plan)).toMatch(/missingSections/);

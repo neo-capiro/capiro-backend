@@ -130,10 +130,10 @@ export function ReviewedPartialPeTotalsPage() {
 
       <div style={{ marginBottom: 16, maxWidth: 200 }}>
         <CapiroSelect
+          label="Fiscal year"
           value={String(fiscalYear)}
           onChange={(e) => setFiscalYear(Number(e.target.value))}
           options={FISCAL_YEAR_OPTIONS}
-          label="Fiscal year"
         />
       </div>
 

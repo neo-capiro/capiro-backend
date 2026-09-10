@@ -188,7 +188,11 @@ export class WatchReviewService {
       isoDate(checkedAt) === today &&
       (!lastEditedAt || checkedAt > lastEditedAt);
 
-    if (!mission || mission.state !== 'active' || (reason !== 'manual-check' && allCurrentHead && runIsFresh)) {
+    if (
+      !mission ||
+      mission.state !== 'active' ||
+      (reason !== 'manual-check' && allCurrentHead && runIsFresh)
+    ) {
       this.logger.log(
         `[strategy:${strategyId}] Watch revalidate no-op (reason:${reason}) — ${
           mission ? 'already fresh' : 'no Watch mission'
@@ -215,14 +219,19 @@ export class WatchReviewService {
       // Resolve this check's own retry family. A newer scheduled run may be
       // unrelated; falling back to baseKey after a successful retry would reopen
       // the failed ancestor and permanently break subsequent manual checks.
-      const previousAttempt = await this.prisma.withTenant(tenantId, (tx) => tx.spAgentRun.findFirst({
-        where: { missionId: mission.id, OR: [
-          { idempotencyKey: baseKey },
-          { idempotencyKey: { startsWith: `${baseKey}:retry:` } },
-        ] },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: { id: true, state: true, idempotencyKey: true },
-      }));
+      const previousAttempt = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.spAgentRun.findFirst({
+          where: {
+            missionId: mission.id,
+            OR: [
+              { idempotencyKey: baseKey },
+              { idempotencyKey: { startsWith: `${baseKey}:retry:` } },
+            ],
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: { id: true, state: true, idempotencyKey: true },
+        }),
+      );
       const idempotencyKey = previousAttempt
         ? RUN_TERMINAL_STATES.has(previousAttempt.state)
           ? `${baseKey}:retry:${previousAttempt.id}`

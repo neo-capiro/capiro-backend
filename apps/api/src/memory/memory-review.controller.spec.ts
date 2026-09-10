@@ -103,9 +103,7 @@ describe('MemoryReviewController', () => {
     });
     await expect(
       controller.reviseCandidate(ctx, 'candidate-1', {
-        sections: [
-          { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' },
-        ],
+        sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' }],
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -144,9 +142,7 @@ describe('MemoryReviewController', () => {
     expect(listReviewable).toHaveBeenCalledWith(ctx);
     expect(requestChanges).toHaveBeenCalledWith(ctx, 'candidate-1', 'Add the source.');
     expect(revise).toHaveBeenCalledWith(ctx, 'candidate-1', {
-      sections: [
-        { key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' },
-      ],
+      sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Revised.' }],
     });
     expect(assignReviewer).toHaveBeenCalledWith(
       ctx,
@@ -173,7 +169,10 @@ describe('MemoryReviewController', () => {
     );
 
     await expect(
-      controller.resolveConflict(ctx, 'candidate-1', { decision: 'supersede_existing', reason: 'confirmed' }),
+      controller.resolveConflict(ctx, 'candidate-1', {
+        decision: 'supersede_existing',
+        reason: 'confirmed',
+      }),
     ).resolves.toEqual({
       ok: true,
       candidateId: 'candidate-1',
@@ -183,7 +182,12 @@ describe('MemoryReviewController', () => {
       memoryItemId: 'item-2',
       controllingItemId: 'item-2',
     });
-    expect(resolveConflict).toHaveBeenCalledWith(ctx, 'candidate-1', 'supersede_existing', 'confirmed');
+    expect(resolveConflict).toHaveBeenCalledWith(
+      ctx,
+      'candidate-1',
+      'supersede_existing',
+      'confirmed',
+    );
 
     await expect(
       controller.resolveConflict(ctx, 'candidate-1', { decision: 'maybe' }),

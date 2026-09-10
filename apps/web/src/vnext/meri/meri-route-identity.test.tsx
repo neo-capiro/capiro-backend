@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, renderHook, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   claimMeriIdentity,
@@ -148,6 +148,142 @@ describe('vNext Meri route identity boundary', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  test('an archived deep link offers explicit restore, then reopens its saved messages', async () => {
+    let archived = true;
+    const fetchMock = stubFetch((url, init) => {
+      if (url.endsWith('/api/clio/conversations')) return ok(archived ? [] : [THREAD_A]);
+      if (url.endsWith('/conversations/thread-a')) {
+        return ok({ ...THREAD_A, archivedAt: '2026-09-10T10:00:00Z', status: 'archived' });
+      }
+      if (url.endsWith('/thread-a/restore') && init?.method === 'PATCH') {
+        archived = false;
+        return ok({ ...THREAD_A, archivedAt: null });
+      }
+      if (url.endsWith('/thread-a/messages')) {
+        return ok([{ id: 'saved-answer', role: 'assistant', body: 'Saved before archive.' }]);
+      }
+      return undefined;
+    });
+
+    renderRoute();
+    await screen.findByText('Archived thread');
+    expect(screen.getByText(THREAD_A.title)).toBeTruthy();
+    expect(mocks.shellProps).toBeNull();
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/restore') || url.endsWith('/messages'))).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore thread' }));
+    await waitFor(() => expect(mocks.shellProps).not.toBeNull());
+    expect(fetchMock.mock.calls.filter(([url, init]) => url.endsWith('/restore') && init?.method === 'PATCH')).toHaveLength(1);
+    expect(getChatStateSnapshot()).toMatchObject({
+      activeConversationId: 'thread-a', sessionId: 'thread-a',
+      messages: [{ id: 'saved-answer', content: 'Saved before archive.' }],
+    });
+    expect(screen.queryByText('Archived thread')).toBeNull();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  test.each([403, 404])('an inaccessible exact lookup (%s) stays generic and offers no restoration', async (status) => {
+    const fetchMock = stubFetch((url) => {
+      if (url.endsWith('/api/clio/conversations')) return ok([]);
+      if (url.endsWith('/conversations/thread-a')) {
+        return Promise.resolve({ ok: false, status, json: async () => ({ title: 'Private title' }) });
+      }
+      return undefined;
+    });
+    renderRoute();
+    await screen.findByText('This Meri thread is not available in your conversation history.');
+    expect(screen.queryByRole('button', { name: 'Restore thread' })).toBeNull();
+    expect(screen.queryByText('Private title')).toBeNull();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(0);
+  });
+
+  test.each([
+    { ...THREAD_A, archivedAt: null },
+    { ...THREAD_A, id: 'different-thread', archivedAt: '2026-09-10T10:00:00Z' },
+  ])('only the exact owned archived row enables recovery (%j)', async (row) => {
+    stubFetch((url) => {
+      if (url.endsWith('/api/clio/conversations')) return ok([]);
+      if (url.endsWith('/conversations/thread-a')) return ok(row);
+      return undefined;
+    });
+    renderRoute();
+    await screen.findByText('This Meri thread is not available in your conversation history.');
+    expect(screen.queryByRole('button', { name: 'Restore thread' })).toBeNull();
+  });
+
+  test('an archived lookup completing under a new identity cannot reveal the prior title', async () => {
+    let resolveLookup: ((value: unknown) => void) | null = null;
+    stubFetch((url) => {
+      if (url.endsWith('/api/clio/conversations')) return ok([]);
+      if (url.endsWith('/conversations/thread-a')) {
+        if (mocks.impersonatedTenantSlug) return Promise.resolve({ ok: false, status: 404 });
+        return new Promise((resolve) => { resolveLookup = resolve; });
+      }
+      return undefined;
+    });
+    const view = renderRoute();
+    await waitFor(() => expect(resolveLookup).not.toBeNull());
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      view.rerenderRoute();
+    });
+    await screen.findByText('This Meri thread is not available in your conversation history.');
+    await act(async () => {
+      resolveLookup!({ ok: true, json: async () => ({ ...THREAD_A, archivedAt: '2026-09-10T10:00:00Z' }) });
+    });
+    expect(screen.queryByText(THREAD_A.title)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Restore thread' })).toBeNull();
+    expect(getChatStateSnapshot().messages).toEqual([]);
+  });
+
+  test.each(['identity', 'route', 'unmount'])('a %s change while restore awaits auth dispatches no mutation', async (change) => {
+    const fetchMock = stubFetch((url) => {
+      if (url.endsWith('/api/clio/conversations')) return ok([]);
+      if (url.endsWith('/conversations/thread-a')) return ok({ ...THREAD_A, archivedAt: '2026-09-10T10:00:00Z' });
+      return undefined;
+    });
+    const view = renderRoute();
+    await screen.findByRole('button', { name: 'Restore thread' });
+    let releaseToken: (() => void) | null = null;
+    mocks.getToken.mockImplementationOnce(() => new Promise<string>((resolve) => { releaseToken = () => resolve('token'); }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore thread' }));
+    await waitFor(() => expect(releaseToken).not.toBeNull());
+    await act(async () => {
+      if (change === 'unmount') { view.unmount(); return; }
+      if (change === 'identity') mocks.impersonatedTenantSlug = 'tenant-b';
+      else {
+        mocks.pathname = '/meri/new';
+        window.history.replaceState({}, '', mocks.pathname);
+      }
+      view.rerenderRoute();
+    });
+    await act(async () => { releaseToken!(); });
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(0);
+  });
+
+  test('a failed restore retains an explicit retry without claiming success', async () => {
+    stubFetch((url) => {
+      if (url.endsWith('/api/clio/conversations')) return ok([]);
+      if (url.endsWith('/conversations/thread-a')) return ok({ ...THREAD_A, archivedAt: '2026-09-10T10:00:00Z' });
+      if (url.endsWith('/restore')) return Promise.resolve({ ok: false, status: 403 });
+      return undefined;
+    });
+    renderRoute();
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore thread' }));
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert').textContent).toBe('This thread could not be restored. Try again or open Meri.');
+    expect((screen.getByRole('button', { name: 'Restore thread' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.shellProps).toBeNull();
+  });
+
+  test('a pending identity cannot probe an archived direct link', async () => {
+    mocks.userId = null;
+    const fetchMock = stubFetch((url) => url.endsWith('/api/clio/conversations') ? ok([]) : undefined);
+    await act(async () => { renderRoute(); });
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/conversations/thread-a'))).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Restore thread' })).toBeNull();
   });
 
   test('entering Meri under the owning identity keeps the app-wide client filter', async () => {

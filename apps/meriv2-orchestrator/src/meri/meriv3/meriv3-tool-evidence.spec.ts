@@ -1,6 +1,9 @@
 import { extractCitationsFromToolResult } from '@capiro/shared';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
-import { coalesceMeriMailPages, observeMeriToolCoverage } from '../retrieval/meri-retrieval-coverage.js';
+import {
+  coalesceMeriMailPages,
+  observeMeriToolCoverage,
+} from '../retrieval/meri-retrieval-coverage.js';
 
 describe('model-visible tool evidence budgets', () => {
   const profileSections = [
@@ -292,37 +295,67 @@ describe('model-visible tool evidence budgets', () => {
   const mailPage = (offset = 0, total = 75, limit = 15) => {
     const asOf = '2026-09-07T12:00:00.000Z';
     const messages = Array.from({ length: Math.min(limit, total - offset) }, (_, i) => ({
-      id: `message-${offset + i}`, threadId: `thread-${offset + i}`,
+      id: `message-${offset + i}`,
+      threadId: `thread-${offset + i}`,
       subject: 'Budget review and next steps',
       from: { email: 'sender@example.com', name: 'Sender' },
       to: [{ email: 'owner@example.com', name: 'Owner' }],
       cc: [{ email: 'colleague@example.com', name: 'Colleague' }],
-      sentAt: asOf, receivedAt: asOf, folder: 'inbox',
+      sentAt: asOf,
+      receivedAt: asOf,
+      folder: 'inbox',
       preview: 'Verified email evidence '.repeat(18),
-      hasAttachments: false, mailbox: 'owner@example.com', client: null,
+      hasAttachments: false,
+      mailbox: 'owner@example.com',
+      client: null,
     }));
     const hasMore = offset + messages.length < total;
     return {
-      totalMatches: total, returned: messages.length, offset, asOf, hasMore,
+      totalMatches: total,
+      returned: messages.length,
+      offset,
+      asOf,
+      hasMore,
       nextOffset: hasMore ? offset + messages.length : null,
-      queryScope: { query: null, from: null, participant: null, clientId: null,
-        folder: 'inbox', withinDays: 14, asOf },
+      queryScope: {
+        query: null,
+        from: null,
+        participant: null,
+        clientId: null,
+        folder: 'inbox',
+        withinDays: 14,
+        asOf,
+      },
       timeWindow: { start: '2026-08-24T12:00:00.000Z', end: asOf },
-      folder: 'inbox', clientId: null, messages,
-      searchedMailboxes: [{ provider: 'microsoft_365', status: 'connected',
-        syncedMessages: total, mailCoverage: { sourceStatus: 'healthy',
-          lastMailSyncAt: '2026-09-07T11:00:00.000Z' } }],
+      folder: 'inbox',
+      clientId: null,
+      messages,
+      searchedMailboxes: [
+        {
+          provider: 'microsoft_365',
+          status: 'connected',
+          syncedMessages: total,
+          mailCoverage: { sourceStatus: 'healthy', lastMailSyncAt: '2026-09-07T11:00:00.000Z' },
+        },
+      ],
       notes: ['Stored message previews are abbreviated.'],
-      threads: messages.map((message) => ({ id: message.threadId, subject: message.subject,
-        snippet: message.preview, messages: [{ id: message.id, bodyText: message.preview }] })),
+      threads: messages.map((message) => ({
+        id: message.threadId,
+        subject: message.subject,
+        snippet: message.preview,
+        messages: [{ id: message.id, bodyText: message.preview }],
+      })),
       count: messages.length,
     };
   };
 
   it('retains actual inbox messages, scope and health within the real 12K budget and advances only past shown rows', () => {
     const source = mailPage(50);
-    const result = projectMeriToolEvidence({ result: source, maxCharacters: 12_000,
-      readOnly: true }) as Record<string, any>;
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
     expect(JSON.stringify(source).length).toBeGreaterThan(12_000);
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(12_000);
     expect(result.messages.length).toBeGreaterThan(0);
@@ -333,10 +366,19 @@ describe('model-visible tool evidence budgets', () => {
     expect(result.queryScope).toEqual(source.queryScope);
     expect(result.timeWindow).toEqual(source.timeWindow);
     expect(result.searchedMailboxes).toEqual(source.searchedMailboxes);
-    expect(result).toMatchObject({ offset: 50, asOf: source.asOf, totalMatches: 75,
-      nextOffset: 50 + result.returned, hasMore: true,
-      projection: { shownRecordCount: result.returned, sourceRecordCount: 15,
-        truncated: true, contentTruncated: false } });
+    expect(result).toMatchObject({
+      offset: 50,
+      asOf: source.asOf,
+      totalMatches: 75,
+      nextOffset: 50 + result.returned,
+      hasMore: true,
+      projection: {
+        shownRecordCount: result.returned,
+        sourceRecordCount: 15,
+        truncated: true,
+        contentTruncated: false,
+      },
+    });
     expect(result.messages[result.returned - 1]).toEqual(source.messages[result.returned - 1]);
     expect(JSON.stringify(result)).not.toContain(source.messages[result.returned]!.id);
   });
@@ -347,8 +389,11 @@ describe('model-visible tool evidence budgets', () => {
     let offset = 0;
     for (let page = 0; page < 20; page++) {
       const source = mailPage(offset, 31);
-      const result = projectMeriToolEvidence({ result: source, maxCharacters: 12_000,
-        readOnly: true }) as Record<string, any>;
+      const result = projectMeriToolEvidence({
+        result: source,
+        maxCharacters: 12_000,
+        readOnly: true,
+      }) as Record<string, any>;
       expect(result.queryScope).toEqual(source.queryScope);
       expect(result.searchedMailboxes).toEqual(source.searchedMailboxes);
       expect(result.returned).toBe(result.messages.length);
@@ -363,20 +408,33 @@ describe('model-visible tool evidence budgets', () => {
     }
     expect(ids).toEqual(Array.from({ length: 31 }, (_, i) => `message-${i}`));
     expect(coalesceMeriMailPages(observations)).toEqual([
-      expect.objectContaining({ returned: 31, total: 31, hasMore: false,
-        truncated: false, status: 'complete' }),
+      expect.objectContaining({
+        returned: 31,
+        total: 31,
+        hasMore: false,
+        truncated: false,
+        status: 'complete',
+      }),
     ]);
   });
 
   it('removes only the duplicate thread view when all canonical message evidence fits', () => {
     const source = mailPage(0, 2);
     source.threads[0]!.snippet = 'Duplicate compatibility content '.repeat(600);
-    const result = projectMeriToolEvidence({ result: source, maxCharacters: 12_000,
-      readOnly: true }) as Record<string, any>;
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
     expect(JSON.stringify(source).length).toBeGreaterThan(12_000);
     expect(result.messages).toEqual(source.messages);
     expect(result.searchedMailboxes).toEqual(source.searchedMailboxes);
-    expect(result).toMatchObject({ returned: 2, totalMatches: 2, hasMore: false, nextOffset: null });
+    expect(result).toMatchObject({
+      returned: 2,
+      totalMatches: 2,
+      hasMore: false,
+      nextOffset: null,
+    });
     expect(result).not.toHaveProperty('truncated');
     expect(result).not.toHaveProperty('threads');
   });
@@ -384,26 +442,52 @@ describe('model-visible tool evidence budgets', () => {
   it('cannot skip an inbox message whose full returned row cannot fit', () => {
     const source = mailPage(20, 30, 1);
     source.messages[0]!.preview = 'Unabridged message '.repeat(2_000);
-    const result = projectMeriToolEvidence({ result: source, maxCharacters: 12_000,
-      readOnly: true }) as Record<string, any>;
+    const result = projectMeriToolEvidence({
+      result: source,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
     expect(result.messages).toEqual([]);
-    expect(result).toMatchObject({ offset: 20, nextOffset: null, returned: 0, hasMore: true,
-      queryScope: source.queryScope, projection: { shownRecordCount: 0 } });
+    expect(result).toMatchObject({
+      offset: 20,
+      nextOffset: null,
+      returned: 0,
+      hasMore: true,
+      queryScope: source.queryScope,
+      projection: { shownRecordCount: 0 },
+    });
     expect(result.projection.continuation.instruction).toContain('current offset');
   });
 
   it('preserves complete thread body fragments and their body continuation while paging only displayed messages', () => {
     const messages = Array.from({ length: 3 }, (_, i) => ({
-      id: `body-${i}`, threadId: 'thread-body', subject: 'Review requested',
+      id: `body-${i}`,
+      threadId: 'thread-body',
+      subject: 'Review requested',
       bodyText: 'Read this exact body fragment. '.repeat(180),
-      bodyOffset: 2000, bodyLength: 12000, bodyCompleteness: 'full',
-      bodyTruncated: true, nextBodyOffset: 7580,
+      bodyOffset: 2000,
+      bodyLength: 12000,
+      bodyCompleteness: 'full',
+      bodyTruncated: true,
+      nextBodyOffset: 7580,
     }));
-    const result = projectMeriToolEvidence({ result: {
-      threadId: 'thread-body', messageId: null, subject: 'Review requested',
-      mailbox: 'owner@example.com', messageOffset: 4, totalMessages: 9,
-      returned: 3, hasMore: true, nextMessageOffset: 7, messages, notes: [],
-    }, maxCharacters: 12_000, readOnly: true }) as Record<string, any>;
+    const result = projectMeriToolEvidence({
+      result: {
+        threadId: 'thread-body',
+        messageId: null,
+        subject: 'Review requested',
+        mailbox: 'owner@example.com',
+        messageOffset: 4,
+        totalMessages: 9,
+        returned: 3,
+        hasMore: true,
+        nextMessageOffset: 7,
+        messages,
+        notes: [],
+      },
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as Record<string, any>;
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(12_000);
     expect(result.messages.length).toBeGreaterThan(0);
     expect(result.messages.length).toBeLessThan(3);

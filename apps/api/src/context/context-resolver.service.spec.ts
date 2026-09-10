@@ -81,9 +81,7 @@ function ambiguousEntity(): UniversalEntityResolutionOrchestrationResult {
   };
 }
 
-function request(
-  overrides: Partial<ContextResolutionRequest> = {},
-): ContextResolutionRequest {
+function request(overrides: Partial<ContextResolutionRequest> = {}): ContextResolutionRequest {
   return {
     tenantId: 'tenant-1',
     actorUserId: 'user-1',
@@ -164,9 +162,7 @@ describe('ContextResolverService', () => {
     const { service, retrieval } = harness();
 
     await expect(
-      service.resolveAndRetrieve(
-        request({ subjectScope: 'client', clientId: 'client-99' }),
-      ),
+      service.resolveAndRetrieve(request({ subjectScope: 'client', clientId: 'client-99' })),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(retrieval.retrieve).not.toHaveBeenCalled();
   });
@@ -181,10 +177,7 @@ describe('ContextResolverService', () => {
     );
 
     expect(result.subjectScope.clientIds).toEqual(['client-1', 'client-2']);
-    expect(result.retrievalRequest?.caller.clientIds).toEqual([
-      'client-1',
-      'client-2',
-    ]);
+    expect(result.retrievalRequest?.caller.clientIds).toEqual(['client-1', 'client-2']);
   });
 
   test('resolves an external entity before Retrieval V2 and never auto-registers it', async () => {
@@ -213,9 +206,7 @@ describe('ContextResolverService', () => {
 
     expect(callOrder).toEqual(['entity', 'retrieval']);
     expect(result.resolution.canonicalEntityIds).toEqual(['entity-1']);
-    expect(result.resolution.retrievalRequest?.canonicalEntityIds).toEqual([
-      'entity-1',
-    ]);
+    expect(result.resolution.retrievalRequest?.canonicalEntityIds).toEqual(['entity-1']);
     expect(entityResolver.resolveAcrossSources).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
@@ -275,9 +266,7 @@ describe('ContextResolverService', () => {
 
     expect(baseline.focusEntityRefs).toEqual([]);
     expect(baseline.trace.currentObjectUsedAsFocus).toBe(false);
-    expect(optedIn.focusEntityRefs).toEqual([
-      { type: 'program_element', id: '0605053A' },
-    ]);
+    expect(optedIn.focusEntityRefs).toEqual([{ type: 'program_element', id: '0605053A' }]);
     expect(optedIn.trace.currentObjectUsedAsFocus).toBe(true);
   });
 
@@ -293,9 +282,7 @@ describe('ContextResolverService', () => {
       }),
     );
 
-    expect(
-      result.retrievalRequest?.caller.authorizedMailboxConnectionIds,
-    ).toEqual(['mailbox-1']);
+    expect(result.retrievalRequest?.caller.authorizedMailboxConnectionIds).toEqual(['mailbox-1']);
   });
 
   test('bridges the authorized envelope into legacy exact client lookup', async () => {
@@ -310,9 +297,6 @@ describe('ContextResolverService', () => {
       }),
     );
 
-    expect(result.retrievalRequest?.caller.clientIds).toEqual([
-      'client-1',
-      'client-2',
-    ]);
+    expect(result.retrievalRequest?.caller.clientIds).toEqual(['client-1', 'client-2']);
   });
 });

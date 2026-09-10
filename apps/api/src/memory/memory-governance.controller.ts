@@ -42,9 +42,10 @@ export class MemoryGovernanceController {
     @CurrentTenant() ctx: TenantContext,
     @Query('bucket') rawBucket?: string,
     @Query('limit') rawLimit?: string,
+    @Query('q') query?: string,
   ) {
     const bucket = normalizeBucket(rawBucket);
-    return this.governance.listItems(ctx, bucket, normalizeLimit(rawLimit));
+    return this.governance.listItems(ctx, bucket, normalizeLimit(rawLimit), query);
   }
 
   @Get('items/:id')

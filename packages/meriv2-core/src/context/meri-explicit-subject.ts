@@ -4,12 +4,16 @@
  * Capitalization elsewhere (formats, quoted output, attachment text, acronyms)
  * is not evidence that the user chose a different subject.
  */
-export function explicitMeriSubjectHint(
-  request: string,
-  hasSelectedClient = false,
-): string | null {
-  const clientCue = /\bfor\s+(?:this|our|my|the\s+(?:currently\s+)?selected)\s+client\b/i.exec(request);
-  if (hasSelectedClient && clientCue && !/\b(?:not|except)\s*$/i.test(request.slice(0, clientCue.index))) return null;
+export function explicitMeriSubjectHint(request: string, hasSelectedClient = false): string | null {
+  const clientCue = /\bfor\s+(?:this|our|my|the\s+(?:currently\s+)?selected)\s+client\b/i.exec(
+    request,
+  );
+  if (
+    hasSelectedClient &&
+    clientCue &&
+    !/\b(?:not|except)\s*$/i.test(request.slice(0, clientCue.index))
+  )
+    return null;
 
   // These match the operation of a request clause, never an instruction quoted
   // inside output text, an attachment title, or the object of a rewrite request.
@@ -24,24 +28,45 @@ export function explicitMeriSubjectHint(
     /^compare\s+(.+?)(?:\s+(?:and|with|to|against|versus|vs\.?)\s+.+)$/i,
   ];
   for (const clause of subjectRequestClauses(request)) {
-    const operation = clause.trim().replace(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?/i, '');
+    const operation = clause
+      .trim()
+      .replace(/^(?:please\s+)?(?:(?:can|could|would)\s+you\s+)?(?:please\s+)?/i, '');
     for (const frame of frames) {
       const match = frame.exec(operation);
       const raw = match?.[1];
       if (!raw) continue;
       const quoted = /^["“]([^"”]{2,100})["”]/.exec(raw)?.[1];
-      const candidate = (quoted ?? raw
-        .split(/[!?;,\n]|\.(?=\s+[A-Z])|\s+(?:and|but|instead\s+of|rather\s+than|not\s+for|for\s+(?:this|our|my)|versus|vs\.?|with|against|then|that|they|their|should|could|would)\b/i)[0]!)
-        .trim().replace(/[.:'"”]+$/g, '').trim();
+      const candidate = (
+        quoted ??
+        raw.split(
+          /[!?;,\n]|\.(?=\s+[A-Z])|\s+(?:and|but|instead\s+of|rather\s+than|not\s+for|for\s+(?:this|our|my)|versus|vs\.?|with|against|then|that|they|their|should|could|would)\b/i,
+        )[0]!
+      )
+        .trim()
+        .replace(/[.:'"”]+$/g, '')
+        .trim();
       if (!candidate || candidate.length > 100) continue;
       // Deictic/possessive references point at existing context, not a new entity.
-      if (/^(?:a|an|all|any|every|the|this|that|these|those|my|our|your|me|us|it|them|client|clients|attached|uploaded|following)\b/i.test(candidate)) continue;
+      if (
+        /^(?:a|an|all|any|every|the|this|that|these|those|my|our|your|me|us|it|them|client|clients|attached|uploaded|following)\b/i.test(
+          candidate,
+        )
+      )
+        continue;
       if (isGovernmentReference(candidate)) continue;
-      const domain = /^(?:https?:\/\/)?(?:www\.)?([a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z]{2,})(?:\/\S*)?$/i.exec(candidate)?.[1];
+      const domain =
+        /^(?:https?:\/\/)?(?:www\.)?([a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z]{2,})(?:\/\S*)?$/i.exec(
+          candidate,
+        )?.[1];
       if (domain) return domain;
       // A name-like object is necessary but never sufficient without a frame.
-      if (/\d|(?:^|\s)[A-Z][A-Za-z0-9&.'-]*|\b(?:inc|llc|corp|corporation|company|ltd|limited|holdings?|advisors?|systems?|technologies?)\b/.test(candidate)
-        || /^what\s+does\b/i.test(match?.[0] ?? '')) return candidate;
+      if (
+        /\d|(?:^|\s)[A-Z][A-Za-z0-9&.'-]*|\b(?:inc|llc|corp|corporation|company|ltd|limited|holdings?|advisors?|systems?|technologies?)\b/.test(
+          candidate,
+        ) ||
+        /^what\s+does\b/i.test(match?.[0] ?? '')
+      )
+        return candidate;
     }
   }
   return null;
@@ -60,8 +85,12 @@ function subjectRequestClauses(request: string): string[] {
       if (character === quote && request[index - 1] !== '\\') quote = null;
       continue;
     }
-    if (character === '"' || character === '“' || character === '`'
-      || (character === "'" && !/[A-Za-z0-9]/.test(request[index - 1] ?? ''))) {
+    if (
+      character === '"' ||
+      character === '“' ||
+      character === '`' ||
+      (character === "'" && !/[A-Za-z0-9]/.test(request[index - 1] ?? ''))
+    ) {
       quote = character === '“' ? '”' : character;
       continue;
     }
@@ -76,17 +105,21 @@ function subjectRequestClauses(request: string): string[] {
 }
 
 function isGovernmentReference(value: string): boolean {
-  return /^FY\s*\d{2,4}(?:\b|$)/i.test(value)
-    || /^PE(?:\s*\d+[A-Z]?)?$/i.test(value)
-    || /^(?:HASC|SASC|HAC(?:-D)?|SAC(?:-D)?|NDAA|RDTE|RDT&E|USD)(?:$|\s+(?:staff|funding|appropriations|budget|mark|implementation|provisions|hearing)\b)/i.test(value)
-    || /^(?:H\.?\s*R\.?|S\.?|H\.?\s*J\.?\s*Res\.?|S\.?\s*J\.?\s*Res\.?)\s*\d+/i.test(value);
+  return (
+    /^FY\s*\d{2,4}(?:\b|$)/i.test(value) ||
+    /^PE(?:\s*\d+[A-Z]?)?$/i.test(value) ||
+    /^(?:HASC|SASC|HAC(?:-D)?|SAC(?:-D)?|NDAA|RDTE|RDT&E|USD)(?:$|\s+(?:staff|funding|appropriations|budget|mark|implementation|provisions|hearing)\b)/i.test(
+      value,
+    ) ||
+    /^(?:H\.?\s*R\.?|S\.?|H\.?\s*J\.?\s*Res\.?|S\.?\s*J\.?\s*Res\.?)\s*\d+/i.test(value)
+  );
 }
-
 
 /** Explicit portfolio requests share one contract across both Meri runtimes. */
 export function hasExplicitMeriPortfolioScope(request: string): boolean {
   // A quoted output/title or colon-bound rewrite is not a scope directive.
-  const directive = request.replace(/"[^"]*(?:"|$)|“[^”]*(?:”|$)|`[^`]*(?:`|$)|(?<![A-Za-z0-9])'[^']*(?:'|$)/g, '')
+  const directive = request
+    .replace(/"[^"]*(?:"|$)|“[^”]*(?:”|$)|`[^`]*(?:`|$)|(?<![A-Za-z0-9])'[^']*(?:'|$)/g, '')
     .split(/:(?!\/\/)/, 1)[0]!;
   return [
     /\b(?:across|among)\s+(?:all\s+)?(?:(?:my|our|the\s+firm(?:'s)?)\s+)?clients?\b/i,

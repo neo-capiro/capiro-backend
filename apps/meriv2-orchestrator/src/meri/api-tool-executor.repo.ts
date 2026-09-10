@@ -11,10 +11,18 @@ const MAX_MAIL_RETRY_DELAY_MS = 5_000;
 function mailCapacityRetryDelay(toolName: string, response: Response, body: string): number | null {
   if (!RETRYABLE_MAIL_READS.has(toolName) || response.status !== 503) return null;
   let payload: unknown;
-  try { payload = JSON.parse(body); } catch { return null; }
-  if (!payload || typeof payload !== 'object' ||
-      (payload as Record<string, unknown>).statusCode !== 503 ||
-      (payload as Record<string, unknown>).message !== 'The database is temporarily busy. Please retry.') {
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    (payload as Record<string, unknown>).statusCode !== 503 ||
+    (payload as Record<string, unknown>).message !==
+      'The database is temporarily busy. Please retry.'
+  ) {
     return null;
   }
   const retryAfter = response.headers?.get('retry-after')?.trim();
@@ -30,7 +38,10 @@ function mailCapacityRetryDelay(toolName: string, response: Response, body: stri
 
 function waitForMailRetry(delayMs: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (signal.aborted) { reject(signal.reason); return; }
+    if (signal.aborted) {
+      reject(signal.reason);
+      return;
+    }
     const onAbort = () => {
       clearTimeout(timer);
       signal.removeEventListener('abort', onAbort);
@@ -122,8 +133,10 @@ export class ApiToolExecutorRepo implements ToolExecutor {
         const body = await res.text().catch(() => '');
         this.logger.warn(`Delegated tool "${toolName}" -> ${res.status}`);
         const retryDelay = attempt === 0 ? mailCapacityRetryDelay(toolName, res, body) : null;
-        if (retryDelay !== null &&
-            (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)) {
+        if (
+          retryDelay !== null &&
+          (execution.deadlineAt === undefined || Date.now() + retryDelay < execution.deadlineAt)
+        ) {
           await waitForMailRetry(retryDelay, execution.signal);
           continue;
         }

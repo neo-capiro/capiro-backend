@@ -12,7 +12,9 @@ import {
   type EvaluationEligibilityInput,
 } from './contract.js';
 
-function baseEligibility(overrides: Partial<EvaluationEligibilityInput> = {}): EvaluationEligibilityInput {
+function baseEligibility(
+  overrides: Partial<EvaluationEligibilityInput> = {},
+): EvaluationEligibilityInput {
   return {
     enabled: true,
     contextPacketId: 'packet-1',
@@ -53,7 +55,9 @@ describe('decideEvaluationEligibility', () => {
   });
 
   it('reports feature_disabled first, before any other condition', () => {
-    expect(decideEvaluationEligibility(baseEligibility({ enabled: false, operationSupported: false }))).toEqual({
+    expect(
+      decideEvaluationEligibility(baseEligibility({ enabled: false, operationSupported: false })),
+    ).toEqual({
       eligible: false,
       reason: 'feature_disabled',
     });
@@ -164,7 +168,11 @@ describe('buildInstitutionalContextControlProjection', () => {
   });
 
   it('records a withheld-layer exclusion for all five frozen layers, in addition to any pre-existing exclusion', () => {
-    const packet = { items: [], rendered: [], exclusions: [{ layer: 'client-people', reason: 'unauthorized' }] };
+    const packet = {
+      items: [],
+      rendered: [],
+      exclusions: [{ layer: 'client-people', reason: 'unauthorized' }],
+    };
     const projection = buildInstitutionalContextControlProjection(packet);
     const withheld = (projection.exclusions as Array<{ layer: string; reason: string }>).filter(
       (e) => e.reason === 'evaluation_control_withheld',
@@ -197,18 +205,26 @@ describe('assertNoConfidentialEvaluationContent', () => {
       assertNoConfidentialEvaluationContent({
         metrics: { normalizedEditDistance: 0.3, ctaPresent: true },
         judge: null,
-        cost: { model: 'gpt-5', inputTokens: 100, outputTokens: 50, providerDurationMs: 900, estimatedCostUsd: 0.01 },
+        cost: {
+          model: 'gpt-5',
+          inputTokens: 100,
+          outputTokens: 50,
+          providerDurationMs: 900,
+          estimatedCostUsd: 0.01,
+        },
       }),
     ).not.toThrow();
   });
 
   it('rejects a banned content-shaped key', () => {
-    expect(() => assertNoConfidentialEvaluationContent({ metrics: { note: 'short' } })).toThrow(/banned field name/);
+    expect(() => assertNoConfidentialEvaluationContent({ metrics: { note: 'short' } })).toThrow(
+      /banned field name/,
+    );
   });
 
   it('rejects an over-long string value', () => {
-    expect(() => assertNoConfidentialEvaluationContent({ metrics: { reasonCode: 'x'.repeat(500) } })).toThrow(
-      /carries a string/,
-    );
+    expect(() =>
+      assertNoConfidentialEvaluationContent({ metrics: { reasonCode: 'x'.repeat(500) } }),
+    ).toThrow(/carries a string/);
   });
 });

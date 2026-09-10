@@ -7,8 +7,10 @@ import {
   Logger,
   NotFoundException,
   Optional,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { EngagementTaskStatus, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import {
@@ -71,6 +73,8 @@ import { ProgramElementReadService } from '../program-element/program-element-re
 import { AcquisitionPersonnelReadService } from '../acquisition-personnel/acquisition-personnel-read.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import {
+  MAX_IMAGES_PER_BLOCK,
+  MAX_IMAGE_BASE64_CHARS,
   mimeForFormat,
   normalizeExcelSpec,
   normalizePptxSpec,
@@ -116,7 +120,6 @@ import {
   readClientProfileSection,
 } from './meri-client-context.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
-import { RetrievalV2Service } from '../retrieval/retrieval-v2.service.js';
 import { RETRIEVAL_DOMAINS } from '../retrieval/retrieval-v2.types.js';
 import { MERI_DATA_QUERY_CLASSES, searchCapiroData } from './meri-data-search.helpers.js';
 import { projectMemoryContent } from './meri-memory-content.helpers.js';
@@ -226,7 +229,6 @@ export class MeriToolsService {
     // MeriModule's import of it. The dependency runs one way only — see the
     // adapter's docblock for why the reverse would be a bootstrap cycle.
     private readonly opportunityTools: MeriOpportunityToolsAdapter,
-    @Optional() private readonly sharedRetrieval?: RetrievalV2Service,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
     @Optional() private readonly clientAdvocacy?: ClientAdvocacyMatterService,
     @Optional() private readonly clientFiling?: MeriClientFilingService,
@@ -755,6 +757,11 @@ export class MeriToolsService {
       create_word: obj(
         {
           title: str('Document title'),
+          format: {
+            type: 'string',
+            enum: ['docx', 'pdf'],
+            description: 'Requested file format. Defaults to docx. Word and PDF downloads share the same saved content.',
+          },
           subtitle: str('Optional subtitle'),
           sections: {
             type: 'array',
@@ -1435,8 +1442,7 @@ export class MeriToolsService {
       case 'get_research_evidence':
         return getResearchEvidence(ctx, input, this.prisma);
       case 'search_capiro_data':
-        return searchCapiroData(ctx, input, this.sharedRetrieval,
-          this.contextPlane ? (actor) => this.contextPlane!.securityEnvelope(actor) : undefined);
+        return searchCapiroData(ctx, input, this.contextPlane);
       case 'get_client_context':
         return this.getClientContext(ctx, input);
       case 'search_research_sources':
@@ -1554,7 +1560,10 @@ export class MeriToolsService {
       case 'find_contacts':
         return this.findContacts(ctx, input);
       case 'create_word':
-        return this.createDocument(ctx, input, 'docx');
+        if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf') {
+          throw new BadRequestException('Document format must be docx or pdf');
+        }
+        return this.createDocument(ctx, input, input.format === 'pdf' ? 'pdf' : 'docx');
       case 'create_excel':
         return this.createDocument(ctx, input, 'xlsx');
       case 'create_powerpoint':
@@ -2205,8 +2214,7 @@ export class MeriToolsService {
       ...(memoryItemId ? { memoryItemId } : {}),
       ...(clientId ? { clientId } : {}),
       ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
-    }, this.sharedRetrieval,
-    this.contextPlane ? (actor) => this.contextPlane!.securityEnvelope(actor) : undefined);
+    }, this.contextPlane);
     let evidence = await readPage();
     const project = () => evidence.records.map((record) => projectMemoryContent(ctx, record, {
       clientId: clientId ?? undefined, memoryItemId: memoryItemId ?? undefined,
@@ -4626,7 +4634,7 @@ export class MeriToolsService {
   }
 
   private async searchCommitteeHearings(ctx: TenantContext, input: Record<string, unknown>) {
-    if (!this.sharedRetrieval || !this.contextPlane) {
+    if (!this.contextPlane) {
       throw new BadGatewayException('Hearing retrieval is unavailable; no evidence was searched');
     }
     const query = optionalString(input, 'query', 240);
@@ -4636,14 +4644,11 @@ export class MeriToolsService {
     const cursor = optionalString(input, 'cursor', 1024);
     const requestedClient = optionalString(input, 'clientId', 80);
     const clientId = requestedClient ? await this.ensureClientVisible(ctx, requestedClient) : undefined;
-    const security = await this.contextPlane.securityEnvelope(ctx);
-    if (clientId && !security.authorizedClientIds.includes(clientId)) throw new NotFoundException('Client not found');
-    const result = await this.sharedRetrieval.retrieve({
+    const result = await this.contextPlane.searchToolData(ctx, {
       queryClass: 'lookup', requestedDomains: ['hearings'], query: query ?? undefined,
       hearingFilters: { hearingId: hearingId ?? undefined, chamber: chamber ?? undefined, committeeName: committeeName ?? undefined },
       pageSize: 1, ...(cursor ? { cursors: { hearings: cursor } } : {}),
-      caller: { tenantId: ctx.tenantId, userId: ctx.userId, ...security,
-        ...(clientId ? { clientIds: [clientId] } : {}) },
+      ...(clientId ? { clientId } : {}),
     });
     const { coverage, ...data } = result;
     return { tool: 'search_committee_hearings', coverage,
@@ -5647,10 +5652,10 @@ export class MeriToolsService {
 
   // ── Artifact persistence ────────────────────────────────────────────
 
-  // ── Document generation (Word / Excel / PowerPoint) ──
+  // ── Document generation (Word / PDF / Excel / PowerPoint) ──
 
   /**
-   * Generate a downloadable Office document. The validated spec is normalized,
+   * Generate a downloadable document. The validated spec is normalized,
    * then a binary is produced ONCE to prove it builds; the spec (JSON) is stored
    * on the artifact so the download endpoint regenerates the binary statelessly
    * (no blob storage needed), mirroring the research-export pattern.
@@ -5666,7 +5671,7 @@ export class MeriToolsService {
 
     let title: string;
     let normalized: unknown;
-    if (format === 'docx') {
+    if (format === 'docx' || format === 'pdf') {
       const spec = normalizeWordSpec(input);
       // Resolve referenced analysis-chart artifacts into embedded PNGs (F4)
       // so the stored spec re-renders identically on download.
@@ -5675,11 +5680,27 @@ export class MeriToolsService {
           ...section.images,
           ...(await this.resolveChartImages(ctx, section.imageArtifactIds)),
         ];
+        if (section.images.length > MAX_IMAGES_PER_BLOCK) {
+          throw new BadRequestException(`A document section supports at most ${MAX_IMAGES_PER_BLOCK} combined chart images. Split the charts across sections.`);
+        }
         section.imageArtifactIds = [];
       }
       title = spec.title;
       normalized = spec;
-      await this.docgen.buildDocx(spec);
+      if (format === 'pdf') {
+        try {
+          await this.docgen.buildPdf(spec);
+        } catch (error) {
+          throw new UnprocessableEntityException({
+            code: 'MERI_DOCUMENT_GENERATION_FAILED',
+            format,
+            reason: error instanceof MeriPdfRenderError ? error.reason : 'render_failed',
+            message: error instanceof MeriPdfRenderError
+              ? `${error.message} Nothing was saved. Request Word or adjust the document and try again.`
+              : 'PDF generation failed. Nothing was saved. Try again or request Word.',
+          });
+        }
+      } else await this.docgen.buildDocx(spec);
     } else if (format === 'xlsx') {
       const spec = normalizeExcelSpec(input);
       title = spec.title;
@@ -5692,6 +5713,9 @@ export class MeriToolsService {
           ...slide.images,
           ...(await this.resolveChartImages(ctx, slide.imageArtifactIds)),
         ];
+        if (slide.images.length > MAX_IMAGES_PER_BLOCK) {
+          throw new BadRequestException(`A slide supports at most ${MAX_IMAGES_PER_BLOCK} combined chart images. Split the charts across slides.`);
+        }
         slide.imageArtifactIds = [];
       }
       title = spec.title;
@@ -5700,9 +5724,11 @@ export class MeriToolsService {
     }
 
     const toolName =
-      format === 'docx' ? 'create_word' : format === 'xlsx' ? 'create_excel' : 'create_powerpoint';
+      format === 'docx' || format === 'pdf' ? 'create_word' : format === 'xlsx' ? 'create_excel' : 'create_powerpoint';
     const kind =
-      format === 'docx'
+      format === 'pdf'
+        ? 'pdf_document'
+        : format === 'docx'
         ? 'word_document'
         : format === 'xlsx'
           ? 'excel_workbook'
@@ -5737,6 +5763,16 @@ export class MeriToolsService {
       mimeType: mimeForFormat(format),
       artifact,
       downloadUrl: artifactId ? `/api/clio/artifacts/${artifactId}/download` : null,
+      // Alternate exports read the same immutable saved spec, without another
+      // model call or a second artifact that could drift from the original.
+      downloads: artifactId && (format === 'docx' || format === 'pdf')
+        ? (['docx', 'pdf'] as const).map((exportFormat) => ({
+            format: exportFormat,
+            filename: `${slugifyDocName(title)}.${exportFormat}`,
+            mimeType: mimeForFormat(exportFormat),
+            downloadUrl: `/api/clio/artifacts/${artifactId}/download?format=${exportFormat}`,
+          }))
+        : undefined,
       note: artifactId
         ? 'Document generated and available for download.'
         : 'Document generated but not persisted (no conversation context); ask the user to retry within a chat.',
@@ -5751,6 +5787,7 @@ export class MeriToolsService {
   async getDocumentArtifact(
     ctx: TenantContext,
     artifactId: string,
+    requestedFormat?: string,
   ): Promise<{ format: DocFormat; specJson: string; filename: string; mimeType: string } | null> {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
@@ -5760,9 +5797,24 @@ export class MeriToolsService {
     );
     if (!artifact || !artifact.bodyText) return null;
     const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
-    const format = meta.docFormat;
-    if (format !== 'docx' && format !== 'xlsx' && format !== 'pptx') return null;
-    const filename = typeof meta.filename === 'string' ? meta.filename : `document.${format}`;
+    const nativeFormat = meta.docFormat;
+    if (nativeFormat !== 'docx' && nativeFormat !== 'pdf' && nativeFormat !== 'xlsx' && nativeFormat !== 'pptx') return null;
+    let format: DocFormat = nativeFormat;
+    if (requestedFormat !== undefined && requestedFormat !== nativeFormat) {
+      if ((nativeFormat === 'docx' || nativeFormat === 'pdf') &&
+          (requestedFormat === 'docx' || requestedFormat === 'pdf')) {
+        format = requestedFormat;
+      } else {
+        throw new BadRequestException({
+          code: 'MERI_DOCUMENT_FORMAT_UNSUPPORTED',
+          message: 'The requested format is not available for this document.',
+        });
+      }
+    }
+    const savedFilename = typeof meta.filename === 'string' ? meta.filename : `document.${nativeFormat}`;
+    const filename = (format === nativeFormat
+      ? savedFilename
+      : `${savedFilename.replace(/\.[^.]*$/, '')}.${format}`).replace(/[\r\n"\\]/g, '_');
     return {
       format,
       specJson: artifact.bodyText,
@@ -6836,16 +6888,20 @@ export class MeriToolsService {
   ): Promise<Array<{ dataBase64: string }>> {
     const out: Array<{ dataBase64: string }> = [];
     for (const id of artifactIds) {
-      const artifact = await this.prisma
-        .withTenant(ctx.tenantId, (tx) =>
+      const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioArtifact.findFirst({
             where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
             select: { metadata: true },
           }),
-        )
-        .catch(() => null);
+        );
       const meta = artifact?.metadata as Record<string, unknown> | null;
-      if (typeof meta?.imageBase64 === 'string') out.push({ dataBase64: meta.imageBase64 });
+      if (typeof meta?.imageBase64 !== 'string' || !meta.imageBase64) {
+        throw new NotFoundException('One or more analysis charts were not found. Regenerate the charts and try again.');
+      }
+      if (meta.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
+        throw new BadRequestException('A saved chart is too large to embed. Regenerate a smaller chart and try again.');
+      }
+      out.push({ dataBase64: meta.imageBase64 });
     }
     return out;
   }
@@ -6853,6 +6909,7 @@ export class MeriToolsService {
   /** Regenerate a document binary from a stored spec (for the download route). */
   async renderStoredDocument(format: DocFormat, specJson: string): Promise<Buffer> {
     const parsed: unknown = JSON.parse(specJson);
+    if (format === 'pdf') return this.docgen.buildPdf(normalizeWordSpec(parsed));
     if (format === 'docx') return this.docgen.buildDocx(normalizeWordSpec(parsed));
     if (format === 'xlsx') return this.docgen.buildXlsx(normalizeExcelSpec(parsed));
     return this.docgen.buildPptx(normalizePptxSpec(parsed));

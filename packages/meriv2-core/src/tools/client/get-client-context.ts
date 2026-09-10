@@ -29,7 +29,13 @@ export interface ClientContextRepo {
 
 export interface GetClientContextInput {
   clientId: string;
-  section?: 'capabilities' | 'people' | 'facilities' | 'submissionHistory' | 'advocacyMatters' | 'advocacyRecords';
+  section?:
+    | 'capabilities'
+    | 'people'
+    | 'facilities'
+    | 'submissionHistory'
+    | 'advocacyMatters'
+    | 'advocacyRecords';
   cursor?: string;
   limit?: number;
   representation?: 'summary' | 'full';
@@ -37,7 +43,16 @@ export interface GetClientContextInput {
 
 export const getClientContextInputSchema = z.object({
   clientId: z.string().uuid('clientId must be a client UUID'),
-  section: z.enum(['capabilities', 'people', 'facilities', 'submissionHistory', 'advocacyMatters', 'advocacyRecords']).optional(),
+  section: z
+    .enum([
+      'capabilities',
+      'people',
+      'facilities',
+      'submissionHistory',
+      'advocacyMatters',
+      'advocacyRecords',
+    ])
+    .optional(),
   cursor: z.string().min(1).max(1024).optional(),
   limit: z.number().int().min(1).max(50).optional(),
   representation: z.enum(['summary', 'full']).optional(),

@@ -7,10 +7,7 @@ const gatewayPath = join(API_ROOT, 'src/context/context-plane-gateway.service.ts
 const registryPath = join(API_ROOT, 'src/context/context-plane-operation-registry.ts');
 const auditPath = join(API_ROOT, 'src/context/context-plane-audit.service.ts');
 const modulePath = join(API_ROOT, 'src/context/context.module.ts');
-const corePath = join(
-  REPO_ROOT,
-  'packages/meriv2-core/src/context/operation-enforcement.ts',
-);
+const corePath = join(REPO_ROOT, 'packages/meriv2-core/src/context/operation-enforcement.ts');
 
 const read = (path: string) => readFileSync(path, 'utf8');
 

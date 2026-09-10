@@ -66,6 +66,12 @@ function fixture() {
     inputSourceSha256: identity.sourceSha256,
     outputArtifactSha256: result.contentSha256,
     pageRanges: [{ startPage: 1, endPage: 1 }],
+    // Phase 10B-25: canonical requestedPages/succeededPages/failedPages must
+    // be present for this to resolve as a modern (non-legacy) parser-run
+    // identity -- see parser-run-identity-v1.ts.
+    requestedPages: [1],
+    succeededPages: [1],
+    failedPages: [],
   };
   const source: ExtractionSourceV1 = {
     manifestDocumentKey: 'r1-proof',

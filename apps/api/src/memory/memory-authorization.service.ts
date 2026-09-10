@@ -130,9 +130,7 @@ export class MemoryAuthorizationService {
       }
     }
 
-    const effectiveRole = options.impersonating
-      ? (options.actorRole ?? ctx.role)
-      : ctx.role;
+    const effectiveRole = options.impersonating ? (options.actorRole ?? ctx.role) : ctx.role;
     // The governed candidate column deliberately defaults to `suggested`, while
     // the legacy workflow uses status='pending'. Shared Settings submissions can
     // therefore be a real pending review before governed_status advances. Bind

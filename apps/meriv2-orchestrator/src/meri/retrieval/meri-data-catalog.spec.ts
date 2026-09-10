@@ -80,7 +80,10 @@ describe('Meri retrieval data catalog', () => {
     expect(meriToolCoverageCatalogEntry('list_emails')).toEqual(
       expect.objectContaining({ domains: ['mail'], exhaustive: true }),
     );
-    expect(meriDatasetsForTool('list_emails')[0]?.capabilities).toMatchObject({ dateRange: true, pagination: true });
+    expect(meriDatasetsForTool('list_emails')[0]?.capabilities).toMatchObject({
+      dateRange: true,
+      pagination: true,
+    });
   });
 
   test('links tools back to their catalog datasets', () => {
@@ -93,9 +96,9 @@ describe('Meri retrieval data catalog', () => {
     expect(meriDatasetsForTool('read_client_documents').map((dataset) => dataset.id)).toEqual([
       'client_documents',
     ]);
-    expect(meriDatasetsForTool('get_opportunity_client_context').map((dataset) => dataset.id)).toEqual([
-      'client_funding_pipeline',
-    ]);
+    expect(
+      meriDatasetsForTool('get_opportunity_client_context').map((dataset) => dataset.id),
+    ).toEqual(['client_funding_pipeline']);
   });
 
   test('keeps recipe domain requirements in one catalog contract', () => {

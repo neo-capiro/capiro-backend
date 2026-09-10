@@ -1,5 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import type {
+  FederalMarketMeriToolName,
+  FederalMarketMeriToolsService,
+} from '../federal-spending/federal-market-meri-tools.service.js';
 import { createGovernedMeriToolsService } from './governed-meri-tools.proxy.js';
 import type { MeriToolsService } from './meri-tools.service.js';
 
@@ -10,6 +14,17 @@ const ctx = {
   clerkUserId: 'clerk-1',
   role: 'standard_user',
 } as TenantContext;
+
+function federalTools(): FederalMarketMeriToolsService {
+  const tools = {
+    has: (_name: string): _name is FederalMarketMeriToolName => false,
+    anthropicSchemas: () => [],
+    execute: jest.fn(async () => {
+      throw new Error('Unexpected federal-market tool dispatch');
+    }),
+  } satisfies Pick<FederalMarketMeriToolsService, 'has' | 'anthropicSchemas' | 'execute'>;
+  return tools as unknown as FederalMarketMeriToolsService;
+}
 
 function make(ownedIds: string[]) {
   const raw = {
@@ -27,7 +42,7 @@ function make(ownedIds: string[]) {
   return {
     raw,
     findMany,
-    service: createGovernedMeriToolsService(raw, prisma as never, { has: () => false } as never),
+    service: createGovernedMeriToolsService(raw, prisma as never, federalTools()),
   };
 }
 
@@ -104,7 +119,7 @@ describe('governed Meri tool proxy — analysis chart ownership', () => {
     const raw = {
       execute: jest.fn(async () => ({ ok: true })),
     } as unknown as MeriToolsService;
-    const service = createGovernedMeriToolsService(raw, undefined, { has: () => false } as never);
+    const service = createGovernedMeriToolsService(raw, undefined, federalTools());
     await expect(
       service.execute(ctx, 'create_word' as never, {
         title: 'Brief',

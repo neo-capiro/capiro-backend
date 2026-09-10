@@ -1,9 +1,12 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import JSZip from 'jszip';
 import { extractRawText } from 'mammoth';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
+import { MeriController } from './meri.controller.js';
+import { PDFArray, PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import type { Response } from 'express';
 
 // These unused injected services are outside the document boundary. Keep the
 // actual tool dispatch, document normalization and Office binary generator.
@@ -33,6 +36,14 @@ jest.mock('../memory/memory-candidate.service.js', () => ({ MemoryCandidateServi
 jest.mock('../memory/memory-store.service.js', () => ({ MemoryStoreService: jest.fn() }));
 jest.mock('./meri-client-filing.service.js', () => ({ MeriClientFilingService: jest.fn() }));
 jest.mock('./meri-defense-budget-tool.helpers.js', () => ({}));
+jest.mock('./meri.service.js', () => ({ MeriService: jest.fn() }));
+jest.mock('./meri-research.service.js', () => ({ MeriResearchService: jest.fn() }));
+jest.mock('./meri-mcp.service.js', () => ({ MeriMcpService: jest.fn() }));
+jest.mock('./meri-mcp-oauth.service.js', () => ({ MeriMcpOAuthService: jest.fn() }));
+jest.mock('./meri-firm-skills.service.js', () => ({ MeriFirmSkillsService: jest.fn() }));
+jest.mock('./meri-approval.service.js', () => ({ MeriApprovalService: jest.fn() }));
+jest.mock('./meri-compliance-audit.service.js', () => ({ MeriComplianceAuditService: jest.fn() }));
+jest.mock('./meri-claim-writer.js', () => ({ MeriClaimWriterService: jest.fn() }));
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as TenantContext;
 const artifactId = '238b644b-c252-44f1-a63e-cd8b1c1e1d3f';
@@ -86,9 +97,11 @@ function harness(initialArtifacts: Artifact[] = []) {
   };
   const docgen = new MeriDocgenService();
   const buildDocx = jest.spyOn(docgen, 'buildDocx');
+  const buildPdf = jest.spyOn(docgen, 'buildPdf');
   // Only these two constructor ports are used on this production path.
   const service = Object.assign(Object.create(MeriToolsService.prototype), { prisma, docgen }) as MeriToolsService;
-  return { service, prisma, tx, artifacts, buildDocx };
+  const controller = Object.assign(Object.create(MeriController.prototype), { tools: service }) as MeriController;
+  return { service, controller, prisma, tx, artifacts, buildDocx, buildPdf };
 }
 
 function wordInput() {
@@ -101,6 +114,167 @@ function storedArtifact(overrides: Partial<Artifact> = {}): Artifact {
     bodyText: JSON.stringify(wordInput()),
     metadata: { docFormat: 'docx', filename: 'glass-harbor-qa-brief.docx' }, ...overrides };
 }
+
+// Decode the renderer's standard WinAnsi PDF text operators independently of
+// the input spec. PDFDocument also verifies that the produced bytes reopen.
+async function readPdf(bytes: Buffer) {
+  const document = await PDFDocument.load(bytes);
+  const text: string[] = [];
+  for (const page of document.getPages()) {
+    const contents = page.node.Contents();
+    const streams = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
+    for (const entry of streams) {
+      const stream = document.context.lookup(entry);
+      if (!(stream instanceof PDFRawStream)) throw new Error('Expected a PDF content stream');
+      const operators = Buffer.from(decodePDFRawStream(stream).decode()).toString('ascii');
+      for (const match of operators.matchAll(/<([0-9a-f]+)>\s*Tj/gi)) {
+        text.push(new TextDecoder('windows-1252').decode(Buffer.from(match[1]!, 'hex')));
+      }
+    }
+  }
+  return { document, text: text.join('\n') };
+}
+
+function downloadResponse() {
+  const setHeader = jest.fn();
+  const send = jest.fn();
+  return { setHeader, send, response: { setHeader, send } as unknown as Response };
+}
+
+describe('Meri canonical PDF export (MW-11)', () => {
+  it('creates a PDF, reopens it, and exports both formats from exactly one saved Word spec', async () => {
+    const h = harness();
+    const input = { ...wordInput(), format: 'pdf' };
+    const result = await h.service.execute(ctx, 'create_word', input) as {
+      artifact: { id: string }; filename: string; mimeType: string; downloads: unknown[];
+    };
+    expect(result).toMatchObject({ filename: 'glass-harbor-qa-brief.pdf', mimeType: 'application/pdf' });
+    expect(result.downloads).toEqual(expect.arrayContaining([
+      expect.objectContaining({ format: 'pdf', downloadUrl: `/api/clio/artifacts/${artifactId}/download?format=pdf` }),
+      expect.objectContaining({ format: 'docx', downloadUrl: `/api/clio/artifacts/${artifactId}/download?format=docx` }),
+    ]));
+    expect(h.artifacts[0]).toMatchObject({ kind: 'pdf_document', userId: ctx.userId, tenantId: ctx.tenantId, conversationId });
+    input.sections[0]!.paragraphs = ['Unrelated edited prompt'];
+
+    const saved = await h.service.getDocumentArtifact(ctx, result.artifact.id);
+    const bytes = await h.service.renderStoredDocument(saved!.format, saved!.specJson);
+    expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+    const pdf = await readPdf(bytes);
+    expect(pdf.document.getPageCount()).toBe(1);
+    for (const line of fixtureLines) expect(pdf.text).toContain(line);
+    expect(pdf.text).not.toContain('Unrelated edited prompt');
+
+    const word = await h.service.getDocumentArtifact(ctx, result.artifact.id, 'docx');
+    expect(word!.specJson).toBe(saved!.specJson);
+    expect(word!.filename).toBe('glass-harbor-qa-brief.docx');
+    const wordBytes = await h.service.renderStoredDocument(word!.format, word!.specJson);
+    for (const line of fixtureLines) expect((await extractRawText({ buffer: wordBytes })).value).toContain(line);
+    expect(h.tx.clioArtifact.create).toHaveBeenCalledTimes(1);
+    expect(h.buildPdf).toHaveBeenCalledTimes(2);
+  });
+
+  it('converts a saved Word artifact through the private download endpoint with real PDF bytes and canonical headers', async () => {
+    const h = harness([storedArtifact()]);
+    const response = downloadResponse();
+    await h.controller.downloadArtifact(ctx, artifactId, response.response, 'pdf');
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="glass-harbor-qa-brief.pdf"');
+    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
+    const bytes = response.send.mock.calls[0]![0] as Buffer;
+    for (const line of fixtureLines) expect((await readPdf(bytes)).text).toContain(line);
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['another tenant', { tenantId: 'tenant-b', userId: ctx.userId }],
+    ['another user', { tenantId: ctx.tenantId, userId: 'user-b' }],
+  ])('denies PDF conversion to %s before any renderer runs', async (_label, actor) => {
+    const h = harness([storedArtifact()]);
+    const response = downloadResponse();
+    await expect(h.controller.downloadArtifact(actor as TenantContext, artifactId, response.response, 'pdf')).rejects.toBeInstanceOf(NotFoundException);
+    expect(h.buildPdf).not.toHaveBeenCalled();
+    expect(response.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported conversions without interpreting a workbook as a Word spec', async () => {
+    const h = harness([storedArtifact({ metadata: { docFormat: 'xlsx' } })]);
+    await expect(h.service.getDocumentArtifact(ctx, artifactId, 'pdf')).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.buildPdf).not.toHaveBeenCalled();
+    await expect(h.service.execute(ctx, 'create_word', { ...wordInput(), format: 'exe' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+
+  it('reports a render failure without returning fake bytes, while keeping the saved Word available', async () => {
+    const h = harness([storedArtifact()]);
+    h.buildPdf.mockRejectedValueOnce(new Error('private renderer detail'));
+    const response = downloadResponse();
+    await expect(h.controller.downloadArtifact(ctx, artifactId, response.response, 'pdf')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'MERI_DOCUMENT_RENDER_FAILED', format: 'pdf' }),
+    });
+    expect(response.send).not.toHaveBeenCalled();
+    expect(response.setHeader).not.toHaveBeenCalled();
+    const word = await h.service.getDocumentArtifact(ctx, artifactId);
+    expect(await h.service.renderStoredDocument(word!.format, word!.specJson)).toBeInstanceOf(Buffer);
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+
+  it('fails PDF generation explicitly for unsupported Unicode and saves nothing instead of dropping text', async () => {
+    const h = harness();
+    await expect(h.service.execute(ctx, 'create_word', {
+      ...wordInput(), format: 'pdf', sections: [{ heading: 'Source', paragraphs: ['Exact source: 東京'] }],
+    })).rejects.toMatchObject({ response: expect.objectContaining({ code: 'MERI_DOCUMENT_GENERATION_FAILED', reason: 'unsupported_text' }) });
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+    expect(h.artifacts).toHaveLength(0);
+  });
+
+  it('retains paragraphs, bullets, numbered citations, long table cells and images across pages', async () => {
+    const h = harness();
+    await h.service.execute(ctx, 'create_word', {
+      ...wordInput(), format: 'pdf',
+      sections: [{
+        heading: 'Evidence',
+        paragraphs: ['The request remains an internal draft [1].'],
+        bullets: ['No enacted appropriation is claimed.'],
+        tables: [{ headers: ['Field', 'Evidence'], rows: [
+          ['Long source', `${'Source sentence with facts. '.repeat(160)} END-OF-LONG-CELL`],
+          ['Final row', 'TAIL-CHECK-92'],
+        ] }],
+        images: [{ dataBase64: png }],
+      }, { heading: 'Sources', paragraphs: ['[1] Synthetic source https://example.test/source'] }],
+    });
+    const stored = await h.service.getDocumentArtifact(ctx, artifactId);
+    const bytes = await h.service.renderStoredDocument(stored!.format, stored!.specJson);
+    const pdf = await readPdf(bytes);
+    expect(pdf.document.getPageCount()).toBeGreaterThan(1);
+    for (const text of ['internal draft [1]', 'No enacted appropriation', 'END-OF-LONG-CELL', 'TAIL-CHECK-92', '[1] Synthetic source https://example.test/source']) {
+      expect(pdf.text).toContain(text);
+    }
+    expect(pdf.document.getPages().some((page) => {
+      const xObjects = page.node.normalizedEntries().XObject;
+      return xObjects.keys().length > 0;
+    })).toBe(true);
+  });
+
+  it('rejects too many combined embedded and referenced charts before saving a spec that would lose images on reopen', async () => {
+    const h = harness([{ id: chartId, tenantId: ctx.tenantId, userId: ctx.userId, metadata: { imageBase64: png } }]);
+    await expect(h.service.execute(ctx, 'create_word', {
+      ...wordInput(), format: 'pdf', sections: [{ heading: 'Charts',
+        images: Array.from({ length: 4 }, () => ({ dataBase64: png })), imageArtifactIds: [chartId],
+      }],
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.buildPdf).not.toHaveBeenCalled();
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized stored charts before saving a spec whose image would be dropped on reopen', async () => {
+    const h = harness([{ id: chartId, tenantId: ctx.tenantId, userId: ctx.userId, metadata: { imageBase64: 'A'.repeat(4 * 1024 * 1024) } }]);
+    await expect(h.service.execute(ctx, 'create_word', {
+      ...wordInput(), format: 'pdf', sections: [{ heading: 'Chart', imageArtifactIds: [chartId] }],
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.buildPdf).not.toHaveBeenCalled();
+    expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+  });
+});
 
 describe('Meri generated document download boundary (MW-01)', () => {
   it('reopens the same persisted artifact and renders a readable DOCX retaining every Glass Harbor field', async () => {
@@ -156,7 +330,7 @@ describe('Meri generated document download boundary (MW-01)', () => {
     ['missing', []],
     ['not a generated document', [storedArtifact({ metadata: { source: 'research' } })]],
     ['empty generation spec', [storedArtifact({ bodyText: '' })]],
-    ['unsupported format', [storedArtifact({ metadata: { docFormat: 'pdf' } })]],
+    ['unsupported format', [storedArtifact({ metadata: { docFormat: 'odt' } })]],
   ] as Array<[string, Artifact[]]>)('returns no downloadable document for %s', async (_label, artifacts) => {
     const h = harness(artifacts);
     await expect(h.service.getDocumentArtifact(ctx, artifactId)).resolves.toBeNull();
@@ -184,10 +358,16 @@ describe('Meri generated document download boundary (MW-01)', () => {
     ['another tenant', 'tenant-b', ctx.userId, false],
   ])('embeds a chart only when readable by the current actor: %s', async (_label, tenantId, userId, allowed) => {
     const h = harness([{ id: chartId, tenantId, userId, metadata: { imageBase64: png } }]);
-    await h.service.execute(ctx, 'create_word', {
+    const generation = h.service.execute(ctx, 'create_word', {
       ...wordInput(),
       sections: [{ heading: 'Chart', paragraphs: ['Synthetic chart'], imageArtifactIds: [chartId] }],
     });
+    if (!allowed) {
+      await expect(generation).rejects.toBeInstanceOf(NotFoundException);
+      expect(h.tx.clioArtifact.create).not.toHaveBeenCalled();
+      return;
+    }
+    await generation;
     const stored = await h.service.getDocumentArtifact(ctx, artifactId);
     const spec = JSON.parse(stored!.specJson) as { sections: Array<{ images: unknown[]; imageArtifactIds: string[] }> };
     expect(spec.sections[0]!.images).toHaveLength(allowed ? 1 : 0);

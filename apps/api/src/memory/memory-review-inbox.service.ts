@@ -1,8 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -236,23 +232,13 @@ export class MemoryReviewInboxService {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
       this.assertViewAllowed(view, viewer.role);
       const scanLimit = Math.min(250, limit * 4 + 1);
-      const rows = await this.queryInboxRowsInTx(
-        tx,
-        ctx,
-        view,
-        scanLimit,
-        cursor,
-        viewer.role,
-      );
+      const rows = await this.queryInboxRowsInTx(tx, ctx, view, scanLimit, cursor, viewer.role);
       const items: MemoryReviewInboxItem[] = [];
       let lastReturnedRow: InboxRow | null = null;
       let hasExtraVisible = false;
       for (const row of rows) {
         const item = await this.projectRowInTx(tx, ctx, viewer, row);
-        if (
-          !item ||
-          !this.itemMatchesView(item, row, view, viewer.role, ctx.userId)
-        ) {
+        if (!item || !this.itemMatchesView(item, row, view, viewer.role, ctx.userId)) {
           continue;
         }
         if (items.length >= limit) {
@@ -301,12 +287,7 @@ export class MemoryReviewInboxService {
 
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const viewer = await this.requireActiveViewerInTx(tx, ctx);
-      const rows = await this.querySummaryRowsInTx(
-        tx,
-        ctx,
-        viewer.role,
-        MAX_SUMMARY_SCAN + 1,
-      );
+      const rows = await this.querySummaryRowsInTx(tx, ctx, viewer.role, MAX_SUMMARY_SCAN + 1);
       const counts = {
         needsMyReview: 0,
         submittedByMe: 0,
@@ -317,8 +298,7 @@ export class MemoryReviewInboxService {
       for (const row of rows.slice(0, MAX_SUMMARY_SCAN)) {
         const item = await this.projectRowInTx(tx, ctx, viewer, row);
         if (!item) continue;
-        const open =
-          item.status === 'pending' || item.status === 'changes_requested';
+        const open = item.status === 'pending' || item.status === 'changes_requested';
         const viewerIsSubmitter = row.requestedBy === ctx.userId;
         const actionable =
           item.status === 'pending' &&
@@ -331,10 +311,7 @@ export class MemoryReviewInboxService {
         if (open && viewerIsSubmitter) counts.submittedByMe += 1;
         if (actionable) counts.needsMyReview += 1;
         if (open && adminVisible && item.blockedReason) counts.blocked += 1;
-        if (
-          !open &&
-          (viewerIsSubmitter || row.assignedTo === ctx.userId || adminVisible)
-        ) {
+        if (!open && (viewerIsSubmitter || row.assignedTo === ctx.userId || adminVisible)) {
           counts.history += 1;
         }
       }
@@ -350,10 +327,7 @@ export class MemoryReviewInboxService {
     return this.detailFor(ctx, { candidateId });
   }
 
-  detailByReviewRequest(
-    ctx: TenantContext,
-    reviewRequestId: string,
-  ): Promise<MemoryReviewDetail> {
+  detailByReviewRequest(ctx: TenantContext, reviewRequestId: string): Promise<MemoryReviewDetail> {
     return this.detailFor(ctx, { reviewRequestId });
   }
 
@@ -379,19 +353,11 @@ export class MemoryReviewInboxService {
         throw new NotFoundException('Memory review was not found.');
       }
 
-      const subject = await this.authorization.loadCandidateInTx(
-        tx,
-        ctx.tenantId,
-        row.candidateId,
-      );
+      const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.candidateId);
       if (!subject) throw new NotFoundException('Memory review was not found.');
-      const read = await this.authorization.evaluateInTx(
-        tx,
-        viewer,
-        subject,
-        'read',
-        { emitDenialMetrics: false },
-      );
+      const read = await this.authorization.evaluateInTx(tx, viewer, subject, 'read', {
+        emitDenialMetrics: false,
+      });
       if (!read.allowed) throw new NotFoundException('Memory review was not found.');
 
       const eligibleReviewers = await this.eligibleReviewersInTx(
@@ -400,19 +366,14 @@ export class MemoryReviewInboxService {
         row.requestedBy,
         subject,
       );
-      const timeline = await this.loadTimelineInTx(
-        tx,
-        ctx.tenantId,
-        row.rootCandidateId,
-      );
+      const timeline = await this.loadTimelineInTx(tx, ctx.tenantId, row.rootCandidateId);
       const publicStatus = memoryReviewStatusFromDb(row.workflowStatus);
       const canSeeFeedback = participant || isAdmin(viewer.role);
       return {
         ...item,
         proposal: proposalFromPayload(row.payload),
         feedbackReason:
-          canSeeFeedback &&
-          (publicStatus === 'changes_requested' || publicStatus === 'rejected')
+          canSeeFeedback && (publicStatus === 'changes_requested' || publicStatus === 'rejected')
             ? normalizeFeedback(row.feedbackReason)
             : null,
         eligibleReviewers,
@@ -492,9 +453,7 @@ export class MemoryReviewInboxService {
     });
   }
 
-  async unreadNotificationCount(
-    ctx: TenantContext,
-  ): Promise<{ enabled: boolean; count: number }> {
+  async unreadNotificationCount(ctx: TenantContext): Promise<{ enabled: boolean; count: number }> {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       return { enabled: false, count: 0 };
     }
@@ -524,10 +483,7 @@ export class MemoryReviewInboxService {
     });
   }
 
-  async markNotificationRead(
-    ctx: TenantContext,
-    notificationId: string,
-  ): Promise<void> {
+  async markNotificationRead(ctx: TenantContext, notificationId: string): Promise<void> {
     if (!settingsMemoryReviewEnabledForTenant(ctx.tenantId)) {
       throw new NotFoundException('Memory review notification was not found.');
     }
@@ -549,10 +505,7 @@ export class MemoryReviewInboxService {
         LIMIT 1
       `);
       const notification = rows[0];
-      if (
-        !notification ||
-        !(await this.notificationVisibleInTx(tx, viewer, notification))
-      ) {
+      if (!notification || !(await this.notificationVisibleInTx(tx, viewer, notification))) {
         throw new NotFoundException('Memory review notification was not found.');
       }
       const updated = await tx.$executeRaw(Prisma.sql`
@@ -601,9 +554,7 @@ export class MemoryReviewInboxService {
         WHERE tenant_id = ${ctx.tenantId}::uuid
           AND recipient_user_id = ${ctx.userId}::uuid
           AND read_at IS NULL
-          AND id IN (${Prisma.join(
-            visibleIds.map((id) => Prisma.sql`${id}::uuid`),
-          )})
+          AND id IN (${Prisma.join(visibleIds.map((id) => Prisma.sql`${id}::uuid`))})
       `);
     });
   }
@@ -619,13 +570,9 @@ export class MemoryReviewInboxService {
       row.candidateId,
     );
     if (!subject) return false;
-    const read = await this.authorization.evaluateInTx(
-      tx,
-      viewer,
-      subject,
-      'read',
-      { emitDenialMetrics: false },
-    );
+    const read = await this.authorization.evaluateInTx(tx, viewer, subject, 'read', {
+      emitDenialMetrics: false,
+    });
     return read.allowed;
   }
 
@@ -653,9 +600,7 @@ export class MemoryReviewInboxService {
 
   private assertViewAllowed(view: MemoryReviewInboxView, role: TenantRole): void {
     if ((view === 'all_pending' || view === 'blocked') && !isAdmin(role)) {
-      throw new ForbiddenException(
-        'Administrator access is required for this memory review view.',
-      );
+      throw new ForbiddenException('Administrator access is required for this memory review view.');
     }
   }
 
@@ -714,19 +659,11 @@ export class MemoryReviewInboxService {
     viewer: ActiveViewer,
     row: InboxRow,
   ): Promise<MemoryReviewInboxItem | null> {
-    const subject = await this.authorization.loadCandidateInTx(
-      tx,
-      ctx.tenantId,
-      row.candidateId,
-    );
+    const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, row.candidateId);
     if (!subject) return null;
-    const read = await this.authorization.evaluateInTx(
-      tx,
-      viewer,
-      subject,
-      'read',
-      { emitDenialMetrics: false },
-    );
+    const read = await this.authorization.evaluateInTx(tx, viewer, subject, 'read', {
+      emitDenialMetrics: false,
+    });
     if (!read.allowed) return null;
 
     const status = memoryReviewStatusFromDb(row.workflowStatus);
@@ -735,39 +672,25 @@ export class MemoryReviewInboxService {
     let canApprove = false;
     let canReject = false;
     if (status === 'pending' && viewerIsAssignedReviewer && !viewerIsSubmitter) {
-      const approve = await this.authorization.evaluateInTx(
-        tx,
-        viewer,
-        subject,
-        'approve',
-        { emitDenialMetrics: false },
-      );
-      const review = await this.authorization.evaluateInTx(
-        tx,
-        viewer,
-        subject,
-        'review',
-        { emitDenialMetrics: false },
-      );
+      const approve = await this.authorization.evaluateInTx(tx, viewer, subject, 'approve', {
+        emitDenialMetrics: false,
+      });
+      const review = await this.authorization.evaluateInTx(tx, viewer, subject, 'review', {
+        emitDenialMetrics: false,
+      });
       canApprove = approve.allowed;
       canReject = review.allowed;
     }
     let canRevise = false;
     if (status === 'changes_requested' && viewerIsSubmitter) {
-      const propose = await this.authorization.evaluateInTx(
-        tx,
-        viewer,
-        subject,
-        'propose',
-        { emitDenialMetrics: false },
-      );
+      const propose = await this.authorization.evaluateInTx(tx, viewer, subject, 'propose', {
+        emitDenialMetrics: false,
+      });
       canRevise = propose.allowed;
     }
     let assignedReviewerEligible = false;
     if (status === 'pending' && row.assignedTo && row.assignedReviewerActive) {
-      const assignedRole = row.assignedReviewerRole
-        ? tenantRole(row.assignedReviewerRole)
-        : null;
+      const assignedRole = row.assignedReviewerRole ? tenantRole(row.assignedReviewerRole) : null;
       if (assignedRole) {
         const assignment = await this.authorization.evaluateInTx(
           tx,
@@ -795,25 +718,17 @@ export class MemoryReviewInboxService {
         : null;
     let canReassign = false;
     if (status === 'pending' && isAdmin(viewer.role) && !viewerIsSubmitter) {
-      const reassign = await this.authorization.evaluateInTx(
-        tx,
-        viewer,
-        subject,
-        'review',
-        { emitDenialMetrics: false },
-      );
+      const reassign = await this.authorization.evaluateInTx(tx, viewer, subject, 'review', {
+        emitDenialMetrics: false,
+      });
       canReassign = reassign.allowed;
     }
     const canWithdraw =
-      viewerIsSubmitter &&
-      (status === 'pending' || status === 'changes_requested');
+      viewerIsSubmitter && (status === 'pending' || status === 'changes_requested');
     return {
       candidateId: row.candidateId,
       reviewRequestId: row.reviewRequestId,
-      candidateKind: memoryReviewCandidateKindFromSource(
-        row.sourceKind,
-        row.candidateKind,
-      ),
+      candidateKind: memoryReviewCandidateKindFromSource(row.sourceKind, row.candidateKind),
       scope: row.scope === 'client' ? 'client' : 'firm',
       client: row.clientId
         ? {
@@ -834,20 +749,10 @@ export class MemoryReviewInboxService {
         row.submitterEmail,
       ),
       assignedReviewer: row.assignedTo
-        ? identity(
-            row.assignedTo,
-            row.reviewerFirstName,
-            row.reviewerLastName,
-            row.reviewerEmail,
-          )
+        ? identity(row.assignedTo, row.reviewerFirstName, row.reviewerLastName, row.reviewerEmail)
         : null,
       decidedBy: row.decidedBy
-        ? identity(
-            row.decidedBy,
-            row.deciderFirstName,
-            row.deciderLastName,
-            row.deciderEmail,
-          )
+        ? identity(row.decidedBy, row.deciderFirstName, row.deciderLastName, row.deciderEmail)
         : null,
       createdAt: row.createdAt.toISOString(),
       decidedAt: row.decidedAt?.toISOString() ?? null,
@@ -892,8 +797,7 @@ export class MemoryReviewInboxService {
         return item.status === 'pending' || item.status === 'changes_requested';
       case 'all_pending':
         return (
-          isAdmin(viewerRole) &&
-          (item.status === 'pending' || item.status === 'changes_requested')
+          isAdmin(viewerRole) && (item.status === 'pending' || item.status === 'changes_requested')
         );
       case 'blocked':
         return isAdmin(viewerRole) && Boolean(item.blockedReason);
@@ -1043,9 +947,11 @@ function inboxSelect(includePayload = false): Prisma.Sql {
            decider.email::text AS "deciderEmail",
            decider.first_name AS "deciderFirstName",
            decider.last_name AS "deciderLastName"
-           ${includePayload
-             ? Prisma.sql`, mc.payload_jsonb AS payload, rr.reason AS "feedbackReason"`
-             : Prisma.sql``}
+           ${
+             includePayload
+               ? Prisma.sql`, mc.payload_jsonb AS payload, rr.reason AS "feedbackReason"`
+               : Prisma.sql``
+           }
     FROM review_request rr
     JOIN memory_candidate mc
       ON mc.tenant_id = rr.tenant_id
@@ -1097,9 +1003,7 @@ function inboxViewClause(
   }
 }
 
-function projectTimelineRow(
-  row: TimelineRow,
-): MemoryReviewDetail['timeline'][number] {
+function projectTimelineRow(row: TimelineRow): MemoryReviewDetail['timeline'][number] {
   return {
     candidateId: row.candidateId,
     reviewRequestId: row.reviewRequestId,
@@ -1115,20 +1019,10 @@ function projectTimelineRow(
       row.submitterEmail,
     ),
     assignedReviewer: row.assignedTo
-      ? identity(
-          row.assignedTo,
-          row.reviewerFirstName,
-          row.reviewerLastName,
-          row.reviewerEmail,
-        )
+      ? identity(row.assignedTo, row.reviewerFirstName, row.reviewerLastName, row.reviewerEmail)
       : null,
     decidedBy: row.decidedBy
-      ? identity(
-          row.decidedBy,
-          row.deciderFirstName,
-          row.deciderLastName,
-          row.deciderEmail,
-        )
+      ? identity(row.decidedBy, row.deciderFirstName, row.deciderLastName, row.deciderEmail)
       : null,
     createdAt: row.createdAt.toISOString(),
     decidedAt: row.decidedAt?.toISOString() ?? null,
@@ -1221,10 +1115,7 @@ function controllingMemoryFromPayload(
   const rawVersion = record.version ?? record.targetVersion;
   return {
     itemId,
-    version:
-      typeof rawVersion === 'number' && Number.isInteger(rawVersion)
-        ? rawVersion
-        : null,
+    version: typeof rawVersion === 'number' && Number.isInteger(rawVersion) ? rawVersion : null,
   };
 }
 
@@ -1252,12 +1143,7 @@ function identity(
 }
 
 function tenantRole(value: string): TenantRole | null {
-  return [
-    'capiro_admin',
-    'user_admin',
-    'standard_user',
-    'client_portal_user',
-  ].includes(value)
+  return ['capiro_admin', 'user_admin', 'standard_user', 'client_portal_user'].includes(value)
     ? (value as TenantRole)
     : null;
 }

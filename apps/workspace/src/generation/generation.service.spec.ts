@@ -159,9 +159,7 @@ function harness(
         traceHash: 'trace-hash-1',
         persisted: opts.packetPersisted ?? true,
         compiledAt: '2026-07-28T00:00:00.000Z',
-        ...(opts.retrievalEvidence
-          ? { supplementalEvidence: opts.retrievalEvidence }
-          : {}),
+        ...(opts.retrievalEvidence ? { supplementalEvidence: opts.retrievalEvidence } : {}),
       };
     },
   } as unknown as WorkspaceContextCompilerService;

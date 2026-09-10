@@ -96,7 +96,14 @@ describe('ApiClientContextRepo', () => {
   });
 
   it('keeps all section cursors ahead of large profile and engagement text under the real prompt cap', async () => {
-    const sectionNames = ['capabilities', 'people', 'facilities', 'submissionHistory', 'advocacyMatters', 'advocacyRecords'];
+    const sectionNames = [
+      'capabilities',
+      'people',
+      'facilities',
+      'submissionHistory',
+      'advocacyMatters',
+      'advocacyRecords',
+    ];
     const payload = {
       tool: 'get_client_context',
       profileSections: Object.fromEntries(

@@ -98,9 +98,7 @@ describe('prepareMemoryReviewRevision', () => {
     );
     expect(() =>
       prepareMemoryReviewRevision('settings_sections', payload, {
-        sections: [
-          { key: 'mission', heading: 'Mission', owner: 'human', body: 'Original' },
-        ],
+        sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Original' }],
       }),
     ).toThrow('preserve the complete section structure');
     expect(() =>

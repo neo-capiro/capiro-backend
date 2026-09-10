@@ -84,7 +84,11 @@ interface FillEngineInternals {
     attachmentId: string,
     documentText: string,
   ): Promise<number>;
-  maybeSeedWebsite(ctx: TenantContext, clientId: string, seedWebsite?: string | null): Promise<void>;
+  maybeSeedWebsite(
+    ctx: TenantContext,
+    clientId: string,
+    seedWebsite?: string | null,
+  ): Promise<void>;
 }
 
 interface WorkflowRunRow {
@@ -241,7 +245,9 @@ export function deriveClientProfileFillRunStatus(
   statuses: readonly ClientProfileFillTaskStatus[],
 ): 'completed' | 'partial' | 'failed' {
   const failed = statuses.filter((status) => status === 'failed').length;
-  const completed = statuses.filter((status) => status === 'completed' || status === 'skipped').length;
+  const completed = statuses.filter(
+    (status) => status === 'completed' || status === 'skipped',
+  ).length;
   if (failed > 0 && completed === 0) return 'failed';
   if (failed > 0) return 'partial';
   return 'completed';
@@ -306,10 +312,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             id: clientId,
             tenantId: ctx.tenantId,
             status: { not: 'archived' },
-            OR: [
-              { memoryWall: false },
-              { memoryAccessGrants: { some: { userId: ctx.userId } } },
-            ],
+            OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: ctx.userId } } }],
           },
           select: { id: true, name: true, website: true, ldaClientIds: true },
         });
@@ -448,7 +451,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
 
     const rawWebsite = input.website?.trim() ?? '';
     const website = rawWebsite ? normalizeWebsite(rawWebsite) : null;
-    if (rawWebsite && !website) throw new BadRequestException('Enter a valid http(s) company website');
+    if (rawWebsite && !website)
+      throw new BadRequestException('Enter a valid http(s) company website');
     if (website) await this.engine.maybeSeedWebsite(ctx, clientId, website);
 
     const currentLdaIds = new Set(setup.selectedIdentities.map((identity) => identity.id));
@@ -463,11 +467,13 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       });
     }
     if (appendedLdaIds.length) {
-      await this.prepopulation.prepopulate(ctx.tenantId, clientId).catch((error) =>
-        this.logger.warn(
-          `Prepopulation after appending LDA identities failed for ${clientId}: ${this.safeError(error)}`,
-        ),
-      );
+      await this.prepopulation
+        .prepopulate(ctx.tenantId, clientId)
+        .catch((error) =>
+          this.logger.warn(
+            `Prepopulation after appending LDA identities failed for ${clientId}: ${this.safeError(error)}`,
+          ),
+        );
     }
 
     const bundle = await this.contextPlane.resolve(ctx, {
@@ -747,7 +753,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         `SELECT id FROM client_profile_fill_run
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
             AND workflow_version >= 2 AND status <> 'cancelled' FOR UPDATE`,
-        runId, ctx.tenantId, clientId,
+        runId,
+        ctx.tenantId,
+        clientId,
       );
       if (!runs.length) throw new BadRequestException('This run cannot be retried');
       const count = await tx.$executeRawUnsafe(
@@ -821,7 +829,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           `UPDATE client_profile_fill_run SET status = 'running', stage = 'research',
                   completed_at = NULL, error = NULL, last_progress_at = now(), updated_at = now()
             WHERE id = $1::uuid AND tenant_id = $2::uuid`,
-          run.id, run.tenantId,
+          run.id,
+          run.tenantId,
         );
         await requeueFillReviewChecks(tx, run.id, run.tenantId);
       }
@@ -909,7 +918,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   private async recoverStaleTasks(): Promise<void> {
     const cutoff = new Date(Date.now() - TASK_STALE_MS);
     const rows = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ runId: string; tenantId: string; taskType: ClientProfileFillTaskType }>>(
+      tx.$queryRawUnsafe<
+        Array<{ runId: string; tenantId: string; taskType: ClientProfileFillTaskType }>
+      >(
         `UPDATE client_profile_fill_task
             SET status = CASE WHEN attempt >= max_attempts THEN 'failed' ELSE 'queued' END,
                 next_attempt_at = CASE
@@ -1027,7 +1038,12 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       });
       await this.completeTask(task, count);
     } catch (error) {
-      await this.failTask(task, 'task_failed', this.safeError(error), task.attempt < task.maxAttempts);
+      await this.failTask(
+        task,
+        'task_failed',
+        this.safeError(error),
+        task.attempt < task.maxAttempts,
+      );
     } finally {
       clearInterval(heartbeat);
       await this.syncSourceState(task.tenantId, task.runId, task.taskType);
@@ -1055,7 +1071,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         return this.engine.gatherBillRecommendations(ctx, task.clientId, task.runId);
       case 'client_document': {
         const attachmentId = this.stringValue(task.input.attachmentId);
-        if (!attachmentId) throw new BadRequestException('Capability document task is missing attachmentId');
+        if (!attachmentId)
+          throw new BadRequestException('Capability document task is missing attachmentId');
         const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.engagementAttachment.findFirst({
             where: { id: attachmentId, tenantId: ctx.tenantId, clientId: task.clientId },
@@ -1186,7 +1203,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     const failedTasks = statuses.filter((status) => status === 'failed').length;
     let status = 'queued';
     if (statuses.some((value) => value === 'running')) status = 'running';
-    else if (statuses.some((value) => value === 'queued')) status = failedTasks ? 'retrying' : 'queued';
+    else if (statuses.some((value) => value === 'queued'))
+      status = failedTasks ? 'retrying' : 'queued';
     else if (failedTasks === rows.length) status = 'failed';
     else if (failedTasks > 0) status = 'partial';
     else if (statuses.every((value) => value === 'cancelled')) status = 'cancelled';
@@ -1244,7 +1262,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
             AND tenant_id = $2::uuid AND status = 'running' FOR UPDATE`,
-          run.id, run.tenantId,
+          run.id,
+          run.tenantId,
         );
         if (!locked.length) return;
         const taskRows = await tx.$queryRawUnsafe<Array<{ status: ClientProfileFillTaskStatus }>>(
@@ -1297,7 +1316,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       }),
     );
     if (rows.length !== attachmentIds.length) {
-      throw new BadRequestException('One or more capability documents do not belong to this client');
+      throw new BadRequestException(
+        'One or more capability documents do not belong to this client',
+      );
     }
     return rows;
   }
@@ -1309,10 +1330,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           id: clientId,
           tenantId: ctx.tenantId,
           status: { not: 'archived' },
-          OR: [
-            { memoryWall: false },
-            { memoryAccessGrants: { some: { userId: ctx.userId } } },
-          ],
+          OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: ctx.userId } } }],
         },
         select: { id: true },
       }),
@@ -1337,7 +1355,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   }
 
   private normalizeLdaIds(values?: number[]): number[] {
-    const ids = [...new Set((values ?? []).filter((value) => Number.isInteger(value) && value > 0))];
+    const ids = [
+      ...new Set((values ?? []).filter((value) => Number.isInteger(value) && value > 0)),
+    ];
     if (ids.length > MAX_LDA_IDENTITIES) {
       throw new BadRequestException(`Choose no more than ${MAX_LDA_IDENTITIES} LDA identities`);
     }

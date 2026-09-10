@@ -95,10 +95,7 @@ export function prepareMemoryReviewRevision(
   };
 }
 
-function validateRevisedSections(
-  value: unknown,
-  existing: MemorySection[],
-): MemorySection[] {
+function validateRevisedSections(value: unknown, existing: MemorySection[]): MemorySection[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_SECTIONS) {
     throw new BadRequestException('Revised sections must be a non-empty bounded list.');
   }

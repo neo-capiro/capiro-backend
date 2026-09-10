@@ -393,13 +393,20 @@ export class AgentsController {
    * segment so it can never be shadowed by `watch/strategies/:strategyId`.
    */
   @Get('watch/strategies/:strategyId/monitoring')
-  getWatchMonitoring(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string) {
+  getWatchMonitoring(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('strategyId') strategyId: string,
+  ) {
     return this.watcher.monitoring(tc.tenantId, strategyId);
   }
 
   @Patch('watch/strategies/:strategyId/monitoring')
   @UseGuards(StrategyWatcherGuard)
-  configureWatchMonitoring(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string, @Body() dto: ConfigureWatchDto) {
+  configureWatchMonitoring(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('strategyId') strategyId: string,
+    @Body() dto: ConfigureWatchDto,
+  ) {
     return this.watcher.configureMonitoring(tc.tenantId, tc.clerkUserId, strategyId, dto.mode);
   }
 
@@ -422,8 +429,17 @@ export class AgentsController {
    *  reconciliation against the current head. */
   @Post('watch/strategies/:strategyId/revalidate')
   @UseGuards(StrategyWatcherGuard)
-  revalidateWatch(@CurrentTenant() tc: AuthTenantContext, @Param('strategyId') strategyId: string, @Query('force') force?: string) {
-    return this.watchReview.revalidate(tc.tenantId, tc.clerkUserId, strategyId, force === 'true' ? 'manual-check' : 'panel-open');
+  revalidateWatch(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('strategyId') strategyId: string,
+    @Query('force') force?: string,
+  ) {
+    return this.watchReview.revalidate(
+      tc.tenantId,
+      tc.clerkUserId,
+      strategyId,
+      force === 'true' ? 'manual-check' : 'panel-open',
+    );
   }
 
   /** Accept ONE proposal: this call IS the approval, applies it, cuts one

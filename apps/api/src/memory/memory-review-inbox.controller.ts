@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -42,18 +34,12 @@ export class MemoryReviewInboxController {
   }
 
   @Get('inbox/candidates/:id')
-  detail(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  detail(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
     return this.inbox.detail(ctx, id);
   }
 
   @Get('inbox/requests/:id')
-  detailByRequest(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  detailByRequest(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
     return this.inbox.detailByReviewRequest(ctx, id);
   }
 
@@ -77,10 +63,7 @@ export class MemoryReviewInboxController {
   }
 
   @Post('notifications/:id/read')
-  async readOne(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async readOne(@CurrentTenant() ctx: TenantContext, @Param('id', ParseUUIDPipe) id: string) {
     await this.inbox.markNotificationRead(ctx, id);
     return { ok: true };
   }

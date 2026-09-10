@@ -127,10 +127,12 @@ function resultRows(result: unknown, tool: string): Record<string, unknown>[] {
         // Shared retrieval keeps titles and links inside an evidence envelope.
         // Reuse the canonical extractor so Form-B references beyond the initial
         // five prompt citations receive the same authoritative source identity.
-        return extractCitationsFromToolResult(tool, { ...result, records: [row] }, 1, 1).map((citation) => ({
-          ...citation,
-          sourceTool: tool,
-        }));
+        return extractCitationsFromToolResult(tool, { ...result, records: [row] }, 1, 1).map(
+          (citation) => ({
+            ...citation,
+            sourceTool: tool,
+          }),
+        );
       });
     }
   }
@@ -161,8 +163,11 @@ function evidenceFromLedger(entries: readonly LedgerEntry[]): CitationEvidence[]
   for (const entry of entries) {
     // Reuse source-owned extraction at the release limit. Five prompt candidates
     // are a display budget, not a limit on records the provider may cite.
-    const canonical = new Map(extractCitationsFromToolResult(entry.tool, entry.result, 1, MAX_RELEASE_CITATIONS)
-      .map((citation) => [citation.id, citation]));
+    const canonical = new Map(
+      extractCitationsFromToolResult(entry.tool, entry.result, 1, MAX_RELEASE_CITATIONS).map(
+        (citation) => [citation.id, citation],
+      ),
+    );
     for (const row of resultRows(entry.result, entry.tool)) {
       const id = firstString(row, ID_FIELDS);
       const title = firstString(row, TITLE_FIELDS);
@@ -309,7 +314,10 @@ export function normalizeMeriV3FormBCitations(
 @Injectable()
 export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService {
   protected override prepareArtifactInput(
-    name: string, input: Record<string, unknown>, citations: MeriCitation[], ledgerEntries: LedgerEntry[],
+    name: string,
+    input: Record<string, unknown>,
+    citations: MeriCitation[],
+    ledgerEntries: LedgerEntry[],
   ): Record<string, unknown> {
     if (name !== 'create_word' && name !== 'create_powerpoint') return input;
     // Normalize before canonical doc generation and policy authorization so
@@ -326,9 +334,13 @@ export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService
       }
     }
     const normalize = (value: unknown): unknown => {
-      if (typeof value === 'string') return normalizeMeriV3FormBCitations(value, release.aliases, release.numberAliases);
+      if (typeof value === 'string')
+        return normalizeMeriV3FormBCitations(value, release.aliases, release.numberAliases);
       if (Array.isArray(value)) return value.map(normalize);
-      if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalize(item)]));
+      if (isRecord(value))
+        return Object.fromEntries(
+          Object.entries(value).map(([key, item]) => [key, normalize(item)]),
+        );
       return value;
     };
     return normalize(input) as Record<string, unknown>;
@@ -363,7 +375,9 @@ export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService
         ...args,
         reply: normalizeMeriV3FormBCitations(args.reply, release.aliases, release.numberAliases),
         citations: release.citations,
-        artifactBodies: args.artifactBodies?.map((body) => normalizeMeriV3FormBCitations(body, release.aliases, release.numberAliases)),
+        artifactBodies: args.artifactBodies?.map((body) =>
+          normalizeMeriV3FormBCitations(body, release.aliases, release.numberAliases),
+        ),
       });
     };
   }
