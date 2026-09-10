@@ -19,6 +19,16 @@ import type { BillDossierResponse } from '../../../pages/bills/bill-360.types.js
  */
 
 const getMock = vi.fn();
+let folderEnabled = false;
+vi.mock('../legiwatch/bills/folder-api.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../legiwatch/bills/folder-api.js')>()),
+  useFolderTrackerFlag: () => ({
+    enabled: folderEnabled,
+    ready: true,
+    scope: 'tenant-one:user-one',
+  }),
+}));
+vi.mock('../../../lib/use-api-scope.js', () => ({ useApiScope: () => 'tenant-one:user-one' }));
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, post: vi.fn(), put: vi.fn(), delete: vi.fn() }),
 }));
@@ -73,12 +83,60 @@ function hr8800(overrides: Partial<BillDossierResponse> = {}): BillDossierRespon
     context: null,
     tracking: null,
     kpis: [
-      { id: 'current_status', label: 'Current status', value: 'Rule failed', valueType: 'status', asOf: '2026-06-18T00:00:00.000Z', sub: null, unavailableReason: null },
-      { id: 'latest_vote', label: 'Latest recorded vote', value: 'Failed 211-214', valueType: 'text', asOf: '2026-06-18T00:00:00.000Z', sub: 'Governing rule H. Res. 1398', unavailableReason: null },
-      { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'last_official_action', label: 'Last official action', value: '2026-06-17T00:00:00.000Z', valueType: 'date', asOf: '2026-06-17T00:00:00.000Z', sub: 'Rule reported.', unavailableReason: null },
-      { id: 'next_milestone', label: 'Next milestone', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No analyst has recorded an expected next milestone for this bill.' },
+      {
+        id: 'current_status',
+        label: 'Current status',
+        value: 'Rule failed',
+        valueType: 'status',
+        asOf: '2026-06-18T00:00:00.000Z',
+        sub: null,
+        unavailableReason: null,
+      },
+      {
+        id: 'latest_vote',
+        label: 'Latest recorded vote',
+        value: 'Failed 211-214',
+        valueType: 'text',
+        asOf: '2026-06-18T00:00:00.000Z',
+        sub: 'Governing rule H. Res. 1398',
+        unavailableReason: null,
+      },
+      {
+        id: 'funding_position',
+        label: 'Funding position',
+        value: null,
+        valueType: 'money',
+        asOf: null,
+        sub: null,
+        unavailableReason: NO_FUNDING_REASON,
+      },
+      {
+        id: 'delta_from_request',
+        label: 'Δ from request',
+        value: null,
+        valueType: 'signed_money',
+        asOf: null,
+        sub: null,
+        unavailableReason: NO_FUNDING_REASON,
+      },
+      {
+        id: 'last_official_action',
+        label: 'Last official action',
+        value: '2026-06-17T00:00:00.000Z',
+        valueType: 'date',
+        asOf: '2026-06-17T00:00:00.000Z',
+        sub: 'Rule reported.',
+        unavailableReason: null,
+      },
+      {
+        id: 'next_milestone',
+        label: 'Next milestone',
+        value: null,
+        valueType: 'text',
+        asOf: null,
+        sub: null,
+        unavailableReason: 'No analyst has recorded an expected next milestone for this bill.',
+      },
     ],
     overview: {
       whatChanged: {
@@ -156,7 +214,13 @@ function hr8800(overrides: Partial<BillDossierResponse> = {}): BillDossierRespon
     provenance: {
       lastSyncedAt: '2026-06-19T06:00:00.000Z',
       sources: [
-        { label: 'Congress.gov', as: '2026-06-18', origin: 'official', fresh: true, url: HR_8800_URL },
+        {
+          label: 'Congress.gov',
+          as: '2026-06-18',
+          origin: 'official',
+          fresh: true,
+          url: HR_8800_URL,
+        },
       ],
     },
     ...overrides,
@@ -174,11 +238,91 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  folderEnabled = false;
   getMock.mockReset();
   navigateMock.mockReset();
   flag = { enabled: true, ready: true };
   search = '';
   currentBillId = '119-hr-8800';
+});
+
+test('the active vNext full page preserves folder context and exposes state source records', async () => {
+  folderEnabled = true;
+  search = 'folder=folder-one';
+  currentBillId = 'fl-2026-h0047';
+  const d = hr8800();
+  d.bill = {
+    ...d.bill,
+    id: currentBillId,
+    num: 'HB 47',
+    isState: true,
+    jurisdiction: 'FL',
+    sponsorLegislatorId: 'person-one',
+  };
+  d.provenance = {
+    ...d.provenance,
+    sourceCheckStatus: 'unknown',
+    sourceCheckedAt: null,
+    sourceCheckAttemptedAt: null,
+  };
+  getMock.mockImplementation(async (url) => {
+    if (url.endsWith('/context'))
+      return {
+        data: {
+          folder: { id: 'folder-one', name: 'Selected folder', clientId: null },
+          assignment: {
+            topPriority: true,
+            importance: 'high',
+            position: 'oppose',
+            internalComments: 'Private folder note',
+            externalComments: 'External wording',
+            version: 1,
+          },
+          canEdit: false,
+        },
+      };
+    if (url.endsWith('/records'))
+      return {
+        data: {
+          rows: [
+            {
+              id: 'doc-47',
+              date: '2026-06-26',
+              label: 'Enrolled text',
+              url: 'https://www.flsenate.gov/Session/Bill/2026/47',
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+          coverage: 'available',
+          reason: null,
+        },
+      };
+    return { data: d };
+  });
+  renderPage();
+  expect(await screen.findByText('Private folder note')).toHaveClass('lw-folder-internal');
+  expect(screen.getByRole('link', { name: 'Sponsor profile' })).toHaveAttribute(
+    'href',
+    '/directory/state-legislators/person-one',
+  );
+  (await screen.findByRole('tab', { name: 'Evidence' })).click();
+  expect(await screen.findByRole('region', { name: 'Source check status' })).toBeTruthy();
+  await waitFor(() =>
+    expect(getMock).toHaveBeenCalledWith(
+      '/intel-api/bills/fl-2026-h0047/records',
+      expect.objectContaining({ params: expect.objectContaining({ section: 'documents' }) }),
+    ),
+  );
+  expect(await screen.findByText(/Enrolled text/)).toBeTruthy();
+});
+
+test('a folder URL does not fetch private context while the folder flag is off', async () => {
+  search = 'folder=folder-one';
+  getMock.mockResolvedValue({ data: hr8800() });
+  renderPage();
+  await screen.findByRole('tab', { name: 'Overview' });
+  expect(getMock.mock.calls.some(([url]) => url.endsWith('/context'))).toBe(false);
 });
 
 describe('Bill360PageVNext — H.R. 8800 truth layer', () => {
@@ -234,7 +378,9 @@ describe('Bill360PageVNext — H.R. 8800 truth layer', () => {
     // amount — no position row and no amount slot at all. LW-QA-021: the KPI
     // strip now states the same reason, so the copy legitimately appears more
     // than once (it used to render a bare em-dash there).
-    expect(screen.getAllByText(/No \$0 is shown unless a source states zero/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/No \$0 is shown unless a source states zero/i).length,
+    ).toBeGreaterThan(0);
     expect(document.querySelector('.b360-fund-amount')).toBeNull();
     expect(document.querySelector('.b360-petable')).toBeNull();
   });
@@ -320,7 +466,11 @@ describe('Bill360PageVNext — routing, context isolation, flag gating', () => {
     search = 'client=11111111-1111-1111-1111-111111111111';
     getMock.mockResolvedValue({
       data: hr8800({
-        context: { contextType: 'client', externalRef: '11111111-1111-1111-1111-111111111111', name: 'Acme Defense' },
+        context: {
+          contextType: 'client',
+          externalRef: '11111111-1111-1111-1111-111111111111',
+          name: 'Acme Defense',
+        },
       }),
     });
     render(
@@ -336,8 +486,10 @@ describe('Bill360PageVNext — routing, context isolation, flag gating', () => {
       .map((q) => JSON.stringify(q.queryKey))
       .filter((k) => k.includes('bill-dossier'));
     expect(new Set(keys).size).toBe(2);
-    expect(keys).toContain('["bill-dossier","119-hr-8800",null]');
-    expect(keys).toContain('["bill-dossier","119-hr-8800","11111111-1111-1111-1111-111111111111"]');
+    expect(keys).toContain('["bill-dossier","119-hr-8800",null,"tenant-one:user-one"]');
+    expect(keys).toContain(
+      '["bill-dossier","119-hr-8800","11111111-1111-1111-1111-111111111111","tenant-one:user-one"]',
+    );
   });
 
   test('fails closed when bill_360 is disabled — a plain state, never a blank page', async () => {

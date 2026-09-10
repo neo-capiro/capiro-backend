@@ -2,6 +2,7 @@ import { Pill, evBadge, type PillSev } from '../../components/dossier/EvidenceBa
 import { FreshnessPill, SourceLink } from '../../components/dossier/SourceLink.js';
 import { fmtDate } from '../../components/dossier/dossier-format.js';
 import type { DossierProvenance } from './bill-360.types.js';
+import { BillSourceHealth } from './BillSourceHealth.js';
 
 const LEGEND: Array<{ label: string; sev: PillSev; desc: string }> = [
   {
@@ -25,6 +26,7 @@ const LEGEND: Array<{ label: string; sev: PillSev; desc: string }> = [
 export function BillEvidenceTab({ provenance }: { provenance: DossierProvenance }) {
   return (
     <>
+      <BillSourceHealth provenance={provenance} />
       <div className="dsr-card" style={{ padding: '16px 18px', marginBottom: 14 }}>
         <div className="dsr-ev-head">
           <span className="dsr-section-label" style={{ marginBottom: 0 }}>

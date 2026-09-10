@@ -97,16 +97,25 @@ function deltaKpiColor(value: string): string {
 export function BillDossierHero({ dossier }: { dossier: BillDossierResponse }) {
   const { bill, tracking } = dossier;
   return (
-    <DossierHero
-      num={bill.num}
-      statusLabel={bill.statusLabel}
-      statusSev={bill.statusSev as PillSev}
-      metaChips={billMetaChips(bill)}
-      title={bill.title}
-      scope={heroScope(dossier)}
-      stance={tracking?.position ? STANCE[tracking.position] : null}
-      priorityLabel={tracking?.priority ? PRIORITY[tracking.priority] : null}
-      lastSynced={fmtDate(dossier.provenance.lastSyncedAt) || null}
-    />
+    <>
+      <DossierHero
+        num={bill.num}
+        statusLabel={bill.statusLabel}
+        statusSev={bill.statusSev as PillSev}
+        metaChips={billMetaChips(bill)}
+        title={bill.title}
+        scope={heroScope(dossier)}
+        stance={tracking?.position ? STANCE[tracking.position] : null}
+        priorityLabel={tracking?.priority ? PRIORITY[tracking.priority] : null}
+        lastSynced={fmtDate(dossier.provenance.lastSyncedAt) || null}
+      />
+      {bill.isState && bill.sponsorLegislatorId && (
+        <p>
+          <a href={`/directory/state-legislators/${encodeURIComponent(bill.sponsorLegislatorId)}`}>
+            Sponsor profile: {bill.sponsor ?? 'State legislator'}
+          </a>
+        </p>
+      )}
+    </>
   );
 }

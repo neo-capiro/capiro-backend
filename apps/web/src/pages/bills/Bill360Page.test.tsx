@@ -17,6 +17,11 @@ import type { BillDossierResponse } from './bill-360.types.js';
  */
 
 const getMock = vi.fn();
+vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'tenant-one:user-one' }));
+vi.mock('../../vnext/pages/legiwatch/bills/folder-api.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../vnext/pages/legiwatch/bills/folder-api.js')>()),
+  useFolderTrackerFlag: () => ({ enabled: false, ready: true }),
+}));
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, post: vi.fn(), put: vi.fn(), delete: vi.fn() }),
 }));
@@ -71,12 +76,60 @@ function hr8800(overrides: Partial<BillDossierResponse> = {}): BillDossierRespon
     context: null,
     tracking: null,
     kpis: [
-      { id: 'current_status', label: 'Current status', value: 'Rule failed', valueType: 'status', asOf: '2026-06-18T00:00:00.000Z', sub: null, unavailableReason: null },
-      { id: 'latest_vote', label: 'Latest recorded vote', value: 'Failed 211-214', valueType: 'text', asOf: '2026-06-18T00:00:00.000Z', sub: 'Governing rule H. Res. 1398', unavailableReason: null },
-      { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'last_official_action', label: 'Last official action', value: '2026-06-17T00:00:00.000Z', valueType: 'date', asOf: '2026-06-17T00:00:00.000Z', sub: 'Rule reported.', unavailableReason: null },
-      { id: 'next_milestone', label: 'Next milestone', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No analyst has recorded an expected next milestone for this bill.' },
+      {
+        id: 'current_status',
+        label: 'Current status',
+        value: 'Rule failed',
+        valueType: 'status',
+        asOf: '2026-06-18T00:00:00.000Z',
+        sub: null,
+        unavailableReason: null,
+      },
+      {
+        id: 'latest_vote',
+        label: 'Latest recorded vote',
+        value: 'Failed 211-214',
+        valueType: 'text',
+        asOf: '2026-06-18T00:00:00.000Z',
+        sub: 'Governing rule H. Res. 1398',
+        unavailableReason: null,
+      },
+      {
+        id: 'funding_position',
+        label: 'Funding position',
+        value: null,
+        valueType: 'money',
+        asOf: null,
+        sub: null,
+        unavailableReason: NO_FUNDING_REASON,
+      },
+      {
+        id: 'delta_from_request',
+        label: 'Δ from request',
+        value: null,
+        valueType: 'signed_money',
+        asOf: null,
+        sub: null,
+        unavailableReason: NO_FUNDING_REASON,
+      },
+      {
+        id: 'last_official_action',
+        label: 'Last official action',
+        value: '2026-06-17T00:00:00.000Z',
+        valueType: 'date',
+        asOf: '2026-06-17T00:00:00.000Z',
+        sub: 'Rule reported.',
+        unavailableReason: null,
+      },
+      {
+        id: 'next_milestone',
+        label: 'Next milestone',
+        value: null,
+        valueType: 'text',
+        asOf: null,
+        sub: null,
+        unavailableReason: 'No analyst has recorded an expected next milestone for this bill.',
+      },
     ],
     overview: {
       whatChanged: {
@@ -154,7 +207,13 @@ function hr8800(overrides: Partial<BillDossierResponse> = {}): BillDossierRespon
     provenance: {
       lastSyncedAt: '2026-06-19T06:00:00.000Z',
       sources: [
-        { label: 'Congress.gov', as: '2026-06-18', origin: 'official', fresh: true, url: HR_8800_URL },
+        {
+          label: 'Congress.gov',
+          as: '2026-06-18',
+          origin: 'official',
+          fresh: true,
+          url: HR_8800_URL,
+        },
       ],
     },
     ...overrides,
@@ -232,7 +291,9 @@ describe('Bill360Page — H.R. 8800 truth layer', () => {
     // amount — no position row and no amount slot at all. LW-QA-021: the KPI
     // strip now states the same reason, so the copy legitimately appears more
     // than once (it used to render a bare em-dash there).
-    expect(screen.getAllByText(/No \$0 is shown unless a source states zero/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/No \$0 is shown unless a source states zero/i).length,
+    ).toBeGreaterThan(0);
     expect(document.querySelector('.dsr-fund-amount')).toBeNull();
     expect(document.querySelector('.dsr-petable')).toBeNull();
   });
@@ -291,7 +352,11 @@ describe('Bill360Page — routing, context isolation, flag gating', () => {
     search = 'client=11111111-1111-1111-1111-111111111111';
     getMock.mockResolvedValue({
       data: hr8800({
-        context: { contextType: 'client', externalRef: '11111111-1111-1111-1111-111111111111', name: 'Acme Defense' },
+        context: {
+          contextType: 'client',
+          externalRef: '11111111-1111-1111-1111-111111111111',
+          name: 'Acme Defense',
+        },
       }),
     });
     render(
@@ -309,8 +374,10 @@ describe('Bill360Page — routing, context isolation, flag gating', () => {
       .map((q) => JSON.stringify(q.queryKey))
       .filter((k) => k.includes('bill-dossier'));
     expect(new Set(keys).size).toBe(2);
-    expect(keys).toContain('["bill-dossier","119-hr-8800",null]');
-    expect(keys).toContain('["bill-dossier","119-hr-8800","11111111-1111-1111-1111-111111111111"]');
+    expect(keys).toContain('["bill-dossier","119-hr-8800",null,"tenant-one:user-one"]');
+    expect(keys).toContain(
+      '["bill-dossier","119-hr-8800","11111111-1111-1111-1111-111111111111","tenant-one:user-one"]',
+    );
   });
 
   test('fails closed when bill_360 is disabled — a plain state, never a blank page', async () => {

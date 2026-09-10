@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
+import { useApiScope } from '../../lib/use-api-scope.js';
 import type { BillDossierResponse } from './bill-360.types.js';
 
 /**
@@ -11,7 +12,7 @@ import type { BillDossierResponse } from './bill-360.types.js';
 export function useBillDossier(billId: string | null | undefined, clientId?: string | null) {
   const api = useApi();
   return useQuery<BillDossierResponse | null>({
-    queryKey: ['bill-dossier', billId ?? null, clientId ?? null],
+    queryKey: ['bill-dossier', billId ?? null, clientId ?? null, useApiScope()],
     queryFn: async () => {
       const id = encodeURIComponent(billId ?? '');
       const path = clientId

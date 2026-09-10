@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { BILL_360_FEATURE, useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
 import { BillDossierBodyVNext } from './BillDossierBodyVNext.js';
+import { useFolderTrackerFlag } from '../legiwatch/bills/folder-api.js';
 import './bill-360-vnext.css';
 
 /**
@@ -28,6 +29,8 @@ export function Bill360PageVNext() {
   const { enabled, ready } = useIntelFeature(BILL_360_FEATURE);
 
   const clientId = params.get('client');
+  const folderFeature = useFolderTrackerFlag();
+  const folderId = folderFeature.enabled ? params.get('folder') : null;
 
   // Back leaves the dossier the way the user arrived: history when there is any,
   // otherwise LegiWatch (a copied link opened in a fresh tab has no history) —
@@ -60,7 +63,14 @@ export function Bill360PageVNext() {
 
   return (
     <div className="b360-route">
-      <BillDossierBodyVNext billId={billId} clientId={clientId} mode="page" onClose={onBack} />
+      <BillDossierBodyVNext
+        key={`${folderFeature.scope}:${billId}:${folderId ?? ''}`}
+        billId={billId}
+        clientId={clientId}
+        folderId={folderId}
+        mode="page"
+        onClose={onBack}
+      />
     </div>
   );
 }

@@ -19,6 +19,9 @@ interface Call {
 }
 
 const calls: Call[] = [];
+vi.mock('../../../../lib/use-api-scope.js', () => ({
+  useApiScope: () => 'wave2-test-tenant:analyst',
+}));
 const handlers = {
   get: vi.fn<(url: string) => unknown>(),
   put: vi.fn<(url: string, body?: unknown) => unknown>(),
@@ -107,11 +110,15 @@ describe('W2-2 — Saved Views overlay (real persistence)', () => {
     renderWithProviders(<SavedViewsOverlay onClose={() => {}} />, '/legiwatch?tab=hearings');
     await screen.findByText('No saved views yet for hearings — schedule.');
 
-    fireEvent.change(screen.getByLabelText('New view name'), { target: { value: 'My weekly view' } });
+    fireEvent.change(screen.getByLabelText('New view name'), {
+      target: { value: 'My weekly view' },
+    });
     fireEvent.click(screen.getByText('Save current view'));
 
     await waitFor(() => expect(screen.getByText('My weekly view')).toBeTruthy());
-    const createCall = calls.find((c) => c.method === 'post' && c.url === '/api/legiwatch/live-hearings/saved-views');
+    const createCall = calls.find(
+      (c) => c.method === 'post' && c.url === '/api/legiwatch/live-hearings/saved-views',
+    );
     expect((createCall?.body as { scope: string }).scope).toBe('personal');
     expect(screen.getByText('Personal')).toBeTruthy();
   });
@@ -172,12 +179,30 @@ describe('W2-4 — Create Watch wizard (real 5-step flow)', () => {
           result: {
             evaluatedFrom: '2026-08-02T00:00:00.000Z',
             evaluatedTo: '2026-09-01T00:00:00.000Z',
-            corpusCoverage: { bill: { evaluated: true }, hearing: { evaluated: true }, regulation: { evaluated: false }, program_element: { evaluated: false }, state_bill: { evaluated: false } },
+            corpusCoverage: {
+              bill: { evaluated: true },
+              hearing: { evaluated: true },
+              regulation: { evaluated: false },
+              program_element: { evaluated: false },
+              state_bill: { evaluated: false },
+            },
             totalMatched: 3,
             bySignalFamily: { bill: 3 },
             byPriority: {},
             sampleMatches: [
-              { packetId: 'p1', canonicalObject: { kind: 'bill', id: 'b1', label: 'H.R. 1 — Autonomy Act', detailPath: null }, occurredAt: '2026-08-15T00:00:00.000Z', reasonCodes: [], matchedConditions: [], evidence: null },
+              {
+                packetId: 'p1',
+                canonicalObject: {
+                  kind: 'bill',
+                  id: 'b1',
+                  label: 'H.R. 1 — Autonomy Act',
+                  detailPath: null,
+                },
+                occurredAt: '2026-08-15T00:00:00.000Z',
+                reasonCodes: [],
+                matchedConditions: [],
+                evidence: null,
+              },
             ],
             unknownOrUnsupportedConditions: [],
             queryVersion: 'w2-backtest-v1',
@@ -205,7 +230,9 @@ describe('W2-4 — Create Watch wizard (real 5-step flow)', () => {
 
     // Step 1 — Scope: name is required to advance.
     expect(screen.getByRole('button', { name: 'Next →' })).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Watch name'), { target: { value: 'Autonomy funding movement' } });
+    fireEvent.change(screen.getByLabelText('Watch name'), {
+      target: { value: 'Autonomy funding movement' },
+    });
     await screen.findByText('Aperture Defense');
     expect(screen.getByRole('button', { name: 'Next →' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
@@ -218,17 +245,23 @@ describe('W2-4 — Create Watch wizard (real 5-step flow)', () => {
     // Step 3 — Triggers: add a keyword match.
     await screen.findByText('Triggers');
     fireEvent.click(screen.getByText('+ Keyword match'));
-    fireEvent.change(screen.getByLabelText('Keyword for trigger 1'), { target: { value: 'autonomy' } });
+    fireEvent.change(screen.getByLabelText('Keyword for trigger 1'), {
+      target: { value: 'autonomy' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
 
     // Step 4 — Preview: run the real backtest.
-    await screen.findByText('Preview runs a REAL query against the last 30 days of historical data — never an estimate.');
+    await screen.findByText(
+      'Preview runs a REAL query against the last 30 days of historical data — never an estimate.',
+    );
     // Both the body's own control and the modal footer's primary action say
     // "Run preview" while no result exists yet — either triggers the backtest.
     fireEvent.click(screen.getAllByRole('button', { name: 'Run preview' })[0]!);
     await screen.findByText('3 matches');
     expect(screen.getByText(/H\.R\. 1 — Autonomy Act/)).toBeTruthy();
-    const backtestCall = calls.find((c) => c.url === '/api/legiwatch/live-hearings/watch-presets/backtest');
+    const backtestCall = calls.find(
+      (c) => c.url === '/api/legiwatch/live-hearings/watch-presets/backtest',
+    );
     expect((backtestCall?.body as { signalFamilies: string[] }).signalFamilies).toEqual(['bill']);
     expect((backtestCall?.body as { windowDays: number }).windowDays).toBe(30);
 
@@ -238,9 +271,13 @@ describe('W2-4 — Create Watch wizard (real 5-step flow)', () => {
     await screen.findByText(/Saved as active/);
     fireEvent.click(screen.getByRole('button', { name: 'Create watch' }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const createCall = calls.find((c) => c.method === 'post' && c.url === '/api/legiwatch/live-hearings/watch-presets');
+    const createCall = calls.find(
+      (c) => c.method === 'post' && c.url === '/api/legiwatch/live-hearings/watch-presets',
+    );
     expect((createCall?.body as { name: string }).name).toBe('Autonomy funding movement');
-    expect((createCall?.body as { conditions: Array<{ keyword: string }> }).conditions[0]?.keyword).toBe('autonomy');
+    expect(
+      (createCall?.body as { conditions: Array<{ keyword: string }> }).conditions[0]?.keyword,
+    ).toBe('autonomy');
   });
 
   it('drops a trigger once its family is deselected back in Signals, and re-blocks advancing', async () => {
@@ -303,7 +340,12 @@ describe('W2-5 — Coverage score in Cold Start', () => {
         return {
           clientId: CLIENT_A,
           asOf: '2026-09-01T00:00:00.000Z',
-          overall: { coveredConcepts: 0, totalConcepts: 0, percentage: null, status: 'NOT_CONFIGURED' },
+          overall: {
+            coveredConcepts: 0,
+            totalConcepts: 0,
+            percentage: null,
+            status: 'NOT_CONFIGURED',
+          },
           concepts: [],
           signalFamilies: [],
           sourceHealth: { healthy: 0, degraded: 0, failing: 0, stale: 0, acceptedExceptions: 0 },

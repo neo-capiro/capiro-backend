@@ -308,6 +308,7 @@ jobs:
           src/pages/clients/tracker/
           src/pages/radar/
           src/pages/bills/
+          src/vnext/pages/bills/
           src/pages/intelligence/HearingWatchPage
           src/pages/intelligence/LiveHearingRoomPage.capture
           src/lib/hearing-watch-api
@@ -315,9 +316,12 @@ jobs:
           src/vnext/pages/legiwatch/
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
+          src/vnext/components/overlays/overlays.test.tsx
+          src/vnext/figma-strategy-legiwatch-contract.test.ts
+          src/vnext/foundation-contract.test.ts
 
       # Vitest counts describe blocks; Jest counts files. Floors are measured
       # from this exact scope, with zero failures and zero skips required.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 237 761
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 246 794

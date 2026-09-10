@@ -1,6 +1,7 @@
 import { fmtDate } from '../../../components/dossier/dossier-format.js';
 import type { DossierProvenance } from '../../../pages/bills/bill-360.types.js';
 import { FreshnessPill, Pill, SourceLink, evBadge, type PillSev } from './dossier-primitives.js';
+import { BillSourceHealth } from '../../../pages/bills/BillSourceHealth.js';
 
 /**
  * Evidence tab — vNext re-skin of pages/bills/BillEvidenceTab.tsx: Sources &
@@ -28,6 +29,7 @@ const LEGEND: Array<{ label: string; sev: PillSev; desc: string }> = [
 export function BillEvidenceTab({ provenance }: { provenance: DossierProvenance }) {
   return (
     <>
+      <BillSourceHealth provenance={provenance} />
       <div className="b360-card b360-card--sources">
         <div className="b360-ev-head">
           <span className="b360-section-label b360-section-label--flush">Sources & provenance</span>

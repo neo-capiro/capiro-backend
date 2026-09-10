@@ -4,6 +4,9 @@ import { Empty } from 'antd';
 import { BILL_360_FEATURE, useIntelFeature } from '../../lib/intel-feature-flags.js';
 import { BillDossierBody } from './BillDossierBody.js';
 import './bill-360.css';
+import { FolderContextPanel } from '../../vnext/pages/legiwatch/bills/FolderContextPanel.js';
+import { useFolderTrackerFlag } from '../../vnext/pages/legiwatch/bills/folder-api.js';
+import { BillSourceRecords } from '../../vnext/pages/legiwatch/bills/BillSourceRecords.js';
 
 /**
  * Bill 360 full page (plan §2.2) — the deep-linkable, shareable dossier:
@@ -27,6 +30,8 @@ export function Bill360Page() {
   const { enabled, ready } = useIntelFeature(BILL_360_FEATURE);
 
   const clientId = params.get('client');
+  const folderId = params.get('folder');
+  const folderFeature = useFolderTrackerFlag();
 
   // Back leaves the dossier the way the user arrived: history when there is any,
   // otherwise LegiWatch (a copied link opened in a fresh tab has no history).
@@ -58,12 +63,11 @@ export function Bill360Page() {
 
   return (
     <div className="bill360-route redesign">
-      <BillDossierBody
-        billId={billId}
-        clientId={clientId}
-        mode="page"
-        onClose={onBack}
-      />
+      {folderFeature.enabled && folderId && (
+        <FolderContextPanel folderId={folderId} billId={billId} />
+      )}
+      <BillDossierBody billId={billId} clientId={clientId} mode="page" onClose={onBack} />
+      <BillSourceRecords billId={billId} />
     </div>
   );
 }

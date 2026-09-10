@@ -7,6 +7,7 @@
  */
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
+import { useApiScope } from '../../../../lib/use-api-scope.js';
 import { w1Error } from './wave1-api.js';
 
 export { w1Error as w2Error };
@@ -48,10 +49,12 @@ export interface SavedView {
 export interface AppliedSavedView extends SavedView {
   /** Set when the referenced client is archived/deleted — never a silent substitution. */
   clientWarning: string | null;
+  folderWarning?: string | null;
 }
 
 const savedViewKeys = {
-  list: (surface?: string, scope?: string) => ['lw-w2', 'saved-views', surface ?? '_all', scope ?? '_all'] as const,
+  list: (surface?: string, scope?: string) =>
+    ['lw-w2', 'saved-views', surface ?? '_all', scope ?? '_all'] as const,
 };
 
 export function useSavedViews(
@@ -59,7 +62,7 @@ export function useSavedViews(
 ): UseQueryResult<{ rows: SavedView[] }, Error> {
   const api = useApi();
   return useQuery<{ rows: SavedView[] }, Error>({
-    queryKey: savedViewKeys.list(params.surface, params.scope),
+    queryKey: [...savedViewKeys.list(params.surface, params.scope), useApiScope()],
     queryFn: async () => {
       const qs = new URLSearchParams();
       if (params.surface) qs.set('surface', params.surface);
@@ -100,9 +103,16 @@ export function useUpdateSavedView() {
   return useMutation<
     SavedView,
     Error,
-    { id: string; name?: string; scope?: 'personal' | 'tenant'; clientId?: string; config?: Record<string, unknown> }
+    {
+      id: string;
+      name?: string;
+      scope?: 'personal' | 'tenant';
+      clientId?: string;
+      config?: Record<string, unknown>;
+    }
   >({
-    mutationFn: async ({ id, ...body }) => (await api.put<SavedView>(`${BASE}/saved-views/${enc(id)}`, body)).data,
+    mutationFn: async ({ id, ...body }) =>
+      (await api.put<SavedView>(`${BASE}/saved-views/${enc(id)}`, body)).data,
     onSuccess: () => invalidateSavedViews(qc),
   });
 }
@@ -139,7 +149,8 @@ export function useDeleteSavedView() {
   const api = useApi();
   const qc = useQueryClient();
   return useMutation<{ deleted: boolean }, Error, { id: string }>({
-    mutationFn: async ({ id }) => (await api.delete<{ deleted: boolean }>(`${BASE}/saved-views/${enc(id)}`)).data,
+    mutationFn: async ({ id }) =>
+      (await api.delete<{ deleted: boolean }>(`${BASE}/saved-views/${enc(id)}`)).data,
     onSuccess: () => invalidateSavedViews(qc),
   });
 }
@@ -154,6 +165,14 @@ export function captureCurrentViewState(): CapturedViewState {
 
 /** The URL a saved view's captured state resolves to. */
 export function urlForViewState(state: CapturedViewState): string {
+  if (
+    !state ||
+    !/^\/legiwatch(?:\/[^\\?#]*)?$/.test(state.pathname) ||
+    !state.params ||
+    typeof state.params !== 'object'
+  ) {
+    throw new Error('This view has an unsupported destination.');
+  }
   const qs = new URLSearchParams(state.params).toString();
   return qs ? `${state.pathname}?${qs}` : state.pathname;
 }
@@ -180,7 +199,13 @@ export const SAVED_VIEW_SURFACE_LABEL: Record<SavedViewSurface, string> = {
 
 // ── W2-4 · Watch Presets + backtest ─────────────────────────────────────
 
-export const SIGNAL_FAMILIES = ['bill', 'hearing', 'regulation', 'program_element', 'state_bill'] as const;
+export const SIGNAL_FAMILIES = [
+  'bill',
+  'hearing',
+  'regulation',
+  'program_element',
+  'state_bill',
+] as const;
 export type SignalFamily = (typeof SIGNAL_FAMILIES)[number];
 
 export const SIGNAL_FAMILY_LABEL: Record<SignalFamily, string> = {
@@ -275,7 +300,12 @@ export function useCreateWatchPreset() {
   return useMutation<
     WatchPreset,
     Error,
-    { name: string; clientIds: string[]; signalFamilies: SignalFamily[]; conditions: WatchCondition[] }
+    {
+      name: string;
+      clientIds: string[];
+      signalFamilies: SignalFamily[];
+      conditions: WatchCondition[];
+    }
   >({
     mutationFn: async (input) => (await api.post<WatchPreset>(`${BASE}/watch-presets`, input)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['lw-w2', 'watch-presets'] }),
@@ -298,9 +328,16 @@ export function useUpdateWatchPreset() {
   return useMutation<
     WatchPreset,
     Error,
-    { id: string; name?: string; clientIds?: string[]; signalFamilies?: SignalFamily[]; conditions?: WatchCondition[] }
+    {
+      id: string;
+      name?: string;
+      clientIds?: string[];
+      signalFamilies?: SignalFamily[];
+      conditions?: WatchCondition[];
+    }
   >({
-    mutationFn: async ({ id, ...body }) => (await api.put<WatchPreset>(`${BASE}/watch-presets/${enc(id)}`, body)).data,
+    mutationFn: async ({ id, ...body }) =>
+      (await api.put<WatchPreset>(`${BASE}/watch-presets/${enc(id)}`, body)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['lw-w2', 'watch-presets'] }),
   });
 }
@@ -379,7 +416,10 @@ export const COVERAGE_STATUS_LABEL: Record<OverallCoverageStatus, string> = {
   NOT_CONFIGURED: 'NOT CONFIGURED',
 };
 
-export const COVERAGE_STATUS_TONE: Record<OverallCoverageStatus, 'success' | 'warning' | 'gray' | 'error'> = {
+export const COVERAGE_STATUS_TONE: Record<
+  OverallCoverageStatus,
+  'success' | 'warning' | 'gray' | 'error'
+> = {
   COVERED: 'success',
   PARTIAL: 'warning',
   UNSUPPORTED: 'gray',

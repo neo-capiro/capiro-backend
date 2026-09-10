@@ -9,26 +9,46 @@
  * summed (§8.3); unfiled stages read `Not filed`, never `0` (§8.1); passage
  * likelihood is null-safe for terminal bills (§8.5).
  */
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useDialogFocus } from '../../../components/overlays/index.js';
 import { useNavigate } from 'react-router-dom';
 import { useBillDossier } from '../../../../pages/bills/bill-360-api.js';
-import { kpiSubText, kpiUnavailable, kpiValueText, orderedKpis } from '../../../../pages/bills/bill-360-kpis.js';
+import {
+  kpiSubText,
+  kpiUnavailable,
+  kpiValueText,
+  orderedKpis,
+} from '../../../../pages/bills/bill-360-kpis.js';
 import { fmtDate } from '../../../../components/dossier/dossier-format.js';
 import { useBillHearings } from '../../../../pages/clients/tracker/bill-hearings-api.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
+import { FolderContextPanel } from './FolderContextPanel.js';
+import { BillSourceHealth } from '../../../../pages/bills/BillSourceHealth.js';
+import { BillSourceRecords } from './BillSourceRecords.js';
+import { Bill360ExportVNext } from '../../bills/Bill360ExportVNext.js';
 
-const TABS = ['Overview', 'Path & Votes', 'Funding', 'Provisions', 'Impact', 'Hearings', 'Evidence'] as const;
+const TABS = [
+  'Overview',
+  'Path & Votes',
+  'Funding',
+  'Provisions',
+  'Impact',
+  'Hearings',
+  'Evidence',
+] as const;
 type DossierTab = (typeof TABS)[number];
 
 export function Bill360Drawer({
   billId,
   clientId,
+  folderId,
   onClose,
   onOpenFull,
 }: {
   billId: string;
   clientId: string;
+  folderId?: string;
   onClose: () => void;
   onOpenFull: () => void;
 }) {
@@ -36,18 +56,27 @@ export function Bill360Drawer({
   const hearings = useBillHearings(clientId, billId, Boolean(clientId));
   const [tab, setTab] = useState<DossierTab>('Overview');
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useDialogFocus(dialogRef, onClose);
 
   const d = dossier.data;
 
   return (
     <>
-      <div className="lw-scrim" style={{ background: 'var(--lw-scrim-heavy)' }} onClick={onClose} aria-hidden="true" />
-      <aside className="lw-b360" role="dialog" aria-modal="true" aria-label={`Bill 360 — ${d?.bill?.num ?? billId}`}>
+      <div
+        className="lw-scrim"
+        style={{ background: 'var(--lw-scrim-heavy)' }}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        ref={dialogRef}
+        tabIndex={-1}
+        className="lw-b360"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Bill 360 — ${d?.bill?.num ?? billId}`}
+      >
         {dossier.isLoading ? (
           <div style={{ padding: 22 }}>
             <LwStateLoading rows={5} />
@@ -69,17 +98,42 @@ export function Bill360Drawer({
             <div className="lw-drawer__head lw-b360__head">
               <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                 <div className="lw-eyebrow">Bill 360</div>
-                <h2 style={{ margin: '4px 0 0', fontSize: 22, lineHeight: '30px', letterSpacing: '-.01em', fontWeight: 600 }}>
-                  <span className="lw-mono" style={{ fontSize: 18 }}>{d.bill.num}</span> — {d.bill.title}
+                <h2
+                  style={{
+                    margin: '4px 0 0',
+                    fontSize: 22,
+                    lineHeight: '30px',
+                    letterSpacing: '-.01em',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span className="lw-mono" style={{ fontSize: 18 }}>
+                    {d.bill.num}
+                  </span>{' '}
+                  — {d.bill.title}
                 </h2>
-                <div className="lw-mono" style={{ marginTop: 4, fontSize: 11, color: 'var(--lw-meta)' }}>
-                  {d.bill.chamber ?? ''}{d.bill.sponsor ? ` · ${d.bill.sponsor}` : ''}{d.bill.statusAt ? ` · updated ${fmtDate(d.bill.statusAt)}` : ''}
+                <div
+                  className="lw-mono"
+                  style={{ marginTop: 4, fontSize: 11, color: 'var(--lw-meta)' }}
+                >
+                  {d.bill.chamber ?? ''}
+                  {d.bill.sponsor ? ` · ${d.bill.sponsor}` : ''}
+                  {d.bill.statusAt ? ` · updated ${fmtDate(d.bill.statusAt)}` : ''}
                 </div>
+                {d.bill.isState && d.bill.sponsorLegislatorId && (
+                  <a
+                    href={`/directory/state-legislators/${encodeURIComponent(d.bill.sponsorLegislatorId)}`}
+                  >
+                    Sponsor profile
+                  </a>
+                )}
               </div>
-              <LwButton onClick={() => { /* export dossier */ window.print(); }}>Export</LwButton>
+              <Bill360ExportVNext dossier={d} />
               <LwButton onClick={onOpenFull}>Open full page</LwButton>
               {d.tracking ? <LwPill tone="brand">TRACKED</LwPill> : null}
-              <button type="button" className="lw-navbtn" aria-label="Close" onClick={onClose}>×</button>
+              <button type="button" className="lw-navbtn" aria-label="Close" onClick={onClose}>
+                ×
+              </button>
             </div>
 
             {/* stat strip — label ABOVE value (the app-wide KPI convention), each
@@ -122,6 +176,16 @@ export function Bill360Drawer({
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px' }}>
+              {folderId && tab === 'Overview' && (
+                <FolderContextPanel folderId={folderId} billId={billId} />
+              )}
+              {d.bill.isState && (tab === 'Evidence' || tab === 'Path & Votes') && (
+                <BillSourceRecords
+                  key={`${billId}:${tab}`}
+                  billId={billId}
+                  initialSection={tab === 'Evidence' ? 'documents' : 'history'}
+                />
+              )}
               {tab === 'Overview' ? (
                 <OverviewTab d={d} />
               ) : tab === 'Path & Votes' ? (
@@ -129,9 +193,15 @@ export function Bill360Drawer({
               ) : tab === 'Funding' ? (
                 <FundingTab d={d} />
               ) : tab === 'Provisions' ? (
-                <PlaceholderTab label="Provisions" note="Section-by-section provisions with affected clients and relevance level." />
+                <PlaceholderTab
+                  label="Provisions"
+                  note="Section-by-section provisions with affected clients and relevance level."
+                />
               ) : tab === 'Impact' ? (
-                <PlaceholderTab label="Impact" note="Per-client impact with position and a per-client brief action." />
+                <PlaceholderTab
+                  label="Impact"
+                  note="Per-client impact with position and a per-client brief action."
+                />
               ) : tab === 'Hearings' ? (
                 <HearingsTabView hearings={hearings.data} loading={hearings.isLoading} />
               ) : (
@@ -151,19 +221,25 @@ function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['
       {d.overview.whatChanged ? (
         <section>
           <h3 className="lw-sect__title">What changed</h3>
-          <p className="lw-state__body" style={{ maxWidth: 'none' }}>{d.overview.whatChanged.text}</p>
+          <p className="lw-state__body" style={{ maxWidth: 'none' }}>
+            {d.overview.whatChanged.text}
+          </p>
         </section>
       ) : null}
       {d.overview.whyItMatters ? (
         <section>
           <h3 className="lw-sect__title">Why it matters</h3>
-          <p className="lw-state__body" style={{ maxWidth: 'none' }}>{d.overview.whyItMatters.text}</p>
+          <p className="lw-state__body" style={{ maxWidth: 'none' }}>
+            {d.overview.whyItMatters.text}
+          </p>
         </section>
       ) : null}
       {d.overview.officialNextStep ? (
         <section>
           <h3 className="lw-sect__title">Procedural posture</h3>
-          <p className="lw-state__body" style={{ maxWidth: 'none' }}>{d.overview.officialNextStep.text}</p>
+          <p className="lw-state__body" style={{ maxWidth: 'none' }}>
+            {d.overview.officialNextStep.text}
+          </p>
         </section>
       ) : null}
       {d.relatedVehicles?.length ? (
@@ -171,7 +247,10 @@ function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['
           <h3 className="lw-sect__title">Related vehicles</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {d.relatedVehicles.map((v) => (
-              <LwPill key={v.billId} tone="gray" size="22">{v.num}{v.role ? ` · ${v.role}` : ''}</LwPill>
+              <LwPill key={v.billId} tone="gray" size="22">
+                {v.num}
+                {v.role ? ` · ${v.role}` : ''}
+              </LwPill>
             ))}
           </div>
         </section>
@@ -191,15 +270,37 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
               <span
                 aria-hidden="true"
                 style={{
-                  width: 10, height: 10, borderRadius: '50%', marginTop: 5, flex: '0 0 auto',
-                  background: m.state === 'done' ? 'var(--lw-succ-dot)' : m.state === 'current' ? 'var(--lw-brand-dot)' : m.state === 'failed' ? 'var(--lw-error-dot)' : 'var(--lw-control)',
-                  boxShadow: m.state === 'current' ? '0 0 0 3px #EDF3F7' : m.state === 'done' ? '0 0 0 3px #FAF9F6' : 'none',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  marginTop: 5,
+                  flex: '0 0 auto',
+                  background:
+                    m.state === 'done'
+                      ? 'var(--lw-succ-dot)'
+                      : m.state === 'current'
+                        ? 'var(--lw-brand-dot)'
+                        : m.state === 'failed'
+                          ? 'var(--lw-error-dot)'
+                          : 'var(--lw-control)',
+                  boxShadow:
+                    m.state === 'current'
+                      ? '0 0 0 3px #EDF3F7'
+                      : m.state === 'done'
+                        ? '0 0 0 3px #FAF9F6'
+                        : 'none',
                 }}
               />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</div>
-                {m.detail ? <div style={{ fontSize: 12, color: 'var(--lw-meta)' }}>{m.detail}</div> : null}
-                {m.date ? <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{fmtDate(m.date)}</div> : null}
+                {m.detail ? (
+                  <div style={{ fontSize: 12, color: 'var(--lw-meta)' }}>{m.detail}</div>
+                ) : null}
+                {m.date ? (
+                  <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                    {fmtDate(m.date)}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}
@@ -214,11 +315,25 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
             <div key={v.id} className="lw-block" style={{ marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{v.label}</span>
-                <LwPill tone={v.resultSev === 'success' ? 'success' : v.resultSev === 'critical' ? 'error' : 'gray'} size="22">
+                <LwPill
+                  tone={
+                    v.resultSev === 'success'
+                      ? 'success'
+                      : v.resultSev === 'critical'
+                        ? 'error'
+                        : 'gray'
+                  }
+                  size="22"
+                >
                   {v.result ?? 'PENDING'}
                 </LwPill>
               </div>
-              <div className="lw-mono" style={{ marginTop: 4, fontSize: 11, color: 'var(--lw-meta)' }}>{v.tally}</div>
+              <div
+                className="lw-mono"
+                style={{ marginTop: 4, fontSize: 11, color: 'var(--lw-meta)' }}
+              >
+                {v.tally}
+              </div>
             </div>
           ))
         )}
@@ -245,16 +360,34 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
             <thead>
               <tr style={{ textAlign: 'left' }}>
                 {['Line', 'Request', 'Authorization', 'Appropriation', 'Delta'].map((h) => (
-                  <th key={h} style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--lw-meta)', borderBottom: '1px solid var(--lw-line)' }}>{h}</th>
+                  <th
+                    key={h}
+                    style={{
+                      padding: '10px 12px',
+                      fontFamily: 'var(--lw-mono)',
+                      fontSize: 11,
+                      letterSpacing: '.06em',
+                      textTransform: 'uppercase',
+                      color: 'var(--lw-meta)',
+                      borderBottom: '1px solid var(--lw-line)',
+                    }}
+                  >
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {lines.map((ln, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--lw-hover)' }}>
-                  <td style={{ padding: '10px 12px', fontSize: 13 }}>{String(ln.label ?? ln.peCode ?? '—')}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13 }}>
+                    {String(ln.label ?? ln.peCode ?? '—')}
+                  </td>
                   {(['request', 'authorization', 'appropriation'] as const).map((k) => (
-                    <td key={k} style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    <td
+                      key={k}
+                      style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}
+                    >
                       {ln[k] == null ? 'Not filed' : String(ln[k])}
                     </td>
                   ))}
@@ -275,7 +408,16 @@ function HearingsTabView({
   hearings,
   loading,
 }: {
-  hearings: { hearings?: Array<{ sessionId: string; hearingId: string | null; title: string | null; occurredAt: string | null }> } | undefined;
+  hearings:
+    | {
+        hearings?: Array<{
+          sessionId: string;
+          hearingId: string | null;
+          title: string | null;
+          occurredAt: string | null;
+        }>;
+      }
+    | undefined;
   loading: boolean;
 }) {
   const navigate = useNavigate();
@@ -315,23 +457,37 @@ function HearingsTabView({
 }
 
 function EvidenceTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['data']> }) {
-  const prov = d.provenance as { sources?: Array<{ label?: string; origin?: string; asOf?: string | null; class?: string }> } | undefined;
+  const prov = d.provenance as
+    | { sources?: Array<{ label?: string; origin?: string; asOf?: string | null; class?: string }> }
+    | undefined;
   const sources = prov?.sources ?? [];
   return (
     <section>
       <h3 className="lw-sect__title">Evidence</h3>
+      <BillSourceHealth provenance={d.provenance} />
       {sources.length === 0 ? (
         <p className="lw-state__body">No source records were returned for this bill.</p>
       ) : (
         sources.map((s, i) => (
           <div key={i} className="lw-block" style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <LwPill tone={s.class === 'official' ? 'success' : s.class === 'verified' ? 'brand' : 'gray'} size="22">
+              <LwPill
+                tone={
+                  s.class === 'official' ? 'success' : s.class === 'verified' ? 'brand' : 'gray'
+                }
+                size="22"
+              >
                 {(s.class ?? s.origin ?? 'SOURCE').toUpperCase()}
               </LwPill>
-              {s.asOf ? <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{fmtDate(s.asOf)}</span> : null}
+              {s.asOf ? (
+                <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                  {fmtDate(s.asOf)}
+                </span>
+              ) : null}
             </div>
-            <div className="lw-block__body" style={{ marginTop: 6 }}>{s.label ?? s.origin ?? 'Source record'}</div>
+            <div className="lw-block__body" style={{ marginTop: 6 }}>
+              {s.label ?? s.origin ?? 'Source record'}
+            </div>
           </div>
         ))
       )}
@@ -343,7 +499,9 @@ function PlaceholderTab({ label, note }: { label: string; note: string }) {
   return (
     <section>
       <h3 className="lw-sect__title">{label}</h3>
-      <p className="lw-state__body">{note} This surface reads the same dossier response; the detailed view is on the full page.</p>
+      <p className="lw-state__body">
+        {note} This surface reads the same dossier response; the detailed view is on the full page.
+      </p>
     </section>
   );
 }

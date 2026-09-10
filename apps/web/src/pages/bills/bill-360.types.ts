@@ -42,6 +42,7 @@ export interface BillIdentity {
   type: string | null;
   congress: number | null;
   sponsor: string | null;
+  sponsorLegislatorId?: string | null;
   introduced: string | null;
   statusLabel: string;
   statusSev: DossierSeverity;
@@ -260,6 +261,11 @@ export interface SourceRef {
 
 export interface DossierProvenance {
   lastSyncedAt: string | null;
+  sourceCheckedAt?: string | null;
+  sourceCheckAttemptedAt?: string | null;
+  sourceCheckStatus?: string;
+  sourceCheckReason?: string | null;
+  documentDate?: string | null;
   sources: SourceRef[];
 }
 

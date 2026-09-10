@@ -89,11 +89,20 @@ export function SavedViewsOverlay({ onClose }: { onClose: () => void }) {
       { id: view.id },
       {
         onSuccess: (applied) => {
-          if (applied.clientWarning) setError(applied.clientWarning);
+          if (applied.clientWarning || applied.folderWarning) {
+            setError(
+              applied.clientWarning || applied.folderWarning || 'Saved scope is unavailable.',
+            );
+            return;
+          }
           const captured = applied.config.filters;
           if (captured) {
-            navigate(urlForViewState(captured));
-            onClose();
+            try {
+              navigate(urlForViewState(captured));
+              onClose();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'This view could not be restored.');
+            }
           } else {
             setError('This view has no restorable state.');
           }
@@ -162,7 +171,11 @@ export function SavedViewsOverlay({ onClose }: { onClose: () => void }) {
             style={{ flex: 1 }}
           />
           <label style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 12 }}>
-            <input type="checkbox" checked={shareNew} onChange={(e) => setShareNew(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={shareNew}
+              onChange={(e) => setShareNew(e.target.checked)}
+            />
             Share with tenant
           </label>
           <LwButton variant="primary" onClick={onSaveCurrent} disabled={busy}>
@@ -172,7 +185,11 @@ export function SavedViewsOverlay({ onClose }: { onClose: () => void }) {
       </fieldset>
 
       {error ? (
-        <p role="alert" className="lw-card__meta" style={{ color: 'var(--lw-danger, #b42318)', marginBottom: 10 }}>
+        <p
+          role="alert"
+          className="lw-card__meta"
+          style={{ color: 'var(--lw-danger, #b42318)', marginBottom: 10 }}
+        >
           {error}
         </p>
       ) : null}
@@ -188,7 +205,16 @@ export function SavedViewsOverlay({ onClose }: { onClose: () => void }) {
           No saved views yet for {SAVED_VIEW_SURFACE_LABEL[surface].toLowerCase()}.
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ul
+          style={{
+            listStyle: 'none',
+            margin: 0,
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
           {views.data?.rows.map((view) => (
             <li
               key={view.id}
@@ -233,7 +259,10 @@ export function SavedViewsOverlay({ onClose }: { onClose: () => void }) {
                           if (!renameValue.trim()) return;
                           update.mutate(
                             { id: view.id, name: renameValue.trim() },
-                            { onSuccess: () => setRenamingId(null), onError: (err) => setError(w2Error(err)) },
+                            {
+                              onSuccess: () => setRenamingId(null),
+                              onError: (err) => setError(w2Error(err)),
+                            },
                           );
                         }}
                         disabled={busy}
@@ -258,10 +287,7 @@ export function SavedViewsOverlay({ onClose }: { onClose: () => void }) {
                 ) : null}
                 <LwButton
                   onClick={() =>
-                    duplicate.mutate(
-                      { id: view.id },
-                      { onError: (err) => setError(w2Error(err)) },
-                    )
+                    duplicate.mutate({ id: view.id }, { onError: (err) => setError(w2Error(err)) })
                   }
                   disabled={busy}
                 >

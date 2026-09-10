@@ -13,6 +13,7 @@ import { BillDrawer, bill360DrawerWidth } from './BillDrawer.js';
 
 const apiGetMock = vi.fn();
 const apiPatchMock = vi.fn();
+vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'radar-test-tenant:analyst' }));
 
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({
@@ -434,12 +435,62 @@ function billDossierFixture() {
     context: null,
     tracking: null,
     kpis: [
-      { id: 'current_status', label: 'Current status', value: 'Rule failed', valueType: 'status', asOf: null, sub: null, unavailableReason: null },
-      { id: 'latest_vote', label: 'Latest recorded vote', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No roll call vote has been recorded on this bill.' },
-      { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: 'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.' },
-      { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: 'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.' },
-      { id: 'last_official_action', label: 'Last official action', value: '2026-06-17T00:00:00.000Z', valueType: 'date', asOf: '2026-06-17T00:00:00.000Z', sub: null, unavailableReason: null },
-      { id: 'next_milestone', label: 'Next milestone', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No analyst has recorded an expected next milestone for this bill.' },
+      {
+        id: 'current_status',
+        label: 'Current status',
+        value: 'Rule failed',
+        valueType: 'status',
+        asOf: null,
+        sub: null,
+        unavailableReason: null,
+      },
+      {
+        id: 'latest_vote',
+        label: 'Latest recorded vote',
+        value: null,
+        valueType: 'text',
+        asOf: null,
+        sub: null,
+        unavailableReason: 'No roll call vote has been recorded on this bill.',
+      },
+      {
+        id: 'funding_position',
+        label: 'Funding position',
+        value: null,
+        valueType: 'money',
+        asOf: null,
+        sub: null,
+        unavailableReason:
+          'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.',
+      },
+      {
+        id: 'delta_from_request',
+        label: 'Δ from request',
+        value: null,
+        valueType: 'signed_money',
+        asOf: null,
+        sub: null,
+        unavailableReason:
+          'Funding intelligence is not yet enabled for this vehicle. No $0 is shown unless a source states zero.',
+      },
+      {
+        id: 'last_official_action',
+        label: 'Last official action',
+        value: '2026-06-17T00:00:00.000Z',
+        valueType: 'date',
+        asOf: '2026-06-17T00:00:00.000Z',
+        sub: null,
+        unavailableReason: null,
+      },
+      {
+        id: 'next_milestone',
+        label: 'Next milestone',
+        value: null,
+        valueType: 'text',
+        asOf: null,
+        sub: null,
+        unavailableReason: 'No analyst has recorded an expected next milestone for this bill.',
+      },
     ],
     overview: {
       whatChanged: null,

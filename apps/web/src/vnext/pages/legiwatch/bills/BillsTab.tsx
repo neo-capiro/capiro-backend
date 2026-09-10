@@ -31,11 +31,16 @@ import {
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import { Bill360Drawer } from './Bill360Drawer.js';
+import { useFolderTrackerFlag } from './folder-api.js';
+import { FolderBillsTab } from './FolderBillsTab.js';
 
 type ViewMode = 'cards' | 'table';
 type SortKey = 'passage' | 'relevance';
 
 export function BillsTab({ scope, clients }: { scope: string; clients: Client[] }) {
+  const folders = useFolderTrackerFlag();
+  if (folders.enabled)
+    return <FolderBillsTab key={`${folders.scope}:${scope}`} scope={scope} clients={clients} />;
   return <ScopedBillsTab key={scope} scope={scope} clients={clients} />;
 }
 
@@ -50,12 +55,13 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
   const highFit = params.get('billHighFit') === '1';
   const changed7 = params.get('billChanged7') === '1';
   const activeOnly = params.get('billActive') === '1';
-  const setFilter = (key: string, value: string | null) => setParams((previous) => {
-    const next = new URLSearchParams(previous);
-    if (value == null) next.delete(key);
-    else next.set(key, value);
-    return next;
-  });
+  const setFilter = (key: string, value: string | null) =>
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (value == null) next.delete(key);
+      else next.set(key, value);
+      return next;
+    });
   const [openBill, setOpenBill] = useState<string | null>(null);
 
   // Bills board + recommendations are client-scoped surfaces. PR C / LW-QA-012:
@@ -161,11 +167,13 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
   const topRecs = (recs.data?.recommendations ?? []).filter((r) => !r.belowFloor).slice(0, 3);
 
   const visibleBills = (list: BoardBill[]): BoardBill[] =>
-    list.filter((b) => !highFit || (b.matchedHighPriorityTopics?.length ?? 0) > 0).sort((a, b) =>
-      sort === 'passage'
-        ? b.probability - a.probability
-        : (b.matchedHighPriorityTopics?.length ?? 0) - (a.matchedHighPriorityTopics?.length ?? 0),
-    );
+    list
+      .filter((b) => !highFit || (b.matchedHighPriorityTopics?.length ?? 0) > 0)
+      .sort((a, b) =>
+        sort === 'passage'
+          ? b.probability - a.probability
+          : (b.matchedHighPriorityTopics?.length ?? 0) - (a.matchedHighPriorityTopics?.length ?? 0),
+      );
 
   if (board.isLoading) {
     return (
@@ -195,9 +203,14 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
           PR C §15: hidden in the All-clients scope (no tenant-wide
           recommendation contract) with an honest pointer to a client scope. */}
       {isAllScope ? (
-        <div className="lw-card" style={{ padding: '10px 18px' }} aria-label="Recommendations unavailable in all-clients scope">
+        <div
+          className="lw-card"
+          style={{ padding: '10px 18px' }}
+          aria-label="Recommendations unavailable in all-clients scope"
+        >
           <span style={{ fontSize: 13, color: 'var(--lw-meta)' }}>
-            Recommendations are tailored per client. Select a client to see tailored recommendations.
+            Recommendations are tailored per client. Select a client to see tailored
+            recommendations.
           </span>
         </div>
       ) : recs.isError ? (
@@ -218,12 +231,18 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
                 <div key={r.billId} className="lw-reccard">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span className="lw-bcard__id">{r.displayNum}</span>
-                    <LwPill tone="brand" size="22">FIT {Math.round(r.fit * 100)}</LwPill>
+                    <LwPill tone="brand" size="22">
+                      FIT {Math.round(r.fit * 100)}
+                    </LwPill>
                   </div>
-                  <div className="lw-bcard__title" style={{ marginTop: 6 }}>{r.title}</div>
+                  <div className="lw-bcard__title" style={{ marginTop: 6 }}>
+                    {r.title}
+                  </div>
                   <div className="lw-bcard__meta" style={{ marginTop: 6 }}>
                     <span className="lw-mono">{r.matchedTags.join(' · ')}</span>
-                    <span className="lw-mono">{Math.round(r.probability > 1 ? r.probability : r.probability * 100)}%</span>
+                    <span className="lw-mono">
+                      {Math.round(r.probability > 1 ? r.probability : r.probability * 100)}%
+                    </span>
                   </div>
                   <div style={{ marginTop: 10 }}>
                     <LwButton
@@ -288,8 +307,14 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
         <span style={{ flex: 1 }} />
         <LwButton
           onClick={() => {
-            const rows = columns.flatMap((c) => visibleBills(c.bills).map((b) => `${b.displayNum}\t${b.title}\t${c.label}\t${b.jurisdiction ?? 'US'}`));
-            const blob = new Blob([`Bill\tTitle\tStage\tJurisdiction\n${rows.join('\n')}`], { type: 'text/tab-separated-values' });
+            const rows = columns.flatMap((c) =>
+              visibleBills(c.bills).map(
+                (b) => `${b.displayNum}\t${b.title}\t${c.label}\t${b.jurisdiction ?? 'US'}`,
+              ),
+            );
+            const blob = new Blob([`Bill\tTitle\tStage\tJurisdiction\n${rows.join('\n')}`], {
+              type: 'text/tab-separated-values',
+            });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = 'legiwatch-bills.tsv';
@@ -314,23 +339,42 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
                     <span className="lw-rail__count">{bills.length}</span>
                   </div>
                   {bills.length === 0 ? (
-                    <div className="lw-recs__empty" style={{ padding: '6px 4px' }}>No bills</div>
+                    <div className="lw-recs__empty" style={{ padding: '6px 4px' }}>
+                      No bills
+                    </div>
                   ) : (
                     bills.map((b) => {
-                      const terminal = b.stage === 'enacted' || b.canonicalStatus?.toLowerCase() === 'failed' || b.terminalRisk;
+                      const terminal =
+                        b.stage === 'enacted' ||
+                        b.canonicalStatus?.toLowerCase() === 'failed' ||
+                        b.terminalRisk;
                       return (
-                        <button key={`${b.clientId ?? 'own'}-${b.billId}`} type="button" className="lw-bcard" onClick={() => setOpenBill(b.billId)}>
+                        <button
+                          key={`${b.clientId ?? 'own'}-${b.billId}`}
+                          type="button"
+                          className="lw-bcard"
+                          onClick={() => setOpenBill(b.billId)}
+                        >
                           <div className="lw-bcard__id">{b.displayNum}</div>
                           <div className="lw-bcard__title">{b.title}</div>
                           <div className="lw-bcard__meta">
-                            <span>{b.jurisdiction && b.jurisdiction !== 'US' ? b.jurisdiction : 'Federal'}</span>
+                            <span>
+                              {b.jurisdiction && b.jurisdiction !== 'US'
+                                ? b.jurisdiction
+                                : 'Federal'}
+                            </span>
                             {isAllScope && b.clientName ? <span>{b.clientName}</span> : null}
                             {terminal ? (
                               <LwPill tone={b.stage === 'enacted' ? 'success' : 'error'} size="22">
                                 {(b.canonicalStatus ?? 'TERMINAL').toUpperCase()}
                               </LwPill>
                             ) : (
-                              <span className="lw-mono">{Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%</span>
+                              <span className="lw-mono">
+                                {Math.round(
+                                  b.probability > 1 ? b.probability : b.probability * 100,
+                                )}
+                                %
+                              </span>
                             )}
                           </div>
                         </button>
@@ -342,7 +386,10 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
             })}
           </div>
           <div className="lw-card__meta" style={{ padding: '4px 2px' }}>
-            {total} tracked · {loadedCount < total ? `${loadedCount} loaded · ` : ''}{fedCount} federal · {stateCount} state{loadedCount < total ? ' among loaded bills' : ''} · authoritative tracked status from the server
+            {total} tracked · {loadedCount < total ? `${loadedCount} loaded · ` : ''}
+            {fedCount} federal · {stateCount} state
+            {loadedCount < total ? ' among loaded bills' : ''} · authoritative tracked status from
+            the server
           </div>
         </>
       ) : (
@@ -354,22 +401,69 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
               <thead>
                 <tr style={{ textAlign: 'left' }}>
                   {['Bill', 'Title', 'Stage', 'Client', 'Passage'].map((h) => (
-                    <th key={h} style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--lw-meta)', borderBottom: '1px solid var(--lw-line)' }}>{h}</th>
+                    <th
+                      key={h}
+                      style={{
+                        padding: '12px 18px',
+                        fontFamily: 'var(--lw-mono)',
+                        fontSize: 11,
+                        letterSpacing: '.06em',
+                        textTransform: 'uppercase',
+                        color: 'var(--lw-meta)',
+                        borderBottom: '1px solid var(--lw-line)',
+                      }}
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {columns.flatMap((col) =>
                   visibleBills(col.bills).map((b) => {
-                    const terminal = b.stage === 'enacted' || b.canonicalStatus?.toLowerCase() === 'failed' || b.terminalRisk;
+                    const terminal =
+                      b.stage === 'enacted' ||
+                      b.canonicalStatus?.toLowerCase() === 'failed' ||
+                      b.terminalRisk;
                     return (
-                      <tr key={`${b.clientId ?? 'own'}-${b.billId}`} style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }} onClick={() => setOpenBill(b.billId)}>
-                        <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12, fontWeight: 600 }}>{b.displayNum}</td>
-                        <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>{b.title}</td>
-                        <td style={{ padding: '12px 18px' }}><LwPill tone="brand" size="22">{col.label}</LwPill></td>
-                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>{b.clientName ?? clients.find((c) => c.id === clientId)?.name ?? 'Client unavailable'}</td>
-                        <td style={{ padding: '12px 18px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
-                          {terminal ? (b.canonicalStatus ?? 'TERMINAL').toUpperCase() : `${Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%`}
+                      <tr
+                        key={`${b.clientId ?? 'own'}-${b.billId}`}
+                        style={{ borderBottom: '1px solid var(--lw-hover)', cursor: 'pointer' }}
+                        onClick={() => setOpenBill(b.billId)}
+                      >
+                        <td
+                          style={{
+                            padding: '12px 18px',
+                            fontFamily: 'var(--lw-mono)',
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {b.displayNum}
+                        </td>
+                        <td style={{ padding: '12px 18px', fontSize: 13, fontWeight: 600 }}>
+                          {b.title}
+                        </td>
+                        <td style={{ padding: '12px 18px' }}>
+                          <LwPill tone="brand" size="22">
+                            {col.label}
+                          </LwPill>
+                        </td>
+                        <td style={{ padding: '12px 18px', fontSize: 13, color: 'var(--lw-body)' }}>
+                          {b.clientName ??
+                            clients.find((c) => c.id === clientId)?.name ??
+                            'Client unavailable'}
+                        </td>
+                        <td
+                          style={{
+                            padding: '12px 18px',
+                            fontFamily: 'var(--lw-mono)',
+                            fontSize: 12,
+                          }}
+                        >
+                          {terminal
+                            ? (b.canonicalStatus ?? 'TERMINAL').toUpperCase()
+                            : `${Math.round(b.probability > 1 ? b.probability : b.probability * 100)}%`}
                         </td>
                       </tr>
                     );
@@ -381,10 +475,16 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
         </section>
       )}
 
-      {board.isFetchNextPageError ? <p role="alert">More bills could not be loaded. Your loaded bills are still shown.</p> : null}
+      {board.isFetchNextPageError ? (
+        <p role="alert">More bills could not be loaded. Your loaded bills are still shown.</p>
+      ) : null}
       {board.hasNextPage ? (
         <LwButton onClick={() => void board.fetchNextPage()} disabled={board.isFetchingNextPage}>
-          {board.isFetchingNextPage ? 'Loading…' : board.isFetchNextPageError ? 'Retry loading more bills' : 'Load more bills'}
+          {board.isFetchingNextPage
+            ? 'Loading…'
+            : board.isFetchNextPageError
+              ? 'Retry loading more bills'
+              : 'Load more bills'}
         </LwButton>
       ) : null}
       {track.isError ? <p role="alert">The bill could not be tracked. Please try again.</p> : null}

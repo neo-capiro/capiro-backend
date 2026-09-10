@@ -19,6 +19,8 @@ import { BillOverviewTab } from './BillOverviewTab.js';
 import { BillPathVotesTab } from './BillPathVotesTab.js';
 import { BillProvisionsTab } from './BillProvisionsTab.js';
 import { BackIcon, CloseIcon, DossierKpiStrip, OpenFullIcon } from './dossier-primitives.js';
+import { FolderContextPanel } from '../legiwatch/bills/FolderContextPanel.js';
+import { BillSourceRecords } from '../legiwatch/bills/BillSourceRecords.js';
 
 /**
  * The Bill 360 dossier body, vNext re-skin of pages/bills/BillDossierBody.tsx —
@@ -33,6 +35,7 @@ import { BackIcon, CloseIcon, DossierKpiStrip, OpenFullIcon } from './dossier-pr
 export function BillDossierBodyVNext({
   billId,
   clientId,
+  folderId,
   mode,
   isTracked,
   onTrack,
@@ -41,6 +44,7 @@ export function BillDossierBodyVNext({
 }: {
   billId: string;
   clientId?: string | null;
+  folderId?: string | null;
   mode: 'drawer' | 'page';
   isTracked?: boolean;
   onTrack?: (billId: string) => void;
@@ -129,6 +133,22 @@ export function BillDossierBodyVNext({
           <>
             <BillDossierHeroVNext dossier={d} />
 
+            {d.bill.isState && d.bill.sponsorLegislatorId ? (
+              <a
+                href={`/directory/state-legislators/${encodeURIComponent(d.bill.sponsorLegislatorId)}`}
+              >
+                Sponsor profile
+              </a>
+            ) : null}
+
+            {folderId && tab === 'overview' ? (
+              <FolderContextPanel
+                key={`${folderId}:${billId}`}
+                folderId={folderId}
+                billId={billId}
+              />
+            ) : null}
+
             <DossierKpiStrip items={decorateKpis(d)} />
 
             <div className="b360-tabs">
@@ -144,7 +164,11 @@ export function BillDossierBodyVNext({
             </div>
 
             {tab === 'overview' ? (
-              <BillOverviewTab overview={d.overview} related={d.relatedVehicles} onOpenBill={openBill} />
+              <BillOverviewTab
+                overview={d.overview}
+                related={d.relatedVehicles}
+                onOpenBill={openBill}
+              />
             ) : null}
             {tab === 'path' ? (
               <BillPathVotesTab
@@ -157,12 +181,17 @@ export function BillDossierBodyVNext({
             {tab === 'funding' ? (
               <BillFundingTab funding={d.funding} onOpenPe={openPe} onOpenBill={openBill} />
             ) : null}
-            {tab === 'provisions' ? (
-              <BillProvisionsTab provisions={d.funding.provisions} />
-            ) : null}
+            {tab === 'provisions' ? <BillProvisionsTab provisions={d.funding.provisions} /> : null}
             {tab === 'impact' ? <BillImpactTab funding={d.funding} onOpenPe={openPe} /> : null}
             {tab === 'hearings' ? <BillHearingsTab hearings={d.hearings} /> : null}
             {tab === 'evidence' ? <BillEvidenceTab provenance={d.provenance} /> : null}
+            {d.bill.isState && (tab === 'path' || tab === 'evidence') ? (
+              <BillSourceRecords
+                key={`${billId}:${tab}`}
+                billId={billId}
+                initialSection={tab === 'evidence' ? 'documents' : 'history'}
+              />
+            ) : null}
           </>
         )}
       </div>
