@@ -46,6 +46,12 @@
       "require": "./dist/meri-skills.js",
       "import": "./dist/meri-skills.js",
       "default": "./dist/meri-skills.js"
+    },
+    "./market-title": {
+      "types": "./dist/market-title.d.ts",
+      "require": "./dist/market-title.js",
+      "import": "./dist/market-title.js",
+      "default": "./dist/market-title.js"
     }
   },
   "scripts": {

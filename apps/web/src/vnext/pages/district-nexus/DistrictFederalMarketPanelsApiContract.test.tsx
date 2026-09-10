@@ -20,8 +20,9 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-// THE REAL API BOUNDARY — imported directly from the api package source.
-import { readableMarketTitle } from '../../../../../api/src/federal-spending/federal-market-future-signals.js';
+// THE REAL DECODE BOUNDARY — imported from @capiro/shared, the exact module
+// the API re-exports and uses in production.
+import { readableMarketTitle } from '@capiro/shared/market-title';
 import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNext.js';
 import { DistrictFederalMarketPanel } from '../../../pages/intelligence/district-nexus/DistrictFederalMarketPanel.js';
 
