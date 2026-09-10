@@ -10,6 +10,7 @@ on:
       - 'apps/web/vnext-*.html'
       - 'apps/web/scripts/vnext-visual-capture.mjs'
       - 'apps/web/package.json'
+      - 'apps/web/vite.config.ts'
       - 'infra/cdk/bin/web-vnext.ts'
       - 'infra/cdk/lib/web-vnext-stack.ts'
       - 'infra/cdk/package.json'
