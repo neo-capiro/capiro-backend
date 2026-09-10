@@ -14,6 +14,7 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_portfolio_changes',
   'research_external_company',
   'query_portfolio_overlap',
+  'query_funding_opportunity_match',
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
@@ -81,6 +82,9 @@ export interface MeriRetrievalPlan {
 
 const PORTFOLIO_OVERLAP_RE =
   /\b(?:search|scan|compare)\s+(?:across|against)\s+(?:my|our|the)?\s*clients?\b|\bwhich\s+(?:of\s+)?(?:my|our)\s+clients?\b|\bportfolio\s+(?:overlap|match|partner|fit)\b|\bpotential\s+partners?\s+(?:in|across)\s+(?:my|our)\s+(?:clients?|portfolio)\b/i;
+
+const OPPORTUNITY_FIT_RE =
+  /\bfunding\s+opportunit(?:y|ies)\b.*\b(?:fit|match(?:es|ed|ing)?|suit(?:ed|able)?)\b|\b(?:is|are|how\s+well\s+(?:do|does))\b.*\b(?:opportunit|grants?|solicitations?)\b.*\bfit\b|\b(?:good|best|strong)\s+fit\b.*\b(?:opportunit|grant|solicitation|sam|grants\.gov)\b|\bopportunit(?:y|ies)\s+(?:match|fit)\b|\bfind\s+(?:funding\s+)?opportunit(?:y|ies)\b/i;
 
 const MAIL_HISTORY_RE =
   /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
@@ -201,6 +205,10 @@ function recipeFor(
   // product flow. Check it before the generic portfolio-scan rule so “Search
   // across clients” compares the current entity against the portfolio instead
   // of returning an unrelated weekly-change brief.
+  // Opportunity-fit questions (“is this a good fit for [client]?”) route to
+  // the deterministic funding-opportunity match fan-out before the generic
+  // exhaustive_search lane so the four-tool recipe owns the intent.
+  if (OPPORTUNITY_FIT_RE.test(request)) return 'query_funding_opportunity_match';
   if (PORTFOLIO_OVERLAP_RE.test(request)) return 'query_portfolio_overlap';
   if (
     intent.subjectScope === 'portfolio' &&

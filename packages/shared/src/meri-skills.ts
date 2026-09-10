@@ -233,6 +233,23 @@ export const MERI_SKILL_REGISTRY = [
     ],
     readOnly: true,
   },
+  {
+    id: 'funding_opportunity_match',
+    label: 'Funding Opportunity Match',
+    description:
+      'Find active SAM.gov / Grants.gov funding opportunities and score their fit against one client: capabilities, past awards, agency landscape, and a cited verdict.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_funding_opportunity_match',
+    requiresClient: true,
+    permittedScopes: ['general', 'client'],
+    starterPrompt:
+      'Find active funding opportunities for {{clientName}} and score how well each fits us. For each candidate: what it funds, how it aligns with our capabilities and past awards, the agency and program landscape, and a fit verdict with citations. Note any source you could not check — the match evidence is top-k, not exhaustive.',
+    requiredEntitlements: [],
+    semanticDomains: ['opportunities', 'clients', 'identity', 'grants', 'budget'],
+    readOnly: true,
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

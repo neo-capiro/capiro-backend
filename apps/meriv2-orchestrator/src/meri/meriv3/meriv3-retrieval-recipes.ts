@@ -10,6 +10,7 @@ import {
 } from './meriv3-retrieval-company.js';
 import { executeMeriQuickCompanyProfile } from './meriv3-retrieval-company-profile.js';
 import { executeMeriRelationshipBrief } from './meriv3-retrieval-relationship.js';
+import { executeMeriFundingOpportunityMatch } from './meriv3-retrieval-funding-match.js';
 import type { MeriRetrievalRecipeContext } from './meriv3-retrieval-recipe-utils.js';
 
 export {
@@ -113,6 +114,19 @@ export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
       required: ['entity'],
     },
   },
+  {
+    name: 'query_funding_opportunity_match',
+    description:
+      'Discover active funding opportunities (SAM.gov / Grants.gov) and score their fit against one authorized client: client capability/award context, agency/program landscape, and a per-candidate match verdict with citations. Use FIRST for “find funding opportunities for [client]”, “is this opportunity a good fit”, and opportunity-match questions. Opportunity comparison across known records and action-plan generation are separate tools, not part of this recipe.',
+    input_schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        clientId: stringSchema('Authorized client UUID the match is scored against'),
+        query: stringSchema('Optional keyword filter for the opportunity search'),
+      },
+    },
+  },
 ];
 
 export function isMeriRetrievalRecipeTool(name: string): name is MeriRuntimeRetrievalRecipeTool {
@@ -145,5 +159,7 @@ export async function executeMeriRetrievalRecipe(
       return executeMeriFederalMarketStrategyResearch(input, ctx);
     case 'query_portfolio_overlap':
       return executeMeriPortfolioOverlap(input, ctx);
+    case 'query_funding_opportunity_match':
+      return executeMeriFundingOpportunityMatch(input, ctx);
   }
 }

@@ -104,4 +104,21 @@ describe('Meri Quick Action routing contract', () => {
     expect(plan.subjectScope).toBe('client');
     expect(plan.recipeTool).toBe(definition.canonicalRecipe);
   });
+
+  test('Funding Opportunity Match routes to the four-tool opportunity fan-out', () => {
+    const definition = skill('funding_opportunity_match');
+    const prompt = hydrateMeriStarterPrompt(definition, { clientName: 'TitanForge' });
+    const plan = planFor(prompt, '11111111-1111-4111-8111-111111111111');
+
+    expect(plan.recipeTool).toBe(definition.canonicalRecipe);
+    expect(plan.recipeTool).toBe('query_funding_opportunity_match');
+    expect(plan.recommendedTools).toEqual(
+      expect.arrayContaining([
+        'search_funding_opportunities',
+        'get_opportunity_client_context',
+        'get_opportunity_government_landscape',
+        'explain_opportunity_match',
+      ]),
+    );
+  });
 });

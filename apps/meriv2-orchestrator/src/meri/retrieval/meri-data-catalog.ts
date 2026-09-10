@@ -498,6 +498,20 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
       'get_opportunity_client_context',
     ],
   },
+  query_funding_opportunity_match: {
+    tool: 'query_funding_opportunity_match',
+    description:
+      'Discover candidate funding opportunities and score their fit against one authorized client.',
+    requiredDomains: ['opportunities', 'clients', 'identity'],
+    optionalDomains: ['grants', 'budget', 'internal_research'],
+    recommendedTools: [
+      'query_funding_opportunity_match',
+      'search_funding_opportunities',
+      'get_opportunity_client_context',
+      'get_opportunity_government_landscape',
+      'explain_opportunity_match',
+    ],
+  },
 };
 
 const DATASETS_BY_TOOL = new Map<string, MeriDatasetDefinition[]>();
