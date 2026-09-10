@@ -67,7 +67,7 @@ function makeStore() {
 }
 type Store = ReturnType<typeof makeStore>;
 
-/** Prisma-ish where matcher: scalars, { not }, { in }, and top-level OR. */
+/** Prisma-ish where matcher: scalars, { not }, { in }, and top-level AND/OR. */
 function matches(rec: Rec, where: Record<string, unknown>): boolean {
   for (const [k, v] of Object.entries(where)) {
     if (k === 'document') {
@@ -78,6 +78,11 @@ function matches(rec: Rec, where: Record<string, unknown>): boolean {
     if (k === 'OR') {
       const branches = v as Array<Record<string, unknown>>;
       if (!branches.some((b) => matches(rec, b))) return false;
+      continue;
+    }
+    if (k === 'AND') {
+      const branches = v as Array<Record<string, unknown>>;
+      if (!branches.every((b) => matches(rec, b))) return false;
       continue;
     }
     if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
@@ -1327,6 +1332,25 @@ describe('StewardService.factsForOrchestrator (wire-contract 2 pack lines)', () 
 
     expect(own.map((l) => l.fact)).toEqual(['Own strategy evidence.']);
     expect(fresh.map((l) => l.fact)).toEqual([]);
+  });
+
+  // Review fix (2026-09-10 audit): the spread of documentScopeForStrategy
+  // previously OVERWROTE the sibling `OR: [validUntil...]` key in the object
+  // literal (JS object spread replaces duplicate keys), so a named-strategy
+  // pack silently LOST its staleness filter — an expired strategy-scoped
+  // document would ground the strategy's assistant/draft calls. Both the
+  // scope AND the validity filter must hold simultaneously.
+  it('a named strategy still excludes its own STALE strategy-scoped documents (scope AND validity, not either)', async () => {
+    const store = makeStore();
+    const OWN = '77777777-7777-4777-8777-777777777777';
+    const yesterday = new Date(Date.now() - 86_400_000);
+    seedDoc(store, { id: DOC_ID, scope: 'strategy', scopeRef: OWN, validUntil: yesterday });
+    seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Stale own-strategy evidence.' });
+    const { svc } = makeService(store);
+
+    const own = await (svc.factsForOrchestrator as unknown as (t: string, c: string | null, o?: { strategyId?: string }) => Promise<StewardFactLine[]>)(T, CLIENT_ID, { strategyId: OWN });
+
+    expect(own).toEqual([]);
   });
 
   it('F06: node- and once-scoped documents never ground a strategy-level draft pack', async () => {

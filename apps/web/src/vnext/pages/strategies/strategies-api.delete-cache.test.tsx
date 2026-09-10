@@ -19,12 +19,21 @@ function harness() {
   const client = new QueryClient();
   // Seed both caches with a stale successful payload — the situation after a
   // user viewed the strategy in the editor and the library.
-  client.setQueryData(['strategy', 'strategy', 'strategy-1'], { id: 'strategy-1', title: 'Deleted strategy', nodes: [] });
-  client.setQueryData(['strategy', 'strategies'], [{ id: 'strategy-1', title: 'Deleted strategy', nodeCount: 3 }]);
+  client.setQueryData(['strategy', 'strategy', 'strategy-1'], {
+    id: 'strategy-1',
+    title: 'Deleted strategy',
+    nodes: [],
+  });
+  client.setQueryData(
+    ['strategy', 'strategies'],
+    [{ id: 'strategy-1', title: 'Deleted strategy', nodeCount: 3 }],
+  );
   const removeSpy = vi.spyOn(client, 'removeQueries');
   const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
   return {
-    client, removeSpy, invalidateSpy,
+    client,
+    removeSpy,
+    invalidateSpy,
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     ),
@@ -37,7 +46,9 @@ beforeEach(() => {
 
 describe('useDeleteStrategy cache invalidation (F08)', () => {
   it('clears the detail cache and refreshes the list on success', async () => {
-    api.delete.mockResolvedValue({ data: { id: 'strategy-1', archivedAt: '2026-09-10T00:00:00.000Z' } });
+    api.delete.mockResolvedValue({
+      data: { id: 'strategy-1', archivedAt: '2026-09-10T00:00:00.000Z' },
+    });
     const { client, removeSpy, invalidateSpy, wrapper } = harness();
     const hook = renderHook(() => useDeleteStrategy(), { wrapper });
 

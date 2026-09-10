@@ -48,6 +48,13 @@ export function NewStrategyOverlay() {
    * portfolio client. The initial value is the FORM BASELINE (not a user
    * edit), so opening and closing an untouched form is not dirty — the dirty
    * predicate below compares against this baseline.
+   *
+   * Review fix (2026-09-10 audit): the client list usually resolves AFTER
+   * mount (the useState initializer saw clients.data === undefined), which
+   * silently dropped the portfolio selection on the common path. The effect
+   * below initializes late, ONLY while the user has not chosen anything
+   * themselves, and only for a client that exists in the loaded list. The
+   * baseline ref follows it so the untouched form still reads clean.
    */
   const [clientId, setClientId] = useState(() =>
     shellClient.selectedClientId && (clients.data ?? []).some((c) => c.id === shellClient.selectedClientId)
@@ -71,9 +78,24 @@ export function NewStrategyOverlay() {
   /* F06: the initialized client is the baseline, not a pending edit — only
    * fields the USER changed make the form dirty. */
   const baselineClientId = useRef('');
+  const userChoseClient = useRef(false);
+  const onClientChange = (value: string) => {
+    userChoseClient.current = true;
+    setClientId(value);
+  };
   useEffect(() => {
     if (baselineClientId.current === '' && clientId !== '') baselineClientId.current = clientId;
   }, [clientId]);
+  // Late initialization from the portfolio selection once the list resolves.
+  // Never overrides the user's own choice (including their choice of '').
+  useEffect(() => {
+    if (clientId !== '' || userChoseClient.current) return;
+    const selected = shellClient.selectedClientId;
+    if (selected && (clients.data ?? []).some((c) => c.id === selected)) {
+      setClientId(selected);
+      baselineClientId.current = selected;
+    }
+  }, [clientId, clients.data, shellClient.selectedClientId]);
   const dirty = Boolean(
     (clientId !== '' && clientId !== baselineClientId.current) ||
       type ||
@@ -141,7 +163,7 @@ export function NewStrategyOverlay() {
           <CapiroSelect
             label="Client · Required"
             value={clientId}
-            onChange={(event) => setClientId(event.target.value)}
+            onChange={(event) => onClientChange(event.target.value)}
             options={clientOptions}
             error={clients.isError ? 'Clients could not be loaded.' : undefined}
             disabled={busy || clients.isLoading}

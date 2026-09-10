@@ -53,7 +53,7 @@ describe('useStrategyContextAvailability (F06)', () => {
     expect(api.get).toHaveBeenCalledWith('/strategy-api/context/availability?clientId=client-1');
   });
 
-  it('keys per client so switching clients cannot show the prior client\'s projection', async () => {
+  it("keys per client so switching clients cannot show the prior client's projection", async () => {
     api.get.mockImplementation(async (url: string) => ({
       data: {
         ...PROJECTION,
@@ -84,7 +84,9 @@ describe('useStrategyContextAvailability (F06)', () => {
     expect(failed.result.current.data).toBeUndefined();
 
     api.get.mockReset();
-    api.get.mockResolvedValue({ data: { ...PROJECTION, eligibleDocumentIds: [], eligibleFactCount: 0 } });
+    api.get.mockResolvedValue({
+      data: { ...PROJECTION, eligibleDocumentIds: [], eligibleFactCount: 0 },
+    });
     const empty = renderHook(() => useStrategyContextAvailability('client-1'), { wrapper });
     await waitFor(() => expect(empty.result.current.data?.eligibleDocumentIds).toEqual([]));
     expect(empty.result.current.isError).toBe(false);

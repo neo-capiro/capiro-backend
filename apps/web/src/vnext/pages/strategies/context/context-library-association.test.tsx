@@ -23,16 +23,22 @@ const state = vi.hoisted(() => ({
     { id: 'strategy-active', title: 'Active strategy', clientId: 'client-a' },
     { id: 'strategy-archived', title: 'Archived strategy', clientId: 'client-a' },
   ],
-  associations: {} as Record<string, { state: string; strategy: { id: string; title: string } | null }>,
+  associations: {} as Record<
+    string,
+    { state: string; strategy: { id: string; title: string } | null }
+  >,
 }));
 
 vi.mock('../../../adapters/legacy/useShellClientContext.js', () => ({
   useShellClientContext: () => ({ selectedClientId: null }),
 }));
-vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ data: { role: 'user', features: { agenticMeri: true, contextSteward: true } } }) }));
+vi.mock('../../../../lib/me.js', () => ({
+  useMe: () => ({ data: { role: 'user', features: { agenticMeri: true, contextSteward: true } } }),
+}));
 
 vi.mock('../strategies-api.js', async () => {
-  const actual = await vi.importActual<typeof import('../strategies-api.js')>('../strategies-api.js');
+  const actual =
+    await vi.importActual<typeof import('../strategies-api.js')>('../strategies-api.js');
   return {
     ...actual,
     useClientsLite: () => ({ data: [{ id: 'client-a', name: 'Client A' }], isLoading: false }),
@@ -49,7 +55,9 @@ vi.mock('../strategies-api.js', async () => {
   };
 });
 
-function doc(over: Partial<ContextDocumentListItem> & { id: string; scope: string; scopeRef: string | null }): ContextDocumentListItem {
+function doc(
+  over: Partial<ContextDocumentListItem> & { id: string; scope: string; scopeRef: string | null },
+): ContextDocumentListItem {
   return {
     clientId: 'client-a',
     templateKey: '01_strategy_brief',
@@ -88,7 +96,12 @@ beforeEach(() => {
 describe('Context library — association labels (F06)', () => {
   it('names the actual strategy on a strategy-scoped card instead of "This strategy"', async () => {
     state.documents = [
-      doc({ id: 'd-1', scope: 'strategy', scopeRef: 'strategy-active', title: 'Active strategy brief' }),
+      doc({
+        id: 'd-1',
+        scope: 'strategy',
+        scopeRef: 'strategy-active',
+        title: 'Active strategy brief',
+      }),
     ];
     state.associations = {
       'd-1': { state: 'active', strategy: { id: 'strategy-active', title: 'Active strategy' } },
@@ -96,20 +109,35 @@ describe('Context library — association labels (F06)', () => {
     renderLibrary();
     await waitFor(() => expect(screen.getByText('Active strategy brief')).toBeTruthy());
     // The meta line carries the strategy's actual title, not a relative label.
-    expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('Strategy: Active strategy')).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, el) => (el?.textContent ?? '').includes('Strategy: Active strategy'))
+        .length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByText('This strategy')).toBeNull();
   });
 
   it('marks an archived association distinctly', async () => {
     state.documents = [
-      doc({ id: 'd-2', scope: 'strategy', scopeRef: 'strategy-archived', title: 'Archived strategy brief' }),
+      doc({
+        id: 'd-2',
+        scope: 'strategy',
+        scopeRef: 'strategy-archived',
+        title: 'Archived strategy brief',
+      }),
     ];
     state.associations = {
-      'd-2': { state: 'archived', strategy: { id: 'strategy-archived', title: 'Archived strategy' } },
+      'd-2': {
+        state: 'archived',
+        strategy: { id: 'strategy-archived', title: 'Archived strategy' },
+      },
     };
     renderLibrary();
     await waitFor(() => expect(screen.getByText('Archived strategy brief')).toBeTruthy());
-    expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('Archived strategy · Archived')).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, el) =>
+        (el?.textContent ?? '').includes('Archived strategy · Archived'),
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it('falls back to "Association unavailable" when the strategy cannot be resolved', async () => {
@@ -121,7 +149,10 @@ describe('Context library — association labels (F06)', () => {
     };
     renderLibrary();
     await waitFor(() => expect(screen.getByText('Mystery brief')).toBeTruthy());
-    expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('Association unavailable')).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, el) => (el?.textContent ?? '').includes('Association unavailable'))
+        .length,
+    ).toBeGreaterThan(0);
     // Never infer "deleted" from a missing list row.
     expect(screen.queryByText(/deleted/i)).toBeNull();
   });

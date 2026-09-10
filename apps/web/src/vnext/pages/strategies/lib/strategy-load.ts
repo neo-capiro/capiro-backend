@@ -35,9 +35,8 @@ const TERMINAL_STATUS: Record<number, StrategyLoadState> = {
 };
 
 export function classifyStrategyLoadError(error: unknown): StrategyLoadState {
-  const status = (
-    error as { response?: { status?: unknown } } | null | undefined
-  )?.response?.status;
+  const status = (error as { response?: { status?: unknown } } | null | undefined)?.response
+    ?.status;
   const mapped = typeof status === 'number' ? TERMINAL_STATUS[status] : undefined;
   return mapped ?? 'transient';
 }

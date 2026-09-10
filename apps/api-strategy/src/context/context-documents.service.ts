@@ -472,15 +472,19 @@ export class ContextDocumentsService {
       const excluded = { strategyScoped: 0, nodeScoped: 0, stale: 0, retired: 0 };
       for (const doc of candidates) {
         if (doc.state !== 'active') {
-          if (doc.state === 'superseded' || doc.state === 'archived') excluded.retired++;
-          else excluded.retired++; // draft-state documents are not usable context either
+          // draft/superseded/archived rows are all unusable as working context
+          // (draft-state documents were never approved for grounding).
+          excluded.retired++;
           continue;
         }
         if (doc.validUntil && doc.validUntil < today) {
           excluded.stale++;
           continue;
         }
-        if (doc.scope === 'strategy' && doc.scopeRef) {
+        // Positive scope eligibility — a scoped row with a missing scopeRef
+        // (possible 'once' rows, see the unbound-context list tests) must fall
+        // into its scope-kind exclusion, never into the eligible set.
+        if (doc.scope === 'strategy') {
           excluded.strategyScoped++;
           continue;
         }

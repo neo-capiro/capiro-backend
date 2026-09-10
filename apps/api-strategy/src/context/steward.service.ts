@@ -669,8 +669,15 @@ export class StewardService {
             is: {
               tenantId,
               state: 'active',
-              OR: [{ validUntil: null }, { validUntil: { gte: today } }],
-              ...documentScopeForStrategy(opts.strategyId),
+              // F06 review fix: compose validity AND document scope with an
+              // explicit AND — spreading documentScopeForStrategy() into this
+              // object previously REPLACED the sibling `OR: [validUntil…]` key
+              // (object spread overwrites duplicate keys), silently dropping
+              // the staleness filter whenever a strategyId was named.
+              AND: [
+                { OR: [{ validUntil: null }, { validUntil: { gte: today } }] },
+                documentScopeForStrategy(opts.strategyId),
+              ],
             },
           },
         },

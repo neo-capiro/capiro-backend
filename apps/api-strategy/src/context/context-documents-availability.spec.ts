@@ -153,8 +153,17 @@ describe('ContextDocumentsService.availability (F06 new-strategy scope)', () => 
       scopeRef: '88888888-8888-4888-8888-888888888888',
     });
     seedFact(store, { id: 'f-1', documentId: 'client-constraints', fact: 'Eligible fact.' });
-    seedFact(store, { id: 'f-2', documentId: 'client-constraints', state: 'stale', fact: 'Stale fact.' });
-    seedFact(store, { id: 'f-3', documentId: 'other-strategy-brief', fact: 'Excluded parent fact.' });
+    seedFact(store, {
+      id: 'f-2',
+      documentId: 'client-constraints',
+      state: 'stale',
+      fact: 'Stale fact.',
+    });
+    seedFact(store, {
+      id: 'f-3',
+      documentId: 'other-strategy-brief',
+      fact: 'Excluded parent fact.',
+    });
     const { svc } = makeService(store);
 
     const result = await svc.availability(T, CLIENT_ID);
@@ -191,6 +200,23 @@ describe('ContextDocumentsService.availability (F06 new-strategy scope)', () => 
 
     expect(result.eligibleDocumentIds).toEqual([]);
     expect(result.excluded.nodeScoped).toBe(2);
+  });
+
+  // Review fix (2026-09-10 audit): a scoped row with a MISSING scopeRef (the
+  // unbound-context state the list tests exercise for 'once') must be excluded
+  // by its scope KIND — previously it slipped through the scopeRef-guarded
+  // branch and was counted as ELIGIBLE working context.
+  it('an unbound scoped document (scopeRef null) is never eligible, whatever its kind', async () => {
+    const store = makeStore();
+    seedDoc(store, { id: 'unbound-once', scope: 'once', scopeRef: null });
+    seedDoc(store, { id: 'unbound-strategy', scope: 'strategy', scopeRef: null });
+    const { svc } = makeService(store);
+
+    const result = await svc.availability(T, CLIENT_ID);
+
+    expect(result.eligibleDocumentIds).toEqual([]);
+    expect(result.excluded.nodeScoped).toBe(1);
+    expect(result.excluded.strategyScoped).toBe(1);
   });
 
   it('400s a malformed clientId instead of a Prisma 500', async () => {

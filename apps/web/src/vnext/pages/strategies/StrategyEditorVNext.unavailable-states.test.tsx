@@ -90,7 +90,14 @@ vi.mock('./strategies-api.js', async () => {
         return Promise.resolve();
       };
       if (state.detailError) {
-        return { data: undefined, isLoading: false, isError: true, error: state.detailError, dataUpdatedAt: 0, refetch };
+        return {
+          data: undefined,
+          isLoading: false,
+          isError: true,
+          error: state.detailError,
+          dataUpdatedAt: 0,
+          refetch,
+        };
       }
       return {
         data: (state.detailData ?? undefined) as StrategyDetail | undefined,
@@ -104,7 +111,12 @@ vi.mock('./strategies-api.js', async () => {
     // detail query's error state is under test.
     useFirmPhases: () => ({ data: [] }),
     useReferenceCalendars: () => ({
-      data: { congress: [], ppbeLanes: [], ppbeCurrentPhases: [], source: { congress: 'baseline' } },
+      data: {
+        congress: [],
+        ppbeLanes: [],
+        ppbeCurrentPhases: [],
+        source: { congress: 'baseline' },
+      },
     }),
     useClientsLite: () => ({ data: [] }),
     useTenantMembers: () => ({ data: [] }),
@@ -113,7 +125,12 @@ vi.mock('./strategies-api.js', async () => {
     useWatchMonitoring: () => ({ data: { available: false }, isSuccess: true }),
     useConfigureWatchMonitoring: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useRevalidateWatch: () => ({ mutate: vi.fn(), isPending: false }),
-    useForkReferenceCalendar: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+    useForkReferenceCalendar: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+    }),
   };
 });
 

@@ -23,7 +23,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NewStrategyOverlay } from './NewStrategyOverlay.js';
 
 const state = vi.hoisted(() => ({
-  clients: [{ id: 'client-a', name: 'Client A' }, { id: 'client-b', name: 'Client B' }],
+  clients: [
+    { id: 'client-a', name: 'Client A' },
+    { id: 'client-b', name: 'Client B' },
+  ],
   members: [{ clerkUserId: 'user-1', name: 'Ada' }],
   phases: [{ id: 'p1', label: 'Strategy refresh', startFy: 2026, startQ: 1, endFy: 2026, endQ: 2 }],
   availability: null as Record<string, unknown> | null,
@@ -41,7 +44,8 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('../strategies-api.js', async () => {
-  const actual = await vi.importActual<typeof import('../strategies-api.js')>('../strategies-api.js');
+  const actual =
+    await vi.importActual<typeof import('../strategies-api.js')>('../strategies-api.js');
   return {
     ...actual,
     useClientsLite: () => ({ data: state.clients, isLoading: false }),
@@ -52,7 +56,12 @@ vi.mock('../strategies-api.js', async () => {
       if (state.availabilityError) {
         return { data: undefined, isLoading: false, isError: true, error: new Error('boom') };
       }
-      return { data: state.availability ?? undefined, isLoading: false, isError: false, error: null };
+      return {
+        data: state.availability ?? undefined,
+        isLoading: false,
+        isError: false,
+        error: null,
+      };
     },
     useContextHealth: () => ({ data: undefined, isLoading: false, isError: false }),
     useCreateStrategy: () => ({ mutate: vi.fn(), isPending: false, error: null }),
@@ -61,11 +70,26 @@ vi.mock('../strategies-api.js', async () => {
 });
 
 vi.mock('../../../adapters/legacy/useShellClientContext.js', () => ({
-  useShellClientContext: () => ({ selectedClientId: state.shellClient, selectedClientName: null, enabled: true, loading: false, unavailable: false, options: [], scopeLabel: 'All clients', setSelectedClientId: () => {} }),
+  useShellClientContext: () => ({
+    selectedClientId: state.shellClient,
+    selectedClientName: null,
+    enabled: true,
+    loading: false,
+    unavailable: false,
+    options: [],
+    scopeLabel: 'All clients',
+    setSelectedClientId: () => {},
+  }),
 }));
 
+const queryClientRef: { current: ReturnType<typeof makeQueryClient> | null } = { current: null };
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
 function renderOverlay() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = makeQueryClient();
+  queryClientRef.current = client;
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/strategies/new']}>
@@ -108,8 +132,14 @@ describe('New strategy overlay — context availability (F06)', () => {
       expect(screen.getByText(/11 facts/i)).toBeTruthy();
     });
     // The excluded material is named as context that does not apply, not hidden.
-    expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('2 documents linked to another strategy')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('1 needs updating')).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, el) =>
+        (el?.textContent ?? '').includes('2 documents linked to another strategy'),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, el) => (el?.textContent ?? '').includes('1 needs updating')).length,
+    ).toBeGreaterThan(0);
   });
 
   it('shows zero applicable documents truthfully when only other-strategy material exists', async () => {
@@ -125,7 +155,11 @@ describe('New strategy overlay — context availability (F06)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/0 documents available as working context/i)).toBeTruthy();
-      expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('1 document linked to another strategy')).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText((_, el) =>
+          (el?.textContent ?? '').includes('1 document linked to another strategy'),
+        ).length,
+      ).toBeGreaterThan(0);
     });
     expect(screen.queryByText(/no documents/i)).toBeNull();
   });
@@ -170,7 +204,9 @@ describe('New strategy overlay — context availability (F06)', () => {
       truncated: false,
     };
     fireEvent.change(select, { target: { value: 'client-a' } });
-    await waitFor(() => expect(screen.getByText(/2 documents available as working context/i)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/2 documents available as working context/i)).toBeTruthy(),
+    );
 
     state.availability = {
       clientId: 'client-b',
@@ -182,7 +218,11 @@ describe('New strategy overlay — context availability (F06)', () => {
     fireEvent.change(select, { target: { value: 'client-b' } });
     await waitFor(() => {
       expect(screen.getByText(/0 documents available as working context/i)).toBeTruthy();
-      expect(screen.getAllByText((_, el) => (el?.textContent ?? '').includes('3 documents linked to another strategy')).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText((_, el) =>
+          (el?.textContent ?? '').includes('3 documents linked to another strategy'),
+        ).length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -197,7 +237,9 @@ describe('New strategy overlay — context availability (F06)', () => {
     renderOverlay();
     fireEvent.change(screen.getByLabelText(/Client · Required/), { target: { value: 'client-a' } });
 
-    await waitFor(() => expect(screen.getByText(/1 document available as working context/i)).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText(/1 document available as working context/i)).toBeTruthy(),
+    );
     fireEvent.click(screen.getByRole('button', { name: /view all client a documents/i }));
     expect(state.navigate).toContainEqual('/strategies/context?clientId=client-a');
   });
@@ -212,5 +254,36 @@ describe('New strategy overlay — context availability (F06)', () => {
     // rendered primary button state instead (disabled until required fields
     // are complete, and no unsaved-changes warning markup).
     expect(container.querySelector('.st-modal__alert')).toBeNull();
+  });
+
+  // Review fix (2026-09-10 audit): the client list usually resolves AFTER the
+  // overlay mounts (its useState initializer ran while clients.data was still
+  // undefined), which silently dropped the portfolio selection — plan item 8
+  // broken on the common path. When the list arrives and the user has made no
+  // selection, a still-valid portfolio client must initialize THEN, still as
+  // the form baseline (not a user edit, no false dirty).
+  it('initializes the portfolio client once the client list resolves after mount, still not dirty', () => {
+    state.shellClient = 'client-b';
+    const clientsRef = { data: undefined as typeof state.clients | undefined };
+    const originalClients = state.clients;
+    state.clients = undefined as unknown as typeof state.clients;
+    const { rerender } = renderOverlay();
+    let select = screen.getByLabelText(/Client · Required/) as HTMLSelectElement;
+    // While the list is loading there is nothing valid to initialize from.
+    expect(select.value).toBe('');
+
+    state.clients = originalClients;
+    rerender(
+      <QueryClientProvider client={queryClientRef.current!}>
+        <MemoryRouter initialEntries={['/strategies/new']}>
+          <Routes>
+            <Route path="/strategies/new" element={<NewStrategyOverlay />} />
+            <Route path="/strategies/context" element={<p>Context library</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    select = screen.getByLabelText(/Client · Required/) as HTMLSelectElement;
+    expect(select.value).toBe('client-b');
   });
 });
