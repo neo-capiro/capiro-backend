@@ -249,7 +249,14 @@ export function ShareConfirmation({
               {i.sub && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>{i.sub}</div>}
               {!i.approved && (
                 <div style={{ fontSize: 11, color: 'var(--notable)', marginTop: 1 }}>
-                  Approve first — go to its tab to approve.
+                  {/* EM-09: attachments (transcripts, recordings) never had their own
+                      tab — this used to say "go to its tab to approve" for every type,
+                      pointing attachments at a destination that doesn't exist. Prep/
+                      note/debrief keep the original message (each really does have its
+                      own tab); attachments get a name a user can actually act on. */}
+                  {i.type === 'attachment'
+                    ? 'Approve first — open the Debrief tab to approve this attachment.'
+                    : 'Approve first — go to its tab to approve.'}
                 </div>
               )}
             </div>

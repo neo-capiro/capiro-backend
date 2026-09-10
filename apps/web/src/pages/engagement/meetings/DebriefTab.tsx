@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, EyeOff, Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
+import { Check, CheckCircle2, EyeOff, FileText, Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
 // UI-free module (not meeting-actions.tsx, which carries AntD): this tab is
 // part of the shared drawer tree the vNext surface reuses antd-free.
 import { parseDebriefBody } from '../debrief-body.js';
 import {
+  useApproveAttachment,
   useApproveDebrief,
   useGenerateDebriefDraft,
   useMeetingDebriefs,
@@ -348,6 +349,120 @@ function SourcePicker({
 }
 
 export function DebriefTab({ meeting }: { meeting: Meeting }) {
+  return (
+    <>
+      <DebriefTabBody meeting={meeting} />
+      <AttachmentApprovalList meeting={meeting} />
+    </>
+  );
+}
+
+/**
+ * EM-09 — every meeting attachment (a Meri-transcribed recording, an
+ * uploaded transcript, any file confirmed via useUploadAndExtract) can be
+ * approved via a real, working endpoint
+ * (POST /meetings/:id/attachments/:attachmentId/approve, wired up here as
+ * useApproveAttachment) — but until this component, NOTHING in the UI ever
+ * called that hook. ShareConfirmation.tsx lists an unapproved attachment
+ * with "Approve first — go to its tab to approve," but there is no
+ * "its tab": attachments have never had one, only Prep/Notes/Debrief do.
+ * That message pointed at a destination that doesn't exist.
+ *
+ * Attachments live conceptually with the Debrief tab's upload/transcript
+ * pipeline (see UPLOAD_PIPELINE_STEPS above), so this renders there,
+ * ALWAYS — regardless of whether a debrief itself exists yet, so a
+ * transcript uploaded before any debrief is drafted is still reachable and
+ * approvable, not gated behind debrief state.
+ */
+function AttachmentApprovalList({ meeting }: { meeting: Meeting }) {
+  const chrome = useMeetingPanelChrome();
+  const approveAttachment = useApproveAttachment();
+
+  if (meeting.attachments.length === 0) return null;
+
+  // Mirrors EngagementPage.tsx's deletingAttachmentId: read the in-flight id
+  // off the mutation's own `variables` instead of duplicating it in local
+  // state.
+  const approvingId = approveAttachment.isPending
+    ? approveAttachment.variables?.attachmentId ?? null
+    : null;
+
+  const approve = async (attachmentId: string) => {
+    try {
+      await approveAttachment.mutateAsync({ meetingId: meeting.id, attachmentId });
+      chrome.success('Attachment approved.');
+    } catch {
+      chrome.error('Could not approve the attachment.');
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <SectionLabel style={{ marginBottom: 9 }}>Transcript &amp; attachments</SectionLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {meeting.attachments.map((a) => {
+          const approved = a.approvedAt != null;
+          const busy = approvingId === a.id;
+          return (
+            <div
+              key={a.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '9px 10px',
+                borderRadius: 8,
+                background: 'var(--bg-sunken)',
+              }}
+            >
+              <FileText size={15} style={{ flexShrink: 0, color: 'var(--ink-3)' }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-1)', wordBreak: 'break-word' }}>
+                  {a.fileName}
+                </div>
+                {a.sharedAt != null && (
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>Shared</div>
+                )}
+              </div>
+              {approved ? (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: 'var(--success)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  Approved
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn sm"
+                  disabled={busy}
+                  onClick={() => void approve(a.id)}
+                  style={{ flexShrink: 0 }}
+                >
+                  {busy ? 'Approving…' : 'Approve'}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <RuleReinforcement>
+        Approval unlocks sharing this file to the client's Documents and your firm's Meeting
+        Library — the same rule as prep, notes, and debriefs.
+      </RuleReinforcement>
+    </div>
+  );
+}
+
+function DebriefTabBody({ meeting }: { meeting: Meeting }) {
   const chrome = useMeetingPanelChrome();
   const debriefs = useMeetingDebriefs(meeting.id);
   const current = debriefs.data?.[0] ?? null;

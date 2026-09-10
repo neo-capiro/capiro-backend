@@ -230,4 +230,106 @@ describe('DebriefTab', () => {
       ),
     );
   });
+
+  describe('EM-09 — attachment approval (Transcript & attachments)', () => {
+    function makeAttachment(overrides: Partial<Meeting['attachments'][number]> = {}) {
+      return {
+        id: 'att-1',
+        meetingId: 'm1',
+        fileName: 'meeting-transcript-2026-09-08.txt',
+        contentType: 'text/plain',
+        byteSize: 4096,
+        source: 'upload',
+        createdAt: '2026-09-08T00:00:00Z',
+        approvedAt: null,
+        approvedByUserId: null,
+        sharedAt: null,
+        sharedByUserId: null,
+        ...overrides,
+      };
+    }
+
+    test('an unapproved attachment shows its filename and a real, working Approve control', async () => {
+      mockGetResponses({ debriefs: [], notes: [] });
+      const qc = new QueryClient();
+      render(
+        buildTree(qc, {
+          meeting: makeMeeting({ attachments: [makeAttachment()] }),
+        }),
+      );
+      expect(
+        await screen.findByText('meeting-transcript-2026-09-08.txt'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^approve$/i })).toBeInTheDocument();
+      expect(screen.queryByText('Approved')).not.toBeInTheDocument();
+    });
+
+    test('clicking Approve on an attachment POSTs the real attachment-approve endpoint with exact ids', async () => {
+      mockGetResponses({ debriefs: [], notes: [] });
+      apiPostMock.mockResolvedValue({ data: makeMeeting() });
+      const qc = new QueryClient();
+      render(
+        buildTree(qc, {
+          meeting: makeMeeting({
+            id: 'm42',
+            attachments: [makeAttachment({ id: 'att-9' })],
+          }),
+        }),
+      );
+
+      const approveButton = await screen.findByRole('button', { name: /^approve$/i });
+      fireEvent.click(approveButton);
+
+      await waitFor(() =>
+        expect(apiPostMock).toHaveBeenCalledWith(
+          '/api/engagement/meetings/m42/attachments/att-9/approve',
+        ),
+      );
+    });
+
+    test('an already-approved attachment shows "Approved" instead of an Approve button', async () => {
+      mockGetResponses({ debriefs: [], notes: [] });
+      const qc = new QueryClient();
+      render(
+        buildTree(qc, {
+          meeting: makeMeeting({
+            attachments: [makeAttachment({ approvedAt: '2026-09-09T00:00:00Z' })],
+          }),
+        }),
+      );
+      expect(await screen.findByText('Approved')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument();
+    });
+
+    test('no attachments renders no "Transcript & attachments" section at all', async () => {
+      mockGetResponses({ debriefs: [], notes: [] });
+      const qc = new QueryClient();
+      render(buildTree(qc, { meeting: makeMeeting({ attachments: [] }) }));
+      await waitFor(() => expect(screen.getByText('Not started')).toBeInTheDocument());
+      expect(screen.queryByText(/transcript.*attachments/i)).not.toBeInTheDocument();
+    });
+
+    test('the attachment approval list is reachable even while the debrief itself is locked (unfinished meeting)', async () => {
+      // EM-09's real repro: a transcript can exist on a meeting whose debrief
+      // isn't unlocked yet. It must still be approvable, not hidden behind
+      // debrief lifecycle state.
+      mockGetResponses({});
+      const qc = new QueryClient();
+      render(
+        buildTree(qc, {
+          meeting: makeMeeting({
+            startsAt: '2099-01-01T10:00:00.000Z',
+            endsAt: '2099-01-01T10:30:00.000Z',
+            meri: null,
+            attachments: [makeAttachment()],
+          }),
+        }),
+      );
+      expect(screen.getByText('Debrief locked')).toBeInTheDocument();
+      expect(
+        await screen.findByText('meeting-transcript-2026-09-08.txt'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^approve$/i })).toBeInTheDocument();
+    });
+  });
 });
