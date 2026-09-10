@@ -259,6 +259,23 @@ case "${1:-serve}" in
     echo "Running seed-army-r2-bundle-members-v1 (dry run unless --commit --confirm <env>)"
     exec ./node_modules/.bin/tsx scripts/seed-army-r2-bundle-members-v1.ts "$@"
     ;;
+  # Phase 10B-36. Release-qualification driver for a new
+  # defense-budget-ingestion-drain image, run only inside the isolated
+  # 3-container Fargate task shape (qual + pg + minio sidecars) on the
+  # capiro-dev-defense-budget-qualification task-definition family.
+  # Deliberately does NOT call compose_database_url: DATABASE_URL for this
+  # verb must stay exactly what the task-definition's own environment (or a
+  # local rehearsal) already set -- the isolated `pg` sidecar at
+  # 127.0.0.1:5432 -- never the composed real production Aurora connection
+  # string compose_database_url would produce from DB_HOST/DB_PORT/DB_USER/
+  # DB_PASSWORD/DB_NAME secrets. Never mutates production; see
+  # scripts/qualify-defense-budget-drain-image-v1.ts's own header for the
+  # full contract and exit-code meanings.
+  qualify-defense-budget-drain-image-v1)
+    shift
+    echo "Running qualify-defense-budget-drain-image-v1 (isolated Postgres+MinIO only; never touches production)"
+    exec ./node_modules/.bin/tsx scripts/qualify-defense-budget-drain-image-v1.ts "$@"
+    ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"
     ;;
