@@ -49,8 +49,7 @@ describe('Directory vNext route contract', () => {
     // appearing in Committee Staff must never mint a second record.
     expect(DIRECTORY_PROFILE_ROUTES.staff('staff-800')).toBe('/directory/staff/staff-800');
     expect(DIRECTORY_PROFILE_ROUTES.member('m-1')).toBe('/directory/members/m-1');
-    // LW-06: the /directory/people/:id alias (LegiWatch Committee Room drilldown)
-    // must resolve as a member profile, not fall through to the 404 catch-all.
+    // LW-06: preserve valid older member-profile URLs as an alias.
     expect(matchDirectoryProfilePath('/directory/people/m-1')).toEqual({
       kind: 'member',
       memberId: 'm-1',

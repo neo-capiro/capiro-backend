@@ -130,12 +130,10 @@ describe('VNextRouter — directory profile routes claimed (Phase 2)', () => {
     expect(screen.queryByTestId('canonical-member-profile')).not.toBeInTheDocument();
   });
 
-  it('claims the /directory/people/:id alias as a member profile (LW-06)', async () => {
-    // The LegiWatch Committee Room drills into member profiles at
-    // /directory/people/:id; before the alias this landed on the 404 catch-all.
-    renderAt('/directory/people/member-500');
-    expect(await screen.findByTestId('vnext-member-profile')).toHaveTextContent('member-500');
-    expect(screen.queryByTestId('canonical-member-profile')).not.toBeInTheDocument();
+  it.each(['member-500', 'R000500'])('claims the member alias with identity %s (LW-06)', async (id) => {
+    renderAt(`/directory/people/${id}`);
+    expect(await screen.findByTestId('vnext-member-profile')).toHaveTextContent(id);
+    expect(screen.queryByTestId('canonical-member-profile-people')).not.toBeInTheDocument();
   });
 
   it('claims /directory/staff/:staffId with the parsed id', async () => {
