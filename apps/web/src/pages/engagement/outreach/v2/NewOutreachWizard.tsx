@@ -127,6 +127,7 @@ import {
   type WizardV2State,
 } from './types.js';
 import './outreach.css';
+import type { LegiWatchWizardPrefill } from '../legiwatch-prefill.js';
 
 /** A connected inbox the user can send outreach from (Outlook or Gmail). */
 export interface OutreachSenderInbox {
@@ -158,6 +159,10 @@ interface Props {
    * rather than creating duplicates.
    */
   initialDraftId?: string | null;
+  /** Reviewed, unsaved hearing context; never applied over a saved record. */
+  initialPrefill?: LegiWatchWizardPrefill;
+  /** The explicit Save as draft action can make a handoff URL durable. */
+  onDraftSaved?: (id: string) => void;
 }
 
 interface InsightsBillRow {
@@ -316,6 +321,8 @@ export function NewOutreachWizard({
   onComplete,
   initialRecord,
   initialDraftId,
+  initialPrefill,
+  onDraftSaved,
 }: Props) {
   const api = useApi();
   const qc = useQueryClient();
@@ -327,7 +334,8 @@ export function NewOutreachWizard({
     user?.primaryEmailAddress?.emailAddress ||
     'there';
 
-  const [stepIdx, setStepIdx] = useState(0);
+  const reviewedPrefill = !initialRecord && !initialDraftId ? initialPrefill : undefined;
+  const [stepIdx, setStepIdx] = useState(reviewedPrefill ? 1 : 0);
   /**
    * Mirror of `state` for async guards. The navigation gate runs AFTER awaiting
    * version writes, by which point the closed-over `state` is stale — reading the
@@ -337,6 +345,7 @@ export function NewOutreachWizard({
   const [state, setState] = useState<WizardV2State>({
     ...INITIAL_V2_STATE,
     clientId: selectedClientId,
+    ...(reviewedPrefill ? { ...reviewedPrefill, direction: 'on-behalf' as const } : {}),
   });
   // Persisted draft record id (set after first Save as draft, reused on
   // subsequent saves so we PATCH instead of creating duplicates). When
@@ -2141,6 +2150,7 @@ export function NewOutreachWizard({
       setDraftId(rec.id);
       qc.invalidateQueries({ queryKey: ['engagement-outreach'] });
       message.success('Draft saved');
+      onDraftSaved?.(rec.id);
     },
     // Same reasoning as the ensureDraftRecord catch above: surface what the
     // server actually objected to, not just that something went wrong.

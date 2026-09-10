@@ -28,6 +28,7 @@ import {
   Upload,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
+import { LegiWatchOutreachHandoff } from './outreach/LegiWatchOutreachHandoff.js';
 // Campaign list only (handover §6.2). The legacy workflow screens further
 // down this file — outbound campaign, follow-up, prep distribution, small
 // group — are not part of the prototype and keep their existing antd markup.
@@ -411,7 +412,24 @@ const EMPTY_WORKFLOW: OutreachWorkflowState = {
   attachmentIds: [],
 };
 
-export function OutreachView({
+interface OutreachViewProps {
+  clients: Client[];
+  selectedClientId: string | null;
+  aiConfigured: boolean;
+}
+
+export function OutreachView(props: OutreachViewProps) {
+  const location = useLocation();
+  const staged = new URLSearchParams(location.search).get('source') === 'legiwatch';
+  // Keep the handoff outside the list's URL/mode synchronizer. Its query
+  // identifies unsaved hearing context and remains usable after a reload.
+  if (staged && ['/engagement/outreach', '/engagement/outreach/new/wizard'].includes(location.pathname)) {
+    return <LegiWatchOutreachHandoff key={location.key + location.search} clients={props.clients} aiConfigured={props.aiConfigured} />;
+  }
+  return <OutreachViewContent {...props} />;
+}
+
+function OutreachViewContent({
   clients,
   selectedClientId,
   aiConfigured,

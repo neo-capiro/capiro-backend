@@ -43,11 +43,26 @@
  *     cell is a genuine Exhibit R-2 page with the marker absent -- pages
  *     43-45, 126-127, 132-134, 161, 164-165);
  *   - continuation pages (no repeated header table at all) inherit
- *     identity ONLY from an immediately preceding valid page in the same
- *     open project section -- never across a reset;
+ *     identity ONLY from the physically adjacent, immediately preceding
+ *     page of the same open project section -- never across a reset and
+ *     never across a page gap;
  *   - identity resets at every new PE or project boundary, and at every
  *     omission (a page that fails to resolve cleanly never silently
  *     extends the previous group);
+ *   - Phase 10B-35: a page that carries a PE-LEVEL exhibit header -- the
+ *     Exhibit R-2 marker, "RDT&E Budget Item Justification", or a
+ *     self-labelled "R-1 Program Element (Number/Name)" cell with no
+ *     "Project (Number/Name)" cell -- or any other non-R-2A exhibit marker
+ *     (R-1, R-3, R-4, ...) is an explicit `exhibit_boundary`. It closes the
+ *     open project section and is never inherited. Before this rule the
+ *     first Exhibit R-2 page of each new PE (real fixture pages 126 / 132 /
+ *     161 / 164) was treated as a header-less continuation of the PREVIOUS
+ *     PE's last project (T14 / D58 / J13 / CB5), so that page's FY2025-28
+ *     cost-table figures -- including the PE "Total Program Element" row --
+ *     became `project_funding` of the wrong PE and wrong project (32 of the
+ *     108 flagged monetary assertions in production candidate 5522ea3b).
+ *     The R-2 (PE-level) stage owns those pages; this module records the
+ *     boundary and asserts nothing for it;
  *   - a page that merely mentions "R-2A" / "RDT&E Project Justification"
  *     in prose, with no structural identity table at all, is never treated
  *     as a project page and never produces an omission (front-matter
@@ -73,6 +88,20 @@ import { isValidR2aProjectCode } from './r2a-project-section-extractor.js';
  * unrelated per-page logic) without re-deriving their own copy. */
 export const R2A_MARKER_RE = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
 
+/**
+ * PE-level (Exhibit R-2) marker. `\bR-2\b` deliberately does NOT match inside
+ * "R-2A" (no word boundary between "2" and "A"), so this only fires on a page
+ * that has already failed `R2A_MARKER_RE`. Real print: "Exhibit R-2, RDT&E
+ * Budget Item Justification: PB 2024 Army".
+ */
+export const R2_PE_EXHIBIT_MARKER_RE = /\bExhibit\s+R-2\b|\bRDT&E\s+Budget\s+Item\s+Justification\b/i;
+/**
+ * Any other exhibit header ("Exhibit R-1", "Exhibit R-3", "Exhibit R-4A",
+ * "Exhibit P-40", ...). Only consulted once the R-2A marker is known to be
+ * absent, so "Exhibit R-2A" can never reach it.
+ */
+export const OTHER_EXHIBIT_MARKER_RE = /\bExhibit\s+[A-Z]{1,2}-\d+[A-Z]?\b/i;
+
 const PE_CELL_CAPTION_RE = /^R-1\s+Program\s+Element\s*\(Number\/Name\)\s*/i;
 const PROJECT_CELL_CAPTION_RE = /^Project\s*\(Number\/Name\)\s*/i;
 /** Value line format: "PE <peCode> / <peTitle>". */
@@ -87,6 +116,16 @@ function normalizeWhitespace(text: string): string {
 function hasR2aMarker(page: ParserPageResultV1): boolean {
   if (R2A_MARKER_RE.test(page.text ?? '')) return true;
   return page.blocks.some((block) => R2A_MARKER_RE.test(block.text ?? ''));
+}
+
+/** True when the marker appears in the page text, any layout block, or any
+ * table cell (the real R-2 header is itself printed as table row 0). */
+function pageCarriesMarker(page: ParserPageResultV1, marker: RegExp): boolean {
+  if (marker.test(page.text ?? '')) return true;
+  if (page.blocks.some((block) => marker.test(block.text ?? ''))) return true;
+  return page.tables.some((table) =>
+    (table.cells as ParsedTableCellV1[]).some((cell) => marker.test(cell.text ?? '')),
+  );
 }
 
 export interface R2aStructuralPeAnchorV1 {
@@ -185,11 +224,37 @@ export interface R2aStructuralHeaderV1 {
   };
 }
 
+/**
+ * Why a non-R-2A page is a hard boundary for R-2A project identity:
+ *   - `pe_summary`: the page carries a PE-level exhibit header (Exhibit R-2
+ *     marker / "RDT&E Budget Item Justification" / a PE identity cell with no
+ *     project cell). The R-2 stage owns it.
+ *   - `other_exhibit`: the page carries some other exhibit header (R-1, R-3,
+ *     R-4, P-40, ...).
+ *   - `unmarked_identity_cells`: the page carries a "Project (Number/Name)"
+ *     cell but no R-2A exhibit marker at all -- identity is not trusted
+ *     without the marker, and the page is never silently inherited either.
+ */
+export type R2aExhibitBoundaryKindV1 = 'pe_summary' | 'other_exhibit' | 'unmarked_identity_cells';
+
 export type R2aStructuralHeaderResultV1 =
   | { status: 'ok'; header: R2aStructuralHeaderV1 }
-  /** No R-2A exhibit marker, or marker present with zero structural
-   * identity cells at all (front-matter prose) -- never a project page. */
+  /** No R-2A exhibit marker AND no other exhibit / identity structure at
+   * all (front-matter prose, a narrative continuation page) -- never a
+   * project page on its own; may only continue an open section. */
   | { status: 'not_r2a_page' }
+  /** No R-2A exhibit marker, but the page structurally belongs to a
+   * different exhibit or opens a new PE -- closes any open project section
+   * and is never inherited (Phase 10B-35). */
+  | {
+      status: 'exhibit_boundary';
+      page: number;
+      kind: R2aExhibitBoundaryKindV1;
+      /** The single PE the boundary page names, when exactly one is legible. */
+      peCode?: string;
+      peTitle?: string;
+      rawText: string;
+    }
   | { status: 'missing_parent_pe'; page: number; rawText: string; projectCode?: string }
   | {
       status: 'missing_project_code';
@@ -208,7 +273,7 @@ export type R2aStructuralHeaderResultV1 =
  */
 export function extractR2aStructuralHeaderV1(page: ParserPageResultV1): R2aStructuralHeaderResultV1 {
   if (!hasR2aMarker(page)) {
-    return { status: 'not_r2a_page' };
+    return classifyNonR2aPage(page);
   }
 
   const { peAnchors, projectAnchors, rawPeCandidates, rawProjectCandidates } = collectAnchors(page);
@@ -285,6 +350,58 @@ export function extractR2aStructuralHeaderV1(page: ParserPageResultV1): R2aStruc
   };
 }
 
+/**
+ * Classify a page that has NO R-2A exhibit marker. Phase 10B-35: such a page
+ * is either (a) a hard exhibit / PE boundary that must close any open project
+ * section, or (b) a bare continuation candidate with no structural identity
+ * of its own. Nothing here ever forms or extends a group by itself.
+ */
+function classifyNonR2aPage(page: ParserPageResultV1): R2aStructuralHeaderResultV1 {
+  const { peAnchors, projectAnchors, rawPeCandidates, rawProjectCandidates } = collectAnchors(page);
+  const hasR2Marker = pageCarriesMarker(page, R2_PE_EXHIBIT_MARKER_RE);
+  const hasOtherMarker = pageCarriesMarker(page, OTHER_EXHIBIT_MARKER_RE);
+  const distinctPe = dedupeBy(peAnchors, (a) => `${a.peCode}|${a.peTitle}`);
+  const singlePe = distinctPe.length === 1 ? distinctPe[0] : undefined;
+
+  /* A PE identity cell with no project cell is the R-2 PE-summary header
+   * shape, whether or not the exhibit marker text survived extraction. */
+  if (hasR2Marker || (rawPeCandidates.length > 0 && rawProjectCandidates.length === 0)) {
+    return {
+      status: 'exhibit_boundary',
+      page: page.page,
+      kind: 'pe_summary',
+      ...(singlePe != null ? { peCode: singlePe.peCode, peTitle: singlePe.peTitle } : {}),
+      rawText:
+        rawPeCandidates[0] ??
+        `page ${page.page} carries a PE-level exhibit header (Exhibit R-2) and no R-2A project identity`,
+    };
+  }
+
+  if (hasOtherMarker) {
+    return {
+      status: 'exhibit_boundary',
+      page: page.page,
+      kind: 'other_exhibit',
+      ...(singlePe != null ? { peCode: singlePe.peCode, peTitle: singlePe.peTitle } : {}),
+      rawText: `page ${page.page} carries a non-R-2A exhibit header`,
+    };
+  }
+
+  if (rawProjectCandidates.length > 0) {
+    /* Identity cells without the R-2A marker: not trusted as a project page
+     * (the marker is the gate), but also never silently inherited. */
+    return {
+      status: 'exhibit_boundary',
+      page: page.page,
+      kind: 'unmarked_identity_cells',
+      ...(singlePe != null ? { peCode: singlePe.peCode, peTitle: singlePe.peTitle } : {}),
+      rawText: rawProjectCandidates[0] ?? `page ${page.page} carries identity cells without an R-2A exhibit marker`,
+    };
+  }
+
+  return { status: 'not_r2a_page' };
+}
+
 /* ------------------------------------------------------------------ */
 /* Shared page-range grouping (all three duplicated call sites)         */
 /* ------------------------------------------------------------------ */
@@ -305,9 +422,21 @@ export interface R2aStructuralOmissionV1 {
   rawText: string;
 }
 
+/** A page that closed the open project section without being an omission:
+ * it belongs to another exhibit (or opens a new PE) and the R-2A stage
+ * asserts nothing for it. Recorded for diagnostics and regression proof. */
+export interface R2aStructuralBoundaryV1 {
+  page: number;
+  kind: R2aExhibitBoundaryKindV1;
+  peCode?: string;
+  peTitle?: string;
+  rawText: string;
+}
+
 export interface R2aStructuralGroupingResultV1 {
   groups: R2aStructuralGroupV1[];
   omissions: R2aStructuralOmissionV1[];
+  boundaries: R2aStructuralBoundaryV1[];
 }
 
 /**
@@ -318,13 +447,18 @@ export interface R2aStructuralGroupingResultV1 {
  * semantic-artifact-factory funding grouper) -- none of them may
  * independently re-derive grouping logic.
  *
- * Continuation semantics: a page with no repeated header table
- * (`not_r2a_page`) inherits the currently active section's identity ONLY if
- * a section is currently open; a page with no active section never starts
- * one. Every other status (`missing_parent_pe`, `missing_project_code`,
- * `conflicting_headers`) closes whatever section was open and records
- * exactly one omission for that page -- it never silently extends the
- * previous group past a page it could not resolve.
+ * Continuation semantics: a page with no repeated header table and no other
+ * exhibit structure (`not_r2a_page`) inherits the currently active section's
+ * identity ONLY if a section is currently open AND the page is the physically
+ * adjacent next page of that section; a page with no active section never
+ * starts one, and a gap closes the section. A page that structurally belongs
+ * to another exhibit or opens a new PE (`exhibit_boundary`, Phase 10B-35)
+ * closes whatever section was open and is recorded as a boundary -- never
+ * inherited, never an omission (the owning stage asserts it). Every other
+ * status (`missing_parent_pe`, `missing_project_code`, `conflicting_headers`)
+ * closes whatever section was open and records exactly one omission for that
+ * page -- it never silently extends the previous group past a page it could
+ * not resolve.
  */
 export function groupR2aPagesByStructuralIdentityV1(
   pages: readonly ParserPageResultV1[],
@@ -332,6 +466,7 @@ export function groupR2aPagesByStructuralIdentityV1(
   const sorted = [...pages].sort((a, b) => a.page - b.page);
   const groups: R2aStructuralGroupV1[] = [];
   const omissions: R2aStructuralOmissionV1[] = [];
+  const boundaries: R2aStructuralBoundaryV1[] = [];
 
   let active: {
     parentPeCode: string;
@@ -340,11 +475,14 @@ export function groupR2aPagesByStructuralIdentityV1(
     projectName: string;
   } | null = null;
   let activePages: ParserPageResultV1[] = [];
+  /** Physical page number of the last page admitted to the open section. */
+  let lastActivePage: number | null = null;
 
   const flush = (): void => {
     if (active == null || activePages.length === 0) {
       active = null;
       activePages = [];
+      lastActivePage = null;
       return;
     }
     /* Never form a group keyed by an empty project code or parent PE --
@@ -354,13 +492,36 @@ export function groupR2aPagesByStructuralIdentityV1(
     }
     active = null;
     activePages = [];
+    lastActivePage = null;
   };
 
   for (const page of sorted) {
     const result = extractR2aStructuralHeaderV1(page);
 
+    if (result.status === 'exhibit_boundary') {
+      /* Phase 10B-35: a PE-level / other-exhibit page ends the open project
+       * section. Inherited project context is no longer authoritative past
+       * this page, and the page itself is owned by another stage. */
+      flush();
+      boundaries.push({
+        page: result.page,
+        kind: result.kind,
+        ...(result.peCode != null ? { peCode: result.peCode } : {}),
+        ...(result.peTitle != null ? { peTitle: result.peTitle } : {}),
+        rawText: result.rawText,
+      });
+      continue;
+    }
+
     if (result.status === 'not_r2a_page') {
-      if (active != null) activePages.push(page);
+      if (active != null && lastActivePage != null && page.page === lastActivePage + 1) {
+        activePages.push(page);
+        lastActivePage = page.page;
+      } else {
+        /* No open section, or a page gap: a header-less page can never
+         * (re)open or bridge a section on its own. */
+        flush();
+      }
       continue;
     }
 
@@ -404,6 +565,7 @@ export function groupR2aPagesByStructuralIdentityV1(
       active.projectCode === header.projectCode
     ) {
       activePages.push(page);
+      lastActivePage = page.page;
     } else {
       flush();
       active = {
@@ -413,9 +575,10 @@ export function groupR2aPagesByStructuralIdentityV1(
         projectName: header.projectName,
       };
       activePages = [page];
+      lastActivePage = page.page;
     }
   }
   flush();
 
-  return { groups, omissions };
+  return { groups, omissions, boundaries };
 }

@@ -107,6 +107,9 @@ export function DefenseBudgetLifecycleHealthPage() {
           <Link to={`/defense-budget-lifecycle/review-queue?fiscalYear=${fiscalYear}`} className="dbl-vnext-link">
             Review queue →
           </Link>
+          <Link to="/defense-budget-lifecycle/reviewed-partial" className="dbl-vnext-link">
+            Reviewed partial records →
+          </Link>
         </div>
       </div>
 

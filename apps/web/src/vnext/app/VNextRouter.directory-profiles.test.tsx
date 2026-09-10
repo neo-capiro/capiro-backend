@@ -86,6 +86,13 @@ function renderAt(path: string) {
               path="/directory/members/:memberId"
               element={<div data-testid="canonical-member-profile" />}
             />
+            {/* LW-06 alias leaf: App.tsx mounts this so react-router has a
+                matching leaf for /directory/people/:id — the vNext interceptor
+                must claim it before it renders. */}
+            <Route
+              path="/directory/people/:memberId"
+              element={<div data-testid="canonical-member-profile-people" />}
+            />
             <Route
               path="/directory/staff/:staffId"
               element={<div data-testid="canonical-staff-profile" />}
@@ -121,6 +128,12 @@ describe('VNextRouter — directory profile routes claimed (Phase 2)', () => {
     renderAt('/directory/members/member-500');
     expect(await screen.findByTestId('vnext-member-profile')).toHaveTextContent('member-500');
     expect(screen.queryByTestId('canonical-member-profile')).not.toBeInTheDocument();
+  });
+
+  it.each(['member-500', 'R000500'])('claims the member alias with identity %s (LW-06)', async (id) => {
+    renderAt(`/directory/people/${id}`);
+    expect(await screen.findByTestId('vnext-member-profile')).toHaveTextContent(id);
+    expect(screen.queryByTestId('canonical-member-profile-people')).not.toBeInTheDocument();
   });
 
   it('claims /directory/staff/:staffId with the parsed id', async () => {

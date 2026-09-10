@@ -124,8 +124,18 @@ export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
   'analytics',
 ];
 
-/** §7.2 / §7.9 — removed tabs redirect to hearings. */
-export const REMOVED_TABS = new Set(['overview', 'watchlist', 'watchlists']);
+/** Removed tabs redirect to hearings. Legacy watchlist names remain reachable
+ * through the canonical client targeting subview under Settings. */
+export const REMOVED_TABS = new Set(['overview']);
+
+/** Settings dispatches watchlist/watchlists to canonical client targeting;
+ * watches/presets open the separate additive preset list. */
+export const TAB_ALIASES: Record<string, LegiWatchTab> = {
+  watchlist: 'settings',
+  watchlists: 'settings',
+  watches: 'settings',
+  presets: 'settings',
+};
 
 /** react-query key namespace for this module. Shared records (alerts, bills,
  *  hearings) reuse the canonical keys from their owning client files so a

@@ -433,7 +433,10 @@ export function App() {
         <Route path="/directory/department-of-war" element={<DirectoryPage />} />
         <Route path="/directory/state-legislators" element={<DirectoryPage />} />
         {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
+        {/* Keep older member-profile URLs compatible with the canonical page.
+            New committee-room links use /directory/members and a person ID. */}
         <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
+        <Route path="/directory/people/:memberId" element={<MemberDirectoryProfilePage />} />
         <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
         <Route path="/directory/committees/:committeeId" element={<CommitteeDirectoryPage />} />
         <Route path="/directory/state-legislators/:id" element={<StateLegislatorProfilePage />} />
