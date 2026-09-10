@@ -1,0 +1,59 @@
+name: client-profile-qa
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/clients/**'
+      - 'apps/intel-api/src/tracker/**'
+      - 'apps/intel-api/test/tracker-*.spec.ts'
+      - 'apps/web/src/pages/intelligence/opportunities/**'
+      - 'apps/web/src/vnext/pages/client-crm/**'
+      - 'apps/web/src/vnext/pages/funding-opportunities/**'
+      - 'apps/web/src/vnext/pages/portfolio/**'
+      - 'packages/shared/**'
+      - 'packages/strategy-verifier/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/client-profile-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  q10-q12:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build runtime dependencies
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+          pnpm --filter @capiro/strategy-verifier build
+      - name: Generate API clients
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+      - name: Opportunity rendering, review and portfolio regression tests
+        run: >
+          pnpm --filter @capiro/web exec vitest run
+          src/pages/intelligence/opportunities/opportunity-description.test.tsx
+          src/vnext/pages/funding-opportunities/FundingOpportunityBrowse.test.tsx
+          src/vnext/pages/client-crm/ClientFillWithMeriDrawer.review.test.tsx
+          src/vnext/pages/portfolio/PortfolioIndexPage.test.tsx
+          --poolOptions.threads.singleThread
+      - name: Fill retry orchestration and timeout regression tests
+        run: pnpm --filter @capiro/api exec jest --runInBand src/clients/client-profile-fill-retry.spec.ts
+      - name: Tracker counts and pagination regression tests
+        run: >
+          pnpm --filter @capiro/intel-api exec jest --runInBand
+          test/tracker-portfolio-counts.spec.ts test/tracker-board-pagination.spec.ts

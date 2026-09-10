@@ -10,6 +10,8 @@ on:
       - 'apps/web/vnext-*.html'
       - 'apps/web/scripts/vnext-visual-capture.mjs'
       - 'apps/web/package.json'
+      - 'apps/web/vite.config.ts'
+      - 'apps/web/vite.visual.config.ts'
       - 'infra/cdk/bin/web-vnext.ts'
       - 'infra/cdk/lib/web-vnext-stack.ts'
       - 'infra/cdk/package.json'
@@ -29,22 +31,28 @@ jobs:
           version: 9.12.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # The CDP visual-capture script uses the built-in WebSocket API.
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build shared package
         run: pnpm --filter @capiro/shared build
+      - name: Build strategy verifier
+        run: pnpm --filter @capiro/strategy-verifier build
       - name: Web vNext focused tests
-        run: pnpm --filter @capiro/web exec vitest run src/vnext/app/presentation.test.ts src/vnext/foundation-contract.test.ts src/vnext/figma-strategy-legiwatch-contract.test.ts src/vnext/meri/meri-route-state.test.ts --poolOptions.threads.singleThread
+        run: pnpm --filter @capiro/web exec vitest run src/vnext/app/presentation.test.ts src/vnext/foundation-contract.test.ts src/vnext/figma-strategy-legiwatch-contract.test.ts src/vnext/meri/meri-route-state.test.ts src/vnext/testing/visual/VNextShellVisual.test.tsx --poolOptions.threads.singleThread
       - name: Web typecheck
         run: pnpm --filter @capiro/web typecheck
       - name: Web build
+        env:
+          # Match the production Docker build's Rollup heap budget.
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm --filter @capiro/web build
       - name: WebVNext CDK typecheck
         run: pnpm --filter @capiro/infra-cdk typecheck
       - name: Start vNext visual fixtures
         run: |
-          pnpm --filter @capiro/web dev --host 127.0.0.1 --port 4173 > /tmp/capiro-vnext-vite.log 2>&1 &
+          pnpm --filter @capiro/web dev --config vite.visual.config.ts --host 127.0.0.1 --port 4173 > /tmp/capiro-vnext-vite.log 2>&1 &
           echo $! > /tmp/capiro-vnext-vite.pid
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:4173/vnext-workshop.html >/dev/null; then

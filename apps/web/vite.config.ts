@@ -42,13 +42,17 @@ export default defineConfig({
   // Explicitly pre-bundle @capiro/shared so esbuild rewrites the CJS
   // `exports.X = ...` form into named ESM exports the browser can import.
   //
-  // The Meri surfaces (e.g. MeriQuickActionsPanel, meri-start-work) import the
-  // CJS subpath @capiro/shared/meri-skills. Pre-bundling the package root
-  // above does not cover this subpath — the optimizer never discovers it, so
-  // Vite serves dist/meri-skills.js raw over /@fs/ and the browser dies on
-  // `exports.X = ...` (no named ESM exports). Include it explicitly.
+  // Pre-bundling the package root does not cover its CJS subpaths. Include
+  // each subpath imported at runtime by web pages so the dev server never
+  // serves workspace CommonJS files directly to the browser.
   optimizeDeps: {
-    include: ['@capiro/shared', '@capiro/shared/meri-skills', '@capiro/strategy-verifier'],
+    include: [
+      '@capiro/shared',
+      '@capiro/shared/meri-skills',
+      '@capiro/shared/client-registration-integrity',
+      '@capiro/shared/funding-claim',
+      '@capiro/strategy-verifier',
+    ],
   },
   build: {
     // @capiro/shared compiles to CommonJS so that the NestJS CJS runtime can

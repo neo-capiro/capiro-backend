@@ -6,12 +6,19 @@
  * empty (no records vs. filters), and the populated list — plus the
  * search/status/sort behaviour and the Import-with-LDA entry point.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PortfolioIndexPage } from './PortfolioIndexPage.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
+
+const trackerFlag = vi.hoisted(() => ({ enabled: false, ready: true }));
+vi.mock('../../../lib/intel-feature-flags.js', () => ({
+  useIntelFeature: (feature: string) => feature === 'tracker_v2' ? trackerFlag : { enabled: false, ready: true },
+  useIntelFeatureEnabled: () => false,
+}));
+afterEach(() => { trackerFlag.enabled = false; trackerFlag.ready = true; });
 
 const clients: Array<Partial<Client>> = [
   {
@@ -79,10 +86,17 @@ function makeApi(
     clientsArchivedOnly?: boolean;
     engagementTrendError?: boolean;
     engagementTrendNoHistory?: boolean;
+    trackerError?: boolean;
+    strategiesError?: boolean;
+    strategies?: Array<{ id: string; clientId: string }>;
   } = {},
 ) {
   return {
     get: async (path: string) => {
+      if (path === '/intel-api/clients/_all/tracker/counts') {
+        if (overrides.trackerError) throw new Error('tracker unavailable');
+        return { data: { counts: { 'c-1': 3 } } };
+      }
       if (path === '/api/clients') {
         if (overrides.clientsError) throw new Error('clients boom');
         if (overrides.clientsArchivedOnly) {
@@ -134,7 +148,13 @@ function makeApi(
         }
         return { data: engagementTrend };
       }
-      if (path === '/strategy-api/strategies') return { data: [] };
+      if (path === '/strategy-api/strategies') {
+        if (overrides.strategiesError) throw new Error('strategies unavailable');
+        return { data: overrides.strategies ?? [
+          ...Array.from({ length: 2 }, (_, i) => ({ id: `c1-${i}`, clientId: 'c-1' })),
+          ...Array.from({ length: 4 }, (_, i) => ({ id: `c3-${i}`, clientId: 'c-3' })),
+        ] };
+      }
       if (path === '/api/engagement/meetings') return { data: [] };
       if (path === '/api/firm/registrant') {
         return { data: { ldaRegistrantId: null, ldaRegistrantName: null } };
@@ -192,6 +212,48 @@ function renderIndex(search = '') {
 }
 
 describe('PortfolioIndexPage', () => {
+  it('uses profile strategies and tracker-v2 counts instead of legacy rollup counters (Q12)', async () => {
+    trackerFlag.enabled = true;
+    apiOverride = makeApi({ strategies: Array.from({ length: 4 }, (_, i) => ({ id: `s-${i}`, clientId: 'c-1' })) });
+    renderIndex();
+    const owner = await screen.findByRole('button', { name: 'Overland AI' });
+    const row = within(owner.closest('tr')!);
+    expect(await row.findByLabelText('4 strategies')).toHaveTextContent('4');
+    expect(await row.findByLabelText('3 tracked bills')).toHaveTextContent('3');
+    // Another client with no tracked rows is a real zero after the batch resolves.
+    const emptyRow = within(screen.getByRole('button', { name: 'Acme Robotics' }).closest('tr')!);
+    expect(emptyRow.getByLabelText('0 tracked bills')).toHaveTextContent('0');
+  });
+
+  it('shows a failed tracker count as unavailable while strategies still load', async () => {
+    trackerFlag.enabled = true;
+    apiOverride = makeApi({ trackerError: true });
+    renderIndex();
+    const owner = await screen.findByRole('button', { name: 'Overland AI' });
+    const row = within(owner.closest('tr')!);
+    expect(await row.findByLabelText('2 strategies')).toBeInTheDocument();
+    expect(await row.findByTitle('Count unavailable')).toHaveTextContent('—');
+    expect(row.queryByLabelText('0 tracked bills')).not.toBeInTheDocument();
+    expect(row.queryByLabelText('5 tracked bills')).not.toBeInTheDocument();
+  });
+
+  it('does not substitute zero strategies after an error or legacy intel while flags load', async () => {
+    trackerFlag.ready = false;
+    apiOverride = makeApi({ strategiesError: true });
+    renderIndex();
+    const owner = await screen.findByRole('button', { name: 'Overland AI' });
+    const row = within(owner.closest('tr')!);
+    expect(await row.findByTitle('Count unavailable')).toHaveTextContent('—');
+    expect(row.queryByLabelText('0 strategies')).not.toBeInTheDocument();
+    expect(row.queryByLabelText('5 tracked bills')).not.toBeInTheDocument();
+  });
+
+  it('uses legacy tracked-bill counts when tracker-v2 is disabled', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    expect(await screen.findByLabelText('5 tracked bills')).toHaveTextContent('5');
+  });
+
   it('renders the pulse band and the client list from live data', async () => {
     apiOverride = makeApi();
     renderIndex();
@@ -199,7 +261,7 @@ describe('PortfolioIndexPage', () => {
     await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
     expect(screen.getByText('Acme Robotics')).toBeInTheDocument();
     // Pulse figures from the summary endpoint.
-    expect(screen.getByText('Tracked bills')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Tracked bills' })).toBeInTheDocument();
     expect(screen.getByText('Portfolio pulse')).toBeInTheDocument();
     expect(screen.getByText('Active strategies')).toBeInTheDocument();
     expect(screen.getByText('Meetings this week')).toBeInTheDocument();
@@ -233,15 +295,17 @@ describe('PortfolioIndexPage', () => {
     expect(screen.queryByText('Overland AI')).not.toBeInTheDocument();
   });
 
-  it('renders the Work column with real per-row counts from the rollup (item 5)', async () => {
+  it('renders explicitly labeled strategy counts from the client Work source', async () => {
     apiOverride = makeApi();
     renderIndex();
     await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
-    // Overland AI (c-1) has workCount=2; the cell should contain "2".
+    await screen.findByLabelText('2 strategies');
+    expect(screen.getByRole('columnheader', { name: 'Strategies' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Tracked bills' })).toBeInTheDocument();
     const rows = screen.getAllByRole('row').slice(1); // drop header
     const overlandRow = rows.find((r) => r.textContent?.includes('Overland AI'));
     expect(overlandRow).toBeDefined();
-    expect(overlandRow!.textContent).toContain('2');
+    expect(within(overlandRow!).getByLabelText('2 strategies')).toHaveTextContent('2');
   });
 
   it('sorts by readiness (item 6) — clients with more work sort first', async () => {

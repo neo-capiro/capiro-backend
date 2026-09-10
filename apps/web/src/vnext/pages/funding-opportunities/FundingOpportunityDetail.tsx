@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
+import { opportunityDescriptionText } from '../../../pages/intelligence/opportunities/opportunity-description.js';
 import {
   FIT_BAND_COLORS,
   FIT_BAND_LABELS,
@@ -117,6 +118,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
   }
 
   const o = query.data;
+  const description = opportunityDescriptionText(o.summary ?? '');
   const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
   const money = moneyLine(o);
   const explained = explainSignals(o.matchedSignals);
@@ -176,7 +178,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           />
         </div>
         {o.summary && !o.summaryIsLink ? (
-          <p style={{ whiteSpace: 'pre-wrap' }}>{o.summary}</p>
+          <p style={{ whiteSpace: 'pre-wrap' }}>{description}</p>
         ) : (
           <p className="fov-muted">Read the source record for the full description.</p>
         )}
@@ -380,7 +382,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
               </p>
             ) : (
               <p className="fov-muted" style={{ margin: '10px 0 0' }}>
-                {o.summary}
+                {description}
               </p>
             )
           ) : (

@@ -118,6 +118,7 @@ function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): nu
     model.meetings.dataUpdatedAt,
     model.accountOwners.dataUpdatedAt,
     model.rollup.dataUpdatedAt,
+    model.trackerCounts.dataUpdatedAt,
     model.peSummary.dataUpdatedAt,
     model.engagementTrend.dataUpdatedAt,
   ].filter((t) => t > 0);
@@ -151,13 +152,13 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
       { label: 'Clients', value: clientCount ?? null },
       { label: 'Active strategies', value: s?.activeStrategies ?? null },
       { label: 'Meetings this week', value: s?.meetingsThisWeek ?? null },
-      { label: 'Tracked bills', value: s?.billsTracked ?? null },
+      { label: 'Tracked bills', value: model.totalTrackedBills },
       { label: 'Active regulations', value: s?.activeRegulations ?? null },
       // LDA spend is a dollar amount — rendered via the shared null-safe
       // compact-money helper ($1.8M), not '$' + toLocaleString.
       { label: 'LDA spend QTD', value: s?.ldaSpendQtd ?? null, money: true },
     ];
-  }, [summary.data, clients.data]);
+  }, [summary.data, clients.data, model.totalTrackedBills]);
 
   // Re-render on a 30s tick so the "Refreshed Xm ago" label stays honest
   // instead of freezing at whatever it said when the data last changed.
@@ -208,7 +209,7 @@ function RollupCount({
   describe?: (n: number) => string;
 }) {
   if (state === 'loading') return <span className="capiro-portfolio__cell-skel" aria-hidden />;
-  if (state === 'error' || value == null) return <span className={className} title="Rollup unavailable">—</span>;
+  if (state === 'error' || value == null) return <span className={className} title="Count unavailable">—</span>;
   const label = describe?.(value);
   return <span className={className} aria-label={label} title={label}>{value}</span>;
 }
@@ -277,7 +278,7 @@ function ClientIdentity({ row, onOpen }: { row: PortfolioRow; onOpen?: () => voi
   );
 }
 
-function ClientRow({ row, rollupState, onOpen }: { row: PortfolioRow; rollupState: RollupState; onOpen: () => void }) {
+function ClientRow({ row, rollupState, workState, intelState, onOpen }: { row: PortfolioRow; rollupState: RollupState; workState: RollupState; intelState: RollupState; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
   const railStyle = { '--capiro-portfolio-rail-color': STATUS_RAIL_COLOR[row.status] } as CSSProperties;
   return (
@@ -285,17 +286,17 @@ function ClientRow({ row, rollupState, onOpen }: { row: PortfolioRow; rollupStat
       <td><ClientIdentity row={row} onOpen={onOpen} /></td>
       <td>{focus.length ? <div className="capiro-portfolio__tags">{focus.map((t) => <span className="capiro-portfolio__tag" key={t}>{t}</span>)}</div> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td>{row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}</td>
-      {/* G3 rollup (item 5): real in_progress task count in the Work column */}
-      <td><RollupCount state={rollupState} value={row.workCount} className="capiro-portfolio__work-value" /></td>
+      {/* Counts use the same sources as the client profile. */}
+      <td><RollupCount state={workState} value={row.workCount} className="capiro-portfolio__work-value" describe={(n) => `${n} strategies`} /></td>
       {/* G3 rollup (wire-audit "4 New capability" items 2-4): real intel/attention/next-touch */}
-      <td><RollupCount state={rollupState} value={row.intelCount} className="capiro-portfolio__meta" /></td>
+      <td><RollupCount state={intelState} value={row.intelCount} className="capiro-portfolio__meta" describe={(n) => `${n} tracked bills`} /></td>
       <td><RollupCount state={rollupState} value={row.attentionCount} className={attentionClass(row.attentionCount)} /></td>
       <td><NextTouchCell state={rollupState} nextTouch={row.nextTouch} /></td>
     </tr>
   );
 }
 
-function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupState: RollupState; onOpen: () => void }) {
+function ClientCard({ row, rollupState, workState, onOpen }: { row: PortfolioRow; rollupState: RollupState; workState: RollupState; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
   const railStyle = { '--capiro-portfolio-rail-color': STATUS_RAIL_COLOR[row.status] } as CSSProperties;
   return (
@@ -313,7 +314,7 @@ function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupSta
       <div className="capiro-portfolio__card-focus">
         {focus.length ? focus.map((tag) => <span className="capiro-portfolio__tag" key={tag}>{tag}</span>) : <span className="capiro-portfolio__meta">—</span>}
       </div>
-      <div className="capiro-portfolio__card-work"><RollupCount state={rollupState} value={row.workCount} className="capiro-portfolio__work-value" /></div>
+      <div className="capiro-portfolio__card-work"><span className="capiro-portfolio__meta">Strategies </span><RollupCount state={workState} value={row.workCount} className="capiro-portfolio__work-value" describe={(n) => `${n} strategies`} /></div>
       <div className="capiro-portfolio__card-foot">
         {row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}
         {/* G3 rollup (item 1): next-touch date in card foot */}
@@ -444,6 +445,7 @@ export function PortfolioIndexPage() {
       void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
+      void queryClient.invalidateQueries({ queryKey: ['intel-tracker', 'portfolio-counts'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-pe-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-engagement-trend'] });
       setCreateOpen(false);
@@ -466,6 +468,7 @@ export function PortfolioIndexPage() {
     void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
+    void queryClient.invalidateQueries({ queryKey: ['intel-tracker', 'portfolio-counts'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-pe-summary'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-engagement-trend'] });
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
@@ -505,10 +508,10 @@ export function PortfolioIndexPage() {
         </div>
 
         {clients.isLoading ? <div aria-busy="true"><div className="capiro-portfolio__skeleton capiro-portfolio__skeleton--tall" /></div> : clients.isError ? <div className="capiro-portfolio__state capiro-portfolio__state--error" role="status"><span>Clients could not be loaded.{clients.error instanceof Error ? ` (${clients.error.message})` : ''}</span><CapiroButton variant="quiet" size="compact" onClick={() => void clients.refetch()}>Retry</CapiroButton></div> : showEmpty ? <div className="capiro-portfolio__state" role="status">{emptyIsFilter ? <><span>No clients match the current search and filters.</span><button type="button" className="capiro-portfolio__linkbtn" onClick={() => setRoute({ q: '', status: 'all' })}>Clear search and filters</button></> : 'No clients yet. Add one with New client, or import several with Import with LDA.'}</div> : route.layout === 'list' ? (
-          <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th>Work</th><th>Intel</th><th>Attn</th><th>Next</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
+          <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th title="Strategies in the client Work tab">Strategies</th><th title="Bills on the client tracker board">Tracked bills</th><th>Attn</th><th>Next</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} rollupState={rollupState} workState={model.workState} intelState={model.intelState} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
         ) : (
           <>
-            <div className="capiro-portfolio__cards">{model.visible.map((row) => <ClientCard key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</div>
+            <div className="capiro-portfolio__cards">{model.visible.map((row) => <ClientCard key={row.client.id} row={row} rollupState={rollupState} workState={model.workState} onOpen={() => openClient(row.client.id)} />)}</div>
             <div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div>
           </>
         )}

@@ -12,11 +12,11 @@
  */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useApi } from '../../../lib/use-api.js';
-import { useMe } from '../../../lib/me.js';
-import { CapiroBadge } from '../../components/badges/index.js';
-import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
-import { CapiroSelect } from '../../components/fields/index.js';
+import { useApi } from '../../../../lib/use-api.js';
+import { useMe } from '../../../../lib/me.js';
+import { CapiroBadge } from '../../../components/badges/index.js';
+import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
+import { CapiroSelect } from '../../../components/fields/index.js';
 import {
   CapiroTable,
   CapiroTableBody,
@@ -24,7 +24,7 @@ import {
   CapiroTableHead,
   CapiroTableHeaderCell,
   CapiroTableWrap,
-} from '../../components/tables/index.js';
+} from '../../../components/tables/index.js';
 import { listReviewedPartialPeTotals, type ReviewedPartialPeTotal } from './reviewed-partial-pe-totals-api.js';
 
 const FISCAL_YEAR_OPTIONS = [2024, 2025, 2026, 2027, 2028].map((year) => ({ label: `FY${year}`, value: String(year) }));
@@ -133,7 +133,7 @@ export function ReviewedPartialPeTotalsPage() {
           value={String(fiscalYear)}
           onChange={(e) => setFiscalYear(Number(e.target.value))}
           options={FISCAL_YEAR_OPTIONS}
-          aria-label="Fiscal year"
+          label="Fiscal year"
         />
       </div>
 

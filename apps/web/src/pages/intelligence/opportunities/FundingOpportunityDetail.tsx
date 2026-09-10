@@ -36,6 +36,7 @@ import {
   type FundingOpportunity,
 } from './funding-opportunities-api.js';
 import './funding-opportunities.css';
+import { opportunityDescriptionText } from './opportunity-description.js';
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -520,7 +521,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
             </Paragraph>
           ) : (
             <Paragraph type="secondary" style={{ marginTop: 10, marginBottom: 0, fontSize: 12 }}>
-              {o.summary}
+              {opportunityDescriptionText(o.summary)}
             </Paragraph>
           )
         ) : (

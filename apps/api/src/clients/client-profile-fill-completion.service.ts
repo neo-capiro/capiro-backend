@@ -22,6 +22,7 @@ import {
 } from './client-profile-fill.helpers.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
+import { buildFillRunSummary, requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
 import {
   ClientAdvocacyMatterService,
   type FederalRegisterCorrelationSuggestion,
@@ -244,7 +245,7 @@ const NON_APPLYABLE_ADVANCED_KINDS = new Set([
   'district_nexus',
   'profile_completion',
 ]);
-const TERMINAL_TASK_STATUSES = new Set<CompletionTaskStatus>([
+const TERMINAL_TASK_STATUSES = new Set<string>([
   'completed',
   'failed',
   'skipped',
@@ -519,6 +520,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     if (!hasAdvanced) return this.workflow.cancelRun(ctx, clientId, runId);
 
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Use the same run-before-task lock order as retry and finalization.
+      await tx.$queryRawUnsafe(
+        `SELECT id FROM client_profile_fill_run
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid FOR UPDATE`,
+        runId, ctx.tenantId, clientId,
+      );
       await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_extension_task
             SET status = 'cancelled', completed_at = now(), worker_id = NULL,
@@ -556,6 +563,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
 
   async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
     const changed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_profile_fill_run
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
+            AND status <> 'cancelled' FOR UPDATE`,
+        runId, ctx.tenantId, clientId,
+      );
+      if (!runs.length) throw new BadRequestException('This run cannot be retried');
       const count = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_extension_task
             SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
@@ -569,9 +583,19 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         ctx.tenantId,
         clientId,
       );
+      if (Number(count) === 1) {
+        await requeueFailedFillReviewChecks(tx, runId, ctx.tenantId);
+        await tx.$executeRawUnsafe(
+          `UPDATE client_profile_fill_run
+              SET status = 'running', stage = 'research', completed_at = NULL,
+                  error = NULL, last_progress_at = now(), updated_at = now()
+            WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+          runId, ctx.tenantId,
+        );
+      }
       return Number(count);
     });
-    if (changed !== 1) return this.workflow.retryTask(ctx, clientId, runId, taskId);
+    if (changed !== 1) await this.workflow.retryTask(ctx, clientId, runId, taskId);
     this.requestTaskSweep();
     return this.getRun(ctx, clientId, runId);
   }
@@ -833,25 +857,27 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       : [];
     const allTasks = [...coreTasks, ...tasks];
     const progress = mergeFillProgress(allTasks);
-    const extensionPending = tasks.some(
+    const pending = core.status !== 'cancelled' && allTasks.some(
       (task) => task.status === 'queued' || task.status === 'running',
     );
     const allTerminal =
-      tasks.length > 0 && tasks.every((task) => TERMINAL_TASK_STATUSES.has(task.status));
+      allTasks.length > 0 && allTasks.every((task) => TERMINAL_TASK_STATUSES.has(String(task.status)));
     const anyFailed = allTasks.some((task) => task.status === 'failed');
     const anyCompleted = allTasks.some(
       (task) => task.status === 'completed' || task.status === 'skipped',
     );
-    const status = extensionPending
-      ? 'running'
-      : allTerminal
-        ? anyFailed
-          ? anyCompleted
-            ? 'partial'
-            : 'failed'
-          : 'completed'
-        : core.status;
-    const stage = extensionPending
+    const status = core.status === 'cancelled'
+      ? 'cancelled'
+      : pending
+        ? 'running'
+        : allTerminal
+          ? anyFailed
+            ? anyCompleted
+              ? 'partial'
+              : 'failed'
+            : 'completed'
+          : core.status;
+    const stage = pending
       ? tasks.some(
           (task) =>
             task.status === 'running' &&
@@ -876,7 +902,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       ...core,
       status,
       stage,
-      completedAt: extensionPending ? null : core.completedAt,
+      completedAt: pending ? null : core.completedAt,
       sourceStates,
       progress,
       tasks: allTasks,
@@ -1086,17 +1112,19 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       lifecycle_outcomes: ['program_elements', 'bill_tracker'],
     };
     const required = requirements[task.taskType] ?? [];
-    if (!required.length) return;
+    const waitForAll = task.taskType === 'reconciliation' || task.taskType === 'completion_audit';
+    if (!required.length && !waitForAll) return;
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ pending: number }>>(
         `SELECT COUNT(*)::int AS pending
            FROM client_profile_fill_task
           WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-            AND task_type = ANY($3::text[])
+            AND ($4::boolean OR task_type = ANY($3::text[]))
             AND status IN ('queued', 'running')`,
         task.runId,
         task.tenantId,
         required,
+        waitForAll,
       ),
     );
     if (Number(rows[0]?.pending ?? 0) > 0) {
@@ -4756,19 +4784,36 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
   private async finalizeRuns(): Promise<void> {
     const runs = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ runId: string; tenantId: string }>>(
-        `SELECT DISTINCT run_id AS "runId", tenant_id AS "tenantId"
-           FROM client_profile_fill_extension_task extension
-          WHERE NOT EXISTS (
-            SELECT 1 FROM client_profile_fill_extension_task pending
-             WHERE pending.run_id = extension.run_id
-               AND pending.status IN ('queued', 'running')
-          )
+        `SELECT r.id AS "runId", r.tenant_id AS "tenantId"
+           FROM client_profile_fill_run r
+          WHERE r.status <> 'cancelled'
+            AND EXISTS (SELECT 1 FROM client_profile_fill_extension_task extension
+                         WHERE extension.run_id = r.id AND extension.tenant_id = r.tenant_id
+                           AND (r.completed_at IS NULL OR extension.updated_at > r.completed_at))
+            AND NOT EXISTS (
+              SELECT 1 FROM client_profile_fill_extension_task pending
+               WHERE pending.run_id = r.id AND pending.tenant_id = r.tenant_id
+                 AND pending.status IN ('queued', 'running')
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM client_profile_fill_task pending
+               WHERE pending.run_id = r.id AND pending.tenant_id = r.tenant_id
+                 AND pending.status IN ('queued', 'running')
+            )
+          ORDER BY r.updated_at ASC
           LIMIT 20`,
       ),
     );
     for (const run of runs) {
-      const statuses = await this.prisma.withSystem((tx) =>
-        tx.$queryRawUnsafe<Array<{ status: string }>>(
+      await this.prisma.withSystem(async (tx) => {
+        // Serialize with retry, then re-read BOTH task groups under the lock.
+        const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
+            AND tenant_id = $2::uuid AND status <> 'cancelled' FOR UPDATE`,
+          run.runId, run.tenantId,
+        );
+        if (!locked.length) return;
+        const statuses = await tx.$queryRawUnsafe<Array<{ status: string }>>(
           `SELECT status FROM client_profile_fill_task
             WHERE run_id = $1::uuid AND tenant_id = $2::uuid
            UNION ALL
@@ -4776,41 +4821,20 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
             WHERE run_id = $1::uuid AND tenant_id = $2::uuid`,
           run.runId,
           run.tenantId,
-        ),
-      );
-      const failed = statuses.filter((row) => row.status === 'failed').length;
-      const completed = statuses.filter(
-        (row) => row.status === 'completed' || row.status === 'skipped',
-      ).length;
-      const status = failed > 0 ? (completed > 0 ? 'partial' : 'failed') : 'completed';
-      const summaryRows = await this.prisma.withSystem((tx) =>
-        tx.$queryRawUnsafe<Array<{ kind: string; state: string; count: number }>>(
-          `SELECT kind, status AS state, COUNT(*)::int AS count
-             FROM client_profile_fill_finding
-            WHERE run_id = $1::uuid AND tenant_id = $2::uuid
-            GROUP BY kind, status`,
-          run.runId,
-          run.tenantId,
-        ),
-      );
-      const byKind: Record<string, number> = {};
-      const byStatus: Record<string, number> = {};
-      for (const row of summaryRows) {
-        byKind[row.kind] = (byKind[row.kind] ?? 0) + Number(row.count);
-        byStatus[row.state] = (byStatus[row.state] ?? 0) + Number(row.count);
-      }
-      const summary = {
-        total: summaryRows.reduce((sum, row) => sum + Number(row.count), 0),
-        byKind,
-        byStatus,
-      };
-      await this.prisma.withSystem((tx) =>
-        tx.$executeRawUnsafe(
+        );
+        if (statuses.some((row) => !TERMINAL_TASK_STATUSES.has(row.status))) return;
+        const failed = statuses.filter((row) => row.status === 'failed').length;
+        const completed = statuses.filter(
+          (row) => row.status === 'completed' || row.status === 'skipped',
+        ).length;
+        const status = failed > 0 ? (completed > 0 ? 'partial' : 'failed') : 'completed';
+        const summary = await buildFillRunSummary(tx, run.runId, run.tenantId);
+        await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run
               SET status = $3,
                   stage = CASE WHEN $3 = 'failed' THEN 'failed' ELSE 'review_ready' END,
                   summary_jsonb = $4::jsonb,
-                  completed_at = COALESCE(completed_at, now()),
+                  completed_at = now(),
                   last_progress_at = now(), updated_at = now(),
                   error = CASE WHEN $3 = 'failed' THEN 'All Fill with Meri tasks failed' ELSE NULL END
             WHERE id = $1::uuid AND tenant_id = $2::uuid AND status <> 'cancelled'`,
@@ -4818,8 +4842,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           run.tenantId,
           status,
           JSON.stringify(summary),
-        ),
-      );
+        );
+      });
     }
   }
 

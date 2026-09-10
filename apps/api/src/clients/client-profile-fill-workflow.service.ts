@@ -23,6 +23,7 @@ import {
   type ClientProfileFillGovernedContext,
 } from './client-profile-fill-context-plane.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
+import { buildFillRunSummary, requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
 
 export const CLIENT_PROFILE_FILL_TASK_TYPES = [
@@ -84,7 +85,6 @@ interface FillEngineInternals {
     documentText: string,
   ): Promise<number>;
   maybeSeedWebsite(ctx: TenantContext, clientId: string, seedWebsite?: string | null): Promise<void>;
-  buildSummary(tenantId: string, runId: string): Promise<Record<string, unknown>>;
 }
 
 interface WorkflowRunRow {
@@ -742,6 +742,14 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   async retryTask(ctx: TenantContext, clientId: string, runId: string, taskId: string) {
     await this.assertClient(ctx, clientId);
     const changed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Finalization takes the same run lock before reading task states.
+      const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_profile_fill_run
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
+            AND workflow_version >= 2 AND status <> 'cancelled' FOR UPDATE`,
+        runId, ctx.tenantId, clientId,
+      );
+      if (!runs.length) throw new BadRequestException('This run cannot be retried');
       const count = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task
             SET status = 'queued', next_attempt_at = now(), completed_at = NULL,
@@ -761,11 +769,12 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
               SET status = 'running', stage = 'research', completed_at = NULL,
                   error = NULL, last_progress_at = now(), updated_at = now()
             WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
-              AND workflow_version >= 2 AND status IN ('partial', 'failed')`,
+              AND workflow_version >= 2 AND status <> 'cancelled'`,
           runId,
           ctx.tenantId,
           clientId,
         );
+        await requeueFailedFillReviewChecks(tx, runId, ctx.tenantId);
       }
       return Number(count);
     });
@@ -781,6 +790,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     try {
       await this.recoverPreparingRuns();
       await this.recoverStaleTasks();
+      await this.recoverInterruptedRetries();
       const tasks = await this.claimTasks();
       await Promise.all(tasks.map((task) => this.executeClaimedTask(task)));
       await this.finalizeReadyRuns();
@@ -793,6 +803,29 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     void this.sweepOnce().catch((error) =>
       this.logger.error(`Fill with Meri task sweep failed: ${this.safeError(error)}`),
     );
+  }
+
+  /** Repair runs closed by an older finalizer while a core retry was pending. */
+  private async recoverInterruptedRetries(): Promise<void> {
+    await this.prisma.withSystem(async (tx) => {
+      const runs = await tx.$queryRawUnsafe<Array<{ id: string; tenantId: string }>>(
+        `SELECT r.id, r.tenant_id AS "tenantId" FROM client_profile_fill_run r
+          WHERE r.workflow_version >= 2 AND r.status IN ('partial', 'failed', 'completed')
+            AND EXISTS (SELECT 1 FROM client_profile_fill_task t
+                         WHERE t.run_id = r.id AND t.tenant_id = r.tenant_id
+                           AND t.status IN ('queued', 'running'))
+          ORDER BY r.updated_at ASC LIMIT 20 FOR UPDATE OF r SKIP LOCKED`,
+      );
+      for (const run of runs) {
+        await tx.$executeRawUnsafe(
+          `UPDATE client_profile_fill_run SET status = 'running', stage = 'research',
+                  completed_at = NULL, error = NULL, last_progress_at = now(), updated_at = now()
+            WHERE id = $1::uuid AND tenant_id = $2::uuid`,
+          run.id, run.tenantId,
+        );
+        await requeueFailedFillReviewChecks(tx, run.id, run.tenantId);
+      }
+    });
   }
 
   private async recoverPreparingRuns(): Promise<void> {
@@ -980,15 +1013,17 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
 
     try {
       const source = task.taskType === 'client_document' ? undefined : task.taskType;
-      const bundle = await this.contextPlane.resolve(ctx, {
-        clientId: task.clientId,
-        requestedSources: source ? [source] : undefined,
-        attachmentId,
+      const count = await this.withTaskTimeout<number>(async (signal) => {
+        const bundle = await this.contextPlane.resolve(ctx, {
+          clientId: task.clientId,
+          requestedSources: source ? [source] : undefined,
+          attachmentId,
+        });
+        signal.throwIfAborted();
+        await this.contextPlane.recordRunContext(ctx, task.runId, bundle);
+        signal.throwIfAborted();
+        return runWithGovernedCrmFillBundle(bundle, () => this.executeTask(ctx, task, bundle));
       });
-      await this.contextPlane.recordRunContext(ctx, task.runId, bundle);
-      const count = await this.withTaskTimeout<number>(
-        runWithGovernedCrmFillBundle(bundle, () => this.executeTask(ctx, task, bundle)),
-      );
       await this.completeTask(task, count);
     } catch (error) {
       await this.failTask(task, 'task_failed', this.safeError(error), task.attempt < task.maxAttempts);
@@ -1187,6 +1222,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             AND r.status = 'running'
             AND r.stage = 'research'
             AND NOT EXISTS (
+              SELECT 1 FROM client_profile_fill_extension_task extension
+               WHERE extension.run_id = r.id AND extension.tenant_id = r.tenant_id
+            )
+            AND NOT EXISTS (
               SELECT 1 FROM client_profile_fill_task t
                WHERE t.run_id = r.id AND t.tenant_id = r.tenant_id
                  AND t.status IN ('queued', 'running')
@@ -1196,18 +1235,23 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       ),
     );
     for (const run of runs) {
-      const taskRows = await this.prisma.withSystem((tx) =>
-        tx.$queryRawUnsafe<Array<{ status: ClientProfileFillTaskStatus }>>(
+      await this.prisma.withSystem(async (tx) => {
+        const locked = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM client_profile_fill_run WHERE id = $1::uuid
+            AND tenant_id = $2::uuid AND status = 'running' FOR UPDATE`,
+          run.id, run.tenantId,
+        );
+        if (!locked.length) return;
+        const taskRows = await tx.$queryRawUnsafe<Array<{ status: ClientProfileFillTaskStatus }>>(
           `SELECT status FROM client_profile_fill_task
             WHERE run_id = $1::uuid AND tenant_id = $2::uuid`,
           run.id,
           run.tenantId,
-        ),
-      );
-      const status = deriveClientProfileFillRunStatus(taskRows.map((row) => row.status));
-      const summary = await this.engine.buildSummary(run.tenantId, run.id);
-      await this.prisma.withSystem((tx) =>
-        tx.$executeRawUnsafe(
+        );
+        if (taskRows.some((task) => task.status === 'queued' || task.status === 'running')) return;
+        const status = deriveClientProfileFillRunStatus(taskRows.map((row) => row.status));
+        const summary = await buildFillRunSummary(tx, run.id, run.tenantId);
+        await tx.$executeRawUnsafe(
           `UPDATE client_profile_fill_run
               SET status = $3,
                   stage = CASE WHEN $3 = 'failed' THEN 'failed' ELSE 'review_ready' END,
@@ -1219,8 +1263,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           run.tenantId,
           status,
           JSON.stringify(summary),
-        ),
-      );
+        );
+      });
     }
   }
 
@@ -1306,13 +1350,18 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     };
   }
 
-  private async withTaskTimeout<T>(promise: Promise<T>): Promise<T> {
+  private async withTaskTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
     try {
       return await Promise.race([
-        promise,
+        operation(controller.signal),
         new Promise<T>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new Error('Fill specialist exceeded its task budget')), TASK_TIMEOUT_MS);
+          timer = setTimeout(() => {
+            const error = new Error('Fill specialist exceeded its task budget. Retry this check.');
+            controller.abort(error);
+            reject(error);
+          }, TASK_TIMEOUT_MS);
           timer.unref?.();
         }),
       ]);
