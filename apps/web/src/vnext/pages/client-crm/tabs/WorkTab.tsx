@@ -430,7 +430,7 @@ export function ClientCrmWorkProto({ client, drawer = false }: { client: Client;
         <div className="cap-pf-work-drawer__footer">
           <span className="cap-pf-work-drawer__count-note">Committed steps exclude draft and suggested steps.</span>
           <span className="cap-pf-work-drawer__truth"><i />Source of truth · Strategies</span>
-          <button type="button" onClick={() => navigate('/strategies')}>Open Strategies →</button>
+          <button type="button" onClick={() => navigate(`/strategies?${new URLSearchParams({ clientId: client.id })}`)}>Open Strategies →</button>
         </div>
       </div>
     );
@@ -447,7 +447,7 @@ export function ClientCrmWorkProto({ client, drawer = false }: { client: Client;
               <span className="cap-pf-work__truth-dot" />
               Source of truth · Strategies
             </span>
-            <PfButton variant="secondary" onClick={() => navigate('/strategies')}>
+            <PfButton variant="secondary" onClick={() => navigate(`/strategies?${new URLSearchParams({ clientId: client.id })}`)}>
               Open Strategies
             </PfButton>
             {/* `?new=1` at least states the intent — the Strategies module

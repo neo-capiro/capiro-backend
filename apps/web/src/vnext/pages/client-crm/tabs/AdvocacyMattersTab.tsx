@@ -1,4 +1,5 @@
 import { advocacyAttributionNeedsReview } from '@capiro/shared';
+import { advocacySourceAction } from '../advocacy-source-action.js';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isTenantAdmin } from '@capiro/shared';
@@ -1235,6 +1236,7 @@ function RecordRow({
   onNotAdvocacy: () => void;
 }) {
   const attributionReview = advocacyAttributionNeedsReview(record.sourceType, record.metadata);
+  const sourceAction = advocacySourceAction(record);
   return (
     <div className="capiro-advocacy-record">
       <div className="capiro-advocacy-record__head">
@@ -1263,10 +1265,13 @@ function RecordRow({
           Outcome observed: {record.outcome} (association only — no causation claimed)
         </span>
       ) : null}
-      {record.sourceUrl ? (
-        <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="capiro-advocacy-record__source-link">
-          View source
-        </a>
+      {sourceAction ? (
+        <div>
+          {sourceAction.guidance ? <p className="capiro-advocacy-form-hint">{sourceAction.guidance}</p> : null}
+          <a href={sourceAction.href} target="_blank" rel="noreferrer noopener" className="capiro-advocacy-record__source-link">
+            {sourceAction.label}
+          </a>
+        </div>
       ) : null}
       {isAdmin ? (
         <div className="capiro-advocacy-record__actions">

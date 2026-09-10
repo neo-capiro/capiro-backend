@@ -94,6 +94,58 @@ beforeEach(() => {
 });
 
 describe('ClientCrmAdvocacyMattersProto', () => {
+  it.each([
+    {
+      name: 'existing source URL',
+      record: { sourceType: 'fara', sourceUrl: 'https://example.org/filing.pdf' },
+      label: 'View source', href: 'https://example.org/filing.pdf', guidance: null,
+    },
+    {
+      name: 'source URL retained in metadata',
+      record: { sourceType: 'fara', metadata: { sourceUrl: 'https://example.org/original.pdf' } },
+      label: 'View source', href: 'https://example.org/original.pdf', guidance: null,
+    },
+    {
+      name: 'FARA registration without a URL',
+      record: { sourceType: 'fara', sourceId: '1234', metadata: { registrantName: 'Harris St. Laurent & Wechsler LLP', foreignPrincipal: 'Source organization' } },
+      label: 'Search official FARA filings', href: 'https://efile.fara.gov/ords/fara/f?p=1235:10', guidance: 'Registrant number: 1234.',
+    },
+    {
+      name: 'FARA record without any source identity',
+      record: { sourceType: 'fara', sourceId: null, metadata: {} },
+      label: 'Search official FARA filings', href: 'https://efile.fara.gov/ords/fara/f?p=1235:10', guidance: 'No registration number or organization details were supplied.',
+    },
+    {
+      name: 'unsafe source URL',
+      record: { sourceType: 'fara', sourceUrl: 'javascript:alert(1)', sourceId: '1234' },
+      label: 'Search official FARA filings', href: 'https://efile.fara.gov/ords/fara/f?p=1235:10', guidance: 'Registrant number: 1234.',
+    },
+    {
+      name: 'testimony with a hearing id',
+      record: { sourceType: 'testimony', sourceId: 'hearing-42', metadata: { witness: 'Witness, Example organization' } },
+      label: 'Review hearing record', href: '/legiwatch/hearings/hearing-42', guidance: 'Witness listed in source: Witness, Example organization.',
+    },
+    {
+      name: 'testimony without a hearing id',
+      record: { sourceType: 'testimony', sourceId: null, metadata: {} },
+      label: 'Find the hearing in LegiWatch', href: '/legiwatch?tab=hearings', guidance: 'No hearing link was supplied.',
+    },
+  ])('offers an actionable source review for $name (Q15)', async ({ record, label, href, guidance }) => {
+    getMock.mockImplementation(async (url: string) => ({ data: url.endsWith('/advocacy-matters')
+      ? [matterFixture()] : { ...matterFixture(), records: [recordFixture(record)], links: [] },
+    }));
+    renderMatters();
+    fireEvent.click(await screen.findByText('0605053A Program Element'));
+    const link = await screen.findByRole('link', { name: label });
+    expect(link).toHaveAttribute('href', href);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer noopener');
+    expect(screen.getByText('Attribution needs review')).toBeInTheDocument();
+    if (guidance) expect(screen.getByText((content) => content.includes(guidance))).toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+    expect(patchMock).not.toHaveBeenCalled();
+  });
+
   it('names the retained destination and sends the selected source to the merge API', async () => {
     meRoleMock.mockReturnValue('user_admin');
     getMock.mockImplementation(async (url: string) => {

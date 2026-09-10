@@ -9,6 +9,9 @@ on:
       - 'apps/intel-api/test/tracker-*.spec.ts'
       - 'apps/web/src/pages/intelligence/opportunities/**'
       - 'apps/web/src/vnext/pages/client-crm/**'
+      - 'apps/web/src/vnext/adapters/legacy/useShellClientContext.ts'
+      - 'apps/web/src/vnext/pages/strategies/StrategyLibraryVNext*'
+      - 'apps/web/src/vnext/pages/strategies/ScopeBar.tsx'
       - 'apps/web/src/vnext/pages/funding-opportunities/**'
       - 'apps/web/src/vnext/pages/portfolio/**'
       - 'packages/shared/**'
@@ -62,6 +65,12 @@ jobs:
           src/vnext/pages/funding-opportunities/FundingOpportunityBrowse.test.tsx
           src/vnext/pages/client-crm/ClientFillWithMeriDrawer.review.test.tsx
           src/vnext/pages/portfolio/PortfolioIndexPage.test.tsx
+          src/vnext/pages/client-crm/tabs/RelationshipsHistoryTab.test.tsx
+          src/vnext/pages/client-crm/tabs/FilesTab.test.tsx
+          src/vnext/pages/client-crm/tabs/WorkTab.test.tsx
+          src/vnext/pages/client-crm/tabs/AdvocacyMattersTab.test.tsx
+          src/vnext/pages/client-crm/client-crm-routing.test.ts
+          src/vnext/pages/strategies/StrategyLibraryVNext.client-navigation.test.tsx
           --poolOptions.threads.singleThread
       - name: Fill retry orchestration and timeout regression tests
         env:

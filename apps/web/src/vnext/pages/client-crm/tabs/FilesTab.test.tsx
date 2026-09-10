@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientCrmFilesProto } from './FilesTab.js';
 import type { Client, ClientAttachment } from '../../../../pages/clients/clientTypes.js';
@@ -74,12 +74,23 @@ function renderFiles() {
  * reaches. That gap is exactly how the drawer's "New folder" button shipped
  * silently broken: verified against a surface nothing actually renders.
  */
-function renderFilesDrawer() {
+function FilesRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const clientId = new URLSearchParams(location.search).get('clientId') ?? client.id;
+  return <>
+    <ClientCrmFilesProto client={{ ...client, id: clientId }} drawer />
+    <output data-testid="file-location">{location.search}</output>
+    <button onClick={() => navigate('/clients?clientId=other-client&tab=files')}>Switch client</button>
+  </>;
+}
+
+function renderFilesDrawer(initialEntry = '/clients') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <ClientCrmFilesProto client={client} drawer />
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <FilesRoute />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -121,6 +132,46 @@ beforeEach(() => {
 });
 
 describe('ClientCrmFilesProto', () => {
+  it('waits for attachments, opens the requested preview and clears the request on close (Q13)', async () => {
+    let resolveFiles!: (response: { data: ClientAttachment[] }) => void;
+    const pending = new Promise<{ data: ClientAttachment[] }>((resolve) => { resolveFiles = resolve; });
+    getMock.mockImplementation((url: string) => url === '/api/engagement/attachments'
+      ? pending : Promise.resolve({ data: [] }));
+    renderFilesDrawer('/clients?clientId=client-1&tab=files&attachmentId=att-42');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText(/This file is not available/)).not.toBeInTheDocument();
+    await act(async () => resolveFiles({ data: [attachment(), attachment({ id: 'att-42', fileName: 'sas-future.pdf' })] }));
+    const preview = await screen.findByRole('dialog', { name: 'sas-future' });
+    expect(screen.getByRole('tab', { name: 'All files' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('dialog', { name: 'Budget Memo' })).not.toBeInTheDocument();
+    fireEvent.click(within(preview).getByRole('button', { name: /Close/ }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('file-location')).toHaveTextContent('?clientId=client-1&tab=files');
+    expect(screen.getByTestId('file-location')).not.toHaveTextContent('attachmentId');
+  });
+
+  it('offers recovery for an unavailable attachment instead of opening a different file (Q13)', async () => {
+    mockApi({ attachments: [attachment()] });
+    renderFilesDrawer('/clients?clientId=client-1&tab=files&attachmentId=missing');
+    expect(await screen.findByRole('alert')).toHaveTextContent('This file is not available');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    mockApi({ attachments: [attachment({ id: 'missing' })] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry file' }));
+    expect(await screen.findByRole('dialog', { name: 'Budget Memo' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('clears an open attachment preview when changing clients (Q13)', async () => {
+    getMock.mockImplementation(async (url: string, options?: { params?: { clientId?: string } }) => ({
+      data: url === '/api/engagement/attachments' && options?.params?.clientId === client.id ? [attachment()] : [],
+    }));
+    renderFilesDrawer('/clients?clientId=client-1&tab=files&attachmentId=att-1');
+    expect(await screen.findByRole('dialog', { name: 'Budget Memo' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch client' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByText('No files uploaded yet.')).toBeInTheDocument();
+  });
+
   it('shows loading instead of sample folders while the folder request is pending', () => {
     getMock.mockImplementation(() => new Promise(() => {}));
     renderFiles();

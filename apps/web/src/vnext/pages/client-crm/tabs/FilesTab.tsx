@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client, ClientAttachment } from '../../../../pages/clients/clientTypes.js';
 import {
@@ -246,6 +247,12 @@ function usePfNarrow(): boolean {
 export function ClientCrmFilesProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedAttachmentId = searchParams.get('clientId') === client.id
+    ? searchParams.get('attachmentId')
+    : null;
+  const openedAttachment = useRef<string | null>(null);
+  const [attachmentUnavailable, setAttachmentUnavailable] = useState(false);
   const narrow = usePfNarrow();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const uploadFolderRef = useRef<string | null>(null);
@@ -290,6 +297,44 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
         })
       ).data,
   });
+
+  useEffect(() => {
+    openedAttachment.current = null;
+    setPreviewRow(null);
+    setSelected(new Set());
+    setAttachmentUnavailable(false);
+  }, [client.id, requestedAttachmentId]);
+
+  useEffect(() => {
+    if (!requestedAttachmentId || filesQuery.isFetching || !filesQuery.isSuccess) return;
+    const key = `${client.id}:${requestedAttachmentId}`;
+    if (openedAttachment.current === key) return;
+    // Only resolve against the client's ACL-filtered attachment list. A
+    // missing or inaccessible id never falls back to another client's file.
+    const attachment = filesQuery.data.find((file) =>
+      file.id === requestedAttachmentId && file.clientId === client.id,
+    );
+    setAttachmentUnavailable(!attachment);
+    if (!attachment) return;
+    openedAttachment.current = key;
+    setFolderId('root');
+    setQuery('');
+    setFilter('all');
+    setDrawerView('files');
+    setDrawerGroup(null);
+    setSelected(new Set([attachment.id]));
+    setPreviewRow(attachmentRow(attachment));
+  }, [client.id, requestedAttachmentId, filesQuery.data, filesQuery.isFetching, filesQuery.isSuccess]);
+
+  const clearAttachmentRequest = () => {
+    setAttachmentUnavailable(false);
+    if (!requestedAttachmentId) return;
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete('attachmentId');
+      return next;
+    }, { replace: true });
+  };
 
   // Real folder tree (item 2). Grouped server-side, so the counts are the
   // client's whole file room, not just the page of attachments in hand.
@@ -613,6 +658,13 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
 
   return (
     <div className={`cap-pf-anim-rise cap-pf-files${drawer ? ' cap-pf-files--drawer' : ''}`}>
+      {attachmentUnavailable ? (
+        <div role="alert" className="cap-pf-files__uploads">
+          <p>This file is not available in this client's files. It may have been removed, replaced, or your access may have changed.</p>
+          <PfButton variant="link" onClick={() => void filesQuery.refetch()}>Retry file</PfButton>
+          <PfButton variant="link" onClick={clearAttachmentRequest}>Dismiss</PfButton>
+        </div>
+      ) : null}
       <input
         ref={inputRef}
         type="file"
@@ -1170,7 +1222,7 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
         }}
       />
 
-      <FilePreviewModal row={previewRow} onClose={() => setPreviewRow(null)} />
+      <FilePreviewModal row={previewRow} onClose={() => { setPreviewRow(null); clearAttachmentRequest(); }} />
     </div>
   );
 }

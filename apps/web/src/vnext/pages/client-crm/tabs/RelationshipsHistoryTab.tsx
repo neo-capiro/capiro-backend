@@ -188,7 +188,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       // through explicitly rather than relying on the meeting resolving
       // client-side after navigation and jumping the calendar retroactively.
       navigate(`/engagement/meetings/${item.sourceId}?date=${dayKey(new Date(item.occurredAt))}`);
-    } else if (item.sourceType === 'attachment') navigate(`/clients?clientId=${client.id}&tab=files`);
+    } else if (item.sourceType === 'attachment' && item.sourceId) navigate(`/clients?${new URLSearchParams({ clientId: client.id, tab: 'files', attachmentId: item.sourceId })}`);
     else if (item.sourceType === 'outreach' && item.sourceId) navigate(`/engagement/outreach/draft/${encodeURIComponent(item.sourceId)}?clientId=${encodeURIComponent(client.id)}`);
     else if (item.sourceType === 'mail_thread' && item.sourceId)
       void openEmailThread(item.sourceId, 'reply');

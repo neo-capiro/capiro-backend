@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { useClientFilter } from '../../../state/client-filter.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -45,10 +45,21 @@ export function isClientContextEnabledForPath(pathname: string): boolean {
 export function useShellClientContext(): ShellClientContextViewModel {
   const api = useApi();
   const location = useLocation();
+  const navigate = useNavigate();
   const { selectedClientId, setSelectedClientId } = useClientFilter();
 
   const enabled = isClientContextEnabledForPath(location.pathname);
   const linkedClientId = new URLSearchParams(location.search).get('clientId');
+  const selectClient = useCallback((clientId: string | null) => {
+    setSelectedClientId(clientId);
+    // A linked scope wins over the shared filter below. Change both on an
+    // explicit selection so arriving from a client record does not lock it.
+    if (linkedClientId === null || linkedClientId === clientId) return;
+    const params = new URLSearchParams(location.search);
+    if (clientId) params.set('clientId', clientId);
+    else params.delete('clientId');
+    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash });
+  }, [linkedClientId, location.pathname, location.search, location.hash, navigate, setSelectedClientId]);
 
   const clients = useQuery<Client[]>({
     queryKey: ['clients'],
@@ -87,7 +98,7 @@ export function useShellClientContext(): ShellClientContextViewModel {
           ? selected.name
           : `Scoped to ${selected.name}`
         : 'All clients',
-      setSelectedClientId,
+      setSelectedClientId: selectClient,
     };
-  }, [clients.data, clients.isError, clients.isLoading, enabled, linkedClientId, selectedClientId, setSelectedClientId]);
+  }, [clients.data, clients.isError, clients.isLoading, enabled, linkedClientId, selectedClientId, selectClient]);
 }

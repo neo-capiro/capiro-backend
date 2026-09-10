@@ -78,7 +78,7 @@ const detail: StrategyDetail = {
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  return <div data-testid="location">{location.pathname}{location.search}</div>;
 }
 
 function renderWork(drawer = false) {
@@ -109,6 +109,13 @@ beforeEach(() => {
 });
 
 describe('ClientCrmWorkProto', () => {
+  it.each([false, true])('opens Strategies with the current client in drawer=%s (Q14)', async (drawer) => {
+    getMock.mockResolvedValue({ data: [] });
+    renderWork(drawer);
+    fireEvent.click(await screen.findByRole('button', { name: /Open Strategies/ }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/strategies?clientId=client-1');
+  });
+
   it('labels the committed count explicitly when a strategy also contains draft and suggested steps', async () => {
     const statuses = ['draft', 'suggested', 'active', 'completed'] as const;
     const nodes = statuses.map((status, index) => ({

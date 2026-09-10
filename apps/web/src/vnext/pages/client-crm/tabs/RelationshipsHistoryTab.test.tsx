@@ -71,6 +71,13 @@ beforeEach(() => {
 });
 
 describe('ClientCrmHistoryProto', () => {
+  it('carries the selected attachment into the client Files preview (Q13)', async () => {
+    getMock.mockResolvedValue({ data: [{ id: 'act-file', kind: 'document', occurredAt: '2026-08-13T12:00:00.000Z', title: 'sas-future.pdf', body: null, personId: null, sourceType: 'attachment', sourceId: 'attachment-42', pinned: false, dueAt: null, settledAt: null, origin: 'derived' }] });
+    renderHistory();
+    fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/clients?clientId=client-1&tab=files&attachmentId=attachment-42');
+  });
+
   it('opens an outreach record on the supported route with client context', async () => {
     getMock.mockResolvedValue({ data: [{ id: 'act-outreach', kind: 'outreach', occurredAt: '2026-08-13T12:00:00.000Z', title: 'Sent outreach', body: null, personId: null, sourceType: 'outreach', sourceId: 'outreach-42', pinned: false, dueAt: null, settledAt: null, origin: 'derived' }] });
     renderHistory();

@@ -10,6 +10,15 @@ import {
 
 const at = (query: string) => resolveCrmRoute(new URLSearchParams(query));
 
+it('retains a Files preview during normalization and clears it when leaving Files (Q13)', () => {
+  const current = new URLSearchParams('clientId=abc&tab=documents&attachmentId=file-42');
+  const files = applyCrmRoute(current, { tab: 'files' });
+  expect(files.get('attachmentId')).toBe('file-42');
+  const history = applyCrmRoute(files, { tab: 'relationships', view: 'history' });
+  expect(history.get('attachmentId')).toBeNull();
+  expect(history.get('clientId')).toBe('abc');
+});
+
 describe('resolveCrmRoute — canonical state', () => {
   it('defaults to Overview when no tab is present', () => {
     const route = at('clientId=abc');

@@ -11,6 +11,7 @@
  *   tab=relationships  view=organization | government | history | matters
  *   tab=intelligence   view=legislative | footprint | district
  *   tab=capabilities   preserved capability-management surface (§13)
+ *   tab=files          attachmentId=<id> opens that client's attachment preview
  *
  * `opportunities` (grant/contract opportunities + relevant budget programs)
  * was the Intelligence tab's "Funding & Budget" domain (`?tab=intelligence
@@ -176,6 +177,7 @@ export function resolveCrmRoute(params: URLSearchParams | null | undefined): Crm
 export function applyCrmRoute(current: URLSearchParams, route: { tab: CrmSurface; view?: CrmView | null }): URLSearchParams {
   const next = new URLSearchParams(current);
   next.set('tab', route.tab);
+  if (route.tab !== 'files') next.delete('attachmentId');
 
   const views = viewsFor(route.tab);
   if (!views) {
