@@ -1211,7 +1211,7 @@ function stageMeta(status: FillTaskStatus, tasks: DisplayTask[]): string {
 function taskDetail(task: DisplayTask): string {
   if (task.status === 'failed') return task.errorMessage ?? `Failed after ${task.attempt} attempt${task.attempt === 1 ? '' : 's'}`;
   if (task.status === 'running') return 'Reading and reconciling source records…';
-  if (task.status === 'queued') return 'Waiting for prerequisite checks';
+  if (task.status === 'queued') return task.errorMessage ?? 'Queued to run';
   if (task.status === 'completed') return 'Completed';
   if (task.status === 'cancelled') return 'Cancelled';
   return 'Not required';

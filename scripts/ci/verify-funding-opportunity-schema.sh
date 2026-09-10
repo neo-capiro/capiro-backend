@@ -524,7 +524,7 @@ check "delivery has NO foreign keys"             "SELECT count(*) FROM pg_constr
 # the dedupe bites. An index-existence check could not have caught it.
 FP_A=$(printf 'a%.0s' $(seq 1 64))
 ins() {
-  psql "$DATABASE_URL" -tAc "INSERT INTO tango_event_alert
+  psql "$PSQL_DATABASE_URL" -tAc "INSERT INTO tango_event_alert
     (tenant_id,client_id,source_type,source_record_key,change_dimension,
      severity,change_fingerprint,evidence_jsonb)
    VALUES ('11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333',
@@ -532,7 +532,8 @@ ins() {
    ON CONFLICT (tenant_id, client_id, source_record_key, change_fingerprint)
    DO NOTHING" 2>&1
 }
-first=$(ins); second=$(ins)
+first=$(ins) || { echo "::error::the drain's alert INSERT failed: $first"; exit 1; }
+second=$(ins) || { echo "::error::the duplicate alert INSERT failed: $second"; exit 1; }
 if echo "$first" | grep -q "INSERT 0 1"; then
   echo "  PASS  the drain's real alert INSERT executes"
 else
@@ -543,6 +544,6 @@ if echo "$second" | grep -q "INSERT 0 0"; then
 else
   echo "::error::alert dedupe did not bite: $second"; fail=1
 fi
-psql "$DATABASE_URL" -q -c "DELETE FROM tango_event_alert WHERE source_record_key='ci-probe'" >/dev/null 2>&1
+psql "$PSQL_DATABASE_URL" -q -c "DELETE FROM tango_event_alert WHERE source_record_key='ci-probe'" >/dev/null
 
 exit $fail

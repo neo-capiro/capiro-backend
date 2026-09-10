@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FundingOpportunityExplore } from './FundingOpportunityExplore.js';
+import { FundingOpportunityDetail } from './FundingOpportunityDetail.js';
 import { OpportunityClientActions } from './OpportunityClientActions.js';
 import { TangoOpportunityDetail } from './TangoOpportunityDetail.js';
 import { ForecastOpportunityDetail } from './ForecastOpportunityDetail.js';
@@ -321,6 +322,25 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Browse source selection and existing shared links', () => {
+  test('the shared catalog detail renders the CHEERS description as readable text (Q10)', async () => {
+    apiGet.mockResolvedValue({ data: {
+      ...opportunity(), source: 'grants_gov', sourceRecordId: '360262', title: 'CHEERS',
+      summary: '<p>CHEERS <strong>S&amp;T</strong> research.</p><p>Second paragraph.</p>',
+    } });
+    mount(<FundingOpportunityDetail refValue={{ source: 'grants_gov', sourceRecordId: '360262', clientId: null }} />);
+    expect(await screen.findAllByText('CHEERS S&T research. Second paragraph.')).toHaveLength(2);
+    expect(screen.queryByText(/<p>|<strong>|S&amp;T/)).not.toBeInTheDocument();
+  });
+
+  test('expanding a catalog card preserves decoded description text', () => {
+    mount(<OpportunityCard opportunity={{ ...opportunity(), summary: '<p>CHEERS <strong>S&amp;T</strong></p>' }}
+      clientId={null} />);
+    expect(screen.getByText('CHEERS S&T')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'more' }));
+    expect(screen.getByText('CHEERS S&T')).toBeInTheDocument();
+    expect(screen.queryByText(/<p>|S&amp;T/)).not.toBeInTheDocument();
+  });
+
   test('a forecast card explains a priority-only assessment without calling it a capability match', () => {
     const record: InboxRow = {
       id: 'forecast-workflow',

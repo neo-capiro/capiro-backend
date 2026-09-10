@@ -1,4 +1,5 @@
 import { Button, Card, Collapse, Dropdown, Space, Tag, Tooltip, Typography } from 'antd';
+import { opportunityDescriptionText } from './opportunity-description.js';
 import {
   BookOutlined,
   CloseOutlined,
@@ -425,7 +426,7 @@ export function OpportunityCard({
             style={{ marginBottom: 0, fontSize: 12 }}
             ellipsis={{ rows: 2, expandable: true, symbol: 'more' }}
           >
-            {o.summary}
+            {opportunityDescriptionText(o.summary)}
           </Paragraph>
         )
       ) : null}

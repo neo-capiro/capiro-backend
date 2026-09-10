@@ -1288,6 +1288,18 @@ export class TrackerBoardService {
     };
   }
 
+  /** Unpaginated per-client totals from the same tenant-owned rows as the board. */
+  async getPortfolioCounts(tenantId: string): Promise<{ counts: Record<string, number> }> {
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.groupBy({
+        by: ['clientId'],
+        where: { tenantId },
+        _count: { _all: true },
+      }),
+    );
+    return { counts: Object.fromEntries(rows.map((row) => [row.clientId, row._count._all])) };
+  }
+
   /**
    * Add-bill-modal text search (P1.1, ported from apps/api
    * tracker.service.searchBills). Current Congress only; <2 chars → []. Tenant-

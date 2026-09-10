@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { opportunityDescriptionText } from '../../../pages/intelligence/opportunities/opportunity-description.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import {
   ACQUISITION_POSITION_LABELS,
@@ -385,7 +386,7 @@ export function OpportunityCard({
         ) : (
           <p className="fov-muted" style={{ margin: 0 }}>
             <span className={summaryExpanded ? undefined : 'fov-summary--clamped'}>
-              {o.summary}
+              {opportunityDescriptionText(o.summary)}
             </span>{' '}
             {!summaryExpanded ? (
               <button

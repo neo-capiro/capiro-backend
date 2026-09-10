@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.js';
 import type { StrategyListItem } from '../../../pages/strategy/types.js';
@@ -12,13 +13,9 @@ import { sectorLabel } from '../../lib/labels.js';
 /**
  * Data model for the Portfolio index (PORTFOLIO-HANDOFF §7.1).
  *
- * Every figure is read from an endpoint the app already calls — nothing is
- * recomputed client-side that a service owns, and a missing value is never
- * rendered as `0` (§1.4). Where the design needs a portfolio-scoped aggregate
- * no single endpoint provides (cross-client program-element delta and the
- * per-row rollup), the affected figure is rendered as `—` or an explicit
- * unavailable state and the gap is logged in `GAPS.md` rather than assembled
- * with N+1 per-client calls (§7.1 "Must not").
+ * Counts use portfolio-wide reads of the same sources as the client profile.
+ * Strategy rows are grouped by client; tracked-bill counts come from the
+ * selected tracker owner. A missing or failed source is never rendered as zero.
  */
 
 export interface PortfolioSummary {
@@ -102,11 +99,11 @@ export interface PortfolioRow {
   ownerName: string | null;
   /** G3 rollup: open engagement tasks (attention column). */
   attentionCount: number | null;
-  /** G3 rollup: tracked bills (intelligence column). */
+  /** Tracked bills from the same tracker owner used by the client profile. */
   intelCount: number | null;
   /** G3 rollup: earliest future meeting (next touch column). */
   nextTouch: { id: string; startsAt: string; subject: string } | null;
-  /** G3 rollup (item 5): in_progress task count (work/readiness column). */
+  /** Strategies in the client's Work tab. */
   workCount: number | null;
 }
 
@@ -152,6 +149,7 @@ function focusTagsOf(client: Client): string[] {
 
 export function usePortfolioIndexModel(route: PortfolioRoute) {
   const api = useApi();
+  const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
 
   const clients = useQuery<Client[]>({
     // Shared with the canonical workspace so the list is a cache hit either way.
@@ -184,6 +182,7 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     queryKey: ['strategy', 'strategies'],
     queryFn: async () => (await api.get<StrategyListItem[]>('/strategy-api/strategies')).data,
     staleTime: 30_000,
+    refetchOnMount: 'always',
   });
 
   const week = useMemo(() => weekBounds(new Date()), []);
@@ -202,6 +201,18 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
       (await api.get<PortfolioRollupResponse>('/api/intelligence/portfolio-rollup')).data,
     staleTime: 60_000,
   });
+
+  const trackerCounts = useQuery<{ counts: Record<string, number> }>({
+    queryKey: ['intel-tracker', 'portfolio-counts'],
+    queryFn: async () =>
+      (await api.get<{ counts: Record<string, number> }>('/intel-api/clients/_all/tracker/counts')).data,
+    enabled: trackerReady && trackerV2,
+    staleTime: 30_000,
+    refetchOnMount: 'always',
+  });
+  const workState: 'loading' | 'error' | 'ready' = strategies.isPending ? 'loading' : strategies.isError ? 'error' : 'ready';
+  const intelQuery = trackerV2 ? trackerCounts : rollup;
+  const intelState: 'loading' | 'error' | 'ready' = !trackerReady || intelQuery.isPending ? 'loading' : intelQuery.isError ? 'error' : 'ready';
 
   // G2 portfolio PE summary (wire-audit "4 New capability" items 7-8): net
   // portfolio delta + per-PE client attribution. One bounded call.
@@ -230,6 +241,10 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     // of everything — render honest zeros, not '—'. Null only while loading
     // (or after an error), so the UI can tell the states apart.
     const rollupReady = rollup.isSuccess;
+    const strategiesByClient = new Map<string, number>();
+    for (const strategy of strategies.data ?? []) {
+      strategiesByClient.set(strategy.clientId, (strategiesByClient.get(strategy.clientId) ?? 0) + 1);
+    }
     return all.map((client) => {
       const entry = rollupMap[client.id];
       return {
@@ -250,12 +265,18 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
         // G3 rollup fields — null while the rollup hasn't loaded yet so the
         // UI can distinguish "loading" from "zero".
         attentionCount: entry?.attentionCount ?? (rollupReady ? 0 : null),
-        intelCount: entry?.intelCount ?? (rollupReady ? 0 : null),
+        intelCount: intelState !== 'ready' ? null : trackerV2
+          ? trackerCounts.data?.counts[client.id] ?? 0
+          : entry?.intelCount ?? 0,
         nextTouch: entry?.nextTouch ?? null,
-        workCount: entry?.workCount ?? (rollupReady ? 0 : null),
+        workCount: strategies.isSuccess ? strategiesByClient.get(client.id) ?? 0 : null,
       };
     });
-  }, [clients.data, accountOwners.data, rollup.data, rollup.isSuccess]);
+  }, [clients.data, accountOwners.data, rollup.data, rollup.isSuccess,
+    strategies.data, strategies.isSuccess, trackerCounts.data, trackerV2, intelState]);
+
+  const totalTrackedBills = clients.isSuccess && intelState === 'ready'
+    ? rows.reduce((total, row) => total + (row.intelCount ?? 0), 0) : null;
 
   const counts = useMemo(() => {
     const by: Record<PortfolioStatus, number> = { all: rows.length, active: 0, 'at-risk': 0, prospect: 0 };
@@ -284,10 +305,8 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
         s === 'at-risk' ? 0 : s === 'active' ? 1 : 2;
       sorted.sort((a, b) => rank(a.status) - rank(b.status) || a.name.localeCompare(b.name));
     } else if (route.sort === 'readiness') {
-      // Item 6 — Readiness sort: sort by workCount descending (more in-progress
-      // work = less ready), then by attention count, then alpha within.
-      // Null (rollup not loaded) sorts last so the control never lies during
-      // initial load.
+      // More client strategies first, then attention count and name.
+      // Missing strategy counts sort last.
       const workRank = (w: number | null): number =>
         w == null ? Number.MAX_SAFE_INTEGER : -w;
       sorted.sort((a, b) =>
@@ -302,5 +321,6 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, accountOwners, summary, strategies, meetings, rollup, peSummary, engagementTrend, rows, counts, visible };
+  return { clients, accountOwners, summary, strategies, meetings, rollup, trackerCounts,
+    workState, intelState, totalTrackedBills, peSummary, engagementTrend, rows, counts, visible };
 }

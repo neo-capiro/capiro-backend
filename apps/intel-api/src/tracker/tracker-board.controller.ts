@@ -38,6 +38,11 @@ import {
 export class TrackerBoardController {
   constructor(private readonly svc: TrackerBoardService) {}
 
+  @Get('_all/tracker/counts')
+  getPortfolioCounts(@CurrentTenant() ctx: WorkspaceTenantContext) {
+    return this.svc.getPortfolioCounts(ctx.tenantId);
+  }
+
   @Get(':clientId/recommendations')
   getRecommendations(
     @CurrentTenant() ctx: WorkspaceTenantContext,
