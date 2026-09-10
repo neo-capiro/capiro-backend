@@ -12,7 +12,8 @@
 // heavy constructor graph isn't wired.
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
-import { EngagementService } from './engagement.service.js';
+import { EngagementService, reportMemberPrincipal } from './engagement.service.js';
+import type { DirectoryEmailMatch } from '../directory/directory.service.js';
 
 const ctx: TenantContext = {
   tenantId: 'tenant-1',
@@ -257,7 +258,14 @@ function serviceWithDirectoryActivity(targets: any[], status = 'confirmed', mess
   });
   (service as any).directoryMatchesForReport = async () => [{
     directoryContactId: 'member-123', attendeeEmail: 'staff@example.org',
-    member: { fullName: 'Avery Member', partyName: 'Democratic', chamber: 'House', state: 'CA', district: '12',
+    // EM-11: member.district is the FULLY-FORMATTED seat label as produced by
+    // directory.service.ts's formatDistrict() ("CA-12", not bare "12") —
+    // this fixture used to say '12', which is not the real shape and would
+    // have masked the double-state bug (reportMemberPrincipal used to
+    // re-prepend state on top of this, producing "CA-CA-12"). See the
+    // dedicated reportMemberPrincipal describe block below for the isolated
+    // regression.
+    member: { fullName: 'Avery Member', partyName: 'Democratic', chamber: 'House', state: 'CA', district: 'CA-12',
       committees: [], officeLocation: '123 Rayburn HOB', addresses: [] },
     staff: { id: 'staff-1', fullName: 'Alex Staffer', officeLocation: '123 Rayburn HOB' },
   }];
@@ -296,5 +304,88 @@ describe('Directory activity contributes to the correct planned identity', () =>
       thread: { clientId: 'client-a', client: { name: 'Client A' } },
     }]);
     expect((await service.reportOverview(ctx, {})).rows[0]).toMatchObject({ clientId: 'client-a', clientName: 'Client A', scopeKey: 'client-a' });
+  });
+});
+
+describe('EM-11 — reportMemberPrincipal never doubles the state in the party/district label', () => {
+  function match(overrides: Partial<DirectoryEmailMatch['member']> = {}): DirectoryEmailMatch {
+    return {
+      attendeeEmail: 'staff@example.org',
+      matchKind: 'member',
+      directoryContactId: 'member-1',
+      directoryContactName: 'Test Member',
+      member: {
+        id: 'member-1',
+        bioguideId: 'B000000',
+        fullName: 'Rep. Brett Guthrie',
+        memberName: 'Brett Guthrie',
+        title: 'Member of Congress',
+        chamber: 'House',
+        state: 'KY',
+        // Already the fully-formatted seat label — see directory.service.ts's
+        // formatDistrict(). This is the REAL shape reportMemberPrincipal
+        // receives; it must not add anything more to it.
+        district: 'KY-2',
+        partyName: 'Republican',
+        officeLocation: '',
+        phone: '',
+        email: '',
+        bio: {
+          dob: '',
+          hometown: '',
+          birthplace: '',
+          occupation: '',
+          race: '',
+          religion: '',
+          pronunciation: '',
+          narrative: '',
+          education: '',
+          military: '',
+          relatives: '',
+        },
+        committees: [],
+        leadershipPositions: [],
+        focusAreas: [],
+        addresses: [],
+        ...overrides,
+      },
+    };
+  }
+
+  test('a numbered House district produces "R-KY-2", not "R-KY-KY-2"', () => {
+    expect(reportMemberPrincipal(match())).toBe('Rep. Brett Guthrie (R-KY-2)');
+  });
+
+  test('an At-Large House seat (bare state as the district label) produces "R-WY", not "R-WY-WY"', () => {
+    expect(
+      reportMemberPrincipal(match({ state: 'WY', district: 'WY', fullName: 'Rep. Harriet Hageman' })),
+    ).toBe('Rep. Harriet Hageman (R-WY)');
+  });
+
+  test('a Senate office (district === state, per formatDistrict\'s chamber !== House branch) produces "D-CA", not "D-CA-CA"', () => {
+    expect(
+      reportMemberPrincipal(
+        match({
+          chamber: 'Senate',
+          state: 'CA',
+          district: 'CA',
+          partyName: 'Democratic',
+          fullName: 'Sen. Alex Padilla',
+        }),
+      ),
+    ).toBe('Sen. Alex Padilla (D-CA)');
+  });
+
+  test('an Independent, synthetic-QA-style record (party I, district "TS-1") produces "I-TS-1", not "I-TS-TS-1"', () => {
+    expect(
+      reportMemberPrincipal(
+        match({
+          state: 'TS',
+          district: 'TS-1',
+          partyName: 'Independent',
+          fullName: 'Rep. Avery Testwell',
+        }),
+      ),
+    ).toBe('Rep. Avery Testwell (I-TS-1)');
   });
 });

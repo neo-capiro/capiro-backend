@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, Plus, Users, X } from 'lucide-react';
+import { Lock, Pencil, Plus, Users, X } from 'lucide-react';
 import { PrepTab } from './PrepTab.js';
 import { NotesTab } from './NotesTab.js';
 import { DebriefTab } from './DebriefTab.js';
@@ -8,9 +8,10 @@ import {
   useAssignMeetingClient,
   useClientOptions,
   useUnshareArtifacts,
+  useUpdateMeetingFields,
   type ShareArtifactRef,
 } from './meetings-api.js';
-import { formatMeetingDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
+import { dayKey, formatMeetingDayTitle, formatTimeRange, isAllDayMeeting, localDateFromKey, meetingDateTimeToIso } from './meetings-format.js';
 import {
   Ava,
   JoinButton,
@@ -217,6 +218,157 @@ function ClientAssign({ meeting }: { meeting: Meeting }) {
         {meeting.client ? (
           <SharedMeetingsSection clientId={meeting.client.id} clientName={meeting.client.name} />
         ) : null}
+      </EngagementDialog>
+    </>
+  );
+}
+
+/** "14:00" for an <input type="time">, in the viewer's local zone (matches
+ *  meetingDateTimeToIso's own zone assumption, so a round-trip through this
+ *  control never silently shifts the meeting by a UTC offset). */
+function localTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '00:00';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * EM-10 — a manually created meeting's basic fields (subject, location,
+ * date/time) had no edit path anywhere once saved: the create form was the
+ * only writer, and the record was frozen after that. PUT /meetings/:id
+ * (updateMeeting) already accepts all of these and already re-derives
+ * isVirtual/joinLink from location/description on every edit
+ * (deriveMeetingVirtuality — see engagement.service.ts) — exactly the
+ * mechanism that turns "In person, No join link" into a real online meeting
+ * the moment someone pastes a Zoom/Teams link into Location. Scoped to
+ * source === 'manual' only: a calendar-synced meeting's subject/time/location
+ * are owned by the external calendar and get overwritten on the next sync,
+ * so offering to edit them here would be a false promise.
+ */
+function EditManualMeetingControl({ meeting }: { meeting: Meeting }) {
+  const chrome = useMeetingPanelChrome();
+  const [editing, setEditing] = useState(false);
+  const [subject, setSubject] = useState(meeting.subject);
+  const [location, setLocation] = useState(meeting.location ?? '');
+  const [dateKeyValue, setDateKeyValue] = useState(() => dayKey(new Date(meeting.startsAt)));
+  const [startTime, setStartTime] = useState(() => localTimeInputValue(meeting.startsAt));
+  const [endTime, setEndTime] = useState(() => localTimeInputValue(meeting.endsAt));
+  const update = useUpdateMeetingFields();
+
+  useEffect(() => {
+    if (!editing) return;
+    setSubject(meeting.subject);
+    setLocation(meeting.location ?? '');
+    setDateKeyValue(dayKey(new Date(meeting.startsAt)));
+    setStartTime(localTimeInputValue(meeting.startsAt));
+    setEndTime(localTimeInputValue(meeting.endsAt));
+  }, [editing, meeting.subject, meeting.location, meeting.startsAt, meeting.endsAt]);
+
+  if (meeting.source !== 'manual') return null;
+
+  const dirty =
+    subject.trim() !== meeting.subject ||
+    location.trim() !== (meeting.location ?? '') ||
+    dateKeyValue !== dayKey(new Date(meeting.startsAt)) ||
+    startTime !== localTimeInputValue(meeting.startsAt) ||
+    endTime !== localTimeInputValue(meeting.endsAt);
+
+  const save = async () => {
+    try {
+      await update.mutateAsync({
+        meetingId: meeting.id,
+        subject: subject.trim(),
+        location: location.trim() || null,
+        startsAt: meetingDateTimeToIso(dateKeyValue, startTime),
+        endsAt: meetingDateTimeToIso(dateKeyValue, endTime),
+      });
+      chrome.success('Meeting updated.');
+      setEditing(false);
+    } catch {
+      chrome.error('Could not update the meeting.');
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="engagement-disclosure-button"
+        onClick={() => setEditing(true)}
+        title="Edit meeting details"
+      >
+        <Pencil size={13} />
+        Edit
+      </button>
+      <EngagementDialog
+        open={editing}
+        eyebrow="Meeting · basic record"
+        title="Edit meeting"
+        description="Add a location or online join link, and correct the subject, date, or time — Meri eligibility updates automatically once a virtual link is present."
+        width={540}
+        busy={update.isPending}
+        busyLabel="Updating the meeting…"
+        error={update.isError ? 'Could not update the meeting. Try again.' : null}
+        dirty={dirty}
+        onClose={() => setEditing(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={update.isPending}
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-accent"
+              disabled={update.isPending || !subject.trim()}
+              onClick={() => void save()}
+            >
+              {update.isPending ? 'Saving…' : 'Save changes'}
+            </button>
+          </>
+        }
+      >
+        <label className="engagement-dialog__field">
+          Subject
+          <input autoFocus value={subject} onChange={(event) => setSubject(event.target.value)} />
+        </label>
+        <label className="engagement-dialog__field">
+          Location or join link
+          <input
+            value={location}
+            onChange={(event) => setLocation(event.target.value)}
+            placeholder="e.g. Conference Room B, or a Zoom/Teams link"
+          />
+          <small>
+            Pasting a Zoom, Teams, or Meet link here makes this meeting eligible for Meri.
+          </small>
+        </label>
+        <label className="engagement-dialog__field">
+          Date
+          <input
+            type="date"
+            value={dateKeyValue}
+            onChange={(event) => setDateKeyValue(event.target.value)}
+          />
+        </label>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <label className="engagement-dialog__field" style={{ flex: 1 }}>
+            Start time
+            <input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+            />
+          </label>
+          <label className="engagement-dialog__field" style={{ flex: 1 }}>
+            End time
+            <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+          </label>
+        </div>
       </EngagementDialog>
     </>
   );
@@ -496,6 +648,7 @@ export function MeetingDetailPanel({
                 )}
                 <JoinButton m={m} size="sm" variant="secondary" />
                 <div style={{ flex: 1, minWidth: 12 }} />
+                <EditManualMeetingControl key={`edit-${m.id}`} meeting={m} />
                 <ClientAssign key={m.id} meeting={m} />
               </div>
               <div
@@ -541,6 +694,7 @@ export function MeetingDetailPanel({
                   marginBottom: 14,
                 }}
               >
+                <EditManualMeetingControl key={`edit-${m.id}`} meeting={m} />
                 <ClientAssign key={m.id} meeting={m} />
                 <div style={{ flex: 1, minWidth: 12 }} />
                 <ShareArtifactsControl m={m} onOpenShare={() => onRequestShare(m)} />

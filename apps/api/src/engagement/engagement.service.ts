@@ -10024,10 +10024,21 @@ function reportTargetDetails(match: DirectoryEmailMatch) {
   };
 }
 
-function reportMemberPrincipal(match: DirectoryEmailMatch): string {
+/**
+ * EM-11 — member.district (DirectoryEmailMatch['member'].district) is
+ * ALREADY the fully-formatted seat label: directory.service.ts's
+ * formatDistrict() returns "KY-2" for a numbered House seat, or bare "KY"
+ * for an At-Large House seat or a Senate/Governor office (chamber !== House
+ * short-circuits to state). This function used to re-prepend member.state on
+ * top of that for House members — "${member.state}-${member.district}" —
+ * producing a doubled state in the label (e.g. party R, state KY, district
+ * "KY-2" → "R-KY-KY-2"), and for an At-Large House seat doubling the bare
+ * state itself ("WY-WY"). member.district is already the complete answer;
+ * nothing needs to be added to it for either chamber.
+ */
+export function reportMemberPrincipal(match: DirectoryEmailMatch): string {
   const member = match.member;
-  const district = member.chamber === 'House' ? `${member.state}-${member.district}` : member.state;
-  return `${member.fullName} (${partyInitial(member.partyName)}-${district})`;
+  return `${member.fullName} (${partyInitial(member.partyName)}-${member.district})`;
 }
 
 function partyInitial(partyName: string): string {

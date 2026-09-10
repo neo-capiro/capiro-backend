@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarClock, FileText, StickyNote } from 'lucide-react
 import {
   useApproveNote,
   useCancelNotetaker,
+  useCreateNote,
   useMeetingNotes,
   useUpdateNote,
 } from './meetings-api.js';
@@ -175,6 +176,9 @@ export function NotesTab({
 }) {
   const chrome = useMeetingPanelChrome();
   const cancel = useCancelNotetaker();
+  const createNote = useCreateNote();
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualDraft, setManualDraft] = useState('');
   const scheduled = m.meri === 'scheduled' || m.meri === 'attending';
   // Call ended (all participants left, or the scheduled end passed) and Meri is
   // turning the transcript into meeting notes.
@@ -195,6 +199,69 @@ export function NotesTab({
         chrome.success('Meri cancelled.');
       },
     });
+
+  /**
+   * EM-10 — a meeting with no online join link (in-person, or a manually
+   * created meeting nobody has given a virtual location yet) can never be
+   * Meri-eligible, but the person who attended it in person still has a real
+   * way to get notes onto the record: type them. createMeetingNote
+   * (POST .../notes) has always worked server-side; this is the first
+   * client-side caller. Shared by both "unavailable" empty states below.
+   */
+  const manualNotesDialog = (
+    <EngagementDialog
+      open={manualOpen}
+      eyebrow="Meeting · secondary actions"
+      title="Add meeting notes"
+      description="For an in-person meeting, or any meeting Meri can't attend, write down what was discussed."
+      width={660}
+      busy={createNote.isPending}
+      busyLabel="Saving notes…"
+      error={createNote.isError ? 'Could not save the note. Your draft is still here.' : null}
+      dirty={manualDraft.trim().length > 0}
+      onClose={() => setManualOpen(false)}
+      footer={
+        <>
+          <button
+            type="button"
+            className="btn"
+            disabled={createNote.isPending}
+            onClick={() => setManualOpen(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-accent"
+            disabled={createNote.isPending || !manualDraft.trim()}
+            onClick={async () => {
+              try {
+                await createNote.mutateAsync({ meetingId: m.id, body: manualDraft.trim() });
+                chrome.success('Meeting notes saved.');
+                setManualOpen(false);
+                setManualDraft('');
+              } catch {
+                chrome.error('Could not save the note.');
+              }
+            }}
+          >
+            {createNote.isPending ? 'Saving…' : 'Save notes'}
+          </button>
+        </>
+      }
+    >
+      <label className="engagement-dialog__field">
+        Meeting notes
+        <textarea
+          autoFocus
+          rows={14}
+          value={manualDraft}
+          onChange={(event) => setManualDraft(event.target.value)}
+          placeholder="Capture what was discussed, decisions made, and next steps…"
+        />
+      </label>
+    </EngagementDialog>
+  );
 
   if (isCancelledMeeting(m) && !hasNotes && !summarizing && !notes.isLoading) {
     return (
@@ -288,9 +355,15 @@ export function NotesTab({
         <StagePill {...notesStage(m, false, false, false)} />
         <Empty
           icon={<StickyNote size={20} />}
-          title="Notes unavailable"
-          body="Meri takes notes on virtual meetings with an online join link. This meeting doesn't have one, so Meri can't attend."
+          title="Notes unavailable from Meri"
+          body="Meri takes notes on virtual meetings with an online join link. This meeting doesn't have one, so Meri can't attend — but you can still add notes yourself."
+          action={
+            <button type="button" className="btn sm btn-accent" onClick={() => setManualOpen(true)}>
+              Add notes
+            </button>
+          }
         />
+        {manualNotesDialog}
       </>
     );
   }

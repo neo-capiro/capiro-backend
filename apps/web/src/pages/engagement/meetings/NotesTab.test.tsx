@@ -136,7 +136,7 @@ describe('NotesTab', () => {
     await waitFor(() => expect(screen.getByText('No notes yet')).toBeTruthy());
   });
 
-  test('an ineligible meeting (no join link) with no notes shows "Notes unavailable"', async () => {
+  test('an ineligible meeting (no join link) with no notes shows "Notes unavailable from Meri" with a manual Add notes action', async () => {
     apiGetMock.mockResolvedValue({ data: [] });
     const qc = new QueryClient();
     render(
@@ -145,7 +145,33 @@ describe('NotesTab', () => {
         defaultProps({ meeting: makeMeeting({ meri: null, isVirtual: false, joinLink: null }) }),
       ),
     );
-    await waitFor(() => expect(screen.getByText('Notes unavailable')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Notes unavailable from Meri')).toBeTruthy());
+    expect(screen.getByRole('button', { name: /add notes/i })).toBeInTheDocument();
+  });
+
+  test('EM-10: "Add notes" opens the manual-notes dialog and POSTs the real create-note endpoint', async () => {
+    apiGetMock.mockResolvedValue({ data: [] });
+    apiPostMock.mockResolvedValue({ data: { id: 'n-new', body: 'Discussed the roadmap.' } });
+    const qc = new QueryClient();
+    render(
+      buildTree(
+        qc,
+        defaultProps({
+          meeting: makeMeeting({ id: 'm77', meri: null, isVirtual: false, joinLink: null }),
+        }),
+      ),
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /add notes/i }));
+    const textarea = await screen.findByPlaceholderText(/capture what was discussed/i);
+    fireEvent.change(textarea, { target: { value: 'Discussed the roadmap.' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save notes$/i }));
+
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meetings/m77/notes', {
+        body: 'Discussed the roadmap.',
+      }),
+    );
   });
 
   // Reskin phase (navy design): "follow the prototype exactly" replaced the

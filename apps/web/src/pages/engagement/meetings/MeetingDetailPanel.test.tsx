@@ -16,11 +16,12 @@ import type { DetailTab, Meeting } from './meetings-types.js';
  */
 
 const apiGetMock = vi.fn().mockResolvedValue({ data: [] });
+const apiPutMock = vi.fn();
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({
     get: apiGetMock,
     post: vi.fn(),
-    put: vi.fn(),
+    put: apiPutMock,
     patch: vi.fn(),
     delete: vi.fn(),
   }),
@@ -268,5 +269,59 @@ describe('MeetingDetailPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /attendees · 0/i }));
     await screen.findByRole('dialog');
     expect(screen.getByText(/no attendees recorded/i)).toBeInTheDocument();
+  });
+
+  describe('EM-10 — Edit control for manually created meetings', () => {
+    test('a manually created meeting (source: manual) gets a real Edit control', () => {
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(buildTree(qc, defaultProps({ meeting: makeMeeting({ source: 'manual' }) })));
+      expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    });
+
+    test('a calendar-synced meeting (source: outlook/google) gets NO Edit control — its fields are owned by the sync', () => {
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(buildTree(qc, defaultProps({ meeting: makeMeeting({ source: 'outlook' }) })));
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    });
+
+    test('editing a manual meeting PUTs subject/location/startsAt/endsAt to the real endpoint', async () => {
+      apiPutMock.mockResolvedValue({ data: makeMeeting({ id: 'm55', source: 'manual' }) });
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        buildTree(
+          qc,
+          defaultProps({
+            meeting: makeMeeting({
+              id: 'm55',
+              source: 'manual',
+              subject: 'Internal QA meeting',
+              location: null,
+              startsAt: '2026-09-08T14:00:00.000Z',
+              endsAt: '2026-09-08T14:30:00.000Z',
+            }),
+          }),
+        ),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveAccessibleName('Edit meeting');
+
+      const locationInput = screen.getByPlaceholderText(/conference room/i);
+      fireEvent.change(locationInput, {
+        target: { value: 'https://zoom.us/j/1234567890' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => expect(apiPutMock).toHaveBeenCalledTimes(1));
+      const [url, body] = apiPutMock.mock.calls[0]!;
+      expect(url).toBe('/api/engagement/meetings/m55');
+      expect(body).toMatchObject({
+        subject: 'Internal QA meeting',
+        location: 'https://zoom.us/j/1234567890',
+      });
+      expect(typeof body.startsAt).toBe('string');
+      expect(typeof body.endsAt).toBe('string');
+    });
   });
 });

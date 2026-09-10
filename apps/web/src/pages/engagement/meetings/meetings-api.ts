@@ -206,6 +206,35 @@ export function useAssignMeetingClient() {
   });
 }
 
+/**
+ * EM-10 — PUT /api/engagement/meetings/:id already accepts subject/
+ * description/location/startsAt/endsAt (engagement.controller.ts's
+ * UpdateMeetingDto) and the server re-derives isVirtual/joinLink from
+ * location/description on every such edit (deriveMeetingVirtuality) — the
+ * exact mechanism a manually-created meeting needs to become Meri-eligible
+ * after the fact. useAssignMeetingClient above already calls this same
+ * endpoint for the one field it needed; this is the general form so an
+ * edit-meeting UI can update any subset of fields in one call.
+ */
+export interface UpdateMeetingFieldsInput {
+  meetingId: string;
+  subject?: string;
+  description?: string | null;
+  location?: string | null;
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export function useUpdateMeetingFields() {
+  const api = useApi();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<Meeting, Error, UpdateMeetingFieldsInput>({
+    mutationFn: async ({ meetingId, ...fields }) =>
+      (await api.put<Meeting>(`${BASE}/meetings/${meetingId}`, fields)).data,
+    onSuccess: invalidate,
+  });
+}
+
 export function useShareMeeting() {
   const api = useApi();
   const invalidate = useInvalidateMeetings();
@@ -239,6 +268,27 @@ export function useUpdateNote() {
   return useMutation<MeetingNote, Error, { meetingId: string; noteId: string; body: string }>({
     mutationFn: async ({ meetingId, noteId, body }) =>
       (await api.patch<MeetingNote>(`${BASE}/meetings/${meetingId}/notes/${noteId}`, { body })).data,
+    onSuccess: (_data, { meetingId }) => {
+      void qc.invalidateQueries({ queryKey: ['meetings-v2-notes', meetingId] });
+      invalidate();
+    },
+  });
+}
+
+/**
+ * EM-10 — POST /api/engagement/meetings/:id/notes (createMeetingNote) has
+ * always worked; NotesTab's empty state just never called it, offering only
+ * Send Meri even when the meeting has no join link (in-person, or a manual
+ * meeting nobody has entered a virtual location for yet) and Meri has
+ * nothing to attend.
+ */
+export function useCreateNote() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMeetings();
+  return useMutation<MeetingNote, Error, { meetingId: string; body: string }>({
+    mutationFn: async ({ meetingId, body }) =>
+      (await api.post<MeetingNote>(`${BASE}/meetings/${meetingId}/notes`, { body })).data,
     onSuccess: (_data, { meetingId }) => {
       void qc.invalidateQueries({ queryKey: ['meetings-v2-notes', meetingId] });
       invalidate();

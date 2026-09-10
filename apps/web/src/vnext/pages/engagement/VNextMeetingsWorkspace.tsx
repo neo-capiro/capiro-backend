@@ -387,6 +387,20 @@ interface NewMeetingInput {
   dateKey: string;
   startTime: string;
   endTime: string;
+  location: string;
+  attendeeEmails: string[];
+}
+
+/** Splits a free-text attendee box on commas/newlines/semicolons into a
+ *  deduped list of plausible email addresses — good enough to seed
+ *  MeetingAttendeeInput[] without pretending to be a real contact picker. */
+function parseAttendeeEmails(raw: string): string[] {
+  const seen = new Set<string>();
+  for (const token of raw.split(/[,;\n]/)) {
+    const email = token.trim().toLowerCase();
+    if (email && /\S+@\S+\.\S+/.test(email)) seen.add(email);
+  }
+  return Array.from(seen);
 }
 
 function NewMeetingModal({
@@ -412,6 +426,8 @@ function NewMeetingModal({
   const [dateKeyValue, setDateKeyValue] = useState(() => dayKey(defaultDate));
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('09:30');
+  const [location, setLocation] = useState('');
+  const [attendeesRaw, setAttendeesRaw] = useState('');
 
   // Reset the form to sane defaults every time the modal is (re-)opened,
   // rather than carrying stale values from a previous open/cancel.
@@ -421,6 +437,8 @@ function NewMeetingModal({
     setDateKeyValue(dayKey(defaultDate));
     setStartTime('09:00');
     setEndTime('09:30');
+    setLocation('');
+    setAttendeesRaw('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -446,7 +464,14 @@ function NewMeetingModal({
             className="uui-button uui-button--primary"
             disabled={pending || !canSave}
             onClick={() =>
-              onSave({ subject: subject.trim(), dateKey: dateKeyValue, startTime, endTime })
+              onSave({
+                subject: subject.trim(),
+                dateKey: dateKeyValue,
+                startTime,
+                endTime,
+                location: location.trim(),
+                attendeeEmails: parseAttendeeEmails(attendeesRaw),
+              })
             }
           >
             {pending ? 'Saving…' : 'Save meeting'}
@@ -497,6 +522,36 @@ function NewMeetingModal({
         <label className="engagement-dialog__field">
           End time
           <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+        </label>
+        {/*
+          EM-10 — these two fields used to not exist at all: the create form
+          exposed only Subject/Date/Start/End, so every manually created
+          meeting was born "In person, Attendees · 0, No join link" with no
+          way to complete the record at creation time (an edit path exists
+          separately now — see MeetingDetailPanel.tsx's EditManualMeetingControl
+          — but capturing this up front avoids ever creating the bare record
+          in the first place). Location doubles as the join-link field: a
+          pasted Zoom/Teams/Meet URL here makes the meeting Meri-eligible
+          (deriveMeetingVirtuality, engagement.service.ts's createMeeting).
+        */}
+        <label className="engagement-dialog__field is-full">
+          Location or join link
+          <input
+            value={location}
+            onChange={(event) => setLocation(event.target.value)}
+            placeholder="e.g. Conference Room B, or a Zoom/Teams/Meet link"
+          />
+          <small>Pasting a virtual meeting link here makes this meeting eligible for Meri.</small>
+        </label>
+        <label className="engagement-dialog__field is-full">
+          Attendees
+          <textarea
+            rows={2}
+            value={attendeesRaw}
+            onChange={(event) => setAttendeesRaw(event.target.value)}
+            placeholder="Email addresses, separated by commas or new lines"
+          />
+          <small>Optional — attendees can also be added by editing the meeting after it's saved.</small>
         </label>
       </div>
     </EngagementDialog>
@@ -754,9 +809,10 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
         await api.post<Meeting>('/api/engagement/meetings', {
           clientId: clientId ?? undefined,
           subject: input.subject,
+          location: input.location || undefined,
           startsAt: meetingDateTimeToIso(input.dateKey, input.startTime),
           endsAt: meetingDateTimeToIso(input.dateKey, input.endTime),
-          attendees: [],
+          attendees: input.attendeeEmails.map((email) => ({ email })),
         })
       ).data,
     onSuccess: (created) => {

@@ -654,7 +654,7 @@ describe('VNextMeetingsWorkspace', () => {
       renderWorkspace('/engagement/meetings?date=2026-08-19&meeting=notes-fixture&tab=notes');
 
       expect(screen.getByText('Unavailable')).toBeInTheDocument();
-      expect(screen.getByText('Notes unavailable')).toBeInTheDocument();
+      expect(screen.getByText('Notes unavailable from Meri')).toBeInTheDocument();
     });
 
     test('Debrief tab: an ended meeting with no debrief yet shows the real "Not started" stage pill and the source picker', async () => {
@@ -704,5 +704,39 @@ describe('VNextMeetingsWorkspace', () => {
       // newly created meeting.
       await screen.findByText(/no meeting selected|selected meeting/i, undefined, { timeout: 2000 });
     });
+
+    test(
+      'EM-10: the composer captures location/join-link and attendees, and sends both to the ' +
+        'real create endpoint — a manually created meeting no longer has to start blank',
+      async () => {
+        apiPost.mockClear();
+        renderWorkspace();
+        fireEvent.click(screen.getAllByRole('button', { name: /new meeting/i })[0]!);
+
+        const dialog = await screen.findByRole('dialog');
+        fireEvent.change(within(dialog).getByPlaceholderText(/weekly check-in/i), {
+          target: { value: 'Capiro Walkthrough' },
+        });
+        fireEvent.change(within(dialog).getByPlaceholderText(/conference room b/i), {
+          target: { value: 'https://zoom.us/j/5551234567' },
+        });
+        fireEvent.change(within(dialog).getByPlaceholderText(/separated by commas/i), {
+          target: { value: 'dana@example.test, sam@example.test\nsam@example.test' },
+        });
+
+        fireEvent.click(within(dialog).getByRole('button', { name: /save meeting/i }));
+
+        await waitFor(() =>
+          expect(apiPost).toHaveBeenCalledWith(
+            '/api/engagement/meetings',
+            expect.objectContaining({
+              subject: 'Capiro Walkthrough',
+              location: 'https://zoom.us/j/5551234567',
+              attendees: [{ email: 'dana@example.test' }, { email: 'sam@example.test' }],
+            }),
+          ),
+        );
+      },
+    );
   });
 });
