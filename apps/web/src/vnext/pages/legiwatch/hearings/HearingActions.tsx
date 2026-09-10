@@ -184,49 +184,47 @@ export function HearingActions({
           });
           return;
         }
-        stageOutreach.mutate(
-          {
+        // Promise completion survives StrictMode's initial effect resubscribe;
+        // the selection/generation guard still rejects stale private results.
+        void stageOutreach
+          .mutateAsync({
             clientId: effectiveClientId,
             insightId: refs.insightId,
             segmentId: refs.segmentId,
-          },
-          {
-            onSuccess: (prefill) => {
-              if (!isCurrentAction()) return;
-              const contextId = crypto.randomUUID();
-              try {
-                sessionStorage.setItem(
-                  'lw:outreach-context',
-                  JSON.stringify({ id: contextId, prefill, createdAt: Date.now() }),
-                );
-              } catch {
-                setStatus({
-                  kind: 'failed',
-                  action,
-                  message: 'The hearing details could not be saved for outreach. Please try again.',
-                });
-                return;
-              }
-              const qs = new URLSearchParams({
-                source: 'legiwatch',
-                contextId,
-                hearingId,
-                client: effectiveClientId,
-              });
+          })
+          .then((prefill) => {
+            if (!isCurrentAction()) return;
+            const contextId = crypto.randomUUID();
+            try {
+              sessionStorage.setItem(
+                'lw:outreach-context',
+                JSON.stringify({ id: contextId, prefill, createdAt: Date.now() }),
+              );
+            } catch {
               setStatus({
-                kind: 'done',
+                kind: 'failed',
                 action,
-                // Explicit: staged, not sent.
-                message: 'Outreach staged for your review. Nothing has been sent.',
-                // The outreach list lives at /engagement/outreach — the only
-                // registered route tree is /engagement/* (App.tsx). A bare
-                // /outreach 404s.
-                href: `/engagement/outreach?${qs.toString()}`,
+                message: 'The hearing details could not be saved for outreach. Please try again.',
               });
-            },
-            onError: fail,
-          },
-        );
+              return;
+            }
+            const qs = new URLSearchParams({
+              source: 'legiwatch',
+              contextId,
+              hearingId,
+              client: effectiveClientId,
+            });
+            setStatus({
+              kind: 'done',
+              action,
+              // Explicit: staged, not sent.
+              message: 'Outreach staged for your review. Nothing has been sent.',
+              // The outreach list lives at /engagement/outreach — the only
+              // registered route tree is /engagement/* (App.tsx). A bare
+              // /outreach 404s.
+              href: `/engagement/outreach?${qs.toString()}`,
+            });
+          }, fail);
         return;
 
       case 'save_moment':
