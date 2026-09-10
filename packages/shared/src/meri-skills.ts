@@ -303,6 +303,24 @@ export const MERI_SKILL_REGISTRY = [
     readOnly: true,
     knowledgePlaneReplacement: 'legislation graph retrieval',
   },
+  {
+    id: 'representation_lookup',
+    label: 'Representation Lookup',
+    description:
+      'Who represents a district or state: the member roster plus the client-scoped mapping of which members touch our facilities and footprint.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_representation_lookup',
+    permittedScopes: ['client', 'general'],
+    starterPrompt:
+      'Who represents [state or district], and which of them touch [client name]?',
+    requiredEntitlements: [],
+    semanticDomains: ['identity', 'directory'],
+    requiresClient: false,
+    readOnly: true,
+    knowledgePlaneReplacement: 'directory graph retrieval',
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

@@ -14,6 +14,7 @@ import { executeMeriFundingOpportunityMatch } from './meriv3-retrieval-funding-m
 import { executeMeriPeDeepDive } from './meriv3-retrieval-pe-deep-dive.js';
 import { executeMeriBillWatch } from './meriv3-retrieval-bill-watch.js';
 import { executeMeriHearingWatch } from './meriv3-retrieval-hearing-watch.js';
+import { executeMeriRepresentationLookup } from './meriv3-retrieval-representation.js';
 import type { MeriRetrievalRecipeContext } from './meriv3-retrieval-recipe-utils.js';
 
 export {
@@ -170,5 +171,7 @@ export async function executeMeriRetrievalRecipe(
       return executeMeriBillWatch(input, ctx);
     case 'query_hearing_watch':
       return executeMeriHearingWatch(input, ctx);
+    case 'query_representation_lookup':
+      return executeMeriRepresentationLookup(input, ctx);
   }
 }

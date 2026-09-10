@@ -544,6 +544,13 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
     optionalDomains: [],
     recommendedTools: ['search_committee_hearings'],
   },
+  query_representation_lookup: {
+    tool: 'query_representation_lookup',
+    description: 'Who represents a district/state: member roster plus client-scoped representation mapping.',
+    requiredDomains: ['directory'],
+    optionalDomains: [],
+    recommendedTools: ['list_members', 'get_representation'],
+  },
 };
 
 const DATASETS_BY_TOOL = new Map<string, MeriDatasetDefinition[]>();

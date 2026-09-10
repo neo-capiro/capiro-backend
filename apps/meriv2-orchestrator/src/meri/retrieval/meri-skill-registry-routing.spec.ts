@@ -154,4 +154,14 @@ describe('Meri Quick Action routing contract', () => {
     expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
     expect(planFor(prompt).recipeTool).toBe('query_hearing_watch');
   });
+
+  test('Representation Lookup routes to the roster + mapping fan-out', () => {
+    const definition = skill('representation_lookup');
+    const prompt = hydrateMeriStarterPrompt(definition)
+      .replace('[state or district]', 'Virginia')
+      .replace('[client name]', 'TitanForge Industries');
+
+    expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
+    expect(planFor(prompt).recipeTool).toBe('query_representation_lookup');
+  });
 });

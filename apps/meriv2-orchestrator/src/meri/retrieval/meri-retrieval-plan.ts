@@ -18,6 +18,7 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_pe_deep_dive',
   'query_bill_watch',
   'query_hearing_watch',
+  'query_representation_lookup',
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
@@ -97,6 +98,9 @@ const BILL_WATCH_RE =
 
 const HEARING_WATCH_RE =
   /\bhearings?\b|\bcommittee\s+hearings?\b/i;
+
+const REPRESENTATION_RE =
+  /\bwho\s+(?:represents|is\s+our\s+representative|are\s+our\s+representatives)\b|\b(?:house|senate)\s+representative\b|\brepresentatives?\s+(?:for|of)\b|\bcongressional\s+district\b|\bmembers\s+of\s+(?:congress|the\s+house|the\s+senate)\b/i;
 
 const MAIL_HISTORY_RE =
   /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
@@ -233,6 +237,9 @@ function recipeFor(
   // single-source hearing fan-out (bill status is a different clock —
   // separate recipe).
   if (HEARING_WATCH_RE.test(request)) return 'query_hearing_watch';
+  // Representation Lookup: "who represents this district/state?" is a roster
+  // + mapping question, distinct from committee/acquisition staffing.
+  if (REPRESENTATION_RE.test(request)) return 'query_representation_lookup';
   if (
     intent.subjectScope === 'portfolio' &&
     (intent.queryClass === 'change_detection' || intent.queryClass === 'portfolio_scan')
