@@ -72,6 +72,7 @@ export function HearingActions({
   const { actAsTenantSlug } = useImpersonation();
   const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const selectionKey = JSON.stringify([identityKey, hearingId, clientId]);
+  // Object identity also invalidates A → B → A changes while a call is pending.
   const selectionToken = useMemo(() => ({ key: selectionKey }), [selectionKey]);
   const currentSelectionRef = useRef<typeof selectionToken | null>(selectionToken);
   currentSelectionRef.current = selectionToken;
@@ -191,16 +192,24 @@ export function HearingActions({
           },
           {
             onSuccess: (prefill) => {
+              if (!isCurrentAction()) return;
+              const contextId = crypto.randomUUID();
               try {
                 sessionStorage.setItem(
                   'lw:outreach-context',
-                  JSON.stringify({ prefill, createdAt: Date.now() }),
+                  JSON.stringify({ id: contextId, prefill, createdAt: Date.now() }),
                 );
               } catch {
-                /* see the Ask Meri note above */
+                setStatus({
+                  kind: 'failed',
+                  action,
+                  message: 'The hearing details could not be saved for outreach. Please try again.',
+                });
+                return;
               }
               const qs = new URLSearchParams({
                 source: 'legiwatch',
+                contextId,
                 hearingId,
                 client: effectiveClientId,
               });
@@ -209,7 +218,10 @@ export function HearingActions({
                 action,
                 // Explicit: staged, not sent.
                 message: 'Outreach staged for your review. Nothing has been sent.',
-                href: `/outreach?${qs.toString()}`,
+                // The outreach list lives at /engagement/outreach — the only
+                // registered route tree is /engagement/* (App.tsx). A bare
+                // /outreach 404s.
+                href: `/engagement/outreach?${qs.toString()}`,
               });
             },
             onError: fail,
