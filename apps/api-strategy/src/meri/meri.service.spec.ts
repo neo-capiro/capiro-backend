@@ -1631,8 +1631,9 @@ describe('MeriService — Stage E steward pack + provenance fact-check', () => {
 
     await svc.draft(T, U, 'bearer', draftDto);
 
-    // Scoped to the DRAFT's client.
-    expect(stewardFactsFn).toHaveBeenCalledWith(T, 'C1');
+    // Scoped to the DRAFT's client. F06: a new-strategy draft names NO
+    // strategyId — strategy-scoped documents never ground it.
+    expect(stewardFactsFn).toHaveBeenCalledWith(T, 'C1', { strategyId: undefined });
     expect(stewardHealthFn).toHaveBeenCalledWith(T, 'C1');
     const body = (orchestrator.draft as jest.Mock).mock.calls[0]![0] as {
       stewardFacts: unknown;
@@ -1663,7 +1664,9 @@ describe('MeriService — Stage E steward pack + provenance fact-check', () => {
       instruction: 'x',
     } as AssistantDto);
 
-    expect(stewardFactsFn).toHaveBeenCalledWith(T, 'C1');
+    // F06: the assistant pack names the strategy so its OWN strategy-scoped
+    // documents stay grounded; other strategies' scoped material stays out.
+    expect(stewardFactsFn).toHaveBeenCalledWith(T, 'C1', { strategyId: 'S1' });
     const body = (orchestrator.assistant as jest.Mock).mock.calls[0]![0] as {
       stewardFacts: unknown;
       stewardHealth: { status: string };

@@ -449,7 +449,10 @@ export class MeriService {
         this.resolver.resolve(tenantId),
         this.grounding(tenantId),
         this.attachments.resolve(bearer, dto.attachmentIds),
-        this.stewardContext(tenantId, strategy.clientId),
+        // F06: name the strategy so its own strategy-scoped documents stay
+        // grounded for THIS strategy's assistant pack (other strategies'
+        // scoped material stays excluded).
+        this.stewardContext(tenantId, strategy.clientId, { strategyId }),
       ]);
       ground = g;
       docs = d;
@@ -998,13 +1001,14 @@ export class MeriService {
   private async stewardContext(
     tenantId: string,
     clientId: string | null,
+    opts: { strategyId?: string } = {},
   ): Promise<{ stewardFacts: StewardFactLine[]; stewardHealth: StewardHealth }> {
     try {
       // Phase 5 §3.2: Steward facts/health are classified sources too — bounded
       // retry sits INSIDE this fail-soft try so a transient hiccup gets its
       // retries before this method's own degraded-fallback gives up on it.
       const [stewardFacts, health] = await Promise.all([
-        withContextRetry('steward-facts', () => this.steward.factsForOrchestrator(tenantId, clientId)),
+        withContextRetry('steward-facts', () => this.steward.factsForOrchestrator(tenantId, clientId, opts)),
         withContextRetry('steward-health', () => this.steward.health(tenantId, clientId)),
       ]);
       return {

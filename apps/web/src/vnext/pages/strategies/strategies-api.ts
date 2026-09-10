@@ -297,6 +297,64 @@ export function useContextHealth(clientId: string | null) {
   });
 }
 
+/**
+ * F06 (2026-09-10 remediation plan §4): server-backed availability
+ * projection for the New-strategy overlay — eligible document ids, eligible
+ * fact count, exclusion reasons and a truncation flag, computed with the SAME
+ * scope policy the draft operation grounds on. This replaces the client-side
+ * filter over the 200-capped inventory list (which admitted other
+ * strategies' scoped documents and treated a capped read as a total).
+ */
+export interface StrategyContextAvailability {
+  clientId: string;
+  eligibleDocumentIds: string[];
+  eligibleFactCount: number;
+  excluded: { strategyScoped: number; nodeScoped: number; stale: number; retired: number };
+  truncated: boolean;
+}
+
+export function useStrategyContextAvailability(clientId: string | null) {
+  const api = useApi();
+  return useQuery<StrategyContextAvailability>({
+    queryKey: ['strategy', 'context-availability', clientId],
+    enabled: !!clientId,
+    queryFn: async () =>
+      (
+        await api.get<StrategyContextAvailability>(
+          `${BASE}/context/availability?clientId=${encodeURIComponent(clientId ?? '')}`,
+        )
+      ).data,
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * F06 batched association projection for the Context Library's cards — one
+ * request for the whole visible list (never one per card). Mirrors the
+ * single-document association states: active | archived | missing |
+ * client_mismatch | not_strategy_scoped.
+ */
+export type ContextAssociationProjection = Record<
+  string,
+  { state: 'active' | 'archived' | 'missing' | 'client_mismatch' | 'not_strategy_scoped'; strategy: { id: string; title: string } | null }
+>;
+
+export function useContextAssociations(ids: string[], enabled = true) {
+  const api = useApi();
+  const key = ids.join(',');
+  return useQuery<ContextAssociationProjection>({
+    queryKey: ['strategy', 'context-associations', key],
+    enabled: enabled && ids.length > 0,
+    queryFn: async () =>
+      (
+        await api.get<ContextAssociationProjection>(
+          `${BASE}/context/document-associations?ids=${encodeURIComponent(key)}`,
+        )
+      ).data,
+    staleTime: 30_000,
+  });
+}
+
 /* -------------------------------------------------------------- agents (F) */
 
 export function useChangeSets(

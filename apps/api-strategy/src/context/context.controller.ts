@@ -38,6 +38,20 @@ export class ContextController {
     return this.documents.upload(tc.tenantId, { clerkUserId: tc.clerkUserId, role: tc.role }, dto);
   }
 
+  /**
+   * F06: what a NEW-strategy draft for this client can actually ground on
+   * (eligible document ids + fact count + exclusion reasons). Read-only,
+   * additive — clients that don't know it keep using the inventory list.
+   */
+  @Get('availability')
+  availability(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Query('clientId') clientId?: string,
+  ) {
+    if (!clientId) throw new BadRequestException('clientId is required');
+    return this.documents.availability(tc.tenantId, clientId);
+  }
+
   @Get('documents')
   list(
     @CurrentTenant() tc: AuthTenantContext,
@@ -61,6 +75,13 @@ export class ContextController {
   @Get('documents/:id')
   byId(@CurrentTenant() tc: AuthTenantContext, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.documents.get(tc.tenantId, id);
+  }
+
+  /** F06 batched association projection for list surfaces (one call, many cards). */
+  @Get('document-associations')
+  associations(@CurrentTenant() tc: AuthTenantContext, @Query('ids') ids?: string) {
+    const list = (ids ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 200);
+    return this.documents.associations(tc.tenantId, list);
   }
 
   @Get('documents/:id/association')

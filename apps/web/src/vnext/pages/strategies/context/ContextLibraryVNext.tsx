@@ -25,6 +25,7 @@ import {
 import { CapiroCheckIcon, CapiroSearchIcon } from '../../../components/icons/index.js';
 import {
   useClientsLite,
+  useContextAssociations,
   useContextConflicts,
   useContextDocuments,
   useContextFacts,
@@ -197,6 +198,16 @@ export function ContextLibraryVNext() {
       visibleCount: entries.reduce((sum, [, rows]) => sum + rows.length, 0),
     };
   }, [docs.data, clientFilter, stateFilter, query]);
+
+  /*
+   * F06 (plan §4 item 6): batched association projection for the visible
+   * strategy-scoped cards — ONE request for the whole list, never one per
+   * card. Cards render the actual strategy title and distinguish an archived
+   * association; a missing/mismatched strategy shows "Association
+   * unavailable" (never "deleted" inferred from a missing list row).
+   */
+  const scopedDocIds = scopedDocuments.map((doc) => doc.id);
+  const associations = useContextAssociations(scopedDocIds);
 
   const statsLoading = docs.isLoading || facts.isLoading || conflicts.isLoading;
 
@@ -404,7 +415,7 @@ export function ContextLibraryVNext() {
                       </span>
                     </header>
                     {rows.map((doc) => (
-                      <DocumentRow key={doc.id} doc={doc} clientLabel={clientName(doc.clientId)} scopeQuery={scope.query} />
+                      <DocumentRow key={doc.id} doc={doc} clientLabel={clientName(doc.clientId)} scopeQuery={scope.query} association={associations.data?.[doc.id]} />
                     ))}
                   </section>
                 ))}
@@ -505,14 +516,27 @@ function FilterPill({
   );
 }
 
-function DocumentRow({ doc, clientLabel, scopeQuery }: { doc: ContextDocumentListItem; clientLabel: string; scopeQuery: string }) {
+function DocumentRow({ doc, clientLabel, scopeQuery, association }: { doc: ContextDocumentListItem; clientLabel: string; scopeQuery: string; association?: { state: string; strategy: { id: string; title: string } | null } }) {
   const navigate = useNavigate();
   const stale = isContextDocStale(doc);
   const asOf = fmtDay(fmScalar(doc.frontmatter, 'as_of'));
   const validTo = fmtDay(doc.validUntil ?? fmScalar(doc.frontmatter, 'valid_until'));
+  /* F06: replace the relative "This strategy" label with the association the
+   * server resolved — actual title (and Archived state), or an explicit
+   * unavailable fallback. Never infer "deleted" from a missing row. */
+  const scopeLabel =
+    doc.scope === 'strategy'
+      ? association == null
+        ? 'Strategy'
+        : association.state === 'active'
+          ? `Strategy: ${association.strategy?.title ?? ''}`
+          : association.state === 'archived'
+            ? `${association.strategy?.title ?? 'Strategy'} · Archived`
+            : 'Association unavailable'
+      : ({ firm: 'Firm-wide', client: 'All client strategies', node: 'This step', once: 'This task' } as Record<string, string>)[doc.scope] ?? doc.scope;
   const meta = [
     clientLabel,
-    ({ firm: 'Firm-wide', client: 'All client strategies', strategy: 'This strategy', node: 'This step', once: 'This task' } as Record<string, string>)[doc.scope] ?? doc.scope,
+    scopeLabel,
     asOf ? `as of ${asOf}` : null,
     validTo ? `review by ${validTo}` : null,
   ]

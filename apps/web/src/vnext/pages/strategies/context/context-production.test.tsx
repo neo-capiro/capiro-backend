@@ -30,6 +30,9 @@ vi.mock('../strategies-api.js', () => ({
   useContextConflicts: () => ({ data: [], isSuccess: true }),
   useContextSections: () => ({ data: [] }),
   useContextLocate: () => ({ data: null }),
+  // F06: the library now resolves card associations through the batched
+  // projection hook — stub it here like every other context hook.
+  useContextAssociations: () => ({ data: {}, isLoading: false, isError: false }),
   useApproveContextDocument: () => ({ mutate: mocks.approve }),
   useArchiveContextDocument: () => ({ mutate: mocks.archive }),
   useExtractContextFacts: () => ({ mutate: mocks.extract }),

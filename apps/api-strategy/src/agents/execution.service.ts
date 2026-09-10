@@ -619,7 +619,9 @@ export class ExecutionService {
     const clientName = await this.resolveClientName(tenantId, strategy.clientId);
     // Read-only prompt grounding for the (optional) generation call below — NOT
     // part of any gate; fails soft to [] (mirrors MeriService.stewardContext).
-    const stewardFacts = await this.fetchStewardFactsSafely(tenantId, strategy.clientId);
+    // F06: name the strategy so its own strategy-scoped documents ground this
+    // generation; other strategies' scoped material stays excluded.
+    const stewardFacts = await this.fetchStewardFactsSafely(tenantId, strategy.clientId, { strategyId: strategy.id });
 
     const results: Record<string, unknown> = {};
     let sendApproval: Record<string, unknown> | null = null;
@@ -2087,9 +2089,10 @@ export class ExecutionService {
   private async fetchStewardFactsSafely(
     tenantId: string,
     clientId: string | null,
+    opts: { strategyId?: string } = {},
   ): Promise<StewardFactLine[]> {
     try {
-      return await this.steward.factsForOrchestrator(tenantId, clientId);
+      return await this.steward.factsForOrchestrator(tenantId, clientId, opts);
     } catch (err) {
       this.logger.warn(`steward facts unavailable for generation: ${(err as Error).message}`);
       return [];

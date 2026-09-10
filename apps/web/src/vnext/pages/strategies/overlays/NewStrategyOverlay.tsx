@@ -2,20 +2,21 @@
  * §7.10a — New strategy overlay. Route: /strategies/new (over the library).
  *
  * Client, objective type, goal, owner (required); target date + Meri context
- * (optional); grounding documents; starting point (empty timeline vs draft with
- * Meri — draft creates the strategy AND a draft proposal, never an applied
- * plan); available-context panel. Primary stays disabled until the required
- * fields are complete. Focus trap / Escape / dirty guard / route sync live in
+ * (optional); starting point (empty timeline vs draft with Meri — draft
+ * creates the strategy AND a draft proposal, never an applied plan);
+ * available-context panel. Primary stays disabled until the required fields
+ * are complete. Focus trap / Escape / dirty guard / route sync live in
  * StrategiesModalShell — this file is only the body.
  *
- * GAP (grounding documents): the design's attach row implies a document
- * picker, but no attachment upload/list endpoint exists in this module
- * (DraftStrategyInput.attachmentIds has no source of ids here). The row
- * now lists the actual active client context documents (with links to
- * each document's detail page) so the user can see exactly what will
- * ground the draft, and points at Context → Upload for more.
+ * F06 (2026-09-10 remediation plan §4): context availability comes from the
+ * server-backed availability projection (useStrategyContextAvailability),
+ * scoped to the SELECTED client — never a client-side filter over the broad
+ * 200-capped inventory list, which admitted other strategies' scoped
+ * documents and treated a capped read as an authoritative total. The copy
+ * says "available as working context" (eligibility), never "used for this
+ * draft" (provenance only the draft operation itself can return).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroSelect } from '../../../components/fields/index.js';
@@ -24,14 +25,13 @@ import { OBJECTIVE_TYPES } from '../../../../pages/strategy/constants.js';
 import type { StrategyType } from '../../../../pages/strategy/types.js';
 import {
   useClientsLite,
-  useContextDocuments,
-  useContextFacts,
-  useContextHealth,
   useCreateStrategy,
   useDraftStrategy,
   useFirmPhases,
+  useStrategyContextAvailability,
   useTenantMembers,
 } from '../strategies-api.js';
+import { useShellClientContext } from '../../../adapters/legacy/useShellClientContext.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
 
 type StartingPoint = 'empty' | 'draft';
@@ -41,10 +41,19 @@ export function NewStrategyOverlay() {
   const clients = useClientsLite();
   const members = useTenantMembers();
   const phases = useFirmPhases();
-  const documents = useContextDocuments();
-  const facts = useContextFacts();
+  const shellClient = useShellClientContext();
 
-  const [clientId, setClientId] = useState('');
+  /*
+   * F06 item 8: initialize the creation client from a valid selected
+   * portfolio client. The initial value is the FORM BASELINE (not a user
+   * edit), so opening and closing an untouched form is not dirty — the dirty
+   * predicate below compares against this baseline.
+   */
+  const [clientId, setClientId] = useState(() =>
+    shellClient.selectedClientId && (clients.data ?? []).some((c) => c.id === shellClient.selectedClientId)
+      ? shellClient.selectedClientId
+      : '',
+  );
   const [type, setType] = useState<StrategyType | ''>('');
   const [goal, setGoal] = useState('');
   const [ownerUserId, setOwnerUserId] = useState('');
@@ -52,29 +61,27 @@ export function NewStrategyOverlay() {
   const [meriContext, setMeriContext] = useState('');
   const [startingPoint, setStartingPoint] = useState<StartingPoint>('empty');
 
-  const health = useContextHealth(clientId || null);
+  const availability = useStrategyContextAvailability(clientId || null);
   const createStrategy = useCreateStrategy();
   const draftStrategy = useDraftStrategy();
   const busy = createStrategy.isPending || draftStrategy.isPending;
   const mutationError = createStrategy.error ?? draftStrategy.error;
 
-  const clientDocuments = useMemo(
-    () =>
-      (documents.data ?? []).filter(
-        (doc) => doc.state === 'active' && (doc.clientId === clientId || doc.clientId === null),
-      ),
-    [documents.data, clientId],
-  );
-  const clientFacts = useMemo(
-    () =>
-      (facts.data ?? []).filter(
-        (fact) => fact.state === 'active' && (fact.clientId === clientId || fact.clientId === null),
-      ),
-    [facts.data, clientId],
-  );
-
   const requiredComplete = Boolean(clientId && type && goal.trim() && ownerUserId);
-  const dirty = Boolean(clientId || type || goal.trim() || ownerUserId || targetDate || meriContext.trim());
+  /* F06: the initialized client is the baseline, not a pending edit — only
+   * fields the USER changed make the form dirty. */
+  const baselineClientId = useRef('');
+  useEffect(() => {
+    if (baselineClientId.current === '' && clientId !== '') baselineClientId.current = clientId;
+  }, [clientId]);
+  const dirty = Boolean(
+    (clientId !== '' && clientId !== baselineClientId.current) ||
+      type ||
+      goal.trim() ||
+      ownerUserId ||
+      targetDate ||
+      meriContext.trim(),
+  );
 
   const submit = () => {
     if (!requiredComplete || busy) return;
@@ -193,34 +200,21 @@ export function NewStrategyOverlay() {
           <div className="st-panel">
             <p className="st-panel__label">Grounding documents · Optional</p>
             <p className="st-ns__context-sub" style={{ margin: 0 }}>
-              {clientId
-                ? `${clientDocuments.length} linked context document${clientDocuments.length === 1 ? '' : 's'} are available to Meri.`
-                : 'Select a client to see which context documents will ground the draft.'}{' '}
+              {/* F06: eligibility copy — "available as working context" — never
+                  provenance ("used for this draft") or approval claims. */}
+              {availability.data
+                ? `${availability.data.truncated
+                    ? `At least ${availability.data.eligibleDocumentIds.length} document${availability.data.eligibleDocumentIds.length === 1 ? '' : 's'}`
+                    : `${availability.data.eligibleDocumentIds.length} document${availability.data.eligibleDocumentIds.length === 1 ? '' : 's'}`}
+                  ${availability.data.truncated ? '(more than the first 500)' : ''} available as working context for this client.`
+                : 'Select a client to review context.'}{' '}
               Upload memos, bill text or prior plans via Context → Upload after the strategy is created.
             </p>
-            {clientId && clientDocuments.length > 0 && (
-              <ul className="st-ns__doc-list" data-source="live">
-                {clientDocuments.slice(0, 6).map((doc) => (
-                  <li key={doc.id}>
-                    <button
-                      type="button"
-                      className="st-ns__doc-link"
-                      onClick={() => navigate(`/strategies/context/${doc.id}`)}
-                    >
-                      {doc.title}
-                    </button>
-                    <span className="st-ns__doc-meta">
-                      {' '}{doc.templateKey} · {doc.state}
-                    </span>
-                  </li>
-                ))}
-                {clientDocuments.length > 6 && (
-                  <li className="st-ns__doc-more">
-                    +{clientDocuments.length - 6} more document{clientDocuments.length - 6 === 1 ? '' : 's'}
-                  </li>
-                )}
-              </ul>
-            )}
+            {availability.data && availability.data.truncated ? (
+              <p className="st-ns__context-sub" style={{ marginTop: 4 }}>
+                The inventory is large — these counts cover the most recent 500 documents.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -274,69 +268,57 @@ export function NewStrategyOverlay() {
               <p className="st-ns__context-sub" style={{ margin: 0 }}>
                 Select a client to see the context Meri will ground on.
               </p>
-            ) : facts.isLoading || documents.isLoading ? (
+            ) : availability.isLoading ? (
               <div className="st-skel-stack">
                 <CapiroSkeleton height={28} width="60%" />
                 <CapiroSkeleton height={14} />
                 <CapiroSkeleton height={14} width="80%" />
               </div>
-            ) : facts.isError || documents.isError ? (
+            ) : availability.isError ? (
               <CapiroErrorState
-                title="Context unavailable"
-                description="The context inventory could not be loaded. The strategy can still be created."
-                onRetry={() => {
-                  void facts.refetch();
-                  void documents.refetch();
-                }}
+                title="Working context could not be checked"
+                description="The availability projection could not be loaded. The strategy can still be created."
+                onRetry={() => void availability.refetch()}
               />
-            ) : (
+            ) : availability.data ? (
               <>
-                <div className="st-ns__context-stat">{clientFacts.length} facts</div>
+                <div className="st-ns__context-stat">{availability.data.eligibleFactCount} facts</div>
                 <p className="st-ns__context-sub">
-                  {clientDocuments.length} client doc{clientDocuments.length === 1 ? '' : 's'} ·{' '}
-                  {phases.data?.length ?? '…'} firm phases
+                  {availability.data.truncated
+                    ? `at least ${availability.data.eligibleDocumentIds.length} documents`
+                    : `${availability.data.eligibleDocumentIds.length} document${availability.data.eligibleDocumentIds.length === 1 ? '' : 's'}`}{' '}
+                  · {phases.data?.length ?? '…'} firm phases
                 </p>
-                {health.data ? (
-                  <>
-                    {health.data.status === 'ok' ? (
-                      <span className="st-pill st-pill--success">Healthy</span>
-                    ) : health.data.status === 'conflicted' ? (
-                      <span className="st-pill st-pill--danger">
-                        {health.data.openMaterialConflicts.length} open conflict
-                        {health.data.openMaterialConflicts.length === 1 ? '' : 's'}
-                      </span>
-                    ) : (
-                      <span className="st-pill st-pill--warning">Degraded context</span>
-                    )}
-                    {/* Surface the real health dimensions the backend already
-                        carries (types.ts ContextHealth), not a fabricated
-                        score. missingRequired and staleDocuments are honest
-                        counts from the context health endpoint. */}
-                    {health.data.missingRequired.length > 0 ? (
-                      <p className="st-ns__context-sub" style={{ marginTop: 4 }}>
-                        {health.data.missingRequired.length} missing required field
-                        {health.data.missingRequired.length === 1 ? '' : 's'}:{' '}
-                        {health.data.missingRequired.join(', ')}
-                      </p>
-                    ) : null}
-                    {health.data.staleDocuments > 0 ? (
-                      <p className="st-ns__context-sub" style={{ marginTop: 2 }}>
-                        {health.data.staleDocuments} stale document
-                        {health.data.staleDocuments === 1 ? '' : 's'} still in rotation
-                      </p>
-                    ) : null}
-                  </>
-                ) : health.isLoading ? (
-                  <span className="st-pill st-pill--info">Loading health…</span>
-                ) : health.isError ? (
-                  <span className="st-pill st-pill--warning">Health unavailable</span>
+                {availability.data.excluded.strategyScoped > 0 ? (
+                  <p className="st-ns__context-sub" style={{ marginTop: 4 }}>
+                    {availability.data.excluded.strategyScoped} document
+                    {availability.data.excluded.strategyScoped === 1 ? '' : 's'} linked to another
+                    strategy — excluded until that strategy is chosen.
+                  </p>
                 ) : null}
+                {availability.data.excluded.stale > 0 ? (
+                  <p className="st-ns__context-sub" style={{ marginTop: 2 }}>
+                    {availability.data.excluded.stale} needs updating and stays out of the draft.
+                  </p>
+                ) : null}
+                {availability.data.excluded.nodeScoped > 0 ? (
+                  <p className="st-ns__context-sub" style={{ marginTop: 2 }}>
+                    {availability.data.excluded.nodeScoped} step-specific document
+                    {availability.data.excluded.nodeScoped === 1 ? '' : 's'} not applicable here.
+                  </p>
+                ) : null}
+                <CapiroButton
+                  variant="quiet"
+                  size="compact"
+                  onClick={() => navigate(`/strategies/context?clientId=${encodeURIComponent(clientId)}`)}
+                >
+                  View all {(clients.data ?? []).find((c) => c.id === clientId)?.name ?? 'client'} documents
+                </CapiroButton>
               </>
-            )}
+            ) : null}
           </div>
         </aside>
       </div>
     </StrategiesModalShell>
   );
 }
-

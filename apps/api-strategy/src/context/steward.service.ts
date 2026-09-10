@@ -642,8 +642,20 @@ export class StewardService {
    * Wire-contract (2) `stewardFacts` pack lines for a draft/assistant call:
    * ACTIVE facts in the client's scope (client's own + firm-null), 120 newest,
    * joined with their document's title + templateKey.
+   *
+   * F06 (2026-09-10 remediation plan §4, item 9): a fact is eligible only when
+   * its parent DOCUMENT's scope applies to the operation being grounded.
+   * Client/firm-scope documents always apply; strategy-scoped documents apply
+   * only to their own strategy (opts.strategyId); node/once-scoped documents
+   * never apply to a strategy-level pack. Previously any same-client fact
+   * grounded a draft — including strategy-scoped material belonging to a
+   * different strategy.
    */
-  async factsForOrchestrator(tenantId: string, clientId: string | null): Promise<StewardFactLine[]> {
+  async factsForOrchestrator(
+    tenantId: string,
+    clientId: string | null,
+    opts: { strategyId?: string } = {},
+  ): Promise<StewardFactLine[]> {
     const today = new Date(new Date().toISOString().slice(0, 10));
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spContextFact.findMany({
@@ -658,6 +670,7 @@ export class StewardService {
               tenantId,
               state: 'active',
               OR: [{ validUntil: null }, { validUntil: { gte: today } }],
+              ...documentScopeForStrategy(opts.strategyId),
             },
           },
         },
@@ -681,6 +694,22 @@ export class StewardService {
 /** Fact eligibility scope: the client's own facts plus firm-wide (client-null). */
 function clientScope(clientId: string | null): Prisma.SpContextFactWhereInput {
   return clientId ? { OR: [{ clientId }, { clientId: null }] } : { clientId: null };
+}
+
+/**
+ * F06 document-scope eligibility for a strategy-level pack: client/firm-scope
+ * documents always apply; strategy-scoped documents apply only to the strategy
+ * being grounded; node/once-scoped documents never apply at strategy level.
+ * A NEW-strategy draft passes no strategyId, so ALL strategy-scoped material
+ * is excluded (nothing can be scoped to a strategy that does not exist yet).
+ */
+function documentScopeForStrategy(
+  strategyId: string | undefined,
+): Prisma.SpContextDocumentWhereInput {
+  if (strategyId) {
+    return { OR: [{ scope: { in: ['client', 'firm'] } }, { scope: 'strategy', scopeRef: strategyId }] };
+  }
+  return { scope: { in: ['client', 'firm'] } };
 }
 
 /**

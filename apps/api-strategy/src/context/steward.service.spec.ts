@@ -12,6 +12,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { StrategyAiCredentialResolver } from '../meri/strategy-ai-credential.resolver.js';
 import type { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client.js';
+import type { StewardFactLine } from '../meri/meri.types.js';
 import type { StewardExtractResponse } from '../meri/meri.types.js';
 
 /*
@@ -1236,9 +1237,12 @@ describe('StewardService.factsForOrchestrator (wire-contract 2 pack lines)', () 
   it('excludes expired or retired documents while retaining a source valid through today', async () => {
     const store = makeStore();
     const today = new Date(new Date().toISOString().slice(0, 10));
-    seedDoc(store, { id: DOC_ID, validUntil: today });
-    seedDoc(store, { id: OTHER_DOC_ID, validUntil: new Date(today.getTime() - 86_400_000) });
-    seedDoc(store, { id: 'archived-doc', state: 'archived' });
+    // F06: client-scope fixtures — these tests exercise validUntil/state
+    // filtering, not scope; under the F06 scope contract a strategy-scoped
+    // document no longer grounds a pack that names no strategy.
+    seedDoc(store, { id: DOC_ID, scope: 'client', validUntil: today });
+    seedDoc(store, { id: OTHER_DOC_ID, scope: 'client', validUntil: new Date(today.getTime() - 86_400_000) });
+    seedDoc(store, { id: 'archived-doc', scope: 'client', state: 'archived' });
     seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Current evidence.' });
     seedFact(store, { id: OTHER_CLIENT_FACT_ID, documentId: OTHER_DOC_ID, fact: 'Expired evidence.' });
     seedFact(store, { id: REJECTED_FACT_ID, documentId: 'archived-doc', fact: 'Retired evidence.' });
@@ -1251,7 +1255,7 @@ describe('StewardService.factsForOrchestrator (wire-contract 2 pack lines)', () 
 
   it('returns ACTIVE facts in client scope (client + firm-null) shaped with documentTitle/templateKey', async () => {
     const store = makeStore();
-    seedDoc(store);
+    seedDoc(store, { scope: 'client' });
     seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Client fact.' });
     seedFact(store, {
       id: OTHER_CLIENT_FACT_ID,
@@ -1281,5 +1285,60 @@ describe('StewardService.factsForOrchestrator (wire-contract 2 pack lines)', () 
       authority: 'client_approved',
       asOf: '2026-06-01',
     });
+  });
+
+  // F06 (2026-09-10 remediation plan §4, item 9): the shared scope path was
+  // client-only — a strategy-scoped document bound to ANOTHER strategy of the
+  // same client admitted its facts into a NEW-strategy draft pack. A fact is
+  // eligible only when its parent document's scope applies to the operation
+  // being grounded: client/firm scope always; strategy/node/once scope only
+  // when the caller names that exact strategy/node.
+  it('F06: excludes strategy-scoped documents of other strategies from a new-strategy draft pack', async () => {
+    const store = makeStore();
+    // A client-scope doc (eligible) and a strategy-scope doc bound to a
+    // DIFFERENT strategy of the same client (not eligible for a new draft).
+    seedDoc(store, { id: DOC_ID, scope: 'client', scopeRef: null });
+    seedDoc(store, {
+      id: OTHER_DOC_ID,
+      scope: 'strategy',
+      scopeRef: '77777777-7777-4777-8777-777777777777',
+    });
+    seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Client evidence.' });
+    seedFact(store, { id: OTHER_CLIENT_FACT_ID, documentId: OTHER_DOC_ID, fact: 'Other strategy evidence.' });
+    const { svc } = makeService(store);
+
+    const lines = await svc.factsForOrchestrator(T, CLIENT_ID);
+
+    expect(lines.map((l) => l.fact)).toEqual(['Client evidence.']);
+  });
+
+  it('F06: a named strategy keeps its own strategy-scoped facts while other strategies\' remain excluded', async () => {
+    const store = makeStore();
+    const OWN = '77777777-7777-4777-8777-777777777777';
+    const OTHER = '88888888-8888-4888-8888-888888888888';
+    seedDoc(store, { id: DOC_ID, scope: 'strategy', scopeRef: OWN });
+    seedDoc(store, { id: OTHER_DOC_ID, scope: 'strategy', scopeRef: OTHER });
+    seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Own strategy evidence.' });
+    seedFact(store, { id: OTHER_CLIENT_FACT_ID, documentId: OTHER_DOC_ID, fact: 'Other strategy evidence.' });
+    const { svc } = makeService(store);
+
+    const own = await (svc.factsForOrchestrator as unknown as (t: string, c: string | null, o?: { strategyId?: string }) => Promise<StewardFactLine[]>)(T, CLIENT_ID, { strategyId: OWN });
+    const fresh = await svc.factsForOrchestrator(T, CLIENT_ID);
+
+    expect(own.map((l) => l.fact)).toEqual(['Own strategy evidence.']);
+    expect(fresh.map((l) => l.fact)).toEqual([]);
+  });
+
+  it('F06: node- and once-scoped documents never ground a strategy-level draft pack', async () => {
+    const store = makeStore();
+    seedDoc(store, { id: DOC_ID, scope: 'node', scopeRef: 'node-1' });
+    seedDoc(store, { id: OTHER_DOC_ID, scope: 'once', scopeRef: null });
+    seedFact(store, { id: EXISTING_FACT_ID, documentId: DOC_ID, fact: 'Node evidence.' });
+    seedFact(store, { id: OTHER_CLIENT_FACT_ID, documentId: OTHER_DOC_ID, fact: 'Once evidence.' });
+    const { svc } = makeService(store);
+
+    const lines = await svc.factsForOrchestrator(T, CLIENT_ID);
+
+    expect(lines).toEqual([]);
   });
 });

@@ -300,6 +300,57 @@ export class ContextDocumentsService {
     return { state: strategy.archivedAt ? 'archived' : 'active', strategy: { id: strategy.id, title: strategy.title } };
   }
 
+  /**
+   * F06 batched association projection for list surfaces (the Context
+   * Library's cards). Same states as `association()`, resolved in ONE query
+   * instead of one request per card: strategy-scoped documents are matched
+   * against their target strategies in a single findMany keyed by scopeRef.
+   */
+  async associations(
+    tenantId: string,
+    ids: string[],
+  ): Promise<Record<string, { state: string; strategy: { id: string; title: string } | null }>> {
+    const unique = [...new Set(ids)].filter((id) => UUID_RE.test(id));
+    if (unique.length === 0) return {};
+    const docs = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.spContextDocument.findMany({
+        where: { id: { in: unique } },
+        select: { id: true, clientId: true, scope: true, scopeRef: true },
+      }),
+    );
+    const strategyRefs = [...new Set(docs.filter((d) => d.scope === 'strategy' && d.scopeRef).map((d) => d.scopeRef!))];
+    const strategies = strategyRefs.length
+      ? await this.prisma.withTenant(tenantId, (tx) =>
+          tx.spStrategy.findMany({
+            where: { id: { in: strategyRefs } },
+            select: { id: true, title: true, clientId: true, archivedAt: true },
+          }),
+        )
+      : [];
+    const byId = new Map(strategies.map((s) => [s.id, s]));
+    const out: Record<string, { state: string; strategy: { id: string; title: string } | null }> = {};
+    for (const doc of docs) {
+      if (doc.scope !== 'strategy' || !doc.scopeRef) {
+        out[doc.id] = { state: 'not_strategy_scoped', strategy: null };
+        continue;
+      }
+      const strategy = byId.get(doc.scopeRef);
+      if (!strategy) {
+        out[doc.id] = { state: 'missing', strategy: null };
+        continue;
+      }
+      if (strategy.clientId !== doc.clientId) {
+        out[doc.id] = { state: 'client_mismatch', strategy: null };
+        continue;
+      }
+      out[doc.id] = {
+        state: strategy.archivedAt ? 'archived' : 'active',
+        strategy: { id: strategy.id, title: strategy.title },
+      };
+    }
+    return out;
+  }
+
   /** Reassignment creates an unapproved revision in the same client and preserves the source. */
   async reassign(tenantId: string, user: ContextUser, id: string, expectedChecksum: string, strategyId: string) {
     const doc = await this.get(tenantId, id);
@@ -362,6 +413,103 @@ export class ContextDocumentsService {
     );
     const withStale = rows.map((r) => ({ ...r, stale: isStale(r.validUntil) }));
     return opts.includeStale ? withStale : withStale.filter((r) => !r.stale);
+  }
+
+  /**
+   * F06 (2026-09-10 remediation plan §4): server-backed availability
+   * projection for the New-strategy overlay — what the intended DRAFT
+   * operation can actually ground on, not a filtered inventory list.
+   *
+   * Scope policy mirrors the draft operation's grounding (StewardService
+   * `factsForOrchestrator` with no strategyId): for a NEW strategy only
+   * client-scope documents of the selected client and firm-scope documents are
+   * eligible, and only while active and not stale. Strategy/node/once-scoped
+   * material can never apply to a strategy that does not exist yet. Fact
+   * counts include only facts whose PARENT document is eligible, filtered
+   * before any row limit.
+   *
+   * The response is additive and read-only: eligible document ids, an
+   * eligible fact count, per-reason exclusion counts, and an explicit
+   * `truncated` flag when the eligible-document read hit its cap — a capped
+   * read must never be presented as an authoritative total (the inventory
+   * list's 200-row cap is exactly the defect this replaces).
+   */
+  async availability(
+    tenantId: string,
+    clientId: string,
+    opts: { documentTakeLimit?: number } = {},
+  ): Promise<{
+    clientId: string;
+    eligibleDocumentIds: string[];
+    eligibleFactCount: number;
+    excluded: {
+      strategyScoped: number;
+      nodeScoped: number;
+      stale: number;
+      retired: number;
+    };
+    truncated: boolean;
+  }> {
+    if (!UUID_RE.test(clientId)) {
+      throw new BadRequestException(`Invalid clientId '${clientId}' — expected a UUID`);
+    }
+    const takeLimit = Math.min(Math.max(opts.documentTakeLimit ?? 500, 1), 500);
+    const today = new Date(new Date().toISOString().slice(0, 10));
+
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.spContextDocument.findMany({
+        where: {
+          OR: [{ clientId }, { clientId: null, scope: 'firm' as const }],
+        },
+        select: { id: true, scope: true, scopeRef: true, state: true, validUntil: true },
+        take: takeLimit + 1,
+        orderBy: { createdAt: 'desc' },
+      });
+      const truncated = rows.length > takeLimit;
+      const candidates = truncated ? rows.slice(0, takeLimit) : rows;
+
+      const eligibleIds: string[] = [];
+      const excluded = { strategyScoped: 0, nodeScoped: 0, stale: 0, retired: 0 };
+      for (const doc of candidates) {
+        if (doc.state !== 'active') {
+          if (doc.state === 'superseded' || doc.state === 'archived') excluded.retired++;
+          else excluded.retired++; // draft-state documents are not usable context either
+          continue;
+        }
+        if (doc.validUntil && doc.validUntil < today) {
+          excluded.stale++;
+          continue;
+        }
+        if (doc.scope === 'strategy' && doc.scopeRef) {
+          excluded.strategyScoped++;
+          continue;
+        }
+        if (doc.scope === 'node' || doc.scope === 'once') {
+          excluded.nodeScoped++;
+          continue;
+        }
+        eligibleIds.push(doc.id);
+      }
+
+      // Facts count only when BOTH the fact and its parent document are
+      // eligible — the same where-clause the draft operation grounds on.
+      const eligibleFactCount = await tx.spContextFact.count({
+        where: {
+          OR: [{ clientId }, { clientId: null }],
+          state: 'active',
+          documentId: { in: eligibleIds },
+          document: {
+            is: {
+              tenantId,
+              state: 'active',
+              OR: [{ validUntil: null }, { validUntil: { gte: today } }],
+            },
+          },
+        },
+      });
+
+      return { clientId, eligibleDocumentIds: eligibleIds, eligibleFactCount, excluded, truncated };
+    });
   }
 
   async get(tenantId: string, id: string): Promise<ContextDocumentWithStale> {
