@@ -23,7 +23,7 @@ import {
   type ClientProfileFillGovernedContext,
 } from './client-profile-fill-context-plane.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { buildFillRunSummary, requeueFailedFillReviewChecks } from './client-profile-fill-retry.js';
+import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-fill-retry.js';
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
 
 export const CLIENT_PROFILE_FILL_TASK_TYPES = [
@@ -774,7 +774,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           ctx.tenantId,
           clientId,
         );
-        await requeueFailedFillReviewChecks(tx, runId, ctx.tenantId);
+        await requeueFillReviewChecks(tx, runId, ctx.tenantId);
       }
       return Number(count);
     });
@@ -823,7 +823,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             WHERE id = $1::uuid AND tenant_id = $2::uuid`,
           run.id, run.tenantId,
         );
-        await requeueFailedFillReviewChecks(tx, run.id, run.tenantId);
+        await requeueFillReviewChecks(tx, run.id, run.tenantId);
       }
     });
   }
@@ -984,7 +984,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                    t.updated_at AS "updatedAt",
                    r.created_by_user_id AS "createdByUserId"`,
         TASK_CLAIM_BATCH,
-        this.workerId,
+        // A fresh lease distinguishes successive claims by the same worker.
+        `${this.workerId}:${randomUUID()}`,
       ),
     );
   }
@@ -1079,13 +1080,14 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
 
   private async heartbeat(task: WorkflowTaskRow): Promise<void> {
     await this.prisma.withSystem(async (tx) => {
-      await tx.$executeRawUnsafe(
+      const changed = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task
             SET heartbeat_at = now(), updated_at = now()
           WHERE id = $1::uuid AND status = 'running' AND worker_id = $2`,
         task.id,
-        this.workerId,
+        task.workerId,
       );
+      if (Number(changed) !== 1) return;
       await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_run
             SET last_progress_at = now(), updated_at = now()
@@ -1103,7 +1105,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             SET status = 'completed', output_summary_jsonb = $2::jsonb,
                 completed_at = now(), claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 updated_at = now()
-          WHERE t.id = $1::uuid AND t.status = 'running'
+          WHERE t.id = $1::uuid AND t.status = 'running' AND t.worker_id = $3
             AND EXISTS (
               SELECT 1 FROM client_profile_fill_run r
                WHERE r.id = t.run_id AND r.tenant_id = t.tenant_id
@@ -1111,6 +1113,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
             )`,
         task.id,
         JSON.stringify({ count }),
+        task.workerId,
       ),
     );
   }
@@ -1123,7 +1126,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   ): Promise<void> {
     const delayMs = Math.min(60_000, 2_000 * 2 ** Math.max(0, task.attempt - 1));
     const nextAttemptAt = new Date(Date.now() + delayMs);
-    await this.prisma.withSystem((tx) =>
+    const changed = await this.prisma.withSystem((tx) =>
       tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task t
             SET status = $2,
@@ -1132,7 +1135,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
                 completed_at = CASE WHEN $2 = 'failed' THEN now() ELSE NULL END,
                 claimed_at = NULL, heartbeat_at = NULL, worker_id = NULL,
                 updated_at = now()
-          WHERE t.id = $1::uuid AND t.status = 'running'
+          WHERE t.id = $1::uuid AND t.status = 'running' AND t.worker_id = $6
             AND EXISTS (
               SELECT 1 FROM client_profile_fill_run r
                WHERE r.id = t.run_id AND r.tenant_id = t.tenant_id
@@ -1143,8 +1146,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         nextAttemptAt,
         code,
         message.slice(0, 2_000),
+        task.workerId,
       ),
     );
+    if (Number(changed) !== 1) return;
     this.logger.warn(
       `Fill with Meri ${task.taskKey} ${retry ? 'will retry' : 'failed'} for ${task.clientId}: ${message}`,
     );

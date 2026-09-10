@@ -40,6 +40,17 @@ function renderRun(findings: ReturnType<typeof finding>[], status = 'partial') {
 beforeEach(() => { getMock.mockReset(); postMock.mockReset(); });
 
 describe('Meri durable review and attribution evidence', () => {
+  it('uses the latest completion audit after a retry without losing applied findings', async () => {
+    renderRun([
+      finding({ id: 'old-audit', kind: 'profile_completion', source: 'completion_audit', status: 'informational', proposedValue: { score: 40 } }),
+      finding({ id: 'accepted', status: 'accepted', appliedAt: '2026-09-01T12:02:00.000Z' }),
+      finding({ id: 'new-audit', kind: 'profile_completion', source: 'completion_audit', status: 'informational', proposedValue: { score: 87 } }),
+    ], 'completed');
+    expect(await screen.findByText('87%')).toBeInTheDocument();
+    expect(screen.queryByText('40%')).not.toBeInTheDocument();
+    expect(screen.getByText(/1 update has already been applied from this run/)).toBeInTheDocument();
+  });
+
   it('reloads durable findings after an apply request fails after saving an update', async () => {
     const { run } = renderRun([
       finding({ id: 'description', kind: 'profile_field', targetKey: 'description', source: 'public_web', proposedValue: 'Communications technology' }),

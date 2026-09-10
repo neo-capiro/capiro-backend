@@ -24,6 +24,9 @@ function build(tx: any = {}, workflow: any = {}) {
   const prisma = {
     withSystem: jest.fn((fn) => fn(tx)),
     withTenant: jest.fn((_tenant, fn) => fn(tx)),
+    withTenantUser: jest.fn((_tenant, _user, fn) =>
+      fn({ client: { findFirst: jest.fn().mockResolvedValue({ id: 'client-1' }) } }),
+    ),
   };
   return new ClientProfileFillCompletionService(
     prisma as any,
@@ -37,6 +40,49 @@ function build(tx: any = {}, workflow: any = {}) {
 }
 
 describe('Fill specialist retry and completion (Q11)', () => {
+  it.each(['retryTask', 'cancelRun'])(
+    '%s checks client access before changing durable state',
+    async (method) => {
+      const writes = jest.fn();
+      const findFirst = jest.fn().mockResolvedValue(null);
+      const prisma = {
+        withTenantUser: jest.fn((_tenant, _user, fn) => fn({ client: { findFirst } })),
+        withTenant: writes,
+        withSystem: writes,
+      };
+      const service = new ClientProfileFillCompletionService(
+        prisma as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+      ) as any;
+      const deniedContext = { ...ctx, userId: 'blocked-user' };
+      await expect(
+        service[method](deniedContext, 'private-client', 'run-1', 'task-1'),
+      ).rejects.toThrow('Client not found');
+      expect(prisma.withTenantUser).toHaveBeenCalledWith(
+        'tenant-1',
+        'blocked-user',
+        expect.any(Function),
+      );
+      expect(findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'private-client',
+            OR: [
+              { memoryWall: false },
+              { memoryAccessGrants: { some: { userId: 'blocked-user' } } },
+            ],
+          }),
+        }),
+      );
+      expect(writes).not.toHaveBeenCalled();
+    },
+  );
+
   it('finalizes a core-only run and its finding summary in the same transaction', async () => {
     const tx = {
       $queryRawUnsafe: jest.fn(async (sql: string) => {

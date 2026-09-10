@@ -1151,7 +1151,8 @@ function freshnessOf(finding: FillFinding): string | null {
 }
 
 function profileCoverage(findings: FillFinding[]): { score: number } | null {
-  const finding = findings.find((item) => item.source === 'completion_audit' && item.kind === 'profile_completion');
+  // The API returns findings oldest first; retries append a fresh audit.
+  const finding = findings.slice().reverse().find((item) => item.source === 'completion_audit' && item.kind === 'profile_completion');
   const proposed = finding?.proposedValue as { score?: unknown } | null | undefined;
   return typeof proposed?.score === 'number' ? { score: Math.max(0, Math.min(100, proposed.score)) } : null;
 }

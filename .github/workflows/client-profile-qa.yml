@@ -25,6 +25,18 @@ jobs:
     timeout-minutes: 20
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: client_profile_qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d client_profile_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -52,7 +64,12 @@ jobs:
           src/vnext/pages/portfolio/PortfolioIndexPage.test.tsx
           --poolOptions.threads.singleThread
       - name: Fill retry orchestration and timeout regression tests
-        run: pnpm --filter @capiro/api exec jest --runInBand src/clients/client-profile-fill-retry.spec.ts
+        env:
+          FILL_RETRY_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/client_profile_qa
+        run: >
+          pnpm --filter @capiro/api exec jest --runInBand
+          src/clients/client-profile-fill-retry.spec.ts
+          src/clients/client-profile-fill-retry.integration.spec.ts
       - name: Tracker counts and pagination regression tests
         run: >
           pnpm --filter @capiro/intel-api exec jest --runInBand
