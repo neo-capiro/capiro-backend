@@ -15,6 +15,7 @@ function makeService() {
       findFirst: jest.fn(async () => null),
     },
     meriWorkspace: {
+      updateMany: jest.fn(async () => ({ count: 1 })),
       findMany: jest.fn(async () => []),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'workspace-1', ...data })),
       findFirst: jest.fn(async () => null),
@@ -30,6 +31,7 @@ function makeService() {
       findFirst: jest.fn(async () => null),
     },
     clioConversation: {
+      updateMany: jest.fn(async () => ({ count: 1 })),
       findFirst: jest.fn(async () => null),
       update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'conversation-1', ...data })),
     },
@@ -91,7 +93,7 @@ describe('MeriVNextLibraryService', () => {
     await service.assignConversation(ctx, 'conversation-1', 'workspace-1');
 
     expect(workspace).toEqual(expect.objectContaining({ name: 'Legislative work' }));
-    expect(tx.clioConversation.update).toHaveBeenCalledWith(
+    expect(tx.clioConversation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ workspaceId: 'workspace-1' }) }),
     );
   });

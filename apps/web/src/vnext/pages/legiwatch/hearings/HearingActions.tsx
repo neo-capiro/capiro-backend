@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useImpersonation } from '../../../../state/impersonation.js';
 import { meriEffectiveIdentityKey } from '../../../../components/chat/meri-route-guards.js';
+import { writeMeriHandoffPacket } from '../../../meri/meri-legiwatch-handoff.js';
 import { useNavigate } from 'react-router-dom';
 import { LwButton } from '../lib/primitives.js';
 import {
@@ -77,7 +78,9 @@ export function HearingActions({
   currentSelectionRef.current = selectionToken;
   useEffect(() => {
     currentSelectionRef.current = selectionToken;
-    return () => { currentSelectionRef.current = null; };
+    return () => {
+      currentSelectionRef.current = null;
+    };
   }, [selectionToken]);
   const askMeri = useAskMeri(hearingId);
   const createBrief = useCreateBrief(hearingId);
@@ -93,10 +96,10 @@ export function HearingActions({
   }, [selectionToken]);
 
   const run = (action: string, refs: ActionRefs) => {
-    const effectiveClientId = refs.clientId || clientId;
     const generation = ++actionGenerationRef.current;
-    const isCurrentAction = () => currentSelectionRef.current === selectionToken &&
-      generation === actionGenerationRef.current;
+    const isCurrentAction = () =>
+      currentSelectionRef.current === selectionToken && generation === actionGenerationRef.current;
+    const effectiveClientId = refs.clientId || clientId;
     setStatus({ kind: 'submitting', action });
 
     const fail = (err: unknown) => {
@@ -106,23 +109,35 @@ export function HearingActions({
     switch (action) {
       case 'ask_meri':
         askMeri.mutate(
-          { insightId: refs.insightId, segmentId: refs.segmentId, clientId: effectiveClientId || undefined },
+          {
+            insightId: refs.insightId,
+            segmentId: refs.segmentId,
+            clientId: effectiveClientId || undefined,
+          },
           {
             onSuccess: (packet) => {
-              // Hand the grounded packet to the Meri surface. Meri owns the
-              // conversation; this only supplies references and the selection.
+              // An old request must not publish another identity or hearing's
+              // private client relevance after the user changes selection.
+              if (!isCurrentAction()) return;
+              const handoffId = crypto.randomUUID();
               try {
-                sessionStorage.setItem(
-                  'lw:meri-context',
-                  JSON.stringify({ packet, createdAt: Date.now() }),
-                );
+                writeMeriHandoffPacket({
+                  hearingId,
+                  identityKey,
+                  handoffId,
+                  packet,
+                  createdAt: Date.now(),
+                });
               } catch {
-                // A private-mode storage failure must not lose the action; the
-                // deep link below still carries the identifiers Meri needs.
+                fail(
+                  new Error('The hearing context could not be saved for Meri. Please try again.'),
+                );
+                return;
               }
               const qs = new URLSearchParams({
                 source: 'legiwatch',
                 hearingId,
+                handoffId,
                 ...(refs.insightId ? { insightId: refs.insightId } : {}),
                 ...(refs.segmentId ? { segmentId: refs.segmentId } : {}),
                 ...(effectiveClientId ? { client: effectiveClientId } : {}),
@@ -130,7 +145,7 @@ export function HearingActions({
               setStatus({
                 kind: 'done',
                 action,
-                message: 'Hearing context prepared for Meri.',
+                message: 'Hearing context prepared. Finish opening Meri to continue.',
                 href: `/meri?${qs.toString()}`,
               });
             },
@@ -185,7 +200,11 @@ export function HearingActions({
                   JSON.stringify({ id: contextId, prefill, createdAt: Date.now() }),
                 );
               } catch {
-                setStatus({ kind: 'failed', action, message: 'The hearing details could not be saved for outreach. Please try again.' });
+                setStatus({
+                  kind: 'failed',
+                  action,
+                  message: 'The hearing details could not be saved for outreach. Please try again.',
+                });
                 return;
               }
               const qs = new URLSearchParams({
@@ -213,7 +232,11 @@ export function HearingActions({
       case 'save_moment':
       case 'save_to_client': {
         const kind =
-          action === 'save_moment' ? ('moment' as const) : refs.insightId ? ('finding' as const) : ('hearing' as const);
+          action === 'save_moment'
+            ? ('moment' as const)
+            : refs.insightId
+              ? ('finding' as const)
+              : ('hearing' as const);
         if (kind === 'moment' && !refs.segmentId) {
           setStatus({
             kind: 'failed',
@@ -316,7 +339,11 @@ export function HearingActions({
             ) : null}
           </span>
         ) : status.kind === 'failed' ? (
-          <span role="alert" className="lw-card__meta" style={{ color: 'var(--lw-danger, #b42318)' }}>
+          <span
+            role="alert"
+            className="lw-card__meta"
+            style={{ color: 'var(--lw-danger, #b42318)' }}
+          >
             {status.message}
           </span>
         ) : null}

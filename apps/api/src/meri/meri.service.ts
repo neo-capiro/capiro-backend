@@ -2,6 +2,7 @@ import { assertAttachmentConversation, compactedAttachmentContext } from './meri
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -400,6 +401,22 @@ export class MeriService implements MeriTurnMaintenance {
     }
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (input.clientId !== undefined) {
+        // Lock this conversation before reading its current membership. A
+        // concurrent workspace assignment must validate the updated client.
+        const locked = await tx.clioConversation.updateMany({
+          where: { id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId, archivedAt: null },
+          data: { updatedAt: new Date() },
+        });
+        if (!locked.count) throw new NotFoundException('Meri conversation not found');
+        const current = await tx.clioConversation.findFirst({
+          where: { id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId },
+          select: { workspace: { select: { clientId: true } } },
+        });
+        if (current?.workspace?.clientId && current.workspace.clientId !== input.clientId) {
+          throw new ConflictException('Remove this chat from its client workspace, or move it to an All clients workspace, before changing the client.');
+        }
+      }
       const updated = await tx.clioConversation.update({
         where: { id: conversationId },
         data: { ...data, updatedAt: new Date() },
@@ -1114,6 +1131,8 @@ export class MeriService implements MeriTurnMaintenance {
     let finalCitations: MeriCitation[] = [];
     let pageWritePayload: { subject?: string; body?: string } | null = null;
     let aborted = false;
+    let generationFailed = false;
+    let providerStopReason: string | null = null;
     // Hoisted for post-turn usage metering (assigned inside the try below);
     // default to Meri's quality model + global key so a pre-call throw still
     // meters sensibly.
@@ -1310,8 +1329,10 @@ export class MeriService implements MeriTurnMaintenance {
               if (!line.startsWith('data: ')) continue;
               const payload = line.slice(6).trim();
               if (!payload || payload === '[DONE]') continue;
+              let providerError = false;
               try {
                 const evt = JSON.parse(payload);
+                providerError = evt.type === 'error';
                 applyRoundUsageEvent(roundUsage, evt);
                 // Extended thinking (F3): relay reasoning deltas to the UI
                 // timeline; the accumulated blocks replay in the agentic loop
@@ -1351,6 +1372,11 @@ export class MeriService implements MeriTurnMaintenance {
               } catch {
                 /* incomplete chunk */
               }
+              // Anthropic can accept the HTTP request and fail in-band. Throw
+              // outside the JSON catch so the normal failure receipt persists;
+              // no later provider frame can turn this failure into success.
+              if (providerError)
+                throw new Error('The model provider could not complete this response. Please try again.');
             }
           }
         } finally {
@@ -1359,6 +1385,7 @@ export class MeriService implements MeriTurnMaintenance {
         }
 
         addUsage(usageTotals, roundUsage);
+        providerStopReason = stopReason;
         this.logger.debug(
           `Meri usage [round ${round}] in=${roundUsage.inputTokens} out=${roundUsage.outputTokens} ` +
             `cacheRead=${roundUsage.cacheReadInputTokens} cacheCreate=${roundUsage.cacheCreationInputTokens}`,
@@ -1707,11 +1734,12 @@ export class MeriService implements MeriTurnMaintenance {
         // Loop again so the model can read tool results and answer (or call more tools).
       }
     } catch (err) {
-      if (clientSignal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+      if (clientSignal?.aborted) {
         // Client disconnected / hit Stop: keep the partial answer, surface no error.
         aborted = true;
         this.logger.log(`Meri turn aborted by client [conv ${conversationId}]`);
       } else {
+        generationFailed = true;
         const msg = err instanceof Error ? err.message : 'AI generation failed';
         sse.write(`data: ${JSON.stringify({ type: 'error', message: msg })}\n\n`);
         if (!assistantContent) assistantContent = `Error: ${msg}`;
@@ -1956,6 +1984,20 @@ export class MeriService implements MeriTurnMaintenance {
       }
     }
 
+    // One receipt drives both persisted history and the final stream frame.
+    // A failed request, truncated stream, or budget stop must not reopen as a
+    // successfully completed turn merely because some text was generated.
+    aborted = aborted || Boolean(clientSignal?.aborted);
+    const finishReason = aborted
+      ? 'aborted'
+      : generationFailed
+        ? 'error'
+        : (loopStopReason ??
+          (providerStopReason === 'end_turn' || providerStopReason === 'stop_sequence' || providerStopReason === 'refusal'
+            ? 'stop'
+            : providerStopReason ?? 'stream_interrupted'));
+    const partial = finishReason !== 'stop';
+
     // Persist assistant response (+ any artifacts produced by tools).
     const createdDeliverables: Array<{
       id: string;
@@ -1985,7 +2027,8 @@ export class MeriService implements MeriTurnMaintenance {
             ...(groundingCaveat
               ? { groundingCaveat: groundingCaveat as unknown as Prisma.InputJsonValue }
               : {}),
-            finishReason: aborted ? 'aborted' : (loopStopReason ?? 'stop'),
+            finishReason,
+            partial,
             verification: verification as unknown as Prisma.InputJsonValue,
             trace: turnTrace as unknown as Prisma.InputJsonValue,
             suggestions,
@@ -2078,7 +2121,7 @@ export class MeriService implements MeriTurnMaintenance {
         aborted,
         complianceRefusal: complianceScreen.flagged,
         executionError:
-          assistantContent.startsWith('Error:') ||
+          generationFailed || assistantContent.startsWith('Error:') ||
           traceRounds.some((round) => round.tools.some((tool) => !tool.ok)),
         groundingSeverity: auditorFoundIssues ? 'high' : null,
       }).catch(() => {});
@@ -2091,7 +2134,7 @@ export class MeriService implements MeriTurnMaintenance {
     if (assistantMessageId) this.scheduleAfterTurnMaintenance(ctx, conversationId);
 
     sse.write(
-      `data: ${JSON.stringify({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
+      `data: ${JSON.stringify({ type: 'done', finishReason, partial, ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
     );
   }
 
@@ -4621,6 +4664,14 @@ export class MeriService implements MeriTurnMaintenance {
   ): Promise<NormalizedFeedback> {
     const feedback = normalizeFeedback(input);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Serialize feedback changes on this owned row. Identical retries observe
+      // the committed value before deciding whether to emit another signal.
+      await tx.$queryRaw(Prisma.sql`
+        SELECT id FROM clio_messages
+        WHERE id = ${messageId}::uuid
+          AND tenant_id = ${ctx.tenantId}::uuid AND user_id = ${ctx.userId}::uuid
+        FOR UPDATE
+      `);
       const msg = await tx.clioMessage.findFirst({
         where: { id: messageId, tenantId: ctx.tenantId, userId: ctx.userId },
       });
@@ -4631,6 +4682,18 @@ export class MeriService implements MeriTurnMaintenance {
         msg.metadata && typeof msg.metadata === 'object' && !Array.isArray(msg.metadata)
           ? (msg.metadata as Record<string, unknown>)
           : {};
+      const previous = metadata.feedback;
+      if (previous && typeof previous === 'object' && !Array.isArray(previous)) {
+        const record = previous as Record<string, unknown>;
+        const normalized = normalizeFeedback(record);
+        if (
+          record.userId === ctx.userId &&
+          normalized.rating === feedback.rating &&
+          normalized.note === feedback.note &&
+          normalized.reasons.length === feedback.reasons.length &&
+          normalized.reasons.every((reason) => feedback.reasons.includes(reason))
+        ) return feedback;
+      }
       const verification =
         metadata.verification &&
         typeof metadata.verification === 'object' &&
@@ -4678,15 +4741,17 @@ export class MeriService implements MeriTurnMaintenance {
         contextPacketId,
         verificationState,
       };
-      await tx.clioMessage.update({
-        where: { id: messageId },
-        data: {
-          metadata: {
-            ...metadata,
-            feedback: serverFeedback,
-          } as unknown as Prisma.InputJsonValue,
-        },
-      });
+      // Change only this JSON field; preserve citations, turn scope and runtime
+      // metadata even when another producer adds fields to the message.
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE clio_messages
+        SET metadata_jsonb = jsonb_set(
+          CASE WHEN jsonb_typeof(metadata_jsonb) = 'object' THEN metadata_jsonb ELSE '{}'::jsonb END,
+          '{feedback}', ${JSON.stringify(serverFeedback)}::jsonb, true
+        )
+        WHERE id = ${messageId}::uuid
+          AND tenant_id = ${ctx.tenantId}::uuid AND user_id = ${ctx.userId}::uuid
+      `);
       // Phase 27A learning-signal capture, same transaction as the feedback
       // write above so it commits/rolls back atomically with it. Swallowed
       // rather than rethrown: a bug here must never turn an otherwise-valid
@@ -4704,12 +4769,19 @@ export class MeriService implements MeriTurnMaintenance {
           new Date(),
         );
         if (signalInput) {
+          // A PostgreSQL constraint failure aborts the transaction even when
+          // JavaScript catches it. Keep optional capture in a savepoint so a
+          // duplicate earlier rating (up → down → up) cannot undo feedback.
+          await tx.$executeRaw(Prisma.sql`SAVEPOINT meri_feedback_learning`);
           try {
             await this.learningSignals.capture(tx, signalInput);
           } catch (error) {
+            await tx.$executeRaw(Prisma.sql`ROLLBACK TO SAVEPOINT meri_feedback_learning`);
             this.logger.warn(
               `Learning-signal capture failed for message ${messageId}: ${error instanceof Error ? error.message : String(error)}`,
             );
+          } finally {
+            await tx.$executeRaw(Prisma.sql`RELEASE SAVEPOINT meri_feedback_learning`);
           }
         }
       }

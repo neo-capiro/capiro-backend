@@ -11318,9 +11318,16 @@ model BudgetExtractionCandidateV1 {
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  runs            BudgetVerificationRunV1[]
-  discrepancies   BudgetVerificationDiscrepancyV1[]
-  reviewDecisions BudgetReviewDecisionV1[]
+  runs              BudgetVerificationRunV1[]
+  discrepancies     BudgetVerificationDiscrepancyV1[]
+  reviewDecisions   BudgetReviewDecisionV1[]
+  scopedFactReviews BudgetScopedFactReviewV1[]
+  /// Phase 10B-35c: present when a LATER candidate was recorded as this one's
+  /// correction (at most one, enforced by a unique index on the link table).
+  correctedBy       BudgetCandidateCorrectionV1? @relation("CandidateCorrectionOld")
+  /// Phase 10B-35c: present when this candidate IS the correction of an
+  /// earlier one (at most one, enforced by a unique index on the link table).
+  corrects          BudgetCandidateCorrectionV1? @relation("CandidateCorrectionNew")
 
   @@unique([cycleId, manifestContentSha256, manifestDocumentKey, sourceDocumentId, sourceSha256, extractionArtifactId, extractionArtifactSha256, verifierVersion, policyVersion, policySha256], map: "budget_v1_candidate_identity_key")
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
@@ -11352,10 +11359,11 @@ model BudgetVerificationRunV1 {
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   candidate       BudgetExtractionCandidateV1       @relation(fields: [candidateId], references: [id], onDelete: Restrict)
-  checks          BudgetVerificationCheckV1[]
-  proofSnapshots  BudgetVerificationProofV1[]
-  discrepancies   BudgetVerificationDiscrepancyV1[]
-  reviewDecisions BudgetReviewDecisionV1[]
+  checks            BudgetVerificationCheckV1[]
+  proofSnapshots    BudgetVerificationProofV1[]
+  discrepancies     BudgetVerificationDiscrepancyV1[]
+  reviewDecisions   BudgetReviewDecisionV1[]
+  scopedFactReviews BudgetScopedFactReviewV1[]
 
   @@index([candidateId, createdAt], map: "budget_v1_run_candidate_idx")
   @@map("budget_verification_run_v1")
@@ -11447,6 +11455,89 @@ model BudgetReviewDecisionV1 {
 
   @@index([candidateId, createdAt], map: "budget_v1_review_candidate_idx")
   @@map("budget_review_decision_v1")
+}
+
+/// Phase 10B-35 -- scoped (per-fact) human review of verified R-2 PE totals.
+///
+/// Distinct from `BudgetReviewDecisionV1`, which is ONE terminal decision for
+/// the WHOLE candidate and moves the candidate to REVIEW_ACCEPTED/REJECTED.
+/// A scoped review approves (or rejects) an explicit set of assertion ids for
+/// one (PE, fiscal year, funding field) scope, bound to the immutable
+/// candidate/run/source/artifact/manifest identities, under a versioned
+/// structured policy. It never changes candidate status and never approves
+/// anything outside `assertionIds`. `status` is the only mutable column group
+/// (active -> revoked | superseded, enforced by trigger) so a stale approval
+/// can never stay visible. Serving reads only `status='active' AND
+/// decision='approve'` -- the bounded partial "reviewed source totals" class,
+/// never the canonical snapshot tables.
+model BudgetScopedFactReviewV1 {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  candidateId              String    @map("candidate_id") @db.Uuid
+  runId                    String    @map("run_id") @db.Uuid
+  sourceDocumentId         String    @map("source_document_id") @db.Uuid
+  sourceSha256             String    @map("source_sha256") @db.Char(64)
+  extractionArtifactId     String    @map("extraction_artifact_id")
+  extractionArtifactSha256 String    @map("extraction_artifact_sha256") @db.Char(64)
+  manifestContentSha256    String    @map("manifest_content_sha256") @db.Char(64)
+  policyId                 String    @map("policy_id")
+  policyVersion            String    @map("policy_version")
+  policySha256             String    @map("policy_sha256") @db.Char(64)
+  scopeKind                String    @map("scope_kind") @db.VarChar(64)
+  scopeKey                 String    @map("scope_key")
+  scope                    Json      @map("scope_jsonb")
+  assertionIds             Json      @map("assertion_ids_jsonb")
+  evidenceIds              Json      @map("evidence_ids_jsonb")
+  projection               Json      @map("projection_jsonb")
+  independence             Json      @map("independence_jsonb")
+  limitations              Json      @map("limitations_jsonb")
+  decision                 String    @db.VarChar(16)
+  reviewerId               String    @map("reviewer_id")
+  rationale                String
+  decisionHash             String    @map("decision_hash") @db.Char(64)
+  status                   String    @default("active") @db.VarChar(16)
+  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy                String?   @map("revoked_by")
+  revocationReason         String?   @map("revocation_reason")
+  supersededById           String?   @map("superseded_by_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  candidate    BudgetExtractionCandidateV1 @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  run          BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
+  supersededBy BudgetScopedFactReviewV1?   @relation("ScopedFactReviewSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
+  supersedes   BudgetScopedFactReviewV1[]  @relation("ScopedFactReviewSupersession")
+
+  @@index([candidateId, createdAt], map: "budget_scoped_fact_review_v1_candidate_idx")
+  @@index([scopeKind, scopeKey, status], map: "budget_scoped_fact_review_v1_scope_idx")
+  @@map("budget_scoped_fact_review_v1")
+}
+
+/// Phase 10B-35c -- the formal, auditable "candidate X corrects candidate Y"
+/// link. See the migration's own header comment for why this is a dedicated
+/// append-only table rather than a column on `BudgetExtractionCandidateV1`
+/// itself. At most one row per `oldCandidateId` (idempotency/concurrency
+/// invariant, enforced by a unique index, not just application code) and at
+/// most one row per `newCandidateId`.
+model BudgetCandidateCorrectionV1 {
+  id                                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  oldCandidateId                    String   @unique(map: "budget_candidate_correction_v1_one_per_old_candidate") @map("old_candidate_id") @db.Uuid
+  newCandidateId                    String   @unique(map: "budget_candidate_correction_v1_one_per_new_candidate") @map("new_candidate_id") @db.Uuid
+  oldCandidateStatusAtCorrection    String   @map("old_candidate_status_at_correction")
+  oldCandidateSourceDocumentId      String   @map("old_candidate_source_document_id") @db.Uuid
+  oldCandidateSourceSha256          String   @map("old_candidate_source_sha256") @db.Char(64)
+  newCandidateSourceDocumentId      String   @map("new_candidate_source_document_id") @db.Uuid
+  newCandidateSourceSha256          String   @map("new_candidate_source_sha256") @db.Char(64)
+  supersededScopedFactReviewIds     Json     @default("[]") @map("superseded_scoped_fact_review_ids_jsonb")
+  actor                             String
+  reason                            String
+  createdAt                         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  oldCandidate BudgetExtractionCandidateV1 @relation("CandidateCorrectionOld", fields: [oldCandidateId], references: [id], onDelete: Restrict)
+  newCandidate BudgetExtractionCandidateV1 @relation("CandidateCorrectionNew", fields: [newCandidateId], references: [id], onDelete: Restrict)
+
+  @@index([oldCandidateId, createdAt], map: "budget_candidate_correction_v1_old_idx")
+  @@index([newCandidateId], map: "budget_candidate_correction_v1_new_idx")
+  @@map("budget_candidate_correction_v1")
 }
 
 // ===========================================================================

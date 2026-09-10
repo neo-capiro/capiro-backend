@@ -1,3 +1,4 @@
+import { captureMeriTurnScope } from './meri-turn-scope.js';
 import { assertAttachmentConversation, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -474,6 +475,7 @@ export class MeriV3ProxyService {
         : finishReason === 'deadline_exceeded'
           ? 'The turn reached its time limit before an answer was generated.'
           : 'MeriV3 could not complete this turn. Please try again.';
+    const turnScope = captureMeriTurnScope(conversation, frame?.retrieval, frame?.contextPacket);
     let assistantMessageId: string | null = null;
     if (assistantContent || steps.length || errorMessage || stoppedWithoutText) {
       const message = await this.persistAssistantMessage(
@@ -497,6 +499,7 @@ export class MeriV3ProxyService {
           usage: frame?.usage ?? {},
           citations: (frame?.citations ?? []) as unknown as Prisma.InputJsonValue,
           groundingStatement,
+          turnScope: turnScope as unknown as Prisma.InputJsonValue,
           ...(groundingCaveat
             ? { groundingCaveat: groundingCaveat as unknown as Prisma.InputJsonValue }
             : {}),
@@ -557,6 +560,7 @@ export class MeriV3ProxyService {
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(frame?.contextPacket?.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
+      turnScope,
     });
     this.logger.log(
       `MeriV3 proxy turn tenant=${ctx.tenantId} conversation=${conversationId} mode=${reasoningMode} ` +

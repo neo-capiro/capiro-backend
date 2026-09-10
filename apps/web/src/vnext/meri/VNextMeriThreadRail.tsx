@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   removeConversation,
+  getChatStateSnapshot,
   upsertConversation,
   useChatStore,
   type MeriConversation,
@@ -21,6 +22,7 @@ import type { MeriChatController } from '../../components/chat/useMeriChatContro
 import { MeriIcon } from './meri-icons.js';
 import {
   createMeriWorkspace,
+  assignMeriConversationWorkspace,
   deleteMeriWorkspace,
   listMeriWorkspaces,
 } from './meri-vnext-api.js';
@@ -57,6 +59,12 @@ function threadMeta(conversation: MeriConversation): string {
     ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
     : date.toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase();
   return `${scope} · ${when}`;
+}
+
+function workspaceError(reason: unknown): string {
+  const error = reason as { response?: { data?: { message?: unknown } }; message?: string };
+  const message = error?.response?.data?.message;
+  return typeof message === 'string' ? message : error?.message || 'The workspace change could not be saved. Try again.';
 }
 
 interface VNextMeriThreadRailProps {
@@ -102,6 +110,15 @@ export function VNextMeriThreadRail({
   const [undoTarget, setUndoTarget] = useState<MeriConversation | null>(null);
   const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [newWorkspaceClient, setNewWorkspaceClient] = useState('');
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<MeriConversation | null>(null);
+  const [assignmentValue, setAssignmentValue] = useState('');
+  const [workspaceSaving, setWorkspaceSaving] = useState(false);
+  const [workspaceFailure, setWorkspaceFailure] = useState<string | null>(null);
+  const workspaceMutationRef = useRef<AbortController | null>(null);
+  const identityKeyRef = useRef(identityKey);
+  identityKeyRef.current = identityKey;
   const menuRef = useRef<HTMLDivElement>(null);
   const confirmCancelRef = useRef<HTMLButtonElement>(null);
   const rowMenuRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -149,7 +166,16 @@ export function VNextMeriThreadRail({
     setUndoTarget(null);
     setWorkspaceDialogOpen(false);
     setNewWorkspaceName('');
+    setNewWorkspaceClient('');
+    setSelectedWorkspaceId(null);
+    setAssigning(null);
+    setWorkspaceFailure(null);
+    workspaceMutationRef.current?.abort();
+    workspaceMutationRef.current = null;
+    setWorkspaceSaving(false);
   }, [identityKey, queryClient]);
+
+  useEffect(() => () => workspaceMutationRef.current?.abort(), []);
 
   const workspaces = useQuery({
     queryKey: ['meri-vnext', identityKey, 'workspaces'],
@@ -222,12 +248,18 @@ export function VNextMeriThreadRail({
   }, [conversations, search.data, searchQuery]);
 
   const groups = useMemo(() => {
-    if (searchQuery.trim()) return [{ label: 'RESULTS', items: visible }];
+    const scoped = selectedWorkspaceId ? visible.filter((item) => item.workspaceId === selectedWorkspaceId) : visible;
+    if (searchQuery.trim()) return [{ label: 'RESULTS', items: scoped }];
     return [
-      { label: 'TODAY', items: visible.filter((item) => sameLocalDay(item.updatedAt)) },
-      { label: 'EARLIER', items: visible.filter((item) => !sameLocalDay(item.updatedAt)) },
+      { label: 'TODAY', items: scoped.filter((item) => sameLocalDay(item.updatedAt)) },
+      { label: 'EARLIER', items: scoped.filter((item) => !sameLocalDay(item.updatedAt)) },
     ].filter((group) => group.items.length > 0);
-  }, [searchQuery, visible]);
+  }, [searchQuery, visible, selectedWorkspaceId]);
+  const visibleCount = groups.reduce((sum, group) => sum + group.items.length, 0);
+  const selectedWorkspace = workspaces.data?.find((item) => item.id === selectedWorkspaceId);
+  const assignmentTarget = assigning ? conversations.find((item) => item.id === assigning.id) ?? assigning : null;
+  const assignmentWorkspace = workspaces.data?.find((item) => item.id === assignmentValue);
+  const incompatible = Boolean(assignmentWorkspace?.clientId && assignmentWorkspace.clientId !== assignmentTarget?.clientId);
 
   useEffect(() => {
     if (!menuFor) return;
@@ -293,6 +325,7 @@ export function VNextMeriThreadRail({
       const archived = await onArchiveThread(target.id);
       if (!archived) return;
       setUndoTarget(target);
+      invalidateLibrary();
       toast.success('Chat archived. It stays in the audit trail.');
       const remaining = conversations.filter((conversation) => conversation.id !== target.id);
       if (target.id === activeConversationId) {
@@ -308,15 +341,66 @@ export function VNextMeriThreadRail({
 
   const createWorkspace = async () => {
     const name = newWorkspaceName.trim();
-    if (!name) return;
+    if (!name || workspaceMutationRef.current) return;
+    const request = new AbortController();
+    workspaceMutationRef.current = request;
+    const requestIdentity = identityKey;
+    setWorkspaceSaving(true); setWorkspaceFailure(null);
     try {
-      await createMeriWorkspace(api, { name, clientId: controller.selectedClientValue || null });
+      await createMeriWorkspace(api, { name, clientId: newWorkspaceClient || null }, request.signal);
+      if (request.signal.aborted || !mayApplyIdentityResult(requestIdentity, identityKeyRef.current)) return;
       setNewWorkspaceName('');
       setWorkspaceDialogOpen(false);
       invalidateLibrary();
       toast.success('Workspace created.');
-    } catch {
-      toast.error('The workspace could not be created.');
+    } catch (reason) {
+      if (!request.signal.aborted && mayApplyIdentityResult(requestIdentity, identityKeyRef.current)) setWorkspaceFailure(workspaceError(reason));
+    } finally {
+      if (workspaceMutationRef.current === request) { workspaceMutationRef.current = null; setWorkspaceSaving(false); }
+    }
+  };
+
+  const assignWorkspace = async (target: MeriConversation, workspaceId: string | null) => {
+    if (workspaceMutationRef.current) return;
+    const request = new AbortController();
+    workspaceMutationRef.current = request;
+    const requestIdentity = identityKey;
+    setWorkspaceSaving(true); setWorkspaceFailure(null);
+    try {
+      const result = await assignMeriConversationWorkspace(api, target.id, workspaceId, request.signal);
+      if (request.signal.aborted || !mayApplyIdentityResult(requestIdentity, identityKeyRef.current)) return;
+      const current = getChatStateSnapshot().conversations.find((item) => item.id === target.id);
+      const workspace = workspaces.data?.find((item) => item.id === result.workspaceId);
+      if (current) upsertConversation({ ...current, workspaceId: result.workspaceId,
+        workspace: workspace ? { id: workspace.id, name: workspace.name, clientId: workspace.clientId } : null });
+      setAssigning(null); setMenuFor(null);
+      invalidateLibrary(); onRetryHistory();
+      toast.success(result.workspaceId ? 'Chat moved to workspace.' : 'Chat removed from workspace.');
+    } catch (reason) {
+      if (!request.signal.aborted && mayApplyIdentityResult(requestIdentity, identityKeyRef.current)) setWorkspaceFailure(workspaceError(reason));
+    } finally {
+      if (workspaceMutationRef.current === request) { workspaceMutationRef.current = null; setWorkspaceSaving(false); }
+    }
+  };
+
+  const removeWorkspace = async (workspaceId: string) => {
+    if (workspaceMutationRef.current) return;
+    const request = new AbortController();
+    workspaceMutationRef.current = request;
+    const requestIdentity = identityKey;
+    setWorkspaceSaving(true); setWorkspaceFailure(null);
+    try {
+      await deleteMeriWorkspace(api, workspaceId, request.signal);
+      if (request.signal.aborted || !mayApplyIdentityResult(requestIdentity, identityKeyRef.current)) return;
+      for (const row of getChatStateSnapshot().conversations) {
+        if (row.workspaceId === workspaceId) upsertConversation({ ...row, workspaceId: null, workspace: null });
+      }
+      if (selectedWorkspaceId === workspaceId) setSelectedWorkspaceId(null);
+      invalidateLibrary(); onRetryHistory();
+    } catch (reason) {
+      if (!request.signal.aborted && mayApplyIdentityResult(requestIdentity, identityKeyRef.current)) setWorkspaceFailure(workspaceError(reason));
+    } finally {
+      if (workspaceMutationRef.current === request) { workspaceMutationRef.current = null; setWorkspaceSaving(false); }
     }
   };
 
@@ -345,17 +429,20 @@ export function VNextMeriThreadRail({
               className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny"
               aria-label="Add workspace"
               title="Add workspace"
-              onClick={() => setWorkspaceDialogOpen(true)}
+              disabled={workspaceSaving}
+              onClick={() => { setWorkspaceFailure(null); setNewWorkspaceClient(controller.selectedClientValue || ''); setWorkspaceDialogOpen(true); }}
             >
               <MeriIcon name="Plus" size={13} color="#98A2B3" />
             </button>
           </div>
           {workspaces.isLoading ? (
             <div className="vnext-meri__section-empty-body">Loading workspaces…</div>
+          ) : workspaces.isError ? (
+            <CapiroErrorState title="Workspaces could not be loaded" onRetry={() => void workspaces.refetch()} />
           ) : workspaces.data?.length ? (
             <div className="vnext-meri__workspace-list" role="list" aria-label="Meri workspaces">
               {workspaces.data.map((workspace) => {
-                const threadCount = conversations.filter(
+                const threadCount = workspace.threadCount ?? conversations.filter(
                   (conversation) => conversation.workspaceId === workspace.id,
                 ).length;
                 const clientName = workspace.clientId
@@ -369,10 +456,11 @@ export function VNextMeriThreadRail({
                     <button
                       type="button"
                       className="vnext-meri__workspace-item"
+                      aria-label={`${workspace.name} ${meta}`}
+                      aria-pressed={selectedWorkspaceId === workspace.id}
                       onClick={() => {
-                        const first = conversations.find((conversation) => conversation.workspaceId === workspace.id);
-                        if (first) handleSelect(first.id);
-                        else toast.success('Assign a chat from its overflow menu to add it here.');
+                        setSelectedWorkspaceId(workspace.id);
+                        onSearchQueryChange('');
                       }}
                     >
                       <span className="vnext-meri__workspace-tile">
@@ -391,14 +479,8 @@ export function VNextMeriThreadRail({
                       type="button"
                       className="vnext-meri__workspace-delete"
                       aria-label={`Delete workspace ${workspace.name}`}
-                      onClick={() =>
-                        void deleteMeriWorkspace(api, workspace.id)
-                          .then(() => {
-                            invalidateLibrary();
-                            onRetryHistory();
-                          })
-                          .catch(() => toast.error('The workspace could not be deleted.'))
-                      }
+                      disabled={workspaceSaving}
+                      onClick={() => void removeWorkspace(workspace.id)}
                     >
                       <MeriIcon name="Trash01" size={14} color="#98A2B3" />
                     </button>
@@ -414,13 +496,15 @@ export function VNextMeriThreadRail({
               </div>
             </div>
           )}
+          {workspaceFailure && !workspaceDialogOpen && !assigning ? <p role="alert" className="vnext-meri__section-empty-body">{workspaceFailure}</p> : null}
         </section>
 
         <div className="vnext-meri__divider" />
 
         <section data-meri-rail-section="recent">
           <div className="vnext-meri__section-label-row">
-            <span className="vnext-meri__section-label">RECENT</span>
+            <span className="vnext-meri__section-label">{selectedWorkspace?.name ?? 'RECENT'}</span>
+            {selectedWorkspaceId ? <button type="button" className="vnext-meri__search-everything" onClick={() => setSelectedWorkspaceId(null)}>All chats</button> : null}
           </div>
 
           <div className="vnext-meri__rail-search" data-meri-rail-search>
@@ -465,18 +549,18 @@ export function VNextMeriThreadRail({
                 </div>
               ))}
             </div>
-          ) : visible.length === 0 && searchQuery.trim() ? (
+          ) : visibleCount === 0 && searchQuery.trim() ? (
             <div className="vnext-meri__thread-empty">
               <div className="vnext-meri__thread-empty-body">No chats match “{searchQuery.trim()}”.</div>
               <button type="button" className="vnext-meri__search-everything" onClick={onOpenPalette}>
                 SEARCH EVERYTHING ⌘K
               </button>
             </div>
-          ) : visible.length === 0 ? (
+          ) : visibleCount === 0 ? (
             <div className="vnext-meri__thread-empty">
               <div className="vnext-meri__thread-empty-label">NO THREADS YET</div>
               <div className="vnext-meri__thread-empty-body">
-                Ask Meri something, use a saved prompt, or create a workspace for your related chats.
+                {selectedWorkspaceId ? 'This workspace has no active chats. Choose All chats, then use a chat’s options to add it here.' : 'Ask Meri something, use a saved prompt, or create a workspace for your related chats.'}
               </div>
             </div>
           ) : (
@@ -568,6 +652,17 @@ export function VNextMeriThreadRail({
                               Rename
                             </button>
                             <button
+                              type="button" role="menuitem" className="vnext-meri__row-menu-item" disabled={workspaceSaving}
+                              onClick={() => { setMenuFor(null); setAssigning(conversation); setAssignmentValue(conversation.workspaceId ?? ''); setWorkspaceFailure(null); }}
+                            >
+                              <MeriIcon name="LayersThree01" size={15} color="#667085" />
+                              {conversation.workspaceId ? 'Move to workspace' : 'Add to workspace'}
+                            </button>
+                            {conversation.workspaceId ? <button
+                              type="button" role="menuitem" className="vnext-meri__row-menu-item" disabled={workspaceSaving}
+                              onClick={() => void assignWorkspace(conversation, null)}
+                            >Remove from workspace</button> : null}
+                            <button
                               type="button"
                               role="menuitem"
                               className="vnext-meri__row-menu-item"
@@ -603,6 +698,7 @@ export function VNextMeriThreadRail({
                   if (!restored) return;
                   upsertConversation(undoTarget);
                   setUndoTarget(null);
+                  invalidateLibrary();
                   toast.success('Chat restored.');
                 })
                 .catch(() => toast.error('The chat could not be restored.'));
@@ -616,9 +712,9 @@ export function VNextMeriThreadRail({
       <CapiroModal
         open={workspaceDialogOpen}
         title="Create workspace"
-        onClose={() => setWorkspaceDialogOpen(false)}
+        onClose={() => { if (!workspaceSaving) setWorkspaceDialogOpen(false); }}
       >
-        <div className="vnext-meri__confirm-body">Group related chats under a durable workspace.</div>
+        <div className="vnext-meri__confirm-body">Group related chats. Client workspaces accept chats for that client; All clients can group chats across clients.</div>
         <input
           autoFocus
           value={newWorkspaceName}
@@ -626,10 +722,38 @@ export function VNextMeriThreadRail({
           className="vnext-meri__workspace-input"
           placeholder="Workspace name"
           aria-label="Workspace name"
+          maxLength={120}
+          disabled={workspaceSaving}
         />
+        <label htmlFor="meri-workspace-client">Workspace client</label>
+        <select id="meri-workspace-client" className="vnext-meri__workspace-input" value={newWorkspaceClient} disabled={workspaceSaving} onChange={(event) => setNewWorkspaceClient(event.target.value)}>
+          <option value="">All clients</option>
+          {controller.clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+        </select>
+        {workspaceFailure ? <p role="alert">{workspaceFailure}</p> : null}
         <div className="vnext-meri__confirm-actions">
-          <button type="button" className="vnext-meri__confirm-cancel" onClick={() => setWorkspaceDialogOpen(false)}>Cancel</button>
-          <button type="button" className="vnext-meri__confirm-delete" onClick={() => void createWorkspace()}>Create workspace</button>
+          <button type="button" className="vnext-meri__confirm-cancel" disabled={workspaceSaving} onClick={() => setWorkspaceDialogOpen(false)}>Cancel</button>
+          <button type="button" className="vnext-meri__confirm-delete" disabled={workspaceSaving || !newWorkspaceName.trim()} onClick={() => void createWorkspace()}>{workspaceSaving ? 'Creating…' : 'Create workspace'}</button>
+        </div>
+      </CapiroModal>
+
+      <CapiroModal open={Boolean(assignmentTarget)} title="Move chat to workspace" onClose={() => { if (!workspaceSaving) setAssigning(null); }}>
+        <p className="vnext-meri__confirm-body">{assignmentTarget?.title} · {assignmentTarget?.client?.name ?? 'General'}. Moving a chat preserves its client and previous answers.</p>
+        <label htmlFor="meri-chat-workspace">Workspace</label>
+        <select id="meri-chat-workspace" className="vnext-meri__workspace-input" value={assignmentValue} disabled={workspaceSaving || workspaces.isLoading} onChange={(event) => setAssignmentValue(event.target.value)}>
+          <option value="">No workspace</option>
+          {(workspaces.data ?? []).map((workspace) => <option key={workspace.id} value={workspace.id} disabled={Boolean(workspace.clientId && workspace.clientId !== assignmentTarget?.clientId)}>
+            {workspace.name}{workspace.clientId && workspace.clientId !== assignmentTarget?.clientId ? ' — different client' : ''}
+          </option>)}
+        </select>
+        <p className="vnext-meri__confirm-body">Choose this chat’s client workspace or an All clients workspace. Create a workspace with the + button in the sidebar.</p>
+        {workspaces.isError ? <p role="alert">Workspaces could not be loaded. <button type="button" onClick={() => void workspaces.refetch()}>Retry</button></p> : null}
+        {incompatible ? <p role="alert">This workspace is for a different client.</p> : null}
+        {workspaceFailure ? <p role="alert">{workspaceFailure}</p> : null}
+        <div className="vnext-meri__confirm-actions">
+          <button type="button" className="vnext-meri__confirm-cancel" disabled={workspaceSaving} onClick={() => setAssigning(null)}>Cancel</button>
+          <button type="button" className="vnext-meri__confirm-delete" disabled={workspaceSaving || workspaces.isLoading || incompatible || (assignmentTarget?.workspaceId ?? '') === assignmentValue || Boolean(assignmentValue && !assignmentWorkspace)}
+            onClick={() => { if (assignmentTarget) void assignWorkspace(assignmentTarget, assignmentValue || null); }}>{workspaceSaving ? 'Saving…' : 'Save workspace'}</button>
         </div>
       </CapiroModal>
 

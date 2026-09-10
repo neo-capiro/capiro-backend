@@ -45,7 +45,8 @@ export class RetrievalV2Service {
   ) {
     const byKey = new Map<string, RetrievalSourceAdapter>();
     for (const adapter of adapters) {
-      if (byKey.has(adapter.key)) throw new Error(`Duplicate Retrieval V2 adapter key: ${adapter.key}`);
+      if (byKey.has(adapter.key))
+        throw new Error(`Duplicate Retrieval V2 adapter key: ${adapter.key}`);
       byKey.set(adapter.key, adapter);
     }
     this.adaptersByKey = byKey;
@@ -87,7 +88,9 @@ export class RetrievalV2Service {
     request: RetrievalRequest,
     entries: ReturnType<RetrievalPlannerV2Service['plan']>['entries'],
   ): Promise<RetrievalResponse> {
-    const supportedDomains = entries.filter((entry) => entry.supported).map((entry) => entry.dataset.domain);
+    const supportedDomains = entries
+      .filter((entry) => entry.supported)
+      .map((entry) => entry.dataset.domain);
     const exactResults = this.exactLexical
       ? await this.exactLexical.retrieve({ ...request, requestedDomains: supportedDomains })
       : [];
@@ -108,12 +111,18 @@ export class RetrievalV2Service {
           entry.dataset,
           request,
           'unavailable',
-          this.exactLexical ? 'exact_lexical_domain_missing_result' : 'exact_lexical_service_not_registered',
+          this.exactLexical
+            ? 'exact_lexical_domain_missing_result'
+            : 'exact_lexical_service_not_registered',
         )
       );
     });
 
-    return this.response(request, entries.map((entry) => entry.dataset.domain), results);
+    return this.response(
+      request,
+      entries.map((entry) => entry.dataset.domain),
+      results,
+    );
   }
 
   private async response(
@@ -152,7 +161,8 @@ export class RetrievalV2Service {
     dataset: SemanticDatasetDescriptor,
     request: RetrievalRequest,
   ): Promise<RetrievalSourceResult> {
-    const mustDrain = request.requireComplete === true || request.queryClass === 'exhaustive_search';
+    const mustDrain =
+      request.requireComplete === true || request.queryClass === 'exhaustive_search';
     let cursor = request.cursors?.[dataset.domain];
     const pages: RetrievalSourceResult[] = [];
 
@@ -192,14 +202,20 @@ export class RetrievalV2Service {
   private mergePages(
     domain: RetrievalDomain,
     pages: readonly RetrievalSourceResult[],
-    override?: Partial<Pick<RetrievalSourceResult, 'truncated' | 'paginationComplete' | 'coverageComplete' | 'stopReason'>>,
+    override?: Partial<
+      Pick<
+        RetrievalSourceResult,
+        'truncated' | 'paginationComplete' | 'coverageComplete' | 'stopReason'
+      >
+    >,
   ): RetrievalSourceResult {
     if (pages.length === 0) {
       throw new Error(`Retrieval V2 source ${domain} returned no page result`);
     }
     const last = pages[pages.length - 1]!;
     const worstStatus = pages.reduce<RetrievalSourceStatus>(
-      (worst, page) => (statusRank[page.sourceStatus] > statusRank[worst] ? page.sourceStatus : worst),
+      (worst, page) =>
+        statusRank[page.sourceStatus] > statusRank[worst] ? page.sourceStatus : worst,
       'healthy',
     );
     // A domain may page across independently synced source families. A fresh
@@ -209,6 +225,16 @@ export class RetrievalV2Service {
       ? new Date(Math.min(...syncDates.map((date) => date!.getTime())))
       : undefined;
     const unpagedTruncation = pages.some((page) => page.truncated && !page.nextCursor);
+    const evaluatedSets = new Map<string, number>();
+    let ungroupedEvaluated = 0;
+    for (const page of pages) {
+      if (page.evaluatedRecordSetId) {
+        evaluatedSets.set(
+          page.evaluatedRecordSetId,
+          Math.max(evaluatedSets.get(page.evaluatedRecordSetId) ?? 0, page.recordsEvaluated),
+        );
+      } else ungroupedEvaluated += page.recordsEvaluated;
+    }
     const sourceCoverageComplete =
       last.coverageComplete &&
       !last.hasMore &&
@@ -225,7 +251,8 @@ export class RetrievalV2Service {
       truncated: override?.truncated ?? unpagedTruncation,
       sourceStatus: worstStatus,
       lastSyncAt,
-      recordsEvaluated: pages.reduce((sum, page) => sum + page.recordsEvaluated, 0),
+      recordsEvaluated:
+        ungroupedEvaluated + [...evaluatedSets.values()].reduce((sum, count) => sum + count, 0),
       requestedEntityCount: Math.max(...pages.map((page) => page.requestedEntityCount)),
       searchedEntityCount: Math.max(...pages.map((page) => page.searchedEntityCount)),
       pagesRead: pages.reduce((sum, page) => sum + page.pagesRead, 0),
@@ -240,7 +267,10 @@ export class RetrievalV2Service {
   private unavailableResult(
     dataset: SemanticDatasetDescriptor,
     request: RetrievalRequest,
-    sourceStatus: Extract<RetrievalSourceStatus, 'unavailable' | 'unauthorized' | 'unsupported' | 'error'>,
+    sourceStatus: Extract<
+      RetrievalSourceStatus,
+      'unavailable' | 'unauthorized' | 'unsupported' | 'error'
+    >,
     stopReason: string,
   ): RetrievalSourceResult {
     return {
@@ -251,7 +281,8 @@ export class RetrievalV2Service {
       truncated: false,
       sourceStatus,
       recordsEvaluated: 0,
-      requestedEntityCount: request.canonicalEntityIds?.length ?? request.caller.clientIds?.length ?? 0,
+      requestedEntityCount:
+        request.canonicalEntityIds?.length ?? request.caller.clientIds?.length ?? 0,
       searchedEntityCount: 0,
       pagesRead: 0,
       paginationComplete: false,
@@ -277,7 +308,9 @@ export class RetrievalV2Service {
       requestedEntityCount: results.reduce((sum, result) => sum + result.requestedEntityCount, 0),
       queriedEntityCount: results.reduce((sum, result) => sum + result.searchedEntityCount, 0),
       pagesByDomain: Object.fromEntries(results.map((result) => [result.domain, result.pagesRead])),
-      sourceHealth: Object.fromEntries(results.map((result) => [result.domain, result.sourceStatus])),
+      sourceHealth: Object.fromEntries(
+        results.map((result) => [result.domain, result.sourceStatus]),
+      ),
       freshnessByDomain: Object.fromEntries(
         results.map((result) => [result.domain, result.lastSyncAt ?? null]),
       ),

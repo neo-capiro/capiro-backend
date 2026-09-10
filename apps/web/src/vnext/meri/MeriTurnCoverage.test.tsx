@@ -33,7 +33,8 @@ describe('turn coverage presentation', () => {
     expect(screen.getByText(/Later reads reached Institutional Knowledge/)).toBeInTheDocument();
     expect(screen.getByText('Initial context before later reads')).toBeInTheDocument();
     const table = within(screen.getByRole('table', { name: 'Subsequent tool reads' }));
-    expect(table.getByText('3 / 404')).toBeInTheDocument();
+    expect(table.getByText('Returned: 3')).toBeInTheDocument();
+    expect(table.getByText('Inspected: 404')).toBeInTheDocument();
     expect(table.getByText('2026-09-06 10:00:00 UTC')).toBeInTheDocument();
     expect(table.getByText(/More pages remain/)).toBeInTheDocument();
     expect(screen.queryByText(/source_unavailable:/)).not.toBeInTheDocument();
@@ -67,9 +68,48 @@ describe('turn coverage presentation', () => {
       exclusions: [{ label: 'source_unavailable:institutional_knowledge', type: 'source', reason: 'source_error:institutional_knowledge' }],
       degraded: true, degradedReason: 'source_unavailable:institutional_knowledge',
     } as MeriContextPacket;
-    expect(activeContextLabels(packet)[0]!.title).toBe('Learning signal');
+    expect(activeContextLabels(packet)[0]!.title).toBe('Learning signal · item 1 · CLIENT');
     expect(JSON.stringify(evidenceContextPacket(packet))).not.toContain('12345678');
     expect(JSON.stringify(evidenceContextPacket(packet))).not.toContain('source_unavailable');
     expect(meriCoverageReason(packet.degradedReason!)).toBe('Institutional Knowledge could not be read during initial context retrieval');
+  });
+});
+
+
+describe('task-relevant coverage and source counts', () => {
+  it('keeps a generic question free of unrelated required-source warnings', () => {
+    const retrieval = meriRetrievalMetadata({ plan: { subjectScope: 'general', queryClass: 'lookup', requiredDomains: [], requireCompleteCoverage: false },
+      coverage: { complete: false, missingDomains: ['clients', 'contacts'], searchedDomains: ['contacts'], stopReason: 'source_unavailable_or_unsupported' } })!;
+    render(<MeriCoverageWarning retrieval={retrieval} />);
+    expect(screen.queryByText('REQUIRED SOURCE MISSING')).not.toBeInTheDocument();
+    expect(screen.getByText('CONTEXT LIMITATIONS')).toBeInTheDocument();
+    expect(screen.getByText('Could not read: Contacts.')).toBeInTheDocument();
+  });
+
+  it('persists and displays unequal source counts without using total matches as inspected', () => {
+    const counts = { source: 'clients', recordsMatched: 30, recordsEvaluated: 19,
+      recordsReturned: 7, recordsDisplayed: 3, recordsOmitted: 4 };
+    const input = { ...raw, coverage: { ...raw.coverage, recordsReturned: 7, recordsEvaluated: 19,
+      recordsDisplayed: 3, recordsOmitted: 4, sourceCounts: [counts],
+      toolReads: [{ ...raw.coverage.toolReads[0], ...counts, recordsEvaluated: null }] } };
+    const retrieval = meriRetrievalMetadata(input)!;
+    expect(meriRetrievalMetadata(JSON.parse(JSON.stringify(retrieval)))).toEqual(retrieval);
+    render(<MeriRetrievalCoverage retrieval={retrieval} />);
+    const initial = within(screen.getByRole('table', { name: 'Initial source record counts' }));
+    for (const label of ['Matched: 30', 'Inspected: 19', 'Returned: 7', 'Displayed: 3', 'Omitted: 4']) expect(initial.getByText(label)).toBeInTheDocument();
+    const later = within(screen.getByRole('table', { name: 'Subsequent tool reads' }));
+    expect(later.getByText('Inspected: Unknown')).toBeInTheDocument();
+  });
+
+  it('keeps metadata-only context items distinct without fabricating their contents', () => {
+    const packet = { items: Array.from({ length: 3 }, (_, index) => ({ id: `signal-${index}`,
+      label: `learning_signal:12345678-1234-1234-1234-123456789ab${index}`,
+      type: 'learning_signal', scope: 'client', authority: 'unknown', selection: 'automatic',
+      asOf: '2026-09-09T10:00:00.000Z' })), exclusions: [], packetId: 'packet' } as unknown as MeriContextPacket;
+    const titles = activeContextLabels(packet).map((item) => item.title);
+    expect(new Set(titles).size).toBe(3);
+    expect(titles[0]).toBe('Learning signal · item 1 · CLIENT · 2026-09-09');
+    expect(evidenceContextPacket(packet).included.map((item) => item.name)).toEqual(titles);
+    expect(JSON.stringify(titles)).not.toContain('12345678');
   });
 });

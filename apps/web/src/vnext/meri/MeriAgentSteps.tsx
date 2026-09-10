@@ -19,17 +19,20 @@ const STEP_TONE: Record<TrustStep['status'], { state: string; icon: MeriIconName
   error:   { state: 'FAILED',  icon: 'XClose' },
 };
 
-export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
+export function MeriAgentSteps({ steps, isRunningAllowed = true }: { steps: TrustStep[]; isRunningAllowed?: boolean }) {
   if (steps.length === 0) return null;
   return (
     <div className="meri-agent-steps-list">
       {steps.map((step, index) => {
-        const tone = STEP_TONE[step.status];
+        // A saved running tool is unfinished evidence, not proof of a live run.
+        const tone = step.status === 'running' && !isRunningAllowed
+          ? { state: 'INCOMPLETE', icon: 'Clock' as MeriIconName, spin: false }
+          : STEP_TONE[step.status];
         return (
           <div
             key={`${step.tool}-${index}`}
             className="meri-agent-step"
-            data-status={step.status}
+            data-status={step.status === 'running' && !isRunningAllowed ? 'incomplete' : step.status}
           >
             <span className={`meri-agent-step__dot${tone.spin ? ' is-running' : ''}`}>
               <MeriIcon name={tone.icon} size={11} />

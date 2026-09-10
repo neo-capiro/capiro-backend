@@ -1,3 +1,4 @@
+import { projectMeriToolEvidence } from './meriv3-tool-evidence.js';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import {
   observeMeriTurnToolCoverage,
@@ -73,12 +74,12 @@ describe('completed-turn source coverage', () => {
         mailCoverage }],
     };
     expect(observeMeriTurnToolCoverage(tool, payload)).toEqual([expect.objectContaining({
-      source: 'mail', status: 'partial', recordsReturned: 2, recordsEvaluated: 2,
+      source: 'mail', status: 'partial', recordsReturned: 2, recordsEvaluated: null, recordsMatched: 2,
       detail: 'mail_capture_repair_required',
     })]);
     Object.assign(mailCoverage, { sourceStatus: 'healthy', reason: null, lastMailSyncAt: new Date().toISOString() });
     expect(observeMeriTurnToolCoverage(tool, payload)).toEqual([expect.objectContaining({
-      source: 'mail', status: 'complete', recordsReturned: 2, recordsEvaluated: 2, paginationComplete: true,
+      source: 'mail', status: 'complete', recordsReturned: 2, recordsEvaluated: null, recordsMatched: 2, paginationComplete: true,
     })]);
   });
 
@@ -93,7 +94,7 @@ describe('completed-turn source coverage', () => {
     });
     const first = observeMeriTurnToolCoverage('list_emails', page(0, 50));
     const final = observeMeriTurnToolCoverage('list_emails', page(50, 25));
-    expect(final[0]).toMatchObject({ recordsReturned: 25, recordsEvaluated: 75, paginationComplete: true, truncated: false });
+    expect(final[0]).toMatchObject({ recordsReturned: 25, recordsEvaluated: null, recordsMatched: 75, paginationComplete: true, truncated: false });
     const before = initial('mail');
     Object.assign(before.coverage, {
       complete: true, searchedDomains: ['mail'], missingDomains: [], partialDomains: [],
@@ -134,13 +135,13 @@ describe('completed-turn source coverage', () => {
         },
       ],
       toolReads: [
-        {
+        expect.objectContaining({
           recordsReturned: 3,
           recordsEvaluated: 404,
           paginationComplete: false,
           lastSyncAt: '2026-09-06T10:00:00.000Z',
           status: 'partial',
-        },
+        }),
       ],
     });
     expect(result.coverage.initialContext).toEqual(before.coverage);
@@ -191,7 +192,7 @@ describe('completed-turn source coverage', () => {
       ...memory({ coverageComplete: true, paginationComplete: true, hasMore: false }),
       projection: { truncated: true, shownRecordCount: 0 },
     });
-    expect(reads[0]).toMatchObject({ status: 'partial', recordsReturned: 0, truncated: true });
+    expect(reads[0]).toMatchObject({ status: 'partial', recordsReturned: 3, recordsDisplayed: 0, recordsOmitted: 3, truncated: true });
   });
 
   it('does not sum repeated searches, drop stale source detail, or hide genuine later errors', () => {
@@ -269,4 +270,129 @@ describe('completed-turn source coverage', () => {
       reason: 'subsequent_read:profile_section:advocacyMatters',
     });
   });
+});
+
+
+describe('coverage count scope', () => {
+  it('distinguishes matching inventory from inspected records and model projection', () => {
+    const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', {
+      totalMatches: 91, recordsEvaluated: 19, returned: 3,
+      results: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+      projection: { sourceRecordCount: 7, shownRecordCount: 3, truncated: true },
+    });
+    expect(read).toMatchObject({ recordsMatched: 91, recordsEvaluated: 19,
+      recordsReturned: 7, recordsDisplayed: 3, recordsOmitted: 4, status: 'partial' });
+  });
+
+  it('never labels totalMatches as inspected or unread matches as omitted from the page', () => {
+    const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', {
+      totalMatches: 91, returned: 7, results: Array(7).fill({}), hasMore: true,
+    });
+    expect(read).toMatchObject({ recordsMatched: 91, recordsEvaluated: null,
+      recordsReturned: 7, recordsDisplayed: 7, recordsOmitted: 0, paginationComplete: false });
+  });
+
+  it('does not borrow payload counts or projection totals for independent profile sections', () => {
+    const reads = observeMeriTurnToolCoverage('get_client_context', {
+      total: 999, returned: 13, recordsEvaluated: 777, results: Array(13).fill({}),
+      profileSections: {
+        capabilities: { total: 20, returned: 2, sourceReturned: 5, truncatedByProjection: true, status: 'partial' },
+        people: { total: 8, returned: 3, representation: 'full', status: 'complete' },
+        advocacyHistory: { status: 'unavailable', error: 'section_unavailable' },
+      },
+      profile: { capabilities: [{}, {}], people: [{}, {}, {}] },
+      projection: { truncated: true, sourceRecordCount: 8, shownRecordCount: 5 },
+    });
+    expect(reads[0]).toMatchObject({ recordsMatched: 20, recordsEvaluated: null,
+      recordsReturned: 5, recordsDisplayed: 2, recordsOmitted: 3 });
+    expect(reads[1]).toMatchObject({ recordsMatched: 8, recordsReturned: 3,
+      recordsDisplayed: 3, recordsOmitted: 0, status: 'complete' });
+    expect(reads[2]).toMatchObject({ recordsMatched: null, recordsReturned: null,
+      recordsDisplayed: null, recordsOmitted: null, status: 'unavailable' });
+  });
+
+  it('keeps multi-source counts isolated and admits partial failure next to useful results', () => {
+    const reads = observeMeriTurnToolCoverage('search_capiro_data', {
+      totalMatches: 2000, recordsEvaluated: 1000, returned: 11,
+      records: [{ domain: 'clients' }, { domain: 'clients' }],
+      coverage: { sources: [
+        { domain: 'clients', total: 30, recordsEvaluated: 9, returned: 7, coverageComplete: true },
+        { domain: 'contacts', sourceStatus: 'error', error: 'failed' },
+      ] },
+      projection: { truncated: true, shownRecordCount: 2, sourceRecordCount: 11 },
+    });
+    expect(reads[0]).toMatchObject({ recordsMatched: 30, recordsEvaluated: 9,
+      recordsReturned: 7, recordsDisplayed: 2, recordsOmitted: 5, status: 'partial' });
+    expect(reads[1]).toMatchObject({ recordsMatched: null, recordsEvaluated: null,
+      recordsReturned: null, recordsDisplayed: 0, recordsOmitted: null, status: 'error' });
+    const turn = reconcileMeriTurnCoverage(initial('clients'), [...reads, reads[0]!]) as MeriTurnRetrieval;
+    expect(turn.coverage.recordsReturned).toBe(0);
+    expect(turn.coverage.toolReads).toHaveLength(3);
+    expect(turn.coverage.unavailableSources).toContainEqual({ source: 'contacts', reason: 'subsequent_read:source_read_failed' });
+  });
+});
+
+
+it('retains canonical SAM freshness failures without calling an empty catalog current or exhaustive', () => {
+  const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', {
+    total: 0, results: [], sourceStatus: 'degraded', sourceReason: 'source_sync_stale',
+    sourceFreshness: [{ sourceKey: 'sam_gov', hoursSinceLastSuccess: 80 }],
+  });
+  expect(read).toMatchObject({ recordsMatched: 0, recordsReturned: 0, recordsEvaluated: null,
+    status: 'partial', detail: 'source_sync_stale', paginationComplete: null });
+});
+
+
+it('does not assign the same combined funding count to contracts and grants', () => {
+  const reads = observeMeriTurnToolCoverage('search_funding_opportunities', {
+    total: 30, returned: 5, results: Array(5).fill({}), coverage: { returned: 5, total: 30, recordsEvaluated: 9, complete: true },
+  });
+  expect(reads).toHaveLength(2);
+  for (const read of reads) expect(read).toMatchObject({ recordsReturned: null, recordsMatched: null,
+    recordsEvaluated: null, status: 'partial', detail: 'per_source_counts_not_reported' });
+});
+
+it('retains a partial source status even when a page claims completion', () => {
+  const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', {
+    returned: 2, total: 2, results: [{}, {}], sourceStatus: 'partial',
+    coverage: { complete: true, paginationComplete: true },
+  });
+  expect(read).toMatchObject({ status: 'partial', recordsReturned: 2, recordsMatched: 2 });
+});
+
+
+it('preserves SAM freshness and count semantics through the actual model evidence budget', () => {
+  const projected = projectMeriToolEvidence({ readOnly: true, maxCharacters: 5000, result: {
+    totalMatches: 90, recordsEvaluated: 18, returned: 7,
+    sourceStatus: 'degraded', sourceReason: 'source_sync_stale',
+    sourceFreshness: [{ source: 'sam_gov', lastSyncedAt: '2026-09-01T10:00:00.000Z', hoursSinceLastSuccess: 80 }],
+    results: Array.from({ length: 7 }, (_, index) => ({ id: `opportunity-${index}`, title: `Opportunity ${index}`, description: 'Long source evidence. '.repeat(150) })),
+  } });
+  const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', projected);
+  expect(read).toMatchObject({ recordsMatched: 90, recordsEvaluated: 18, recordsReturned: 7,
+    status: 'partial', detail: 'source_sync_stale', lastSyncAt: '2026-09-01T10:00:00.000Z', truncated: true });
+  expect(read!.recordsDisplayed).toBeLessThan(7);
+  expect(read!.recordsOmitted).toBe(7 - read!.recordsDisplayed!);
+});
+
+
+it('preserves the explicit recordsReturned alias when a receipt has no result array', () => {
+  const projected = projectMeriToolEvidence({ readOnly: true, maxCharacters: 5000,
+    result: { recordsReturned: 7, totalMatches: 90, recordsEvaluated: 18 },
+  });
+  const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', projected);
+  expect(read).toMatchObject({ recordsReturned: 7, recordsMatched: 90, recordsEvaluated: 18,
+    recordsDisplayed: null, recordsOmitted: null });
+});
+
+
+it('counts only visible result rows as displayed when the source reports more returned records', () => {
+  const projected = projectMeriToolEvidence({ readOnly: true, maxCharacters: 5000,
+    result: { recordsReturned: 7, totalMatches: 90, recordsEvaluated: 18,
+      coverage: { complete: true, paginationComplete: true },
+      results: [{ id: 'visible-1' }, { id: 'visible-2' }, { id: 'visible-3' }] },
+  });
+  const [read] = observeMeriTurnToolCoverage('search_sam_opportunities', projected);
+  expect(read).toMatchObject({ recordsReturned: 7, recordsMatched: 90, recordsEvaluated: 18,
+    recordsDisplayed: 3, recordsOmitted: 4, status: 'partial', truncated: true });
 });

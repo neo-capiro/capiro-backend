@@ -1030,10 +1030,16 @@ export class DirectoryService implements OnModuleInit {
 
   async getMemberDetail(memberId: string): Promise<DirectoryMemberDetail> {
     const base = await this.getDirectoryData();
-    const numericId = Number(String(memberId).replace(/^member-/, ''));
-    const row = base.indexes.membersById.get(numericId);
+    // Committee rosters identify legislators by Bioguide ID. Their row UUID is
+    // a committee membership, not a Directory person. Resolve the explicit
+    // official ID through the existing snapshot index and retain the canonical
+    // member identity for photos, committees, and related-data endpoints.
+    const row = /^[a-z]\d{6}$/i.test(memberId)
+      ? base.indexes.membersByBioguideId.get(memberId.toUpperCase())
+      : base.indexes.membersById.get(Number(String(memberId).replace(/^member-/, '')));
     if (!row) throw new NotFoundException('Directory member not found');
     const member = (row.member ?? {}) as Record<string, any>;
+    const numericId = Number(member.member_id);
     const profile = (member.profile ?? {}) as Record<string, any>;
     const bio = (profile.bio_details ?? {}) as Record<string, any>;
     const personId = `member-${numericId}`;

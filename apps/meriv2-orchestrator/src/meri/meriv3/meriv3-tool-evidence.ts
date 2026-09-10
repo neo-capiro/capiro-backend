@@ -3,6 +3,9 @@ import { sanitizeToolResultText } from '@capiro/meriv2-core';
 const ROW_KEYS = ['records', 'data', 'results', 'items', 'documents', 'memories', 'hearings', 'messages'];
 const META_KEYS = [
   'status',
+  'sourceStatus',
+  'sourceReason',
+  'sourceFreshness',
   'error',
   'message',
   'blocked',
@@ -13,6 +16,9 @@ const META_KEYS = [
   'name',
   'url',
   'total',
+  'totalMatches',
+  'recordsEvaluated',
+  'recordsReturned',
   'totalCount',
   'count',
   'returned',

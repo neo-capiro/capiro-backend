@@ -650,6 +650,9 @@ export function TrackerSurface({
       // Seed the cache with the server-normalized value so the Configure form
       // (and recs) reflect what was actually persisted.
       qc.setQueryData(trackerKeys.watchlist(clientId), data);
+      // LegiWatch's cold-start gate reads the canonical service through its
+      // own lightweight query. A successful setup must unlock that gate too.
+      void qc.invalidateQueries({ queryKey: ['lw-vnext', 'watchlist-peek', clientId] });
       void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(clientId) });
       // Refresh seed suggestions only AFTER the save persists — otherwise the
       // refetch races the debounced PUT and returns stale (still-importable) rows.
@@ -1368,7 +1371,16 @@ export function TrackerSurface({
 
       {/* ===================== CONFIGURE ===================== */}
       {activePanel === 'config' &&
-        (!prefsQuery.data || watchlistQuery.isLoading || issueAreasQuery.isLoading ? (
+        (watchlistQuery.isError || prefsQuery.isError || issueAreasQuery.isError ? (
+          <div role="alert" className="trk-col-empty">
+            <p>Configuration could not be loaded. Your existing watchlist and alert preferences have not changed.</p>
+            <button className="btn" onClick={() => {
+              void watchlistQuery.refetch();
+              void prefsQuery.refetch();
+              void issueAreasQuery.refetch();
+            }}>Retry configuration</button>
+          </div>
+        ) : !prefsQuery.data || !watchlistQuery.data || watchlistQuery.isLoading || issueAreasQuery.isLoading ? (
           <div className="trk-col-empty">Loading configuration…</div>
         ) : (
           <TrackerConfigPanel

@@ -185,6 +185,11 @@ export class MeriOpportunityToolsAdapter {
     private readonly requirements: OpportunityRequirementService,
   ) {}
 
+  /** Global source health for the existing public-catalog SAM reader; no client records. */
+  async readSamSourceFreshness() {
+    return (await this.opportunities.readFreshness()).filter((row) => row.source === 'sam_gov');
+  }
+
   // ── Gates, shared by every tool ───────────────────────────────────────────
 
   /**

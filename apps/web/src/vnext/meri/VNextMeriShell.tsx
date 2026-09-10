@@ -4,7 +4,8 @@ import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.j
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
-import type { MeriCitation } from '../../components/chat/chat-store.js';
+import { mergeMeriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
+import { useMeriSourceSelection } from './useMeriSourceSelection.js';
 import { MERI_LOGO_SRC } from './meri-presentation.js';
 import type { MeriContextSection, MeriWindowChrome } from './meri-prefs.js';
 import { VNextMeriTopBar } from './VNextMeriTopBar.js';
@@ -86,10 +87,10 @@ export function VNextMeriShell({
   const skipInitialPreferenceSaveRef = useRef(true);
   const [threadSearch, setThreadSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [activeSourceDetail, setActiveSourceDetail] = useState<{
-    citations: MeriCitation[];
-    index: number;
-  } | null>(null);
+  const sourceSelection = useMeriSourceSelection({
+    tenantId: me.data?.tenant.id, userId: me.data?.user.id,
+    conversationId: controller.activeConversationId, messages: controller.messages,
+  });
   const [contextSheet, setContextSheet] = useState<{
     open: boolean;
     packet: MeriContextPacket | null;
@@ -143,11 +144,10 @@ export function VNextMeriShell({
     setRailCollapsed(true);
   }, [isTabletDown]);
 
-  // A source-detail view pins to one turn's citations; switching threads
-  // must not leave a stale panel referencing the previous thread's sources.
+  // Restore the selected source after authenticated message hydration.
   useEffect(() => {
-    setActiveSourceDetail(null);
-  }, [controller.activeConversationId]);
+    if (sourceSelection.active) setRailCollapsed(false);
+  }, [sourceSelection.active?.citations, sourceSelection.active?.index, preferencesHydrated]);
 
   // A streamed document should surface immediately even if the rail was collapsed.
   useEffect(() => {
@@ -156,7 +156,7 @@ export function VNextMeriShell({
 
   // A turn-inspector view pins to one turn; switching threads must not leave
   // a stale panel referencing the previous thread's data (same reasoning as
-  // the activeSourceDetail reset above).
+  // the source selection's conversation-bound locator).
   useEffect(() => {
     setTurnInspectorData(null);
   }, [controller.activeConversationId]);
@@ -233,10 +233,20 @@ export function VNextMeriShell({
    * what the dialogs themselves ultimately call; Shell does not gate them a
    * second time.
    */
+  const inspectedMessage = controller.messages.find((message) => message.id === turnInspectorData?.turnId);
+  const inspectedRuntime = inspectedMessage?.runtimeStatus
+    ? mergeMeriRuntimeStatus(turnInspectorData?.thinking.runtimeStatus, inspectedMessage.runtimeStatus)
+    : turnInspectorData?.thinking.runtimeStatus;
   const activeTurnInspector: ActiveTurnInspector | null = turnInspectorData
     ? {
         activeTab: turnInspectorTab,
-        data: { ...turnInspectorData, approvals: controller.pendingApprovals },
+        data: {
+          ...turnInspectorData,
+          // Reopened/rehydrated execution state belongs to the exact message;
+          // preserve the inspector's captured client scope and evidence.
+          thinking: { ...turnInspectorData.thinking, runtimeStatus: inspectedRuntime },
+          approvals: controller.pendingApprovals,
+        },
         approvingProposalId: controller.approvingProposalId,
         onApprove: (proposalId: string) => void controller.handleApprovePending(proposalId),
         onApproveAll: () => void controller.handleApproveAll(),
@@ -309,8 +319,8 @@ export function VNextMeriShell({
               onOpenMemory={() => expandSection('memory')}
               threadRailCollapsed={threadRailCollapsed}
               onExpandThreadRail={() => setThreadRailCollapsed(false)}
-              onOpenSourceDetail={(citations, index) => {
-                setActiveSourceDetail({ citations, index });
+              onOpenSourceDetail={(citations, index, turnScope) => {
+                sourceSelection.open(citations, index, turnScope);
                 setRailCollapsed(false);
               }}
               onOpenTurnInspector={openTurnInspector}
@@ -326,8 +336,9 @@ export function VNextMeriShell({
               onOpenContext={(packet, loading, error, focusItemId) =>
                 setContextSheet({ open: true, packet, loading, error, focusItemId: focusItemId ?? null })
               }
-              activeSourceDetail={activeSourceDetail}
-              onCloseSourceDetail={() => setActiveSourceDetail(null)}
+              activeSourceDetail={sourceSelection.active}
+              onCloseSourceDetail={sourceSelection.close}
+              onSourceIndexChange={sourceSelection.changeIndex}
               activeArtifact={controller.activeArtifact}
               onCloseArtifact={() => controller.setActiveArtifact(null)}
               activeTurnInspector={activeTurnInspector}

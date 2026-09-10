@@ -1,4 +1,6 @@
+import type { MeriTurnScope } from './meri-turn-scope.js';
 import { meriRetrievalMetadata } from './meri-retrieval-metadata.js';
+import { mergeMeriRuntimeStatus } from './meri-runtime-status.js';
 import { useEffect, useState } from 'react';
 import type { MeriRect } from './meri-geometry.js';
 import type { TrustStep } from './WorkPerformed.js';
@@ -6,6 +8,7 @@ import type { TrustStep } from './WorkPerformed.js';
 export type MeriSurfaceMode = 'closed' | 'docked' | 'undocked';
 
 export interface MeriCitation {
+  source?: import('@capiro/shared').MeriSourceLocator;
   n: number;
   type: string;
   id: string;
@@ -110,6 +113,9 @@ export interface ChatMessageRetrieval {
       status: 'complete' | 'partial' | 'error' | 'unavailable';
       recordsReturned: number | null;
       recordsEvaluated: number | null;
+      recordsMatched?: number | null;
+      recordsDisplayed?: number | null;
+      recordsOmitted?: number | null;
       paginationComplete: boolean | null;
       truncated: boolean;
       lastSyncAt?: string;
@@ -125,6 +131,16 @@ export interface ChatMessageRetrieval {
     searchedEntityCount?: number | null;
     recordsEvaluated?: number;
     recordsReturned?: number;
+    recordsDisplayed?: number;
+    recordsOmitted?: number;
+    sourceCounts?: Array<{
+      source: string;
+      recordsReturned: number | null;
+      recordsEvaluated: number | null;
+      recordsMatched: number | null;
+      recordsDisplayed: number | null;
+      recordsOmitted: number | null;
+    }>;
     paginationComplete?: boolean;
     truncated?: boolean;
     sourceHealth?: Array<{
@@ -156,6 +172,8 @@ export interface ChatMessage {
   groundingStatement?: string;
   /** Immutable server context packet that grounded this specific assistant turn. */
   contextPacketId?: string;
+  /** Captured retrieval scope for this message; never the current picker. */
+  turnScope?: MeriTurnScope;
   /** Backend retrieval plan for this assistant turn (absent on legacy turns). */
   retrieval?: ChatMessageRetrieval;
   /**
@@ -373,7 +391,7 @@ export function setChatMessageRuntimeStatus(
     ...state,
     messages: state.messages.map((message) =>
       message.id === id
-        ? { ...message, runtimeStatus: { ...message.runtimeStatus, ...runtimeStatus } }
+        ? { ...message, runtimeStatus: mergeMeriRuntimeStatus(message.runtimeStatus, runtimeStatus) }
         : message,
     ),
   };
@@ -413,6 +431,13 @@ export function setChatMessageGroundingCaveat(id: string, groundingCaveat: Groun
 
 export function setChatMessageGroundingStatement(id: string, groundingStatement: string): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, groundingStatement } : m));
+  state = { ...state, messages };
+  notify();
+}
+
+/** Attach the server scope receipt to this assistant turn. */
+export function setChatMessageTurnScope(id: string, turnScope: MeriTurnScope): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, turnScope } : m));
   state = { ...state, messages };
   notify();
 }

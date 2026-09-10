@@ -26,10 +26,19 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
         <p>
           {coverage.recordsReturned} records returned
           {coverage.recordsEvaluated !== undefined
-            ? ` · ${coverage.recordsEvaluated} records evaluated`
+            ? ` · ${coverage.recordsEvaluated} records inspected`
             : ''}
           .
         </p>
+      ) : null}
+      {coverage.recordsDisplayed !== undefined ? <p>{coverage.recordsDisplayed} returned records displayed to the model{coverage.recordsOmitted !== undefined ? ` · ${coverage.recordsOmitted} omitted from model evidence` : ''}.</p> : null}
+      {(coverage.sourceCounts?.length ?? 0) > 0 ? (
+        <table aria-label="Initial source record counts">
+          <thead><tr><th scope="col">Source</th><th scope="col">Record counts</th></tr></thead>
+          <tbody>{coverage.sourceCounts!.map((source) => <tr key={source.source}>
+            <th scope="row">{label(source.source)}</th><td><MeriRecordCounts counts={source} /></td>
+          </tr>)}</tbody>
+        </table>
       ) : null}
       {coverage.requestedEntityCount != null && coverage.searchedEntityCount != null ? (
         <p>
@@ -78,13 +87,14 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
       {reads.length ? (
         <>
           <table aria-label="Subsequent tool reads">
-            <thead><tr><th scope="col">Source</th><th scope="col">Read result</th><th scope="col">Records returned / evaluated</th><th scope="col">Remaining gap</th><th scope="col">Source timestamp (UTC)</th></tr></thead>
+            <thead><tr><th scope="col">Source</th><th scope="col">Read result</th><th scope="col">Record counts</th><th scope="col">Remaining gap</th><th scope="col">Source timestamp (UTC)</th></tr></thead>
             <tbody>{reads.map((read, index) => (
               <tr key={`${read.tool}-${read.source}-${index}`}>
                 <th scope="row">{label(read.source)}{read.detail?.startsWith('profile_section:') ? ` · ${meriCoverageReason(read.detail)}` : ''}</th>
                 <td>{status[read.status]} for this read</td>
-                <td>{read.recordsReturned ?? 'Unknown'} / {read.recordsEvaluated ?? 'Unknown'}</td>
+                <td><MeriRecordCounts counts={read} /></td>
                 <td>{[
+                  read.status === 'error' || read.status === 'unavailable' ? 'This source could not be read' : null,
                   read.paginationComplete === false ? 'More pages remain' : null,
                   read.truncated ? 'Some content was shortened or omitted' : null,
                   read.paginationComplete === null ? 'Pagination not reported' : null,
@@ -100,12 +110,13 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
       {(coverage.unavailableSources ?? []).length ? (
         <ul>
           {coverage.unavailableSources!.map((source) => (
-            <li key={source.source}>
+            <li key={`${source.source}-${source.reason}`}>
               {label(source.source)}: {meriCoverageReason(source.reason)}.
             </li>
           ))}
         </ul>
       ) : null}
+      {coverage.sourceCounts?.length || reads.length ? <p>Matched counts describe the query or section, including other pages. Inspected counts are reported by the source. Displayed and omitted counts refer only to returned records in the model evidence. Unknown means the source did not report a count; shortened text is disclosed separately.</p> : null}
       {health.length || reads.length ? (
         <p>
           Use the cited document’s date and stage to assess currency; this timestamp alone does not
@@ -114,4 +125,14 @@ export function MeriRetrievalCoverage({ retrieval }: { retrieval: ChatMessageRet
       ) : null}
     </section>
   );
+}
+
+function MeriRecordCounts({ counts }: { counts: {
+  recordsMatched?: number | null; recordsEvaluated?: number | null;
+  recordsReturned?: number | null; recordsDisplayed?: number | null; recordsOmitted?: number | null;
+} }) {
+  return <div>{([
+    ['Matched', counts.recordsMatched], ['Inspected', counts.recordsEvaluated],
+    ['Returned', counts.recordsReturned], ['Displayed', counts.recordsDisplayed], ['Omitted', counts.recordsOmitted],
+  ] as const).map(([name, value]) => <div key={name}>{name}: {value ?? 'Unknown'}</div>)}</div>;
 }

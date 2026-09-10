@@ -1,6 +1,6 @@
 import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 import { INTENT_LABELS } from '../../components/chat/work-performed-shared.js';
-import type { MeriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
+import { meriTurnLifecycleLabel, type MeriRuntimeStatus } from '../../components/chat/meri-runtime-status.js';
 import { MeriAgentSteps } from './MeriAgentSteps.js';
 import { MeriPanelState } from './MeriPanelState.js';
 
@@ -55,16 +55,19 @@ export function MeriThinkingTab({ plan, steps, intent, runtimeStatus }: MeriThin
     0,
   );
   const errorCount = steps.filter((step) => step.status === 'error').length;
-  const planLabel = (intent && INTENT_LABELS[intent]) || 'Working';
+  const intentLabel = intent && INTENT_LABELS[intent];
 
   return (
     <div className="vnext-meri__evidence-tab-body">
       <div className="vnext-meri__evidence-section-label">
-        {planLabel.toUpperCase()}
-        {runtimeStatus?.selectedMode
-          ? ` · ${runtimeStatus.selectedMode.toUpperCase()} SELECTED`
-          : ''}
+        {meriTurnLifecycleLabel(runtimeStatus).toUpperCase()}
       </div>
+      {intentLabel ? <div className="vnext-meri__evidence-plan-label">{intentLabel}</div> : null}
+      {runtimeStatus?.selectedMode ? (
+        <div className="vnext-meri__evidence-plan-label">
+          {runtimeStatus.selectedMode.toUpperCase()} SELECTED
+        </div>
+      ) : null}
 
       {runtimeStatus &&
       (runtimeStatus.requestedModel || runtimeStatus.requestedEffort || runtimeStatus.adjusted) ? (
@@ -124,7 +127,7 @@ export function MeriThinkingTab({ plan, steps, intent, runtimeStatus }: MeriThin
 
       {steps.length > 0 ? (
         <div className="vnext-meri__evidence-steps">
-          <MeriAgentSteps steps={steps} />
+          <MeriAgentSteps steps={steps} isRunningAllowed={runtimeStatus?.lifecycle === 'running'} />
         </div>
       ) : null}
 

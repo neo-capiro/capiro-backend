@@ -104,6 +104,17 @@ export interface MeriGovernedTurnContext {
       searchedEntityCount: number | null;
       recordsEvaluated: number;
       recordsReturned: number;
+      /** Counts from the same initial retrieval, after model projection. */
+      recordsDisplayed?: number;
+      recordsOmitted?: number;
+      sourceCounts?: Array<{
+        source: string;
+        recordsReturned: number | null;
+        recordsEvaluated: number | null;
+        recordsMatched: number | null;
+        recordsDisplayed: number | null;
+        recordsOmitted: number | null;
+      }>;
       paginationComplete: boolean;
       truncated: boolean;
       sourceHealth: Array<{

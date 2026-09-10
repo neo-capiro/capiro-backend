@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
 import type {
   ContextRequest,
   MeriContextPacketItem,
@@ -33,6 +34,8 @@ interface ResolvedTurnPlan {
   targetHint: string | null;
   queryClass: RetrievalQueryClass;
   requestedDomains: RetrievalDomain[];
+  /** Sources needed by the task; other requested rails are supplementary context. */
+  requiredDomains?: RetrievalDomain[];
   query: string | undefined;
   requireComplete: boolean;
   windowStart?: Date;
@@ -224,6 +227,7 @@ export class MeriContextPlaneService {
       plan,
       context: result.context,
       packet: result.packet,
+      projectedRecords: projection.records,
       projectionTruncated:
         projection.truncated || steeringEvidence.some((record) => record.projection.truncated),
     });
@@ -339,7 +343,7 @@ export function planMeriTurn(input: {
     return noRetrievalPlan('general');
   }
 
-  if (PORTFOLIO_RE.test(lower)) {
+  if (hasExplicitMeriPortfolioScope(task)) {
     return {
       subjectScope: 'portfolio',
       targetHint: null,
@@ -351,7 +355,7 @@ export function planMeriTurn(input: {
     };
   }
 
-  const explicitTarget = extractTargetHint(task, Boolean(input.uiClientId));
+  const explicitTarget = explicitMeriSubjectHint(task, Boolean(input.uiClientId));
   const targetIsUiClient =
     !!explicitTarget &&
     !!input.uiClientName &&
@@ -412,6 +416,7 @@ export function planMeriTurn(input: {
       // Selecting a task-specific rail must not hide the client's objectives,
       // current strategy, relationships or governed constraints. These are
       // inputs to the provider's analysis, not a second reasoning workflow.
+      requiredDomains: explicitDomains,
       requestedDomains: subjectScope === 'client'
         ? uniqueDomains([...CLIENT_ANALYSIS_DOMAINS, ...explicitDomains])
         : explicitDomains,
@@ -742,7 +747,7 @@ function toMeriPacketItem(raw: unknown): MeriContextPacketItem {
   };
 }
 
-function toMeriRetrievalProjection(input: {
+export function toMeriRetrievalProjection(input: {
   plan: ResolvedTurnPlan;
   context: {
     resolution: {
@@ -764,6 +769,9 @@ function toMeriRetrievalProjection(input: {
         sources: Array<{
           domain: RetrievalDomain;
           sourceStatus: RetrievalSourceStatus;
+          total?: number | null;
+          returned?: number;
+          recordsEvaluated?: number;
           lastSyncAt?: Date;
           stopReason: string;
           coverageComplete: boolean;
@@ -776,6 +784,7 @@ function toMeriRetrievalProjection(input: {
     };
   };
   packet: unknown;
+  projectedRecords: Array<{ domain: string }>;
   projectionTruncated: boolean;
 }): MeriGovernedTurnContext['retrieval'] {
   const packet = packetRecord(input.packet);
@@ -797,7 +806,7 @@ function toMeriRetrievalProjection(input: {
           input.context.resolution.subjectEntity?.canonicalName ?? input.plan.targetHint ?? null,
         recipeTool: null,
         requireCompleteCoverage: input.plan.requireComplete,
-        requiredDomains: requested,
+        requiredDomains: input.plan.requiredDomains ?? (input.plan.requireComplete ? requested : []),
         timeWindow: input.plan.timeWindow,
       },
       coverage: {
@@ -880,7 +889,7 @@ function toMeriRetrievalProjection(input: {
         input.context.resolution.subjectEntity?.canonicalName ?? input.plan.targetHint ?? null,
       recipeTool: null,
       requireCompleteCoverage: input.plan.requireComplete,
-      requiredDomains: requested,
+      requiredDomains: input.plan.requiredDomains ?? (input.plan.requireComplete ? requested : []),
       timeWindow: input.plan.timeWindow,
     },
     coverage: {
@@ -894,6 +903,19 @@ function toMeriRetrievalProjection(input: {
       searchedEntityCount: coverage.searchedEntityCount,
       recordsEvaluated: coverage.recordsEvaluated,
       recordsReturned: coverage.recordsReturned,
+      recordsDisplayed: input.projectedRecords.length,
+      recordsOmitted: Math.max(0, coverage.recordsReturned - input.projectedRecords.length),
+      sourceCounts: coverage.sources.map((source) => {
+        const displayed = input.projectedRecords.filter((record) => record.domain === source.domain).length;
+        return {
+          source: source.domain,
+          recordsReturned: source.returned ?? null,
+          recordsEvaluated: source.recordsEvaluated ?? null,
+          recordsMatched: source.total ?? null,
+          recordsDisplayed: displayed,
+          recordsOmitted: source.returned === undefined ? null : Math.max(0, source.returned - displayed),
+        };
+      }),
       paginationComplete: coverage.paginationComplete,
       truncated:
         input.projectionTruncated || coverage.sources.some((source) => source.truncated),
@@ -968,6 +990,10 @@ function buildMeriContextPrompt(input: {
     `partialDomains=${c.partialDomains.join(',') || '(none)'}`,
     `recordsEvaluated=${c.recordsEvaluated}`,
     `recordsReturned=${c.recordsReturned}`,
+    `recordsDisplayed=${c.recordsDisplayed ?? 'unknown'}`,
+    `recordsOmitted=${c.recordsOmitted ?? 'unknown'}`,
+    `sourceCounts=${JSON.stringify(c.sourceCounts ?? [])}`,
+    'Counts stay within their source, query and phase. Matched is not inspected; returned is not necessarily shown to the model. Never sum repeated or overlapping reads. Omitted counts describe returned records absent from model evidence, not all matching records left unread.',
     `paginationComplete=${c.paginationComplete}`,
     `truncated=${c.truncated}`,
     `sourceHealth=${JSON.stringify(c.sourceHealth)}`,
@@ -983,46 +1009,6 @@ function buildMeriContextPrompt(input: {
   ]
     .filter((line) => line !== '')
     .join('\n');
-}
-
-function extractTargetHint(task: string, hasSelectedClient: boolean): string | null {
-  // A quoted constraint or an FY/committee identifier is not a request to
-  // replace the selected client with an external organization.
-  const clientCue = /\bfor (?:this|our|my|the selected) client\b/i.exec(task);
-  if (hasSelectedClient && clientCue && !/\b(?:not|except)\s*$/i.test(task.slice(0, clientCue.index))) return null;
-  for (const cue of task.matchAll(/\b(?:about|research|regarding|on)\s+/gi)) {
-    const rest = task.slice(cue.index! + cue[0].length);
-    const quoted = /^["“]([^"”]{2,100})["”]/.exec(rest)?.[1]?.trim();
-    if (quoted && !isGovernmentReference(quoted)) return quoted;
-    // Inspect the complete bill identifier before punctuation splits H.R. into H.
-    if (/^(?:H\.?\s*R\.?|S\.?|H\.?\s*J\.?\s*Res\.?|S\.?\s*J\.?\s*Res\.?)\s*\d+/i.test(rest)) continue;
-    const organization = /^([A-Z][A-Za-z0-9&.' -]{1,100}?)(?=[?.!,;]|$)/.exec(rest)?.[1]
-      ?.replace(/\s+(?:instead of|rather than|not for)\b.*$/i, '').trim();
-    if (organization && !isGovernmentReference(organization)) return organization;
-  }
-  // Preserve explicit external comparisons/analysis while rejecting incidental
-  // uppercase tokens elsewhere in a client-specific request.
-  const analysisCue = /^\s*(?:compare|assess|analy[sz]e|evaluate|investigate)\s+/i.exec(task);
-  const analysisTarget = analysisCue
-    ? /^([A-Z][A-Z0-9&.-]{1,11})\b/.exec(task.slice(analysisCue[0].length))?.[1]
-    : undefined;
-  if (analysisTarget && !TARGET_STOP_WORDS.has(analysisTarget) && !isGovernmentReference(analysisTarget)) return analysisTarget;
-  // Incidental acronyms (agency, bill, aircraft, program) are not an explicit
-  // instruction to discard the conversation's client. The provider can still
-  // investigate them using the normal tools with that client context intact.
-  if (hasSelectedClient) return null;
-  const acronyms = task.match(/\b[A-Z][A-Z0-9&.-]{1,11}\b/g) ?? [];
-  for (const acronym of acronyms) {
-    if (!TARGET_STOP_WORDS.has(acronym) && !isGovernmentReference(acronym)) return acronym;
-  }
-  return null;
-}
-
-function isGovernmentReference(value: string): boolean {
-  return /^FY\s*\d{2,4}(?:\b|$)/i.test(value)
-    || /^PE(?:\s*\d+[A-Z]?)?$/i.test(value)
-    || /^(?:HASC|SASC|HAC(?:-D)?|SAC(?:-D)?|NDAA|RDTE|RDT&E|USD)(?:$|\s+(?:staff|funding|appropriations|budget|mark|implementation|provisions|hearing)\b)/i.test(value)
-    || /^(?:H\.?\s*R\.?|S\.?|H\.?\s*J\.?\s*Res\.?|S\.?\s*J\.?\s*Res\.?)\s*\d+/i.test(value);
 }
 
 function normalizeEntityName(value: string): string {
@@ -1101,9 +1087,7 @@ function isTrivialTurn(lower: string): boolean {
   return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening)[.! ]*$/.test(lower);
 }
 
-const PORTFOLIO_RE = /\b(portfolio|all (?:of )?(?:our|my) clients|across (?:our|my) clients|client book|book of business)\b/i;
 const CLIENT_ANALYSIS_DOMAINS: readonly RetrievalDomain[] = ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'];
 const PERSONAL_MEMORY_RE = /\b(remember|memory|nickname|preference|preferences|my voice|my tone|about me|about us|how i write|how we write)\b/i;
 const RELATIONSHIP_RE = /\b(history|relationship|relationships|communications|correspondence|interactions|engagement history)\b/i;
 const CHANGE_RE = /\b(changed|changes|new since|since last|recent changes|what's new|what is new|last \d+ (?:days?|weeks?|months?))\b/i;
-const TARGET_STOP_WORDS = new Set(['I', 'AI', 'API', 'CAPIRO', 'MERI', 'US', 'USA', 'DOD', 'DOW', 'FY']);

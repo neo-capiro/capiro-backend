@@ -30,6 +30,8 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
+import { MeriSourceController } from './meri-source.controller.js';
+import { MeriSourceService } from './meri-source.service.js';
 import { MeriSkillsController } from './meri-skills.controller.js';
 import { MeriActionProposalController } from './meri-action-proposal.controller.js';
 import { MeriAnalysisArtifactController } from './meri-analysis-artifact.controller.js';
@@ -99,6 +101,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
   ],
   controllers: [
     MeriController,
+    MeriSourceController,
     MeriSkillsController,
     MeriV3SettingsController,
     MeriAnalysisArtifactController,
@@ -110,6 +113,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
   ],
   providers: [
     MeriClientFilingService,
+    MeriSourceService,
     MeriContextPlaneService,
     MeriContextPlaneRuntimeService,
     { provide: RAW_MERI_SERVICE, useClass: MeriService },

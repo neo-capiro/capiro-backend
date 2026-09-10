@@ -93,6 +93,22 @@ function buildHarness() {
 const CTX = { tenantId: TENANT, userId: USER } as never;
 
 describe('MeriV3ProxyService — done frame carries the persisted message id', () => {
+  it('persists and streams the same actual turn scope when the selected client differs', async () => {
+    const { service, client, sse, tx, frames } = buildHarness();
+    tx.clioConversation.findFirst.mockResolvedValue({ id: CONVERSATION, clientId: 'l3', client: { id: 'l3', name: 'L3 Harris' } } as never);
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({ type: 'done', reply: 'Anduril evidence.', citations: [], steps: [],
+        retrieval: { plan: { subjectScope: 'external_entity', targetHint: 'Anduril' }, coverage: { complete: true } },
+        contextPacket: { packetId: 'packet-anduril', clientId: null },
+        runtime: 'meriv3', model: 'configured-model', reasoningMode: 'fast', reasoningEffort: 'low' });
+    });
+    await service.streamMessage(CTX, CONVERSATION, 'Research Anduril', sse, undefined, 'new', [], 'token');
+    const saved = tx.clioMessage.create.mock.calls.map(([arg]: any) => arg.data).find((data: any) => data.role === 'assistant');
+    const expected = { kind: 'external_entity', targetHint: 'Anduril', clientId: null, clientName: null };
+    expect(saved.metadata.turnScope).toEqual(expected);
+    expect(frames().find((frame) => frame.type === 'done')?.turnScope).toEqual(expected);
+  });
+
   it('forwards reauthorized [56] and persists it on the new message after completion', async () => {
     const { service, client, conversationEvidence, sse, tx, frames } = buildHarness();
     const citation = { n: 56, id: 'doc-1:aaaaaaaaaaaaaaaa:22:0-840', title: 'Capiro 2.0.pdf',

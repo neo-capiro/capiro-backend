@@ -46,6 +46,7 @@ import { SearchModule } from './search/search.module.js';
 import { InsightsModule } from './insights/insights.module.js';
 import { ProgramElementModule } from './program-element/program-element.module.js';
 import { DefenseBudgetLifecycleModule } from './defense-budget-lifecycle/defense-budget-lifecycle.module.js';
+import { ScopedFactReviewModule } from './defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review.module.js';
 import { AcquisitionPersonnelModule } from './acquisition-personnel/acquisition-personnel.module.js';
 import { AiUsageModule } from './ai-usage/ai-usage.module.js';
 import { BillingModule } from './billing/billing.module.js';
@@ -63,6 +64,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
   imports: [
     ProgramElementModule,
     DefenseBudgetLifecycleModule,
+    ScopedFactReviewModule,
     AcquisitionPersonnelModule,
     GovInfoModule,
     ConfigModule.forRoot({

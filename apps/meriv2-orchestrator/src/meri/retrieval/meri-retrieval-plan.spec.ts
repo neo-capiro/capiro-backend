@@ -207,3 +207,18 @@ describe('buildMeriRetrievalPlan', () => {
     expect(prompt).toContain('senior-reviewer gap check');
   });
 });
+
+
+describe('MW-07 prior subjects do not leak into ordinary follow-ups', () => {
+  test.each([
+    'Create a Word document and PDF using the synthetic brief.',
+    'Reply with exactly READY. Do not use tools or save memory.',
+    "What are this client's active strategies?",
+  ])('clears a previous unrelated research target: %s', (request) => {
+    const result = plan(request, 'Anduril');
+    expect(result.subjectScope).toBe('client');
+    expect(result.targetHint).toBeNull();
+    expect(result.recipeTool).toBeNull();
+    expect(result.reasons).not.toContain('target-from-conversation-history');
+  });
+});

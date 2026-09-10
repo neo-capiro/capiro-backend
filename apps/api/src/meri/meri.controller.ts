@@ -829,6 +829,10 @@ export class MeriController {
     const buffer = await this.tools.renderStoredDocument(doc.format, doc.specJson);
     res.setHeader('Content-Type', doc.mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${doc.filename}"`);
+    // The authenticated web client needs the canonical saved filename when
+    // downloading from the API origin. Artifact bytes remain private.
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+    res.setHeader('Cache-Control', 'private, no-store');
     res.send(buffer);
   }
 

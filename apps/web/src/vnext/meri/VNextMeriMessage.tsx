@@ -1,3 +1,4 @@
+import { messageMeriTurnScope, type MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
 import { Children, useMemo, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -34,6 +35,9 @@ import { useCapiroToast } from '../components/feedback/toast.js';
 import type { MeriThinkingTabProps } from './MeriThinkingTab.js';
 import type { MeriEvidenceTabProps } from './MeriEvidenceTab.js';
 import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
+import { MeriArtifactDownloadLink } from './MeriArtifactDownloadLink.js';
+import { config } from '../../env.js';
+import { MeriSavePromptButton } from './MeriSavedPromptWorkflow.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
@@ -41,7 +45,7 @@ interface VNextMeriMessageProps {
   isStreaming: boolean;
   controller: MeriChatController;
   onOpenMemory: () => void;
-  onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
+  onOpenSourceDetail: (citations: MeriCitation[], index: number, scope: MeriTurnScope) => void;
   onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;
 }
 
@@ -157,6 +161,7 @@ export function VNextMeriMessage({
           className="vnext-meri__user-meta"
           style={{ display: 'flex', alignItems: 'center', gap: 10 }}
         >
+          <MeriSavePromptButton body={message.content} />
           {canEdit ? (
             <button
               type="button"
@@ -216,7 +221,7 @@ function VNextMeriAssistantMessage({
   isStreaming: boolean;
   controller: MeriChatController;
   onOpenMemory: () => void;
-  onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
+  onOpenSourceDetail: (citations: MeriCitation[], index: number, scope: MeriTurnScope) => void;
   onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;
 }) {
   const api = useApi();
@@ -255,8 +260,8 @@ function VNextMeriAssistantMessage({
     return map;
   }, [citations]);
   const markdownComponents = useMemo<Components>(
-    () => buildMarkdownComponents(citationMap, setActiveCitation),
-    [citationMap],
+    () => buildMarkdownComponents(citationMap, setActiveCitation, controller.authHeaders),
+    [citationMap, controller.authHeaders],
   );
 
   const markdownSource = visibleMarkdown(
@@ -307,7 +312,7 @@ function VNextMeriAssistantMessage({
     ...(message.runtimeStatus ? { runtimeStatus: message.runtimeStatus } : {}),
   };
   const hasThinkingData =
-    thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent);
+    thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent) || Boolean(thinkingData.runtimeStatus);
   const evidenceTabData: MeriEvidenceTabProps = {
     sources: evidenceSources,
     verifyStats: evidenceStats,
@@ -320,6 +325,8 @@ function VNextMeriAssistantMessage({
     onOpenTurnInspector(
       {
         turnId: message.id,
+        turnScope: messageMeriTurnScope(message),
+        contextPacketId: message.contextPacketId,
         thinking: thinkingData,
         evidence: evidenceTabData,
         approvals: controller.pendingApprovals,
@@ -582,7 +589,7 @@ function VNextMeriAssistantMessage({
                   const index = citations.findIndex(
                     (c) => c.id === activeCitation.id && c.n === activeCitation.n,
                   );
-                  onOpenSourceDetail(citations, index >= 0 ? index : 0);
+                  onOpenSourceDetail(citations, index >= 0 ? index : 0, messageMeriTurnScope(message));
                 }}
               >
                 VIEW FULL SOURCE
@@ -661,6 +668,16 @@ function VNextMeriAssistantMessage({
               </button>
             ) : null}
           </div>
+        ) : null}
+        {!messageIsStreaming && !message.content && hasThinkingData ? (
+          <button
+            type="button"
+            className="vnext-meri__show-work"
+            onClick={() => openThisTurnInspector('thinking')}
+          >
+            Show work
+            <MeriIcon name="LayersThree01" size={13} />
+          </button>
         ) : null}
         {message.chartArtifacts?.length ? (
           <div className="vnext-meri__analysis-slot" aria-label="Analysis charts">
@@ -743,6 +760,7 @@ function injectCitations(
 function buildMarkdownComponents(
   citationMap: Map<number, MeriCitation>,
   onOpen: (citation: MeriCitation) => void,
+  getAuthHeaders: MeriChatController['authHeaders'],
 ): Components {
   const withCitations = (children: ReactNode) => injectCitations(children, citationMap, onOpen);
   return {
@@ -758,9 +776,9 @@ function buildMarkdownComponents(
       <blockquote className="vnext-meri-md__quote">{withCitations(children)}</blockquote>
     ),
     a: ({ href, children }) => (
-      <a href={href} target="_blank" rel="noopener noreferrer">
+      <MeriArtifactDownloadLink href={href} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={getAuthHeaders}>
         {children}
-      </a>
+      </MeriArtifactDownloadLink>
     ),
     code: ({ children, className }) =>
       className?.includes('language-') ? (

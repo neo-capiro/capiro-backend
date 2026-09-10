@@ -1,3 +1,4 @@
+import { mapPersistedFeedback } from '../../vnext/meri/meri-route-state.js';
 import { useCallback, useEffect, useState } from 'react';
 import {
   UserOutlined,
@@ -219,6 +220,7 @@ export function SessionRail({ forceOpen = false }: { forceOpen?: boolean } = {})
             appendChatMessage({
               id: m.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
               role: m.role === 'user' ? 'user' : 'assistant',
+              feedback: mapPersistedFeedback(m),
               content: m.body || '',
               createdAt: new Date(m.createdAt),
               ...(attachments.length > 0 ? { attachments } : {}),
