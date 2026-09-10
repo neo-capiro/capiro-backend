@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -42,6 +42,20 @@ export class BillDossierController {
     @Param('billId') billId: string,
   ) {
     return this.svc.getGlobalDossier(billId, { funding: await this.fundingEnabled(ctx.tenantId) });
+  }
+
+  @Get('bills/:billId/records')
+  getSourceRecords(
+    @Param('billId') billId: string,
+    @Query('section') section: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.svc.getSourceRecords(billId, section, cursor);
+  }
+
+  @Get('bills/:billId/votes/:voteId/members')
+  getVoteMembers(@Param('billId') billId: string, @Param('voteId') voteId: string) {
+    return this.svc.getStateVoteMembers(billId, voteId);
   }
 
   @Get('clients/:clientId/bills/:billId/dossier')

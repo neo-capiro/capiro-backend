@@ -35,12 +35,27 @@ const stateBill: SourceStateBill = {
 };
 
 const stateActions: SourceBillAction[] = [
-  { id: 's1', billId: KEY, date: new Date('2026-03-01T00:00:00Z'), text: 'Filed.', type: null, chamber: 'lower' },
-  { id: 's2', billId: KEY, date: new Date('2026-04-10T00:00:00Z'), text: 'Referred to Committee on State Affairs.', type: null, chamber: 'lower' },
+  {
+    id: 's1',
+    billId: KEY,
+    date: new Date('2026-03-01T00:00:00Z'),
+    text: 'Filed.',
+    type: null,
+    chamber: 'lower',
+  },
+  {
+    id: 's2',
+    billId: KEY,
+    date: new Date('2026-04-10T00:00:00Z'),
+    text: 'Referred to Committee on State Affairs.',
+    type: null,
+    chamber: 'lower',
+  },
 ];
 
 const stateVotes: SourceStateVote[] = [
   {
+    id: 'tx-rc-12345',
     billKey: KEY,
     chamber: 'lower',
     motion: 'Committee report adopted',
@@ -75,6 +90,26 @@ function makeStateSource(overrides: Record<string, unknown> = {}) {
 }
 
 describe('BillDossierService — state rail', () => {
+  it('does not substitute legislative dates for source checks or ingestion', async () => {
+    const svc = new BillDossierService({} as never, {} as never, makeStateSource() as never);
+    const d = await svc.getGlobalDossier(KEY);
+    expect(d.provenance.lastSyncedAt).toBeNull();
+    expect(d.provenance.sourceCheckStatus).toBe('unknown');
+    expect(d.provenance.sources[0]?.fresh).toBe(false);
+  });
+  it('keeps distinct roll-call identities for same-day votes', async () => {
+    const svc = new BillDossierService(
+      {} as never,
+      {} as never,
+      makeStateSource({
+        getStateVotesForBills: async () => [stateVotes[0], { ...stateVotes[0], id: 'tx-rc-12346' }],
+      }) as never,
+    );
+    expect((await svc.getGlobalDossier(KEY)).votes.map((v) => v.id)).toEqual([
+      'tx-rc-12345',
+      'tx-rc-12346',
+    ]);
+  });
   it('routes a DD1 state key to the state repository and marks the bill as state', async () => {
     const svc = new BillDossierService({} as never, {} as never, makeStateSource() as never);
     const d = await svc.getGlobalDossier(KEY);

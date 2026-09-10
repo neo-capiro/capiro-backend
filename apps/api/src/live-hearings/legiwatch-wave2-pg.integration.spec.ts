@@ -177,8 +177,8 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
 
     await prisma.$executeRawUnsafe(
       `INSERT INTO tenant_hearing_relevance
-         (id, tenant_id, client_id, client_name, hearing_id, insight_id, score, matched_on, rationale)
-       VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'Aperture Defense', $3, $4, 0.9, '[]'::jsonb, 'r')`,
+         (id, tenant_id, client_id, client_name, hearing_id, insight_id, score, matched_on, rationale, updated_at)
+       VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'Aperture Defense', $3, $4, 0.9, '[]'::jsonb, 'r', now() - interval '1 day')`,
       TENANT_A,
       CLIENT_A1,
       H_PARENT,
@@ -405,7 +405,10 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         name: 'Scoped',
         clientId: CLIENT_A1,
       });
-      await prisma.$executeRawUnsafe(`UPDATE clients SET status = 'archived' WHERE id = $1::uuid`, CLIENT_A1);
+      await prisma.$executeRawUnsafe(
+        `UPDATE clients SET status = 'archived' WHERE id = $1::uuid`,
+        CLIENT_A1,
+      );
       const applied = await savedViews.apply(ctxA1, view.id);
       expect(applied.clientId).toBe(CLIENT_A1);
       expect(applied.clientWarning).toMatch(/archived/);
@@ -453,7 +456,9 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
       })) as { id: string; status: string };
       expect(created.status).toBe('active');
 
-      const paused = (await watchPresets.setStatus(ctxA1, created.id, 'paused')) as { status: string };
+      const paused = (await watchPresets.setStatus(ctxA1, created.id, 'paused')) as {
+        status: string;
+      };
       expect(paused.status).toBe('paused');
 
       const updated = (await watchPresets.update(ctxA1, created.id, { name: 'Renamed watch' })) as {
@@ -506,7 +511,10 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         signalFamilies: ['bill'],
         conditions: [{ type: 'KEYWORD_MATCH', family: 'bill', keyword: 'submarine' }],
         windowDays: 30,
-      })) as { status: string; result: { totalMatched: number; sampleMatches: Array<{ canonicalObject: { id: string } }> } };
+      })) as {
+        status: string;
+        result: { totalMatched: number; sampleMatches: Array<{ canonicalObject: { id: string } }> };
+      };
       expect(result.status).toBe('completed');
       expect(result.result.totalMatched).toBe(1);
       expect(result.result.sampleMatches[0]!.canonicalObject.id).toBe('119-hr-9001');
@@ -518,7 +526,9 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         signalFamilies: ['program_element'],
         conditions: [{ type: 'FUNDING_MOVEMENT', minMaterialityScore: 0.5 }],
         windowDays: 30,
-      })) as { result: { totalMatched: number; corpusCoverage: Record<string, { evaluated: boolean }> } };
+      })) as {
+        result: { totalMatched: number; corpusCoverage: Record<string, { evaluated: boolean }> };
+      };
       expect(result.result.totalMatched).toBe(1);
       expect(result.result.corpusCoverage.program_element!.evaluated).toBe(true);
     });
@@ -553,13 +563,21 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
       const input = {
         clientIds: [],
         signalFamilies: ['bill'] as const,
-        conditions: [{ type: 'KEYWORD_MATCH' as const, family: 'bill' as const, keyword: 'submarine' }],
+        conditions: [
+          { type: 'KEYWORD_MATCH' as const, family: 'bill' as const, keyword: 'submarine' },
+        ],
         windowDays: 30,
       };
-      const first = (await watchPresets.submitBacktest(ctxA1, { ...input, signalFamilies: [...input.signalFamilies] })) as {
+      const first = (await watchPresets.submitBacktest(ctxA1, {
+        ...input,
+        signalFamilies: [...input.signalFamilies],
+      })) as {
         result: { totalMatched: number; queryVersion: string };
       };
-      const second = (await watchPresets.submitBacktest(ctxA1, { ...input, signalFamilies: [...input.signalFamilies] })) as {
+      const second = (await watchPresets.submitBacktest(ctxA1, {
+        ...input,
+        signalFamilies: [...input.signalFamilies],
+      })) as {
         result: { totalMatched: number; queryVersion: string };
       };
       expect(second.result.totalMatched).toBe(first.result.totalMatched);
@@ -601,6 +619,90 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
       }
     });
 
+    it('claims an immediate job when Prisma default timestamps use an ahead application clock', async () => {
+      const [before] = await prisma.$queryRaw<Array<{ now: Date }>>`SELECT now() AS now`;
+      const appNow = new Date(before!.now.getTime() + 60 * 60 * 1000);
+      const clockedPrisma = new PrismaService();
+      // Model the observed Prisma @default(now()) behavior at its write
+      // boundary, without moving PostgreSQL's clock or bypassing claim SQL.
+      clockedPrisma.$use(async (params, next) => {
+        if (params.model === 'LegiWatchWatchBacktestJob' && params.action === 'create') {
+          params.args.data.createdAt = appNow;
+          params.args.data.dueAt ??= appNow;
+        }
+        return next(params);
+      });
+      try {
+        const service = new LegiWatchWave2WatchPresetsService(clockedPrisma);
+        const job = (await service.submitBacktest(ctxA1, {
+          clientIds: [],
+          signalFamilies: ['bill'],
+          conditions: [],
+          windowDays: 30,
+        })) as { id: string; status: string };
+        expect(job.status).toBe('completed');
+        const row = await prisma.withTenant(TENANT_A, (tx) =>
+          tx.legiWatchWatchBacktestJob.findUniqueOrThrow({ where: { id: job.id } }),
+        );
+        const [after] = await prisma.$queryRaw<Array<{ now: Date }>>`SELECT now() AS now`;
+        expect(row.createdAt).toEqual(appNow);
+        expect(row.dueAt.getTime()).toBeGreaterThanOrEqual(before!.now.getTime());
+        expect(row.dueAt.getTime()).toBeLessThanOrEqual(after!.now.getTime());
+        expect(row.attempts).toBe(1);
+      } finally {
+        await clockedPrisma.$disconnect();
+      }
+    });
+
+    it('preserves retry deadlines, active leases and the attempt cap when claiming jobs', async () => {
+      const job = (await watchPresets.submitBacktest(ctxA1, {
+        clientIds: [],
+        signalFamilies: ['bill'],
+        conditions: [],
+        windowDays: 30,
+      })) as { id: string; status: string };
+      expect(job.status).toBe('completed');
+
+      await prisma.$executeRaw`
+        UPDATE legiwatch_watch_backtest_job
+        SET status='failed', attempts=1, due_at=now() + interval '1 day',
+            result=NULL, completed_at=NULL
+        WHERE id=${job.id}::uuid`;
+      expect(await watchPresets.claimAndRun(TENANT_A, job.id, 'retry-worker'))
+        .toMatchObject({ status: 'failed' });
+
+      await prisma.$executeRaw`
+        UPDATE legiwatch_watch_backtest_job
+        SET status='leased', lease_owner='other-worker',
+            lease_expires_at=now() + interval '1 day'
+        WHERE id=${job.id}::uuid`;
+      expect(await watchPresets.claimAndRun(TENANT_A, job.id, 'retry-worker'))
+        .toMatchObject({ status: 'leased' });
+      const active = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.legiWatchWatchBacktestJob.findUniqueOrThrow({ where: { id: job.id } }),
+      );
+      expect(active.leaseOwner).toBe('other-worker');
+      expect(active.attempts).toBe(1);
+
+      await prisma.$executeRaw`
+        UPDATE legiwatch_watch_backtest_job
+        SET lease_expires_at=now() - interval '1 second'
+        WHERE id=${job.id}::uuid`;
+      expect(await watchPresets.claimAndRun(TENANT_A, job.id, 'retry-worker'))
+        .toMatchObject({ status: 'completed' });
+      const reclaimed = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.legiWatchWatchBacktestJob.findUniqueOrThrow({ where: { id: job.id } }),
+      );
+      expect(reclaimed.attempts).toBe(2);
+
+      await prisma.$executeRaw`
+        UPDATE legiwatch_watch_backtest_job
+        SET status='failed', attempts=5, due_at=now() - interval '1 day'
+        WHERE id=${job.id}::uuid`;
+      expect(await watchPresets.claimAndRun(TENANT_A, job.id, 'retry-worker'))
+        .toMatchObject({ status: 'failed' });
+    });
+
     it('never generates a fake preview record for zero real matches', async () => {
       const result = (await watchPresets.submitBacktest(ctxA1, {
         clientIds: [],
@@ -622,7 +724,8 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         windowDays: 9999,
       })) as { result: { evaluatedFrom: string; evaluatedTo: string } };
       const spanDays =
-        (new Date(result.result.evaluatedTo).getTime() - new Date(result.result.evaluatedFrom).getTime()) /
+        (new Date(result.result.evaluatedTo).getTime() -
+          new Date(result.result.evaluatedFrom).getTime()) /
         86_400_000;
       expect(spanDays).toBeLessThanOrEqual(90.01);
     });
@@ -690,7 +793,9 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
     });
 
     it('Tenant A cannot request Tenant B client coverage', async () => {
-      await expect(coverage.watchlistCoverage(TENANT_A, CLIENT_B1)).rejects.toThrow(/Client not found/);
+      await expect(coverage.watchlistCoverage(TENANT_A, CLIENT_B1)).rejects.toThrow(
+        /Client not found/,
+      );
     });
 
     it('Tenant B cannot infer Tenant A’s configured concepts via its own client', async () => {

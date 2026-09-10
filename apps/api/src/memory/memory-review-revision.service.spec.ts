@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import {
-  ConflictException,
-  ForbiddenException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
@@ -40,9 +36,7 @@ const source = {
       type: 'firm-soul',
       slug: 'firm',
       title: 'Firm Soul',
-      sections: [
-        { key: 'mission', heading: 'Mission', owner: 'human', body: 'Original' },
-      ],
+      sections: [{ key: 'mission', heading: 'Mission', owner: 'human', body: 'Original' }],
     },
   },
   provenance: { tool: 'save_memory', tenantId: TENANT, userId: PROPOSER },
@@ -100,15 +94,11 @@ function harness(
         },
       ];
     });
-  const auditCreate = jest.fn(async () => ({}));
+  const auditCreate = jest.fn(async (_input: unknown) => ({}));
   const tx = { $queryRaw: queryRaw, auditLog: { create: auditCreate } };
   const prisma = {
     withTenantUser: jest.fn(
-      async (
-        _tenantId: string,
-        _userId: string,
-        work: (value: typeof tx) => unknown,
-      ) => work(tx),
+      async (_tenantId: string, _userId: string, work: (value: typeof tx) => unknown) => work(tx),
     ),
   } as unknown as PrismaService;
   const loadCandidateInTx = jest
@@ -121,8 +111,8 @@ function harness(
     const allowed =
       evaluation === 1 ? input.predecessorAllowed !== false : input.successorAllowed !== false;
     return allowed
-      ? ({ allowed: true as const, basis: 'tenant_read' as const })
-      : ({ allowed: false as const, reason: 'ethical_wall' as const });
+      ? { allowed: true as const, basis: 'tenant_read' as const }
+      : { allowed: false as const, reason: 'ethical_wall' as const };
   });
   const authorization = {
     loadCandidateInTx,

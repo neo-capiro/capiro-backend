@@ -36,7 +36,13 @@ describeDb('LiveHearingsPhase7Service (Postgres)', () => {
   });
 
   afterAll(async () => {
-    await prisma.$disconnect();
+    try {
+      // This public row is visible to other suites' real provenance selectors.
+      // Delete our own fixture (and its cascading dependents) before releasing PG.
+      await prisma.$executeRaw`DELETE FROM committee_hearing WHERE id=${HEARING_ID}`;
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   beforeEach(async () => {

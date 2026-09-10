@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException, ValidationPipe } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import type { EngagementService } from '../../engagement/engagement.service.js';
+import type { ClientDocumentWriterService } from '../../client-documents/client-document-writer.service.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { SaveHearingRecapDto } from './hearing-recap.controller.js';
 import { HearingRecapService } from './hearing-recap.service.js';
@@ -43,7 +43,7 @@ function harness(opts: { session?: boolean; existing?: boolean } = {}) {
   const engagement = {
     createAttachmentFromBuffer,
     supersedeAttachment,
-  } as unknown as EngagementService;
+  } as unknown as ClientDocumentWriterService;
   return {
     svc: new HearingRecapService(engagement, prisma),
     tx,

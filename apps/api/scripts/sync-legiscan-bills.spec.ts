@@ -54,6 +54,7 @@ function makeFakePrisma(opts: { pendingBills: number[]; billHashes?: Record<stri
   return {
     __cursorRow: cursorRow,
     __updateCalls: updateCalls,
+    stateBill: { updateMany: jest.fn(async () => ({ count: 1 })) },
     stateSyncCursor: {
       findMany: jest.fn(async (args: any) => {
         // Distinguish the two call sites by whether a `select` is present
@@ -111,6 +112,25 @@ describe('sync-legiscan-bills — getRollCall failure (2026-07-10 hot-fix)', () 
 
     expect(fakePrisma.__cursorRow.billHashes['42']).toBe('hash-v2');
     expect(upsertStateRollCallVoteMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a null vote response stays partial and does not advance the bill hash', async () => {
+    fakePrisma = makeFakePrisma({ pendingBills: [42], billHashes: { '42': 'old' } });
+    getBillMock.mockResolvedValue({
+      bill_id: 42,
+      change_hash: 'new',
+      votes: [{ roll_call_id: 1001, yea: 20, nay: 10 }],
+    });
+    getRollCallMock.mockResolvedValue(null);
+    const mod = await import('./sync-legiscan-bills.js');
+    await mod.main();
+    expect(fakePrisma.__cursorRow.billHashes['42']).toBe('old');
+    expect(fakePrisma.stateBill.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ sourceCheckStatus: 'partial' }) }),
+    );
+    expect(fakePrisma.stateBill.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ sourceCheckStatus: 'success' }) }),
+    );
   });
 
   it('REGRESSION: a failed getRollCall leaves billHashes UNCHANGED for that bill (never silently loses the vote)', async () => {

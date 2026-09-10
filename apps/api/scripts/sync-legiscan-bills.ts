@@ -110,10 +110,22 @@ export async function main() {
         let queriesForBill = 0;
 
         try {
+          await prisma.stateBill.updateMany({
+            where: { legiscanBillId: billId },
+            data: {
+              sourceCheckAttemptedAt: new Date(),
+              sourceCheckStatus: 'pending',
+              sourceCheckError: null,
+            },
+          });
           const raw = await getBill(LEGISCAN_API_KEY, billId);
           queriesForBill++;
           if (!raw) {
             errors++;
+            await prisma.stateBill.updateMany({
+              where: { legiscanBillId: billId },
+              data: { sourceCheckStatus: 'failed', sourceCheckError: 'Provider returned no bill' },
+            });
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
               data: { pendingBills: { set: queue.ids } },
@@ -125,6 +137,13 @@ export async function main() {
           const normalized = normalizeLegiscanBill(raw, queue.state);
           if (!normalized) {
             errors++;
+            await prisma.stateBill.updateMany({
+              where: { legiscanBillId: billId },
+              data: {
+                sourceCheckStatus: 'failed',
+                sourceCheckError: 'Canonical bill identity did not validate',
+              },
+            });
             console.error(
               `[sync-legiscan-bills] ${queue.state} bill ${billId}: DD1 key failed validation`,
             );
@@ -165,6 +184,10 @@ export async function main() {
               queriesForBill++;
               if (rollCall)
                 await upsertStateRollCallVote(prisma, queue.state, normalized.billKey, rollCall);
+              else {
+                errors++;
+                voteFetchFailed = true;
+              }
             } catch (err) {
               errors++;
               voteFetchFailed = true;
@@ -184,6 +207,13 @@ export async function main() {
           // is left stale so the NEXT masterlist diff detects the mismatch
           // and re-queues the bill for a fresh drain.
           if (voteFetchFailed) {
+            await prisma.stateBill.updateMany({
+              where: { legiscanBillId: billId },
+              data: {
+                sourceCheckStatus: 'partial',
+                sourceCheckError: 'One or more vote records could not be checked',
+              },
+            });
             await prisma.stateSyncCursor.update({
               where: { id: cursorId },
               data: { pendingBills: { set: queue.ids } },
@@ -192,6 +222,14 @@ export async function main() {
             continue;
           }
           const cursor = await prisma.stateSyncCursor.findUnique({ where: { id: cursorId } });
+          await prisma.stateBill.updateMany({
+            where: { legiscanBillId: billId },
+            data: {
+              sourceCheckedAt: new Date(),
+              sourceCheckStatus: 'success',
+              sourceCheckError: null,
+            },
+          });
           const billHashes = {
             ...((cursor?.billHashes as Record<string, string> | undefined) ?? {}),
           };
@@ -203,6 +241,13 @@ export async function main() {
           await bumpCursorQueries(cursorId, queriesForBill);
         } catch (err) {
           errors++;
+          await prisma.stateBill.updateMany({
+            where: { legiscanBillId: billId },
+            data: {
+              sourceCheckStatus: 'failed',
+              sourceCheckError: 'Source check or ingestion failed; retry pending',
+            },
+          });
           console.error(`[sync-legiscan-bills] ${queue.state} bill ${billId} failed:`, err);
           await prisma.stateSyncCursor.update({
             where: { id: cursorId },

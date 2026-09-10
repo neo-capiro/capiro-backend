@@ -27,7 +27,8 @@ const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 const DISPOSITION = {
   dispositionType: 'OFFICIAL_OBSERVATION_UNAVAILABLE',
   reasonCode: 'CLOSED_BRIEFING_NO_PUBLIC_EVENT_RECORD',
-  artifactUri: 's3://updated-directory-967807252336-us-east-1/phase9-evidence/provenance-disposition-investigation.json',
+  artifactUri:
+    's3://updated-directory-967807252336-us-east-1/phase9-evidence/provenance-disposition-investigation.json',
   details: {
     investigatedAt: '2026-09-02',
     sourcesProbed: 6,
@@ -63,6 +64,11 @@ describeDb('LegiWatch Phase 9 provenance dispositions (disposable PG)', () => {
 
   beforeEach(async () => {
     await cleanup();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO committee_source (id,chamber,source_type,source_url,adapter_key,updated_at)
+       VALUES ('provdisp-source','senate','CONGRESS_GOV','https://example.test/provdisp','congress-gov',now())
+       ON CONFLICT (id) DO NOTHING`,
+    );
     for (const id of hearingIds) {
       await seedHearing(prisma, id);
     }
@@ -78,9 +84,8 @@ describeDb('LegiWatch Phase 9 provenance dispositions (disposable PG)', () => {
     await prisma.$executeRawUnsafe(
       `DELETE FROM hearing_source_observation WHERE hearing_id LIKE 'provdisp-%'`,
     );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM committee_hearing WHERE id LIKE 'provdisp-%'`,
-    );
+    await prisma.$executeRawUnsafe(`DELETE FROM committee_hearing WHERE id LIKE 'provdisp-%'`);
+    await prisma.$executeRawUnsafe(`DELETE FROM committee_source WHERE id='provdisp-source'`);
   }
 
   it('A. creates a valid disposition and enforces exactly-one-ACTIVE (read-back)', async () => {
@@ -140,7 +145,9 @@ describeDb('LegiWatch Phase 9 provenance dispositions (disposable PG)', () => {
       actor: 'dbproof-revoker',
       confirmation: LEGIWATCH_PROVENANCE_DISPOSITION_CONFIRMATION,
     });
-    const rows = await prisma.$queryRawUnsafe<Array<{ status: string; revokedBy: string | null; revokedAt: Date | null }>>(
+    const rows = await prisma.$queryRawUnsafe<
+      Array<{ status: string; revokedBy: string | null; revokedAt: Date | null }>
+    >(
       `SELECT status, revoked_by AS "revokedBy", revoked_at AS "revokedAt"
        FROM canonical_provenance_disposition WHERE hearing_id='provdisp-b'`,
     );
@@ -164,7 +171,7 @@ describeDb('LegiWatch Phase 9 provenance dispositions (disposable PG)', () => {
          (id, source_id, external_event_id, hearing_id, raw_content_hash, observed_date, source_metadata)
        SELECT 'provdisp-obs-1', s.id, 'db-proof-evt', 'provdisp-c', 'hash-dbproof', '2026-07-20',
               '{"event":{"title":"x"}}'::jsonb
-       FROM committee_source s WHERE s.adapter_key='congress-gov' LIMIT 1`,
+       FROM committee_source s WHERE s.id='provdisp-source'`,
     );
     const obs = await prisma.$queryRawUnsafe<Array<{ status: string }>>(
       `SELECT reconciliation_status AS status FROM hearing_source_observation WHERE id='provdisp-obs-1'`,
@@ -190,19 +197,27 @@ describeDb('LegiWatch Phase 9 provenance dispositions (disposable PG)', () => {
         (hearing_id, disposition_type, reason_code, artifact_uri, reviewed_by, reviewed_at)`;
     await seedHearing(prisma, 'provdisp-e');
     hearingIds.push('provdisp-e');
-    await expect(prisma.$executeRawUnsafe(
-      `${base} VALUES ('provdisp-e', 'WE_FAILED_TO_LOOK', 'CLOSED_BRIEFING_NO_PUBLIC_EVENT_RECORD', 's3://b/a.json', 'x', now())`,
-    )).rejects.toThrow();
-    await expect(prisma.$executeRawUnsafe(
-      `${base} VALUES ('provdisp-e', 'OFFICIAL_OBSERVATION_UNAVAILABLE', 'MADE_UP_REASON', 's3://b/a.json', 'x', now())`,
-    )).rejects.toThrow();
-    await expect(prisma.$executeRawUnsafe(
-      `${base} VALUES ('provdisp-e', 'OFFICIAL_OBSERVATION_UNAVAILABLE', 'OFFICIAL_ARCHIVE_NO_EVENT_RECORD', 'file:///etc/passwd', 'x', now())`,
-    )).rejects.toThrow();
+    await expect(
+      prisma.$executeRawUnsafe(
+        `${base} VALUES ('provdisp-e', 'WE_FAILED_TO_LOOK', 'CLOSED_BRIEFING_NO_PUBLIC_EVENT_RECORD', 's3://b/a.json', 'x', now())`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRawUnsafe(
+        `${base} VALUES ('provdisp-e', 'OFFICIAL_OBSERVATION_UNAVAILABLE', 'MADE_UP_REASON', 's3://b/a.json', 'x', now())`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRawUnsafe(
+        `${base} VALUES ('provdisp-e', 'OFFICIAL_OBSERVATION_UNAVAILABLE', 'OFFICIAL_ARCHIVE_NO_EVENT_RECORD', 'file:///etc/passwd', 'x', now())`,
+      ),
+    ).rejects.toThrow();
     // Empty reviewed_by violates the review-shape CHECK.
-    await expect(prisma.$executeRawUnsafe(
-      `${base} VALUES ('provdisp-e', 'OFFICIAL_OBSERVATION_UNAVAILABLE', 'OFFICIAL_ARCHIVE_NO_EVENT_RECORD', 's3://b/a.json', '', now())`,
-    )).rejects.toThrow();
+    await expect(
+      prisma.$executeRawUnsafe(
+        `${base} VALUES ('provdisp-e', 'OFFICIAL_OBSERVATION_UNAVAILABLE', 'OFFICIAL_ARCHIVE_NO_EVENT_RECORD', 's3://b/a.json', '', now())`,
+      ),
+    ).rejects.toThrow();
   });
 
   it('F. expires_at before reviewed_at is rejected', async () => {

@@ -12,8 +12,8 @@
  *  - sponsors:  diff-sync — new rows inserted (stamping firstSeenAt),
  *               withdrawals (absent from payload) deleted, retained rows
  *               never blanket-recreated.
- *  - versions/links/calendar events: delete-and-recreate (small sets, no
- *               watermark semantics on the child rows themselves).
+ *  - versions: stable provider-document upserts; durable references survive refresh.
+ *  - links/calendar events: replace current membership (no ingestion watermarks).
  *  - votes:     upserted by natural id, never deleted (immutable once
  *               recorded).
  */
@@ -414,13 +414,19 @@ export async function upsertNormalizedStateBill(
     });
   }
 
-  // Versions/links/calendar events: delete-and-recreate (small sets, no
-  // watermark semantics on the rows themselves).
-  await prisma.stateBillVersion.deleteMany({ where: { billKey: n.billKey } });
-  if (n.versions.length) {
-    await prisma.stateBillVersion.createMany({
-      data: n.versions.map((v) => ({ billKey: n.billKey, ...v })),
-      skipDuplicates: true,
+  // Retain UUIDs and any durable content references. Missing provider versions
+  // remain historical records; absence from a refresh is not a deletion order.
+  for (const version of n.versions) {
+    const existingVersion = await prisma.stateBillVersion.findUnique({
+      where: { legiscanDocId: version.legiscanDocId },
+      select: { billKey: true },
+    });
+    if (existingVersion && existingVersion.billKey !== n.billKey)
+      throw new Error('LEGISCAN_DOCUMENT_BILL_MISMATCH');
+    await prisma.stateBillVersion.upsert({
+      where: { legiscanDocId: version.legiscanDocId },
+      create: { billKey: n.billKey, ...version },
+      update: { ...version, lastSyncedAt: new Date() },
     });
   }
 

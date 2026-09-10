@@ -105,7 +105,7 @@ interface AdvancedFindingRow {
   contentHash: string;
 }
 
-interface RefreshScheduleRow {
+export interface RefreshScheduleRow {
   enabled: boolean;
   cadenceHours: number;
   sources: ClientProfileFillSource[];

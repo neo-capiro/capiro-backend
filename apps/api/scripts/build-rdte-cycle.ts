@@ -454,7 +454,9 @@ async function parseDocument(input: {
       artifactStore: input.sharedArtifactStore,
       runtimeClient,
       verificationService: verification.service,
-      artifactFactory: semantic.factory,
+      // This local CLI's semantic factory writes under the document work
+      // directory; the router's newer second argument is a storage port.
+      artifactFactory: (bridgeInput) => semantic.factory(bridgeInput, documentWorkDir),
       llamaparseAuthorization: {
         allowPaidParse: input.args.allowPaidParse,
         maxPaidPages: remainingPaidPages,

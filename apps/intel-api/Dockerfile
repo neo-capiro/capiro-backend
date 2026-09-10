@@ -77,6 +77,7 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/node_modules /
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/package.json /app/apps/intel-api/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/generated /app/apps/intel-api/generated
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/prisma /app/apps/intel-api/prisma
+COPY --chown=capiro:capiro apps/intel-api/scripts/legiwatch-import.mjs apps/intel-api/scripts/legiwatch-import-apply.mjs apps/intel-api/scripts/legiwatch-evidence.mjs /app/apps/intel-api/scripts/
 COPY --chown=capiro:capiro --from=build /workspace/tsconfig.base.json /app/tsconfig.base.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/tsconfig.json /app/apps/intel-api/tsconfig.json
 COPY --chown=capiro:capiro apps/intel-api/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh

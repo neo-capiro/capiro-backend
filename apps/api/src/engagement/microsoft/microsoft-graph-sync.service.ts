@@ -137,7 +137,7 @@ interface MailFolderSyncState {
   lastStats?: SyncStats;
 }
 
-interface MicrosoftSubscriptionState {
+export interface MicrosoftSubscriptionState {
   id: string;
   resource: 'me/events' | 'me/messages';
   clientState: string;
@@ -145,7 +145,7 @@ interface MicrosoftSubscriptionState {
   createdAt: string;
 }
 
-interface SyncStats {
+export interface SyncStats {
   scanned: number;
   matched: number;
   skipped: number;
@@ -157,7 +157,7 @@ interface SyncStats {
   hasMore: boolean;
 }
 
-interface SyncResult {
+export interface SyncResult {
   connectionId: string;
   calendar?: SyncStats;
   mail?: Record<string, SyncStats>;

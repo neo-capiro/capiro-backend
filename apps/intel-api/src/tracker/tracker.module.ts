@@ -12,6 +12,14 @@ import { TrackerTestAlertService } from './tracker-test-alert.service.js';
 import { SmsService } from './sms/sms.service.js';
 import { SmsVerificationService } from './sms/sms-verification.service.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
+import {
+  FolderTrackerController,
+  FolderTrackerGuard,
+} from './folders/folder-tracker.controller.js';
+import { FolderTrackerService } from './folders/folder-tracker.service.js';
+import { FolderImportService } from './folders/folder-import.service.js';
+import { FolderReportService } from './folders/folder-report.service.js';
+import { FolderImportController } from './folders/folder-import.controller.js';
 
 /**
  * Unified tracker feature module (Phase 2 CRUD + Phase 3 §6.2 board/recs +
@@ -25,12 +33,18 @@ import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    FolderTrackerController,
+    FolderImportController,
     TrackerWatchlistController,
     TrackerBoardController,
     TrackerTaxonomyController,
     TrackerChannelController,
   ],
   providers: [
+    FolderTrackerService,
+    FolderImportService,
+    FolderReportService,
+    FolderTrackerGuard,
     TrackerWatchlistService,
     TrackerBoardService,
     TrackerSeedService,

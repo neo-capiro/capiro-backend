@@ -77,6 +77,19 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
     services:
+      folder-postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: legiwatch_test
+          POSTGRES_PASSWORD: legiwatch_test
+          POSTGRES_DB: capiro
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U legiwatch_test -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       saved-session-postgres:
         image: postgres:16
         env:
@@ -129,6 +142,23 @@ jobs:
           --json --outputFile=$GITHUB_WORKSPACE/saved-session-sql-summary.json
           src/live-hearings/legiwatch-saved-sessions-pg.integration.spec.ts
 
+      - name: Phase 1 additive migrations and PostgreSQL recovery
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+        run: |
+          pnpm --filter @capiro/api exec prisma migrate deploy
+          pnpm --filter @capiro/intel-api exec prisma migrate deploy
+          pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/folder-pg-summary.json test/folder-tracker-postgres.spec.ts test/folder-import-postgres.spec.ts
+          pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/source-pg-summary.json src/ingestion/legiscan-documents-postgres.spec.ts
+          node --test apps/intel-api/scripts/legiwatch-import-apply.spec.mjs
+          node --test apps/intel-api/scripts/entrypoint-migrate.spec.mjs
+
+      - name: Assert Phase 1 PostgreSQL suites are clean
+        if: always()
+        run: |
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/folder-pg-summary.json" phase1-folders 2 17
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/source-pg-summary.json" phase1-source 1 2
+
       - name: Assert saved hearing association SQL is clean
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/saved-session-sql-summary.json" saved-session-sql 1 17
@@ -149,17 +179,17 @@ jobs:
       # access it guards. Floors raised 22/256 -> 31/409, measured from a real
       # local run of exactly this list (31 suites discovered, 409 tests passing).
       #
-      # KNOWN RED, PRE-EXISTING, NOT FROM THIS PHASE: two suites in this scope
-      # (src/reviews/reviews.service.spec.ts and
-      # src/intelligence/alert-memo/hearing-recap.spec.ts) fail to COMPILE
-      # against EngagementService / ClientDocumentWriterService and contribute 0
-      # tests. They reproduce on main tip and are out of scope here, so this
-      # step's zero-failure bar cannot go green until they are fixed separately.
+      # Phase 1 runs the database suites against the migrated service above.
+      # Keep -- before positional paths: Jest's array-valued ignore option
+      # otherwise consumes them and silently runs the wrong scope.
       - name: Tests — apps/api LegiWatch scope
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/api-summary.json
           --testPathIgnorePatterns=legiwatch-saved-sessions-pg.integration.spec.ts
+          --
           src/tracker/
           src/intelligence/alert-memo/
           src/intelligence/canonical-alert.adapter.spec.ts
@@ -172,10 +202,11 @@ jobs:
           src/live-hearings/
           scripts/verify-migrations.spec.ts
           scripts/verify-image-parity.spec.ts
+          scripts/sync-legiscan-bills.spec.ts
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 33 424
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 75 988
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -185,7 +216,7 @@ jobs:
       # segment persistence, transcript reads).
       - name: Tests — apps/intel-api LegiWatch scope
         run: >
-          pnpm --filter @capiro/intel-api exec jest --ci --silent
+          pnpm --filter @capiro/intel-api exec jest --ci --silent --runInBand
           --json --outputFile=$GITHUB_WORKSPACE/intel-summary.json
           src/feed/alert-packet.spec.ts
           src/feed/feed-bill-events.controller.spec.ts
@@ -255,10 +286,13 @@ jobs:
           test/watchlist-matcher.spec.ts
           test/watchlist-match-promoter.spec.ts
           test/watchlist-weighting.spec.ts
+          test/folder-tracker.spec.ts
+          test/bill-dossier.spec.ts
+          test/bill-dossier-state.spec.ts
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 65 650
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 71 763
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -282,11 +316,8 @@ jobs:
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
 
-      # NOTE the suite floor: vitest counts `describe` BLOCKS in
-      # numTotalTestSuites (128 today across these 38 files), where jest counts
-      # files. 100 is a deliberate floor well below the real number but far
-      # above anything a broken path filter would produce — the test count is
-      # the tight signal here, the suite count is the coarse one.
+      # Vitest counts describe blocks; Jest counts files. Floors are measured
+      # from this exact scope, with zero failures and zero skips required.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 123 523
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 237 761

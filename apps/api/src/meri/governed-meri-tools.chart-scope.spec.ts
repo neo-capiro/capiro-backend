@@ -27,7 +27,7 @@ function make(ownedIds: string[]) {
   return {
     raw,
     findMany,
-    service: createGovernedMeriToolsService(raw, prisma as never),
+    service: createGovernedMeriToolsService(raw, prisma as never, { has: () => false } as never),
   };
 }
 
@@ -104,7 +104,7 @@ describe('governed Meri tool proxy — analysis chart ownership', () => {
     const raw = {
       execute: jest.fn(async () => ({ ok: true })),
     } as unknown as MeriToolsService;
-    const service = createGovernedMeriToolsService(raw);
+    const service = createGovernedMeriToolsService(raw, undefined, { has: () => false } as never);
     await expect(
       service.execute(ctx, 'create_word' as never, {
         title: 'Brief',

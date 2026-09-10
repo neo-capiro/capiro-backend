@@ -13,6 +13,8 @@ export const TRACKER_V2_FEATURE = 'tracker_v2';
  * inserting an intel_feature_flag row (`task enable-feature bill_360 <tenant>`).
  */
 export const BILL_360_FEATURE = 'bill_360';
+/** Explicit opt-in only, including the internal tenant. Import does not enable it. */
+export const FOLDER_TRACKER_FEATURE = 'legiwatch_folder_tracker_v1';
 /**
  * Gates the defense-funding data on Bill 360 and Program Element 360 (Release R3,
  * §3.6). Dark by default. This is the ROLLOUT switch; the commercial boundary stays
@@ -90,6 +92,7 @@ export class FeatureFlagService {
       }),
     );
     if (row) return row.enabled;
+    if (feature === FOLDER_TRACKER_FEATURE) return false;
     return Boolean(this.internalTenantId && tenantId === this.internalTenantId);
   }
 

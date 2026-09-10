@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from '@jest/globals';
 
 const migration = readFileSync(
-  new URL(
+  resolve(
+    __dirname,
     '../../prisma/migrations/20260818020000_memory_phase2_revision_lineage/migration.sql',
-    import.meta.url,
   ),
   'utf8',
 );
@@ -67,7 +68,9 @@ describe('memory Phase 2 revision migration contract', () => {
   });
 
   it('preserves reviewer attribution when the proposer supersedes it', () => {
-    const reviewUpdate = migration.match(/UPDATE review_request[\s\S]*?WHERE id = workflow\.id;/)?.[0];
+    const reviewUpdate = migration.match(
+      /UPDATE review_request[\s\S]*?WHERE id = workflow\.id;/,
+    )?.[0];
     expect(reviewUpdate).toBeDefined();
     expect(reviewUpdate).toContain("status = 'superseded'");
     expect(reviewUpdate).toContain("'supersededByUserId', p_proposer_id::text");

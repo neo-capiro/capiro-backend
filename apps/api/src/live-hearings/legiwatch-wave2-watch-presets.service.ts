@@ -249,17 +249,22 @@ export class LegiWatchWave2WatchPresetsService {
       windowDays,
     };
 
-    const job = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.legiWatchWatchBacktestJob.create({
+    const job = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Prisma materializes @default(now()) on the application clock. An
+      // ahead-of-database clock can make a new immediate job ineligible for
+      // the SQL claim below. Schedule against that same database clock.
+      const [clock] = await tx.$queryRaw<Array<{ dueAt: Date }>>`SELECT now() AS "dueAt"`;
+      return tx.legiWatchWatchBacktestJob.create({
         data: {
           tenantId: ctx.tenantId,
           ownerUserId: ctx.userId,
           presetId: input.presetId ?? null,
           request: request as object,
           queryVersion: BACKTEST_QUERY_VERSION,
+          dueAt: clock!.dueAt,
         },
-      }),
-    );
+      });
+    });
 
     return this.claimAndRun(ctx.tenantId, job.id, `inline:${ctx.userId}`);
   }

@@ -186,7 +186,7 @@ interface SyncStats {
   hasMore: boolean;
 }
 
-interface SyncResult {
+export interface SyncResult {
   connectionId: string;
   calendar?: SyncStats;
   mail?: Record<string, SyncStats>;

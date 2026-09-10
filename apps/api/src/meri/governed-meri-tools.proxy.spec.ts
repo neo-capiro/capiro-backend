@@ -35,7 +35,7 @@ describe('governed Meri tools adapter', () => {
         202,
       ),
     );
-    const tools = createGovernedMeriToolsService(raw);
+    const tools = createGovernedMeriToolsService(raw, undefined, { has: () => false } as never);
 
     await expect(tools.execute(ctx, 'correct_memory', {})).resolves.toEqual({
       corrected: false,
@@ -61,7 +61,7 @@ describe('governed Meri tools adapter', () => {
         208,
       ),
     );
-    const tools = createGovernedMeriToolsService(raw);
+    const tools = createGovernedMeriToolsService(raw, undefined, { has: () => false } as never);
 
     await expect(tools.executeFromAuthenticatedUser(ctx, 'correct_memory', {})).resolves.toEqual({
       corrected: false,
@@ -75,11 +75,15 @@ describe('governed Meri tools adapter', () => {
 
   test('unrelated results and errors preserve the original MeriToolsService contract', async () => {
     const result = { ok: true };
-    const successful = createGovernedMeriToolsService(rawWith(result, false));
+    const successful = createGovernedMeriToolsService(rawWith(result, false), undefined, {
+      has: () => false,
+    } as never);
     await expect(successful.execute(ctx, 'search_memory', {})).resolves.toBe(result);
 
     const failure = new Error('real tool failure');
-    const failing = createGovernedMeriToolsService(rawWith(failure));
+    const failing = createGovernedMeriToolsService(rawWith(failure), undefined, {
+      has: () => false,
+    } as never);
     await expect(failing.execute(ctx, 'search_memory', {})).rejects.toBe(failure);
   });
 });

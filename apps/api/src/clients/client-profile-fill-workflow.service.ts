@@ -108,7 +108,7 @@ interface WorkflowRunRow {
   updatedAt: Date;
 }
 
-interface WorkflowTaskRow {
+export interface WorkflowTaskRow {
   id: string;
   runId: string;
   tenantId: string;

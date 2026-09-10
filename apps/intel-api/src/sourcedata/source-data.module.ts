@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SourceDataRepository } from './source-data.repository.js';
 import { StateSourceDataRepository } from './state-source-data.repository.js';
+import { FolderSourceDataRepository } from './folder-source-data.repository.js';
 
 /**
  * Provides the read-only cross-DB SourceDataRepository (congress rail) and
@@ -13,7 +14,7 @@ import { StateSourceDataRepository } from './state-source-data.repository.js';
  * import this module where they consume the repositories.
  */
 @Module({
-  providers: [SourceDataRepository, StateSourceDataRepository],
-  exports: [SourceDataRepository, StateSourceDataRepository],
+  providers: [SourceDataRepository, StateSourceDataRepository, FolderSourceDataRepository],
+  exports: [SourceDataRepository, StateSourceDataRepository, FolderSourceDataRepository],
 })
 export class SourceDataModule {}

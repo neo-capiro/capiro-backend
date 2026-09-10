@@ -60,6 +60,7 @@ export interface BillIdentity {
   type: string | null;
   congress: number | null;
   sponsor: string | null;
+  sponsorLegislatorId?: string | null;
   introduced: string | null;
   /** Canonical (derived) status — NEVER overwritten by an analyst outlook. */
   statusLabel: string;
@@ -306,6 +307,11 @@ export interface SourceRef {
 
 export interface DossierProvenance {
   lastSyncedAt: string | null;
+  sourceCheckedAt?: string | null;
+  sourceCheckAttemptedAt?: string | null;
+  sourceCheckStatus?: string;
+  sourceCheckReason?: string | null;
+  documentDate?: string | null;
   sources: SourceRef[];
 }
 

@@ -25,6 +25,149 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Independent working folders. Never mirrored into intel_tracked_bill: imported
+// assignments remain outside all legacy detector and notification eligibility.
+model LegiWatchFolder {
+  id              String                @id @default(uuid())
+  tenantId        String                @map("tenant_id")
+  name            String
+  code            String?
+  archived        Boolean               @default(false)
+  ownerClerkId    String?               @map("owner_clerk_id")
+  otherUserAccess String                @default("read_change") @map("other_user_access")
+  clientId        String?               @map("client_id")
+  defaultSession  String                @default("current") @map("default_session")
+  jurisdiction    String                @default("FL")
+  version         Int                   @default(0)
+  provenance      Json                  @default("{}")
+  createdBy       String                @map("created_by")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  assignments     LegiWatchFolderBill[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, archived, name])
+  @@map("intel_legiwatch_folder")
+}
+
+model LegiWatchFolderBill {
+  id                 String                    @id @default(uuid())
+  tenantId           String                    @map("tenant_id")
+  folderId           String                    @map("folder_id")
+  billId             String                    @map("bill_id")
+  sessionKey         String                    @map("session_key")
+  jurisdiction       String
+  topPriority        Boolean                   @default(false) @map("top_priority")
+  importance         String                    @default("normal")
+  position           String                    @default("none")
+  internalComments   String                    @default("") @map("internal_comments")
+  externalComments   String                    @default("") @map("external_comments")
+  addedAt            DateTime                  @default(now()) @map("added_at")
+  addedDateRaw       String?                   @map("added_date_raw")
+  addedDatePrecision String                    @default("instant") @map("added_date_precision")
+  version            Int                       @default(0)
+  updatedBy          String                    @map("updated_by")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+  provenance         Json                      @default("{}")
+  folder             LegiWatchFolder           @relation(fields: [tenantId, folderId], references: [tenantId, id], onDelete: Restrict)
+  revisions          LegiWatchFolderRevision[]
+
+  @@unique([tenantId, folderId, billId])
+  @@unique([tenantId, id])
+  @@index([tenantId, folderId, sessionKey, jurisdiction])
+  @@map("intel_legiwatch_folder_bill")
+}
+
+model LegiWatchFolderRevision {
+  id           String              @id @default(uuid())
+  tenantId     String              @map("tenant_id")
+  assignmentId String              @map("assignment_id")
+  version      Int
+  changedBy    String              @map("changed_by")
+  context      Json
+  createdAt    DateTime            @default(now()) @map("created_at")
+  assignment   LegiWatchFolderBill @relation(fields: [tenantId, assignmentId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, assignmentId, version])
+  @@map("intel_legiwatch_folder_revision")
+}
+
+model LegiWatchImportRun {
+  id            String                @id @default(uuid())
+  tenantId      String                @map("tenant_id")
+  sourceAccount String                @map("source_account")
+  captureId     String                @map("capture_id")
+  sourceHash    String                @map("source_hash")
+  mappingHash   String                @map("mapping_hash")
+  status        String                @default("preview")
+  createdBy     String                @map("created_by")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  items         LegiWatchImportItem[]
+
+  @@unique([tenantId, sourceAccount, sourceHash, mappingHash])
+  @@unique([tenantId, id])
+  @@map("intel_legiwatch_import_run")
+}
+
+model LegiWatchImportItem {
+  id        String             @id @default(uuid())
+  tenantId  String             @map("tenant_id")
+  runId     String             @map("run_id")
+  kind      String
+  sourceId  String             @map("source_id")
+  status    String             @default("pending")
+  reason    String?
+  payload   Json
+  targetId  String?            @map("target_id")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  run       LegiWatchImportRun @relation(fields: [tenantId, runId], references: [tenantId, id], onDelete: Restrict)
+
+  @@unique([tenantId, runId, kind, sourceId])
+  @@index([tenantId, runId, status])
+  @@map("intel_legiwatch_import_item")
+}
+
+// Durable IDs exclude captureId. Snapshot-only alerts use a capture-qualified
+// sourceId explicitly; a new capture is reviewed rather than guessed identical.
+model LegiWatchSourceMapping {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  sourceAccount String   @map("source_account")
+  kind          String
+  sourceId      String   @map("source_id")
+  targetId      String   @map("target_id")
+  sourceHash    String   @map("source_hash")
+  targetVersion Int      @default(0) @map("target_version")
+  runId         String   @map("run_id")
+  provenance    Json     @default("{}")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, sourceAccount, kind, sourceId])
+  @@index([tenantId, targetId])
+  @@map("intel_legiwatch_source_mapping")
+}
+
+// Captured definitions ONLY. No foreign key or writer into live delivery,
+// invitations, watchlists, keyword engines, contacts or subscriptions.
+model LegiWatchStagedConfiguration {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  sourceAccount String   @map("source_account")
+  kind          String
+  sourceId      String   @map("source_id")
+  state         String   @default("staged")
+  payload       Json
+  provenance    Json
+  version       Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, sourceAccount, kind, sourceId])
+  @@index([tenantId, kind])
+  @@map("intel_legiwatch_staged_configuration")
+}
+
 // --- feature gating ---------------------------------------------------------
 
 /// Tenant-scoped feature flag. A feature (e.g. "hearing_watch") is visible to a

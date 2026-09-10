@@ -5971,6 +5971,10 @@ model StateBill {
   stateUrl           String?   @map("state_url") // official state_link (LegiScan)
   legiscanBillId     Int?      @unique @map("legiscan_bill_id")
   legiscanChangeHash String?   @map("legiscan_change_hash")
+  sourceCheckedAt    DateTime? @map("source_checked_at") @db.Timestamptz(6)
+  sourceCheckAttemptedAt DateTime? @map("source_check_attempted_at") @db.Timestamptz(6)
+  sourceCheckStatus  String?   @map("source_check_status")
+  sourceCheckError   String?   @map("source_check_error")
   openstatesId       String?   @map("openstates_id") // pre-re-key id, kept for cross-check
   syncedAt           DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
   // Current committee referral (Phase 1 M2.2, PD3 substrate) — LegiScan's

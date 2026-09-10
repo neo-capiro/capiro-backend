@@ -32,7 +32,14 @@ export interface SourceStateBill {
   latestActionText: string | null;
   latestActionDate: Date | null;
   textDate: Date | null;
+  /** Successful ingestion, separate from legislative dates. Optional for old callers. */
+  syncedAt?: Date | null;
+  sourceCheckedAt?: Date | null;
+  sourceCheckAttemptedAt?: Date | null;
+  sourceCheckStatus?: string | null;
+  sourceCheckError?: string | null;
   sponsorName: string | null;
+  sponsorLegislatorId?: string | null;
   sponsorParty: string | null;
   sponsorCount: number | null;
   stateUrl: string | null;
@@ -55,6 +62,7 @@ export interface SourceStateSponsorMomentum {
 }
 
 export interface SourceStateVote {
+  id?: string;
   billKey: string;
   chamber: string | null;
   motion: string | null;
@@ -110,7 +118,15 @@ export class StateSourceDataRepository {
               sb.latest_action_text   AS "latestActionText",
               sb.latest_action_date   AS "latestActionDate",
               sb.text_date            AS "textDate",
+              sb.synced_at            AS "syncedAt",
+              sb.source_checked_at    AS "sourceCheckedAt",
+              sb.source_check_attempted_at AS "sourceCheckAttemptedAt",
+              sb.source_check_status  AS "sourceCheckStatus",
+              sb.source_check_error   AS "sourceCheckError",
               sb.sponsor_name         AS "sponsorName",
+              (SELECT sl.id FROM state_bill_sponsor s JOIN state_legislator sl ON sl.id=s.legislator_id
+                WHERE s.bill_key=sb.id AND s.sponsor_type='primary'
+                ORDER BY s.sponsor_order,s.id LIMIT 1) AS "sponsorLegislatorId",
               sb.sponsor_party        AS "sponsorParty",
               sb.sponsor_count        AS "sponsorCount",
               sb.state_url            AS "stateUrl",
@@ -225,10 +241,11 @@ export class StateSourceDataRepository {
   }
 
   /** Latest roll-call vote per bill (for a vote-tally alert + status derivation). */
-  async getStateVotesForBills(keys: string[]): Promise<SourceStateVote[]> {
+  async getStateVotesForBills(keys: string[], all = false): Promise<SourceStateVote[]> {
     if (!keys.length) return [];
     return this.prisma.$queryRawUnsafe<SourceStateVote[]>(
-      `SELECT DISTINCT ON (bill_key)
+      `SELECT ${all ? '' : 'DISTINCT ON (bill_key)'}
+              id,
               bill_key       AS "billKey",
               chamber,
               motion,
@@ -240,8 +257,54 @@ export class StateSourceDataRepository {
               last_synced_at AS "lastSyncedAt"
          FROM state_roll_call_vote
         WHERE bill_key = ANY($1::text[])
-        ORDER BY bill_key, date DESC, last_synced_at DESC`,
+        ORDER BY bill_key, date DESC, last_synced_at DESC, id`,
       keys,
+    );
+  }
+
+  /** Complete source records, bounded pages. No public status inferred from text. */
+  async getRecordPage(billId: string, section: 'history' | 'documents' | 'votes', offset: number) {
+    const definitions = {
+      history: {
+        table: 'state_bill_action',
+        select: 'id, date, text, chamber, order_key AS "orderKey"',
+        order: 'date DESC, order_key DESC, id',
+      },
+      documents: {
+        table: 'state_bill_version',
+        select:
+          'id, legiscan_doc_id AS "providerDocumentId", version_type AS label, date, state_url AS url, mime, last_synced_at AS "lastSyncedAt"',
+        order: 'date DESC, id',
+      },
+      votes: {
+        table: 'state_roll_call_vote',
+        select:
+          'id, motion AS label, date, chamber, yeas, nays, passed, source_url AS url, last_synced_at AS "lastSyncedAt"',
+        order: 'date DESC, id',
+      },
+    };
+    const def = definitions[section];
+    const count = await this.prisma.$queryRawUnsafe<Array<{ total: number }>>(
+      `SELECT count(*)::int AS total FROM ${def.table} WHERE bill_key=$1`,
+      billId,
+    );
+    const rows = await this.prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      `SELECT ${def.select} FROM ${def.table} WHERE bill_key=$1 ORDER BY ${def.order} LIMIT 50 OFFSET $2`,
+      billId,
+      offset,
+    );
+    return { rows, total: count[0]?.total ?? 0 };
+  }
+
+  async getVoteMembers(billId: string, voteId: string) {
+    return this.prisma.$queryRawUnsafe(
+      `SELECT mv.legiscan_people_id AS "providerPersonId", mv.legislator_id AS "legislatorId",
+      sl.name, mv.vote_cast AS "voteCast" FROM state_member_vote mv
+      JOIN state_roll_call_vote v ON v.id=mv.vote_id AND v.bill_key=$1
+      LEFT JOIN state_legislator sl ON sl.id=mv.legislator_id
+      WHERE mv.vote_id=$2 ORDER BY sl.name NULLS LAST, mv.legiscan_people_id`,
+      billId,
+      voteId,
     );
   }
 

@@ -140,6 +140,51 @@ export class BillDossierService {
     return isStateBillKey(id) ? this.buildStateCore(id) : this.buildFederalCore(id, opts);
   }
 
+  async getSourceRecords(billId: string, section: string, cursor?: string) {
+    if (!isStateBillKey(billId) || !(await this.stateSource.getStateBillById(billId)))
+      throw new NotFoundException('STATE_BILL_NOT_FOUND');
+    if (!['history', 'documents', 'votes'].includes(section))
+      throw new BadRequestException('INVALID_RECORD_SECTION');
+    let offset = 0;
+    if (cursor) {
+      try {
+        const c = JSON.parse(Buffer.from(cursor, 'base64url').toString());
+        if (
+          c.billId !== billId ||
+          c.section !== section ||
+          !Number.isSafeInteger(c.offset) ||
+          c.offset < 0
+        )
+          throw new Error();
+        offset = c.offset;
+      } catch {
+        throw new BadRequestException('INVALID_RECORD_CURSOR');
+      }
+    }
+    const page = await this.stateSource.getRecordPage(
+      billId,
+      section as 'history' | 'documents' | 'votes',
+      offset,
+    );
+    return {
+      ...page,
+      nextCursor:
+        offset + page.rows.length < page.total
+          ? Buffer.from(
+              JSON.stringify({ billId, section, offset: offset + page.rows.length }),
+            ).toString('base64url')
+          : null,
+      availability: page.total ? 'available' : 'unavailable',
+      reason: page.total ? null : 'No records have been ingested for this section',
+      coverage: 'Provider metadata and original source links; document full text is not indexed',
+    };
+  }
+
+  async getStateVoteMembers(billId: string, voteId: string) {
+    if (!isStateBillKey(billId)) throw new NotFoundException();
+    return this.stateSource.getVoteMembers(billId, voteId);
+  }
+
   /** Public dossier + the given tenant/client's tracking context, alerts, and analyst outlook. */
   async getClientDossier(
     tenantId: string,
@@ -215,9 +260,7 @@ export class BillDossierService {
     // Funding (R3 §3.6) — only when `defense_funding_intel` is on for the tenant.
     // Runs alongside the reads above rather than after them; when the flag is off no
     // funding query is issued at all.
-    const funding = opts.funding
-      ? await this.loadFunding(billId)
-      : noFunding(FUNDING_UNAVAILABLE);
+    const funding = opts.funding ? await this.loadFunding(billId) : noFunding(FUNDING_UNAVAILABLE);
 
     // Batched member-vote tallies for every vote id in one query (no N+1).
     const voteIds = [
@@ -371,7 +414,10 @@ export class BillDossierService {
     return [...failedRules, ...fromActions].sort(byDateDesc);
   }
 
-  private ruleVoteToBillVote(r: SourceGoverningRule, party: Map<string, VotePartyBreakdown>): BillVote {
+  private ruleVoteToBillVote(
+    r: SourceGoverningRule,
+    party: Map<string, VotePartyBreakdown>,
+  ): BillVote {
     return {
       id: r.voteId ?? `rule:${r.ruleBillId}`,
       label: `Governing rule ${humanizeBillId(r.ruleBillId)}`,
@@ -381,12 +427,15 @@ export class BillDossierService {
       result: r.result,
       resultSev: sevForResult(r.result),
       tally: `${r.yeas ?? 0}-${r.nays ?? 0}`,
-      party: r.voteId ? party.get(r.voteId) ?? null : null,
+      party: r.voteId ? (party.get(r.voteId) ?? null) : null,
       note: null,
     };
   }
 
-  private passageVoteToBillVote(v: SourceBillVote, party: Map<string, VotePartyBreakdown>): BillVote {
+  private passageVoteToBillVote(
+    v: SourceBillVote,
+    party: Map<string, VotePartyBreakdown>,
+  ): BillVote {
     return {
       id: v.id,
       label: v.question ?? `${capitalize(v.chamber)} passage vote`,
@@ -409,14 +458,14 @@ export class BillDossierService {
 
     const [actionsAsc, votesRows, companions] = await Promise.all([
       this.stateSource.getStateBillActionsByIds([billId]),
-      this.stateSource.getStateVotesForBills([billId]),
+      this.stateSource.getStateVotesForBills([billId], true),
       this.stateSource.getMovedCompanions([billId]),
     ]);
     // getStateBillActionsByIds returns ORDER BY date ASC → reverse for newest-first.
     const actions = [...actionsAsc].reverse();
 
     const votes: BillVote[] = votesRows.map((v) => ({
-      id: `${billId}:${toIso(v.date) ?? 'na'}`,
+      id: v.id ?? `${billId}:unresolved-vote-identity`,
       label: v.motion ?? `${capitalize(v.chamber)} vote`,
       target: 'passage',
       chamber: v.chamber,
@@ -446,6 +495,7 @@ export class BillDossierService {
       type: null,
       congress: null,
       sponsor: b.sponsorName,
+      sponsorLegislatorId: b.sponsorLegislatorId ?? null,
       introduced: null,
       statusLabel,
       statusSev: 'neutral' as DossierSeverity,
@@ -498,13 +548,24 @@ export class BillDossierService {
       matchedTopics: [],
       recommendedActions: [],
       provenance: {
-        lastSyncedAt: toIso(b.textDate ?? b.statusAt),
+        lastSyncedAt: toIso(b.syncedAt ?? null),
+        sourceCheckedAt: toIso(b.sourceCheckedAt ?? null),
+        sourceCheckAttemptedAt: toIso(b.sourceCheckAttemptedAt ?? null),
+        sourceCheckStatus: b.sourceCheckStatus ?? 'unknown',
+        sourceCheckReason:
+          b.sourceCheckError ??
+          (b.sourceCheckedAt ? null : 'No successful source check has been recorded'),
+        documentDate: toIso(b.textDate),
         sources: [
           {
             label: 'LegiScan',
-            as: toIso(b.statusAt),
+            as: toIso(b.sourceCheckedAt ?? null),
             origin: 'official',
-            fresh: true,
+            fresh:
+              b.sourceCheckStatus === 'success' &&
+              Boolean(b.sourceCheckedAt) &&
+              Date.now() >= b.sourceCheckedAt!.getTime() &&
+              Date.now() - b.sourceCheckedAt!.getTime() < DAY_MS,
             url: bill.url,
           },
         ],
@@ -602,9 +663,9 @@ export class BillDossierService {
     }
     const hasExpected = Boolean(
       row.expectedMilestoneType ||
-        row.expectedWindowStart ||
-        row.expectedWindowEnd ||
-        row.expectedRationale,
+      row.expectedWindowStart ||
+      row.expectedWindowEnd ||
+      row.expectedRationale,
     );
     const expected: ExpectedMilestone | null = hasExpected
       ? {
@@ -718,17 +779,19 @@ export class BillDossierService {
         select: { sourceRef: true, evidence: true, createdAt: true },
       }),
     );
-    return mapCombinedAlertsToHearings(rows).hearings.slice(0, MAX_HEARINGS).map((h) => ({
-      id: h.sessionId,
-      title: h.title,
-      committee: h.committeeId,
-      date: h.occurredAt,
-      mentions: h.mentions.slice(0, MAX_MENTIONS_PER_HEARING).map((m) => ({
-        ts: m.timestampMs === null ? null : msToClock(m.timestampMs),
-        speaker: m.speakerName,
-        quote: m.quote,
-      })),
-    }));
+    return mapCombinedAlertsToHearings(rows)
+      .hearings.slice(0, MAX_HEARINGS)
+      .map((h) => ({
+        id: h.sessionId,
+        title: h.title,
+        committee: h.committeeId,
+        date: h.occurredAt,
+        mentions: h.mentions.slice(0, MAX_MENTIONS_PER_HEARING).map((m) => ({
+          ts: m.timestampMs === null ? null : msToClock(m.timestampMs),
+          speaker: m.speakerName,
+          quote: m.quote,
+        })),
+      }));
   }
 
   private mergeAnalystOverview(
@@ -1086,9 +1149,7 @@ function buildLikeForLikeComparisons(
 ): FundingComparison[] {
   const fy = fiscalYearOf(raw, primary.id);
   return raw
-    .filter(
-      (r) => r.id !== primary.id && r.scope === primary.scope && r.fiscalYear === fy,
-    )
+    .filter((r) => r.id !== primary.id && r.scope === primary.scope && r.fiscalYear === fy)
     .sort((a, b) => (STAGE_ORDER[a.stage] ?? 99) - (STAGE_ORDER[b.stage] ?? 99))
     .map((r) => {
       const amount = Number(r.amountMillions);

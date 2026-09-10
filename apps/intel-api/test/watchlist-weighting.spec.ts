@@ -47,8 +47,10 @@ describe('weightForTerm (§4.9 banding)', () => {
 });
 
 describe('TrackerWatchlistService — persisted + compiled weights (§4.9)', () => {
-  const seed = (svc: TrackerWatchlistService, topics: unknown[]) =>
-    svc.putWatchlist(TENANT, CLIENT, 'user-1', { issueAreas: [], topics: topics as never });
+  const seed = async (svc: TrackerWatchlistService, topics: unknown[]) => {
+    const { version } = await svc.getWatchlist(TENANT, CLIENT);
+    return svc.putWatchlist(TENANT, CLIENT, 'user-1', { issueAreas: [], topics: topics as never, expectedVersion: version });
+  };
 
   it('g-6.3 putWatchlist persists a non-1 weight (company on a high-priority topic)', async () => {
     const h = makeWatchlistStore({ tenantId: TENANT, clientId: CLIENT });

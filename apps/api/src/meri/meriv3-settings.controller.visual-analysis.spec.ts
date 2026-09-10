@@ -1,4 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
+import { EventEmitter } from 'node:events';
+import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 
@@ -41,6 +43,14 @@ function make(options?: { enabled?: boolean; sandboxAvailable?: boolean }) {
   };
 }
 
+function request() {
+  return Object.assign(new EventEmitter(), {
+    headers: {},
+    aborted: false,
+    res: Object.assign(new EventEmitter(), { writableEnded: false, destroyed: false }),
+  }) as unknown as Request;
+}
+
 describe('MeriV3SettingsController visual analysis', () => {
   test('advertises the strict interactive contract only when the sandbox gate is available', async () => {
     const available = make({ sandboxAvailable: true });
@@ -77,10 +87,14 @@ describe('MeriV3SettingsController visual analysis', () => {
     const { controller, visualAnalysis } = make({ enabled: false });
     await expect(controller.capabilities(ctx)).rejects.toBeInstanceOf(NotFoundException);
     await expect(
-      controller.executeVisualAnalysis(ctx, {
-        conversationId: 'conversation-1',
-        code: 'print(1)',
-      }),
+      controller.executeVisualAnalysis(
+        ctx,
+        {
+          conversationId: 'conversation-1',
+          code: 'print(1)',
+        },
+        request(),
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
       controller.discardVisualAnalysis(ctx, {
@@ -100,7 +114,7 @@ describe('MeriV3SettingsController visual analysis', () => {
       code: 'print(1)',
       datasets: [{ name: 'marks', rows: [{ stage: 'HASC', amount: 10 }] }],
     };
-    await expect(controller.executeVisualAnalysis(ctx, input)).resolves.toEqual({
+    await expect(controller.executeVisualAnalysis(ctx, input, request())).resolves.toEqual({
       ok: true,
       artifacts: [],
     });

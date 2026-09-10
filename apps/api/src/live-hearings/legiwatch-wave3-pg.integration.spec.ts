@@ -62,7 +62,16 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
                 committee_hearing, committee_source, congress_bill, congress_committee, clients
        CASCADE`,
     );
-    await prisma.$executeRawUnsafe(`DELETE FROM intel_alert WHERE tenant_id IN ($1, $2)`, TENANT_A, TENANT_B);
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM intel_alert WHERE tenant_id IN ($1, $2)`,
+      TENANT_A,
+      TENANT_B,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM intel_tracked_bill WHERE tenant_id IN ($1, $2)`,
+      TENANT_A,
+      TENANT_B,
+    );
 
     await prisma.$executeRawUnsafe(
       `INSERT INTO tenants (id, slug, name) VALUES
@@ -146,8 +155,13 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
       const result = await digest.generate(ctxA1, null);
       expect(result.whatChanged).toHaveLength(3);
       expect(result.decisionsRequired).toHaveLength(1);
-      expect(result.decisionsRequired[0]?.recommendedAction).toBe('Brief Overland AI this morning.');
-      expect(result.clientImplications.map((c) => c.clientName).sort()).toEqual(['Kela Systems', 'Overland AI']);
+      expect(result.decisionsRequired[0]?.recommendedAction).toBe(
+        'Brief Overland AI this morning.',
+      );
+      expect(result.clientImplications.map((c) => c.clientName).sort()).toEqual([
+        'Kela Systems',
+        'Overland AI',
+      ]);
       expect(result.provenance.sourceFamilies.sort()).toEqual(['Committee pages', 'Congress.gov']);
     });
 
@@ -167,38 +181,65 @@ describeDb('LegiWatch Wave 3 — Digest + Analytics (real Postgres)', () => {
     });
 
     it('schedule upserts by (tenant, user, scope) without a DB unique constraint', async () => {
-      const saved1 = await digest.putSchedule(ctxA1, null, { cadence: 'daily', hourUtc: 11, emailEnabled: true });
+      const saved1 = await digest.putSchedule(ctxA1, null, {
+        cadence: 'daily',
+        hourUtc: 11,
+        emailEnabled: true,
+      });
       expect(saved1.cadence).toBe('daily');
-      const saved2 = await digest.putSchedule(ctxA1, null, { cadence: 'weekly', hourUtc: 14, emailEnabled: false });
+      const saved2 = await digest.putSchedule(ctxA1, null, {
+        cadence: 'weekly',
+        hourUtc: 14,
+        emailEnabled: false,
+      });
       expect(saved2.cadence).toBe('weekly');
       const read = await digest.getSchedule(ctxA1, null);
       expect(read).toEqual(saved2);
-      const rows = await prisma.legiWatchDigestSchedule.findMany({ where: { tenantId: TENANT_A, userId: USER_A1 } });
+      const rows = await prisma.legiWatchDigestSchedule.findMany({
+        where: { tenantId: TENANT_A, userId: USER_A1 },
+      });
       expect(rows).toHaveLength(1); // upsert, not a second row
     });
 
-    it.each([null, CLIENT_A1])('concurrent schedule saves produce one row for scope %s', async (clientId) => {
-      await Promise.all(Array.from({ length: 4 }, (_, hourUtc) =>
-        digest.putSchedule(ctxA1, clientId, { cadence: 'daily', hourUtc, emailEnabled: true }),
-      ));
-      const rows = await prisma.legiWatchDigestSchedule.findMany({
-        where: { tenantId: TENANT_A, userId: USER_A1, clientId },
-      });
-      expect(rows).toHaveLength(1);
-    });
+    it.each([null, CLIENT_A1])(
+      'concurrent schedule saves produce one row for scope %s',
+      async (clientId) => {
+        await Promise.all(
+          Array.from({ length: 4 }, (_, hourUtc) =>
+            digest.putSchedule(ctxA1, clientId, { cadence: 'daily', hourUtc, emailEnabled: true }),
+          ),
+        );
+        const rows = await prisma.legiWatchDigestSchedule.findMany({
+          where: { tenantId: TENANT_A, userId: USER_A1, clientId },
+        });
+        expect(rows).toHaveLength(1);
+      },
+    );
 
     it('rejects a schedule for another tenant client without persisting it', async () => {
-      await expect(digest.putSchedule(ctxA1, CLIENT_B1, {
-        cadence: 'daily', hourUtc: 11, emailEnabled: true,
-      })).rejects.toMatchObject({ status: 404 });
-      expect(await prisma.legiWatchDigestSchedule.count({
-        where: { tenantId: TENANT_A, userId: USER_A1 },
-      })).toBe(0);
+      await expect(
+        digest.putSchedule(ctxA1, CLIENT_B1, {
+          cadence: 'daily',
+          hourUtc: 11,
+          emailEnabled: true,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(
+        await prisma.legiWatchDigestSchedule.count({
+          where: { tenantId: TENANT_A, userId: USER_A1 },
+        }),
+      ).toBe(0);
     });
   });
 
   describe('Analytics', () => {
     it('summary counts real alerts and bills, tenant-scoped', async () => {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO intel_tracked_bill (id,tenant_id,client_id,bill_id,updated_at)
+         VALUES ('lw-w3-tracked-bill',$1,$2,'119-hr-8800',now())`,
+        TENANT_A,
+        CLIENT_A1,
+      );
       const result = await analytics.summary(ctxA1, null);
       expect(result.signalsTotal).toBe(3);
       expect(result.billsMoved).toBe(1);

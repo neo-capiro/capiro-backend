@@ -46,12 +46,14 @@ function makeWorkStateStub(overrides: {
 function mockPrisma(rows: any[], groups?: any[], terms?: any[]) {
   let lastArgs: any = null;
   const tx = {
+    $queryRaw: async () => [],
     intelAlert: {
       findMany: async (args: any) => {
         lastArgs = args;
         return rows.slice(0, args.take);
       },
       groupBy: async () => groups ?? [],
+      count: async () => rows.length,
     },
     watchlistTerm: { findMany: async () => terms ?? [] },
     transcriptSegment: { findMany: async () => [] },
@@ -295,7 +297,9 @@ describe('FeedService.getFeed — facet counts respect the filter (MP-07)', () =
     let severityWhere: any;
     let call = 0;
     const tx = {
+      $queryRaw: async () => [],
       intelAlert: {
+        count: async () => 1,
         findMany: async (args: any) => [mkRow(1, 0.5)].slice(0, args.take),
         groupBy: async (args: any) => {
           call += 1;
@@ -328,7 +332,9 @@ describe('FeedService.getFeed — facet counts respect the filter (MP-07)', () =
   it("Bill 360 event history (sourceRef) scopes facet counts to that bill, not the whole client", async () => {
     let sourceTypeWhere: any;
     const tx = {
+      $queryRaw: async () => [],
       intelAlert: {
+        count: async () => 1,
         findMany: async (args: any) => [mkRow(1, 0.5)].slice(0, args.take),
         groupBy: async (args: any) => {
           if (args.by[0] === 'sourceType') sourceTypeWhere = args.where;
@@ -434,7 +440,7 @@ describe('FeedService decrypt-on-read', () => {
   });
   function prismaWithSeg(seg: any) {
     const tx = {
-      intelAlert: { findMany: async () => [encRow()], groupBy: async () => [] },
+      intelAlert: { findMany: async () => [encRow()], groupBy: async () => [], count: async () => 1 },
       transcriptSegment: { findMany: async () => (seg ? [seg] : []) },
       watchlistTerm: { findMany: async () => [] },
     };

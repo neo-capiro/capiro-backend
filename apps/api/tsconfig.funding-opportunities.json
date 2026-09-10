@@ -132,7 +132,8 @@
     "scripts/generate-dibbs-opportunity-candidates.spec.ts",
     "scripts/generate-sbir-opportunity-candidates.ts",
     "scripts/generate-sbir-opportunity-candidates.spec.ts",
-    "scripts/test-funding-opportunity-action-concurrency.ts"
+    "scripts/test-funding-opportunity-action-concurrency.ts",
+    "src/types/word-extractor.d.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

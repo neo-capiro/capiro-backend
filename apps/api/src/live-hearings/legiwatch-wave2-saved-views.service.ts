@@ -17,6 +17,7 @@
  * guess 404s rather than leaking whether the row exists at all.
  */
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -50,6 +51,7 @@ export interface ApplyViewResult extends SavedViewRow {
    * clients" or a stale name.
    */
   clientWarning: string | null;
+  folderWarning: string | null;
 }
 
 @Injectable()
@@ -185,7 +187,12 @@ export class LegiWatchWave2SavedViewsService {
         // first — the partial unique index would otherwise reject the second
         // `is_default=true` row outright rather than swapping it in.
         await tx.legiWatchSavedView.updateMany({
-          where: { tenantId: ctx.tenantId, ownerUserId: ctx.userId, surface: existing.surface, isDefault: true },
+          where: {
+            tenantId: ctx.tenantId,
+            ownerUserId: ctx.userId,
+            surface: existing.surface,
+            isDefault: true,
+          },
           data: { isDefault: false },
         });
       }
@@ -234,7 +241,37 @@ export class LegiWatchWave2SavedViewsService {
         clientWarning = 'The client this view references has been archived.';
       }
     }
-    return { ...this.toRow(ctx, row), clientWarning };
+    const filters = (row.config as { filters?: { params?: Record<string, unknown> } })?.filters;
+    const params = filters?.params ?? {};
+    // URL scope is part of the persisted contract as well as the legacy
+    // clientId field. A missing reference must never widen the restored view.
+    const urlClient = typeof params.client === 'string' ? params.client : null;
+    if (urlClient && urlClient !== '_all' && urlClient !== row.clientId) {
+      const client = isUUID(urlClient)
+        ? await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.client.findFirst({ where: { id: urlClient }, select: { status: true } }),
+          )
+        : null;
+      if (!client || client.status !== 'active')
+        clientWarning = 'The saved client is unavailable in this workspace.';
+    }
+    let folderWarning: string | null = null;
+    if (typeof params.folder === 'string' && params.folder) {
+      const folders = await this.prisma.withTenant(
+        ctx.tenantId,
+        (tx) =>
+          tx.$queryRaw<
+            Array<{ id: string; clientId: string | null }>
+          >`SELECT id,client_id AS "clientId" FROM intel_legiwatch_folder WHERE tenant_id=${ctx.tenantId} AND id=${params.folder}`,
+      );
+      if (!folders.length)
+        folderWarning =
+          'The saved folder is unavailable in this workspace. Choose an accessible folder before restoring this view.';
+      const effectiveClient = urlClient && urlClient !== '_all' ? urlClient : row.clientId;
+      if (folders.length && effectiveClient && folders[0]?.clientId !== effectiveClient)
+        folderWarning = 'The saved folder does not belong to the saved client scope.';
+    }
+    return { ...this.toRow(ctx, row), clientWarning, folderWarning };
   }
 
   // ── shared helpers ───────────────────────────────────────────────────────
