@@ -408,14 +408,32 @@ async function waitForHttpHealth(url: string, attempts: number, delayMs: number)
   throw new SidecarUnavailableError(`isolated MinIO sidecar never became healthy at ${url}`, 5);
 }
 
-function runPrismaMigrateDeploy(cwd: string): void {
-  const result = spawnSync('npx', ['--no-install', 'prisma', 'migrate', 'deploy'], {
-    cwd,
-    stdio: 'inherit',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    throw new MigrationError(`prisma migrate deploy exited ${result.status ?? 'null'} (signal ${result.signal ?? 'none'})`);
+/**
+ * Retries on a transient connection failure (found by independent review:
+ * a real Docker port-proxy race where the host port starts accepting TCP
+ * before Postgres inside the container is actually ready to serve queries
+ * -- waitForTcpPort above passing is necessary but not sufficient). The
+ * same race is possible on the real Fargate task shape too: `dependsOn:
+ * pg START` only waits for the container to start, not for Postgres to be
+ * query-ready. A real schema/syntax failure in the migration itself is NOT
+ * transient and will fail identically on every retry, so this does not mask
+ * a genuine migration defect -- it only absorbs the narrow startup race.
+ */
+async function runPrismaMigrateDeploy(cwd: string, attempts = 3, delayMs = 3000): Promise<void> {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const result = spawnSync('npx', ['--no-install', 'prisma', 'migrate', 'deploy'], {
+      cwd,
+      stdio: 'inherit',
+      env: process.env,
+    });
+    if (result.status === 0) return;
+    if (attempt === attempts) {
+      throw new MigrationError(`prisma migrate deploy exited ${result.status ?? 'null'} (signal ${result.signal ?? 'none'}) after ${attempts} attempts`);
+    }
+    console.error(
+      `[qualify-defense-budget-drain-image-v1] prisma migrate deploy failed (attempt ${attempt}/${attempts}, likely a Postgres startup race) -- retrying in ${delayMs}ms...`,
+    );
+    await new Promise((r) => setTimeout(r, delayMs));
   }
 }
 
@@ -682,7 +700,7 @@ async function main(): Promise<void> {
   await waitForHttpHealth('http://127.0.0.1:9000/minio/health/live', 60, 2000);
 
   console.error('[qualify-defense-budget-drain-image-v1] applying isolated qualification DB migrations...');
-  runPrismaMigrateDeploy(config.appsApiDir);
+  await runPrismaMigrateDeploy(config.appsApiDir);
 
   marker('QUAL_FETCH_START', { run: config.runId, url: config.presignedGetUrl });
   let identity: FetchedIdentity;
