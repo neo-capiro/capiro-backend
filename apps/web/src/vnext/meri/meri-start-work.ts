@@ -22,6 +22,17 @@ const SKILL_ICONS: Record<string, MeriIconName> = {
   client_changes: 'ClockFastForward',
   portfolio_changes: 'Grid01',
   portfolio_overlap: 'Dataflow03',
+  // Quick Action skills wave 2 (PRs #1583–#1590). Unknown ids fall back to
+  // 'Stars02' below, so a catalog entry never breaks the card grid.
+  mail_history: 'Mail01',
+  meeting_prep: 'CalendarCheck01',
+  commitments_audit: 'ClipboardCheck',
+  funding_opportunity_match: 'Coins01',
+  pe_deep_dive: 'Target04',
+  bill_watch: 'File04',
+  hearing_watch: 'Calendar2',
+  representation_lookup: 'MarkerPin01',
+  regulatory_docket_brief: 'Scales01',
 };
 
 function skillDescription(value: unknown, fallback: string): string {
