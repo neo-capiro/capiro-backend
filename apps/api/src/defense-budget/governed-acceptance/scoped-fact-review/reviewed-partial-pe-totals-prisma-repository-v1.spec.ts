@@ -57,7 +57,7 @@ function baseRow(overrides: { id: string; candidateStatus: string; component?: s
     updatedAt: new Date('2026-09-01T00:00:00.000Z'),
     // Present only because `include: { candidate: { select: { status } } }`
     // asks Prisma to nest it -- exactly what the real query returns.
-    candidate: { status: overrides.candidateStatus },
+    candidate: { status: overrides.candidateStatus, correctedBy: null as { id: string } | null },
   };
 }
 
@@ -126,6 +126,31 @@ describe('PrismaReviewedPartialPeTotalsRepositoryV1 -- read-time candidate eligi
     );
     expect(candidateClause).toBeDefined();
     expect(new Set(candidateClause!.candidate.status.in)).toEqual(new Set(['NEEDS_REVIEW', 'REVIEW_ACCEPTED']));
+  });
+
+  it('Phase 10B-35c: excludes a row whose candidate has since been formally corrected, even though the candidate status column itself is still reviewable', async () => {
+    const stillEligible = baseRow({ id: 'still-eligible', candidateStatus: 'NEEDS_REVIEW' });
+    const correctedAway = baseRow({ id: 'corrected-away', candidateStatus: 'NEEDS_REVIEW' });
+    correctedAway.candidate.correctedBy = { id: 'correction-link-1' };
+    const prisma = new FakeCapturingPrisma([stillEligible, correctedAway]);
+    const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(prisma as never);
+
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+
+    expect(result.map((r) => r.id)).toEqual(['still-eligible']);
+  });
+
+  it('Phase 10B-35c: the in-process re-check also drops a corrected-away candidate if the DB layer somehow still returned it', async () => {
+    const row = baseRow({ id: 'leaked-corrected', candidateStatus: 'NEEDS_REVIEW' });
+    row.candidate.correctedBy = { id: 'correction-link-1' };
+    const leakyPrisma = {
+      budgetScopedFactReviewV1: { findMany: async () => [row] },
+    };
+    const repo = new PrismaReviewedPartialPeTotalsRepositoryV1(leakyPrisma as never);
+
+    const result = await repo.listActiveApprovedByScopeKind('rdte_r2_pe_total_request_fy', { fiscalYear: 2024 });
+
+    expect(result).toEqual([]);
   });
 
   it('a row belonging to a candidate the query somehow still returned as REJECTED is dropped by the in-process re-check (belt-and-suspenders)', async () => {
