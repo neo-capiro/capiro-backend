@@ -121,4 +121,15 @@ describe('Meri Quick Action routing contract', () => {
       ]),
     );
   });
+
+  test('PE Deep Dive routes to the five-reader Program Element fan-out', () => {
+    const definition = skill('pe_deep_dive');
+    const prompt = hydrateMeriStarterPrompt(definition).replace(
+      '[PE number or name]',
+      'PE 0604852N',
+    );
+
+    expect(planFor(prompt).recipeTool).toBe(definition.canonicalRecipe);
+    expect(planFor(prompt).recipeTool).toBe('query_pe_deep_dive');
+  });
 });

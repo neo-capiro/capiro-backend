@@ -11,6 +11,7 @@ import {
 import { executeMeriQuickCompanyProfile } from './meriv3-retrieval-company-profile.js';
 import { executeMeriRelationshipBrief } from './meriv3-retrieval-relationship.js';
 import { executeMeriFundingOpportunityMatch } from './meriv3-retrieval-funding-match.js';
+import { executeMeriPeDeepDive } from './meriv3-retrieval-pe-deep-dive.js';
 import type { MeriRetrievalRecipeContext } from './meriv3-retrieval-recipe-utils.js';
 
 export {
@@ -161,5 +162,7 @@ export async function executeMeriRetrievalRecipe(
       return executeMeriPortfolioOverlap(input, ctx);
     case 'query_funding_opportunity_match':
       return executeMeriFundingOpportunityMatch(input, ctx);
+    case 'query_pe_deep_dive':
+      return executeMeriPeDeepDive(input, ctx);
   }
 }

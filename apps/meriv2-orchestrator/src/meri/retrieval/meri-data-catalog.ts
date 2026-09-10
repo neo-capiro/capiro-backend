@@ -512,6 +512,20 @@ export const MERI_RECIPE_CATALOG: Record<MeriRetrievalRecipeTool, MeriRecipeCata
       'explain_opportunity_match',
     ],
   },
+  query_pe_deep_dive: {
+    tool: 'query_pe_deep_dive',
+    description: 'Complete single-Program-Element brief: definition, budget timeline, report language, contractors, and related bills.',
+    requiredDomains: ['budget'],
+    optionalDomains: ['awards', 'legislation'],
+    recommendedTools: [
+      'get_program_element',
+      'get_pe_budget_timeline',
+      'get_pe_report_language',
+      'get_pe_contractors',
+      'get_pe_bills',
+      'search_program_elements',
+    ],
+  },
 };
 
 const DATASETS_BY_TOOL = new Map<string, MeriDatasetDefinition[]>();

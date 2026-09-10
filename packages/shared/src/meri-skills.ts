@@ -250,6 +250,23 @@ export const MERI_SKILL_REGISTRY = [
     semanticDomains: ['opportunities', 'clients', 'identity', 'grants', 'budget'],
     readOnly: true,
   },
+  {
+    id: 'pe_deep_dive',
+    label: 'PE Deep Dive',
+    description:
+      'Complete brief on one DoD Program Element: definition, budget timeline, Congressional report language, contractors, and related bills.',
+    userVisible: true,
+    quickAction: true,
+    lifecycle: 'permanent',
+    canonicalRecipe: 'query_pe_deep_dive',
+    requiresClient: false,
+    permittedScopes: ['general', 'external_entity'],
+    starterPrompt:
+      'Give me a complete brief on Program Element [PE number or name]: what it funds, the budget line over the FYDP, the report language Congress attached, who the contractors are, and any authorizing or appropriating bills touching it. If I did not give a PE number, resolve it first and confirm the match. Name any source you could not check.',
+    requiredEntitlements: [],
+    semanticDomains: ['budget', 'awards', 'legislation'],
+    readOnly: true,
+  },
 ] as const satisfies readonly MeriSkillDefinition[];
 
 export interface ListMeriSkillsOptions {

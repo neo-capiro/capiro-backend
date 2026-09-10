@@ -15,6 +15,7 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'research_external_company',
   'query_portfolio_overlap',
   'query_funding_opportunity_match',
+  'query_pe_deep_dive',
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
@@ -85,6 +86,9 @@ const PORTFOLIO_OVERLAP_RE =
 
 const OPPORTUNITY_FIT_RE =
   /\bfunding\s+opportunit(?:y|ies)\b.*\b(?:fit|match(?:es|ed|ing)?|suit(?:ed|able)?)\b|\b(?:is|are|how\s+well\s+(?:do|does))\b.*\b(?:opportunit|grants?|solicitations?)\b.*\bfit\b|\b(?:good|best|strong)\s+fit\b.*\b(?:opportunit|grant|solicitation|sam|grants\.gov)\b|\bopportunit(?:y|ies)\s+(?:match|fit)\b|\bfind\s+(?:funding\s+)?opportunit(?:y|ies)\b/i;
+
+const PE_DEEP_DIVE_RE =
+  /\bprogram\s+element\b|\bPE\s+[0-9A-Z]{6,}\b|\bbrief\s+(?:me\s+)?on\s+(?:the\s+)?(?:PE|program\s+element)\b|\bdeep\s+dive\s+on\s+(?:the\s+)?(?:PE|program\s+element)\b/i;
 
 const MAIL_HISTORY_RE =
   /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
@@ -210,6 +214,9 @@ function recipeFor(
   // exhaustive_search lane so the four-tool recipe owns the intent.
   if (OPPORTUNITY_FIT_RE.test(request)) return 'query_funding_opportunity_match';
   if (PORTFOLIO_OVERLAP_RE.test(request)) return 'query_portfolio_overlap';
+  // PE Deep Dive: “brief me on Program Element X” style requests route to the
+  // deterministic five-reader PE fan-out before generic lookup lanes.
+  if (PE_DEEP_DIVE_RE.test(request)) return 'query_pe_deep_dive';
   if (
     intent.subjectScope === 'portfolio' &&
     (intent.queryClass === 'change_detection' || intent.queryClass === 'portfolio_scan')
