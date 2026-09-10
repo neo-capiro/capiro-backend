@@ -28,7 +28,7 @@ import {
   Upload,
 } from 'antd';
 import { useApi } from '../../lib/use-api.js';
-import { consumeLegiWatchHandoff, prefillToWorkflowPatch } from './outreach/legiwatch-prefill.js';
+import { LegiWatchOutreachHandoff } from './outreach/LegiWatchOutreachHandoff.js';
 // Campaign list only (handover §6.2). The legacy workflow screens further
 // down this file — outbound campaign, follow-up, prep distribution, small
 // group — are not part of the prototype and keep their existing antd markup.
@@ -412,7 +412,24 @@ const EMPTY_WORKFLOW: OutreachWorkflowState = {
   attachmentIds: [],
 };
 
-export function OutreachView({
+interface OutreachViewProps {
+  clients: Client[];
+  selectedClientId: string | null;
+  aiConfigured: boolean;
+}
+
+export function OutreachView(props: OutreachViewProps) {
+  const location = useLocation();
+  const staged = new URLSearchParams(location.search).get('source') === 'legiwatch';
+  // Keep the handoff outside the list's URL/mode synchronizer. Its query
+  // identifies unsaved hearing context and remains usable after a reload.
+  if (staged && ['/engagement/outreach', '/engagement/outreach/new/wizard'].includes(location.pathname)) {
+    return <LegiWatchOutreachHandoff key={location.key + location.search} clients={props.clients} aiConfigured={props.aiConfigured} />;
+  }
+  return <OutreachViewContent {...props} />;
+}
+
+function OutreachViewContent({
   clients,
   selectedClientId,
   aiConfigured,
@@ -651,36 +668,6 @@ export function OutreachView({
     message,
     selectedClientId,
   ]);
-
-  // LegiWatch "Stage outreach" handoff (LW-05): HearingActions wrote
-  // sessionStorage['lw:outreach-context'] and navigated here with
-  // ?source=legiwatch&hearingId=…&client=…. Consume it exactly once, hydrate
-  // the New Outreach campaign wizard (client preselected, hearing context
-  // attached), and fail LOUDLY if the payload is present but stale/malformed —
-  // never a silent fallback to a blank wizard. The mode→URL sync effect below
-  // then settles the URL to /new/wizard.
-  const legiwatchHandoffDoneRef = useRef(false);
-  useEffect(() => {
-    if (legiwatchHandoffDoneRef.current) return;
-    const params = new URLSearchParams(location.search);
-    if (params.get('source') !== 'legiwatch') return;
-    legiwatchHandoffDoneRef.current = true;
-
-    const expectedClientId = params.get('client');
-    const result = consumeLegiWatchHandoff(expectedClientId);
-    if (!result.ok) {
-      message.error(result.message);
-      return;
-    }
-
-    const patch = prefillToWorkflowPatch(result.handoff.prefill);
-    setMode('campaign');
-    setWorkflow((current) => ({
-      ...current,
-      ...patch,
-      step: 1,
-    }));
-  }, [location.search, message]);
 
   useEffect(() => {
     const locked = mode !== 'landing';

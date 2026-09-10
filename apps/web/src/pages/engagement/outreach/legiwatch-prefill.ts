@@ -1,148 +1,143 @@
-/**
- * Reader for the LegiWatch "Stage outreach" cross-surface handoff.
- *
- * HearingActions.tsx (LegiWatch) writes sessionStorage['lw:outreach-context']
- * — { prefill, createdAt } — then navigates to
- * /engagement/outreach?source=legiwatch&hearingId=…&client=… . This module is
- * the single consumer: it validates the payload and maps the staged prefill
- * (built server-side by LegiWatchWave1Service.buildOutreachPrefill) into the
- * New Outreach campaign wizard's workflow state.
- *
- * Cross-surface-handoff rule: fail loudly. If the key is present but stale or
- * malformed, surface an error to the user instead of silently dropping into a
- * blank wizard — the user explicitly clicked "Stage outreach" and expects the
- * context to carry over.
- */
+import type { SelectedContextItem } from './v2/types.js';
 
 export const LW_OUTREACH_CONTEXT_KEY = 'lw:outreach-context';
-
-// One hour: a staged prefill older than this is stale — the hearing may have
-// rescheduled or the client lens changed. Refuse rather than silently use it.
 const MAX_AGE_MS = 60 * 60 * 1000;
-
-export interface LegiWatchPrefillContext {
-  hearing?: {
-    id?: string;
-    title?: string;
-    committeeName?: string | null;
-    chamber?: string | null;
-    calendarDate?: string;
-    detailPath?: string;
-  } | null;
-  finding?: { id?: string; title?: string; summary?: string | null; evidenceText?: string | null } | null;
-  transcriptMoment?: { id?: string; text?: string | null; speakerLabel?: string | null } | null;
-}
 
 export interface LegiWatchOutreachPrefill {
   clientId: string;
-  clientName?: string | null;
-  context?: LegiWatchPrefillContext;
+  clientName: string;
+  status: 'staged';
+  autoSend: false;
+  context: {
+    hearing: { id: string; title: string; committeeName?: string | null; calendarDate?: string };
+    finding?: { id: string; title: string; summary?: string | null; evidenceText?: string | null } | null;
+    transcriptMoment?: { id: string; text: string; speakerLabel?: string | null } | null;
+  };
 }
 
 export interface LegiWatchHandoff {
+  id: string;
   prefill: LegiWatchOutreachPrefill;
   createdAt: number;
 }
 
+type FailureReason = 'malformed' | 'stale' | 'client-mismatch' | 'hearing-mismatch' | 'handoff-mismatch';
 export type LegiWatchHandoffResult =
   | { ok: true; handoff: LegiWatchHandoff }
-  | { ok: false; reason: 'malformed' | 'stale' | 'client-mismatch'; message: string };
+  | { ok: false; reason: FailureReason; message: string };
 
-/** Read and VALIDATE the handoff. Does not clear the key. */
-export function readLegiWatchHandoff(expectedClientId: string | null): LegiWatchHandoffResult {
-  let raw: string | null = null;
-  try {
-    raw = sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY);
-  } catch {
-    return { ok: false, reason: 'malformed', message: 'Session storage is unavailable.' };
-  }
-  if (!raw) return { ok: false, reason: 'malformed', message: 'No staged outreach context found.' };
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function text(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+function optionalText(value: unknown): boolean {
+  return value == null || typeof value === 'string';
+}
 
+/** Validate identities and every field rendered or forwarded into the wizard. */
+export function validateLegiWatchPrefill(
+  value: unknown,
+  expectedClientId: string | null,
+  expectedHearingId: string | null,
+): value is LegiWatchOutreachPrefill {
+  if (!record(value) || !text(value.clientId) || !text(value.clientName) ||
+      value.status !== 'staged' || value.autoSend !== false || !record(value.context)) return false;
+  const { hearing, finding, transcriptMoment } = value.context;
+  if (!record(hearing) || !text(hearing.id) || !text(hearing.title) ||
+      !optionalText(hearing.committeeName) || !optionalText(hearing.calendarDate)) return false;
+  if (value.clientId !== expectedClientId || hearing.id !== expectedHearingId) return false;
+  if (finding != null && (!record(finding) || !text(finding.id) || !text(finding.title) ||
+      !optionalText(finding.summary) || !optionalText(finding.evidenceText))) return false;
+  if (transcriptMoment != null && (!record(transcriptMoment) || !text(transcriptMoment.id) ||
+      !text(transcriptMoment.text) || !optionalText(transcriptMoment.speakerLabel))) return false;
+  return true;
+}
+
+/** Keep the staged handoff until save/cancel so a reload can revalidate it. */
+export function readLegiWatchHandoff(
+  expectedClientId: string | null,
+  expectedHearingId: string | null,
+  expectedHandoffId: string | null,
+): LegiWatchHandoffResult {
+  const fail = (reason: FailureReason, message: string): LegiWatchHandoffResult => ({ ok: false, reason, message });
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY) ?? 'null');
   } catch {
-    return {
-      ok: false,
-      reason: 'malformed',
-      message: 'The staged outreach context is unreadable. Please stage the outreach again from LegiWatch.',
-    };
+    return fail('malformed', 'The hearing details could not be opened. Stage outreach again from LegiWatch.');
   }
-
-  const handoff = parsed as Partial<LegiWatchHandoff> | null;
-  const prefill = handoff?.prefill;
-  if (
-    !handoff ||
-    typeof handoff.createdAt !== 'number' ||
-    !prefill ||
-    typeof prefill.clientId !== 'string' ||
-    !prefill.clientId
-  ) {
-    return {
-      ok: false,
-      reason: 'malformed',
-      message: 'The staged outreach context is incomplete. Please stage the outreach again from LegiWatch.',
-    };
+  if (!record(parsed) || typeof parsed.createdAt !== 'number' || !Number.isFinite(parsed.createdAt)) {
+    return fail('malformed', 'No usable hearing details were found. Stage outreach again from LegiWatch.');
   }
-
-  if (Date.now() - handoff.createdAt > MAX_AGE_MS) {
-    return {
-      ok: false,
-      reason: 'stale',
-      message: 'The staged outreach context has expired. Please stage the outreach again from LegiWatch.',
-    };
+  if (!text(expectedHandoffId) || parsed.id !== expectedHandoffId) {
+    return fail('handoff-mismatch', 'Another hearing outreach was staged. Return to LegiWatch and open the outreach you want to review.');
   }
-
-  if (expectedClientId && prefill.clientId !== expectedClientId) {
-    return {
-      ok: false,
-      reason: 'client-mismatch',
-      message: 'The staged outreach context belongs to a different client. Please stage the outreach again from LegiWatch.',
-    };
+  const age = Date.now() - parsed.createdAt;
+  if (age < -60_000 || age > MAX_AGE_MS) {
+    return fail('stale', 'The hearing details have expired. Stage outreach again from LegiWatch.');
   }
-
-  return { ok: true, handoff: handoff as LegiWatchHandoff };
+  if (!text(expectedClientId) || !text(expectedHearingId) || !record(parsed.prefill)) {
+    return fail('malformed', 'The hearing or client is missing. Stage outreach again from LegiWatch.');
+  }
+  if (parsed.prefill.clientId !== expectedClientId) {
+    return fail('client-mismatch', 'These hearing details belong to a different client. Stage outreach again from LegiWatch.');
+  }
+  const context = parsed.prefill.context;
+  if (record(context) && record(context.hearing) && context.hearing.id !== expectedHearingId) {
+    return fail('hearing-mismatch', 'These details belong to a different hearing. Stage outreach again from LegiWatch.');
+  }
+  if (!validateLegiWatchPrefill(parsed.prefill, expectedClientId, expectedHearingId)) {
+    return fail('malformed', 'The hearing details are incomplete. Stage outreach again from LegiWatch.');
+  }
+  return { ok: true, handoff: { id: expectedHandoffId, prefill: parsed.prefill, createdAt: parsed.createdAt } };
 }
 
-/** Consume (read + clear) the handoff. */
-export function consumeLegiWatchHandoff(expectedClientId: string | null): LegiWatchHandoffResult {
-  const result = readLegiWatchHandoff(expectedClientId);
+export function clearLegiWatchHandoff(id: string): void {
   try {
-    sessionStorage.removeItem(LW_OUTREACH_CONTEXT_KEY);
-  } catch {
-    /* storage unavailable — nothing to clear */
-  }
-  return result;
+    const stored: unknown = JSON.parse(sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY) ?? 'null');
+    // Saving an earlier hearing must not erase a newly staged one.
+    if (record(stored) && stored.id === id) sessionStorage.removeItem(LW_OUTREACH_CONTEXT_KEY);
+  } catch { /* An unavailable or malformed handoff cannot be resumed. */ }
 }
 
-/**
- * Map the staged prefill into campaign-wizard workflow state: the client is
- * preselected and the hearing context is attached to the objective/subject so
- * the user reviews a grounded starting point, not a blank form. Sending stays
- * an explicit, separate user decision (the prefill's autoSend is always false).
- */
-export function prefillToWorkflowPatch(
-  prefill: LegiWatchOutreachPrefill,
-): {
+export interface LegiWatchWizardPrefill {
   clientId: string;
-  objective: string;
-  subject: string;
-} {
-  const hearing = prefill.context?.hearing;
-  const finding = prefill.context?.finding;
-  const moment = prefill.context?.transcriptMoment;
+  campaignName: string;
+  mainIdea: string;
+  contextItems: SelectedContextItem[];
+}
 
-  const hearingLabel = hearing ? [hearing.committeeName, hearing.calendarDate].filter(Boolean).join(' · ') : '';
-  const contextLines = [
-    hearing?.title ? `Hearing: ${hearing.title}${hearingLabel ? ` (${hearingLabel})` : ''}` : null,
-    finding?.title ? `Finding: ${finding.title}` : null,
-    finding?.summary ?? finding?.evidenceText ?? null,
-    moment?.text ? `Transcript moment${moment.speakerLabel ? ` — ${moment.speakerLabel}` : ''}: ${moment.text}` : null,
-  ].filter(Boolean) as string[];
-
+export function prefillToWizardState(prefill: LegiWatchOutreachPrefill): LegiWatchWizardPrefill {
+  const { hearing, finding, transcriptMoment: moment } = prefill.context;
+  const heading = [hearing.committeeName, hearing.calendarDate].filter(Boolean).join(' · ');
+  const content = [
+    `Hearing: ${hearing.title}${heading ? ` (${heading})` : ''}`,
+    finding ? `Finding: ${finding.title}` : null,
+    finding?.summary || finding?.evidenceText,
+    moment ? `Transcript moment${moment.speakerLabel ? ` — ${moment.speakerLabel}` : ''}: ${moment.text}` : null,
+  ].filter(Boolean).join('\n\n');
+  const source = `Source: /legiwatch/hearings/${encodeURIComponent(hearing.id)}`;
+  // The existing generation DTO accepts at most 8,000 characters per note.
+  // Keep the hearing link and disclose an excerpt instead of causing a 400.
+  const limit = 8000 - source.length - 80;
+  const excerpt = content.length > limit ? `${content.slice(0, limit)}\n\nExcerpt; open the hearing for the full details.` : content;
+  const body = `${excerpt}\n\n${source}`;
   return {
     clientId: prefill.clientId,
-    objective: contextLines.join('\n\n'),
-    subject: finding?.title || hearing?.title || 'LegiWatch outreach',
+    campaignName: (finding?.title || hearing.title).slice(0, 240),
+    mainIdea: `Follow up on ${finding?.title || hearing.title}. Review the attached hearing details before drafting.`,
+    contextItems: [{
+      id: `legiwatch:${hearing.id}:${finding?.id || moment?.id || 'hearing'}`,
+      kind: 'note',
+      title: `Hearing: ${hearing.title}`.slice(0, 240),
+      body,
+      note: body,
+      noteUse: 'fact',
+      scope: 'all',
+      clientId: prefill.clientId,
+      clientName: prefill.clientName,
+    }],
   };
 }

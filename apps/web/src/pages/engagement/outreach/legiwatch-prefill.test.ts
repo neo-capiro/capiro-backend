@@ -1,78 +1,67 @@
-/**
- * LW-05 regression tests for the LegiWatch → Outreach prefill handoff reader.
- * Shell-regression companion: these assert the reader contract directly
- * (validate → hydrate → clear), plus the "error loudly, never silently fall
- * back" rule for stale/malformed payloads.
- */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import {
-  consumeLegiWatchHandoff,
-  LW_OUTREACH_CONTEXT_KEY,
-  prefillToWorkflowPatch,
-} from './legiwatch-prefill.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { clearLegiWatchHandoff, LW_OUTREACH_CONTEXT_KEY, prefillToWizardState, readLegiWatchHandoff } from './legiwatch-prefill.js';
 
 const PREFILL = {
-  clientId: 'client-1',
-  clientName: 'Anduril',
-  status: 'staged',
-  autoSend: false,
+  clientId: 'client-1', clientName: 'Anduril', status: 'staged', autoSend: false,
   context: {
-    hearing: {
-      id: 'cm-119-119533',
-      title: 'Shipbuilding readiness',
-      committeeName: 'Seapower',
-      calendarDate: '2026-09-01',
-    },
+    hearing: { id: 'hearing-1', title: 'Shipbuilding readiness', committeeName: 'Seapower', calendarDate: '2026-09-01' },
     finding: { id: 'ins-1', title: 'Procurement gap', summary: 'Funding shortfall noted.' },
   },
 };
-
-function stage(payload: Record<string, unknown>, createdAt = Date.now()) {
-  sessionStorage.setItem(LW_OUTREACH_CONTEXT_KEY, JSON.stringify({ ...payload, createdAt }));
+function stage(prefill: unknown = PREFILL, createdAt = Date.now()) {
+  sessionStorage.setItem(LW_OUTREACH_CONTEXT_KEY, JSON.stringify({ id: 'handoff-1', prefill, createdAt }));
 }
-
-describe('readLegiWatchHandoff via consume', () => {
-  beforeEach(() => sessionStorage.clear());
-  afterEach(() => sessionStorage.clear());
-
-  it('validates and maps a fresh handoff, and clears the key after consumption', () => {
-    stage({ prefill: PREFILL });
-
-    const result = consumeLegiWatchHandoff('client-1');
+beforeEach(() => sessionStorage.clear());
+describe('LegiWatch handoff identities and wizard data', () => {
+  it('retains a validated handoff for reload, and maps into real V2 generation fields', () => {
+    stage();
+    const result = readLegiWatchHandoff('client-1', 'hearing-1', 'handoff-1');
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.handoff.prefill.clientId).toBe('client-1');
-    }
+    if (!result.ok) throw new Error('Unexpected rejection');
+    expect(sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY)).not.toBeNull();
+    const state = prefillToWizardState(result.handoff.prefill);
+    expect(state.clientId).toBe('client-1');
+    expect(state.campaignName).toBe('Procurement gap');
+    expect(state.contextItems[0].note).toContain('Shipbuilding readiness');
+    expect(state.contextItems[0].note).toContain('\n\nFinding: Procurement gap');
+    expect(state.contextItems[0].note).toContain('/legiwatch/hearings/hearing-1');
+    expect(state.contextItems[0]).toMatchObject({ kind: 'note', scope: 'all', noteUse: 'fact' });
+    clearLegiWatchHandoff(result.handoff.id);
     expect(sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY)).toBeNull();
-
-    const patch = prefillToWorkflowPatch(PREFILL);
-    expect(patch.clientId).toBe('client-1');
-    expect(patch.subject).toBe('Procurement gap');
-    expect(patch.objective).toContain('Shipbuilding readiness');
   });
-
-  it('fails loudly on a stale payload', () => {
-    stage({ prefill: PREFILL }, Date.now() - 2 * 60 * 60 * 1000);
-
-    const result = consumeLegiWatchHandoff('client-1');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('stale');
+  it.each([
+    ['client-2', 'hearing-1', 'client-mismatch'],
+    ['client-1', 'hearing-2', 'hearing-mismatch'],
+    [null, 'hearing-1', 'malformed'],
+    ['client-1', null, 'malformed'],
+  ])('rejects route identity %s / %s', (client, hearing, reason) => {
+    stage();
+    expect(readLegiWatchHandoff(client, hearing, 'handoff-1')).toMatchObject({ ok: false, reason });
   });
-
-  it('fails loudly on a malformed payload', () => {
-    sessionStorage.setItem(LW_OUTREACH_CONTEXT_KEY, '{not json');
-
-    const result = consumeLegiWatchHandoff('client-1');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('malformed');
+  it.each([-7_200_000, 7_200_000])('rejects expired/future timestamps', (offset) => {
+    stage(PREFILL, Date.now() + offset);
+    expect(readLegiWatchHandoff('client-1', 'hearing-1', 'handoff-1')).toMatchObject({ ok: false, reason: 'stale' });
   });
-
-  it('fails loudly on a client mismatch', () => {
-    stage({ prefill: PREFILL });
-
-    const result = consumeLegiWatchHandoff('client-2');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('client-mismatch');
+  it.each([{}, null, { ...PREFILL, autoSend: true }, { ...PREFILL, context: { ...PREFILL.context, finding: { id: 'x', title: {} } } }])('rejects malformed fields without rendering them', (prefill) => {
+    stage(prefill);
+    expect(readLegiWatchHandoff('client-1', 'hearing-1', 'handoff-1').ok).toBe(false);
+  });
+  it('bounds hearing notes to the generation contract and retains their source', () => {
+    stage({ ...PREFILL, context: { ...PREFILL.context, finding: { ...PREFILL.context.finding, summary: 'evidence '.repeat(2000) } } });
+    const result = readLegiWatchHandoff('client-1', 'hearing-1', 'handoff-1');
+    if (!result.ok) throw new Error('Unexpected rejection');
+    const item = prefillToWizardState(result.handoff.prefill).contextItems[0];
+    expect(item.note.length).toBeLessThanOrEqual(8000);
+    expect(item.note).toContain('Excerpt; open the hearing');
+    expect(item.note).toContain('/legiwatch/hearings/hearing-1');
+  });
+  it('rejects an earlier launch after a different moment in the same hearing is staged', () => {
+    stage();
+    expect(readLegiWatchHandoff('client-1', 'hearing-1', 'earlier-handoff')).toMatchObject({ ok: false, reason: 'handoff-mismatch' });
+  });
+  it('does not clear a newer hearing when an earlier one is saved', () => {
+    stage(PREFILL, 123);
+    clearLegiWatchHandoff('older-handoff');
+    expect(sessionStorage.getItem(LW_OUTREACH_CONTEXT_KEY)).not.toBeNull();
   });
 });

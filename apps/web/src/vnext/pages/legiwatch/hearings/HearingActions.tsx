@@ -13,7 +13,10 @@
  * Each action reports idle / submitting / created / failed honestly. A failed
  * call never renders as success.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
+import { useImpersonation } from '../../../../state/impersonation.js';
+import { meriEffectiveIdentityKey } from '../../../../components/chat/meri-route-guards.js';
 import { useNavigate } from 'react-router-dom';
 import { LwButton } from '../lib/primitives.js';
 import {
@@ -64,18 +67,41 @@ export function HearingActions({
   onPendingHandled: () => void;
 }) {
   const navigate = useNavigate();
+  const { orgId, userId } = useAuth();
+  const { actAsTenantSlug } = useImpersonation();
+  const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
+  const selectionKey = JSON.stringify([identityKey, hearingId, clientId]);
+  // Object identity also invalidates A → B → A changes while a call is pending.
+  const selectionToken = useMemo(() => ({ key: selectionKey }), [selectionKey]);
+  const currentSelectionRef = useRef<typeof selectionToken | null>(selectionToken);
+  currentSelectionRef.current = selectionToken;
+  useEffect(() => {
+    currentSelectionRef.current = selectionToken;
+    return () => { currentSelectionRef.current = null; };
+  }, [selectionToken]);
   const askMeri = useAskMeri(hearingId);
   const createBrief = useCreateBrief(hearingId);
   const stageOutreach = useStageOutreach(hearingId);
   const saveItem = useSaveItem(hearingId);
   const [status, setStatus] = useState<ActionStatus>({ kind: 'idle' });
+  const actionGenerationRef = useRef(0);
+  const statusSelectionRef = useRef(selectionToken);
+  useEffect(() => {
+    if (statusSelectionRef.current === selectionToken) return;
+    statusSelectionRef.current = selectionToken;
+    setStatus({ kind: 'idle' });
+  }, [selectionToken]);
 
   const run = (action: string, refs: ActionRefs) => {
     const effectiveClientId = refs.clientId || clientId;
+    const generation = ++actionGenerationRef.current;
+    const isCurrentAction = () => currentSelectionRef.current === selectionToken &&
+      generation === actionGenerationRef.current;
     setStatus({ kind: 'submitting', action });
 
-    const fail = (err: unknown) =>
-      setStatus({ kind: 'failed', action, message: w1Error(err) });
+    const fail = (err: unknown) => {
+      if (isCurrentAction()) setStatus({ kind: 'failed', action, message: w1Error(err) });
+    };
 
     switch (action) {
       case 'ask_meri':
@@ -120,13 +146,15 @@ export function HearingActions({
             ...(refs.insightId ? { insightIds: [refs.insightId] } : {}),
           },
           {
-            onSuccess: ({ draftId }) =>
+            onSuccess: ({ draftId }) => {
+              if (!isCurrentAction()) return;
               setStatus({
                 kind: 'done',
                 action,
                 message: 'Brief created in Workspace with its hearing sources attached.',
                 href: `/workspace/draft/${encodeURIComponent(draftId)}`,
-              }),
+              });
+            },
             onError: fail,
           },
         );
@@ -149,16 +177,20 @@ export function HearingActions({
           },
           {
             onSuccess: (prefill) => {
+              if (!isCurrentAction()) return;
+              const contextId = crypto.randomUUID();
               try {
                 sessionStorage.setItem(
                   'lw:outreach-context',
-                  JSON.stringify({ prefill, createdAt: Date.now() }),
+                  JSON.stringify({ id: contextId, prefill, createdAt: Date.now() }),
                 );
               } catch {
-                /* see the Ask Meri note above */
+                setStatus({ kind: 'failed', action, message: 'The hearing details could not be saved for outreach. Please try again.' });
+                return;
               }
               const qs = new URLSearchParams({
                 source: 'legiwatch',
+                contextId,
                 hearingId,
                 client: effectiveClientId,
               });
@@ -198,12 +230,14 @@ export function HearingActions({
             clientId: effectiveClientId || undefined,
           },
           {
-            onSuccess: () =>
+            onSuccess: () => {
+              if (!isCurrentAction()) return;
               setStatus({
                 kind: 'done',
                 action,
                 message: kind === 'moment' ? 'Moment saved.' : 'Saved to your workspace.',
-              }),
+              });
+            },
             onError: fail,
           },
         );

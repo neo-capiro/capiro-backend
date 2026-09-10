@@ -612,6 +612,14 @@ export function EngagementPage() {
       nextPath = location.pathname.startsWith('/engagement/outreach')
         ? location.pathname
         : '/engagement/outreach';
+      // The staged hearing is owned by Outreach's review route. Keep its
+      // identity through this host's tab synchronization and page reloads.
+      if (searchParams.get('source') === 'legiwatch') {
+        for (const key of ['source', 'hearingId', 'client', 'contextId']) {
+          const value = searchParams.get(key);
+          if (value) nextParams.set(key, value);
+        }
+      }
     } else if (activeEngagementTab === 'reports') {
       nextPath = '/engagement/reports';
       if (reportPeriod !== 'current') nextParams.set('period', reportPeriod);
