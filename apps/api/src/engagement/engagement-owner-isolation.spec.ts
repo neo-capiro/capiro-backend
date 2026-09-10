@@ -198,6 +198,86 @@ describe('listOutreachRecords owner isolation (§3.a2)', () => {
   });
 });
 
+// EM-07 — the list card's readiness must come from the real draft-artifact
+// rollup, not merely from whatever the base query returns. This proves
+// listOutreachRecords attaches it only where it matters (unsent
+// campaign/outbound_campaign drafts under versioning) and leaves every other
+// row exactly as the base query produced it.
+describe('listOutreachRecords draftReadiness attachment (EM-07)', () => {
+  function withVersioning(
+    records: Array<Record<string, unknown>>,
+    readinessByRecordId: Record<string, { total: number; ready: number }>,
+  ) {
+    const h = makeOwnerHarness(records);
+    const patch = h.service as unknown as Record<string, unknown>;
+    patch.versionedOutreach = true;
+    const calls: string[][] = [];
+    patch.draft = {
+      readinessForOutreachRecords: async (_tenantId: string, ids: string[]) => {
+        calls.push(ids);
+        const map = new Map<string, { total: number; ready: number }>();
+        for (const id of ids) if (readinessByRecordId[id]) map.set(id, readinessByRecordId[id]);
+        return map;
+      },
+    };
+    return { h, calls };
+  }
+
+  test('an unsent campaign gets its real draftReadiness attached', async () => {
+    const { h } = withVersioning(
+      [baseRecord({ type: 'campaign', status: 'draft' })],
+      { [RECORD_ID]: { total: 3, ready: 3 } },
+    );
+    const rows = await h.service.listOutreachRecords(userA, {});
+    expect(rows).toHaveLength(1);
+    expect((rows[0] as Record<string, unknown>).draftReadiness).toEqual({ total: 3, ready: 3 });
+  });
+
+  test('only draft campaign/outbound_campaign records are queried for readiness — a sent campaign and a follow_up are excluded', async () => {
+    const sentId = '22222222-2222-4222-8222-222222222222';
+    const followUpId = '33333333-3333-4333-8333-333333333333';
+    const { h, calls } = withVersioning(
+      [
+        baseRecord({ type: 'campaign', status: 'draft' }),
+        baseRecord({ id: sentId, type: 'campaign', status: 'sent' }),
+        baseRecord({ id: followUpId, type: 'follow_up', status: 'draft' }),
+      ],
+      { [RECORD_ID]: { total: 2, ready: 1 } },
+    );
+    const rows = await h.service.listOutreachRecords(userA, {});
+    expect(calls).toEqual([[RECORD_ID]]);
+    const byId = new Map(rows.map((r) => [(r as Record<string, unknown>).id, r]));
+    expect((byId.get(RECORD_ID) as Record<string, unknown>).draftReadiness).toEqual({
+      total: 2,
+      ready: 1,
+    });
+    expect((byId.get(sentId) as Record<string, unknown>).draftReadiness).toBeUndefined();
+    expect((byId.get(followUpId) as Record<string, unknown>).draftReadiness).toBeUndefined();
+  });
+
+  test('versioning off never attaches draftReadiness (and never calls the rollup)', async () => {
+    const h = makeOwnerHarness([baseRecord({ type: 'campaign', status: 'draft' })]);
+    const patch = h.service as unknown as Record<string, unknown>;
+    patch.versionedOutreach = false;
+    let called = false;
+    patch.draft = {
+      readinessForOutreachRecords: async () => {
+        called = true;
+        return new Map();
+      },
+    };
+    const rows = await h.service.listOutreachRecords(userA, {});
+    expect(called).toBe(false);
+    expect((rows[0] as Record<string, unknown>).draftReadiness).toBeUndefined();
+  });
+
+  test('a record with no draft artifacts yet (readiness map has no entry) keeps the legacy fallback available — no draftReadiness key added', async () => {
+    const { h } = withVersioning([baseRecord({ type: 'campaign', status: 'draft' })], {});
+    const rows = await h.service.listOutreachRecords(userA, {});
+    expect((rows[0] as Record<string, unknown>).draftReadiness).toBeUndefined();
+  });
+});
+
 // ── getOutreachRecord ────────────────────────────────────────────────────────
 
 describe('getOutreachRecord owner isolation (§3.a3)', () => {

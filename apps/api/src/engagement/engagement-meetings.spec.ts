@@ -306,6 +306,121 @@ describe('listMeetingLibrary', () => {
     expect(findArgs!.skip).toBe(0);
     expect(findArgs!.take).toBe(50);
   });
+
+  describe('EM-08 — libraryQualifiedBy (why a row is actually in the Library)', () => {
+    // Real regenerate-then-approve-drifts scenario: the meeting's CURRENT
+    // prep (what meetingInclude()'s take:1 returns, and what the Prep tab/
+    // MaterialBadges show) is unapproved, but an OLDER prep row for the same
+    // meeting was approved and generateMeetingPrep never rewrites it —  it's
+    // a historical fact, left alone. libraryArtifactWhere's unbounded
+    // `preps: { some: { status: 'approved' } }` is why the row is still
+    // listed; libraryQualifiedBy must say so honestly instead of leaving
+    // "Materials —" unexplained.
+    function harnessFor(opts: {
+      approvedPrepMeetingIds: string[];
+      currentPrepStatusByMeeting: Record<string, string>;
+      approvedNoteMeetingIds: string[];
+      approvedDebriefMeetingIds: string[];
+      row: Record<string, unknown>;
+    }) {
+      let prepFindManyCall = 0;
+      return serviceWith({
+        meeting: {
+          count: async () => 1,
+          findMany: async () => [opts.row],
+        },
+        meetingPrep: {
+          findMany: async (args: { distinct?: string[]; where: { status?: string } }) => {
+            prepFindManyCall += 1;
+            // First call: WHERE status = approved (finds historical approvals).
+            if (prepFindManyCall === 1) {
+              return opts.approvedPrepMeetingIds.map((meetingId) => ({ meetingId }));
+            }
+            // Second call: no status filter, orderBy createdAt desc, distinct
+            // meetingId — the CURRENT (latest) prep per meeting.
+            return Object.entries(opts.currentPrepStatusByMeeting).map(([meetingId, status]) => ({
+              meetingId,
+              status,
+            }));
+          },
+        },
+        meetingNote: {
+          findMany: async () => opts.approvedNoteMeetingIds.map((meetingId) => ({ meetingId })),
+        },
+        meetingDebrief: {
+          findMany: async () => opts.approvedDebriefMeetingIds.map((meetingId) => ({ meetingId })),
+        },
+        ...decorateStubs,
+      });
+    }
+
+    test('a meeting whose ONLY qualifying artifact is a superseded (no-longer-current) approved prep gets current:false', async () => {
+      const service = harnessFor({
+        approvedPrepMeetingIds: ['m1'],
+        currentPrepStatusByMeeting: { m1: 'generated' },
+        approvedNoteMeetingIds: [],
+        approvedDebriefMeetingIds: [],
+        row: meetingRow({ preps: [{ status: 'generated' }] }),
+      });
+
+      const res = await service.listMeetingLibrary(ctx, {});
+
+      expect(res.data).toHaveLength(1);
+      expect((res.data[0] as { libraryQualifiedBy: unknown }).libraryQualifiedBy).toEqual([
+        { kind: 'prep', current: false },
+      ]);
+    });
+
+    test('a meeting whose current prep IS the approved one gets current:true', async () => {
+      const service = harnessFor({
+        approvedPrepMeetingIds: ['m1'],
+        currentPrepStatusByMeeting: { m1: 'approved' },
+        approvedNoteMeetingIds: [],
+        approvedDebriefMeetingIds: [],
+        row: meetingRow({ preps: [{ status: 'approved' }] }),
+      });
+
+      const res = await service.listMeetingLibrary(ctx, {});
+
+      expect((res.data[0] as { libraryQualifiedBy: unknown }).libraryQualifiedBy).toEqual([
+        { kind: 'prep', current: true },
+      ]);
+    });
+
+    test('approved notes/debriefs are always current (they update in place, never mint a new row)', async () => {
+      const service = harnessFor({
+        approvedPrepMeetingIds: [],
+        currentPrepStatusByMeeting: {},
+        approvedNoteMeetingIds: ['m1'],
+        approvedDebriefMeetingIds: ['m1'],
+        row: meetingRow({
+          notes: [{ status: 'approved' }],
+          debriefs: [{ status: 'approved' }],
+        }),
+      });
+
+      const res = await service.listMeetingLibrary(ctx, {});
+
+      expect((res.data[0] as { libraryQualifiedBy: unknown }).libraryQualifiedBy).toEqual([
+        { kind: 'notes', current: true },
+        { kind: 'debrief', current: true },
+      ]);
+    });
+
+    test('a meeting with no qualifying artifact at all gets an empty libraryQualifiedBy, never undefined', async () => {
+      const service = harnessFor({
+        approvedPrepMeetingIds: [],
+        currentPrepStatusByMeeting: {},
+        approvedNoteMeetingIds: [],
+        approvedDebriefMeetingIds: [],
+        row: meetingRow(),
+      });
+
+      const res = await service.listMeetingLibrary(ctx, {});
+
+      expect((res.data[0] as { libraryQualifiedBy: unknown }).libraryQualifiedBy).toEqual([]);
+    });
+  });
 });
 
 describe('listSharedMeetingsForClient', () => {

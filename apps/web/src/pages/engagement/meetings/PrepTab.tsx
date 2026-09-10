@@ -10,6 +10,7 @@ import { isCancelledMeeting } from './meetings-types.js';
 import { PrepEvidence, PrepSourceLinks, prepSourceExcerpt } from './PrepEvidence.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
+import { errorMessage } from '../../../lib/error-message.js';
 
 type PrepStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
@@ -88,8 +89,19 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   const runGenerate = async (additionalContext?: string) => {
     if (cancelled) return;
-    await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
-    chrome.success('Prep generated.');
+    try {
+      await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
+      chrome.success('Prep generated.');
+    } catch (err) {
+      // Without this catch, a rejected generate.mutateAsync (e.g. the source/attendee
+      // review failing, or any other server-side error) propagated as an unhandled
+      // rejection: no toast, and the tab just fell back through to its default
+      // "No prep generated yet" render with zero explanation (EM-06). Surface the
+      // real server message when there is one so the user knows why it failed and
+      // whether retrying/adding context is worth it, mirroring DebriefTab's onFile /
+      // draftAndSave catch handling.
+      chrome.error(errorMessage(err, 'Could not generate prep.'));
+    }
   };
 
   if (generate.isPending) {

@@ -2084,9 +2084,95 @@ export class EngagementService {
         }),
       ]);
       const data = await this.decorateMeetings(tx, ctx, rows);
-      return { data, total, page, limit };
+      // EM-08 — the row's own decorated fields (approvedPrep/notesApproved/
+      // approvedDebrief) only reflect the CURRENT artifact per kind, because
+      // meetingInclude() caps preps at the latest row (`take: 1`) and a
+      // regenerate never rewrites an older APPROVED prep's status — it is a
+      // historical fact, left alone (see generateMeetingPrep). But
+      // libraryArtifactWhere, which decided these rows belong here, checks
+      // ANY historical row for that meeting. That gap is exactly why a row
+      // could show "Materials —" (nothing currently approved) while still
+      // being listed: it qualified on a prep/note/debrief that has SINCE been
+      // superseded. Attach the real, honest qualification per meeting so the
+      // UI can say why each row is here instead of leaving it a mystery.
+      const qualifiedByMeetingId = await this.libraryQualificationByMeeting(
+        tx,
+        ctx.tenantId,
+        rows.map((r) => r.id),
+      );
+      return {
+        data: data.map((row) => ({
+          ...row,
+          libraryQualifiedBy: qualifiedByMeetingId.get(row.id) ?? [],
+        })),
+        total,
+        page,
+        limit,
+      };
     });
   }
+
+  /**
+   * EM-08 — per meeting, which artifact kinds qualify it for the Library and
+   * whether that qualification is CURRENT (the artifact the meeting/tabs show
+   * right now is approved) or HISTORICAL (an approved version once existed —
+   * prep only, since prep is the one kind whose regenerate mints a new row
+   * without touching the old approved one's status; notes/debriefs update
+   * their existing row in place, so their current/historical state can never
+   * drift the way prep's can). Cheap: one extra grouped read per kind, scoped
+   * to exactly the page of meeting ids already selected.
+   */
+  private async libraryQualificationByMeeting(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    meetingIds: string[],
+  ): Promise<Map<string, Array<{ kind: 'prep' | 'notes' | 'debrief'; current: boolean }>>> {
+    const result = new Map<string, Array<{ kind: 'prep' | 'notes' | 'debrief'; current: boolean }>>();
+    if (!meetingIds.length) return result;
+    const add = (meetingId: string, kind: 'prep' | 'notes' | 'debrief', current: boolean) => {
+      const list = result.get(meetingId) ?? [];
+      list.push({ kind, current });
+      result.set(meetingId, list);
+    };
+
+    const [approvedPreps, latestPreps, approvedNotes, approvedDebriefs] = await Promise.all([
+      tx.meetingPrep.findMany({
+        where: { tenantId, meetingId: { in: meetingIds }, status: MeetingPrepStatus.approved },
+        select: { meetingId: true },
+        distinct: ['meetingId'],
+      }),
+      // The one CURRENT prep per meeting (matches meetingInclude()'s take:1),
+      // so we can tell "still approved" apart from "was approved, superseded".
+      tx.meetingPrep.findMany({
+        where: { tenantId, meetingId: { in: meetingIds } },
+        select: { meetingId: true, status: true },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['meetingId'],
+      }),
+      tx.meetingNote.findMany({
+        where: { tenantId, meetingId: { in: meetingIds }, status: 'approved' },
+        select: { meetingId: true },
+        distinct: ['meetingId'],
+      }),
+      tx.meetingDebrief.findMany({
+        where: { tenantId, meetingId: { in: meetingIds }, status: MeetingDebriefStatus.approved },
+        select: { meetingId: true },
+        distinct: ['meetingId'],
+      }),
+    ]);
+
+    const currentPrepStatusByMeeting = new Map(latestPreps.map((p) => [p.meetingId, p.status]));
+    for (const { meetingId } of approvedPreps) {
+      add(meetingId, 'prep', currentPrepStatusByMeeting.get(meetingId) === MeetingPrepStatus.approved);
+    }
+    // Notes/debriefs update their own row in place on edit (never mint a new
+    // one), so "an approved row exists" and "the current one is approved" are
+    // the SAME question for them — there is no stale-vs-current split to make.
+    for (const { meetingId } of approvedNotes) add(meetingId, 'notes', true);
+    for (const { meetingId } of approvedDebriefs) add(meetingId, 'debrief', true);
+    return result;
+  }
+
 
   /**
    * Shared meeting records for a client's Documents tab (Meetings v2 §8). Returns
@@ -2341,7 +2427,21 @@ export class EngagementService {
     });
   }
 
-  listOutreachRecords(ctx: TenantContext, query: OutreachQuery) {
+  /**
+   * EM-07 — the campaign list card must describe CURRENT generation progress,
+   * not a stale proxy. `recordStats()` on the client used to infer readiness
+   * from `record.subject` truthiness, but batch generation
+   * (generateBatchEmailsViaGateway) writes real content straight to the
+   * OutreachDraftArtifact/Version tables and never touches
+   * OutreachRecord.subject/body — that only happens on an explicit "Save as
+   * draft". So a fully-generated, fully-ready campaign the user never
+   * re-saved kept showing "Meri draft pending" on the list while the editor
+   * (which reads the real artifacts) correctly showed "3 / 3 ready". Attach
+   * the real per-record draft counts here, from the SAME sendability policy
+   * (isDraftVersionSendable) the wizard's own rail pill uses, so the two
+   * surfaces can never disagree again.
+   */
+  async listOutreachRecords(ctx: TenantContext, query: OutreachQuery) {
     const type = normalizeOutreachType(query.type);
     const limit = clampInt(query.limit, 50, 1, 100);
     const dateWindow =
@@ -2352,7 +2452,7 @@ export class EngagementService {
           }
         : undefined;
 
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.outreachRecord.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -2370,6 +2470,21 @@ export class EngagementService {
         take: limit,
       }),
     );
+    if (!this.versionedOutreach || rows.length === 0) return rows;
+
+    // Only unsent campaign/outbound_campaign drafts need this — a sent record's
+    // stats already reflect delivery, and follow_up/prep records don't drive
+    // the "Meri draft pending/ready" copy at all.
+    const candidateIds = rows
+      .filter(
+        (r) => r.status === 'draft' && (r.type === 'campaign' || r.type === 'outbound_campaign'),
+      )
+      .map((r) => r.id);
+    const readiness = await this.draft.readinessForOutreachRecords(ctx.tenantId, candidateIds);
+    return rows.map((row) => {
+      const counts = readiness.get(row.id);
+      return counts ? { ...row, draftReadiness: counts } : row;
+    });
   }
 
   async getOutreachRecord(ctx: TenantContext, id: string) {

@@ -676,5 +676,113 @@ describe('getVersion ownership', () => {
   });
 });
 
+// EM-07 — bulk readiness rollup for the campaign list card. The list card
+// used to infer readiness from OutreachRecord.subject truthiness, which batch
+// generation never populates (it writes straight to draft artifacts/versions).
+// This must report the exact same per-artifact sendability the wizard's own
+// "N / N ready" rail pill computes (isDraftVersionSendable on the CURRENT
+// version), never a second looser definition.
+describe('readinessForOutreachRecords (EM-07)', () => {
+  function artifactHarness(
+    rows: Array<{
+      outreachRecordId: string;
+      currentVersion: number;
+      versions: Array<{ version: number; auditStatus: string; approvalStatus: string }>;
+    }>,
+  ) {
+    const service = Object.create(OutreachDraftService.prototype) as OutreachDraftService;
+    Object.assign(service as unknown as Record<string, unknown>, {
+      prisma: {
+        withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
+          fn({
+            outreachDraftArtifact: {
+              findMany: async () => rows,
+            },
+          }),
+      },
+    });
+    return service;
+  }
+
+  test('returns an empty map without querying when given no record ids', async () => {
+    let queried = false;
+    const service = Object.create(OutreachDraftService.prototype) as OutreachDraftService;
+    Object.assign(service as unknown as Record<string, unknown>, {
+      prisma: {
+        withTenant: async (_tenantId: string, fn: (tx: unknown) => unknown) =>
+          fn({
+            outreachDraftArtifact: {
+              findMany: async () => {
+                queried = true;
+                return [];
+              },
+            },
+          }),
+      },
+    });
+    const result = await service.readinessForOutreachRecords('t1', []);
+    expect(result.size).toBe(0);
+    expect(queried).toBe(false);
+  });
+
+  test('a record with every current version sendable is fully ready', async () => {
+    const service = artifactHarness([
+      {
+        outreachRecordId: 'rec-1',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'passed', approvalStatus: 'not_required' }],
+      },
+      {
+        outreachRecordId: 'rec-1',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'not_required', approvalStatus: 'not_required' }],
+      },
+    ]);
+    const result = await service.readinessForOutreachRecords('t1', ['rec-1']);
+    expect(result.get('rec-1')).toEqual({ total: 2, ready: 2 });
+  });
+
+  test('a held or pending current version is counted but not ready — matches isDraftVersionSendable exactly', async () => {
+    const service = artifactHarness([
+      {
+        outreachRecordId: 'rec-1',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'held', approvalStatus: 'not_required' }],
+      },
+      {
+        outreachRecordId: 'rec-1',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'passed', approvalStatus: 'pending' }],
+      },
+      {
+        outreachRecordId: 'rec-1',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'passed', approvalStatus: 'not_required' }],
+      },
+    ]);
+    const result = await service.readinessForOutreachRecords('t1', ['rec-1']);
+    // 3 slots total; only the last (passed + not_required) is sendable.
+    expect(result.get('rec-1')).toEqual({ total: 3, ready: 1 });
+  });
+
+  test('multiple records are rolled up independently, keyed by outreachRecordId', async () => {
+    const service = artifactHarness([
+      {
+        outreachRecordId: 'rec-1',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'passed', approvalStatus: 'not_required' }],
+      },
+      {
+        outreachRecordId: 'rec-2',
+        currentVersion: 1,
+        versions: [{ version: 1, auditStatus: 'pending', approvalStatus: 'not_required' }],
+      },
+    ]);
+    const result = await service.readinessForOutreachRecords('t1', ['rec-1', 'rec-2']);
+    expect(result.get('rec-1')).toEqual({ total: 1, ready: 1 });
+    expect(result.get('rec-2')).toEqual({ total: 1, ready: 0 });
+  });
+});
+
 // Keep jest's unused-import lint quiet while documenting intent.
 void jest;

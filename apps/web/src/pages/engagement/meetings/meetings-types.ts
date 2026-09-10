@@ -172,6 +172,19 @@ export interface Meeting {
   // Phase 2 cross-user grouping only: per-sender names of the notetakers that
   // attended (§4.4). Present on grouped shared records; absent otherwise.
   notetakers?: string[];
+  /**
+   * EM-08 — ONLY present on rows returned by GET /meetings/library. Names the
+   * real, current reason each row qualifies for the Library: which artifact
+   * kind(s) have (or once had) an approved version. `current: true` means the
+   * artifact the Prep/Notes/Debrief tabs show RIGHT NOW is approved (Materials
+   * should show it); `current: false` means an approved version existed in the
+   * past but has since been superseded (e.g. prep was approved, then
+   * regenerated) — the row is still legitimately in the Library (approval is a
+   * historical fact, never erased), but nothing currently approved is visible
+   * on the meeting, which is exactly the "Materials — but still listed" case
+   * this field exists to explain.
+   */
+  libraryQualifiedBy?: Array<{ kind: ArtifactKind; current: boolean }>;
 }
 
 export type MeetingBotStatus =
@@ -272,3 +285,80 @@ export function completedDebrief(m: Meeting): MeetingDebriefSummary | null {
 export function completedNotes(m: Meeting): boolean {
   return m.notes.length > 0;
 }
+
+const ARTIFACT_KIND_LABEL: Record<ArtifactKind, string> = {
+  prep: 'Prep',
+  notes: 'Notes',
+  debrief: 'Debrief',
+};
+
+/**
+ * EM-08 — the Library's own honest description of why a row is there, built
+ * from the real `libraryQualifiedBy` the server now attaches (see
+ * listMeetingLibrary). Kinds currently approved and visible on the meeting
+ * come first; a kind that qualified only historically (approved once, since
+ * superseded — prep-only, see the server-side comment) is named explicitly
+ * rather than silently folded in, so "Materials —" never again means
+ * "nothing explains this row" — the caller decides the Materials-column
+ * short form and the row's own longer disclosure text from the same data.
+ *
+ * Falls back to deriving "current" straight from the already-decorated
+ * fields (approvedPrep/notesApproved/approvedDebrief) when `libraryQualifiedBy`
+ * is absent — older callers/fixtures that don't send it still get a correct
+ * (if necessarily historical-blind) answer instead of a hard crash.
+ */
+export function libraryQualification(m: Meeting): {
+  current: ArtifactKind[];
+  historicalOnly: ArtifactKind[];
+} {
+  if (!m.libraryQualifiedBy) {
+    const current: ArtifactKind[] = [];
+    if (approvedPrep(m)) current.push('prep');
+    if (m.notesApproved) current.push('notes');
+    if (approvedDebrief(m)) current.push('debrief');
+    return { current, historicalOnly: [] };
+  }
+  const entries = m.libraryQualifiedBy;
+  return {
+    current: entries.filter((e) => e.current).map((e) => e.kind),
+    historicalOnly: entries.filter((e) => !e.current).map((e) => e.kind),
+  };
+}
+
+/** Plain-language label for a Library row's Materials column: current
+ *  approved kinds first; if NONE are current but something qualified
+ *  historically, say so explicitly rather than showing a bare "—" that looks
+ *  like nothing explains the row's presence. */
+export function libraryMaterialsLabel(m: Meeting): string {
+  const { current, historicalOnly } = libraryQualification(m);
+  if (current.length > 0) return current.map((k) => ARTIFACT_KIND_LABEL[k]).join(' · ');
+  if (historicalOnly.length > 0) {
+    return `${historicalOnly.map((k) => ARTIFACT_KIND_LABEL[k]).join(' · ')} (approved previously)`;
+  }
+  return '—';
+}
+
+/** Longer, hoverable disclosure for the same row — the concrete answer to
+ *  "why is this in the Library and what does Materials mean here", for a
+ *  title attribute or similar affordance. Explicitly distinguishes a
+ *  currently-visible approval from one that's since been superseded, so a
+ *  "Materials —" row is never a dead end. */
+export function libraryQualificationTitle(m: Meeting): string {
+  const { current, historicalOnly } = libraryQualification(m);
+  if (current.length === 0 && historicalOnly.length === 0) {
+    return 'No approved prep, notes, or debrief currently found for this meeting.';
+  }
+  const parts: string[] = [];
+  if (current.length > 0) {
+    parts.push(`Currently approved: ${current.map((k) => ARTIFACT_KIND_LABEL[k]).join(', ')}.`);
+  }
+  if (historicalOnly.length > 0) {
+    parts.push(
+      `Previously approved, since superseded by an unapproved regenerate: ${historicalOnly
+        .map((k) => ARTIFACT_KIND_LABEL[k])
+        .join(', ')}. Open the meeting to review and re-approve.`,
+    );
+  }
+  return parts.join(' ');
+}
+

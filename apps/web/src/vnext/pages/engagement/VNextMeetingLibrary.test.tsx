@@ -293,6 +293,66 @@ describe('VNextMeetingLibrary', () => {
       renderLibrary();
       expect(screen.getByText('—')).toBeInTheDocument();
     });
+
+    test(
+      'EM-08: a row that qualifies ONLY via a historical (since-superseded) approved prep ' +
+        'says so instead of showing a bare "—" with no explanation',
+      () => {
+        // Reproduces the exact bug: the row's CURRENT prep/notes/debrief are
+        // all unapproved (so approvedPrep/notesApproved/approvedDebrief are
+        // all falsy — this is the "Not yet approved" state the user saw on
+        // every tab), but the server-attached libraryQualifiedBy says a prep
+        // WAS approved on this meeting, just not the one showing now.
+        const meeting = makeMeeting({
+          preps: [],
+          notes: [],
+          debriefs: [],
+          notesApproved: false,
+          libraryQualifiedBy: [{ kind: 'prep', current: false }],
+        });
+        useMeetingLibraryMock.mockReturnValue({
+          data: { data: [meeting], total: 1, page: 1, limit: 25 },
+          isLoading: false,
+          isError: false,
+          refetch: vi.fn(),
+        });
+        renderLibrary();
+
+        // No bare, unexplained dash.
+        expect(screen.queryByText('—')).not.toBeInTheDocument();
+        const cell = screen.getByText('Prep (approved previously)');
+        expect(cell).toBeInTheDocument();
+        expect(cell.title).toContain('Previously approved, since superseded');
+        expect(cell.title).toContain('Prep');
+      },
+    );
+
+    test(
+      'EM-08: a row with a CURRENT approved kind and a separate historically-approved kind ' +
+        'shows the current one in the short label and both in the long disclosure',
+      () => {
+        const meeting = makeMeeting({
+          notesApproved: true,
+          libraryQualifiedBy: [
+            { kind: 'notes', current: true },
+            { kind: 'prep', current: false },
+          ],
+        });
+        useMeetingLibraryMock.mockReturnValue({
+          data: { data: [meeting], total: 1, page: 1, limit: 25 },
+          isLoading: false,
+          isError: false,
+          refetch: vi.fn(),
+        });
+        renderLibrary();
+
+        const cell = screen.getByText('Notes');
+        expect(cell).toBeInTheDocument();
+        expect(cell.title).toContain('Currently approved: Notes.');
+        expect(cell.title).toContain('Previously approved, since superseded');
+        expect(cell.title).toContain('Prep');
+      },
+    );
   });
 
   describe('visibility pill', () => {

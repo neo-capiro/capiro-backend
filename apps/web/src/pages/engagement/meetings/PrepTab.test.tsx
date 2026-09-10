@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
 import { PrepTab } from './PrepTab.js';
+import { AntdMeetingPanelChrome } from './AntdMeetingPanelChrome.js';
 import type { Meeting, MeetingPrep } from './meetings-types.js';
 
 const apiGetMock = vi.fn();
@@ -83,6 +84,23 @@ function buildTree(qc: QueryClient, props: Parameters<typeof PrepTab>[0]): React
     <QueryClientProvider client={qc}>
       <AntApp>
         <PrepTab {...props} />
+      </AntApp>
+    </QueryClientProvider>
+  );
+}
+
+// Only the toast-surfacing test needs the real chrome (AntdMeetingPanelChrome
+// wires chrome.error/success to actual antd message.* calls); every other test
+// above renders PrepTab bare under AntApp, which leaves it on the no-op
+// FALLBACK_CHROME (see meeting-panel-chrome.tsx) since no toast assertions
+// were needed there.
+function buildTreeWithChrome(qc: QueryClient, props: Parameters<typeof PrepTab>[0]): ReactElement {
+  return (
+    <QueryClientProvider client={qc}>
+      <AntApp>
+        <AntdMeetingPanelChrome>
+          <PrepTab {...props} />
+        </AntdMeetingPanelChrome>
       </AntApp>
     </QueryClientProvider>
   );
@@ -281,4 +299,30 @@ describe('PrepTab', () => {
       expect(apiPostMock).not.toHaveBeenCalled();
     },
   );
+
+  // EM-06: internal meetings with no client/attendees/history previously failed
+  // generation server-side (no groundable evidence for the "insufficient context"
+  // summary) and PrepTab swallowed the rejection entirely — the panel just fell
+  // back to "No prep generated yet" with no toast, no error state, no next step.
+  // The server-side prompt fix is covered by engagement-ai.prompt.spec.ts; this
+  // covers the client half: a rejected generate call must surface a real error
+  // to the user instead of disappearing.
+  test('a failed Generate with Meri call surfaces the server error message, not a silent no-op', async () => {
+    apiPostMock.mockRejectedValue({
+      response: { data: { message: 'Meeting prep returned incomplete content. Please retry generation.' } },
+    });
+    render(
+      buildTreeWithChrome(new QueryClient(), {
+        meeting: makeMeeting({ preps: [] }),
+        aiConfigured: true,
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /generate with meri/i }));
+    expect(
+      await screen.findByText('Meeting prep returned incomplete content. Please retry generation.'),
+    ).toBeInTheDocument();
+    // Still communicates the no-prep state honestly afterward — no fabricated
+    // success, no silently-stuck "Generating" spinner.
+    expect(screen.getByText('No prep generated yet')).toBeInTheDocument();
+  });
 });

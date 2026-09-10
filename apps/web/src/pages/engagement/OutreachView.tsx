@@ -160,6 +160,15 @@ export interface OutreachRecord {
   updatedAt: string;
   client: Pick<Client, 'id' | 'name' | 'website' | 'intakeData'> | null;
   meeting: OutreachMeeting | null;
+  /**
+   * EM-07 — real per-slot generation progress from the versioned draft-artifact
+   * tables (server-computed, same isDraftVersionSendable policy the wizard's
+   * own "N / N ready" rail pill uses). Present only for unsent campaign/
+   * outbound_campaign drafts under versioning; absent means there is nothing
+   * to roll up (a follow_up/prep record, a sent campaign, or versioning off) —
+   * recordStats() falls back to the legacy subject-based guess in that case.
+   */
+  draftReadiness?: { total: number; ready: number };
 }
 
 interface OutreachMeeting {
@@ -3362,14 +3371,26 @@ function outreachRecordTimestamp(record: OutreachRecord): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function recordStats(record: OutreachRecord): string {
+export function recordStats(record: OutreachRecord): string {
   if (record.type === 'campaign' || record.type === 'outbound_campaign') {
     const sentCount = readStatText(record.stats?.recipientsSent, String(record.recipientCount));
-    // Opens are not tracked (no pixels — D8); show only real signals.
+    // Opens are not tracked (no pixels — D8). Only real signals are shown.
     const replies = readStatText(record.stats?.replyCount, '0');
-    return record.status === 'sent'
-      ? `${sentCount} recipients sent · ${replies} replies`
-      : `${record.recipientCount} recipients · Meri draft ${record.subject ? 'ready' : 'pending'}`;
+    if (record.status === 'sent') return `${sentCount} recipients sent · ${replies} replies`;
+    // EM-07: prefer the server's real per-slot readiness (draftReadiness) over
+    // the old record.subject-truthiness guess. Batch generation writes drafts
+    // straight to the OutreachDraftArtifact/Version tables and never touches
+    // OutreachRecord.subject — that only happens on an explicit "Save as
+    // draft" — so a fully-generated, ready campaign the user never re-saved
+    // showed "Meri draft pending" here while the editor (reading the same
+    // artifacts draftReadiness now does) correctly showed "N / N ready".
+    // draftReadiness is absent for older/unversioned records, which is the
+    // only case that still falls back to the legacy guess below.
+    if (record.draftReadiness) {
+      const { total, ready } = record.draftReadiness;
+      if (total > 0) return `${record.recipientCount} recipients · ${ready} / ${total} drafts ready`;
+    }
+    return `${record.recipientCount} recipients · Meri draft ${record.subject ? 'ready' : 'pending'}`;
   }
   if (record.status !== 'draft') {
     return `Opened in connected email · ${formatOptionalDate(

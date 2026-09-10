@@ -637,6 +637,55 @@ export class OutreachDraftService {
     });
   }
 
+  /**
+   * EM-07 — a bulk, list-friendly readiness rollup across MANY outreach
+   * records in one query, for the campaign list card. Unlike listForOutreach
+   * (owner-asserted, full history, one record) this is read-only and scoped
+   * by the SAME tenant+owner predicate the list endpoint already applies to
+   * its outreachRecord query, so it never needs a per-record ownership round
+   * trip and never returns subject/body text — only the counts the list card
+   * needs to describe generation progress accurately.
+   *
+   * Readiness here is the exact same policy the wizard's rail pill uses
+   * (isDraftVersionSendable on each artifact's CURRENT version) — this must
+   * never drift into a second, looser definition of "ready".
+   */
+  async readinessForOutreachRecords(
+    tenantId: string,
+    outreachRecordIds: string[],
+  ): Promise<Map<string, { total: number; ready: number }>> {
+    const result = new Map<string, { total: number; ready: number }>();
+    if (!outreachRecordIds.length) return result;
+    const artifacts = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.outreachDraftArtifact.findMany({
+        where: { tenantId, outreachRecordId: { in: outreachRecordIds } },
+        select: {
+          outreachRecordId: true,
+          currentVersion: true,
+          versions: {
+            select: { version: true, auditStatus: true, approvalStatus: true },
+          },
+        },
+      }),
+    );
+    for (const artifact of artifacts) {
+      const current = artifact.versions.find((v) => v.version === artifact.currentVersion);
+      const entry = result.get(artifact.outreachRecordId) ?? { total: 0, ready: 0 };
+      entry.total += 1;
+      if (
+        current &&
+        isDraftVersionSendable({
+          auditStatus: current.auditStatus as DraftAuditStatus,
+          approvalStatus: current.approvalStatus as DraftApprovalStatus,
+        })
+      ) {
+        entry.ready += 1;
+      }
+      result.set(artifact.outreachRecordId, entry);
+    }
+    return result;
+  }
+
   // ── Review decisions ──────────────────────────────────────────────────────
 
   /**

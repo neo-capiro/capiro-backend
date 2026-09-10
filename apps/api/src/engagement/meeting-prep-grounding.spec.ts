@@ -92,6 +92,37 @@ describe('meeting prep grounding', () => {
     expect(prepEvidenceSources(input).some((source) => source.kind === 'mail')).toBe(true);
   });
 
+  // EM-06: an internal meeting with no client, attendees, or history has
+  // hasSubstantiveContext === false. The prompt correctly tells the model not to
+  // fabricate a brief, but the strict grounding contract still requires every
+  // returned summary/agenda line to cite a source id in evidenceReferences — and
+  // with no mail/meetings/tasks/directory/user-context sources, the model had
+  // nothing citable to point at, so validatePrepGrounding's "missing source
+  // links" check threw on every such generation. The always-present `meeting`
+  // self-record source (see prepEvidenceSources) is real, always available, and
+  // legitimately supports the "no other context exists" observation, so the
+  // insufficient-context instructions must tell the model to cite it.
+  test('the insufficient-context instructions point the model at the always-available meeting source', () => {
+    const noContextInput: MeetingPrepInput = {
+      meeting: { id: 'm-internal', subject: 'Internal sync', startsAt: '2026-09-10T14:00:00Z' },
+      client: null,
+      attendees: [],
+      congressionalDirectoryMatches: [],
+      recentMeetings: [],
+      recentThreads: [],
+      tasks: [],
+    };
+    const service = Object.create(EngagementAiService.prototype) as any;
+    const prompt = service.buildPrompt(noContextInput);
+    expect(prompt).toContain('INSUFFICIENT CONTEXT');
+    // The self-record meeting source is always in the registry, even with zero
+    // attendees/client/history — its id must be surfaced as citable.
+    const meetingSource = prepEvidenceSources(noContextInput).find((s) => s.kind === 'meeting')!;
+    expect(meetingSource).toBeDefined();
+    expect(prompt).toContain(meetingSource.id);
+    expect(prompt).toContain('You MUST cite that meeting source');
+  });
+
   test('the source reviewer sees the same resolved local logistics as the generation prompt', () => {
     const meetingInput = {
       ...input,

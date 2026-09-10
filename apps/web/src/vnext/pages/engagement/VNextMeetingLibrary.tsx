@@ -15,10 +15,10 @@
  * layout):
  *   - meetings-api.ts — useMeetingLibrary/useClientOptions (the real query:
  *     clientId/artifactType/visibility/from/to/page/limit).
- *   - meetings-types.ts — Meeting, ArtifactKind, and the approvedPrep/
- *     approvedDebrief helpers (see libraryMaterialsLabel below for why this
- *     phase needs the APPROVED helpers specifically, not the "completed"
- *     ones MaterialBadges/meetingStatus use elsewhere in Meetings).
+ *   - meetings-types.ts — Meeting, ArtifactKind, and libraryMaterialsLabel/
+ *     libraryQualification (EM-08: reads the server's own libraryQualifiedBy
+ *     so this and the canonical MeetingLibraryView can never independently
+ *     drift on what "the row qualifies" means).
  *   - meetings-format.ts — formatMeetingDayTitle, the same Date-column formatter
  *     the canonical MeetingLibraryView already uses for this exact field.
  *
@@ -59,8 +59,8 @@ import { ChevronDown, Search } from 'lucide-react';
 import { useClientOptions, useMeetingLibrary } from '../../../pages/engagement/meetings/meetings-api.js';
 import { formatMeetingDayTitle } from '../../../pages/engagement/meetings/meetings-format.js';
 import {
-  approvedDebrief,
-  approvedPrep,
+  libraryMaterialsLabel,
+  libraryQualificationTitle,
   type ArtifactKind,
   type Meeting,
 } from '../../../pages/engagement/meetings/meetings-types.js';
@@ -86,28 +86,19 @@ function parsePage(raw: string | null): number {
 /**
  * The Materials cell (design README §8: "the materials string (e.g.
  * `Prep · Notes`)") is plain text, not the MaterialBadges 3-badge grid
- * MaterialBadges/meetingStatus render elsewhere in Meetings. It also can't
- * reuse meetingStatus()'s semantics: that helper counts Prep/Debrief as
- * "done" once merely GENERATED (see completedPrep/completedDebrief's own doc
- * comments in meetings-types.ts), but Library's entire premise — its own
- * subline, both here and in the shell header — is that ONLY APPROVED/SAVED
- * material appears here. So this asks the stricter, real question per kind:
- *   - Prep: approvedPrep(m) — the current prep with status === 'approved'.
- *   - Notes: m.notesApproved — the decorated Meeting's own top-level "at
- *     least one note is approved" field (Phase 2 §d's notes lifecycle).
- *   - Debrief: approvedDebrief(m) — the debrief with status === 'approved'.
- * All three are real, already-decorated Meeting fields — nothing fabricated.
- * Joined with the same " · " and prep/notes/debrief order the design
- * prototype's own LIBRARY fixture rows use (e.g. "Prep · Notes").
+ * MaterialBadges/meetingStatus render elsewhere in Meetings.
+ *
+ * EM-08: this used to derive its own answer from approvedPrep/notesApproved/
+ * approvedDebrief — the CURRENT artifact per kind. But the row can be in the
+ * Library because a kind was approved HISTORICALLY and has since been
+ * superseded (prep's regenerate mints a new row without touching the old
+ * approved one's status — see engagement.service.ts's generateMeetingPrep).
+ * That mismatch is exactly the reported bug: a row saying "Materials —"
+ * while still legitimately listed, with zero explanation of why. Delegates
+ * to the shared libraryMaterialsLabel (meetings-types.ts), which reads the
+ * server's own libraryQualifiedBy and says so explicitly when nothing
+ * currently approved exists but something qualified previously.
  */
-function libraryMaterialsLabel(m: Meeting): string {
-  const parts: string[] = [];
-  if (approvedPrep(m)) parts.push('Prep');
-  if (m.notesApproved) parts.push('Notes');
-  if (approvedDebrief(m)) parts.push('Debrief');
-  return parts.length > 0 ? parts.join(' · ') : '—';
-}
-
 interface DropdownOption {
   value: string;
   label: string;
@@ -458,7 +449,9 @@ export function VNextMeetingLibrary({
                   <strong>{meeting.subject}</strong>
                   <small>{meeting.client?.name ?? 'No client'}</small>
                 </span>
-                <span className="uui-library-materials">{libraryMaterialsLabel(meeting)}</span>
+                <span className="uui-library-materials" title={libraryQualificationTitle(meeting)}>
+                  {libraryMaterialsLabel(meeting)}
+                </span>
                 <span className={`eng-pill ${shared ? 'eng-pill--navy' : 'eng-pill--gray'}`}>
                   {shared && <span className="eng-pill__dot" />}
                   {shared ? 'Shared' : 'Private'}
