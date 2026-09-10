@@ -377,6 +377,52 @@ describe('MeriV3AssistantService', () => {
     });
   });
 
+  test('recovers from a mid-turn deadline_exceeded error using already-gathered evidence', async () => {
+    const call = { type: 'function_call', call_id: 'one', name: 'search_memory', arguments: '{}' };
+    const deadlineError = Object.assign(new Error('OpenAI Responses turn deadline exceeded'), {
+      telemetry: {
+        requestedModel: 'gpt-5.1',
+        effectiveModel: null,
+        requestedReasoningEffort: 'medium',
+        effectiveReasoningEffort: null,
+        reasoningFallbackReasons: [],
+        finishReason: 'deadline_exceeded',
+        partial: true,
+      },
+    });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockRejectedValueOnce(deadlineError)
+      .mockResolvedValueOnce(response({ outputText: 'Recovered answer from gathered evidence.' }));
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: call.name,
+                description: call.name,
+                input_schema: { type: 'object', properties: {} },
+              },
+            ],
+          }),
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      build(
+        registry(
+          [{ name: 'search_memory', readOnly: true }],
+          jest.fn(async () => ({ records: [] })),
+        ),
+        complete,
+      ).run(context, { messages: [{ role: 'user', text: 'Read memory.' }] }),
+    );
+    expect(complete).toHaveBeenCalledTimes(3);
+    expect(result.reply).toBe('Recovered answer from gathered evidence.');
+    expect(result.reply).not.toContain('reasoning runtime was unavailable');
+  });
+
   test('records effective effort and retains fallback history across rounds', async () => {
     const call = { type: 'function_call', call_id: 'one', name: 'search_memory', arguments: '{}' };
     const first = {

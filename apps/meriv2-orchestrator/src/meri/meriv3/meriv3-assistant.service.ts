@@ -154,7 +154,11 @@ function synthesisReserveMs(turnBudgetMs: number): number {
 
 function isModelTimeoutError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /timed out after \d+ms/i.test(message) || /AbortError/i.test(message);
+  if (/timed out after \d+ms/i.test(message) || /AbortError/i.test(message)) return true;
+  // The Responses client throws a plain Error for its own shared turn deadline
+  // (no "timed out"/AbortError text) but tags it with structured telemetry —
+  // recognize that so this is treated as a recoverable timeout too.
+  return readOpenAiResponsesErrorTelemetry(error)?.finishReason === 'deadline_exceeded';
 }
 
 @Injectable()
