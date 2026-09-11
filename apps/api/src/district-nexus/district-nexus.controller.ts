@@ -74,9 +74,15 @@ export class DistrictNexusController {
     @Query('view') view?: string,
     @Query('clientId') clientId?: string,
     @Query('state') state?: string,
+    @Query('includeAllDistricts') includeAllDistricts?: string,
   ): Promise<DistrictNexusMapResponse> {
     try {
-      return await this.service.getFirmDistrictNexusMap(ctx.tenantId, { view, clientId, state });
+      return await this.service.getFirmDistrictNexusMap(ctx.tenantId, {
+        view,
+        clientId,
+        state,
+        includeAllDistricts: includeAllDistricts === '1' || includeAllDistricts === 'true',
+      });
     } catch (error) {
       if (error instanceof UnsupportedViewError) {
         throw new BadRequestException(error.message);

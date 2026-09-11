@@ -17,7 +17,7 @@ import {
   type RelationshipNexusRow,
 } from './district-nexus.aggregate.js';
 import { scoreNexus } from './district-nexus-scoring.js';
-import { buildFirmNexusResponse } from './district-nexus.firm-aggregate.js';
+import { buildFirmNexusResponse, expandFirmMapWithAllDistricts } from './district-nexus.firm-aggregate.js';
 import { resolveDistrictNames, splitDistrictKey, statesForKeys } from './district-nexus.district-names.js';
 import { parseView } from './district-nexus.view.js';
 import { scoreOpportunityRelevance, type ClientRelevanceProfile } from './grant-opportunity-relevance.js';
@@ -484,7 +484,14 @@ export class DistrictNexusService {
    */
   async getFirmDistrictNexusMap(
     tenantId: string,
-    options: { view?: string | null; clientId?: string | null; state?: string | null } = {},
+    options: {
+      view?: string | null;
+      clientId?: string | null;
+      state?: string | null;
+      /** When true, include every House seat as a zero-nexus placeholder so the
+       * map can show national public-intel coverage without inventing footprint. */
+      includeAllDistricts?: boolean | null;
+    } = {},
   ): Promise<DistrictNexusMapResponse> {
     parseView(options.view);
 
@@ -671,7 +678,15 @@ export class DistrictNexusService {
     // memory. `districtNo` is a bare number string and a sole House seat is
     // reported as "1", so this must not be a string-equality join — see
     // district-nexus.district-names.ts.
-    const keys = response.districts.map((d) => d.districtKey);
+    let finalResponse = response;
+    if (options.includeAllDistricts) {
+      // Expand FIRST so name resolution covers every seat, not only nexus keys.
+      finalResponse = expandFirmMapWithAllDistricts(response, {
+        state: options.state ?? null,
+      });
+    }
+
+    const keys = finalResponse.districts.map((d) => d.districtKey);
     if (keys.length) {
       const rows = await this.prisma.legislativeDistrict.findMany({
         // status 'C' only — the only view the backend can answer
@@ -685,7 +700,7 @@ export class DistrictNexusService {
         select: { state: true, districtNo: true, name: true, status: true },
       });
       const names = resolveDistrictNames(keys, rows);
-      for (const district of response.districts) {
+      for (const district of finalResponse.districts) {
         const named = names.get(district.districtKey);
         if (!named) continue;
         district.name = named.name;
@@ -693,7 +708,7 @@ export class DistrictNexusService {
       }
     }
 
-    return response;
+    return finalResponse;
   }
 
   /**

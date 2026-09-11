@@ -14,7 +14,7 @@ const BASE: DistrictNexusFilterState = {
   state: null,
   metric: 'nexus',
   minAmount: 0,
-  gapFilter: false,
+  gapFilter: false, includeAllDistricts: false,
 };
 
 function renderFilters(value: DistrictNexusFilterState, onChange = vi.fn()) {
@@ -53,7 +53,7 @@ describe('DistrictNexusFiltersVNext', () => {
   test('clicking "Clear filters" resets client/state/minAmount/gap but preserves the chosen metric', () => {
     const onChange = vi.fn();
     renderFilters(
-      { clientId: 'c1', state: 'TX', metric: 'contracts', minAmount: 5_000_000, gapFilter: true },
+      { clientId: 'c1', state: 'TX', metric: 'contracts', minAmount: 5_000_000, gapFilter: true, includeAllDistricts: false },
       onChange,
     );
     screen.getByText('Clear filters').click();
@@ -62,7 +62,7 @@ describe('DistrictNexusFiltersVNext', () => {
       state: null,
       metric: 'contracts',
       minAmount: 0,
-      gapFilter: false,
+      gapFilter: false, includeAllDistricts: false,
     });
   });
 

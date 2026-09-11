@@ -25,6 +25,7 @@ import {
 } from './district-nexus.aggregate.js';
 import { scoreNexus } from './district-nexus-scoring.js';
 import type { ResolvedDistrictName } from './district-nexus.district-names.js';
+import { US_HOUSE_SEATS } from '../common/us-congressional-districts.js';
 import type {
   DataQualityWarning,
   DistrictKey,
@@ -196,4 +197,78 @@ export function buildFirmNexusResponse(inputs: FirmNexusInputs): DistrictNexusMa
     warnings: dedupeWarnings(warnings),
     generatedAt: inputs.generatedAt,
   };
+}
+
+
+/**
+ * Zero-nexus placeholder for a real House district.
+ *
+ * Used by the optional "all districts" coverage mode: public intel is still
+ * available via the drawer, but Nexus Strength stays null / coverage 0 so
+ * public context can never inflate verified footprint (three-outputs rule).
+ */
+export function zeroNexusDistrictSummary(
+  state: string,
+  districtCode: string,
+  named?: { name: string | null; status: 'C' | 'F' },
+): DistrictNexusDistrictSummary {
+  return {
+    districtKey: `${state}-${districtCode}`,
+    state,
+    districtCode,
+    status: named?.status ?? 'C',
+    name: named?.name ?? null,
+    awarded: { contractObligations: null, grantObligations: null, grantOutlays: null },
+    opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+    clientCount: 0,
+    score: null,
+    coveragePercent: 0,
+    employeeCount: null,
+    employeesUnreported: false,
+    warnings: [],
+  };
+}
+
+/**
+ * Expand a firm map with every current House seat (optionally one state).
+ * Existing nexus rows win; placeholders fill the rest. Does not invent money
+ * or scores.
+ */
+export function expandFirmMapWithAllDistricts(
+  response: DistrictNexusMapResponse,
+  options: { state?: string | null; names?: Map<string, { name: string | null; status: 'C' | 'F' }> } = {},
+): DistrictNexusMapResponse {
+  const existing = new Map(response.districts.map((d) => [d.districtKey, d]));
+  const states = options.state
+    ? [options.state.toUpperCase()].filter((s) => US_HOUSE_SEATS[s] != null)
+    : Object.keys(US_HOUSE_SEATS);
+  const expanded: DistrictNexusDistrictSummary[] = [];
+  for (const state of states) {
+    const seats = US_HOUSE_SEATS[state]!;
+    if (seats === 1) {
+      const key = `${state}-00`;
+      const named = options.names?.get(key);
+      expanded.push(existing.get(key) ?? zeroNexusDistrictSummary(state, '00', named));
+      continue;
+    }
+    for (let n = 1; n <= seats; n++) {
+      const code = String(n).padStart(2, '0');
+      const key = `${state}-${code}`;
+      const named = options.names?.get(key);
+      expanded.push(existing.get(key) ?? zeroNexusDistrictSummary(state, code, named));
+    }
+  }
+  // Keep any nexus keys outside the seat table (should not happen) at the end.
+  for (const d of response.districts) {
+    if (!expanded.some((e) => e.districtKey === d.districtKey)) expanded.push(d);
+  }
+  expanded.sort((a, b) => {
+    const aN = a.clientCount > 0 || a.score != null ? 1 : 0;
+    const bN = b.clientCount > 0 || b.score != null ? 1 : 0;
+    if (bN !== aN) return bN - aN;
+    const scoreDelta = (b.score ?? -1) - (a.score ?? -1);
+    if (scoreDelta !== 0) return scoreDelta;
+    return a.districtKey.localeCompare(b.districtKey);
+  });
+  return { ...response, districts: expanded };
 }

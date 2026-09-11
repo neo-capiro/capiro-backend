@@ -298,7 +298,9 @@ export function DistrictNexusMapLibre({
         onClick={(e: MapLayerMouseEvent) => {
           const feature = e.features?.[0];
           const key = feature?.id != null ? String(feature.id) : null;
-          if (key && byKey.has(key)) onSelectDistrict(key);
+          // Any boundary is selectable — zero-nexus seats open the public-intel
+          // drawer. Requiring byKey hid the entire non-footprint map.
+          if (key) onSelectDistrict(key);
         }}
       >
         {styledGeojson ? (
@@ -333,12 +335,18 @@ export function DistrictNexusMapLibre({
         ) : null}
       </MaplibreMap>
 
-      {hoveredDistrict ? (
-        <div className="cap-pf-dn-hovcard" style={{ left: Math.max(4, hover!.x + 14), top: Math.max(4, hover!.y + 14) }}>
-          <div className="cap-pf-dn-hk">{hoveredDistrict.districtKey}</div>
+      {hover ? (
+        <div className="cap-pf-dn-hovcard" style={{ left: Math.max(4, hover.x + 14), top: Math.max(4, hover.y + 14) }}>
+          <div className="cap-pf-dn-hk">{hover.key}</div>
           <div className="cap-pf-dn-hr">
             <span>Nexus</span>
-            <b>{hoveredDistrict.score ?? 'unscored'}</b>
+            <b>
+              {hoveredDistrict
+                ? hoveredDistrict.clientCount > 0 || hoveredDistrict.score != null
+                  ? (hoveredDistrict.score ?? 'unscored')
+                  : 'no verified footprint'
+                : 'no verified footprint'}
+            </b>
           </div>
         </div>
       ) : null}

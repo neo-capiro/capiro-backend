@@ -380,6 +380,9 @@ export interface DistrictNexusMapQuery {
   view?: 'current' | 'future';
   clientId?: string;
   state?: string;
+  /** When true/1, API returns every House seat (zero-nexus placeholders fill
+   * gaps). Public intel stays available; Nexus Strength is never invented. */
+  includeAllDistricts?: boolean | '1' | 'true';
 }
 
 export interface DistrictNexusDistrictDetailQuery {

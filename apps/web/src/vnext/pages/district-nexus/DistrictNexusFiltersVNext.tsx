@@ -31,6 +31,11 @@ export interface DistrictNexusFilterState {
   minAmount: number;
   /** When true and a client is selected, filter map/table to strategic gap districts. */
   gapFilter: boolean;
+  /**
+   * Show every House district (zero-nexus placeholders). National public-intel
+   * coverage mode — does NOT invent Nexus Strength for empty seats.
+   */
+  includeAllDistricts: boolean;
 }
 
 interface Props {
@@ -71,7 +76,11 @@ export function DistrictNexusFiltersVNext({
   const visibleClients = (clients.data ?? []).filter((c) => c.status !== 'archived');
 
   const hasFilters =
-    value.clientId != null || value.state != null || value.minAmount > 0 || value.gapFilter;
+    value.clientId != null ||
+    value.state != null ||
+    value.minAmount > 0 ||
+    value.gapFilter ||
+    value.includeAllDistricts;
 
   return (
     <div className="dnx-fbar">
@@ -99,6 +108,18 @@ export function DistrictNexusFiltersVNext({
         value={value.state ?? ''}
         onChange={(e) => onChange({ ...value, state: e.target.value || null })}
         options={[{ value: '', label: 'All states' }, ...US_STATES.map((s) => ({ value: s, label: s }))]}
+      />
+      <CapiroSelect
+        label="Map coverage"
+        aria-label="Map district coverage"
+        value={value.includeAllDistricts ? 'all' : 'nexus'}
+        onChange={(e) =>
+          onChange({ ...value, includeAllDistricts: e.target.value === 'all' })
+        }
+        options={[
+          { value: 'nexus', label: 'Firm nexus only' },
+          { value: 'all', label: 'All U.S. districts' },
+        ]}
       />
       <CapiroSelect
         label="Colour by"
@@ -138,7 +159,7 @@ export function DistrictNexusFiltersVNext({
                 state: null,
                 metric: value.metric,
                 minAmount: 0,
-                gapFilter: false,
+                gapFilter: false, includeAllDistricts: false,
               })
             }
           >

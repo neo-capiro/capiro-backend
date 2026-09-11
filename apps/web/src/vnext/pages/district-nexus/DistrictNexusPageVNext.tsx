@@ -34,6 +34,7 @@ function readFilters(searchParams: URLSearchParams): DistrictNexusFilterState {
     metric: METRIC_VALUES.includes(metric as ChoroplethMetric) ? (metric as ChoroplethMetric) : 'nexus',
     minAmount: Number(searchParams.get('minAmount')) || 0,
     gapFilter: searchParams.get('gap') === '1',
+    includeAllDistricts: searchParams.get('allDistricts') === '1',
   };
 }
 
@@ -82,12 +83,13 @@ export function DistrictNexusPageVNext() {
   });
 
   const mapQuery = useQuery<DistrictNexusMapResponse>({
-    queryKey: ['district-nexus', 'map', 'current', filters.clientId, filters.state],
+    queryKey: ['district-nexus', 'map', 'current', filters.clientId, filters.state, filters.includeAllDistricts],
     queryFn: () =>
       getDistrictNexusMap(api, {
         view: 'current',
         clientId: filters.clientId ?? undefined,
         state: filters.state ?? undefined,
+        includeAllDistricts: filters.includeAllDistricts ? '1' : undefined,
       }),
     enabled,
     retry: false,
@@ -172,6 +174,7 @@ export function DistrictNexusPageVNext() {
                   metric: next.metric === 'nexus' ? null : next.metric,
                   minAmount: next.minAmount ? String(next.minAmount) : null,
                   gap: next.gapFilter ? '1' : null,
+                  allDistricts: next.includeAllDistricts ? '1' : null,
                 })
               }
               resultCount={filteredDistricts.length}
@@ -261,7 +264,11 @@ function PageHero({ mapData }: { mapData: DistrictNexusMapResponse | undefined }
     <div className="dnx-hero">
       <div className="dnx-hero-copy">
         <h1 className="dnx-title">District Nexus</h1>
-        <p className="dnx-desc">Verified client footprint, public funding, and representation by congressional district.</p>
+        <p className="dnx-desc">
+          Verified client footprint, public funding, and representation by congressional district.
+          Use <b>All U.S. districts</b> to browse national public intel — empty seats stay unscored
+          (no verified footprint), never zeroed-up nexus.
+        </p>
       </div>
       <div className="dnx-acts">
         <TopControls mapData={mapData} />
@@ -370,6 +377,7 @@ function KpiStrip({
           <div className="dnx-k">Districts</div>
           <div className="dnx-v">{districts.length}</div>
           <div className="dnx-s">
+            {districts.filter((d) => d.clientCount > 0 || d.score != null).length} with firm nexus ·{' '}
             {states} state{states === 1 ? '' : 's'}
           </div>
         </div>
