@@ -126,6 +126,23 @@ import { createBudgetVerificationS3Client } from '../src/defense-budget/verifica
 // ── Real fixture identity (Phase 10B-28 / Phase 10B-32's FY2024 Army R-2
 // Volume 1 BA1 fixture), all overridable. ──────────────────────────────────
 
+// Phase 10B-36 continuation: the five real PE identities this fixture's
+// FY2024 request-column totals have been independently reconciled against
+// on every prior qualifying run of this exact document (10B-28, 10B-31,
+// 10B-32, 10B-35's own audit) -- source: the government PDF's own text
+// layer via `pdftotext -layout`, not the extraction pipeline itself, so
+// this is a real external check, not a tautology. Kept as a named export so
+// a strict release gate can compare a run's full artifact against all five,
+// not only whichever single `targetPeCode` this run's config happens to be
+// pointed at.
+export const KNOWN_FY2024_ARMY_R2_PE_TOTALS_MILLIONS: Readonly<Record<string, string>> = Object.freeze({
+  '0601102A': '296.670',
+  '0601103A': '75.672',
+  '0601104A': '108.946',
+  '0601121A': '5.459',
+  '0601601A': '10.708',
+});
+
 const REAL_FIXTURE_DEFAULTS = Object.freeze({
   sourceSha256: '1fb7402152d0ec6ca536e20ac8d3ed8e7da61951ee691d1d05388abb4c462ab6',
   sourceBytes: 7227604,
@@ -592,6 +609,12 @@ export interface QualificationReport {
   // represented as JS numbers anywhere in this artifact, precisely to avoid
   // floating-point precision loss on real dollar amounts.
   readonly targetPeFiscalYearTotalMillions: string | null;
+  /** The FY2024 request-column total for every PE in
+   * `KNOWN_FY2024_ARMY_R2_PE_TOTALS_MILLIONS`, read from this same artifact
+   * (null when a PE's total assertion is absent -- e.g. a REJECT run that
+   * never reached that PE's page). Lets a strict release gate check all
+   * five identities from one real run instead of only `targetPeCode`. */
+  readonly allTargetPeFiscalYearTotalsMillions: Record<string, string | null>;
   readonly artifactSha256: string;
   readonly normalizedArtifactSha256: string;
   readonly manifestCycleId: string;
@@ -645,14 +668,20 @@ export function buildQualificationReport(input: {
     assertionKind: string;
     identity?: { peCode?: string };
   }>;
-  const targetTotal = artifact.assertions.find(
-    (a) =>
-      a.assertionKind === 'document_fact' &&
-      a.fieldName === 'r2_total_component' &&
-      a.value?.peCode === input.targetPeCode &&
-      a.value?.fiscalYear === input.fiscalYear &&
-      a.value?.rowKind === 'pe_total',
-  );
+  const findPeTotal = (peCode: string): string | null =>
+    artifact.assertions.find(
+      (a) =>
+        a.assertionKind === 'document_fact' &&
+        a.fieldName === 'r2_total_component' &&
+        a.value?.peCode === peCode &&
+        a.value?.fiscalYear === input.fiscalYear &&
+        a.value?.rowKind === 'pe_total',
+    )?.value?.valueMillions ?? null;
+
+  const allTargetPeFiscalYearTotalsMillions: Record<string, string | null> = {};
+  for (const peCode of Object.keys(KNOWN_FY2024_ARMY_R2_PE_TOTALS_MILLIONS)) {
+    allTargetPeFiscalYearTotalsMillions[peCode] = findPeTotal(peCode);
+  }
 
   const rawSha256 = createHash('sha256').update(input.artifactRawBytes).digest('hex');
   const normalizedSha256 = createHash('sha256')
@@ -669,7 +698,8 @@ export function buildQualificationReport(input: {
     identityPeCodes: identities.map((a) => a.identity?.peCode).filter((v): v is string => Boolean(v)).sort(),
     omissions: artifact.omissions.length,
     omissionsByKind,
-    targetPeFiscalYearTotalMillions: targetTotal?.value?.valueMillions ?? null,
+    targetPeFiscalYearTotalMillions: findPeTotal(input.targetPeCode),
+    allTargetPeFiscalYearTotalsMillions,
     artifactSha256: rawSha256,
     normalizedArtifactSha256: normalizedSha256,
     manifestCycleId: input.manifestCycleId,

@@ -183,6 +183,17 @@ describe('buildQualificationReport', () => {
     expect(report.omissionsByKind).toEqual({ ambiguous_layout: 2 });
     expect(report.targetPeFiscalYearTotalMillions).toBe('296.67');
     expect(report.dbverifyOk).toBe(false);
+    // allTargetPeFiscalYearTotalsMillions covers every known PE regardless of
+    // targetPeCode: 0601102A has a real total in this fixture, 0601103A has
+    // an identity but no r2_total_component assertion (null, not a thrown
+    // error), and the other three known PEs have neither (also null).
+    expect(report.allTargetPeFiscalYearTotalsMillions).toEqual({
+      '0601102A': '296.67',
+      '0601103A': null,
+      '0601104A': null,
+      '0601121A': null,
+      '0601601A': null,
+    });
   });
 
   test('dbverifyOk reflects a real persisted run row, and normalizedArtifactSha256 is stable under key-order-only changes', () => {
