@@ -388,6 +388,7 @@ describe('IntelAlertService.fanOut — renderer registry (P1-07)', () => {
           return { id: 'log1' };
         },
         update: async () => ({}),
+        updateMany: async () => ({ count: 1 }),
       },
     };
     const prisma = {

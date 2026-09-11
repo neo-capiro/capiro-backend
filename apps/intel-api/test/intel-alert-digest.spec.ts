@@ -56,6 +56,7 @@ function makeFanOutService(opts: { owned: boolean; emailCadence?: string }) {
       ],
     },
     intelNotificationLog: {
+      updateMany: async () => ({ count: 1 }),
       create: async ({ data }: { data: { alertId: string; userId: string; channel: string; status: string } }) => {
         const key = `${data.alertId}|${data.userId}|${data.channel}`;
         if (notifLog.has(key)) {
@@ -114,6 +115,9 @@ interface QueueRow {
   last_error: string | null;
   delivered_at: Date | null;
   created_at: Date;
+  lease_token?: string;
+  lease_until?: Date;
+  dispatch_started_at?: Date | null;
 }
 
 function makeDigestStore(initialRows: QueueRow[]) {
@@ -121,12 +125,12 @@ function makeDigestStore(initialRows: QueueRow[]) {
 
   async function queryRawUnsafe<T>(sql: string, ...params: unknown[]): Promise<T> {
     if (sql.includes('SET flushed = true')) {
-      const [cadence, maxAttempts] = params as [string, number];
+      const [cadence, maxAttempts, token] = params as [string, number, string];
       const eligible = rows
         .filter((r) => r.cadence === cadence && !r.flushed && r.attempts < maxAttempts)
         .sort((a, b) => a.created_at.getTime() - b.created_at.getTime())
         .slice(0, 5000);
-      for (const r of eligible) r.flushed = true;
+      for (const r of eligible) { r.flushed = true; r.lease_token = token; r.lease_until = new Date(Date.now() + 600000); }
       return eligible.map((r) => ({
         id: r.id,
         tenant_id: r.tenant_id,
@@ -146,6 +150,22 @@ function makeDigestStore(initialRows: QueueRow[]) {
   }
 
   async function executeRawUnsafe(sql: string, ...params: unknown[]): Promise<number> {
+    if (sql.includes('SET dispatch_started_at=now()')) {
+      const [ids, tenant, token] = params as [string[], string, string];
+      const eligible = rows.filter(r => ids.includes(r.id) && r.tenant_id === tenant && r.lease_token === token && r.lease_until! > new Date() && !r.dispatch_started_at);
+      for (const r of eligible) r.dispatch_started_at = new Date();
+      return eligible.length;
+    }
+    if (sql.includes('SET last_error=$2')) {
+      const [ids, error] = params as [string[], string];
+      for (const r of rows.filter(r => ids.includes(r.id))) r.last_error = error;
+      return ids.length;
+    }
+    if (sql.includes('SET flushed = (dispatch_started_at IS NOT NULL)')) {
+      const [ids, error] = params as [string[], string];
+      for (const r of rows.filter(r => ids.includes(r.id))) { r.flushed = Boolean(r.dispatch_started_at); r.attempts++; r.last_error = r.dispatch_started_at ? 'DISPATCH_OUTCOME_UNCONFIRMED' : error; }
+      return ids.length;
+    }
     if (sql.includes('SET delivered_at = now()')) {
       const [ids] = params as [string[]];
       let n = 0;
@@ -157,12 +177,13 @@ function makeDigestStore(initialRows: QueueRow[]) {
       }
       return n;
     }
-    if (sql.includes('SET flushed = false, attempts = attempts + 1')) {
+    if (sql.includes('SET flushed = false, attempts = attempts + 1') || sql.includes('SET flushed = false, dispatch_started_at = NULL')) {
       const [ids, err] = params as [string[], string];
       let n = 0;
       for (const r of rows) {
         if (ids.includes(r.id)) {
           r.flushed = false;
+          r.dispatch_started_at = null;
           r.attempts += 1;
           r.last_error = err;
           n += 1;
@@ -199,7 +220,7 @@ function makeFlushService(opts: {
     subject: string,
     html: string,
     text: string,
-  ) => Promise<{ sent: boolean; error?: string; messageId?: string }>;
+  ) => Promise<{ sent: boolean; outcome?: 'accepted' | 'retryable' | 'terminal' | 'uncertain'; error?: string; messageId?: string }>;
 }) {
   const store = makeDigestStore(opts.digestRows);
   const notificationLogUpdates: Array<{ where: unknown; data: unknown }> = [];

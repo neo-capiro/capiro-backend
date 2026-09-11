@@ -297,6 +297,7 @@ function TagRow({
         <button
           type="button"
           className="tg-name"
+          aria-label={tag.tag ? `#${tag.tag}` : 'Unnamed — add a name'}
           aria-expanded={open}
           aria-controls={advId}
           onClick={onToggleOpen}

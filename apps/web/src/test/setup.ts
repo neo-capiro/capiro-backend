@@ -1,10 +1,19 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+// Register cleanup per test environment. A reused worker may cache RTL after
+// its initial automatic hook registration; later suites still need their own
+// hook so mounted roots cannot leak into unrelated assertions.
+afterEach(cleanup);
 
 // JSDOM has no layout engine, so it doesn't implement matchMedia at all. Ant
 // Design's responsive Row/Col reads it on mount (via a shared breakpoint
 // observer) even when a query never actually matches in a test, so anything
 // rendering Row/Col throws `window.matchMedia is not a function` without this.
-if (typeof window !== 'undefined' && !window.matchMedia) {
+// Reset the fallback for each test environment: a previous suite may have
+// left a mock function whose implementation was cleared by resetAllMocks.
+if (typeof window !== 'undefined') {
   window.matchMedia = (query: string) => ({
     matches: false,
     media: query,

@@ -403,7 +403,7 @@ export class FolderImportService {
             }
           }
           const owner = str(resolved.ownerClerkId);
-          if (!owner || !(await this.folders.source.activeMember(ctx.tenantId, owner))) {
+          if (!owner || !(await this.folders.source.activeMember(ctx.tenantId, owner, tx))) {
             await finish('blocked', 'OWNER_NOT_PROVISIONED_OR_UNMAPPED');
             return;
           }

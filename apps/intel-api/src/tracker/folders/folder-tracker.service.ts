@@ -66,11 +66,11 @@ export class FolderTrackerService {
     private readonly legacySource: SourceDataRepository,
   ) {}
 
-  withActor<T>(ctx: WorkspaceTenantContext, fn: (tx: Prisma.TransactionClient) => Promise<T>) {
+  withActor<T>(ctx: WorkspaceTenantContext, fn: (tx: Prisma.TransactionClient) => Promise<T>, opts?: { timeoutMs?: number }) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.folder_actor', ${ctx.clerkUserId}, true), set_config('app.folder_admin', ${isFolderAdmin(ctx) ? 'on' : 'off'}, true)`;
       return fn(tx);
-    });
+    }, opts);
   }
   async folder(
     tx: Prisma.TransactionClient,

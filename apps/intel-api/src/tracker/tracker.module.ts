@@ -20,6 +20,12 @@ import { FolderTrackerService } from './folders/folder-tracker.service.js';
 import { FolderImportService } from './folders/folder-import.service.js';
 import { FolderReportService } from './folders/folder-report.service.js';
 import { FolderImportController } from './folders/folder-import.controller.js';
+import { ReportController } from './reports/report.controller.js';
+import { ReportService } from './reports/report.service.js';
+import { ReportRecipientsService } from './reports/recipients.service.js';
+import { ReportDeliveryService } from './reports/report-delivery.service.js';
+import { ReportSubscriptionService } from './reports/report-subscription.service.js';
+import { RecordRuleService } from './reports/record-rule.service.js';
 
 /**
  * Unified tracker feature module (Phase 2 CRUD + Phase 3 §6.2 board/recs +
@@ -33,6 +39,7 @@ import { FolderImportController } from './folders/folder-import.controller.js';
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    ReportController,
     FolderTrackerController,
     FolderImportController,
     TrackerWatchlistController,
@@ -41,6 +48,7 @@ import { FolderImportController } from './folders/folder-import.controller.js';
     TrackerChannelController,
   ],
   providers: [
+    ReportService, ReportRecipientsService, ReportDeliveryService, ReportSubscriptionService, RecordRuleService,
     FolderTrackerService,
     FolderImportService,
     FolderReportService,

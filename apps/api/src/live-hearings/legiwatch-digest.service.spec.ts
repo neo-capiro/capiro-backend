@@ -25,6 +25,17 @@ describe('LegiWatch digest scope and validation', () => {
     return { service: new LegiWatchDigestService(prisma as never), tx, prisma };
   }
 
+  it('forwards the authenticated scope for typed bill reports without reading private report data directly', async () => {
+    const { service, prisma } = setup();
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ id: 'frozen-run', rows: Array.from({ length: 250 }, (_, id) => ({ id })) }) } as Response);
+    try {
+      const result = await service.billReport('generate', 'Bearer synthetic-jwt', 'synthetic-tenant', { reportId: 'report/a', cutoff: '2026-09-10' });
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/reports/report%2Fa/generate'), expect.objectContaining({ method: 'POST', headers: { authorization: 'Bearer synthetic-jwt', 'content-type': 'application/json', 'x-capiro-impersonate-tenant': 'synthetic-tenant' } }));
+      expect(result.mode).toBe('bill_report'); expect((result.data as { rows: unknown[] }).rows).toHaveLength(250);
+      expect(prisma.withTenant).not.toHaveBeenCalled();
+      await expect(service.billReport('history')).rejects.toThrow();
+    } finally { fetchMock.mockRestore(); }
+  });
   it('retains the selected client name with no recent alerts and reads only tracked federal/state movement', async () => {
     const { service, tx } = setup();
     tx.$queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce([

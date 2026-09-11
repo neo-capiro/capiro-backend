@@ -11,7 +11,7 @@
  * send — §1.5 keeps that behind the Stage H security review; this module
  * only persists what "Generate now" produced so History can show it again.
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -60,6 +60,27 @@ export interface DigestContent {
 @Injectable()
 export class LegiWatchDigestService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Typed Digest adapter: report definitions, occurrences and immutable runs
+   * remain owned by Intel. Forward the original credentials, never a tenant
+   * supplied in a request body or a service-level authorization bypass. */
+  async billReport(operation: 'generate' | 'history' | 'run' | 'subscriptions' | 'saveSubscription', authorization?: string, impersonation?: string, input?: unknown, id?: string) {
+    if (!authorization?.startsWith('Bearer ')) throw new UnauthorizedException();
+    const body = input && typeof input === 'object' ? input as Record<string, unknown> : {};
+    const reportId = typeof body.reportId === 'string' ? body.reportId : '';
+    if (operation === 'generate' && !reportId || operation === 'run' && !id) throw new BadRequestException('REPORT_ID_REQUIRED');
+    const route = operation === 'generate' ? `/${encodeURIComponent(reportId)}/generate` : operation === 'run' ? `/runs/${encodeURIComponent(id!)}` : operation === 'history' ? '/history' : '/subscriptions';
+    const response = await fetch(`${(process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/intel-api/legiwatch/reports${route}`, {
+      method: operation === 'generate' || operation === 'saveSubscription' ? 'POST' : 'GET',
+      headers: { authorization, 'content-type': 'application/json', ...(impersonation ? { 'x-capiro-impersonate-tenant': impersonation } : {}) },
+      ...(operation === 'generate' || operation === 'saveSubscription' ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(120000),
+    });
+    if (!response.ok) {
+      const error: unknown = await response.json().catch(() => null);
+      throw new HttpException(error && typeof error === 'object' ? error as Record<string, unknown> : 'BILL_REPORT_SERVICE_UNAVAILABLE', response.status);
+    }
+    return { mode: 'bill_report' as const, data: await response.json() as unknown };
+  }
 
   async generate(ctx: TenantContext, clientId: string | null): Promise<{ id: string } & DigestContent> {
     const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000);

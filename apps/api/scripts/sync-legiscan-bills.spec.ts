@@ -54,7 +54,9 @@ function makeFakePrisma(opts: { pendingBills: number[]; billHashes?: Record<stri
   return {
     __cursorRow: cursorRow,
     __updateCalls: updateCalls,
-    stateBill: { updateMany: jest.fn(async () => ({ count: 1 })) },
+    stateBill: { updateMany: jest.fn(async () => ({ count: 1 })), update: jest.fn(async () => ({})) },
+    stateBillPublishedRecord: { createMany: jest.fn(async () => ({ count: 0 })) },
+    $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(fakePrisma),
     stateSyncCursor: {
       findMany: jest.fn(async (args: any) => {
         // Distinguish the two call sites by whether a `select` is present
