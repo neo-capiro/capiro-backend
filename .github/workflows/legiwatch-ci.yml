@@ -142,7 +142,7 @@ jobs:
           --json --outputFile=$GITHUB_WORKSPACE/saved-session-sql-summary.json
           src/live-hearings/legiwatch-saved-sessions-pg.integration.spec.ts
 
-      - name: Phase 1 additive migrations and PostgreSQL recovery
+      - name: LegiWatch additive migrations and PostgreSQL recovery
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
         run: |
@@ -152,6 +152,21 @@ jobs:
           pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/source-pg-summary.json src/ingestion/legiscan-documents-postgres.spec.ts
           node --test apps/intel-api/scripts/legiwatch-import-apply.spec.mjs
           node --test apps/intel-api/scripts/entrypoint-migrate.spec.mjs
+
+      - name: Phase 2 report, source and delivery qualification
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+        run: |
+          pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/phase2-report-summary.json test/legiwatch-reports-postgres.spec.ts src/tracker/reports/report-domain.spec.ts
+          pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/phase2-source-summary.json src/ingestion/legiscan-published-records-postgres.spec.ts src/ingestion/legiscan-published-records.spec.ts
+          pnpm --filter @capiro/web exec vitest run --reporter=json --outputFile=$GITHUB_WORKSPACE/phase2-web-summary.json src/vnext/pages/legiwatch/reports/ReportWorkspace.test.tsx
+
+      - name: Assert Phase 2 qualification is clean
+        if: always()
+        run: |
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-report-summary.json" phase2-reports 2 32
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-source-summary.json" phase2-source 2 6
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-web-summary.json" phase2-web 1 6
 
       - name: Assert Phase 1 PostgreSQL suites are clean
         if: always()

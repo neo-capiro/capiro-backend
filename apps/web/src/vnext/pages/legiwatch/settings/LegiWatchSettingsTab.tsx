@@ -37,6 +37,9 @@ import {
 } from '../lib/wave2-api.js';
 import { CreateWatchOverlay } from '../overlays/CreateWatchOverlay.js';
 import { isWatchlistSetup, watchlistSetupPath } from '../lib/watchlist-navigation.js';
+import { ReportWorkspace } from '../reports/ReportWorkspace.js';
+import { useReportsFlag } from '../reports/report-api.js';
+import { CapiroModal } from '../../../components/overlays/index.js';
 
 const WatchlistSetup = lazy(async () => ({ default: (await import('./WatchlistSetup.js')).WatchlistSetup }));
 
@@ -103,6 +106,7 @@ export function LegiWatchSettingsTab() {
 }
 
 function LegiWatchPreferences() {
+  const reportFlag = useReportsFlag(), [recordRulesOpen, setRecordRulesOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const scope = searchParams.get('client') ?? '';
   const api = useApi();
@@ -192,6 +196,7 @@ function LegiWatchPreferences() {
 
   return (
     <div className="lw-body" aria-label="LegiWatch settings">
+      {reportFlag.enabled && <section className="lw-card" style={{ padding: 18 }}><h2 className="lw-card__title">Published bill records</h2><p>Review folder targets and staff channels for action and amendment alerts.</p><LwButton onClick={() => setRecordRulesOpen(true)}>Manage published-record alerts</LwButton>{recordRulesOpen && <CapiroModal open title="Reports and updates" width={1200} onClose={() => setRecordRulesOpen(false)}><ReportWorkspace initialTab="alerts" /></CapiroModal>}</section>}
       <section className="lw-card" aria-label="Display preferences" style={{ padding: 18 }}>
         <div className="lw-card__head">
           <h2 className="lw-card__title">Display</h2>

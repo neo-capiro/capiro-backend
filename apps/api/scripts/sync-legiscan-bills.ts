@@ -27,6 +27,8 @@ import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { getBill, getRollCall } from '../src/external/legiscan/legiscan.client.js';
 import { PRIORITY_STATE_CODES } from '../src/external/legiscan/us-states.js';
+import { persistPublishedRecords } from '../src/ingestion/legiscan-published-records.js';
+import { queueLegiWatchReportRefresh } from '../src/ingestion/legiwatch-report-refresh.js';
 import {
   normalizeLegiscanBill,
   upsertNormalizedStateBill,
@@ -87,6 +89,10 @@ export async function main() {
       return { inserted: 0, updated: 0, skipped: 0, errors: 0 };
     }
 
+    if (process.env.LEGISCAN_REPORT_REFRESH_TENANT) {
+      const refresh = await queueLegiWatchReportRefresh(prisma, process.env.LEGISCAN_REPORT_REFRESH_TENANT, STATES);
+      console.log(`REPORT_SOURCE_REFRESH ${JSON.stringify(refresh)}`);
+    }
     const cursors = await prisma.stateSyncCursor.findMany({
       where: { state: { in: STATES }, pendingBills: { isEmpty: false } },
     });
@@ -156,6 +162,7 @@ export async function main() {
           }
 
           const { isNew } = await upsertNormalizedStateBill(prisma, normalized);
+          await persistPublishedRecords(prisma, normalized.billKey, raw);
           await crosswalkStateBill(prisma, normalized.billKey, normalized.legiscanBillId);
           if (isNew) inserted++;
           else updated++;

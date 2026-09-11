@@ -118,6 +118,17 @@ interface Recipient {
 
 @Injectable()
 export class LegiWatchLifecycleNotificationService {
+  async emitBillRecord(input: { tenantId: string; userId: string; billId: string; eventKey: string; title: string; body: string }) {
+    return this.prisma.withTenant(input.tenantId, async tx => {
+      const member = await tx.$queryRaw<Array<{ ok: number }>>`SELECT 1 AS ok FROM tenant_memberships m JOIN users u ON u.id=m.user_id WHERE m.tenant_id=${input.tenantId}::uuid AND u.clerk_user_id=${input.userId} AND m.status::text='active'`;
+      if (!member.length) return { created: 0, suppressed: true };
+      const rows = await tx.$queryRaw<Array<{ id: string }>>`INSERT INTO legiwatch_notification_event
+        (tenant_id,user_id,event_type,bill_id,title,body,deep_link,dedup_key,created_at)
+        VALUES (${input.tenantId}::uuid,${input.userId},'bill_record',${input.billId},${input.title},${input.body},${`/bills/${encodeURIComponent(input.billId)}`},${`published-record:${input.eventKey}`},now())
+        ON CONFLICT (tenant_id,user_id,dedup_key) DO NOTHING RETURNING id`;
+      return { created: rows.length, suppressed: false };
+    });
+  }
   private readonly logger = new Logger(LegiWatchLifecycleNotificationService.name);
 
   constructor(private readonly prisma: PrismaService) {}

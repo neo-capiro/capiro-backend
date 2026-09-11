@@ -204,6 +204,8 @@ export interface LegiscanBillAmendment {
   description?: string;
   chamber?: string;
   state_link?: string;
+  url?: string;
+  amendment_hash?: string;
 }
 export interface LegiscanBill {
   bill_id: number;
@@ -236,6 +238,7 @@ export interface LegiscanBill {
   calendar?: LegiscanBillCalendarEvent[];
   committee?: LegiscanBillCommittee;
   amendments?: LegiscanBillAmendment[];
+  referrals?: Array<LegiscanBillCommittee & { date?: string; committee_name?: string }>;
 }
 
 export async function getBill(apiKey: string, billId: number): Promise<LegiscanBill | null> {

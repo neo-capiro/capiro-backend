@@ -17,6 +17,7 @@
  */
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { reportRuntime, reportTenants, prepareReportDraftQualification } from '../tracker/reports/report-runtime.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
@@ -71,6 +72,8 @@ function buildAlertService(prisma: PrismaService): IntelAlertService {
 export const EMBED_CANDIDATE_FLOOR = 0.3;
 
 export const KNOWN_VERBS = [
+  'run-report-updates', // Intel-owned bounded due drafts and external-report delivery.
+  'prepare-report-draft-qualification',
   'verify-sourcedata', //          Phase 1 gate
   'verify-bill-dossier-sources', // Bill 360 R1 §0.5: dossier truth-layer source-availability gate
   'sync-watchlists-from-legacy', // Phase 2: legacy → unified watchlist (§5.4)
@@ -238,6 +241,25 @@ export async function verifyBillDossierSources(
 /** Route a verb to its handler. Throws on an unknown verb (→ non-zero exit). */
 export async function runVerb(verb: string, args: string[], deps: VerbDeps): Promise<void> {
   switch (verb) {
+    case 'prepare-report-draft-qualification': {
+      const result = await prepareReportDraftQualification(deps.prisma, args[0] ?? '', args[1] ?? '', args[2] ?? '');
+      deps.log(`REPORT_DRAFT_QUALIFICATION ${JSON.stringify(result)}`);
+      return;
+    }
+    case 'run-report-updates': {
+      const tenantId = args[0];
+      if (!tenantId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) throw new Error('run-report-updates requires an explicit tenant UUID');
+      const runtime = reportRuntime(deps.prisma);
+      const result = await runtime.subscriptions.due(tenantId, 25);
+      const delivery = await runtime.delivery.drain(tenantId, 25);
+      // Reuse the existing rule detector and durable transport. Canonical
+      // provider ingestion remains exclusively in the API runtime.
+      const records = await runtime.rules.detect(tenantId);
+      const queued = await runtime.rules.enqueue(tenantId);
+      const staff = await runtime.delivery.drain(tenantId, 25, new Date(), 'bill_record');
+      deps.log(`REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff })}`);
+      return;
+    }
     case 'verify-sourcedata':
       return verifySourcedata(args[0] ?? '', deps);
     case 'verify-bill-dossier-sources': {
@@ -438,7 +460,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         new SourceDataRepository(deps.prisma),
         new StateSourceDataRepository(deps.prisma),
       );
-      const r = await svc.runDetectionCycle();
+        const r = await svc.runDetectionCycle(reportRuntime(deps.prisma).rules);
       deps.log(
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
           `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
@@ -485,6 +507,11 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
     }
     case 'emit-bill-alerts': {
       const r = await buildAlertService(deps.prisma).emitNewBillAlerts();
+      const runtime = reportRuntime(deps.prisma);
+      for (const scope of await reportTenants(deps.prisma)) {
+        await runtime.rules.enqueue(scope.tenantId);
+        await runtime.delivery.drain(scope.tenantId, 25, new Date(), 'bill_record');
+      }
       deps.log(
         `EMIT_DONE alerts=${r.alerts} suppressed=${r.suppressed} sent=${r.sent} failed=${r.failed}`,
       );

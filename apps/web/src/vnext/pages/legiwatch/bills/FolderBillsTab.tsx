@@ -28,6 +28,8 @@ import {
 } from './folder-api.js';
 import { FolderImportReview } from './FolderImportReview.js';
 import './folder-tracker.css';
+import { ReportWorkspace } from '../reports/ReportWorkspace.js';
+import { useReportsFlag } from '../reports/report-api.js';
 
 type Resolution = {
   token: string;
@@ -63,6 +65,9 @@ const emptyContext = {
 };
 
 export function FolderBillsTab({ scope, clients }: { scope: string; clients: Client[] }) {
+  const reportsFlag = useReportsFlag();
+  const [reportsOpen, setReportsOpen] = useState(false);
+  useEffect(() => { setReportsOpen(false); }, [reportsFlag.scope]);
   const api = useApi(),
     identity = useApiScope(),
     qc = useQueryClient(),
@@ -290,6 +295,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
   );
   return (
     <section className="lw-folders" aria-label="Bill folders">
+      {reportsOpen && reportsFlag.enabled && <CapiroModal open title="Reports and updates" width={1280} onClose={() => setReportsOpen(false)}><ReportWorkspace initialFolderId={active?.id} /></CapiroModal>}
       <aside className="lw-folder-rail-desktop">{rail}</aside>
       <div className="lw-folder-main">
         <div className="lw-folder-heading">
@@ -318,6 +324,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             </p>
           </div>
           <div className="lw-folder-actions">
+            {reportsFlag.enabled && <CapiroButton size="compact" onClick={() => setReportsOpen(true)}>Reports</CapiroButton>}
             {active && (
               <CapiroButton
                 size="compact"

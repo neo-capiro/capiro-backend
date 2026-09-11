@@ -21,6 +21,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { persistPublishedRecords } from '../src/ingestion/legiscan-published-records.js';
 import {
   getDatasetList,
   getDataset,
@@ -147,6 +148,7 @@ async function backfillState(
             continue;
           }
           await upsertNormalizedStateBill(prisma, normalized);
+          await persistPublishedRecords(prisma, normalized.billKey, raw);
           await crosswalkStateBill(prisma, normalized.billKey, normalized.legiscanBillId);
           billHashes[String(raw.bill_id)] = raw.change_hash;
           billIdToKey.set(raw.bill_id, normalized.billKey);

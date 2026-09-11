@@ -168,6 +168,229 @@ model LegiWatchStagedConfiguration {
   @@map("intel_legiwatch_staged_configuration")
 }
 
+// Phase 2 operational objects. Staged captures remain unchanged and inactive.
+model LegiWatchReport {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ownerClerkId String @map("owner_clerk_id")
+  name String
+  folderIds String[] @map("folder_ids")
+  jurisdiction String
+  sessionKey String @map("session_key")
+  settings Json
+  version Int @default(0)
+  archived Boolean @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([tenantId, id])
+  @@index([tenantId, archived])
+  @@map("intel_legiwatch_report")
+}
+
+model LegiWatchReportRun {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  reportId String @map("report_id")
+  definitionVersion Int @map("definition_version")
+  createdBy String @map("created_by")
+  audience String @default("external")
+  cutoff String
+  snapshot Json
+  contentHash String @map("content_hash")
+  complete Boolean
+  generatedAt DateTime @default(now()) @map("generated_at")
+  generationKey String? @map("generation_key")
+  @@unique([tenantId, id])
+  @@unique([tenantId, generationKey])
+  @@index([tenantId, reportId, generatedAt])
+  @@map("intel_legiwatch_report_run")
+}
+
+model LegiWatchPromotion {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  stagedId String @map("staged_id")
+  sourceAccount String @map("source_account")
+  sourceId String @map("source_id")
+  sourceVersion Int @map("source_version")
+  sourceHash String @map("source_hash")
+  kind String
+  targetId String @map("target_id")
+  reviewedBy String @map("reviewed_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([tenantId, stagedId])
+  @@index([tenantId, kind, targetId])
+  @@map("intel_legiwatch_promotion")
+}
+
+// Distribution identities preserve aliases without weakening EngagementContact.
+model LegiWatchReportContact {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ownerClerkId String @map("owner_clerk_id")
+  name String
+  email String?
+  verified Boolean @default(false)
+  active Boolean @default(true)
+  optedOut Boolean @default(false) @map("opted_out")
+  version Int @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([tenantId, id])
+  @@index([tenantId, email])
+  @@map("intel_legiwatch_report_contact")
+}
+
+model LegiWatchReportList {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ownerClerkId String @map("owner_clerk_id")
+  name String
+  private Boolean @default(true)
+  contactIds String[] @map("contact_ids")
+  version Int @default(0)
+  active Boolean @default(true)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([tenantId, id])
+  @@map("intel_legiwatch_report_list")
+}
+
+model LegiWatchReportSubscription {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  reportId String @map("report_id")
+  ownerClerkId String @map("owner_clerk_id")
+  reportVersion Int @map("report_version")
+  timezone String
+  localMinutes Int @map("local_minutes")
+  mode String @default("draft")
+  enabled Boolean @default(false)
+  sendNoChange Boolean @default(false) @map("send_no_change")
+  catchUp String @default("draft") @map("catch_up")
+  catchUpDraftPending Boolean @default(false) @map("catch_up_draft_pending")
+  recipients Json @default("[]")
+  subject String
+  introduction String @default("")
+  version Int @default(0)
+  baselineAt DateTime? @map("baseline_at")
+  checkpointAt DateTime? @map("checkpoint_at")
+  nextDueAt DateTime? @map("next_due_at")
+  activatedBy String? @map("activated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([tenantId, id])
+  @@index([enabled, nextDueAt])
+  @@map("intel_legiwatch_report_subscription")
+}
+
+model LegiWatchReportOccurrence {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  subscriptionId String @map("subscription_id")
+  subscriptionVersion Int @map("subscription_version")
+  occurrenceKey String @map("occurrence_key")
+  intendedAt DateTime @map("intended_at")
+  windowStart DateTime @map("window_start")
+  windowEnd DateTime @map("window_end")
+  configuration Json
+  state String @default("queued")
+  runId String? @map("run_id")
+  attempts Int @default(0)
+  leaseToken String? @map("lease_token")
+  leaseUntil DateTime? @map("lease_until")
+  error String?
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([tenantId, subscriptionId, occurrenceKey])
+  @@unique([tenantId, id])
+  @@index([state, intendedAt])
+  @@map("intel_legiwatch_report_occurrence")
+}
+
+// One frozen composition, isolated recipient envelopes, one intent per destination.
+model LegiWatchDelivery {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  kind String @default("bill_report")
+  intentKey String @map("intent_key")
+  ownerClerkId String @map("owner_clerk_id")
+  runId String? @map("run_id")
+  subscriptionId String? @map("subscription_id")
+  subscriptionVersion Int? @map("subscription_version")
+  composition Json
+  contentHash String @map("content_hash")
+  approvedAt DateTime @default(now()) @map("approved_at")
+  recipients LegiWatchDeliveryRecipient[]
+  @@unique([tenantId, intentKey])
+  @@unique([tenantId, id])
+  @@map("intel_legiwatch_delivery")
+}
+
+model LegiWatchDeliveryRecipient {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  deliveryId String @map("delivery_id")
+  destinationHash String @map("destination_hash")
+  recipient Json
+  channel String @default("email")
+  state String @default("queued")
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  attempts Int @default(0)
+  leaseToken String? @map("lease_token")
+  leaseUntil DateTime? @map("lease_until")
+  dispatchStartedAt DateTime? @map("dispatch_started_at")
+  providerId String? @map("provider_id")
+  acceptedAt DateTime? @map("accepted_at")
+  error String?
+  delivery LegiWatchDelivery @relation(fields: [tenantId, deliveryId], references: [tenantId, id], onDelete: Restrict)
+  @@unique([tenantId, deliveryId, destinationHash, channel])
+  @@index([state, nextAttemptAt])
+  @@map("intel_legiwatch_delivery_recipient")
+}
+
+model LegiWatchRecordRule {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ownerClerkId String @map("owner_clerk_id")
+  name String
+  folderIds String[] @map("folder_ids")
+  recipients Json
+  cadence String
+  timezone String?
+  localMinutes Int? @map("local_minutes")
+  state String @default("needs_review")
+  issues Json @default("[]")
+  version Int @default(0)
+  activatedAt DateTime? @map("activated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([tenantId, id])
+  @@index([state, tenantId])
+  @@map("intel_legiwatch_record_rule")
+}
+
+// Baseline each folder membership independently; additions never replay history.
+model LegiWatchRuleBillBaseline {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ruleId String @map("rule_id")
+  assignmentId String @map("assignment_id")
+  baselineAt DateTime @map("baseline_at")
+  @@unique([tenantId, ruleId, assignmentId])
+  @@map("intel_legiwatch_rule_bill_baseline")
+}
+
+model LegiWatchRecordMatch {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ruleId String @map("rule_id")
+  ruleVersion Int @map("rule_version")
+  eventKey String @map("event_key")
+  evidence Json
+  folderIds String[] @map("folder_ids")
+  firstObservedAt DateTime @map("first_observed_at")
+  state String @default("queued")
+  @@unique([tenantId, ruleId, eventKey])
+  @@index([tenantId, state])
+  @@map("intel_legiwatch_record_match")
+}
+
 // --- feature gating ---------------------------------------------------------
 
 /// Tenant-scoped feature flag. A feature (e.g. "hearing_watch") is visible to a
@@ -433,6 +656,7 @@ model IntelAlert {
   dedupeKey         String?   @unique @map("dedupe_key")
   createdAt         DateTime  @default(now()) @map("created_at")
   deliveredAt       DateTime? @map("delivered_at")
+  deliveryEligibleAt DateTime? @default(now()) @map("delivery_eligible_at")
 
   @@index([tenantId, clientId, createdAt])
   @@index([tenantId, status])
@@ -490,6 +714,8 @@ model IntelNotificationLog {
   status            String //                    'sent'|'failed'|'suppressed'|'queued'
   providerMessageId String?  @map("provider_message_id")
   error             String?
+  leaseToken        String? @map("lease_token")
+  leaseUntil        DateTime? @map("lease_until")
   createdAt         DateTime @default(now()) @map("created_at")
 
   @@unique([alertId, userId, channel])
@@ -510,6 +736,9 @@ model IntelAlertDigestQueue {
   attempts    Int       @default(0)
   lastError   String?   @map("last_error")
   deliveredAt DateTime? @map("delivered_at")
+  leaseToken String? @map("lease_token")
+  leaseUntil DateTime? @map("lease_until")
+  dispatchStartedAt DateTime? @map("dispatch_started_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([tenantId, userId, channel, flushed])

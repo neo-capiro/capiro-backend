@@ -65,7 +65,7 @@ describe('IntelAlertService.fanOut (shadow)', () => {
           },
         ],
       },
-      intelNotificationLog: {
+      intelNotificationLog: { updateMany: async () => ({ count: 1 }),
         create: async ({ data }: { data: { status: string; channel: string } }) => {
           claims.push({ status: data.status, channel: data.channel });
           return { id: 'log1' };
@@ -158,7 +158,7 @@ describe('IntelAlertService.emitNewBillAlerts (idempotency)', () => {
         },
       },
       intelAlertPreference: { findMany: async () => [] }, // no subscribers → pure processing path
-      intelNotificationLog: { create: async () => ({ id: 'l' }), update: async () => ({}) },
+      intelNotificationLog: { updateMany: async () => ({ count: 1 }), create: async () => ({ id: 'l' }), update: async () => ({}) },
     };
     const prisma = {
       ...inner,
@@ -287,7 +287,7 @@ describe('IntelAlertService real-send delivery (finding #1/#6)', () => {
           },
         ],
       },
-      intelNotificationLog: {
+      intelNotificationLog: { updateMany: async () => ({ count: 1 }),
         create: async ({ data }: { data: { alertId: string } }) => {
           claimedAlertIds.push(data.alertId);
           return { id: 'log-1' };
@@ -400,7 +400,7 @@ describe('IntelAlertService "what happened" summary delegation', () => {
           },
         ],
       },
-      intelNotificationLog: {
+      intelNotificationLog: { updateMany: async () => ({ count: 1 }),
         create: async () => ({ id: 'log-1' }),
         update: async () => ({}),
         findFirst: async () => null,
@@ -533,7 +533,7 @@ describe('IntelAlertService.emitNewBillAlerts — per-source evidence mapping (H
           },
         ],
       },
-      intelNotificationLog: {
+      intelNotificationLog: { updateMany: async () => ({ count: 1 }),
         create: async () => ({ id: 'log-1' }),
         update: async () => ({}),
         findFirst: async () => null,

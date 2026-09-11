@@ -6,6 +6,7 @@ import type { DigestContent } from '../lib/wave3-api.js';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }));
 vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => api }));
+vi.mock('../../../../lib/use-api-scope.js', () => ({ useApiScope: () => 'digest-test-workspace' }));
 
 import { DigestTab } from './DigestTab.js';
 

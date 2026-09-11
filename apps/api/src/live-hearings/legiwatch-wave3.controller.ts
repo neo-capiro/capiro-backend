@@ -7,7 +7,7 @@
  * matching the module header's Client Lens convention (`?client=` empty for
  * All clients).
  */
-import { Controller, Get, Param, Post, Put, Query, Body, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Headers, Param, Post, Put, Query, Body, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -31,7 +31,11 @@ export class LegiWatchWave3Controller {
   // ── Digest ───────────────────────────────────────────────────────────────
 
   @Post('digest/generate')
-  generateDigest(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId?: string) {
+  generateDigest(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId?: string,
+    @Query('mode') mode?: string, @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string, @Body() body?: unknown) {
+    if (mode === 'bill_report') return this.digest.billReport('generate', authorization, impersonation, body);
+    if (mode && mode !== 'intelligence') throw new BadRequestException('UNKNOWN_DIGEST_MODE');
     return this.digest.generate(ctx, scope(clientId));
   }
 
@@ -40,17 +44,29 @@ export class LegiWatchWave3Controller {
     @CurrentTenant() ctx: TenantContext,
     @Query('clientId') clientId?: string,
     @Query('limit') limit?: string,
+    @Query('mode') mode?: string, @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string,
   ) {
+    if (mode === 'bill_report') return this.digest.billReport('history', authorization, impersonation);
+    if (mode && mode !== 'intelligence') throw new BadRequestException('UNKNOWN_DIGEST_MODE');
     return this.digest.history(ctx, scope(clientId), limit ? Number(limit) : undefined);
   }
 
   @Get('digest/:id')
-  getDigestRun(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  getDigestRun(@CurrentTenant() ctx: TenantContext, @Param('id') id: string,
+    @Query('mode') mode?: string, @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string) {
+    if (mode === 'bill_report') return this.digest.billReport('run', authorization, impersonation, undefined, id);
+    if (mode && mode !== 'intelligence') throw new BadRequestException('UNKNOWN_DIGEST_MODE');
     return this.digest.getRun(ctx, id);
   }
 
   @Get('digest/schedule/config')
-  getDigestSchedule(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId?: string) {
+  getDigestSchedule(@CurrentTenant() ctx: TenantContext, @Query('clientId') clientId?: string,
+    @Query('mode') mode?: string, @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string) {
+    if (mode === 'bill_report') return this.digest.billReport('subscriptions', authorization, impersonation);
+    if (mode && mode !== 'intelligence') throw new BadRequestException('UNKNOWN_DIGEST_MODE');
     return this.digest.getSchedule(ctx, scope(clientId));
   }
 
@@ -59,7 +75,11 @@ export class LegiWatchWave3Controller {
     @CurrentTenant() ctx: TenantContext,
     @Query('clientId') clientId: string | undefined,
     @Body() body: { cadence: 'daily' | 'weekly' | 'off'; hourUtc: number; emailEnabled: boolean },
+    @Query('mode') mode?: string, @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string,
   ) {
+    if (mode === 'bill_report') return this.digest.billReport('saveSubscription', authorization, impersonation, body);
+    if (mode && mode !== 'intelligence') throw new BadRequestException('UNKNOWN_DIGEST_MODE');
     return this.digest.putSchedule(ctx, scope(clientId), body);
   }
 

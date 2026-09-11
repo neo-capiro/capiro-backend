@@ -7,6 +7,8 @@
  * dependency introduced for one feature).
  */
 import { useState, type ReactNode } from 'react';
+import { ReportWorkspace } from '../reports/ReportWorkspace.js';
+import { useReportsFlag } from '../reports/report-api.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import {
@@ -141,6 +143,11 @@ function Brief({ content }: { content: DigestContent }) {
 }
 
 export function DigestTab({ scope }: { scope: string }) {
+  const reports = useReportsFlag();
+  const [mode, setMode] = useState('legacy');
+  return <>{reports.enabled && <div className="lw-reports-controls" style={{ padding: '16px 24px' }}><LwButton variant={mode === 'legacy' ? 'primary' : 'secondary'} onClick={() => setMode('legacy')}>Intelligence brief</LwButton><LwButton variant={mode === 'bill_report' ? 'primary' : 'secondary'} onClick={() => setMode('bill_report')}>Daily bill reports</LwButton></div>}{reports.enabled && mode === 'bill_report' ? <ReportWorkspace initialTab="updates" /> : <LegacyDigestTab scope={scope} />}</>;
+}
+function LegacyDigestTab({ scope }: { scope: string }) {
   // A client change must discard selection and mutation state, including a
   // generation that completes after its original scope has been left.
   return <ScopedDigestTab key={scope} scope={scope} />;

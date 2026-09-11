@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   FeatureFlagService,
@@ -112,9 +113,8 @@ export class IntelAlertService {
    * Claim a (alertId,userId,channel) notification slot. First delivery inserts
    * the log row and returns its id. A re-run hits the @@unique (P2002): if the
    * existing row is TERMINAL (`sent` / `suppressed_shadow`) → return null (skip,
-   * no double-send); if it is a prior `failed`/`sending` (a soft failure or a
-   * crashed mid-send) → reclaim it (flip to the new status) and return its id so
-   * the send is retried. Without this, a soft failure permanently blocks the slot.
+   * no double-send). Only a known retryable failure can be reclaimed.
+   * Active sending leases are held; expired sending attempts are uncertain.
    */
   private async claim(
     tenantId: string,
@@ -123,26 +123,37 @@ export class IntelAlertService {
     alertId: string,
     channel: Channel,
     status: string,
-  ): Promise<string | null> {
+  ): Promise<{ id: string; token: string } | null> {
+    const token = randomUUID();
+    const leaseUntil = new Date(Date.now() + 120000);
     try {
       const row = await this.prisma.withTenant(tenantId, (tx) =>
         tx.intelNotificationLog.create({
-          data: { tenantId, clientId, userId, alertId, channel, status },
+          data: { tenantId, clientId, userId, alertId, channel, status, leaseToken: token, leaseUntil },
           select: { id: true },
         }),
       );
-      return row.id;
+      return { id: row.id, token };
     } catch (e) {
       if ((e as { code?: string }).code !== 'P2002') throw e;
       return this.prisma.withTenant(tenantId, async (tx) => {
         const existing = await tx.intelNotificationLog.findFirst({
           where: { alertId, userId, channel },
-          select: { id: true, status: true },
+          select: { id: true, status: true, leaseUntil: true, leaseToken: true },
         });
         if (!existing) return null; // vanished in a race — treat as claimed
-        if (existing.status === 'sent' || existing.status === 'suppressed_shadow') return null;
-        await tx.intelNotificationLog.update({ where: { id: existing.id }, data: { status } });
-        return existing.id;
+        // Sending rows are never immediately reclaimed. An expired provider
+        // attempt is ambiguous and needs reconciliation, not another send.
+        if (existing.status === 'sending' && existing.leaseUntil && existing.leaseUntil < new Date()) await tx.intelNotificationLog.updateMany({ where: { tenantId, id: existing.id, status: 'sending', leaseUntil: { lt: new Date() } }, data: { status: 'uncertain', error: 'DISPATCH_OUTCOME_UNCONFIRMED' } });
+        if (existing.status !== 'failed') return null;
+        // Failures recorded before fenced dispatch do not establish that the
+        // provider rejected the message. They need explicit reconciliation.
+        if (existing.leaseToken === null) {
+          await tx.intelNotificationLog.updateMany({ where: { tenantId, id: existing.id, status: 'failed', leaseToken: null }, data: { status: 'uncertain', error: 'LEGACY_DISPATCH_OUTCOME_UNCONFIRMED' } });
+          return null;
+        }
+        const won = await tx.intelNotificationLog.updateMany({ where: { tenantId, id: existing.id, status: 'failed' }, data: { status, leaseToken: token, leaseUntil } });
+        return won.count ? { id: existing.id, token } : null;
       });
     }
   }
@@ -348,29 +359,30 @@ export class IntelAlertService {
         'sending',
       );
       if (logId) {
-        // eligible() already guaranteed emailAddress is a non-empty string; the
-        // assertion just restores the narrowing the extracted predicate hid.
-        const res = await this.email.send(
-          pref.emailAddress!,
-          rendered.subject,
-          rendered.html,
-          rendered.text,
-        );
-        await this.prisma.withTenant(event.tenantId, (tx) =>
-          tx.intelNotificationLog.update({
-            where: { id: logId },
+        const res = await this.prisma.withTenant(event.tenantId, async tx => {
+          const fence = await tx.intelNotificationLog.updateMany({ where: { tenantId: event.tenantId, id: logId.id, status: 'sending', leaseToken: logId.token, leaseUntil: { gt: new Date() } }, data: { status: 'sending' } });
+          if (!fence.count) return null;
+          const current = (await tx.intelAlertPreference.findMany({ where: { tenantId: event.tenantId, clientId: event.clientId, userId: pref.userId } })).find(p => p.userId === pref.userId);
+          if (!current || !eligible(current) || current.emailAddress !== pref.emailAddress || this.killSwitchOff() || !(await this.flags.isEnabled(TRACKER_OWNER_FEATURE, event.tenantId))) {
+            await tx.intelNotificationLog.updateMany({ where: { id: logId.id, leaseToken: logId.token }, data: { status: 'held', error: 'CURRENT_DELIVERY_AUTHORIZATION_REQUIRED' } });
+            return null;
+          }
+          const result = await this.email.send(current.emailAddress!, rendered.subject, rendered.html, rendered.text);
+          await tx.intelNotificationLog.update({
+            where: { id: logId.id, leaseToken: logId.token },
             data: {
-              status: res.sent ? 'sent' : 'failed',
-              providerMessageId: res.messageId ?? null,
-              error: res.error ?? null,
+              status: result.sent ? 'sent' : result.outcome === 'uncertain' ? 'uncertain' : result.outcome === 'terminal' ? 'terminal' : 'failed',
+              providerMessageId: result.messageId ?? null,
+              error: result.error ?? null,
             },
-          }),
-        );
+          });
+          return result;
+        }, { timeoutMs: 60000 });
         // A soft failure (res.sent === false, no throw) is NOT delivered — count
         // it so emitNewBillAlerts leaves deliveredAt null and retries next sweep
         // (claim() reclaims the 'failed' log row rather than blocking it).
-        if (res.sent) sent += 1;
-        else failed += 1;
+        if (res?.sent) sent += 1;
+        else if (res) failed += 1;
       }
     }
     return { suppressed, sent, failed, queued };
@@ -413,7 +425,7 @@ export class IntelAlertService {
       .filter(Boolean);
     const rows = await this.prisma.withSystem((tx) =>
       tx.intelAlert.findMany({
-        where: { sourceType: { in: sourceTypes }, status: 'new', deliveredAt: null },
+        where: { sourceType: { in: sourceTypes }, OR: [{ status: 'new' }, { status: 'reviewed', deliveryEligibleAt: { not: null } }], deliveredAt: null },
         orderBy: { createdAt: 'asc' },
         take: 5000,
       }),
@@ -759,6 +771,7 @@ export class IntelAlertService {
     unresolvable: number;
   }> {
     const maxAttempts = Number(process.env.LEGIWATCH_DIGEST_MAX_ATTEMPTS ?? '5');
+    const claimToken = randomUUID();
     // Claim-on-read: atomically mark a batch flushed and return it, so a
     // concurrent run cannot grab the same rows (§7.3a). Cross-tenant drain by
     // cadence → withSystem (bypass RLS); the per-group send below re-checks the
@@ -776,7 +789,7 @@ export class IntelAlertService {
         }>
       >(
         `UPDATE intel_alert_digest_queue
-            SET flushed = true
+            SET flushed = true, lease_token = $3, lease_until = now() + interval '10 minutes'
           WHERE id IN (
             SELECT id FROM intel_alert_digest_queue
              WHERE cadence = $1 AND flushed = false AND attempts < $2
@@ -787,6 +800,7 @@ export class IntelAlertService {
         RETURNING id, tenant_id, user_id, channel, client_id, alert_id`,
         cadence,
         maxAttempts,
+        claimToken,
       ),
     );
     if (!claimed.length) return { flushed: 0, sent: 0, failed: 0, deadLettered: 0, unresolvable: 0 };
@@ -931,8 +945,22 @@ export class IntelAlertService {
         if (!(pref?.emailEnabled && pref.emailAddress)) continue; // stranded intentionally — see doc comment
 
         const { subject, html, text } = renderDigestEmail(cadence, items);
+        const dispatch = await this.prisma.withTenant(g.tenantId, tx => tx.$executeRawUnsafe(
+          `UPDATE intel_alert_digest_queue SET dispatch_started_at=now()
+           WHERE id=ANY($1) AND tenant_id=$2 AND flushed=true AND lease_token=$3 AND lease_until>now() AND dispatch_started_at IS NULL`,
+          queueIds, g.tenantId, claimToken));
+        if (Number(dispatch) !== queueIds.length) continue;
         const res = await this.email.send(pref.emailAddress, subject, html, text);
         const sentAlertIds = resolvedRows.map((r) => r.alertId);
+
+        if (res.outcome === 'uncertain' || res.outcome === 'terminal') {
+          failed += 1;
+          await this.prisma.withTenant(g.tenantId, async tx => {
+            await tx.$executeRawUnsafe(`UPDATE intel_alert_digest_queue SET last_error=$2 WHERE id=ANY($1) AND lease_token=$3`, queueIds, `${res.outcome}: ${res.error ?? 'Provider outcome unavailable'}`, claimToken);
+            await tx.intelNotificationLog.updateMany({ where: { tenantId: g.tenantId, userId: g.userId, channel: 'email', alertId: { in: sentAlertIds }, status: 'queued' }, data: { status: res.outcome, error: res.error } });
+          });
+          continue;
+        }
 
         if (res.sent) {
           sent += 1;
@@ -959,7 +987,7 @@ export class IntelAlertService {
           await this.prisma.withSystem((tx) =>
             tx.$executeRawUnsafe(
               `UPDATE intel_alert_digest_queue
-                  SET flushed = false, attempts = attempts + 1, last_error = $2
+                  SET flushed = false, dispatch_started_at = NULL, attempts = attempts + 1, last_error = $2
                 WHERE id = ANY($1)`,
               queueIds,
               (res.error ?? 'unknown').slice(0, 500),
@@ -1011,7 +1039,8 @@ export class IntelAlertService {
           .withSystem((tx) =>
             tx.$executeRawUnsafe(
               `UPDATE intel_alert_digest_queue
-                  SET flushed = false, attempts = attempts + 1, last_error = $2
+                  SET flushed = (dispatch_started_at IS NOT NULL), attempts = attempts + 1,
+                      last_error = CASE WHEN dispatch_started_at IS NOT NULL THEN 'DISPATCH_OUTCOME_UNCONFIRMED' ELSE $2 END
                 WHERE id = ANY($1)`,
               queueIds,
               String((e as Error).message).slice(0, 500),
@@ -1055,6 +1084,8 @@ export class IntelAlertService {
            FROM intel_alert_digest_queue
           WHERE flushed = true
             AND delivered_at IS NULL
+            AND dispatch_started_at IS NULL
+            AND (lease_until IS NULL OR lease_until < now())
             AND attempts < $1
             AND created_at < now() - ($2 || ' minutes')::interval`,
         maxAttempts,
@@ -1074,7 +1105,7 @@ export class IntelAlertService {
       const ids = candidates.map((c) => c.id);
       const r = await this.prisma.withSystem((tx) =>
         tx.$executeRawUnsafe(
-          `UPDATE intel_alert_digest_queue SET flushed = false WHERE id = ANY($1)`,
+          `UPDATE intel_alert_digest_queue SET flushed = false WHERE id = ANY($1) AND dispatch_started_at IS NULL AND (lease_until IS NULL OR lease_until < now())`,
           ids,
         ),
       );

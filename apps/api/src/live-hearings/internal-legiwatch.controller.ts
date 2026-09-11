@@ -1,7 +1,17 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
+import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+
+export class BillRecordNotificationDto {
+  @IsUUID() tenantId!: string;
+  @IsString() @MaxLength(200) userId!: string;
+  @IsString() @MaxLength(200) billId!: string;
+  @IsString() @MaxLength(500) eventKey!: string;
+  @IsString() @MaxLength(500) title!: string;
+  @IsString() @MaxLength(10000) body!: string;
+}
 
 /**
  * class-validator decorators are REQUIRED: the global ValidationPipe runs
@@ -41,7 +51,12 @@ export class ClientBriefContextQueryDto {
 @Controller('internal/legiwatch')
 @UseGuards(InternalServiceGuard)
 export class InternalLegiWatchController {
-  constructor(private readonly wave1: LegiWatchWave1Service) {}
+  constructor(private readonly wave1: LegiWatchWave1Service, private readonly notifications: LegiWatchLifecycleNotificationService) {}
+
+  @Post('bill-record-notification')
+  billRecord(@Body() input: BillRecordNotificationDto) {
+    return this.notifications.emitBillRecord(input);
+  }
 
   @Get('client-brief-context')
   clientBriefContext(@Query() query: ClientBriefContextQueryDto) {

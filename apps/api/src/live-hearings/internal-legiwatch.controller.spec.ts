@@ -16,7 +16,7 @@ describe('InternalLegiWatchController', () => {
   it('forwards tenantId/clientId and a trimmed hearingId to the service', async () => {
     const clientBriefContext = jest.fn().mockResolvedValue({ clientName: 'Anduril', relevance: null });
     const wave1 = { clientBriefContext } as unknown as LegiWatchWave1Service;
-    const controller = new InternalLegiWatchController(wave1);
+    const controller = new InternalLegiWatchController(wave1, {} as never);
     const query: ClientBriefContextQueryDto = {
       tenantId: '11111111-1111-4111-8111-111111111111',
       clientId: '22222222-2222-4222-8222-222222222222',
@@ -33,7 +33,7 @@ describe('InternalLegiWatchController', () => {
     const clientBriefContext = jest.fn().mockResolvedValue({ clientName: 'Anduril', relevance: null });
     const controller = new InternalLegiWatchController({
       clientBriefContext,
-    } as unknown as LegiWatchWave1Service);
+    } as unknown as LegiWatchWave1Service, {} as never);
     const base = {
       tenantId: '11111111-1111-4111-8111-111111111111',
       clientId: '22222222-2222-4222-8222-222222222222',

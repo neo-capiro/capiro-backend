@@ -5974,6 +5974,7 @@ model StateBill {
   sourceCheckedAt    DateTime? @map("source_checked_at") @db.Timestamptz(6)
   sourceCheckAttemptedAt DateTime? @map("source_check_attempted_at") @db.Timestamptz(6)
   sourceCheckStatus  String?   @map("source_check_status")
+  reportSourceFacts  Json?     @map("report_source_facts")
   sourceCheckError   String?   @map("source_check_error")
   openstatesId       String?   @map("openstates_id") // pre-re-key id, kept for cross-check
   syncedAt           DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
@@ -6024,6 +6025,23 @@ model StateLegislator {
 // State bill action history (mirrors CongressBillAction). Append-only via
 // anti-join on (billKey, date, orderKey) — firstSeenAt is never touched on
 // re-drain (S1.4); this is the honest anchor the SLA telemetry (S1.6) measures.
+// Append-only published-record observations. Stable amendment IDs; action
+// fallback identities and corrections are documented by the ingestion adapter.
+model StateBillPublishedRecord {
+  id String @id @default(uuid()) @db.Uuid
+  billKey String @map("bill_key")
+  kind String
+  sourceIdentity String @map("source_identity")
+  revisionHash String @map("revision_hash")
+  eventDate String? @map("event_date")
+  sourceOrder Int @map("source_order")
+  evidence Json
+  firstObservedAt DateTime @default(now()) @map("first_observed_at") @db.Timestamptz(6)
+  @@unique([billKey, kind, sourceIdentity, revisionHash])
+  @@index([billKey, firstObservedAt])
+  @@map("state_bill_published_record")
+}
+
 model StateBillAction {
   id          String    @id @default(uuid()) @db.Uuid
   billKey     String    @map("bill_key")
@@ -6917,7 +6935,8 @@ model LegiWatchNotificationEvent {
   userId              String    @map("user_id") // clerk user id
   /// Allowed values enforced by legiwatch_notification_event_type_check.
   eventType           String    @map("event_type")
-  hearingId           String    @map("hearing_id") // soft ref → committee_hearing.id
+  hearingId           String?   @map("hearing_id") // soft ref → committee_hearing.id
+  billId              String?   @map("bill_id") // published-record variant; never a fabricated hearing
   committeeSystemCode String?   @map("committee_system_code") // soft ref → congress_committee.system_code
   clientId            String?   @map("client_id") @db.Uuid
   title               String
