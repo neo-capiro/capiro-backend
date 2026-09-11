@@ -43,7 +43,7 @@ function renderEditor(id = 'doc-one') {
 }
 
 const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement;
-const change = (name: string, value: string) => fireEvent.change(screen.getByRole('textbox', { name, exact: true }), { target: { value } });
+const change = (name: string, value: string) => fireEvent.change(screen.getByRole('textbox', { name }), { target: { value } });
 async function editFirstPage() {
   await waitFor(() => expect(button('Edit first page').disabled).toBe(false));
   fireEvent.click(button('Edit first page'));
@@ -69,7 +69,7 @@ describe('Hill Day first-page editing', () => {
     change('Sponsor', 'Anduril team');
     change('Meeting 1 room', 'Rayburn 101');
     change('Meeting 1 staff lead', '');
-    for (const name of ['Office', 'Minutes', 'Staff lead']) fireEvent.click(screen.getByRole('checkbox', { name, exact: true }));
+    for (const name of ['Office', 'Minutes', 'Staff lead']) fireEvent.click(screen.getByRole('checkbox', { name }));
     expect(screen.queryByRole('columnheader', { name: 'Office' })).toBeNull();
     expect(screen.getAllByRole('columnheader')).toHaveLength(3);
     fireEvent.click(button('Save first page'));
@@ -84,13 +84,13 @@ describe('Hill Day first-page editing', () => {
     expect(screen.getByRole('heading', { name: 'Anduril · Hill visits' })).toBeTruthy();
     expect(screen.getAllByRole('columnheader')).toHaveLength(3);
     // A new editor gets its saved values and visibility from GET, with no local draft state.
-    const saved = await api.patchDocument.mock.results[0].value;
+    const saved = await api.patchDocument.mock.results[0]!.value;
     view.unmount();
     api.getDocument.mockResolvedValue(saved);
     renderEditor();
     await editFirstPage();
     expect((screen.getByRole('textbox', { name: 'Meeting 1 room' }) as HTMLTextAreaElement).value).toBe('Rayburn 101');
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Staff lead', exact: true }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Staff lead' }));
     expect((screen.getByRole('textbox', { name: 'Meeting 1 staff lead' }) as HTMLTextAreaElement).value).toBe('');
   });
 
@@ -126,7 +126,7 @@ describe('Hill Day first-page editing', () => {
     renderEditor();
     await editFirstPage();
     change('Title', 'Discard me');
-    for (const name of ['Office', 'Minutes', 'Staff lead', 'Room', 'Time']) fireEvent.click(screen.getByRole('checkbox', { name, exact: true }));
+    for (const name of ['Office', 'Minutes', 'Staff lead', 'Room', 'Time']) fireEvent.click(screen.getByRole('checkbox', { name }));
     expect((screen.getByRole('checkbox', { name: 'Member' }) as HTMLInputElement).disabled).toBe(true);
     fireEvent.click(button('Cancel'));
     expect(api.patchDocument).not.toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe('Hill Day first-page editing', () => {
     expect(button('Deliver').disabled).toBe(true);
     await act(async () => rejectSave({ response: { data: { message: 'Document changed. Reload before saving.' } } }));
     expect(screen.getByRole('alert').textContent).toContain('Document changed. Reload before saving.');
-    expect((screen.getByRole('textbox', { name: 'Title', exact: true }) as HTMLInputElement).value).toBe('Keep my draft');
+    expect((screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value).toBe('Keep my draft');
     expect(button('Save first page').disabled).toBe(false);
     expect(button('Preview as client').disabled).toBe(true);
     expect(api.createExport).not.toHaveBeenCalled();
@@ -175,10 +175,10 @@ describe('Hill Day first-page editing', () => {
     change('Title', 'Wrong document');
     view.changeDocument('doc-two');
     await waitFor(() => expect(button('Schedule doc-two')).toBeTruthy());
-    expect(screen.queryByRole('textbox', { name: 'Title', exact: true })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
     expect(button('Preview as client').disabled).toBe(false);
     await editFirstPage();
-    expect((screen.getByRole('textbox', { name: 'Title', exact: true }) as HTMLInputElement).value).toBe('Hill Day Schedule');
+    expect((screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement).value).toBe('Hill Day Schedule');
     change('Lead', 'New owner');
     fireEvent.click(button('Save first page'));
     await waitFor(() => expect(api.patchDocument).toHaveBeenCalledWith('doc-two', { expectedUpdatedAt: documentFixture().updatedAt, firstPage: { facts: [{ key: 'Lead', value: 'New owner' }] } }));
