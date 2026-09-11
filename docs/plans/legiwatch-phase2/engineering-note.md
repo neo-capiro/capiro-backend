@@ -56,20 +56,53 @@ operator's own folder with no recipients.
 
 The implementation includes report generation/export, versioned recipient
 review, durable daily occurrences, recovery, scoped source refresh, exact
-published-record rules, and Capiro UI entry points. Additive API and Intel
-migrations replayed sequentially on disposable PostgreSQL. The latest dedicated
-report qualification passed 32 tests; source PostgreSQL passed 3; the pure
-source suite passed 3; Intel's broader scope passed 71 suites / 763 tests; report
-UI passed 6 tests. All three package typechecks passed during implementation.
+published-record rules, and Capiro UI entry points. Runs retain the exact HTML
+and plain text together with their source facts. Later rendering changes cannot
+alter historical exports or approved delivery content.
 
-Broader release gates are still being qualified: the Windows API regression
-run found transaction-start timeouts in existing concurrent hearing/digest
-fixtures, while the web run exposed mounted-root cleanup across reused test
-workers. These are recorded rather than treated as clean gates. The web setup
-now registers explicit cleanup per environment; Linux CI provides the release
-check. Separate fixture import duplication in main was repaired as a prerequisite.
+Native ARM64 qualification of `e43d9d3d412fa845ee86db480410f02dba652dd9` passed:
 
-No Phase 2 cloud migration, deployment, promotion, subscription activation or
-external send has occurred at this candidate checkpoint. Capture totals are
-not operational totals. See [acceptance.md](./acceptance.md) for P2-01–P2-23 and
+- 34 report/domain/PostgreSQL tests and 6 canonical source tests;
+- 17 saved-hearing SQL tests, 17 Phase 1 folder/import tests and 2 source-document tests;
+- 75 API suites / 989 tests, 71 Intel suites / 763 tests and 84 web files / 800 tests;
+- sequential API then Intel migration replay and both migration-entrypoint/import-runner checks.
+
+All in-scope test groups have zero failures, skips and todo tests. CodeBuild
+`78a38590-6237-459f-b83a-d079c14122a0` records the complete qualification results.
+The three scoped package typechecks and five dependency builds passed in native
+build `381ee075-8445-4f0b-bdc3-219471c9c5f0`; subsequent application source is
+identical. The only later test change replaces elapsed-runtime assumptions with
+explicit record-activation timestamps. Native vNext build
+`791967c5-1b1b-47af-b04c-e7fca8ac26ab` also passed 92 foundation/strategy compatibility
+tests and a production web image build. Main's subsequent documentation cleanup
+is retained without changing qualified application source.
+
+The Windows API run's transaction-start timeouts did not recur on native Linux.
+Explicit web cleanup and fresh matchMedia defaults isolate reused test environments.
+The native harness preserves the localhost guard and uses a separate empty
+database for saved-hearing fallback tests. An early harness encoding issue and
+the timing fixture failure were corrected before the complete passing run.
+
+GitHub Actions jobs did not start because the account reports a billing/spending
+limit problem. These are not code-test failures, and independent CodeBuild
+evidence does not mark those GitHub checks green. The source bundle was verified
+against every Git blob and file mode before extraction/build; no GitHub credentials
+or IAM permissions were changed.
+
+Fresh runtime inspection found that both existing LegiScan workers referenced
+missing API image `12a2ae760b31…`, causing a container-pull failure before ingestion.
+Release preparation includes replacing both source-drain and priority-masterlist
+images while preserving their hourly schedules, source scopes and quotas. The API
+repository's five-image cleanup policy now has a bounded exception for up to 20
+explicit `legiwatch-runtime-*` service/worker/rollback images. Existing protections
+remain intact, and the available Phase 1 rollback/detector images were retained.
+Restoring the missing old source-worker digest is not a valid rollback.
+
+No Phase 2 cloud migration, service/worker rollout, promotion, subscription
+activation or external send has occurred at this qualification checkpoint.
+SES production sending is enabled and the existing sender domain is verified;
+this is configuration evidence, not delivery acceptance. Capture totals are not
+operational totals. The release record must separately list actual task/image
+revisions, flags, scheduled execution, source coverage and client acceptance.
+See [acceptance.md](./acceptance.md) for P2-01–P2-23 and
 [operator-runbook.md](./operator-runbook.md) for deployment, operation and rollback.
