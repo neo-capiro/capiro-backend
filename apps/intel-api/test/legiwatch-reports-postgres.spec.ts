@@ -359,14 +359,16 @@ describe('Phase 2 reports: PostgreSQL authorization, delivery and recovery', () 
         },
       }),
     );
-    const baseline = new Date(Date.now() - 2000);
+    // Explicit boundaries keep the seeded baseline record outside this window
+    // on both fast native runners and slower local environments.
+    const baseline = new Date();
     await rules.activation(ctx, r.id, { enabled: true, expectedVersion: r.version }, baseline);
-    const firstObserved = new Date();
+    const firstObserved = new Date(baseline.getTime() + 1);
     for (const n of [1, 2])
       await prisma.$executeRaw`INSERT INTO state_bill_published_record(id,bill_key,kind,source_identity,revision_hash,event_date,source_order,evidence,first_observed_at) VALUES(${randomUUID()}::uuid,${bill},'action',${'late' + n},'v1',${cutoff},${n + 1},${JSON.stringify({ text: `Same-day action ${n}`, url: 'https://example.gov/action' })}::jsonb,${firstObserved})`;
     expect(await prisma.trackedBill.count({ where: { tenantId: tenant } })).toBe(0);
-    await rules.detect(tenant);
-    await rules.detect(tenant);
+    await rules.detect(tenant, firstObserved);
+    await rules.detect(tenant, firstObserved);
     const matches = await prisma.withTenant(tenant, (tx) =>
       tx.legiWatchRecordMatch.findMany({ where: { ruleId: r.id } }),
     );
