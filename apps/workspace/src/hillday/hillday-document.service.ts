@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { Prisma } from '../../generated/prisma-client/index.js';
+import { applyFirstPage, hasFirstPageEdits, validateFirstPage } from './first-page.js';
 import { DirectoryBridgeClient } from './directory-bridge.client.js';
 import type {
   CreateHillDayDocumentDto,
@@ -28,6 +31,7 @@ import {
   type RawEventRow,
 } from './hillday-source.service.js';
 import type {
+  FirstPageEdits,
   CalendarAttendee,
   CalendarEvent,
   CalendarResponse,
@@ -382,46 +386,73 @@ export class HillDayDocumentService {
       }
       data.status = dto.status === 'draft' ? (doc.generatedAt ? 'generated' : 'draft') : dto.status;
     }
-    if (dto.section) {
-      const meeting = await this.prisma.wsHillDayMeeting.findFirst({
-        where: { id: dto.section.sectionId, tenantId, documentId },
-      });
-      if (!meeting) throw new NotFoundException('Section not found');
-      const current = (meeting.section as MeetingSection | null) ?? {
-        sectionId: meeting.id,
-        status: 'pending' as const,
-        focus: null,
-        background: null,
-        reason: null,
-        flags: [],
-        generatedAt: null,
-        model: null,
-        edited: { focus: false, background: false, at: null },
-      };
-      const at = new Date().toISOString();
-      const next: MeetingSection = {
-        ...current,
-        focus: dto.section.focus !== undefined ? dto.section.focus : current.focus,
-        background: dto.section.background !== undefined ? dto.section.background : current.background,
-        status:
-          current.status === 'unavailable' && (dto.section.focus || dto.section.background)
-            ? 'done'
-            : current.status,
-        edited: {
-          focus: current.edited.focus || dto.section.focus !== undefined,
-          background: current.edited.background || dto.section.background !== undefined,
-          at,
-        },
-        flags: [
-          ...current.flags.filter((f) => f.kind !== 'user_edited'),
-          { kind: 'user_edited', detail: `Edited by hand ${at.slice(0, 10)}; excluded from bulk regeneration.` },
-        ],
-      };
-      await this.prisma.wsHillDayMeeting.update({ where: { id: meeting.id }, data: { section: next as never } });
+    if (dto.firstPage !== undefined) {
+      if (doc.status === 'generating') throw new ConflictException('Wait for generation to finish before editing the first page');
+      if (!dto.expectedUpdatedAt || !Number.isFinite(Date.parse(dto.expectedUpdatedAt))) {
+        throw new BadRequestException('expectedUpdatedAt is required when saving the first page');
+      }
+      const meetings = await this.prisma.wsHillDayMeeting.findMany({ where: { tenantId, documentId }, select: { id: true } });
+      const firstPage = validateFirstPage(dto.firstPage, new Set(meetings.map((m) => m.id)));
+      data.firstPage = firstPage === null ? Prisma.DbNull : firstPage;
     }
-    if (Object.keys(data).length) {
-      await this.prisma.wsHillDayDocument.update({ where: { id: documentId }, data: data as never });
+    if (dto.section || dto.firstPage !== undefined) {
+      // Touch the parent so list order, quality queries and edit concurrency agree.
+      data.updatedAt = new Date(Math.max(Date.now(), doc.updatedAt.getTime() + 1));
+      if (doc.status === 'delivered') {
+        const failed = await this.prisma.wsHillDayMeeting.findFirst({
+          where: { tenantId, documentId, section: { path: ['status'], equals: 'unavailable' } }, select: { id: true },
+        });
+        data.status = failed ? 'partial' : 'generated';
+      }
     }
+    await this.prisma.$transaction(async (tx) => {
+      if (dto.section) {
+        const meeting = await tx.wsHillDayMeeting.findFirst({
+          where: { id: dto.section.sectionId, tenantId, documentId },
+        });
+        if (!meeting) throw new NotFoundException('Section not found');
+        const current = (meeting.section as MeetingSection | null) ?? {
+          sectionId: meeting.id,
+          status: 'pending' as const,
+          focus: null,
+          background: null,
+          reason: null,
+          flags: [],
+          generatedAt: null,
+          model: null,
+          edited: { focus: false, background: false, at: null },
+        };
+        const at = new Date().toISOString();
+        const next: MeetingSection = {
+          ...current,
+          focus: dto.section.focus !== undefined ? dto.section.focus : current.focus,
+          background: dto.section.background !== undefined ? dto.section.background : current.background,
+          status:
+            current.status === 'unavailable' && (dto.section.focus || dto.section.background)
+              ? 'done'
+              : current.status,
+          edited: {
+            focus: current.edited.focus || dto.section.focus !== undefined,
+            background: current.edited.background || dto.section.background !== undefined,
+            at,
+          },
+          flags: [
+            ...current.flags.filter((f) => f.kind !== 'user_edited'),
+            { kind: 'user_edited', detail: `Edited by hand ${at.slice(0, 10)}; excluded from bulk regeneration.` },
+          ],
+        };
+        await tx.wsHillDayMeeting.update({ where: { id: meeting.id }, data: { section: next as never } });
+      }
+      if (dto.firstPage !== undefined) {
+        const saved = await tx.wsHillDayDocument.updateMany({
+          where: { id: documentId, tenantId, ownerId: actorId, updatedAt: new Date(dto.expectedUpdatedAt!), status: { not: 'generating' } },
+          data: data as never,
+        });
+        if (saved.count !== 1) throw new ConflictException('This document changed. Reload it before saving the first page again');
+      } else if (Object.keys(data).length) {
+        await tx.wsHillDayDocument.update({ where: { id: documentId }, data: data as never });
+      }
+    });
     return this.get(tenantId, documentId);
   }
 
@@ -709,7 +740,14 @@ export class HillDayDocumentService {
     });
 
     const hillDate = this.hillDayDate(meetings, tz);
-    const anyEdited = sections.some((s) => s.edited.focus || s.edited.background);
+    const storedFirstPage = (doc.firstPage as FirstPageEdits | null) ?? null;
+    const currentIds = new Set(meetings.map((m) => m.id));
+    // Removed meetings cannot be edited; do not return stale overrides that a
+    // later full replacement would correctly reject as foreign/unknown rows.
+    const firstPage = storedFirstPage?.rows
+      ? { ...storedFirstPage, rows: storedFirstPage.rows.filter((row) => currentIds.has(row.meetingId)) }
+      : storedFirstPage;
+    const anyEdited = sections.some((s) => s.edited.focus || s.edited.background) || hasFirstPageEdits(firstPage);
     const provenance = this.provenanceView(doc, meetings, lastJob);
     const dateline = [
       hillDate ?? 'Dates to be confirmed',
@@ -729,7 +767,7 @@ export class HillDayDocumentService {
       timeZone: tz,
       weekStart: doc.weekStart ? doc.weekStart.toISOString().slice(0, 10) : null,
       resolutionStatus: (doc.resolutionStatus as 'clean' | 'partial' | null) ?? null,
-      cover: {
+      ...applyFirstPage({
         title: HILL_DAY_BLUEPRINT_NAME,
         dateline,
         facts: [
@@ -740,8 +778,8 @@ export class HillDayDocumentService {
           { k: 'Lead', v: owner.name },
           { k: 'Revision', v: anyEdited ? '2 · edited' : '1 · as generated' },
         ],
-      },
-      summary,
+      }, summary, firstPage),
+      firstPage,
       sections,
       provenance,
       generation: { lastJobId: lastJob?.id ?? null, status: lastJob?.status ?? null },

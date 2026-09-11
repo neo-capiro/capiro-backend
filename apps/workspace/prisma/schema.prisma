@@ -719,6 +719,8 @@ model WsHillDayDocument {
   resolutionStatus String?            @map("resolution_status")
   // As-generated provenance summary (source counts, corrections, model).
   provenance       Json?
+  // User edits to the cover and schedule; independent of generated evidence.
+  firstPage        Json?              @map("first_page")
   generatedAt      DateTime?          @map("generated_at")
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")

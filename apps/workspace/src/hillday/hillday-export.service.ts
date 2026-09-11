@@ -1,10 +1,10 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryBridgeClient } from './directory-bridge.client.js';
 import { HillDayDocumentService } from './hillday-document.service.js';
-import type { HillDayDocumentView } from './hillday.types.js';
+import { SUMMARY_COLUMN_KEYS, type HillDayDocumentView, type SummaryColumnKey } from './hillday.types.js';
 
 /**
  * PDF export (requirements §8): print-based, paginated on the server-rendered
@@ -206,6 +206,12 @@ export class HillDayExportService {
     const ensure = (height: number) => {
       if (doc.y + height > bottom()) doc.addPage();
     };
+    const assertFitsPage = (height: number, label: string, reservedHeight = 0) => {
+      if (!Number.isFinite(height) || height > bottom() - doc.page.margins.top - reservedHeight) {
+        doc.destroy();
+        throw new BadRequestException(`${label} is too tall for one PDF page. Shorten the text or remove extra line breaks, then export again`);
+      }
+    };
 
     // ── Cover ──
     // Header carries only the sponsor's own mark — no Capiro branding here;
@@ -230,35 +236,53 @@ export class HillDayExportService {
     doc.moveTo(left, doc.y).lineTo(left + width, doc.y).strokeColor(RULE).lineWidth(1).stroke();
     doc.y += 26;
 
-    doc.font('Helvetica-Bold').fontSize(26).fillColor(INK).text(view.cover.title, left, doc.y, { width });
+    doc.font('Helvetica-Bold').fontSize(26).fillColor(INK);
+    const titleHeight = doc.heightOfString(view.cover.title, { width });
+    assertFitsPage(titleHeight, 'Cover title');
+    ensure(titleHeight);
+    doc.text(view.cover.title, left, doc.y, { width });
     doc.moveDown(0.4);
-    doc.font('Helvetica').fontSize(10.5).fillColor(GRAY).text(view.cover.dateline, { width: width * 0.8 });
+    doc.font('Helvetica').fontSize(10.5).fillColor(GRAY);
+    const datelineHeight = doc.heightOfString(view.cover.dateline, { width: width * 0.8 });
+    assertFitsPage(datelineHeight, 'Cover dateline');
+    ensure(datelineHeight);
+    doc.text(view.cover.dateline, left, doc.y, { width: width * 0.8 });
     doc.moveDown(1.2);
 
-    // Six-cell fact grid (3 × 2).
+    // Values can be edited: wrap and measure each row instead of truncating.
     const cellW = width / 3;
-    const gridTop = doc.y;
-    view.cover.facts.forEach((f, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const x = left + col * cellW;
-      const y = gridTop + row * 46;
-      doc.font('Helvetica-Bold').fontSize(7).fillColor(LIGHT).text(f.k.toUpperCase(), x, y, { width: cellW - 12, characterSpacing: 0.6 });
-      doc.font('Helvetica').fontSize(11).fillColor(INK).text(f.v, x, y + 12, { width: cellW - 12, lineBreak: false, ellipsis: true });
-    });
-    doc.y = gridTop + 2 * 46 + 10;
+    for (let i = 0; i < view.cover.facts.length; i += 3) {
+      const facts = view.cover.facts.slice(i, i + 3);
+      doc.font('Helvetica').fontSize(11);
+      const rowH = Math.max(46, ...facts.map((f) => doc.heightOfString(f.v, { width: cellW - 12 }) + 28));
+      assertFitsPage(rowH, `Cover facts (${facts.map((f) => f.k).join(', ')})`);
+      ensure(rowH);
+      const top = doc.y;
+      facts.forEach((f, col) => {
+        const x = left + col * cellW;
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(LIGHT).text(f.k.toUpperCase(), x, top, { width: cellW - 12, characterSpacing: 0.6 });
+        doc.font('Helvetica').fontSize(11).fillColor(INK).text(f.v, x, top + 12, { width: cellW - 12 });
+      });
+      doc.y = top + rowH;
+    }
+    doc.y += 10;
 
-    // Executive summary table — generated from the same rows as the sections.
+    // Use the same visible columns and overridden rows as the draft screen.
+    ensure(56);
     doc.font('Helvetica-Bold').fontSize(7).fillColor(LIGHT).text('THE DAY AT A GLANCE', left, doc.y, { characterSpacing: 0.6 });
     doc.y += 12;
-    const cols = [
-      { k: 'time', label: 'Time', w: 58 },
-      { k: 'member', label: 'Member', w: 150 },
-      { k: 'office', label: 'Office', w: 112 },
-      { k: 'room', label: 'Room', w: 78 },
-      { k: 'minutes', label: 'Min', w: 30 },
-      { k: 'staffLead', label: 'Staff lead', w: width - 428 },
-    ] as const;
+    const definitions: Record<SummaryColumnKey, { label: string; weight: number }> = {
+      time: { label: 'Time', weight: 58 },
+      member: { label: 'Member', weight: 150 },
+      office: { label: 'Office', weight: 112 },
+      room: { label: 'Room', weight: 78 },
+      minutes: { label: 'Min', weight: 30 },
+      staffLead: { label: 'Staff lead', weight: width - 428 },
+    };
+    const visible = new Set(view.summaryColumns ?? SUMMARY_COLUMN_KEYS);
+    const keys = SUMMARY_COLUMN_KEYS.filter((key) => visible.has(key));
+    const totalWeight = keys.reduce((sum, key) => sum + definitions[key].weight, 0);
+    const cols = keys.map((k) => ({ k, label: definitions[k].label, w: definitions[k].weight * width / totalWeight }));
     const HEADER_H = 22;
     const ROW_PAD = 16;
     const tableTop = doc.y;
@@ -274,9 +298,13 @@ export class HillDayExportService {
       }
       return Math.max(24, maxH + ROW_PAD);
     };
-    const drawRow = (values: Record<string, string>, opts: { header?: boolean; zebra?: boolean }) => {
+    const drawRow = (values: Record<string, string>, opts: { header?: boolean; zebra?: boolean; rowNumber?: number }) => {
       const h = opts.header ? HEADER_H : rowHeight(values);
-      ensure(h);
+      if (!opts.header) assertFitsPage(h, `Schedule row ${opts.rowNumber ?? ''}`.trim(), HEADER_H);
+      if (doc.y + h > bottom()) {
+        doc.addPage();
+        if (!opts.header) drawRow({}, { header: true });
+      }
       const y = doc.y;
       if (opts.header) {
         doc.rect(left, y, width, h).fillColor(NAVY_BG).fill();
@@ -302,7 +330,7 @@ export class HillDayExportService {
     view.summary.forEach((r, i) => {
       drawRow(
         { time: r.time, member: r.member, office: r.office, room: r.room, minutes: r.minutes, staffLead: r.staffLead },
-        { zebra: i % 2 === 1 },
+        { zebra: i % 2 === 1, rowNumber: i + 1 },
       );
     });
     if (!view.summary.length) {

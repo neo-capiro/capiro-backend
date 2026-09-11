@@ -400,6 +400,18 @@ export interface SummaryRow {
   staffLead: string;
 }
 
+export type SummaryColumnKey = 'time' | 'member' | 'office' | 'room' | 'minutes' | 'staffLead';
+export type CoverFactKey = 'Sponsor' | 'Prepared by' | 'Meetings' | 'Date' | 'Lead' | 'Revision';
+
+/** Presentation overrides only; omitted values keep following their source. */
+export interface FirstPageEdits {
+  title?: string;
+  dateline?: string;
+  facts?: Array<{ key: CoverFactKey; value: string }>;
+  rows?: Array<{ meetingId: string } & Partial<Record<SummaryColumnKey, string>>>;
+  hiddenColumns?: SummaryColumnKey[];
+}
+
 export interface DocumentSectionView {
   sectionId: string;
   meetingId: string;
@@ -443,6 +455,8 @@ export interface HillDayDocumentView {
   resolutionStatus: 'clean' | 'partial' | null;
   cover: { title: string; dateline: string; facts: Array<{ k: string; v: string }> };
   summary: SummaryRow[];
+  firstPage?: FirstPageEdits | null;
+  summaryColumns?: SummaryColumnKey[];
   sections: DocumentSectionView[];
   provenance: ProvenanceView;
   generation: { lastJobId: string | null; status: string | null };

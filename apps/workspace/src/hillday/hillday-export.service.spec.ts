@@ -1,7 +1,20 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
+import { inflateSync } from 'node:zlib';
 import { HillDayExportService } from './hillday-export.service.js';
 import type { HillDayDocumentView } from './hillday.types.js';
+
+/** Read the first page's standard-font text from PDFKit's actual content stream. */
+function firstPageText(pdf: Buffer): string {
+  const raw = pdf.toString('latin1');
+  const contentsId = /\/Contents (\d+) 0 R/.exec(raw)?.[1];
+  if (!contentsId) throw new Error('First page content is missing');
+  const content = new RegExp(`(?:^|\\n)${contentsId} 0 obj\\b([\\s\\S]*?)endobj`).exec(raw)?.[1];
+  const stream = /stream\r?\n([\s\S]*?)\r?\nendstream/.exec(content ?? '')?.[1];
+  if (!stream) throw new Error('First page stream is missing');
+  const decoded = inflateSync(Buffer.from(stream, 'latin1')).toString('latin1');
+  return [...decoded.matchAll(/<([0-9a-f]+)>/gi)].map((m) => Buffer.from(m[1]!, 'hex').toString('latin1')).join('').replace(/\s/g, '');
+}
 
 function view(sections: number): HillDayDocumentView {
   const secs = Array.from({ length: sections }, (_, i) => ({
@@ -51,6 +64,8 @@ function view(sections: number): HillDayDocumentView {
         { k: 'Revision', v: '1 · as generated' },
       ],
     },
+    firstPage: null,
+    summaryColumns: ['time', 'member', 'office', 'room', 'minutes', 'staffLead'],
     summary: secs.map((s) => ({
       sectionId: s.sectionId,
       meetingId: s.meetingId,
@@ -93,6 +108,57 @@ describe('HillDayExportService.renderPdf', () => {
     const service = new HillDayExportService({} as never, {} as never, {} as never);
     const pdf = await service.renderPdf(view(1), { pageSize: 'a4', logo: null });
     expect(pdf.toString('latin1')).toContain('595.28 841.89');
+  });
+
+  it('exports edited first-page values and omits hidden columns and their cells', async () => {
+    const service = new HillDayExportService({} as never, {} as never, {} as never);
+    const draft = view(3);
+    draft.cover.title = 'October Advocacy Day';
+    draft.cover.dateline = 'Arrival and security screening at 12:30 PM';
+    draft.cover.facts[4]!.v = 'Alex Chen, Government Affairs and Congressional Engagement Lead';
+    draft.summaryColumns = ['time', 'member', 'room'];
+    draft.summary[0]!.room = 'Visitor center room 201';
+    draft.summary.forEach((r) => { r.office = 'HIDDEN_OFFICE_SENTINEL'; r.minutes = 'HIDDEN_MIN_SENTINEL'; r.staffLead = 'HIDDEN_STAFF_SENTINEL'; });
+    const pdf = await service.renderPdf(draft, { pageSize: 'letter', logo: null });
+    const text = firstPageText(pdf);
+    expect(text).toContain('OctoberAdvocacyDay');
+    expect(text).toContain('Arrivalandsecurityscreeningat12:30PM');
+    expect(text).toContain('AlexChen,GovernmentAffairsandCongressionalEngagementLead');
+    expect(text).toContain('Visitorcenterroom201');
+    expect(text).not.toMatch(/HIDDEN_|OFFICE|STAFFLEAD/);
+    expect(text).toContain('TIMEMEMBERROOM');
+    const pages = pdf.toString('latin1').match(/\/Type \/Page\b(?!s)/g) ?? [];
+    expect(pages).toHaveLength(4);
+  });
+
+  it.each(['title', 'dateline', 'fact', 'row'])('rejects an oversized %s with a useful error instead of malformed pagination', async (field) => {
+    const service = new HillDayExportService({} as never, {} as never, {} as never);
+    const draft = view(1);
+    const long = 'X\n'.repeat(field === 'title' ? 100 : 200);
+    if (field === 'title') draft.cover.title = long;
+    if (field === 'dateline') draft.cover.dateline = long;
+    if (field === 'fact') draft.cover.facts[0]!.v = long;
+    if (field === 'row') draft.summary[0]!.room = long;
+    await expect(service.renderPdf(draft, { pageSize: 'letter', logo: null })).rejects.toThrow(/too tall.*Shorten/);
+  });
+
+  it('records an oversized export as failed and never stores it as ready', async () => {
+    const draft = view(1);
+    draft.cover.facts[0]!.v = 'X\n'.repeat(200);
+    const row = { id: 'exp-1', documentId: draft.id, format: 'pdf', pageSize: 'letter', status: 'queued', filename: null, sizeBytes: null, error: null, createdAt: new Date() };
+    const prisma = { wsHillDayExport: {
+      create: jest.fn(async () => row),
+      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...row, ...data })),
+    } };
+    const documents = { assertDoc: async () => ({ ownerId: 'owner' }), get: async () => draft };
+    const bridge = { branding: async () => ({ ok: false }) };
+    const service = new HillDayExportService(prisma as never, documents as never, bridge as never);
+    const result = await service.create('tenant', 'owner', draft.id, 'letter');
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('Cover facts');
+    expect(result.url).toBeNull();
+    expect(prisma.wsHillDayExport.update).toHaveBeenCalledTimes(1);
+    expect(prisma.wsHillDayExport.update.mock.calls[0]?.[0].data).not.toHaveProperty('file');
   });
 });
 

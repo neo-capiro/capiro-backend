@@ -308,6 +308,20 @@ export interface JobStatus {
 
 // ── Document model ──────────────────────────────────────────────────────────
 
+export const SUMMARY_COLUMN_KEYS = ['time', 'member', 'office', 'room', 'minutes', 'staffLead'] as const;
+export type SummaryColumnKey = (typeof SUMMARY_COLUMN_KEYS)[number];
+export const COVER_FACT_KEYS = ['Sponsor', 'Prepared by', 'Meetings', 'Date', 'Lead', 'Revision'] as const;
+export type CoverFactKey = (typeof COVER_FACT_KEYS)[number];
+
+/** Sparse document-only presentation overrides. Untouched source facts remain live. */
+export interface FirstPageEdits {
+  title?: string;
+  dateline?: string;
+  facts?: Array<{ key: CoverFactKey; value: string }>;
+  rows?: Array<{ meetingId: string } & Partial<Record<SummaryColumnKey, string>>>;
+  hiddenColumns?: SummaryColumnKey[];
+}
+
 export interface SummaryRow {
   sectionId: string;
   meetingId: string;
@@ -366,6 +380,8 @@ export interface HillDayDocumentView {
     facts: Array<{ k: string; v: string }>;
   };
   summary: SummaryRow[];
+  firstPage: FirstPageEdits | null;
+  summaryColumns: SummaryColumnKey[];
   sections: DocumentSectionView[];
   provenance: ProvenanceView;
   generation: { lastJobId: string | null; status: string | null };

@@ -14,8 +14,9 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { config } from '../../../../env.js';
 import { useHillDayApi } from './api.js';
-import type { DocumentSectionView, HillDayDocumentView } from './types.js';
+import type { DocumentSectionView, FirstPageEdits, HillDayDocumentView } from './types.js';
 import { HdIcon, HdPrimary, HdSecondary, type HillDayIcon } from './ui.js';
+import { HillDayFirstPage } from './HillDayFirstPage.js';
 
 const SOURCE_ICONS: Record<string, HillDayIcon> = {
   directory: 'Users01',
@@ -59,10 +60,15 @@ const DOC_PATH = /^\/workspace\/documents\/([A-Za-z0-9-]+)\/?$/;
  * screen under a `:id` route, so `useParams()` alone is empty here.
  */
 export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
-  const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
   const docId = documentId ?? params.id ?? DOC_PATH.exec(location.pathname)?.[1] ?? '';
+  // A route change remounts all draft and pending UI state for the new document.
+  return <HillDayDocumentEditor key={docId} docId={docId} />;
+}
+
+function HillDayDocumentEditor({ docId }: { docId: string }) {
+  const navigate = useNavigate();
   const api = useHillDayApi();
   const queryClient = useQueryClient();
 
@@ -77,6 +83,7 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
   const [exporting, setExporting] = useState<'preview' | 'deliver' | null>(null);
   const [exportLink, setExportLink] = useState<{ url: string; label: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [firstPageEditing, setFirstPageEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const docKey = ['hd', 'document', docId] as const;
@@ -182,7 +189,28 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
     }
   };
 
+  const saveFirstPage = async (firstPage: FirstPageEdits | null, expectedUpdatedAt: string): Promise<boolean> => {
+    if (saving || exporting) return false;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await api.patchDocument(docId, { firstPage, expectedUpdatedAt });
+      queryClient.setQueryData<HillDayDocumentView>(docKey, updated);
+      setExportLink(null);
+      await queryClient.invalidateQueries({ queryKey: ['hd', 'quality', docId] });
+      await queryClient.invalidateQueries({ queryKey: ['hd', 'documents'] });
+      return true;
+    } catch (err) {
+      setError(errorMessage(err));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const exportBlocked = saving || firstPageEditing || editing !== null || nameDraft !== null;
   const exportPdf = async (mode: 'preview' | 'deliver') => {
+    if (exportBlocked || exporting) return;
     setExporting(mode);
     setError(null);
     setExportLink(null);
@@ -264,6 +292,7 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
               type="button"
               className="hd-editor__title"
               style={{ background: 'transparent', border: 0, padding: 0, textAlign: 'left', cursor: 'text', font: 'inherit', color: 'inherit' }}
+              disabled={saving || firstPageEditing || exporting !== null}
               onClick={() => doc && setNameDraft(doc.name)}
               title="Rename"
             >
@@ -291,15 +320,15 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
             </span>
             <span className="hd-editor__saved">
               <span className="hd-editor__saved-dot" />
-              {saving ? 'Saving…' : doc?.status === 'generating' ? 'Generating…' : 'Saved'}
+              {saving ? 'Saving…' : firstPageEditing ? 'Editing first page · not saved' : doc?.status === 'generating' ? 'Generating…' : 'Saved'}
             </span>
           </span>
         </span>
-        <HdSecondary style={{ height: 38 }} disabled={!doc || exporting !== null} onClick={() => void exportPdf('preview')}>
+        <HdSecondary style={{ height: 38 }} disabled={!doc || exporting !== null || exportBlocked} onClick={() => void exportPdf('preview')}>
           <HdIcon name="Eye" size={16} />
           {exporting === 'preview' ? 'Rendering…' : 'Preview as client'}
         </HdSecondary>
-        <HdPrimary style={{ height: 38 }} disabled={!doc || exporting !== null || doc.status === 'draft' || doc.status === 'generating'} onClick={() => void exportPdf('deliver')}>
+        <HdPrimary style={{ height: 38 }} disabled={!doc || exporting !== null || exportBlocked || doc.status === 'draft' || doc.status === 'generating'} onClick={() => void exportPdf('deliver')}>
           <HdIcon name="Send01" size={16} />
           {exporting === 'deliver' ? 'Rendering…' : 'Deliver'}
         </HdPrimary>
@@ -405,59 +434,17 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
 
         <div className="hd-editor__canvas">
           <div className="hd-paper">
-            <div className="hd-paper__cover">
-              <div className="hd-paper__cover-rule">
-                <span className="hd-paper__brand">
-                  <span className="hd-paper__brand-mark">{doc?.client.mono ?? ''}</span>
-                  <span className="hd-paper__brand-name">{doc?.client.name ?? ''}</span>
-                </span>
-                <span className="hd-paper__firm">{doc?.firm.name ?? ''}</span>
-              </div>
-              <h1 className="hd-paper__h1">{doc?.cover.title ?? 'Hill Day Schedule'}</h1>
-              <p className="hd-paper__lede">{doc?.cover.dateline ?? (docQuery.isPending ? 'Loading…' : '')}</p>
-              <div className="hd-paper__facts">
-                {(doc?.cover.facts ?? []).map((c) => (
-                  <span key={c.k} className="hd-paper__fact">
-                    <span className="hd-paper__fact-k">{c.k}</span>
-                    <span className="hd-paper__fact-v">{c.v}</span>
-                  </span>
-                ))}
-              </div>
-              <div style={{ marginTop: 28 }}>
-                <span className="hd-paper__glance-label">The day at a glance</span>
-                <div className="hd-paper__table">
-                  <div className="hd-paper__th">
-                    <span>Time</span>
-                    <span>Member</span>
-                    <span>Office</span>
-                    <span>Room</span>
-                    <span>Min</span>
-                    <span>Staff lead</span>
-                  </div>
-                  {(doc?.summary ?? []).map((r, i, all) => (
-                    <div
-                      key={r.sectionId}
-                      className="hd-paper__tr"
-                      style={{
-                        borderBottom: i === all.length - 1 ? '1px solid transparent' : undefined,
-                      }}
-                    >
-                      <span className="hd-paper__td-time">{r.time}</span>
-                      <span className="hd-paper__td-member">{r.member}</span>
-                      <span className="hd-paper__td">{r.office}</span>
-                      <span className="hd-paper__td">{r.room}</span>
-                      <span className="hd-paper__td-mono">{r.minutes}</span>
-                      <span className="hd-paper__td">{r.staffLead}</span>
-                    </div>
-                  ))}
-                  {doc && doc.summary.length === 0 && (
-                    <div className="hd-paper__tr">
-                      <span className="hd-paper__td" style={{ gridColumn: '1 / -1' }}>No meetings selected.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <HillDayFirstPage
+              doc={doc}
+              loading={docQuery.isPending}
+              disabled={exporting !== null || editing !== null || nameDraft !== null || regen !== null || doc?.status === 'generating'}
+              saving={saving}
+              onEditingChange={(isEditing) => {
+                setFirstPageEditing(isEditing);
+                if (isEditing) setExportLink(null);
+              }}
+              onSave={saveFirstPage}
+            />
 
             {sections.map((m) => (
               <SectionBlock
@@ -465,7 +452,7 @@ export function HillDayEditor({ documentId }: { documentId?: string } = {}) {
                 section={m}
                 regenerating={regen === m.sectionId}
                 editing={editing?.sectionId === m.sectionId ? editing : null}
-                saving={saving}
+                saving={saving || firstPageEditing || exporting !== null}
                 onRegenerate={() => void regenerate(m.sectionId)}
                 onEdit={() => setEditing({ sectionId: m.sectionId, focus: m.focus ?? '', background: m.background ?? '' })}
                 onChange={(patch) => setEditing((e) => (e && e.sectionId === m.sectionId ? { ...e, ...patch } : e))}
@@ -552,12 +539,12 @@ function SectionBlock({
         </span>
         <span style={{ display: 'flex', gap: 8 }}>
           {!editing && m.status !== 'pending' && (
-            <button type="button" className="hd-section__regen" onClick={onEdit}>
+            <button type="button" className="hd-section__regen" onClick={onEdit} disabled={saving}>
               <HdIcon name="Edit01" size={14} />
               Edit
             </button>
           )}
-          <button type="button" className="hd-section__regen" onClick={onRegenerate} disabled={regenerating}>
+          <button type="button" className="hd-section__regen" onClick={onRegenerate} disabled={regenerating || saving}>
             <HdIcon name={regenerating ? 'Loading01' : 'RefreshCw01'} size={14} className={regenerating ? 'hd-spin' : undefined} />
             {regenerating ? 'Regenerating…' : 'Regenerate'}
           </button>
