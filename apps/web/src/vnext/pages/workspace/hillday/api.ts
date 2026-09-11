@@ -24,6 +24,7 @@ import type {
   DocumentResolution,
   ExportView,
   HillDayDocumentView,
+  FirstPageEdits,
   JobEvent,
   JobStatus,
   LibraryRow,
@@ -72,7 +73,7 @@ export interface HillDayClient {
   getDocument(docId: string): Promise<HillDayDocumentView>;
   patchDocument(
     docId: string,
-    body: { name?: string; status?: 'draft' | 'delivered'; lookbackDays?: number; section?: { sectionId: string; focus?: string; background?: string } },
+    body: { name?: string; status?: 'draft' | 'delivered'; lookbackDays?: number; section?: { sectionId: string; focus?: string; background?: string }; firstPage?: FirstPageEdits | null; expectedUpdatedAt?: string },
   ): Promise<HillDayDocumentView>;
   quality(docId: string): Promise<QualityResponse>;
   createExport(docId: string, pageSize?: 'letter' | 'a4'): Promise<ExportView>;

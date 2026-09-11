@@ -15,6 +15,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { COVER_FACT_KEYS, SUMMARY_COLUMN_KEYS, type CoverFactKey, type SummaryColumnKey } from '../hillday.types.js';
 
 export class CreateHillDayDocumentDto {
   @IsString() @Length(1, 128) blueprintId!: string;
@@ -85,11 +86,37 @@ export class RefineSectionTextDto {
   @IsString() @Length(1, 20000) text!: string;
 }
 
+export class FirstPageFactDto {
+  @IsIn(COVER_FACT_KEYS) key!: CoverFactKey;
+  @IsString() @MaxLength(500) value!: string;
+}
+
+export class FirstPageRowDto {
+  @IsString() @Length(1, 64) meetingId!: string;
+  @IsOptional() @IsString() @MaxLength(80) time?: string;
+  @IsOptional() @IsString() @MaxLength(300) member?: string;
+  @IsOptional() @IsString() @MaxLength(300) office?: string;
+  @IsOptional() @IsString() @MaxLength(500) room?: string;
+  @IsOptional() @IsString() @MaxLength(40) minutes?: string;
+  @IsOptional() @IsString() @MaxLength(300) staffLead?: string;
+}
+
+export class FirstPageEditsDto {
+  @IsOptional() @IsString() @MaxLength(200) title?: string;
+  @IsOptional() @IsString() @MaxLength(1000) dateline?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @ValidateNested({ each: true }) @Type(() => FirstPageFactDto) facts?: FirstPageFactDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(80) @ValidateNested({ each: true }) @Type(() => FirstPageRowDto) rows?: FirstPageRowDto[];
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsIn(SUMMARY_COLUMN_KEYS, { each: true }) hiddenColumns?: SummaryColumnKey[];
+}
+
 export class PatchHillDayDocumentDto {
   @IsOptional() @IsString() @Length(1, 200) name?: string;
   @IsOptional() @ValidateNested() @Type(() => SectionEditDto) section?: SectionEditDto;
   @IsOptional() @IsIn(['draft', 'delivered']) status?: 'draft' | 'delivered';
   @IsOptional() @IsInt() @Min(7) @Max(365) lookbackDays?: number;
+  @IsOptional() @ValidateNested() @Type(() => FirstPageEditsDto) firstPage?: FirstPageEditsDto | null;
+  /** Required for a first-page replacement/reset; rejects stale full replacements. */
+  @IsOptional() @IsISO8601() expectedUpdatedAt?: string;
 }
 
 export class CreateExportDto {
