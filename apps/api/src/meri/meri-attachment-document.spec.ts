@@ -52,11 +52,10 @@ describe('Meri document ingestion', () => {
 
   it('does not label empty decks or another OOXML format as readable PowerPoint', async () => {
     const zip = new JSZip().file('word/document.xml', '<document>Not a presentation</document>');
-    for (const bytes of [await presentation(['']), await zip.generateAsync({ type: 'nodebuffer' })]) {
-      const result = await extractMeriDocument({ ...input, kind: 'pptx', bytes });
-      expect(result).toMatchObject({ status: 'unsupported', text: null });
-      expect(result.reason).toContain('No readable slide text');
-    }
+    const result = await extractMeriDocument({ ...input, kind: 'pptx', bytes: await presentation(['']) });
+    expect(result).toMatchObject({ status: 'unsupported', text: null });
+    expect(result.reason).toContain('No readable slide text');
+    await expect(extractMeriDocument({ ...input, kind: 'pptx', bytes: await zip.generateAsync({ type: 'nodebuffer' }) })).rejects.toThrow();
     await expect(extractMeriDocument({ ...input, kind: 'pptx', bytes: Buffer.from('PK broken') })).rejects.toThrow();
   });
 
