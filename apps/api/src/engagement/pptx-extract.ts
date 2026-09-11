@@ -1,7 +1,7 @@
 // Plain-text extraction for .pptx decks (client-profile documents used as
 // outreach/AI context, and read by Meri's read_client_documents tool).
 //
-// A .pptx is an OOXML zip: each slide is ppt/slides/slideN.xml, and the visible
+// A .pptx is an OOXML zip: slide parts are usually ppt/slides/slideN.xml, and the visible
 // text lives in <a:t> runs inside the DrawingML tree. We unzip with jszip
 // (already in the dependency tree via mammoth) and pull the <a:t> values in
 // slide order with fast-xml-parser (already a direct dependency). No native
@@ -10,7 +10,10 @@
 // Legacy binary .ppt (pre-2007 OLE/BIFF) is NOT supported — same boundary as
 // xlsx-extract.ts dropping legacy .xls. Bounded per slide and overall so a huge
 // deck can't blow memory or the response.
-import { XMLParser } from 'fast-xml-parser';
+import { posix } from 'node:path';
+import type { Readable } from 'node:stream';
+import type JSZip from 'jszip';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 const PPTX_CT = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
@@ -21,11 +24,83 @@ export function isPowerPointAttachment(fileName: string, contentType: string): b
 const MAX_SLIDES = 500;
 const MAX_CHARS_PER_SLIDE = 20_000;
 const MAX_TOTAL_CHARS = 200_000;
+// Compressed upload size and output character caps cannot bound ZIP inflation
+// or XML parsing. Apply limits to the actual inflated bytes before parsing.
+export const PPTX_MAX_XML_BYTES = 2 * 1024 * 1024;
+const MAX_TOTAL_XML_BYTES = 16 * 1024 * 1024;
 
-/** Numeric suffix of ppt/slides/slideN.xml, for natural slide ordering. */
-function slideIndex(path: string): number {
-  const m = /slide(\d+)\.xml$/i.exec(path);
-  return m?.[1] ? Number.parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+class XmlReadingLimitError extends Error {}
+
+async function readXml(file: JSZip.JSZipObject, budget: { remaining: number }): Promise<string> {
+  const limit = Math.min(PPTX_MAX_XML_BYTES, budget.remaining);
+  // JSZip has no public size accessor. This optional fast rejection avoids
+  // inflating a known oversized entry; the stream count below remains the
+  // authority, including when ZIP size metadata is missing or dishonest.
+  const declaredSize = (file as JSZip.JSZipObject & { _data?: { uncompressedSize?: number } })._data?.uncompressedSize;
+  if (limit <= 0 || (typeof declaredSize === 'number' && declaredSize > limit))
+    throw new XmlReadingLimitError('PowerPoint XML exceeds the reading limit');
+  const bytes = await new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    const stream = file.nodeStream('nodebuffer') as Readable;
+    stream.on('data', (chunk: Buffer) => {
+      total += chunk.length;
+      budget.remaining -= chunk.length;
+      if (total > limit) {
+        stream.pause();
+        stream.destroy();
+        reject(new XmlReadingLimitError('PowerPoint XML exceeds the reading limit'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks, total)));
+  });
+  const xml = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  // OOXML does not require custom entities. Reject declarations before either
+  // validator or parser can expand user-controlled entity definitions.
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true)
+    throw new Error('Invalid PowerPoint XML');
+  return xml;
+}
+
+type XmlRecord = Record<string, unknown>;
+const record = (value: unknown): XmlRecord | undefined =>
+  value != null && typeof value === 'object' && !Array.isArray(value) ? value as XmlRecord : undefined;
+const list = (value: unknown): unknown[] => value == null ? [] : Array.isArray(value) ? value : [value];
+function child(value: unknown, name: string): unknown {
+  return Object.entries(record(value) ?? {}).find(([key]) => !key.startsWith('@_') && key.split(':').pop() === name)?.[1];
+}
+
+/** Presentation order is defined by sldIdLst, never by slide part filenames. */
+async function presentationSlides(zip: JSZip, budget: { remaining: number }): Promise<Array<string | null>> {
+  const manifest = zip.file('ppt/presentation.xml');
+  const relationships = zip.file('ppt/_rels/presentation.xml.rels');
+  if (!manifest || !relationships) throw new Error('Missing PowerPoint presentation manifest');
+  const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: false, trimValues: true });
+  const presentation = child(parser.parse(await readXml(manifest, budget)), 'presentation');
+  const relRoot = child(parser.parse(await readXml(relationships, budget)), 'Relationships');
+  if (!record(presentation) || relRoot === undefined) throw new Error('Invalid PowerPoint presentation manifest');
+  const targets = new Map<string, string>();
+  for (const value of list(child(relRoot, 'Relationship'))) {
+    const rel = record(value);
+    if (!rel || typeof rel['@_Id'] !== 'string' || typeof rel['@_Target'] !== 'string' ||
+        typeof rel['@_Type'] !== 'string' || !rel['@_Type'].endsWith('/slide') ||
+        String(rel['@_TargetMode'] ?? '').toLowerCase() === 'external') continue;
+    const target = rel['@_Target'];
+    if (/[\\?#]/.test(target) || /^[a-z][a-z\d+.-]*:/i.test(target)) continue;
+    const path = posix.normalize(target.startsWith('/') ? target.slice(1) : posix.join('ppt', target));
+    if (path === '..' || path.startsWith('../')) continue;
+    targets.set(rel['@_Id'], path);
+  }
+  return list(child(child(presentation, 'sldIdLst'), 'sldId')).map(value => {
+    const slide = record(value);
+    // Relationship IDs are namespace-qualified; the unqualified id is the
+    // presentation's numeric slide identity, which is a different value.
+    const id = Object.entries(slide ?? {}).find(([key]) => key.startsWith('@_') && key.endsWith(':id'))?.[1];
+    return typeof id === 'string' ? targets.get(id) ?? null : null;
+  });
 }
 
 /**
@@ -61,17 +136,27 @@ export function collectTextRuns(node: unknown, out: string[]): void {
 
 /**
  * Plain-text rendering of a .pptx deck: one block per slide ("Slide N:" header
- * + its text runs newline-joined), slides in natural order. jszip is
+ * + its text runs newline-joined), slides in presentation order. jszip is
  * lazy-loaded (heavy at import time, like exceljs/pdf-parse elsewhere).
  */
 export async function extractPptxText(buffer: Buffer): Promise<string> {
+  return (await extractPptxDocument(buffer)).text;
+}
+
+/** Preserve reading limits and gaps for callers that display attachment status. */
+export async function extractPptxDocument(buffer: Buffer): Promise<{
+  text: string;
+  truncated: boolean;
+  unreadableSlides: number[];
+}> {
   const { default: JSZip } = await import('jszip');
   const zip = await JSZip.loadAsync(buffer);
 
-  const slidePaths = Object.keys(zip.files)
-    .filter((p) => /^ppt\/slides\/slide\d+\.xml$/i.test(p))
-    .sort((a, b) => slideIndex(a) - slideIndex(b))
-    .slice(0, MAX_SLIDES);
+  const budget = { remaining: MAX_TOTAL_XML_BYTES };
+  const allSlidePaths = await presentationSlides(zip, budget);
+  const slidePaths = allSlidePaths.slice(0, MAX_SLIDES);
+  let truncated = allSlidePaths.length > slidePaths.length;
+  const unreadableSlides: number[] = [];
 
   const parser = new XMLParser({
     ignoreAttributes: true,
@@ -85,24 +170,39 @@ export async function extractPptxText(buffer: Buffer): Promise<string> {
   let slideNumber = 0;
   for (const path of slidePaths) {
     slideNumber += 1;
-    const file = zip.file(path);
-    if (!file) continue;
-    const xml = await file.async('string');
+    const file = path ? zip.file(path) : null;
+    if (!file) {
+      unreadableSlides.push(slideNumber);
+      continue;
+    }
     let parsed: unknown;
     try {
-      parsed = parser.parse(xml);
-    } catch {
+      parsed = parser.parse(await readXml(file, budget));
+      if (!record(child(parsed, 'sld'))) throw new Error('Invalid PowerPoint slide');
+    } catch (error) {
+      truncated ||= error instanceof XmlReadingLimitError;
+      unreadableSlides.push(slideNumber);
       continue; // a malformed slide must not abort the whole deck
     }
     const runs: string[] = [];
     collectTextRuns(parsed, runs);
-    const text = runs.join('\n').trim().slice(0, MAX_CHARS_PER_SLIDE);
-    if (!text) continue;
+    const raw = runs.join('\n').trim();
+    const text = raw.slice(0, MAX_CHARS_PER_SLIDE);
+    truncated ||= text.length < raw.length;
+    if (!text) {
+      unreadableSlides.push(slideNumber);
+      continue;
+    }
     const block = `Slide ${slideNumber}:\n${text}`;
     blocks.push(block);
     total += block.length;
-    if (total >= MAX_TOTAL_CHARS) break;
+    if (total >= MAX_TOTAL_CHARS) {
+      truncated ||= slideNumber < allSlidePaths.length;
+      break;
+    }
   }
 
-  return blocks.join('\n\n').slice(0, MAX_TOTAL_CHARS).trim();
+  const raw = blocks.join('\n\n');
+  return { text: raw.slice(0, MAX_TOTAL_CHARS).trim(),
+    truncated: truncated || raw.length > MAX_TOTAL_CHARS, unreadableSlides };
 }

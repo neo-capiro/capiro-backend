@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import mammoth from 'mammoth';
 import type { ResolvedAiCredential } from '../ai-credentials/ai-credential-resolver.service.js';
 import { AttachmentPdfVisionReader } from '../engagement/attachment-pdf-vision.js';
+import { extractPptxDocument } from '../engagement/pptx-extract.js';
 import { extractPdfText } from './meri-attachment-extract.js';
 import { resolveDocumentStatus, type AttachmentKind, type DocumentExtractionResult } from './meri-attachment.helpers.js';
 
@@ -18,6 +19,20 @@ export async function extractMeriDocument(input: {
   userId: string;
   resolveCredential: () => Promise<ResolvedAiCredential | null>;
 }, reader: Pick<AttachmentPdfVisionReader, 'read'> = visualReader): Promise<DocumentExtractionResult & { pages: number | null }> {
+  if (input.kind === 'pptx') {
+    const extracted = await extractPptxDocument(input.bytes);
+    const resolved = resolveDocumentStatus('pptx', extracted.text);
+    if (!resolved.text) return { ...resolved, pages: null,
+      reason: 'No readable slide text was found. Export the presentation to PDF or upload images of the slides.' };
+    const partial = resolved.truncated || extracted.truncated || extracted.unreadableSlides.length > 0;
+    const reasons = ['PowerPoint slide text only. Images, charts, and speaker notes are not included; upload a PDF or slide images for those details.'];
+    if (extracted.unreadableSlides.length)
+      reasons.push(`${extracted.unreadableSlides.length} slide(s) had no readable text.`);
+    if (resolved.truncated || extracted.truncated)
+      reasons.push('Only part of the slide text is included because it exceeds the reading limit.');
+    return { ...resolved, pages: null, status: partial ? 'truncated' : 'parsed',
+      truncated: partial, reason: reasons.join(' ').slice(0, 300) };
+  }
   if (input.kind !== 'pdf') {
     const raw = input.kind === 'docx'
       ? (await mammoth.extractRawText({ buffer: input.bytes })).value
