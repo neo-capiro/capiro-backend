@@ -1895,7 +1895,7 @@ model ClioAttachment {
   userId      String   @map("user_id") @db.Uuid
   messageId   String?  @map("message_id") @db.Uuid
   filename    String   @db.VarChar(300)
-  /// pdf | docx | image | text
+  /// pdf | docx | pptx | image | text
   kind        String   @db.VarChar(20)
   /// parsed | truncated | scanned | image_ready | unsupported
   status      String   @db.VarChar(20)
