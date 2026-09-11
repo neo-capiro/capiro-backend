@@ -195,7 +195,8 @@ model LegiWatchReportRun {
   createdBy String @map("created_by")
   audience String @default("external")
   cutoff String
-  snapshot Json
+    snapshot Json
+    rendered Json @default("{}")
   contentHash String @map("content_hash")
   complete Boolean
   generatedAt DateTime @default(now()) @map("generated_at")

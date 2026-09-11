@@ -21,6 +21,7 @@ import {
   makeDocument,
   object,
   renderReport,
+  storedRendering,
   selectionHash,
   settings,
   text,
@@ -204,9 +205,10 @@ export class ReportService {
         if (existing)
           return {
             ...existing,
-            rendered: renderReport(existing.snapshot as unknown as ReportDocument),
+            rendered: storedRendering(existing.rendered),
           };
       }
+      const rendered = renderReport(snapshot);
       const run = await tx.legiWatchReportRun.create({
         data: {
           tenantId: ctx.tenantId,
@@ -216,13 +218,14 @@ export class ReportService {
           audience,
           cutoff,
           snapshot: json(snapshot),
-          contentHash: digest(snapshot),
+          rendered: json(rendered),
+          contentHash: digest({ snapshot, rendered }),
           complete: snapshot.complete,
           generatedAt: now,
           generationKey,
         },
       });
-      return { ...run, rendered: renderReport(snapshot) };
+      return { ...run, rendered };
     });
   }
   async run(ctx: WorkspaceTenantContext, id: string) {
@@ -234,7 +237,7 @@ export class ReportService {
       const snapshot = r.snapshot as unknown as ReportDocument;
       for (const folderId of new Set(snapshot.rows.map((r) => r.folderId)))
         await this.folders.folder(tx, ctx, folderId);
-      return { ...r, rendered: renderReport(snapshot) };
+      return { ...r, rendered: storedRendering(r.rendered) };
     });
   }
   async history(ctx: WorkspaceTenantContext, reportId?: string, before?: string) {

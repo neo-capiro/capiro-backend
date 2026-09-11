@@ -71,6 +71,13 @@ const document = (
   });
 
 describe('operational report semantics', () => {
+  test('failed source coverage stays blocking when an action filter excludes every visible row', () => {
+    const failed = { ...bill('b1', 'HB93'), sourceCheckStatus: 'failed', events: [] };
+    const result = document({ actionDateFrom: '2026-06-25' }, [failed]);
+    expect(result.rows).toEqual([]);
+    expect(result.complete).toBe(false);
+    expect(result.issues.some((i) => i.field === 'source' && i.blocking)).toBe(true);
+  });
   test.each([
     [
       'Off:',

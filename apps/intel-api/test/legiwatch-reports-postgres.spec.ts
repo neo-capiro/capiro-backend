@@ -9,6 +9,7 @@ import { ReportDeliveryService } from '../src/tracker/reports/report-delivery.se
 import { ReportSubscriptionService } from '../src/tracker/reports/report-subscription.service.js';
 import { RecordRuleService } from '../src/tracker/reports/record-rule.service.js';
 import { settings, type ReportDocument } from '../src/tracker/reports/report-domain.js';
+import * as reportDomain from '../src/tracker/reports/report-domain.js';
 import type { FeatureFlagService } from '../src/feature-flags/feature-flag.service.js';
 import type { IntelEmailService } from '../src/intel-alert/intel-email.service.js';
 import type { WorkspaceTenantContext } from '../src/auth/tenant-context.js';
@@ -124,6 +125,25 @@ describe('Phase 2 reports: PostgreSQL authorization, delivery and recovery', () 
     ]);
     expect(runs[0]!.id).toBe(runs[1]!.id);
     expect(runs[0]!.contentHash).toBe(runs[1]!.contentHash);
+  });
+  it('retains the exact export and delivery bytes after the renderer changes', async () => {
+    const run = await generate();
+    const renderer = jest
+      .spyOn(reportDomain, 'renderReport')
+      .mockReturnValue({ html: '<body>New renderer</body>', text: 'New renderer' });
+    try {
+      expect((await reports.run(ctx, run.id)).rendered).toEqual(run.rendered);
+      const preview = await delivery.preview(ctx, run.id, {
+        subject: 'Frozen export',
+        introduction: '',
+        selection,
+      });
+      expect(preview.composition.html).toContain('Source description');
+      expect(preview.composition.html).not.toContain('New renderer');
+      expect(preview.composition.contentHash).toBe(run.contentHash);
+    } finally {
+      renderer.mockRestore();
+    }
   });
   it('enforces tenant RLS and private-list visibility with a non-bypass role', async () => {
     const list = await recipients.saveList(ctx, { name: 'Private', private: true, contactIds: [] });
@@ -271,7 +291,10 @@ describe('Phase 2 reports: PostgreSQL authorization, delivery and recovery', () 
         data: { nextDueAt: intended },
       }),
     );
-    await Promise.all([schedules.due(tenant, 25, new Date(intended.getTime() + 1000)), schedules.due(tenant, 25, new Date(intended.getTime() + 1000))]);
+    await Promise.all([
+      schedules.due(tenant, 25, new Date(intended.getTime() + 1000)),
+      schedules.due(tenant, 25, new Date(intended.getTime() + 1000)),
+    ]);
     const history = await schedules.history(ctx, sub.id);
     expect(history).toHaveLength(1);
     expect(history[0]!.state).toBe('no_change');
@@ -355,20 +378,60 @@ describe('Phase 2 reports: PostgreSQL authorization, delivery and recovery', () 
   it('promotes 80 contact identities, 25 lists and 51 memberships without losing aliases or replaying edits', async () => {
     const account = `synthetic-${suffix}`;
     const base = { tenantId: tenant, sourceAccount: account, provenance: { fixture: true } };
-    await prisma.withTenant(tenant, tx => tx.legiWatchStagedConfiguration.createMany({ data: [
-      ...Array.from({ length: 80 }, (_, i) => ({ ...base, kind: 'contact', sourceId: String(i), payload: { full_name: `Synthetic contact ${i}`, email: `${i === 2 ? 1 : i}-${suffix}@example.invalid` } })),
-      ...Array.from({ length: 25 }, (_, i) => ({ ...base, kind: 'mailing_list', sourceId: String(i), payload: { name: `Synthetic list ${i}`, visibility: i < 4 ? 'Private' : 'Public' } })),
-      ...Array.from({ length: 51 }, (_, i) => ({ ...base, kind: 'list_membership', sourceId: String(i), payload: { mailing_list_id: String(i % 24), contact_id: String(i) } })),
-    ] }));
-    expect(await recipients.promote(ctx, account)).toEqual({ contacts: 80, lists: 25, memberships: 51, unresolved: [], allNewContactsUnverified: true });
-    const directory = await recipients.directory(ctx), imported = directory.contacts.filter(c => c.name.startsWith('Synthetic contact '));
-    expect(imported).toHaveLength(80); expect(imported.every(c => !c.verified)).toBe(true);
-    expect(imported.filter(c => c.email === `1-${suffix}@example.invalid`)).toHaveLength(2);
-    expect(directory.lists.find(l => l.name === 'Synthetic list 24')!.contactIds).toEqual([]);
+    await prisma.withTenant(tenant, (tx) =>
+      tx.legiWatchStagedConfiguration.createMany({
+        data: [
+          ...Array.from({ length: 80 }, (_, i) => ({
+            ...base,
+            kind: 'contact',
+            sourceId: String(i),
+            payload: {
+              full_name: `Synthetic contact ${i}`,
+              email: `${i === 2 ? 1 : i}-${suffix}@example.invalid`,
+            },
+          })),
+          ...Array.from({ length: 25 }, (_, i) => ({
+            ...base,
+            kind: 'mailing_list',
+            sourceId: String(i),
+            payload: { name: `Synthetic list ${i}`, visibility: i < 4 ? 'Private' : 'Public' },
+          })),
+          ...Array.from({ length: 51 }, (_, i) => ({
+            ...base,
+            kind: 'list_membership',
+            sourceId: String(i),
+            payload: { mailing_list_id: String(i % 24), contact_id: String(i) },
+          })),
+        ],
+      }),
+    );
+    expect(await recipients.promote(ctx, account)).toEqual({
+      contacts: 80,
+      lists: 25,
+      memberships: 51,
+      unresolved: [],
+      allNewContactsUnverified: true,
+    });
+    const directory = await recipients.directory(ctx),
+      imported = directory.contacts.filter((c) => c.name.startsWith('Synthetic contact '));
+    expect(imported).toHaveLength(80);
+    expect(imported.every((c) => !c.verified)).toBe(true);
+    expect(imported.filter((c) => c.email === `1-${suffix}@example.invalid`)).toHaveLength(2);
+    expect(directory.lists.find((l) => l.name === 'Synthetic list 24')!.contactIds).toEqual([]);
     const changed = imported[0]!;
-    await recipients.saveContact(ctx, { ...changed, name: 'Staff edit preserved', expectedVersion: changed.version }, changed.id);
-    expect(await recipients.promote(ctx, account)).toMatchObject({ contacts: 0, lists: 0, memberships: 0 });
-    expect((await recipients.directory(ctx)).contacts.find(c => c.id === changed.id)!.name).toBe('Staff edit preserved');
+    await recipients.saveContact(
+      ctx,
+      { ...changed, name: 'Staff edit preserved', expectedVersion: changed.version },
+      changed.id,
+    );
+    expect(await recipients.promote(ctx, account)).toMatchObject({
+      contacts: 0,
+      lists: 0,
+      memberships: 0,
+    });
+    expect((await recipients.directory(ctx)).contacts.find((c) => c.id === changed.id)!.name).toBe(
+      'Staff edit preserved',
+    );
   }, 60000);
   it('creates five daily drafts at local cutoffs and excludes worker wakeup delay from the change window', async () => {
     const saved = await schedules.save(ctx, {

@@ -22,7 +22,6 @@ import {
   escapeHtml,
   json,
   object,
-  renderReport,
   selectionHash,
   text,
   type ReportDocument,
@@ -59,7 +58,7 @@ export class ReportDeliveryService {
       this.recipients.resolve(tx, ctx, body.selection),
     );
     if (!recipients.length) throw new BadRequestException('AT_LEAST_ONE_RECIPIENT_REQUIRED');
-    const rendered = renderReport(run.snapshot as unknown as ReportDocument);
+    const rendered = run.rendered;
     const composition: ReportComposition = {
       runId,
       contentHash: run.contentHash,

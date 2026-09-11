@@ -164,7 +164,7 @@ jobs:
       - name: Assert Phase 2 qualification is clean
         if: always()
         run: |
-          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-report-summary.json" phase2-reports 2 32
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-report-summary.json" phase2-reports 2 34
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-source-summary.json" phase2-source 2 6
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-web-summary.json" phase2-web 1 6
 

@@ -16,7 +16,6 @@ import {
   escapeHtml,
   json,
   object,
-  renderReport,
   text,
   version,
   type ReportDocument,
@@ -422,7 +421,7 @@ export class ReportSubscriptionService {
             throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
           const recipients = config.recipients as unknown as RecipientSnapshot[];
           for (const r of recipients) await this.recipients.recheck(tx, ctx, r);
-          const rendered = renderReport(doc),
+          const rendered = run.rendered,
             introduction = String(config.introduction ?? '');
           const composition: ReportComposition = {
             runId: run.id,

@@ -6,6 +6,12 @@ export const object = (v: unknown): Record<string, unknown> =>
 export const digest = (v: unknown): string =>
   createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export const json = (v: unknown) => JSON.parse(JSON.stringify(v));
+export function storedRendering(value: unknown): { html: string; text: string } {
+  const rendered = object(value);
+  if (typeof rendered.html !== 'string' || typeof rendered.text !== 'string')
+    throw new BadRequestException('FROZEN_EXPORT_UNAVAILABLE_REGENERATE_REPORT');
+  return { html: rendered.html, text: rendered.text };
+}
 export function dateOnly(v: string): string {
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(v) ||
@@ -282,6 +288,13 @@ export function makeDocument(input: {
       issue(a.billId, 'identity', 'Canonical bill mapping unavailable');
       continue;
     }
+    // A source failure cannot make a bill disappear through an action filter
+    // and turn an unknown result into a complete no-change report.
+    if (b.sourceCheckStatus !== 'success' || !b.sourceCheckedAt)
+      issue(b.id, 'source', `Source check ${b.sourceCheckStatus ?? 'unknown'}`);
+    if (b.sourceCheckedAt && input.now.getTime() - Date.parse(b.sourceCheckedAt) > 24 * 3600_000)
+      issue(b.id, 'freshness', 'Last successful source check is more than 24 hours old');
+    if (!b.coverage.actions) issue(b.id, 'actions', 'Published action coverage incomplete');
     const actions = b.events
       .filter((e) => e.kind === 'action' && e.date && e.date <= cutoff)
       .sort(byAction);
@@ -301,11 +314,6 @@ export function makeDocument(input: {
       }
     if (!b.title.trim() || !b.sourceUrl)
       issue(b.id, 'identity', 'Required title or original source link unavailable');
-    if (b.sourceCheckStatus !== 'success' || !b.sourceCheckedAt)
-      issue(b.id, 'source', `Source check ${b.sourceCheckStatus ?? 'unknown'}`);
-    if (b.sourceCheckedAt && input.now.getTime() - Date.parse(b.sourceCheckedAt) > 24 * 3600_000)
-      issue(b.id, 'freshness', 'Last successful source check is more than 24 hours old');
-    if (!b.coverage.actions) issue(b.id, 'actions', 'Published action coverage incomplete');
     if (s.summary && !b.summary) issue(b.id, 'summary', 'Source description unavailable', false);
     if (s.committees === 'all' && !b.coverage.committees)
       issue(b.id, 'committees', 'Complete committee references unavailable', false);
