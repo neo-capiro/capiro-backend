@@ -129,16 +129,22 @@ export function parseReportInput(raw: string): QualificationReport {
 
 function main(): void {
   const argPath = process.argv[2];
-  const raw = argPath ? readFileSync(argPath, 'utf8') : readFileSync(0, 'utf8');
   let report: QualificationReport;
   try {
+    const raw = argPath ? readFileSync(argPath, 'utf8') : readFileSync(0, 'utf8');
     report = parseReportInput(raw);
   } catch (error) {
-    console.error(`usage error: could not parse a QUALIFICATION_REPORT from input: ${(error as Error).message}`);
+    console.error(`usage error: could not read/parse a QUALIFICATION_REPORT from input: ${(error as Error).message}`);
     process.exit(2);
   }
 
-  const verdict = evaluateReleaseGate(report);
+  let verdict: ReleaseGateVerdict;
+  try {
+    verdict = evaluateReleaseGate(report);
+  } catch (error) {
+    console.error(`usage error: report is not a well-formed QualificationReport: ${(error as Error).message}`);
+    process.exit(2);
+  }
   console.log(
     verdict.token,
     JSON.stringify(
