@@ -405,6 +405,21 @@ describe('classifyWaitingReason (execution blocked-state, precise reason preserv
     ).toBe('missing_prerequisites');
   });
 
+  // F10: the backend's ACTUAL parked-eligibility phrase — previously missed,
+  // so a real "node no longer eligible: node has no owner…" run rendered as
+  // generic "Waiting for input" instead of the eligibility repair state.
+  it('classifies the backend phrase "node no longer eligible: …" as the eligibility repair state', () => {
+    expect(
+      classifyWaitingReason(
+        'node no longer eligible: node has no owner (ownerUserId is required)',
+      ),
+    ).toMatchObject({
+      kind: 'ineligible',
+      reason:
+        'node no longer eligible: node has no owner (ownerUserId is required)',
+    });
+  });
+
   it('degrades an unknown/empty reason to "other" with a sane default (never a blank blocked state)', () => {
     const empty = classifyWaitingReason(null);
     expect(empty.kind).toBe('other');

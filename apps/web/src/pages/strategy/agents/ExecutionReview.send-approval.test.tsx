@@ -240,7 +240,10 @@ describe('ExecutionReview send-approval hard-disable (Stage G safety boundary)',
     runsData = [blockedRun];
     render(reviewTree());
 
-    expect(screen.getByText('Needs an interactive session')).toBeInTheDocument();
+    // F10: the shared formatter's readable primary (plan §8 repair mapping —
+    // Authentication/session required → "Reconnect your session"), with the
+    // server's verbatim reason still present below it.
+    expect(screen.getByText('Reconnect your session to continue this run.')).toBeInTheDocument();
     expect(screen.getByText('Execution requires an interactive session')).toBeInTheDocument();
     // Not the send panel.
     expect(screen.queryByRole('button', { name: /approve this send/i })).not.toBeInTheDocument();

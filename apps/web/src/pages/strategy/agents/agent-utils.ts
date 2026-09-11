@@ -7,6 +7,7 @@
  * context/context-utils.ts.
  */
 import { errorMessage } from '../../../lib/error-message.js';
+import { projectExecutionBlocker, type ExecutionBlocker } from '../../../vnext/pages/strategies/agents/execution-blocker.js';
 import type {
   AgentMission,
   AgentRun,
@@ -718,6 +719,18 @@ function executionRunSummary(findings: Record<string, unknown> | null): string |
 export function normalizeExecutionRun(item: unknown): ExecutionRun | null {
   const base = normalizeRun(item);
   if (!base) return null;
+  // F10: prefer the server's structured blocker projection when present
+  // (additive field on list/get); derive it from the persisted findings for
+  // runs from a pre-projection server.
+  const projected = isRecord(item) ? item.blocker : null;
+  const blocker = projected
+    ? (projected as ExecutionRun['blocker'])
+    : projectExecutionBlocker({
+        state: base.state,
+        waitingReason: base.waitingReason,
+        error: base.error,
+        findings: base.findings,
+      });
   return {
     id: base.id,
     missionId: base.missionId,
@@ -729,6 +742,7 @@ export function normalizeExecutionRun(item: unknown): ExecutionRun | null {
     summary: executionRunSummary(base.findings),
     nodeId: isRecord(base.findings?.execution) ? str(base.findings.execution.nodeId) : null,
     tasks: extractExecutionTasks(base.findings),
+    blocker: blocker ?? null,
     startedAt: base.startedAt,
     finishedAt: base.finishedAt,
     createdAt: base.createdAt,
@@ -753,7 +767,6 @@ export function normalizeExecutionRuns(data: unknown): ExecutionRun[] {
 }
 
 /**
- * A parked-run's waiting_for_input reason, classified for a CLEAR blocked state
  * (never a generic error). `sendApproval` is the safety-gate park (the staged
  * outreach awaits the — inert — send approval); the rest are eligibility
  * blockers the plan enumerates: version drift, ineligible node, an open
@@ -820,7 +833,10 @@ export function classifyWaitingReason(reason: string | null): ExecutionBlock {
       reason: r || 'The plan changed since this was planned.',
     };
   }
-  if (/ineligible|not eligible|eligibility/.test(lc)) {
+  // F10: the backend's ACTUAL parked-eligibility phrase — evaluateG0 writes
+  // `node no longer eligible: <reasons>`. Previously this missed, so a real
+  // missing-owner park rendered as generic "Waiting for input".
+  if (/no longer eligible|ineligible|not eligible|eligibility/.test(lc)) {
     return {
       kind: 'ineligible',
       label: 'Node is not execution-eligible',

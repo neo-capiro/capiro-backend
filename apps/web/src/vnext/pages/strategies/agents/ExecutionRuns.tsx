@@ -44,6 +44,7 @@ import {
   isPriorApprovalInvalidated,
   sendApprovalTask,
 } from '../../../../pages/strategy/agents/agent-utils.js';
+import { projectExecutionBlocker, type ExecutionBlocker } from './execution-blocker.js';
 import { errorMessage } from '../../../../lib/error-message.js';
 import type {
   ExecutionRun,
@@ -403,6 +404,65 @@ function triggerLabel(trigger: string): string {
   return TRIGGER_LABEL[trigger] ?? `Trigger: ${trigger}`;
 }
 
+/*
+ * F10 legacy adapter: a pre-projection run (no server `blocker` field and no
+ * findings to derive from) still renders through the SAME structured shape —
+ * the classified waiting reason plus honest copy — never a raw technical
+ * string as the main card text.
+ */
+function legacyBlock(block: ReturnType<typeof classifyWaitingReason>): ExecutionBlocker {
+  switch (block.kind) {
+    case 'ineligible':
+      return {
+        code: 'other',
+        primary: 'Update this step before preparing work. Check the step type, subject, owner and dates in the editor, then return here to resume.',
+        requirements: [],
+        repair: 'review_step',
+        raw: { waitingReason: block.reason },
+      };
+    case 'material_conflict':
+      return {
+        code: 'material_conflict',
+        primary: 'Resolve conflicting client information in Context review, then resume.',
+        requirements: [],
+        repair: 'review_context',
+        raw: { waitingReason: block.reason },
+      };
+    case 'missing_prerequisites':
+      return {
+        code: 'required_source_missing',
+        primary: 'Add the missing client context in Context review before retrying. Execute plan stays unavailable until prerequisites are current.',
+        requirements: [],
+        repair: 'add_context',
+        raw: { waitingReason: block.reason },
+      };
+    case 'version_drift':
+      return {
+        code: 'plan_version_changed',
+        primary: 'Review the updated strategy and prepare a new plan before continuing.',
+        requirements: [],
+        repair: 'review_step',
+        raw: { waitingReason: block.reason },
+      };
+    case 'interactive_session':
+      return {
+        code: 'interactive_session',
+        primary: 'Reconnect your session to continue this run.',
+        requirements: [],
+        repair: 'session_recovery',
+        raw: { waitingReason: block.reason },
+      };
+    default:
+      return {
+        code: 'other',
+        primary: 'This run needs attention. Review its details before retrying.',
+        requirements: [],
+        repair: 'inspect_findings',
+        raw: { waitingReason: block.reason },
+      };
+  }
+}
+
 /**
  * One execution run: state pill, summary, numbered tasks with per-task state,
  * the blocked/failed reasons, and the state-appropriate affordances. Actions
@@ -437,6 +497,20 @@ function RunCard({
 
   const awaitingSend = isAwaitingSendApproval(run);
   const sendTask = awaitingSend ? sendApprovalTask(run) : null;
+  /*
+   * F10: the structured blocker drives the main card copy — the server's
+   * projection when present (additive `blocker` field), else derived from
+   * the same persisted findings. ONE primary reason + distinct requirements;
+   * raw technical strings only under the collapsed Technical details.
+   */
+  const blocker =
+    run.blocker ??
+    projectExecutionBlocker({
+      state: run.state,
+      waitingReason: run.waitingReason,
+      error: run.error,
+      findings: null,
+    });
   const block =
     run.state === 'waiting_for_input' && !awaitingSend
       ? classifyWaitingReason(run.waitingReason)
@@ -536,14 +610,19 @@ function RunCard({
           </div>
         )}
 
-        {/* Every failure state surfaces its reason — a failed run is never
-            hidden behind a bare pill (§7.9 must-not). */}
-        {failed && (
+        {/*
+         * Every failure state surfaces its reason — a failed run is never
+         * hidden behind a bare pill (§7.9 must-not). F10: the structured
+         * blocker's primary message leads; the raw server error stays under
+         * Technical details (already rendered by the blocker card below).
+         */}
+        {failed && !blocker && (
           <div className="st-agents__error-box" role="alert">
-            {run.error ??
-              (run.state === 'failed_recoverable'
+            {run.error
+              ? run.error
+              : run.state === 'failed_recoverable'
                 ? 'This run failed in a recoverable way — Retry prepares a new attempt against the current plan for review.'
-                : 'This run failed terminally. No further reason was reported by the server.')}
+                : 'This run failed terminally. No further reason was reported by the server.'}
           </div>
         )}
 
@@ -611,48 +690,71 @@ function RunCard({
           </div>
         )}
 
-        {/* Other blocked states: the precise classified reason, never a
-            generic error; Resume for the recoverable park. */}
-        {block && (
+        {/*
+         * F10: blocked/failed states render through the structured blocker —
+         * one primary readable reason, distinct known requirements, raw
+         * technical details collapsed. Legacy adapter: when no projection
+         * exists the classified reason still renders (never a generic error).
+         */}
+        {(blocker ?? (block ? legacyBlock(block) : null)) && (() => {
+          const b = blocker ?? legacyBlock(block!);
+          const requirements = b?.requirements ?? [];
+          return (
           <div className="st-agents__block">
             <div className="st-agents__block-text">
-              <b>{block.kind === 'ineligible' ? 'Update this step before preparing work' : block.label}.</b>{' '}
-              {block.kind === 'ineligible'
-                ? 'Check the step type, subject, owner and dates in the editor, then return here to resume.'
-                : block.kind === 'material_conflict'
-                  ? 'Resolve conflicting client information in Context review, then resume.'
-                  : block.kind === 'missing_prerequisites'
-                    ? 'Restore the required client context (strategy brief and client constraints) in Context review before retrying. Execute plan stays unavailable until prerequisites are current.'
-                    : block.kind === 'version_drift'
-                      ? 'Review the updated strategy and prepare a new plan before continuing.'
-                      : block.reason}
+              <b>{b.primary}</b>
+              {requirements.length > 0 && (
+                <ul className="st-agents__block-requirements">
+                  {requirements.map((r: { kind: string; label: string }) => (
+                    <li key={r.kind}>{r.label}</li>
+                  ))}
+                </ul>
+              )}
               <details>
-                <summary>Reported reason</summary>
-                {block.reason}
+                <summary>Technical details</summary>
+                {b.raw?.waitingReason && <p>{b.raw.waitingReason}</p>}
+                {b.raw?.error && <p>{b.raw.error}</p>}
+                {(b.raw?.eligibilityReasons?.length ?? 0) > 0 && (
+                  <p>{b.raw!.eligibilityReasons!.join('; ')}</p>
+                )}
+                {(b.raw?.verifierChainErrors?.length ?? 0) > 0 && (
+                  <p>{b.raw!.verifierChainErrors!.join('; ')}</p>
+                )}
               </details>
             </div>
-            {repairPath && (block.kind === 'ineligible' || block.kind === 'version_drift') && (
+            {(b.repair === 'open_step' || b.repair === 'review_step') && repairPath && (
               <CapiroButton size="compact" onClick={() => navigate(repairPath)}>
-                Review step
+                {b.repair === 'open_step' ? 'Open the affected step' : 'Review step'}
               </CapiroButton>
             )}
-            {(block.kind === 'material_conflict' || block.kind === 'missing_prerequisites') && (
-              <CapiroButton size="compact" onClick={() => navigate('/strategies/context/steward')}>
-                Review context
-              </CapiroButton>
-            )}
-            {block.kind === 'version_drift' && can('retry') && (
+            {(b.repair === 'add_context' || b.repair === 'review_context') &&
+              b.strategyId && (
+                <CapiroButton
+                  size="compact"
+                  onClick={() =>
+                    navigate(
+                      `/strategies/${b.strategyId}/context${
+                        b.repair === 'review_context' ? '?tab=steward' : ''
+                      }`,
+                    )
+                  }
+                >
+                  {b.repair === 'add_context' ? 'Add context' : 'Review context'}
+                </CapiroButton>
+              )}
+            {b.code === 'plan_version_changed' && can('retry') && (
               <CapiroButton size="compact" disabled={busy} onClick={onRetry}>
                 Prepare updated plan
               </CapiroButton>
             )}
-            {block.kind !== 'version_drift' && can('resume') && (
+            {b.code !== 'plan_version_changed' && can('resume') && (
               <CapiroButton size="compact" disabled={busy} onClick={onResume}>
                 {resume.isPending ? 'Resuming…' : 'Resume'}
               </CapiroButton>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {actionError && (
           <div className="st-agents__error-box" role="alert">

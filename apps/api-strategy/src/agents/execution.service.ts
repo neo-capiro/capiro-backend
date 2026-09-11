@@ -37,6 +37,7 @@ import {
   type ApprovalRecord,
   type ApprovalVerification,
 } from './approval-binding.js';
+import { projectExecutionBlocker } from './execution-blocker.js';
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
@@ -197,7 +198,7 @@ export class ExecutionService {
    */
   async listRuns(tenantId: string, opts: { strategyId?: string; take?: number } = {}) {
     const take = Math.min(Math.max(opts.take ?? 50, 1), 100);
-    return this.prisma.withTenant(tenantId, (tx) =>
+    const rows = await this.prisma.withTenant(tenantId, (tx) =>
       tx.spAgentRun.findMany({
         where: {
           idempotencyKey: { startsWith: 'exec:' },
@@ -207,6 +208,9 @@ export class ExecutionService {
         take,
       }),
     );
+    // F10: attach the structured blocker projection (additive field; the row
+    // itself is untouched — no storage change, no migration).
+    return rows.map((row) => ({ ...row, blocker: projectExecutionBlocker(row) }));
   }
 
   /** Read-only readiness: uses the same current-plan gate as planning/execution. */
