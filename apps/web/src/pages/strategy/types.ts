@@ -1,3 +1,4 @@
+import type { ExecutionBlocker } from '../../vnext/pages/strategies/agents/execution-blocker.js';
 /*
  * Strategy Planner API response shapes (/strategy-api). Dates arrive as ISO
  * strings over JSON; callers parse with new Date(). Mirrors the sp_* models.
@@ -1021,6 +1022,12 @@ export interface ExecutionRun {
   trigger: string;
   /** The waiting_for_input reason verbatim — the blocked-state copy. */
   waitingReason: string | null;
+  /**
+   * F10: structured blocker projection (additive) — code, one primary
+   * readable reason, known requirements, affected IDs, repair target. Null
+   * when nothing blocks or on responses from a pre-projection server.
+   */
+  blocker?: ExecutionBlocker | null;
   error: string | null;
   summary: string | null;
   tasks: ExecutionTask[];

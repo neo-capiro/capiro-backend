@@ -48,6 +48,7 @@ import {
 import { useClientsLite } from '../clients-lite.js';
 import { errorMessage } from '../../../lib/error-message.js';
 import { relativeTime } from '../constants.js';
+import { projectExecutionBlocker } from '../../../vnext/pages/strategies/agents/execution-blocker.js';
 import {
   classifyWaitingReason,
   isAwaitingSendApproval,
@@ -264,6 +265,16 @@ function ExecutionRunCard({
   const awaitingSend = isAwaitingSendApproval(run);
   const block =
     run.state === 'waiting_for_input' ? classifyWaitingReason(run.waitingReason) : null;
+  // F10: the shared structured formatter drives the primary message; the raw
+  // server reason stays as small print (never the headline).
+  const blocker = block
+    ? projectExecutionBlocker({
+        state: run.state,
+        waitingReason: run.waitingReason,
+        error: run.error,
+        findings: null,
+      })
+    : null;
 
   const onExecute = () => {
     execute.mutate(
@@ -400,6 +411,7 @@ function ExecutionRunCard({
       {block && block.kind !== 'send_approval' && (
         <BlockedNotice
           block={block}
+          primary={blocker?.primary}
           onResume={onResume}
           resuming={resume.isPending}
         />
@@ -1087,10 +1099,13 @@ function TaskStatusChip({ status }: { status: ExecutionTask['status'] }) {
  */
 function BlockedNotice({
   block,
+  primary,
   onResume,
   resuming,
 }: {
   block: ReturnType<typeof classifyWaitingReason>;
+  /** F10: the shared projection's readable primary (falls back to the label). */
+  primary?: string;
   onResume: () => void;
   resuming: boolean;
 }) {
@@ -1098,7 +1113,7 @@ function BlockedNotice({
     <div style={{ ...warnBox, marginTop: 10, flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         <Icon name="alert" size={14} color="#A14D12" />
-        <span style={{ fontWeight: 700, flex: 1 }}>{block.label}</span>
+        <span style={{ fontWeight: 700, flex: 1 }}>{primary ?? block.label}</span>
         <button
           onClick={onResume}
           disabled={resuming}

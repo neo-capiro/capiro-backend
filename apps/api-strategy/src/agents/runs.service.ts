@@ -18,6 +18,7 @@ import {
   reasonForState,
 } from './run-state.js';
 import type { CreateRunDto, TransitionRunDto } from './dto/agents.dto.js';
+import { projectExecutionBlocker } from './execution-blocker.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -305,7 +306,8 @@ export class RunsService {
       tx.spAgentRun.findFirst({ where: { id } }),
     );
     if (!run) throw new NotFoundException('Run not found');
-    return run;
+    // F10: attach the structured blocker projection (additive field).
+    return { ...run, blocker: projectExecutionBlocker(run) };
   }
 
   // ---- P0-2 recovery operations ---------------------------------------------
