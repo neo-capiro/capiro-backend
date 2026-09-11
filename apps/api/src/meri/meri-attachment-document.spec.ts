@@ -1,7 +1,9 @@
 import { getDocumentProxy } from 'unpdf';
 import { Document, Packer, Paragraph } from 'docx';
+import PptxGenJS from 'pptxgenjs';
+import JSZip from 'jszip';
 import { extractMeriDocument, ATTACHMENT_OCR_MAX_PAGES, ATTACHMENT_OCR_TIMEOUT_MS } from './meri-attachment-document.js';
-import { DOC_TEXT_MAX_CHARS } from './meri-attachment.helpers.js';
+import { DOC_TEXT_MAX_CHARS, validateAttachment, verifyMagicBytes } from './meri-attachment.helpers.js';
 
 jest.mock('unpdf', () => ({ getDocumentProxy: jest.fn() }));
 const input = { bytes: Buffer.from('%PDF-1.7 fixture'), kind: 'pdf' as const, tenantId: 'tenant-a', userId: 'user-a', resolveCredential: async () => null };
@@ -17,6 +19,55 @@ const visual = (text: string, status = 'ocr_readable') => ({ text, readability: 
 
 describe('Meri document ingestion', () => {
   afterEach(() => jest.useRealTimers());
+
+  async function presentation(slides: string[]): Promise<Buffer> {
+    const deck = new PptxGenJS();
+    for (const text of slides) {
+      const slide = deck.addSlide();
+      if (text) slide.addText(text, { x: 1, y: 1, w: 8, h: 4 });
+    }
+    return await deck.write({ outputType: 'nodebuffer' }) as Buffer;
+  }
+
+  it('accepts a real PowerPoint upload and reads its slide text without a provider call', async () => {
+    const bytes = await presentation(['QA-PPTX-0911: Budget $42,000. Status: draft, not approved.', 'Second slide: requested evaluation.']);
+    const validation = validateAttachment({ contentType: 'application/octet-stream', filename: 'Strat Discussion.pptx', byteSize: bytes.length });
+    expect(validation).toMatchObject({ ok: true, kind: 'pptx' });
+    expect(verifyMagicBytes(validation.kind, bytes).ok).toBe(true);
+    const reader = { read: jest.fn() };
+    const result = await extractMeriDocument({ ...input, bytes, kind: validation.kind }, reader);
+    expect(result).toMatchObject({ status: 'parsed', truncated: false, pages: null });
+    expect(result.text).toContain('Budget $42,000. Status: draft, not approved.');
+    expect(result.text).toContain('Slide 2:\nSecond slide: requested evaluation.');
+    expect(result.reason).toContain('Images, charts, and speaker notes are not included');
+    expect(reader.read).not.toHaveBeenCalled();
+  });
+
+  it('discloses missing slide text and keeps readable slides usable', async () => {
+    const result = await extractMeriDocument({ ...input, kind: 'pptx', bytes: await presentation(['Readable first slide', '']) });
+    expect(result).toMatchObject({ status: 'truncated', truncated: true });
+    expect(result.text).toContain('Readable first slide');
+    expect(result.reason).toContain('1 slide(s) had no readable text');
+  });
+
+  it('does not label empty decks or another OOXML format as readable PowerPoint', async () => {
+    const zip = new JSZip().file('word/document.xml', '<document>Not a presentation</document>');
+    for (const bytes of [await presentation(['']), await zip.generateAsync({ type: 'nodebuffer' })]) {
+      const result = await extractMeriDocument({ ...input, kind: 'pptx', bytes });
+      expect(result).toMatchObject({ status: 'unsupported', text: null });
+      expect(result.reason).toContain('No readable slide text');
+    }
+    await expect(extractMeriDocument({ ...input, kind: 'pptx', bytes: Buffer.from('PK broken') })).rejects.toThrow();
+  });
+
+  it('discloses both the shared per-slide cap and Meri total text cap', async () => {
+    for (const slides of [['A'.repeat(25_000)], Array(5).fill('A'.repeat(10_000))]) {
+      const result = await extractMeriDocument({ ...input, kind: 'pptx', bytes: await presentation(slides) });
+      expect(result).toMatchObject({ status: 'truncated', truncated: true });
+      expect(result.reason).toContain('reading limit');
+      expect(result.text!.length).toBeLessThanOrEqual(DOC_TEXT_MAX_CHARS + 20);
+    }
+  });
 
   it('keeps a short readable PDF without invoking OCR', async () => {
     pages(['Requested amount: $7,500,000. Stage: internal draft.']);

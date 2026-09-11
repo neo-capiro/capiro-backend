@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import JSZip from 'jszip';
-import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
+import { extractPptxDocument, extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 
 const PPTX_CT = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
@@ -43,6 +43,14 @@ describe('isPowerPointAttachment', () => {
 });
 
 describe('extractPptxText', () => {
+  it('reports omitted slides even when a large deck is below the character cap', async () => {
+    const buf = await buildPptx(Array.from({ length: 501 }, (_, i) => [`Marker ${i + 1}`]));
+    const result = await extractPptxDocument(buf);
+    expect(result.truncated).toBe(true);
+    expect(result.text).toContain('Marker 500');
+    expect(result.text).not.toContain('Marker 501');
+  });
+
   it('extracts text runs from every slide in slide order', async () => {
     const buf = await buildPptx([
       ['Title One', 'Bullet A', 'Bullet B'],

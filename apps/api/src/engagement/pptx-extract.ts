@@ -65,13 +65,24 @@ export function collectTextRuns(node: unknown, out: string[]): void {
  * lazy-loaded (heavy at import time, like exceljs/pdf-parse elsewhere).
  */
 export async function extractPptxText(buffer: Buffer): Promise<string> {
+  return (await extractPptxDocument(buffer)).text;
+}
+
+/** Preserve reading limits and gaps for callers that display attachment status. */
+export async function extractPptxDocument(buffer: Buffer): Promise<{
+  text: string;
+  truncated: boolean;
+  unreadableSlides: number[];
+}> {
   const { default: JSZip } = await import('jszip');
   const zip = await JSZip.loadAsync(buffer);
 
-  const slidePaths = Object.keys(zip.files)
+  const allSlidePaths = Object.keys(zip.files)
     .filter((p) => /^ppt\/slides\/slide\d+\.xml$/i.test(p))
-    .sort((a, b) => slideIndex(a) - slideIndex(b))
-    .slice(0, MAX_SLIDES);
+    .sort((a, b) => slideIndex(a) - slideIndex(b));
+  const slidePaths = allSlidePaths.slice(0, MAX_SLIDES);
+  let truncated = allSlidePaths.length > slidePaths.length;
+  const unreadableSlides: number[] = [];
 
   const parser = new XMLParser({
     ignoreAttributes: true,
@@ -92,17 +103,28 @@ export async function extractPptxText(buffer: Buffer): Promise<string> {
     try {
       parsed = parser.parse(xml);
     } catch {
+      unreadableSlides.push(slideNumber);
       continue; // a malformed slide must not abort the whole deck
     }
     const runs: string[] = [];
     collectTextRuns(parsed, runs);
-    const text = runs.join('\n').trim().slice(0, MAX_CHARS_PER_SLIDE);
-    if (!text) continue;
+    const raw = runs.join('\n').trim();
+    const text = raw.slice(0, MAX_CHARS_PER_SLIDE);
+    truncated ||= text.length < raw.length;
+    if (!text) {
+      unreadableSlides.push(slideNumber);
+      continue;
+    }
     const block = `Slide ${slideNumber}:\n${text}`;
     blocks.push(block);
     total += block.length;
-    if (total >= MAX_TOTAL_CHARS) break;
+    if (total >= MAX_TOTAL_CHARS) {
+      truncated ||= slideNumber < allSlidePaths.length;
+      break;
+    }
   }
 
-  return blocks.join('\n\n').slice(0, MAX_TOTAL_CHARS).trim();
+  const raw = blocks.join('\n\n');
+  return { text: raw.slice(0, MAX_TOTAL_CHARS).trim(),
+    truncated: truncated || raw.length > MAX_TOTAL_CHARS, unreadableSlides };
 }

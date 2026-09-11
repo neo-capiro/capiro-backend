@@ -271,7 +271,7 @@ const MAX_IMAGE_ATTACHMENTS = 4;
 interface AttachmentUploadResponse {
   id: string | null;
   filename: string;
-  kind: 'pdf' | 'docx' | 'image' | 'text' | 'unsupported';
+  kind: StagedAttachment['kind'];
   status: 'parsed' | 'truncated' | 'scanned' | 'image_ready' | 'unsupported';
   pages: number | null;
   truncated: boolean;
@@ -284,6 +284,7 @@ function guessAttachmentKind(file: File): StagedAttachment['kind'] {
   const name = file.name.toLowerCase();
   if (file.type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
   if (name.endsWith('.docx')) return 'docx';
+  if (name.endsWith('.pptx') || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'pptx';
   if (file.type.startsWith('image/')) return 'image';
   if (
     file.type.startsWith('text/') ||

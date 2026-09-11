@@ -9,7 +9,7 @@
  * `src/**.spec.ts`.
  */
 
-export type AttachmentKind = 'pdf' | 'docx' | 'image' | 'text' | 'unsupported';
+export type AttachmentKind = 'pdf' | 'docx' | 'pptx' | 'image' | 'text' | 'unsupported';
 
 export type AttachmentStatus = 'parsed' | 'truncated' | 'scanned' | 'image_ready' | 'unsupported';
 
@@ -29,12 +29,14 @@ export const SCANNED_PDF_MIN_CHARS = 100;
 export const TRUNCATION_MARKER = '…[truncated]';
 
 const DOCX_CT = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const PPTX_CT = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
 export function detectAttachmentKind(contentType: string, filename = ''): AttachmentKind {
-  const ct = (contentType || '').toLowerCase();
+  const ct = (contentType || '').split(';')[0]!.trim().toLowerCase();
   const ext = filename.toLowerCase().includes('.') ? filename.toLowerCase().split('.').pop()! : '';
   if (ct === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (ct === DOCX_CT || ext === 'docx') return 'docx';
+  if (ct === PPTX_CT || ext === 'pptx') return 'pptx';
   if (ct.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext))
     return 'image';
   if (ct.startsWith('text/') || ['txt', 'md', 'csv'].includes(ext)) return 'text';
@@ -43,7 +45,7 @@ export function detectAttachmentKind(contentType: string, filename = ''): Attach
 
 /** True for kinds whose text we can currently extract server-side. */
 export function isExtractableKind(kind: AttachmentKind): boolean {
-  return kind === 'docx' || kind === 'text' || kind === 'pdf';
+  return kind === 'docx' || kind === 'pptx' || kind === 'text' || kind === 'pdf';
 }
 
 export interface AttachmentValidation {
@@ -141,6 +143,10 @@ export function verifyMagicBytes(kind: AttachmentKind, bytes: Uint8Array): Magic
       return sniffed === 'zip'
         ? { ok: true, reason: null, sniffed }
         : { ok: false, reason: `File does not look like a Word document (detected: ${sniffed})`, sniffed };
+    case 'pptx':
+      return sniffed === 'zip'
+        ? { ok: true, reason: null, sniffed }
+        : { ok: false, reason: `File does not look like a PowerPoint presentation (detected: ${sniffed})`, sniffed };
     case 'image':
       return imageMediaTypeFromSniff(sniffed)
         ? { ok: true, reason: null, sniffed }

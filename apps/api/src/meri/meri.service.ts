@@ -4878,8 +4878,8 @@ export class MeriService implements MeriTurnMaintenance {
    *
    * Validates (size cap, type allowlist, magic-byte sniff — a `.pdf` that is
    * actually HTML is rejected), extracts text for documents (pdf via unpdf,
-   * docx via mammoth, plain text verbatim) with page/char caps and an explicit
-   * truncation marker, reads scanned pages with the canonical bounded provider
+   * docx via mammoth, pptx via the shared slide reader, plain text verbatim)
+   * with page/char caps and an explicit truncation marker, reads scanned pages with the canonical bounded provider
    * reader, and stores the result as a
    * tenant-scoped ClioAttachment row the stream request references by id.
    * Original bytes are retained for authorized client filing; image bytes also
@@ -5015,6 +5015,7 @@ export class MeriService implements MeriTurnMaintenance {
           status: resolved.status,
           mediaType: validation.kind === 'pdf' ? 'application/pdf'
             : validation.kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : validation.kind === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
             : 'text/plain',
           byteSize: file.buffer.length,
           data: file.buffer,

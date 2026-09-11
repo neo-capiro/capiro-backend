@@ -4,6 +4,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   MAX_IMAGES_PER_MESSAGE,
   MAX_IMAGE_BYTES,
+  PPTX_CT,
   SCANNED_PDF_MIN_CHARS,
   attachmentMetaRef,
   clampExtractedText,
@@ -35,6 +36,7 @@ describe('detectAttachmentKind', () => {
   test('by content-type', () => {
     expect(detectAttachmentKind('application/pdf')).toBe('pdf');
     expect(detectAttachmentKind(DOCX)).toBe('docx');
+    expect(detectAttachmentKind(`${PPTX_CT}; charset=binary`)).toBe('pptx');
     expect(detectAttachmentKind('image/png')).toBe('image');
     expect(detectAttachmentKind('text/plain')).toBe('text');
     expect(detectAttachmentKind('application/zip')).toBe('unsupported');
@@ -42,6 +44,8 @@ describe('detectAttachmentKind', () => {
   test('falls back to filename extension', () => {
     expect(detectAttachmentKind('', 'memo.pdf')).toBe('pdf');
     expect(detectAttachmentKind('', 'brief.docx')).toBe('docx');
+    expect(detectAttachmentKind('application/octet-stream', 'Strat Discussion.PPTX')).toBe('pptx');
+    expect(detectAttachmentKind('application/vnd.ms-powerpoint', 'old.ppt')).toBe('unsupported');
     expect(detectAttachmentKind('', 'logo.jpg')).toBe('image');
     expect(detectAttachmentKind('', 'notes.md')).toBe('text');
     expect(detectAttachmentKind('', 'archive.bin')).toBe('unsupported');
@@ -49,8 +53,9 @@ describe('detectAttachmentKind', () => {
 });
 
 describe('isExtractableKind', () => {
-  test('pdf + docx + text are extractable; image/unsupported are not', () => {
+  test('pdf + docx + pptx + text are extractable; image/unsupported are not', () => {
     expect(isExtractableKind('docx')).toBe(true);
+    expect(isExtractableKind('pptx')).toBe(true);
     expect(isExtractableKind('text')).toBe(true);
     expect(isExtractableKind('pdf')).toBe(true);
     expect(isExtractableKind('image')).toBe(false);
@@ -59,6 +64,13 @@ describe('isExtractableKind', () => {
 });
 
 describe('validateAttachment', () => {
+  test('accepts PowerPoint with a missing or generic MIME type and preserves the size limit', () => {
+    for (const contentType of ['', 'application/octet-stream', PPTX_CT]) {
+      expect(validateAttachment({ contentType, byteSize: 1000, filename: 'Strat Discussion.pptx' }))
+        .toEqual({ ok: true, reason: null, kind: 'pptx' });
+    }
+    expect(validateAttachment({ contentType: PPTX_CT, byteSize: MAX_ATTACHMENT_BYTES + 1 }).ok).toBe(false);
+  });
   test('accepts a valid docx', () => {
     expect(validateAttachment({ contentType: DOCX, byteSize: 1000, filename: 'a.docx' }).ok).toBe(
       true,
@@ -94,6 +106,11 @@ describe('sniffMagicBytes', () => {
 });
 
 describe('verifyMagicBytes (spoof rejection)', () => {
+  test('requires an OOXML container for PowerPoint; rejects PDF and HTML renamed to .pptx', () => {
+    expect(verifyMagicBytes('pptx', bytes(0x50, 0x4b, 0x03, 0x04)).ok).toBe(true);
+    expect(verifyMagicBytes('pptx', bytes('%PDF-1.7')).ok).toBe(false);
+    expect(verifyMagicBytes('pptx', bytes('<html>fake deck')).ok).toBe(false);
+  });
   test('a .pdf that is actually HTML is rejected', () => {
     const check = verifyMagicBytes('pdf', bytes('<!DOCTYPE html><html><body>fake</body>'));
     expect(check.ok).toBe(false);
