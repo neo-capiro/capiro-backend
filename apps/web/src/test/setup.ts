@@ -1,4 +1,11 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+// Register cleanup per test environment. A reused worker may cache RTL after
+// its initial automatic hook registration; later suites still need their own
+// hook so mounted roots cannot leak into unrelated assertions.
+afterEach(cleanup);
 
 // JSDOM has no layout engine, so it doesn't implement matchMedia at all. Ant
 // Design's responsive Row/Col reads it on mount (via a shared breakpoint
