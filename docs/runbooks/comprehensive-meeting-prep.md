@@ -14,7 +14,7 @@ Meeting Prep and Meri's `create_meeting_brief` use the same durable job and save
 6. Upcoming deadlines, meetings and legislative developments.
 7. Commitments to the client.
 
-Factual bullets link to reviewed supporting evidence. Empty sections explain whether no evidence was found in the searched scope or a source was unavailable. Proposed actions are not treated as promises, and a later mention alone does not resolve an older commitment.
+Bullets display links when usable source references were returned. Missing or malformed citations and attendee discrepancies do not reject a briefing. Empty sections explain whether no evidence was found in the searched scope or a source was unavailable. Prompts still ask the model to distinguish proposals from promises and respect chronology, but there is no post-generation attendee/factual-support validator. Users should review the generated text before relying on it.
 
 ## Search and generation policy
 
@@ -24,7 +24,7 @@ Factual bullets link to reviewed supporting evidence. Empty sections explain whe
 | Recent email threads | Up to 100 / 90 days | Up to 300 / 365 days |
 | Email messages       | Up to 1,000         | Up to 3,000          |
 | Upcoming window      | 30 days             | 90 days              |
-| Overall job deadline | 30 minutes          | 60 minutes           |
+| Overall job deadline | 1 hour              | 2 hours              |
 
 Open tasks have no age cutoff. Open tasks also pin older originating email threads outside the recency window; these can increase the selected thread count, but remain subject to the message cap. Email selection preserves original messages and latest replies across threads, then prioritizes important intermediate exchanges. Counts and truncation are disclosed; the caps are not promises that every record exists or can be read.
 
@@ -32,19 +32,23 @@ Shared governed retrieval supplies client context, authorized notes/debriefs, em
 
 Monday uses the managed connector merged in [PR #1611](https://github.com/neo-capiro/capirov2/pull/1611). There is no second OAuth store or ad-hoc Monday API client. Users explicitly map up to 20 board IDs to the canonical client through Meeting Prep settings. The adapter uses discovered read-only `get_board_items_page` and `get_updates` schemas, paginates items and updates independently, and fails closed for unsupported required fields. It never invokes generic/write-capable tools. Internal or unmapped meetings cannot search the account broadly.
 
-The pipeline extracts attributed facts in batches, synthesizes a concise briefing, checks every draft claim and the entire extracted ledger for important omissions, and allows two repair passes. Exact-quote, citation-ID, required-section, attendee, output-length and provider-truncation checks complement semantic review. Supporting excerpts and chronology remain necessary; model self-review is not proof of accuracy.
+The pipeline extracts facts in batches, synthesizes a concise briefing, checks the entire extracted ledger for important omissions, and allows two repair passes. The attendee/source validator and its review-specific schema, verdict fields, errors and legacy review request have been deleted. Comprehensive coverage review checks only missing topics, not identities, factual support or citation completeness. JSON/renderable-shape, required-section, output-length and provider-truncation handling remain. Unknown source IDs and non-verbatim quotes are omitted from display metadata without rejecting generated prose or inventing source evidence.
 
 Budgets are operation-local in `apps/api/src/engagement/meeting-prep-policy.ts`:
 
-- Extraction: 8,192 output tokens and up to 3 minutes per batch; at most three concurrent calls.
-- Synthesis: 32,768 output-token allowance and up to 10 minutes.
-- Review: up to 5 minutes per batch. Repairs may use up to 49,152 output tokens when the configured model supports it.
+- Extraction: 8,192 output tokens and up to 10 minutes per batch; at most three concurrent calls.
+- Synthesis: 32,768 output-token allowance and up to 20 minutes.
+- Coverage review: up to 10 minutes per batch. Repairs may use up to 49,152 output tokens when the configured model supports it.
 - Provider truncation: one bounded larger-output retry when context/output capacity permits; never save truncated output as completed.
 - Monday reads: up to 45 seconds per call, bounded by the retrieval/job deadline.
 - Retrieval/extraction reserve downstream time; persistence retains a 15-second reserve.
 - Evidence packing uses conservative UTF-8 byte upper bounds, not an exact tokenizer. The 64,000 evidence budget therefore usually contains fewer than 64,000 actual tokens.
 
-Long searches run outside HTTP/Meri request lifetimes. Increasing an HTTP proxy timeout is not the implementation strategy. No global interactive AI timeout is increased. Finite budgets remain intentional: provider failure, saturation or an unusually large history can still fail a job safely. There is no guarantee of zero timeouts.
+Comprehensive searches run outside HTTP/Meri request lifetimes. While that feature remains disabled, the legacy prep route allows up to 25 minutes per provider call and 50 minutes across all attempts; the shared transport keeps the timeout active through response-body reading. The web client gives POST `/engagement/meetings/:id/prep` 55 minutes instead of accidentally applying its ordinary 30-second timeout. Status/cancel/mapping requests and unrelated AI/CRUD requests retain their existing limits; explicit per-request overrides are preserved. Legacy model output allowances are unchanged by this timeout fix.
+
+Read-only AWS verification on 2026-09-12 confirmed that the load balancer attached to `capiro-dev-engagement-api` has a 4,000-second idle timeout; Node's shared server configuration disables its request timeout. The 55-minute browser limit leaves headroom under that load balancer ceiling. No AWS settings were changed. Unlimited HTTP waits cannot bypass infrastructure or provider limits. Cancellation, leases and finite job deadlines remain intentional; there is no guarantee of zero timeouts.
+
+Prep calls also use an isolated HTTP dispatcher that disables the native client's shorter headers/body idle timers; the operation's abort signal and full-response deadline stay active. The dispatcher is destroyed after each call and never replaces the global dispatcher. This follows the [Undici timeout contract](https://github.com/nodejs/undici/blob/v6.28.1/docs/docs/api/Client.md); the direct dependency stays on the Node-20.16-compatible 6.x line. Structured JSON output remains in place per the [OpenAI structured-output guide](https://developers.openai.com/api/docs/guides/structured-outputs), without an attendee/source review verdict.
 
 ## Durability and data boundaries
 
@@ -53,7 +57,7 @@ Long searches run outside HTTP/Meri request lifetimes. Increasing an HTTP proxy 
 - Inputs and extraction checkpoints use the existing meeting-notes encryption service. Bearer tokens and provider credentials are not stored in jobs.
 - Membership, role, canonical client assignment, roster, meeting schedule and runtime policy are checked again during execution. Workers reconstruct the current user context rather than using a stored bearer.
 - Cancellation, lease loss and deadline exhaustion abort active generation. Completion, the new artifact and superseding old generated/edited artifacts share one transaction. A stale worker cannot publish. Failed or cancelled regeneration preserves the previous usable briefing.
-- Saved artifacts contain only cited supporting facts/excerpts; completed checkpoints are cleared. Source permissions and client scope are rechecked at persistence and display, including native note/debrief visibility and current Monday connection/mapping. Approval, edit and campaign-consumption paths also recheck V2 source access.
+- Displayed source excerpts come only from supplied records. Independent access-only provenance retains every consulted native/private source even if the model omitted citations; removing the quality validator does not bypass source authorization. Completed checkpoints are cleared. Source permissions and client scope are rechecked at persistence and display, including native note/debrief visibility and current Monday connection/mapping. Approval, edit and campaign-consumption paths also recheck V2 source access. Existing saved preps use their previous source metadata for backward compatibility.
 - Monday evidence is personal. A colleague without the original actor's source access does not receive that briefing just because the meeting was shared.
 - The exact generation requests are hashed without credentials; packet identity, policy version, input hash and coverage accompany the saved artifact. A resumed run can reuse unchanged extraction checkpoints; its prompt hash describes the calls actually executed in that attempt.
 
@@ -91,8 +95,8 @@ Run separately from a normal API typecheck because the focused Jest configuratio
 ```sh
 pnpm --filter @capiro/api exec tsc --noEmit --pretty false
 pnpm --filter @capiro/web typecheck
-pnpm --filter @capiro/api exec jest --config jest.meeting-prep.config.cjs --runInBand --runTestsByPath src/engagement/meeting-prep-comprehensive.spec.ts src/engagement/meeting-prep-job.service.spec.ts src/engagement/meeting-prep-source-access.spec.ts src/engagement/meeting-prep-persistence.spec.ts src/retrieval/adapters/meeting-briefing-core.reader.spec.ts src/retrieval/adapters/monday-managed-mcp.adapter.spec.ts
-pnpm --filter @capiro/web exec vitest run src/pages/engagement/meetings/PrepTab.test.tsx --poolOptions.threads.singleThread --testTimeout=20000
+pnpm --filter @capiro/api exec jest --config jest.meeting-prep.config.cjs --runInBand --runTestsByPath src/engagement/meeting-prep-evidence.spec.ts src/engagement/meeting-prep-comprehensive.spec.ts src/engagement/meeting-prep-job.service.spec.ts src/engagement/meeting-prep-source-access.spec.ts src/engagement/meeting-prep-persistence.spec.ts src/retrieval/adapters/meeting-briefing-core.reader.spec.ts src/retrieval/adapters/monday-managed-mcp.adapter.spec.ts
+pnpm --filter @capiro/web exec vitest run src/lib/api-client.test.ts src/pages/engagement/meetings/PrepTab.test.tsx --poolOptions.threads.singleThread --testTimeout=20000
 pnpm --filter @capiro/api run verify:engagement-phase-0
 ```
 

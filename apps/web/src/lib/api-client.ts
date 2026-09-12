@@ -30,6 +30,14 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
  */
 export const GENERATION_TIMEOUT_MS = 175_000;
 
+/** Prep's legacy request can use 50 minutes across provider attempts. Async
+ * prep returns 202 promptly and continues under its own durable job deadline. */
+export const MEETING_PREP_TIMEOUT_MS = 55 * 60_000;
+
+export function isMeetingPrepUrl(url: string | undefined): boolean {
+  return !!url && /\/engagement\/meetings\/[^/?#]+\/prep\/?(?:[?#]|$)/i.test(url);
+}
+
 /**
  * URL fragments that identify a long-running AI generation request. Any axios
  * call whose URL matches gets GENERATION_TIMEOUT_MS unless the caller passed an
@@ -106,7 +114,9 @@ export function buildApiClient(
     // never override an explicit per-request timeout (anything that isn't the
     // instance default).
     if (req.timeout === DEFAULT_TIMEOUT_MS) {
-      if (isGenerationUrl(req.url)) req.timeout = GENERATION_TIMEOUT_MS;
+      if (req.method?.toLowerCase() === 'post' && isMeetingPrepUrl(req.url)) {
+        req.timeout = MEETING_PREP_TIMEOUT_MS;
+      } else if (isGenerationUrl(req.url)) req.timeout = GENERATION_TIMEOUT_MS;
       else if (isMailThreadUrl(req.url)) req.timeout = MAIL_TIMEOUT_MS;
     }
 

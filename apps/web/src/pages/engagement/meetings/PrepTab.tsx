@@ -212,7 +212,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
           heading: 'Source review',
           body: prep.generatedFrom?.grounding
             ? 'Sources below were supplied for the original generation. Review names and whether each claim is supported. Edited text and changed client context require a fresh review.'
-            : 'This saved prep has no source references or attendee verification record. Review names and claims before use.',
+            : 'This saved prep has no source references. Review names and claims before use.',
         },
         ...(prep.generatedFrom?.grounding?.sources ?? []).map((source, index) => ({
           heading: `Source ${index + 1}: ${source.title}`,

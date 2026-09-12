@@ -13,7 +13,7 @@ import { managedAppConfigured } from '../meri/meri-managed-mcp.helpers.js';
 export async function assertMeetingPrepSourceAccess(
   tx: Prisma.TransactionClient,
   ctx: TenantContext,
-  sources: PrepEvidenceSource[],
+  sources: Array<Pick<PrepEvidenceSource, 'access'>>,
 ): Promise<void> {
   const ids = (key: keyof NonNullable<PrepEvidenceSource['access']>) => [
     ...new Set(sources.flatMap((source) => source.access?.[key] ?? [])),
@@ -142,12 +142,16 @@ export async function assertSavedMeetingPrepAccess(
 ): Promise<void> {
   const provenance = generatedFrom as {
     briefing?: unknown;
-    grounding?: { sources?: PrepEvidenceSource[] };
+    grounding?: {
+      sources?: PrepEvidenceSource[];
+      accessSources?: Array<Pick<PrepEvidenceSource, 'access'>>;
+    };
   } | null;
   if (!provenance?.briefing) return;
-  if (!Array.isArray(provenance.grounding?.sources) || !provenance.grounding.sources.length)
+  const sources = provenance.grounding?.accessSources ?? provenance.grounding?.sources;
+  if (!Array.isArray(sources) || !sources.length)
     throw new ForbiddenException(
       'Meeting preparation source provenance is missing. Regenerate this briefing.',
     );
-  await assertMeetingPrepSourceAccess(tx, ctx, provenance.grounding.sources);
+  await assertMeetingPrepSourceAccess(tx, ctx, sources);
 }

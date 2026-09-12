@@ -1,4 +1,7 @@
-import { assertMeetingPrepSourceAccess } from './meeting-prep-source-access.js';
+import {
+  assertMeetingPrepSourceAccess,
+  assertSavedMeetingPrepAccess,
+} from './meeting-prep-source-access.js';
 
 describe('saved briefing native source authorization', () => {
   const ctx = { tenantId: 'tenant', userId: 'actor', role: 'standard_user' };
@@ -26,6 +29,30 @@ describe('saved briefing native source authorization', () => {
     await expect(
       assertMeetingPrepSourceAccess(tx() as never, ctx as never, sources as never),
     ).resolves.toBeUndefined();
+  });
+  test('uncited briefings remain usable with independent authorization provenance', async () => {
+    await expect(
+      assertSavedMeetingPrepAccess(tx() as never, ctx as never, {
+        briefing: { version: 2 },
+        grounding: {
+          sources: [],
+          accessSources: sources.map((source) => ({ access: source.access })),
+        },
+      }),
+    ).resolves.toBeUndefined();
+  });
+  test('omitting display citations cannot bypass a revoked private source', async () => {
+    const db = tx();
+    db.client.count.mockResolvedValue(0);
+    await expect(
+      assertSavedMeetingPrepAccess(db as never, ctx as never, {
+        briefing: { version: 2 },
+        grounding: {
+          sources: [],
+          accessSources: sources.map((source) => ({ access: source.access })),
+        },
+      }),
+    ).rejects.toThrow('source access changed');
   });
   test('a newly restricted note blocks persistence/display', async () => {
     const db = tx();

@@ -224,16 +224,14 @@ describe('PrepTab', () => {
     );
   });
 
-  test('legacy prep is explicitly missing source/attendee verification information', () => {
+  test('legacy prep is explicitly missing source information', () => {
     render(
       buildTree(new QueryClient(), {
         meeting: makeMeeting({ preps: [makePrep()] }),
         aiConfigured: true,
       }),
     );
-    expect(
-      screen.getByText(/no source references or attendee verification record/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/no source references/)).toBeInTheDocument();
   });
 
   test('source links, original excerpts, roster and email evidence are visible', () => {

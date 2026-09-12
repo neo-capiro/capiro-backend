@@ -68,7 +68,7 @@ import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
-import { assertMeetingPrepSourceAccess, assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
+import { assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
 import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
@@ -6065,7 +6065,7 @@ export class EngagementService {
       if (['cancelled', 'canceled'].includes(current.status.toLowerCase())) {
         throw new BadRequestException('This meeting was cancelled while prep was generating.');
       }
-      if (generated.briefing) await assertMeetingPrepSourceAccess(tx, ctx, generated.grounding?.sources ?? []);
+      if (generated.briefing) await assertSavedMeetingPrepAccess(tx, ctx, { briefing: generated.briefing, grounding: generated.grounding });
       await tx.meetingPrep.updateMany({ where: { tenantId: ctx.tenantId, meetingId, status: { in: ['generated', 'edited'] } }, data: { status: 'stale' } });
       const artifact = await tx.meetingPrep.create({
         data: {
