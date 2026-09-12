@@ -60,6 +60,42 @@ export function workspaceImportDocumentsResponse(value: unknown): Array<{ id: st
   });
 }
 
+const BLOCK_BREAK = /<\/(?:p|div|h[1-6]|li|tr|blockquote|section)\s*>|<br\s*\/?>/gi;
+
+/** Workspace stores block content as HTML; the composer takes text. */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(BLOCK_BREAK, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/[^\S\n]?\n[^\S\n]?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Fallback for a Workspace service that predates the server-side projection. */
+function blocksPlainText(body: unknown): string {
+  const blocks =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as { blocks?: unknown }).blocks
+      : null;
+  if (!Array.isArray(blocks)) return '';
+  return blocks
+    .map((block) =>
+      block && typeof block === 'object' && typeof (block as { content?: unknown }).content === 'string'
+        ? htmlToPlainText((block as { content: string }).content)
+        : '',
+    )
+    .filter(Boolean)
+    .join('\n');
+}
+
 /**
  * Projects Workspace's document response into clearly editable composer text.
  * It is bounded, never auto-sent, and explicitly does not claim a durable
@@ -71,19 +107,7 @@ export function workspaceDocumentComposerText(value: unknown): string | null {
   if (typeof row.id !== 'string' || !row.id || typeof row.name !== 'string' || !row.name.trim()) {
     return null;
   }
-  const body = row.body;
-  const blocks = body && typeof body === 'object' && !Array.isArray(body)
-    ? (body as { blocks?: unknown }).blocks
-    : null;
-  if (!Array.isArray(blocks)) return null;
-  const text = blocks
-    .map((block) =>
-      block && typeof block === 'object' && typeof (block as { content?: unknown }).content === 'string'
-        ? (block as { content: string }).content.trim()
-        : '',
-    )
-    .filter(Boolean)
-    .join('\n');
+  const text = typeof row.text === 'string' ? row.text.trim() : blocksPlainText(row.body);
   if (!text) return null;
 
   const bounded = text.length > MAX_WORKSPACE_IMPORT_CHARS

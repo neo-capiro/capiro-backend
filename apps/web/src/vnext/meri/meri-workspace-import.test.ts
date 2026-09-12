@@ -53,4 +53,28 @@ describe('workspace import helpers', () => {
     expect(workspaceDocumentComposerText({ id: 'document-1', name: 'Empty', body: { blocks: [] } })).toBeNull();
     expect(workspaceDocumentComposerText({ id: 'document-1', body: { blocks: [{ content: 'text' }] } })).toBeNull();
   });
+
+  // Every draft is created with one empty primary tab, so a body-only reader
+  // imported nothing for the common case. Workspace now sends the projection.
+  test('prefers the Workspace text projection over the raw document body', () => {
+    const text = workspaceDocumentComposerText({
+      id: 'document-1',
+      name: 'Board memo',
+      body: { blocks: [] },
+      text: 'Background\nThe program moved to FY27.',
+    });
+
+    expect(text).toContain('Background\nThe program moved to FY27.');
+  });
+
+  test('renders stored HTML block content as readable text, not markup', () => {
+    const text = workspaceDocumentComposerText({
+      id: 'document-1',
+      name: 'Board memo',
+      body: { blocks: [{ content: '<h1>Ask</h1><p>Fund &amp; extend the&nbsp;program.</p>' }] },
+    });
+
+    expect(text).toContain('Ask\nFund & extend the program.');
+    expect(text).not.toContain('<p>');
+  });
 });

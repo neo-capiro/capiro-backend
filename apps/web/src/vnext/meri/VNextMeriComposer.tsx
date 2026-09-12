@@ -811,7 +811,7 @@ export function VNextMeriComposer({
                   <MeriIcon name="LayersThree01" size={13} color="var(--m-gray-600)" />
                 </span>
                 <span className="vnext-meri__add-popover-item-body">
-                  <span className="vnext-meri__add-popover-item-label">Import from workspace</span>
+                  <span className="vnext-meri__add-popover-item-label">Import Saved Docs</span>
                   <span className="vnext-meri__add-popover-item-desc">
                     REVIEW A DOCUMENT BEFORE ADDING IT TO THE DRAFT
                   </span>
@@ -1151,7 +1151,7 @@ export function VNextMeriComposer({
         aria-describedby="meri-workspace-import-description"
       >
         <div id="meri-workspace-import-title" className="vnext-meri__confirm-title">
-          Import from workspace
+          Import Saved Docs
         </div>
         <div id="meri-workspace-import-description" className="vnext-meri__confirm-body">
           Select a document to add as editable text. It stays in this draft until you review and

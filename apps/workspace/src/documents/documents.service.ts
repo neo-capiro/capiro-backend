@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead } from '../collaborators/role-policy.js';
 import type { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js';
+import { meriImportText } from './meri-import-text.js';
 
 /**
  * Packet document tabs (Phase 3, AC-3.4 / handoff §12.12). Each tab is a
@@ -69,7 +70,7 @@ export class DocumentsService {
    * bounded document representation; callers cannot supply their own body.
    */
   async readForMeriImport(tenantId: string, draftId: string, docId: string, actorId: string) {
-    await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId);
     await this.collaborators.assertCan(
       tenantId,
       draftId,
@@ -82,7 +83,7 @@ export class DocumentsService {
       select: { id: true, name: true, body: true },
     });
     if (!document) throw new NotFoundException('Document not found');
-    return document;
+    return { ...document, text: meriImportText(document.body, draft.config) };
   }
 
   async add(tenantId: string, draftId: string, actorId: string, dto: CreateDocumentDto) {
