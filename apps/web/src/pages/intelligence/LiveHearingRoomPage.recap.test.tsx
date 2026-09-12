@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
 }));
 
+vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'test-scope' }));
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({ get: vi.fn(), post: vi.fn() }),
 }));
@@ -33,7 +34,12 @@ vi.mock('../../lib/hearing-watch-api.js', () => ({
   useConfirmConsent: () => ({ mutate: vi.fn(), isPending: false }),
   useGenerateBrief: () => ({ mutate: mocks.generate, isPending: false }),
   useSaveRecap: () => ({ mutate: mocks.save, isPending: false }),
-  useHearingSession: () => ({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() }),
+  useHearingSession: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
   useHearingTranscript: () => ({ data: undefined, isLoading: false, isError: false }),
 }));
 
@@ -60,7 +66,12 @@ function brief(partial: Partial<HearingBrief> = {}): HearingBrief {
     recommendedNextSteps: [],
     draftClientEmail: { subject: 's', body: 'b' },
     synthesisSource: 'orchestrator',
-    clientContext: { clientId: 'c-1', clientName: 'Anduril', status: 'applied', relevanceBand: 'HIGH' },
+    clientContext: {
+      clientId: 'c-1',
+      clientName: 'Anduril',
+      status: 'applied',
+      relevanceBand: 'HIGH',
+    },
     ...partial,
   };
 }
@@ -81,7 +92,9 @@ function renderModal(defaultClientId?: string) {
 
 /** Resolve the Nth generate call the way react-query would. */
 function resolveGenerate(nth: number, value: HearingBrief | null) {
-  const options = mocks.generate.mock.calls[nth]?.[1] as { onSuccess: (v: HearingBrief | null) => void };
+  const options = mocks.generate.mock.calls[nth]?.[1] as {
+    onSuccess: (v: HearingBrief | null) => void;
+  };
   act(() => options.onSuccess(value));
 }
 
@@ -132,20 +145,29 @@ describe('SaveRecapModal — client-first generation', () => {
     expect(screen.queryByText('# HASC posture hearing')).toBeNull();
   });
 
-  it('is honest about a source-verified assembly with no client context — and still lets you save it', async () => {
+  it('labels a transcript-based fallback unofficial when no client context is available', async () => {
     renderModal('c-1');
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
     resolveGenerate(
       0,
       brief({
         synthesisSource: 'deterministic',
-        clientContext: { clientId: 'c-1', clientName: 'Anduril', status: 'unavailable', relevanceBand: null },
+        clientContext: {
+          clientId: 'c-1',
+          clientName: 'Anduril',
+          status: 'unavailable',
+          relevanceBand: null,
+        },
       }),
     );
 
-    expect(screen.getByText('Source-verified assembly — Meri was unavailable')).toBeTruthy();
+    expect(
+      screen.getByText('Unofficial transcript-based recap — Meri was unavailable'),
+    ).toBeTruthy();
     expect(screen.getByText('No client context available — general recap')).toBeTruthy();
-    expect(screen.getByText('This recap was assembled from the transcript, not analysed')).toBeTruthy();
+    expect(
+      screen.getByText('This recap was assembled from the transcript, not analysed'),
+    ).toBeTruthy();
     const save = screen.getByRole('button', { name: /Save to Client Profile/ });
     expect(save).not.toBeDisabled();
   });
@@ -168,7 +190,18 @@ describe('SaveRecapModal — client-first generation', () => {
     expect(screen.queryByText('# Stale Anduril recap')).toBeNull();
     expect(screen.getByText(/Meri is writing the recap for Overland AI/)).toBeTruthy();
 
-    resolveGenerate(1, brief({ title: 'Overland recap', clientContext: { clientId: 'c-2', clientName: 'Overland AI', status: 'applied', relevanceBand: 'MEDIUM' } }));
+    resolveGenerate(
+      1,
+      brief({
+        title: 'Overland recap',
+        clientContext: {
+          clientId: 'c-2',
+          clientName: 'Overland AI',
+          status: 'applied',
+          relevanceBand: 'MEDIUM',
+        },
+      }),
+    );
     expect(screen.getByText('# Overland recap')).toBeTruthy();
     expect(screen.getByText('Overland AI priorities applied · relevance MEDIUM')).toBeTruthy();
   });

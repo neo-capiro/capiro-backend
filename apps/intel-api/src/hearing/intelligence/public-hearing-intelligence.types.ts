@@ -44,6 +44,9 @@ export interface PublicTranscriptSegmentInput {
 
 export interface PublicHearingContext {
   hearingId: string;
+  geographicJurisdiction?: string | null;
+  legislativeSession?: string | null;
+  resolvedBills?: Array<{ id: string; number: string }>;
   title: string;
   chamber?: string;
   committeeId?: string;

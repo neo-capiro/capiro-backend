@@ -24,9 +24,16 @@ export class LiveHearingsPhase7ScheduleGuard {
   async assertSchedulable(hearingId: string): Promise<StrictScheduleAssessment> {
     const hearing = await this.prisma.committeeHearing.findUnique({
       where: { id: hearingId },
-      select: { id: true, eventStatus: true, visibility: true },
+      select: { id: true, eventStatus: true, visibility: true, geographicJurisdiction: true },
     });
     if (!hearing) throw new NotFoundException(`hearing ${hearingId} not found`);
+    if (hearing.geographicJurisdiction && hearing.geographicJurisdiction !== 'US') {
+      throw new ConflictException({
+        code: 'STATE_CAPTURE_REQUIRES_SCOPED_ATTENDANCE',
+        message:
+          'State capture must use the tenant-scoped attendance route with reviewed source permission.',
+      });
+    }
     const candidates = await this.prisma.hearingStreamCandidate.findMany({
       where: { hearingId },
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
@@ -76,7 +83,8 @@ export function assessStrictSchedulePolicy(
       allowed: true,
       state: 'PREFLIGHT_REQUIRED',
       reasonCode: 'STREAM_NOT_RESOLVED_YET',
-      message: 'Recording demand was accepted; Capiro will resolve the official stream near the start time.',
+      message:
+        'Recording demand was accepted; Capiro will resolve the official stream near the start time.',
     };
   }
 
@@ -99,7 +107,8 @@ export function assessStrictSchedulePolicy(
       allowed: true,
       state: 'PREFLIGHT_REQUIRED',
       reasonCode: 'STREAM_PREFLIGHT_REQUIRED',
-      message: 'Recording demand was accepted; the official source still requires preflight or re-resolution.',
+      message:
+        'Recording demand was accepted; the official source still requires preflight or re-resolution.',
     };
   }
 
@@ -108,7 +117,8 @@ export function assessStrictSchedulePolicy(
       allowed: false,
       state: 'LICENSE_REQUIRED',
       reasonCode: 'LICENSE_REQUIRED',
-      message: 'The currently verified source requires a license before server capture can be enabled.',
+      message:
+        'The currently verified source requires a license before server capture can be enabled.',
     };
   }
   if (policies.has('BROWSER_CAPTURE_ONLY')) {
@@ -116,7 +126,8 @@ export function assessStrictSchedulePolicy(
       allowed: false,
       state: 'BROWSER_ONLY',
       reasonCode: 'BROWSER_CAPTURE_ONLY',
-      message: 'The currently verified source is browser-capture only; unattended server capture is not permitted.',
+      message:
+        'The currently verified source is browser-capture only; unattended server capture is not permitted.',
     };
   }
   return {

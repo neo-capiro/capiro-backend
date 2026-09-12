@@ -15,6 +15,13 @@ import { WatchlistModule } from '../watchlist/watchlist.module.js';
 import { LinkingModule } from '../linking/linking.module.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
 import { CaptureModule } from './capture/capture.module.js';
+import { HearingRecordingController } from './recording/recording.controller.js';
+import { HearingRecordingService } from './recording/recording.service.js';
+import { RecordingPermissionService } from './recording/recording-permission.service.js';
+import { RecordingStorageService } from './recording/recording-storage.service.js';
+import { HearingAnalysisService } from './recording/hearing-analysis.service.js';
+import { PublicHearingAudioController } from './capture/public-hearing-audio.controller.js';
+import { PublicHearingAudioAccessService } from './capture/public-hearing-audio-access.service.js';
 
 /**
  * Live Hearing Intelligence module — the first capability of intel-api.
@@ -24,7 +31,7 @@ import { CaptureModule } from './capture/capture.module.js';
  */
 @Module({
   imports: [WatchlistModule, LinkingModule, SourceDataModule, CaptureModule],
-  controllers: [HearingController],
+  controllers: [HearingController, HearingRecordingController, PublicHearingAudioController],
   providers: [
     HearingSessionService,
     HearingWsTicketService,
@@ -37,6 +44,11 @@ import { CaptureModule } from './capture/capture.module.js';
     ClientBriefContextClient,
     StreamResolverService,
     HearingGateway,
+    HearingRecordingService,
+    RecordingPermissionService,
+    RecordingStorageService,
+    HearingAnalysisService,
+    PublicHearingAudioAccessService,
   ],
 })
 export class HearingModule {}

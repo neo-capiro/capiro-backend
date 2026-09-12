@@ -20,6 +20,14 @@ export class AgendaNotificationDto {
   @IsString() @MaxLength(500) title!: string;
   @IsString() @MaxLength(10000) body!: string;
 }
+export class HearingPublicationNotificationDto {
+  @IsUUID() tenantId!: string;
+  @IsString() @MaxLength(200) userId!: string;
+  @IsString() @MaxLength(200) publicationId!: string;
+  @IsString() @MaxLength(64) contentHash!: string;
+  @IsString() @MaxLength(500) title!: string;
+  @IsString() @MaxLength(10000) body!: string;
+}
 
 /**
  * class-validator decorators are REQUIRED: the global ValidationPipe runs
@@ -71,6 +79,10 @@ export class InternalLegiWatchController {
   @Post('agenda-notification')
   agenda(@Body() input: AgendaNotificationDto) {
     return this.notifications.emitAgenda(input);
+  }
+  @Post('hearing-publication-notification')
+  hearingPublication(@Body() input: HearingPublicationNotificationDto) {
+    return this.notifications.emitHearingPublication(input);
   }
 
   @Get('client-brief-context')

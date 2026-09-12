@@ -1,4 +1,8 @@
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import { stateCaptureEnabled } from '../capture/public-capture-permission.js';
+import { stateAnalysisTenants } from './state-hearing-intelligence-access.js';
+import { FolderSourceDataRepository } from '../../sourcedata/folder-source-data.repository.js';
+import { hearingBillMentions } from '../publication-domain.js';
 import type {
   PublicHearingContext,
   PublicTranscriptSegmentInput,
@@ -36,6 +40,8 @@ interface SegmentSourceRow {
   subcommitteeName: string | null;
   witnesses: string[] | null;
   visibility: string;
+  geographicJurisdiction?: string | null;
+  legislativeSession?: string | null;
 }
 
 export interface HearingIntelligenceDrainResult {
@@ -183,7 +189,7 @@ export class HearingIntelligenceWorker {
       source.visibility === 'public'
         ? await this.publicProcessor.processSegment({
             segment: toSegment(source),
-            context: toContext(source),
+            context: await this.qualifiedContext(source),
           })
         : { insights: [] };
 
@@ -199,7 +205,10 @@ export class HearingIntelligenceWorker {
       return { insights: 0, tenantJobs: 0 };
     }
 
-    const tenantIds = await this.contexts.activeTenantIds();
+    const tenantIds =
+      source.geographicJurisdiction && source.geographicJurisdiction !== 'US'
+        ? await stateAnalysisTenants(this.prisma, source.hearingId)
+        : await this.contexts.activeTenantIds();
     const tenantJobs = await this.jobs.enqueueTenantJobs({
       tenantIds,
       hearingId: source.hearingId,
@@ -214,7 +223,12 @@ export class HearingIntelligenceWorker {
   private async processTenantJob(job: TenantHearingRelevanceJob): Promise<number> {
     const insights = await this.publicStore.byIds(job.publicInsightIds);
     const source = await this.loadHearingContext(job.hearingId);
-    if (!source) {
+    if (
+      !source ||
+      (source.geographicJurisdiction &&
+        source.geographicJurisdiction !== 'US' &&
+        !(await stateAnalysisTenants(this.prisma, job.hearingId)).includes(job.tenantId))
+    ) {
       await this.tenantStore.replaceForInsights({
         tenantId: job.tenantId,
         hearingId: job.hearingId,
@@ -260,16 +274,23 @@ export class HearingIntelligenceWorker {
               h.subcommittee_system_code AS "subcommitteeSystemCode",
               sub.name AS "subcommitteeName",
               h.witnesses,
-              h.visibility
+              h.visibility,h.geographic_jurisdiction AS "geographicJurisdiction",h.legislative_session AS "legislativeSession"
        FROM public_hearing_transcript_segment s
        JOIN public_hearing_capture c ON c.id=s.capture_id
-       JOIN federal_committee_hearing h ON h.id=c.hearing_id
+       JOIN ${stateCaptureEnabled() ? 'committee_hearing' : 'federal_committee_hearing'} h ON h.id=c.hearing_id
        LEFT JOIN congress_committee sub ON sub.system_code=h.subcommittee_system_code
        WHERE s.id=$1
        LIMIT 1`,
       segmentId,
     );
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (
+      row?.geographicJurisdiction &&
+      row.geographicJurisdiction !== 'US' &&
+      !(await stateAnalysisTenants(this.prisma, row.hearingId)).length
+    )
+      return null;
+    return row ?? null;
   }
 
   private async loadHearingContext(hearingId: string): Promise<PublicHearingContext | null> {
@@ -284,6 +305,8 @@ export class HearingIntelligenceWorker {
         subcommitteeName: string | null;
         witnesses: string[] | null;
         visibility: string;
+        geographicJurisdiction?: string | null;
+        legislativeSession?: string | null;
       }>
     >(
       `SELECT h.id AS "hearingId",
@@ -294,8 +317,8 @@ export class HearingIntelligenceWorker {
               h.subcommittee_system_code AS "subcommitteeSystemCode",
               sub.name AS "subcommitteeName",
               h.witnesses,
-              h.visibility
-       FROM federal_committee_hearing h
+              h.visibility,h.geographic_jurisdiction AS "geographicJurisdiction",h.legislative_session AS "legislativeSession"
+       FROM ${stateCaptureEnabled() ? 'committee_hearing' : 'federal_committee_hearing'} h
        LEFT JOIN congress_committee sub ON sub.system_code=h.subcommittee_system_code
        WHERE h.id=$1
        LIMIT 1`,
@@ -303,8 +326,16 @@ export class HearingIntelligenceWorker {
     );
     const row = rows[0];
     if (!row || row.visibility !== 'public') return null;
+    if (
+      row.geographicJurisdiction &&
+      row.geographicJurisdiction !== 'US' &&
+      !(await stateAnalysisTenants(this.prisma, hearingId)).length
+    )
+      return null;
     return {
       hearingId: row.hearingId,
+      geographicJurisdiction: row.geographicJurisdiction,
+      legislativeSession: row.legislativeSession,
       title: row.title,
       chamber: row.chamber,
       committeeId: row.committeeSystemCode ?? undefined,
@@ -313,6 +344,18 @@ export class HearingIntelligenceWorker {
       subcommitteeName: row.subcommitteeName ?? undefined,
       publicWitnesses: (row.witnesses ?? []).map((name) => ({ name })),
     };
+  }
+  private async qualifiedContext(source: SegmentSourceRow) {
+    const context = toContext(source),
+      jurisdiction = source.geographicJurisdiction,
+      session = source.legislativeSession;
+    if (jurisdiction && jurisdiction !== 'US' && session) {
+      const numbers = hearingBillMentions(source.text, jurisdiction);
+      context.resolvedBills = numbers.length
+        ? await new FolderSourceDataRepository(this.prisma).resolve(jurisdiction, session, numbers)
+        : [];
+    }
+    return context;
   }
 }
 
@@ -336,6 +379,8 @@ function toSegment(row: SegmentSourceRow): PublicTranscriptSegmentInput {
 function toContext(row: SegmentSourceRow): PublicHearingContext {
   return {
     hearingId: row.hearingId,
+    geographicJurisdiction: row.geographicJurisdiction,
+    legislativeSession: row.legislativeSession,
     title: row.title,
     chamber: row.chamber,
     committeeId: row.committeeSystemCode ?? undefined,

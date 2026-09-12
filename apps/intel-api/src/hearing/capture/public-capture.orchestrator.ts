@@ -54,6 +54,7 @@ export interface CaptureLeaseAcquireResult {
  * owner and fencing token in the same database statement.
  */
 export interface PublicCaptureStorePort {
+  assertCaptureAllowed?(hearingId: string): Promise<void>;
   getHearing(hearingId: string): Promise<PublicHearingCaptureEvent | null>;
   getDemand(hearingId: string): Promise<PublicCaptureDemand>;
   ensureCapture(input: {
@@ -126,11 +127,7 @@ export interface PublicCaptureQueuePort {
     /** The worker must resolve again in its own network environment. */
     mustReresolve: true;
   }): Promise<{ enqueued: boolean; jobId?: string }>;
-  schedulePreflight(input: {
-    dedupeKey: string;
-    hearingId: string;
-    dueAt: Date;
-  }): Promise<void>;
+  schedulePreflight(input: { dedupeKey: string; hearingId: string; dueAt: Date }): Promise<void>;
 }
 
 export interface PublicCaptureRuntimePort {
@@ -188,7 +185,12 @@ export type CaptureReconcileOutcome =
   | { action: 'TERMINAL'; captureId: string; status: PublicHearingCaptureStatus }
   | { action: 'CAPTURE_IN_PROGRESS'; captureId: string }
   | { action: 'PREFLIGHT_SCHEDULED'; captureId: string; dueAt: Date }
-  | { action: 'WAITING_FOR_STREAM'; captureId: string; dueAt?: Date; resolution: ClassifiedStreamResolution }
+  | {
+      action: 'WAITING_FOR_STREAM';
+      captureId: string;
+      dueAt?: Date;
+      resolution: ClassifiedStreamResolution;
+    }
   | { action: 'BROWSER_ONLY'; captureId: string; resolution: ClassifiedStreamResolution }
   | { action: 'BLOCKED'; captureId: string; resolution: ClassifiedStreamResolution }
   | { action: 'CAPTURE_JOB_ENQUEUED'; captureId: string; enqueued: boolean; jobId?: string };
@@ -339,7 +341,8 @@ export class PublicCaptureOrchestrator {
     }
 
     if (classified.state === 'WAITING_FOR_STREAM' || classified.state === 'SOURCE_ERROR') {
-      if (capture.status === 'PREPARING') capture = await this.moveUnfenced(capture, 'WAITING_FOR_STREAM', now);
+      if (capture.status === 'PREPARING')
+        capture = await this.moveUnfenced(capture, 'WAITING_FOR_STREAM', now);
       if (afterAttempt) {
         await this.queue.schedulePreflight({
           dedupeKey: `hearing-stream-preflight:v1:${hearingId.toLowerCase()}`,
@@ -379,6 +382,7 @@ export class PublicCaptureOrchestrator {
 }
 
 export interface PublicCaptureWorkerOptions {
+  assertRuntimeAllowed?: () => Promise<void>;
   now?: () => Date;
   leaseDurationMs?: number;
   leaseRenewIntervalMs?: number;
@@ -396,8 +400,19 @@ export type PublicCaptureWorkerOutcome =
   | { action: 'NOT_FOUND' }
   | { action: 'TERMINAL'; status: PublicHearingCaptureStatus }
   | { action: 'NO_LONGER_CAPTURABLE'; resolution: ClassifiedStreamResolution }
-  | { action: 'COMPLETE'; status: 'COMPLETE' | 'COMPLETE_WITH_GAPS'; capturedMs: number; gaps: CaptureGap[] }
-  | { action: 'RECOVERING'; captureId: string; dueAt: Date; attemptNumber: number; gaps: CaptureGap[] }
+  | {
+      action: 'COMPLETE';
+      status: 'COMPLETE' | 'COMPLETE_WITH_GAPS';
+      capturedMs: number;
+      gaps: CaptureGap[];
+    }
+  | {
+      action: 'RECOVERING';
+      captureId: string;
+      dueAt: Date;
+      attemptNumber: number;
+      gaps: CaptureGap[];
+    }
   | { action: 'FAILED'; error: string };
 
 /**
@@ -406,6 +421,7 @@ export type PublicCaptureWorkerOutcome =
  * context or a stale media URL from the queue.
  */
 export class PublicCaptureWorkerCoordinator {
+  private readonly assertRuntimeAllowed?: () => Promise<void>;
   private readonly now: () => Date;
   private readonly leaseDurationMs: number;
   private readonly leaseRenewIntervalMs: number;
@@ -423,6 +439,7 @@ export class PublicCaptureWorkerCoordinator {
     options: PublicCaptureWorkerOptions = {},
   ) {
     this.now = options.now ?? (() => new Date());
+    this.assertRuntimeAllowed = options.assertRuntimeAllowed;
     this.leaseDurationMs = options.leaseDurationMs ?? 60_000;
     this.leaseRenewIntervalMs = options.leaseRenewIntervalMs ?? 20_000;
     this.delayedStartGraceMs = options.delayedStartGraceMs ?? 90 * 60 * 1000;
@@ -486,21 +503,51 @@ export class PublicCaptureWorkerCoordinator {
     }
     const abort = new AbortController();
     const attemptStartedAt = this.now();
-    const attemptNumber = this.attempts
-      ? (await this.attempts.countAttempts(capture.id)) + 1
-      : 1;
+    const attemptNumber = this.attempts ? (await this.attempts.countAttempts(capture.id)) + 1 : 1;
     let runtimeStarted = false;
     let renewFailure: Error | undefined;
     let renewing = false;
     let leaseDeadline: ReturnType<typeof setTimeout> | undefined;
     const armLeaseDeadline = () => {
       if (leaseDeadline) clearTimeout(leaseDeadline);
-      leaseDeadline = setTimeout(() => {
-        renewFailure = new Error('Public hearing capture lease expired before renewal');
-        abort.abort(renewFailure);
-      }, Math.max(0, lease.expiresAt.getTime() - this.now().getTime()));
+      leaseDeadline = setTimeout(
+        () => {
+          renewFailure = new Error('Public hearing capture lease expired before renewal');
+          abort.abort(renewFailure);
+        },
+        Math.max(0, lease.expiresAt.getTime() - this.now().getTime()),
+      );
     };
     armLeaseDeadline();
+    let checkingAccess = false;
+    const checkAccess = async () => {
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          (async () => {
+            await this.assertRuntimeAllowed?.();
+            await this.store.assertCaptureAllowed?.(input.hearingId);
+          })(),
+          new Promise<never>((_, reject) => {
+            deadline = setTimeout(
+              () => reject(new Error('CAPTURE_ACCESS_CHECK_UNAVAILABLE')),
+              5000,
+            );
+          }),
+        ]);
+      } finally {
+        if (deadline) clearTimeout(deadline);
+      }
+    };
+    const accessChecks = setInterval(() => {
+      if (checkingAccess || abort.signal.aborted) return;
+      checkingAccess = true;
+      void checkAccess()
+        .catch((error) => abort.abort(error))
+        .finally(() => {
+          checkingAccess = false;
+        });
+    }, 20000);
     const renewal = setInterval(() => {
       if (renewing || abort.signal.aborted) return;
       renewing = true;
@@ -527,6 +574,7 @@ export class PublicCaptureWorkerCoordinator {
     }, this.leaseRenewIntervalMs);
 
     try {
+      await checkAccess();
       let raw: ResolverResultLike;
       try {
         raw = await this.resolver.resolve({
@@ -756,6 +804,7 @@ export class PublicCaptureWorkerCoordinator {
       }
       return { action: 'FAILED', error: message };
     } finally {
+      clearInterval(accessChecks);
       clearInterval(renewal);
       if (leaseDeadline) clearTimeout(leaseDeadline);
       abort.abort();

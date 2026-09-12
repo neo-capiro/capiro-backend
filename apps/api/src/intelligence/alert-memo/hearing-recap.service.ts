@@ -1,9 +1,32 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { ClientDocumentWriterService } from '../../client-documents/client-document-writer.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DOCX_MIME, markdownToMemoDocInput, renderMemoDocx } from './alert-memo-docx.js';
+import { renderApprovedHearingRecap } from './approved-hearing-recap-docx.js';
+
+export interface ApprovedHearingRecapInput {
+  sessionId: string;
+  publicationId: string;
+  contentHash: string;
+}
+interface ApprovedRecapDocument extends ApprovedHearingRecapInput {
+  schema: string;
+  tenantId: string;
+  clientId: string;
+  version: number;
+  title: string;
+  markdown: string;
+  approvedAt: string;
+}
 
 export interface SaveHearingRecapInput {
   sessionId: string;
@@ -92,6 +115,117 @@ export class HearingRecapService {
         select: { id: true, fileName: true, createdAt: true, indexedAt: true },
       }),
     );
+  }
+
+  private async approvedVersion(
+    ctx: TenantContext,
+    clientId: string,
+    input: ApprovedHearingRecapInput,
+    authorization?: string,
+    impersonation?: string,
+  ) {
+    await this.accessibleSession(ctx, input.sessionId);
+    const client = await this.clientOrThrow(ctx, clientId);
+    if (!authorization?.startsWith('Bearer ')) throw new UnauthorizedException();
+    const route = `/intel-api/hearings/${encodeURIComponent(input.sessionId)}/publications/${encodeURIComponent(input.publicationId)}/approved-document?contentHash=${encodeURIComponent(input.contentHash)}`;
+    const response = await fetch(
+      (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '') + route,
+      {
+        headers: {
+          authorization,
+          ...(impersonation ? { 'x-capiro-impersonate-tenant': impersonation } : {}),
+        },
+        signal: AbortSignal.timeout(15000),
+        redirect: 'error',
+      },
+    );
+    if (!response.ok) throw new ConflictException('APPROVED_RECAP_UNAVAILABLE_OR_ACCESS_CHANGED');
+    const approved = (await response.json()) as ApprovedRecapDocument;
+    if (
+      approved.schema !== 'legiwatch.approved-recap-document.v1' ||
+      approved.tenantId !== ctx.tenantId ||
+      approved.clientId !== clientId ||
+      approved.publicationId !== input.publicationId ||
+      approved.sessionId !== input.sessionId ||
+      approved.contentHash !== input.contentHash ||
+      !Number.isSafeInteger(approved.version) ||
+      approved.version < 1 ||
+      typeof approved.markdown !== 'string' ||
+      approved.markdown.length > 300000 ||
+      typeof approved.title !== 'string' ||
+      approved.title.length > 200 ||
+      !Number.isFinite(Date.parse(approved.approvedAt))
+    )
+      throw new ServiceUnavailableException('APPROVED_RECAP_CONTRACT_INVALID');
+    return { approved, client };
+  }
+
+  async exportApproved(
+    ctx: TenantContext,
+    clientId: string,
+    input: ApprovedHearingRecapInput,
+    authorization?: string,
+    impersonation?: string,
+  ) {
+    const { approved, client } = await this.approvedVersion(
+      ctx,
+      clientId,
+      input,
+      authorization,
+      impersonation,
+    );
+    return {
+      buffer: await renderApprovedHearingRecap(approved, client.name),
+      fileName: `${approved.title} - v${approved.version}.docx`.replace(/[\\/:*?"<>|]+/g, '-'),
+    };
+  }
+
+  async saveApproved(
+    ctx: TenantContext,
+    clientId: string,
+    input: ApprovedHearingRecapInput,
+    authorization?: string,
+    impersonation?: string,
+  ) {
+    const { approved, client } = await this.approvedVersion(
+      ctx,
+      clientId,
+      input,
+      authorization,
+      impersonation,
+    );
+    const buffer = await renderApprovedHearingRecap(approved, client.name);
+    // Recheck the approved content and authorization immediately before writing.
+    const current = await this.approvedVersion(ctx, clientId, input, authorization, impersonation);
+    if (
+      current.approved.markdown !== approved.markdown ||
+      current.approved.version !== approved.version
+    )
+      throw new ConflictException('APPROVED_RECAP_CHANGED');
+    const saved = await this.documents.createAttachmentFromBuffer(ctx, {
+      clientId,
+      fileName: `${approved.title} - v${approved.version}.docx`.replace(/[\\/:*?"<>|]+/g, '-'),
+      contentType: DOCX_MIME,
+      buffer,
+      source: 'hearing_recap',
+      sourceEntityType: 'hearing_session',
+      sourceEntityId: input.sessionId,
+      sourceVersion: approved.version,
+      sourceContentHash: approved.contentHash,
+      idempotencyKey: `approved-hearing-recap:${approved.publicationId}:${approved.contentHash}`,
+    });
+    return {
+      sessionId: input.sessionId,
+      publicationId: approved.publicationId,
+      contentHash: approved.contentHash,
+      version: approved.version,
+      reused: saved.reused ?? false,
+      document: {
+        attachmentId: saved.id,
+        fileName: saved.fileName,
+        indexedAt: saved.indexedAt ?? null,
+      },
+    };
   }
 
   async save(ctx: TenantContext, clientId: string, input: SaveHearingRecapInput) {

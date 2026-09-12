@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { Body, Controller, Get, Param, Post, Query, UseGuards, Headers, Res } from '@nestjs/common';
+import { IsOptional, IsString, MaxLength, MinLength, Matches } from 'class-validator';
+import type { Response } from 'express';
+import { DOCX_MIME } from './alert-memo-docx.js';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../../auth/roles.decorator.js';
 import { RolesGuard } from '../../auth/roles.guard.js';
@@ -12,6 +14,11 @@ export class SaveHearingRecapDto {
   @IsString() @MinLength(1) markdown!: string;
   @IsOptional() @IsString() replaceAttachmentId?: string;
 }
+export class ApprovedHearingRecapDto {
+  @IsString() @MinLength(1) @MaxLength(128) sessionId!: string;
+  @IsString() @MinLength(1) @MaxLength(128) publicationId!: string;
+  @IsString() @Matches(/^[a-f0-9]{64}$/) contentHash!: string;
+}
 
 function positiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -23,6 +30,40 @@ function positiveInt(value: string | undefined, fallback: number): number {
 @Roles('standard_user')
 export class HearingRecapController {
   constructor(private readonly recaps: HearingRecapService) {}
+  @Post('clients/:clientId/hearing-recaps/approved')
+  saveApproved(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() input: ApprovedHearingRecapDto,
+    @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string,
+  ) {
+    return this.recaps.saveApproved(ctx, clientId, input, authorization, impersonation);
+  }
+  @Post('clients/:clientId/hearing-recaps/approved/export')
+  async exportApproved(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() input: ApprovedHearingRecapDto,
+    @Res() response: Response,
+    @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string,
+  ) {
+    const file = await this.recaps.exportApproved(
+      ctx,
+      clientId,
+      input,
+      authorization,
+      impersonation,
+    );
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Type', DOCX_MIME);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    );
+    response.send(file.buffer);
+  }
 
   @Get('clients/:clientId/hearing-recaps')
   list(

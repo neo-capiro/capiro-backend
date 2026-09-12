@@ -1213,6 +1213,8 @@ model EngagementAttachment {
   // sourceEntityType="hearing_session" plus the intel session id.
   sourceEntityType String?   @map("source_entity_type") @db.VarChar(64)
   sourceEntityId   String?   @map("source_entity_id") @db.VarChar(128)
+  sourceVersion Int? @map("source_version")
+  sourceContentHash String? @map("source_content_hash") @db.VarChar(64)
   uploadedByUserId String?   @map("uploaded_by_user_id") @db.Uuid
   // Meetings v2 (2026-07): stamped by ClientKbService.indexAttachment when the
   // client-KB indexing of this document completes, so the Documents tab can show

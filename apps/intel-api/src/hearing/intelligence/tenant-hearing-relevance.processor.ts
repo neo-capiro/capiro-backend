@@ -83,9 +83,18 @@ function scoreClient(input: {
     ].join(' '),
   );
 
-  const billValues = new Set(entityValues(input.insight, 'BILL').map(billIdValue));
+  const state = Boolean(
+    input.context.geographicJurisdiction && input.context.geographicJurisdiction !== 'US',
+  );
+  const billValues = new Set(
+    state
+      ? (input.insight.entities ?? [])
+          .filter((entity) => entity.entityType === 'BILL' && entity.canonicalId)
+          .map((entity) => entity.canonicalId!)
+      : entityValues(input.insight, 'BILL').map(billIdValue),
+  );
   for (const billId of input.client.billIds) {
-    if (billValues.has(billIdValue(billId))) {
+    if (billValues.has(state ? billId : billIdValue(billId))) {
       score += 45;
       matchedOn.push({ kind: 'BILL', value: billId });
     }
@@ -104,7 +113,9 @@ function scoreClient(input: {
     const candidate = normalized(agency);
     if (
       candidate &&
-      (agencyValues.some((value) => value === candidate || value.includes(candidate) || candidate.includes(value)) ||
+      (agencyValues.some(
+        (value) => value === candidate || value.includes(candidate) || candidate.includes(value),
+      ) ||
         haystack.includes(candidate))
     ) {
       score += 30;
@@ -139,10 +150,7 @@ function scoreClient(input: {
 
   return {
     score: Math.min(100, score),
-    matchedOn: compactUnique(
-      matchedOn,
-      (match) => `${match.kind}:${normalized(match.value)}`,
-    ),
+    matchedOn: compactUnique(matchedOn, (match) => `${match.kind}:${normalized(match.value)}`),
   };
 }
 

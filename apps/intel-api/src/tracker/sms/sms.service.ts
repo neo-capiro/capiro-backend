@@ -1,115 +1,161 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import {
+  SNSClient,
+  PublishCommand,
+  CheckIfPhoneNumberIsOptedOutCommand,
+} from '@aws-sdk/client-sns';
 
 export interface SmsSendResult {
-  /** True only when a provider actually accepted the message for delivery. */
+  /** Provider acceptance only; handset receipt requires delivery-status evidence. */
   sent: boolean;
-  /** True when SMS is not provisioned yet (no-op, by design). */
   dormant: boolean;
   providerMessageId?: string;
   error?: string;
+  uncertain?: boolean;
+  suppressed?: boolean;
+  segments?: number;
 }
-
-/** Normalize a phone number to E.164, or null if it can't be coerced safely. */
 export function normalizeE164(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const trimmed = raw.trim();
-  // Keep a leading +, strip all other non-digits.
-  const hasPlus = trimmed.startsWith('+');
-  const digits = trimmed.replace(/[^\d]/g, '');
-  if (digits.length < 10 || digits.length > 15) return null;
-  if (hasPlus) return `+${digits}`;
-  // Bare 10-digit US number → assume +1; 11-digit starting with 1 → +<digits>.
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  return `+${digits}`;
+  const value = raw.trim();
+  if (!/^\+?[\d\s().-]+$/.test(value)) return null;
+  const digits = value.replace(/\D/g, '');
+  const phone = value.startsWith('+')
+    ? '+' + digits
+    : digits.length === 10
+      ? '+1' + digits
+      : digits.length === 11 && digits.startsWith('1')
+        ? '+' + digits
+        : null;
+  return phone && /^\+[1-9]\d{9,14}$/.test(phone) ? phone : null;
+}
+export function maskPhone(phone: string) {
+  return `••• ••• ${phone.slice(-4)}`;
+}
+const GSM_BASIC = new Set(
+  Array.from(
+    '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà',
+  ),
+);
+const GSM_EXTENDED = new Set(Array.from('\f^{}\\[~]|€'));
+export function smsSize(body: string): {
+  encoding: 'GSM-7' | 'UCS-2';
+  units: number;
+  segments: number;
+} {
+  const chars = Array.from(body),
+    gsm = chars.every((c) => GSM_BASIC.has(c) || GSM_EXTENDED.has(c));
+  const widths = chars.map((c) => (gsm ? (GSM_EXTENDED.has(c) ? 2 : 1) : c.length));
+  const units = widths.reduce((a, b) => a + b, 0),
+    single = gsm ? 160 : 70,
+    multi = gsm ? 153 : 67;
+  if (units <= single) return { encoding: gsm ? 'GSM-7' : 'UCS-2', units, segments: units ? 1 : 0 };
+  let segments = 1,
+    used = 0;
+  for (const width of widths) {
+    if (used + width > multi) {
+      segments++;
+      used = 0;
+    }
+    used += width;
+  }
+  return { encoding: gsm ? 'GSM-7' : 'UCS-2', units, segments };
 }
 
-/** "+14155551234" → "+1 (•••) •••-1234" for display. */
-export function maskPhone(e164: string): string {
-  const digits = e164.replace(/[^\d]/g, '');
-  const last4 = digits.slice(-4);
-  return `+1 (•••) •••-${last4}`;
-}
-
-/**
- * SMS delivery for Tracker alerts + phone verification (P1.1, ported from
- * apps/api/src/tracker/sms/sms.service.ts; env is read via process.env — intel-
- * api has no zod config module, same as IntelEmailService).
- *
- * Ships DORMANT: with TRACKER_SMS_PROVIDER unset/'none' (or no origination
- * number), send() is a logged no-op that returns { dormant: true } — the rest
- * of the pipeline (OTP verify, test-alert) runs end-to-end so flipping the
- * provider on (after carrier/10DLC provisioning) makes SMS live with no code
- * change. The AWS SNS path is lazily imported so @aws-sdk/client-sns is only
- * required once SMS is actually enabled.
- */
+/** Existing SNS transport; publication workers retain lease/uncertain-send ownership. */
 @Injectable()
 export class SmsService {
-  private readonly logger = new Logger(SmsService.name);
-
-  private provider(): string {
-    return process.env.TRACKER_SMS_PROVIDER ?? 'none';
+  private client: SNSClient | undefined;
+  private sns() {
+    return (this.client ??= new SNSClient({
+      region: process.env.AWS_REGION_DEFAULT ?? 'us-east-1',
+      maxAttempts: 1,
+    }));
   }
-
-  private originationNumber(): string {
-    return process.env.TRACKER_SMS_ORIGINATION_NUMBER ?? '';
+  isConfigured() {
+    return (
+      process.env.TRACKER_SMS_PROVIDER === 'sns' &&
+      Boolean(normalizeE164(process.env.TRACKER_SMS_ORIGINATION_NUMBER))
+    );
   }
-
-  /** True when a provider AND origination number are configured (SMS live). */
-  isConfigured(): boolean {
-    return this.provider() !== 'none' && !!this.originationNumber();
+  async optedOut(phone: string): Promise<boolean> {
+    if (!this.isConfigured()) throw new Error('SMS provider is dormant');
+    const result = await this.sns().send(
+      new CheckIfPhoneNumberIsOptedOutCommand({ phoneNumber: phone }),
+      { abortSignal: AbortSignal.timeout(5000) },
+    );
+    if (typeof result.isOptedOut !== 'boolean')
+      throw new Error('SMS suppression status unavailable');
+    return result.isOptedOut;
   }
-
   async send(toE164: string, body: string): Promise<SmsSendResult> {
-    const provider = this.provider();
-    const from = this.originationNumber();
-
-    if (provider === 'none' || !from) {
-      this.logger.log(
-        `[sms:dormant] would send to ${maskPhone(toE164)} (${body.length} chars) — ` +
-          'SMS provider not configured (TRACKER_SMS_PROVIDER/ORIGINATION_NUMBER)',
-      );
-      return { sent: false, dormant: true };
+    const size = smsSize(body);
+    if (normalizeE164(toE164) !== toE164 || !size.segments || size.segments > 3)
+      return {
+        sent: false,
+        dormant: false,
+        error: 'invalid_sms_or_segment_limit',
+        segments: size.segments,
+      };
+    if (!this.isConfigured())
+      return { sent: false, dormant: true, error: 'sms_provider_dormant', segments: size.segments };
+    try {
+      if (await this.optedOut(toE164))
+        return {
+          sent: false,
+          dormant: false,
+          suppressed: true,
+          error: 'phone_opted_out',
+          segments: size.segments,
+        };
+    } catch {
+      return {
+        sent: false,
+        dormant: false,
+        error: 'suppression_check_unavailable',
+        segments: size.segments,
+      };
     }
-
-    if (provider === 'sns') {
-      try {
-        // Lazy, soft import: @aws-sdk/client-sns is NOT a baseline dependency
-        // (SMS ships dormant). The string-typed specifier keeps the compiler
-        // from resolving a module that may be absent until SMS is provisioned.
-        const specifier = '@aws-sdk/client-sns';
-        const mod = (await import(specifier as string).catch(() => null)) as {
-          SNSClient: new (cfg: { region: string }) => {
-            send: (cmd: unknown) => Promise<{ MessageId?: string }>;
-          };
-          PublishCommand: new (input: Record<string, unknown>) => unknown;
-        } | null;
-        if (!mod) {
-          this.logger.error(
-            'TRACKER_SMS_PROVIDER=sns but @aws-sdk/client-sns is not installed — staying dormant. ' +
-              'Run `pnpm --filter @capiro/intel-api add @aws-sdk/client-sns` to enable SMS.',
-          );
-          return { sent: false, dormant: true, error: 'sns_sdk_missing' };
-        }
-        const region = process.env.AWS_REGION_DEFAULT ?? 'us-east-1';
-        const client = new mod.SNSClient({ region });
-        const res = await client.send(
-          new mod.PublishCommand({
-            PhoneNumber: toE164,
-            Message: body,
-            MessageAttributes: {
-              'AWS.MM.SMS.OriginationNumber': { DataType: 'String', StringValue: from },
-              'AWS.SNS.SMS.SMSType': { DataType: 'String', StringValue: 'Transactional' },
+    try {
+      const result = await this.sns().send(
+        new PublishCommand({
+          PhoneNumber: toE164,
+          Message: body,
+          MessageAttributes: {
+            'AWS.MM.SMS.OriginationNumber': {
+              DataType: 'String',
+              StringValue: process.env.TRACKER_SMS_ORIGINATION_NUMBER!,
             },
-          }),
-        );
-        return { sent: true, dormant: false, providerMessageId: res.MessageId };
-      } catch (e) {
-        this.logger.error(`SMS send failed: ${(e as Error).message}`);
-        return { sent: false, dormant: false, error: (e as Error).message };
-      }
+            'AWS.SNS.SMS.SMSType': { DataType: 'String', StringValue: 'Transactional' },
+          },
+        }),
+        { abortSignal: AbortSignal.timeout(8000) },
+      );
+      if (!result.MessageId)
+        return {
+          sent: false,
+          dormant: false,
+          uncertain: true,
+          error: 'provider_acceptance_unknown',
+          segments: size.segments,
+        };
+      return {
+        sent: true,
+        dormant: false,
+        providerMessageId: result.MessageId,
+        segments: size.segments,
+      };
+    } catch (error) {
+      const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      // Never retry a publish whose acceptance is uncertain.
+      return {
+        sent: false,
+        dormant: false,
+        uncertain: !(status && status >= 400 && status < 500),
+        error: 'sns_publish_failed',
+        segments: size.segments,
+      };
     }
-
-    return { sent: false, dormant: true };
   }
 }

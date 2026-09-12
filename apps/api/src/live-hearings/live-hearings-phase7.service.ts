@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 import { assessStrictSchedulePolicy } from './live-hearings-phase7-schedule.guard.js';
+import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 
 const TRANSCRIPT_MAX_PAGE_SIZE = 500;
 const LIST_MAX_PAGE_SIZE = 100;
@@ -36,6 +37,7 @@ const ATTACHABLE_CAPTURE_STATES = new Set([
 
 interface CanonicalHearingRow {
   id: string;
+  geographicJurisdiction?: string | null;
   title: string;
   type: string | null;
   eventStatus: string;
@@ -414,12 +416,15 @@ export class LiveHearingsPhase7Service {
       orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
       select: { capturePolicy: true, resolutionState: true },
     });
-    const assessment = assessSchedulePolicy(hearing, candidates);
+    const statePermission = await stateCapturePolicy(this.prisma, ctx, hearing);
+    const assessment = statePermission?.policy ?? assessSchedulePolicy(hearing, candidates);
     if (!assessment.allowed) {
       throw new ConflictException({
         code: assessment.reasonCode,
         message: assessment.message,
-        browserFallbackAvailable: Boolean(hearing.url && hearing.visibility === 'public'),
+        browserFallbackAvailable:
+          statePermission?.browserAllowed ??
+          Boolean(hearing.url && hearing.visibility === 'public'),
       });
     }
 
@@ -428,10 +433,11 @@ export class LiveHearingsPhase7Service {
         `INSERT INTO hearing_subscription
            (tenant_id, user_id, hearing_id, notify_on_start, notify_on_mention,
             scheduled_by_user, scheduled_by_rule_id, client_ids, watchlist_id,
-            created_at, updated_at)
-         VALUES ($1::uuid, $2, $3, true, false, true, NULL, ARRAY[]::text[], NULL, now(), now())
+            attendance_mode, created_at, updated_at)
+         VALUES ($1::uuid, $2, $3, true, false, true, NULL, ARRAY[]::text[], NULL, 'automatic', now(), now())
          ON CONFLICT (tenant_id, user_id, hearing_id)
          DO UPDATE SET scheduled_by_user=true,
+                       attendance_mode='automatic',
                        notify_on_start=true,
                        updated_at=now()`,
         ctx.tenantId,
@@ -527,10 +533,20 @@ export class LiveHearingsPhase7Service {
   }
 
   async browserJoin(ctx: TenantContext, hearingId: string): Promise<BrowserJoinPlan> {
-    void ctx;
     const hearing = await this.requireHearing(hearingId);
+    const permission = await stateCapturePolicy(this.prisma, ctx, hearing);
     const capture = await this.captureDetail(hearingId);
-    return browserJoinPlan(hearing, capture);
+    const plan = browserJoinPlan(hearing, capture);
+    if (plan.mode === 'BROWSER_CAPTURE' && permission && !permission.browserAllowed) {
+      return {
+        mode: 'BLOCKED',
+        hearingId,
+        reasonCode: 'STATE_BROWSER_CAPTURE_NOT_QUALIFIED',
+        message:
+          'Browser capture requires reviewed permission for this exact event and source. Use Watch original.',
+      };
+    }
+    return plan;
   }
 
   async recordings(
@@ -694,6 +710,7 @@ export class LiveHearingsPhase7Service {
       where: { id: hearingId },
       select: {
         id: true,
+        geographicJurisdiction: true,
         title: true,
         type: true,
         eventStatus: true,

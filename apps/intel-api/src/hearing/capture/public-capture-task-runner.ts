@@ -17,6 +17,9 @@ import {
 import { PublicHearingCaptureAttemptStore } from './public-hearing-capture-attempt.store.js';
 import { PublicHearingCaptureStore } from './public-hearing-capture.store.js';
 import { PublicHearingTranscriptStore } from './public-hearing-transcript.store.js';
+import { PublicHearingAudioStore } from './public-hearing-audio.store.js';
+import { RecordingStorageService } from '../recording/recording-storage.service.js';
+import { assertPublicCaptureRuntimeEnabled } from './public-capture-runtime-control.js';
 
 export type PublicCaptureTaskMode =
   | 'preflight'
@@ -287,8 +290,15 @@ export async function runPublicCaptureTask(
     const runtime = new FfmpegDeepgramCaptureRuntime(
       credential.apiKey,
       new PublicHearingTranscriptStore(dependencies.prisma),
+      {
+        audioSink: new PublicHearingAudioStore(
+          dependencies.prisma,
+          new RecordingStorageService(new ConfigService()),
+        ),
+      },
     );
     coordinator = new PublicCaptureWorkerCoordinator(store, resolver, runtime, {
+      assertRuntimeAllowed: () => assertPublicCaptureRuntimeEnabled(dependencies.prisma),
       attempts: new PublicHearingCaptureAttemptStore(dependencies.prisma),
       retryQueue: queue,
     });

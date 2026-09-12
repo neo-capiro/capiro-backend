@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  approvedPublicCapture,
+  publicAudioEnabled,
+  stateCaptureEnabled,
+} from './public-capture-permission.js';
 import type {
   CaptureLeaseAcquireResult,
   PublicCaptureDemand,
@@ -88,10 +93,29 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
        LIMIT 1`,
       hearingId,
     );
-    return rows[0] ?? null;
+    if (rows[0]) return rows[0];
+    if (!stateCaptureEnabled() || !(await approvedPublicCapture(this.prisma, hearingId)).length)
+      return null;
+    const state = await this.prisma.$queryRawUnsafe<PublicHearingCaptureEvent[]>(
+      `SELECT id,event_status AS "eventStatus",'PUBLIC' AS "publicAccess",starts_at AS "scheduledStart",url AS "officialPageUrl"
+      FROM committee_hearing WHERE id=$1 AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US' AND visibility='public' LIMIT 1`,
+      hearingId,
+    );
+    return state[0] ?? null;
   }
 
   async getDemand(hearingId: string): Promise<PublicCaptureDemand> {
+    const state = await this.prisma.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM committee_hearing WHERE id=${hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
+    if (state.length)
+      return {
+        activeSubscriptionCount: stateCaptureEnabled()
+          ? new Set((await approvedPublicCapture(this.prisma, hearingId)).map((g) => g.tenantId))
+              .size
+          : 0,
+        globalCoverageRequested: false,
+      };
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count
@@ -130,7 +154,50 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
         [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
       ),
     );
-    return rows.map((row) => row.hearingId);
+    const result = rows.map((row) => row.hearingId);
+    if (stateCaptureEnabled()) {
+      const candidates = await this.prisma.$queryRaw<
+        Array<{ id: string }>
+      >`SELECT DISTINCT h.id FROM committee_hearing h
+        JOIN intel_hearing_media_permission p ON p.hearing_id=h.id
+        LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
+        WHERE h.geographic_jurisdiction IS NOT NULL AND h.geographic_jurisdiction<>'US' AND h.visibility='public'
+          AND h.event_status IN ('scheduled','in_progress') AND p.mode='server' AND p.revoked_at IS NULL AND p.expires_at>now()
+          AND (c.id IS NULL OR c.domain_status NOT IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED'))
+          AND (c.next_preflight_at IS NULL OR c.next_preflight_at<=${now}) ORDER BY h.id LIMIT 100`;
+      for (const candidate of candidates)
+        if ((await approvedPublicCapture(this.prisma, candidate.id)).length)
+          result.push(candidate.id);
+    }
+    return [...new Set(result)];
+  }
+
+  async assertCaptureAllowed(hearingId: string): Promise<void> {
+    const terminal = await this.prisma.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM public_hearing_capture
+      WHERE hearing_id=${hearingId} AND domain_status IN ('CANCELED','BLOCKED','FAILED','COMPLETE','COMPLETE_WITH_GAPS')`;
+    if (terminal.length) throw Error('CAPTURE_INTENTIONALLY_STOPPED');
+    const hearing = await this.getHearing(hearingId),
+      demand = await this.getDemand(hearingId);
+    if (
+      !hearing ||
+      /^(canceled|cancelled)$/i.test(hearing.eventStatus) ||
+      hearing.publicAccess !== 'PUBLIC' ||
+      (!demand.activeSubscriptionCount && !demand.globalCoverageRequested)
+    )
+      throw Error('CAPTURE_ACCESS_OR_DEMAND_WITHDRAWN');
+    const retained = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<
+          Array<{ id: string }>
+        >`SELECT id FROM intel_public_hearing_audio_epoch WHERE hearing_id=${hearingId} AND state='recording' LIMIT 1`,
+    );
+    if (
+      retained.length &&
+      (!publicAudioEnabled() || !(await approvedPublicCapture(this.prisma, hearingId)).length)
+    )
+      throw Error('CAPTURE_SOURCE_PERMISSION_WITHDRAWN');
   }
 
   async ensureCapture(input: {

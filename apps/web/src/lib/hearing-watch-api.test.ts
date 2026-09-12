@@ -7,6 +7,7 @@ const apiGet = vi.fn();
 const apiPost = vi.fn();
 
 vi.mock('./use-api.js', () => ({ useApi: () => ({ get: apiGet, post: apiPost }) }));
+vi.mock('./use-api-scope.js', () => ({ useApiScope: () => 'test-tenant:test-user' }));
 
 const {
   briefToMarkdown,
@@ -191,7 +192,12 @@ describe('briefToMarkdown — client context', () => {
   test('names the client the recap was written for and that its context applied', () => {
     const markdown = briefToMarkdown({
       ...base,
-      clientContext: { clientId: 'c-1', clientName: 'Anduril', status: 'applied', relevanceBand: 'HIGH' },
+      clientContext: {
+        clientId: 'c-1',
+        clientName: 'Anduril',
+        status: 'applied',
+        relevanceBand: 'HIGH',
+      },
     });
     expect(markdown).toContain('_Prepared for Anduril · client priorities applied_');
   });
@@ -199,7 +205,12 @@ describe('briefToMarkdown — client context', () => {
   test('is honest in the filed document when no client context was available', () => {
     const markdown = briefToMarkdown({
       ...base,
-      clientContext: { clientId: 'c-1', clientName: null, status: 'unavailable', relevanceBand: null },
+      clientContext: {
+        clientId: 'c-1',
+        clientName: null,
+        status: 'unavailable',
+        relevanceBand: null,
+      },
     });
     expect(markdown).toContain(
       '_Prepared for the selected client · no client-specific context was available — read as a general recap_',

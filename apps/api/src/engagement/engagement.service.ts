@@ -6999,6 +6999,9 @@ export class EngagementService {
       sourceEntityId?: string | null;
       /** Server-owned retry identity. Never taken directly from an upload request. */
       idempotencyKey?: string;
+      /** Immutable server-verified publication provenance, present before indexing. */
+      sourceVersion?: number;
+      sourceContentHash?: string;
       /** Chat originals retain the same scan/readiness policy as manual uploads. */
       untrustedUpload?: boolean;
       privateToUploader?: boolean;
@@ -7081,6 +7084,8 @@ export class EngagementService {
           source: input.source ?? 'intel_memo',
           sourceEntityType: input.sourceEntityType ?? null,
           sourceEntityId: input.sourceEntityId ?? null,
+          sourceVersion: input.sourceVersion ?? null,
+          sourceContentHash: input.sourceContentHash ?? null,
           uploadedByUserId: ctx.userId,
           ...(input.privateToUploader ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] } : {}),
           ...(input.untrustedUpload ? {

@@ -118,6 +118,48 @@ interface Recipient {
 
 @Injectable()
 export class LegiWatchLifecycleNotificationService {
+  /** Owner-selected inbox delivery of an immutable reviewed version. */
+  async emitHearingPublication(input: {
+    tenantId: string;
+    userId: string;
+    publicationId: string;
+    contentHash: string;
+    title: string;
+    body: string;
+  }) {
+    return this.prisma.withTenant(input.tenantId, async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.hearing_actor',${input.userId},true),set_config('app.folder_actor',${input.userId},true)`;
+      const rows = await tx.$queryRaw<
+        Array<{
+          user_id: string;
+          session_id: string;
+          hearing_id: string | null;
+          public_capture_id: string | null;
+          kind: string;
+        }>
+      >`
+        SELECT u.id::text AS user_id,p.session_id,s.hearing_id,s.public_capture_id,p.kind FROM intel_hearing_publication p
+        JOIN intel_live_hearing_session s ON s.id=p.session_id AND s.tenant_id=p.tenant_id
+        JOIN users u ON u.clerk_user_id=p.owner_clerk_id
+        JOIN tenant_memberships m ON m.user_id=u.id AND m.tenant_id::text=p.tenant_id AND m.status::text='active'
+        JOIN intel_feature_flag f ON f.tenant_id=p.tenant_id AND f.enabled
+          AND f.feature=CASE p.kind WHEN 'live_update' THEN 'legiwatch_hearing_updates_v1' ELSE 'legiwatch_hearing_recaps_v1' END
+        WHERE p.tenant_id=${input.tenantId} AND p.id=${input.publicationId} AND p.owner_clerk_id=${input.userId}
+          AND p.status='approved' AND p.content_hash=${input.contentHash} AND s.recording_policy<>'no_storage'`;
+      const target = rows[0];
+      if (!target) return { created: 0, suppressed: true };
+      const inserted = await tx.$queryRaw<
+        Array<{ id: string }>
+      >`INSERT INTO legiwatch_notification_event
+        (tenant_id,user_id,event_type,hearing_id,hearing_publication_id,title,body,deep_link,dedup_key,created_at)
+        VALUES(${input.tenantId}::uuid,${target.user_id},${target.kind},${target.hearing_id},${input.publicationId},
+          ${input.title},${input.body},
+          ${(target.public_capture_id && target.hearing_id ? '/legiwatch/hearings/' + encodeURIComponent(target.hearing_id) : '/intelligence/hearing-watch/' + encodeURIComponent(target.session_id)) + '?publication=' + encodeURIComponent(input.publicationId)},
+          ${'hearing-publication:' + input.publicationId + ':' + input.contentHash},now())
+        ON CONFLICT(tenant_id,user_id,dedup_key) DO NOTHING RETURNING id`;
+      return { created: inserted.length, suppressed: false };
+    });
+  }
   async emitBillRecord(input: {
     tenantId: string;
     userId: string;

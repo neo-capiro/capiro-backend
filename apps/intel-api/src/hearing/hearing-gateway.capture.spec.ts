@@ -127,8 +127,7 @@ function makeGateway(
     maxEndMs: jest.fn(async () => 0),
     enrichFinal: jest.fn(async () => undefined),
   } as unknown as SegmentCommitService;
-  const extract =
-    overrides.extract ?? jest.fn(async () => ({ entityMentions: [], issueTags: [] }));
+  const extract = overrides.extract ?? jest.fn(async () => ({ entityMentions: [], issueTags: [] }));
   const orchestrator = { extract } as unknown as OrchestratorClient;
   const watchlists = { matchAndPersist: jest.fn(async () => 0) } as unknown as WatchlistService;
   const config = {
@@ -180,9 +179,47 @@ function baseConn(socket: WebSocket) {
   };
 }
 
-const deepgramConns = (jest.requireMock('@deepgram/sdk') as {
-  __conns: Array<{ emit: (event: string, payload?: unknown) => void; send: jest.Mock }>;
-}).__conns;
+describe('retained audio retry boundary', () => {
+  it('keeps a transient unsaved part retryable without acknowledging it or forwarding it twice', async () => {
+    const { gateway, sessions } = makeGateway();
+    const socket = fakeSocket();
+    const append = jest
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error('Request aborted'), { name: 'AbortError' }))
+      .mockResolvedValue({ sequence: 0, durableBytes: 4, durableEndMs: 500, duplicate: false });
+    Object.assign(gateway, { recordings: { append } });
+    const sendAudio = jest.fn(() => true);
+    const conn = {
+      ...baseConn(socket.socket),
+      state: 'capturing',
+      hasAudio: true,
+      recording: { epochId: 'epoch' },
+      deepgram: { sendAudio },
+    };
+    const frame = Buffer.alloc(20);
+    frame.write('LWA4');
+    frame.writeDoubleBE(500, 8);
+    frame.set([0x1a, 0x45, 0xdf, 0xa3], 16);
+    await (gateway as any).onAudioFrame(conn, frame);
+    expect(socket.sentJson()).toEqual([
+      expect.objectContaining({ code: 'RECORDING_STORAGE_DELAYED' }),
+    ]);
+    expect(sendAudio).not.toHaveBeenCalled();
+    expect(sessions.releaseCapture).not.toHaveBeenCalled();
+    await (gateway as any).onAudioFrame(conn, frame);
+    expect(socket.sentJson().filter((m) => m.type === 'audio_saved')).toHaveLength(1);
+    expect(sendAudio).toHaveBeenCalledTimes(1);
+    expect(sendAudio).toHaveBeenCalledWith(frame.subarray(16));
+    append.mockRejectedValueOnce(new Error('Recording permission expired'));
+    await expect((gateway as any).onAudioFrame(conn, frame)).rejects.toThrow('permission');
+  });
+});
+
+const deepgramConns = (
+  jest.requireMock('@deepgram/sdk') as {
+    __conns: Array<{ emit: (event: string, payload?: unknown) => void; send: jest.Mock }>;
+  }
+).__conns;
 
 /**
  * A claimed capture owns a heartbeat interval, a 12-hour duration cap and two
@@ -222,8 +259,9 @@ describe('HearingGateway capture protocol', () => {
     activation.resolve(true);
     await conn.inboundChain;
     expect(activateCapture).toHaveBeenCalledTimes(1);
-    expect(conn.deepgram.sendAudio.mock.calls.map(([bytes]: [Buffer]) => bytes.toString()))
-      .toEqual(['webm-header', 'webm-cluster']);
+    expect(conn.deepgram.sendAudio.mock.calls.map(([bytes]: [Buffer]) => bytes.toString())).toEqual(
+      ['webm-header', 'webm-cluster'],
+    );
     expect(conn.state).toBe('capturing');
   });
 
@@ -237,13 +275,18 @@ describe('HearingGateway capture protocol', () => {
       const conn = (gateway as any).conns.get(ws.socket);
       conn.state = 'ready';
       conn.claimStartedAt = new Date();
-      conn.deepgram = { sendAudio: jest.fn(() => true), stopAndWait: jest.fn(async () => undefined) };
+      conn.deepgram = {
+        sendAudio: jest.fn(() => true),
+        stopAndWait: jest.fn(async () => undefined),
+      };
       ws.emit('message', Buffer.from('header'), true);
       await Promise.resolve();
       for (let i = 0; i < 1_000; i++) ws.emit('message', Buffer.alloc(8_000), true);
       expect(conn.pendingInputMessages).toBeLessThanOrEqual(256);
       expect(conn.pendingInputBytes).toBeLessThanOrEqual(2 * 1024 * 1024);
-      expect(ws.sentJson()).toContainEqual(expect.objectContaining({ code: 'CAPTURE_INPUT_OVERFLOW' }));
+      expect(ws.sentJson()).toContainEqual(
+        expect.objectContaining({ code: 'CAPTURE_INPUT_OVERFLOW' }),
+      );
       await jest.advanceTimersByTimeAsync(15_000);
       await conn.inboundChain;
       activation.resolve(true);
@@ -252,7 +295,9 @@ describe('HearingGateway capture protocol', () => {
       expect(conn.pendingInputBytes).toBe(0);
       expect(conn.pendingInputMessages).toBe(0);
       expect(conn.state).toBe('ended');
-    } finally { jest.useRealTimers(); }
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('lets disconnect finish when claim SQL hangs and releases a claim that resolves after its deadline', async () => {
@@ -262,7 +307,11 @@ describe('HearingGateway capture protocol', () => {
       const { gateway, sessions } = makeGateway({ claimCapture: jest.fn(() => pending.promise) });
       const ws = fakeSocket();
       await (gateway as any).startSession(ws.socket, 'session-1', 'tenant-1', 'user-1');
-      ws.emit('message', Buffer.from(JSON.stringify({ type: 'capture_start', mimeType: 'audio/webm' })), false);
+      ws.emit(
+        'message',
+        Buffer.from(JSON.stringify({ type: 'capture_start', mimeType: 'audio/webm' })),
+        false,
+      );
       await Promise.resolve();
       const disconnected = gateway.handleDisconnect(ws.socket);
       await jest.advanceTimersByTimeAsync(15_000);
@@ -270,10 +319,17 @@ describe('HearingGateway capture protocol', () => {
       const token = new Date();
       pending.resolve({ startedAt: token });
       await jest.advanceTimersByTimeAsync(0);
-      expect(sessions.releaseCapture).toHaveBeenCalledWith('tenant-1', 'session-1', token, 'failed');
+      expect(sessions.releaseCapture).toHaveBeenCalledWith(
+        'tenant-1',
+        'session-1',
+        token,
+        'failed',
+      );
       expect(deepgramConns).toHaveLength(0);
       expect(jest.getTimerCount()).toBe(0);
-    } finally { jest.useRealTimers(); }
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('keeps the browser proxy and capture lease active for a four-hour recess', async () => {
@@ -349,11 +405,7 @@ describe('HearingGateway capture protocol', () => {
 
     await (gateway as any).onAudioFrame(conn, Buffer.from('webm-audio'));
 
-    expect(activateCapture).toHaveBeenCalledWith(
-      'tenant-1',
-      'session-1',
-      conn.claimStartedAt,
-    );
+    expect(activateCapture).toHaveBeenCalledWith('tenant-1', 'session-1', conn.claimStartedAt);
     expect(order).toEqual(['activate', 'audio']);
     expect(conn.hasAudio).toBe(true);
     expect(conn.state).toBe('capturing');
@@ -647,10 +699,12 @@ describe('HearingGateway capture protocol', () => {
     // Enrichment for segment 1 was STARTED before segment 2's raw write, and did
     // not block it — that is what keeps AI off the live transcript path.
     expect(order.indexOf('enrich')).toBeLessThan(order.lastIndexOf('raw-2'));
-    expect(ws.sentJson().filter((m) => m.type === 'final').map((m) => m.segment.text)).toEqual([
-      'one',
-      'two',
-    ]);
+    expect(
+      ws
+        .sentJson()
+        .filter((m) => m.type === 'final')
+        .map((m) => m.segment.text),
+    ).toEqual(['one', 'two']);
     // Enrichment is still outstanding — it did not gate the live transcript.
     expect(conn.pendingEnrichment.size).toBe(2);
     slowEnrichment.resolve();

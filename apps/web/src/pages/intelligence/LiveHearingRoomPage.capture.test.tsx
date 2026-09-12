@@ -20,12 +20,14 @@ const mocks = vi.hoisted(() => ({
   }>,
 }));
 
+vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'test-scope' }));
 vi.mock('../../lib/use-api.js', () => ({
   useApi: () => ({ get: mocks.apiGet, post: mocks.apiPost }),
 }));
 
 vi.mock('../../lib/intel-feature-flags.js', () => ({
-  useIntelFeatureEnabled: () => true,
+  useIntelFeatureEnabled: (feature: string) =>
+    ['hearing_watch', 'legiwatch_hearing_recording_v1'].includes(feature),
 }));
 
 vi.mock('../../lib/hearing-watch-api.js', () => ({
@@ -185,6 +187,7 @@ class FakeMediaRecorder {
 function browserSetup() {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
+    writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
@@ -196,11 +199,14 @@ function browserSetup() {
       dispatchEvent: vi.fn(),
     })),
   });
-  vi.stubGlobal('ResizeObserver', class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   Element.prototype.scrollIntoView = vi.fn();
   vi.stubGlobal('WebSocket', FakeWebSocket);
   vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
@@ -218,8 +224,14 @@ function renderRoom(vnext = false) {
       <AntApp>
         <MemoryRouter initialEntries={['/intelligence/hearing-watch/session-1']}>
           <Routes>
-            <Route path={vnext ? '/intelligence/hearing-watch/:sessionId' : '/intelligence/hearing-watch/:id'}
-              element={vnext ? <LiveHearingRoomVNext sessionId="session-1" /> : <LiveHearingRoomPage />} />
+            <Route
+              path={
+                vnext ? '/intelligence/hearing-watch/:sessionId' : '/intelligence/hearing-watch/:id'
+              }
+              element={
+                vnext ? <LiveHearingRoomVNext sessionId="session-1" /> : <LiveHearingRoomPage />
+              }
+            />
           </Routes>
         </MemoryRouter>
       </AntApp>
@@ -267,7 +279,9 @@ describe('LiveHearingRoomPage browser capture', () => {
       },
     ];
     renderRoom();
-    expect(await screen.findByText('Persisted testimony from the prior session.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Persisted testimony from the prior session.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Speaker 1:')).toBeInTheDocument();
   });
 
@@ -282,20 +296,32 @@ describe('LiveHearingRoomPage browser capture', () => {
     const socket = await connectRoom();
     expect(mocks.mintWsTicket).toHaveBeenCalledWith(expect.anything(), 'session-1');
     fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
+    await waitFor(() =>
+      expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+    );
     act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
     await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe('recording'));
   });
 
-  test.each([false, true])('restores saved intelligence and deduplicates the same live card (vNext=%s)', async (vnext) => {
-    const card = { id: 'segment-1', cardType: 'potential_ask', title: 'Persisted commitment', startMs: 20 };
-    mocks.apiGet.mockImplementation(async (url: string) => ({ data: url.endsWith('/summary') ? { cards: [card] } : [] }));
-    renderRoom(vnext);
-    expect(await screen.findByText('Persisted commitment')).toBeInTheDocument();
-    const socket = await connectRoom();
-    act(() => socket.receive({ type: 'card', card }));
-    expect(screen.getAllByText('Persisted commitment')).toHaveLength(1);
-  });
+  test.each([false, true])(
+    'restores saved intelligence and deduplicates the same live card (vNext=%s)',
+    async (vnext) => {
+      const card = {
+        id: 'segment-1',
+        cardType: 'potential_ask',
+        title: 'Persisted commitment',
+        startMs: 20,
+      };
+      mocks.apiGet.mockImplementation(async (url: string) => ({
+        data: url.endsWith('/summary') ? { cards: [card] } : [],
+      }));
+      renderRoom(vnext);
+      expect(await screen.findByText('Persisted commitment')).toBeInTheDocument();
+      const socket = await connectRoom();
+      act(() => socket.receive({ type: 'card', card }));
+      expect(screen.getAllByText('Persisted commitment')).toHaveLength(1);
+    },
+  );
 
   test('Disconnect returns to a reconnectable state without leaving inert capture controls', async () => {
     renderRoom();
@@ -306,18 +332,25 @@ describe('LiveHearingRoomPage browser capture', () => {
     expect(screen.getByRole('button', { name: /Start transcription/i })).toBeDisabled();
   });
 
-  test.each([false, true])('a late capture_ready after stop cannot start a recorder (vNext=%s)', async (vnext) => {
-    renderRoom(vnext);
-    const socket = await connectRoom();
-    fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
-    fireEvent.click(screen.getByRole('button', { name: /End session/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_stop')).toBe(true));
-    act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
-    act(() => socket.receive({ type: 'status', status: 'ended' }));
-    await waitFor(() => expect(socket.readyState).toBe(FakeWebSocket.CLOSED));
-    expect(FakeMediaRecorder.instances).toHaveLength(0);
-  });
+  test.each([false, true])(
+    'a late capture_ready after stop cannot start a recorder (vNext=%s)',
+    async (vnext) => {
+      renderRoom(vnext);
+      const socket = await connectRoom();
+      fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
+      await waitFor(() =>
+        expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /End session/i }));
+      await waitFor(() =>
+        expect(sentJson(socket).some((m) => m.type === 'capture_stop')).toBe(true),
+      );
+      act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+      act(() => socket.receive({ type: 'status', status: 'ended' }));
+      await waitFor(() => expect(socket.readyState).toBe(FakeWebSocket.CLOSED));
+      expect(FakeMediaRecorder.instances).toHaveLength(0);
+    },
+  );
 
   test('a rapid double-click mints only one WebSocket ticket', async () => {
     renderRoom();
@@ -328,75 +361,90 @@ describe('LiveHearingRoomPage browser capture', () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
   });
 
-  test.each([false, true])('waits for capture_ready before starting MediaRecorder and blocks duplicate share prompts (vNext=%s)', async (vnext) => {
-    renderRoom(vnext);
-    const socket = await connectRoom();
-    const start = screen.getByRole('button', { name: /Start transcription/i });
-    fireEvent.click(start);
-    fireEvent.click(start);
+  test.each([false, true])(
+    'waits for capture_ready before starting MediaRecorder and blocks duplicate share prompts (vNext=%s)',
+    async (vnext) => {
+      renderRoom(vnext);
+      const socket = await connectRoom();
+      const start = screen.getByRole('button', { name: /Start transcription/i });
+      fireEvent.click(start);
+      fireEvent.click(start);
 
-    await waitFor(() => expect(mocks.getDisplayMedia).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(sentJson(socket)).toContainEqual(
-        expect.objectContaining({ type: 'capture_start', mimeType: 'audio/webm;codecs=opus' }),
-      ),
-    );
-    expect(FakeMediaRecorder.instances).toHaveLength(0);
+      await waitFor(() => expect(mocks.getDisplayMedia).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(sentJson(socket)).toContainEqual(
+          expect.objectContaining({ type: 'capture_start', mimeType: 'audio/webm;codecs=opus' }),
+        ),
+      );
+      expect(FakeMediaRecorder.instances).toHaveLength(0);
 
-    act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
-    await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
-    expect(FakeMediaRecorder.instances[0]!.start).toHaveBeenCalledWith(500);
-  });
+      act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+      await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
+      expect(FakeMediaRecorder.instances[0]!.start).toHaveBeenCalledWith(500);
+    },
+  );
 
-  test.each([false, true])('flushes the recorder before sending capture_stop and closes only after the server ends (vNext=%s)', async (vnext) => {
-    renderRoom(vnext);
-    const socket = await connectRoom();
-    fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
-    act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
-    await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
+  test.each([false, true])(
+    'flushes the recorder before sending capture_stop and closes only after the server ends (vNext=%s)',
+    async (vnext) => {
+      renderRoom(vnext);
+      const socket = await connectRoom();
+      fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
+      await waitFor(() =>
+        expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+      );
+      act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+      await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
 
-    fireEvent.click(screen.getByRole('button', { name: /End session/i }));
-    const recorder = FakeMediaRecorder.instances[0]!;
-    await waitFor(() => expect(recorder.requestData).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(recorder.stop).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_stop')).toBe(true));
-    expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+      fireEvent.click(screen.getByRole('button', { name: /End session/i }));
+      const recorder = FakeMediaRecorder.instances[0]!;
+      await waitFor(() => expect(recorder.requestData).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(recorder.stop).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(sentJson(socket).some((m) => m.type === 'capture_stop')).toBe(true),
+      );
+      expect(socket.readyState).toBe(FakeWebSocket.OPEN);
 
-    act(() => socket.receive({ type: 'status', status: 'ended' }));
-    await waitFor(() => expect(socket.readyState).toBe(FakeWebSocket.CLOSED));
-    expect((await screen.findAllByText('Session ended')).length).toBeGreaterThan(0);
-  });
+      act(() => socket.receive({ type: 'status', status: 'ended' }));
+      await waitFor(() => expect(socket.readyState).toBe(FakeWebSocket.CLOSED));
+      expect((await screen.findAllByText('Session ended')).length).toBeGreaterThan(0);
+    },
+  );
 
-  test.each([false, true])('stops with a visible error when the upload falls irrecoverably behind (vNext=%s)', async (vnext) => {
-    const audioTrack = new FakeTrack();
-    mocks.getDisplayMedia.mockResolvedValue(
-      new FakeStream([audioTrack], [new FakeTrack('browser')]),
-    );
-    renderRoom(vnext);
-    const socket = await connectRoom();
-    fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
-    act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
-    await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
-    const recorder = FakeMediaRecorder.instances[0]!;
+  test.each([false, true])(
+    'stops with a visible error when the upload falls irrecoverably behind (vNext=%s)',
+    async (vnext) => {
+      const audioTrack = new FakeTrack();
+      mocks.getDisplayMedia.mockResolvedValue(
+        new FakeStream([audioTrack], [new FakeTrack('browser')]),
+      );
+      renderRoom(vnext);
+      const socket = await connectRoom();
+      fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
+      await waitFor(() =>
+        expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+      );
+      act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+      await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
+      const recorder = FakeMediaRecorder.instances[0]!;
 
-    // The socket's send buffer is past the bound: the alternative to erroring is
-    // growing that buffer without limit (or dropping audio and still claiming to
-    // be transcribing).
-    socket.bufferedAmount = 4 * 1024 * 1024;
-    await act(async () => {
-      recorder.ondataavailable?.({
-        data: { size: 2_048, arrayBuffer: async () => new ArrayBuffer(2_048) },
-      } as unknown as BlobEvent);
-    });
+      // The socket's send buffer is past the bound: the alternative to erroring is
+      // growing that buffer without limit (or dropping audio and still claiming to
+      // be transcribing).
+      socket.bufferedAmount = 4 * 1024 * 1024;
+      await act(async () => {
+        recorder.ondataavailable?.({
+          data: { size: 2_048, arrayBuffer: async () => new ArrayBuffer(2_048) },
+        } as unknown as BlobEvent);
+      });
 
-    expect(await screen.findByText(/Network upload is falling behind/i)).toBeInTheDocument();
-    await waitFor(() => expect(recorder.stop).toHaveBeenCalled());
-    expect(audioTrack.stopped).toBe(true);
-    // No audio frame was queued behind the bound.
-    expect(socket.sent.some((value) => value instanceof ArrayBuffer)).toBe(false);
-  });
+      expect(await screen.findByText(/Network upload is falling behind/i)).toBeInTheDocument();
+      await waitFor(() => expect(recorder.stop).toHaveBeenCalled());
+      expect(audioTrack.stopped).toBe(true);
+      // No audio frame was queued behind the bound.
+      expect(socket.sent.some((value) => value instanceof ArrayBuffer)).toBe(false);
+    },
+  );
 
   test('a cancelled share picker leaves the room connected and retryable', async () => {
     mocks.getDisplayMedia.mockRejectedValue(
@@ -443,7 +491,9 @@ describe('LiveHearingRoomPage browser capture', () => {
     renderRoom();
     const socket = await connectRoom();
     fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
+    await waitFor(() =>
+      expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+    );
     act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
     await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
 
@@ -464,7 +514,9 @@ describe('LiveHearingRoomPage browser capture', () => {
     renderRoom();
     const socket = await connectRoom();
     fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
-    await waitFor(() => expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true));
+    await waitFor(() =>
+      expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+    );
     act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
     await waitFor(() => expect(FakeMediaRecorder.instances).toHaveLength(1));
     const recorder = FakeMediaRecorder.instances[0]!;

@@ -23,14 +23,20 @@ const AGENCIES: ReadonlyArray<{ label: string; aliases: readonly string[] }> = [
   { label: 'Department of Defense', aliases: ['department of defense', 'dod', 'pentagon'] },
   { label: 'Department of the Army', aliases: ['department of the army', 'the army', 'u.s. army'] },
   { label: 'Department of the Navy', aliases: ['department of the navy', 'the navy', 'u.s. navy'] },
-  { label: 'Department of the Air Force', aliases: ['department of the air force', 'the air force', 'u.s. air force'] },
+  {
+    label: 'Department of the Air Force',
+    aliases: ['department of the air force', 'the air force', 'u.s. air force'],
+  },
   { label: 'Marine Corps', aliases: ['marine corps', 'u.s. marine corps'] },
   { label: 'Space Force', aliases: ['space force', 'u.s. space force'] },
   { label: 'Department of Energy', aliases: ['department of energy', 'doe'] },
   { label: 'Department of Homeland Security', aliases: ['department of homeland security', 'dhs'] },
   { label: 'Department of State', aliases: ['department of state', 'state department'] },
   { label: 'Department of Justice', aliases: ['department of justice', 'doj'] },
-  { label: 'Department of Veterans Affairs', aliases: ['department of veterans affairs', 'veterans affairs', 'va'] },
+  {
+    label: 'Department of Veterans Affairs',
+    aliases: ['department of veterans affairs', 'veterans affairs', 'va'],
+  },
   { label: 'National Science Foundation', aliases: ['national science foundation', 'nsf'] },
   { label: 'National Aeronautics and Space Administration', aliases: ['nasa'] },
   { label: 'Office of Management and Budget', aliases: ['office of management and budget', 'omb'] },
@@ -73,20 +79,31 @@ function distinctMatches(text: string, pattern: RegExp): string[] {
 }
 
 export function normalizeBillReference(value: string): string {
-  const compact = value
-    .toUpperCase()
-    .replace(/\./g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const match = compact.match(
-    /^(HR|S|H J RES|S J RES|H CON RES|S CON RES|H RES|S RES)\s*(\d+)$/,
-  );
+  const compact = value.toUpperCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+  const match = compact.match(/^(HR|S|H J RES|S J RES|H CON RES|S CON RES|H RES|S RES)\s*(\d+)$/);
   if (!match) return compact;
   const type = (match[1] ?? '').replace(/\s+/g, '');
   return `${type}-${match[2]}`;
 }
 
-function billEntities(text: string): PublicHearingEntity[] {
+function billEntities(text: string, context?: PublicHearingContext): PublicHearingEntity[] {
+  if (context?.geographicJurisdiction && context.geographicJurisdiction !== 'US') {
+    if (context.geographicJurisdiction !== 'FL') return [];
+    return distinctMatches(text, /\b(H\.?\s*B\.?|S\.?\s*B\.?)\s*0*(\d+)\b/gi).map((label) => {
+      const number = label
+        .replace(/[.\s]/g, '')
+        .toUpperCase()
+        .replace(/^(HB|SB)0+(?=\d)/, '$1');
+      const resolved = context.legislativeSession
+        ? (context.resolvedBills?.filter((bill) => bill.number === number) ?? [])
+        : [];
+      return {
+        entityType: 'BILL',
+        label,
+        ...(resolved.length === 1 ? { canonicalId: resolved[0]!.id } : {}),
+      };
+    });
+  }
   return distinctMatches(text, BILL_PATTERN).map((label) => ({
     entityType: 'BILL',
     label,
@@ -140,9 +157,9 @@ function uniqueEntities(entities: PublicHearingEntity[]): PublicHearingEntity[] 
   });
 }
 
-function segmentEntities(text: string): PublicHearingEntity[] {
+function segmentEntities(text: string, context?: PublicHearingContext): PublicHearingEntity[] {
   return uniqueEntities([
-    ...billEntities(text),
+    ...billEntities(text, context),
     ...programElementEntities(text),
     ...amountEntities(text),
     ...deadlineEntities(text),
@@ -237,11 +254,11 @@ export function extractDeterministicPublicHearingInsights(input: {
   const text = normalizeWhitespace(input.segment.text);
   if (!text) return [];
   const drafts: PublicHearingInsightDraft[] = [];
-  const allEntities = segmentEntities(text);
+  const allEntities = segmentEntities(text, input.context);
   const sentenceList = sentences(text);
 
   for (const sentence of sentenceList) {
-    const entities = segmentEntities(sentence);
+    const entities = segmentEntities(sentence, input.context);
     const question = questionDraft(sentence, input.segment, entities);
     const commitment = commitmentDraft(sentence, input.segment, entities);
     const deadline = deadlineDraft(sentence, input.segment, entities);
@@ -252,7 +269,7 @@ export function extractDeterministicPublicHearingInsights(input: {
     if (policy) drafts.push(policy);
   }
 
-  const bills = billEntities(text);
+  const bills = billEntities(text, input.context);
   for (const bill of bills) {
     drafts.push({
       insightType: 'BILL_REFERENCE',
