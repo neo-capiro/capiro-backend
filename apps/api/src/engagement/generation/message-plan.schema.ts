@@ -64,7 +64,11 @@ export const riskyClaimSchema = z
 
 export const messagePlanSchema = z
   .object({
-    /** The message's purpose. */
+    /**
+     * A short, snake_case label for the message's purpose (e.g.
+     * "meeting_request", "information_share", "status_update", "thank_you",
+     * "follow_up") — a category, not a sentence. Capped at 80 chars.
+     */
     intent: z.string().min(1).max(80),
     /** The client being represented, or null for an internal message. */
     clientRepresented: z.string().max(200).nullable(),
@@ -111,7 +115,11 @@ export const MESSAGE_PLAN_JSON_SCHEMA = {
     'missingCriticalContext',
   ],
   properties: {
-    intent: { type: 'string' },
+    intent: {
+      type: 'string',
+      description:
+        'A short, snake_case category for the message\'s purpose (e.g. "meeting_request", "information_share", "status_update", "thank_you", "follow_up") — NOT a sentence. Max 80 characters.',
+    },
     clientRepresented: { type: ['string', 'null'] },
     desiredOutcome: { type: 'string' },
     whyRecipient: { type: 'array', items: { type: 'string' } },
