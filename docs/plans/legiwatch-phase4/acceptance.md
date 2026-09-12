@@ -41,3 +41,9 @@ An entry remains pending until its evidence is linked here.
 
 No messages, hearing captures or Phase 4 production mutations have been performed
 at this baseline checkpoint.
+
+## Connected implementation checkpoint
+
+The scoped phase-four qualification runner completed locally with no failures or skips: API 53 tests, Intel 94 tests, web 59 tests. The separate gateway startup fix adds two tested cases (provider error and start timeout), bringing that gateway suite to 25 tests. The canonical server publication path and actual approved synthetic DOCX rendering are covered; deployed indexing and delivery are not yet accepted. Source/demand/tenant/runtime/capture stop measurements all remain below 30 seconds (see the engineering note for exact values).
+
+The earlier 250-minute browser attempt failed at about 115 minutes and cannot satisfy the long-run gate. The server run continues after one unplanned storage interruption. The first native build was stopped to incorporate the newly observed browser startup fix. Neither four-hour gate is accepted at this checkpoint.

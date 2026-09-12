@@ -100,6 +100,11 @@ async function main() {
   );
   const port = 5197,
     origin = 'http://127.0.0.1:' + port;
+  const startupFailure = process.env.PHASE4_QUALIFICATION_START_FAILURE === 'true';
+  if (startupFailure) {
+    if (minutes >= 240) throw Error('Startup failure injection is a separate short qualification');
+    Object.assign(gateway, { deepgramApiKey: 'owned-qualification-intentionally-invalid-key' });
+  }
   const permission = await p.hearingMediaPermission.create({
     data: {
       tenantId,
@@ -269,6 +274,7 @@ async function main() {
   const metadata = {
     startedAt: new Date(started).toISOString(),
     requestedMinutes: minutes,
+    startupFailure,
     browser: browser.version(),
     os: process.platform,
     sourceHashes,
@@ -292,6 +298,10 @@ async function main() {
     await page.goto(origin);
     await page.click('#start');
     await page.waitForFunction(() => (window as any).phase === 'capturing', {}, { timeout: 30000 });
+    if (startupFailure) {
+      Object.assign(gateway, { deepgramApiKey: process.env.DEEPGRAM_API_KEY });
+      log('startup_failure_recording_started');
+    }
     await source.evaluate(() => {
       const audio = document.getElementById('speech') as HTMLAudioElement;
       audio.currentTime = 0;

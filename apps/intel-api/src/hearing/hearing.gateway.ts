@@ -430,31 +430,45 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       void this.finalize(conn, 'ended', true);
     }, MAX_SESSION_MS);
 
+    const ready = () => {
+      if (conn.state !== 'starting') return;
+      if (conn.startTimer) clearTimeout(conn.startTimer);
+      conn.state = 'ready';
+      this.send(conn.ws, { type: 'status', status: 'capture_ready' });
+      // A share-picker or recorder failure after the server claim used to leave
+      // Deepgram and the distributed lease alive for up to 12 hours. A ready
+      // capture must deliver its first browser audio promptly or release itself.
+      conn.firstAudioTimer = setTimeout(() => {
+        if (conn.state === 'ready' && !conn.hasAudio) {
+          this.send(conn.ws, {
+            type: 'error',
+            code: 'FIRST_AUDIO_TIMEOUT',
+            message: 'No browser audio arrived. Start transcription again and share tab audio.',
+          });
+          void this.finalize(
+            conn,
+            'failed',
+            true,
+            'FIRST_AUDIO_TIMEOUT: capture_ready but no browser audio within the window',
+          );
+        }
+      }, FIRST_AUDIO_TIMEOUT_MS);
+    };
+    const transcriptionDelayed = () => {
+      conn.transcriptFailed = true;
+      conn.transcriptionUnavailable = true;
+      this.persistTranscriptFailure(conn);
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'TRANSCRIPTION_DELAYED',
+        message:
+          'Transcription is interrupted. Audio continues saving; transcript coverage is partial.',
+      });
+      ready();
+      void conn.deepgram?.stopAndWait(1000);
+    };
     conn.deepgram = new DeepgramStreamManager(this.deepgramApiKey, {
-      onOpen: () => {
-        if (conn.state !== 'starting') return;
-        if (conn.startTimer) clearTimeout(conn.startTimer);
-        conn.state = 'ready';
-        this.send(conn.ws, { type: 'status', status: 'capture_ready' });
-        // A share-picker or recorder failure after the server claim used to leave
-        // Deepgram and the distributed lease alive for up to 12 hours. A ready
-        // capture must deliver its first browser audio promptly or release itself.
-        conn.firstAudioTimer = setTimeout(() => {
-          if (conn.state === 'ready' && !conn.hasAudio) {
-            this.send(conn.ws, {
-              type: 'error',
-              code: 'FIRST_AUDIO_TIMEOUT',
-              message: 'No browser audio arrived. Start transcription again and share tab audio.',
-            });
-            void this.finalize(
-              conn,
-              'failed',
-              true,
-              'FIRST_AUDIO_TIMEOUT: capture_ready but no browser audio within the window',
-            );
-          }
-        }, FIRST_AUDIO_TIMEOUT_MS);
-      },
+      onOpen: ready,
       onInterim: (segment) => {
         if (conn.state === 'ended' || conn.state === 'stopping') return;
         this.send(conn.ws, {
@@ -467,16 +481,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       onReconnecting: () => undefined,
       onError: (err) => {
         this.logger.warn(`deepgram error session=${conn.sessionId}: ${err.message}`);
-        if (conn.recording && (conn.state === 'capturing' || conn.state === 'ready')) {
-          conn.transcriptFailed = true;
-          conn.transcriptionUnavailable = true;
-          this.persistTranscriptFailure(conn);
-          this.send(conn.ws, {
-            type: 'error',
-            code: 'TRANSCRIPTION_DELAYED',
-            message:
-              'Transcription is interrupted. Audio continues saving; transcript coverage is partial.',
-          });
+        if (conn.recording && ['starting', 'ready', 'capturing'].includes(conn.state)) {
+          transcriptionDelayed();
           return;
         }
         this.send(conn.ws, {
@@ -491,6 +497,10 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     conn.startTimer = setTimeout(() => {
       if (conn.state === 'starting') {
+        if (conn.recording) {
+          transcriptionDelayed();
+          return;
+        }
         this.send(conn.ws, {
           type: 'error',
           code: 'TRANSCRIPTION_START_TIMEOUT',

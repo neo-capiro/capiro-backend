@@ -180,6 +180,59 @@ function baseConn(socket: WebSocket) {
 }
 
 describe('retained audio retry boundary', () => {
+  it.each(['provider error', 'start timeout'])(
+    'saves the first retained frame despite a transcription %s',
+    async (failure) => {
+      jest.useFakeTimers();
+      const { gateway, sessions } = makeGateway({
+        claimCapture: jest.fn(async () => ({ startedAt: new Date() })),
+      });
+      (sessions.assertCaptureAllowed as jest.Mock).mockResolvedValue({
+        recordingPolicy: 'audio_and_transcript',
+      });
+      const recordings = {
+        begin: jest.fn(async () => ({ recordingId: 'recording', epochId: 'epoch', startMs: 0 })),
+        append: jest.fn(async () => ({
+          sequence: 0,
+          durableBytes: 4,
+          durableEndMs: 500,
+          duplicate: false,
+        })),
+        markTranscriptPartial: jest.fn(async () => undefined),
+      };
+      Object.assign(gateway, { recordings });
+      const ws = fakeSocket(),
+        conn = baseConn(ws.socket);
+      try {
+        await (gateway as any).startCapture(conn, 'audio/webm;codecs=opus', 'browser', 1);
+        const provider = deepgramConns.at(-1)!;
+        if (failure === 'provider error')
+          provider.emit('error', new Error('Provider unavailable before first audio'));
+        else await jest.advanceTimersByTimeAsync(15000);
+        expect(conn.state).toBe('ready');
+        expect(ws.sentJson()).toContainEqual(
+          expect.objectContaining({ code: 'TRANSCRIPTION_DELAYED' }),
+        );
+        expect(ws.sentJson()).toContainEqual({ type: 'status', status: 'capture_ready' });
+        const frame = Buffer.alloc(20);
+        frame.write('LWA4');
+        frame.writeDoubleBE(500, 8);
+        frame.set([0x1a, 0x45, 0xdf, 0xa3], 16);
+        await (gateway as any).onAudioFrame(conn, frame);
+        expect(conn.state).toBe('capturing');
+        expect(recordings.append).toHaveBeenCalledTimes(1);
+        expect(provider.send).not.toHaveBeenCalled();
+        expect(sessions.releaseCapture).not.toHaveBeenCalled();
+        expect(ws.sentJson()).toContainEqual(
+          expect.objectContaining({ type: 'audio_saved', sequence: 0 }),
+        );
+        await jest.advanceTimersByTimeAsync(1000);
+      } finally {
+        clearConnTimers(conn);
+        jest.useRealTimers();
+      }
+    },
+  );
   it('keeps a transient unsaved part retryable without acknowledging it or forwarding it twice', async () => {
     const { gateway, sessions } = makeGateway();
     const socket = fakeSocket();
