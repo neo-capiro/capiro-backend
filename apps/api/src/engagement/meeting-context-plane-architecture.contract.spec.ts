@@ -83,7 +83,7 @@ describe('Knowledge Plane Phase 24 Meetings architecture contract', () => {
     );
   });
 
-  test('shared supplemental domains are adapter-backed private context and full mail bodies are excluded', () => {
+  test('shared supplemental domains use adapter-backed allowlisted content fields', () => {
     const service = read(join(API_ROOT, 'src/engagement/meeting-context-plane.service.ts'));
     const retrievalModule = read(join(API_ROOT, 'src/retrieval/retrieval.module.ts'));
 
@@ -100,7 +100,9 @@ describe('Knowledge Plane Phase 24 Meetings architecture contract', () => {
     }
     expect(retrievalModule).toContain('CorePrismaRetrievalAdapter');
     expect(retrievalModule).toContain('InstitutionalKnowledgeRetrievalAdapter');
-    expect(service).toContain("pick(payload, ['sentAt', 'from', 'to', 'snippet', 'bodyPreview', 'threadId'])");
+    expect(service).toContain("'fromEmail'");
+    expect(service).toContain("'bodyText'");
+    expect(service).toContain("'toRecipients'");
     expect(service).not.toContain("pick(payload, ['body']");
   });
 });

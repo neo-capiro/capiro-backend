@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ManagedMcpModule } from './managed-mcp.module.js';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
@@ -77,6 +78,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
 
 @Module({
   imports: [
+    ManagedMcpModule,
     EngagementModule,
     ClientDocumentsModule,
     AiCredentialsModule,
@@ -155,9 +157,6 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
       ],
     },
     MeriDocgenService,
-    MeriMcpService,
-    MeriMcpOAuthService,
-    MeriManagedMcpService,
     MeriV3InternalServiceGuard,
     MeriV3VisualAnalysisService,
     MeriVNextLibraryService,

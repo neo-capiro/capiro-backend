@@ -208,7 +208,7 @@ export class MeriManagedMcpService {
     return out;
   }
 
-  async executeRead(ctx: TenantContext, toolName: string, input: Record<string, unknown>): Promise<unknown> {
+  async executeRead(ctx: TenantContext, toolName: string, input: Record<string, unknown>, options?: { structuredRead?: boolean }): Promise<unknown> {
     assertMeriToolRequestActive();
     const schemas = await this.schemasForMeriV3(ctx);
     if (!schemas.some((schema) => schema.name === toolName) || !this.mcp.isBridgedToolReadOnly(ctx, toolName)) {
@@ -216,7 +216,7 @@ export class MeriManagedMcpService {
     }
     assertMeriToolRequestActive();
     // executeBridged rechecks the current row immediately before provider I/O.
-    return this.mcp.executeBridged(ctx, toolName, input);
+    return options ? this.mcp.executeBridged(ctx, toolName, input, options) : this.mcp.executeBridged(ctx, toolName, input);
   }
 
   private async createApp(ctx: TenantContext, appId: MeriV3ManagedAppId): Promise<string> {

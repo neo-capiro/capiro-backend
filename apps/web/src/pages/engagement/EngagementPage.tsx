@@ -1038,7 +1038,9 @@ export function EngagementPage() {
         })
       ).data,
     onSuccess: (_prep, { meetingId }) => {
-      message.success('Meeting prep generated');
+      const queued = !!_prep && typeof _prep === 'object' && 'jobId' in _prep;
+      message.success(queued ? 'Preparation queued. Check progress in the meeting Prep tab.' : 'Meeting prep generated');
+      if (queued) qc.setQueryData(['meeting-prep-job', meetingId], _prep);
       qc.invalidateQueries({ queryKey: ['engagement-meeting', meetingId] });
       qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
       qc.invalidateQueries({ queryKey: ['engagement-calendar-meetings'] });

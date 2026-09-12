@@ -109,8 +109,31 @@ function buildTreeWithChrome(qc: QueryClient, props: Parameters<typeof PrepTab>[
 describe('PrepTab', () => {
   beforeEach(() => {
     apiGetMock.mockReset();
+    apiGetMock.mockResolvedValue({ data: null });
     apiPostMock.mockReset();
     apiPatchMock.mockReset();
+  });
+
+  test('shows restored job progress without hiding the previous briefing', async () => {
+    apiGetMock.mockImplementation(async (url: string) => ({ data: url.endsWith('/prep-jobs/latest') ? { jobId: 'job1', meetingId: 'm1', status: 'running', stage: 'reviewing', depth: 'deep', prepId: null, errorCode: null, deadlineAt: '2026-09-12T18:00:00Z' } : {} }));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(buildTree(qc, { meeting: makeMeeting({ preps: [makePrep()] }), aiConfigured: true }));
+    await waitFor(() => expect(screen.getByText(/Preparing your briefing: reviewing/)).toBeInTheDocument());
+    expect(screen.getByText('A short prep summary.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel preparation' })).toBeInTheDocument();
+    qc.clear();
+  });
+
+  test('renders seven named sections and explicit evidence gaps', () => {
+    const sections = Object.fromEntries(['recentDevelopments', 'importantEmails', 'previousConversations', 'decisions', 'unresolvedIssues', 'upcomingDevelopments', 'commitments'].map(key => [key, { status: 'source_gap', items: [], gap: 'Source unavailable for ' + key }]));
+    const prep = makePrep({ generatedFrom: { briefing: { version: 2, takeaways: [{ text: 'Important client context', factIds: [] }], sections, facts: [], limitations: [], coverage: { extractedBatches: 1, totalBatches: 1, factCount: 12, reviewedFactCount: 12, selectedFactCount: 12, partial: true } } } });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(buildTree(qc, { meeting: makeMeeting({ preps: [prep] }), aiConfigured: true }));
+    expect(screen.getByRole('heading', { name: 'Decisions already made' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'What we committed to doing' })).toBeInTheDocument();
+    expect(screen.getByText(/12 extracted facts checked/)).toBeInTheDocument();
+    expect(screen.queryByText('A short prep summary.')).not.toBeInTheDocument();
+    qc.clear();
   });
 
   test('no prep yet shows the "Not started" stage pill and the empty state', () => {

@@ -33,7 +33,7 @@ export type LlmProvider = 'openai' | 'anthropic';
 
 export interface LlmCompletionRequest {
   /** Runtime authority asserted immediately before the provider request. */
-  runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
+  runtimeAction?: 'outreach_generate' | 'outreach_v3_generate' | 'meeting_prep_generate';
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -147,7 +147,7 @@ export interface LlmCompletionServiceOptions {
    * creating an AbortController or fetch request.
    */
   runtimePolicy?: {
-    assertExternalAction(action: 'outreach_generate' | 'outreach_v3_generate'): void;
+    assertExternalAction(action: 'outreach_generate' | 'outreach_v3_generate' | 'meeting_prep_generate'): void;
   };
 }
 
@@ -156,7 +156,7 @@ export class LlmCompletionService {
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly logger: Pick<Logger, 'warn'>;
   private readonly runtimePolicy?: {
-    assertExternalAction(action: 'outreach_generate' | 'outreach_v3_generate'): void;
+    assertExternalAction(action: 'outreach_generate' | 'outreach_v3_generate' | 'meeting_prep_generate'): void;
   };
 
   constructor(opts: LlmCompletionServiceOptions = {}) {

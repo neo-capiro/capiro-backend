@@ -26,6 +26,7 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     dispatchNotetaker: { action: 'notetaker_dispatch' },
     removeNotetaker: { action: 'notetaker_remove' },
     generatePrep: { action: 'meeting_prep_generate' },
+    resumePrepJob: { action: 'meeting_prep_generate' },
     previewAiTemplate: { action: 'outreach_generate' },
     generateTalkingPoints: { action: 'outreach_generate' },
     generateBatchEmails: { action: 'outreach_generate' },

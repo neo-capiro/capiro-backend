@@ -5,6 +5,7 @@ import { EngagementModule } from '../engagement/engagement.module.js';
 import { EngagementSyncSchedulerService } from '../engagement/engagement-sync-scheduler.service.js';
 import { OutreachV3GenerationPreparationService } from '../outreach-v3/generation/outreach-v3-generation-preparation.service.js';
 import { OutreachJobWorkerService } from './outreach-job-worker.service.js';
+import { MeetingPrepWorkerService } from './meeting-prep-worker.service.js';
 import { OutreachSendIntentWorkerService } from './outreach-send-intent-worker.service.js';
 import { NotetakerReconcileWorkerService } from './notetaker-reconcile-worker.service.js';
 import { OutreachV3FullGenerationWorkerService } from './outreach-v3-full-generation-worker.service.js';
@@ -19,6 +20,7 @@ import { OutreachV3FullGenerationWorkerService } from './outreach-v3-full-genera
   providers: [
     EngagementSyncSchedulerService,
     OutreachJobWorkerService,
+    MeetingPrepWorkerService,
     OutreachSendIntentWorkerService,
     NotetakerReconcileWorkerService,
     OutreachV3GenerationPreparationService,

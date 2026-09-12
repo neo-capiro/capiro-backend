@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../../config/config.schema.js';
+import { MeetingNotesCryptoService } from '../../engagement/meeting-notes-crypto.service.js';
+import { readMeetingBriefingCore } from './meeting-briefing-core.reader.js';
 import type { Prisma } from '@prisma/client';
 import {
   ownMailMessageWhere,
@@ -47,7 +51,10 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
   readonly key = 'core-prisma';
   readonly domains = ['clients', 'contacts', 'mail', 'meetings', 'tasks', 'outreach'] as const;
 
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly notesCrypto?: MeetingNotesCryptoService;
+  constructor(private readonly prisma: PrismaService, @Optional() config?: ConfigService<AppConfig, true>) {
+    if (config) this.notesCrypto = new MeetingNotesCryptoService(config);
+  }
 
   async retrieve(
     dataset: SemanticDatasetDescriptor,
@@ -122,7 +129,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         stopReason:
           page.degradedReason ?? (page.hasMore ? 'page_boundary_reached' : 'authoritative_page_complete'),
       };
-    });
+    }, request.meetingBriefing ? { timeoutMs: Math.min(15_000, Math.max(1, (request.deadlineAt ?? Date.now() + 15_000) - Date.now())) } : undefined);
   }
 
   private validateTemporalRequirements(domain: CoreDomain, request: RetrievalRequest): string | undefined {
@@ -194,6 +201,9 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     pageSize: number,
     cursor?: string,
   ): Promise<PageResult> {
+    if (request.meetingBriefing && (domain === 'meetings' || domain === 'mail' || domain === 'tasks')) {
+      return readMeetingBriefingCore(domain, tx, request, visibleClientIds, this.notesCrypto, cursor);
+    }
     switch (domain) {
       case 'clients':
         return this.retrieveClients(tx, request, visibleClientIds, pageSize, cursor);

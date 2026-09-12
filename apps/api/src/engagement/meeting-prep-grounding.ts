@@ -1,7 +1,9 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { MeetingPrepInput } from './engagement-ai.service.js';
+import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 
 export interface PrepEvidenceSource {
+  access?: { meetings?: string[]; notes?: string[]; debriefs?: string[]; mail?: string[]; tasks?: string[]; clients?: string[]; mondayUsers?: string[]; mondayBoards?: string[] };
   id: string;
   kind: string;
   title: string;
@@ -74,6 +76,7 @@ export function prepEvidenceSources(input: MeetingPrepInput): PrepEvidenceSource
       observedAt:
         text(record.updatedAt) || text(record.lastMessageAt) || text(record.startsAt) || null,
       excerpt: JSON.stringify(record).slice(0, 1800),
+      ...(currentMeetingPrepExecution() && recordId ? { access: kind === 'client' ? { clients: [recordId] } : kind === 'meeting' ? { meetings: [recordId], clients: text(input.client?.id) ? [text(input.client?.id)] : [] } : {} } : {}),
     });
   }
   add(

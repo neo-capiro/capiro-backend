@@ -5,15 +5,19 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
+  Optional,
   NotFoundException,
   Param,
   Patch,
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Response as ExpressResponse } from 'express';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -42,6 +46,8 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { EngagementService } from './engagement.service.js';
+import { MeetingPrepJobService } from './meeting-prep-job.service.js';
+import { meetingPrepEnabled } from './meeting-prep-policy.js';
 import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
@@ -432,9 +438,25 @@ class RewriteEmailDto {
 
 class GenerateMeetingPrepDto {
   @IsOptional()
+  @IsIn(['standard', 'deep'])
+  depth?: 'standard' | 'deep';
+
+  @IsOptional()
+  @IsString()
+  @Length(8, 128)
+  requestKey?: string;
+
+  @IsOptional()
   @IsString()
   @Length(0, 4000)
   additionalContext?: string;
+}
+
+class MeetingPrepMondayMappingDto {
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  boardIds!: string[];
 }
 
 class UpdateMeetingPrepDto {
@@ -1924,6 +1946,7 @@ export class EngagementController {
     private readonly drafts: OutreachDraftService,
     private readonly sendIntents: OutreachSendIntentService,
     private readonly runtimePolicy: EngagementRuntimePolicyService,
+    @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
   ) {}
 
   @Get('capabilities')
@@ -1939,6 +1962,7 @@ export class EngagementController {
     return {
       ...this.service.capabilities(),
       ...this.service.engagementTrustBoundaryCapabilities(),
+      meetingPrepComprehensiveEnabled: meetingPrepEnabled(),
       runtime: {
         serviceName: snapshot.serviceName,
         processMode: snapshot.processMode,
@@ -2175,13 +2199,49 @@ export class EngagementController {
   }
 
   @Post('meetings/:id/prep')
+  @HttpCode(202)
   @EngagementRuntimeAction('meeting_prep_generate')
   generatePrep(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
     @Body() body: GenerateMeetingPrepDto,
+    @Res({ passthrough: true }) response?: ExpressResponse,
   ) {
+    if (meetingPrepEnabled() && this.meetingPrepJobs) return this.meetingPrepJobs.submit(ctx, meetingId, body);
+    response?.status(201);
     return this.service.generateMeetingPrep(ctx, meetingId, body.additionalContext);
+  }
+
+  @Get('meetings/:id/prep-jobs/latest')
+  latestPrepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
+    return this.meetingPrepJobs?.get(ctx, meetingId) ?? null;
+  }
+
+  @Get('meetings/:id/prep-monday-mapping')
+  prepMondayMapping(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string) {
+    return this.meetingPrepJobs?.mondayMapping(ctx, meetingId) ?? null;
+  }
+
+  @Put('meetings/:id/prep-monday-mapping')
+  updatePrepMondayMapping(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Body() body: MeetingPrepMondayMappingDto) {
+    return this.meetingPrepJobs?.mondayMapping(ctx, meetingId, body.boardIds) ?? null;
+  }
+
+  @Get('meetings/:id/prep-jobs/:jobId')
+  prepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Param('jobId') jobId: string) {
+    return this.meetingPrepJobs?.get(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Delete('meetings/:id/prep-jobs/:jobId')
+  cancelPrepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Param('jobId') jobId: string) {
+    return this.meetingPrepJobs?.cancel(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Post('meetings/:id/prep-jobs/:jobId/resume')
+  @HttpCode(202)
+  @EngagementRuntimeAction('meeting_prep_generate')
+  resumePrepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Param('jobId') jobId: string) {
+    return this.meetingPrepJobs?.resume(ctx, meetingId, jobId) ?? null;
   }
 
   @Patch('meeting-preps/:id')

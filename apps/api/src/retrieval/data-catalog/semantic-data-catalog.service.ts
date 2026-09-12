@@ -39,6 +39,15 @@ const livePublic = (
 
 const DATASETS: readonly SemanticDatasetDescriptor[] = [
   {
+    domain: 'monday', label: 'Monday.com work and updates',
+    description: 'Explicit client-board mappings read through the requesting user’s managed Monday.com MCP connection.',
+    entityKinds: ['task', 'client'], sourceKind: 'live_structured', authority: 'tenant_system_of_record', tenantScope: 'tenant_private',
+    temporalSemantics: 'live item state and separately paginated update history',
+    supportedQueryClasses: ['lookup'],
+    queryCapabilities: { exactFiltering: false, dateRange: false, pagination: true, exhaustiveScan: false, temporalHistory: true },
+    adapterKey: 'monday-managed-mcp', freshnessDescription: 'Live actor-authorized reads; disabled, disconnected and partial states remain explicit.',
+  },
+  {
     domain: 'clients',
     label: 'Clients',
     description: 'Tenant CRM client/account records and durable profile metadata.',

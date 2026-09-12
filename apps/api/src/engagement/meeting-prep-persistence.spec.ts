@@ -51,6 +51,7 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
   Object.assign(service, {
     prisma: {
       withTenant: async (_tenant: string, callback: (tx: unknown) => unknown) => callback(tx),
+      withTenantUser: async (_tenant: string, _user: string, callback: (tx: unknown) => unknown) => callback(tx),
     },
     ai,
     association: {
@@ -71,6 +72,24 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
 }
 
 describe('meeting prep persistence', () => {
+  test.each(['approve', 'edit'])('does not return a V2 briefing with missing source provenance through %s', async action => {
+    const h = harness();
+    const update = jest.fn();
+    Object.assign(h.tx.meetingPrep, {
+      findFirst: jest.fn().mockResolvedValue({ id: 'prep-1', meetingId: 'm1', generatedFrom: { briefing: { version: 2 }, grounding: { sources: [] } } }),
+      update,
+    });
+    const request = action === 'approve' ? h.service.approveMeetingPrep(ctx, 'prep-1') : h.service.updateMeetingPrep(ctx, 'prep-1', { summary: 'Edited' });
+    await expect(request).rejects.toThrow('provenance is missing');
+    expect(update).not.toHaveBeenCalled();
+  });
+  test('a failed generation leaves the previous usable prep unchanged', async () => {
+    const h = harness();
+    h.ai.generateMeetingPrep.mockRejectedValueOnce(new Error('provider unavailable'));
+    await expect(h.service.generateMeetingPrep(ctx, 'm1')).rejects.toThrow('provider unavailable');
+    expect(h.tx.meetingPrep.updateMany).not.toHaveBeenCalled();
+    expect(h.tx.meetingPrep.create).not.toHaveBeenCalled();
+  });
   test.each(['cancelled', 'canceled', 'CANCELLED'])(
     'refuses %s before stale writes or provider requests',
     async (status) => {
