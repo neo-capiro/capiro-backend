@@ -235,13 +235,6 @@ describe('async job results retain the Context Used manifest', () => {
     criticalFailures: [],
     oldestSourceAt: null,
     newestSourceAt: null,
-    policy: {
-      policyId: 'federal.congressional_office',
-      version: 'ga-policy-v1',
-      label: 'Federal congressional office',
-      jurisdiction: 'federal',
-      audienceType: 'congressional_office',
-    },
     provider: 'anthropic',
     model: 'claude-sonnet-4-6',
     planModel: null,

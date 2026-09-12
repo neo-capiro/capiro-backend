@@ -122,19 +122,7 @@ export class OutreachV3SampleGenerationService {
       }),
     );
 
-    let firstPolicy: ReturnType<GenerationGatewayService['resolvePolicy']>;
-    try {
-      firstPolicy = this.gateway.resolvePolicy(units[0]!.request);
-    } catch {
-      throw new OutreachCommandError(
-        'OUTREACH_COMMAND_BLOCKED',
-        'The audience policy could not be resolved for representative samples.',
-        409,
-        { reason: 'audience_policy_required' },
-      );
-    }
     const resolved = await this.gateway.resolvePinnedIdentity(ctx, {
-      policy: firstPolicy,
       runtimeAction: units[0]!.request.runtimeAction,
     });
     if (!resolved) {

@@ -62,10 +62,6 @@ import type {
   GenerationSourceManifest,
   PinnedGenerationIdentity,
 } from './generation/generation-gateway.types.js';
-import {
-  AudiencePolicyRequiredError,
-  type GaPolicy,
-} from './generation/government-affairs-policy.registry.js';
 import type { PlanValidationIssue } from './generation/message-plan.schema.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
@@ -3723,38 +3719,7 @@ export class EngagementService {
       : [];
 
     // ---- Pin ONE provider/model for the whole campaign (§3.k) ----
-    // Resolved from the FIRST recipient's policy purely to satisfy the pinning
-    // API; each unit re-resolves its own policy inside the gateway (see
-    // resolvePolicy's note), so a mixed-audience batch is handled correctly.
-    let campaignPolicy: GaPolicy;
-    try {
-      campaignPolicy = this.gateway.resolvePolicy(
-        this.toGatewayRequest({
-          input,
-          items,
-          templatePrompt,
-          recipient: recipients[0]!,
-          index: 0,
-          directoryByEmail,
-          isGroup,
-          isReviseSingle,
-          versionedRecordId: opts.versionedRecordId,
-          pinned: null,
-        }),
-      );
-    } catch (e) {
-      if (e instanceof AudiencePolicyRequiredError) {
-        throw new BadRequestException({
-          statusCode: HttpStatus.BAD_REQUEST,
-          error: e.code,
-          message: e.message,
-          candidates: e.candidates,
-        });
-      }
-      throw e;
-    }
-
-    const identity = await this.gateway.resolvePinnedIdentity(ctx, { policy: campaignPolicy });
+    const identity = await this.gateway.resolvePinnedIdentity(ctx, {});
     if (!identity) {
       throw new ServiceUnavailableException(
         'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
@@ -3786,8 +3751,6 @@ export class EngagementService {
         isReviseSingle,
         versionedRecordId: opts.versionedRecordId,
         pinned,
-        // Only the generation request needs this: resolvePolicy above is pure and
-        // never compiles a packet, so threading it there would be dead code.
         ...(opts.authHeader ? { authHeader: opts.authHeader } : {}),
       });
 
@@ -3918,21 +3881,6 @@ export class EngagementService {
         office: recipient.office ?? recipient.chamber ?? null,
         state: recipient.state ?? null,
         district: recipient.district ?? null,
-        // Server-resolved: the directory match, not a browser assertion. A
-        // recipient the directory knows as a congressional member cannot be
-        // relabeled by the request body. `directoryContactId` alone (no email
-        // match needed) is sufficient for the `member-<id>` id space: that
-        // prefix is only ever minted for congress.gov members (directory.service.ts
-        // / directory-indexes.ts), never for a state legislator or any other
-        // contact kind, so it is exactly as authoritative as `match.member`
-        // without requiring the recipient to have an email on file.
-        sourceType: match?.member
-          ? 'congress'
-          : recipient.directoryContactId?.toString().startsWith('member-')
-            ? 'congress'
-            : recipient.direction === 'to-clients'
-              ? 'client'
-              : null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
         // Server-resolved committee context — reaches the recipient brief so
         // even a bioguide-less staffer hands the planner a committee hook.

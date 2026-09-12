@@ -3,7 +3,6 @@ import type { TenantContext } from '@capiro/shared';
 import { OutreachEvaluationRunner, type OutreachEvaluationInput } from './outreach-evaluation.runner.js';
 import { GenerationVerifierService } from './generation-verifier.service.js';
 import { GATEWAY_PROMPT_SPEC_VERSION } from './gateway-prompt.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GenerationRequest } from './generation-gateway.types.js';
 import type { OutreachGovernedContext } from './outreach-context-plane.service.js';
@@ -26,7 +25,6 @@ function basePacket(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
     standingMemory: [],
     standingMemoryExclusions: [],
     failures: [],
-    policy: { jurisdiction: 'federal', audienceType: 'congressional_office', policyId: 'federal.congressional_office', version: 'ga-policy-v1' },
     modelPolicy: { provider: 'anthropic', model: 'claude-sonnet-4-6', promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION },
     criticalFailureCount: 0,
     freshestSourceAt: null,
@@ -164,8 +162,7 @@ function baseInput(over: Partial<OutreachEvaluationInput> = {}): OutreachEvaluat
   return {
     request: baseRequest(),
     enrichment: { channels: [], clientBrief: null, clientName: null, topicTerms: [], auditLedger: [], includeRelevantEmail: false },
-    policy: policyForAudience('congressional_office'),
-    pinned: { provider: 'anthropic', model: 'claude-sonnet-4-6', planModel: 'claude-haiku-4-5-20251001', promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION, policyId: 'federal.congressional_office', policyVersion: 'ga-policy-v1' } as never,
+    pinned: { provider: 'anthropic', model: 'claude-sonnet-4-6', planModel: 'claude-haiku-4-5-20251001', promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION } as never,
     pinnedCreds: [CRED] as never,
     governed: baseGoverned(),
     packet: basePacket(),

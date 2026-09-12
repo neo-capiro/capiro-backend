@@ -5,20 +5,13 @@ import {
   SKELETON_OUTPUT_CONTRACT,
   type GatewayPromptInput,
 } from './gateway-prompt.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 import { SKELETON_SECTIONS_EXEMPLAR, type ContentSkeleton } from './content-skeleton.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { MessagePlan } from './message-plan.schema.js';
 
-function policy() {
-  return policyForAudience('congressional_office');
-}
-
 function plan(): MessagePlan {
   return {
     intent: 'request_meeting',
-    jurisdiction: 'federal',
-    audienceType: 'congressional_office',
     clientRepresented: 'Career Start',
     desiredOutcome: 'Secure a short meeting.',
     whyRecipient: ['Leads on the submarine industrial base.'],
@@ -36,7 +29,6 @@ function packet(): EvidencePacketV2 {
   return {
     packetId: 'pkt-1',
     surface: 'outreach_email',
-    policy: policy(),
     evidence: [],
     directives: [],
     standingMemory: [],
@@ -65,7 +57,6 @@ function skeleton(): ContentSkeleton {
 function input(overrides: Partial<GatewayPromptInput> = {}): GatewayPromptInput {
   return {
     packet: packet(),
-    policy: policy(),
     plan: plan(),
     styleProfile: null,
     styleProfileBlock: null,
@@ -220,18 +211,12 @@ describe('gateway prompt — skeleton mode', () => {
 
 describe('buildGatewaySystemPrompt', () => {
   it('is byte-identical to before when no mode is passed', () => {
-    expect(buildGatewaySystemPrompt(policy())).toBe(
-      buildGatewaySystemPrompt(policy(), { skeleton: false }),
-    );
+    expect(buildGatewaySystemPrompt()).toBe(buildGatewaySystemPrompt({ skeleton: false }));
   });
 
   it('includes the skeleton contract only in skeleton mode', () => {
-    expect(buildGatewaySystemPrompt(policy(), { skeleton: true })).toContain(
-      SKELETON_OUTPUT_CONTRACT,
-    );
-    expect(buildGatewaySystemPrompt(policy(), { skeleton: false })).not.toContain(
-      SKELETON_OUTPUT_CONTRACT,
-    );
+    expect(buildGatewaySystemPrompt({ skeleton: true })).toContain(SKELETON_OUTPUT_CONTRACT);
+    expect(buildGatewaySystemPrompt({ skeleton: false })).not.toContain(SKELETON_OUTPUT_CONTRACT);
   });
 
   it('repeats the do-not-write-structure rule in the system prompt', () => {

@@ -13,8 +13,6 @@ const pin: PinnedGenerationIdentity = {
   model: 'model-a',
   planModel: 'model-b',
   promptSpecVersion: 'v2',
-  policyId: 'federal_congressional',
-  policyVersion: '1',
 };
 
 function plan(): OutreachV3GenerationPlan {
@@ -91,7 +89,7 @@ describe('Outreach V3 full-generation durable job contract', () => {
   it('round-trips a pinned identity that carries a reasoningEffort', () => {
     // Field order here matches GenerationGatewayService.resolvePinnedIdentity's
     // actual object literal (provider, model, planModel, reasoningEffort,
-    // promptSpecVersion, policyId, policyVersion) exactly, since that literal
+    // promptSpecVersion) exactly, since that literal
     // order is what the real caller hashes and this parser's reconstruction
     // must reproduce byte-for-byte. resolvePinnedIdentity always sets this key
     // (string or null) for any outreach_v3_generate request against a
@@ -105,8 +103,6 @@ describe('Outreach V3 full-generation durable job contract', () => {
       planModel: pin.planModel,
       reasoningEffort: 'max',
       promptSpecVersion: pin.promptSpecVersion,
-      policyId: pin.policyId,
-      policyVersion: pin.policyVersion,
     };
     const descriptor = buildOutreachV3FullGenerationJob({
       plan: plan(),

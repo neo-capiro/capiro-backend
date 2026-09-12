@@ -23,7 +23,6 @@ import { GenerationVerifierService } from './generation-verifier.service.js';
 import { buildGatewayPrompt, GATEWAY_DRAFT_JSON_SCHEMA } from './gateway-prompt.js';
 import { parseDraft } from './generation-gateway.service.js';
 import { projectUserVoice, type OutreachGovernedContext } from './outreach-context-plane.service.js';
-import type { GaPolicy } from './government-affairs-policy.registry.js';
 import type { AuthenticatedDirective } from './evidence-packet.types.js';
 import type { ResolvedAiCredential } from '../ai-credential-resolver.service.js';
 import type {
@@ -36,7 +35,6 @@ import type { GatewayEnrichmentInput } from './generation-gateway.service.js';
 export interface OutreachEvaluationInput {
   readonly request: GenerationRequest;
   readonly enrichment: GatewayEnrichmentInput;
-  readonly policy: GaPolicy;
   readonly pinned: PinnedGenerationIdentity;
   readonly pinnedCreds: ResolvedAiCredential[];
   readonly governed: OutreachGovernedContext;
@@ -196,7 +194,7 @@ export class OutreachEvaluationRunner {
     evaluationId: string,
     input: OutreachEvaluationInput,
   ): Promise<void> {
-    const { request, enrichment, policy, pinned, pinnedCreds, governed, plan, styleSamples, recipientBrief } = input;
+    const { request, enrichment, pinned, pinnedCreds, governed, plan, styleSamples, recipientBrief } = input;
     const now = new Date();
 
     // The ONLY thing that changes: the five institutional SteeringLayers are
@@ -214,7 +212,6 @@ export class OutreachEvaluationRunner {
       clientId: request.clientId,
       ref: request.ref ?? { outreachRecordId: request.outreachRecordId ?? null, generationKey: request.recipient.generationKey },
       items: request.items,
-      policy,
       modelPolicy: {
         provider: pinned.provider,
         model: pinned.model,
@@ -225,7 +222,7 @@ export class OutreachEvaluationRunner {
       emailScope: input.packet.emailScope,
       scanRequired: input.scanRequired,
       wallAllowsClient: input.wallAllowsClient,
-      audience: policy.jurisdiction === 'internal' ? 'internal' : 'external',
+      audience: request.direction === 'to-clients' ? 'internal' : 'external',
       recipientEmails: request.recipient.email ? [request.recipient.email.trim().toLowerCase()] : [],
       requestDirectives: input.requestDirectives,
       enrichments: enrichment.channels,
@@ -251,7 +248,6 @@ export class OutreachEvaluationRunner {
     const controlPlanResult = await this.plans.buildPlan(ctx, {
       runtimeAction: request.runtimeAction,
       packet: controlPacket,
-      policy,
       creds: pinnedCreds,
       recipientBrief,
       audienceKind: request.audienceKind,
@@ -264,7 +260,6 @@ export class OutreachEvaluationRunner {
 
     const controlPrompt = buildGatewayPrompt({
       packet: controlPacket,
-      policy,
       plan: controlPlanResult.plan,
       styleProfile: controlStyleProfile,
       styleProfileBlock: controlStyleProfile ? this.styles.renderProfileBlock(controlStyleProfile) : null,
@@ -316,7 +311,6 @@ export class OutreachEvaluationRunner {
           subject: controlSubject,
           body: controlBody,
           packet: controlPacket,
-          policy,
           plan: controlPlanResult.plan,
           audienceKind: request.audienceKind,
           now,

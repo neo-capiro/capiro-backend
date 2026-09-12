@@ -8,7 +8,6 @@ import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
 import { MessagePlanService, MESSAGE_PLAN_MAX_OUTPUT_TOKENS, supportsStrictJson } from './message-plan.service.js';
 import { MessagePlanInvalidError, type MessagePlan } from './message-plan.schema.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 
 const NOW = new Date('2026-07-26T00:00:00.000Z');
@@ -53,12 +52,6 @@ function packet(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
     standingMemory: [],
     standingMemoryExclusions: [],
     failures: [],
-    policy: {
-      jurisdiction: 'federal',
-      audienceType: 'congressional_office',
-      policyId: 'federal.congressional_office',
-      version: 'ga-policy-v1',
-    },
     modelPolicy: { provider: 'anthropic', model: 'm', promptSpecVersion: 'v2.2-gateway' },
     criticalFailureCount: 0,
     freshestSourceAt: null,
@@ -73,8 +66,6 @@ function packet(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
 function plan(over: Partial<MessagePlan> = {}): MessagePlan {
   return {
     intent: 'meeting_request',
-    jurisdiction: 'federal',
-    audienceType: 'congressional_office',
     clientRepresented: 'Aperture Defense Systems',
     desiredOutcome: 'A 20-minute meeting before the FY27 markup.',
     whyRecipient: ['Sits on Armed Services.'],
@@ -99,7 +90,6 @@ function plan(over: Partial<MessagePlan> = {}): MessagePlan {
 function validate(p: MessagePlan, over: { packet?: EvidencePacketV2; audienceKind?: 'individual' | 'group' } = {}) {
   return service().validatePlan(p, {
     packet: over.packet ?? packet(),
-    policy: policyForAudience('congressional_office'),
     creds: [],
     recipientBrief: 'Name: Dana Reed',
     audienceKind: over.audienceKind ?? 'individual',
@@ -219,30 +209,8 @@ describe('risky claims cannot leak into the ask', () => {
   });
 });
 
-describe('policy conformance', () => {
-  test('a plan may not reassign its own audience', () => {
-    const codes = issueCodes(() => validate(plan({ audienceType: 'client_executive' })));
-    expect(codes).toContain('PLAN_AUDIENCE_MISMATCH');
-  });
-
-  test('a plan may not reassign its own jurisdiction', () => {
-    const codes = issueCodes(() => validate(plan({ jurisdiction: 'state' })));
-    expect(codes).toContain('PLAN_JURISDICTION_MISMATCH');
-  });
-
-  test('an intent the audience does not allow is rejected', () => {
-    const codes = issueCodes(() => validate(plan({ intent: 'comment_submission' })));
-    expect(codes).toContain('PLAN_INTENT_NOT_ALLOWED');
-  });
-
-  test('a congressional message is held to ONE ask', () => {
-    const codes = issueCodes(() =>
-      validate(plan({ clientAsk: ['A meeting.', 'Also cosponsor the bill.'] })),
-    );
-    expect(codes).toContain('MULTIPLE_ASKS');
-  });
-
-  test('a legislative claim with no as-of date is rejected for this audience', () => {
+describe('claim requirements', () => {
+  test('a legislative claim with no as-of date is rejected', () => {
     const codes = issueCodes(() =>
       validate(
         plan({
@@ -373,7 +341,6 @@ describe('no drafting call on an invalid plan', () => {
     await expect(
       service().buildPlan(CTX, {
         packet: packet(),
-        policy: policyForAudience('congressional_office'),
         creds: [],
         recipientBrief: null,
         audienceKind: 'individual',
@@ -407,7 +374,6 @@ describe('plan pass token ceiling', () => {
     } as never;
     await svc.buildPlan(CTX, {
       packet: packet(),
-      policy: policyForAudience('congressional_office'),
       creds: [cred],
       recipientBrief: 'Name: Dana Reed',
       audienceKind: 'individual',
@@ -421,78 +387,3 @@ describe('plan pass token ceiling', () => {
   });
 });
 
-describe('the planner is told the clientAsk field contract, not just the prose rule', () => {
-  // Live 2026-09-03: 4 of 5 congressional drafts in one campaign came back
-  // MULTIPLE_ASKS. The validator (check #7) demands `clientAsk.length === 1`
-  // for single-ask policies, but the prompt only carried the prose askRule
-  // while the JSON schema advertises an array of up to 6 — so models filled
-  // the array. The rendered policy block must now state the field contract in
-  // the same terms the validator enforces.
-  async function promptFor(audience: Parameters<typeof policyForAudience>[0]) {
-    const llm = {
-      complete: jest.fn(async () => ({
-        text: JSON.stringify(
-          plan({
-            audienceType: audience,
-            jurisdiction: policyForAudience(audience).jurisdiction,
-            intent: policyForAudience(audience).allowedIntents[0]!,
-          }),
-        ),
-        usage: { inputTokens: 1, outputTokens: 1 },
-      })),
-    };
-    const svc = new MessagePlanService({ get: () => '' } as never, llm as never);
-    const cred = {
-      provider: 'anthropic',
-      apiKey: 'k',
-      model: 'claude-sonnet-4-6',
-      modelOverridden: false,
-    } as never;
-    await svc
-      .buildPlan(CTX, {
-        packet: packet(),
-        policy: policyForAudience(audience),
-        creds: [cred],
-        recipientBrief: 'Name: Dana Reed',
-        audienceKind: 'individual',
-        clientName: null,
-        tone: 'professional',
-        recipientScopeKeys: [],
-      })
-      // Validation of the canned plan may fail for non-congressional policies
-      // (claim types, required evidence); we only care about the prompt sent.
-      .catch(() => undefined);
-    const arg = (llm.complete as jest.Mock).mock.calls[0]![0] as {
-      system: string;
-      userStatic: string;
-    };
-    return arg;
-  }
-
-  test('a single-ask policy (congressional office) gets an explicit clientAsk contract in the AUDIENCE RULES block', async () => {
-    const { userStatic } = await promptFor('congressional_office');
-    expect(userStatic).toContain('AUDIENCE RULES (federal.congressional_office');
-    expect(userStatic).toMatch(/FIELD CONTRACT: `clientAsk` MUST contain exactly ONE string/);
-    // The contract sits WITH the rules the validator enforces, in the cached
-    // static prefix — not in the per-recipient volatile tail.
-    const rulesStart = userStatic.indexOf('AUDIENCE RULES');
-    const contractAt = userStatic.indexOf('FIELD CONTRACT');
-    expect(rulesStart).toBeGreaterThanOrEqual(0);
-    expect(contractAt).toBeGreaterThan(rulesStart);
-  });
-
-  test('a policy that permits multiple asks (internal colleague) does NOT get the single-ask contract', async () => {
-    const { userStatic } = await promptFor('internal_colleague');
-    expect(userStatic).toContain('AUDIENCE RULES (internal.internal_colleague');
-    expect(userStatic).toContain('Multiple asks are permitted');
-    expect(userStatic).not.toMatch(/FIELD CONTRACT: `clientAsk`/);
-  });
-
-  test('the contract and the validator agree: one ask passes, two are still rejected', () => {
-    expect(() => validate(plan({ clientAsk: ['A 20-minute meeting.'] }))).not.toThrow();
-    const codes = issueCodes(() =>
-      validate(plan({ clientAsk: ['A 20-minute meeting.', 'And cosponsor HR 1234.'] })),
-    );
-    expect(codes).toContain('MULTIPLE_ASKS');
-  });
-});

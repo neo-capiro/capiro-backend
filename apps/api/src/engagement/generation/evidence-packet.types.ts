@@ -122,14 +122,6 @@ export interface StandingMemoryExclusion {
   reason: string;
 }
 
-/** The resolved government-affairs policy identity for this generation. */
-export interface PacketPolicyRef {
-  jurisdiction: string;
-  audienceType: string;
-  policyId: string;
-  version: string;
-}
-
 /**
  * The pinned provider/model identity. Resolved ONCE per operation (or per async
  * job) BEFORE the first LLM call, so a mid-campaign fallback can never split one
@@ -174,7 +166,6 @@ export interface EvidencePacketV2 {
   standingMemoryExclusions: StandingMemoryExclusion[];
   failures: SourceFailure[];
 
-  policy: PacketPolicyRef;
   modelPolicy: PacketModelPolicy;
 
   /** Denormalized from `failures` so gates need no JSONB scan. */

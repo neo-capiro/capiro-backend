@@ -405,7 +405,7 @@ describe('OutreachTargetsStep', () => {
     );
   });
 
-  it('Add manually refuses to submit without a name or an audience type, and adds a valid manual target', async () => {
+  it('Add manually refuses to submit without a name, and adds a valid manual target', async () => {
     const { applyCommands } = renderStep();
     fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
 
@@ -415,12 +415,6 @@ describe('OutreachTargetsStep', () => {
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
       target: { value: 'Alex Rivera' },
-    });
-    // Name alone is not enough — no audience type chosen yet.
-    expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeDisabled();
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'Audience type' }), {
-      target: { value: 'client_executive' },
     });
     expect(screen.getByRole('button', { name: 'Add target to campaign' })).toBeEnabled();
 
@@ -434,7 +428,6 @@ describe('OutreachTargetsStep', () => {
       expect.objectContaining({
         source: 'manual',
         name: 'Alex Rivera',
-        audienceType: 'client_executive',
       }),
     );
   });
@@ -445,9 +438,6 @@ describe('OutreachTargetsStep', () => {
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
       target: { value: 'Alex Rivera' },
-    });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Audience type' }), {
-      target: { value: 'client_executive' },
     });
     fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), {
       target: { value: 'not-an-email' },

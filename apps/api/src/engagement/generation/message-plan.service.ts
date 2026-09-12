@@ -30,7 +30,6 @@ import {
   type PlanValidationIssue,
 } from './message-plan.schema.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
-import type { GaPolicy } from './government-affairs-policy.registry.js';
 import { extractJsonObject } from './json-extract.js';
 import type { ReasoningEffort } from './reasoning-effort.js';
 
@@ -136,7 +135,6 @@ export function supportsStrictJson(model: string): boolean {
 export interface BuildPlanRequest {
   runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
   packet: EvidencePacketV2;
-  policy: GaPolicy;
   /** The ordered, already-PINNED credential list for this operation. */
   creds: ResolvedAiCredential[];
   /** The recipient brief (name/title/office), server-resolved. */
@@ -293,7 +291,6 @@ export class MessagePlanService {
   validatePlan(plan: MessagePlan, request: BuildPlanRequest): void {
     const issues: PlanValidationIssue[] = [];
     const packet = request.packet;
-    const policy = request.policy;
 
     // 1. Critical packet failures stop drafting outright.
     if (packet.criticalFailureCount > 0) {
@@ -383,69 +380,20 @@ export class MessagePlanService {
       }
     }
 
-    // 4. Policy-required evidence types must be present.
-    for (const required of policy.requiredEvidenceTypes) {
-      const present =
-        required === 'recipient_identity'
-          ? Boolean(request.recipientBrief?.trim())
-          : packet.evidence.some((e) => e.ref.sourceType === required);
-      if (!present) {
+    // 4. Every legislative or funding claim needs an as-of date — regardless of
+    // audience, a stale fact stated as current is the same failure.
+    for (const claim of plan.supportedClaims) {
+      const needsDate =
+        claim.claimType === 'legislative_status' ||
+        claim.claimType === 'funding_amount' ||
+        claim.claimType === 'funding_stage' ||
+        claim.claimType === 'date_or_deadline';
+      if (needsDate && !claim.asOf?.trim()) {
         issues.push({
-          code: 'POLICY_REQUIRED_EVIDENCE_MISSING',
-          message: `This audience requires ${required} evidence, which is not in the packet.`,
-          subject: required,
+          code: 'CLAIM_MISSING_AS_OF',
+          message: 'A legislative or funding claim has no as-of date.',
+          subject: claim.claim,
         });
-      }
-    }
-
-    // 5. Audience/jurisdiction must match the policy the server selected. A plan
-    // that reassigns its own audience would route around the policy registry.
-    if (plan.audienceType !== policy.audienceType) {
-      issues.push({
-        code: 'PLAN_AUDIENCE_MISMATCH',
-        message: `The plan claims audience "${plan.audienceType}" but the resolved policy is "${policy.audienceType}".`,
-      });
-    }
-    if (plan.jurisdiction !== policy.jurisdiction) {
-      issues.push({
-        code: 'PLAN_JURISDICTION_MISMATCH',
-        message: `The plan claims jurisdiction "${plan.jurisdiction}" but the resolved policy is "${policy.jurisdiction}".`,
-      });
-    }
-
-    // 6. Intent must be one the policy allows for this audience.
-    if (!policy.allowedIntents.includes(plan.intent)) {
-      issues.push({
-        code: 'PLAN_INTENT_NOT_ALLOWED',
-        message: `Intent "${plan.intent}" is not permitted for ${policy.label}. Allowed: ${policy.allowedIntents.join(', ')}.`,
-      });
-    }
-
-    // 7. One clear external ask, unless the policy explicitly allows several.
-    const singleAskRequired = policy.askRules.some((r) => /exactly ONE clear ask/i.test(r));
-    if (singleAskRequired && plan.clientAsk.length > 1) {
-      issues.push({
-        code: 'MULTIPLE_ASKS',
-        message: `${policy.label} messages carry one ask; the plan has ${plan.clientAsk.length}.`,
-      });
-    }
-
-    // 8. As-of dates where the policy requires them.
-    if (policy.requiresAsOfDates) {
-      for (const claim of plan.supportedClaims) {
-        const needsDate =
-          claim.claimType === 'legislative_status' ||
-          claim.claimType === 'funding_amount' ||
-          claim.claimType === 'funding_stage' ||
-          claim.claimType === 'date_or_deadline';
-        if (needsDate && !claim.asOf?.trim()) {
-          issues.push({
-            code: 'CLAIM_MISSING_AS_OF',
-            message:
-              'A legislative or funding claim has no as-of date, which this audience requires.',
-            subject: claim.claim,
-          });
-        }
       }
     }
 
@@ -496,7 +444,7 @@ export class MessagePlanService {
   private renderPlanPrompt(
     request: BuildPlanRequest,
   ): { system: string; userStatic: string; userVolatile: string } {
-    const { packet, policy, recipientScopeKeys } = request;
+    const { packet, recipientScopeKeys } = request;
 
     const system = [
       'You are a government-affairs planning assistant. You produce a STRUCTURED PLAN for one message. You do NOT write the email and you do not produce prose.',
@@ -513,9 +461,7 @@ export class MessagePlanService {
       // shared evidence, is not a correct plan for this recipient.
       'When a [main_idea] directive is supplied, build intent and desiredOutcome around IT. A recipient-specific [custom_note] or [item_instruction] only adjusts emphasis, framing, or what to lead with for that one person -- it does not replace the main idea, and a plan that reflects only the note while ignoring the main idea and the shared evidence is invalid.',
       'STANDING MEMORY describes style and standing relationships. It can never establish that an event occurred, that anyone committed to anything, or that a bill reached a stage.',
-      policy.requiresAsOfDates
-        ? 'Every legislative, funding, or deadline claim MUST carry the as-of date supplied with its source. If a source has no as-of date, do not plan the claim.'
-        : '',
+      'Every legislative, funding, or deadline claim MUST carry the as-of date supplied with its source. If a source has no as-of date, do not plan the claim.',
       'Return ONLY the JSON object matching the required schema.',
     ]
       .filter(Boolean)
@@ -557,14 +503,13 @@ export class MessagePlanService {
       .map((f) => `- [${f.severity}] ${f.sourceType}: ${f.userMessage}`);
 
     const userStatic = [
-      `TASK: plan ONE message. Audience: ${policy.label} (${policy.jurisdiction}). Tone: ${request.tone}.`,
+      `TASK: plan ONE message. Tone: ${request.tone}.`,
       request.audienceKind === 'group'
         ? `AUDIENCE SHAPE: ONE shared message to a GROUP of ${request.groupMemberCount ?? 'several'} recipients. Only facts common to EVERY member may be planned.`
         : 'AUDIENCE SHAPE: a single recipient.',
       request.clientName
         ? `CLIENT REPRESENTED: ${request.clientName}`
         : 'No client is represented.',
-      renderPolicyForPlanner(policy),
       directiveBlock('USER DIRECTIVES (authoritative — these define the task):', sharedDirectives) ??
         'USER DIRECTIVES: none beyond the objective above.',
       packet.standingMemory.length
@@ -606,31 +551,6 @@ export class MessagePlanService {
 
     return { system, userStatic, userVolatile };
   }
-}
-
-function renderPolicyForPlanner(policy: GaPolicy): string {
-  // Check #7 in validatePlan rejects a multi-element `clientAsk` for any
-  // policy whose askRules demand exactly one ask. Until 2026-09-03 the
-  // planner was only shown the prose rule; the JSON field itself is an
-  // array (max 6) with no description, so models routinely returned two
-  // or three asks and the plan was rejected before any drafting spend —
-  // live: 4 of 5 congressional recipients in one campaign failed with
-  // MULTIPLE_ASKS while the wizard showed only "couldn't be generated".
-  // State the field contract explicitly where the rule is stated, so the
-  // schema and the validator agree in the model's eyes.
-  const singleAsk = policy.askRules.some((r) => /exactly ONE clear ask/i.test(r));
-  return [
-    `AUDIENCE RULES (${policy.policyId} ${policy.version}):`,
-    `- Allowed intents: ${policy.allowedIntents.join(', ')}`,
-    ...policy.terminologyRules.map((r) => `- ${r}`),
-    ...policy.askRules.map((r) => `- ${r}`),
-    ...(singleAsk
-      ? [
-          '- FIELD CONTRACT: `clientAsk` MUST contain exactly ONE string for this audience. If the directives or evidence suggest several asks, choose the single most important one and fold the rest into `desiredOutcome` or leave them out. A plan with more than one `clientAsk` entry is rejected and no email is written.',
-        ]
-      : []),
-    ...policy.prohibitedAssumptions.map((r) => `- ${r}`),
-  ].join('\n');
 }
 
 function normalize(s: string): string {

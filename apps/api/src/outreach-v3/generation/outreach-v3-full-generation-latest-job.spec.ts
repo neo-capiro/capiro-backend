@@ -96,8 +96,6 @@ function jobRow(overrides: Record<string, unknown> = {}) {
       model: 'gpt-4.1',
       planModel: null,
       promptSpecVersion: 'v1',
-      policyId: 'policy-1',
-      policyVersion: '1',
     },
   });
   return {

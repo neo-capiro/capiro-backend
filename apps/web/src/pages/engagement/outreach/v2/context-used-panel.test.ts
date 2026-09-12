@@ -34,13 +34,6 @@ function manifest(over: Partial<GenerationSourceManifest> = {}): GenerationSourc
     criticalFailures: [],
     oldestSourceAt: '2026-01-01T00:00:00.000Z',
     newestSourceAt: '2026-07-20T00:00:00.000Z',
-    policy: {
-      policyId: 'federal.congressional_office',
-      version: 'ga-policy-v1',
-      label: 'Federal congressional office',
-      jurisdiction: 'federal',
-      audienceType: 'congressional_office',
-    },
     provider: 'anthropic',
     model: 'claude-sonnet-4-6',
     planModel: 'claude-haiku-4-5-20251001',
@@ -168,12 +161,11 @@ describe('held drafts keep their verifier findings visible', () => {
 });
 
 describe('the manifest surfaces what the panel renders', () => {
-  it('carries inclusions, freshness, policy, model and mailbox scope', () => {
+  it('carries inclusions, freshness, model and mailbox scope', () => {
     const m = manifest();
     expect(m.included).toHaveLength(1);
     expect(m.oldestSourceAt).toBe('2026-01-01T00:00:00.000Z');
     expect(m.newestSourceAt).toBe('2026-07-20T00:00:00.000Z');
-    expect(m.policy.label).toBe('Federal congressional office');
     expect(m.emailScopeLabel).toBe('My mailbox');
     expect(m.provider).toBe('anthropic');
     expect(m.standingMemoryCount).toBe(2);

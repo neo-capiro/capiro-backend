@@ -33,8 +33,6 @@ function generationResult(overrides: Partial<GenerationResult> = {}): Generation
       model: 'model',
       planModel: null,
       promptSpecVersion: 'v1',
-      policyId: 'policy',
-      policyVersion: '1',
     },
     ...overrides,
   } as GenerationResult;

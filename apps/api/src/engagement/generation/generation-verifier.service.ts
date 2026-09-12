@@ -8,7 +8,8 @@
  * fluently, so a second LLM asked "does this look right?" frequently agrees.
  * Comparing "$4.2 billion" against the actual PE funding series does not.
  *
- * Eleven checks (§3.i1), each mapping to a real government-affairs failure mode:
+ * Ten checks, each mapping to a real government-affairs failure mode, always
+ * run — there is no longer a per-audience policy that enables a subset of them:
  *
  *   1  unresolved placeholder      — {district} shipped to a member's office
  *   2  numeric grounding          — a dollar figure absent from the truth series
@@ -20,16 +21,27 @@
  *   8  date grounding             — an invented markup date
  *   9  stale source caveat        — a four-month-old status stated as current
  *   10 group common facts         — one member's committee ascribed to all
- *   11 jurisdiction vocabulary    — federal process applied to a state bill
  *
  * Classification (supported / partially_supported / inference / unsupported /
  * contradicted / stale) and the blocking rules are the plan's, verbatim.
  */
 import { Injectable } from '@nestjs/common';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
-import type { GaPolicy, GaValidatorId } from './government-affairs-policy.registry.js';
-import { freshnessThresholdDays } from './government-affairs-policy.registry.js';
+import { freshnessThresholdDays } from './evidence-freshness.js';
 import type { MessagePlan } from './message-plan.schema.js';
+
+/** Deterministic validator ids the verifier runs. */
+export type GaValidatorId =
+  | 'unresolved_placeholder'
+  | 'numeric_grounding'
+  | 'bill_identifier_grounding'
+  | 'enactment_claim'
+  | 'authorization_vs_appropriation'
+  | 'recipient_commitment_claim'
+  | 'attendance_claim'
+  | 'date_grounding'
+  | 'stale_source_caveat'
+  | 'group_common_facts';
 
 export type ClaimClassification =
   | 'supported'
@@ -57,7 +69,6 @@ export interface VerifyRequest {
   subject: string;
   body: string;
   packet: EvidencePacketV2;
-  policy: GaPolicy;
   /** The validated plan, when one was produced. */
   plan?: MessagePlan | null;
   audienceKind: 'individual' | 'group';
@@ -76,21 +87,18 @@ export interface VerifyResult {
 export class GenerationVerifierService {
   verify(request: VerifyRequest): VerifyResult {
     const text = `${request.subject}\n${request.body}`;
-    const enabled = new Set(request.policy.validators);
-    const findings: VerifierFinding[] = [];
-
-    if (enabled.has('unresolved_placeholder')) findings.push(...checkPlaceholders(text));
-    if (enabled.has('numeric_grounding')) findings.push(...checkNumbers(text, request));
-    if (enabled.has('bill_identifier_grounding')) findings.push(...checkBillIdentifiers(text, request));
-    if (enabled.has('enactment_claim')) findings.push(...checkEnactment(text, request));
-    if (enabled.has('authorization_vs_appropriation')) findings.push(...checkFundingStage(text, request));
-    if (enabled.has('recipient_commitment_claim')) findings.push(...checkCommitment(text, request));
-    if (enabled.has('attendance_claim')) findings.push(...checkAttendance(text, request));
-    if (enabled.has('date_grounding')) findings.push(...checkDates(text, request));
-    if (enabled.has('stale_source_caveat')) findings.push(...checkStaleCaveat(text, request));
-    if (enabled.has('group_common_facts')) findings.push(...checkGroupFacts(text, request));
-    if (enabled.has('federal_etiquette_scope')) findings.push(...checkFederalEtiquetteScope(text, request));
-    if (enabled.has('jurisdiction_vocabulary')) findings.push(...checkJurisdictionVocabulary(text, request));
+    const findings: VerifierFinding[] = [
+      ...checkPlaceholders(text),
+      ...checkNumbers(text, request),
+      ...checkBillIdentifiers(text, request),
+      ...checkEnactment(text, request),
+      ...checkFundingStage(text, request),
+      ...checkCommitment(text, request),
+      ...checkAttendance(text, request),
+      ...checkDates(text, request),
+      ...checkStaleCaveat(text, request),
+      ...checkGroupFacts(text, request),
+    ];
 
     const held = findings.some((f) => f.blocking);
     return {
@@ -605,7 +613,7 @@ function checkStaleCaveat(text: string, req: VerifyRequest): VerifierFinding[] {
     const ms = new Date(asOf).getTime();
     if (Number.isNaN(ms)) return false;
     const ageDays = (req.now.getTime() - ms) / 86_400_000;
-    return ageDays > freshnessThresholdDays(req.policy, e.ref.sourceType);
+    return ageDays > freshnessThresholdDays(e.ref.sourceType);
   });
   if (!stale.length) return [];
   if (CAVEAT_RE.test(text)) return [];
@@ -648,55 +656,6 @@ function checkGroupFacts(text: string, req: VerifyRequest): VerifierFinding[] {
       message:
         'This is one shared message to a group, but the draft asserts a committee, district, state, or position belonging to a single member. Only facts common to every recipient may be stated.',
       excerpt: firstMatch(text, SINGULAR_ATTR_RE),
-    });
-  }
-  return findings;
-}
-
-// ── 11a. Federal etiquette applied outside federal audiences ────────────────
-
-const FEDERAL_ETIQUETTE_MARKERS =
-  /\b(Capitol Hill|the Hill|your congressional office|House Armed Services|Senate Appropriations|floor of the House|floor of the Senate|Congressman|Congresswoman|the gentleman from|federal lobbying disclosure)\b/i;
-
-function checkFederalEtiquetteScope(text: string, req: VerifyRequest): VerifierFinding[] {
-  if (req.policy.jurisdiction === 'federal') return [];
-  if (!FEDERAL_ETIQUETTE_MARKERS.test(text)) return [];
-  return [
-    {
-      source: 'deterministic_verifier',
-      check: 'federal_etiquette_scope',
-      classification: 'contradicted',
-      blocking: true,
-      material: true,
-      message: `The draft uses federal congressional framing, but this message is addressed to ${req.policy.label} (${req.policy.jurisdiction}).`,
-      excerpt: firstMatch(text, FEDERAL_ETIQUETTE_MARKERS),
-    },
-  ];
-}
-
-// ── 11b. Jurisdiction vocabulary ────────────────────────────────────────────
-
-const FEDERAL_PROCESS_RE =
-  /\b(signed by the President|the President signed|federal law|public law|referred to the (?:House|Senate) Committee on|Congress passed)\b/i;
-
-function checkJurisdictionVocabulary(text: string, req: VerifyRequest): VerifierFinding[] {
-  const findings: VerifierFinding[] = [];
-
-  // A STATE bill in the packet described with FEDERAL process vocabulary (§4.20).
-  const hasStateBill = req.packet.evidence.some(
-    (e) => e.ref.sourceType === 'stateBill' || e.ref.provenance?.jurisdiction === 'state',
-  );
-  const hasFederalBill = req.packet.evidence.some((e) => e.ref.sourceType === 'bill');
-  if (hasStateBill && !hasFederalBill && FEDERAL_PROCESS_RE.test(text)) {
-    findings.push({
-      source: 'deterministic_verifier',
-      check: 'jurisdiction_vocabulary',
-      classification: 'contradicted',
-      blocking: true,
-      material: true,
-      message:
-        'The only legislation in evidence is a STATE measure, but the draft describes it with federal process language (presidential signature, federal law, or a congressional committee referral).',
-      excerpt: firstMatch(text, FEDERAL_PROCESS_RE),
     });
   }
   return findings;

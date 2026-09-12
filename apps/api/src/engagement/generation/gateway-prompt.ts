@@ -1,23 +1,19 @@
 /**
  * Gateway PromptSpec renderer (Phase 1 §3.g1 step 6).
  *
- * Renders an Evidence Packet + resolved policy + validated Message Plan into the
- * provider-ready `{ system, userStatic, userVolatile }` split. PURE, so the
- * deterministic eval suite can assert its output with no Nest context.
+ * Renders an Evidence Packet + validated Message Plan into the provider-ready
+ * `{ system, userStatic, userVolatile }` split. PURE, so the deterministic eval
+ * suite can assert its output with no Nest context.
  *
  * Version 'v2.2-gateway'. It reuses PromptSpec v2's system-level protections
  * verbatim (the grounding kernel, output contract, honest fallback, injection
- * rule) — those were already correct — and changes exactly two things:
- *
- *   1. Audience rules come from the POLICY REGISTRY rather than a hardcoded
- *      federal congressional identity. Hill etiquette is now a property of the
- *      federal policies, not of the prompt.
- *   2. There is no flattened `contextItems` string. Every piece of evidence is a
- *      separately spotlighted block carrying its own source id, trust class, and
- *      as-of date; user directives render OUTSIDE the markers. In v2 the whole
- *      curated block sat outside the markers — so a `[note]` item's text, and
- *      anything the browser had put in an item body, was rendered where the model
- *      was told instructions live. That is the injection path this closes.
+ * rule, Hill etiquette, compliance guardrails) — those were already correct —
+ * and changes one thing: there is no flattened `contextItems` string. Every
+ * piece of evidence is a separately spotlighted block carrying its own source
+ * id, trust class, and as-of date; user directives render OUTSIDE the markers.
+ * In v2 the whole curated block sat outside the markers — so a `[note]` item's
+ * text, and anything the browser had put in an item body, was rendered where
+ * the model was told instructions live. That is the injection path this closes.
  *
  * The plan (already validated) rides in as the drafting spine, so the draft is
  * expressing a checked plan rather than re-deciding what to claim.
@@ -32,11 +28,7 @@ import {
   SPOTLIGHT_CLOSE,
   SPOTLIGHT_OPEN,
 } from '../outreach-prompt/prompt-spec-v2.js';
-import {
-  freshnessThresholdDays,
-  renderPolicyBlock,
-  type GaPolicy,
-} from './government-affairs-policy.registry.js';
+import { freshnessThresholdDays } from './evidence-freshness.js';
 import {
   renderSkeletonInstruction,
   SKELETON_SECTIONS_EXEMPLAR,
@@ -54,13 +46,17 @@ export const GATEWAY_PROMPT_SPEC_VERSION = 'v2.2-gateway';
  * behalf of a federal lobbying firm ... appropriate to a congressional or
  * federal-agency audience", which is false for a state legislator, a client
  * executive, or an internal note — and the model reads it as licence to use
- * federal framing everywhere. The audience now comes from the policy block.
+ * federal framing everywhere. There is no audience policy to name instead; the
+ * model must read who it is writing to from the recipient brief and evidence
+ * below and match its vocabulary and formality to them.
  */
 export const GATEWAY_IDENTITY =
   'You are Meri, Capiro’s government-affairs AI. You draft messages that a senior ' +
   'government-affairs professional would send without edits: specific, grounded, and ' +
-  'appropriate to the EXACT audience named in the audience policy below. Do not assume a ' +
-  'federal congressional audience unless the policy says so.';
+  'appropriate to who you are actually writing to. Do not assume a federal congressional ' +
+  'audience by default — read the recipient brief and evidence below and match the ' +
+  'vocabulary and formality to the real reader (a Hill office, a state legislator, a client ' +
+  'executive, or an internal colleague are all different audiences).';
 
 /**
  * Precedence ladder for the GATEWAY's block vocabulary.
@@ -75,7 +71,7 @@ export const GATEWAY_IDENTITY =
  */
 export const GATEWAY_PRECEDENCE_LADDER = [
   'CONTEXT-PRECEDENCE LADDER (how much authority each block below carries):',
-  '1. USER DIRECTIVES and the AUDIENCE POLICY — these define the task and its rules. Follow them.',
+  '1. USER DIRECTIVES — these define the task and its rules. Follow them.',
   '2. THE VALIDATED MESSAGE PLAN — the claims and ask you are expressing. Do not exceed it.',
   '3. EVIDENCE, ranked by its trust attribute:',
   '   • trust="authoritative_structured" — canonical server records (bill status, funding series). Quotable as fact, with the as-of date.',
@@ -89,7 +85,6 @@ export const GATEWAY_PRECEDENCE_LADDER = [
 
 export interface GatewayPromptInput {
   packet: EvidencePacketV2;
-  policy: GaPolicy;
   plan: MessagePlan;
   styleProfile: AuthorStyleProfile | null;
   styleProfileBlock: string | null;
@@ -157,15 +152,13 @@ export const SKELETON_OUTPUT_CONTRACT = [
   'Never emit unresolved template variables or bracket placeholders (e.g. {district}, [NAME]) in any section. Use a real supplied value or omit the phrase.',
 ].join('\n');
 
-export function buildGatewaySystemPrompt(policy: GaPolicy, mode?: { skeleton?: boolean }): string {
+export function buildGatewaySystemPrompt(mode?: { skeleton?: boolean }): string {
   const sections = [
     GATEWAY_IDENTITY,
     MERI_GROUNDING_OUTREACH_KERNEL,
     meriGroundingSurfaceBlock('outreach'),
-    // Hill etiquette and the federal lobbying compliance block are now
-    // POLICY-GATED. Applying them to a client executive or an internal colleague
-    // produced messages that read as though the recipient were a member's office.
-    ...(policy.appliesHillEtiquette ? [HILL_ETIQUETTE, COMPLIANCE_GUARDRAILS] : []),
+    HILL_ETIQUETTE,
+    COMPLIANCE_GUARDRAILS,
     // In skeleton mode the shared OUTPUT_CONTRACT is not merely unhelpful, it is
     // contradictory: it names `subject`/`body` as the required fields, and a
     // model told to return a `body` will write a whole email — reproducing the
@@ -198,7 +191,7 @@ export function buildGatewaySystemPrompt(policy: GaPolicy, mode?: { skeleton?: b
 }
 
 export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
-  const { packet, policy, plan } = input;
+  const { packet, plan } = input;
   const isGroup = input.audienceKind === 'group';
   const isRevision = Boolean(input.existingBody?.trim());
   const mode: GatewayPrompt['mode'] = isRevision ? 'revision' : isGroup ? 'group' : 'perRecipient';
@@ -295,7 +288,6 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
 
   // ── userStatic: byte-stable campaign prefix ──
   const staticParts = [
-    renderPolicyBlock(policy),
     audienceLine,
     toneLineForMode,
     signatureRuleForMode,
@@ -342,7 +334,7 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
         (e) => e.scope !== 'all' && input.recipientScopeKeys.includes(e.scope),
       ),
     ),
-    renderStaleSourceCaveatInstruction(packet, policy, input),
+    renderStaleSourceCaveatInstruction(packet, input),
     renderFailureNote(packet),
     planBlock,
   ].filter((s): s is string => Boolean(s));
@@ -369,7 +361,7 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
   const userVolatile = volatileParts.join('\n\n');
 
   return {
-    system: buildGatewaySystemPrompt(policy, { skeleton: Boolean(skeleton) }),
+    system: buildGatewaySystemPrompt({ skeleton: Boolean(skeleton) }),
     userStatic,
     userVolatile,
     user: `${userStatic}\n\n${userVolatile}`,
@@ -414,8 +406,8 @@ function renderEvidenceSection(
 }
 
 /**
- * Tell the model, explicitly, which supplied sources are stale under THIS
- * policy and that it must caveat any claim resting on them.
+ * Tell the model, explicitly, which supplied sources are stale and that it
+ * must caveat any claim resting on them.
  *
  * The deterministic verifier (`checkStaleCaveat` in generation-verifier.
  * service.ts) BLOCKS the draft when it relies on an authoritative_structured
@@ -432,12 +424,10 @@ function renderEvidenceSection(
  * inside its real (lenient) window can be READ as stale by a model with no
  * caveat vocabulary, and a source outside its window still won't get a
  * caveat if the model was never told to write one. This instruction is the
- * other half of the fix alongside the freshness-threshold corrections in
- * government-affairs-policy.registry.ts.
+ * other half of the fix alongside the thresholds in evidence-freshness.ts.
  */
 function renderStaleSourceCaveatInstruction(
   packet: EvidencePacketV2,
-  policy: GaPolicy,
   input: GatewayPromptInput,
 ): string | null {
   const relevant = packet.evidence.filter(
@@ -450,12 +440,12 @@ function renderStaleSourceCaveatInstruction(
     const ms = new Date(asOf).getTime();
     if (Number.isNaN(ms)) return false;
     const ageDays = (input.now.getTime() - ms) / 86_400_000;
-    return ageDays > freshnessThresholdDays(policy, e.ref.sourceType);
+    return ageDays > freshnessThresholdDays(e.ref.sourceType);
   });
   if (!stale.length) return null;
   return [
     'STALE-SOURCE CAVEAT REQUIREMENT — this is a hard requirement, not a style choice:',
-    `The following source(s) are older than this audience's freshness limit and any claim you make from them MUST be qualified with an explicit as-of/"per the latest" caveat naming the date, or you must not make the claim at all:`,
+    `The following source(s) are older than their freshness limit and any claim you make from them MUST be qualified with an explicit as-of/"per the latest" caveat naming the date, or you must not make the claim at all:`,
     ...stale.map(
       (e) =>
         `- id="${e.ref.sourceId}" (${e.ref.sourceType}), as of ${(e.ref.authoritativeAsOf ?? '').slice(0, 10)}`,

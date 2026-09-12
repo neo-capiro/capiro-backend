@@ -13,7 +13,6 @@ import {
   hashPacket,
   type CompileOutreachPacketRequest,
 } from './evidence-packet.service.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 import type {
   AuthenticatedDirective,
   EvidenceItem,
@@ -111,7 +110,6 @@ function request(over: Partial<CompileOutreachPacketRequest> = {}): CompileOutre
     clientId: 'c1',
     ref: { outreachRecordId: 'r1' },
     items: [],
-    policy: policyForAudience('congressional_office'),
     modelPolicy: { provider: 'anthropic', model: 'm', promptSpecVersion: 'v2.2-gateway' },
     emailScope: 'mine',
     scanRequired: false,
@@ -197,7 +195,6 @@ describe('deterministic packet hash', () => {
       standingMemory: [],
       standingMemoryExclusions: [],
       failures: [],
-      policy: { jurisdiction: 'federal', audienceType: 'congressional_office', policyId: 'p', version: 'v' },
       modelPolicy: { provider: 'a', model: 'm', promptSpecVersion: 'v' },
       criticalFailureCount: 0,
       freshestSourceAt: null,

@@ -1,9 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import {
-  GA_AUDIENCES,
-  type GaAudience,
-} from '../../engagement/generation/government-affairs-policy.registry.js';
 
 export const OUTREACH_TARGET_SOURCES = [
   'directory_member',
@@ -87,14 +83,6 @@ const manualTargetLocatorSchema = z
     title: nullable(OUTREACH_TARGET_LIMITS.title),
     organization: nullable(OUTREACH_TARGET_LIMITS.organization),
     note: nullable(OUTREACH_TARGET_LIMITS.note),
-    /**
-     * A manual target has no directory/domain signal for
-     * government-affairs-policy.registry's selectPolicy() to resolve, so it
-     * FAILS CLOSED (AudiencePolicyRequiredError) unless the person who added
-     * it says which audience this is. Reuses GA_AUDIENCES as the single
-     * source of truth so this can never drift from the policy registry.
-     */
-    audienceType: z.enum(GA_AUDIENCES as unknown as [GaAudience, ...GaAudience[]]).nullable().default(null),
   })
   .strict();
 
@@ -233,7 +221,6 @@ export function createManualTargetLocator(input: {
   title?: string | null;
   organization?: string | null;
   note?: string | null;
-  audienceType?: GaAudience | null;
 }): OutreachTargetLocatorV1 {
   return normalizeTargetLocatorV1({
     source: 'manual',
@@ -244,7 +231,6 @@ export function createManualTargetLocator(input: {
     title: input.title ?? null,
     organization: input.organization ?? null,
     note: input.note ?? null,
-    audienceType: input.audienceType ?? null,
   });
 }
 

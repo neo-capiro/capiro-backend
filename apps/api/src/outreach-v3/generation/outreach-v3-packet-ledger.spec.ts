@@ -39,12 +39,6 @@ function packet(): EvidencePacketV2 {
     standingMemory: [],
     standingMemoryExclusions: [],
     failures: [],
-    policy: {
-      jurisdiction: 'federal',
-      audienceType: 'congressional',
-      policyId: 'test',
-      version: '1',
-    },
     modelPolicy: {
       provider: 'openai',
       model: 'test',

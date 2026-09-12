@@ -12,7 +12,6 @@ import { GenerationVerifierService } from './generation-verifier.service.js';
 import { EvidencePacketPersistError } from './evidence-packet.service.js';
 import { MessagePlanInvalidError } from './message-plan.schema.js';
 import { GATEWAY_PROMPT_SPEC_VERSION } from './gateway-prompt.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GenerationRequest } from './generation-gateway.types.js';
 
@@ -47,12 +46,6 @@ function basePacket(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
     standingMemory: [],
     standingMemoryExclusions: [],
     failures: [],
-    policy: {
-      jurisdiction: 'federal',
-      audienceType: 'congressional_office',
-      policyId: 'federal.congressional_office',
-      version: 'ga-policy-v1',
-    },
     modelPolicy: {
       provider: 'anthropic',
       model: 'claude-sonnet-4-6',
@@ -215,7 +208,6 @@ function request(over: Partial<GenerationRequest> = {}): GenerationRequest {
       office: 'House',
       state: 'CA',
       district: '12',
-      sourceType: 'congress',
       chamber: 'House',
       snapshot: {},
     },
@@ -237,29 +229,14 @@ describe('happy path', () => {
     expect(contextPlane.resolve).toHaveBeenCalledTimes(1);
   });
 
-  test('the manifest reports the resolved policy and the mailbox scope verbatim', async () => {
+  test('the manifest reports the mailbox scope verbatim', async () => {
     const { svc } = makeGateway();
     const result = await svc.generate(CTX, request(), enrichment(), [CRED]);
-    expect(result.manifest.policy.audienceType).toBe('congressional_office');
     expect(result.manifest.emailScopeLabel).toBe('My mailbox');
   });
 });
 
 describe('short-circuits BEFORE any drafting call', () => {
-  test('an ambiguous audience blocks and never calls the model (§4.19)', async () => {
-    const { svc, complete, packets } = makeGateway();
-    const result = await svc.generate(
-      CTX,
-      request({ direction: null, recipient: { ...request().recipient, sourceType: null, email: null, chamber: 'House' } }),
-      enrichment(),
-      [CRED],
-    );
-    expect(result.outcome).toBe('blocked');
-    expect(result.error).toBe('AUDIENCE_POLICY_REQUIRED');
-    expect(packets.compileOutreachPacket).not.toHaveBeenCalled();
-    expect(complete).not.toHaveBeenCalled();
-  });
-
   test('a CRITICAL source failure blocks before spending anything', async () => {
     const { svc, complete, plans } = makeGateway({
       packet: basePacket({
@@ -320,8 +297,6 @@ describe('provider/model pinning (§3.k)', () => {
           model: 'claude-opus-pinned',
           planModel: 'claude-haiku-4-5-20251001',
           promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-          policyId: 'federal.congressional_office',
-          policyVersion: 'ga-policy-v1',
         },
       }),
       enrichment(),
@@ -341,8 +316,6 @@ describe('provider/model pinning (§3.k)', () => {
           model: 'gpt-4.1',
           planModel: null,
           promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-          policyId: 'federal.congressional_office',
-          policyVersion: 'ga-policy-v1',
         },
       }),
       enrichment(),
@@ -366,8 +339,6 @@ describe('provider/model pinning (§3.k)', () => {
           // Simulates a job pinned before a rolling deploy bumped the spec —
           // this container's prompt builder no longer implements that version.
           promptSpecVersion: 'v-stale-from-before-a-deploy',
-          policyId: 'federal.congressional_office',
-          policyVersion: 'ga-policy-v1',
         },
       }),
       enrichment(),
@@ -389,8 +360,6 @@ describe('provider/model pinning (§3.k)', () => {
           model: 'claude-sonnet-4-6',
           planModel: 'claude-haiku-4-5-20251001',
           promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-          policyId: 'federal.congressional_office',
-          policyVersion: 'ga-policy-v1',
         },
       }),
       enrichment(),
@@ -402,36 +371,12 @@ describe('provider/model pinning (§3.k)', () => {
 
   test('resolvePinnedIdentity records provider, model and prompt spec once', async () => {
     const { svc } = makeGateway();
-    const identity = await svc.resolvePinnedIdentity(CTX, {
-      policy: policyForAudience('congressional_office'),
-    });
+    const identity = await svc.resolvePinnedIdentity(CTX, {});
     expect(identity?.pinned).toMatchObject({
       provider: 'anthropic',
       model: 'claude-sonnet-4-6',
       promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
     });
-  });
-
-  test('policy is re-resolved per unit, so a mixed-audience batch is not forced', async () => {
-    const { svc } = makeGateway();
-    const result = await svc.generate(
-      CTX,
-      request({
-        // The job pinned a FEDERAL policy, but this recipient is a client contact.
-        direction: 'to-clients',
-        pinned: {
-          provider: 'anthropic',
-          model: 'claude-sonnet-4-6',
-          planModel: null,
-          promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-          policyId: 'federal.congressional_office',
-          policyVersion: 'ga-policy-v1',
-        },
-      }),
-      enrichment(),
-      [CRED],
-    );
-    expect(result.pinned.policyId).toBe('internal.client_executive');
   });
 });
 

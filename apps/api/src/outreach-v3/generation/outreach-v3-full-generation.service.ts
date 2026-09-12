@@ -176,19 +176,7 @@ export class OutreachV3FullGenerationService {
       spec: current.spec,
       prepared: firstPrepared,
     });
-    let policy;
-    try {
-      policy = this.gateway.resolvePolicy(firstUnit.request);
-    } catch {
-      throw new OutreachCommandError(
-        'OUTREACH_COMMAND_BLOCKED',
-        'The audience policy could not be resolved for full generation.',
-        409,
-        { reason: 'audience_policy_required' },
-      );
-    }
     const identity = await this.gateway.resolvePinnedIdentity(ctx, {
-      policy,
       runtimeAction: firstUnit.request.runtimeAction,
     });
     if (!identity) {

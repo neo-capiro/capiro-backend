@@ -44,7 +44,6 @@ import {
   type StandingMemoryExclusion,
   type StandingMemoryRef,
 } from './evidence-packet.types.js';
-import type { GaPolicy } from './government-affairs-policy.registry.js';
 
 /** An enrichment channel the packet folds in, resolved by the caller. */
 export interface EnrichmentChannel {
@@ -85,7 +84,6 @@ export interface CompileOutreachPacketRequest {
   /** Surface anchor persisted on the packet row. */
   ref: Record<string, string | null>;
   items: SelectedContextItemRef[];
-  policy: GaPolicy;
   modelPolicy: PacketModelPolicy;
   emailScope: EmailContextScope;
   scanRequired: boolean;
@@ -169,7 +167,6 @@ export class EvidencePacketService {
       wallAllowsClient: request.wallAllowsClient,
       audience: request.audience,
       recipientEmails: request.recipientEmails,
-      policy: request.policy,
       now: request.now,
       authHeader: request.authHeader,
     });
@@ -258,7 +255,6 @@ export class EvidencePacketService {
         wallAllowsClient: request.wallAllowsClient,
         audience: request.audience,
         scope: 'all',
-        policy: request.policy,
         now: request.now,
         excludeThreadIds: request.items
           .filter((i) => i.kind === 'email')
@@ -302,12 +298,6 @@ export class EvidencePacketService {
       standingMemory: standing.items,
       standingMemoryExclusions: standing.exclusions,
       failures,
-      policy: {
-        jurisdiction: request.policy.jurisdiction,
-        audienceType: request.policy.audienceType,
-        policyId: request.policy.policyId,
-        version: request.policy.version,
-      },
       modelPolicy: request.modelPolicy,
       criticalFailureCount,
       freshestSourceAt: freshness.freshest,
@@ -350,7 +340,9 @@ export class EvidencePacketService {
             // ('outreach' | 'memo' | …) that every existing provenance reader
             // filters on; writing 'outreach_email' here would make these packets
             // invisible to a query for surface='outreach'. The precise generation
-            // surface is preserved in policy_jsonb below.
+            // surface is preserved in the `policy` JSONB column below (which now
+            // carries only emailScope/generationSurface — the audience-policy
+            // fields it used to also carry are gone).
             surface: contextSurfaceFor(packet.surface),
             userId: packet.userId,
             clientId: packet.clientId,
@@ -368,7 +360,6 @@ export class EvidencePacketService {
             evidence: packet.evidence as unknown as Prisma.InputJsonValue,
             sourceFailures: packet.failures as unknown as Prisma.InputJsonValue,
             policy: {
-              ...packet.policy,
               emailScope: packet.emailScope,
               // The precise generation surface, kept here because the column
               // holds the coarser canonical ContextSurface.
@@ -433,7 +424,6 @@ export function hashPacket(packet: EvidencePacketV2): string {
     surface: packet.surface,
     ref: packet.ref,
     emailScope: packet.emailScope,
-    policy: packet.policy,
     modelPolicy: packet.modelPolicy,
     directives: packet.directives,
     evidence: packet.evidence.map((e) => ({

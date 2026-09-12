@@ -15,8 +15,6 @@ const pin: PinnedGenerationIdentity = {
   model: 'model-a',
   planModel: null,
   promptSpecVersion: 'v2',
-  policyId: 'federal_congressional',
-  policyVersion: '1',
 };
 
 function plan(): OutreachV3GenerationPlan {
