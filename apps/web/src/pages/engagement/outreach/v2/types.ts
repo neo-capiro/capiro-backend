@@ -99,13 +99,6 @@ export interface GenerationSourceManifest {
   criticalFailures: SourceFailure[];
   oldestSourceAt: string | null;
   newestSourceAt: string | null;
-  policy: {
-    policyId: string;
-    version: string;
-    label: string;
-    jurisdiction: string;
-    audienceType: string;
-  };
   provider: string | null;
   model: string | null;
   planModel: string | null;

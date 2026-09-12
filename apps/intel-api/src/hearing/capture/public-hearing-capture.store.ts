@@ -83,7 +83,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
               CASE WHEN visibility='private' THEN 'CLOSED' ELSE 'PUBLIC' END AS "publicAccess",
               starts_at AS "scheduledStart",
               url AS "officialPageUrl"
-       FROM committee_hearing
+       FROM federal_committee_hearing
        WHERE id = $1
        LIMIT 1`,
       hearingId,
@@ -110,7 +110,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ hearingId: string }>>(
         `SELECT DISTINCT h.id AS "hearingId"
-         FROM committee_hearing h
+         FROM federal_committee_hearing h
          LEFT JOIN hearing_subscription s ON s.hearing_id = h.id
          LEFT JOIN public_hearing_capture c ON c.hearing_id = h.id
          WHERE h.event_status IN ('scheduled','postponed','in_progress')
@@ -201,8 +201,11 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     attemptedAt: Date;
     nextPreflightAt?: Date;
   }): Promise<PublicCaptureRecord> {
-    return this.updateResolution(input,
-      ' AND (worker_lease_owner IS NULL OR lease_expires_at <= clock_timestamp())', []);
+    return this.updateResolution(
+      input,
+      ' AND (worker_lease_owner IS NULL OR lease_expires_at <= clock_timestamp())',
+      [],
+    );
   }
 
   async recordFencedResolution(input: {
@@ -537,7 +540,10 @@ function safeResolutionReference(classified: ClassifiedStreamResolution): string
 
 function boundedNullable(value: string | undefined, max: number): string | null {
   if (!value?.trim()) return null;
-  return value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max);
+  return value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function leaseFrom(row: CaptureRow): CaptureLease {

@@ -263,7 +263,7 @@ export class HearingIntelligenceWorker {
               h.visibility
        FROM public_hearing_transcript_segment s
        JOIN public_hearing_capture c ON c.id=s.capture_id
-       JOIN committee_hearing h ON h.id=c.hearing_id
+       JOIN federal_committee_hearing h ON h.id=c.hearing_id
        LEFT JOIN congress_committee sub ON sub.system_code=h.subcommittee_system_code
        WHERE s.id=$1
        LIMIT 1`,
@@ -295,7 +295,7 @@ export class HearingIntelligenceWorker {
               sub.name AS "subcommitteeName",
               h.witnesses,
               h.visibility
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        LEFT JOIN congress_committee sub ON sub.system_code=h.subcommittee_system_code
        WHERE h.id=$1
        LIMIT 1`,

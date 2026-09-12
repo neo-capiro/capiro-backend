@@ -15,7 +15,6 @@
  * invented a field, which usually means it is smuggling content past a validator.
  */
 import { z } from 'zod';
-import { GA_AUDIENCES, GA_JURISDICTIONS } from './government-affairs-policy.registry.js';
 
 /** What kind of assertion a claim is — decides which validator applies. */
 export const CLAIM_TYPES = [
@@ -65,10 +64,8 @@ export const riskyClaimSchema = z
 
 export const messagePlanSchema = z
   .object({
-    /** The message's purpose; validated against the policy's allowedIntents. */
+    /** The message's purpose. */
     intent: z.string().min(1).max(80),
-    jurisdiction: z.enum(GA_JURISDICTIONS as [string, ...string[]]),
-    audienceType: z.enum(GA_AUDIENCES as [string, ...string[]]),
     /** The client being represented, or null for an internal message. */
     clientRepresented: z.string().max(200).nullable(),
     /** The concrete outcome this message is trying to produce. */
@@ -102,8 +99,6 @@ export const MESSAGE_PLAN_JSON_SCHEMA = {
   additionalProperties: false,
   required: [
     'intent',
-    'jurisdiction',
-    'audienceType',
     'clientRepresented',
     'desiredOutcome',
     'whyRecipient',
@@ -117,8 +112,6 @@ export const MESSAGE_PLAN_JSON_SCHEMA = {
   ],
   properties: {
     intent: { type: 'string' },
-    jurisdiction: { type: 'string', enum: GA_JURISDICTIONS },
-    audienceType: { type: 'string', enum: GA_AUDIENCES },
     clientRepresented: { type: ['string', 'null'] },
     desiredOutcome: { type: 'string' },
     whyRecipient: { type: 'array', items: { type: 'string' } },

@@ -39,9 +39,12 @@ import { CreateWatchOverlay } from '../overlays/CreateWatchOverlay.js';
 import { isWatchlistSetup, watchlistSetupPath } from '../lib/watchlist-navigation.js';
 import { ReportWorkspace } from '../reports/ReportWorkspace.js';
 import { useReportsFlag } from '../reports/report-api.js';
+import { AgendaRulesPanel } from './AgendaRulesPanel.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
 
-const WatchlistSetup = lazy(async () => ({ default: (await import('./WatchlistSetup.js')).WatchlistSetup }));
+const WatchlistSetup = lazy(async () => ({
+  default: (await import('./WatchlistSetup.js')).WatchlistSetup,
+}));
 
 /** Display-timezone options (§12). 'local' follows the browser; the other two
  *  are the zones Congress actually schedules in. Canonical event truth is
@@ -88,7 +91,9 @@ function normalize(raw: unknown): ResolvedPrefs {
     ...p,
     // Only known timezone ids survive normalization; anything else falls back
     // to local (an old/corrupt value never breaks rendering).
-    timezone: TIMEZONES.some((t) => t.id === p.timezone) ? (p.timezone as ResolvedPrefs['timezone']) : 'local',
+    timezone: TIMEZONES.some((t) => t.id === p.timezone)
+      ? (p.timezone as ResolvedPrefs['timezone'])
+      : 'local',
     defaultView: p.defaultView === 'list' ? 'list' : 'calendar',
     defaultChamber:
       p.defaultChamber === 'House' || p.defaultChamber === 'Senate' || p.defaultChamber === 'Joint'
@@ -100,13 +105,18 @@ function normalize(raw: unknown): ResolvedPrefs {
 export function LegiWatchSettingsTab() {
   const [params] = useSearchParams();
   if (isWatchlistSetup(params)) {
-    return <Suspense fallback={<LwStateLoading rows={4} />}><WatchlistSetup /></Suspense>;
+    return (
+      <Suspense fallback={<LwStateLoading rows={4} />}>
+        <WatchlistSetup />
+      </Suspense>
+    );
   }
   return <LegiWatchPreferences />;
 }
 
 function LegiWatchPreferences() {
-  const reportFlag = useReportsFlag(), [recordRulesOpen, setRecordRulesOpen] = useState(false);
+  const reportFlag = useReportsFlag(),
+    [recordRulesOpen, setRecordRulesOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const scope = searchParams.get('client') ?? '';
   const api = useApi();
@@ -152,7 +162,10 @@ function LegiWatchPreferences() {
       if (!cached) return;
       qc.setQueryData<MeWithLegiWatchPrefs>(SETTINGS_ME_KEY, {
         ...cached,
-        user: { ...cached.user, legiwatchPrefs: { ...normalize(cached.user?.legiwatchPrefs), ...change } },
+        user: {
+          ...cached.user,
+          legiwatchPrefs: { ...normalize(cached.user?.legiwatchPrefs), ...change },
+        },
       });
     },
     onSuccess: (data) => {
@@ -176,7 +189,9 @@ function LegiWatchPreferences() {
   if (me.isLoading) {
     return (
       <div className="lw-body">
-        <div className="lw-card" style={{ padding: 18 }}><LwStateLoading rows={4} /></div>
+        <div className="lw-card" style={{ padding: 18 }}>
+          <LwStateLoading rows={4} />
+        </div>
       </div>
     );
   }
@@ -186,8 +201,11 @@ function LegiWatchPreferences() {
       <div className="lw-body">
         <div className="lw-card" style={{ padding: 18 }}>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--lw-meta)' }}>
-            Preferences could not be loaded — your display settings are unavailable, hearings data is unaffected.
-            <LwButton size="36" onClick={() => void me.refetch()}>Retry</LwButton>
+            Preferences could not be loaded — your display settings are unavailable, hearings data
+            is unaffected.
+            <LwButton size="36" onClick={() => void me.refetch()}>
+              Retry
+            </LwButton>
           </p>
         </div>
       </div>
@@ -196,15 +214,50 @@ function LegiWatchPreferences() {
 
   return (
     <div className="lw-body" aria-label="LegiWatch settings">
-      {reportFlag.enabled && <section className="lw-card" style={{ padding: 18 }}><h2 className="lw-card__title">Published bill records</h2><p>Review folder targets and staff channels for action and amendment alerts.</p><LwButton onClick={() => setRecordRulesOpen(true)}>Manage published-record alerts</LwButton>{recordRulesOpen && <CapiroModal open title="Reports and updates" width={1200} onClose={() => setRecordRulesOpen(false)}><ReportWorkspace initialTab="alerts" /></CapiroModal>}</section>}
+      <AgendaRulesPanel />
+      {reportFlag.enabled && (
+        <section className="lw-card" style={{ padding: 18 }}>
+          <h2 className="lw-card__title">Published bill records</h2>
+          <p>Review folder targets and staff channels for action and amendment alerts.</p>
+          <LwButton onClick={() => setRecordRulesOpen(true)}>
+            Manage published-record alerts
+          </LwButton>
+          {recordRulesOpen && (
+            <CapiroModal
+              open
+              title="Reports and updates"
+              width={1200}
+              onClose={() => setRecordRulesOpen(false)}
+            >
+              <ReportWorkspace initialTab="alerts" />
+            </CapiroModal>
+          )}
+        </section>
+      )}
       <section className="lw-card" aria-label="Display preferences" style={{ padding: 18 }}>
         <div className="lw-card__head">
           <h2 className="lw-card__title">Display</h2>
-          {save.isSuccess && savedFlash ? <LwPill tone="success" size="22">SAVED</LwPill> : null}
-          {save.isPending ? <LwPill tone="gray" size="22">SAVING…</LwPill> : null}
+          {save.isSuccess && savedFlash ? (
+            <LwPill tone="success" size="22">
+              SAVED
+            </LwPill>
+          ) : null}
+          {save.isPending ? (
+            <LwPill tone="gray" size="22">
+              SAVING…
+            </LwPill>
+          ) : null}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', rowGap: 14, fontSize: 13, maxWidth: 640 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '180px 1fr',
+            rowGap: 14,
+            fontSize: 13,
+            maxWidth: 640,
+          }}
+        >
           <span style={{ color: 'var(--lw-meta)' }}>Preferred timezone</span>
           <div>
             <LwSeg
@@ -214,8 +267,8 @@ function LegiWatchPreferences() {
               onChange={(v) => setPref('timezone', v)}
             />
             <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}>
-              Changes how times are listed for you. Each hearing still shows its OFFICIAL time and zone —
-              this preference never edits the canonical record.
+              Changes how times are listed for you. Each hearing still shows its OFFICIAL time and
+              zone — this preference never edits the canonical record.
             </p>
           </div>
 
@@ -231,8 +284,8 @@ function LegiWatchPreferences() {
               onChange={(v) => setPref('defaultView', v as 'calendar' | 'list')}
             />
             <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}>
-              On narrow screens the schedule switches to agenda layout for readability; your choice here
-              always applies again on a full-size display.
+              On narrow screens the schedule switches to agenda layout for readability; your choice
+              here always applies again on a full-size display.
             </p>
           </div>
 
@@ -259,23 +312,36 @@ function LegiWatchPreferences() {
           <span className="lw-card__meta">Per client, on each client's tracking configuration</span>
         </div>
         <p style={{ fontSize: 13, margin: '0 0 10px', color: 'var(--lw-body)' }}>
-          Alert triggers, materiality, email/SMS channels and quiet hours are configured per client with
-          your client's monitoring model — open the client's tracking settings to change them.
+          Alert triggers, materiality, email/SMS channels and quiet hours are configured per client
+          with your client's monitoring model — open the client's tracking settings to change them.
         </p>
         {/* Honest states (§13): the backend has no user-global hearing-start /
             hearing-change / transcript-ready / intelligence-ready delivery yet
             (hearing_subscription.notify_on_start exists per subscription but no
             user-level contract; intel-alert triggers cover bill/PE sources).
             These render DISABLED with the reason — never a fake toggle. */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 8, fontSize: 13, maxWidth: 640, alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto',
+            rowGap: 8,
+            fontSize: 13,
+            maxWidth: 640,
+            alignItems: 'center',
+          }}
+        >
           <span>Notify when a followed hearing starts</span>
-          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet — set per hearing when you schedule it</span>
+          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>
+            Not available yet — set per hearing when you schedule it
+          </span>
           <span>Hearing schedule changes</span>
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet</span>
           <span>Transcript ready</span>
           <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet</span>
           <span>Intelligence / client match ready</span>
-          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>Not available yet — per-client alert prefs exist under each client</span>
+          <span style={{ color: 'var(--lw-meta)', fontSize: 12 }}>
+            Not available yet — per-client alert prefs exist under each client
+          </span>
         </div>
         <div style={{ marginTop: 14 }}>
           <LwButton size="36" onClick={() => navigate(watchlistSetupPath(scope))}>
@@ -323,11 +389,24 @@ function WatchPresetsCard() {
       ) : (
         <>
           {statusError ? (
-            <p role="alert" className="lw-card__meta" style={{ fontSize: 13, color: 'var(--lw-danger, #b42318)' }}>
+            <p
+              role="alert"
+              className="lw-card__meta"
+              style={{ fontSize: 13, color: 'var(--lw-danger, #b42318)' }}
+            >
               {statusError}
             </p>
           ) : null}
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ul
+            style={{
+              listStyle: 'none',
+              margin: 0,
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
             {presets.data?.rows.map((preset) => (
               <li
                 key={preset.id}
@@ -336,7 +415,13 @@ function WatchPresetsCard() {
               >
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <LwPill
-                    tone={preset.status === 'active' ? 'success' : preset.status === 'paused' ? 'warning' : 'gray'}
+                    tone={
+                      preset.status === 'active'
+                        ? 'success'
+                        : preset.status === 'paused'
+                          ? 'warning'
+                          : 'gray'
+                    }
                     size="22"
                   >
                     {preset.status.toUpperCase()}
@@ -351,7 +436,10 @@ function WatchPresetsCard() {
                     : ''}
                 </p>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <LwButton onClick={() => setEditing(preset)} disabled={preset.status === 'archived'}>
+                  <LwButton
+                    onClick={() => setEditing(preset)}
+                    disabled={preset.status === 'archived'}
+                  >
                     Edit
                   </LwButton>
                   {preset.status === 'active' ? (
@@ -359,7 +447,10 @@ function WatchPresetsCard() {
                       onClick={() =>
                         setStatus.mutate(
                           { id: preset.id, status: 'paused' },
-                          { onSuccess: () => setStatusError(null), onError: (err) => setStatusError(w2Error(err)) },
+                          {
+                            onSuccess: () => setStatusError(null),
+                            onError: (err) => setStatusError(w2Error(err)),
+                          },
                         )
                       }
                       disabled={setStatus.isPending}
@@ -371,7 +462,10 @@ function WatchPresetsCard() {
                       onClick={() =>
                         setStatus.mutate(
                           { id: preset.id, status: 'active' },
-                          { onSuccess: () => setStatusError(null), onError: (err) => setStatusError(w2Error(err)) },
+                          {
+                            onSuccess: () => setStatusError(null),
+                            onError: (err) => setStatusError(w2Error(err)),
+                          },
                         )
                       }
                       disabled={setStatus.isPending}
@@ -384,7 +478,10 @@ function WatchPresetsCard() {
                       onClick={() =>
                         setStatus.mutate(
                           { id: preset.id, status: 'archived' },
-                          { onSuccess: () => setStatusError(null), onError: (err) => setStatusError(w2Error(err)) },
+                          {
+                            onSuccess: () => setStatusError(null),
+                            onError: (err) => setStatusError(w2Error(err)),
+                          },
                         )
                       }
                       disabled={setStatus.isPending}
@@ -443,20 +540,20 @@ function SavedViewsSummaryCard() {
         </p>
       ) : personal.isError || shared.isError ? (
         <p role="alert" className="lw-card__meta" style={{ fontSize: 13 }}>
-          Saved views could not be loaded.{' '}
-          {w2Error(personal.error ?? shared.error)}
+          Saved views could not be loaded. {w2Error(personal.error ?? shared.error)}
         </p>
       ) : bySurface.size === 0 ? (
         <p className="lw-card__meta" style={{ fontSize: 13 }}>
-          No saved views yet. Save a hearings, feed, bills, or committee view from its own
-          "Saved views" control to see it here.
+          No saved views yet. Save a hearings, feed, bills, or committee view from its own "Saved
+          views" control to see it here.
         </p>
       ) : (
         <ul style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 13 }}>
           {[...bySurface.entries()].map(([surface, count]) => (
             <li key={surface}>
-              {SAVED_VIEW_SURFACE_LABEL[surface as keyof typeof SAVED_VIEW_SURFACE_LABEL] ?? surface}:{' '}
-              {count} view{count === 1 ? '' : 's'}
+              {SAVED_VIEW_SURFACE_LABEL[surface as keyof typeof SAVED_VIEW_SURFACE_LABEL] ??
+                surface}
+              : {count} view{count === 1 ? '' : 's'}
             </li>
           ))}
         </ul>

@@ -28,6 +28,8 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
+import { requireStateCalendar } from './legiwatch-calendar-access.js';
+import { LiveHearingsService, type CalendarQuery } from './live-hearings.service.js';
 import {
   assessAttendance,
   refuseAttendanceRequest,
@@ -86,13 +88,14 @@ function clampPage(value: number | undefined): number {
  * text lossless is what makes the keyset actually stable.
  */
 function encodeIntelHistoryCursor(row: { createdAtText: string; id: string }): string {
-  return Buffer.from(
-    JSON.stringify({ t: row.createdAtText, id: row.id }),
-    'utf8',
-  ).toString('base64url');
+  return Buffer.from(JSON.stringify({ t: row.createdAtText, id: row.id }), 'utf8').toString(
+    'base64url',
+  );
 }
 
-function decodeIntelHistoryCursor(cursor: string | undefined): { createdAtText: string; id: string } | null {
+function decodeIntelHistoryCursor(
+  cursor: string | undefined,
+): { createdAtText: string; id: string } | null {
   if (!cursor) return null;
   try {
     const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
@@ -195,6 +198,15 @@ export type ArchiveSearchPage = {
 
 interface CanonicalHearingRow {
   id: string;
+  geographicJurisdiction?: string | null;
+  legislativeSession?: string | null;
+  stateCommitteeId?: string | null;
+  calendarRevision?: number;
+  calendarSnapshot?: unknown;
+  calendarCheckedAt?: Date | null;
+  calendarCheckState?: string;
+  timePrecision?: string | null;
+  scheduledEnd?: Date | null;
   title: string;
   chamber: string;
   committeeName: string | null;
@@ -227,7 +239,7 @@ export class LegiWatchWave1Service {
   // ── W1-1 · configurable hearing following ────────────────────────────────
 
   async followState(ctx: TenantContext, hearingId: string): Promise<FollowConfigState> {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.hearingFollow.findFirst({
         where: { userId: ctx.userId, hearingId },
@@ -252,7 +264,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     input: FollowConfigInput,
   ): Promise<FollowConfigState> {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     const clientIds = await this.resolveClientIds(ctx, input.clientIds ?? []);
 
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -301,7 +313,7 @@ export class LegiWatchWave1Service {
 
   /** Unfollow. Idempotent: unfollowing a hearing you do not follow succeeds. */
   async unfollow(ctx: TenantContext, hearingId: string): Promise<FollowConfigState> {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.hearingFollow.deleteMany({ where: { userId: ctx.userId, hearingId } }),
     );
@@ -353,10 +365,11 @@ export class LegiWatchWave1Service {
 
   // ── W1-2 · configurable attendance / capture request ─────────────────────
 
-  async attendanceState(ctx: TenantContext, hearingId: string): Promise<
-    AttendanceAssessment & { hearingId: string }
-  > {
-    const hearing = await this.requireHearing(hearingId);
+  async attendanceState(
+    ctx: TenantContext,
+    hearingId: string,
+  ): Promise<AttendanceAssessment & { hearingId: string }> {
+    const hearing = await this.requireHearing(hearingId, ctx);
     return { hearingId, ...(await this.assess(ctx, hearing)) };
   }
 
@@ -375,7 +388,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     input: { mode?: 'automatic' | 'browser'; consentAcknowledged?: boolean },
   ): Promise<Record<string, unknown>> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     const mode = input.mode ?? 'automatic';
     const assessment = await this.assess(ctx, hearing);
 
@@ -460,7 +473,7 @@ export class LegiWatchWave1Service {
    * which preserves the canonical capture and other tenants' demand.
    */
   async cancelAttendance(ctx: TenantContext, hearingId: string): Promise<Record<string, unknown>> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     const result = await this.phase7.cancelSchedule(ctx, hearingId);
     // The Phase 7 cancel only clears scheduled_by_user; a browser-mode row has
     // that false already, so remove the row outright when nothing else holds it.
@@ -540,7 +553,7 @@ export class LegiWatchWave1Service {
 
   /** Accessible saved captures; public capture/transcript state stays separate. */
   async savedSessions(ctx: TenantContext, hearingId: string) {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     const discovery = await this.discoverSavedSessions(ctx, hearingId);
     return {
       hearingId,
@@ -550,7 +563,10 @@ export class LegiWatchWave1Service {
     };
   }
 
-  private discoverSavedSessions(ctx: TenantContext, hearingId: string | null = null): Promise<SavedSessionsDiscovery> {
+  private discoverSavedSessions(
+    ctx: TenantContext,
+    hearingId: string | null = null,
+  ): Promise<SavedSessionsDiscovery> {
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       discoverSavedHearingSessions(tx, ctx.tenantId, ctx.clerkUserId, hearingId),
     );
@@ -595,7 +611,12 @@ export class LegiWatchWave1Service {
     // normalization the SQL applies to title + committee. A consequence worth
     // stating: this cannot contain `%`, `_` or a backslash, which is why the
     // LIKE patterns built from it need no escaping.
-    const normPhrase = phrase ? phrase.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() : '';
+    const normPhrase = phrase
+      ? phrase
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim()
+      : '';
     const terms = normPhrase ? normPhrase.split(' ') : [];
     // One tenant-scoped discovery serves rows, counts, facets and any fallback
     // search. Never fetch tenant transcripts into the public research corpus.
@@ -700,14 +721,17 @@ export class LegiWatchWave1Service {
     if (input.from) filters.push(`AND h.date >= ${bind(input.from)}::date`);
     if (input.to) filters.push(`AND h.date <= ${bind(input.to)}::date`);
     if (input.chamber) filters.push(`AND lower(h.chamber) = lower(${bind(input.chamber)})`);
-    if (input.committee)
-      filters.push(`AND h.committee_system_code = ${bind(input.committee)}`);
+    if (input.committee) filters.push(`AND h.committee_system_code = ${bind(input.committee)}`);
     if (input.subcommittee)
       filters.push(`AND h.subcommittee_system_code = ${bind(input.subcommittee)}`);
     if (input.eventStatus) filters.push(`AND h.event_status = ${bind(input.eventStatus)}`);
-    const savedTranscriptHearingIds = [...new Set(saved.sessions
-      .filter((session) => session.transcriptSegmentCount > 0)
-      .map((session) => session.hearingId))];
+    const savedTranscriptHearingIds = [
+      ...new Set(
+        saved.sessions
+          .filter((session) => session.transcriptSegmentCount > 0)
+          .map((session) => session.hearingId),
+      ),
+    ];
     if (input.hasTranscript === true)
       filters.push(
         `AND (ot.id IS NOT NULL OR EXISTS (SELECT 1 FROM public_hearing_transcript_segment s2 WHERE s2.capture_id = c.id)
@@ -761,7 +785,7 @@ export class LegiWatchWave1Service {
     // The FROM clause is shared by the row query, the count and the facets so
     // a facet can never describe a different population than the results.
     const from = `
-      FROM committee_hearing h
+      FROM federal_committee_hearing h
       LEFT JOIN public_hearing_capture c ON c.hearing_id = h.id
       LEFT JOIN official_hearing_transcript ot ON ot.hearing_id = h.id`;
 
@@ -947,9 +971,10 @@ export class LegiWatchWave1Service {
       rows: rows.map((row) => ({
         ...this.toArchiveResult(row),
         savedSessions: saved.sessions.filter((session) => session.hearingId === row.id),
-        savedTranscriptAvailable: saved.savedSessionsState === 'unavailable'
-          ? null
-          : savedTranscriptHearingIds.includes(String(row.id)),
+        savedTranscriptAvailable:
+          saved.savedSessionsState === 'unavailable'
+            ? null
+            : savedTranscriptHearingIds.includes(String(row.id)),
       })),
       savedSessionsState: saved.savedSessionsState,
       total,
@@ -1286,7 +1311,7 @@ export class LegiWatchWave1Service {
              h.committee_system_code    AS "hearingCommitteeSystemCode",
              h.subcommittee_system_code AS "hearingSubcommitteeSystemCode"
       FROM public_hearing_insight i
-      JOIN committee_hearing h ON h.id = i.hearing_id
+      JOIN federal_committee_hearing h ON h.id = i.hearing_id
       WHERE ${committeeFilter}
         ${filterSql}
         ${cursorSql}
@@ -1296,7 +1321,7 @@ export class LegiWatchWave1Service {
     const countSql = `
       SELECT count(*)::int AS total
       FROM public_hearing_insight i
-      JOIN committee_hearing h ON h.id = i.hearing_id
+      JOIN federal_committee_hearing h ON h.id = i.hearing_id
       WHERE ${committeeFilter}
         ${filterSql}`;
 
@@ -1315,7 +1340,7 @@ export class LegiWatchWave1Service {
                         WHERE c.hearing_id = h.id
                       )
                     )::int AS "withTranscript"
-             FROM committee_hearing h
+             FROM federal_committee_hearing h
              WHERE ${committeeFilter}`,
             canonicalCode,
           ),
@@ -1326,7 +1351,7 @@ export class LegiWatchWave1Service {
           tx.$queryRawUnsafe<Array<{ pending: number }>>(
             `SELECT count(*)::int AS pending
              FROM public_hearing_intelligence_job j
-             JOIN committee_hearing h ON h.id = j.hearing_id
+             JOIN federal_committee_hearing h ON h.id = j.hearing_id
              WHERE ${committeeFilter}
                AND j.status IN ('pending', 'leased')`,
             canonicalCode,
@@ -1337,9 +1362,7 @@ export class LegiWatchWave1Service {
     const total = totals[0]?.total ?? 0;
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
-    const last = page[page.length - 1] as
-      | { createdAtCursor?: unknown; id?: unknown }
-      | undefined;
+    const last = page[page.length - 1] as { createdAtCursor?: unknown; id?: unknown } | undefined;
     const nextCursor =
       hasMore && typeof last?.createdAtCursor === 'string' && typeof last.id === 'string'
         ? encodeIntelHistoryCursor({ createdAtText: last.createdAtCursor, id: last.id })
@@ -1389,7 +1412,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     clientId: string,
   ): Promise<ClientRelevanceResult> {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     const client = await this.assertClientInTenant(ctx.tenantId, clientId);
     const [rows, segments] = await Promise.all([
       this.relevanceRows(ctx, hearingId, clientId),
@@ -1445,7 +1468,7 @@ export class LegiWatchWave1Service {
     ctx: TenantContext,
     hearingId: string,
   ): Promise<Record<string, unknown>> {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     const [clients, rows, segments] = await Promise.all([
       this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.client.findMany({
@@ -1572,7 +1595,7 @@ export class LegiWatchWave1Service {
       note?: string;
     },
   ): Promise<Record<string, unknown>> {
-    await this.requireHearing(hearingId);
+    await this.requireHearing(hearingId, ctx);
     if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
 
     // Validate the references actually belong to THIS hearing. Without this a
@@ -1686,7 +1709,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     input: { segmentId?: string; insightId?: string; clientId?: string; question?: string },
   ): Promise<Record<string, unknown>> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     let client: { id: string; name: string | null } | null = null;
     if (input.clientId) client = await this.assertClientInTenant(ctx.tenantId, input.clientId);
     if (input.segmentId) await this.assertSegmentInHearing(hearingId, input.segmentId);
@@ -1777,7 +1800,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     input: { clientId?: string; insightIds?: string[] },
   ): Promise<Record<string, unknown>> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     let client: { id: string; name: string | null } | null = null;
     if (input.clientId) client = await this.assertClientInTenant(ctx.tenantId, input.clientId);
 
@@ -1870,7 +1893,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     input: { clientId: string; insightId?: string; segmentId?: string },
   ): Promise<Record<string, unknown>> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     const client = await this.assertClientInTenant(ctx.tenantId, input.clientId);
     if (input.insightId) await this.assertInsightInHearing(hearingId, input.insightId);
     if (input.segmentId) await this.assertSegmentInHearing(hearingId, input.segmentId);
@@ -1929,16 +1952,19 @@ export class LegiWatchWave1Service {
   // ── W1-8 · calendar export ───────────────────────────────────────────────
 
   async calendarExport(
-    _ctx: TenantContext,
+    ctx: TenantContext,
     hearingId: string,
     appOrigin: string,
+    options: { dateOnlyReminder?: boolean } = {},
   ): Promise<CalendarExportResult> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     const payload = await this.toCalendarExportHearing(hearing);
-    return buildCalendarExport(payload, { appOrigin });
+    return buildCalendarExport(payload, { appOrigin, ...options });
   }
 
-  private async toCalendarExportHearing(hearing: CanonicalHearingRow): Promise<CalendarExportHearing> {
+  private async toCalendarExportHearing(
+    hearing: CanonicalHearingRow,
+  ): Promise<CalendarExportHearing> {
     const subcommittee = hearing.subcommitteeSystemCode
       ? await this.prisma.congressCommittee.findFirst({
           where: { systemCode: hearing.subcommitteeSystemCode },
@@ -1951,6 +1977,9 @@ export class LegiWatchWave1Service {
       date: hearing.date.toISOString().slice(0, 10),
       startsAt: hearing.startsAt,
       actualEnd: hearing.actualEnd,
+      scheduledEnd: hearing.scheduledEnd,
+      calendarRevision: hearing.calendarRevision,
+      timePrecision: hearing.timePrecision,
       time: hearing.time,
       timezone: hearing.timezone,
       location: hearing.location,
@@ -1972,43 +2001,45 @@ export class LegiWatchWave1Service {
    * Bounded to 500 hearings so this can never become a request/row storm.
    */
   async calendarExportBulk(
-    _ctx: TenantContext,
-    input: { hearingIds?: string[]; from?: string; to?: string },
+    ctx: TenantContext,
+    input: CalendarQuery & { dateOnlyReminder?: boolean },
     appOrigin: string,
-  ): Promise<{ ics: string; filename: string; includedCount: number; skipped: Array<{ id: string; reason: string }> }> {
-    const MAX = 500;
-    let rows: CanonicalHearingRow[];
-    if (input.hearingIds?.length) {
-      const ids = input.hearingIds.slice(0, MAX);
-      const found = await this.prisma.committeeHearing.findMany({
-        where: { id: { in: ids }, visibility: 'public' },
-        select: {
-          id: true, title: true, chamber: true, committeeName: true, committeeSystemCode: true,
-          subcommitteeSystemCode: true, date: true, startsAt: true, time: true, timezone: true,
-          location: true, url: true, visibility: true, eventStatus: true, type: true, witnesses: true,
-          actualEnd: true,
-        },
+  ): Promise<{
+    ics: string;
+    filename: string;
+    includedCount: number;
+    skipped: Array<{ id: string; reason: string }>;
+  }> {
+    const MAX = 5000;
+    if (input.hearingIds || (input.from && input.to)) {
+      const calendar = new LiveHearingsService(this.prisma);
+      const hearings: CalendarExportHearing[] = [];
+      let total = 0;
+      for (let page = 1; page <= MAX / 200; page++) {
+        const result = await calendar.calendar(ctx, { ...input, page, pageSize: 200 });
+        total = result.total;
+        if (total > MAX)
+          throw new BadRequestException(
+            `Selection contains ${total} events; narrow it to at most ${MAX}`,
+          );
+        for (const row of result.rows)
+          hearings.push(await this.toCalendarExportHearing(await this.requireHearing(row.id, ctx)));
+        if (hearings.length >= total || !result.rows.length) break;
+      }
+      if (hearings.length !== total)
+        throw new BadRequestException(
+          'Calendar selection changed during export; refresh and retry',
+        );
+      const result = buildBulkCalendarExport(hearings, {
+        appOrigin,
+        dateOnlyReminder: input.dateOnlyReminder,
       });
-      rows = found.map((h) => ({ ...h, eventType: h.type }) as CanonicalHearingRow);
-    } else if (input.from && input.to) {
-      const found = await this.prisma.committeeHearing.findMany({
-        where: { visibility: 'public', date: { gte: new Date(input.from), lte: new Date(input.to) } },
-        orderBy: [{ date: 'asc' }, { startsAt: 'asc' }],
-        take: MAX,
-        select: {
-          id: true, title: true, chamber: true, committeeName: true, committeeSystemCode: true,
-          subcommitteeSystemCode: true, date: true, startsAt: true, time: true, timezone: true,
-          location: true, url: true, visibility: true, eventStatus: true, type: true, witnesses: true,
-          actualEnd: true,
-        },
-      });
-      rows = found.map((h) => ({ ...h, eventType: h.type }) as CanonicalHearingRow);
-    } else {
-      throw new BadRequestException('calendarExportBulk requires hearingIds or a from/to window');
+      for (const id of new Set(input.hearingIds ?? []))
+        if (!hearings.some((h) => h.id === id))
+          result.skipped.push({ id, reason: 'Event unavailable in this selection' });
+      return result;
     }
-
-    const payloads = await Promise.all(rows.map((h) => this.toCalendarExportHearing(h)));
-    return buildBulkCalendarExport(payloads, { appOrigin });
+    throw new BadRequestException('calendarExportBulk requires hearingIds or a from/to window');
   }
 
   // ── Hearing Detail V2 composition ────────────────────────────────────────
@@ -2026,7 +2057,7 @@ export class LegiWatchWave1Service {
     hearingId: string,
     input: { clientId?: string } = {},
   ): Promise<Record<string, unknown>> {
-    const hearing = await this.requireHearing(hearingId);
+    const hearing = await this.requireHearing(hearingId, ctx);
     if (input.clientId) await this.assertClientInTenant(ctx.tenantId, input.clientId);
 
     const [attendance, follow, segmentCount, insightSummary, committee, sources] =
@@ -2136,11 +2167,23 @@ export class LegiWatchWave1Service {
    * Hearings are GLOBAL public records, so this read is intentionally not
    * tenant-scoped — but nothing tenant-owned is returned from it.
    */
-  private async requireHearing(hearingId: string): Promise<CanonicalHearingRow> {
+  private async requireHearing(
+    hearingId: string,
+    ctx: TenantContext,
+  ): Promise<CanonicalHearingRow> {
     const hearing = await this.prisma.committeeHearing.findUnique({
       where: { id: hearingId },
       select: {
         id: true,
+        geographicJurisdiction: true,
+        legislativeSession: true,
+        stateCommitteeId: true,
+        calendarRevision: true,
+        calendarSnapshot: true,
+        calendarCheckedAt: true,
+        calendarCheckState: true,
+        timePrecision: true,
+        scheduledEnd: true,
         title: true,
         chamber: true,
         committeeName: true,
@@ -2160,6 +2203,8 @@ export class LegiWatchWave1Service {
       },
     });
     if (!hearing) throw new NotFoundException(`hearing ${hearingId} not found`);
+    if (hearing.geographicJurisdiction && hearing.geographicJurisdiction !== 'US')
+      await requireStateCalendar(this.prisma, ctx.tenantId);
     return {
       ...hearing,
       eventType: hearing.type,

@@ -80,13 +80,13 @@ export function transcriptAvailability(
   }
   // A canonical capture can run before an official calendar's status catches
   // up. Its recorded/live segments must not disappear behind stale SCHEDULED
-  // metadata; only report not-occurred when there is no capture to inspect.
+  // metadata. Calendar status alone does not establish whether it occurred.
   if (!captureStatus || captureStatus === 'NOT_SCHEDULED') {
     if (status === 'SCHEDULED' || status === 'POSTPONED') {
       return {
         available: false,
         state: 'not-yet-occurred',
-        note: 'This proceeding has not occurred yet. The transcript appears here once capture starts.',
+        note: 'No automatic-capture transcript is available. Check the published notice for the latest proceeding status and saved sessions for any recorded content.',
       };
     }
     if (status === 'CANCELED' || status === 'CANCELLED') {

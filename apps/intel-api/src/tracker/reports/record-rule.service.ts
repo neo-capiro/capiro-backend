@@ -9,6 +9,10 @@ import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { isFolderAdmin, canEditFolder } from '../folders/folder-tracker.service.js';
 import { ReportService } from './report.service.js';
 import {
+  AGENDA_ALERTS_FEATURE,
+  REPORTS_UPDATES_FEATURE,
+} from '../../feature-flags/feature-flag.service.js';
+import {
   digest,
   escapeHtml,
   ids,
@@ -26,12 +30,20 @@ export interface RuleRecipient {
   email: boolean;
   inApp: boolean;
 }
-export function capturedRule(raw: unknown) {
+export function capturedRule(raw: unknown, family: 'bill_record' | 'agenda' = 'bill_record') {
   const r = object(raw);
-  if (r.family !== 'Bill Action and Amendments Filed Alert')
+  if (
+    r.family !==
+    (family === 'agenda' ? 'Tagged Bill Agenda' : 'Bill Action and Amendments Filed Alert')
+  )
     throw new BadRequestException('ALERT_FAMILY_OUTSIDE_PHASE2');
+  if (family === 'agenda' && !/^alert-(?:0[4-9]|1[01])$/.test(String(r.audit_key)))
+    throw new BadRequestException('AGENDA_RULE_OUTSIDE_EIGHT_CAPTURED_DEFINITIONS');
   const frequency = Array.isArray(r.frequency) ? r.frequency : [];
-  if (frequency.length !== 1 || !['Real time', 'End of day'].includes(String(frequency[0])))
+  if (
+    family === 'bill_record' &&
+    (frequency.length !== 1 || !['Real time', 'End of day'].includes(String(frequency[0])))
+  )
     throw new BadRequestException('CAPTURED_CADENCE_REQUIRES_REVIEW');
   const folders = (Array.isArray(r.selected_targets) ? r.selected_targets : []).flatMap((t) => {
     const target = object(t);
@@ -40,26 +52,42 @@ export function capturedRule(raw: unknown) {
       : [];
   });
   return {
-    name: text(r.name),
+    name: family === 'agenda' && typeof r.name === 'string' ? r.name.slice(0, 200) : text(r.name),
     sourceFolderIds: ids(folders),
     cadence: frequency[0] === 'Real time' ? 'realtime' : 'end_of_day',
+    reviewIssues:
+      family === 'agenda'
+        ? [
+            'Select and review a Capiro cadence; source cadence was not captured',
+            ...(String(r.audit_key) === 'alert-10'
+              ? ['Confirm a current owner; captured creator was Deleted User']
+              : []),
+          ]
+        : [],
   };
 }
 
 @Injectable()
 export class RecordRuleService {
+  protected readonly family: 'bill_record' | 'agenda' = 'bill_record';
   constructor(readonly reports: ReportService) {}
+  protected authorize(ctx: WorkspaceTenantContext) {
+    return this.reports.authorize(
+      ctx,
+      this.family === 'agenda' ? AGENDA_ALERTS_FEATURE : REPORTS_UPDATES_FEATURE,
+    );
+  }
   async list(ctx: WorkspaceTenantContext) {
-    await this.reports.authorize(ctx);
+    await this.authorize(ctx);
     return this.reports.folders.withActor(ctx, (tx) =>
       tx.legiWatchRecordRule.findMany({
-        where: { tenantId: ctx.tenantId },
+        where: { tenantId: ctx.tenantId, family: this.family },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       }),
     );
   }
   async promote(ctx: WorkspaceTenantContext, stagedId: string, input: unknown) {
-    await this.reports.authorize(ctx);
+    await this.authorize(ctx);
     const b = object(input);
     if (!isFolderAdmin(ctx)) throw new ForbiddenException('RULE_PROMOTION_REQUIRES_ADMIN');
     return this.reports.folders.withActor(ctx, async (tx) => {
@@ -68,6 +96,8 @@ export class RecordRuleService {
         where: { tenantId: ctx.tenantId, id: stagedId, kind: 'alert', state: { not: 'excluded' } },
       });
       if (!staged) throw new NotFoundException('STAGED_RULE_NOT_FOUND');
+      // Validate the source family before returning an earlier promotion.
+      capturedRule(object(staged.payload), this.family);
       const previous = await tx.legiWatchPromotion.findFirst({
         where: { tenantId: ctx.tenantId, stagedId },
       });
@@ -78,7 +108,7 @@ export class RecordRuleService {
           sourceChanged: previous.sourceHash !== digest(staged.payload),
         };
       const raw = object(staged.payload),
-        normalized = capturedRule(raw),
+        normalized = capturedRule(raw, this.family),
         sourceKey = String(raw.audit_key);
       const otherCaptures = await tx.legiWatchPromotion.findMany({
         where: {
@@ -99,6 +129,7 @@ export class RecordRuleService {
           where: {
             tenantId: ctx.tenantId,
             id: text(b.existingRuleId),
+            family: this.family,
             ownerClerkId: ctx.clerkUserId,
           },
         });
@@ -129,6 +160,7 @@ export class RecordRuleService {
       const issues: string[] = normalized.sourceFolderIds
         .filter((id) => !mappings.some((m) => m.sourceId === id))
         .map((id) => `Unresolved folder ${id}`);
+      issues.push(...normalized.reviewIssues);
       if (!normalized.sourceFolderIds.length) issues.push('No folder targets selected');
       const channels = await tx.legiWatchStagedConfiguration.findMany({
         where: {
@@ -166,6 +198,7 @@ export class RecordRuleService {
         data: {
           tenantId: ctx.tenantId,
           ownerClerkId: ctx.clerkUserId,
+          family: this.family,
           name: normalized.name,
           folderIds: mappings.map((m) => m.targetId),
           recipients: json(recipients),
@@ -191,7 +224,7 @@ export class RecordRuleService {
     });
   }
   async save(ctx: WorkspaceTenantContext, id: string, input: unknown) {
-    await this.reports.authorize(ctx);
+    await this.authorize(ctx);
     const b = object(input),
       folderIds = ids(b.folderIds);
     if (!Array.isArray(b.recipients) || b.recipients.length > 100)
@@ -211,7 +244,7 @@ export class RecordRuleService {
         throw new BadRequestException('STAFF_MEMBERSHIP_REQUIRED');
     return this.reports.folders.withActor(ctx, async (tx) => {
       const rule = await tx.legiWatchRecordRule.findFirst({
-        where: { tenantId: ctx.tenantId, id, ownerClerkId: ctx.clerkUserId },
+        where: { tenantId: ctx.tenantId, id, family: this.family, ownerClerkId: ctx.clerkUserId },
       });
       if (!rule) throw new NotFoundException('RULE_NOT_FOUND');
       for (const folderId of folderIds) await this.reports.folders.folder(tx, ctx, folderId, true);
@@ -233,10 +266,10 @@ export class RecordRuleService {
     });
   }
   async readiness(ctx: WorkspaceTenantContext, id: string) {
-    await this.reports.authorize(ctx);
+    await this.authorize(ctx);
     const data = await this.reports.folders.withActor(ctx, async (tx) => {
       const rule = await tx.legiWatchRecordRule.findFirst({
-        where: { tenantId: ctx.tenantId, id },
+        where: { tenantId: ctx.tenantId, id, family: this.family },
       });
       if (!rule) throw new NotFoundException('RULE_NOT_FOUND');
       const folders = await Promise.all(
@@ -309,6 +342,7 @@ export class RecordRuleService {
     if (billIds.some((id) => !bills.some((b) => b.id === id)))
       issues.push('Canonical bill mapping incomplete');
     if (
+      this.family === 'bill_record' &&
       bills.some(
         (b) =>
           b.sourceCheckStatus !== 'success' ||
@@ -369,7 +403,9 @@ export class RecordRuleService {
   async detect(tenantId: string, now = new Date()) {
     const prisma = this.reports.folders.prisma;
     const rules = await prisma.withTenant(tenantId, (tx) =>
-      tx.legiWatchRecordRule.findMany({ where: { tenantId, state: 'active' } }),
+      tx.legiWatchRecordRule.findMany({
+        where: { tenantId, state: 'active', family: this.family },
+      }),
     );
     let matches = 0;
     for (const rule of rules) {
@@ -452,9 +488,15 @@ export class RecordRuleService {
   }
   async enqueue(tenantId: string, now = new Date()) {
     const prisma = this.reports.folders.prisma;
+    const ruleIds = await prisma.withTenant(tenantId, (tx) =>
+      tx.legiWatchRecordRule.findMany({
+        where: { tenantId, family: this.family },
+        select: { id: true },
+      }),
+    );
     const matches = await prisma.withTenant(tenantId, (tx) =>
       tx.legiWatchRecordMatch.findMany({
-        where: { tenantId, state: 'queued' },
+        where: { tenantId, state: 'queued', ruleId: { in: ruleIds.map((r) => r.id) } },
         take: 1000,
         orderBy: { firstObservedAt: 'asc' },
       }),
@@ -462,7 +504,13 @@ export class RecordRuleService {
     for (const match of matches) {
       await prisma.withTenant(tenantId, async (tx) => {
         const rule = await tx.legiWatchRecordRule.findFirst({
-          where: { tenantId, id: match.ruleId, state: 'active', version: match.ruleVersion },
+          where: {
+            tenantId,
+            id: match.ruleId,
+            state: 'active',
+            version: match.ruleVersion,
+            family: this.family,
+          },
         });
         if (!rule) {
           await tx.legiWatchRecordMatch.update({

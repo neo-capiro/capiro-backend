@@ -15,6 +15,7 @@ export const DIRECTORY_ROUTES = {
   committeeStaff: '/directory/committee-staff',
   departmentOfWar: '/directory/department-of-war',
   stateLegislators: '/directory/state-legislators',
+  stateCommittees: '/directory/state-committees',
 } as const;
 
 /** Legacy entry point; resolves to Congressional Staff. */
@@ -25,6 +26,7 @@ export const DIRECTORY_PROFILE_ROUTES = {
   member: (memberId: string) => `/directory/members/${encodeURIComponent(memberId)}`,
   committee: (committeeId: string) => `/directory/committees/${encodeURIComponent(committeeId)}`,
   stateLegislator: (id: string) => `/directory/state-legislators/${encodeURIComponent(id)}`,
+  stateCommittee: (id: string) => `/directory/state-committees/${encodeURIComponent(id)}`,
   departmentOfWarPerson: (personId: string) =>
     `/directory/department-of-war/${encodeURIComponent(personId)}`,
 } as const;
@@ -37,7 +39,11 @@ export interface DirectoryTab {
 
 /** Route tabs, in the order the Directory screens render them. */
 export const DIRECTORY_TABS: readonly DirectoryTab[] = [
-  { id: 'congressional-staff', label: 'Congressional Staff', path: DIRECTORY_ROUTES.congressionalStaff },
+  {
+    id: 'congressional-staff',
+    label: 'Congressional Staff',
+    path: DIRECTORY_ROUTES.congressionalStaff,
+  },
   { id: 'committee-staff', label: 'Committee Staff', path: DIRECTORY_ROUTES.committeeStaff },
   { id: 'department-of-war', label: 'Department of War', path: DIRECTORY_ROUTES.departmentOfWar },
   { id: 'state-legislators', label: 'State Legislators', path: DIRECTORY_ROUTES.stateLegislators },
@@ -49,7 +55,8 @@ export const DIRECTORY_TABS: readonly DirectoryTab[] = [
  * reason to silently drop a caller's filters.
  */
 export function resolveLegacyDirectoryTarget(search: string): string {
-  const normalized = search && search !== '?' ? (search.startsWith('?') ? search : `?${search}`) : '';
+  const normalized =
+    search && search !== '?' ? (search.startsWith('?') ? search : `?${search}`) : '';
   return `${DIRECTORY_ROUTES.congressionalStaff}${normalized}`;
 }
 
@@ -76,6 +83,7 @@ export type DirectoryProfileMatch =
   | { kind: 'staff'; staffId: string }
   | { kind: 'committee'; committeeId: string }
   | { kind: 'stateLegislator'; id: string }
+  | { kind: 'stateCommittee'; id: string }
   | { kind: 'district'; state: string; districtNo: string };
 
 /**
@@ -116,9 +124,14 @@ export function matchDirectoryProfilePath(pathname: string): DirectoryProfileMat
     if (section === 'staff') return { kind: 'staff', staffId: param };
     if (section === 'committees') return { kind: 'committee', committeeId: param };
     if (section === 'state-legislators') return { kind: 'stateLegislator', id: param };
+    if (section === 'state-committees') return { kind: 'stateCommittee', id: param };
   }
   if (section === 'districts' && params.length === 2 && params[0] && params[1]) {
-    return { kind: 'district', state: decodeSegment(params[0]), districtNo: decodeSegment(params[1]) };
+    return {
+      kind: 'district',
+      state: decodeSegment(params[0]),
+      districtNo: decodeSegment(params[1]),
+    };
   }
   return null;
 }

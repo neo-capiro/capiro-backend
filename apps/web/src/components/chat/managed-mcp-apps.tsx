@@ -124,7 +124,15 @@ export function ManagedMcpAppsProvider({ children }: { children: ReactNode }) {
         await api.post('/api/clio/v3/apps/' + appId + '/cancel', {});
         await refresh();
       } catch {
-        fail('Sign-in did not finish. Return to this app in Meri integrations and try again.');
+        // Never stomp a more specific error already reported by the caller
+        // (e.g. "Could not complete sign-in") with this generic fallback.
+        if (isCurrent()) {
+          setAction((previous) =>
+            previous.scope === scope && previous.busy === appId && previous.error
+              ? previous
+              : { scope, busy: appId, error: 'Sign-in did not finish. Return to this app in Meri integrations and try again.' },
+          );
+        }
       }
     };
     let popup: Window | null = null;

@@ -42,6 +42,9 @@ export interface CalendarExportHearing {
   startsAt?: string | Date | null;
   /** Official end instant when known. */
   actualEnd?: string | Date | null;
+  scheduledEnd?: string | Date | null;
+  calendarRevision?: number;
+  timePrecision?: string | null;
   /** Official wall-clock string from the source, e.g. "10:00 AM". */
   time?: string | null;
   /** IANA zone recorded for the event. */
@@ -67,6 +70,8 @@ export interface CalendarExportOptions {
   appOrigin: string;
   /** Injected for deterministic tests; defaults to now. */
   now?: Date;
+  /** Explicitly chosen date-only reminder for a source with uncertain time. */
+  dateOnlyReminder?: boolean;
 }
 
 export interface CalendarExportResult {
@@ -210,7 +215,9 @@ export function foldIcsLine(line: string): string {
 }
 
 /** VEVENT STATUS for a committee-event lifecycle value. */
-function icsStatus(eventStatus: string | null | undefined): 'CANCELLED' | 'TENTATIVE' | 'CONFIRMED' {
+function icsStatus(
+  eventStatus: string | null | undefined,
+): 'CANCELLED' | 'TENTATIVE' | 'CONFIRMED' {
   switch ((eventStatus ?? '').toLowerCase()) {
     case 'canceled':
     case 'cancelled':
@@ -231,11 +238,7 @@ export function calendarUid(hearingId: string): string {
  * Human-readable description body. Built as real newlines and escaped once, so
  * the multi-line case is exercised by the same path as the single-line case.
  */
-function buildDescription(
-  h: CalendarExportHearing,
-  detailUrl: string,
-  allDay: boolean,
-): string {
+function buildDescription(h: CalendarExportHearing, detailUrl: string, allDay: boolean): string {
   const zone = h.timezone?.trim() || 'America/New_York';
   const zoneLabel = ZONE_LABEL[zone] ?? zone;
   const lines: string[] = [];
@@ -279,7 +282,10 @@ function buildDescription(
  */
 /** One hearing's `BEGIN:VEVENT`…`END:VEVENT` block. Shared by the single-hearing
  *  and bulk exports so the date/time contract above has exactly one implementation. */
-function buildVEventProps(h: CalendarExportHearing, options: CalendarExportOptions): {
+function buildVEventProps(
+  h: CalendarExportHearing,
+  options: CalendarExportOptions,
+): {
   props: string[];
   dayParts: NonNullable<ReturnType<typeof calendarDayParts>>;
   start: Date | null;
@@ -287,9 +293,7 @@ function buildVEventProps(h: CalendarExportHearing, options: CalendarExportOptio
   detailUrl: string;
   uid: string;
 } {
-  const dayParts = calendarDayParts(
-    h.date ?? (typeof h.startsAt === 'string' ? h.startsAt : null),
-  );
+  const dayParts = calendarDayParts(h.date ?? (typeof h.startsAt === 'string' ? h.startsAt : null));
   if (!dayParts) {
     throw new Error(`hearing ${h.id} has no usable calendar date`);
   }
@@ -297,6 +301,8 @@ function buildVEventProps(h: CalendarExportHearing, options: CalendarExportOptio
   const start = toInstant(h.startsAt);
   // Rule 1/2: an instant only when the official time is actually known.
   const allDay = start === null;
+  if (allDay && h.timePrecision && !options.dateOnlyReminder)
+    throw new Error('Time not announced: choose a date-only reminder to export this event');
   const uid = calendarUid(h.id);
   const origin = options.appOrigin.replace(/\/+$/, '');
   const detailUrl = `${origin}/legiwatch/hearings/${encodeURIComponent(h.id)}`;
@@ -306,7 +312,8 @@ function buildVEventProps(h: CalendarExportHearing, options: CalendarExportOptio
   // Congressional hearings publish a start, rarely an end. Two hours is the
   // committee-hearing convention when no end is known; it is a display
   // duration, never presented as an official fact.
-  const end = toInstant(h.actualEnd) ?? (start ? new Date(start.getTime() + 2 * 60 * 60 * 1000) : null);
+  const observedEnd = toInstant(h.scheduledEnd) ?? toInstant(h.actualEnd);
+  const end = start && observedEnd && observedEnd > start ? observedEnd : null;
 
   const props: string[] = [
     'BEGIN:VEVENT',
@@ -314,7 +321,7 @@ function buildVEventProps(h: CalendarExportHearing, options: CalendarExportOptio
     `DTSTAMP:${icsInstant(now)}`,
     // A CANCELLED event must supersede the copy already in the invitee's
     // calendar; SEQUENCE 1 makes the update win over the original SEQUENCE 0.
-    `SEQUENCE:${status === 'CANCELLED' ? 1 : 0}`,
+    `SEQUENCE:${h.calendarRevision ?? (status === 'CANCELLED' ? 1 : 0)}`,
   ];
 
   if (allDay) {
@@ -381,7 +388,12 @@ export function buildCalendarExport(
 export function buildBulkCalendarExport(
   hearings: CalendarExportHearing[],
   options: CalendarExportOptions & { calendarName?: string },
-): { ics: string; filename: string; includedCount: number; skipped: Array<{ id: string; reason: string }> } {
+): {
+  ics: string;
+  filename: string;
+  includedCount: number;
+  skipped: Array<{ id: string; reason: string }>;
+} {
   const skipped: Array<{ id: string; reason: string }> = [];
   const allProps: string[] = [];
   for (const h of hearings) {

@@ -55,7 +55,7 @@ import {
   threadExcerpt,
   type EmailThreadCandidate,
 } from './relevant-email-ranker.js';
-import { freshnessThresholdDays, type GaPolicy } from './government-affairs-policy.registry.js';
+import { freshnessThresholdDays } from './evidence-freshness.js';
 
 /** The context-item kinds the wizard can send. Mirrors the web ContextKind union. */
 export type ContextKind =
@@ -104,8 +104,6 @@ export interface ResolveSelectedItemsInput {
   audience: 'external' | 'internal';
   /** Lowercased recipient addresses, for email authorization/ranking. */
   recipientEmails: string[];
-  /** The resolved GA policy — supplies per-evidence-type freshness thresholds. */
-  policy: GaPolicy;
   /** Injected so resolution is deterministic in tests. */
   now: Date;
   /**
@@ -597,7 +595,6 @@ export class EvidenceSourceService {
       wallAllowsClient: boolean;
       audience: 'external' | 'internal';
       scope: 'all' | string;
-      policy: GaPolicy;
       now: Date;
       /** Already-selected thread ids, so a suggestion never duplicates them. */
       excludeThreadIds?: string[];
@@ -1492,7 +1489,7 @@ export class EvidenceSourceService {
   }
 
   /**
-   * Raise a staleness failure when a source is older than its policy threshold.
+   * Raise a staleness failure when a source is older than its freshness threshold.
    *
    * Recorded as `important` rather than `critical`: a stale bill status is
    * usable WITH an as-of caveat, and the verifier's stale_source_caveat check is
@@ -1506,7 +1503,6 @@ export class EvidenceSourceService {
     input: ResolveSelectedItemsInput,
   ): SourceFailure[] {
     if (!asOf) {
-      if (!input.policy.requiresAsOfDates) return [];
       return [
         sourceFailure(
           evidenceType,
@@ -1520,7 +1516,7 @@ export class EvidenceSourceService {
     const asOfMs = new Date(asOf).getTime();
     if (Number.isNaN(asOfMs)) return [];
     const ageDays = (input.now.getTime() - asOfMs) / 86_400_000;
-    const threshold = freshnessThresholdDays(input.policy, evidenceType);
+    const threshold = freshnessThresholdDays(evidenceType);
     if (ageDays <= threshold) return [];
     return [
       sourceFailure(

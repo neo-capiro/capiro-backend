@@ -274,7 +274,6 @@ function harness(
     }));
   const gateway = {
     enabled: true,
-    resolvePolicy: jest.fn().mockReturnValue({ policyId: 'policy', version: '1' }),
     resolvePinnedIdentity: jest.fn().mockResolvedValue({ pinned, creds: [{ provider: 'openai' }] }),
     generate,
   };

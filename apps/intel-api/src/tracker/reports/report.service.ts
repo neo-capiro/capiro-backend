@@ -36,9 +36,8 @@ export class ReportService {
     readonly folders: FolderTrackerService,
     readonly flags: FeatureFlagService,
   ) {}
-  async authorize(ctx: WorkspaceTenantContext) {
-    if (!(await this.flags.isEnabled(REPORTS_UPDATES_FEATURE, ctx.tenantId)))
-      throw new NotFoundException();
+  async authorize(ctx: WorkspaceTenantContext, feature: string = REPORTS_UPDATES_FEATURE) {
+    if (!(await this.flags.isEnabled(feature, ctx.tenantId))) throw new NotFoundException();
     if (!(await this.folders.source.activeMember(ctx.tenantId, ctx.clerkUserId)))
       throw new ForbiddenException('ACTIVE_MEMBERSHIP_REQUIRED');
   }

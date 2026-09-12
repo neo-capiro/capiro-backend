@@ -5,9 +5,28 @@
  * subscription overlay. Committee identity is sourced from CongressCommittee,
  * never inferred from whatever hearings happen to fall inside a date window.
  */
-import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -31,7 +50,26 @@ const CAPTURE_STATES = [
  * the legacy aliases remain accepted during the V2 cutover and are normalized
  * before the service sees them.
  */
-class CalendarQueryDto {
+export class CalendarQueryDto {
+  @IsOptional() @IsIn(['US', 'FL', 'ALL']) jurisdiction?: 'US' | 'FL' | 'ALL';
+  @IsOptional() @IsString() session?: string;
+  @IsOptional() @IsString() stateCommitteeId?: string;
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',') : value))
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @IsString({ each: true })
+  billIds?: string[];
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',') : value))
+  @IsArray()
+  @ArrayMaxSize(5000)
+  @IsString({ each: true })
+  hearingIds?: string[];
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsBoolean()
+  following?: boolean;
   @IsOptional()
   @IsString()
   from?: string;
@@ -145,6 +183,19 @@ export class LiveHearingsController {
     private readonly committees: CommitteeDirectoryService,
   ) {}
 
+  @Get('state-committees')
+  stateBodies(@CurrentTenant() ctx: TenantContext, @Query('session') session?: string) {
+    return this.service.stateBodies(ctx, session);
+  }
+  @Get('calendar/coverage')
+  calendarCoverage(@CurrentTenant() ctx: TenantContext, @Query() query: CalendarQueryDto) {
+    return this.service.calendarCoverage(ctx, query);
+  }
+  @Get('state-committees/:id')
+  stateBody(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.stateBody(ctx, id);
+  }
+
   @Get('calendar')
   async calendar(@CurrentTenant() ctx: TenantContext, @Query() query: CalendarQueryDto) {
     const result = await this.service.calendar(ctx, normalizeCalendarQuery(query));
@@ -156,6 +207,14 @@ export class LiveHearingsController {
   @Get('live')
   async live(@CurrentTenant() ctx: TenantContext) {
     const result = await this.service.live(ctx);
+    return { ...result, items: result.rows };
+  }
+
+  /** POST accommodates a large explicitly resolved folder selection without
+   * URL truncation. Same filtering, counting and paging contract as GET. */
+  @Post('calendar/query')
+  async calendarSelection(@CurrentTenant() ctx: TenantContext, @Body() query: CalendarQueryDto) {
+    const result = await this.service.calendar(ctx, normalizeCalendarQuery(query));
     return { ...result, items: result.rows };
   }
 
@@ -232,6 +291,12 @@ function normalizeCalendarQuery(query: CalendarQueryDto) {
         : undefined;
 
   return {
+    jurisdiction: query.jurisdiction,
+    session: query.session,
+    stateCommitteeId: query.stateCommitteeId,
+    billIds: query.billIds,
+    hearingIds: query.hearingIds,
+    following: query.following,
     from: query.from,
     to: query.to,
     chamber: query.chamber,

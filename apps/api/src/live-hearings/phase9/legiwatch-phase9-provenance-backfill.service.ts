@@ -227,9 +227,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       }),
     );
 
-    result.skippedUnfetchable = enriched.filter(
-      (c) => c.classification === 'UNFETCHABLE',
-    ).length;
+    result.skippedUnfetchable = enriched.filter((c) => c.classification === 'UNFETCHABLE').length;
     result.observed = enriched.filter((c) => c.classification === 'OBSERVED').length;
     result.errors = enriched.filter((c) => c.classification === 'ERROR').length;
     result.identityConflicts = enriched.filter(
@@ -274,7 +272,11 @@ export class LegiWatchPhase9ProvenanceBackfillService {
         v: unknown,
       ): v is { event: SourceEvent; adapterKey: string; source: SourceDescriptor | null } =>
         typeof v === 'object' && v !== null && 'event' in v;
-      const { event, adapterKey: evtAdapterKey, source: evtSource } = isWrapper(raw)
+      const {
+        event,
+        adapterKey: evtAdapterKey,
+        source: evtSource,
+      } = isWrapper(raw)
         ? raw
         : {
             event: raw,
@@ -290,12 +292,8 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       const probe = ctx.options.identityProbe
         ? ctx.options.identityProbe
         : async (evt: SourceEvent) =>
-            (
-              await (await this.identityResolver)?.resolveHearingId(
-                evt,
-                evtAdapterKey,
-              )
-            )?.kind ?? 'new';
+            (await (await this.identityResolver)?.resolveHearingId(evt, evtAdapterKey))?.kind ??
+            'new';
       const kind = await probe(event);
       if (kind === 'new') {
         item.classification = 'SKIPPED_IDENTITY_CONFLICT';
@@ -355,7 +353,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     return this.prisma.$queryRawUnsafe<CandidateRow[]>(
       `SELECT h.id, h.event_status, h.chamber, h.congress, h.committee_system_code,
               h.committee_code, h.title, h.url, h.starts_at, h.date
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        WHERE COALESCE(h.starts_at, h.date::timestamp)
                BETWEEN now() - ($1 || ' days')::interval
                    AND now() + interval '30 days'
@@ -380,7 +378,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
   private async countRemaining(lookbackDays: number): Promise<number> {
     const rows = await this.prisma.$queryRawUnsafe<Array<{ n: number }>>(
       `SELECT COUNT(*)::int AS n
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        WHERE COALESCE(h.starts_at, h.date::timestamp)
                BETWEEN now() - ($1 || ' days')::interval
                    AND now() + interval '30 days'
@@ -532,9 +530,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
    * derived from the committee's registry URL (…/hearings), which is data the
    * registry already owns.
    */
-  private async ensureSenateCalendarSource(
-    systemCode: string,
-  ): Promise<SourceDescriptor | null> {
+  private async ensureSenateCalendarSource(systemCode: string): Promise<SourceDescriptor | null> {
     const existing = await this.prisma.$queryRawUnsafe<SourceDescriptor[]>(
       `SELECT id, committee_system_code AS "committeeSystemCode", chamber,
               source_type AS "sourceType", source_url AS "sourceUrl",
@@ -596,7 +592,9 @@ export class LegiWatchPhase9ProvenanceBackfillService {
     const mods = await adapter.fetchMods(pkgId);
     const authorityId = mods?.committees[0]?.authorityId ?? row.committee_system_code ?? null;
     const chamber = normalizeChamber(
-      (summary.chamber ?? row.chamber ?? 'house').toLowerCase().includes('sen') ? 'senate' : 'house',
+      (summary.chamber ?? row.chamber ?? 'house').toLowerCase().includes('sen')
+        ? 'senate'
+        : 'house',
     );
     const calendarDate = new Date(`${summary.dateIssued}T00:00:00.000Z`);
     return {
@@ -611,9 +609,7 @@ export class LegiWatchPhase9ProvenanceBackfillService {
       startsAt: null,
       calendarDate,
       location: null,
-      officialPageUrl:
-        summary.detailsLink ??
-        `https://www.govinfo.gov/app/details/${pkgId}`,
+      officialPageUrl: summary.detailsLink ?? `https://www.govinfo.gov/app/details/${pkgId}`,
       witnesses: [],
       agendaBillIds: [],
       sourceUpdatedAt: summary.lastModified ? new Date(summary.lastModified) : null,
@@ -681,9 +677,7 @@ export function classifyCandidate(row: CandidateRow): {
   if (m) {
     return { likelyAdapter: 'congress-gov', externalEventId: m[2] ?? null, derive: 'id' };
   }
-  const u = /\/event\/(\d+)th-Congress\/(?:house|senate|joint)-event\/(\d+)/.exec(
-    row.url ?? '',
-  );
+  const u = /\/event\/(\d+)th-Congress\/(?:house|senate|joint)-event\/(\d+)/.exec(row.url ?? '');
   if (u) {
     return { likelyAdapter: 'congress-gov', externalEventId: u[2] ?? null, derive: 'url' };
   }

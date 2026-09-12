@@ -128,27 +128,6 @@ const NON_CAPABILITY_SOURCES = new Set<TargetSourceKey>([
   'manual',
 ]);
 
-/**
- * Mirrors GA_AUDIENCES in government-affairs-policy.registry.ts. A manual
- * target has no directory/domain signal for that registry's selectPolicy()
- * to resolve on its own, so it fails closed (OUTREACH_COMMAND_BLOCKED,
- * "audience_policy_required") at sample generation unless the person adding
- * it says which audience this is. The blank option is a placeholder ONLY —
- * addManual() refuses to submit while it's selected, so this can no longer
- * be added and discovered as broken only at generation time.
- */
-export const MANUAL_AUDIENCE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '', label: 'Choose one\u2026' },
-  { value: 'congressional_office', label: 'Federal congressional office' },
-  { value: 'federal_agency', label: 'Federal agency' },
-  { value: 'defense_acquisition_office', label: 'Defense acquisition office' },
-  { value: 'state_legislator', label: 'State legislator' },
-  { value: 'state_agency', label: 'State agency' },
-  { value: 'local_official', label: 'Local official' },
-  { value: 'coalition', label: 'Coalition partner' },
-  { value: 'client_executive', label: 'Client executive' },
-  { value: 'internal_colleague', label: 'Internal colleague' },
-];
 
 /**
  * Resolves one saved-audience member into the same locator shape every other
@@ -645,7 +624,6 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     title: '',
     organization: '',
     note: '',
-    audienceType: '',
   });
   // Holds the live query for the tab-load effect without making that effect
   // rerun per keystroke.
@@ -835,15 +813,6 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       setError('Enter a valid email address or leave the email blank.');
       return;
     }
-    if (!manual.audienceType) {
-      // A manual target has no directory/domain signal for
-      // government-affairs-policy.registry's selectPolicy() to key off, so
-      // adding one with no audience type would only surface as a much later,
-      // harder-to-diagnose OUTREACH_COMMAND_BLOCKED at Generate — refuse it
-      // here instead, at the moment the person can actually fix it.
-      setError('Choose an audience type — Capiro will not guess government-affairs etiquette.');
-      return;
-    }
     const locator: OutreachV3TargetLocator = {
       source: 'manual',
       id: crypto.randomUUID(),
@@ -853,12 +822,11 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       title: manual.title.trim() || null,
       organization: manual.organization.trim() || null,
       note: manual.note.trim() || null,
-      audienceType: manual.audienceType,
     };
     setError(null);
     try {
       await applyCommands([addTargetCommand(locator)]);
-      setManual({ name: '', email: '', title: '', organization: '', note: '', audienceType: '' });
+      setManual({ name: '', email: '', title: '', organization: '', note: '' });
     } catch (caught) {
       setError(safeOutreachV3Error(caught));
     }
@@ -1056,23 +1024,12 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
                 <Field label="Email" type="email" value={manual.email} onChange={(email) => setManual({ ...manual, email })} />
                 <Field label="Title" value={manual.title} onChange={(title) => setManual({ ...manual, title })} />
                 <Field label="Organization" value={manual.organization} onChange={(organization) => setManual({ ...manual, organization })} />
-                <Field
-                  label="Audience type"
-                  required
-                  value={manual.audienceType}
-                  onChange={(audienceType) => setManual({ ...manual, audienceType })}
-                  options={MANUAL_AUDIENCE_OPTIONS}
-                />
               </div>
-              <p className="ov3-muted-copy">
-                Capiro applies different government-affairs etiquette by audience and will not guess.
-                Choose an audience before adding this target — generation stays blocked for it otherwise.
-              </p>
               <Field label="Target note" value={manual.note} onChange={(note) => setManual({ ...manual, note })} multiline />
               <button
                 type="button"
                 className="ov3-button is-primary"
-                disabled={busy || !manual.name.trim() || !manual.audienceType}
+                disabled={busy || !manual.name.trim()}
                 onClick={() => void addManual()}
               >
                 Add target to campaign

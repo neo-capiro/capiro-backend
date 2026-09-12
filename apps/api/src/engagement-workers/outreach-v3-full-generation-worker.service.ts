@@ -307,15 +307,7 @@ export class OutreachV3FullGenerationWorkerService implements OnModuleInit, OnMo
       prepared,
       outreachRecordId: descriptor.sessionId,
     });
-    let policy;
-    try {
-      policy = this.gateway.resolvePolicy(unit.request);
-    } catch {
-      await this.finishItem(item.id, 'failed', null, 'AUDIENCE_POLICY_REQUIRED');
-      return;
-    }
     const credentials = await this.gateway.resolvePinnedIdentity(ctx, {
-      policy,
       runtimeAction: unit.request.runtimeAction,
     });
     if (

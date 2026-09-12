@@ -12,7 +12,6 @@ import {
   truthAmounts,
   type VerifyRequest,
 } from './generation-verifier.service.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 import type { EvidenceItem, EvidencePacketV2 } from './evidence-packet.types.js';
 import type { MessagePlan } from './message-plan.schema.js';
 
@@ -55,12 +54,6 @@ function packet(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
     standingMemory: [],
     standingMemoryExclusions: [],
     failures: [],
-    policy: {
-      jurisdiction: 'federal',
-      audienceType: 'congressional_office',
-      policyId: 'federal.congressional_office',
-      version: 'ga-policy-v1',
-    },
     modelPolicy: { provider: 'anthropic', model: 'm', promptSpecVersion: 'v2.2-gateway' },
     criticalFailureCount: 0,
     freshestSourceAt: null,
@@ -77,7 +70,6 @@ function verify(body: string, over: Partial<VerifyRequest> = {}) {
     subject: 'Meeting request',
     body,
     packet: packet(),
-    policy: policyForAudience('congressional_office'),
     plan: null,
     audienceKind: 'individual',
     now: NOW,
@@ -92,8 +84,6 @@ function checks(body: string, over: Partial<VerifyRequest> = {}): string[] {
 function plan(over: Partial<MessagePlan> = {}): MessagePlan {
   return {
     intent: 'meeting_request',
-    jurisdiction: 'federal',
-    audienceType: 'congressional_office',
     clientRepresented: 'Aperture Defense Systems',
     desiredOutcome: 'A 20-minute meeting.',
     whyRecipient: ['Sits on Armed Services.'],
@@ -548,54 +538,6 @@ describe('group_common_facts', () => {
   });
 });
 
-// ── 11. Jurisdiction / etiquette scope ──────────────────────────────────────
-
-describe('federal_etiquette_scope and jurisdiction_vocabulary', () => {
-  const statePolicy = policyForAudience('state_legislator');
-  const stateBill = evidence({
-    ref: {
-      sourceType: 'stateBill',
-      sourceId: 'CA-2026-AB100',
-      title: 'CA AB 100',
-      provenance: { jurisdiction: 'state' },
-    },
-    evidenceText: 'CA AB 100 passed the Assembly.',
-  });
-
-  test('federal framing to a STATE legislator is held (§4.20)', () => {
-    const v = verify('I know Capitol Hill is busy — thank you, Congressman.', {
-      policy: statePolicy,
-      packet: packet({ evidence: [stateBill] }),
-    });
-    expect(v.findings.map((f) => f.check)).toContain('federal_etiquette_scope');
-    expect(v.held).toBe(true);
-  });
-
-  test('federal PROCESS vocabulary applied to a state bill is held', () => {
-    expect(
-      checks('Once signed by the President, AB 100 takes effect.', {
-        policy: statePolicy,
-        packet: packet({ evidence: [stateBill] }),
-      }),
-    ).toContain('jurisdiction_vocabulary');
-  });
-
-  test('the same federal framing to a CONGRESSIONAL office is fine', () => {
-    expect(checks('I know Capitol Hill is busy — thank you, Congressman.')).not.toContain(
-      'federal_etiquette_scope',
-    );
-  });
-
-  test('a clean state message passes both checks', () => {
-    const v = verify('AB 100 passed the Assembly; the Governor has not yet acted.', {
-      policy: statePolicy,
-      packet: packet({ evidence: [stateBill] }),
-    });
-    expect(v.findings.map((f) => f.check)).not.toContain('federal_etiquette_scope');
-    expect(v.findings.map((f) => f.check)).not.toContain('jurisdiction_vocabulary');
-  });
-});
-
 // ── Overall verdict ─────────────────────────────────────────────────────────
 
 describe('verdict', () => {
@@ -604,19 +546,6 @@ describe('verdict', () => {
     expect(v.findings).toEqual([]);
     expect(v.status).toBe('passed');
     expect(v.held).toBe(false);
-  });
-
-  test('only the validators the POLICY enables are run', () => {
-    // internal_colleague omits jurisdiction_vocabulary from its validator list.
-    const internal = policyForAudience('internal_colleague');
-    expect(internal.validators).not.toContain('jurisdiction_vocabulary');
-    const v = verify('Once signed by the President, AB 100 takes effect.', {
-      policy: internal,
-      packet: packet({
-        evidence: [evidence({ ref: { sourceType: 'stateBill', sourceId: 's1' } })],
-      }),
-    });
-    expect(v.findings.map((f) => f.check)).not.toContain('jurisdiction_vocabulary');
   });
 
   test('every finding is tagged with the deterministic verifier as its source', () => {

@@ -204,25 +204,17 @@ interface Snapshot {
 export class LegiWatchPhase9ReadinessService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async evaluate(
-    input: LegiWatchPhase9AuditOptions,
-  ): Promise<LegiWatchPhase9ReadinessReport> {
+  async evaluate(input: LegiWatchPhase9AuditOptions): Promise<LegiWatchPhase9ReadinessReport> {
     const now = validDate(input.now) ?? new Date();
     const lookbackDays = boundedInteger(input.lookbackDays ?? 60, 1, 365);
     const lookaheadDays = boundedInteger(input.lookaheadDays ?? 30, 1, 365);
     const captureGraceMinutes = boundedInteger(input.captureGraceMinutes ?? 15, 1, 24 * 60);
-    const intelligenceLagMinutes = boundedInteger(
-      input.intelligenceLagMinutes ?? 10,
-      1,
-      24 * 60,
-    );
+    const intelligenceLagMinutes = boundedInteger(input.intelligenceLagMinutes ?? 10, 1, 24 * 60);
     const mode = input.mode ?? 'READINESS';
     const windowStart = new Date(now.getTime() - lookbackDays * 86_400_000);
     const windowEnd = new Date(now.getTime() + lookaheadDays * 86_400_000);
     const dueBefore = new Date(now.getTime() - captureGraceMinutes * 60_000);
-    const intelligenceDueBefore = new Date(
-      now.getTime() - intelligenceLagMinutes * 60_000,
-    );
+    const intelligenceDueBefore = new Date(now.getTime() - intelligenceLagMinutes * 60_000);
 
     const snapshot = await this.loadSnapshot({
       windowStart,
@@ -239,9 +231,7 @@ export class LegiWatchPhase9ReadinessService {
     const candidatesByHearing = groupBy(snapshot.candidates, (row) => row.hearingId);
     const capturesByHearing = groupBy(snapshot.captures, (row) => row.hearingId);
     const demandByHearing = new Map(snapshot.demand.map((row) => [row.hearingId, row.count]));
-    const transcriptByCapture = new Map(
-      snapshot.transcript.map((row) => [row.captureId, row]),
-    );
+    const transcriptByCapture = new Map(snapshot.transcript.map((row) => [row.captureId, row]));
     const provenanceByHearing = new Map<string, number>();
     for (const observation of snapshot.observations) {
       if (observation.reconciliationStatus === 'RECONCILED' && observation.hearingId) {
@@ -254,13 +244,10 @@ export class LegiWatchPhase9ReadinessService {
 
     const observations = snapshot.observations.map((observation) => {
       if (observation.bodyCode) return observation;
-      const hearing = observation.hearingId
-        ? hearingsById.get(observation.hearingId)
-        : undefined;
+      const hearing = observation.hearingId ? hearingsById.get(observation.hearingId) : undefined;
       return {
         ...observation,
-        bodyCode:
-          hearing?.subcommitteeSystemCode ?? hearing?.committeeSystemCode ?? null,
+        bodyCode: hearing?.subcommitteeSystemCode ?? hearing?.committeeSystemCode ?? null,
       };
     });
     const observationsByBody = groupBy(
@@ -268,8 +255,8 @@ export class LegiWatchPhase9ReadinessService {
       (row) => row.bodyCode as string,
     );
     const hearingsByBody = groupBy(
-      snapshot.hearings.filter(
-        (row) => Boolean(row.subcommitteeSystemCode ?? row.committeeSystemCode),
+      snapshot.hearings.filter((row) =>
+        Boolean(row.subcommitteeSystemCode ?? row.committeeSystemCode),
       ),
       (row) => (row.subcommitteeSystemCode ?? row.committeeSystemCode) as string,
     );
@@ -278,14 +265,10 @@ export class LegiWatchPhase9ReadinessService {
       snapshot.sources.filter((source) => Boolean(source.committeeSystemCode)),
       (source) => source.committeeSystemCode as string,
     );
-    const centralSources = snapshot.sources.filter(
-      (source) => source.committeeSystemCode === null,
-    );
+    const centralSources = snapshot.sources.filter((source) => source.committeeSystemCode === null);
     const bodies: LegiWatchPhase9BodyCoverage[] = snapshot.bodies.map((body) => {
       const direct = directSources.get(body.systemCode) ?? [];
-      const parent = body.parentSystemCode
-        ? directSources.get(body.parentSystemCode) ?? []
-        : [];
+      const parent = body.parentSystemCode ? (directSources.get(body.parentSystemCode) ?? []) : [];
       const central = centralSources.filter(
         (source) => source.chamber === body.chamber || source.chamber === 'joint',
       );
@@ -335,7 +318,11 @@ export class LegiWatchPhase9ReadinessService {
         officialObservations: bodyObservations.length,
         pendingObservations,
       });
-      if (!['HEALTHY', 'HEALTHY_NO_EVENTS_OBSERVED', 'HEALTHY_WITH_ACCEPTED_EXCEPTION'].includes(classification.status)) {
+      if (
+        !['HEALTHY', 'HEALTHY_NO_EVENTS_OBSERVED', 'HEALTHY_WITH_ACCEPTED_EXCEPTION'].includes(
+          classification.status,
+        )
+      ) {
         pushException({
           committeeSystemCode: body.systemCode,
           gateKey: 'SOURCE_COVERAGE_READY',
@@ -378,9 +365,8 @@ export class LegiWatchPhase9ReadinessService {
         serverCaptureCandidates: candidateRows.filter(
           (row) => row.capturePolicy === 'SERVER_CAPTURE_ALLOWED',
         ).length,
-        captureOutcomes: captureRows.filter((row) =>
-          TERMINAL_CAPTURE_STATES.has(row.domainStatus),
-        ).length,
+        captureOutcomes: captureRows.filter((row) => TERMINAL_CAPTURE_STATES.has(row.domainStatus))
+          .length,
         ...classification,
       };
     });
@@ -442,13 +428,15 @@ export class LegiWatchPhase9ReadinessService {
     const canonicalEventsWithObservation = snapshot.hearings.filter(
       (hearing) => (provenanceByHearing.get(hearing.id) ?? 0) > 0,
     ).length;
-    const canonicalEventsWithAcceptedDisposition = snapshot.hearings.filter((hearing) =>
-      (provenanceByHearing.get(hearing.id) ?? 0) === 0 &&
-      acceptedDispositionByHearing.has(hearing.id),
+    const canonicalEventsWithAcceptedDisposition = snapshot.hearings.filter(
+      (hearing) =>
+        (provenanceByHearing.get(hearing.id) ?? 0) === 0 &&
+        acceptedDispositionByHearing.has(hearing.id),
     ).length;
-    const unresolvedCanonicalProvenance = snapshot.hearings.filter((hearing) =>
-      (provenanceByHearing.get(hearing.id) ?? 0) === 0 &&
-      !acceptedDispositionByHearing.has(hearing.id),
+    const unresolvedCanonicalProvenance = snapshot.hearings.filter(
+      (hearing) =>
+        (provenanceByHearing.get(hearing.id) ?? 0) === 0 &&
+        !acceptedDispositionByHearing.has(hearing.id),
     ).length;
     // Backward-compatible rollup: observation-backed + accepted-disposition.
     const canonicalEventsWithProvenance =
@@ -548,9 +536,7 @@ export class LegiWatchPhase9ReadinessService {
       const effectiveStart = hearing.startsAt ?? hearing.calendarDate;
       const due = effectiveStart.getTime() <= dueBefore.getTime();
       const publicDue =
-        due &&
-        hearing.visibility === 'public' &&
-        DUE_EVENT_STATUSES.has(hearing.eventStatus);
+        due && hearing.visibility === 'public' && DUE_EVENT_STATUSES.has(hearing.eventStatus);
       if (!publicDue) continue;
       duePublicEvents += 1;
       const candidates = candidatesByHearing.get(hearing.id) ?? [];
@@ -565,10 +551,7 @@ export class LegiWatchPhase9ReadinessService {
       // disposition backfill get READY first-party candidates with demand=0;
       // counting them as "eligible but uncaptured" would make the outcome gate
       // permanently unpassable for events no capture could ever have covered.
-      const eligible =
-        snapshot.captureAllPublicEvents ||
-        demand > 0 ||
-        Boolean(capture);
+      const eligible = snapshot.captureAllPublicEvents || demand > 0 || Boolean(capture);
       const explicitStreamPath =
         candidates.length > 0 ||
         Boolean(capture?.terminalReasonCode || capture?.failureCode) ||
@@ -689,10 +672,7 @@ export class LegiWatchPhase9ReadinessService {
       },
     );
     const staleJobs = runtimeJobs.filter((job) => job.stale).length;
-    const laggingIntelligenceJobs = snapshot.laggingJobs.reduce(
-      (sum, row) => sum + row.count,
-      0,
-    );
+    const laggingIntelligenceJobs = snapshot.laggingJobs.reduce((sum, row) => sum + row.count, 0);
     for (const row of snapshot.laggingJobs) {
       pushException({
         hearingId: row.hearingId,
@@ -716,10 +696,7 @@ export class LegiWatchPhase9ReadinessService {
       representedObservations + explicitConflicts + ignoredInvalidObservations,
       officialObservations,
     );
-    const canonicalProvenance = percentage(
-      canonicalEventsWithProvenance,
-      canonicalEvents,
-    );
+    const canonicalProvenance = percentage(canonicalEventsWithProvenance, canonicalEvents);
     const captureOutcome = percentage(eventsWithOutcomes, eligibleEvents);
     const badBodies = bodies.filter(
       (body) =>
@@ -890,9 +867,7 @@ export class LegiWatchPhase9ReadinessService {
           `EVIDENCE_${evidenceType}`,
           passed,
           true,
-          evidence
-            ? `${evidence.evidenceSource}:${evidence.observedAt.toISOString()}`
-            : null,
+          evidence ? `${evidence.evidenceSource}:${evidence.observedAt.toISOString()}` : null,
           requiresLive ? 'non-expired LIVE/MIXED PASS' : 'non-expired PASS',
           'REQUIRED_VERIFICATION_EVIDENCE_MISSING',
           passed
@@ -980,8 +955,7 @@ export class LegiWatchPhase9ReadinessService {
           officialObservations > 0 && pendingObservations === 0 && observationDisposition === 100,
         capturePathReady:
           unresolvedEvents === 0 && eligibleEvents > 0 && eventsWithOutcomes === eligibleEvents,
-        transcriptContinuityReady:
-          gapsWithoutMarkers === 0 && duplicateTranscriptSequences === 0,
+        transcriptContinuityReady: gapsWithoutMarkers === 0 && duplicateTranscriptSequences === 0,
         workersFresh: staleJobs === 0,
         intelligenceFresh: laggingIntelligenceJobs === 0,
         cutoverEligible: status === 'PASS' && mode === 'CUTOVER_VERIFICATION',
@@ -997,7 +971,13 @@ export class LegiWatchPhase9ReadinessService {
     const run = await this.prisma.withSystem(
       async (tx) => {
         const rows = await tx.$queryRawUnsafe<
-          Array<{ id: string; mode: string; status: string; evidenceSource: string; createdAt: Date }>
+          Array<{
+            id: string;
+            mode: string;
+            status: string;
+            evidenceSource: string;
+            createdAt: Date;
+          }>
         >(
           `INSERT INTO legiwatch_cutover_run (
              mode, status, evidence_source, window_start, window_end,
@@ -1202,9 +1182,7 @@ export class LegiWatchPhase9ReadinessService {
     );
     const row = rows[0];
     if (!row) {
-      throw new NotFoundException(
-        `pending unlinked observation ${input.observationId} not found`,
-      );
+      throw new NotFoundException(`pending unlinked observation ${input.observationId} not found`);
     }
     return { ...row, reviewedAt: row.reviewedAt.toISOString() };
   }
@@ -1224,18 +1202,19 @@ export class LegiWatchPhase9ReadinessService {
     // 5642ms/6012ms). Reuse the same escape hatch already applied to the
     // persist transaction below (READINESS_PERSIST_TIMEOUT_MS) rather than
     // inventing a second constant for what is the same underlying tradeoff.
-    return this.prisma.withSystem(async (tx) => {
-      const bodies = await tx.$queryRawUnsafe<BodyRow[]>(
-        `SELECT system_code AS "systemCode",
+    return this.prisma.withSystem(
+      async (tx) => {
+        const bodies = await tx.$queryRawUnsafe<BodyRow[]>(
+          `SELECT system_code AS "systemCode",
                 name,
                 chamber,
                 parent_system_code AS "parentSystemCode"
          FROM congress_committee
          WHERE is_current=true
          ORDER BY chamber, parent_system_code NULLS FIRST, name, system_code`,
-      );
-      const sources = await tx.$queryRawUnsafe<SourceRow[]>(
-        `SELECT s.id::text AS id,
+        );
+        const sources = await tx.$queryRawUnsafe<SourceRow[]>(
+          `SELECT s.id::text AS id,
                 s.committee_system_code AS "committeeSystemCode",
                 s.chamber,
                 s.source_health AS "sourceHealth",
@@ -1248,9 +1227,9 @@ export class LegiWatchPhase9ReadinessService {
            ON ex.source_id = s.id AND ex.expires_at IS NULL
          WHERE s.enabled=true
          ORDER BY s.priority, s.id`,
-      );
-      const observations = await tx.$queryRawUnsafe<ObservationRow[]>(
-        `SELECT o.id::text AS id,
+        );
+        const observations = await tx.$queryRawUnsafe<ObservationRow[]>(
+          `SELECT o.id::text AS id,
                 o.hearing_id AS "hearingId",
                 COALESCE(
                   NULLIF(o.source_metadata #>> '{event,subcommitteeSystemCode}', ''),
@@ -1270,11 +1249,11 @@ export class LegiWatchPhase9ReadinessService {
                  o.first_seen_at
                ) BETWEEN $1 AND $2
          ORDER BY "observedAt", o.id`,
-        input.windowStart,
-        input.windowEnd,
-      );
-      const hearings = await tx.$queryRawUnsafe<HearingRow[]>(
-        `SELECT id,
+          input.windowStart,
+          input.windowEnd,
+        );
+        const hearings = await tx.$queryRawUnsafe<HearingRow[]>(
+          `SELECT id,
                 chamber,
                 committee_system_code AS "committeeSystemCode",
                 subcommittee_system_code AS "subcommitteeSystemCode",
@@ -1284,28 +1263,28 @@ export class LegiWatchPhase9ReadinessService {
                 starts_at AS "startsAt",
                 date::timestamp AS "calendarDate",
                 coverage_status AS "coverageStatus"
-         FROM committee_hearing
+         FROM federal_committee_hearing
          WHERE COALESCE(starts_at, date::timestamp) BETWEEN $1 AND $2
          ORDER BY COALESCE(starts_at, date::timestamp), id`,
-        input.windowStart,
-        input.windowEnd,
-      );
-      const hearingIds = hearings.map((row) => row.id);
-      const candidates = hearingIds.length
-        ? await tx.$queryRawUnsafe<CandidateRow[]>(
-            `SELECT hearing_id AS "hearingId",
+          input.windowStart,
+          input.windowEnd,
+        );
+        const hearingIds = hearings.map((row) => row.id);
+        const candidates = hearingIds.length
+          ? await tx.$queryRawUnsafe<CandidateRow[]>(
+              `SELECT hearing_id AS "hearingId",
                     capture_policy AS "capturePolicy",
                     resolution_state AS "resolutionState",
                     failure_reason AS "failureReason"
              FROM hearing_stream_candidate
              WHERE hearing_id = ANY($1::text[])
              ORDER BY hearing_id, priority, id`,
-            hearingIds,
-          )
-        : [];
-      const captures = hearingIds.length
-        ? await tx.$queryRawUnsafe<CaptureRow[]>(
-            `SELECT id,
+              hearingIds,
+            )
+          : [];
+        const captures = hearingIds.length
+          ? await tx.$queryRawUnsafe<CaptureRow[]>(
+              `SELECT id,
                     hearing_id AS "hearingId",
                     domain_status AS "domainStatus",
                     terminal_reason_code AS "terminalReasonCode",
@@ -1318,21 +1297,21 @@ export class LegiWatchPhase9ReadinessService {
              FROM public_hearing_capture
              WHERE hearing_id = ANY($1::text[])
              ORDER BY hearing_id, id`,
-            hearingIds,
-          )
-        : [];
-      const demand = hearingIds.length
-        ? await tx.$queryRawUnsafe<CountByHearingRow[]>(
-            `SELECT hearing_id AS "hearingId", COUNT(*)::int AS count
+              hearingIds,
+            )
+          : [];
+        const demand = hearingIds.length
+          ? await tx.$queryRawUnsafe<CountByHearingRow[]>(
+              `SELECT hearing_id AS "hearingId", COUNT(*)::int AS count
              FROM hearing_subscription
              WHERE hearing_id = ANY($1::text[])
              GROUP BY hearing_id`,
-            hearingIds,
-          )
-        : [];
-      const transcript = hearingIds.length
-        ? await tx.$queryRawUnsafe<TranscriptRow[]>(
-            `SELECT c.hearing_id AS "hearingId",
+              hearingIds,
+            )
+          : [];
+        const transcript = hearingIds.length
+          ? await tx.$queryRawUnsafe<TranscriptRow[]>(
+              `SELECT c.hearing_id AS "hearingId",
                     s.capture_id AS "captureId",
                     COUNT(*)::int AS "segmentCount",
                     COUNT(*) FILTER (WHERE s.has_gap_before=true)::int AS "gapMarkers"
@@ -1340,12 +1319,12 @@ export class LegiWatchPhase9ReadinessService {
              JOIN public_hearing_capture c ON c.id=s.capture_id
              WHERE c.hearing_id = ANY($1::text[])
              GROUP BY c.hearing_id, s.capture_id`,
-            hearingIds,
-          )
-        : [];
-      const duplicateSequences = hearingIds.length
-        ? await tx.$queryRawUnsafe<DuplicateSequenceRow[]>(
-            `SELECT c.hearing_id AS "hearingId",
+              hearingIds,
+            )
+          : [];
+        const duplicateSequences = hearingIds.length
+          ? await tx.$queryRawUnsafe<DuplicateSequenceRow[]>(
+              `SELECT c.hearing_id AS "hearingId",
                     s.capture_id AS "captureId",
                     s.sequence,
                     COUNT(*)::int AS count
@@ -1355,11 +1334,11 @@ export class LegiWatchPhase9ReadinessService {
              GROUP BY c.hearing_id, s.capture_id, s.sequence
              HAVING COUNT(*) > 1
              ORDER BY c.hearing_id, s.capture_id, s.sequence`,
-            hearingIds,
-          )
-        : [];
-      const runtime = await tx.$queryRawUnsafe<RuntimeRow[]>(
-        `SELECT job_key AS "jobKey",
+              hearingIds,
+            )
+          : [];
+        const runtime = await tx.$queryRawUnsafe<RuntimeRow[]>(
+          `SELECT job_key AS "jobKey",
                 job_type AS "jobType",
                 status,
                 enabled,
@@ -1376,9 +1355,9 @@ export class LegiWatchPhase9ReadinessService {
                 metrics
          FROM legiwatch_runtime_heartbeat
          ORDER BY job_key`,
-      );
-      const laggingJobs = await tx.$queryRawUnsafe<LaggingJobRow[]>(
-        `SELECT 'public'::text AS queue,
+        );
+        const laggingJobs = await tx.$queryRawUnsafe<LaggingJobRow[]>(
+          `SELECT 'public'::text AS queue,
                 hearing_id AS "hearingId",
                 status,
                 COUNT(*)::int AS count
@@ -1402,11 +1381,11 @@ export class LegiWatchPhase9ReadinessService {
          )
          GROUP BY hearing_id, status
          ORDER BY "hearingId", queue, status`,
-        input.intelligenceDueBefore,
-        input.now,
-      );
-      const evidence = await tx.$queryRawUnsafe<EvidenceRow[]>(
-        `SELECT evidence_type AS "evidenceType",
+          input.intelligenceDueBefore,
+          input.now,
+        );
+        const evidence = await tx.$queryRawUnsafe<EvidenceRow[]>(
+          `SELECT evidence_type AS "evidenceType",
                 evidence_source AS "evidenceSource",
                 status,
                 observed_at AS "observedAt",
@@ -1417,39 +1396,41 @@ export class LegiWatchPhase9ReadinessService {
          WHERE status='PASS'
            AND (expires_at IS NULL OR expires_at > $1)
          ORDER BY evidence_type, observed_at DESC, id DESC`,
-        input.now,
-      );
-      const cutoverRows = await tx.$queryRawUnsafe<CutoverStateRow[]>(
-        `SELECT capture_all_public_events AS "captureAllPublicEvents"
+          input.now,
+        );
+        const cutoverRows = await tx.$queryRawUnsafe<CutoverStateRow[]>(
+          `SELECT capture_all_public_events AS "captureAllPublicEvents"
          FROM legiwatch_cutover_state
          WHERE id='global'
          LIMIT 1`,
-      );
-      const dispositions = await tx.$queryRawUnsafe<DispositionRow[]>(
-        `SELECT hearing_id AS "hearingId",
+        );
+        const dispositions = await tx.$queryRawUnsafe<DispositionRow[]>(
+          `SELECT hearing_id AS "hearingId",
                 disposition_type AS "dispositionType",
                 artifact_uri AS "artifactUri",
                 status,
                 expires_at AS "expiresAt"
          FROM canonical_provenance_disposition`,
-      );
-      return {
-        bodies,
-        sources,
-        observations,
-        hearings,
-        candidates,
-        captures,
-        demand,
-        transcript,
-        duplicateSequences,
-        runtime,
-        laggingJobs,
-        evidence,
-        dispositions,
-        captureAllPublicEvents: cutoverRows[0]?.captureAllPublicEvents ?? false,
-      };
-    }, { timeoutMs: READINESS_PERSIST_TIMEOUT_MS });
+        );
+        return {
+          bodies,
+          sources,
+          observations,
+          hearings,
+          candidates,
+          captures,
+          demand,
+          transcript,
+          duplicateSequences,
+          runtime,
+          laggingJobs,
+          evidence,
+          dispositions,
+          captureAllPublicEvents: cutoverRows[0]?.captureAllPublicEvents ?? false,
+        };
+      },
+      { timeoutMs: READINESS_PERSIST_TIMEOUT_MS },
+    );
   }
 }
 
@@ -1525,7 +1506,10 @@ function boundedInteger(value: number, minimum: number, maximum: number): number
 }
 
 function boundedText(value: string, maximum: number): string {
-  const clean = value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, maximum);
+  const clean = value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, maximum);
   if (!clean) throw new Error('actor is required');
   return clean;
 }

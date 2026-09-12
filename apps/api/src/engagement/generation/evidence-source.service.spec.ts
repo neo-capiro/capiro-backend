@@ -9,7 +9,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
 import { EvidenceSourceService, type SelectedContextItemRef } from './evidence-source.service.js';
-import { policyForAudience } from './government-affairs-policy.registry.js';
 
 const NOW = new Date('2026-07-26T00:00:00.000Z');
 const CTX = {
@@ -98,7 +97,6 @@ function resolveInput(
     wallAllowsClient: true,
     audience: 'external' as const,
     recipientEmails: ['dana@mail.house.gov'],
-    policy: policyForAudience('congressional_office'),
     now: NOW,
     ...overrides,
   };
@@ -712,7 +710,6 @@ describe('Phase d — removal filtering (remaining-items plan §3.d5/d6)', () =>
       wallAllowsClient: true,
       audience: 'external',
       scope: 'all',
-      policy: policyForAudience('congressional_office'),
       now: NOW,
     });
 

@@ -2083,7 +2083,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         confirmedRows = await this.prisma.$queryRawUnsafe(
           `SELECT ch.id AS "hearingId", ch.title, ch.committee_name AS "committeeName",
                   ch.chamber, ch.date, ch.url, w AS "witnessText"
-             FROM committee_hearing ch, unnest(ch.witnesses) AS w
+             FROM federal_committee_hearing ch, unnest(ch.witnesses) AS w
             WHERE (ch.id || '::' || w) = ANY($1::text[])`,
           [...confirmedKeys],
         );
@@ -2118,7 +2118,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           `SELECT ch.id AS "hearingId", ch.title, ch.committee_name AS "committeeName",
                   ch.chamber, ch.date, ch.url, ch.synced_at AS "syncedAt", w AS "witnessText",
                   GREATEST(similarity(w, $3), word_similarity($3, w))::float AS similarity
-             FROM committee_hearing ch, unnest(ch.witnesses) AS w
+             FROM federal_committee_hearing ch, unnest(ch.witnesses) AS w
             WHERE ($1::timestamptz IS NULL)
                OR (ch.synced_at > $1::timestamptz)
                OR (ch.synced_at = $1::timestamptz AND (ch.id || '::' || w) > $2::text)

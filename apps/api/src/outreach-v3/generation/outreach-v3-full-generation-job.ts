@@ -99,9 +99,7 @@ export function parseOutreachV3FullGenerationJob(
       pinned.reasoningEffort === null ||
       (typeof pinned.reasoningEffort === 'string' && isReasoningEffort(pinned.reasoningEffort))
     ) ||
-    !isString(pinned.promptSpecVersion) ||
-    !isString(pinned.policyId) ||
-    !isString(pinned.policyVersion)
+    !isString(pinned.promptSpecVersion)
   ) {
     return null;
   }
@@ -147,8 +145,6 @@ export function parseOutreachV3FullGenerationJob(
         ? { reasoningEffort: pinned.reasoningEffort as ReasoningEffort | null }
         : {}),
       promptSpecVersion: pinned.promptSpecVersion,
-      policyId: pinned.policyId,
-      policyVersion: pinned.policyVersion,
       ...(typeof pinned.contextPacketId === 'string'
         ? { contextPacketId: pinned.contextPacketId }
         : {}),

@@ -100,7 +100,6 @@ function harness(
     session?: ReturnType<typeof currentSession>;
     gatewayEnabled?: boolean;
     approval?: 'current' | null;
-    resolvePolicyThrows?: boolean;
     pinnedIdentity?: 'available' | null;
     priorJob?: any;
     completedGenerationKeys?: string[];
@@ -155,16 +154,9 @@ function harness(
     model: 'model',
     planModel: null,
     promptSpecVersion: 'v1',
-    policyId: 'policy',
-    policyVersion: '1',
   };
   const gateway = {
     enabled: overrides.gatewayEnabled ?? true,
-    resolvePolicy: overrides.resolvePolicyThrows
-      ? jest.fn().mockImplementation(() => {
-          throw new Error('no audience policy');
-        })
-      : jest.fn().mockReturnValue({ id: 'policy' }),
     resolvePinnedIdentity:
       overrides.pinnedIdentity === null
         ? jest.fn().mockResolvedValue(null)
@@ -216,7 +208,7 @@ describe('OutreachV3FullGenerationService.submit — server-authoritative gating
     const approvals = { getCurrent: jest.fn() };
     const drafts = { listForOutreach: jest.fn() };
     const preparation = { prepareSlot: jest.fn() };
-    const gateway = { enabled: true, resolvePolicy: jest.fn(), resolvePinnedIdentity: jest.fn() };
+    const gateway = { enabled: true, resolvePinnedIdentity: jest.fn() };
     const roots = { ensureRoot: jest.fn().mockResolvedValue({ outreachRecordId: SESSION_ID }) };
     const service = new OutreachV3FullGenerationService(
       prisma as any,
@@ -275,7 +267,6 @@ describe('OutreachV3FullGenerationService.submit — server-authoritative gating
     const preparation = { prepareSlot: jest.fn() };
     const gateway = {
       enabled: true,
-      resolvePolicy: jest.fn(),
       resolvePinnedIdentity: jest.fn(),
     };
     const roots = { ensureRoot: jest.fn().mockResolvedValue({ outreachRecordId: SESSION_ID }) };
@@ -297,14 +288,6 @@ describe('OutreachV3FullGenerationService.submit — server-authoritative gating
     // NEW state — the approval snapshot itself is discarded, not reused.
     expect(staleApproval.stateVersion).toBe(5);
     expect(newSession.currentStateVersion).toBe(6);
-  });
-
-  it('blocks generation when the audience policy cannot be resolved for the first slot', async () => {
-    const h = harness({ resolvePolicyThrows: true });
-    await expect(h.service.submit(CTX, SESSION_ID, 'a'.repeat(16))).rejects.toMatchObject({
-      code: 'OUTREACH_COMMAND_BLOCKED',
-      safeMetadata: expect.objectContaining({ reason: 'audience_policy_required' }),
-    });
   });
 
   it('blocks generation when the pinned provider identity cannot be resolved (provider unavailable)', async () => {
@@ -393,8 +376,6 @@ describe('OutreachV3FullGenerationService.submit — idempotency', () => {
         model: 'model',
         planModel: null,
         promptSpecVersion: 'v1',
-        policyId: 'policy',
-        policyVersion: '1',
       },
       items: [{ generationKey: h.plan.slots[0]!.generationKey }],
       batchSize: 10,
@@ -432,8 +413,6 @@ describe('OutreachV3FullGenerationService.submit — idempotency', () => {
             model: 'model',
             planModel: null,
             promptSpecVersion: 'v1',
-            policyId: 'policy',
-            policyVersion: '1',
           },
           items: [],
           batchSize: 10,

@@ -23,7 +23,13 @@ import { ChevronDown, Crosshair } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import { LEGIWATCH_TABS, LEGIWATCH_PRIMARY_TABS, REMOVED_TABS, TAB_ALIASES, type LegiWatchTab } from './lib/types.js';
+import {
+  LEGIWATCH_TABS,
+  LEGIWATCH_PRIMARY_TABS,
+  REMOVED_TABS,
+  TAB_ALIASES,
+  type LegiWatchTab,
+} from './lib/types.js';
 import { useLwFeed, useLwFeedItems, defaultBucketCount } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
 import { watchlistSetupPath } from './lib/watchlist-navigation.js';
@@ -49,12 +55,13 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
     eyebrow: 'Legislative intelligence',
     title: 'Hearings',
     description:
-      'Congressional proceedings Capiro is watching, attending and archiving for your clients.',
+      'Official proceedings, published agendas, preparation and saved hearing work for your clients.',
   },
   committees: {
     eyebrow: 'Committee directory',
     title: 'Committees',
-    description: 'Every current committee and subcommittee, with its roster, its published record and your client exposure.',
+    description:
+      'Every current committee and subcommittee, with its roster, its published record and your client exposure.',
   },
   feed: {
     eyebrow: 'Alert worklist',
@@ -160,9 +167,12 @@ export function LegiWatchModule() {
   // watches/presets open its separate additive preset management card.
   const rawTab = searchParams.get('tab');
   const tab: LegiWatchTab = useMemo(() => {
-    if (rawTab && Object.prototype.hasOwnProperty.call(TAB_ALIASES, rawTab)) return TAB_ALIASES[rawTab] ?? 'hearings';
+    if (rawTab && Object.prototype.hasOwnProperty.call(TAB_ALIASES, rawTab))
+      return TAB_ALIASES[rawTab] ?? 'hearings';
     if (!rawTab || REMOVED_TABS.has(rawTab)) return 'hearings';
-    return (LEGIWATCH_TABS as readonly string[]).includes(rawTab) ? (rawTab as LegiWatchTab) : 'hearings';
+    return (LEGIWATCH_TABS as readonly string[]).includes(rawTab)
+      ? (rawTab as LegiWatchTab)
+      : 'hearings';
   }, [rawTab]);
 
   const scope = searchParams.get('client') ?? '';
@@ -203,15 +213,21 @@ export function LegiWatchModule() {
   // Cold start detection (§7.12): a scoped client whose watchlist read returns
   // the server's "never configured" shape (suggestedIssueAreas present, no
   // topics). The watchlist read is the canonical relevance source (§6.5).
-  const watchlist = useQuery<{ topics?: unknown[]; issueAreas?: string[]; suggestedIssueAreas?: string[] } | null>({
+  const watchlist = useQuery<{
+    topics?: unknown[];
+    issueAreas?: string[];
+    suggestedIssueAreas?: string[];
+  } | null>({
     queryKey: ['lw-vnext', 'watchlist-peek', scope],
     queryFn: async () => {
       if (!scope) return null;
       try {
         return (
-          await api.get<{ topics?: unknown[]; issueAreas?: string[]; suggestedIssueAreas?: string[] }>(
-            `/intel-api/tracker/watchlists/${encodeURIComponent(scope)}`,
-          )
+          await api.get<{
+            topics?: unknown[];
+            issueAreas?: string[];
+            suggestedIssueAreas?: string[];
+          }>(`/intel-api/tracker/watchlists/${encodeURIComponent(scope)}`)
         ).data;
       } catch {
         return null;
@@ -316,7 +332,10 @@ export function LegiWatchModule() {
                 role="option"
                 aria-selected={!selectedClient}
                 className={`lw-lens__opt${!selectedClient ? ' is-active' : ''}`}
-                onClick={() => { setParam('client', null); setLensOpen(false); }}
+                onClick={() => {
+                  setParam('client', null);
+                  setLensOpen(false);
+                }}
               >
                 <span className="lw-lens__optname">All clients</span>
               </button>
@@ -327,7 +346,10 @@ export function LegiWatchModule() {
                   role="option"
                   aria-selected={selectedClient?.id === c.id}
                   className={`lw-lens__opt${selectedClient?.id === c.id ? ' is-active' : ''}`}
-                  onClick={() => { setParam('client', c.id); setLensOpen(false); }}
+                  onClick={() => {
+                    setParam('client', c.id);
+                    setLensOpen(false);
+                  }}
                 >
                   <span className="lw-lens__optname">{c.name}</span>
                 </button>
@@ -341,15 +363,27 @@ export function LegiWatchModule() {
               ARCHIVED/DELETED reference. The scope keeps working (historical
               data stays reachable) but the selector must not silently pretend
               the client is active. */}
-          {scope && !selectedClient ? (
-            <LwPill tone="warning">ARCHIVED CLIENT SCOPE</LwPill>
-          ) : null}
-          <LwButton size="42" onClick={() => setOverlay('search')} aria-label="Search LegiWatch" title="Search LegiWatch">
+          {scope && !selectedClient ? <LwPill tone="warning">ARCHIVED CLIENT SCOPE</LwPill> : null}
+          <LwButton
+            size="42"
+            onClick={() => setOverlay('search')}
+            aria-label="Search LegiWatch"
+            title="Search LegiWatch"
+          >
             Search LegiWatch
           </LwButton>
-          <LwButton size="42" onClick={() => setOverlay('views')}>Saved views</LwButton>
-          <LwButton size="42" variant="primary" onClick={() => setOverlay('watch')}>Create watch</LwButton>
-          <LwButton size="42" onClick={() => setOverlay('export')} aria-label="Export calendar" title="Export calendar">
+          <LwButton size="42" onClick={() => setOverlay('views')}>
+            Saved views
+          </LwButton>
+          <LwButton size="42" variant="primary" onClick={() => setOverlay('watch')}>
+            Create watch
+          </LwButton>
+          <LwButton
+            size="42"
+            onClick={() => setOverlay('export')}
+            aria-label="Export calendar"
+            title="Export calendar"
+          >
             Export calendar
           </LwButton>
           <button
@@ -421,18 +455,35 @@ export function LegiWatchModule() {
         // §14 browse mode on a dependent tab: the tab renders its real data path
         // (tenant-wide or all-clients) with an honest, dismissible notice.
         <>
-          <div className="lw-card" style={{ padding: '10px 18px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }} aria-label="Browse mode notice">
-            <LwPill tone="warning" size="22">BROWSE MODE</LwPill>
+          <div
+            className="lw-card"
+            style={{
+              padding: '10px 18px',
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+            aria-label="Browse mode notice"
+          >
+            <LwPill tone="warning" size="22">
+              BROWSE MODE
+            </LwPill>
             <span style={{ fontSize: 13, color: 'var(--lw-body)' }}>
-              Public LegiWatch data remains available. Client-specific alerts and relevance require a monitoring model.
+              Public LegiWatch data remains available. Client-specific alerts and relevance require
+              a monitoring model.
             </span>
             <LwButton size="36" onClick={() => navigate(watchlistSetupPath(scope))}>
               Set up the watchlist
             </LwButton>
           </div>
-          {tab === 'feed' ? <FeedTab scope={scope} clients={visibleClients} />
-          : tab === 'digest' ? <DigestTab scope={scope} />
-          : <AnalyticsTab scope={scope} />}
+          {tab === 'feed' ? (
+            <FeedTab scope={scope} clients={visibleClients} />
+          ) : tab === 'digest' ? (
+            <DigestTab scope={scope} />
+          ) : (
+            <AnalyticsTab scope={scope} />
+          )}
         </>
       ) : tab === 'hearings' ? (
         <HearingsTab scope={scope} />

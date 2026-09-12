@@ -198,12 +198,6 @@ export function ContextUsedPanel({ manifest, heldNote }: ContextUsedPanelProps) 
         <h4>Model &amp; policy</h4>
         <dl>
           <div>
-            <dt>Audience policy</dt>
-            <dd>
-              {manifest.policy.label} ({manifest.policy.jurisdiction}) · {manifest.policy.version}
-            </dd>
-          </div>
-          <div>
             <dt>Model</dt>
             <dd>
               {manifest.provider ?? '—'} / {manifest.model ?? '—'}

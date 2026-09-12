@@ -8,7 +8,6 @@
 import type { GenerationSurface, SourceFailure } from './evidence-packet.types.js';
 import type { SelectedContextItemRef } from './evidence-source.service.js';
 import type { ContentSkeleton } from './content-skeleton.js';
-import type { GaAudience } from './government-affairs-policy.registry.js';
 import type { PlanValidationIssue } from './message-plan.schema.js';
 import type { ReasoningEffort } from './reasoning-effort.js';
 
@@ -44,8 +43,6 @@ export interface GenerationRequest {
   direction?: 'on-behalf' | 'to-clients' | null;
   audienceKind: 'individual' | 'group';
   groupMemberCount?: number;
-  /** An explicit audience choice, when the user made one. */
-  explicitAudience?: GaAudience | null;
   /** The server-resolved recipient (never a browser assertion for identity). */
   recipient: GatewayRecipient;
   /**
@@ -121,12 +118,6 @@ export interface GatewayRecipient {
   office: string | null;
   state: string | null;
   district: string | null;
-  /** Server-resolved directory source type, drives policy selection. */
-  sourceType: string | null;
-  /** Server-resolved source types for a shared recipient group. */
-  sourceTypes?: string[];
-  /** Server-resolved government level for an individual or homogeneous group. */
-  governmentLevel?: 'federal' | 'state' | 'local' | 'agency' | 'corporate' | 'unknown' | null;
   chamber: string | null;
   /**
    * Server-resolved committee names for the recipient. For a member these are
@@ -138,7 +129,6 @@ export interface GatewayRecipient {
    * bioguide.
    */
   committees?: string[];
-  defenseAcquisition?: boolean;
   /** The full snapshot persisted on the Phase 0 artifact. */
   snapshot: Record<string, unknown>;
 }
@@ -159,8 +149,6 @@ export interface PinnedGenerationIdentity {
    */
   reasoningEffort?: ReasoningEffort | null;
   promptSpecVersion: string;
-  policyId: string;
-  policyVersion: string;
   /** The campaign-static packet, when the job pinned one. */
   contextPacketId?: string | null;
 }
@@ -196,13 +184,6 @@ export interface GenerationSourceManifest {
   criticalFailures: SourceFailure[];
   oldestSourceAt: string | null;
   newestSourceAt: string | null;
-  policy: {
-    policyId: string;
-    version: string;
-    label: string;
-    jurisdiction: string;
-    audienceType: string;
-  };
   provider: string | null;
   model: string | null;
   planModel: string | null;

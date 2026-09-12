@@ -145,7 +145,6 @@ function harness(options: { sessions?: any; generate?: jest.Mock } = {}) {
     }));
   const gateway = {
     enabled: true,
-    resolvePolicy: jest.fn().mockReturnValue({ id: 'policy' }),
     resolvePinnedIdentity: jest.fn().mockResolvedValue({ pinned, creds: { provider: 'openai' } }),
     generate,
   };

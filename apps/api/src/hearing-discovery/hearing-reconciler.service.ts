@@ -21,6 +21,7 @@ import { HearingObservationRepository } from './hearing-observation.repository.j
 import { StreamCandidateRepository } from './stream-candidate.repository.js';
 import { projectCanonical } from './canonical-diff.js';
 import type { SourceDescriptor, SourceEvent } from './hearing-discovery.types.js';
+import { LegislativeCalendarRepository } from './legislative-calendar.repository.js';
 
 export interface ReconcileOutcome {
   hearingId: string;
@@ -53,6 +54,7 @@ export class HearingReconcilerService {
   private readonly hearings: CanonicalHearingRepository;
   private readonly observations: HearingObservationRepository;
   private readonly candidates: StreamCandidateRepository;
+  private readonly legislative: LegislativeCalendarRepository;
 
   constructor(
     prisma: PrismaClient,
@@ -65,6 +67,7 @@ export class HearingReconcilerService {
     this.hearings = deps?.hearings ?? new CanonicalHearingRepository(prisma);
     this.observations = deps?.observations ?? new HearingObservationRepository(prisma);
     this.candidates = deps?.candidates ?? new StreamCandidateRepository(prisma);
+    this.legislative = new LegislativeCalendarRepository(prisma);
   }
 
   /** Reconcile one observed event. */
@@ -73,6 +76,8 @@ export class HearingReconcilerService {
     event: SourceEvent,
     now: Date,
   ): Promise<ReconcileOutcome> {
+    if (event.legislative)
+      return this.legislative.reconcile(source, event.externalEventId, event.legislative, now);
     const observation = await this.observations.recordObservation(source, event, now);
 
     // STRONGEST identity rung, ahead of the whole match ladder: if THIS source
@@ -122,6 +127,7 @@ export class HearingReconcilerService {
               officialPageUrl: event.officialPageUrl ?? null,
               witnesses: event.witnesses ?? [],
               agendaBillIds: event.agendaBillIds ?? [],
+              agendaComplete: event.agendaComplete,
               streamCandidates: event.streamCandidates ?? [],
             },
           ],

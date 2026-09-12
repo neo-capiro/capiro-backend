@@ -267,10 +267,7 @@ export function stripProtectedTimeFields<T extends object>(
  * Read the current timezone of a canonical row BEFORE an upsert so Source 1 can
  * protect corrected rows. Null/absent → not protected.
  */
-async function existingTimezone(
-  prisma: PrismaClient,
-  id: string,
-): Promise<string | null> {
+async function existingTimezone(prisma: PrismaClient, id: string): Promise<string | null> {
   const rows = await prisma.$queryRawUnsafe<Array<{ timezone: string | null }>>(
     `SELECT timezone FROM committee_hearing WHERE id = $1 LIMIT 1`,
     id,
@@ -356,8 +353,8 @@ async function syncHouseDocsMeetings(
       await prisma.committeeHearing.upsert({
         where: { id },
         // Preserve committeeCode + witnesses (Source 1 owns them); refresh display fields.
-        update: { ...row, syncedAt: new Date() },
-        create: { id, committeeCode: null, witnesses: [], ...fields },
+        update: { ...row, geographicJurisdiction: 'US', syncedAt: new Date() },
+        create: { id, committeeCode: null, witnesses: [], ...fields, geographicJurisdiction: 'US' },
       });
       upserts++;
     }
@@ -476,8 +473,8 @@ async function main() {
             const row = stripProtectedTimeFields(fields, protectedTz);
             await prisma.committeeHearing.upsert({
               where: { id },
-              update: { ...row, syncedAt: new Date() },
-              create: { id, ...fields },
+              update: { ...row, geographicJurisdiction: 'US', syncedAt: new Date() },
+              create: { id, ...fields, geographicJurisdiction: 'US' },
             });
             meetingUpserts++;
 
@@ -572,6 +569,7 @@ async function main() {
               await prisma.committeeHearing.upsert({
                 where: { id },
                 update: {
+                  geographicJurisdiction: 'US',
                   title,
                   chamber,
                   committeeName,
@@ -594,6 +592,7 @@ async function main() {
                 },
                 create: {
                   id,
+                  geographicJurisdiction: 'US',
                   eventStatus: 'completed',
                   title,
                   chamber,

@@ -6206,6 +6206,10 @@ model StateBillCalendarEvent {
   date         DateTime  @db.Date
   time         String?
   location     String?
+  description  String?   @db.Text
+  raw          Json?
+  present      Boolean   @default(true)
+  firstSeenAt  DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
   eventKey     String    @map("event_key") // "<billKey>:<type>:<date>:<location>"
   lastSyncedAt DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
   bill         StateBill @relation(fields: [billKey], references: [id], onDelete: Cascade)
@@ -6250,6 +6254,10 @@ model StateSession {
 // drain. Roster normalization (from StateLegislator.committees Json) stays
 // Phase 1 per the parent plan's scoping.
 model StateCommittee {
+  officialSourceKey String? @unique @map("official_source_key")
+  legislativeSession String? @map("legislative_session")
+  sourceUrl String? @map("source_url")
+  sourceEvidence Json? @map("source_evidence")
   id                  String   @id // "<state>-<chamber>-<slug(name)>"
   state               String
   chamber             String?
@@ -6409,6 +6417,17 @@ model MemberPressItem {
 
 model CommitteeHearing {
   id            String    @id @default(uuid())
+  geographicJurisdiction String? @map("geographic_jurisdiction")
+  legislativeSession String? @map("legislative_session")
+  stateCommitteeId String? @map("state_committee_id")
+  bodySourceKey String? @map("body_source_key")
+  calendarRevision Int @default(0) @map("calendar_revision")
+  calendarSnapshot Json? @map("calendar_snapshot")
+  calendarProvenance Json? @map("calendar_provenance")
+  calendarCheckedAt DateTime? @map("calendar_checked_at") @db.Timestamptz(6)
+  calendarCheckState String @default("unknown") @map("calendar_check_state")
+  timePrecision String? @map("time_precision")
+  scheduledEnd DateTime? @map("scheduled_end") @db.Timestamptz(6)
   chamber       String // House, Senate, Joint
   committeeName String    @map("committee_name")
   committeeCode String?   @map("committee_code")
@@ -6458,11 +6477,93 @@ model CommitteeHearing {
 
   @@index([date])
   @@index([committeeName, date])
+  @@index([geographicJurisdiction, legislativeSession, date])
   @@index([startsAt])
   @@index([committeeSystemCode])
   @@index([coverageStatus])
   @@index([eventStatus])
   @@map("committee_hearing")
+}
+
+// Public, source-backed agenda membership; state keys never enter congress_bill.
+model LegislativeAgendaItem {
+  id String @id @default(uuid()) @db.Uuid
+  hearingId String @map("hearing_id")
+  itemKey String @map("item_key")
+  position Int
+  kind String
+  title String @db.Text
+  billScope String? @map("bill_scope")
+  stateBillKey String? @map("state_bill_key")
+  federalBillId String? @map("federal_bill_id")
+  sourceUrl String @map("source_url")
+  evidence Json
+  active Boolean @default(true)
+  revision Int
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  @@unique([hearingId, itemKey])
+  @@index([stateBillKey, active, hearingId])
+  @@index([federalBillId, active, hearingId])
+  @@map("legislative_agenda_item")
+}
+
+// One atomic material event change, retained for replay, drafts and delivery.
+model LegislativeCalendarTransition {
+  id String @id @default(uuid()) @db.Uuid
+  hearingId String @map("hearing_id")
+  revision Int
+  before Json?
+  after Json
+  changedFields String[] @map("changed_fields")
+  sourceId String? @map("source_id") @db.Uuid
+  sourceUrl String @map("source_url")
+  observedAt DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  @@unique([hearingId, revision])
+  @@index([observedAt, id])
+  @@map("legislative_calendar_transition")
+}
+
+model LegislativeObservationRevision {
+  id String @id @default(uuid()) @db.Uuid
+  sourceId String @map("source_id") @db.Uuid
+  externalEventId String @map("external_event_id")
+  hearingId String @map("hearing_id")
+  contentHash String @map("content_hash")
+  payload Json
+  observedAt DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  @@index([hearingId, observedAt])
+  @@index([sourceId, externalEventId, observedAt])
+  @@map("legislative_observation_revision")
+}
+
+model LegislativeCalendarCoverage {
+  id String @id @default(uuid()) @db.Uuid
+  sourceId String @map("source_id") @db.Uuid
+  jurisdiction String
+  chamber String
+  session String?
+  fromDate DateTime @map("from_date") @db.Date
+  toDate DateTime @map("to_date") @db.Date
+  status String
+  pages Int @default(0)
+  items Int @default(0)
+  details Json
+  attemptedAt DateTime @default(now()) @map("attempted_at") @db.Timestamptz(6)
+  @@index([jurisdiction, chamber, attemptedAt])
+  @@map("legislative_calendar_coverage")
+}
+
+model StateBillCalendarSnapshot {
+  id String @id @default(uuid()) @db.Uuid
+  billKey String @map("bill_key")
+  contentHash String @map("content_hash")
+  completeness String
+  payload Json
+  issues Json
+  observedAt DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  @@index([billKey, observedAt])
+  @@map("state_bill_calendar_snapshot")
 }
 
 // Hearing → bill agenda link (LegiWatch B3). GLOBAL public-record table, no

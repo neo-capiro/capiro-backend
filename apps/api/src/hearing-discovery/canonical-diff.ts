@@ -44,6 +44,7 @@ import type {
  * freshest report from an equally authoritative source wins.
  */
 export interface ProjectableObservation {
+  agendaComplete?: boolean;
   sourceId: string;
   adapterKey: string;
   sourcePriority: number;
@@ -74,6 +75,7 @@ export interface ProjectableObservation {
 
 /** The projected canonical value set for one hearing. */
 export interface ProjectedHearing {
+  agendaComplete?: boolean;
   congress: number | null;
   chamber: string;
   committeeSystemCode: string | null;
@@ -104,6 +106,7 @@ export interface ProjectedHearing {
 /** The canonical row as it exists today, for diffing. */
 export interface ExistingHearing {
   id: string;
+  geographicJurisdiction?: string | null;
   congress: number | null;
   chamber: string;
   committeeName: string;
@@ -177,6 +180,7 @@ function isEmpty(v: unknown): boolean {
 export function projectCanonical(observations: ProjectableObservation[]): ProjectedHearing {
   const ordered = [...observations].sort(byAuthority);
   const fieldSources: Record<string, string> = {};
+  const completeAgenda = ordered.find((o) => o.agendaComplete === true);
 
   function pick<K extends keyof ProjectableObservation>(
     field: K,
@@ -223,9 +227,10 @@ export function projectCanonical(observations: ProjectableObservation[]): Projec
     // best-authority observation that states a time wins.
     const donor =
       ordered.find(
-        (o) => o.timeAuthority === 'explicit_local' && (o.startsAt != null || (o.displayTime ?? '').trim().length > 0),
-      ) ??
-      ordered.find((o) => o.startsAt != null || (o.displayTime ?? '').trim().length > 0);
+        (o) =>
+          o.timeAuthority === 'explicit_local' &&
+          (o.startsAt != null || (o.displayTime ?? '').trim().length > 0),
+      ) ?? ordered.find((o) => o.startsAt != null || (o.displayTime ?? '').trim().length > 0);
     if (donor) {
       return {
         startsAt: donor.startsAt ?? null,
@@ -264,7 +269,8 @@ export function projectCanonical(observations: ProjectableObservation[]): Projec
     location: pick('location') ?? null,
     officialPageUrl: pick('officialPageUrl') ?? null,
     witnesses: pick('witnesses') ?? [],
-    agendaBillIds: pick('agendaBillIds') ?? [],
+    agendaBillIds: completeAgenda?.agendaBillIds ?? pick('agendaBillIds') ?? [],
+    agendaComplete: Boolean(completeAgenda),
     streamCandidates: [...candidates.values()],
     lastOfficialUpdateAt: officialUpdates.length
       ? new Date(Math.max(...officialUpdates.map((d) => d.getTime())))
@@ -443,7 +449,9 @@ export function planCanonicalWrite(
    * normal ET rows keep the legacy fill-only contract, so a central-calendar
    * re-encode still cannot rewrite a legacy row's time.
    */
-  const zoneIsExplicit = projected.timeAuthority === 'explicit_local' && isValidIanaZone(projected.timeZone ?? undefined);
+  const zoneIsExplicit =
+    projected.timeAuthority === 'explicit_local' &&
+    isValidIanaZone(projected.timeZone ?? undefined);
   const timeWriteOpts = zoneIsExplicit ? {} : { legacy: true };
 
   const timeOutcome = assign('startsAt', projected.startsAt, existing.startsAt, {

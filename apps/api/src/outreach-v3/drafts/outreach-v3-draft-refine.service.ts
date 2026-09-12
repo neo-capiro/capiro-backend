@@ -178,17 +178,7 @@ export class OutreachV3DraftRefineService {
     // revision mode, so what the user asked for outranks the campaign template.
     unit.request.reviseInstruction = input.instruction;
 
-    let policy: ReturnType<GenerationGatewayService['resolvePolicy']>;
-    try {
-      policy = this.gateway.resolvePolicy(unit.request);
-    } catch {
-      throw blocked(
-        'The audience policy could not be resolved for this draft.',
-        'audience_policy_required',
-      );
-    }
     const resolved = await this.gateway.resolvePinnedIdentity(ctx, {
-      policy,
       runtimeAction: unit.request.runtimeAction,
     });
     if (!resolved) {

@@ -73,6 +73,8 @@ export interface HearingWitness {
 }
 
 export interface HearingDocument {
+  deadlines?: string[];
+  contentHash?: string;
   id?: string;
   title: string;
   documentType?: string;
@@ -171,6 +173,22 @@ export interface PublicTranscriptSegment {
 }
 
 export interface CanonicalHearingEvent {
+  geographicJurisdiction?: string;
+  legislativeSession?: string;
+  stateCommitteeId?: string;
+  calendarRevision?: number;
+  calendarCheckedAt?: string;
+  calendarCheckState?: string;
+  timePrecision?: string;
+  following?: boolean;
+  agenda?: Array<{
+    key: string;
+    position: number;
+    kind: string;
+    title: string;
+    sourceUrl: string;
+    bill?: { id: string; scope: string; jurisdiction: string; session: string };
+  }>;
   id: string;
   canonicalEventId?: string;
   congress?: number;

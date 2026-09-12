@@ -16,6 +16,7 @@ import {
   CapiroTableCell as TD,
 } from '../../../components/tables/index.js';
 import { Bill360Drawer } from './Bill360Drawer.js';
+import { useBillAgendaPage } from '../hearings/BillAgenda.js';
 import { FolderContextEditor, importanceOptions, positionOptions } from './FolderContextPanel.js';
 import {
   FOLDER_BASE,
@@ -30,6 +31,10 @@ import { FolderImportReview } from './FolderImportReview.js';
 import './folder-tracker.css';
 import { ReportWorkspace } from '../reports/ReportWorkspace.js';
 import { useReportsFlag } from '../reports/report-api.js';
+import {
+  STATE_CALENDAR_FEATURE,
+  useIntelFeatureEnabled,
+} from '../../../../lib/intel-feature-flags.js';
 
 type Resolution = {
   token: string;
@@ -65,9 +70,12 @@ const emptyContext = {
 };
 
 export function FolderBillsTab({ scope, clients }: { scope: string; clients: Client[] }) {
+  const calendarEnabled = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
   const reportsFlag = useReportsFlag();
   const [reportsOpen, setReportsOpen] = useState(false);
-  useEffect(() => { setReportsOpen(false); }, [reportsFlag.scope]);
+  useEffect(() => {
+    setReportsOpen(false);
+  }, [reportsFlag.scope]);
   const api = useApi(),
     identity = useApiScope(),
     qc = useQueryClient(),
@@ -184,6 +192,17 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
     retry: false,
   });
   const rows = board.data?.rows ?? [];
+  const billAgendas = useBillAgendaPage(
+    rows.map((row) => row.id),
+    calendarEnabled,
+  );
+  const agendaCounts = new Map<string, number>();
+  for (const event of billAgendas.data?.items ?? []) {
+    for (const id of new Set(
+      (event.agenda ?? []).flatMap((item) => (item.bill ? [item.bill.id] : [])),
+    ))
+      agendaCounts.set(id, (agendaCounts.get(id) ?? 0) + 1);
+  }
   const chosen = rows.filter((r) => selected.includes(r.assignmentId ?? r.id));
   const refresh = () => qc.invalidateQueries({ queryKey: folderKey(identity) });
   const perform = async (action: () => Promise<void>) => {
@@ -295,7 +314,16 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
   );
   return (
     <section className="lw-folders" aria-label="Bill folders">
-      {reportsOpen && reportsFlag.enabled && <CapiroModal open title="Reports and updates" width={1280} onClose={() => setReportsOpen(false)}><ReportWorkspace initialFolderId={active?.id} /></CapiroModal>}
+      {reportsOpen && reportsFlag.enabled && (
+        <CapiroModal
+          open
+          title="Reports and updates"
+          width={1280}
+          onClose={() => setReportsOpen(false)}
+        >
+          <ReportWorkspace initialFolderId={active?.id} />
+        </CapiroModal>
+      )}
       <aside className="lw-folder-rail-desktop">{rail}</aside>
       <div className="lw-folder-main">
         <div className="lw-folder-heading">
@@ -324,7 +352,11 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             </p>
           </div>
           <div className="lw-folder-actions">
-            {reportsFlag.enabled && <CapiroButton size="compact" onClick={() => setReportsOpen(true)}>Reports</CapiroButton>}
+            {reportsFlag.enabled && (
+              <CapiroButton size="compact" onClick={() => setReportsOpen(true)}>
+                Reports
+              </CapiroButton>
+            )}
             {active && (
               <CapiroButton
                 size="compact"
@@ -355,6 +387,23 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             >
               Export
             </CapiroButton>
+            {calendarEnabled && active ? (
+              <CapiroButton
+                size="compact"
+                onClick={() => {
+                  const calendar = new URLSearchParams({
+                    tab: 'hearings',
+                    jurisdiction: active.jurisdiction,
+                    calendarFolder: active.id,
+                    session,
+                  });
+                  if (scope) calendar.set('client', scope);
+                  navigate(`/legiwatch?${calendar}`);
+                }}
+              >
+                Folder calendar
+              </CapiroButton>
+            ) : null}
           </div>
         </div>
         <div className="lw-folder-filters">
@@ -586,6 +635,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                     <TH hidden={!visibleColumns.has('priority')}>Priority / importance</TH>
                     <TH hidden={!visibleColumns.has('position')}>Position</TH>
                     <TH hidden={!visibleColumns.has('added')}>Date foldered</TH>
+                    {calendarEnabled ? <TH>Upcoming agenda</TH> : null}
                     <TH>Context</TH>
                   </tr>
                 </CapiroTableHead>
@@ -658,6 +708,29 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                           {r.addedDateRaw ?? r.addedAt?.slice(0, 10) ?? '—'}
                         </span>
                       </TD>
+                      {calendarEnabled ? (
+                        <TD>
+                          {billAgendas.isError ? (
+                            <button onClick={() => void billAgendas.refetch()}>
+                              Retry agenda check
+                            </button>
+                          ) : billAgendas.isPending ? (
+                            'Checking…'
+                          ) : agendaCounts.get(r.id) ? (
+                            <button className="lw-folder-bill-link" onClick={() => setBill(r)}>
+                              {agendaCounts.get(r.id)} linked event
+                              {agendaCounts.get(r.id) === 1 ? '' : 's'}
+                            </button>
+                          ) : billAgendas.data &&
+                            billAgendas.data.total > billAgendas.data.items.length ? (
+                            <button onClick={() => setBill(r)}>Check appearances</button>
+                          ) : (
+                            <span title="No upcoming link in checked calendar sources">
+                              None linked
+                            </span>
+                          )}
+                        </TD>
+                      ) : null}
                       <TD>
                         {r.assignmentId ? (
                           <CapiroButton

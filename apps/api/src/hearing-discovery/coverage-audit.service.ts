@@ -1,3 +1,4 @@
+import { federalHearingWhere } from './hearing-geography.js';
 /**
  * Coverage audit — the honest answer to "which congressional bodies can we
  * actually cover?"
@@ -162,12 +163,14 @@ export class CoverageAuditService {
       OR: [{ committeeSystemCode: body.systemCode }, { committeeCode: body.systemCode }],
     };
     const [hearingsDiscovered, upcomingHearings, hearingIds] = await Promise.all([
-      this.prisma.committeeHearing.count({ where: { ...codeMatch, date: { gte: windowStart } } }),
       this.prisma.committeeHearing.count({
-        where: { ...codeMatch, date: { gte: startOfDay(now) } },
+        where: federalHearingWhere({ ...codeMatch, date: { gte: windowStart } }),
+      }),
+      this.prisma.committeeHearing.count({
+        where: federalHearingWhere({ ...codeMatch, date: { gte: startOfDay(now) } }),
       }),
       this.prisma.committeeHearing.findMany({
-        where: { ...codeMatch, date: { gte: windowStart } },
+        where: federalHearingWhere({ ...codeMatch, date: { gte: windowStart } }),
         select: { id: true },
         take: 2000,
       }),

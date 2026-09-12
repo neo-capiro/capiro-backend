@@ -34,10 +34,6 @@ import {
 } from './engagement.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import type { PinnedGenerationIdentity } from './generation/generation-gateway.types.js';
-import {
-  AudiencePolicyRequiredError,
-  type GaPolicy,
-} from './generation/government-affairs-policy.registry.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 export type OutreachJobKind = 'generate' | 'send';
@@ -386,24 +382,20 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
   /**
    * Resolve the provider/model this whole job will use (§3.k1), or throw.
    *
-   * Uses the FIRST recipient only to pick an audience policy for the pinning call;
-   * each chunk still resolves its own policy per recipient inside the gateway, so
-   * a mixed-audience campaign is not forced onto one policy. What is pinned here
-   * is the VOICE (provider + model + prompt spec), which is the thing that must
-   * not change partway through a single campaign.
+   * What is pinned here is the VOICE (provider + model + prompt spec), which is
+   * the thing that must not change partway through a single campaign.
    *
-   * FAILS CLOSED (§e1/e2): an ambiguous audience (AudiencePolicyRequiredError)
-   * and an unavailable credential both throw a client-facing error instead of
-   * resolving to null — a null here used to mean "queue the job unpinned",
-   * exactly the fail-open behavior this closes. Mirrors the sync gateway path's
-   * (generateBatchEmailsViaGateway) handling of the same two failure modes, so
-   * a caller sees the same error shape whether generation runs sync or async.
+   * FAILS CLOSED (§e1/e2): an unavailable credential throws a client-facing
+   * error instead of resolving to null — a null here used to mean "queue the
+   * job unpinned", exactly the fail-open behavior this closes. Mirrors the sync
+   * gateway path's (generateBatchEmailsViaGateway) handling of the same failure
+   * mode, so a caller sees the same error shape whether generation runs sync or
+   * async.
    */
   private async resolveJobIdentity(
     ctx: TenantContext,
     input: SubmitOutreachJobInput,
   ): Promise<PinnedGenerationIdentity> {
-    const params = input.params as Partial<GenerateBatchEmailInput>;
     const first = input.recipients[0] as OutreachRecipientInput | undefined;
     if (!first) {
       // Unreachable in practice: submit() already routes an empty recipient
@@ -411,47 +403,7 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
       // rather than silently pinning nothing.
       throw new BadRequestException('At least one recipient is required to start this campaign.');
     }
-    let policy: GaPolicy;
-    try {
-      policy = this.gateway.resolvePolicy({
-        surface: 'outreach_email',
-        clientId: params.clientId ?? null,
-        items: [],
-        templateId: params.templateId ?? '',
-        templatePrompt: '',
-        tone: 'professional',
-        direction: params.direction ?? null,
-        audienceKind: params.audienceKind === 'group' ? 'group' : 'individual',
-        recipient: {
-          generationKey: '',
-          scopeKeys: [],
-          recipientKey: '',
-          name: first.name ?? null,
-          email: first.email ?? null,
-          title: first.title ?? null,
-          office: first.office ?? null,
-          state: first.state ?? null,
-          district: first.district ?? null,
-          sourceType: first.direction === 'to-clients' ? 'client' : null,
-          chamber: first.chamber ?? null,
-          snapshot: {},
-        },
-      });
-    } catch (e) {
-      if (e instanceof AudiencePolicyRequiredError) {
-        // §e2: an ambiguous audience is a submission failure, not a "the
-        // per-chunk resolution will sort it out later" deferral — there is no
-        // per-chunk resolution once pinning is mandatory.
-        throw new BadRequestException({
-          statusCode: 400,
-          error: e.code,
-          message: e.message,
-          candidates: e.candidates,
-        });
-      }
-      throw e;
-    }
-    const identity = await this.gateway.resolvePinnedIdentity(ctx, { policy });
+    const identity = await this.gateway.resolvePinnedIdentity(ctx, {});
     if (!identity?.pinned) {
       throw new ServiceUnavailableException(
         'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
@@ -905,8 +857,6 @@ export function readPinnedIdentity(
     model,
     planModel: typeof o.planModel === 'string' ? o.planModel : null,
     promptSpecVersion,
-    policyId: typeof o.policyId === 'string' ? o.policyId : '',
-    policyVersion: typeof o.policyVersion === 'string' ? o.policyVersion : '',
     ...(typeof o.contextPacketId === 'string' ? { contextPacketId: o.contextPacketId } : {}),
   };
 }

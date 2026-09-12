@@ -1572,13 +1572,14 @@ function ScheduleEditor({
     </div>
   );
 }
-function RuleEditor({
+export function RuleEditor({
   initial,
   folders,
   scope,
   busy,
   save,
   activate,
+  apiBase = `${B}/rules`,
 }: {
   initial: Rule;
   folders: Folder[];
@@ -1586,6 +1587,7 @@ function RuleEditor({
   busy: boolean;
   save: (value: Rule) => Promise<void>;
   activate: (enabled: boolean) => Promise<void>;
+  apiBase?: string;
 }) {
   const api = useApi(),
     [draft, setDraft] = useState(initial),
@@ -1608,7 +1610,7 @@ function RuleEditor({
           ready: boolean;
           issues: string[];
           examples: Array<{ key: string; number: string; text: string; date: string | null }>;
-        }>(`${B}/rules/${initial.id}/readiness`)
+        }>(`${apiBase}/${initial.id}/readiness`)
       ).data,
   });
   const change = (patch: Partial<Rule>) => {

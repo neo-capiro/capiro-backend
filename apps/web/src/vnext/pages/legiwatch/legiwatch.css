@@ -235,6 +235,23 @@
 .capiro-vnext-root .lw .lw-btn--40 { height: 40px; }
 .capiro-vnext-root .lw .lw-btn--42 { height: 42px; }
 .capiro-vnext-root .lw .lw-btn--icon { width: 42px; padding: 0; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-backlink {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--lw-label);
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-backlink:hover { text-decoration: underline; }
+.capiro-vnext-root .lw .lw-backlink:focus-visible { outline: 2px solid var(--lw-brand-dot); outline-offset: 4px; }
 .capiro-vnext-root .lw .lw-filter-pill.is-active {
   background: var(--lw-ink);
   color: #fff;

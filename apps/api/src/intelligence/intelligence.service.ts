@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import {
   Injectable,
   Logger,
@@ -26,7 +27,10 @@ import { addDateInZone, dateBoundsInZone, dayBoundsInZone } from './time-bounds.
 import { FEC_DISCLAIMER } from './fec-disclaimer.js';
 import { fecCycles } from './fec-cycles.js';
 import { pacCoverage, type PacCoverage } from './fec-pac-coverage.js';
-import { buildClientAwardScope, clientAwardScopeSql } from '../funding-opportunities/client-award-scope.js';
+import {
+  buildClientAwardScope,
+  clientAwardScopeSql,
+} from '../funding-opportunities/client-award-scope.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
 import {
   buildKeywordMatchTerms,
@@ -456,20 +460,36 @@ export class IntelligenceService {
     if (!client || client.status === 'archived') throw new NotFoundException('Client not found');
     const now = new Date();
     const results = await Promise.allSettled([
-      this.withSourceBudget('billRegulationLinks', clientId, this.getBillRegulationLinks(clientId, tenantId)),
-      this.withSourceBudget('clientRelevantRegulations', clientId, this.getClientRelevantRegulations(clientId, tenantId, now)),
+      this.withSourceBudget(
+        'billRegulationLinks',
+        clientId,
+        this.getBillRegulationLinks(clientId, tenantId),
+      ),
+      this.withSourceBudget(
+        'clientRelevantRegulations',
+        clientId,
+        this.getClientRelevantRegulations(clientId, tenantId, now),
+      ),
     ] as const);
     const labels = ['Tracked-bill regulations', 'Client-relevant regulations'];
     const sources = results.map((result, index) => {
       if (result.status === 'rejected') {
-        this.logger.warn(`regulatory-profile source ${labels[index]} failed for client ${clientId}: ${String(result.reason)}`);
+        this.logger.warn(
+          `regulatory-profile source ${labels[index]} failed for client ${clientId}: ${String(result.reason)}`,
+        );
       }
-      return { name: labels[index]!, status: result.status === 'fulfilled' ? 'available' as const : 'unavailable' as const };
+      return {
+        name: labels[index]!,
+        status: result.status === 'fulfilled' ? ('available' as const) : ('unavailable' as const),
+      };
     });
     if (results.every((result) => result.status === 'rejected')) {
       throw new ServiceUnavailableException('Regulatory sources are unavailable. Please retry.');
     }
-    const links = results[0].status === 'fulfilled' ? results[0].value : { links: [], totalBills: 0, totalRegulations: 0 };
+    const links =
+      results[0].status === 'fulfilled'
+        ? results[0].value
+        : { links: [], totalBills: 0, totalRegulations: 0 };
     const relevant = results[1].status === 'fulfilled' ? results[1].value : [];
     return {
       clientId,
@@ -689,7 +709,9 @@ export class IntelligenceService {
         // `gte: now` therefore excluded TODAY's hearings for the whole working
         // day — 00:00Z >= 13:00Z is false — so a hearing happening right now was
         // never in this feed. Compare against the start of the Eastern day.
-        where: { date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: day21 } },
+        where: federalHearingWhere({
+          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: day21 },
+        }),
         orderBy: [{ date: 'asc' }, { time: 'asc' }],
         take: 40,
       }),
@@ -1937,9 +1959,7 @@ export class IntelligenceService {
    * 500s the entire client-profile / federal footprint card. Guard first.
    */
   private isUuid(id: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      id.trim(),
-    );
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
   }
 
   /** Fetch contractor data by confirmed ID (skips fuzzy match) */
@@ -2698,13 +2718,15 @@ export class IntelligenceService {
   async searchFecCommittees(query: string) {
     const q = query.trim();
     if (!q) return [];
-    const rows = await this.prisma.$queryRaw<Array<{
-      id: string;
-      name: string;
-      committee_type: string | null;
-      cycles: number[];
-      last_synced_at: Date | null;
-    }>>`
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        committee_type: string | null;
+        cycles: number[];
+        last_synced_at: Date | null;
+      }>
+    >`
       SELECT id, name, committee_type, cycles, last_synced_at
       FROM fec_committee
       WHERE committee_type IN ('Q', 'N', 'O', 'V', 'W')
@@ -5140,7 +5162,9 @@ export class IntelligenceService {
       const hearings = await this.prisma.committeeHearing.findMany({
         // Start-of-Eastern-day, not `now`: see the note at the portfolio feed above.
         // `date` is a UTC-midnight @db.Date, so `gte: now` dropped today's rows.
-        where: { date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: until } },
+        where: federalHearingWhere({
+          date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: until },
+        }),
         orderBy: [{ date: 'asc' }, { time: 'asc' }],
         take: 40,
       });
@@ -5403,7 +5427,10 @@ export class IntelligenceService {
         where:
           identity.contract.basis === 'exact_uei'
             ? { recipientUei: { in: identity.contract.ueis }, awardedAt: { gte: since } }
-            : { contractorName: { in: identity.contract.fallbackNames, mode: 'insensitive' }, awardedAt: { gte: since } },
+            : {
+                contractorName: { in: identity.contract.fallbackNames, mode: 'insensitive' },
+                awardedAt: { gte: since },
+              },
         orderBy: { awardedAt: 'desc' },
         take: 10,
       });
@@ -5966,9 +5993,9 @@ export class IntelligenceService {
       this.prisma.committeeHearing.findMany({
         // Start-of-Eastern-day, not `now` — a UTC-midnight @db.Date compared
         // against a mid-day instant silently excluded today. Same fix as above.
-        where: {
+        where: federalHearingWhere({
           date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: fourteenDaysOut },
-        },
+        }),
         orderBy: { date: 'asc' },
         take: 5,
       }),
@@ -6304,11 +6331,14 @@ export class IntelligenceService {
     const contractorUeis = await this.resolveContractorUeisForAlerts(
       districtNexusContractorIdsToResolve([seed]),
     );
-    const scope = buildClientAwardScope({
-      uei: client?.uei ?? null,
-      contractingMappings: mappings,
-      assistanceMappings: [],
-    }, contractorUeis);
+    const scope = buildClientAwardScope(
+      {
+        uei: client?.uei ?? null,
+        contractingMappings: mappings,
+        assistanceMappings: [],
+      },
+      contractorUeis,
+    );
     const predicate = clientAwardScopeSql(scope.contract);
 
     if (!predicate) {
@@ -6826,7 +6856,7 @@ export class IntelligenceService {
 
     const [hearings, deadlines, changes, clientIds] = await Promise.all([
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: dateBounds.start, lte: dateBounds.end } },
+        where: federalHearingWhere({ date: { gte: dateBounds.start, lte: dateBounds.end } }),
         orderBy: { time: 'asc' },
         take: 30,
       }),
@@ -6990,7 +7020,7 @@ export class IntelligenceService {
     // metadata) is reachable from there.
     const [hearings, deadlines, meetings, clientIds] = await Promise.all([
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: tomorrowStart, lte: sevenDaysOut } },
+        where: federalHearingWhere({ date: { gte: tomorrowStart, lte: sevenDaysOut } }),
         orderBy: { date: 'asc' },
         take: 30,
       }),
@@ -7270,10 +7300,9 @@ export class IntelligenceService {
    * Race an in-flight or fresh portfolio-alerts compute against the hard
    * request budget. Fail open with empty alerts so HTTP never hangs.
    */
-  private async withPortfolioAlertsRequestBudget<T extends ReturnType<IntelligenceService['emptyPortfolioAlerts']>>(
-    cacheKey: string,
-    work: Promise<T>,
-  ): Promise<T> {
+  private async withPortfolioAlertsRequestBudget<
+    T extends ReturnType<IntelligenceService['emptyPortfolioAlerts']>,
+  >(cacheKey: string, work: Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const budget = new Promise<T>((resolve) => {
       timer = setTimeout(() => {
@@ -7551,7 +7580,8 @@ export class IntelligenceService {
     // Merge in bill counts.
     for (const row of billCounts) {
       const cid = row.clientId;
-      if (!rollup[cid]) rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
+      if (!rollup[cid])
+        rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
       rollup[cid].intelCount = row._count.id;
     }
 
@@ -7559,7 +7589,8 @@ export class IntelligenceService {
     // so the first one we encounter for each client is the earliest).
     for (const meeting of meetings) {
       const cid = meeting.clientId as string;
-      if (!rollup[cid]) rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
+      if (!rollup[cid])
+        rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
       if (!rollup[cid].nextTouch) {
         rollup[cid].nextTouch = {
           id: meeting.id,
@@ -7572,7 +7603,8 @@ export class IntelligenceService {
     // Merge in work counts (in_progress tasks).
     for (const row of workCounts) {
       const cid = row.clientId as string;
-      if (!rollup[cid]) rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
+      if (!rollup[cid])
+        rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null, workCount: 0 };
       rollup[cid].workCount = row._count.id;
     }
 
@@ -7593,7 +7625,10 @@ export class IntelligenceService {
    * Both are bounded: watched PEs per tenant, then a single batch of PE delta
    * + capability lookups — no per-PE fan-out.
    */
-  async getPortfolioPeSummary(tenantId: string, _userId: string | undefined): Promise<{
+  async getPortfolioPeSummary(
+    tenantId: string,
+    _userId: string | undefined,
+  ): Promise<{
     netDeltaPct: number | null;
     peAttribution: Record<string, string[]>;
     watchedCount: number;
@@ -7634,9 +7669,10 @@ export class IntelligenceService {
     // 3. Average the delta percentages for the net figure. Only count PEs with a
     //    non-null deltaPct — a null means "no comparable delta" and is not zero.
     const validDeltas = deltas.filter((d) => d.delta_pct != null && Number.isFinite(d.delta_pct));
-    const netDeltaPct = validDeltas.length > 0
-      ? validDeltas.reduce((sum, d) => sum + (d.delta_pct as number), 0) / validDeltas.length
-      : null;
+    const netDeltaPct =
+      validDeltas.length > 0
+        ? validDeltas.reduce((sum, d) => sum + (d.delta_pct as number), 0) / validDeltas.length
+        : null;
 
     // 4. Client attribution: find clients whose ClientCapability.peNumbers
     //    includes any of the watched PE codes. This is the join from watched
@@ -7644,10 +7680,7 @@ export class IntelligenceService {
     const capabilities = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientCapability.findMany({
         where: {
-          OR: [
-            { peNumber: { in: peCodes } },
-            { peNumbers: { hasSome: peCodes } },
-          ],
+          OR: [{ peNumber: { in: peCodes } }, { peNumbers: { hasSome: peCodes } }],
         },
         select: {
           clientId: true,
@@ -7659,14 +7692,15 @@ export class IntelligenceService {
 
     // Resolve client names for the attribution map.
     const clientIds = [...new Set(capabilities.map((c) => c.clientId))];
-    const clients = clientIds.length > 0
-      ? await this.prisma.withTenant(tenantId, (tx) =>
-          tx.client.findMany({
-            where: { id: { in: clientIds }, status: { not: 'archived' } },
-            select: { id: true, name: true },
-          }),
-        )
-      : [];
+    const clients =
+      clientIds.length > 0
+        ? await this.prisma.withTenant(tenantId, (tx) =>
+            tx.client.findMany({
+              where: { id: { in: clientIds }, status: { not: 'archived' } },
+              select: { id: true, name: true },
+            }),
+          )
+        : [];
     const clientNameMap = new Map(clients.map((c) => [c.id, c.name]));
 
     // Build peAttribution: peCode → array of client names.
@@ -7939,7 +7973,8 @@ export function foldEngagementTrend(
   }));
 
   const currentQuarterTotal = quartersOut.length ? quartersOut[quartersOut.length - 1]!.total : 0;
-  const priorQuarterTotal = quartersOut.length > 1 ? quartersOut[quartersOut.length - 2]!.total : null;
+  const priorQuarterTotal =
+    quartersOut.length > 1 ? quartersOut[quartersOut.length - 2]!.total : null;
   const qoqDeltaPct =
     priorQuarterTotal != null && priorQuarterTotal > 0
       ? ((currentQuarterTotal - priorQuarterTotal) / priorQuarterTotal) * 100

@@ -26,6 +26,10 @@ import { ReportRecipientsService } from './reports/recipients.service.js';
 import { ReportDeliveryService } from './reports/report-delivery.service.js';
 import { ReportSubscriptionService } from './reports/report-subscription.service.js';
 import { RecordRuleService } from './reports/record-rule.service.js';
+import { CalendarPreparationService } from './calendar/calendar-preparation.service.js';
+import { CalendarPreparationController } from './calendar/calendar-preparation.controller.js';
+import { AgendaRuleService } from './calendar/agenda-rule.service.js';
+import { AgendaRuleController } from './calendar/agenda-rule.controller.js';
 
 /**
  * Unified tracker feature module (Phase 2 CRUD + Phase 3 §6.2 board/recs +
@@ -39,6 +43,8 @@ import { RecordRuleService } from './reports/record-rule.service.js';
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    CalendarPreparationController,
+    AgendaRuleController,
     ReportController,
     FolderTrackerController,
     FolderImportController,
@@ -48,7 +54,13 @@ import { RecordRuleService } from './reports/record-rule.service.js';
     TrackerChannelController,
   ],
   providers: [
-    ReportService, ReportRecipientsService, ReportDeliveryService, ReportSubscriptionService, RecordRuleService,
+    CalendarPreparationService,
+    AgendaRuleService,
+    ReportService,
+    ReportRecipientsService,
+    ReportDeliveryService,
+    ReportSubscriptionService,
+    RecordRuleService,
     FolderTrackerService,
     FolderImportService,
     FolderReportService,

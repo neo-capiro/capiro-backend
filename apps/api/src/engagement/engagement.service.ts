@@ -62,10 +62,6 @@ import type {
   GenerationSourceManifest,
   PinnedGenerationIdentity,
 } from './generation/generation-gateway.types.js';
-import {
-  AudiencePolicyRequiredError,
-  type GaPolicy,
-} from './generation/government-affairs-policy.registry.js';
 import type { PlanValidationIssue } from './generation/message-plan.schema.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
@@ -310,16 +306,6 @@ export interface OutreachRecipientInput {
   state?: string;
   district?: string;
   party?: string;
-  /**
-   * EM-03: a manually-added recipient carries no directory/domain signal for
-   * government-affairs-policy.registry's selectPolicy() to key off, so
-   * generation fails closed (AudiencePolicyRequiredError) unless the person
-   * who added it says which audience this is. Optional here because most
-   * recipients resolve their audience server-side from directory/domain
-   * signals and never need this; when present it is passed straight through
-   * as GenerationRequest.explicitAudience, which already always wins.
-   */
-  audienceType?: string;
   directoryContactId?: string;
   directoryContactName?: string;
   committee?: string;
@@ -3725,38 +3711,7 @@ export class EngagementService {
       : [];
 
     // ---- Pin ONE provider/model for the whole campaign (§3.k) ----
-    // Resolved from the FIRST recipient's policy purely to satisfy the pinning
-    // API; each unit re-resolves its own policy inside the gateway (see
-    // resolvePolicy's note), so a mixed-audience batch is handled correctly.
-    let campaignPolicy: GaPolicy;
-    try {
-      campaignPolicy = this.gateway.resolvePolicy(
-        this.toGatewayRequest({
-          input,
-          items,
-          templatePrompt,
-          recipient: recipients[0]!,
-          index: 0,
-          directoryByEmail,
-          isGroup,
-          isReviseSingle,
-          versionedRecordId: opts.versionedRecordId,
-          pinned: null,
-        }),
-      );
-    } catch (e) {
-      if (e instanceof AudiencePolicyRequiredError) {
-        throw new BadRequestException({
-          statusCode: HttpStatus.BAD_REQUEST,
-          error: e.code,
-          message: e.message,
-          candidates: e.candidates,
-        });
-      }
-      throw e;
-    }
-
-    const identity = await this.gateway.resolvePinnedIdentity(ctx, { policy: campaignPolicy });
+    const identity = await this.gateway.resolvePinnedIdentity(ctx, {});
     if (!identity) {
       throw new ServiceUnavailableException(
         'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
@@ -3788,8 +3743,6 @@ export class EngagementService {
         isReviseSingle,
         versionedRecordId: opts.versionedRecordId,
         pinned,
-        // Only the generation request needs this: resolvePolicy above is pure and
-        // never compiles a packet, so threading it there would be dead code.
         ...(opts.authHeader ? { authHeader: opts.authHeader } : {}),
       });
 
@@ -3899,14 +3852,6 @@ export class EngagementService {
       length: null,
       direction: input.direction ?? null,
       audienceKind: o.isGroup ? 'group' : 'individual',
-      // EM-03: an explicit per-recipient audience choice (set on a manually
-      // added recipient who has no directory/domain signal to infer from)
-      // always wins in selectPolicy() — see GenerationRequest.explicitAudience.
-      // Only applied for an individual slot: one manual member's guess must
-      // never override a shared-thread group's own server-verified audience.
-      ...(!o.isGroup && recipient.audienceType
-        ? { explicitAudience: recipient.audienceType as GenerationRequest['explicitAudience'] }
-        : {}),
       ...(o.isGroup && recipient.groupMembers
         ? { groupMemberCount: recipient.groupMembers.length }
         : {}),
@@ -3920,21 +3865,6 @@ export class EngagementService {
         office: recipient.office ?? recipient.chamber ?? null,
         state: recipient.state ?? null,
         district: recipient.district ?? null,
-        // Server-resolved: the directory match, not a browser assertion. A
-        // recipient the directory knows as a congressional member cannot be
-        // relabeled by the request body. `directoryContactId` alone (no email
-        // match needed) is sufficient for the `member-<id>` id space: that
-        // prefix is only ever minted for congress.gov members (directory.service.ts
-        // / directory-indexes.ts), never for a state legislator or any other
-        // contact kind, so it is exactly as authoritative as `match.member`
-        // without requiring the recipient to have an email on file.
-        sourceType: match?.member
-          ? 'congress'
-          : recipient.directoryContactId?.toString().startsWith('member-')
-            ? 'congress'
-            : recipient.direction === 'to-clients'
-              ? 'client'
-              : null,
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
         // Server-resolved committee context — reaches the recipient brief so
         // even a bioguide-less staffer hands the planner a committee hook.
@@ -10556,11 +10486,6 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         record.direction === 'on-behalf' || record.direction === 'to-clients'
           ? (record.direction as 'on-behalf' | 'to-clients')
           : undefined;
-      // EM-03: not re-validated against GA_AUDIENCES here — the DTO already
-      // did that on the way in. A stale/tampered value simply won't match a
-      // real policy id in selectPolicy() and falls through to the normal
-      // "choose an audience" error, so there is no unsafe path to guard.
-      const audienceType = readString(record.audienceType);
       const email = normalizeEmailAddress(readString(record.email));
       const name = readString(record.name);
       const office = readString(record.office);
@@ -10588,7 +10513,6 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         ...(id ? { id: id.slice(0, 240) } : {}),
         ...(clientId ? { clientId: clientId.slice(0, 80) } : {}),
         ...(direction ? { direction } : {}),
-        ...(audienceType ? { audienceType: audienceType.slice(0, 80) } : {}),
         ...(name ? { name: name.slice(0, 160) } : {}),
         ...(email ? { email } : {}),
         ...(office ? { office: office.slice(0, 240) } : {}),

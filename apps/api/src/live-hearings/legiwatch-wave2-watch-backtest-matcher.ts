@@ -112,7 +112,10 @@ export async function evaluateCondition(
     case 'CLIENT_RELEVANCE_HIGH':
       return evaluateClientRelevanceHigh(prisma, condition, window, scope);
     default:
-      return unsupported(condition, `Unknown condition type "${(condition as { type: string }).type}".`);
+      return unsupported(
+        condition,
+        `Unknown condition type "${(condition as { type: string }).type}".`,
+      );
   }
 }
 
@@ -121,7 +124,13 @@ function unsupported(condition: WatchCondition, reason: string): ConditionOutcom
 }
 
 function ok(condition: WatchCondition, rows: SampleMatch[], total: number): ConditionOutcome {
-  return { condition, supported: true, reason: null, matched: total, samples: rows.slice(0, MAX_SAMPLES_PER_CONDITION) };
+  return {
+    condition,
+    supported: true,
+    reason: null,
+    matched: total,
+    samples: rows.slice(0, MAX_SAMPLES_PER_CONDITION),
+  };
 }
 
 async function evaluateKeywordMatch(
@@ -130,7 +139,8 @@ async function evaluateKeywordMatch(
   window: { from: Date; to: Date },
 ): Promise<ConditionOutcome> {
   if (!condition.family) return unsupported(condition, 'KEYWORD_MATCH requires a signal family.');
-  if (!condition.keyword?.trim()) return unsupported(condition, 'KEYWORD_MATCH requires a keyword.');
+  if (!condition.keyword?.trim())
+    return unsupported(condition, 'KEYWORD_MATCH requires a keyword.');
   const kw = likeParam(condition.keyword.trim());
 
   switch (condition.family) {
@@ -166,7 +176,7 @@ async function evaluateKeywordMatch(
         Array<{ id: string; title: string; occurredAt: Date }>
       >(
         `SELECT id, title, COALESCE(starts_at, date::timestamptz) AS "occurredAt"
-         FROM committee_hearing
+         FROM federal_committee_hearing
          WHERE date BETWEEN $1::date AND $2::date
            AND visibility = 'public'
            AND (title ILIKE $3 OR committee_name ILIKE $3)
@@ -287,7 +297,10 @@ async function evaluateKeywordMatch(
       );
     }
     default:
-      return unsupported(condition, `KEYWORD_MATCH is not supported for family "${condition.family}".`);
+      return unsupported(
+        condition,
+        `KEYWORD_MATCH is not supported for family "${condition.family}".`,
+      );
   }
 }
 
@@ -360,7 +373,7 @@ async function evaluateStatusChange(
       Array<{ id: string; title: string; occurredAt: Date }>
     >(
       `SELECT id, title, last_official_update_at AS "occurredAt"
-       FROM committee_hearing
+       FROM federal_committee_hearing
        WHERE last_official_update_at BETWEEN $1 AND $2
          AND source_revision > 1
          AND visibility = 'public'
@@ -456,7 +469,7 @@ async function evaluateHearingScheduled(
 
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string; title: string; occurredAt: Date }>>(
     `SELECT id, title, date::timestamptz AS "occurredAt"
-     FROM committee_hearing
+     FROM federal_committee_hearing
      WHERE date BETWEEN $1::date AND $2::date
        AND visibility = 'public'
        ${committeeFilter}
@@ -503,7 +516,7 @@ async function evaluateClientRelevanceHigh(
       `SELECT r.hearing_id AS "hearingId", h.title AS "hearingTitle", r.score,
               r.updated_at AS "occurredAt"
        FROM tenant_hearing_relevance r
-       JOIN committee_hearing h ON h.id = r.hearing_id
+       JOIN federal_committee_hearing h ON h.id = r.hearing_id
        WHERE r.client_id = ANY($1::uuid[])
          AND r.updated_at BETWEEN $2 AND $3
          AND r.score >= $4

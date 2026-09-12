@@ -52,7 +52,7 @@ function HearingDetailRouteWrapped() {
         </div>
       }
     >
-      <HearingDetailRoute />
+      <div className="lw"><HearingDetailRoute /></div>
     </Suspense>
   );
 }
@@ -68,7 +68,7 @@ function CommitteeRoomRouteWrapped() {
         </div>
       }
     >
-      <CommitteeRoomRoute />
+      <div className="lw"><CommitteeRoomRoute /></div>
     </Suspense>
   );
 }

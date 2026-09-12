@@ -13,6 +13,7 @@ import { ReportRecipientsService } from './recipients.service.js';
 import { ReportDeliveryService } from './report-delivery.service.js';
 import { ReportSubscriptionService } from './report-subscription.service.js';
 import { RecordRuleService } from './record-rule.service.js';
+import { AgendaRuleService } from '../calendar/agenda-rule.service.js';
 
 export function reportRuntime(prisma: PrismaService) {
   const folders = new FolderTrackerService(
@@ -29,6 +30,7 @@ export function reportRuntime(prisma: PrismaService) {
     delivery,
     subscriptions: new ReportSubscriptionService(reports, recipients, delivery),
     rules: new RecordRuleService(reports),
+    agendaRules: new AgendaRuleService(reports),
   };
 }
 export async function reportTenants(prisma: PrismaService) {

@@ -168,6 +168,21 @@ jobs:
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-source-summary.json" phase2-source 2 6
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase2-web-summary.json" phase2-web 1 6
 
+      - name: Phase 3 calendar, preparation and agenda delivery qualification
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+        run: |
+          pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/phase3-private-summary.json test/legiwatch-calendar-postgres.spec.ts
+          pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/phase3-calendar-summary.json src/hearing-discovery/legislative-calendar-postgres.spec.ts src/hearing-discovery/federal-calendar-postgres.spec.ts src/live-hearings/legiwatch-calendar-query-postgres.spec.ts src/ingestion/legiscan-calendar.spec.ts
+          pnpm --filter @capiro/web exec vitest run --reporter=json --outputFile=$GITHUB_WORKSPACE/phase3-web-summary.json src/vnext/pages/legiwatch/hearings/phase3-preparation.integration.test.tsx
+
+      - name: Assert Phase 3 qualification is clean
+        if: always()
+        run: |
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-private-summary.json" phase3-private 1 7
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-calendar-summary.json" phase3-calendar 4 17
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-web-summary.json" phase3-web 1 5
+
       - name: Assert Phase 1 PostgreSQL suites are clean
         if: always()
         run: |
@@ -221,7 +236,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 75 988
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 80 1023
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -339,4 +354,4 @@ jobs:
       # from this exact scope, with zero failures and zero skips required.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 246 794
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 249 805

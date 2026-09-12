@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
@@ -211,7 +216,13 @@ export class LiveHearingsPhase7Service {
       this.hearings.updates(ctx, hearingId, 150),
       committeeCode
         ? this.committees.members(committeeCode)
-        : Promise.resolve({ rows: [], total: 0, chair: null, rankingMember: null, asOf: new Date().toISOString() }),
+        : Promise.resolve({
+            rows: [],
+            total: 0,
+            chair: null,
+            rankingMember: null,
+            asOf: new Date().toISOString(),
+          }),
       this.browserJoin(ctx, hearingId),
     ]);
 
@@ -257,11 +268,21 @@ export class LiveHearingsPhase7Service {
   }> {
     const hearing = await this.requireHearing(hearingId);
     if (hearing.visibility !== 'public') {
-      throw new ForbiddenException('Canonical public transcript is unavailable for a non-public proceeding.');
+      throw new ForbiddenException(
+        'Canonical public transcript is unavailable for a non-public proceeding.',
+      );
     }
     const capture = await this.captureDetail(hearingId);
     if (!capture) {
-      return { hearingId, capture: null, items: [], total: 0, nextCursor: null, resumeCursor: null, hasMore: false };
+      return {
+        hearingId,
+        capture: null,
+        items: [],
+        total: 0,
+        nextCursor: null,
+        resumeCursor: null,
+        hasMore: false,
+      };
     }
 
     const decoded = decodeTranscriptCursor(input.cursor);
@@ -325,7 +346,9 @@ export class LiveHearingsPhase7Service {
       nextCursor: hasMore && last ? encodeTranscriptCursor(last.sequence, last.id) : null,
       resumeCursor: last
         ? encodeTranscriptCursor(last.sequence, last.id)
-        : decoded ? encodeTranscriptCursor(decoded.sequence, decoded.id) : null,
+        : decoded
+          ? encodeTranscriptCursor(decoded.sequence, decoded.id)
+          : null,
       hasMore,
     };
   }
@@ -552,7 +575,7 @@ export class LiveHearingsPhase7Service {
                 s.scheduled_by_user AS "scheduledByUser",
                 s.scheduled_by_rule_id AS "scheduledByRuleId"
          FROM hearing_subscription s
-         JOIN committee_hearing h ON h.id=s.hearing_id
+         JOIN federal_committee_hearing h ON h.id=s.hearing_id
          LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
          WHERE s.tenant_id=$1::uuid
            AND s.user_id=$2
@@ -567,7 +590,7 @@ export class LiveHearingsPhase7Service {
       const counts = await tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count
          FROM hearing_subscription s
-         JOIN committee_hearing h ON h.id=s.hearing_id
+         JOIN federal_committee_hearing h ON h.id=s.hearing_id
          WHERE s.tenant_id=$1::uuid
            AND s.user_id=$2
            AND h.event_status IN ('scheduled','postponed','in_progress')`,
@@ -624,7 +647,7 @@ export class LiveHearingsPhase7Service {
               c.failure_code AS "failureCode",
               c.terminal_reason_code AS "terminalReasonCode",
               c.resolution_reason_code AS "resolutionReasonCode"
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
        WHERE h.visibility='public'
          AND (
@@ -640,7 +663,7 @@ export class LiveHearingsPhase7Service {
     );
     const counts = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
       `SELECT COUNT(*)::int AS count
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
        WHERE h.visibility='public'
          AND (
@@ -650,10 +673,16 @@ export class LiveHearingsPhase7Service {
          AND ($1::text IS NULL OR h.title ILIKE '%' || $1 || '%' OR h.committee_name ILIKE '%' || $1 || '%')`,
       q,
     );
-    const participation = await this.participationByHearingIds(ctx, rows.map((row) => row.id));
+    const participation = await this.participationByHearingIds(
+      ctx,
+      rows.map((row) => row.id),
+    );
 
     return {
-      rows: rows.map((row) => ({ ...mapListRow(row), participation: participation.get(row.id) ?? null })),
+      rows: rows.map((row) => ({
+        ...mapListRow(row),
+        participation: participation.get(row.id) ?? null,
+      })),
       total: counts[0]?.count ?? 0,
       page,
       pageSize,
@@ -851,10 +880,11 @@ export class LiveHearingsPhase7Service {
           notifyOnUpdates: Boolean(follow?.notifyOnUpdates),
           clientIds: schedule?.clientIds ?? [],
           watchlistId: schedule?.watchlistId ?? null,
-          updatedAt: [schedule?.updatedAt, follow?.updatedAt]
-            .filter((value): value is Date => value instanceof Date)
-            .sort((left, right) => right.getTime() - left.getTime())[0]
-            ?.toISOString() ?? null,
+          updatedAt:
+            [schedule?.updatedAt, follow?.updatedAt]
+              .filter((value): value is Date => value instanceof Date)
+              .sort((left, right) => right.getTime() - left.getTime())[0]
+              ?.toISOString() ?? null,
         });
       }
       return output;
@@ -914,7 +944,9 @@ export function browserJoinPlan(
     sourceUrl: hearing.url,
     committeeId: hearing.subcommitteeSystemCode ?? hearing.committeeSystemCode,
     reasonCode:
-      capture?.terminalReasonCode ?? capture?.resolutionReasonCode ?? 'BROWSER_ASSISTED_FALLBACK_AVAILABLE',
+      capture?.terminalReasonCode ??
+      capture?.resolutionReasonCode ??
+      'BROWSER_ASSISTED_FALLBACK_AVAILABLE',
   };
 }
 
@@ -929,7 +961,11 @@ export function decodeTranscriptCursor(cursor?: string): { sequence: number; id:
       sequence?: unknown;
       id?: unknown;
     };
-    if (!Number.isInteger(parsed.sequence) || (parsed.sequence as number) < 0 || typeof parsed.id !== 'string') {
+    if (
+      !Number.isInteger(parsed.sequence) ||
+      (parsed.sequence as number) < 0 ||
+      typeof parsed.id !== 'string'
+    ) {
       return null;
     }
     return { sequence: parsed.sequence as number, id: parsed.id };

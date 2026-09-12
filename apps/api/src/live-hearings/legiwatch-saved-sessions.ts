@@ -53,22 +53,31 @@ export async function discoverSavedHearingSessions(
   `);
   if (!readiness[0]?.available) return { savedSessionsState: 'unavailable', sessions: [] };
 
-  const rows = await tx.$queryRawUnsafe<Array<{
-    id: string; hearingId: string; title: string; status: string;
-    transcriptSegmentCount: number; intelligenceMomentCount: number;
-    association: SavedHearingSession['association']; sourceUrl: string | null;
-    startedAt: Date | string | null; endedAt: Date | string | null;
-  }>>(`
+  const rows = await tx.$queryRawUnsafe<
+    Array<{
+      id: string;
+      hearingId: string;
+      title: string;
+      status: string;
+      transcriptSegmentCount: number;
+      intelligenceMomentCount: number;
+      association: SavedHearingSession['association'];
+      sourceUrl: string | null;
+      startedAt: Date | string | null;
+      endedAt: Date | string | null;
+    }>
+  >(
+    `
     WITH official_identities AS MATERIALIZED (
       SELECT h.id AS hearing_id, h.url AS source_url
-      FROM committee_hearing h WHERE h.visibility = 'public' AND h.url IS NOT NULL
+      FROM federal_committee_hearing h WHERE h.visibility = 'public' AND h.url IS NOT NULL
       UNION
       SELECT h.id, sc.official_page_url FROM hearing_stream_candidate sc
-      JOIN committee_hearing h ON h.id = sc.hearing_id AND h.visibility = 'public'
+      JOIN federal_committee_hearing h ON h.id = sc.hearing_id AND h.visibility = 'public'
       WHERE sc.official_page_url IS NOT NULL
       UNION
       SELECT h.id, sc.media_url FROM hearing_stream_candidate sc
-      JOIN committee_hearing h ON h.id = sc.hearing_id AND h.visibility = 'public'
+      JOIN federal_committee_hearing h ON h.id = sc.hearing_id AND h.visibility = 'public'
       WHERE sc.media_url IS NOT NULL
     ), accessible_sessions AS MATERIALIZED (
       SELECT s.*,
@@ -87,7 +96,7 @@ export async function discoverSavedHearingSessions(
       JOIN official_identities identity ON identity.source_url = s.source_url
       WHERE s.source_type::text IN ('hearing', 'markup')
         AND s.source_url ~ '^https?://[^/]+/.+'
-        AND NOT EXISTS (SELECT 1 FROM committee_hearing explicit WHERE explicit.id = s.hearing_id)
+        AND NOT EXISTS (SELECT 1 FROM federal_committee_hearing explicit WHERE explicit.id = s.hearing_id)
         -- Normalization is used only to REJECT source/listing identities;
         -- association equality above remains exact, including query values.
         AND NOT EXISTS (
@@ -111,7 +120,7 @@ export async function discoverSavedHearingSessions(
         )
     ), associations AS (
       SELECT s.id AS session_id, h.id AS hearing_id, 'hearing_id' AS association
-      FROM accessible_sessions s JOIN committee_hearing h ON h.id = s.hearing_id
+      FROM accessible_sessions s JOIN federal_committee_hearing h ON h.id = s.hearing_id
       WHERE $3::text IS NULL OR h.id = $3
       UNION ALL
       SELECT session_id, min(hearing_id), 'official_source'
@@ -127,7 +136,11 @@ export async function discoverSavedHearingSessions(
        WHERE card.tenant_id = $1 AND card.session_id = s.id) AS "intelligenceMomentCount"
     FROM associations a JOIN accessible_sessions s ON s.id = a.session_id
     ORDER BY s.created_at DESC, s.id DESC
-  `, tenantId, clerkUserId, hearingId);
+  `,
+    tenantId,
+    clerkUserId,
+    hearingId,
+  );
 
   const iso = (value: Date | string | null): string | null =>
     value instanceof Date ? value.toISOString() : value;

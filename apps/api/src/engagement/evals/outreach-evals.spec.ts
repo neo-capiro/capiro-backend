@@ -180,26 +180,8 @@ describe('gateway prompt eval suite (Phase 1 §5.4)', () => {
         expect(prompt.system).toContain('UNTRUSTED CONTENT RULE');
         expect(prompt.system).toContain('Never emit unresolved template variables');
       });
-
-      test('the resolved audience policy is named, and no other jurisdiction is', () => {
-        expect(prompt.userStatic).toContain(fx.input.policy.label);
-      });
     });
   }
-
-  test('every defined audience has at least one fixture', () => {
-    const covered = new Set(GATEWAY_EVAL_FIXTURES.map((f) => f.audience));
-    for (const a of [
-      'congressional_office',
-      'federal_agency',
-      'state_legislator',
-      'client_executive',
-      'internal_colleague',
-      'defense_acquisition_office',
-    ]) {
-      expect(covered.has(a as (typeof GATEWAY_EVAL_FIXTURES)[number]['audience'])).toBe(true);
-    }
-  });
 
   test('gateway fixture ids are unique', () => {
     const ids = GATEWAY_EVAL_FIXTURES.map((f) => f.id);

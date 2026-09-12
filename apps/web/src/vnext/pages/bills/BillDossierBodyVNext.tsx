@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   BILL_DOSSIER_SECTIONS,
   BILL_DOSSIER_SECTION_LABELS,
@@ -14,6 +14,7 @@ import { BillDossierHeroVNext, decorateKpis } from './BillDossierHeroVNext.js';
 import { BillEvidenceTab } from './BillEvidenceTab.js';
 import { BillFundingTab } from './BillFundingTab.js';
 import { BillHearingsTab } from './BillHearingsTab.js';
+import { BillAgenda } from '../legiwatch/hearings/BillAgenda.js';
 import { BillImpactTab } from './BillImpactTab.js';
 import { BillOverviewTab } from './BillOverviewTab.js';
 import { BillPathVotesTab } from './BillPathVotesTab.js';
@@ -57,12 +58,14 @@ export function BillDossierBodyVNext({
   onOpenBill?: (billId: string) => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnedToHearings = mode === 'page' && new URLSearchParams(location.search).get('section') === 'hearings';
   const query = useBillDossier(billId, clientId ?? null);
-  const [tab, setTab] = useState<BillDossierSection>('overview');
+  const [tab, setTab] = useState<BillDossierSection>(returnedToHearings ? 'hearings' : 'overview');
 
   // Swapping bills in place (related vehicle, like-for-like comparison) returns to
   // Overview, exactly as the prototype's openBill() resets `tab`.
-  useEffect(() => setTab('overview'), [billId]);
+  useEffect(() => setTab(returnedToHearings ? 'hearings' : 'overview'), [billId, returnedToHearings]);
 
   const clientSuffix = clientId ? `?client=${encodeURIComponent(clientId)}` : '';
   const openBill = (id: string) => {
@@ -183,7 +186,12 @@ export function BillDossierBodyVNext({
             ) : null}
             {tab === 'provisions' ? <BillProvisionsTab provisions={d.funding.provisions} /> : null}
             {tab === 'impact' ? <BillImpactTab funding={d.funding} onOpenPe={openPe} /> : null}
-            {tab === 'hearings' ? <BillHearingsTab hearings={d.hearings} /> : null}
+            {tab === 'hearings' ? (
+              <>
+                <BillAgenda billId={billId} clientId={clientId} folderId={folderId} />
+                <BillHearingsTab hearings={d.hearings} />
+              </>
+            ) : null}
             {tab === 'evidence' ? <BillEvidenceTab provenance={d.provenance} /> : null}
             {d.bill.isState && (tab === 'path' || tab === 'evidence') ? (
               <BillSourceRecords

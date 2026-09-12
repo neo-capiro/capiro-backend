@@ -33,7 +33,10 @@ describe('PR B reachability contract (LW-QA-003/004)', () => {
   });
 
   it('calendar rows open detail and history retains both public and browser transcript destinations', () => {
-    expect(hearings).toContain("navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`)");
+    expect(hearings).toMatch(
+      /navigate\(\s*`\/legiwatch\/hearings\/\$\{encodeURIComponent\(e\.id\)\}/,
+    );
+    expect(hearings).toMatch(/context\.append\('folder',\s*folder\)/);
     expect(hearings).toMatch(/openHearing/);
     // Browser recordings have their own persisted transcript even when linked
     // to a canonical event. Behavioral mouse/keyboard coverage lives beside

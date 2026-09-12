@@ -74,7 +74,7 @@ describe('ManagedComposerPlus', () => {
   test('connect and disconnect are one-click product actions', () => {
     render(<ManagedComposerPlus onUpload={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add files or connected apps' }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Connect' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Connect' })[0]!);
     expect(mocks.connect).toHaveBeenCalledWith('hubspot');
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     expect(mocks.disconnect).toHaveBeenCalledWith('airtable');

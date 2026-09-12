@@ -190,6 +190,7 @@ export class HearingObservationRepository {
         officialPageUrl: event.officialPageUrl,
         witnesses: event.witnesses,
         agendaBillIds: event.agendaBillIds,
+        agendaComplete: event.agendaComplete,
         streamCandidates: event.streamCandidates,
       };
     });
@@ -224,6 +225,7 @@ interface SerializedEvent {
   officialPageUrl?: string | null;
   witnesses?: string[];
   agendaBillIds?: string[];
+  agendaComplete?: boolean;
   sourceUpdatedAt?: string | null;
   streamCandidates?: ObservedStreamCandidate[];
   raw?: Record<string, unknown>;
@@ -250,6 +252,7 @@ export function serializeEvent(event: SourceEvent): SerializedEvent {
     officialPageUrl: event.officialPageUrl ?? null,
     witnesses: event.witnesses ?? [],
     agendaBillIds: event.agendaBillIds ?? [],
+    agendaComplete: event.agendaComplete,
     sourceUpdatedAt: event.sourceUpdatedAt ? event.sourceUpdatedAt.toISOString() : null,
     streamCandidates: event.streamCandidates ?? [],
     raw: event.raw ?? {},
@@ -281,6 +284,7 @@ export function deserializeEvent(serialized: SerializedEvent | undefined): {
   officialPageUrl: string | null;
   witnesses: string[];
   agendaBillIds: string[];
+  agendaComplete?: boolean;
   streamCandidates: ObservedStreamCandidate[];
 } {
   const e = serialized ?? {};
@@ -303,6 +307,7 @@ export function deserializeEvent(serialized: SerializedEvent | undefined): {
     officialPageUrl: e.officialPageUrl ?? null,
     witnesses: Array.isArray(e.witnesses) ? e.witnesses : [],
     agendaBillIds: Array.isArray(e.agendaBillIds) ? e.agendaBillIds : [],
+    agendaComplete: e.agendaComplete === true,
     streamCandidates: Array.isArray(e.streamCandidates) ? e.streamCandidates : [],
   };
 }

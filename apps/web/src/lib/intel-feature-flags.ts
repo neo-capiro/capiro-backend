@@ -17,6 +17,8 @@ import { useApi } from './use-api.js';
  * change; the flag resolves OFF until an enabled DB row exists for the tenant.
  */
 export const BILL_360_FEATURE = 'bill_360';
+export const STATE_CALENDAR_FEATURE = 'legiwatch_state_calendar_v1';
+export const AGENDA_ALERTS_FEATURE = 'legiwatch_agenda_alerts_v1';
 
 /**
  * Defense-funding rollout flag (Release R3). Must byte-match the intel-api key

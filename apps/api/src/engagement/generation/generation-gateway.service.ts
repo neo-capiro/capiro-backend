@@ -3,8 +3,8 @@
  *
  * ONE path for Engagement generation, in ONE fixed order:
  *
- *   authorize → pin provider/model → select policy → compile Evidence Packet
- *   → persist packet → build + validate Message Plan → draft → parse strictly
+ *   authorize → pin provider/model → compile Evidence Packet → persist packet
+ *   → build + validate Message Plan → draft → parse strictly
  *   → deterministic verifiers → Phase 0 audit on the exact output
  *   → persist immutable version → record usage → return a reviewable result
  *
@@ -12,8 +12,8 @@
  * recipient sits BEFORE the drafting call, and every step that could let
  * unverified text become sendable sits AFTER it. Previously these same concerns
  * existed but were interleaved through a 600-line method in EngagementService,
- * with enrichment failures silently nulled, the policy hardcoded to federal, and
- * no plan at all — so there was no single place to assert the ordering.
+ * with enrichment failures silently nulled, and no plan at all — so there was
+ * no single place to assert the ordering.
  *
  * Two hard rules hold throughout:
  *   - No external call happens inside a Prisma transaction.
@@ -51,11 +51,6 @@ import {
   type EvidencePacketV2,
   type SourceFailure,
 } from './evidence-packet.types.js';
-import {
-  AudiencePolicyRequiredError,
-  selectPolicy,
-  type GaPolicy,
-} from './government-affairs-policy.registry.js';
 import { MessagePlanService } from './message-plan.service.js';
 import { MessagePlanInvalidError, type MessagePlan } from './message-plan.schema.js';
 import { GenerationVerifierService, type VerifierFinding } from './generation-verifier.service.js';
@@ -186,7 +181,6 @@ export class GenerationGatewayService {
   async resolvePinnedIdentity(
     ctx: TenantContext,
     opts: {
-      policy: GaPolicy;
       runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
     },
   ): Promise<{ creds: ResolvedAiCredential[]; pinned: PinnedGenerationIdentity } | null> {
@@ -205,38 +199,8 @@ export class GenerationGatewayService {
         planModel: this.plans.resolvePlanModel(head),
         reasoningEffort: this.resolveReasoningEffort(head.provider, model, opts.runtimeAction),
         promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-        policyId: opts.policy.policyId,
-        policyVersion: opts.policy.version,
       },
     };
-  }
-
-  /**
-   * Resolve the GA policy for a request. Throws AudiencePolicyRequiredError when
-   * the audience is ambiguous — deliberately, rather than defaulting to federal
-   * (§4.19).
-   */
-  resolvePolicy(request: GenerationRequest): GaPolicy {
-    // Deliberately NOT read from request.pinned. Policy is a deterministic
-    // function of (explicit choice, direction, template, server-resolved
-    // recipient), so it is already stable across an async retry without pinning —
-    // and pinning it would apply ONE recipient's audience rules to a batch whose
-    // recipients differ (a state legislator drafted under congressional etiquette
-    // is the precise failure §4.20 forbids). pinned.policyId is a RECORD of what
-    // the job resolved, for audit, not an override.
-    return selectPolicy({
-      explicitAudience: request.explicitAudience ?? null,
-      direction: request.direction ?? null,
-      templateId: request.templateId,
-      recipient: {
-        sourceType: request.recipient.sourceType,
-        sourceTypes: request.recipient.sourceTypes,
-        governmentLevel: request.recipient.governmentLevel,
-        emailDomain: emailDomain(request.recipient.email),
-        chamber: request.recipient.chamber,
-        defenseAcquisition: request.recipient.defenseAcquisition,
-      },
-    });
   }
 
   /**
@@ -292,8 +256,8 @@ export class GenerationGatewayService {
   /**
    * Generate ONE unit (one recipient slot, or one shared group message).
    *
-   * Never throws for an expected failure: a blocked policy, a critical source
-   * failure, an invalid plan, or a provider outage all come back as a structured
+   * Never throws for an expected failure: a critical source failure, an
+   * invalid plan, or a provider outage all come back as a structured
    * GenerationResult the UI can render and the user can act on.
    */
   async generate(
@@ -305,34 +269,19 @@ export class GenerationGatewayService {
     const now = request.now ?? new Date();
     const recipient = request.recipient;
 
-    // ── 2. Policy ──
-    let policy: GaPolicy;
-    try {
-      policy = this.resolvePolicy(request);
-    } catch (e) {
-      if (e instanceof AudiencePolicyRequiredError) {
-        return this.blocked(ctx, request, 'AUDIENCE_POLICY_REQUIRED', e.message, now, null);
-      }
-      throw e;
-    }
-
     // ── 1. Pin identity (or reuse the job's) ──
     const head = creds[0];
     if (!head) {
       return this.blocked(
-       ctx,
+        ctx,
         request,
         'AI_NOT_CONFIGURED',
         'Drafting is not configured for this workspace.',
         now,
-        policy,
       );
     }
-    // The job's pinned PROVIDER/MODEL is authoritative (that is what must not
-    // change mid-campaign); the policy fields are re-stamped from the policy this
-    // unit actually resolved, so the manifest reports the truth.
     const pinned: PinnedGenerationIdentity = request.pinned
-      ? { ...request.pinned, policyId: policy.policyId, policyVersion: policy.version }
+      ? { ...request.pinned }
       : (() => {
           const model = this.resolveDraftModel(head, request.runtimeAction);
           return {
@@ -345,8 +294,6 @@ export class GenerationGatewayService {
               request.runtimeAction,
             ),
             promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-            policyId: policy.policyId,
-            policyVersion: policy.version,
           };
         })();
     // §e3: an async chunk's pinned prompt spec must match what THIS process's
@@ -359,12 +306,11 @@ export class GenerationGatewayService {
     // mismatched spec under a false label.
     if (request.pinned && request.pinned.promptSpecVersion !== GATEWAY_PROMPT_SPEC_VERSION) {
       return this.blocked(
-       ctx,
+        ctx,
         request,
         'PINNED_PROMPT_SPEC_MISMATCH',
         'This campaign was pinned to a different generation version than is currently running. Retry shortly, or start a new campaign.',
         now,
-        policy,
       );
     }
     // §3.k3: a chunk whose pinned provider is unavailable FAILS rather than
@@ -372,12 +318,11 @@ export class GenerationGatewayService {
     const pinnedCreds = creds.filter((c) => c.provider === pinned.provider);
     if (!pinnedCreds.length) {
       return this.blocked(
-       ctx,
+        ctx,
         request,
         'PINNED_PROVIDER_UNAVAILABLE',
         `This campaign is pinned to ${pinned.provider}, which is currently unavailable. Retry later or start a new campaign to switch providers.`,
         now,
-        policy,
       );
     }
 
@@ -407,7 +352,6 @@ export class GenerationGatewayService {
           'CONTEXT_PLANE_DENIED',
           'Governed context could not be authorized for this draft.',
           now,
-          policy,
         );
       }
       const message = (e as Error).message ?? '';
@@ -418,14 +362,13 @@ export class GenerationGatewayService {
           'CONTEXT_PLANE_NOT_ADOPTED',
           'Outreach generation is not yet adopted onto the Context Plane.',
           now,
-          policy,
         );
       }
       throw e;
     }
 
     // ── 3/4. Compile + persist the Evidence Packet ──
-    const directives = this.buildRequestDirectives(ctx, request, policy);
+    const directives = this.buildRequestDirectives(ctx, request);
     let packet: EvidencePacketV2;
     try {
       packet = await this.packets.compileOutreachPacket(ctx, {
@@ -436,7 +379,6 @@ export class GenerationGatewayService {
           generationKey: recipient.generationKey,
         },
         items: request.items,
-        policy,
         modelPolicy: {
           provider: pinned.provider,
           model: pinned.model,
@@ -447,7 +389,7 @@ export class GenerationGatewayService {
         emailScope,
         scanRequired: this.scanner.scanRequired,
         wallAllowsClient,
-        audience: policy.jurisdiction === 'internal' ? 'internal' : 'external',
+        audience: request.direction === 'to-clients' ? 'internal' : 'external',
         recipientEmails: recipient.email ? [recipient.email.trim().toLowerCase()] : [],
         requestDirectives: directives,
         enrichments: enrichment.channels,
@@ -475,14 +417,13 @@ export class GenerationGatewayService {
           e.code,
           'This draft could not be recorded, so it was not generated. Try again — no partial draft was kept.',
           now,
-          policy,
         );
       }
       throw e;
     }
 
     const styleSamples = request.styleSamples ?? [];
-    const manifest = this.buildManifest(packet, policy, pinned, styleSamples.length);
+    const manifest = this.buildManifest(packet, pinned, styleSamples.length);
 
     // ── 6a. Critical source failures stop here, BEFORE any spend ──
     if (packet.criticalFailureCount > 0) {
@@ -513,7 +454,6 @@ export class GenerationGatewayService {
       const built = await this.plans.buildPlan(ctx, {
         runtimeAction: request.runtimeAction,
         packet,
-        policy,
         creds: pinnedCreds,
         recipientBrief: this.recipientBrief(request),
         audienceKind: request.audienceKind,
@@ -567,7 +507,6 @@ export class GenerationGatewayService {
     // ── 6. Draft through the pinned provider/model ──
     const prompt = buildGatewayPrompt({
       packet,
-      policy,
       plan,
       styleProfile,
       styleProfileBlock: styleProfile ? this.styles.renderProfileBlock(styleProfile) : null,
@@ -705,7 +644,6 @@ export class GenerationGatewayService {
       subject,
       body,
       packet,
-      policy,
       plan,
       audienceKind: request.audienceKind,
       now,
@@ -759,7 +697,6 @@ export class GenerationGatewayService {
         ?.considerAndRun(ctx, {
           request,
           enrichment,
-          policy,
           pinned,
           pinnedCreds,
           governed,
@@ -830,7 +767,6 @@ export class GenerationGatewayService {
   private buildRequestDirectives(
     ctx: TenantContext,
     request: GenerationRequest,
-    policy: GaPolicy,
   ): AuthenticatedDirective[] {
     const out: AuthenticatedDirective[] = [];
     const push = (
@@ -874,7 +810,7 @@ export class GenerationGatewayService {
     }
     push('template', request.templateId, 'template:id');
     push('tone', `Write in a ${request.tone} register.`, 'tone');
-    push('length', request.length ?? policy.defaultLength, 'length');
+    push('length', request.length ?? 'standard', 'length');
     return out;
   }
 
@@ -903,7 +839,6 @@ export class GenerationGatewayService {
   /** Build the Context-Used manifest (§3.j1). Summaries only, never bodies. */
   buildManifest(
     packet: EvidencePacketV2,
-    policy: GaPolicy,
     pinned: PinnedGenerationIdentity,
     styleSampleCount = 0,
   ): GenerationSourceManifest {
@@ -938,13 +873,6 @@ export class GenerationGatewayService {
       criticalFailures,
       oldestSourceAt: packet.stalestSourceAt,
       newestSourceAt: packet.freshestSourceAt,
-      policy: {
-        policyId: policy.policyId,
-        version: policy.version,
-        label: policy.label,
-        jurisdiction: policy.jurisdiction,
-        audienceType: policy.audienceType,
-      },
       provider: pinned.provider,
       model: pinned.model,
       planModel: pinned.planModel,
@@ -1030,7 +958,6 @@ export class GenerationGatewayService {
     code: string,
     message: string,
     now: Date,
-    policy: GaPolicy | null,
   ): Promise<GenerationResult> {
     const pinned: PinnedGenerationIdentity = request.pinned ?? {
       provider: '',
@@ -1038,8 +965,6 @@ export class GenerationGatewayService {
       planModel: null,
       reasoningEffort: null,
       promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-      policyId: policy?.policyId ?? '',
-      policyVersion: policy?.version ?? '',
     };
     const failure: SourceFailure = {
       sourceType: 'generation',
@@ -1065,13 +990,6 @@ export class GenerationGatewayService {
         criticalFailures: [failure],
         oldestSourceAt: null,
         newestSourceAt: null,
-        policy: {
-          policyId: policy?.policyId ?? '',
-          version: policy?.version ?? '',
-          label: policy?.label ?? 'unresolved',
-          jurisdiction: policy?.jurisdiction ?? '',
-          audienceType: policy?.audienceType ?? '',
-        },
         provider: pinned.provider || null,
         model: pinned.model || null,
         planModel: pinned.planModel,
@@ -1106,17 +1024,6 @@ export class GenerationGatewayService {
 }
 
 // ── Pure helpers ────────────────────────────────────────────────────────────
-
-function emailDomain(email: string | null): string | null {
-  if (!email) return null;
-  const at = email.lastIndexOf('@');
-  return at >= 0
-    ? email
-        .slice(at + 1)
-        .trim()
-        .toLowerCase()
-    : null;
-}
 
 /**
  * Exported (Phase 27F) so `OutreachEvaluationRunner` can parse a shadow

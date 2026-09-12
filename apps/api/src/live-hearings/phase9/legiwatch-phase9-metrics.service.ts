@@ -143,7 +143,7 @@ export class LegiWatchPhase9MetricsService {
              SELECT COUNT(*)::int
              FROM (
                SELECT h.id
-               FROM committee_hearing h
+               FROM federal_committee_hearing h
                LEFT JOIN hearing_stream_candidate candidate ON candidate.hearing_id=h.id
                LEFT JOIN public_hearing_capture capture ON capture.hearing_id=h.id
                WHERE h.visibility='public'

@@ -14,6 +14,7 @@ import { IntelEmailService } from '../../intel-alert/intel-email.service.js';
 import {
   REPORT_DELIVERY_FEATURE,
   TRACKER_OWNER_FEATURE,
+  AGENDA_ALERTS_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
 import { ReportService } from './report.service.js';
 import { ReportRecipientsService, type RecipientSnapshot } from './recipients.service.js';
@@ -129,7 +130,7 @@ export class ReportDeliveryService {
     recipient: RecipientSnapshot,
     channel = 'email',
   ) {
-    if (delivery.kind === 'bill_record')
+    if (delivery.kind === 'bill_record' || delivery.kind === 'agenda')
       return this.checkRecordDispatch(tx, ctx, delivery, object(recipient), channel);
     if (!delivery.runId) throw new BadRequestException('REPORT_RUN_REQUIRED');
     const run = await tx.legiWatchReportRun.findFirst({
@@ -207,6 +208,53 @@ export class ReportDeliveryService {
     recipient: Record<string, unknown>,
     channel: string,
   ): Promise<void> {
+    if (delivery.kind === 'agenda') {
+      if (
+        !(await this.reports.flags.isEnabled(AGENDA_ALERTS_FEATURE, ctx.tenantId)) ||
+        process.env.LEGIWATCH_AGENDA_ALERTS_ENABLED !== 'true'
+      )
+        throw new ForbiddenException('AGENDA_DELIVERY_DISABLED');
+      const packet = object(delivery.composition);
+      if (!Array.isArray(packet.records) && !packet.singleBillCheck) {
+        const billIds = Array.isArray(packet.billIds)
+          ? packet.billIds.filter((id): id is string => typeof id === 'string')
+          : [];
+        if (!billIds.length) throw new ForbiddenException('AGENDA_BILL_SCOPE_UNAVAILABLE');
+        // Authorize EVERY rendered bill. A partly revoked packet is held in its
+        // entirety, never delivered with old mixed-scope content.
+        const scopeItems = (Array.isArray(packet.scopeItems) ? packet.scopeItems : []).map(object);
+        if (billIds.some((id) => !scopeItems.some((s) => s.billId === id)))
+          throw new ForbiddenException('AGENDA_SCOPE_EVIDENCE_UNAVAILABLE');
+        for (const scopeItem of scopeItems) {
+          const refs = (Array.isArray(packet.ruleRefs) ? packet.ruleRefs : [])
+            .map(object)
+            .filter((ref) =>
+              (Array.isArray(ref.memberships) ? ref.memberships : []).some(
+                (m) =>
+                  object(m).billId === scopeItem.billId &&
+                  object(m).folderId === scopeItem.folderId,
+              ),
+            )
+            .map((ref) => ({ ...ref, folderIds: [scopeItem.folderId] }));
+          await this.checkRecordDispatch(
+            tx,
+            ctx,
+            {
+              ...delivery,
+              composition: json({
+                ...packet,
+                billId: scopeItem.billId,
+                ruleRefs: refs,
+                singleBillCheck: true,
+              }),
+            },
+            recipient,
+            channel,
+          );
+        }
+        return;
+      }
+    }
     if (
       !(await this.reports.flags.isEnabled(TRACKER_OWNER_FEATURE, ctx.tenantId)) ||
       !['true', '1', 'yes'].includes((process.env.TRACKER_ALERTS_ENABLED ?? '').toLowerCase())
@@ -227,6 +275,7 @@ export class ReportDeliveryService {
     }
     const sourceType = /^\d+-/.test(String(composition.billId)) ? 'bill' : 'state_bill';
     if (
+      delivery.kind !== 'agenda' &&
       !(process.env.LEGIWATCH_RECORD_ALERT_SOURCE_TYPES ?? '')
         .split(',')
         .map((s) => s.trim())
@@ -270,6 +319,7 @@ export class ReportDeliveryService {
         where: {
           tenantId: ctx.tenantId,
           id: String(ref.id),
+          family: delivery.kind === 'agenda' ? 'agenda' : 'bill_record',
           state: 'active',
           version: Number(ref.version),
         },
@@ -322,6 +372,22 @@ export class ReportDeliveryService {
       }
     }
     if (!eligible) throw new ForbiddenException('ALL_MATCHED_RULES_REVOKED');
+    if (delivery.kind === 'agenda') {
+      const events = await tx.$queryRawUnsafe<
+        Array<{ checkState: string; checkedAt: Date | null }>
+      >(
+        `SELECT calendar_check_state AS "checkState",calendar_checked_at AS "checkedAt" FROM committee_hearing WHERE id=$1 AND visibility='public'`,
+        String(composition.hearingId),
+      );
+      if (
+        !events[0] ||
+        events[0].checkState !== 'complete' ||
+        !events[0].checkedAt ||
+        Date.now() - events[0].checkedAt.getTime() > 86400000
+      )
+        throw new ConflictException('CALENDAR_SOURCE_CHECK_INCOMPLETE');
+      return;
+    }
     const [bill] = await this.reports.folders.source.reportBills([String(composition.billId)]);
     if (
       !bill ||
@@ -336,16 +402,16 @@ export class ReportDeliveryService {
   /** End-of-day records use the same durable recipient queue and dispatcher.
    * Freeze a bounded digest only when due. Original event intents remain as
    * suppressed audit rows; late records form an explicit later supplement. */
-  async bundleEndOfDay(tenantId: string, now: Date) {
+  async bundleEndOfDay(tenantId: string, now: Date, kind = 'bill_record') {
     return this.reports.folders.prisma.withTenant(tenantId, async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ':record-digest'},0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ':' + kind + '-digest'},0))`;
       const rows = await tx.legiWatchDeliveryRecipient.findMany({
         where: {
           tenantId,
           state: 'queued',
           nextAttemptAt: { lte: now },
           delivery: {
-            kind: 'bill_record',
+            kind,
             composition: { path: ['cadence'], equals: 'end_of_day' },
           },
         },
@@ -385,8 +451,8 @@ export class ReportDeliveryService {
       for (const [key, group] of groups) {
         const first = group[0]!,
           records = group.map((r) => object(r.delivery.composition));
-        const intentKey = `record-digest:${key}:${digest(group.map((r) => r.id).sort())}`;
-        const title = `Published legislative records · ${records.length} developments`;
+        const intentKey = `${kind}-digest:${key}:${digest(group.map((r) => r.id).sort())}`;
+        const title = `${kind === 'agenda' ? 'Calendar agenda updates' : 'Published legislative records'} · ${records.length} developments`;
         const content = records.map((r) => `${r.title}\n${r.content}`).join('\n\n');
         const eventKey = digest(records.map((r) => r.eventKey).sort());
         await tx.legiWatchDelivery.upsert({
@@ -395,7 +461,7 @@ export class ReportDeliveryService {
           create: {
             tenantId,
             intentKey,
-            kind: 'bill_record',
+            kind,
             ownerClerkId: first.delivery.ownerClerkId,
             contentHash: digest([title, content]),
             composition: json({
@@ -405,6 +471,7 @@ export class ReportDeliveryService {
               records,
               eventKey,
               billId: records[0]!.billId,
+              ...(kind === 'agenda' ? { hearingId: records[0]!.hearingId } : {}),
               cadence: 'end_of_day_digest',
               policy: 'Due records; late publications appear in the next supplement',
             }),
@@ -430,6 +497,12 @@ export class ReportDeliveryService {
   }
   async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_report') {
     const prisma = this.reports.folders.prisma;
+    if (
+      kind === 'agenda' &&
+      (process.env.LEGIWATCH_AGENDA_ALERTS_ENABLED !== 'true' ||
+        !(await this.reports.flags.isEnabled(AGENDA_ALERTS_FEATURE, tenantId)))
+    )
+      return { attempted: 0, held: 0 };
     // An older worker with no Phase 2 source allowlist must not claim and hold
     // records that belong to the explicitly configured report worker.
     if (
@@ -439,7 +512,7 @@ export class ReportDeliveryService {
         !(await this.reports.flags.isEnabled(TRACKER_OWNER_FEATURE, tenantId)))
     )
       return { attempted: 0, held: 0 };
-    if (kind === 'bill_record') await this.bundleEndOfDay(tenantId, now);
+    if (kind === 'bill_record' || kind === 'agenda') await this.bundleEndOfDay(tenantId, now, kind);
     // Expired attempts after dispatch began are uncertain. They never return to
     // the retry queue merely because a lease timed out.
     await prisma.withTenant(tenantId, (tx) =>
@@ -454,7 +527,7 @@ export class ReportDeliveryService {
           tenantId,
           delivery: {
             kind,
-            ...(kind === 'bill_record'
+            ...(kind === 'bill_record' || kind === 'agenda'
               ? { NOT: { composition: { path: ['cadence'], equals: 'end_of_day' } } }
               : {}),
           },
@@ -502,7 +575,10 @@ export class ReportDeliveryService {
         role: null,
       };
       try {
-        await this.reports.authorize(ctx);
+        await this.reports.authorize(
+          ctx,
+          candidate.delivery.kind === 'agenda' ? AGENDA_ALERTS_FEATURE : undefined,
+        );
         await this.reports.folders.withActor(ctx, (tx) =>
           this.checkDispatch(
             tx,
@@ -542,7 +618,7 @@ export class ReportDeliveryService {
             await this.checkDispatch(tx, ctx, candidate.delivery, recipient, candidate.channel);
             const composition = candidate.delivery.composition as unknown as ReportComposition;
             let result;
-            if (candidate.delivery.kind === 'bill_record') {
+            if (candidate.delivery.kind === 'bill_record' || candidate.delivery.kind === 'agenda') {
               const packet = object(candidate.delivery.composition),
                 staff = object(candidate.recipient);
               if (candidate.channel === 'in_app') {
@@ -550,7 +626,7 @@ export class ReportDeliveryService {
                 if (!secret) throw new BadRequestException('INBOX_ADAPTER_NOT_CONFIGURED');
                 providerInvoked = true;
                 const response = await fetch(
-                  `${(process.env.API_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/api/internal/legiwatch/bill-record-notification`,
+                  `${(process.env.API_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/api/internal/legiwatch/${candidate.delivery.kind === 'agenda' ? 'agenda-notification' : 'bill-record-notification'}`,
                   {
                     method: 'POST',
                     headers: {
@@ -561,7 +637,9 @@ export class ReportDeliveryService {
                     body: JSON.stringify({
                       tenantId,
                       userId: staff.userId,
-                      billId: packet.billId,
+                      ...(candidate.delivery.kind === 'agenda'
+                        ? { hearingId: packet.hearingId }
+                        : { billId: packet.billId }),
                       eventKey: `${packet.eventKey}:${packet.cadence}`,
                       title: packet.title,
                       body:

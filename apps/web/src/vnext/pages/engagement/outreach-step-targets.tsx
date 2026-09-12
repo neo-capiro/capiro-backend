@@ -49,7 +49,6 @@ import {
   searchOutreachV3Targets,
 } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
-import { MANUAL_AUDIENCE_OPTIONS } from '../../../pages/engagement/outreach/v3/TargetWorkspace.js';
 import type {
   DirectoryCommittee,
   DirectoryCommitteesResponse,
@@ -206,11 +205,7 @@ function targetSubline(target: OutreachV3ResolvedTargetRef): string {
 
 /**
  * "Add manually" tab. Ports `TargetWorkspace.tsx`'s `addManual` flow: same
- * required-name / optional-but-validated-email / required-audienceType
- * gating (a manual target has no directory signal for
- * government-affairs-policy.registry's selectPolicy() to key off, so it
- * fails closed at generation without one — refusing here, where the person
- * can still fix it, is cheaper than discovering it later).
+ * required-name / optional-but-validated-email gating.
  */
 function AddManuallyPanel({
   busy,
@@ -225,7 +220,6 @@ function AddManuallyPanel({
   const [title, setTitle] = useState('');
   const [organization, setOrganization] = useState('');
   const [note, setNote] = useState('');
-  const [audienceType, setAudienceType] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -238,10 +232,6 @@ function AddManuallyPanel({
       setError('Enter a valid email address or leave the email blank.');
       return;
     }
-    if (!audienceType) {
-      setError('Choose an audience type — Capiro will not guess government-affairs etiquette.');
-      return;
-    }
     const locator: OutreachV3TargetLocator = {
       source: 'manual',
       id: crypto.randomUUID(),
@@ -251,7 +241,6 @@ function AddManuallyPanel({
       title: title.trim() || null,
       organization: organization.trim() || null,
       note: note.trim() || null,
-      audienceType,
     };
     setError(null);
     setPending(true);
@@ -263,7 +252,6 @@ function AddManuallyPanel({
       setTitle('');
       setOrganization('');
       setNote('');
-      setAudienceType('');
     } catch (caught) {
       setError(safeOutreachV3Error(caught));
     } finally {
@@ -303,24 +291,6 @@ function AddManuallyPanel({
         />
       </label>
       <label className="ocb-field">
-        <span className="ocb-field__label">Audience type</span>
-        <select
-          className="ocb-input"
-          value={audienceType}
-          onChange={(event) => setAudienceType(event.target.value)}
-        >
-          {MANUAL_AUDIENCE_OPTIONS.map((option) => (
-            <option key={option.value || 'unset'} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="ocb-note ocb-note--muted">
-        Capiro applies different government-affairs etiquette by audience and will not guess.
-        Choose an audience before adding this target — generation stays blocked for it otherwise.
-      </p>
-      <label className="ocb-field">
         <span className="ocb-field__label">Note</span>
         <textarea
           className="ocb-input"
@@ -337,7 +307,7 @@ function AddManuallyPanel({
       <button
         type="button"
         className="ocb-btn ocb-btn--primary ocb-btn--sm"
-        disabled={busy || pending || !name.trim() || !audienceType}
+        disabled={busy || pending || !name.trim()}
         onClick={() => void submit()}
       >
         {pending ? <Loader2 size={14} className="ots-spin" aria-hidden="true" /> : null}

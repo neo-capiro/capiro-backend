@@ -42,6 +42,7 @@ describe('LegiScan durable documents on PostgreSQL', () => {
     ],
     links: [],
     calendarEvents: [],
+    calendarSnapshot: { completeness: 'absent', issues: [], rows: [], raw: null },
     voteStubs: [],
   };
   beforeAll(async () => {

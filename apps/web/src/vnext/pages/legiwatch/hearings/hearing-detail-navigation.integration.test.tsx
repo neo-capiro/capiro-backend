@@ -369,12 +369,20 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
   });
 
   it('calendar chip click → detail route renders the hearing', async () => {
-    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings?calendarDate=2026-02-24&calendarQ=Shipbuilding');
     const grid = await screen.findByLabelText('Week calendar');
     const chip = await within(grid).findByRole('button', { name: /Shipbuilding industrial base oversight/i });
     fireEvent.click(chip);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
     await waitFor(() => expect(screen.getByRole('heading', { name: /Shipbuilding industrial base oversight/i })).toBeTruthy());
+    fireEvent.click(screen.getByText('← Back to LegiWatch'));
+    await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings'));
+    expect(new URLSearchParams(location.current.search).get('calendarDate')).toBe('2026-02-24');
+    expect(new URLSearchParams(location.current.search).get('calendarQ')).toBe('Shipbuilding');
+    await screen.findByLabelText('Week calendar');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    scroll.mockRestore();
   });
 
   it('My Sessions history row → detail via mouse AND keyboard Enter', async () => {

@@ -107,8 +107,7 @@ export async function runPublicCaptureTask(
   const log = dependencies.log ?? (() => undefined);
   const flags = parseFlags(args);
   const workerId =
-    dependencies.workerId ??
-    `public-capture:${mode}:${bounded(hostname(), 80)}:${process.pid}`;
+    dependencies.workerId ?? `public-capture:${mode}:${bounded(hostname(), 80)}:${process.pid}`;
   const queue = new PublicCapturePersistentQueueAdapter(dependencies.prisma);
 
   if (mode === 'status') {
@@ -397,10 +396,7 @@ function startQueueLeaseHeartbeat(
 }
 
 function buildResolver(prisma: PrismaService): PublicCaptureAutomaticResolverAdapter {
-  const resolver = new StreamResolverService(
-    new ConfigService(),
-    new SourceDataRepository(prisma),
-  );
+  const resolver = new StreamResolverService(new ConfigService(), new SourceDataRepository(prisma));
   return new PublicCaptureAutomaticResolverAdapter(prisma, resolver);
 }
 
@@ -463,7 +459,7 @@ async function runDispositionBackfill(
   const candidates = await prisma.$queryRawUnsafe<BackfillCandidateRow[]>(
     `SELECT h.id AS "hearingId",
             COALESCE(h.starts_at, h.date::timestamp) AS "effectiveStart"
-     FROM committee_hearing h
+     FROM federal_committee_hearing h
      LEFT JOIN hearing_stream_candidate sc ON sc.hearing_id = h.id
      LEFT JOIN public_hearing_capture phc ON phc.hearing_id = h.id
      WHERE h.visibility = 'public'
@@ -519,7 +515,7 @@ async function runDispositionBackfill(
                 false
               ) AS "hasCaptureOutcome",
               MIN(h.coverage_status) AS "coverageStatus"
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        LEFT JOIN hearing_stream_candidate sc ON sc.hearing_id = h.id
        LEFT JOIN public_hearing_capture phc ON phc.hearing_id = h.id
        WHERE h.id = $1
@@ -597,7 +593,10 @@ function retryDelayMs(attempts: number): number {
 }
 
 function bounded(value: string, max: number): string {
-  return value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max);
+  return value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function boundedError(error: unknown): string {
@@ -613,12 +612,19 @@ function boundedPositiveInteger(value: number, max: number, field: string): numb
 
 async function main(): Promise<void> {
   const [rawMode, ...args] = process.argv.slice(2);
-  if (!['preflight', 'worker', 'status', 'disposition', 'disposition-backfill'].includes(rawMode ?? '')) {
+  if (
+    !['preflight', 'worker', 'status', 'disposition', 'disposition-backfill'].includes(
+      rawMode ?? '',
+    )
+  ) {
     throw new Error(
       'usage: public-capture-task-runner <preflight|worker|status|disposition|disposition-backfill> [--key=value]',
     );
   }
-  if ((rawMode === 'disposition' || rawMode === 'disposition-backfill') && !args.includes('--manual')) {
+  if (
+    (rawMode === 'disposition' || rawMode === 'disposition-backfill') &&
+    !args.includes('--manual')
+  ) {
     // Demand-free disposition (single hearing or bounded backfill) is an
     // operator/manual path, never part of the recurring capture-worker
     // cadence — require the same --manual flag the other manual invocations

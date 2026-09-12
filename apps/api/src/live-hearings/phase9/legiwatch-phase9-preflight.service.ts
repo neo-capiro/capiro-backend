@@ -48,21 +48,21 @@ export interface LegiWatchPreflightPlanResult {
 export class LegiWatchPhase9PreflightService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async plan(input: {
-    now?: Date;
-    lookaheadDays?: number;
-    delayedStartHours?: number;
-    limit?: number;
-  } = {}): Promise<LegiWatchPreflightPlanResult> {
+  async plan(
+    input: {
+      now?: Date;
+      lookaheadDays?: number;
+      delayedStartHours?: number;
+      limit?: number;
+    } = {},
+  ): Promise<LegiWatchPreflightPlanResult> {
     const now = validDate(input.now) ?? new Date();
     const lookaheadDays = boundedInteger(input.lookaheadDays ?? 14, 1, 60);
     const delayedStartHours = boundedInteger(input.delayedStartHours ?? 6, 1, 24);
     const limit = boundedInteger(input.limit ?? 2_000, 1, 10_000);
     const from = new Date(now.getTime() - delayedStartHours * 3_600_000);
     const to = new Date(now.getTime() + lookaheadDays * 86_400_000);
-    const state = await this.prisma.$queryRawUnsafe<
-      Array<{ captureAllPublicEvents: boolean }>
-    >(
+    const state = await this.prisma.$queryRawUnsafe<Array<{ captureAllPublicEvents: boolean }>>(
       `SELECT capture_all_public_events AS "captureAllPublicEvents"
        FROM legiwatch_cutover_state
        WHERE id='global'
@@ -96,7 +96,7 @@ export class LegiWatchPhase9PreflightService {
                     'NO_PUBLIC_STREAM', 'POLICY_BLOCKED', 'ENDED'
                   )
               )::int AS "terminalNonServerCount"
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        LEFT JOIN hearing_subscription s ON s.hearing_id=h.id
        LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
        LEFT JOIN hearing_stream_candidate candidate ON candidate.hearing_id=h.id
@@ -185,9 +185,7 @@ export class LegiWatchPhase9PreflightService {
     return result;
   }
 
-  private async ensureCapture(
-    row: PlannerRow,
-  ): Promise<{ id: string; created: boolean }> {
+  private async ensureCapture(row: PlannerRow): Promise<{ id: string; created: boolean }> {
     if (row.captureId) return { id: row.captureId, created: false };
     const inserted = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
       `INSERT INTO public_hearing_capture (

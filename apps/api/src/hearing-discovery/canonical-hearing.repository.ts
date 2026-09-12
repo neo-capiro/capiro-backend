@@ -1,3 +1,4 @@
+import { federalHearingWhere } from './hearing-geography.js';
 /**
  * `committee_hearing` persistence for the canonical reconciler.
  *
@@ -33,6 +34,7 @@ import {
   type ProjectedHearing,
 } from './canonical-diff.js';
 import { ET_ZONE } from './hearing-time.js';
+import { recordFederalCalendar } from './federal-calendar-transition.js';
 import type { CommitteeUpdateObservation, SourceEvent } from './hearing-discovery.types.js';
 
 /**
@@ -58,6 +60,7 @@ export interface ApplyProjectionResult {
 /** Columns the reconciler reads back for diffing. */
 const EXISTING_SELECT = {
   id: true,
+  geographicJurisdiction: true,
   congress: true,
   chamber: true,
   committeeName: true,
@@ -117,7 +120,7 @@ export class CanonicalHearingRepository {
         where.committeeName = p.committeeName;
       }
       const rows = await this.prisma.committeeHearing.findMany({
-        where,
+        where: federalHearingWhere(where),
         select: { id: true, startsAt: true, title: true },
         // Bounded: a committee never holds this many events in one day, and an
         // unbounded scan on a bad predicate must not read the table.
@@ -156,8 +159,8 @@ export class CanonicalHearingRepository {
     projected: ProjectedHearing,
     opts: { now: Date; sourceUrl: string; parserVersion: string; sourceId?: string | null },
   ): Promise<ApplyProjectionResult> {
-    const existing = await this.loadExisting(hearingId);
-    const plan = planCanonicalWrite(existing, projected, opts);
+    let existing = await this.loadExisting(hearingId);
+    let plan = planCanonicalWrite(existing, projected, opts);
 
     // A brand-new row needs a calendar day; the column is NOT NULL and a
     // fabricated one would file the event under the wrong day forever.
@@ -168,11 +171,22 @@ export class CanonicalHearingRepository {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      if (process.env.LEGIWATCH_CALENDAR_TRANSITIONS_ENABLED === 'true') {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${hearingId},0))`;
+        existing = await tx.committeeHearing.findUnique({
+          where: { id: hearingId },
+          select: EXISTING_SELECT,
+        });
+        plan = planCanonicalWrite(existing, projected, opts);
+      }
       let created = false;
+      if (existing?.geographicJurisdiction && existing.geographicJurisdiction !== 'US')
+        throw new Error('Federal projection cannot update a state event');
       if (!existing) {
         await tx.committeeHearing.create({
           data: {
             id: hearingId,
+            geographicJurisdiction: 'US',
             chamber: displayChamber(projected.chamber),
             committeeName: projected.committeeName ?? 'Unknown committee',
             committeeCode: projected.committeeSystemCode,
@@ -199,14 +213,29 @@ export class CanonicalHearingRepository {
       } else if (Object.keys(plan.patch).length > 0) {
         await tx.committeeHearing.update({
           where: { id: hearingId },
-          data: { ...plan.patch, syncedAt: opts.now },
+          data: { ...plan.patch, geographicJurisdiction: 'US', syncedAt: opts.now },
         });
+      }
+      if (existing && process.env.LEGIWATCH_CALENDAR_TRANSITIONS_ENABLED === 'true') {
+        const scoped = await tx.committeeHearing.findUniqueOrThrow({
+          where: { id: hearingId },
+          select: { geographicJurisdiction: true },
+        });
+        if (scoped.geographicJurisdiction === null)
+          await tx.committeeHearing.update({
+            where: { id: hearingId },
+            data: { geographicJurisdiction: 'US' },
+          });
+        else if (scoped.geographicJurisdiction !== 'US')
+          throw new Error('Federal projection cannot update a state event');
       }
 
       // The plan's updates were built before the row existed, so back-fill the
       // hearing id here rather than leaving a dangling change-feed row.
       const updates = plan.updates.map((u) => ({ ...u, hearingId: u.hearingId ?? hearingId }));
       const updatesInserted = await insertSiteUpdates(tx, updates, opts.now, opts.sourceId ?? null);
+      if (process.env.LEGIWATCH_CALENDAR_TRANSITIONS_ENABLED === 'true')
+        await recordFederalCalendar(tx, hearingId, projected, opts);
       return { created, updatesInserted };
     });
 

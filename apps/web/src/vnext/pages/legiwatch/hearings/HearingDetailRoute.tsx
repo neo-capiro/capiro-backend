@@ -42,6 +42,7 @@ import { HearingActions, type ActionRefs } from './HearingActions.js';
 import { SavedHearingSessions } from './SavedHearingSessions.js';
 import { useAttendance, useFollowConfig, useHearingUpdates } from '../lib/wave1-api.js';
 import { useHearingWakeLock } from '../../../../lib/use-hearing-wake-lock.js';
+import { PreparationPanel } from './PreparationPanel.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',
@@ -65,7 +66,16 @@ function msToClock(ms: number): string {
 export function HearingDetailRoute() {
   const { hearingId = '' } = useParams<{ hearingId: string }>();
   const navigate = useNavigate();
-  const { hash } = useLocation();
+  const { hash, state: navigationState } = useLocation();
+  const goBack = () => {
+    const target = navigationState?.legiwatchReturnTo;
+    navigate(
+      typeof target === 'string' && /^\/(?:legiwatch(?:[/?#]|$)|bills\/)/.test(target)
+        ? target
+        : '/legiwatch?tab=hearings',
+      { state: { legiwatchScrollY: navigationState?.legiwatchScrollY } },
+    );
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const event = useCanonicalHearingEvent(hearingId);
   const transcript = usePublicHearingTranscript(hearingId);
@@ -76,7 +86,7 @@ export function HearingDetailRoute() {
   const captureStatus = event.data?.capture?.status?.toUpperCase();
   useHearingWakeLock(
     ['LIVE', 'IN_PROGRESS'].includes(event.data?.eventStatus?.toUpperCase() ?? '') ||
-    ['PREPARING', 'RECORDING', 'CAPTURING', 'RECOVERING'].includes(captureStatus ?? ''),
+      ['PREPARING', 'RECORDING', 'CAPTURING', 'RECOVERING'].includes(captureStatus ?? ''),
   );
 
   // Wave 1 tenant state. Both are read here so the header controls show the
@@ -84,9 +94,9 @@ export function HearingDetailRoute() {
   const follow = useFollowConfig(hearingId);
   const attendance = useAttendance(hearingId);
   const [dialog, setDialog] = useState<'follow' | 'attend' | null>(null);
-  const [pendingAction, setPendingAction] = useState<
-    { action: string; refs: ActionRefs } | null
-  >(null);
+  const [pendingAction, setPendingAction] = useState<{ action: string; refs: ActionRefs } | null>(
+    null,
+  );
 
   // The client lens lives in the URL so it persists across navigation and can
   // be shared. It changes the tenant ANALYSIS only, never the public record.
@@ -183,7 +193,7 @@ export function HearingDetailRoute() {
           onRetry={() => void event.refetch()}
         />
         <div style={{ marginTop: 12 }}>
-          <LwButton onClick={() => navigate('/legiwatch?tab=hearings')}>← Back to LegiWatch</LwButton>
+          <LwButton onClick={goBack}>← Back to LegiWatch</LwButton>
         </div>
       </div>
     );
@@ -202,37 +212,62 @@ export function HearingDetailRoute() {
   const intelProcessing =
     intelligence.data?.status === 'PROCESSING' ||
     intelligence.data?.status === 'DEGRADED' ||
-    ((intelligence.data?.jobs?.public?.pending ?? 0) + (intelligence.data?.jobs?.tenant?.pending ?? 0) > 0);
+    (intelligence.data?.jobs?.public?.pending ?? 0) +
+      (intelligence.data?.jobs?.tenant?.pending ?? 0) >
+      0;
   const committeeCode = e.subcommittee?.systemCode ?? e.committee?.systemCode ?? null;
   const officialUrl = e.officialPageUrl ?? null;
 
-
   return (
     <div className="lw-body lw-detail" aria-label={`Hearing detail: ${e.title}`}>
-      <button type="button" className="lw-backlink" onClick={() => navigate('/legiwatch?tab=hearings')}>
+      <button type="button" className="lw-backlink" onClick={goBack}>
         ← Back to LegiWatch
       </button>
 
       {/* 1. Overview */}
       <section className="lw-card" style={{ padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <LwPill tone={closed ? 'gray' : accessLabel === 'PUBLIC' ? 'brand' : 'gray'} size="22">{accessLabel}</LwPill>
-          <LwPill tone="gray" size="22">{(e.eventStatus ?? '').toUpperCase()}</LwPill>
-          {e.capture ? <LwPill tone="gray" size="22">CAPTURE {e.capture.status.toUpperCase()}</LwPill> : null}
+          <LwPill tone={closed ? 'gray' : accessLabel === 'PUBLIC' ? 'brand' : 'gray'} size="22">
+            {accessLabel}
+          </LwPill>
+          <LwPill tone="gray" size="22">
+            {(e.eventStatus ?? '').toUpperCase()}
+          </LwPill>
+          {e.capture ? (
+            <LwPill tone="gray" size="22">
+              CAPTURE {e.capture.status.toUpperCase()}
+            </LwPill>
+          ) : null}
         </div>
         <h1 style={{ margin: '10px 0 4px', fontSize: 22, lineHeight: 1.25 }}>{e.title}</h1>
         <div className="lw-lrow__when" style={{ fontSize: 13 }}>
           {formatHearingDay(moment)} · {formatHearingTime(moment)}
         </div>
-        <dl className="lw-detail__facts" style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 13 }}>
+        <dl
+          className="lw-detail__facts"
+          style={{
+            margin: '14px 0 0',
+            display: 'grid',
+            gridTemplateColumns: '140px 1fr',
+            rowGap: 8,
+            fontSize: 13,
+          }}
+        >
           <dt style={{ color: 'var(--lw-meta)' }}>Committee</dt>
           <dd style={{ margin: 0 }}>
             {committeeCode ? (
-              <button type="button" className="lw-backlink" style={{ padding: 0 }} onClick={() => navigate(`/legiwatch/committees/${encodeURIComponent(committeeCode)}`)}>
+              <button
+                type="button"
+                className="lw-backlink"
+                style={{ padding: 0 }}
+                onClick={() =>
+                  navigate(`/legiwatch/committees/${encodeURIComponent(committeeCode)}`)
+                }
+              >
                 {e.subcommittee?.name ?? e.committee?.name ?? '—'}
               </button>
             ) : (
-              e.committee?.name ?? '—'
+              (e.committee?.name ?? '—')
             )}
           </dd>
           <dt style={{ color: 'var(--lw-meta)' }}>Chamber</dt>
@@ -242,7 +277,14 @@ export function HearingDetailRoute() {
           <dt style={{ color: 'var(--lw-meta)' }}>Official source</dt>
           <dd style={{ margin: 0 }}>
             {officialUrl ? (
-              <a className="lw-backlink" href={officialUrl} target="_blank" rel="noreferrer noopener">Official event page ↗</a>
+              <a
+                className="lw-backlink"
+                href={officialUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Official event page ↗
+              </a>
             ) : (
               '—'
             )}
@@ -250,20 +292,29 @@ export function HearingDetailRoute() {
           <dt style={{ color: 'var(--lw-meta)' }}>Stream status</dt>
           <dd style={{ margin: 0 }}>{e.streamState ?? 'NOT_CHECKED'}</dd>
           <dt style={{ color: 'var(--lw-meta)' }}>Witnesses</dt>
-          <dd style={{ margin: 0 }}>{e.witnesses?.length ? e.witnesses.map((w) => w.name).join(', ') : 'None listed'}</dd>
+          <dd style={{ margin: 0 }}>
+            {e.witnesses?.length ? e.witnesses.map((w) => w.name).join(', ') : 'None listed'}
+          </dd>
         </dl>
       </section>
 
       <SavedHearingSessions hearingId={hearingId} />
 
       {/* 3. Live & Capture — explicit, honest state (LEGIWATCH-V2-HANDOFF §5.4) */}
+      <PreparationPanel
+        event={e}
+        clientId={clientId || undefined}
+        folderId={searchParams.get('folder') ?? undefined}
+      />
       <section className="lw-card" style={{ padding: 18 }} aria-label="Live and capture">
         <div className="lw-card__head">
           <h2 className="lw-card__title">Live & Capture</h2>
           {closed ? (
             <span className="lw-card__meta">Closed session — no public stream</span>
           ) : accessLabel === 'ACCESS UNVERIFIED' ? (
-            <span className="lw-card__meta">Public access unverified — capture unavailable until confirmed.</span>
+            <span className="lw-card__meta">
+              Public access unverified — capture unavailable until confirmed.
+            </span>
           ) : e.capture ? (
             <span className="lw-card__meta">
               {e.capture.status}
@@ -330,7 +381,9 @@ export function HearingDetailRoute() {
         ) : (
           <>
             <div className="lw-search" style={{ margin: '8px 0 12px' }}>
-              <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>⌕</span>
+              <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>
+                ⌕
+              </span>
               <input
                 aria-label="Search transcript"
                 placeholder="Search transcript text or speaker"
@@ -344,26 +397,53 @@ export function HearingDetailRoute() {
             {transcript.isError ? (
               <LwStateUnavailable
                 source="Transcript"
-                reason={segments.length ? 'Transcript updates are temporarily unavailable. Recorded segments remain below.' : 'Transcript segments could not be loaded.'}
+                reason={
+                  segments.length
+                    ? 'Transcript updates are temporarily unavailable. Recorded segments remain below.'
+                    : 'Transcript segments could not be loaded.'
+                }
                 onRetry={() => void transcript.refetch()}
               />
             ) : null}
-            {transcript.isLoading ? <LwSkeleton height={120} /> : visibleSegments.length === 0 && !transcript.isError ? (
+            {transcript.isLoading ? (
+              <LwSkeleton height={120} />
+            ) : visibleSegments.length === 0 && !transcript.isError ? (
               <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
-                {segments.length === 0 ? 'No transcript segments recorded.' : 'No segments match this search.'}
+                {segments.length === 0
+                  ? 'No transcript segments recorded.'
+                  : 'No segments match this search.'}
               </p>
             ) : visibleSegments.length > 0 ? (
-              <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <ol
+                style={{
+                  listStyle: 'none',
+                  margin: 0,
+                  padding: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
                 {visibleSegments.map((s: PublicTranscriptSegment) => (
                   <li
                     key={s.id}
                     id={`lw-seg-${s.id}`}
-                    style={{ borderLeft: s.gapBefore ? '2px solid var(--lw-faint)' : undefined, paddingLeft: 10, transition: 'background 0.4s' }}
+                    style={{
+                      borderLeft: s.gapBefore ? '2px solid var(--lw-faint)' : undefined,
+                      paddingLeft: 10,
+                      transition: 'background 0.4s',
+                    }}
                   >
                     <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                      <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>{msToClock(s.startMs)}</span>
-                      {s.speakerName || s.speakerLabel ? <strong style={{ fontSize: 13 }}>{s.speakerName ?? s.speakerLabel}</strong> : null}
-                      {s.gapBefore ? <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>· gap</span> : null}
+                      <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                        {msToClock(s.startMs)}
+                      </span>
+                      {s.speakerName || s.speakerLabel ? (
+                        <strong style={{ fontSize: 13 }}>{s.speakerName ?? s.speakerLabel}</strong>
+                      ) : null}
+                      {s.gapBefore ? (
+                        <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>· gap</span>
+                      ) : null}
                     </div>
                     <p style={{ margin: '2px 0 0', fontSize: 14 }}>{s.text}</p>
                   </li>
@@ -383,20 +463,30 @@ export function HearingDetailRoute() {
         {intelligence.isError ? (
           <LwStateUnavailable
             source="Intelligence"
-            reason={intel.length ? 'Intelligence updates are temporarily unavailable. The last received findings remain below.' : 'Intelligence could not be loaded.'}
+            reason={
+              intel.length
+                ? 'Intelligence updates are temporarily unavailable. The last received findings remain below.'
+                : 'Intelligence could not be loaded.'
+            }
             onRetry={() => void intelligence.refetch()}
           />
         ) : null}
         {intelligence.data?.status === 'FAILED' ? (
           <p role="alert" style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
-            Intelligence extraction failed.{segments.length > 0 ? ' The transcript remains available for review.' : ''}
+            Intelligence extraction failed.
+            {segments.length > 0 ? ' The transcript remains available for review.' : ''}
           </p>
         ) : intelligence.data?.status === 'DEGRADED' ? (
           <p role="status" style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
-            Some intelligence extraction jobs failed. Findings may be incomplete while processing continues.
+            Some intelligence extraction jobs failed. Findings may be incomplete while processing
+            continues.
           </p>
         ) : null}
-        {intelligence.isLoading ? <LwSkeleton height={100} /> : intel.length === 0 && !intelligence.isError && intelligence.data?.status !== 'FAILED' ? (
+        {intelligence.isLoading ? (
+          <LwSkeleton height={100} />
+        ) : intel.length === 0 &&
+          !intelligence.isError &&
+          intelligence.data?.status !== 'FAILED' ? (
           <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>
             {intelProcessing
               ? 'Intelligence extraction is in progress — findings appear here as segments are processed.'
@@ -405,13 +495,29 @@ export function HearingDetailRoute() {
                 : 'No automatic-capture transcript is available here. Saved sessions above may contain transcript and intelligence.'}
           </p>
         ) : intel.length > 0 ? (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <ul
+            style={{
+              listStyle: 'none',
+              margin: 0,
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
             {intel.map((item: HearingIntelligenceItem) => (
-              <li key={item.id} style={{ borderLeft: '2px solid var(--lw-brand-dot)', paddingLeft: 10 }}>
+              <li
+                key={item.id}
+                style={{ borderLeft: '2px solid var(--lw-brand-dot)', paddingLeft: 10 }}
+              >
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <LwPill tone="brand" size="22">{INTEL_LABEL[item.insightType] ?? item.insightType}</LwPill>
+                  <LwPill tone="brand" size="22">
+                    {INTEL_LABEL[item.insightType] ?? item.insightType}
+                  </LwPill>
                   <strong style={{ fontSize: 14 }}>{item.title}</strong>
-                  {item.preliminary ? <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>preliminary</span> : null}
+                  {item.preliminary ? (
+                    <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>preliminary</span>
+                  ) : null}
                 </div>
                 <p style={{ margin: '4px 0 0', fontSize: 13 }}>{item.summary}</p>
                 {item.evidenceText ? (
@@ -432,7 +538,10 @@ export function HearingDetailRoute() {
                       </span>
                     </button>
                   ) : (
-                    <p className="lw-mono" style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--lw-meta)' }}>
+                    <p
+                      className="lw-mono"
+                      style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--lw-meta)' }}
+                    >
                       Evidence: “{item.evidenceText.slice(0, 200)}”
                       {item.startMs != null ? ` @ ${msToClock(item.startMs)}` : ''}
                       {item.speakerName ? ` — ${item.speakerName}` : ''}
@@ -470,10 +579,18 @@ export function HearingDetailRoute() {
       />
 
       {dialog === 'follow' ? (
-        <FollowDialog hearingId={hearingId} hearingTitle={e.title} onClose={() => setDialog(null)} />
+        <FollowDialog
+          hearingId={hearingId}
+          hearingTitle={e.title}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
       {dialog === 'attend' ? (
-        <AttendDialog hearingId={hearingId} hearingTitle={e.title} onClose={() => setDialog(null)} />
+        <AttendDialog
+          hearingId={hearingId}
+          hearingTitle={e.title}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
     </div>
   );
@@ -483,37 +600,66 @@ export function HearingDetailRoute() {
  *  rows for this hearing), and source confidence in plain language. There is
  *  no per-hearing document-availability model yet, so a document list beyond
  *  the official page is not fabricated — it is simply not shown. */
-function SourcesAndDocumentsSection({ hearingId, officialUrl }: { hearingId: string; officialUrl: string | null }) {
+function SourcesAndDocumentsSection({
+  hearingId,
+  officialUrl,
+}: {
+  hearingId: string;
+  officialUrl: string | null;
+}) {
   const updates = useHearingUpdates(hearingId);
   return (
     <section className="lw-card" style={{ padding: 18 }} aria-label="Sources and documents">
       <div className="lw-card__head">
         <h2 className="lw-card__title">Sources & Documents</h2>
       </div>
-      <dl style={{ margin: '10px 0 0', display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 13 }}>
+      <dl
+        style={{
+          margin: '10px 0 0',
+          display: 'grid',
+          gridTemplateColumns: '140px 1fr',
+          rowGap: 8,
+          fontSize: 13,
+        }}
+      >
         <dt style={{ color: 'var(--lw-meta)' }}>Official source</dt>
         <dd style={{ margin: 0 }}>
           {officialUrl ? (
-            <a className="lw-backlink" href={officialUrl} target="_blank" rel="noreferrer noopener">Official event page ↗</a>
+            <a className="lw-backlink" href={officialUrl} target="_blank" rel="noreferrer noopener">
+              Official event page ↗
+            </a>
           ) : (
             '—'
           )}
         </dd>
       </dl>
 
-      <h3 className="lw-sect__title" style={{ marginTop: 16 }}>What changed</h3>
+      <h3 className="lw-sect__title" style={{ marginTop: 16 }}>
+        What changed
+      </h3>
       {updates.isLoading ? (
         <LwSkeleton height={60} />
       ) : updates.isError ? (
-        <LwStateUnavailable source="Update history" reason="The update history did not respond." onRetry={() => updates.refetch()} />
+        <LwStateUnavailable
+          source="Update history"
+          reason="The update history did not respond."
+          onRetry={() => updates.refetch()}
+        />
       ) : !updates.data?.updates.length ? (
-        <p className="lw-state__body" style={{ maxWidth: 'none' }}>No official changes recorded for this proceeding yet.</p>
+        <p className="lw-state__body" style={{ maxWidth: 'none' }}>
+          No official changes recorded for this proceeding yet.
+        </p>
       ) : (
-        <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ul
+          style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}
+        >
           {updates.data.updates.slice(0, 8).map((u) => (
             <li key={u.id} style={{ fontSize: 13 }}>
               <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
-                {new Date(u.firstSeenAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(u.firstSeenAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                })}
               </span>{' '}
               {u.title}
               {u.previousValue && u.newValue ? ` — ${u.previousValue} → ${u.newValue}` : ''}

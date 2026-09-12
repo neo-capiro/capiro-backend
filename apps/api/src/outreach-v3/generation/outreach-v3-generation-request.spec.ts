@@ -1,5 +1,4 @@
 import type { OutreachResolvedTargetRefV1 } from '../../capabilities/targets/outreach-target.contract.js';
-import type { GaAudience } from '../../engagement/generation/government-affairs-policy.registry.js';
 import { createBlankCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
 import type { OutreachCommandError } from '../state/outreach-command-errors.js';
 import type { PreparedOutreachV3GenerationSlot } from './outreach-v3-generation-preparation.service.js';
@@ -31,32 +30,6 @@ function target(id: string): OutreachResolvedTargetRefV1 {
     emailStatus: 'available',
     profileStatus: 'complete',
     sourceSnapshot: { system: 'directory', version: '1', lastVerifiedAt: null },
-    snapshotHash: 'a'.repeat(64),
-  } as OutreachResolvedTargetRefV1;
-}
-
-function manualTarget(id: string, audienceType: GaAudience | null = null): OutreachResolvedTargetRefV1 {
-  return {
-    targetKey: `manual:${id}`,
-    locator: { source: 'manual', id, name: `Manual ${id}`, email: null, phone: null, title: null, organization: null, note: null, audienceType },
-    displayName: `Manual ${id}`,
-    email: `${id}@example.test`,
-    phone: null,
-    title: null,
-    organization: null,
-    clientId: null,
-    jurisdiction: {
-      governmentLevel: 'unknown',
-      chamber: null,
-      state: null,
-      district: null,
-      committees: [],
-      issueAreas: [],
-    },
-    roleStatus: 'unknown',
-    emailStatus: 'available',
-    profileStatus: 'limited',
-    sourceSnapshot: { system: 'user_supplied', version: null, lastVerifiedAt: null },
     snapshotHash: 'a'.repeat(64),
   } as OutreachResolvedTargetRefV1;
 }
@@ -127,7 +100,6 @@ describe('Outreach V3 gateway request compiler', () => {
         recipientKey: 'directory_member:alpha',
         name: 'Target alpha',
         email: 'alpha@example.test',
-        sourceType: 'directory_member',
       }),
     );
     expect(unit.request.ref).toEqual(
@@ -169,13 +141,6 @@ describe('Outreach V3 gateway request compiler', () => {
           expect.objectContaining({ email: 'alpha@example.test', name: 'Target alpha' }),
           expect.objectContaining({ email: 'bravo@example.test', name: 'Target bravo' }),
         ],
-      }),
-    );
-    expect(unit.request.recipient).toEqual(
-      expect.objectContaining({
-        sourceType: 'outreach_v3_group',
-        sourceTypes: ['directory_member'],
-        governmentLevel: 'federal',
       }),
     );
   });
@@ -369,62 +334,6 @@ describe('Outreach V3 gateway request compiler', () => {
     expect(new Set(segments).size).toBe(segments.length);
     // And the type must not be redundantly re-stated as a prefix of the id.
     expect(citedId.startsWith(unit.enrichments[0]!.sourceType)).toBe(false);
-  });
-
-  it('carries a manual target\'s declared audience through as an explicit override', () => {
-    const spec = createBlankCampaignSpecV1();
-    const generationSlot = slot('manual:alpha');
-    const preparedSlot: PreparedOutreachV3GenerationSlot = {
-      ...prepared(generationSlot),
-      currentTargets: [manualTarget('alpha', 'client_executive')],
-    };
-
-    const unit = buildOutreachV3GatewayUnit({
-      plan: plan(generationSlot),
-      spec,
-      prepared: preparedSlot,
-    });
-    expect(unit.request.explicitAudience).toBe('client_executive');
-  });
-
-  it('leaves the audience unresolved for a manual target with no declared audience', () => {
-    const spec = createBlankCampaignSpecV1();
-    const generationSlot = slot('manual:alpha');
-    const preparedSlot: PreparedOutreachV3GenerationSlot = {
-      ...prepared(generationSlot),
-      currentTargets: [manualTarget('alpha')],
-    };
-
-    const unit = buildOutreachV3GatewayUnit({
-      plan: plan(generationSlot),
-      spec,
-      prepared: preparedSlot,
-    });
-    expect(unit.request.explicitAudience).toBeNull();
-  });
-
-  it('never lets one manual member\'s declared audience override a shared-thread group', () => {
-    const spec = createBlankCampaignSpecV1();
-    const groupSlot: OutreachV3GenerationSlot = {
-      ...slot('shared'),
-      generationKey: 'v3:session:shared:abc',
-      recipientKey: 'shared:abc',
-      audienceKind: 'group',
-    };
-    const groupPlan = plan(groupSlot);
-    groupPlan.deliveryPattern = 'shared_thread';
-    groupPlan.personalization = 'light';
-    const preparedGroup: PreparedOutreachV3GenerationSlot = {
-      ...prepared(groupSlot),
-      currentTargets: [manualTarget('alpha', 'client_executive'), target('bravo')],
-    };
-
-    const unit = buildOutreachV3GatewayUnit({
-      plan: groupPlan,
-      spec,
-      prepared: preparedGroup,
-    });
-    expect(unit.request.explicitAudience).toBeNull();
   });
 
   it('threads a target\'s Cc/Bcc from the campaign spec\'s separate targetCcBcc map into the recipient snapshot', () => {

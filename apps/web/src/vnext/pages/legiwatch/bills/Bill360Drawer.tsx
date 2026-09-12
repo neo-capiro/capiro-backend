@@ -27,6 +27,7 @@ import { FolderContextPanel } from './FolderContextPanel.js';
 import { BillSourceHealth } from '../../../../pages/bills/BillSourceHealth.js';
 import { BillSourceRecords } from './BillSourceRecords.js';
 import { Bill360ExportVNext } from '../../bills/Bill360ExportVNext.js';
+import { BillAgenda } from '../hearings/BillAgenda.js';
 
 const TABS = [
   'Overview',
@@ -203,7 +204,10 @@ export function Bill360Drawer({
                   note="Per-client impact with position and a per-client brief action."
                 />
               ) : tab === 'Hearings' ? (
-                <HearingsTabView hearings={hearings.data} loading={hearings.isLoading} />
+                <>
+                  <BillAgenda billId={billId} clientId={clientId} folderId={folderId} />
+                  <HearingsTabView hearings={hearings.data} loading={hearings.isLoading} />
+                </>
               ) : (
                 <EvidenceTab d={d} />
               )}
@@ -424,11 +428,11 @@ function HearingsTabView({
   if (loading) return <LwStateLoading rows={2} />;
   const list = hearings?.hearings ?? [];
   if (!list.length) {
-    return <p className="lw-state__body">No proceedings reference this bill yet.</p>;
+    return <p className="lw-state__body">No linked saved-session references are available in this view.</p>;
   }
   return (
     <section>
-      <h3 className="lw-sect__title">Proceedings referencing this bill</h3>
+      <h3 className="lw-sect__title">Saved sessions referencing this bill</h3>
       {list.map((h) => {
         const row = (
           <div>

@@ -9,8 +9,7 @@
  *   - external evidence ALWAYS inside spotlight markers;
  *   - user directives OUTSIDE them and still obeyable;
  *   - the old flattened `Instruction:` channel absent entirely;
- *   - no raw JSON dump of a Prisma row;
- *   - the correct AUDIENCE policy, and only that one.
+ *   - no raw JSON dump of a Prisma row.
  *
  * The note-injection fixture is deliberately reworked. The pre-Phase-1 fixture
  * put the malicious payload in the same `Instruction:` channel the prompt is told
@@ -19,7 +18,6 @@
  * EVIDENCE (an email body, a document), and Phase 1's answer is structural: that
  * text is now inside the markers, and the marker rule governs it.
  */
-import { policyForAudience, type GaAudience } from '../generation/government-affairs-policy.registry.js';
 import type { EvidencePacketV2 } from '../generation/evidence-packet.types.js';
 import type { MessagePlan } from '../generation/message-plan.schema.js';
 import type { GatewayPromptInput } from '../generation/gateway-prompt.js';
@@ -28,8 +26,6 @@ const NOW = '2026-07-26T00:00:00.000Z';
 
 const BASE_PLAN: MessagePlan = {
   intent: 'meeting_request',
-  jurisdiction: 'federal',
-  audienceType: 'congressional_office',
   clientRepresented: 'Aperture Defense Systems',
   desiredOutcome: 'A 20-minute meeting before the FY27 markup.',
   whyRecipient: ['Sits on Armed Services.'],
@@ -56,12 +52,6 @@ function packet(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
     standingMemory: [],
     standingMemoryExclusions: [],
     failures: [],
-    policy: {
-      jurisdiction: 'federal',
-      audienceType: 'congressional_office',
-      policyId: 'federal.congressional_office',
-      version: 'ga-policy-v1',
-    },
     modelPolicy: { provider: 'anthropic', model: 'm', promptSpecVersion: 'v2.2-gateway' },
     criticalFailureCount: 0,
     freshestSourceAt: null,
@@ -76,7 +66,6 @@ function packet(over: Partial<EvidencePacketV2> = {}): EvidencePacketV2 {
 function input(over: Partial<GatewayPromptInput> = {}): GatewayPromptInput {
   return {
     packet: packet(),
-    policy: policyForAudience('congressional_office'),
     plan: BASE_PLAN,
     styleProfile: null,
     styleProfileBlock: null,
@@ -104,8 +93,8 @@ export interface GatewayEvalFixture {
   mustBeSpotlighted?: string[];
   /** Text that must appear OUTSIDE spotlight markers (a real directive). */
   mustBeOutsideSpotlight?: string[];
-  /** The audience whose policy text must appear. */
-  audience: GaAudience;
+  /** Descriptive label for which kind of recipient this fixture simulates. */
+  audience: string;
 }
 
 const INJECTION_PAYLOAD =
@@ -233,71 +222,12 @@ export const GATEWAY_EVAL_FIXTURES: GatewayEvalFixture[] = [
     promptMustNotContain: ['tenantId', '"createdAt"', 'intakeData', '{"id":"'],
   },
   {
-    id: 'audience-federal-congressional',
-    description: 'A congressional office gets Hill etiquette and the federal compliance block.',
+    id: 'hill-etiquette-and-compliance-always-apply',
+    description:
+      'Hill etiquette and the federal compliance block are unconditional now that there is no audience policy to gate them.',
     audience: 'congressional_office',
     input: input(),
     promptMustContain: ['HILL ETIQUETTE', 'COMPLIANCE GUARDRAILS (federal lobbying)'],
-  },
-  {
-    id: 'audience-state-legislator',
-    description:
-      'A state legislator must NOT receive federal Hill etiquette, and must be told not to import federal process.',
-    audience: 'state_legislator',
-    input: input({
-      policy: policyForAudience('state_legislator'),
-      plan: { ...BASE_PLAN, jurisdiction: 'state', audienceType: 'state_legislator' },
-    }),
-    promptMustContain: ['State legislator', 'Governor signs'],
-    promptMustNotContain: ['HILL ETIQUETTE', 'COMPLIANCE GUARDRAILS (federal lobbying)'],
-  },
-  {
-    id: 'audience-federal-agency',
-    description: 'An agency gets administrative-process vocabulary, not legislative asks.',
-    audience: 'federal_agency',
-    input: input({
-      policy: policyForAudience('federal_agency'),
-      plan: { ...BASE_PLAN, audienceType: 'federal_agency', intent: 'information_share' },
-    }),
-    promptMustContain: ['Federal agency', 'proposed rule, comment period'],
-    promptMustNotContain: ['Assemblymember'],
-  },
-  {
-    id: 'audience-client-executive',
-    description:
-      "The firm's own client gets no Hill etiquette and no single-ask requirement (§4.35).",
-    audience: 'client_executive',
-    input: input({
-      policy: policyForAudience('client_executive'),
-      plan: { ...BASE_PLAN, jurisdiction: 'internal', audienceType: 'client_executive', intent: 'status_update' },
-    }),
-    promptMustContain: ['Client executive', 'trusted operator'],
-    promptMustNotContain: ['HILL ETIQUETTE', 'COMPLIANCE GUARDRAILS (federal lobbying)'],
-  },
-  {
-    id: 'audience-internal-colleague',
-    description: 'An internal note carries no external-advocacy structure.',
-    audience: 'internal_colleague',
-    input: input({
-      policy: policyForAudience('internal_colleague'),
-      plan: { ...BASE_PLAN, jurisdiction: 'internal', audienceType: 'internal_colleague', intent: 'handoff' },
-    }),
-    promptMustContain: ['Internal colleague', 'No external-advocacy ask structure is required'],
-    promptMustNotContain: ['HILL ETIQUETTE'],
-  },
-  {
-    id: 'audience-defense-acquisition',
-    description: 'An acquisition office gets precise RDT&E/procurement vocabulary.',
-    audience: 'defense_acquisition_office',
-    input: input({
-      policy: policyForAudience('defense_acquisition_office'),
-      plan: { ...BASE_PLAN, audienceType: 'defense_acquisition_office', intent: 'capability_brief' },
-    }),
-    promptMustContain: [
-      'Defense acquisition office',
-      'RDT&E vs procurement',
-      'source selection',
-    ],
   },
   {
     id: 'standing-memory-cannot-prove-events',
@@ -449,16 +379,16 @@ export const GATEWAY_EVAL_FIXTURES: GatewayEvalFixture[] = [
   // `stale_source_caveat` check demanded an as-of phrase the prompt never
   // asked the model to write — a spec gap, not a model failure. These two
   // fixtures pin that the gateway now tells the model EXACTLY which sources
-  // are stale under the resolved policy, using the identical threshold math
-  // the verifier itself uses, and says nothing when nothing is stale.
+  // are stale, using the identical threshold math the verifier itself uses
+  // (evidence-freshness.ts), and says nothing when nothing is stale.
   {
     id: 'stale-authoritative-source-gets-explicit-caveat-instruction',
     description:
-      'An authoritative_structured source past its policy freshness window must trigger an explicit, named caveat instruction — the model is never left to infer this requirement.',
+      'An authoritative_structured source past its freshness window must trigger an explicit, named caveat instruction — the model is never left to infer this requirement.',
     audience: 'congressional_office',
     input: input({
-      // NOW is 2026-07-26; congressional_office's `bill` threshold is the
-      // FRESHNESS_LEGISLATIVE default (14 days) — 2026-06-01 is ~55 days old.
+      // NOW is 2026-07-26; `bill`'s threshold is 14 days (evidence-freshness.ts)
+      // — 2026-06-01 is ~55 days old.
       packet: packet({
         evidence: [
           {
@@ -486,7 +416,7 @@ export const GATEWAY_EVAL_FIXTURES: GatewayEvalFixture[] = [
   {
     id: 'fresh-authoritative-source-gets-no-caveat-instruction',
     description:
-      'A source within its policy freshness window must NOT trigger the caveat instruction — the fix must not nag on every authoritative source unconditionally.',
+      'A source within its freshness window must NOT trigger the caveat instruction — the fix must not nag on every authoritative source unconditionally.',
     audience: 'congressional_office',
     input: input({
       // 2026-07-20 is 6 days before NOW (2026-07-26) — well inside the 14-day

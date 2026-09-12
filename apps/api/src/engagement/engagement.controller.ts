@@ -52,7 +52,6 @@ import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 import { EngagementRuntimeAction } from './runtime/engagement-runtime-action.decorator.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
-import { GA_AUDIENCES } from './generation/government-affairs-policy.registry.js';
 
 /**
  * Coerce empty/whitespace-only strings to `undefined` BEFORE validation runs.
@@ -1022,15 +1021,6 @@ class OutreachRecipientDto {
   @IsOptional()
   @IsIn(['on-behalf', 'to-clients'])
   direction?: 'on-behalf' | 'to-clients';
-
-  // EM-03: required to fix generation for manually-added recipients, which
-  // have no directory/domain signal for the audience resolver to key off and
-  // otherwise fail closed with no way for the browser to recover. Validated
-  // against the real registry list so a bad value 400s here — cleanly and
-  // synchronously — rather than reaching selectPolicy() with an unknown key.
-  @IsOptional()
-  @IsIn(GA_AUDIENCES)
-  audienceType?: string;
 
   @IsOptional()
   @IsString()

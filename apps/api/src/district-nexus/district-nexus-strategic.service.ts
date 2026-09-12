@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 /**
  * District Nexus Release 2 — Strategic Relevance service.
  *
@@ -966,7 +967,7 @@ export class DistrictNexusStrategicService {
     const hearingIds = [...new Set(hearingBills.map((h) => h.hearingId))];
     const hearings = hearingIds.length
       ? await this.prisma.committeeHearing.findMany({
-          where: { id: { in: hearingIds } },
+          where: federalHearingWhere({ id: { in: hearingIds } }),
           select: {
             id: true,
             title: true,

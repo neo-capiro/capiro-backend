@@ -78,7 +78,6 @@ export function buildOutreachV3GatewayUnit(
     ...(input.prepared.slot.audienceKind === 'group'
       ? { groupMemberCount: input.prepared.currentTargets.length }
       : {}),
-    explicitAudience: manualAudienceOverride(input.prepared),
     // Few-shot exemplars ride their own request field, not `items`. Routing them
     // through the Evidence Packet would put last quarter's figures into this
     // campaign's claim pool; see GenerationRequest.styleSamples.
@@ -150,30 +149,12 @@ export function buildOutreachV3GatewayUnit(
   return { request, enrichments, auditLedger };
 }
 
-/**
- * A manually-added target carries no directory/domain signal for
- * government-affairs-policy.registry's selectPolicy() to key off, so it FAILS
- * CLOSED (AudiencePolicyRequiredError -> OUTREACH_COMMAND_BLOCKED) unless the
- * person who added it said which audience this is. Only wired for the
- * individual slot: a shared-thread group mixing manual and directory-resolved
- * members must not have one manual member's guess silently override the
- * group's own (already server-verified) audience resolution.
- */
-function manualAudienceOverride(
-  prepared: PreparedOutreachV3GenerationSlot,
-): GenerationRequest['explicitAudience'] {
-  if (prepared.slot.audienceKind === 'group') return null;
-  const target = prepared.currentTargets[0];
-  return target && target.locator.source === 'manual' ? target.locator.audienceType : null;
-}
-
 function gatewayRecipient(
   prepared: PreparedOutreachV3GenerationSlot,
   spec: OutreachCampaignSpecV1,
 ): GatewayRecipient {
   if (prepared.slot.audienceKind === 'group') {
     const members = prepared.currentTargets.map((target) => targetSnapshot(target, spec));
-    const sourceTypes = [...new Set(members.map((member) => member.source))].sort();
     // OutreachSendIntentService.buildEnvelope() reads cc/bcc off THIS top-level
     // snapshot for a shared-thread send — it never walks `members[i].cc`. Union
     // every member's own Cc/Bcc here (deduped, minus anyone already in To) so a
@@ -213,11 +194,6 @@ function gatewayRecipient(
       office: null,
       state: commonValue(members.map((member) => member.state)),
       district: null,
-      sourceType: 'outreach_v3_group',
-      sourceTypes,
-      governmentLevel: commonValue(
-        members.map((member) => member.jurisdiction.governmentLevel),
-      ) as GatewayRecipient['governmentLevel'],
       chamber: commonValue(members.map((member) => member.chamber)),
       snapshot: {
         kind: 'shared_thread',
@@ -256,9 +232,6 @@ function gatewayRecipient(
     office: target.organization,
     state: target.jurisdiction.state,
     district: target.jurisdiction.district,
-    sourceType: target.locator.source,
-    sourceTypes: [target.locator.source],
-    governmentLevel: target.jurisdiction.governmentLevel,
     chamber: target.jurisdiction.chamber,
     // Server-resolved committee names. For committee_staff this is the
     // committee they serve; for directory_staff, the member's assignments.
