@@ -70,6 +70,8 @@ import type { PlanValidationIssue } from './generation/message-plan.schema.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
@@ -5488,7 +5490,7 @@ export class EngagementService {
         const meetingAssociationWhere = effectiveClientId
           ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
           : null;
-        const recentMeetings = meetingAssociationWhere
+        const recentMeetings = !currentMeetingPrepExecution() && meetingAssociationWhere
           ? await tx.meeting.findMany({
               where: {
                 AND: [
@@ -5525,7 +5527,7 @@ export class EngagementService {
           );
         }
 
-        const recentThreads = threadFilters.length
+        const recentThreads = !currentMeetingPrepExecution() && threadFilters.length
           ? await tx.mailThread.findMany({
               where: {
                 tenantId: ctx.tenantId,
@@ -5953,19 +5955,7 @@ export class EngagementService {
         throw new BadRequestException('Prep cannot be generated for a cancelled meeting. Existing materials are still available.');
       }
     });
-    // Mark any existing preps for this meeting as stale before generating a new one.
-    // This ensures preps generated with outdated timezone formatting or before
-    // context changes are visually flagged in the UI as needing review.
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meetingPrep.updateMany({
-        where: {
-          meetingId,
-          tenantId: ctx.tenantId,
-          status: { in: ['generated', 'edited'] },
-        },
-        data: { status: 'stale' },
-      }),
-    );
+    // Keep the previous usable artifact until its replacement passes review.
 
     const context = await this.prisma.withTenant(
       ctx.tenantId,
@@ -6101,12 +6091,15 @@ export class EngagementService {
       additionalContext: additionalContext?.trim() || null,
       steeringContext,
     };
-    const promptHash = createHash('sha256').update(JSON.stringify(promptContext)).digest('hex');
+    const governed = currentMeetingGovernedContext();
+    const promptHash = createHash('sha256').update(JSON.stringify(governed
+      ? { ...promptContext, recentMeetings: [], recentThreads: [], tasks: [], steeringContext: governed.modelContextBlock, evidenceSources: governed.evidenceSources }
+      : promptContext)).digest('hex');
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
     const correctClientId = context.meeting.isInternal ? null : context.client?.id ?? context.meeting.clientId;
-    const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const created = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       // Serialize with client reassignment while persisting an artifact generated
       // outside the transaction. Never attach the old client's context to a new client.
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
@@ -6121,7 +6114,8 @@ export class EngagementService {
       if (['cancelled', 'canceled'].includes(current.status.toLowerCase())) {
         throw new BadRequestException('This meeting was cancelled while prep was generating.');
       }
-      return tx.meetingPrep.create({
+      await tx.meetingPrep.updateMany({ where: { tenantId: ctx.tenantId, meetingId, status: { in: ['generated', 'edited'] } }, data: { status: 'stale' } });
+      const artifact = await tx.meetingPrep.create({
         data: {
           tenantId: ctx.tenantId,
           meetingId,
@@ -6139,7 +6133,10 @@ export class EngagementService {
             promptHash,
             meetingId,
             clientId: correctClientId,
+            ...(governed ? { contextCoverage: JSON.parse(JSON.stringify(governed.coverage)), contextPacketId: governed.packetId, contextTraceHash: governed.traceHash } : {}),
+            ...(currentMeetingPrepExecution() ? { jobId: currentMeetingPrepExecution()!.jobId } : {}),
             ...(generated.grounding ? { grounding: JSON.parse(JSON.stringify(generated.grounding)) as Prisma.InputJsonValue } : {}),
+            ...(generated.briefing ? { briefing: JSON.parse(JSON.stringify(generated.briefing)) as Prisma.InputJsonValue } : {}),
             recentMeetings: context.recentMeetings.map((meeting) => meeting.id),
             recentThreads: context.recentThreads.map((thread) => thread.id),
             congressionalDirectoryContactIds: directoryProfiles.map(
@@ -6152,6 +6149,8 @@ export class EngagementService {
           },
         },
       });
+      await currentMeetingPrepExecution()?.commit(tx, artifact.id);
+      return artifact;
     });
     if (this.qualityTelemetry) {
       await this.qualityTelemetry.recordEvent(

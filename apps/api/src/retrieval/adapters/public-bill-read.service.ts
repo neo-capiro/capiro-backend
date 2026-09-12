@@ -25,6 +25,12 @@ export class PublicBillReadService {
     lastSyncAt: Date | null;
   }> {
     const query = request.query?.trim();
+    // The meeting-prep path may issue an unfiltered client-history query.
+    // Public bills must then use that client's explicit tracked bill IDs, not
+    // enumerate the whole legislative catalog and imply those bills are relevant.
+    const trackedIds = request.meetingBriefing && request.caller.clientIds?.length
+      ? await this.prisma.withTenantUser(request.caller.tenantId, request.caller.userId, async tx => (await tx.trackedBill.findMany({ where: { tenantId: request.caller.tenantId, clientId: { in: [...request.caller.clientIds!] } }, select: { billId: true } })).map(row => row.billId))
+      : undefined;
     const range = {
       ...(request.windowStart ? { gte: request.windowStart } : {}),
       ...(request.windowEnd ? { lte: request.windowEnd } : {}),
@@ -35,6 +41,7 @@ export class PublicBillReadService {
     return this.prisma.withSystem(async (tx) => {
       if (family === 0) {
         const where: Prisma.CongressBillWhereInput = {
+          ...(trackedIds ? { id: { in: trackedIds } } : {}),
           ...(query
             ? {
                 OR: [
@@ -81,6 +88,7 @@ export class PublicBillReadService {
         };
       }
       const where: Prisma.StateBillWhereInput = {
+        ...(trackedIds ? { id: { in: trackedIds } } : {}),
         ...(query
           ? {
               OR: [

@@ -35,6 +35,14 @@ export interface MeetingPrep {
   id: string;
   clientId?: string | null;
   generatedFrom?: {
+    briefing?: {
+      version: 2;
+      takeaways: Array<{ text: string; factIds: string[] }>;
+      sections: Record<string, { status: string; items: Array<{ text: string; factIds: string[] }>; gap: string }>;
+      facts: Array<{ id: string; sourceId: string; quote: string }>;
+      coverage: { extractedBatches: number; totalBatches: number; factCount: number; reviewedFactCount: number; selectedFactCount: number; partial: boolean };
+      limitations: string[];
+    };
     clientId?: string | null;
     grounding?: {
       version: 1;
@@ -361,4 +369,3 @@ export function libraryQualificationTitle(m: Meeting): string {
   }
   return parts.join(' ');
 }
-

@@ -14,6 +14,8 @@ import type {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { ownMeetingWhere } from './engagement-access.helpers.js';
+import { currentMeetingPrepExecution, prepStageTimeout } from './meeting-prep-job-runtime.js';
+import { MEETING_PREP_POLICY as PREP_POLICY } from './meeting-prep-policy.js';
 import type { PrepEvidenceSource } from './meeting-prep-grounding.js';
 import type {
   MeetingContextMode,
@@ -95,7 +97,14 @@ export class MeetingContextPlaneService {
     const requestedDomains = clientId
       ? [...MEETING_CLIENT_CONTEXT_DOMAINS]
       : [...INTERNAL_MEETING_CONTEXT_DOMAINS];
-    const query = meetingQuery(security);
+    const execution = input.mode === 'prep' ? currentMeetingPrepExecution() : undefined;
+    const policy = PREP_POLICY[execution?.depth ?? 'standard'];
+    if (execution) {
+      await execution.checkpoint('retrieving');
+      requestedDomains.push('monday', 'legiwatch_bills', 'hearings');
+      if (!clientId) requestedDomains.push('meetings', 'mail', 'tasks');
+    }
+    const query = execution && clientId ? null : meetingQuery(security);
     const task = buildTask(security, input);
 
     const resolverRequest: ContextResolutionRequest = {
@@ -124,6 +133,19 @@ export class MeetingContextPlaneService {
         query,
         pageSize: 50,
         requireComplete: false,
+        ...(execution ? {
+          requireComplete: true,
+          pageSize: 100,
+          deadlineAt: Date.now() + prepStageTimeout(execution.deadlineAt - Date.now(), PREP_POLICY.synthesisReserveMs),
+          meetingBriefing: {
+            meetingId: security.meeting.id, scope: clientId ? 'client' as const : 'internal' as const,
+            meetingLimit: policy.meetings, threadLimit: policy.threads, messageLimit: policy.messages,
+            meetingSince: new Date(Date.now() - policy.meetingDays * 86_400_000),
+            emailSince: new Date(Date.now() - policy.emailDays * 86_400_000),
+            asOf: new Date(),
+            upcomingThrough: new Date(Math.max(Date.now() + policy.upcomingDays * 86_400_000, security.meeting.startsAt.getTime() + 30 * 86_400_000)),
+          },
+        } : {}),
       },
     };
 
@@ -172,7 +194,7 @@ export class MeetingContextPlaneService {
       governed: result.kind === 'governed_packet',
     });
 
-    const projection = projectRecords(result.context.retrieval?.records ?? []);
+    const projection = projectRecords(result.context.retrieval?.records ?? [], !!execution);
     const coverage = projectCoverage(
       result.context,
       result.packet,
@@ -351,7 +373,7 @@ function validateResolvedScope(
   }
 }
 
-function projectRecords(records: RetrievalRecord[]): { text: string; truncated: boolean; sources: PrepEvidenceSource[] } {
+function projectRecords(records: RetrievalRecord[], comprehensive = false): { text: string; truncated: boolean; sources: PrepEvidenceSource[] } {
   if (records.length === 0) {
     return { text: '(no supplemental institutional records returned)', truncated: false, sources: [] };
   }
@@ -361,8 +383,11 @@ function projectRecords(records: RetrievalRecord[]): { text: string; truncated: 
   let truncated = false;
   for (const record of records) {
     const payload = projectPayload(record);
-    const block = `[${record.domain}:${record.recordId}]\n${boundedJson(payload, RECORD_CHAR_BUDGET)}`;
-    if (used + block.length > TOTAL_CONTEXT_CHAR_BUDGET) {
+    const recordBudget = comprehensive ? 24_000 : RECORD_CHAR_BUDGET;
+    const excerpt = boundedJson(payload, recordBudget);
+    if (JSON.stringify(payload).length > recordBudget) truncated = true;
+    const block = `[${record.domain}:${record.recordId}]\n${excerpt}`;
+    if (used + block.length > (comprehensive ? 4_000_000 : TOTAL_CONTEXT_CHAR_BUDGET)) {
       truncated = true;
       break;
     }
@@ -373,12 +398,14 @@ function projectRecords(records: RetrievalRecord[]): { text: string; truncated: 
       title: stringField(payload, 'subject') ?? stringField(payload, 'title') ?? stringField(payload, 'name') ?? 'Context record',
       recordId: record.recordId,
       observedAt: stringField(payload, 'updatedAt') ?? stringField(payload, 'sentAt') ?? stringField(payload, 'startsAt'),
-      excerpt: boundedJson(payload, RECORD_CHAR_BUDGET),
+      excerpt,
     });
     used += block.length;
   }
   return {
-    text: blocks.join('\n\n') || '(no supplemental institutional records returned)',
+    // Comprehensive runs batch the separate source registry into a fact ledger;
+    // do not duplicate megabytes of evidence in the steering prompt.
+    text: comprehensive ? '(source records supplied separately for bounded evidence extraction)' : blocks.join('\n\n') || '(no supplemental institutional records returned)',
     truncated,
     sources,
   };
@@ -394,15 +421,20 @@ function projectPayload(record: RetrievalRecord): Record<string, unknown> {
     case 'contacts':
       return { ...common, ...pick(payload, ['fullName', 'email', 'phone', 'organization', 'role']) };
     case 'meetings':
-      return { ...common, ...pick(payload, ['startsAt', 'endsAt', 'organizerName', 'organizerEmail', 'location']) };
+      return { ...common, ...pick(payload, ['startsAt', 'endsAt', 'organizerName', 'organizerEmail', 'location', 'description', 'notes', 'debriefs', 'contentCoverage']) };
     case 'tasks':
-      return { ...common, ...pick(payload, ['description', 'dueDate', 'ownerUserId']) };
+    case 'monday':
+      return { ...common, ...pick(payload, ['description', 'dueDate', 'ownerUserId', 'meetingId', 'mailThreadId', 'origin', 'updates', 'columns', 'url']) };
     case 'outreach':
       return { ...common, ...pick(payload, ['sentAt', 'recipientNames', 'recipientEmails']) };
     case 'mail':
-      return { ...common, ...pick(payload, ['sentAt', 'from', 'to', 'snippet', 'bodyPreview', 'threadId']) };
+      return { ...common, ...pick(payload, ['sentAt', 'receivedAt', 'fromEmail', 'fromName', 'toRecipients', 'ccRecipients', 'bodyText', 'threadId', 'messages', 'contentCoverage']) };
     case 'institutional_knowledge':
       return { ...common, ...pick(payload, ['key', 'value', 'scope', 'asOf', 'confidence']) };
+    case 'legiwatch_bills':
+      return { ...common, ...pick(payload, ['id', 'billType', 'billNumber', 'congress', 'state', 'identifier', 'latestActionDate', 'latestActionText', 'summary', 'url', 'lastSyncedAt', 'syncedAt']) };
+    case 'hearings':
+      return { ...common, ...pick(payload, ['kind', 'date', 'startsAt', 'timezone', 'committee', 'chamber', 'eventStatus', 'coverageStatus', 'sourceUrl', 'witnesses', 'text', 'lastOfficialUpdateAt', 'syncedAt']) };
     default:
       return common;
   }

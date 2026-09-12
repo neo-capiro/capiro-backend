@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ManagedMcpModule } from '../meri/managed-mcp.module.js';
+import { MondayManagedMcpAdapter } from './adapters/monday-managed-mcp.adapter.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -30,8 +32,9 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
  * separate indexes, vector stores, graphs or feature RAGs.
  */
 @Module({
-  imports: [PrismaModule, KnowledgeModule, EmbeddingsModule, GovernmentWorkRetrievalModule],
+  imports: [PrismaModule, KnowledgeModule, EmbeddingsModule, GovernmentWorkRetrievalModule, ManagedMcpModule],
   providers: [
+    MondayManagedMcpAdapter,
     SemanticDataCatalogService,
     RetrievalPlannerV2Service,
     ExactLexicalRetrievalService,
@@ -57,7 +60,8 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
         hearings: HearingsRetrievalAdapter,
         nexus: DistrictNexusRetrievalAdapter,
         catalog: SemanticDataCatalogService,
-      ) => validateRetrievalAdapterRegistry(catalog.list(), [core, institutional, strategyWork, publicDomains, actions, hearings, nexus]),
+        monday: MondayManagedMcpAdapter,
+      ) => validateRetrievalAdapterRegistry(catalog.list(), [core, institutional, strategyWork, publicDomains, actions, hearings, nexus, monday]),
       inject: [
         CorePrismaRetrievalAdapter,
         InstitutionalKnowledgeRetrievalAdapter,
@@ -67,6 +71,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
         HearingsRetrievalAdapter,
         DistrictNexusRetrievalAdapter,
         SemanticDataCatalogService,
+        MondayManagedMcpAdapter,
       ],
     },
     RetrievalV2Service,

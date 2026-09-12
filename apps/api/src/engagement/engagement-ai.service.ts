@@ -15,6 +15,8 @@ import {
   type OutreachPromptV2,
 } from './outreach-prompt/prompt-spec-v2.js';
 import { LlmCompletionService } from './llm-completion.service.js';
+import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import { generateComprehensiveMeetingPrep, type ComprehensiveBriefing } from './meeting-prep-comprehensive.js';
 import { verifyMailRewrite } from './mail-rewrite-verifier.js';
 import { prepAttendees, prepEvidenceSources, prepMeetingLogistics, validatePrepGrounding, type PrepEvidenceSource, type MeetingPrepGrounding } from './meeting-prep-grounding.js';
 
@@ -59,6 +61,7 @@ export interface MeetingPrepInput {
 }
 
 export interface MeetingPrepResult {
+  briefing?: ComprehensiveBriefing;
   agenda: string[];
   talkingPoints: string[];
   risks: string[];
@@ -923,6 +926,7 @@ export class EngagementAiService {
     input: MeetingPrepInput,
     ctx?: TenantContext | null,
   ): Promise<MeetingPrepResult> {
+    if (currentMeetingPrepExecution()) return this.withCredentialFallback('AI comprehensive meeting prep', ctx, cred => generateComprehensiveMeetingPrep(input, cred, this.llm));
     const federalContext = await this.buildFederalContextBlock(this.extractClientName(input));
     const enriched: MeetingPrepInput = federalContext
       ? {

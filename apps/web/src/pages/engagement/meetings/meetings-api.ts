@@ -4,6 +4,7 @@
  * list + the affected meeting's debriefs/notetaker so the UI stays consistent.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useApi } from '../../../lib/use-api.js';
 import type {
   Meeting,
@@ -364,16 +365,54 @@ export function useUnshareArtifacts() {
 
 export function useGeneratePrep() {
   const api = useApi();
+  const qc = useQueryClient();
   const invalidate = useInvalidateMeetings();
-  return useMutation<unknown, Error, { meetingId: string; additionalContext?: string }>({
-    mutationFn: async ({ meetingId, additionalContext }) =>
+  return useMutation<unknown, Error, { meetingId: string; additionalContext?: string; depth?: 'standard' | 'deep' }>({
+    mutationFn: async ({ meetingId, additionalContext, depth }) =>
       (
         await api.post(`${BASE}/meetings/${meetingId}/prep`, {
           ...(additionalContext ? { additionalContext } : {}),
+          depth,
+          requestKey: crypto.randomUUID(),
         })
       ).data,
-    onSuccess: invalidate,
+    onSuccess: (data, variables) => {
+      if (isMeetingPrepJob(data)) qc.setQueryData(['meeting-prep-job', variables.meetingId], data);
+      invalidate();
+    },
   });
+}
+
+export interface MeetingPrepJob {
+  jobId: string; meetingId: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  stage: string; depth: 'standard' | 'deep'; prepId: string | null; errorCode: string | null; deadlineAt: string;
+}
+export function isMeetingPrepJob(value: unknown): value is MeetingPrepJob {
+  return !!value && typeof value === 'object' && 'jobId' in value;
+}
+export function useMeetingPrepJob(meetingId: string) {
+  const api = useApi();
+  const invalidate = useInvalidateMeetings();
+  const query = useQuery<MeetingPrepJob | null>({
+    queryKey: ['meeting-prep-job', meetingId],
+    queryFn: async () => (await api.get<MeetingPrepJob | null>(`${BASE}/meetings/${meetingId}/prep-jobs/latest`)).data,
+    refetchInterval: query => ['queued', 'running'].includes(query.state.data?.status ?? '') ? 5_000 : false,
+    refetchIntervalInBackground: true,
+  });
+  useEffect(() => { if (query.data?.status === 'completed') invalidate(); }, [query.data?.jobId, query.data?.status]);
+  return query;
+}
+export function useCancelMeetingPrep() {
+  const api = useApi(); const qc = useQueryClient();
+  return useMutation({ mutationFn: async (job: MeetingPrepJob) => (await api.delete<MeetingPrepJob>(`${BASE}/meetings/${job.meetingId}/prep-jobs/${job.jobId}`)).data,
+    onSuccess: job => qc.setQueryData(['meeting-prep-job', job.meetingId], job) });
+}
+
+export function usePrepMondayMapping(meetingId: string, enabled: boolean) {
+  const api = useApi(); const qc = useQueryClient(); const key = ['meeting-prep-monday-mapping', meetingId];
+  const query = useQuery({ queryKey: key, enabled, queryFn: async () => (await api.get<{ clientId: string; boardIds: string[] } | null>(`${BASE}/meetings/${meetingId}/prep-monday-mapping`)).data });
+  const save = useMutation({ mutationFn: async (boardIds: string[]) => (await api.put(`${BASE}/meetings/${meetingId}/prep-monday-mapping`, { boardIds })).data, onSuccess: () => qc.invalidateQueries({ queryKey: key }) });
+  return { query, save };
 }
 
 export interface UpdatePrepInput {

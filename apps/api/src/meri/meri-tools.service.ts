@@ -126,6 +126,8 @@ import { projectMemoryContent } from './meri-memory-content.helpers.js';
 import { getResearchEvidence } from './meri-research-evidence.helpers.js';
 import { buildDocumentReadPage, parseDocumentReadInput } from './meri-document-read.helpers.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
+import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js';
+import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -232,6 +234,7 @@ export class MeriToolsService {
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
     @Optional() private readonly clientAdvocacy?: ClientAdvocacyMatterService,
     @Optional() private readonly clientFiling?: MeriClientFilingService,
+    @Optional() private readonly meetingPrepJobs?: MeetingPrepJobService,
   ) {}
 
   manifest() {
@@ -607,6 +610,10 @@ export class MeriToolsService {
       create_meeting_brief: obj(
         {
           meetingId: str('Meeting UUID'),
+          depth: { type: 'string', enum: ['standard', 'deep'], description: 'Use deep for a longer search: up to 100 meetings and 300 email threads over a year.' },
+          additionalContext: str('Optional client, issue, or internal strategy focus'),
+          jobId: str('Existing preparation job UUID to check; checking never starts a new generation'),
+          requestKey: str('Optional stable request key for idempotent generation'),
           title: str('Optional brief title'),
           conversationId: str('Optional conversation UUID for attribution'),
         },
@@ -5180,6 +5187,17 @@ export class MeriToolsService {
 
   private async createMeetingBrief(ctx: TenantContext, input: Record<string, unknown>) {
     const meetingId = requiredString(input, 'meetingId', 80);
+    if (meetingPrepEnabled() && this.meetingPrepJobs) {
+      const jobId = optionalString(input, 'jobId', 80);
+      const job = jobId ? await this.meetingPrepJobs.get(ctx, meetingId, jobId) : await this.meetingPrepJobs.submit(ctx, meetingId, {
+        additionalContext: optionalString(input, 'additionalContext', 4_000),
+        depth: input.depth === 'deep' ? 'deep' : 'standard',
+        requestKey: optionalString(input, 'requestKey', 128),
+      });
+      const meeting = job?.status === 'completed' ? await this.engagement.getMeeting(ctx, meetingId) : undefined;
+      return { tool: 'create_meeting_brief', meetingId, job, artifact: meeting?.preps.find(prep => prep.id === job?.prepId) ?? null,
+        message: job?.status === 'completed' ? 'This is the same saved briefing shown in Engagement Manager.' : 'Preparation is durable and runs in the background. Use jobId to check status; do not repeatedly start new jobs.' };
+    }
     const conversationId = optionalString(input, 'conversationId', 80);
     const titleOverride = optionalString(input, 'title', 160);
     const meeting = await this.meetingForTool(ctx, meetingId);

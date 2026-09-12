@@ -1,4 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { currentMeetingPrepExecution } from '../engagement/meeting-prep-job-runtime.js';
+import { requireMeetingGovernedContext } from '../engagement/meeting-context-runtime.js';
 import type { ModuleRef } from '@nestjs/core';
 import type { TenantContext } from '@capiro/shared';
 import type { ContextRequest } from '@capiro/meriv2-core';
@@ -150,6 +152,9 @@ export class MeetingsContextPlaneRuntime {
     let patched = 0;
     for (const instance of instances) {
       if (!instance || instance === ai) continue;
+      // The durable worker reconstructs and reauthorizes an actor before calling
+      // the canonical governed Engagement provider. Its job row is not a ctx.
+      if (instance.constructor?.name === 'MeetingPrepJobService') continue;
       for (const entry of functionEntries(instance)) {
         const source = Function.prototype.toString.call(entry.fn);
         if (!source.includes('generateMeetingPrep') && !source.includes('generateMeetingDebrief')) {
@@ -182,6 +187,14 @@ export class MeetingsContextPlaneRuntime {
       if (!entry) continue;
       const runtime = this;
       const wrapped = async function (this: unknown, ...aiArgs: unknown[]) {
+        if (mode === 'prep' && currentMeetingPrepExecution()) {
+          const governed = requireMeetingGovernedContext('prep');
+          const input = aiArgs[0] as { meeting?: { id?: string } } | undefined;
+          if (input?.meeting?.id !== governed.meetingId) throw new Error('phase24_meeting_context_object_mismatch');
+          // The canonical source registry is already supplied to every bounded
+          // ledger/draft/review call. Do not resolve and inject a second packet.
+          return entry.fn.apply(this, aiArgs);
+        }
         const invocation = runtime.invocation.getStore();
         if (!invocation) {
           throw new Error(`phase24_meetings_governed_invocation_required:${mode}`);

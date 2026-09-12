@@ -1320,6 +1320,46 @@ model MeetingNote {
   @@map("meeting_notes")
 }
 
+/// Durable actor-scoped preparation jobs. UUID FKs are enforced by the migration;
+/// encrypted payloads never contain credentials or bearer tokens.
+model MeetingPrepJob {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  meetingId     String   @map("meeting_id") @db.Uuid
+  requestKey    String   @map("request_key") @db.VarChar(128)
+  requestHash   String   @map("request_hash") @db.VarChar(64)
+  status        String   @default("queued") @db.VarChar(24)
+  stage         String   @default("queued") @db.VarChar(48)
+  depth         String   @default("standard") @db.VarChar(16)
+  input         Json
+  checkpoints   Json     @default("{}")
+  leaseToken    String?  @map("lease_token") @db.Uuid
+  leaseUntil    DateTime? @map("lease_until") @db.Timestamptz(6)
+  deadlineAt    DateTime @map("deadline_at") @db.Timestamptz(6)
+  attempts      Int      @default(0)
+  prepId        String?  @map("prep_id") @db.Uuid
+  errorCode     String?  @map("error_code") @db.VarChar(64)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, requestKey])
+  @@index([status, leaseUntil, createdAt])
+  @@index([tenantId, userId, meetingId, createdAt])
+  @@map("meeting_prep_jobs")
+}
+
+model MeetingPrepMondayMapping {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  boardIds  String[] @map("board_ids")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@unique([tenantId, userId, clientId])
+  @@map("meeting_prep_monday_mappings")
+}
+
 model MeetingPrep {
   id             String            @id @default(uuid()) @db.Uuid
   tenantId       String            @map("tenant_id") @db.Uuid

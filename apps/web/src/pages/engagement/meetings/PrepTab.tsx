@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
-import { useApprovePrep, useGeneratePrep, useUpdatePrep } from './meetings-api.js';
+import { useApprovePrep, useGeneratePrep, useUpdatePrep, useMeetingPrepJob, useCancelMeetingPrep, isMeetingPrepJob } from './meetings-api.js';
+import { ComprehensivePrep, PrepSearchSettings, briefingSectionLabels } from './ComprehensivePrep.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatMeetingDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
@@ -66,6 +67,17 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   const prep = meeting.preps[0] ?? null;
   const cancelled = isCancelledMeeting(meeting);
   const generate = useGeneratePrep();
+  const job = useMeetingPrepJob(meeting.id);
+  const cancelJob = useCancelMeetingPrep();
+  const jobActive = !!job.data && ['queued', 'running'].includes(job.data.status);
+  const [depth, setDepth] = useState<'standard' | 'deep'>('standard');
+  const briefing = !prep?.generatedFrom?.grounding?.contentEdited ? prep?.generatedFrom?.briefing : undefined;
+  const searchSettings = <PrepSearchSettings meetingId={meeting.id} clientId={meeting.client?.id ?? null} depth={depth} setDepth={setDepth} />;
+  const jobProgress = job.data && <div role={job.data.status === 'failed' ? 'alert' : 'status'} style={{ fontSize: 12 }}>
+    {jobActive ? `Preparing your briefing: ${job.data.stage.startsWith('extract_') ? 'reading evidence' : job.data.stage}. You can close this page; progress is saved.` : job.data.status === 'failed' ? 'The new briefing could not finish safely. Your previous briefing is unchanged. Retry or adjust the search focus.' : job.data.status === 'cancelled' ? 'Preparation cancelled. Your previous briefing is unchanged.' : null}
+    {jobActive && <button type="button" className="btn sm" disabled={cancelJob.isPending} onClick={() => cancelJob.mutate(job.data!)}>Cancel preparation</button>}
+    {cancelJob.isError && <p role="alert">Could not cancel. Refresh to check the current job status.</p>}
+  </div>;
   const approve = useApprovePrep();
   const update = useUpdatePrep();
   const [refine, setRefine] = useState('');
@@ -90,8 +102,8 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   const runGenerate = async (additionalContext?: string) => {
     if (cancelled) return;
     try {
-      await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
-      chrome.success('Prep generated.');
+      const result = await generate.mutateAsync({ meetingId: meeting.id, additionalContext, depth });
+      chrome.success(isMeetingPrepJob(result) ? 'Preparation queued. You can leave this page while it runs.' : 'Prep generated.');
     } catch (err) {
       // Without this catch, a rejected generate.mutateAsync (e.g. the source/attendee
       // review failing, or any other server-side error) propagated as an unhandled
@@ -104,10 +116,11 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     }
   };
 
-  if (generate.isPending) {
+  if (!prep && (generate.isPending || jobActive)) {
     return (
       <>
         <StagePill {...prepStage(prep, true)} />
+        {jobProgress}
         <GeneratingState
           label="Meri is drafting prep…"
           sub="Using the client profile and available activity. Review names and source support before use."
@@ -122,6 +135,8 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         <StagePill
           {...(cancelled ? { label: 'Cancelled', tone: 'gray' as const } : prepStage(null, false))}
         />
+        {jobProgress}
+        {searchSettings}
         <Empty
           icon={<FileText size={20} />}
           title={cancelled ? 'Meeting cancelled' : 'No prep generated yet'}
@@ -182,12 +197,17 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
       `Prep — ${meeting.subject}`,
       formatMeetingDayTitle(meeting.startsAt, meeting.endsAt),
       [
+        ...(briefing ? [
+          { heading: 'Key takeaways', items: briefing.takeaways.map(item => item.text) },
+          ...Object.entries(briefingSectionLabels).map(([key, heading]) => ({ heading, items: briefing.sections[key]?.items.map(item => item.text) ?? [], body: briefing.sections[key]?.gap ?? '' })),
+        ] : [
         { heading: 'Summary', body: prep.summary ?? '' },
         { heading: 'Agenda', items: prep.agenda },
         { heading: 'Talking Points', items: prep.talkingPoints, ordered: true },
         { heading: 'Watch-outs', items: prep.risks },
         { heading: 'Follow-ups', items: prep.followUps },
         { heading: 'Email evidence', items: prep.emailEvidence },
+        ]),
         {
           heading: 'Source review',
           body: prep.generatedFrom?.grounding
@@ -209,7 +229,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <StagePill {...prepStage(prep, false)} style={{ marginBottom: 0 }} />
+      <StagePill {...prepStage(prep, generate.isPending || jobActive)} style={{ marginBottom: 0 }} />
+      {jobProgress}
+      {searchSettings}
+      {briefing && <ComprehensivePrep prep={prep} />}
       {cancelled && (
         <p role="note" style={{ margin: 0, fontSize: 12 }}>
           This meeting is cancelled. Existing prep remains available; generation is disabled.
@@ -252,7 +275,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         </div>
       )}
 
-      {prep.summary && (
+      {!briefing && prep.summary && (
         <div>
           <SectionLabel style={{ marginBottom: 7 }}>Summary</SectionLabel>
           <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
@@ -262,7 +285,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         </div>
       )}
 
-      {prep.agenda.length > 0 && (
+      {!briefing && prep.agenda.length > 0 && (
         <div>
           <SectionLabel style={{ marginBottom: 7 }}>Agenda</SectionLabel>
           <ul
@@ -284,7 +307,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         </div>
       )}
 
-      {prep.talkingPoints.length > 0 && (
+      {!briefing && prep.talkingPoints.length > 0 && (
         <div>
           <SectionLabel style={{ marginBottom: 9 }}>Talking points</SectionLabel>
           <ul
@@ -330,7 +353,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         </div>
       )}
 
-      {prep.risks.length > 0 && (
+      {!briefing && prep.risks.length > 0 && (
         <div>
           <SectionLabel style={{ marginBottom: 9 }}>Watch-outs</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -362,7 +385,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         </div>
       )}
 
-      {prep.followUps.length > 0 && (
+      {!briefing && prep.followUps.length > 0 && (
         <div>
           <SectionLabel style={{ marginBottom: 7 }}>Follow-ups</SectionLabel>
           <ul
@@ -384,7 +407,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         </div>
       )}
 
-      {prep.emailEvidence.length > 0 && (
+      {!briefing && prep.emailEvidence.length > 0 && (
         <div>
           <SectionLabel>Email evidence</SectionLabel>
           <ul style={{ fontSize: 13, paddingLeft: 18 }}>
@@ -406,8 +429,8 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         onRefineChange={setRefine}
         refinePlaceholder="Add additional context you'd like Meri to use, then Regenerate."
         onRegenerate={() => void runGenerate(refine.trim() || undefined)}
-        regenerating={generate.isPending}
-        regenerateDisabled={!aiConfigured || cancelled}
+        regenerating={generate.isPending || jobActive}
+        regenerateDisabled={!aiConfigured || cancelled || jobActive}
         onEdit={() => {
           setEditValues(prepEditValues(prep));
           setEditOpen(true);
