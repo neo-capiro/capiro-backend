@@ -341,6 +341,9 @@ export class MeriMcpService {
 
   async updateServer(ctx: TenantContext, id: string, input: McpServerInput) {
     const existing = await this.loadManageable(ctx, id);
+    if (managedAppDefinition(existing.catalogId)) {
+      throw new BadRequestException('Manage this app from Meri integrations.');
+    }
     const data = this.validateInput(input, false);
     // scope/ownership are immutable after creation.
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -451,9 +454,19 @@ export class MeriMcpService {
     if (!this.enabled()) return [];
     try {
       const registry = await this.registryFor(ctx);
+      // Status is shared in the database, whereas this registry is per process.
+      // Recheck visibility so disconnects on another API replica also take effect.
+      const visible = new Map((await this.visibleServers(ctx, { where: { enabled: true } }))
+        .map((server) => [server.id, server]));
       return registry.schemas.filter((schema) => {
         const entry = registry.byBridgedName.get(schema.name);
-        return !entry || !this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`);
+        if (!entry || this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`)) return false;
+        const server = visible.get(entry.serverId);
+        if (!server || (server.authType === 'oauth' && server.connectionStatus !== 'connected')) return false;
+        const managed = managedAppDefinition(server.catalogId);
+        return !managed || (managedAppConfigured(managed.id) && this.oauth.isConfigured() &&
+          entry.readOnly && isManagedReadOnlyTool(managed.id, entry.toolName) &&
+          asStringArray(server.toolAllowlist).includes(entry.toolName));
       });
     } catch (err) {
       this.logger.warn(

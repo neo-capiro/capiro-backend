@@ -107,7 +107,7 @@ function IntegrationCard({
         ) : null}
       </div>
       <div className="vnext-meri-integration-card__actions">
-        {app.connected ? (
+        {app.connected || app.status === 'connected' ? (
           <button type="button" onClick={onDisconnect} disabled={busy}>
             {busy ? 'Disconnecting…' : 'Disconnect'}
           </button>
@@ -121,6 +121,9 @@ function IntegrationCard({
             {busy ? 'Connecting…' : app.status === 'error' ? 'Try again' : reconnect ? 'Reconnect' : 'Connect'}
           </button>
         )}
+        {!app.connected && app.status !== 'connected' && app.status !== 'disconnected' ? (
+          <button type="button" onClick={onDisconnect} disabled={busy}>Disconnect</button>
+        ) : null}
       </div>
     </article>
   );

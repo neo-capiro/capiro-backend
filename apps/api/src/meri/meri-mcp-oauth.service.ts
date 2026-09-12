@@ -1,4 +1,4 @@
-import { managedAppDefinition } from './meri-managed-mcp.helpers.js';
+import { managedAppDefinition, managedAppConfigured } from './meri-managed-mcp.helpers.js';
 /**
  * OAuth 2.1 connect flow for Meri MCP connectors (connector-library v1).
  *
@@ -52,6 +52,9 @@ type OAuthServerRow = {
   endpoint: string | null;
   authType: string;
   catalogId: string | null;
+  scope: string;
+  ownerUserId: string | null;
+  enabled: boolean;
 };
 
 @Injectable()
@@ -133,6 +136,7 @@ export class MeriMcpOAuthService {
   ): Promise<{ authUrl: string | null; alreadyConnected?: boolean }> {
     this.assertConfigured();
     const server = await this.loadOwnedServer(ctx, serverId);
+    this.assertManagedServer(server);
     if (server.authType !== 'oauth') {
       throw new BadRequestException('This connector does not use OAuth');
     }
@@ -153,7 +157,7 @@ export class MeriMcpOAuthService {
       signedState,
     );
 
-    await this.setStatus(ctx.tenantId, server.id, 'pending');
+    await this.setStatus(ctx.tenantId, server.id, 'pending', undefined, !managedAppDefinition(server.catalogId));
 
     let result: string;
     try {
@@ -182,14 +186,18 @@ export class MeriMcpOAuthService {
     // Persist the nonce so the callback can consume it exactly once (anti-replay
     // beyond the single-use PKCE code). The provider created the credential row
     // during auth(), so it exists by now.
-    await this.prisma
-      .withTenant(ctx.tenantId, (tx) =>
+    try {
+      const saved = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioMcpOAuthCredential.updateMany({
           where: { serverId: server.id },
           data: { stateNonce: nonce },
         }),
-      )
-      .catch((err) => this.logger.warn(`Failed to persist state nonce: ${(err as Error).message}`));
+      );
+      if (saved.count !== 1) throw new Error('Authorization no longer active');
+    } catch {
+      await this.setStatus(ctx.tenantId, server.id, 'error', 'Sign-in could not start. Please try again.');
+      throw new ServiceUnavailableException('Sign-in could not start. Please try again.');
+    }
     return { authUrl: url.toString() };
   }
 
@@ -206,10 +214,14 @@ export class MeriMcpOAuthService {
     const server = await this.prisma.withTenant(decoded.t, (tx) =>
       tx.clioMcpServer.findFirst({
         where: { id: decoded.s, tenantId: decoded.t },
-        select: { id: true, name: true, endpoint: true, authType: true, catalogId: true },
+        select: { id: true, name: true, endpoint: true, authType: true, catalogId: true, scope: true, ownerUserId: true, enabled: true },
       }),
     );
     if (!server) throw new NotFoundException('Connector not found');
+    this.assertManagedServer(server);
+    if (managedAppDefinition(server.catalogId) && server.ownerUserId !== decoded.u) {
+      throw new ForbiddenException('This authorization is no longer active.');
+    }
     if (server.authType !== 'oauth' || !server.endpoint) {
       throw new BadRequestException('Connector is not an OAuth connector');
     }
@@ -277,6 +289,20 @@ export class MeriMcpOAuthService {
 
   // ── disconnect ───────────────────────────────────────────────────────────
 
+  /** Cancel only an unfinished authorization; a completed connection is retained. */
+  async cancelPending(ctx: TenantContext, serverId: string): Promise<void> {
+    const server = await this.loadOwnedServer(ctx, serverId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const cancelled = await tx.clioMcpServer.updateMany({
+        where: { id: server.id, tenantId: ctx.tenantId, connectionStatus: 'pending' },
+        data: { connectionStatus: 'disconnected', lastError: null },
+      });
+      if (cancelled.count === 1) {
+        await tx.clioMcpOAuthCredential.deleteMany({ where: { serverId: server.id } });
+      }
+    });
+  }
+
   /** Revoke local tokens for a connector (owner / admin only). */
   async disconnect(ctx: TenantContext, serverId: string): Promise<void> {
     const server = await this.loadOwnedServer(ctx, serverId);
@@ -307,6 +333,7 @@ export class MeriMcpOAuthService {
           catalogId: true,
           scope: true,
           ownerUserId: true,
+          enabled: true,
         },
       }),
     );
@@ -318,6 +345,15 @@ export class MeriMcpOAuthService {
       throw new ForbiddenException('You can only manage your own connectors');
     }
     return server;
+  }
+
+  private assertManagedServer(server: OAuthServerRow): void {
+    const app = managedAppDefinition(server.catalogId);
+    if (app && (!this.config.get('CLIO_MCP_ENABLED', { infer: true }) ||
+      !managedAppConfigured(app.id) || !server.enabled || server.scope !== 'user' ||
+      server.name !== app.catalogId || server.endpoint !== app.endpoint || server.authType !== 'oauth')) {
+      throw new ServiceUnavailableException('This app is temporarily unavailable. Please try again later.');
+    }
   }
 
   private async audit(
@@ -350,11 +386,12 @@ export class MeriMcpOAuthService {
     serverId: string,
     status: string,
     error?: string,
+    allowDisconnected = false,
   ): Promise<void> {
     await this.prisma
       .withTenant(tenantId, (tx) =>
         tx.clioMcpServer.updateMany({
-          where: { id: serverId, tenantId, ...(status === 'pending' ? {} : { connectionStatus: { not: 'disconnected' } }) },
+          where: { id: serverId, tenantId, ...(allowDisconnected ? {} : { connectionStatus: { not: 'disconnected' } }) },
           data: {
             connectionStatus: status,
             ...(error !== undefined ? { lastError: error.slice(0, 500) } : {}),

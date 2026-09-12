@@ -147,10 +147,10 @@ function ManagedAppRow({
         <span className="meri-app-row-action meri-app-row-action--busy" aria-label="Connecting">
           <LoadingOutlined spin />
         </span>
-      ) : app.connected ? (
+      ) : app.connected || app.status === 'connected' ? (
         <span className="meri-app-connected-actions">
           <span className="meri-app-connected-label">
-            <CheckCircleFilled /> Connected
+            <CheckCircleFilled /> {managedAppStatusLabel(app)}
           </span>
           <button type="button" onClick={onDisconnect} className="meri-app-disconnect">
             Disconnect
@@ -163,7 +163,7 @@ function ManagedAppRow({
           disabled={!app.available}
           onClick={onConnect}
         >
-          {reconnect ? 'Reconnect' : 'Connect'}
+          {app.status === 'error' ? 'Try again' : reconnect ? 'Reconnect' : 'Connect'}
         </button>
       )}
     </div>

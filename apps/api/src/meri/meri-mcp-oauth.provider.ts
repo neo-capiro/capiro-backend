@@ -241,16 +241,17 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
       });
     }
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
-      await tx.clioMcpOAuthCredential.updateMany({
-        where: { serverId: this.opts.serverId },
-        data,
-      });
+      // Use the same row-lock order as saveTokens and disconnect.
       if (scope === 'all' || scope === 'tokens') {
         await tx.clioMcpServer.updateMany({
           where: { id: this.opts.serverId, connectionStatus: { not: 'disconnected' } },
           data: { connectionStatus: 'needs_reauth' },
         });
       }
+      await tx.clioMcpOAuthCredential.updateMany({
+        where: { serverId: this.opts.serverId },
+        data,
+      });
     });
   }
 
@@ -265,8 +266,13 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
     fields: Prisma.ClioMcpOAuthCredentialUncheckedUpdateInput &
       Partial<Prisma.ClioMcpOAuthCredentialUncheckedCreateInput>,
   ): Promise<void> {
-    await this.opts.prisma.withTenant(this.opts.tenantId, (tx) =>
-      tx.clioMcpOAuthCredential.upsert({
+    await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
+      const active = await tx.clioMcpServer.updateMany({
+        where: { id: this.opts.serverId, tenantId: this.opts.tenantId, enabled: true, connectionStatus: { not: 'disconnected' } },
+        data: { updatedAt: new Date() },
+      });
+      if (active.count !== 1) throw new Error('This authorization is no longer active.');
+      await tx.clioMcpOAuthCredential.upsert({
         where: { serverId: this.opts.serverId },
         update: fields,
         create: {
@@ -274,8 +280,8 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
           serverId: this.opts.serverId,
           ...fields,
         } as Prisma.ClioMcpOAuthCredentialUncheckedCreateInput,
-      }),
-    );
+      });
+    });
   }
 
   private enc(plain: string): SecretEnvelope {

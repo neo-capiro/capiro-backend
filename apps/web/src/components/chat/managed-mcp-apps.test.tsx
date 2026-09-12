@@ -118,6 +118,7 @@ describe('ManagedMcpAppsProvider', () => {
     await tick(); await tick();
     expect(screen.getByTestId('error')).toHaveTextContent('closed before it finished');
     expect(screen.getByTestId('busy')).toBeEmptyDOMElement();
+    expect(mocks.post).toHaveBeenCalledWith('/api/clio/v3/apps/hubspot/cancel', {});
     expect(screen.getByLabelText('Draft')).toHaveValue('Keep this draft');
   });
 

@@ -118,9 +118,19 @@ export function ManagedMcpAppsProvider({ children }: { children: ReactNode }) {
     const fail = (message: string) => {
       if (isCurrent()) setAction({ scope, busy: appId, error: message });
     };
-    const popup = window.open('about:blank', 'capiro-meri-connect-' + appId, popupFeatures());
-    operation.popup = popup ?? undefined;
+    const cancelPending = async () => {
+      if (!isCurrent()) return;
+      try {
+        await api.post('/api/clio/v3/apps/' + appId + '/cancel', {});
+        await refresh();
+      } catch {
+        fail('Sign-in did not finish. Return to this app in Meri integrations and try again.');
+      }
+    };
+    let popup: Window | null = null;
     try {
+      popup = window.open('about:blank', 'capiro-meri-connect-' + appId, popupFeatures());
+      operation.popup = popup ?? undefined;
       if (!popup) {
         fail('Your browser blocked sign-in. Allow popups for Capiro and try again.');
         return;
@@ -139,6 +149,7 @@ export function ManagedMcpAppsProvider({ children }: { children: ReactNode }) {
       }
       if (!data.authUrl || new URL(data.authUrl).protocol !== 'https:') {
         fail('Sign-in could not start. Please try again.');
+        await cancelPending();
         return;
       }
       popup.location.replace(data.authUrl);
@@ -160,14 +171,18 @@ export function ManagedMcpAppsProvider({ children }: { children: ReactNode }) {
           const finalApps = await refresh();
           if (!finalApps.find((item) => item.id === appId)?.connected) {
             fail('Sign-in was closed before it finished. You can try again.');
+            await cancelPending();
           }
           return;
         }
       }
-      if (isCurrent()) fail('Sign-in took too long. Please try again.');
+      if (isCurrent()) {
+        fail('Sign-in took too long. Please try again.');
+        await cancelPending();
+      }
     } catch {
       fail('Could not complete sign-in. Please try again.');
-      await refresh(); // Refresh must not erase the action error.
+      await cancelPending(); // Refresh must not erase the action error.
     } finally {
       popup?.close();
       if (active.current === operation) {

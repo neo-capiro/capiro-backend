@@ -97,6 +97,12 @@ export class MeriV3SettingsController {
     return this.managedMcp.connect(ctx, appId);
   }
 
+  @Post('apps/:appId/cancel')
+  async cancelApp(@CurrentTenant() ctx: TenantContext, @Param('appId') appId: string) {
+    await this.assertEnabled(ctx);
+    return this.managedMcp.cancelPending(ctx, appId);
+  }
+
   @Post('apps/:appId/disconnect')
   async disconnectApp(@CurrentTenant() ctx: TenantContext, @Param('appId') appId: string) {
     await this.assertEnabled(ctx);

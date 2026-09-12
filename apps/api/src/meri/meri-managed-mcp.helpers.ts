@@ -11,26 +11,16 @@ export const MERIV3_MONDAY_ENDPOINT = 'https://mcp.monday.com/mcp';
 export const MERIV3_GOOGLE_DRIVE_ENDPOINT = 'https://drivemcp.googleapis.com/mcp/v1';
 
 // Exact names only: a new provider tool never inherits read permission from its prefix.
+// Core CRM reads exposed by the remote HubSpot MCP server. Legacy search/fetch
+// remain read-only for existing installations; unknown future tools stay blocked.
 export const HUBSPOT_READ_ONLY_TOOLS = new Set([
   'get_user_details',
-  'search',
-  'fetch',
   'search_crm_objects',
   'get_crm_objects',
-  'get_crm_associations',
+  'search_properties',
   'get_properties',
-  'get_property',
-  'get_deal',
-  'list_contacts',
-  'search_contacts',
-  'search_companies',
-  'search_deals',
-  'get_contact',
-  'get_company',
-  'list_deals',
-  'get_associations',
-  'get_owners',
-  'list_owners',
+  'search',
+  'fetch',
 ]);
 
 export const AIRTABLE_READ_ONLY_TOOLS = new Set([

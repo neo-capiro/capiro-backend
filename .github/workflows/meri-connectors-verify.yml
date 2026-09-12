@@ -31,11 +31,18 @@ jobs:
       - name: Build prerequisites
         run: |
           pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
           pnpm --filter @capiro/shared build
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/meriv2-core build
           pnpm --filter @capiro/strategy-verifier build
+      - name: Check connector formatting
+        run: pnpm exec prettier --check 'apps/api/src/meri/meri-managed-mcp.helpers.ts' 'apps/api/src/meri/meri-managed-mcp.service.ts' 'apps/api/src/meri/meri-mcp.service.ts' 'apps/api/src/meri/meri-mcp-oauth.service.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.ts' 'apps/web/src/components/chat/managed-mcp-apps.tsx' 'apps/web/src/lib/use-api.ts' 'apps/web/src/vnext/meri/meri-connector-logos.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.tsx' 'apps/web/src/vnext/meri/VNextMeriIntegrations.tsx' 'apps/web/src/components/chat/ManagedComposerPlus.tsx' 'apps/api/src/meri/meriv3-settings.controller.ts' 'apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts' 'apps/api/src/meri/meri-mcp-transport.ts' 'apps/api/src/meri/meri-managed-mcp.helpers.spec.ts' 'apps/api/src/meri/meri-managed-mcp.service.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.spec.ts' 'apps/web/src/components/chat/ManagedComposerPlus.test.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx' 'apps/api/src/config/config.schema.ts' 'apps/web/src/components/chat/managed-mcp-apps.test.tsx' 'apps/api/src/meri/meri-mcp.managed-boundary.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.service.spec.ts' 'apps/api/src/meri/meri-mcp-transport.pagination.spec.ts'
       - name: API connector and OAuth regression tests
+        if: ${{ !cancelled() }}
         run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-managed-mcp src/meri/meri-mcp
       - name: Frontend connector and draft regression tests
         if: ${{ !cancelled() }}
@@ -56,34 +63,6 @@ jobs:
         run: |
           pnpm --filter @capiro/meriv2-orchestrator typecheck
           pnpm --filter @capiro/meriv2-orchestrator build
-
-  # This job only formats this isolated implementation branch. It cannot write main.
-  format-implementation:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/meri-four-managed-connectors'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: codex/meri-four-managed-connectors
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Format changed connector source
-        run: pnpm exec prettier --write 'apps/api/src/meri/meri-managed-mcp.helpers.ts' 'apps/api/src/meri/meri-managed-mcp.service.ts' 'apps/api/src/meri/meri-mcp.service.ts' 'apps/api/src/meri/meri-mcp-oauth.service.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.ts' 'apps/web/src/components/chat/managed-mcp-apps.tsx' 'apps/web/src/lib/use-api.ts' 'apps/web/src/vnext/meri/meri-connector-logos.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.tsx' 'apps/web/src/vnext/meri/VNextMeriIntegrations.tsx' 'apps/web/src/components/chat/ManagedComposerPlus.tsx' 'apps/api/src/meri/meriv3-settings.controller.ts' 'apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts' 'apps/api/src/meri/meri-mcp-transport.ts' 'apps/api/src/meri/meri-managed-mcp.helpers.spec.ts' 'apps/api/src/meri/meri-managed-mcp.service.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.spec.ts' 'apps/web/src/components/chat/ManagedComposerPlus.test.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx' 'apps/api/src/config/config.schema.ts' 'apps/web/src/components/chat/managed-mcp-apps.test.tsx'
-      - name: Commit formatting on the implementation branch
-        run: |
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add 'apps/api/src/meri/meri-managed-mcp.helpers.ts' 'apps/api/src/meri/meri-managed-mcp.service.ts' 'apps/api/src/meri/meri-mcp.service.ts' 'apps/api/src/meri/meri-mcp-oauth.service.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.ts' 'apps/web/src/components/chat/managed-mcp-apps.tsx' 'apps/web/src/lib/use-api.ts' 'apps/web/src/vnext/meri/meri-connector-logos.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.tsx' 'apps/web/src/vnext/meri/VNextMeriIntegrations.tsx' 'apps/web/src/components/chat/ManagedComposerPlus.tsx' 'apps/api/src/meri/meriv3-settings.controller.ts' 'apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts' 'apps/api/src/meri/meri-mcp-transport.ts' 'apps/api/src/meri/meri-managed-mcp.helpers.spec.ts' 'apps/api/src/meri/meri-managed-mcp.service.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.spec.ts' 'apps/web/src/components/chat/ManagedComposerPlus.test.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx' 'apps/api/src/config/config.schema.ts' 'apps/web/src/components/chat/managed-mcp-apps.test.tsx'
-            git commit -m "style: format managed connector implementation"
-            git push origin HEAD:codex/meri-four-managed-connectors
-          fi
 
   deployed-configuration:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

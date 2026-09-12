@@ -152,6 +152,17 @@ export class MeriManagedMcpService {
     return { disconnected: true };
   }
 
+  async cancelPending(ctx: TenantContext, rawId: string): Promise<{ cancelled: true }> {
+    const appId = this.parseAppId(rawId);
+    const pending = this.connecting.get(ctx.tenantId + ':' + ctx.userId + ':' + appId);
+    if (pending) await pending.catch(() => undefined);
+    for (const row of await this.rowsForApp(ctx, appId)) {
+      await this.oauth.cancelPending(ctx, row.id);
+    }
+    this.mcp.invalidate(ctx.tenantId);
+    return { cancelled: true };
+  }
+
   async finalizeConnection(tenantId: string, serverId: string): Promise<number> {
     const count = await this.hardenServer(tenantId, serverId);
     if (!count) throw new ServiceUnavailableException('No supported read tools are available. Please try reconnecting.');

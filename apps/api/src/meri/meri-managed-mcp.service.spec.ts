@@ -157,7 +157,7 @@ describe('MeriManagedMcpService', () => {
     tx.clioMcpServer.findFirst.mockResolvedValue({
       id: 'hubspot-server',
       catalogId: MERIV3_HUBSPOT_CATALOG_ID,
-      toolAllowlist: ['get_user_details', 'search_contacts', 'create_contact', 'update_deal'],
+      toolAllowlist: ['get_user_details', 'search_crm_objects', 'create_contact', 'update_deal'],
       readOnlyTools: [],
       connectionStatus: 'pending',
       enabled: true,
@@ -165,8 +165,8 @@ describe('MeriManagedMcpService', () => {
     await expect(service.finalizeConnection(ctx.tenantId, 'hubspot-server')).resolves.toBe(2);
     expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       data: {
-        toolAllowlist: ['get_user_details', 'search_contacts'],
-        readOnlyTools: ['get_user_details', 'search_contacts'],
+        toolAllowlist: ['get_user_details', 'search_crm_objects'],
+        readOnlyTools: ['get_user_details', 'search_crm_objects'],
       },
     }));
     expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -230,7 +230,7 @@ describe('MeriManagedMcpService', () => {
     const { service, mcp } = make();
     jest.spyOn(service, 'schemasForMeriV3').mockResolvedValue([
       {
-        name: 'mcp__meriv3_hubspot__search_contacts',
+        name: 'mcp__meriv3_hubspot__search_crm_objects',
         description: 'Search contacts',
         input_schema: { type: 'object', properties: {} },
         source: 'managed_mcp',
@@ -240,11 +240,11 @@ describe('MeriManagedMcpService', () => {
       },
     ]);
     await expect(
-      service.executeRead(ctx, 'mcp__meriv3_hubspot__search_contacts', { query: 'Acme' }),
+      service.executeRead(ctx, 'mcp__meriv3_hubspot__search_crm_objects', { query: 'Acme' }),
     ).resolves.toEqual({ ok: true });
     expect(mcp.executeBridged).toHaveBeenCalledWith(
       ctx,
-      'mcp__meriv3_hubspot__search_contacts',
+      'mcp__meriv3_hubspot__search_crm_objects',
       { query: 'Acme' },
     );
     await expect(
