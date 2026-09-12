@@ -26,6 +26,7 @@ export class PublicHearingAudioAccessService {
       (tx) => tx.$queryRaw<
         Array<{ source_url: string }>
       >`SELECT DISTINCT p.source_url FROM intel_hearing_media_permission p
+      JOIN committee_hearing h ON h.id=p.hearing_id AND h.visibility='public' AND h.url=p.source_url
       JOIN tenant_memberships tm ON tm.tenant_id::text=p.tenant_id AND tm.status::text='active'
       JOIN users u ON u.id=tm.user_id AND u.clerk_user_id=${ctx.clerkUserId}
       WHERE p.tenant_id=${ctx.tenantId} AND p.hearing_id=${hearingId} AND p.mode='server'

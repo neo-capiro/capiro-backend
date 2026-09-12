@@ -10,7 +10,15 @@ export async function renderApprovedHearingRecap(
   const approved = new Date(input.approvedAt);
   if (!Number.isFinite(approved.getTime())) throw Error('Approved recap timestamp is invalid');
   const bytes = await renderMemoDocx(
-    markdownToMemoDocInput(input.markdown, clientName, input.title, input.approvedAt.slice(0, 10)),
+    markdownToMemoDocInput(
+      input.markdown.replace(
+        /^\*\*(Unofficial transcript-based hearing (?:recap|update))\*\*$/gm,
+        '$1',
+      ),
+      clientName,
+      input.title,
+      input.approvedAt.slice(0, 10),
+    ),
   );
   const zip = await JSZip.loadAsync(bytes);
   const core = zip.file('docProps/core.xml');
