@@ -29,6 +29,7 @@ import {
   RAW_ENGAGEMENT_AI_SERVICE,
 } from './governed-meeting-ai.factory.js';
 import { MeetingContextPlaneService } from './meeting-context-plane.service.js';
+import { MeetingPrepJobService } from './meeting-prep-job.service.js';
 import { OutreachJobService } from './outreach-job.service.js';
 import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
@@ -154,6 +155,7 @@ import {
       inject: [RAW_GMAIL_SEND_SERVICE, EngagementRuntimePolicyService],
     },
     MeetingContextPlaneService,
+    MeetingPrepJobService,
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -243,6 +245,7 @@ import {
     OutreachV3LivePreviewService,
   ],
   exports: [
+    MeetingPrepJobService,
     EngagementRuntimeModule,
     AiCredentialsModule,
     OutcomeService,

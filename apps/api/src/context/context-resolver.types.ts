@@ -71,6 +71,8 @@ export interface ContextCurrentObject {
  * this request; ContextPacket V2 and token compilation remain Phase 17 work.
  */
 export interface ContextRetrievalDirective {
+  meetingBriefing?: RetrievalRequest['meetingBriefing'];
+  deadlineAt?: number;
   queryClass: RetrievalQueryClass;
   requestedDomains: readonly RetrievalDomain[];
   /** Null requests an unfiltered scoped read; omission keeps the legacy task-text fallback. */

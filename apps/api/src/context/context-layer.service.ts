@@ -22,6 +22,7 @@ export const CONTEXT_LAYER_BY_RETRIEVAL_DOMAIN: Readonly<
   mail: 'institutional-knowledge',
   meetings: 'institutional-knowledge',
   tasks: 'live-authoritative',
+  monday: 'institutional-knowledge',
   action_recommendations: 'live-authoritative',
   outreach: 'institutional-knowledge',
   strategies_work: 'institutional-knowledge',

@@ -557,7 +557,8 @@ export class MeriMcpService {
     ctx: TenantContext,
     bridgedName: string,
     input: Record<string, unknown>,
-  ): Promise<{ tool: string; server: string; untrusted: true; content: string }> {
+    options?: { structuredRead?: boolean },
+  ): Promise<{ tool: string; server: string; untrusted: true; content: string; structuredResult?: unknown }> {
     if (!this.enabled()) throw new BadRequestException('MCP tools are disabled');
     const parsed = parseBridgedToolName(bridgedName);
     if (!parsed) throw new BadRequestException(`Not a bridged MCP tool: ${bridgedName}`);
@@ -604,6 +605,7 @@ export class MeriMcpService {
         server: server.name,
         untrusted: true,
         content: wrapMcpResultForPrompt(server.name, result),
+        ...(options?.structuredRead && entry.readOnly ? { structuredResult: result } : {}),
       };
     } catch (err) {
       this.breaker.recordFailure(breakerKey);

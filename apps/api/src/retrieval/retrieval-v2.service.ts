@@ -165,8 +165,13 @@ export class RetrievalV2Service {
       request.requireComplete === true || request.queryClass === 'exhaustive_search';
     let cursor = request.cursors?.[dataset.domain];
     const pages: RetrievalSourceResult[] = [];
+    const visited = new Set<string>();
 
     for (let pageIndex = 0; pageIndex < MAX_EXHAUSTIVE_PAGES_PER_SOURCE; pageIndex += 1) {
+      if (request.deadlineAt && Date.now() >= request.deadlineAt) {
+        if (!pages.length) return this.unavailableResult(dataset, request, 'error', 'retrieval_deadline_reached');
+        return this.mergePages(dataset.domain, pages, { truncated: true, paginationComplete: false, coverageComplete: false, stopReason: 'retrieval_deadline_reached' });
+      }
       let page: RetrievalSourceResult;
       try {
         page = await adapter.retrieve(dataset, request, cursor);
@@ -185,6 +190,8 @@ export class RetrievalV2Service {
         });
       }
       cursor = page.nextCursor;
+      if (visited.has(cursor)) return this.mergePages(dataset.domain, pages, { truncated: true, paginationComplete: false, coverageComplete: false, stopReason: 'source_cursor_cycle' });
+      visited.add(cursor);
     }
 
     const last = pages.at(-1);

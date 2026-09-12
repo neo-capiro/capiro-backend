@@ -340,6 +340,8 @@ export class ContextResolverService {
 
     return {
       queryClass: directive.queryClass,
+      ...(directive.meetingBriefing ? { meetingBriefing: directive.meetingBriefing } : {}),
+      ...(directive.deadlineAt ? { deadlineAt: directive.deadlineAt } : {}),
       requestedDomains,
       caller,
       query: directive.query === null ? undefined : directive.query?.trim() || request.task.trim(),

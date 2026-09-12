@@ -22,6 +22,7 @@ export const RETRIEVAL_DOMAINS = [
   'mail',
   'meetings',
   'tasks',
+  'monday',
   'action_recommendations',
   'outreach',
   'strategies_work',
@@ -123,6 +124,20 @@ export interface RetrievalCallerContext {
 }
 
 export interface RetrievalRequest {
+  /** Server-authored meeting-preparation policy, not a client-provided authorization grant. */
+  meetingBriefing?: {
+    meetingId: string;
+    scope: 'client' | 'internal';
+    meetingLimit: number;
+    meetingSince: Date;
+    emailSince: Date;
+    threadLimit: number;
+    messageLimit: number;
+    upcomingThrough: Date;
+    asOf: Date;
+  };
+  /** Bounded retrieval must stop before consuming synthesis/review time. */
+  deadlineAt?: number;
   queryClass: RetrievalQueryClass;
   requestedDomains: readonly RetrievalDomain[];
   caller: RetrievalCallerContext;

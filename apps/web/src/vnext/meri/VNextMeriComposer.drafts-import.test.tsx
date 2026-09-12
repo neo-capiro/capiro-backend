@@ -107,7 +107,7 @@ function composer(value = controller(), integrations = vi.fn()) {
 }
 async function openImport() {
   fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: /Import from workspace/ }));
+  fireEvent.click(screen.getByRole('menuitem', { name: /Import Saved Docs/ }));
   await screen.findByRole('button', { name: /Briefing draft/ });
 }
 function importRoutes(path: string) {
@@ -480,15 +480,15 @@ describe('workspace import disclosure', () => {
       await render(composer());
       enter('Unsent client briefing');
       await openImport();
-      const dialog = screen.getByRole('dialog', { name: 'Import from workspace' });
+      const dialog = screen.getByRole('dialog', { name: 'Import Saved Docs' });
       expect(dialog).toHaveFocus();
       expect(dialog).toHaveAccessibleDescription(/Select a document to add as editable text/);
       // Clicking content does not accidentally dismiss the dialog.
-      fireEvent.mouseDown(screen.getByText('Import from workspace'));
+      fireEvent.mouseDown(screen.getByText('Import Saved Docs'));
       expect(dialog).toBeInTheDocument();
       if (dismissal === 'Escape') fireEvent.keyDown(dialog, { key: 'Escape' });
       else fireEvent.mouseDown(dialog.parentElement!);
-      expect(screen.queryByRole('dialog', { name: 'Import from workspace' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Import Saved Docs' })).toBeNull();
       expect(screen.getByRole('button', { name: 'Add to conversation' })).toHaveFocus();
       expect(textarea()).toHaveValue('Unsent client briefing');
     },
@@ -501,8 +501,8 @@ describe('workspace import disclosure', () => {
     );
     await render(composer());
     fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Import from workspace/ }));
-    const dialog = screen.getByRole('dialog', { name: 'Import from workspace' });
+    fireEvent.click(screen.getByRole('menuitem', { name: /Import Saved Docs/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Import Saved Docs' });
     fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
     await act(async () =>

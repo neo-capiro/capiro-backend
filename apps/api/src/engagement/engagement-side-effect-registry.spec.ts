@@ -66,9 +66,13 @@ describe('Engagement side-effect registry', () => {
       expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it('records main_api as the current owner', () => {
+    it('records main_api (or a configured owner that currently resolves to it) as the current owner', () => {
+      // 'configured_engagement_background_owner' entries (meeting-prep) still run
+      // in-process today: no separate worker deployment ships with this PR, and the
+      // meeting-prep worker is inactive in shadow posture (see phase1ContainmentRequirement).
+      const allowedOwners = new Set(['main_api', 'configured_engagement_background_owner']);
       for (const entry of readFixture().entries) {
-        expect(entry.currentProcessOwner).toBe('main_api');
+        expect(allowedOwners.has(entry.currentProcessOwner)).toBe(true);
       }
     });
 

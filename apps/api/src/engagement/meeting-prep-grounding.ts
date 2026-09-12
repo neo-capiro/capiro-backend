@@ -1,7 +1,17 @@
-import { ServiceUnavailableException } from '@nestjs/common';
 import type { MeetingPrepInput } from './engagement-ai.service.js';
+import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 
 export interface PrepEvidenceSource {
+  access?: {
+    meetings?: string[];
+    notes?: string[];
+    debriefs?: string[];
+    mail?: string[];
+    tasks?: string[];
+    clients?: string[];
+    mondayUsers?: string[];
+    mondayBoards?: string[];
+  };
   id: string;
   kind: string;
   title: string;
@@ -13,7 +23,8 @@ export interface PrepEvidenceSource {
 export interface MeetingPrepGrounding {
   version: 1;
   contentEdited: boolean;
-  review?: { attendeeNamesConsistent: true; factualClaimsSupported: true };
+  /** Authorization provenance is independent of optional display citations. */
+  accessSources?: Array<Pick<PrepEvidenceSource, 'access'>>;
   attendees: Array<{ id: string; name: string; email: string | null }>;
   sources: PrepEvidenceSource[];
   references: Array<{ section: string; itemIndex: number; sourceIds: string[] }>;
@@ -34,7 +45,7 @@ export function prepAttendees(input: MeetingPrepInput): MeetingPrepGrounding['at
   }));
 }
 
-/** The same resolved logistics feed the draft prompt and the source reviewer. */
+/** Use the same resolved logistics in the prompt and displayed source metadata. */
 export function prepMeetingLogistics(meeting: Record<string, unknown>): {
   timeZone: string;
   formattedTime: string;
@@ -74,6 +85,19 @@ export function prepEvidenceSources(input: MeetingPrepInput): PrepEvidenceSource
       observedAt:
         text(record.updatedAt) || text(record.lastMessageAt) || text(record.startsAt) || null,
       excerpt: JSON.stringify(record).slice(0, 1800),
+      ...(currentMeetingPrepExecution() && recordId
+        ? {
+            access:
+              kind === 'client'
+                ? { clients: [recordId] }
+                : kind === 'meeting'
+                  ? {
+                      meetings: [recordId],
+                      clients: text(input.client?.id) ? [text(input.client?.id)] : [],
+                    }
+                  : {},
+          }
+        : {}),
     });
   }
   add(
@@ -117,55 +141,22 @@ export function prepEvidenceSources(input: MeetingPrepInput): PrepEvidenceSource
   return Array.from(new Map(sources.map((source) => [source.id, source])).values());
 }
 
-/** Validate identities and citation targets, never rewrite names or invent support.
- * Source existence is a mechanical check; semantic claim review remains with the
- * provider and user and is explicitly described that way in the UI. */
-export function validatePrepGrounding(
+/** Assemble best-effort display links. Missing/invalid links never reject prose.
+ * Source metadata always comes from supplied records, never model inventions. */
+export function buildPrepEvidence(
   input: MeetingPrepInput,
   parsed: Record<string, unknown>,
 ): MeetingPrepGrounding {
-  // Keep citation indexes identical to the displayed arrays: normalization must
-  // not silently remove an empty/non-string item and shift every later link.
-  for (const section of SECTIONS) {
-    const values = section === 'summary' ? [parsed.summary] : parsed[section];
-    if (
-      !Array.isArray(values) ||
-      values.some((value) => typeof value !== 'string' || !value.trim())
-    ) {
-      throw new ServiceUnavailableException(
-        'Meeting prep returned incomplete content. Please retry generation.',
-      );
-    }
-  }
-  const attendees = prepAttendees(input);
-  const supplied = Array.isArray(parsed.attendeeReferences) ? parsed.attendeeReferences : [];
-  if (
-    supplied.length !== attendees.length ||
-    attendees.some(
-      (attendee) =>
-        supplied.filter((raw) => {
-          const value = raw as Record<string, unknown> | null;
-          return value?.attendeeId === attendee.id && value?.name === attendee.name;
-        }).length !== 1,
-    )
-  ) {
-    throw new ServiceUnavailableException(
-      'Meeting prep attendee names did not match the meeting record. Please retry generation.',
-    );
-  }
   const sources = prepEvidenceSources(input);
   const allowed = new Set(sources.map((source) => source.id));
-  if (!Array.isArray(parsed.evidenceReferences)) {
-    throw new ServiceUnavailableException(
-      'Meeting prep did not include source references. Please retry generation.',
-    );
-  }
   const references: MeetingPrepGrounding['references'] = [];
-  for (const raw of parsed.evidenceReferences) {
+  for (const raw of Array.isArray(parsed.evidenceReferences) ? parsed.evidenceReferences : []) {
     const ref = raw as Record<string, unknown> | null;
     const section = text(ref?.section);
     const itemIndex = ref?.itemIndex;
-    const sourceIds = Array.isArray(ref?.sourceIds) ? ref.sourceIds : [];
+    const sourceIds = Array.isArray(ref?.sourceIds)
+      ? ref.sourceIds.filter((id): id is string => typeof id === 'string' && allowed.has(id))
+      : [];
     const items = section === 'summary' ? [parsed.summary] : parsed[section];
     if (
       !SECTIONS.includes(section) ||
@@ -173,42 +164,32 @@ export function validatePrepGrounding(
       (itemIndex as number) < 0 ||
       !Array.isArray(items) ||
       (itemIndex as number) >= items.length ||
-      !sourceIds.length ||
-      sourceIds.some((id) => typeof id !== 'string' || !allowed.has(id))
-    ) {
-      throw new ServiceUnavailableException(
-        'Meeting prep returned an unavailable source reference. Please retry generation.',
-      );
-    }
+      !sourceIds.length
+    )
+      continue;
+    // Match the existing provider text normalization without moving a link onto
+    // the wrong bullet when an earlier empty item was removed.
+    const nonEmpty = (value: unknown) => String(value ?? '').trim().length > 0;
+    if (!nonEmpty(items[itemIndex as number])) continue;
+    const displayedIndex =
+      section === 'summary' ? 0 : items.slice(0, itemIndex as number).filter(nonEmpty).length;
     references.push({
       section,
-      itemIndex: itemIndex as number,
-      sourceIds: Array.from(new Set(sourceIds as string[])),
+      itemIndex: displayedIndex,
+      sourceIds: Array.from(new Set(sourceIds)),
     });
   }
   const used = new Set(references.flatMap((reference) => reference.sourceIds));
   const limitations = Array.isArray(parsed.limitations)
     ? parsed.limitations.filter((item): item is string => typeof item === 'string' && !!item.trim())
     : [];
-  for (const section of SECTIONS) {
-    const items = section === 'summary' ? [parsed.summary] : parsed[section];
-    if (
-      Array.isArray(items) &&
-      items.some(
-        (item, index) =>
-          text(item) &&
-          !references.some((ref) => ref.section === section && ref.itemIndex === index),
-      )
-    ) {
-      throw new ServiceUnavailableException(
-        'Meeting prep is missing source links for its content. Please retry generation.',
-      );
-    }
-  }
   return {
     version: 1,
     contentEdited: false,
-    attendees,
+    attendees: prepAttendees(input),
+    accessSources: sources
+      .filter((source) => source.access)
+      .map((source) => ({ access: source.access })),
     sources: sources.filter((source) => used.has(source.id)),
     references,
     limitations,

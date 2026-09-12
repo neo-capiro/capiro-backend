@@ -66,6 +66,9 @@ import type { PlanValidationIssue } from './generation/message-plan.schema.js';
 import { extractXlsxText, isSpreadsheetAttachment } from './xlsx-extract.js';
 import { extractPptxText, isPowerPointAttachment } from './pptx-extract.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
+import { assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
 import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
@@ -2290,7 +2293,7 @@ export class EngagementService {
         latestSessionByMeeting.set(s.meetingId, { status: s.status, error: s.error });
     }
 
-    return rows.map((row) => {
+    return Promise.all(rows.map(async (row) => {
       // Phase 2 §d: a note counts here only once APPROVED — existence alone is
       // not approval (that was the pre-Phase-2 bug this fixes).
       const hasApprovedNote = row.notes.some((n) => n.status === 'approved');
@@ -2310,8 +2313,18 @@ export class EngagementService {
           ]
         : [];
       const latestSession = latestSessionByMeeting.get(row.id) ?? null;
+      const visiblePreps = [] as typeof row.preps;
+      for (const prep of row.preps) {
+        const value = prep as typeof prep & { generatedFrom?: { briefing?: unknown; grounding?: { sources?: import('./meeting-prep-grounding.js').PrepEvidenceSource[] } } };
+        if (value.generatedFrom?.briefing) {
+          try { await assertSavedMeetingPrepAccess(tx, ctx, value.generatedFrom); }
+          catch { continue; }
+        }
+        visiblePreps.push(prep);
+      }
       return {
         ...row,
+        preps: visiblePreps as T['preps'],
         notesApproved: hasApprovedNote,
         meri: coarseMeriState(latestSession?.status ?? null),
         meriError: meriFailureReason(latestSession?.status ?? null, latestSession?.error ?? null),
@@ -2320,7 +2333,7 @@ export class EngagementService {
           ? { userId: row.sharedByUserId, name: nameById.get(row.sharedByUserId) ?? null }
           : null,
       };
-    });
+    }));
   }
 
   /**
@@ -5418,7 +5431,7 @@ export class EngagementService {
         const meetingAssociationWhere = effectiveClientId
           ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
           : null;
-        const recentMeetings = meetingAssociationWhere
+        const recentMeetings = !currentMeetingPrepExecution() && meetingAssociationWhere
           ? await tx.meeting.findMany({
               where: {
                 AND: [
@@ -5455,7 +5468,7 @@ export class EngagementService {
           );
         }
 
-        const recentThreads = threadFilters.length
+        const recentThreads = !currentMeetingPrepExecution() && threadFilters.length
           ? await tx.mailThread.findMany({
               where: {
                 tenantId: ctx.tenantId,
@@ -5842,7 +5855,16 @@ export class EngagementService {
 
       // One (latest) prep per meeting is already guaranteed by `distinct` above;
       // re-sort newest-first here since that query had to order by meetingId.
-      const prepItems: LibItem[] = preps
+      const readablePreps = [] as typeof preps;
+      for (const prep of preps) {
+        const provenance = prep.generatedFrom as { briefing?: unknown; grounding?: { sources?: import('./meeting-prep-grounding.js').PrepEvidenceSource[] } } | null;
+        if (provenance?.briefing) {
+          try { await assertSavedMeetingPrepAccess(tx, ctx, provenance); }
+          catch { continue; }
+        }
+        readablePreps.push(prep);
+      }
+      const prepItems: LibItem[] = readablePreps
         .map((p) => {
           const cid = p.meeting?.clientId ?? null;
           const talking = prepLines(p.talkingPoints);
@@ -5883,19 +5905,7 @@ export class EngagementService {
         throw new BadRequestException('Prep cannot be generated for a cancelled meeting. Existing materials are still available.');
       }
     });
-    // Mark any existing preps for this meeting as stale before generating a new one.
-    // This ensures preps generated with outdated timezone formatting or before
-    // context changes are visually flagged in the UI as needing review.
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.meetingPrep.updateMany({
-        where: {
-          meetingId,
-          tenantId: ctx.tenantId,
-          status: { in: ['generated', 'edited'] },
-        },
-        data: { status: 'stale' },
-      }),
-    );
+    // Keep the previous usable artifact until its replacement passes review.
 
     const context = await this.prisma.withTenant(
       ctx.tenantId,
@@ -6031,12 +6041,16 @@ export class EngagementService {
       additionalContext: additionalContext?.trim() || null,
       steeringContext,
     };
-    const promptHash = createHash('sha256').update(JSON.stringify(promptContext)).digest('hex');
+    const governed = currentMeetingGovernedContext();
+    const promptHash = createHash('sha256').update(JSON.stringify(governed
+      ? { ...promptContext, recentMeetings: [], recentThreads: [], tasks: [], steeringContext: governed.modelContextBlock, evidenceSources: governed.evidenceSources }
+      : promptContext)).digest('hex');
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
+    const generationPromptHash = generated.promptHash ?? promptHash;
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
     const correctClientId = context.meeting.isInternal ? null : context.client?.id ?? context.meeting.clientId;
-    const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const created = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       // Serialize with client reassignment while persisting an artifact generated
       // outside the transaction. Never attach the old client's context to a new client.
       await this.lockMeetingClientAssignment(tx, ctx, meetingId);
@@ -6051,7 +6065,9 @@ export class EngagementService {
       if (['cancelled', 'canceled'].includes(current.status.toLowerCase())) {
         throw new BadRequestException('This meeting was cancelled while prep was generating.');
       }
-      return tx.meetingPrep.create({
+      if (generated.briefing) await assertSavedMeetingPrepAccess(tx, ctx, { briefing: generated.briefing, grounding: generated.grounding });
+      await tx.meetingPrep.updateMany({ where: { tenantId: ctx.tenantId, meetingId, status: { in: ['generated', 'edited'] } }, data: { status: 'stale' } });
+      const artifact = await tx.meetingPrep.create({
         data: {
           tenantId: ctx.tenantId,
           meetingId,
@@ -6064,12 +6080,15 @@ export class EngagementService {
           summary: generated.summary,
           provider: generated.provider,
           model: generated.model,
-          promptHash,
+          promptHash: generationPromptHash,
           generatedFrom: {
-            promptHash,
+            promptHash: generationPromptHash,
             meetingId,
             clientId: correctClientId,
+            ...(governed ? { contextCoverage: JSON.parse(JSON.stringify(governed.coverage)), contextPacketId: governed.packetId, contextTraceHash: governed.traceHash } : {}),
+            ...(currentMeetingPrepExecution() ? { jobId: currentMeetingPrepExecution()!.jobId } : {}),
             ...(generated.grounding ? { grounding: JSON.parse(JSON.stringify(generated.grounding)) as Prisma.InputJsonValue } : {}),
+            ...(generated.briefing ? { briefing: JSON.parse(JSON.stringify(generated.briefing)) as Prisma.InputJsonValue } : {}),
             recentMeetings: context.recentMeetings.map((meeting) => meeting.id),
             recentThreads: context.recentThreads.map((thread) => thread.id),
             congressionalDirectoryContactIds: directoryProfiles.map(
@@ -6082,7 +6101,9 @@ export class EngagementService {
           },
         },
       });
-    });
+      await currentMeetingPrepExecution()?.commit(tx, artifact.id);
+      return artifact;
+    }, currentMeetingPrepExecution() ? { timeoutMs: 15_000 } : undefined);
     if (this.qualityTelemetry) {
       await this.qualityTelemetry.recordEvent(
         buildMeetingPrepTelemetryEvent(
@@ -6104,6 +6125,7 @@ export class EngagementService {
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
+      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
       const generatedFrom = prep.generatedFrom && typeof prep.generatedFrom === 'object' && !Array.isArray(prep.generatedFrom)
         ? prep.generatedFrom : null;
       const grounding = generatedFrom?.grounding;
@@ -6141,10 +6163,11 @@ export class EngagementService {
     const approved = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
-        select: { id: true, meetingId: true },
+        select: { id: true, meetingId: true, generatedFrom: true },
       });
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
+      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
 
       return tx.meetingPrep.update({
         where: { id: prepId },
@@ -9331,12 +9354,14 @@ export class EngagementService {
         : Promise.resolve(null),
       meetingId
         ? this.prisma
-            .withTenant(ctx.tenantId, (tx) =>
-              tx.meetingPrep.findFirst({
+            .withTenant(ctx.tenantId, async (tx) => {
+              const candidate = await tx.meetingPrep.findFirst({
                 where: { meetingId, tenantId: ctx.tenantId },
                 orderBy: { createdAt: 'desc' },
-              }),
-            )
+              });
+              await assertSavedMeetingPrepAccess(tx, ctx, candidate?.generatedFrom);
+              return candidate;
+            })
             .catch(() => null)
         : Promise.resolve(null),
     ]);

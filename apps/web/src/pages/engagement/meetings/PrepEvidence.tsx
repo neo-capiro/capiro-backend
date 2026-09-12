@@ -12,17 +12,19 @@ export function PrepSourceLinks({
   prep,
   section,
   itemIndex = 0,
+  sourceIds: explicitSourceIds,
 }: {
   prep: MeetingPrep;
   section: string;
   itemIndex?: number;
+  sourceIds?: string[];
 }) {
   const grounding = prep.generatedFrom?.grounding;
   // References address positions in the original generated text, so never
   // attach them to edited list items (including a subsequently approved edit).
   if (!grounding || grounding.contentEdited) return null;
   const sourceIds = new Set(
-    grounding.references
+    explicitSourceIds ?? grounding.references
       .filter((ref) => ref.section === section && ref.itemIndex === itemIndex)
       .flatMap((ref) => ref.sourceIds),
   );
@@ -67,8 +69,7 @@ export function PrepEvidence({ prep, clientId }: { prep: MeetingPrep; clientId: 
   if (!grounding)
     return (
       <p role="note" style={{ fontSize: 12, color: 'var(--notable)', margin: 0 }}>
-        This saved prep has no source references or attendee verification record. Review names and
-        claims, or regenerate it before use.
+        This saved prep has no source references. Review names and claims before use.
       </p>
     );
   const contextChanged = prepContextChanged(prep, clientId);
