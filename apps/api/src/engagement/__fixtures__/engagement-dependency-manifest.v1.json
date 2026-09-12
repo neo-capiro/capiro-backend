@@ -1904,7 +1904,7 @@
         "prepAttendees",
         "prepEvidenceSources",
         "prepMeetingLogistics",
-        "validatePrepGrounding",
+        "buildPrepEvidence",
         "PrepEvidenceSource",
         "MeetingPrepGrounding"
       ],
@@ -1917,6 +1917,16 @@
       "importedFile": "apps/api/src/engagement/meeting-prep-job-runtime.js",
       "importedSymbols": [
         "currentMeetingPrepExecution"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement-ai.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-policy.js",
+      "importedSymbols": [
+        "MEETING_PREP_POLICY"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3114,7 +3124,6 @@
       "importerFile": "apps/api/src/engagement/engagement.service.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-source-access.js",
       "importedSymbols": [
-        "assertMeetingPrepSourceAccess",
         "assertSavedMeetingPrepAccess"
       ],
       "importKind": "value",
@@ -5506,8 +5515,8 @@
       "importerFile": "apps/api/src/engagement/meeting-prep-comprehensive.spec.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-comprehensive.js",
       "importedSymbols": [
-        "validateBriefingDraft",
-        "validateBriefingFacts",
+        "parseBriefingDraft",
+        "parseBriefingFacts",
         "generateComprehensiveMeetingPrep"
       ],
       "importKind": "value",
@@ -5594,7 +5603,7 @@
       "importedSymbols": [
         "prepAttendees",
         "prepEvidenceSources",
-        "validatePrepGrounding",
+        "buildPrepEvidence",
         "PrepEvidenceSource"
       ],
       "importKind": "value",
@@ -5626,7 +5635,7 @@
       "category": "other"
     },
     {
-      "importerFile": "apps/api/src/engagement/meeting-prep-grounding.spec.ts",
+      "importerFile": "apps/api/src/engagement/meeting-prep-evidence.spec.ts",
       "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
       "importedSymbols": [
         "EngagementAiService",
@@ -5637,11 +5646,41 @@
       "category": "other"
     },
     {
-      "importerFile": "apps/api/src/engagement/meeting-prep-grounding.spec.ts",
+      "importerFile": "apps/api/src/engagement/meeting-prep-evidence.spec.ts",
+      "importedFile": "apps/api/src/engagement/llm-completion.service.js",
+      "importedSymbols": [
+        "LlmCompletionService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-evidence.spec.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-grounding.js",
       "importedSymbols": [
-        "prepEvidenceSources",
-        "validatePrepGrounding"
+        "buildPrepEvidence",
+        "prepEvidenceSources"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-evidence.spec.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-job-runtime.js",
+      "importedSymbols": [
+        "withMeetingPrepExecution"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-evidence.spec.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-policy.js",
+      "importedSymbols": [
+        "MEETING_PREP_POLICY"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -5773,7 +5812,8 @@
       "importerFile": "apps/api/src/engagement/meeting-prep-source-access.spec.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-source-access.js",
       "importedSymbols": [
-        "assertMeetingPrepSourceAccess"
+        "assertMeetingPrepSourceAccess",
+        "assertSavedMeetingPrepAccess"
       ],
       "importKind": "value",
       "isExternal": false,

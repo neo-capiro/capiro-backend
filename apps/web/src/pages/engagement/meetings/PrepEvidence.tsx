@@ -69,8 +69,7 @@ export function PrepEvidence({ prep, clientId }: { prep: MeetingPrep; clientId: 
   if (!grounding)
     return (
       <p role="note" style={{ fontSize: 12, color: 'var(--notable)', margin: 0 }}>
-        This saved prep has no source references or attendee verification record. Review names and
-        claims, or regenerate it before use.
+        This saved prep has no source references. Review names and claims before use.
       </p>
     );
   const contextChanged = prepContextChanged(prep, clientId);

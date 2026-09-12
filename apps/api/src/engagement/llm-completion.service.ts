@@ -19,6 +19,7 @@
  * which is why `truncated` is reported rather than acted on here.
  */
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Agent } from 'undici';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 import {
   anthropicEffort,
@@ -471,6 +472,15 @@ export class LlmCompletionService {
     const onAbort = () => controller.abort(req.signal?.reason);
     req.signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), req.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    // Native fetch has independent 5-minute headers/body limits. For prep only,
+    // let the caller's abort timer govern the entire request. Override dispatch
+    // options too: some bundled fetch versions supply their own 300s defaults.
+    const prepAgent = req.runtimeAction === 'meeting_prep_generate' ? new Agent() : undefined;
+    if (prepAgent) {
+      const dispatch = prepAgent.dispatch.bind(prepAgent);
+      prepAgent.dispatch = (options, handler) =>
+        dispatch({ ...options, headersTimeout: 0, bodyTimeout: 0 }, handler);
+    }
     try {
       const { url, headers, body } = this.buildRequest(req);
       const res = await this.fetchImpl(url, {
@@ -478,6 +488,7 @@ export class LlmCompletionService {
         headers,
         body: JSON.stringify(body),
         signal: controller.signal,
+        ...(prepAgent ? { dispatcher: prepAgent } : {}),
       });
       const json = (await res.json()) as Record<string, unknown>;
       const retryAfter = res.headers?.get?.('retry-after');
@@ -494,6 +505,7 @@ export class LlmCompletionService {
     } finally {
       clearTimeout(timer);
       req.signal?.removeEventListener('abort', onAbort);
+      await prepAgent?.destroy();
     }
   }
 

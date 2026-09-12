@@ -1,6 +1,6 @@
 /** Operation-local budgets. Never raise the timeout of unrelated interactive tools. */
 export const MEETING_PREP_POLICY = {
-  version: 'comprehensive-prep-v1',
+  version: 'comprehensive-prep-v2',
   standard: {
     meetings: 25,
     meetingDays: 180,
@@ -8,7 +8,7 @@ export const MEETING_PREP_POLICY = {
     emailDays: 90,
     messages: 1_000,
     upcomingDays: 30,
-    deadlineMs: 30 * 60_000,
+    deadlineMs: 60 * 60_000,
   },
   deep: {
     meetings: 100,
@@ -17,14 +17,16 @@ export const MEETING_PREP_POLICY = {
     emailDays: 365,
     messages: 3_000,
     upcomingDays: 90,
-    deadlineMs: 60 * 60_000,
+    deadlineMs: 120 * 60_000,
   },
-  synthesisMs: 10 * 60_000,
-  reviewMs: 5 * 60_000,
-  extractionMs: 3 * 60_000,
+  legacyDeadlineMs: 50 * 60_000,
+  legacyProviderMs: 25 * 60_000,
+  synthesisMs: 20 * 60_000,
+  coverageReviewMs: 10 * 60_000,
+  extractionMs: 10 * 60_000,
   toolMs: 45_000,
   persistenceReserveMs: 15_000,
-  synthesisReserveMs: 8 * 60_000,
+  synthesisReserveMs: 15 * 60_000,
   heartbeatMs: 15_000,
   leaseMs: 90_000,
   outputTokens: 32_768,

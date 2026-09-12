@@ -94,8 +94,8 @@ export function PrepSearchSettings({
         </select>
       </label>
       <p>
-        Open tasks have no age cutoff. Standard searches have a 30-minute budget; deep searches have
-        60 minutes. You can close this page while preparation runs.
+        Open tasks have no age cutoff. Standard searches have a 1-hour budget; deep searches have
+        2 hours. You can close this page while preparation runs.
       </p>
       {query.data && (
         <>

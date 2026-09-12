@@ -5,6 +5,8 @@ import type { MeetingPrepDepth } from './meeting-prep-policy.js';
 export interface MeetingPrepExecution {
   jobId: string;
   depth: MeetingPrepDepth;
+  /** Stable reference date, independent of deadline policy changes on resume. */
+  requestedAt?: number;
   deadlineAt: number;
   signal: AbortSignal;
   checkpoint(stage: string, value?: unknown): Promise<void>;

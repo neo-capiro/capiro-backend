@@ -4,9 +4,11 @@ import {
   DEFAULT_TIMEOUT_MS,
   GENERATION_TIMEOUT_MS,
   MAIL_TIMEOUT_MS,
+  MEETING_PREP_TIMEOUT_MS,
   buildApiClient,
   isGenerationUrl,
   isMailThreadUrl,
+  isMeetingPrepUrl,
 } from './api-client.js';
 import {
   activateEngagementPreview,
@@ -55,6 +57,41 @@ function headerOf(config: AxiosRequestConfig, name: string): unknown {
 }
 
 const PREVIEW_HEADER_NAME = 'x-capiro-engagement-preview';
+
+describe('meeting prep timeout', () => {
+  test.each([
+    '/api/engagement/meetings/m1/prep',
+    '/api/engagement/meetings/m1/prep?mode=deep',
+    'https://api.example.test/api/engagement/meetings/m1/prep/',
+  ])('recognizes the exact generation route: %s', (url) => {
+    expect(isMeetingPrepUrl(url)).toBe(true);
+  });
+  test.each([
+    '/api/engagement/meetings/m1/prep-jobs/latest',
+    '/api/engagement/meetings/m1/prep-monday-mapping',
+    '/api/engagement/meeting-preps/p1/approve',
+    undefined,
+  ])('does not extend status, mapping or approval requests: %s', (url) => {
+    expect(isMeetingPrepUrl(url)).toBe(false);
+  });
+  test('extends POST prep to 55 minutes without changing ordinary calls or explicit timeouts', async () => {
+    const client = buildApiClient(async () => 'test-token');
+    let captured: AxiosRequestConfig | undefined;
+    client.defaults.adapter = async (config) => {
+      captured = config;
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
+    await client.post('/api/engagement/meetings/m1/prep', {});
+    expect(captured?.timeout).toBe(MEETING_PREP_TIMEOUT_MS);
+    expect(MEETING_PREP_TIMEOUT_MS).toBe(55 * 60000);
+    await client.post('/api/engagement/meetings/m1/prep', {}, { timeout: 5000 });
+    expect(captured?.timeout).toBe(5000);
+    await client.post('/api/engagement/meetings/m1/prep', {}, { timeout: 0 });
+    expect(captured?.timeout).toBe(0);
+    await client.get('/api/engagement/meetings/m1/prep-jobs/latest');
+    expect(captured?.timeout).toBe(DEFAULT_TIMEOUT_MS);
+  });
+});
 
 describe('isGenerationUrl', () => {
   test('matches AI content-generation endpoints (get the long timeout)', () => {

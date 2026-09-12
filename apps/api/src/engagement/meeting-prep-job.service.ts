@@ -304,6 +304,7 @@ export class MeetingPrepJobService {
         {
           jobId: job.id,
           depth: job.depth as MeetingPrepDepth,
+          requestedAt: job.createdAt.getTime(),
           deadlineAt: job.deadlineAt.getTime(),
           signal: abort.signal,
           loadCheckpoint: <T>(stage: string) => {
