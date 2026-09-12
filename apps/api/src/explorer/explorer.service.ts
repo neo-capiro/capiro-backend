@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { toUsaSpendingDistrictCode } from '../common/district-code.util.js';
@@ -419,8 +420,13 @@ export class ExplorerService {
       sortKey === 'soonest' || sortKey === 'future' ? { date: 'asc' } : { date: 'desc' };
 
     const [rows, total] = await Promise.all([
-      this.prisma.committeeHearing.findMany({ where, orderBy, take: limit, skip: offset }),
-      this.prisma.committeeHearing.count({ where }),
+      this.prisma.committeeHearing.findMany({
+        where: federalHearingWhere(where),
+        orderBy,
+        take: limit,
+        skip: offset,
+      }),
+      this.prisma.committeeHearing.count({ where: federalHearingWhere(where) }),
     ]);
     return {
       rows: rows.map((h) => ({
@@ -443,14 +449,14 @@ export class ExplorerService {
   async hearingFacets() {
     const [chambers, committees, types] = await Promise.all([
       this.prisma.$queryRaw<Array<{ chamber: string }>>`
-        SELECT DISTINCT chamber FROM committee_hearing ORDER BY chamber
+        SELECT DISTINCT chamber FROM federal_committee_hearing ORDER BY chamber
       `,
       this.prisma.$queryRaw<Array<{ committee: string; n: bigint }>>`
         SELECT committee_name AS committee, COUNT(*)::bigint AS n
-        FROM committee_hearing GROUP BY committee_name ORDER BY n DESC LIMIT 40
+        FROM federal_committee_hearing GROUP BY committee_name ORDER BY n DESC LIMIT 40
       `,
       this.prisma.$queryRaw<Array<{ type: string }>>`
-        SELECT DISTINCT type FROM committee_hearing WHERE type IS NOT NULL ORDER BY type
+        SELECT DISTINCT type FROM federal_committee_hearing WHERE type IS NOT NULL ORDER BY type
       `,
     ]);
     return {

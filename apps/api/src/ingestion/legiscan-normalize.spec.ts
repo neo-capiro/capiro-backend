@@ -142,7 +142,7 @@ describe('normalizeLegiscanBill', () => {
     expect(n?.versions).toHaveLength(1);
     expect(n?.versions[0]?.legiscanDocId).toBe(999);
     expect(n?.calendarEvents).toHaveLength(1);
-    expect(n?.calendarEvents[0]?.eventKey).toBe('tx-2025-hb1234:hearing:2025-02-01:Room E2.010');
+    expect(n?.calendarEvents[0]?.eventKey).toMatch(/^tx-2025-hb1234:calendar:[a-f0-9]{64}$/);
   });
 
   it('reads bill_number (getBill/dataset shape) — regression for the 2026-07-11 0-bill backfill', () => {

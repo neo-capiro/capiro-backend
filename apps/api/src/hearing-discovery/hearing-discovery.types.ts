@@ -86,6 +86,8 @@ export type SiteUpdateType =
  * instead of being flattened into the canonical row and lost.
  */
 export interface SourceEvent {
+  /** Qualified state source contract; federal agendaBillIds retain their semantics. */
+  legislative?: import('./legislative-calendar.js').LegislativeObservation;
   /**
    * The source's own stable event id (Congress.gov/House `eventId`, a Senate
    * schedule row key, ...). Half of the observation's idempotency key.
@@ -137,6 +139,7 @@ export interface SourceEvent {
   witnesses?: string[];
   /** Canonical congress_bill ids on the agenda, e.g. 119-hr-8800. */
   agendaBillIds?: string[];
+  agendaComplete?: boolean;
   /** The source's own last-updated timestamp, when it publishes one. */
   sourceUpdatedAt?: Date | null;
   /** Page/media candidates the source itself advertises (no probing here). */

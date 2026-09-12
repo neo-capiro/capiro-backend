@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -129,10 +130,19 @@ export class SearchService {
     return d ? new Date(d).toISOString().slice(0, 10) : null;
   }
 
-  private async searchBills(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchBills(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.congressBill.findMany({
       where: { OR: [{ title: c }, { billNumber: c }, { sponsorName: c }] },
-      select: { id: true, billNumber: true, title: true, sponsorName: true, latestActionDate: true },
+      select: {
+        id: true,
+        billNumber: true,
+        title: true,
+        sponsorName: true,
+        latestActionDate: true,
+      },
       take,
       orderBy: { latestActionDate: 'desc' },
     });
@@ -146,7 +156,10 @@ export class SearchService {
     }));
   }
 
-  private async searchAwards(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchAwards(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.federalAward.findMany({
       where: { OR: [{ contractorName: c }, { awardingAgency: c }, { fundingTasTitle: c }] },
       select: { id: true, contractorName: true, awardingAgency: true, awardedAt: true },
@@ -163,7 +176,10 @@ export class SearchService {
     }));
   }
 
-  private async searchLda(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchLda(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.ldaFiling.findMany({
       where: { OR: [{ clientName: c }, { registrantName: c }] },
       select: { id: true, clientName: true, registrantName: true, dtPosted: true },
@@ -180,9 +196,12 @@ export class SearchService {
     }));
   }
 
-  private async searchHearings(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchHearings(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.committeeHearing.findMany({
-      where: { OR: [{ title: c }, { committeeName: c }] },
+      where: federalHearingWhere({ OR: [{ title: c }, { committeeName: c }] }),
       select: { id: true, title: true, committeeName: true, date: true },
       take,
       orderBy: { date: 'desc' },
@@ -197,7 +216,10 @@ export class SearchService {
     }));
   }
 
-  private async searchSec(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchSec(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.secFiling.findMany({
       where: { companyName: c },
       select: { id: true, companyName: true, filingDate: true },
@@ -214,7 +236,10 @@ export class SearchService {
     }));
   }
 
-  private async searchFara(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchFara(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.faraRegistration.findMany({
       where: { registrantName: c },
       select: { id: true, registrantName: true, registrationDate: true },
@@ -231,7 +256,10 @@ export class SearchService {
     }));
   }
 
-  private async searchGao(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchGao(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.gaoReport.findMany({
       where: { OR: [{ title: c }, { id: c }] },
       select: { id: true, title: true, publishDate: true },
@@ -248,7 +276,10 @@ export class SearchService {
     }));
   }
 
-  private async searchCrs(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchCrs(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.crsReport.findMany({
       where: { OR: [{ title: c }, { id: c }] },
       select: { id: true, title: true, date: true },
@@ -265,7 +296,10 @@ export class SearchService {
     }));
   }
 
-  private async searchDockets(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchDockets(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.regulatoryDocket.findMany({
       where: { title: c },
       select: { id: true, title: true, postedDate: true },
@@ -282,7 +316,10 @@ export class SearchService {
     }));
   }
 
-  private async searchIntel(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchIntel(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.intelArticle.findMany({
       where: { OR: [{ title: c }, { summary: c }] },
       select: { id: true, title: true, publishedAt: true },
@@ -299,7 +336,10 @@ export class SearchService {
     }));
   }
 
-  private async searchStateBills(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchStateBills(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.stateBill.findMany({
       where: { OR: [{ title: c }, { sponsorName: c }] },
       select: { id: true, title: true, sponsorName: true, latestActionDate: true },
@@ -316,7 +356,10 @@ export class SearchService {
     }));
   }
 
-  private async searchFederalRegister(c: { contains: string; mode: 'insensitive' }, take: number): Promise<SearchResult[]> {
+  private async searchFederalRegister(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
     const rows = await this.prisma.federalRegisterDocument.findMany({
       where: { title: c },
       select: { id: true, documentNumber: true, title: true, publicationDate: true },
@@ -370,10 +413,7 @@ export class SearchService {
     });
     return rows.map((r) => {
       const service = r.service?.trim() || null;
-      const ba =
-        r.budgetActivityName?.trim() ||
-        r.budgetActivity?.trim() ||
-        null;
+      const ba = r.budgetActivityName?.trim() || r.budgetActivity?.trim() || null;
       const subtitleParts = [service, ba ? `BA ${ba}` : null].filter(Boolean);
       return {
         category: 'program_element' as const,

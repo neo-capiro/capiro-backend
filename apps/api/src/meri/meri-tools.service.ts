@@ -1,5 +1,9 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { MERI_CAPABILITY_REGISTRY, MERI_CORE_TOOL_DEFINITIONS } from '@capiro/shared';
-import { assertMeriToolRequestActive, meriToolRequestControl } from './meri-tool-request-control.js';
+import {
+  assertMeriToolRequestActive,
+  meriToolRequestControl,
+} from './meri-tool-request-control.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -62,11 +66,18 @@ import { ClientsService } from '../clients/clients.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import { RegulatoryDocketService } from '../regulatory-docket/regulatory-docket.service.js';
 import { EngagementMailSender } from '../engagement/mail-sender.service.js';
-import { ownMailThreadWhere, ownMailMessageWhere } from '../engagement/engagement-access.helpers.js';
+import {
+  ownMailThreadWhere,
+  ownMailMessageWhere,
+} from '../engagement/engagement-access.helpers.js';
 import { LdaIntelService } from '../lda-intel/lda-intel.service.js';
 import { AnalyticsDbService } from './analytics/analytics-db.service.js';
 import { listDatasetSummaries } from './analytics/global-dataset-registry.js';
-import { compileQuerySpec, parseQuerySpecInput, QuerySpecError } from './analytics/query-spec-compiler.js';
+import {
+  compileQuerySpec,
+  parseQuerySpecInput,
+  QuerySpecError,
+} from './analytics/query-spec-compiler.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
@@ -137,7 +148,11 @@ const PRODUCT_NAME = 'Meri';
  * `tenantSlug` it has no business reading would make the next person's
  * "convenient" use of one a compile-time success.
  */
-function toolActor(ctx: TenantContext): { tenantId: string; userId: string; role: TenantContext['role'] } {
+function toolActor(ctx: TenantContext): {
+  tenantId: string;
+  userId: string;
+  role: TenantContext['role'];
+} {
   return { tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role };
 }
 
@@ -263,30 +278,99 @@ export class MeriToolsService {
       description ? { type: 'integer', description } : { type: 'integer' };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
-      get_research_evidence: obj({
-        sessionId: str('Research session UUID whose immutable attachment snapshot should be read'),
-        attachmentIds: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'string', format: 'uuid' }, description: 'Optional original attachment IDs to read; omit to page through all snapshot evidence' },
-        clientId: str('Optional client UUID; must match the research session and authorized conversation scope'),
-        cursor: str('Opaque nextCursor returned for the same session and attachment selection'),
-        limit: { type: 'integer', minimum: 1, maximum: 10, description: 'Attachments per page (default 5)' },
-      }, ['sessionId']),
-      search_capiro_data: obj({
-        query: { type: 'string', maxLength: 4000, description: 'Use an empty string to enumerate the selected authorized domains/client; use keywords to filter' },
-        domains: { type: 'array', minItems: 1, maxItems: RETRIEVAL_DOMAINS.length, items: { type: 'string', enum: [...RETRIEVAL_DOMAINS] } },
-        clientId: str('Optional client UUID; authorization is resolved server-side'),
-        queryClass: { type: 'string', enum: [...MERI_DATA_QUERY_CLASSES], description: 'Defaults to lookup; unsupported domain/query combinations are reported in coverage' },
-        windowStart: str('Inclusive start of requested time window, ISO timestamp with timezone'),
-        windowEnd: str('End of requested time window, ISO timestamp with timezone'),
-        pageSize: { type: 'integer', minimum: 1, maximum: 100, description: 'Records per domain page (default 50)' },
-        cursors: { type: 'object', properties: Object.fromEntries(RETRIEVAL_DOMAINS.map((domain) => [domain, str('Opaque cursor from this domain in the preceding response')])), additionalProperties: false },
-      }, ['query', 'domains']),
-      get_client_context: obj({
-        clientId: str('Client UUID'),
-        section: { type: 'string', enum: [...CLIENT_PROFILE_SECTIONS], description: 'Read complete records for one profile section; omit for a concise overview of all sections' },
-        cursor: str('nextCursor returned for this client and section; omit for the first page'),
-        limit: { type: 'integer', minimum: 1, maximum: 50, description: 'Records per section (default 25)' },
-        representation: { type: 'string', enum: ['summary', 'full'], description: 'Use summary with a section and limit 50 for a concise inventory, then follow every nextCursor. Full returns all fields for the selected section (the default for section reads).' },
-      }, ['clientId']),
+      get_research_evidence: obj(
+        {
+          sessionId: str(
+            'Research session UUID whose immutable attachment snapshot should be read',
+          ),
+          attachmentIds: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 10,
+            items: { type: 'string', format: 'uuid' },
+            description:
+              'Optional original attachment IDs to read; omit to page through all snapshot evidence',
+          },
+          clientId: str(
+            'Optional client UUID; must match the research session and authorized conversation scope',
+          ),
+          cursor: str('Opaque nextCursor returned for the same session and attachment selection'),
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 10,
+            description: 'Attachments per page (default 5)',
+          },
+        },
+        ['sessionId'],
+      ),
+      search_capiro_data: obj(
+        {
+          query: {
+            type: 'string',
+            maxLength: 4000,
+            description:
+              'Use an empty string to enumerate the selected authorized domains/client; use keywords to filter',
+          },
+          domains: {
+            type: 'array',
+            minItems: 1,
+            maxItems: RETRIEVAL_DOMAINS.length,
+            items: { type: 'string', enum: [...RETRIEVAL_DOMAINS] },
+          },
+          clientId: str('Optional client UUID; authorization is resolved server-side'),
+          queryClass: {
+            type: 'string',
+            enum: [...MERI_DATA_QUERY_CLASSES],
+            description:
+              'Defaults to lookup; unsupported domain/query combinations are reported in coverage',
+          },
+          windowStart: str('Inclusive start of requested time window, ISO timestamp with timezone'),
+          windowEnd: str('End of requested time window, ISO timestamp with timezone'),
+          pageSize: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 100,
+            description: 'Records per domain page (default 50)',
+          },
+          cursors: {
+            type: 'object',
+            properties: Object.fromEntries(
+              RETRIEVAL_DOMAINS.map((domain) => [
+                domain,
+                str('Opaque cursor from this domain in the preceding response'),
+              ]),
+            ),
+            additionalProperties: false,
+          },
+        },
+        ['query', 'domains'],
+      ),
+      get_client_context: obj(
+        {
+          clientId: str('Client UUID'),
+          section: {
+            type: 'string',
+            enum: [...CLIENT_PROFILE_SECTIONS],
+            description:
+              'Read complete records for one profile section; omit for a concise overview of all sections',
+          },
+          cursor: str('nextCursor returned for this client and section; omit for the first page'),
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 50,
+            description: 'Records per section (default 25)',
+          },
+          representation: {
+            type: 'string',
+            enum: ['summary', 'full'],
+            description:
+              'Use summary with a section and limit 50 for a concise inventory, then follow every nextCursor. Full returns all fields for the selected section (the default for section reads).',
+          },
+        },
+        ['clientId'],
+      ),
       search_research_sources: obj(
         {
           query: str('Free-text search across clients, meetings, mail, notes'),
@@ -353,11 +437,19 @@ export class MeriToolsService {
       search_memory: obj(
         {
           query: str('What to look for in governed memory (natural language)'),
-          clientId: str('Optional selected client UUID; only this client plus authorized firm/private memory is recalled'),
+          clientId: str(
+            'Optional selected client UUID; only this client plus authorized firm/private memory is recalled',
+          ),
           cursor: str('Opaque nextCursor from the previous search_memory results page'),
-          memoryItemId: str('Exact canonical UUID to read; use content.nextRead for complete long memory content'),
-          contentCursor: str('Opaque contentCursor from content.nextRead; requires the same memoryItemId and client scope'),
-          k: int('Requested results (1-15, default 8); at most3 are returned per bounded preview page, with nextCursor'),
+          memoryItemId: str(
+            'Exact canonical UUID to read; use content.nextRead for complete long memory content',
+          ),
+          contentCursor: str(
+            'Opaque contentCursor from content.nextRead; requires the same memoryItemId and client scope',
+          ),
+          k: int(
+            'Requested results (1-15, default 8); at most3 are returned per bounded preview page, with nextCursor',
+          ),
         },
         ['query'],
       ),
@@ -436,7 +528,9 @@ export class MeriToolsService {
             description:
               'What to return: 1-12 entries, each either {field} for a raw column or {field?, agg} for an aggregate (agg one of count, count_distinct, sum, avg, min, max — field omitted only for a bare count(*)).',
             items: obj({
-              field: str('Field name from the dataset (omit only when agg is "count" for COUNT(*))'),
+              field: str(
+                'Field name from the dataset (omit only when agg is "count" for COUNT(*))',
+              ),
               agg: str('One of: count, count_distinct, sum, avg, min, max'),
             }),
           },
@@ -459,19 +553,23 @@ export class MeriToolsService {
           },
           groupBy: {
             type: 'array',
-            description: 'Field names to group by. Every non-aggregated select field must appear here.',
+            description:
+              'Field names to group by. Every non-aggregated select field must appear here.',
             items: { type: 'string' },
           },
           orderBy: {
             type: 'array',
-            description: 'At most 3. Each field must be one of the select aliases (the field name, or agg_field for an aggregate, or count_all for a bare count).',
+            description:
+              'At most 3. Each field must be one of the select aliases (the field name, or agg_field for an aggregate, or count_all for a bare count).',
             items: obj({
               field: str('A select alias'),
               direction: str('asc or desc'),
             }),
           },
           limit: int('Max rows (capped per-dataset regardless of what you ask for)'),
-          asOfDate: str('ISO date/timestamp. Only honored by datasets that declare asOf support (see list_global_datasets) — currently lda_registrations, to ask "what did status look like as of this date" instead of right now.'),
+          asOfDate: str(
+            'ISO date/timestamp. Only honored by datasets that declare asOf support (see list_global_datasets) — currently lda_registrations, to ask "what did status look like as of this date" instead of right now.',
+          ),
         },
         ['dataset', 'select'],
       ),
@@ -573,13 +671,21 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
       }),
       search_committee_hearings: obj({
-        query: str('Literal keyword search across hearing metadata, official transcript chunks, machine transcript segments and intelligence. Omit to read all records for hearingId.'),
-        hearingId: str('Optional exact hearing ID to read its full evidence; repeat it on continuation calls.'),
+        query: str(
+          'Literal keyword search across hearing metadata, official transcript chunks, machine transcript segments and intelligence. Omit to read all records for hearingId.',
+        ),
+        hearingId: str(
+          'Optional exact hearing ID to read its full evidence; repeat it on continuation calls.',
+        ),
         clientId: str('Optional authorized client scope for followed/relevant hearings.'),
         chamber: str('House | Senate | Joint'),
         committeeName: str('Committee name filter'),
-        cursor: str('Opaque coverage.sources hearings nextCursor; repeat the same filters to continue.'),
-        limit: int('Legacy result limit accepted; full evidence reads return one record per page to keep transcript chunks intact.'),
+        cursor: str(
+          'Opaque coverage.sources hearings nextCursor; repeat the same filters to continue.',
+        ),
+        limit: int(
+          'Legacy result limit accepted; full evidence reads return one record per page to keep transcript chunks intact.',
+        ),
       }),
       search_crs_reports: obj({
         query: str('Keyword search across title/summary/topics/authors'),
@@ -624,7 +730,13 @@ export class MeriToolsService {
       ),
       save_note: obj(
         {
-          body: { ...str('Exact note body to save. For longer source documents, use save_chat_attachments.'), minLength: 1, maxLength: 40_000 },
+          body: {
+            ...str(
+              'Exact note body to save. For longer source documents, use save_chat_attachments.',
+            ),
+            minLength: 1,
+            maxLength: 40_000,
+          },
           title: str('Optional note title'),
           clientId: str('Optional client UUID'),
           meetingId: str('Optional meeting UUID for an encrypted meeting note'),
@@ -636,9 +748,18 @@ export class MeriToolsService {
       ),
       save_chat_attachments: obj(
         {
-          clientId: str('Explicit destination client UUID; resolve the client before proposing a save.'),
+          clientId: str(
+            'Explicit destination client UUID; resolve the client before proposing a save.',
+          ),
           conversationId: str('Current Meri conversation UUID containing the user attachments.'),
-          attachmentIds: { type: 'array', minItems: 1, maxItems: 10, items: { type: 'string', minLength: 1 }, description: '1–10 attachment IDs from this conversation. Saves the original files to client Documents, with a per-file receipt.' },
+          attachmentIds: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 10,
+            items: { type: 'string', minLength: 1 },
+            description:
+              '1–10 attachment IDs from this conversation. Saves the original files to client Documents, with a per-file receipt.',
+          },
         },
         ['clientId', 'conversationId', 'attachmentIds'],
       ),
@@ -667,20 +788,25 @@ export class MeriToolsService {
         from: str('Sender email or name fragment'),
         participant: str('Email or name fragment matched against sender and to/cc/bcc recipients'),
         clientId: str('Optional client UUID filter'),
-        withinDays: int('Only messages from the last N days; sufficient without query/from/participant'),
+        withinDays: int(
+          'Only messages from the last N days; sufficient without query/from/participant',
+        ),
         folder: str('inbox, sent, or all (default all)'),
         limit: int('Max messages per page (default 20, max 50)'),
         offset: int('Continuation offset from nextOffset (default 0, max 10000)'),
         asOf: str('Reuse the first page’s asOf timestamp when continuing'),
       }),
-      get_email_thread: obj({
-        threadId: str('Exact threadId from list_emails or search_emails'),
-        messageId: str('Optional exact message id to read one message body'),
-        messageOffset: int('Message page offset, default 0; reuse nextMessageOffset'),
-        limit: int('Messages per page, default 3, maximum 10'),
-        bodyOffset: int('Body character offset, default 0; use nextBodyOffset with messageId'),
-        maxCharacters: int('Characters per message body, default 2000, maximum 6000'),
-      }, ['threadId']),
+      get_email_thread: obj(
+        {
+          threadId: str('Exact threadId from list_emails or search_emails'),
+          messageId: str('Optional exact message id to read one message body'),
+          messageOffset: int('Message page offset, default 0; reuse nextMessageOffset'),
+          limit: int('Messages per page, default 3, maximum 10'),
+          bodyOffset: int('Body character offset, default 0; use nextBodyOffset with messageId'),
+          maxCharacters: int('Characters per message body, default 2000, maximum 6000'),
+        },
+        ['threadId'],
+      ),
       list_upcoming_meetings: obj({
         clientId: str('Optional client UUID filter'),
         limit: int('Max meetings (default 10, max 25)'),
@@ -760,7 +886,8 @@ export class MeriToolsService {
           format: {
             type: 'string',
             enum: ['docx', 'pdf'],
-            description: 'Requested file format. Defaults to docx. Word and PDF downloads share the same saved content.',
+            description:
+              'Requested file format. Defaults to docx. Word and PDF downloads share the same saved content.',
           },
           subtitle: str('Optional subtitle'),
           sections: {
@@ -900,13 +1027,23 @@ export class MeriToolsService {
         {
           clientId: str('Client UUID whose Documents-tab files to list/read'),
           documentId: str(
-            "Optional attachment UUID. When provided, read a searchable section of that document. Follow coverage.nextCursor until all evidence needed has been read.",
+            'Optional attachment UUID. When provided, read a searchable section of that document. Follow coverage.nextCursor until all evidence needed has been read.',
           ),
-          query: str('Optional literal text search inside the selected document section; without documentId, filters file names. Follow cursor to search later sections.'),
-          section: int('1-based PDF page, PowerPoint slide, workbook sheet/1000-row section, or 1 for a text document. Defaults to 1.'),
-          characterOffset: int('0-based character offset inside the selected section for a full surrounding-text read.'),
-          cursor: str('Opaque coverage.nextCursor from the preceding read. Repeat the same clientId, documentId, and query.'),
-          limit: int('Maximum characters per document read (1-6000, default 5000), or files per list (1-50, default 25).'),
+          query: str(
+            'Optional literal text search inside the selected document section; without documentId, filters file names. Follow cursor to search later sections.',
+          ),
+          section: int(
+            '1-based PDF page, PowerPoint slide, workbook sheet/1000-row section, or 1 for a text document. Defaults to 1.',
+          ),
+          characterOffset: int(
+            '0-based character offset inside the selected section for a full surrounding-text read.',
+          ),
+          cursor: str(
+            'Opaque coverage.nextCursor from the preceding read. Repeat the same clientId, documentId, and query.',
+          ),
+          limit: int(
+            'Maximum characters per document read (1-6000, default 5000), or files per list (1-50, default 25).',
+          ),
         },
         ['clientId'],
       ),
@@ -1081,7 +1218,7 @@ export class MeriToolsService {
       search_funding_opportunities: obj(
         {
           clientId: str('Authorized client UUID used by canonical Funding Opportunities matching'),
-          source: str("Optional grants_gov or sam_gov; procurement forecasts have a separate tool"),
+          source: str('Optional grants_gov or sam_gov; procurement forecasts have a separate tool'),
           query: str('Optional keyword filter; up to 500 characters'),
           page: { type: 'integer', minimum: 1, maximum: 100000 },
           pageSize: { type: 'integer', minimum: 1, maximum: 5 },
@@ -1103,7 +1240,9 @@ export class MeriToolsService {
         {
           clientId: str('Client UUID the opportunity is scored against'),
           source: str("'grants_gov' or 'sam_gov'"),
-          sourceRecordId: str("The source's own record id (Grants.gov opportunity id, or SAM row uuid)"),
+          sourceRecordId: str(
+            "The source's own record id (Grants.gov opportunity id, or SAM row uuid)",
+          ),
           summaryOffset: { type: 'integer', minimum: 0, maximum: 100000000 },
           summaryLimit: { type: 'integer', minimum: 1, maximum: 12000 },
         },
@@ -1117,10 +1256,7 @@ export class MeriToolsService {
         },
         ['clientId', 'source', 'sourceRecordId'],
       ),
-      get_opportunity_client_context: obj(
-        { clientId: str('Client UUID') },
-        ['clientId'],
-      ),
+      get_opportunity_client_context: obj({ clientId: str('Client UUID') }, ['clientId']),
       get_opportunity_government_landscape: obj(
         {
           clientId: str('Client UUID the context is composed for'),
@@ -1808,10 +1944,20 @@ export class MeriToolsService {
     // One canonical context handler for API and native Meri tools. Each section
     // reports a full count or explicit unavailability; paging reads reuse the
     // scoped domain services and return full records instead of clipped text.
-    const [context, capabilities, people, facilities, submissionHistory, advocacyMatters, advocacyRecords] = await Promise.all([
+    const [
+      context,
+      capabilities,
+      people,
+      facilities,
+      submissionHistory,
+      advocacyMatters,
+      advocacyRecords,
+    ] = await Promise.all([
       this.engagement.clientContext(ctx, clientId),
       readClientProfileSection({
-        clientId, section: 'capabilities', query,
+        clientId,
+        section: 'capabilities',
+        query,
         load: () => this.clientCapabilities.listCapabilities(ctx, clientId),
         summarize: (cap) => ({
           id: cap.id,
@@ -1831,7 +1977,9 @@ export class MeriToolsService {
         }),
       }),
       readClientProfileSection({
-        clientId, section: 'people', query,
+        clientId,
+        section: 'people',
+        query,
         load: () => this.clientPeople.listPeople(ctx, clientId),
         summarize: (person) => ({
           id: person.id,
@@ -1844,7 +1992,9 @@ export class MeriToolsService {
         }),
       }),
       readClientProfileSection({
-        clientId, section: 'facilities', query,
+        clientId,
+        section: 'facilities',
+        query,
         load: () => this.clientFacilities.listFacilities(ctx, clientId),
         summarize: (facility) => ({
           id: facility.id,
@@ -1856,7 +2006,9 @@ export class MeriToolsService {
         }),
       }),
       readClientProfileSection({
-        clientId, section: 'submissionHistory', query,
+        clientId,
+        section: 'submissionHistory',
+        query,
         load: () => this.clientCapabilities.listClientHistory(ctx, clientId, null),
         summarize: (entry) => ({
           id: entry.id,
@@ -1868,33 +2020,52 @@ export class MeriToolsService {
         }),
       }),
       readClientProfileSection({
-        clientId, section: 'advocacyMatters', query,
+        clientId,
+        section: 'advocacyMatters',
+        query,
         load: () => {
           if (!this.clientAdvocacy) throw new Error('Advocacy service unavailable');
           return this.clientAdvocacy.listMatters(ctx, clientId);
         },
         summarize: (matter) => ({
-          id: matter.id, title: matter.title, matterType: matter.matterType,
-          status: matter.status, summary: summarizeText(matter.summary, 300),
-          primaryPeCode: matter.primaryPeCode, primaryBillId: matter.primaryBillId,
-          recordCount: matter.recordCount, outcomeCount: matter.outcomeCount,
-          linkCount: matter.linkCount, lastActivityAt: matter.lastActivityAt,
-          autoGenerated: matter.autoGenerated, updatedAt: matter.updatedAt,
+          id: matter.id,
+          title: matter.title,
+          matterType: matter.matterType,
+          status: matter.status,
+          summary: summarizeText(matter.summary, 300),
+          primaryPeCode: matter.primaryPeCode,
+          primaryBillId: matter.primaryBillId,
+          recordCount: matter.recordCount,
+          outcomeCount: matter.outcomeCount,
+          linkCount: matter.linkCount,
+          lastActivityAt: matter.lastActivityAt,
+          autoGenerated: matter.autoGenerated,
+          updatedAt: matter.updatedAt,
         }),
       }),
       readClientProfileSection({
-        clientId, section: 'advocacyRecords', query,
+        clientId,
+        section: 'advocacyRecords',
+        query,
         loadPage: (page) => {
           if (!this.clientAdvocacy) throw new Error('Advocacy service unavailable');
           return this.clientAdvocacy.listRecords(ctx, clientId, page);
         },
         summarize: (record) => ({
-          id: record.id, title: record.title, recordType: record.recordType,
-          summary: summarizeText(record.summary, 300), activityDate: record.activityDate,
-          status: record.status, outcome: summarizeText(record.outcome, 240),
-          matterId: record.matterId, matterTitle: record.matterTitle,
-          sourceType: record.sourceType, sourceId: record.sourceId, sourceUrl: record.sourceUrl,
-          evidenceClass: record.evidenceClass, confidence: record.confidence,
+          id: record.id,
+          title: record.title,
+          recordType: record.recordType,
+          summary: summarizeText(record.summary, 300),
+          activityDate: record.activityDate,
+          status: record.status,
+          outcome: summarizeText(record.outcome, 240),
+          matterId: record.matterId,
+          matterTitle: record.matterTitle,
+          sourceType: record.sourceType,
+          sourceId: record.sourceId,
+          sourceUrl: record.sourceUrl,
+          evidenceClass: record.evidenceClass,
+          confidence: record.confidence,
           updatedAt: record.updatedAt,
         }),
       }),
@@ -1912,7 +2083,8 @@ export class MeriToolsService {
         advocacyMatters: clientProfileCoverageHeader(advocacyMatters.coverage),
         advocacyRecords: clientProfileCoverageHeader(advocacyRecords.coverage),
       },
-      coverageNote: 'Profile counts cover the complete authorized section at read time. Summary records omit fields; request a section for full records and follow nextCursor until complete. For a requested complete inventory, use section + representation summary + limit 50 and exhaust every requested section before summarizing; do not stop at a sample while more records are available. Unavailable or unrequested sections are not empty. submissionHistory is the older capability submission ledger; advocacyMatters and advocacyRecords are current Advocacy History, including unassigned records. An auto-generated matter or inferred evidence class is not verified advocacy or proof of causation. Engagement context contains recent items only.',
+      coverageNote:
+        'Profile counts cover the complete authorized section at read time. Summary records omit fields; request a section for full records and follow nextCursor until complete. For a requested complete inventory, use section + representation summary + limit 50 and exhaust every requested section before summarizing; do not stop at a sample while more records are available. Unavailable or unrequested sections are not empty. submissionHistory is the older capability submission ledger; advocacyMatters and advocacyRecords are current Advocacy History, including unassigned records. An auto-generated matter or inferred evidence class is not verified advocacy or proof of causation. Engagement context contains recent items only.',
       profile: {
         capabilities: capabilities.items,
         people: people.items,
@@ -2179,9 +2351,14 @@ export class MeriToolsService {
   }
 
   /** Fixed read-only entry point for the authorized evidence panel. */
-  async readGovernedMemorySource(ctx: TenantContext, input: {
-    memoryItemId: string; clientId?: string; contentCursor?: string;
-  }) {
+  async readGovernedMemorySource(
+    ctx: TenantContext,
+    input: {
+      memoryItemId: string;
+      clientId?: string;
+      contentCursor?: string;
+    },
+  ) {
     return this.searchMemory(ctx, { ...input, query: 'Read this governed memory' });
   }
 
@@ -2200,33 +2377,50 @@ export class MeriToolsService {
     if (memoryItemId && !CLIENT_ID_UUID_RE.test(memoryItemId)) {
       throw new BadRequestException('memoryItemId must be the exact canonical memory UUID');
     }
-    if (contentCursor && !memoryItemId) throw new BadRequestException('contentCursor requires memoryItemId');
-    if (memoryItemId && cursor) throw new BadRequestException('Use contentCursor for an exact memory read');
+    if (contentCursor && !memoryItemId)
+      throw new BadRequestException('contentCursor requires memoryItemId');
+    if (memoryItemId && cursor)
+      throw new BadRequestException('Use contentCursor for an exact memory read');
     let pageSize = memoryItemId ? 1 : Math.min(k, 3);
     // One canonical recall path for automatic context and explicit search. The
     // shared adapter reads approved memory_items content and checks the current
     // tenant/user/client wall on every page, including when embeddings are down.
-    const readPage = () => searchCapiroData(ctx, {
-      query,
-      domains: ['institutional_knowledge'],
-      queryClass: memoryItemId ? 'lookup' : 'semantic_recall',
-      pageSize,
-      ...(memoryItemId ? { memoryItemId } : {}),
-      ...(clientId ? { clientId } : {}),
-      ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
-    }, this.contextPlane);
+    const readPage = () =>
+      searchCapiroData(
+        ctx,
+        {
+          query,
+          domains: ['institutional_knowledge'],
+          queryClass: memoryItemId ? 'lookup' : 'semantic_recall',
+          pageSize,
+          ...(memoryItemId ? { memoryItemId } : {}),
+          ...(clientId ? { clientId } : {}),
+          ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
+        },
+        this.contextPlane,
+      );
     let evidence = await readPage();
-    const project = () => evidence.records.map((record) => projectMemoryContent(ctx, record, {
-      clientId: clientId ?? undefined, memoryItemId: memoryItemId ?? undefined,
-      contentCursor: contentCursor ?? undefined,
-      maxJsonChars: memoryItemId ? 6000 : Math.floor(7200 / Math.max(1, evidence.records.length)),
-    }));
+    const project = () =>
+      evidence.records.map((record) =>
+        projectMemoryContent(ctx, record, {
+          clientId: clientId ?? undefined,
+          memoryItemId: memoryItemId ?? undefined,
+          contentCursor: contentCursor ?? undefined,
+          maxJsonChars: memoryItemId
+            ? 6000
+            : Math.floor(7200 / Math.max(1, evidence.records.length)),
+        }),
+      );
     let records;
     try {
       records = project();
     } catch (error) {
-      if (pageSize <= 1 || !(error instanceof BadRequestException) ||
-          error.message !== 'Memory metadata exceeds the safe content-page budget') throw error;
+      if (
+        pageSize <= 1 ||
+        !(error instanceof BadRequestException) ||
+        error.message !== 'Memory metadata exceeds the safe content-page budget'
+      )
+        throw error;
       // A metadata-heavy page must not skip rows when it is narrowed. Read the
       // SAME source cursor again with one item so the adapter issues the correct
       // nextCursor and rechecks current authorization.
@@ -2234,7 +2428,9 @@ export class MeriToolsService {
       evidence = await readPage();
       records = project();
     }
-    const source = evidence.coverage.sources.find((entry) => entry.domain === 'institutional_knowledge');
+    const source = evidence.coverage.sources.find(
+      (entry) => entry.domain === 'institutional_knowledge',
+    );
     const { records: _fullRecords, ...envelope } = evidence;
     return {
       ...envelope,
@@ -2246,15 +2442,33 @@ export class MeriToolsService {
       effectivePageSize: pageSize,
       nextCursor: source?.nextCursor ?? null,
       governanceCoverage: {
-        searched: 'Eligible active governed memory, including stale or controlling conflicted records when policy allows',
-        excluded: 'Pending proposals, rejected, withdrawn, revoked, superseded and non-controlling conflicts are not active recall. Their absence here does not establish that no such proposals or historical records exist.',
+        searched:
+          'Eligible active governed memory, including stale or controlling conflicted records when policy allows',
+        excluded:
+          'Pending proposals, rejected, withdrawn, revoked, superseded and non-controlling conflicts are not active recall. Their absence here does not establish that no such proposals or historical records exist.',
       },
-      factContentUnavailableCount: records.filter((record) => record.payload.contentStatus !== 'available').length,
-      contentStatus: records.length ? records.every((record) => record.payload.contentStatus === 'metadata_only') ? 'metadata_only' : 'available' : memoryItemId ? 'unavailable_or_ineligible' : source?.sourceStatus === 'healthy' ? 'empty' : 'unavailable',
-      contentTruncated: records.some((record) => (record.payload.content as { truncated?: boolean } | undefined)?.truncated === true),
+      factContentUnavailableCount: records.filter(
+        (record) => record.payload.contentStatus !== 'available',
+      ).length,
+      contentStatus: records.length
+        ? records.every((record) => record.payload.contentStatus === 'metadata_only')
+          ? 'metadata_only'
+          : 'available'
+        : memoryItemId
+          ? 'unavailable_or_ineligible'
+          : source?.sourceStatus === 'healthy'
+            ? 'empty'
+            : 'unavailable',
+      contentTruncated: records.some(
+        (record) =>
+          (record.payload.content as { truncated?: boolean } | undefined)?.truncated === true,
+      ),
       results: records.map((record) => ({
-        id: record.recordId, memoryItemId: record.recordId,
-        title: record.payload.title, type: record.payload.type, clientId: record.payload.clientId,
+        id: record.recordId,
+        memoryItemId: record.recordId,
+        title: record.payload.title,
+        type: record.payload.type,
+        clientId: record.payload.clientId,
         relevance: record.retrievalSignals?.semanticSimilarity ?? null,
       })),
       records,
@@ -2365,7 +2579,9 @@ export class MeriToolsService {
         this.prisma.withSystem((tx) => tx.federalGrant.count()).catch(() => 0),
         this.prisma.withSystem((tx) => tx.stateBill.count()).catch(() => 0),
         this.prisma.withSystem((tx) => tx.intelArticle.count()).catch(() => 0),
-        this.prisma.withSystem((tx) => tx.committeeHearing.count()).catch(() => 0),
+        this.prisma
+          .withSystem((tx) => tx.committeeHearing.count({ where: federalHearingWhere() }))
+          .catch(() => 0),
         this.prisma.withSystem((tx) => tx.crsReport.count()).catch(() => 0),
       ]);
       const sourceSummary = [
@@ -3222,7 +3438,8 @@ export class MeriToolsService {
         tool: 'query_global_data',
         generatedAt,
         ok: false,
-        error: 'The query could not be run (likely a timeout on an expensive query — try narrowing filters or lowering limit).',
+        error:
+          'The query could not be run (likely a timeout on an expensive query — try narrowing filters or lowering limit).',
       };
     }
   }
@@ -4640,20 +4857,33 @@ export class MeriToolsService {
     const query = optionalString(input, 'query', 240);
     const hearingId = optionalString(input, 'hearingId', 200);
     const chamber = optionalString(input, 'chamber', 20);
-    const committeeName = optionalString(input, 'committeeName', 200) ?? optionalString(input, 'committee', 200);
+    const committeeName =
+      optionalString(input, 'committeeName', 200) ?? optionalString(input, 'committee', 200);
     const cursor = optionalString(input, 'cursor', 1024);
     const requestedClient = optionalString(input, 'clientId', 80);
-    const clientId = requestedClient ? await this.ensureClientVisible(ctx, requestedClient) : undefined;
+    const clientId = requestedClient
+      ? await this.ensureClientVisible(ctx, requestedClient)
+      : undefined;
     const result = await this.contextPlane.searchToolData(ctx, {
-      queryClass: 'lookup', requestedDomains: ['hearings'], query: query ?? undefined,
-      hearingFilters: { hearingId: hearingId ?? undefined, chamber: chamber ?? undefined, committeeName: committeeName ?? undefined },
-      pageSize: 1, ...(cursor ? { cursors: { hearings: cursor } } : {}),
+      queryClass: 'lookup',
+      requestedDomains: ['hearings'],
+      query: query ?? undefined,
+      hearingFilters: {
+        hearingId: hearingId ?? undefined,
+        chamber: chamber ?? undefined,
+        committeeName: committeeName ?? undefined,
+      },
+      pageSize: 1,
+      ...(cursor ? { cursors: { hearings: cursor } } : {}),
       ...(clientId ? { clientId } : {}),
     });
     const { coverage, ...data } = result;
-    return { tool: 'search_committee_hearings', coverage,
+    return {
+      tool: 'search_committee_hearings',
+      coverage,
       note: 'One complete evidence chunk per page. Follow the hearings nextCursor for remaining official transcript chunks, machine segments and intelligence. Coverage reports unsupported browser-session material; search results never imply a complete transcript.',
-      ...data };
+      ...data,
+    };
   }
 
   private async searchCrsReports(input: Record<string, unknown>) {
@@ -5274,7 +5504,9 @@ export class MeriToolsService {
 
   private async saveNote(ctx: TenantContext, input: Record<string, unknown>) {
     if (typeof input.body === 'string' && input.body.trim().length > 40_000) {
-      throw new BadRequestException('Notes must be at most 40,000 characters. Attach longer documents to save their full contents.');
+      throw new BadRequestException(
+        'Notes must be at most 40,000 characters. Attach longer documents to save their full contents.',
+      );
     }
     const body = requiredString(input, 'body', 40_000);
     const title = optionalString(input, 'title', 160);
@@ -5301,7 +5533,10 @@ export class MeriToolsService {
       clientId = await this.ensureClientVisible(ctx, clientId);
       if (!this.clientFiling) throw new BadGatewayException('Client filing is unavailable');
       return this.clientFiling.saveNote(ctx, {
-        clientId, conversationId: conversationId ?? undefined, title: title ?? undefined, body,
+        clientId,
+        conversationId: conversationId ?? undefined,
+        title: title ?? undefined,
+        body,
         confidential: optionalBoolean(input, 'confidential') ?? undefined,
       });
     }
@@ -5435,11 +5670,17 @@ export class MeriToolsService {
     if ('error' in result) return result;
     // Retain the existing thread envelope/citation IDs. The page and date/folder
     // scope are message-based so older activity is never hidden by newer replies.
-    const threads = new Map<string, {
-      id: string; subject: string | null; snippet: string | null;
-      lastMessageAt: Date | null; client: { id: string; name: string | null } | null;
-      messages: Array<Record<string, unknown>>;
-    }>();
+    const threads = new Map<
+      string,
+      {
+        id: string;
+        subject: string | null;
+        snippet: string | null;
+        lastMessageAt: Date | null;
+        client: { id: string; name: string | null } | null;
+        messages: Array<Record<string, unknown>>;
+      }
+    >();
     for (const message of result.messages) {
       const thread = threads.get(message.threadId) ?? {
         id: message.threadId,
@@ -5450,9 +5691,13 @@ export class MeriToolsService {
         messages: [],
       };
       thread.messages.push({
-        id: message.id, subject: message.subject,
-        fromEmail: message.from.email, fromName: message.from.name,
-        bodyText: message.preview, sentAt: message.sentAt, receivedAt: message.receivedAt,
+        id: message.id,
+        subject: message.subject,
+        fromEmail: message.from.email,
+        fromName: message.from.name,
+        bodyText: message.preview,
+        sentAt: message.sentAt,
+        receivedAt: message.receivedAt,
       });
       threads.set(message.threadId, thread);
     }
@@ -5474,42 +5719,74 @@ export class MeriToolsService {
     if (!uuid.test(threadId) || (messageId && !uuid.test(messageId))) {
       return { error: 'Use exact threadId and messageId UUIDs returned by the mail tools.' };
     }
-    if (!Number.isInteger(messageOffset) || messageOffset < 0 || messageOffset > 10000 ||
-        !Number.isInteger(bodyOffset) || bodyOffset < 0 || bodyOffset > 10000000 ||
-        !Number.isInteger(limit) || limit < 1 || limit > 10 ||
-        !Number.isInteger(maxCharacters) || maxCharacters < 1 || maxCharacters > 6000 ||
-        (bodyOffset > 0 && !messageId)) {
-      return { error: 'Use bounded message/body offsets, limit 1–10 and maxCharacters 1–6000. Body continuation requires messageId.' };
+    if (
+      !Number.isInteger(messageOffset) ||
+      messageOffset < 0 ||
+      messageOffset > 10000 ||
+      !Number.isInteger(bodyOffset) ||
+      bodyOffset < 0 ||
+      bodyOffset > 10000000 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 10 ||
+      !Number.isInteger(maxCharacters) ||
+      maxCharacters < 1 ||
+      maxCharacters > 6000 ||
+      (bodyOffset > 0 && !messageId)
+    ) {
+      return {
+        error:
+          'Use bounded message/body offsets, limit 1–10 and maxCharacters 1–6000. Body continuation requires messageId.',
+      };
     }
     // Reuse the endpoint's tenant, owner and active-message authorization. No
     // provider network call, read-receipt mutation, or message send is involved.
     const thread = await this.engagement.getMailThread(ctx, threadId);
-    const matching = messageId ? thread.messages.filter((message) => message.id === messageId) : thread.messages;
-    if (messageId && !matching.length) return { error: 'Message is not active in this authorized thread.' };
+    const matching = messageId
+      ? thread.messages.filter((message) => message.id === messageId)
+      : thread.messages;
+    if (messageId && !matching.length)
+      return { error: 'Message is not active in this authorized thread.' };
     const messages = matching.slice(messageOffset, messageOffset + limit).map((message) => {
       const body = message.bodyText ?? '';
-      const metadata = message.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
-        ? message.metadata : {};
+      const metadata =
+        message.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
+          ? message.metadata
+          : {};
       const bodyEnd = Math.min(body.length, bodyOffset + maxCharacters);
       return {
-        id: message.id, threadId, subject: message.subject,
+        id: message.id,
+        threadId,
+        subject: message.subject,
         from: { email: message.fromEmail, name: message.fromName },
-        to: message.toRecipients, cc: message.ccRecipients,
-        sentAt: message.sentAt, receivedAt: message.receivedAt,
-        bodyText: body.slice(bodyOffset, bodyEnd), bodyOffset, bodyLength: body.length,
-        bodyCompleteness: typeof metadata.bodyCompleteness === 'string' ? metadata.bodyCompleteness : 'unknown',
+        to: message.toRecipients,
+        cc: message.ccRecipients,
+        sentAt: message.sentAt,
+        receivedAt: message.receivedAt,
+        bodyText: body.slice(bodyOffset, bodyEnd),
+        bodyOffset,
+        bodyLength: body.length,
+        bodyCompleteness:
+          typeof metadata.bodyCompleteness === 'string' ? metadata.bodyCompleteness : 'unknown',
         bodyTruncated: bodyOffset > 0 || bodyEnd < body.length,
         nextBodyOffset: bodyEnd < body.length ? bodyEnd : null,
       };
     });
     const hasMore = messageOffset + messages.length < matching.length;
     return {
-      threadId, subject: thread.subject, mailbox: thread.connectionEmail,
-      messageId: messageId || null, messageOffset, totalMessages: matching.length,
-      returned: messages.length, hasMore,
+      threadId,
+      subject: thread.subject,
+      mailbox: thread.connectionEmail,
+      messageId: messageId || null,
+      messageOffset,
+      totalMessages: matching.length,
+      returned: messages.length,
+      hasMore,
       nextMessageOffset: hasMore ? messageOffset + messages.length : null,
       messages,
-      notes: ['Read remaining message pages and each nextBodyOffset before claiming the full thread was read. Body continuation uses the same threadId, exact messageId, messageOffset=0 and bodyOffset=nextBodyOffset. Provider bodies may themselves be truncated or unavailable; bodyCompleteness reports the stored state.'],
+      notes: [
+        'Read remaining message pages and each nextBodyOffset before claiming the full thread was read. Body continuation uses the same threadId, exact messageId, messageOffset=0 and bodyOffset=nextBodyOffset. Provider bodies may themselves be truncated or unavailable; bodyCompleteness reports the stored state.',
+      ],
     };
   }
 
@@ -5681,7 +5958,9 @@ export class MeriToolsService {
           ...(await this.resolveChartImages(ctx, section.imageArtifactIds)),
         ];
         if (section.images.length > MAX_IMAGES_PER_BLOCK) {
-          throw new BadRequestException(`A document section supports at most ${MAX_IMAGES_PER_BLOCK} combined chart images. Split the charts across sections.`);
+          throw new BadRequestException(
+            `A document section supports at most ${MAX_IMAGES_PER_BLOCK} combined chart images. Split the charts across sections.`,
+          );
         }
         section.imageArtifactIds = [];
       }
@@ -5695,9 +5974,10 @@ export class MeriToolsService {
             code: 'MERI_DOCUMENT_GENERATION_FAILED',
             format,
             reason: error instanceof MeriPdfRenderError ? error.reason : 'render_failed',
-            message: error instanceof MeriPdfRenderError
-              ? `${error.message} Nothing was saved. Request Word or adjust the document and try again.`
-              : 'PDF generation failed. Nothing was saved. Try again or request Word.',
+            message:
+              error instanceof MeriPdfRenderError
+                ? `${error.message} Nothing was saved. Request Word or adjust the document and try again.`
+                : 'PDF generation failed. Nothing was saved. Try again or request Word.',
           });
         }
       } else await this.docgen.buildDocx(spec);
@@ -5714,7 +5994,9 @@ export class MeriToolsService {
           ...(await this.resolveChartImages(ctx, slide.imageArtifactIds)),
         ];
         if (slide.images.length > MAX_IMAGES_PER_BLOCK) {
-          throw new BadRequestException(`A slide supports at most ${MAX_IMAGES_PER_BLOCK} combined chart images. Split the charts across slides.`);
+          throw new BadRequestException(
+            `A slide supports at most ${MAX_IMAGES_PER_BLOCK} combined chart images. Split the charts across slides.`,
+          );
         }
         slide.imageArtifactIds = [];
       }
@@ -5724,15 +6006,19 @@ export class MeriToolsService {
     }
 
     const toolName =
-      format === 'docx' || format === 'pdf' ? 'create_word' : format === 'xlsx' ? 'create_excel' : 'create_powerpoint';
+      format === 'docx' || format === 'pdf'
+        ? 'create_word'
+        : format === 'xlsx'
+          ? 'create_excel'
+          : 'create_powerpoint';
     const kind =
       format === 'pdf'
         ? 'pdf_document'
         : format === 'docx'
-        ? 'word_document'
-        : format === 'xlsx'
-          ? 'excel_workbook'
-          : 'powerpoint_deck';
+          ? 'word_document'
+          : format === 'xlsx'
+            ? 'excel_workbook'
+            : 'powerpoint_deck';
     const filename = `${slugifyDocName(title)}.${format}`;
     const artifact = await this.persistArtifact(ctx, {
       conversationId,
@@ -5765,14 +6051,15 @@ export class MeriToolsService {
       downloadUrl: artifactId ? `/api/clio/artifacts/${artifactId}/download` : null,
       // Alternate exports read the same immutable saved spec, without another
       // model call or a second artifact that could drift from the original.
-      downloads: artifactId && (format === 'docx' || format === 'pdf')
-        ? (['docx', 'pdf'] as const).map((exportFormat) => ({
-            format: exportFormat,
-            filename: `${slugifyDocName(title)}.${exportFormat}`,
-            mimeType: mimeForFormat(exportFormat),
-            downloadUrl: `/api/clio/artifacts/${artifactId}/download?format=${exportFormat}`,
-          }))
-        : undefined,
+      downloads:
+        artifactId && (format === 'docx' || format === 'pdf')
+          ? (['docx', 'pdf'] as const).map((exportFormat) => ({
+              format: exportFormat,
+              filename: `${slugifyDocName(title)}.${exportFormat}`,
+              mimeType: mimeForFormat(exportFormat),
+              downloadUrl: `/api/clio/artifacts/${artifactId}/download?format=${exportFormat}`,
+            }))
+          : undefined,
       note: artifactId
         ? 'Document generated and available for download.'
         : 'Document generated but not persisted (no conversation context); ask the user to retry within a chat.',
@@ -5798,11 +6085,19 @@ export class MeriToolsService {
     if (!artifact || !artifact.bodyText) return null;
     const meta = (artifact.metadata ?? {}) as Record<string, unknown>;
     const nativeFormat = meta.docFormat;
-    if (nativeFormat !== 'docx' && nativeFormat !== 'pdf' && nativeFormat !== 'xlsx' && nativeFormat !== 'pptx') return null;
+    if (
+      nativeFormat !== 'docx' &&
+      nativeFormat !== 'pdf' &&
+      nativeFormat !== 'xlsx' &&
+      nativeFormat !== 'pptx'
+    )
+      return null;
     let format: DocFormat = nativeFormat;
     if (requestedFormat !== undefined && requestedFormat !== nativeFormat) {
-      if ((nativeFormat === 'docx' || nativeFormat === 'pdf') &&
-          (requestedFormat === 'docx' || requestedFormat === 'pdf')) {
+      if (
+        (nativeFormat === 'docx' || nativeFormat === 'pdf') &&
+        (requestedFormat === 'docx' || requestedFormat === 'pdf')
+      ) {
         format = requestedFormat;
       } else {
         throw new BadRequestException({
@@ -5811,10 +6106,11 @@ export class MeriToolsService {
         });
       }
     }
-    const savedFilename = typeof meta.filename === 'string' ? meta.filename : `document.${nativeFormat}`;
-    const filename = (format === nativeFormat
-      ? savedFilename
-      : `${savedFilename.replace(/\.[^.]*$/, '')}.${format}`).replace(/[\r\n"\\]/g, '_');
+    const savedFilename =
+      typeof meta.filename === 'string' ? meta.filename : `document.${nativeFormat}`;
+    const filename = (
+      format === nativeFormat ? savedFilename : `${savedFilename.replace(/\.[^.]*$/, '')}.${format}`
+    ).replace(/[\r\n"\\]/g, '_');
     return {
       format,
       specJson: artifact.bodyText,
@@ -6092,22 +6388,29 @@ export class MeriToolsService {
     // local search says nothing about current SAM.gov coverage by itself.
     const sourceFreshness = await this.opportunityTools.readSamSourceFreshness();
     const source = sourceFreshness[0];
-    const sourceReason = !source || source.countsUnavailable
-      ? 'source_freshness_unavailable'
-      : source.neverSynced
-        ? 'all_federal_source_never_synced'
-        : !source.lastSyncedAt || source.hoursSinceLastSuccess === null || source.hoursSinceLastSuccess < 0
-          ? 'source_freshness_unknown'
-          : source.lastRunStatus !== 'success' || source.lastRunDegraded !== false
-            ? 'latest_source_sync_incomplete'
-            // The canonical all-federal schedule is daily. Two missed daily
-            // windows are stale, even when the last recorded attempt succeeded.
-            : source.hoursSinceLastSuccess >= 48
-              ? 'source_sync_stale'
-              : null;
-    const sourceStatus = sourceReason === null ? 'healthy'
-      : sourceReason === 'source_freshness_unavailable' || sourceReason === 'source_freshness_unknown'
-        ? 'unknown' : 'degraded';
+    const sourceReason =
+      !source || source.countsUnavailable
+        ? 'source_freshness_unavailable'
+        : source.neverSynced
+          ? 'all_federal_source_never_synced'
+          : !source.lastSyncedAt ||
+              source.hoursSinceLastSuccess === null ||
+              source.hoursSinceLastSuccess < 0
+            ? 'source_freshness_unknown'
+            : source.lastRunStatus !== 'success' || source.lastRunDegraded !== false
+              ? 'latest_source_sync_incomplete'
+              : // The canonical all-federal schedule is daily. Two missed daily
+                // windows are stale, even when the last recorded attempt succeeded.
+                source.hoursSinceLastSuccess >= 48
+                ? 'source_sync_stale'
+                : null;
+    const sourceStatus =
+      sourceReason === null
+        ? 'healthy'
+        : sourceReason === 'source_freshness_unavailable' ||
+            sourceReason === 'source_freshness_unknown'
+          ? 'unknown'
+          : 'degraded';
 
     return {
       tool: 'search_sam_opportunities',
@@ -6118,7 +6421,11 @@ export class MeriToolsService {
       sourceReason,
       notes: [
         'Results cover Capiro’s synchronized SAM.gov catalog. No matching records does not establish that no current federal opportunity exists.',
-        ...(sourceReason ? ['Source coverage is incomplete or unknown; inspect sourceFreshness before making current-opportunity or absence claims.'] : []),
+        ...(sourceReason
+          ? [
+              'Source coverage is incomplete or unknown; inspect sourceFreshness before making current-opportunity or absence claims.',
+            ]
+          : []),
       ],
       results: result.data.map((opp) => ({
         ...opp,
@@ -6160,28 +6467,51 @@ export class MeriToolsService {
       // The engagement service binds the attachment to this client, checks its
       // current viewer ACL/parent permissions and readiness before reading bytes.
       const extracted = await this.engagement.extractAttachmentText(ctx, selection.documentId, {
-        clientId, section: selection.section,
+        clientId,
+        section: selection.section,
         ...(meriToolRequestControl()?.signal ? { signal: meriToolRequestControl()!.signal } : {}),
       });
       return buildDocumentReadPage(clientId, selection, extracted);
     }
     const attachments = (await this.engagement.listAttachments(ctx, { clientId }))
-      .filter((row) => !selection.query || row.fileName.toLowerCase().includes(selection.query.toLowerCase()))
+      .filter(
+        (row) =>
+          !selection.query || row.fileName.toLowerCase().includes(selection.query.toLowerCase()),
+      )
       .sort((a, b) => a.id.localeCompare(b.id));
-    const eligible = selection.listAfter ? attachments.filter((row) => row.id > selection.listAfter!) : attachments;
+    const eligible = selection.listAfter
+      ? attachments.filter((row) => row.id > selection.listAfter!)
+      : attachments;
     const page = eligible.slice(0, selection.limit);
     const hasMore = eligible.length > page.length;
     return {
-      tool: 'read_client_documents', generatedAt: new Date().toISOString(), clientId,
-      coverage: { total: attachments.length, returned: page.length, truncated: hasMore,
+      tool: 'read_client_documents',
+      generatedAt: new Date().toISOString(),
+      clientId,
+      coverage: {
+        total: attachments.length,
+        returned: page.length,
+        truncated: hasMore,
         nextCursor: hasMore ? `documents:${page[page.length - 1]!.id}` : null,
-        complete: !selection.listAfter && !hasMore, paginationComplete: !hasMore, query: selection.query || null, queryAppliesTo: 'fileName' },
+        complete: !selection.listAfter && !hasMore,
+        paginationComplete: !hasMore,
+        query: selection.query || null,
+        queryAppliesTo: 'fileName',
+      },
       note: 'Pass documentId to read full text sections or search document content. A file listing is not evidence that its contents have been read.',
-      documents: page.map((row) => ({ id: row.id, fileName: row.fileName,
-        contentType: row.contentType, byteSize: row.byteSize, createdAt: row.createdAt,
-        indexedAt: row.indexedAt ?? null, extractionStatus: row.extractionStatus ?? null,
+      documents: page.map((row) => ({
+        id: row.id,
+        fileName: row.fileName,
+        contentType: row.contentType,
+        byteSize: row.byteSize,
+        createdAt: row.createdAt,
+        indexedAt: row.indexedAt ?? null,
+        extractionStatus: row.extractionStatus ?? null,
         extractionMetadata: row.extractionMetadata ?? null,
-        usable: row.usable, blockedReason: row.blockedReason ?? null, disclosure: row.scanDisclosure ?? null })),
+        usable: row.usable,
+        blockedReason: row.blockedReason ?? null,
+        disclosure: row.scanDisclosure ?? null,
+      })),
     };
   }
 
@@ -6889,17 +7219,21 @@ export class MeriToolsService {
     const out: Array<{ dataBase64: string }> = [];
     for (const id of artifactIds) {
       const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.clioArtifact.findFirst({
-            where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-            select: { metadata: true },
-          }),
-        );
+        tx.clioArtifact.findFirst({
+          where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+          select: { metadata: true },
+        }),
+      );
       const meta = artifact?.metadata as Record<string, unknown> | null;
       if (typeof meta?.imageBase64 !== 'string' || !meta.imageBase64) {
-        throw new NotFoundException('One or more analysis charts were not found. Regenerate the charts and try again.');
+        throw new NotFoundException(
+          'One or more analysis charts were not found. Regenerate the charts and try again.',
+        );
       }
       if (meta.imageBase64.length > MAX_IMAGE_BASE64_CHARS) {
-        throw new BadRequestException('A saved chart is too large to embed. Regenerate a smaller chart and try again.');
+        throw new BadRequestException(
+          'A saved chart is too large to embed. Regenerate a smaller chart and try again.',
+        );
       }
       out.push({ dataBase64: meta.imageBase64 });
     }

@@ -33,18 +33,20 @@ function plannerRow(overrides: RowOverrides = {}) {
   };
 }
 
-function harness(input: {
-  rows?: ReturnType<typeof plannerRow>[];
-  captureAll?: boolean;
-  checkpoint?: 'inserted' | 'rearmed' | 'active';
-  existingCaptureId?: string;
-} = {}) {
+function harness(
+  input: {
+    rows?: ReturnType<typeof plannerRow>[];
+    captureAll?: boolean;
+    checkpoint?: 'inserted' | 'rearmed' | 'active';
+    existingCaptureId?: string;
+  } = {},
+) {
   const rows = input.rows ?? [plannerRow()];
   const query = jest.fn(async (sql: string, ..._args: unknown[]) => {
     if (sql.includes('FROM legiwatch_cutover_state')) {
       return [{ captureAllPublicEvents: input.captureAll ?? false }];
     }
-    if (sql.includes('FROM committee_hearing h')) return rows;
+    if (sql.includes('FROM federal_committee_hearing h')) return rows;
     if (sql.includes('INSERT INTO public_hearing_capture_job')) {
       if (input.checkpoint === 'active') return [];
       return [
@@ -213,7 +215,7 @@ describe('LegiWatchPhase9PreflightService', () => {
     let captureCalls = 0;
     query.mockImplementation(async (sql: string) => {
       if (sql.includes('FROM legiwatch_cutover_state')) return [{ captureAllPublicEvents: false }];
-      if (sql.includes('FROM committee_hearing h')) return rows;
+      if (sql.includes('FROM federal_committee_hearing h')) return rows;
       if (sql.includes('INSERT INTO public_hearing_capture_job')) {
         return [{ id: 'job', inserted: true, rearmed: false }];
       }

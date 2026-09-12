@@ -85,6 +85,7 @@ export class DiscoveryJobsService {
 
     const upcoming = await this.prisma.committeeHearing.findMany({
       where: {
+        geographicJurisdiction: 'US',
         date: { gte: startOfDay(now), lte: horizon },
         eventStatus: { in: ['scheduled', 'postponed', 'in_progress'] },
       },
@@ -341,6 +342,7 @@ export class DiscoveryJobsService {
 
     const past = await this.prisma.committeeHearing.findMany({
       where: {
+        geographicJurisdiction: 'US',
         date: { gte: from, lt: startOfDay(now) },
         eventStatus: { in: ['scheduled', 'in_progress'] },
       },

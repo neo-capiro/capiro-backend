@@ -88,6 +88,7 @@ import {
 import { AnonymizeReview, type AnonymizeMap } from './editor/AnonymizeReview.js';
 import { VersionPopover } from './editor/VersionPopover.js';
 import { LockBanner } from './editor/LockBanner.js';
+import { PreparationRevisionNotice } from '../../vnext/pages/legiwatch/hearings/PreparationRevisionNotice.js';
 import { useEditLock } from './editor/useEditLock.js';
 import { budgetFrom } from './editor/BudgetBlock.js';
 import { sectionViews } from './editor/section-model.js';
@@ -1198,6 +1199,7 @@ export function EditorPage() {
       {/* Persistent partial/failed generation state. Seeded from the draft's own
           durable generationRun, so a partially generated document still says so
           after a reload — not only while the toast is up. */}
+      <PreparationRevisionNotice config={draft.config} />
       <GenerationRunBanner
         report={describeGenerationRun(runDismissed ? null : (lastRun ?? persistedRun))}
         retrying={regenerating}

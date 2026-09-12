@@ -31,6 +31,7 @@ import {
   formatWitnesses,
   meetingPublicUrl,
   relatedAgendaBills,
+  relatedAgendaComplete,
 } from './congress-gov-parse.js';
 import { fetchJson, sleep } from './source-http.js';
 import { publishedCommitteeIdentity } from '../hearing-committee-identity.js';
@@ -224,6 +225,7 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
       officialPageUrl,
       witnesses: formatWitnesses(d.witnesses),
       agendaBillIds: relatedAgendaBills(d).map((b) => b.billId),
+      agendaComplete: relatedAgendaComplete(d),
       sourceUpdatedAt: safeDate(d.updateDate ?? item.updateDate),
       streamCandidates: advertisedVideoCandidates(d, officialPageUrl).map((c) => ({
         provider: c.provider,
@@ -273,7 +275,9 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
       ? `${congress}/${chamber}`
       : `${congress}/house/${externalEventId}|${congress}/senate/${externalEventId}`;
     const urls = chamber
-      ? [`${CONGRESS_BASE}/committee-meeting/${segments}/${externalEventId}?api_key=${this.options.apiKey}&format=json`]
+      ? [
+          `${CONGRESS_BASE}/committee-meeting/${segments}/${externalEventId}?api_key=${this.options.apiKey}&format=json`,
+        ]
       : segments
           .split('|')
           .map(
@@ -295,10 +299,7 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
    * `item` carries only what the detail record omits (list metadata), which for
    * a direct event fetch is the congress number itself.
    */
-  toSourceEventPublic(
-    d: MeetingDetail,
-    source: SourceDescriptor,
-  ): SourceEvent | null {
+  toSourceEventPublic(d: MeetingDetail, source: SourceDescriptor): SourceEvent | null {
     const congress = d.congress ?? currentCongress();
     return this.toSourceEvent(d, { eventId: null, congress }, congress, {
       since: null,

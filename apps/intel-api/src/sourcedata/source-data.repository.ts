@@ -967,7 +967,7 @@ export class SourceDataRepository {
                 h.date,
                 h.url
            FROM committee_hearing_bill hb
-           JOIN committee_hearing h ON h.id = hb.hearing_id
+           JOIN federal_committee_hearing h ON h.id = hb.hearing_id
           WHERE hb.bill_id = ANY($1::text[])
             AND h.date >= ${ET_TODAY_SQL}
           ORDER BY h.date ASC`,
@@ -1032,7 +1032,7 @@ export class SourceDataRepository {
               url,
               "timezone",
               visibility::text AS visibility
-         FROM committee_hearing
+         FROM federal_committee_hearing
         WHERE date >= ${ET_TODAY_SQL}
         ORDER BY date ASC, committee_name ASC
         LIMIT $1`,
@@ -1077,7 +1077,7 @@ export class SourceDataRepository {
       opts.scope === 'upcoming' ? 'date ASC, committee_name ASC' : 'date DESC, committee_name ASC';
 
     const countRows = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
-      `SELECT COUNT(*)::int AS count FROM committee_hearing ${where}`,
+      `SELECT COUNT(*)::int AS count FROM federal_committee_hearing ${where}`,
       ...params,
     );
     const total = countRows[0]?.count ?? 0;
@@ -1095,7 +1095,7 @@ export class SourceDataRepository {
               url,
               "timezone",
               visibility::text AS visibility
-         FROM committee_hearing
+         FROM federal_committee_hearing
          ${where}
         ORDER BY ${order}
         LIMIT $${i} OFFSET $${i + 1}`,
@@ -1126,7 +1126,7 @@ export class SourceDataRepository {
               url,
               "timezone",
               visibility::text AS visibility
-         FROM committee_hearing
+         FROM federal_committee_hearing
         WHERE id = $1
         LIMIT 1`,
       id,

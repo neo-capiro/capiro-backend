@@ -23,10 +23,11 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
 import { CommitteeSourceRepository } from '../../hearing-discovery/committee-source.repository.js';
 import { CanonicalHearingRepository } from '../../hearing-discovery/canonical-hearing.repository.js';
-import {
-  LegiWatchPhase9ProvenanceBackfillService,
-} from './legiwatch-phase9-provenance-backfill.service.js';
-import type { SourceDescriptor, SourceEvent } from '../../hearing-discovery/hearing-discovery.types.js';
+import { LegiWatchPhase9ProvenanceBackfillService } from './legiwatch-phase9-provenance-backfill.service.js';
+import type {
+  SourceDescriptor,
+  SourceEvent,
+} from '../../hearing-discovery/hearing-discovery.types.js';
 import { HearingObservationRepository } from '../../hearing-discovery/hearing-observation.repository.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
 
@@ -48,8 +49,7 @@ function event(overrides: Partial<SourceEvent> = {}): SourceEvent {
     calendarDate: new Date('2026-07-15'),
     displayTime: '9:00 AM',
     location: 'SD-226',
-    officialPageUrl:
-      'https://www.congress.gov/event/119th-Congress/senate-event/338649',
+    officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
     witnesses: [],
     agendaBillIds: [],
     streamCandidates: [],
@@ -124,19 +124,20 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
          (id, congress, chamber, committee_system_code, committee_name, title,
           date, time, starts_at, event_status, visibility, url, source_revision,
           witnesses, stream_availability, coverage_status, synced_at)
-       VALUES ($1, 119, $2, $3, $9, $4, $5, '9:00 AM', $6, $7, 'public', $8,
+       VALUES ($1, 119, $2, $3, $9, $4, $5::date, '9:00 AM', $6, $7, 'public', $8,
                1, ARRAY[]::text[], 'unknown', 'not_covered', now())
        ON CONFLICT (id) DO NOTHING`,
       id,
       overrides.chamber ?? 'Senate',
       overrides.committeeSystemCode ?? 'ssju00',
       overrides.title ?? 'Nomination of Todd Blanche to be Attorney General',
-      date,
+      date.toISOString().slice(0, 10),
       startsAt,
       overrides.eventStatus ?? 'scheduled',
-      overrides.url ??
-        'https://www.congress.gov/event/119th-Congress/senate-event/338649',
-      overrides.chamber === 'House' ? 'House Committee on the Judiciary' : 'Senate Committee on the Judiciary',
+      overrides.url ?? 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
+      overrides.chamber === 'House'
+        ? 'House Committee on the Judiciary'
+        : 'Senate Committee on the Judiciary',
     );
     createdHearingIds.push(id);
   }
@@ -168,6 +169,9 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
 
   it('A: links a real SourceEvent to the EXISTING canonical hearing without duplicating it', async () => {
     await seedHearing('provbf-A-cm-119-338649');
+    expect(
+      await new CanonicalHearingRepository(prisma).resolveHearingId(event(), ADAPTER_KEY),
+    ).toMatchObject({ hearingId: 'provbf-A-cm-119-338649' });
     const result = await service().run({
       manual: true,
       lookbackDays: 60,
@@ -175,7 +179,15 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
       reconcilerFactory: reconciler,
       observeEvent: async () => event(),
     });
-    expect(result.observationCreated).toBe(1);
+    expect(result).toMatchObject({
+      candidates: expect.arrayContaining([
+        expect.objectContaining({
+          hearingId: 'provbf-A-cm-119-338649',
+          classification: 'OBSERVED',
+        }),
+      ]),
+      observationCreated: 1,
+    });
     expect(result.newHearingsCreated).toBe(0);
     expect(await reconciledCount('provbf-A-cm-119-338649')).toBe(1);
     const rows = await prisma.$queryRawUnsafe<Array<{ n: number; cm: number }>>(
@@ -201,7 +213,9 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
     const second = await service().run(opts);
     expect(first.observationCreated).toBe(1);
     // second run: the hearing now HAS reconciled provenance → not selected at all
-    expect(second.scanned).toBe(0);
+    expect(
+      second.candidates.some((candidate) => candidate.hearingId === 'provbf-B-cm-119-338649'),
+    ).toBe(false);
     expect(second.observationCreated).toBe(0);
     expect(await observationCount('provbf-B-cm-119-338649')).toBe(1);
   });
@@ -314,8 +328,7 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
           streamCandidates: [
             {
               provider: 'senate-isvp',
-              officialPageUrl:
-                'https://www.congress.gov/event/119th-Congress/senate-event/338649',
+              officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
               mediaUrl: 'https://d117c1d0akamaized.net/example/manifest.m3u8',
               mediaType: 'hls',
             },

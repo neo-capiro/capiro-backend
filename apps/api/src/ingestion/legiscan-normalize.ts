@@ -20,6 +20,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { isValidCanonicalId } from '@capiro/shared';
 import { pickLegislatorMatch } from './legislator-match.util.js';
+import { normalizeLegiscanCalendar, retainLegiscanCalendar } from './legiscan-calendar.js';
 import type {
   LegiscanBill,
   LegiscanPerson,
@@ -130,6 +131,7 @@ export interface NormalizedStateBill {
     location: string | null;
     eventKey: string;
   }>;
+  calendarSnapshot: ReturnType<typeof normalizeLegiscanCalendar>;
   voteStubs: LegiscanBill['votes'];
 }
 
@@ -227,14 +229,8 @@ export function normalizeLegiscanBill(
       linkType: SAST_LINK_TYPES[s.type_id] ?? 'related',
     }));
 
-  const calendarEvents = (raw.calendar ?? [])
-    .filter((c) => c.date)
-    .map((c) => {
-      const date = safeDate(c.date) as Date;
-      const eventType = c.type ?? 'event';
-      const eventKey = `${billKey}:${eventType}:${date.toISOString().slice(0, 10)}:${c.location ?? ''}`;
-      return { eventType, date, time: c.time ?? null, location: c.location ?? null, eventKey };
-    });
+  const calendarSnapshot = normalizeLegiscanCalendar(billKey, raw.calendar);
+  const calendarEvents = calendarSnapshot.rows;
 
   const latestAction = history.length ? history[history.length - 1] : null;
 
@@ -277,6 +273,7 @@ export function normalizeLegiscanBill(
     versions,
     links,
     calendarEvents,
+    calendarSnapshot,
     voteStubs: raw.votes ?? [],
   };
 }
@@ -438,13 +435,7 @@ export async function upsertNormalizedStateBill(
     });
   }
 
-  await prisma.stateBillCalendarEvent.deleteMany({ where: { billKey: n.billKey } });
-  if (n.calendarEvents.length) {
-    await prisma.stateBillCalendarEvent.createMany({
-      data: n.calendarEvents.map((c) => ({ billKey: n.billKey, ...c })),
-      skipDuplicates: true,
-    });
-  }
+  await retainLegiscanCalendar(prisma, n.billKey, n.calendarSnapshot);
 
   return { isNew };
 }

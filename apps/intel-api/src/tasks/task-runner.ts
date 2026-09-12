@@ -17,7 +17,11 @@
  */
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import { reportRuntime, reportTenants, prepareReportDraftQualification } from '../tracker/reports/report-runtime.js';
+import {
+  reportRuntime,
+  reportTenants,
+  prepareReportDraftQualification,
+} from '../tracker/reports/report-runtime.js';
 import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { StateSourceDataRepository } from '../sourcedata/state-source-data.repository.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
@@ -42,7 +46,10 @@ import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service
 import { StreamResolverService } from '../hearing/stream-resolver.service.js';
 import { PublicHearingCaptureStore } from '../hearing/capture/public-hearing-capture.store.js';
 import { PublicCaptureQueueAdapter } from '../hearing/capture/public-capture-queue.adapter.js';
-import { PublicCaptureOrchestrator, PublicCaptureWorkerCoordinator } from '../hearing/capture/public-capture.orchestrator.js';
+import {
+  PublicCaptureOrchestrator,
+  PublicCaptureWorkerCoordinator,
+} from '../hearing/capture/public-capture.orchestrator.js';
 import { PublicCaptureCredentialsAdapter } from '../hearing/capture/public-capture-credentials.adapter.js';
 import { PublicHearingTranscriptStore } from '../hearing/capture/public-hearing-transcript.store.js';
 import { FfmpegDeepgramCaptureRuntime } from '../hearing/capture/ffmpeg-deepgram-capture.runtime.js';
@@ -213,7 +220,7 @@ export async function verifyBillDossierSources(
     const freshness = await deps.repo.getBillSourceFreshness(billId);
     const freshOk = Boolean(
       freshness &&
-        (freshness.lastSyncedAt || freshness.updateDate || freshness.updateDateIncludingText),
+      (freshness.lastSyncedAt || freshness.updateDate || freshness.updateDateIncludingText),
     );
     if (!freshOk) {
       deps.log(`SOURCE_MISSING billId=${billId} reason=freshness_uncomputable`);
@@ -241,14 +248,41 @@ export async function verifyBillDossierSources(
 /** Route a verb to its handler. Throws on an unknown verb (→ non-zero exit). */
 export async function runVerb(verb: string, args: string[], deps: VerbDeps): Promise<void> {
   switch (verb) {
+    case 'run-agenda-updates': {
+      const tenantId = args[0];
+      if (
+        !tenantId ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)
+      )
+        throw new Error('run-agenda-updates requires an explicit tenant UUID');
+      if (process.env.LEGIWATCH_AGENDA_ALERTS_ENABLED !== 'true') {
+        deps.log('AGENDA_UPDATES_DISABLED');
+        return;
+      }
+      const runtime = reportRuntime(deps.prisma);
+      const detected = await runtime.agendaRules.detect(tenantId);
+      const queued = await runtime.agendaRules.enqueue(tenantId);
+      const delivered = await runtime.delivery.drain(tenantId, 25, new Date(), 'agenda');
+      deps.log(`AGENDA_UPDATES_DONE ${JSON.stringify({ detected, queued, delivered })}`);
+      return;
+    }
     case 'prepare-report-draft-qualification': {
-      const result = await prepareReportDraftQualification(deps.prisma, args[0] ?? '', args[1] ?? '', args[2] ?? '');
+      const result = await prepareReportDraftQualification(
+        deps.prisma,
+        args[0] ?? '',
+        args[1] ?? '',
+        args[2] ?? '',
+      );
       deps.log(`REPORT_DRAFT_QUALIFICATION ${JSON.stringify(result)}`);
       return;
     }
     case 'run-report-updates': {
       const tenantId = args[0];
-      if (!tenantId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) throw new Error('run-report-updates requires an explicit tenant UUID');
+      if (
+        !tenantId ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)
+      )
+        throw new Error('run-report-updates requires an explicit tenant UUID');
       const runtime = reportRuntime(deps.prisma);
       const result = await runtime.subscriptions.due(tenantId, 25);
       const delivery = await runtime.delivery.drain(tenantId, 25);
@@ -257,7 +291,9 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const records = await runtime.rules.detect(tenantId);
       const queued = await runtime.rules.enqueue(tenantId);
       const staff = await runtime.delivery.drain(tenantId, 25, new Date(), 'bill_record');
-      deps.log(`REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff })}`);
+      deps.log(
+        `REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff })}`,
+      );
       return;
     }
     case 'verify-sourcedata':
@@ -460,7 +496,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         new SourceDataRepository(deps.prisma),
         new StateSourceDataRepository(deps.prisma),
       );
-        const r = await svc.runDetectionCycle(reportRuntime(deps.prisma).rules);
+      const r = await svc.runDetectionCycle(reportRuntime(deps.prisma).rules);
       deps.log(
         `DETECT_DONE scanned=${r.scanned} baseline=${r.baseline} changed=${r.changed} ` +
           `alerts=${r.alertsWritten} skippedDedup=${r.skippedDedup} byType=${JSON.stringify(r.byType)}`,
@@ -549,7 +585,9 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
     case 'recover-stranded-digests': {
       // DRY-RUN unless --apply=true, mirroring dedupeStateActionAlerts's dual gate.
       const flags = parseFlags(args);
-      const olderThanMinutes = flags['olderThanMinutes'] ? Number(flags['olderThanMinutes']) : undefined;
+      const olderThanMinutes = flags['olderThanMinutes']
+        ? Number(flags['olderThanMinutes'])
+        : undefined;
       const r = await buildAlertService(deps.prisma).recoverStrandedDigests(
         { apply: flags['apply'] === 'true', olderThanMinutes },
         deps.log,
@@ -571,11 +609,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const r = await new ActionItemService(
         deps.prisma,
         new TrackerWatchlistService(deps.prisma),
-      ).reconcileOrphanMemoLinks(
-        tenantId,
-        { apply: flags['apply'] === 'true' },
-        deps.log,
-      );
+      ).reconcileOrphanMemoLinks(tenantId, { apply: flags['apply'] === 'true' }, deps.log);
       deps.log(
         `RECONCILE_ORPHAN_MEMO_LINKS_DONE candidates=${r.candidates} linked=${r.linked} ` +
           `ambiguous=${r.ambiguous} mode=${flags['apply'] === 'true' ? 'APPLY' : 'DRY_RUN'}`,
@@ -744,22 +778,42 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       return;
     }
     case 'hearing-stream-preflight': {
-      const flags=parseFlags(args);
-      const store=new PublicHearingCaptureStore(deps.prisma);
-      const orchestrator=new PublicCaptureOrchestrator(store,new StreamResolverService(new ConfigService(),new SourceDataRepository(deps.prisma)),new PublicCaptureQueueAdapter());
-      const hearingIds=flags['hearingId'] ? [flags['hearingId']] : await store.listDueHearingIds(new Date());
-      for (const hearingId of hearingIds) deps.log(`HEARING_PREFLIGHT ${hearingId} ${JSON.stringify(await orchestrator.reconcile(hearingId))}`);
+      const flags = parseFlags(args);
+      const store = new PublicHearingCaptureStore(deps.prisma);
+      const orchestrator = new PublicCaptureOrchestrator(
+        store,
+        new StreamResolverService(new ConfigService(), new SourceDataRepository(deps.prisma)),
+        new PublicCaptureQueueAdapter(),
+      );
+      const hearingIds = flags['hearingId']
+        ? [flags['hearingId']]
+        : await store.listDueHearingIds(new Date());
+      for (const hearingId of hearingIds)
+        deps.log(
+          `HEARING_PREFLIGHT ${hearingId} ${JSON.stringify(await orchestrator.reconcile(hearingId))}`,
+        );
       return;
     }
     case 'hearing-capture-worker': {
-      const flags=parseFlags(args);
-      if (!flags['hearingId'] || !flags['captureId']) throw new Error('hearing-capture-worker requires --hearingId= and --captureId=');
-      const credential=await new PublicCaptureCredentialsAdapter().resolve();
-      const store=new PublicHearingCaptureStore(deps.prisma);
-      const resolver=new StreamResolverService(new ConfigService(),new SourceDataRepository(deps.prisma));
-      const runtime=new FfmpegDeepgramCaptureRuntime(credential.apiKey,new PublicHearingTranscriptStore(deps.prisma));
-      const coordinator=new PublicCaptureWorkerCoordinator(store,resolver,runtime);
-      const result=await coordinator.run({captureId:flags['captureId'],hearingId:flags['hearingId'],workerId:`task:${process.pid}`});
+      const flags = parseFlags(args);
+      if (!flags['hearingId'] || !flags['captureId'])
+        throw new Error('hearing-capture-worker requires --hearingId= and --captureId=');
+      const credential = await new PublicCaptureCredentialsAdapter().resolve();
+      const store = new PublicHearingCaptureStore(deps.prisma);
+      const resolver = new StreamResolverService(
+        new ConfigService(),
+        new SourceDataRepository(deps.prisma),
+      );
+      const runtime = new FfmpegDeepgramCaptureRuntime(
+        credential.apiKey,
+        new PublicHearingTranscriptStore(deps.prisma),
+      );
+      const coordinator = new PublicCaptureWorkerCoordinator(store, resolver, runtime);
+      const result = await coordinator.run({
+        captureId: flags['captureId'],
+        hearingId: flags['hearingId'],
+        workerId: `task:${process.pid}`,
+      });
       deps.log(`HEARING_CAPTURE_WORKER ${JSON.stringify(result)}`);
       return;
     }

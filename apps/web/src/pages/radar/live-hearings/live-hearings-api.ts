@@ -1,8 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import type {
   CanonicalHearingEvent,
@@ -50,12 +46,14 @@ export interface LiveHearingCalendarParams {
 }
 
 const keys = {
-  calendar: (params: LiveHearingCalendarParams) => ['legiwatch', 'live-hearings', 'calendar', params] as const,
+  calendar: (params: LiveHearingCalendarParams) =>
+    ['legiwatch', 'live-hearings', 'calendar', params] as const,
   live: ['legiwatch', 'live-hearings', 'live'] as const,
   event: (id: string) => ['legiwatch', 'live-hearings', 'event', id] as const,
   updates: (id: string) => ['legiwatch', 'live-hearings', 'event', id, 'updates'] as const,
   transcript: (id: string) => ['legiwatch', 'live-hearings', 'event', id, 'transcript'] as const,
-  intelligence: (id: string) => ['legiwatch', 'live-hearings', 'event', id, 'intelligence'] as const,
+  intelligence: (id: string) =>
+    ['legiwatch', 'live-hearings', 'event', id, 'intelligence'] as const,
   committee: (id: string) => ['legiwatch', 'live-hearings', 'committee', id] as const,
   coverage: ['legiwatch', 'live-hearings', 'coverage'] as const,
 };
@@ -171,6 +169,8 @@ function normalizeDocument(value: unknown): HearingDocument | null {
     id: stringValue(row.id, row.documentId),
     title: stringValue(row.title, row.name, row.description) ?? 'Official hearing document',
     documentType: stringValue(row.documentType, row.type),
+    contentHash: stringValue(row.contentHash),
+    deadlines: array(row.deadlines).filter((value): value is string => typeof value === 'string'),
     sourceUrl,
     publishedAt: isoValue(row.publishedAt, row.updateDate),
   };
@@ -247,6 +247,35 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
     // instant it lets bucketing use the same official day the source assigned.
     calendarDate: calendarDayString(row.date, row.scheduledAt, row.scheduledStart),
     canonicalEventId: stringValue(row.canonicalEventId),
+    geographicJurisdiction: stringValue(row.geographicJurisdiction),
+    legislativeSession: stringValue(row.legislativeSession),
+    stateCommitteeId: stringValue(row.stateCommitteeId),
+    calendarRevision: numberValue(row.calendarRevision),
+    calendarCheckedAt: isoValue(row.calendarCheckedAt),
+    calendarCheckState: stringValue(row.calendarCheckState),
+    timePrecision: stringValue(row.timePrecision),
+    following: booleanValue(row.following),
+    agenda: array(row.agenda).map((raw) => {
+      const a = record(raw),
+        b = record(a.bill);
+      return {
+        key: stringValue(a.key) ?? '',
+        position: numberValue(a.position) ?? 0,
+        kind: stringValue(a.kind) ?? 'other',
+        title: stringValue(a.title) ?? '',
+        sourceUrl: stringValue(a.sourceUrl) ?? '',
+        ...(typeof b.id === 'string'
+          ? {
+              bill: {
+                id: b.id,
+                scope: String(b.scope),
+                jurisdiction: String(b.jurisdiction),
+                session: String(b.session),
+              },
+            }
+          : {}),
+      };
+    }),
     congress: numberValue(row.congress),
     title: stringValue(row.title, row.name) ?? 'Untitled committee proceeding',
     chamber: stringValue(row.chamber) ?? committee.chamber ?? 'NO_CHAMBER',
@@ -279,12 +308,11 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
     actualStart: isoValue(row.actualStart, capture.actualStart),
     actualEnd: isoValue(row.actualEnd, capture.actualEnd),
     timeZone: stringValue(row.timeZone, row.timezone) ?? 'America/New_York',
-    location:
-      stringValue(
-        row.location,
-        record(row.location).displayName,
-        record(row.location).room,
-      ),
+    location: stringValue(
+      row.location,
+      record(row.location).displayName,
+      record(row.location).room,
+    ),
     officialPageUrl: stringValue(row.officialPageUrl, row.url),
     lastOfficialUpdate: isoValue(row.lastOfficialUpdate, row.sourceUpdatedAt, row.updatedAt),
     streamState:
@@ -311,9 +339,8 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
       Object.keys(capture).length > 0 || row.captureStatus
         ? {
             id: stringValue(capture.id, row.captureId),
-            status:
-              (stringValue(capture.status, row.captureStatus) ??
-                'NOT_SCHEDULED') as HearingCaptureStatus,
+            status: (stringValue(capture.status, row.captureStatus) ??
+              'NOT_SCHEDULED') as HearingCaptureStatus,
             capturePolicy: stringValue(capture.capturePolicy, row.capturePolicy),
             streamState: stringValue(capture.streamState, row.streamState),
             scheduledStart: isoValue(capture.scheduledStart),
@@ -432,9 +459,19 @@ export function useCanonicalHearingEvent(id: string) {
       const event = query.state.data;
       const status = event?.eventStatus?.toUpperCase();
       const capture = event?.capture?.status?.toUpperCase();
-      return ['LIVE', 'IN_PROGRESS'].includes(status ?? '') || ['PREPARING', 'RECORDING', 'CAPTURING', 'RECOVERING', 'WAITING_FOR_STREAM', 'SCHEDULED'].includes(capture ?? '')
+      return ['LIVE', 'IN_PROGRESS'].includes(status ?? '') ||
+        [
+          'PREPARING',
+          'RECORDING',
+          'CAPTURING',
+          'RECOVERING',
+          'WAITING_FOR_STREAM',
+          'SCHEDULED',
+        ].includes(capture ?? '')
         ? 10_000
-        : ['SCHEDULED', 'POSTPONED'].includes(status ?? '') ? 30_000 : false;
+        : ['SCHEDULED', 'POSTPONED'].includes(status ?? '')
+          ? 30_000
+          : false;
     },
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: 'always',
@@ -451,7 +488,9 @@ export function useHearingUpdates(id: string) {
         `/api/legiwatch/live-hearings/events/${encodeURIComponent(id)}/updates`,
       );
       const envelope = record(response.data);
-      return array(Array.isArray(response.data) ? response.data : envelope.items ?? envelope.updates)
+      return array(
+        Array.isArray(response.data) ? response.data : (envelope.items ?? envelope.updates),
+      )
         .map(normalizeHearingUpdate)
         .filter((item): item is HearingSiteUpdate => Boolean(item));
     },
@@ -506,7 +545,9 @@ export function usePublicHearingTranscript(id: string) {
       let captureId = previous?.captureId;
       let reconciledAt = reconcile ? Date.now() : previous!.reconciledAt;
       const segments = new Map<string, PublicTranscriptSegment>(
-        reconcile ? [] : previous!.pages.flatMap((page) => page.items).map((item) => [item.id, item]),
+        reconcile
+          ? []
+          : previous!.pages.flatMap((page) => page.items).map((item) => [item.id, item]),
       );
       const seen = new Set<string>();
       let resetCapture = false;
@@ -521,7 +562,8 @@ export function usePublicHearingTranscript(id: string) {
         const capture = record(envelope.capture);
         const nextCaptureId = stringValue(capture.id, capture.captureId);
         if (cursor && captureId && nextCaptureId && captureId !== nextCaptureId) {
-          if (resetCapture) throw new Error('The hearing capture changed while loading. Please retry.');
+          if (resetCapture)
+            throw new Error('The hearing capture changed while loading. Please retry.');
           resetCapture = true;
           cursor = undefined;
           segments.clear();
@@ -531,7 +573,9 @@ export function usePublicHearingTranscript(id: string) {
           continue;
         }
         captureId = nextCaptureId;
-        for (const raw of array(Array.isArray(response.data) ? response.data : envelope.items ?? envelope.segments)) {
+        for (const raw of array(
+          Array.isArray(response.data) ? response.data : (envelope.items ?? envelope.segments),
+        )) {
           const item = normalizeTranscriptSegment(raw);
           if (item) segments.set(item.id, item);
         }
@@ -545,9 +589,18 @@ export function usePublicHearingTranscript(id: string) {
           cursor = nextCursor;
           continue;
         }
-        const items = [...segments.values()].sort((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id));
+        const items = [...segments.values()].sort(
+          (a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id),
+        );
         return {
-          pages: [{ items, total: numberValue(envelope.total) ?? items.length, nextCursor: null, hasMore: false }],
+          pages: [
+            {
+              items,
+              total: numberValue(envelope.total) ?? items.length,
+              nextCursor: null,
+              hasMore: false,
+            },
+          ],
           pageParams: [null],
           resumeCursor: stringValue(envelope.resumeCursor),
           captureId,
@@ -564,7 +617,12 @@ export function usePublicHearingTranscript(id: string) {
   });
   // Existing callers may still expose their old load-more button. All pages
   // are now drained automatically, including when joining an ongoing hearing.
-  return { ...result, hasNextPage: false, isFetchingNextPage: result.isFetching, fetchNextPage: result.refetch };
+  return {
+    ...result,
+    hasNextPage: false,
+    isFetchingNextPage: result.isFetching,
+    fetchNextPage: result.refetch,
+  };
 }
 
 export function useHearingIntelligence(id: string) {
@@ -586,7 +644,9 @@ export function useHearingIntelligence(id: string) {
           { signal },
         );
         envelope = record(response.data);
-        for (const raw of array(Array.isArray(response.data) ? response.data : envelope.items ?? envelope.insights)) {
+        for (const raw of array(
+          Array.isArray(response.data) ? response.data : (envelope.items ?? envelope.insights),
+        )) {
           const item = normalizeIntelligence(raw);
           if (item) items.set(item.id, item);
         }

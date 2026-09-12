@@ -49,6 +49,7 @@ import {
 } from '../../../../pages/workspace/api.js';
 import { useEditLock } from '../../../../pages/workspace/editor/useEditLock.js';
 import { LockBanner } from '../../../../pages/workspace/editor/LockBanner.js';
+import { PreparationRevisionNotice } from '../../legiwatch/hearings/PreparationRevisionNotice.js';
 import { Icon } from '../../../../pages/workspace/kit.js';
 import {
   applyEditToSectionHtml,
@@ -1011,6 +1012,7 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
       {banner ? <div className="ws-vnext-banner" data-variant={banner.tone}><span className="ws-vnext-banner__text">{banner.message}</span>{banner.actionLabel ? <button className="ws-vnext-banner__action" type="button" onClick={banner.action}>{banner.actionLabel}</button> : <button className="ws-vnext-banner__action" type="button" onClick={() => setBanner(null)}>Dismiss</button>}</div> : null}
       <LockBanner lock={editLock.lock} requestPending={editLock.requestPending} requestBusy={editLock.requestBusy} takeOverBusy={editLock.takeOverBusy} releasing={editLock.releasing} onRequest={editLock.request} onTakeOver={editLock.takeOver} onSaveAndRelease={() => void editLock.saveAndRelease(flush)} onKeepEditing={editLock.keepEditing} />
 
+      <PreparationRevisionNotice config={draft.config} />
       <div className="ws-audit-editor__grid">
         <aside className="ws-audit-agent-panel">
           {agentCollapsed ? (

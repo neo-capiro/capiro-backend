@@ -45,10 +45,20 @@ export type {
 
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
-import { normalizeCalendarPage, liveHearingApiError } from '../../../../pages/radar/live-hearings/live-hearings-api.js';
+import { useApiScope } from '../../../../lib/use-api-scope.js';
+import {
+  normalizeCalendarPage,
+  liveHearingApiError,
+} from '../../../../pages/radar/live-hearings/live-hearings-api.js';
 import type { LiveHearingCalendarPage } from '../../../../pages/radar/live-hearings/live-hearings.types.js';
 
 export interface WeekRangeParams {
+  jurisdiction?: 'US' | 'FL' | 'ALL';
+  session?: string;
+  stateCommitteeId?: string;
+  billIds?: string[];
+  following?: boolean;
+  eventType?: string;
   /** Inclusive Eastern calendar day `YYYY-MM-DD` (the week's Monday). */
   from: string;
   /**
@@ -82,10 +92,12 @@ const CALENDAR_PAGE_SIZE = 200;
 // forever or silently dropped.
 const CALENDAR_MAX_PAGES = 20;
 
-export function useLwWeekCalendar(params: WeekRangeParams) {
+export function useLwWeekCalendar(params: WeekRangeParams, enabled = true) {
   const api = useApi();
+  const actor = useApiScope();
   return useQuery<LiveHearingCalendarPage, Error>({
-    queryKey: ['lw', 'canonical-calendar', params],
+    queryKey: ['lw', 'canonical-calendar', actor, params],
+    enabled,
     queryFn: async () => {
       const q = new URLSearchParams();
       q.set('from', params.from);
@@ -95,6 +107,24 @@ export function useLwWeekCalendar(params: WeekRangeParams) {
       if (params.chamber) q.set('chamber', params.chamber);
       if (params.committee) q.set('committee', params.committee);
       if (params.q) q.set('q', params.q);
+      for (const key of [
+        'jurisdiction',
+        'session',
+        'stateCommitteeId',
+        'following',
+        'eventType',
+      ] as const)
+        if (params[key] !== undefined) q.set(key, String(params[key]));
+      const readPage = async () =>
+        params.billIds
+          ? (
+              await api.post<unknown>('/api/legiwatch/live-hearings/calendar/query', {
+                ...params,
+                page: Number(q.get('page')),
+                pageSize: CALENDAR_PAGE_SIZE,
+              })
+            ).data
+          : (await api.get<unknown>(`/api/legiwatch/live-hearings/calendar?${q.toString()}`)).data;
       try {
         // The week grid must show every hearing in range, not just the first
         // page — a single week can plausibly exceed one page's worth once
@@ -102,17 +132,13 @@ export function useLwWeekCalendar(params: WeekRangeParams) {
         // fetching subsequent pages until the server's own `total` is fully
         // accounted for (or the safety ceiling above trips).
         q.set('page', '1');
-        const first = normalizeCalendarPage(
-          (await api.get<unknown>(`/api/legiwatch/live-hearings/calendar?${q.toString()}`)).data,
-        );
+        const first = normalizeCalendarPage(await readPage());
         const rows = [...first.items];
         let page = 1;
         while (rows.length < first.total && page < CALENDAR_MAX_PAGES) {
           page += 1;
           q.set('page', String(page));
-          const next = normalizeCalendarPage(
-            (await api.get<unknown>(`/api/legiwatch/live-hearings/calendar?${q.toString()}`)).data,
-          );
+          const next = normalizeCalendarPage(await readPage());
           if (next.items.length === 0) break;
           rows.push(...next.items);
         }

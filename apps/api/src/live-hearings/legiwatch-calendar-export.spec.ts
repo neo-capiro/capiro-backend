@@ -19,10 +19,55 @@ import {
   icsInstant,
   type CalendarExportHearing,
 } from './legiwatch-calendar-export.js';
+// The package publishes a CJS require entry alongside its ESM type surface.
+const ICAL = require('ical.js');
 
 const APP_ORIGIN = 'https://os.capiro.ai';
 const NOW = new Date('2026-09-04T12:00:00.000Z');
 const OPTS = { appOrigin: APP_ORIGIN, now: NOW };
+
+describe('RFC 5545 round trip through ical.js', () => {
+  it('parses stable UIDs, increasing stored sequence, cancellation and escaped text with no fabricated end', () => {
+    const title = 'Révision; oversight, funding\\\nPublished agenda';
+    const read = (revision: number, status = 'scheduled') => {
+      const { ics } = buildCalendarExport(
+        hearing({
+          title,
+          calendarRevision: revision,
+          eventStatus: status,
+          startsAt: '2026-11-01T09:30:00Z',
+          timezone: 'America/Los_Angeles',
+        }),
+        OPTS,
+      );
+      return new ICAL.Component(ICAL.parse(ics)).getFirstSubcomponent('vevent')!;
+    };
+    const first = read(4),
+      repeat = read(4),
+      canceled = read(5, 'canceled');
+    expect(first.getFirstPropertyValue('uid')).toBe(repeat.getFirstPropertyValue('uid'));
+    expect(first.getFirstPropertyValue('uid')).toBe(canceled.getFirstPropertyValue('uid'));
+    expect(first.getFirstPropertyValue('sequence')).toBe(4);
+    expect(canceled.getFirstPropertyValue('sequence')).toBe(5);
+    expect(first.getFirstPropertyValue('summary')).toBe(title);
+    expect(canceled.getFirstPropertyValue('status')).toBe('CANCELLED');
+    expect(new ICAL.Event(first).startDate.toJSDate().toISOString()).toBe(
+      '2026-11-01T09:30:00.000Z',
+    );
+    expect(first.hasProperty('dtend')).toBe(false);
+  });
+  it('parses an explicit relative-time date reminder as a DATE, preserving its day', () => {
+    const { ics } = buildCalendarExport(
+      hearing({ startsAt: null, time: 'Upon adjournment', timePrecision: 'relative' }),
+      { ...OPTS, dateOnlyReminder: true },
+    );
+    const event = new ICAL.Event(
+      new ICAL.Component(ICAL.parse(ics)).getFirstSubcomponent('vevent')!,
+    );
+    expect(event.startDate.isDate).toBe(true);
+    expect(event.startDate.toString()).toBe('2026-09-10');
+  });
+});
 
 function hearing(overrides: Partial<CalendarExportHearing> = {}): CalendarExportHearing {
   return {
@@ -66,16 +111,13 @@ describe('LegiWatch calendar export — Eastern time', () => {
     expect(rawLine(ics, 'DTSTART:')).toBe('DTSTART:20260910T140000Z');
   });
 
-  it('defaults DTEND to a two-hour block when no end is published', () => {
+  it('omits DTEND when no end is published', () => {
     const { ics } = buildCalendarExport(hearing({ actualEnd: null }), OPTS);
-    expect(rawLine(ics, 'DTEND:')).toBe('DTEND:20260910T160000Z');
+    expect(ics).not.toContain('DTEND:');
   });
 
   it('uses a published end instant when one exists', () => {
-    const { ics } = buildCalendarExport(
-      hearing({ actualEnd: '2026-09-10T17:30:00.000Z' }),
-      OPTS,
-    );
+    const { ics } = buildCalendarExport(hearing({ actualEnd: '2026-09-10T17:30:00.000Z' }), OPTS);
     expect(rawLine(ics, 'DTEND:')).toBe('DTEND:20260910T173000Z');
   });
 
@@ -201,9 +243,9 @@ describe('LegiWatch calendar export — unknown time / date-only', () => {
   });
 
   it('refuses to export a hearing with no usable calendar day', () => {
-    expect(() =>
-      buildCalendarExport(hearing({ date: '', startsAt: null }), OPTS),
-    ).toThrow(/no usable calendar date/);
+    expect(() => buildCalendarExport(hearing({ date: '', startsAt: null }), OPTS)).toThrow(
+      /no usable calendar date/,
+    );
   });
 
   it('rejects an impossible calendar day instead of normalizing it forward', () => {
@@ -289,9 +331,7 @@ describe('LegiWatch calendar export — multiline description', () => {
       }),
       OPTS,
     );
-    expect(prop(ics, 'DESCRIPTION')).toContain(
-      'Committee: Committee on Armed Services\\n',
-    );
+    expect(prop(ics, 'DESCRIPTION')).toContain('Committee: Committee on Armed Services\\n');
   });
 
   it('joins a distinct subcommittee onto the parent committee', () => {
@@ -314,21 +354,15 @@ describe('LegiWatch calendar export — cancellation', () => {
 
   it('marks the summary so the cancellation is visible in a month grid', () => {
     const { ics } = buildCalendarExport(hearing({ eventStatus: 'canceled' }), OPTS);
-    expect(prop(ics, 'SUMMARY')).toBe(
-      'CANCELED: Oversight of Federal Acquisition Policy',
-    );
-    expect(prop(ics, 'DESCRIPTION')).toContain(
-      'This proceeding was CANCELED by the committee.',
-    );
+    expect(prop(ics, 'SUMMARY')).toBe('CANCELED: Oversight of Federal Acquisition Policy');
+    expect(prop(ics, 'DESCRIPTION')).toContain('This proceeding was CANCELED by the committee.');
   });
 
   it('treats a postponed proceeding as TENTATIVE, not cancelled', () => {
     const { ics } = buildCalendarExport(hearing({ eventStatus: 'postponed' }), OPTS);
     expect(rawLine(ics, 'STATUS:')).toBe('STATUS:TENTATIVE');
     expect(rawLine(ics, 'SEQUENCE:')).toBe('SEQUENCE:0');
-    expect(prop(ics, 'DESCRIPTION')).toContain(
-      'This proceeding was POSTPONED by the committee.',
-    );
+    expect(prop(ics, 'DESCRIPTION')).toContain('This proceeding was POSTPONED by the committee.');
   });
 
   it('confirms a scheduled or completed proceeding', () => {
@@ -445,27 +479,19 @@ describe('LegiWatch calendar export — canonical link and web calendar URLs', (
   it('builds a Google URL with a UTC instant range for a timed hearing', () => {
     const { googleUrl } = buildCalendarExport(hearing({ actualEnd: null }), OPTS);
     const url = new URL(googleUrl);
-    expect(url.origin + url.pathname).toBe(
-      'https://calendar.google.com/calendar/render',
-    );
+    expect(url.origin + url.pathname).toBe('https://calendar.google.com/calendar/render');
     expect(url.searchParams.get('action')).toBe('TEMPLATE');
-    expect(url.searchParams.get('dates')).toBe('20260910T140000Z/20260910T160000Z');
+    expect(url.searchParams.get('dates')).toBe('20260910T140000Z/20260910T140000Z');
     expect(url.searchParams.get('location')).toBe('Rayburn House Office Building 2118');
   });
 
   it('builds a Google URL with a zoneless date range for a date-only hearing', () => {
-    const { googleUrl } = buildCalendarExport(
-      hearing({ startsAt: null, time: null }),
-      OPTS,
-    );
+    const { googleUrl } = buildCalendarExport(hearing({ startsAt: null, time: null }), OPTS);
     expect(new URL(googleUrl).searchParams.get('dates')).toBe('20260910/20260911');
   });
 
   it('builds an Outlook all-day URL with plain dates, not instants', () => {
-    const { outlookUrl } = buildCalendarExport(
-      hearing({ startsAt: null, time: null }),
-      OPTS,
-    );
+    const { outlookUrl } = buildCalendarExport(hearing({ startsAt: null, time: null }), OPTS);
     const url = new URL(outlookUrl);
     expect(url.searchParams.get('allday')).toBe('true');
     expect(url.searchParams.get('startdt')).toBe('2026-09-10');
@@ -479,7 +505,7 @@ describe('LegiWatch calendar export — canonical link and web calendar URLs', (
     const url = new URL(outlookUrl);
     expect(url.searchParams.get('rru')).toBe('addevent');
     expect(url.searchParams.get('startdt')).toBe('2026-09-10T14:00:00.000Z');
-    expect(url.searchParams.get('enddt')).toBe('2026-09-10T16:00:00.000Z');
+    expect(url.searchParams.get('enddt')).toBeNull();
     expect(url.searchParams.get('allday')).toBeNull();
   });
 

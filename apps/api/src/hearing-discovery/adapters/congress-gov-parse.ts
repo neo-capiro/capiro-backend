@@ -39,6 +39,21 @@ export interface RelatedItemsBills {
     | null;
 }
 
+/** An explicit complete envelope may withdraw links only if every row parsed.
+ * Duplicates are harmless; malformed entries make the observation partial. */
+export function relatedAgendaComplete(detail: {
+  relatedItems?: RelatedItemsBills | null;
+}): boolean {
+  const raw = detail.relatedItems?.bills;
+  const rows = Array.isArray(raw) ? raw : raw?.bill;
+  return (
+    Array.isArray(rows) &&
+    rows.every(
+      (row) => relatedAgendaBills({ relatedItems: { bills: [row as never] } }).length === 1,
+    )
+  );
+}
+
 /**
  * Canonical congress_bill ids for the bills on a meeting agenda, from the
  * detail's relatedItems.bills[]. "HR"/"H.R." → "hr", so a
@@ -63,7 +78,14 @@ export function relatedAgendaBills(detail: {
       .toLowerCase()
       .replace(/[.\s]/g, '');
     const number = String(b?.number ?? '').trim();
-    if (!Number.isFinite(congress) || congress <= 0 || !type || !number) continue;
+    if (
+      !Number.isInteger(congress) ||
+      congress <= 0 ||
+      !['hr', 's', 'hres', 'sres', 'hjres', 'sjres', 'hconres', 'sconres'].includes(type) ||
+      !/^\d+$/.test(number) ||
+      Number(number) <= 0
+    )
+      continue;
     const billId = `${congress}-${type}-${number}`;
     if (seen.has(billId)) continue;
     seen.add(billId);

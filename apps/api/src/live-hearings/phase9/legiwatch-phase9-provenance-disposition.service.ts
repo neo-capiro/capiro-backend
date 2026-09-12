@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 /**
@@ -24,9 +29,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
  *    the artifact + details
  */
 
-export const LEGIWATCH_PROVENANCE_DISPOSITION_TYPES = [
-  'OFFICIAL_OBSERVATION_UNAVAILABLE',
-] as const;
+export const LEGIWATCH_PROVENANCE_DISPOSITION_TYPES = ['OFFICIAL_OBSERVATION_UNAVAILABLE'] as const;
 
 export const LEGIWATCH_PROVENANCE_DISPOSITION_REASON_CODES = [
   'CLOSED_BRIEFING_NO_PUBLIC_EVENT_RECORD',
@@ -202,7 +205,9 @@ export class LegiWatchPhase9ProvenanceDispositionService {
     );
     const row = rows[0];
     if (!row) {
-      throw new NotFoundException(`no ACTIVE provenance disposition for hearing ${input.hearingId}`);
+      throw new NotFoundException(
+        `no ACTIVE provenance disposition for hearing ${input.hearingId}`,
+      );
     }
     return row;
   }
@@ -257,9 +262,11 @@ export class LegiWatchPhase9ProvenanceDispositionService {
     }
     if (!input.artifactUri || !input.artifactUri.trim()) {
       refusals.push('artifactUri is required');
-    } else if (!/^https:\/\//i.test(input.artifactUri.trim()) &&
-               !/^s3:\/\//i.test(input.artifactUri.trim()) &&
-               !/^arn:/i.test(input.artifactUri.trim())) {
+    } else if (
+      !/^https:\/\//i.test(input.artifactUri.trim()) &&
+      !/^s3:\/\//i.test(input.artifactUri.trim()) &&
+      !/^arn:/i.test(input.artifactUri.trim())
+    ) {
       refusals.push('artifactUri must be a credential-free https://, s3://, or arn: reference');
     }
     const reviewedBy = (input.reviewedBy ?? '').trim();
@@ -286,7 +293,7 @@ export class LegiWatchPhase9ProvenanceDispositionService {
     let activeDisposition = false;
     if (hearingId) {
       const hearings = await this.prisma.$queryRawUnsafe<Array<{ n: number }>>(
-        `SELECT COUNT(*)::int AS n FROM committee_hearing WHERE id=$1`,
+        `SELECT COUNT(*)::int AS n FROM federal_committee_hearing WHERE id=$1`,
         hearingId,
       );
       hearingExists = (hearings[0]?.n ?? 0) > 0;
@@ -337,7 +344,10 @@ export interface ProvenanceDispositionInput {
 const DISPOSITION_TX_TIMEOUT_MS = 30_000;
 
 function boundedText(value: string, maximum: number): string {
-  const clean = value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, maximum);
+  const clean = value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, maximum);
   if (!clean) throw new BadRequestException('actor is required');
   return clean;
 }

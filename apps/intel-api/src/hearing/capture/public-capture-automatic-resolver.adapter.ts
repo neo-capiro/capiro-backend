@@ -50,10 +50,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     this.automatic = new AutomaticStreamResolver(resolver);
   }
 
-  async resolve(input: {
-    pageUrl?: string;
-    hearingId?: string;
-  }): Promise<ResolverResultLike> {
+  async resolve(input: { pageUrl?: string; hearingId?: string }): Promise<ResolverResultLike> {
     const result = await this.resolveInternal(input);
     return result.rawResult;
   }
@@ -132,7 +129,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
               CASE WHEN visibility='private' THEN 'CLOSED' ELSE 'PUBLIC' END AS "publicAccess",
               COALESCE(starts_at, date::timestamptz) AS "scheduledStart",
               url AS "officialPageUrl"
-       FROM committee_hearing
+       FROM federal_committee_hearing
        WHERE id=$1
        LIMIT 1`,
       hearingId,
@@ -261,17 +258,15 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     const officialPageUrl =
       attempt.target.kind === 'OFFICIAL_PAGE'
         ? attempt.target.url
-        : safeReference(result.rawResult.reference) ??
-          safeReference(attempt.target.url) ??
-          null;
+        : (safeReference(result.rawResult.reference) ?? safeReference(attempt.target.url) ?? null);
     if (!officialPageUrl) return;
 
     const media = attempt.outcome.media ?? result.selected.media;
     const mediaUrl =
       media && attempt.outcome.mayPersistResolvedMediaUrl
-        ? safeReference(media.url) ?? null
+        ? (safeReference(media.url) ?? null)
         : attempt.target.kind === 'MEDIA_REFERENCE'
-          ? safeReference(attempt.target.url) ?? null
+          ? (safeReference(attempt.target.url) ?? null)
           : null;
     const provider =
       (media?.provider || attempt.target.providerHint || 'unknown').trim() || 'unknown';
@@ -367,7 +362,10 @@ function safeReference(value?: string): string | undefined {
 }
 
 function bounded(value: string, max: number): string {
-  return value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max);
+  return value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function boundedError(error: unknown): string {

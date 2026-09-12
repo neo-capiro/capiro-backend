@@ -39,7 +39,11 @@ function prismaStub(rows: {
   const service = {
     $queryRawUnsafe: async (sql: string, ...params: unknown[]) => {
       const s = sql.replace(/\s+/g, ' ');
-      if (s.includes('FROM committee_hearing h') && s.includes('NOT EXISTS') && s.includes('LIMIT')) {
+      if (
+        s.includes('FROM federal_committee_hearing h') &&
+        s.includes('NOT EXISTS') &&
+        s.includes('LIMIT')
+      ) {
         // params follow selectCandidates: [lookbackDays, limit, cursorEff, cursorId]
         const limit = Number(params[1] ?? 25);
         const cursorId = (params[3] as string | null) ?? null;
@@ -81,7 +85,8 @@ describe('LegiWatchPhase9ProvenanceBackfillService', () => {
     chamber: 'Senate',
     congress: 119,
     committee_system_code: 'hsag00',
-    title: 'Hearings to examine the nomination of Todd Blanche, of Florida, to be Attorney General.',
+    title:
+      'Hearings to examine the nomination of Todd Blanche, of Florida, to be Attorney General.',
     url: 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
     starts_at: new Date('2026-07-15T13:00:00Z'),
     date: new Date('2026-07-15'),
@@ -330,9 +335,9 @@ describe('LegiWatchPhase9ProvenanceBackfillService', () => {
     // Regression: without @Injectable(), emitDecoratorMetadata skips the class and Nest injects
     // undefined for prisma (live failure 2026-09-01: prisma undefined at selectCandidates).
     const designParamtypes = 'design:paramtypes';
-    expect(
-      Reflect.hasOwnMetadata(designParamtypes, LegiWatchPhase9ProvenanceBackfillService),
-    ).toBe(true);
+    expect(Reflect.hasOwnMetadata(designParamtypes, LegiWatchPhase9ProvenanceBackfillService)).toBe(
+      true,
+    );
     expect(Reflect.getMetadata(designParamtypes, LegiWatchPhase9ProvenanceBackfillService)[0]).toBe(
       PrismaService,
     );
@@ -341,9 +346,9 @@ describe('LegiWatchPhase9ProvenanceBackfillService', () => {
   it('refuses to run when not explicitly manual', async () => {
     const prisma = prismaStub({ candidates: [] });
     const service = new LegiWatchPhase9ProvenanceBackfillService(prisma);
-    await expect(
-      service.run({ manual: false, lookbackDays: 60, limit: 25 }),
-    ).rejects.toThrow(/manual/i);
+    await expect(service.run({ manual: false, lookbackDays: 60, limit: 25 })).rejects.toThrow(
+      /manual/i,
+    );
   });
 
   it('bounds the batch and reports the remaining gap for restartability', async () => {

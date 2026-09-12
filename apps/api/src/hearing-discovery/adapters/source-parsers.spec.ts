@@ -19,11 +19,37 @@ import {
   formatWitnesses,
   meetingPublicUrl,
   relatedAgendaBills,
+  relatedAgendaComplete,
 } from './congress-gov-parse.js';
 import { byDayUrl, houseDayId, inferHouseType, parseByDay } from './house-docs-parse.js';
 import { cleanText, decodeEntities } from './source-http.js';
 
 describe('relatedAgendaBills', () => {
+  it('distinguishes a complete empty agenda from absent, reference-only and malformed envelopes', () => {
+    expect(relatedAgendaComplete({ relatedItems: { bills: [] } })).toBe(true);
+    expect(relatedAgendaComplete({})).toBe(false);
+    expect(relatedAgendaComplete({ relatedItems: { bills: {} } })).toBe(false);
+    for (const bad of [
+      { type: 'SB', number: 1, congress: 119 },
+      { type: 'S', number: 'TBD', congress: 119 },
+      { type: 'S', number: 1, congress: 0 },
+      null,
+    ]) {
+      expect(relatedAgendaComplete({ relatedItems: { bills: [bad as never] } })).toBe(false);
+    }
+    expect(
+      relatedAgendaComplete({
+        relatedItems: {
+          bills: {
+            bill: [
+              { type: 'S', number: 1, congress: 119 },
+              { type: 'S', number: 1, congress: 119 },
+            ],
+          },
+        },
+      }),
+    ).toBe(true);
+  });
   it('builds canonical congress_bill ids from the inline array', () => {
     expect(
       relatedAgendaBills({

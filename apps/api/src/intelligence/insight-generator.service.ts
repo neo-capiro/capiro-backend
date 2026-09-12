@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -591,9 +592,9 @@ export class InsightGeneratorService {
         // Start-of-Eastern-day, matching the correct usage at the daily-brief query
         // below. `date` is a UTC-midnight @db.Date, so `gte: now` compared
         // 00:00Z >= 13:00Z and silently dropped every hearing happening today.
-        where: {
+        where: federalHearingWhere({
           date: { gte: dateBoundsInZone(now, 'America/New_York').start, lte: fourteenDaysOut },
-        },
+        }),
         orderBy: { date: 'asc' },
         take: 10,
       }),
@@ -989,7 +990,7 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
 
     const [hearings, meetings, changes] = await Promise.all([
       this.prisma.committeeHearing.findMany({
-        where: { date: { gte: startOfDay, lte: sevenDaysOut } },
+        where: federalHearingWhere({ date: { gte: startOfDay, lte: sevenDaysOut } }),
         orderBy: { date: 'asc' },
         take: 12,
       }),

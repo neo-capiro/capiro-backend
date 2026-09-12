@@ -16,7 +16,7 @@ import 'reflect-metadata';
 function prismaMock(rows: unknown[], sources: unknown[] = []): never {
   return {
     $queryRawUnsafe: jest.fn(async (sql: string) => {
-      if (String(sql).includes('FROM committee_hearing')) return rows;
+      if (String(sql).includes('FROM federal_committee_hearing')) return rows;
       if (String(sql).includes('FROM committee_source')) return sources;
       return [];
     }),

@@ -278,7 +278,8 @@ export const w1Keys = {
     ['lw-w1', 'detail', hearingId, clientId] as const,
   relevance: (hearingId: string, clientId: string) =>
     ['lw-w1', 'relevance', hearingId, clientId] as const,
-  archive: (params: unknown, identity: string | null) => ['lw-w1', 'archive', params, identity] as const,
+  archive: (params: unknown, identity: string | null) =>
+    ['lw-w1', 'archive', params, identity] as const,
   committeeFollow: (systemCode: string) => ['lw-w1', 'committee-follow', systemCode] as const,
   committeeIntel: (systemCode: string, params: unknown) =>
     ['lw-w1', 'committee-intel', systemCode, params] as const,
@@ -294,9 +295,7 @@ export const w1Keys = {
  */
 export function isCanceled(err: unknown): boolean {
   const e = err as { code?: unknown; name?: unknown } | null | undefined;
-  return (
-    e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError' || e?.name === 'AbortError'
-  );
+  return e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError' || e?.name === 'AbortError';
 }
 
 /** Turn an axios failure into a message the UI can show without guessing. */
@@ -538,12 +537,8 @@ export function useSaveCommitteeFollow(systemCode: string) {
   const qc = useQueryClient();
   return useMutation<CommitteeFollowConfig, Error, CommitteeFollowInput>({
     mutationFn: async (input) =>
-      (
-        await api.put<CommitteeFollowConfig>(
-          `${BASE}/committees/${enc(systemCode)}/follow`,
-          input,
-        )
-      ).data,
+      (await api.put<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`, input))
+        .data,
     onSuccess: (data) => qc.setQueryData(w1Keys.committeeFollow(systemCode), data),
   });
 }
@@ -553,9 +548,8 @@ export function useUnfollowCommittee(systemCode: string) {
   const qc = useQueryClient();
   return useMutation<CommitteeFollowConfig, Error, void>({
     mutationFn: async () =>
-      (
-        await api.delete<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`)
-      ).data,
+      (await api.delete<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`))
+        .data,
     onSuccess: (data) => qc.setQueryData(w1Keys.committeeFollow(systemCode), data),
   });
 }
@@ -771,12 +765,17 @@ export function useSaveItem(hearingId: string) {
 export function useCalendarExport(
   hearingId: string,
   enabled: boolean,
+  dateOnlyReminder = false,
 ): UseQueryResult<CalendarExport, Error> {
   const api = useApi();
   return useQuery<CalendarExport, Error>({
-    queryKey: w1Keys.calendar(hearingId),
+    queryKey: [...w1Keys.calendar(hearingId), dateOnlyReminder],
     queryFn: async () =>
-      (await api.get<CalendarExport>(`${BASE}/events/${enc(hearingId)}/calendar-export`)).data,
+      (
+        await api.get<CalendarExport>(
+          `${BASE}/events/${enc(hearingId)}/calendar-export?dateOnlyReminder=${dateOnlyReminder}`,
+        )
+      ).data,
     enabled: enabled && Boolean(hearingId),
     staleTime: 5 * 60_000,
     retry: false,
@@ -799,12 +798,18 @@ export interface HearingUpdate {
 /** Sources & Documents · "What changed" timeline (LEGIWATCH-V2-HANDOFF §5.4) —
  *  the same `committee_site_update` rows the Committee Room's Updates &
  *  Documents tab already reads, scoped to this one hearing. */
-export function useHearingUpdates(hearingId: string): UseQueryResult<{ hearingId: string; updates: HearingUpdate[] }, Error> {
+export function useHearingUpdates(
+  hearingId: string,
+): UseQueryResult<{ hearingId: string; updates: HearingUpdate[] }, Error> {
   const api = useApi();
   return useQuery<{ hearingId: string; updates: HearingUpdate[] }, Error>({
     queryKey: ['lw-vnext', 'hearing-updates', hearingId],
     queryFn: async () =>
-      (await api.get<{ hearingId: string; updates: HearingUpdate[] }>(`${BASE}/events/${enc(hearingId)}/updates`)).data,
+      (
+        await api.get<{ hearingId: string; updates: HearingUpdate[] }>(
+          `${BASE}/events/${enc(hearingId)}/updates`,
+        )
+      ).data,
     enabled: Boolean(hearingId),
     staleTime: 60_000,
   });
@@ -822,7 +827,24 @@ export interface BulkCalendarExport {
  *  the single-hearing export (`downloadIcs`). */
 export function useCalendarExportBulk() {
   const api = useApi();
-  return useMutation<BulkCalendarExport, Error, { hearingIds?: string[]; from?: string; to?: string }>({
+  return useMutation<
+    BulkCalendarExport,
+    Error,
+    {
+      hearingIds?: string[];
+      from?: string;
+      to?: string;
+      jurisdiction?: string;
+      session?: string;
+      stateCommitteeId?: string;
+      billIds?: string[];
+      following?: boolean;
+      committee?: string;
+      eventType?: string;
+      q?: string;
+      dateOnlyReminder?: boolean;
+    }
+  >({
     mutationFn: async (input) =>
       (await api.post<BulkCalendarExport>(`${BASE}/calendar-export/bulk`, input)).data,
   });
@@ -907,9 +929,8 @@ export function useHearingDetailV2(
     queryKey: w1Keys.detail(hearingId, clientId || '_all'),
     queryFn: async () => {
       const qs = clientId ? `?clientId=${enc(clientId)}` : '';
-      return (
-        await api.get<HearingDetailV2>(`${BASE}/events/${enc(hearingId)}/detail-v2${qs}`)
-      ).data;
+      return (await api.get<HearingDetailV2>(`${BASE}/events/${enc(hearingId)}/detail-v2${qs}`))
+        .data;
     },
     enabled: Boolean(hearingId),
     staleTime: 30_000,

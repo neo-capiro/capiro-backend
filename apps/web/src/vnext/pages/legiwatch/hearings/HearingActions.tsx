@@ -370,7 +370,8 @@ export function CalendarExportControl({
 }) {
   const [open, setOpen] = useState(false);
   // Only fetched once the user asks — no ICS body on every detail render.
-  const exportQuery = useCalendarExport(hearingId, open);
+  const [dateOnlyReminder, setDateOnlyReminder] = useState(false);
+  const exportQuery = useCalendarExport(hearingId, open, dateOnlyReminder);
 
   return (
     <span style={{ position: 'relative', display: 'inline-block' }}>
@@ -395,6 +396,14 @@ export function CalendarExportControl({
             if (e.key === 'Escape') setOpen(false);
           }}
         >
+          <label>
+            <input
+              type="checkbox"
+              checked={dateOnlyReminder}
+              onChange={(e) => setDateOnlyReminder(e.target.checked)}
+            />{' '}
+            Use a date-only reminder when no exact start time is published
+          </label>
           {exportQuery.isLoading ? (
             <span className="lw-card__meta">Preparing export…</span>
           ) : exportQuery.isError || !exportQuery.data ? (

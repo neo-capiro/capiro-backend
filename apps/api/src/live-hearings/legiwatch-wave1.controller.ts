@@ -33,6 +33,15 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
+import { CalendarQueryDto } from './live-hearings.controller.js';
+import { IsBoolean, IsIn, IsOptional } from 'class-validator';
+
+class CalendarReminderDto {
+  @IsOptional() @IsIn(['true', 'false']) dateOnlyReminder?: string;
+}
+class CalendarExportSelectionDto extends CalendarQueryDto {
+  @IsOptional() @IsBoolean() dateOnlyReminder?: boolean;
+}
 import {
   ArchiveSearchQueryDto,
   AskMeriDto,
@@ -139,10 +148,7 @@ export class LegiWatchWave1Controller {
   }
 
   @Delete('committees/:systemCode/follow')
-  unfollowCommittee(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('systemCode') systemCode: string,
-  ) {
+  unfollowCommittee(@CurrentTenant() ctx: TenantContext, @Param('systemCode') systemCode: string) {
     return this.wave1.unfollowCommittee(ctx, systemCode);
   }
 
@@ -172,11 +178,7 @@ export class LegiWatchWave1Controller {
   // ── W1-7 · actions ───────────────────────────────────────────────────────
 
   @Post('events/:id/actions/ask-meri')
-  askMeri(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Body() body: AskMeriDto,
-  ) {
+  askMeri(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() body: AskMeriDto) {
     return this.wave1.buildMeriContextPacket(ctx, id, body);
   }
 
@@ -218,20 +220,14 @@ export class LegiWatchWave1Controller {
   }
 
   @Delete('saved-items/:savedItemId')
-  deleteSavedItem(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('savedItemId') savedItemId: string,
-  ) {
+  deleteSavedItem(@CurrentTenant() ctx: TenantContext, @Param('savedItemId') savedItemId: string) {
     return this.wave1.deleteSavedItem(ctx, savedItemId);
   }
 
   // ── W1-5 · notification inbox ────────────────────────────────────────────
 
   @Get('notifications')
-  notifications(
-    @CurrentTenant() ctx: TenantContext,
-    @Query() query: NotificationInboxQueryDto,
-  ) {
+  notifications(@CurrentTenant() ctx: TenantContext, @Query() query: NotificationInboxQueryDto) {
     return this.wave1.notificationInbox(ctx, query);
   }
 
@@ -253,8 +249,14 @@ export class LegiWatchWave1Controller {
    * without a second round trip.
    */
   @Get('events/:id/calendar-export')
-  calendarExport(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.wave1.calendarExport(ctx, id, this.appOrigin());
+  calendarExport(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query() query: CalendarReminderDto,
+  ) {
+    return this.wave1.calendarExport(ctx, id, this.appOrigin(), {
+      dateOnlyReminder: query.dateOnlyReminder === 'true',
+    });
   }
 
   /**
@@ -267,7 +269,7 @@ export class LegiWatchWave1Controller {
   @Header('Cache-Control', 'no-store')
   calendarExportBulk(
     @CurrentTenant() ctx: TenantContext,
-    @Body() body: { hearingIds?: string[]; from?: string; to?: string },
+    @Body() body: CalendarExportSelectionDto,
   ) {
     return this.wave1.calendarExportBulk(ctx, body, this.appOrigin());
   }
@@ -282,8 +284,11 @@ export class LegiWatchWave1Controller {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Res() res: Response,
+    @Query() query: CalendarReminderDto = {},
   ): Promise<void> {
-    const result = await this.wave1.calendarExport(ctx, id, this.appOrigin());
+    const result = await this.wave1.calendarExport(ctx, id, this.appOrigin(), {
+      dateOnlyReminder: query.dateOnlyReminder === 'true',
+    });
     res
       .status(200)
       .type('text/calendar; charset=utf-8')

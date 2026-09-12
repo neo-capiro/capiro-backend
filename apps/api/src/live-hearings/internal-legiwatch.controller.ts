@@ -12,6 +12,14 @@ export class BillRecordNotificationDto {
   @IsString() @MaxLength(500) title!: string;
   @IsString() @MaxLength(10000) body!: string;
 }
+export class AgendaNotificationDto {
+  @IsUUID() tenantId!: string;
+  @IsString() @MaxLength(200) userId!: string;
+  @IsString() @MaxLength(200) hearingId!: string;
+  @IsString() @MaxLength(500) eventKey!: string;
+  @IsString() @MaxLength(500) title!: string;
+  @IsString() @MaxLength(10000) body!: string;
+}
 
 /**
  * class-validator decorators are REQUIRED: the global ValidationPipe runs
@@ -51,11 +59,18 @@ export class ClientBriefContextQueryDto {
 @Controller('internal/legiwatch')
 @UseGuards(InternalServiceGuard)
 export class InternalLegiWatchController {
-  constructor(private readonly wave1: LegiWatchWave1Service, private readonly notifications: LegiWatchLifecycleNotificationService) {}
+  constructor(
+    private readonly wave1: LegiWatchWave1Service,
+    private readonly notifications: LegiWatchLifecycleNotificationService,
+  ) {}
 
   @Post('bill-record-notification')
   billRecord(@Body() input: BillRecordNotificationDto) {
     return this.notifications.emitBillRecord(input);
+  }
+  @Post('agenda-notification')
+  agenda(@Body() input: AgendaNotificationDto) {
+    return this.notifications.emitAgenda(input);
   }
 
   @Get('client-brief-context')

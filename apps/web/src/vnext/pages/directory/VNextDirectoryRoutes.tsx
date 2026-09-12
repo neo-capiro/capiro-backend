@@ -19,6 +19,9 @@ const DowVNext = lazy(async () => ({
 const StateLegislatorsVNext = lazy(async () => ({
   default: (await import('./StateLegislatorsVNext.js')).StateLegislatorsVNext,
 }));
+const StateCommitteesVNext = lazy(async () => ({
+  default: (await import('./StateCommitteesVNext.js')).StateCommitteesVNext,
+}));
 
 const CommitteeStaffVNext = lazy(async () => ({
   default: (await import('./CommitteeStaffVNext.js')).CommitteeStaffVNext,
@@ -59,6 +62,8 @@ function ProfileRoute({ match }: { match: DirectoryProfileMatch }) {
       return <CommitteeProfileVNext committeeId={match.committeeId} />;
     case 'stateLegislator':
       return <StateLegislatorProfileVNext id={match.id} />;
+    case 'stateCommittee':
+      return <StateCommitteesVNext id={match.id} />;
     case 'district':
       return <DistrictProfileVNext state={match.state} districtNo={match.districtNo} />;
   }
@@ -81,6 +86,12 @@ function ProfileRoute({ match }: { match: DirectoryProfileMatch }) {
  */
 export function VNextDirectoryRoutes() {
   const location = useLocation();
+  if (location.pathname === DIRECTORY_ROUTES.stateCommittees)
+    return (
+      <Suspense fallback={<RouteLoading />}>
+        <StateCommitteesVNext />
+      </Suspense>
+    );
 
   // Legacy entry point: `/directory` → `/directory/congressional-staff`, query
   // preserved so bookmarks and shared searches keep their filters.
@@ -145,6 +156,7 @@ export function isVNextDirectoryPath(pathname: string): boolean {
     pathname === DIRECTORY_ROUTES.congressionalStaff ||
     pathname === DIRECTORY_ROUTES.departmentOfWar ||
     pathname === DIRECTORY_ROUTES.stateLegislators ||
+    pathname === DIRECTORY_ROUTES.stateCommittees ||
     pathname === DIRECTORY_ROUTES.committeeStaff ||
     matchDirectoryProfilePath(pathname) !== null
   );

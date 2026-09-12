@@ -25,13 +25,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { fetchText } from '../../hearing-discovery/adapters/source-http.js';
-import {
-  cleanTextSafe,
-  extractExplicitLocalTime,
-} from './official-time-evidence.js';
+import { cleanTextSafe, extractExplicitLocalTime } from './official-time-evidence.js';
 import { resolveSourceTime } from '../../hearing-discovery/hearing-time.js';
 import { HearingReconcilerService } from '../../hearing-discovery/hearing-reconciler.service.js';
-import type { SourceDescriptor, SourceEvent } from '../../hearing-discovery/hearing-discovery.types.js';
+import type {
+  SourceDescriptor,
+  SourceEvent,
+} from '../../hearing-discovery/hearing-discovery.types.js';
 
 export interface OfficialTimeObservationOptions {
   manual: boolean;
@@ -102,7 +102,7 @@ export class LegiWatchPhase9OfficialTimeObservationService {
     const rows = await this.prisma.$queryRawUnsafe<Row[]>(
       `SELECT h.id, h.title, h.url, h.chamber, h.congress, h.committee_system_code,
               h.committee_code, h.starts_at, h.date, h.timezone
-       FROM committee_hearing h
+       FROM federal_committee_hearing h
        WHERE COALESCE(h.starts_at, h.date::timestamp)
                BETWEEN now() - ($1 || ' days')::interval
                    AND now() + ($2 || ' days')::interval
@@ -174,7 +174,9 @@ export class LegiWatchPhase9OfficialTimeObservationService {
           result.candidates.push(candidate);
           continue;
         }
-        const calendarDay = row.date ?? new Date(`${(row.starts_at ?? new Date()).toISOString().slice(0, 10)}T00:00:00Z`);
+        const calendarDay =
+          row.date ??
+          new Date(`${(row.starts_at ?? new Date()).toISOString().slice(0, 10)}T00:00:00Z`);
         const resolved = resolveSourceTime({
           instant: null,
           calendarDay,

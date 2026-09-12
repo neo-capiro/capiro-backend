@@ -19,15 +19,29 @@
  * hearing_subscription is `@@unique([tenantId, userId, hearingId])` — one user's
  * "I scheduled this" must not appear as another colleague's.
  */
-import { committeeParentCode, storedCommitteeIdentity } from '../hearing-discovery/hearing-committee-identity.js';
-import { Injectable } from '@nestjs/common';
+import {
+  committeeParentCode,
+  storedCommitteeIdentity,
+} from '../hearing-discovery/hearing-committee-identity.js';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { requireStateCalendar } from './legiwatch-calendar-access.js';
 
 /** One canonical hearing as the master calendar renders it. */
 export interface CalendarEvent {
   id: string;
+  geographicJurisdiction?: string | null;
+  legislativeSession?: string | null;
+  stateCommitteeId?: string | null;
+  calendarRevision?: number;
+  calendarCheckedAt?: string | null;
+  calendarCheckState?: string;
+  timePrecision?: string | null;
+  following?: boolean;
+  agenda?: unknown;
+  documents?: unknown;
   congress: number | null;
   chamber: string;
   committeeName: string;
@@ -84,6 +98,12 @@ export interface CalendarEvent {
 }
 
 export interface CalendarQuery {
+  jurisdiction?: 'US' | 'FL' | 'ALL';
+  session?: string;
+  stateCommitteeId?: string;
+  billIds?: string[];
+  hearingIds?: string[];
+  following?: boolean;
   from?: string;
   to?: string;
   chamber?: string;
@@ -152,6 +172,76 @@ export interface CommitteeSourceCoverageSummary {
 @Injectable()
 export class LiveHearingsService {
   constructor(private readonly prisma: PrismaService) {}
+  async calendarCoverage(ctx: TenantContext, query: CalendarQuery) {
+    await requireStateCalendar(this.prisma, ctx.tenantId);
+    buildWhere({ ...query, jurisdiction: 'FL' });
+    const rows = await this.prisma.legislativeCalendarCoverage.findMany({
+      where: {
+        jurisdiction: 'FL',
+        ...(query.session ? { session: query.session } : {}),
+        ...(query.from ? { fromDate: { lte: new Date(`${query.from}T00:00:00Z`) } } : {}),
+        ...(query.to ? { toDate: { gte: new Date(`${query.to}T00:00:00Z`) } } : {}),
+      },
+      orderBy: [{ chamber: 'asc' }, { attemptedAt: 'desc' }],
+      distinct: ['chamber'],
+      take: 2,
+    });
+    return {
+      rows: rows.map((row) => ({
+        chamber: row.chamber,
+        status: row.status,
+        from: row.fromDate.toISOString().slice(0, 10),
+        to: row.toDate.toISOString().slice(0, 10),
+        checkedAt: row.attemptedAt.toISOString(),
+        items: row.items,
+        details: row.details,
+      })),
+      asOf: new Date().toISOString(),
+    };
+  }
+  async stateBodies(ctx: TenantContext, session?: string) {
+    await requireStateCalendar(this.prisma, ctx.tenantId);
+    return this.prisma.stateCommittee.findMany({
+      where: { state: 'FL', ...(session ? { legislativeSession: session } : {}) },
+      orderBy: [{ chamber: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+      take: 1000,
+      select: {
+        id: true,
+        name: true,
+        state: true,
+        chamber: true,
+        legislativeSession: true,
+        officialSourceKey: true,
+        sourceUrl: true,
+        lastSyncedAt: true,
+      },
+    });
+  }
+  async stateBody(ctx: TenantContext, id: string) {
+    await requireStateCalendar(this.prisma, ctx.tenantId);
+    const body = await this.prisma.stateCommittee.findUnique({
+      where: { id },
+      include: { memberships: { include: { legislator: true } } },
+    });
+    if (!body || body.state !== 'FL') throw new NotFoundException('State committee not found');
+    const events = await this.calendar(ctx, {
+      jurisdiction: 'FL',
+      stateCommitteeId: id,
+      pageSize: 200,
+    });
+    return {
+      body,
+      members: body.memberships.map((m) => ({
+        id: m.legislator.id,
+        name: m.legislator.name,
+        role: m.role,
+        party: m.legislator.party,
+      })),
+      rosterStatus:
+        body.officialSourceKey && !body.memberships.length ? 'unqualified' : 'source_memberships',
+      events,
+    };
+  }
 
   /**
    * Source coverage / health — the operator-tooling surface the prototype
@@ -200,7 +290,10 @@ export class LiveHearingsService {
     // than via a Prisma `distinct` so the same reduction is trivially
     // testable against the plain in-memory Prisma double this module already
     // uses (see live-hearings.service.spec.ts).
-    const latestCandidateBySource = new Map<string, { capturePolicy: string; resolutionState: string }>();
+    const latestCandidateBySource = new Map<
+      string,
+      { capturePolicy: string; resolutionState: string }
+    >();
     for (const candidate of candidates) {
       if (!candidate.sourceId || latestCandidateBySource.has(candidate.sourceId)) continue;
       latestCandidateBySource.set(candidate.sourceId, {
@@ -233,7 +326,7 @@ export class LiveHearingsService {
           id: s.id,
           committeeSystemCode: s.committeeSystemCode,
           committeeName: s.committeeSystemCode
-            ? nameBySystemCode.get(s.committeeSystemCode) ?? null
+            ? (nameBySystemCode.get(s.committeeSystemCode) ?? null)
             : null,
           chamber: s.chamber,
           sourceType: s.sourceType,
@@ -261,6 +354,43 @@ export class LiveHearingsService {
     const pageSize = clampPageSize(query.pageSize);
     const page = Math.max(1, query.page ?? 1);
     const where = buildWhere(query);
+    if (query.jurisdiction && query.jurisdiction !== 'US')
+      await requireStateCalendar(this.prisma, ctx.tenantId);
+    const selection: Prisma.CommitteeHearingWhereInput[] = [];
+    if (query.hearingIds) selection.push({ id: { in: query.hearingIds } });
+    if (query.billIds) {
+      const agenda = await this.prisma.legislativeAgendaItem.findMany({
+        where: {
+          active: true,
+          OR: [{ stateBillKey: { in: query.billIds } }, { federalBillId: { in: query.billIds } }],
+        },
+        select: { hearingId: true },
+        distinct: ['hearingId'],
+      });
+      const federal = await this.prisma.committeeHearingBill.findMany({
+        where: { billId: { in: query.billIds } },
+        select: { hearingId: true },
+      });
+      selection.push({ id: { in: [...new Set([...agenda, ...federal].map((a) => a.hearingId))] } });
+    }
+    if (query.following !== undefined) {
+      const follows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.hearingFollow.findMany({
+          where: { userId: ctx.userId },
+          select: { hearingId: true },
+        }),
+      );
+      selection.push({
+        id: query.following
+          ? { in: follows.map((f) => f.hearingId) }
+          : { notIn: follows.map((f) => f.hearingId) },
+      });
+    }
+    if (selection.length)
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        ...selection,
+      ];
 
     // The follow-state filter has to be applied against THIS user's
     // subscriptions, so the id set is resolved first and used as a predicate
@@ -301,6 +431,7 @@ export class LiveHearingsService {
     const windowStart = new Date(now.getTime() - LIVE_WINDOW_MS);
     const rows = await this.prisma.committeeHearing.findMany({
       where: {
+        geographicJurisdiction: 'US',
         OR: [
           { eventStatus: 'in_progress' },
           {
@@ -322,6 +453,8 @@ export class LiveHearingsService {
   async event(ctx: TenantContext, id: string): Promise<CalendarEvent | null> {
     const row = await this.prisma.committeeHearing.findUnique({ where: { id } });
     if (!row) return null;
+    if (row.geographicJurisdiction && row.geographicJurisdiction !== 'US')
+      await requireStateCalendar(this.prisma, ctx.tenantId);
     const [hydrated] = await this.hydrate(ctx, [row]);
     return hydrated ?? null;
   }
@@ -391,7 +524,7 @@ export class LiveHearingsService {
     const ids = rows.map((r) => String(r.id));
     if (ids.length === 0) return [];
 
-    const [captures, candidates, subscriptions] = await Promise.all([
+    const [captures, candidates, subscriptions, follows] = await Promise.all([
       this.prisma.publicHearingCapture.findMany({ where: { hearingId: { in: ids } } }),
       this.prisma.hearingStreamCandidate.findMany({
         where: { hearingId: { in: ids } },
@@ -400,6 +533,12 @@ export class LiveHearingsService {
       this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.hearingSubscription.findMany({
           where: { userId: ctx.userId, hearingId: { in: ids } },
+        }),
+      ),
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.hearingFollow.findMany({
+          where: { userId: ctx.userId, hearingId: { in: ids } },
+          select: { hearingId: true },
         }),
       ),
     ]);
@@ -416,6 +555,14 @@ export class LiveHearingsService {
     return rows.map((raw) => {
       const row = raw as {
         id: string;
+        geographicJurisdiction: string | null;
+        legislativeSession: string | null;
+        stateCommitteeId: string | null;
+        calendarRevision: number;
+        calendarCheckedAt: Date | null;
+        calendarCheckState: string;
+        timePrecision: string | null;
+        calendarSnapshot: unknown;
         congress: number | null;
         chamber: string;
         committeeName: string;
@@ -442,6 +589,27 @@ export class LiveHearingsService {
       const sub = subByHearing.get(row.id) ?? null;
       return {
         id: row.id,
+        following: follows.some((f) => f.hearingId === row.id),
+        geographicJurisdiction: row.geographicJurisdiction,
+        legislativeSession: row.legislativeSession,
+        stateCommitteeId: row.stateCommitteeId,
+        calendarRevision: row.calendarRevision,
+        calendarCheckedAt: row.calendarCheckedAt?.toISOString() ?? null,
+        calendarCheckState: row.calendarCheckState,
+        timePrecision: row.timePrecision,
+        agenda: (row.calendarSnapshot as { agenda?: unknown } | null)?.agenda ?? [],
+        documents: (
+          (row.calendarSnapshot as { documents?: Array<Record<string, unknown>> } | null)
+            ?.documents ?? []
+        ).map((d) => ({
+          id: d.key,
+          title: d.title,
+          documentType: d.kind,
+          sourceUrl: d.url,
+          publishedAt: d.publishedAt,
+          contentHash: d.contentHash,
+          deadlines: d.deadlines,
+        })),
         congress: row.congress,
         chamber: row.chamber,
         committeeName: row.committeeName,
@@ -509,6 +677,21 @@ function clampPageSize(raw: number | undefined): number {
 /** Translate the calendar filters into a Prisma predicate. */
 export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereInput {
   const where: Prisma.CommitteeHearingWhereInput = {};
+  where.AND =
+    query.jurisdiction === 'ALL'
+      ? [
+          {
+            OR: [
+              { geographicJurisdiction: null },
+              { geographicJurisdiction: { in: ['US', 'FL'] } },
+            ],
+          },
+        ]
+      : query.jurisdiction === 'FL'
+        ? [{ geographicJurisdiction: 'FL' }]
+        : [{ OR: [{ geographicJurisdiction: 'US' }, { geographicJurisdiction: null }] }];
+  if (query.session) where.legislativeSession = query.session;
+  if (query.stateCommitteeId) where.stateCommitteeId = query.stateCommitteeId;
   const date: Prisma.DateTimeFilter = {};
   if (query.from) {
     const from = parseDay(query.from);
@@ -517,6 +700,9 @@ export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereIn
   if (query.to) {
     const to = parseDay(query.to);
     if (to) date.lte = to;
+  }
+  if (date.gte instanceof Date && date.lte instanceof Date && date.gte > date.lte) {
+    throw new BadRequestException('Calendar start date must not follow its end date');
   }
   if (date.gte || date.lte) where.date = date;
 
@@ -528,19 +714,22 @@ export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereIn
     const parent = committeeParentCode(code);
     // A full committee includes children identified by Congress.gov's exact
     // four-letter family + two-digit body code, including legacy imports.
-    const family = parent === code
-      ? Array.from({ length: 100 }, (_, n) => `${code.slice(0, 4)}${String(n).padStart(2, '0')}`)
-      : null;
-    where.OR = family ? [
-      { committeeSystemCode: { in: family } },
-      { subcommitteeSystemCode: { in: family } },
-      { committeeSystemCode: null, committeeCode: { in: family } },
-      { committeeName: { contains: query.committee, mode: 'insensitive' } },
-    ] : [
-      { committeeSystemCode: query.committee },
-      { committeeCode: query.committee },
-      { committeeName: { contains: query.committee, mode: 'insensitive' } },
-    ];
+    const family =
+      parent === code
+        ? Array.from({ length: 100 }, (_, n) => `${code.slice(0, 4)}${String(n).padStart(2, '0')}`)
+        : null;
+    where.OR = family
+      ? [
+          { committeeSystemCode: { in: family } },
+          { subcommitteeSystemCode: { in: family } },
+          { committeeSystemCode: null, committeeCode: { in: family } },
+          { committeeName: { contains: query.committee, mode: 'insensitive' } },
+        ]
+      : [
+          { committeeSystemCode: query.committee },
+          { committeeCode: query.committee },
+          { committeeName: { contains: query.committee, mode: 'insensitive' } },
+        ];
   }
   if (query.subcommittee) {
     const code = query.subcommittee.trim().toLowerCase();
@@ -566,12 +755,9 @@ export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereIn
         },
       ],
     };
-    where.AND = [
-      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
-      child,
-    ];
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), child];
   }
-  if (query.eventType) where.type = query.eventType;
+  if (query.eventType) where.type = { equals: query.eventType, mode: 'insensitive' };
   if (query.eventStatus) where.eventStatus = query.eventStatus;
   if (query.streamState) where.streamAvailability = query.streamState;
   if (query.captureState) where.coverageStatus = query.captureState;
@@ -604,7 +790,11 @@ function displayChamberFilter(chamber: string): string {
 /** `YYYY-MM-DD` → UTC-midnight, matching the `@db.Date` column. */
 function parseDay(raw: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
-  if (!m || !m[1] || !m[2] || !m[3]) return null;
+  if (!m || !m[1] || !m[2] || !m[3])
+    throw new BadRequestException('Calendar dates must be valid YYYY-MM-DD values');
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== raw.trim()) {
+    throw new BadRequestException('Calendar dates must be valid YYYY-MM-DD values');
+  }
+  return d;
 }

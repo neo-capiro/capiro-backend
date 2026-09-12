@@ -347,6 +347,7 @@ model LegiWatchDeliveryRecipient {
 }
 
 model LegiWatchRecordRule {
+  family String @default("bill_record")
   id String @id @default(uuid())
   tenantId String @map("tenant_id")
   ownerClerkId String @map("owner_clerk_id")
@@ -364,6 +365,22 @@ model LegiWatchRecordRule {
   @@unique([tenantId, id])
   @@index([state, tenantId])
   @@map("intel_legiwatch_record_rule")
+}
+
+// Private frozen inputs. Workspace remains the document editor and owns edits.
+model LegiWatchPreparationSnapshot {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  ownerClerkId String @map("owner_clerk_id")
+  hearingId String @map("hearing_id")
+  calendarRevision Int @map("calendar_revision")
+  folderIds String[] @map("folder_ids")
+  payload Json
+  contentHash String @map("content_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([tenantId, id])
+  @@index([tenantId, hearingId, ownerClerkId])
+  @@map("intel_legiwatch_preparation_snapshot")
 }
 
 // Baseline each folder membership independently; additions never replay history.

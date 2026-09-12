@@ -45,6 +45,7 @@ function hearing(overrides: Row = {}): Row {
   return {
     id: 'cm-119-119504',
     congress: 119,
+    geographicJurisdiction: 'US',
     chamber: 'House',
     committeeName: 'House Committee on Energy and Commerce',
     committeeCode: 'hsif00',
@@ -85,6 +86,13 @@ function matches(row: Row, where: Row | undefined): boolean {
     const value = row[key];
     if (cond && typeof cond === 'object') {
       const c = cond as Row;
+      if (
+        'equals' in c &&
+        (c.mode === 'insensitive'
+          ? String(value).toLowerCase() !== String(c.equals).toLowerCase()
+          : value !== c.equals)
+      )
+        return false;
       if ('in' in c && !(c.in as unknown[]).includes(value)) return false;
       if ('notIn' in c && (c.notIn as unknown[]).includes(value)) return false;
       if ('gte' in c && !(value instanceof Date && value >= (c.gte as Date))) return false;
@@ -109,6 +117,7 @@ function makePrisma(seed: {
   updates?: Row[];
   sources?: Row[];
   committees?: Row[];
+  follows?: Row[];
 }) {
   const store = {
     hearings: seed.hearings ?? [],
@@ -118,6 +127,7 @@ function makePrisma(seed: {
     updates: seed.updates ?? [],
     sources: seed.sources ?? [],
     committees: seed.committees ?? [],
+    follows: seed.follows ?? [],
   };
   const calls = { bareSubscriptionReads: 0 };
 
@@ -178,7 +188,13 @@ function makePrisma(seed: {
     },
     hearingSubscription: subscriptionDelegate(null),
     withTenant: async <T>(tenantId: string, fn: (tx: unknown) => Promise<T>): Promise<T> =>
-      fn({ hearingSubscription: subscriptionDelegate(tenantId) }),
+      fn({
+        hearingSubscription: subscriptionDelegate(tenantId),
+        hearingFollow: {
+          findMany: async (args: { where?: Row } = {}) =>
+            store.follows.filter((s) => s.tenantId === tenantId && matches(s, args.where)),
+        },
+      }),
   };
   return prisma;
 }
@@ -385,18 +401,45 @@ describe('LiveHearingsService — event and updates', () => {
 
 describe('LiveHearingsService — explicit legacy child identity', () => {
   it('returns the same stored proceedings and normalized identities from child and parent calendars', async () => {
-    const { service } = makeService({ hearings: [
-      hearing({ id: 'legacy-airland-may', date: day('2026-05-12'), committeeSystemCode: null, committeeCode: 'ssas14' }),
-      hearing({ id: 'legacy-airland-june', date: day('2026-06-09'), committeeSystemCode: 'ssas14', committeeCode: 'ssas14' }),
-      hearing({ id: 'full-committee', committeeSystemCode: 'ssas00', committeeCode: 'ssas00' }),
-    ] });
-    const child = await service.calendar(ctxA, { subcommittee: 'ssas14', from: '2025-09-09', to: '2026-09-08' });
+    const { service } = makeService({
+      hearings: [
+        hearing({
+          id: 'legacy-airland-may',
+          date: day('2026-05-12'),
+          committeeSystemCode: null,
+          committeeCode: 'ssas14',
+        }),
+        hearing({
+          id: 'legacy-airland-june',
+          date: day('2026-06-09'),
+          committeeSystemCode: 'ssas14',
+          committeeCode: 'ssas14',
+        }),
+        hearing({ id: 'full-committee', committeeSystemCode: 'ssas00', committeeCode: 'ssas00' }),
+      ],
+    });
+    const child = await service.calendar(ctxA, {
+      subcommittee: 'ssas14',
+      from: '2025-09-09',
+      to: '2026-09-08',
+    });
     expect(child.total).toBe(2);
-    expect(child.rows.map((row) => [row.id, row.date, row.committeeSystemCode, row.subcommitteeSystemCode])).toEqual([
+    expect(
+      child.rows.map((row) => [
+        row.id,
+        row.date,
+        row.committeeSystemCode,
+        row.subcommitteeSystemCode,
+      ]),
+    ).toEqual([
       ['legacy-airland-may', '2026-05-12', 'ssas00', 'ssas14'],
       ['legacy-airland-june', '2026-06-09', 'ssas00', 'ssas14'],
     ]);
-    const parent = await service.calendar(ctxA, { committee: 'ssas00', from: '2025-09-09', to: '2026-09-08' });
+    const parent = await service.calendar(ctxA, {
+      committee: 'ssas00',
+      from: '2025-09-09',
+      to: '2026-09-08',
+    });
     expect(parent.rows.map((row) => row.id)).toEqual(child.rows.map((row) => row.id));
   });
 });
@@ -423,32 +466,60 @@ describe('buildWhere', () => {
 
   it('returns only the requested child across canonical and legacy code shapes', () => {
     const where = buildWhere({ committee: 'ssas00', subcommittee: 'ssas14', q: 'modernization' });
-    const candidate = (overrides: Row) => hearing({
-      title: 'Air Force modernization', committeeCode: 'ssas00', committeeSystemCode: 'ssas00',
-      subcommitteeSystemCode: null, ...overrides,
-    });
+    const candidate = (overrides: Row) =>
+      hearing({
+        title: 'Air Force modernization',
+        committeeCode: 'ssas00',
+        committeeSystemCode: 'ssas00',
+        subcommitteeSystemCode: null,
+        ...overrides,
+      });
     expect(matches(candidate({ subcommitteeSystemCode: 'ssas14' }), where as Row)).toBe(true);
     expect(matches(candidate({ committeeCode: 'ssas14' }), where as Row)).toBe(true);
     expect(matches(candidate({}), where as Row)).toBe(false);
-    expect(matches(candidate({ subcommitteeSystemCode: 'ssas15', committeeCode: 'ssas14' }), where as Row)).toBe(false);
-    expect(matches(candidate({ subcommitteeSystemCode: 'ssas14', title: 'Unrelated oversight' }), where as Row)).toBe(false);
-    expect(matches(candidate({ committeeSystemCode: 'ssap00', committeeCode: 'ssas14' }), where as Row)).toBe(false);
+    expect(
+      matches(
+        candidate({ subcommitteeSystemCode: 'ssas15', committeeCode: 'ssas14' }),
+        where as Row,
+      ),
+    ).toBe(false);
+    expect(
+      matches(
+        candidate({ subcommitteeSystemCode: 'ssas14', title: 'Unrelated oversight' }),
+        where as Row,
+      ),
+    ).toBe(false);
+    expect(
+      matches(candidate({ committeeSystemCode: 'ssap00', committeeCode: 'ssas14' }), where as Row),
+    ).toBe(false);
   });
 
   it('includes explicitly child-coded legacy records in the parent calendar', () => {
     const where = buildWhere({ committee: 'ssas00' }) as Row;
-    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas14' }), where)).toBe(true);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas14' }), where)).toBe(
+      true,
+    );
     expect(matches(hearing({ committeeSystemCode: 'ssas14' }), where)).toBe(true);
-    expect(matches(hearing({ committeeSystemCode: 'ssap00', committeeCode: 'ssas14' }), where)).toBe(false);
-    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssap14' }), where)).toBe(false);
+    expect(
+      matches(hearing({ committeeSystemCode: 'ssap00', committeeCode: 'ssas14' }), where),
+    ).toBe(false);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssap14' }), where)).toBe(
+      false,
+    );
   });
 
   it('reads a legacy child code without pulling in parent or sibling proceedings', () => {
     const where = buildWhere({ subcommittee: 'ssas14' }) as Row;
-    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas14' }), where)).toBe(true);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas14' }), where)).toBe(
+      true,
+    );
     expect(matches(hearing({ committeeSystemCode: 'ssas14' }), where)).toBe(true);
-    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas00' }), where)).toBe(false);
-    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas15' }), where)).toBe(false);
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas00' }), where)).toBe(
+      false,
+    );
+    expect(matches(hearing({ committeeSystemCode: null, committeeCode: 'ssas15' }), where)).toBe(
+      false,
+    );
   });
 
   it('builds an inclusive day range', () => {
@@ -459,8 +530,9 @@ describe('buildWhere', () => {
     });
   });
 
-  it('ignores a malformed date rather than throwing or matching everything', () => {
-    expect(buildWhere({ from: 'yesterday' }).date).toBeUndefined();
+  it('rejects malformed calendar dates without silently widening the selection', () => {
+    expect(() => buildWhere({ from: 'yesterday' })).toThrow('valid YYYY-MM-DD');
+    expect(() => buildWhere({ from: '2026-02-30' })).toThrow('valid YYYY-MM-DD');
   });
 
   it('maps the stream and capture state filters onto the denormalized rollups', () => {
@@ -493,7 +565,12 @@ describe('LiveHearingsService#coverage', () => {
     const { service } = makeService({
       sources: [
         source(),
-        source({ id: 'src-2', chamber: 'senate', sourceHealth: 'degraded', committeeSystemCode: null }),
+        source({
+          id: 'src-2',
+          chamber: 'senate',
+          sourceHealth: 'degraded',
+          committeeSystemCode: null,
+        }),
         source({ id: 'src-3', sourceHealth: 'weird-unmapped-value' }),
       ],
       committees: [{ systemCode: 'hsas00', name: 'House Armed Services' }],

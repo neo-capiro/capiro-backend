@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 /**
  * LegiWatch V2 Wave 3 — Digest (LEGIWATCH-V2-HANDOFF §5.8, §7 "digest
  * generation, history, scheduling and PDF" BACKEND REQUIRED item).
@@ -11,7 +12,13 @@
  * send — §1.5 keeps that behind the Stage H security review; this module
  * only persists what "Generate now" produced so History can show it again.
  */
-import { BadRequestException, HttpException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -44,10 +51,27 @@ export interface DigestContent {
   generatedAt: string;
   clientsInScope: number;
   headline: string;
-  whatChanged: Array<{ id: string; title: string; band: string; sourceLabel: string; clientName: string | null; ageHours: number }>;
+  whatChanged: Array<{
+    id: string;
+    title: string;
+    band: string;
+    sourceLabel: string;
+    clientName: string | null;
+    ageHours: number;
+  }>;
   decisionsRequired: Array<{ id: string; title: string; recommendedAction: string | null }>;
-  upcomingHearings: Array<{ id: string; title: string; date: string; committeeName: string | null }>;
-  billMovement: Array<{ id: string; display: string; status: string | null; statusAt: string | null }>;
+  upcomingHearings: Array<{
+    id: string;
+    title: string;
+    date: string;
+    committeeName: string | null;
+  }>;
+  billMovement: Array<{
+    id: string;
+    display: string;
+    status: string | null;
+    statusAt: string | null;
+  }>;
   clientImplications: Array<{ clientId: string; clientName: string; band: string }>;
   recommendedActions: string[];
   provenance: {
@@ -64,25 +88,57 @@ export class LegiWatchDigestService {
   /** Typed Digest adapter: report definitions, occurrences and immutable runs
    * remain owned by Intel. Forward the original credentials, never a tenant
    * supplied in a request body or a service-level authorization bypass. */
-  async billReport(operation: 'generate' | 'history' | 'run' | 'subscriptions' | 'saveSubscription', authorization?: string, impersonation?: string, input?: unknown, id?: string) {
+  async billReport(
+    operation: 'generate' | 'history' | 'run' | 'subscriptions' | 'saveSubscription',
+    authorization?: string,
+    impersonation?: string,
+    input?: unknown,
+    id?: string,
+  ) {
     if (!authorization?.startsWith('Bearer ')) throw new UnauthorizedException();
-    const body = input && typeof input === 'object' ? input as Record<string, unknown> : {};
+    const body = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
     const reportId = typeof body.reportId === 'string' ? body.reportId : '';
-    if (operation === 'generate' && !reportId || operation === 'run' && !id) throw new BadRequestException('REPORT_ID_REQUIRED');
-    const route = operation === 'generate' ? `/${encodeURIComponent(reportId)}/generate` : operation === 'run' ? `/runs/${encodeURIComponent(id!)}` : operation === 'history' ? '/history' : '/subscriptions';
-    const response = await fetch(`${(process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/intel-api/legiwatch/reports${route}`, {
-      method: operation === 'generate' || operation === 'saveSubscription' ? 'POST' : 'GET',
-      headers: { authorization, 'content-type': 'application/json', ...(impersonation ? { 'x-capiro-impersonate-tenant': impersonation } : {}) },
-      ...(operation === 'generate' || operation === 'saveSubscription' ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(120000),
-    });
+    if ((operation === 'generate' && !reportId) || (operation === 'run' && !id))
+      throw new BadRequestException('REPORT_ID_REQUIRED');
+    const route =
+      operation === 'generate'
+        ? `/${encodeURIComponent(reportId)}/generate`
+        : operation === 'run'
+          ? `/runs/${encodeURIComponent(id!)}`
+          : operation === 'history'
+            ? '/history'
+            : '/subscriptions';
+    const response = await fetch(
+      `${(process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/intel-api/legiwatch/reports${route}`,
+      {
+        method: operation === 'generate' || operation === 'saveSubscription' ? 'POST' : 'GET',
+        headers: {
+          authorization,
+          'content-type': 'application/json',
+          ...(impersonation ? { 'x-capiro-impersonate-tenant': impersonation } : {}),
+        },
+        ...(operation === 'generate' || operation === 'saveSubscription'
+          ? { body: JSON.stringify(body) }
+          : {}),
+        signal: AbortSignal.timeout(120000),
+      },
+    );
     if (!response.ok) {
       const error: unknown = await response.json().catch(() => null);
-      throw new HttpException(error && typeof error === 'object' ? error as Record<string, unknown> : 'BILL_REPORT_SERVICE_UNAVAILABLE', response.status);
+      throw new HttpException(
+        error && typeof error === 'object'
+          ? (error as Record<string, unknown>)
+          : 'BILL_REPORT_SERVICE_UNAVAILABLE',
+        response.status,
+      );
     }
-    return { mode: 'bill_report' as const, data: await response.json() as unknown };
+    return { mode: 'bill_report' as const, data: (await response.json()) as unknown };
   }
 
-  async generate(ctx: TenantContext, clientId: string | null): Promise<{ id: string } & DigestContent> {
+  async generate(
+    ctx: TenantContext,
+    clientId: string | null,
+  ): Promise<{ id: string } & DigestContent> {
     const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const now = new Date();
     const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -109,20 +165,25 @@ export class LegiWatchDigestService {
           `;
 
       const clients = await tx.client.findMany({
-        where: { tenantId: ctx.tenantId, ...(clientId ? { id: clientId } : { status: { not: 'archived' } }) },
+        where: {
+          tenantId: ctx.tenantId,
+          ...(clientId ? { id: clientId } : { status: { not: 'archived' } }),
+        },
         select: { id: true, name: true },
       });
       if (clientId && clients.length === 0) throw new NotFoundException('Client not found');
       const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
 
       const upcomingRaw = await tx.committeeHearing.findMany({
-        where: { visibility: 'public', date: { gte: now, lte: weekAhead } },
+        where: federalHearingWhere({ visibility: 'public', date: { gte: now, lte: weekAhead } }),
         orderBy: [{ date: 'asc' }],
         take: 20,
         select: { id: true, title: true, date: true, committeeName: true },
       });
 
-      const billsMoved = await tx.$queryRaw<Array<{ id: string; display: string; status: string | null; statusAt: Date | null }>>`
+      const billsMoved = await tx.$queryRaw<
+        Array<{ id: string; display: string; status: string | null; statusAt: Date | null }>
+      >`
         WITH tracked AS (
           SELECT DISTINCT bill_id FROM intel_tracked_bill
           WHERE tenant_id = ${ctx.tenantId}
@@ -163,7 +224,11 @@ export class LegiWatchDigestService {
         if (cur === undefined || r.score > cur) bestScoreByClient.set(r.clientId, r.score);
       }
       const clientImplications = clients
-        .map((c) => ({ clientId: c.id, clientName: c.name, band: bandForScore(bestScoreByClient.get(c.id) ?? null) }))
+        .map((c) => ({
+          clientId: c.id,
+          clientName: c.name,
+          band: bandForScore(bestScoreByClient.get(c.id) ?? null),
+        }))
         .sort((a, b) => a.clientName.localeCompare(b.clientName));
 
       const recommendedActions = [
@@ -174,9 +239,13 @@ export class LegiWatchDigestService {
         ),
       ].slice(0, 6);
 
-      const sourceFamilies = [...new Set(alertRows.map((r) => SOURCE_FAMILY_LABEL[r.sourceType] ?? r.sourceType))];
+      const sourceFamilies = [
+        ...new Set(alertRows.map((r) => SOURCE_FAMILY_LABEL[r.sourceType] ?? r.sourceType)),
+      ];
       const captureCount = new Set(
-        alertRows.filter((r) => r.sourceType === 'hearing' || r.sourceType === 'combined').map((r) => r.id),
+        alertRows
+          .filter((r) => r.sourceType === 'hearing' || r.sourceType === 'combined')
+          .map((r) => r.id),
       ).size;
 
       const content: DigestContent = {
@@ -226,14 +295,25 @@ export class LegiWatchDigestService {
     });
   }
 
-  async history(ctx: TenantContext, clientId: string | null, limit = 20): Promise<{ rows: Array<Record<string, unknown>> }> {
-    if (!Number.isInteger(limit) || limit < 1) throw new BadRequestException('limit must be a positive integer');
+  async history(
+    ctx: TenantContext,
+    clientId: string | null,
+    limit = 20,
+  ): Promise<{ rows: Array<Record<string, unknown>> }> {
+    if (!Number.isInteger(limit) || limit < 1)
+      throw new BadRequestException('limit must be a positive integer');
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.legiWatchDigestRun.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         orderBy: [{ generatedAt: 'desc' }],
         take: Math.min(Math.max(limit, 1), 100),
-        select: { id: true, generatedAt: true, itemCount: true, decisionCount: true, sourceFamilies: true },
+        select: {
+          id: true,
+          generatedAt: true,
+          itemCount: true,
+          decisionCount: true,
+          sourceFamilies: true,
+        },
       }),
     );
     return {
@@ -262,7 +342,12 @@ export class LegiWatchDigestService {
       }),
     );
     return row
-      ? { cadence: row.cadence, hourUtc: row.hourUtc, emailEnabled: row.emailEnabled, updatedAt: row.updatedAt.toISOString() }
+      ? {
+          cadence: row.cadence,
+          hourUtc: row.hourUtc,
+          emailEnabled: row.emailEnabled,
+          updatedAt: row.updatedAt.toISOString(),
+        }
       : { cadence: 'off', hourUtc: 11, emailEnabled: true, updatedAt: null };
   }
 
@@ -271,10 +356,17 @@ export class LegiWatchDigestService {
     clientId: string | null,
     input: { cadence: 'daily' | 'weekly' | 'off'; hourUtc: number; emailEnabled: boolean },
   ): Promise<Record<string, unknown>> {
-    if (!input || !['daily', 'weekly', 'off'].includes(input.cadence)
-      || !Number.isInteger(input.hourUtc) || input.hourUtc < 0 || input.hourUtc > 23
-      || typeof input.emailEnabled !== 'boolean') {
-      throw new BadRequestException('cadence must be daily, weekly or off; hourUtc must be an integer between 0 and 23; emailEnabled must be boolean');
+    if (
+      !input ||
+      !['daily', 'weekly', 'off'].includes(input.cadence) ||
+      !Number.isInteger(input.hourUtc) ||
+      input.hourUtc < 0 ||
+      input.hourUtc > 23 ||
+      typeof input.emailEnabled !== 'boolean'
+    ) {
+      throw new BadRequestException(
+        'cadence must be daily, weekly or off; hourUtc must be an integer between 0 and 23; emailEnabled must be boolean',
+      );
     }
     const saved = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       if (clientId) {
@@ -297,7 +389,11 @@ export class LegiWatchDigestService {
       if (existing) {
         return tx.legiWatchDigestSchedule.update({
           where: { id: existing.id },
-          data: { cadence: input.cadence, hourUtc: input.hourUtc, emailEnabled: input.emailEnabled },
+          data: {
+            cadence: input.cadence,
+            hourUtc: input.hourUtc,
+            emailEnabled: input.emailEnabled,
+          },
         });
       }
       return tx.legiWatchDigestSchedule.create({
@@ -311,6 +407,11 @@ export class LegiWatchDigestService {
         },
       });
     });
-    return { cadence: saved.cadence, hourUtc: saved.hourUtc, emailEnabled: saved.emailEnabled, updatedAt: saved.updatedAt.toISOString() };
+    return {
+      cadence: saved.cadence,
+      hourUtc: saved.hourUtc,
+      emailEnabled: saved.emailEnabled,
+      updatedAt: saved.updatedAt.toISOString(),
+    };
   }
 }

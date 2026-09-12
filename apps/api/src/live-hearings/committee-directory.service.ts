@@ -1,3 +1,4 @@
+import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { storedCommitteeIdentity } from '../hearing-discovery/hearing-committee-identity.js';
@@ -135,7 +136,11 @@ export class CommitteeDirectoryService {
       }),
       this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.legiWatchCommitteeFollow.findMany({
-          where: { tenantId: ctx.tenantId, userId: ctx.userId, committeeSystemCode: { in: systemCodes } },
+          where: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            committeeSystemCode: { in: systemCodes },
+          },
           select: { committeeSystemCode: true, clientIds: true },
         }),
       ),
@@ -181,7 +186,8 @@ export class CommitteeDirectoryService {
           const role = normalizeRole(m.role);
           return role.includes('chair') && !role.includes('vice');
         }) ?? null;
-      const rankingMember = memberRows.find((m) => normalizeRole(m.role).includes('ranking')) ?? null;
+      const rankingMember =
+        memberRows.find((m) => normalizeRole(m.role).includes('ranking')) ?? null;
       const follow = followByCode.get(row.systemCode);
       return {
         ...row,
@@ -237,7 +243,7 @@ export class CommitteeDirectoryService {
       (row) => normalizeCode(row.parentSystemCode) === normalizeCode(committee.systemCode),
     );
     const parent = committee.parentSystemCode
-      ? snapshot.byCode.get(normalizeCode(committee.parentSystemCode)) ?? null
+      ? (snapshot.byCode.get(normalizeCode(committee.parentSystemCode)) ?? null)
       : null;
 
     return {
@@ -267,7 +273,13 @@ export class CommitteeDirectoryService {
       where: { systemCode: id, isCurrent: true },
     });
     if (!committee) {
-      return { rows: [], total: 0, chair: null, rankingMember: null, asOf: new Date().toISOString() };
+      return {
+        rows: [],
+        total: 0,
+        chair: null,
+        rankingMember: null,
+        asOf: new Date().toISOString(),
+      };
     }
 
     const memberships = await this.prisma.congressCommitteeMembership.findMany({
@@ -300,8 +312,7 @@ export class CommitteeDirectoryService {
         const role = normalizeRole(row.role);
         return role.includes('chair') && !role.includes('vice');
       }) ?? null;
-    const rankingMember =
-      rows.find((row) => normalizeRole(row.role).includes('ranking')) ?? null;
+    const rankingMember = rows.find((row) => normalizeRole(row.role).includes('ranking')) ?? null;
 
     return {
       rows,
@@ -312,7 +323,10 @@ export class CommitteeDirectoryService {
     };
   }
 
-  async updates(id: string, limit = 100): Promise<{
+  async updates(
+    id: string,
+    limit = 100,
+  ): Promise<{
     rows: Array<Record<string, unknown>>;
     total: number;
     asOf: string;
@@ -369,14 +383,14 @@ export class CommitteeDirectoryService {
     const [events, sources] = await Promise.all([
       codes.length
         ? this.prisma.committeeHearing.findMany({
-            where: {
+            where: federalHearingWhere({
               date: { gte: startOfUtcDay(recentCutoff), lte: startOfUtcDay(futureCutoff) },
               OR: [
                 { committeeSystemCode: { in: codes } },
                 { committeeCode: { in: codes } },
                 { subcommitteeSystemCode: { in: codes } },
               ],
-            },
+            }),
             orderBy: [{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }],
           })
         : Promise.resolve([]),
@@ -412,7 +426,10 @@ export class CommitteeDirectoryService {
       }
     }
 
-    const counts = new Map<string, { upcoming: number; recent: number; next: CommitteeEventSummary | null }>();
+    const counts = new Map<
+      string,
+      { upcoming: number; recent: number; next: CommitteeEventSummary | null }
+    >();
     const addEvent = (codeValue: string | null, event: (typeof events)[number]) => {
       const code = normalizeCode(codeValue);
       if (!code) return;
@@ -464,7 +481,7 @@ export class CommitteeDirectoryService {
         chamber: committee.chamber,
         parentSystemCode: committee.parentSystemCode,
         parentName: committee.parentSystemCode
-          ? parentNameByCode.get(normalizeCode(committee.parentSystemCode)) ?? null
+          ? (parentNameByCode.get(normalizeCode(committee.parentSystemCode)) ?? null)
           : null,
         officialUrl: committee.url,
         jurisdiction: committee.jurisdiction,

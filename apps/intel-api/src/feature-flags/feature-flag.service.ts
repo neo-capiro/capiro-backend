@@ -17,6 +17,8 @@ export const BILL_360_FEATURE = 'bill_360';
 export const FOLDER_TRACKER_FEATURE = 'legiwatch_folder_tracker_v1';
 export const REPORTS_UPDATES_FEATURE = 'legiwatch_reports_updates_v1';
 export const REPORT_DELIVERY_FEATURE = 'legiwatch_report_delivery_v1';
+export const STATE_CALENDAR_FEATURE = 'legiwatch_state_calendar_v1';
+export const AGENDA_ALERTS_FEATURE = 'legiwatch_agenda_alerts_v1';
 /**
  * Gates the defense-funding data on Bill 360 and Program Element 360 (Release R3,
  * §3.6). Dark by default. This is the ROLLOUT switch; the commercial boundary stays
@@ -94,7 +96,16 @@ export class FeatureFlagService {
       }),
     );
     if (row) return row.enabled;
-    if ([FOLDER_TRACKER_FEATURE, REPORTS_UPDATES_FEATURE, REPORT_DELIVERY_FEATURE].includes(feature)) return false;
+    if (
+      [
+        FOLDER_TRACKER_FEATURE,
+        REPORTS_UPDATES_FEATURE,
+        REPORT_DELIVERY_FEATURE,
+        STATE_CALENDAR_FEATURE,
+        AGENDA_ALERTS_FEATURE,
+      ].includes(feature)
+    )
+      return false;
     return Boolean(this.internalTenantId && tenantId === this.internalTenantId);
   }
 

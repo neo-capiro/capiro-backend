@@ -43,6 +43,7 @@ vi.mock('../../../lib/intel-feature-flags.js', () => ({
 const navigateMock = vi.fn();
 let search = '';
 vi.mock('react-router-dom', () => ({
+  useLocation: () => ({ pathname: `/bills/${currentBillId}`, search }),
   useNavigate: () => navigateMock,
   useParams: () => ({ billId: currentBillId }),
   useSearchParams: () => [new URLSearchParams(search)],
