@@ -1,3 +1,4 @@
+import { MERIV3_MANAGED_APP_IDS } from './meri-managed-mcp.helpers.js';
 import {
   Body,
   Controller,
@@ -68,7 +69,7 @@ export class MeriV3SettingsController {
       rawReasoningVisible: false,
       providerStateStored: false,
       defaultPresentation: 'browser_window' as const,
-      managedApps: ['hubspot', 'airtable'] as const,
+      managedApps: [...MERIV3_MANAGED_APP_IDS],
       visualAnalysis: {
         enabled: visualAnalysisEnabled,
         version: ANALYSIS_VISUALIZATION_VERSION,
@@ -94,6 +95,12 @@ export class MeriV3SettingsController {
   async connectApp(@CurrentTenant() ctx: TenantContext, @Param('appId') appId: string) {
     await this.assertEnabled(ctx);
     return this.managedMcp.connect(ctx, appId);
+  }
+
+  @Post('apps/:appId/cancel')
+  async cancelApp(@CurrentTenant() ctx: TenantContext, @Param('appId') appId: string) {
+    await this.assertEnabled(ctx);
+    return this.managedMcp.cancelPending(ctx, appId);
   }
 
   @Post('apps/:appId/disconnect')

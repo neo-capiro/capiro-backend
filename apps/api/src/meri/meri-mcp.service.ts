@@ -1,3 +1,4 @@
+import { managedAppDefinition, managedAppConfigured, filterManagedReadOnlyTools, isManagedReadOnlyTool } from './meri-managed-mcp.helpers.js';
 import {
   BadRequestException,
   ConflictException,
@@ -340,6 +341,9 @@ export class MeriMcpService {
 
   async updateServer(ctx: TenantContext, id: string, input: McpServerInput) {
     const existing = await this.loadManageable(ctx, id);
+    if (managedAppDefinition(existing.catalogId)) {
+      throw new BadRequestException('Manage this app from Meri integrations.');
+    }
     const data = this.validateInput(input, false);
     // scope/ownership are immutable after creation.
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -386,48 +390,49 @@ export class MeriMcpService {
     const server = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
     );
-    if (!server) return 0;
+    if (!server || !server.enabled || server.connectionStatus === 'disconnected') return 0;
+    const managed = managedAppDefinition(server.catalogId);
     try {
       const client = this.clientFor(server);
-      const names = Array.from(new Set((await client.listTools()).map((t) => t.name))).slice(0, 50);
+      const discovered = Array.from(new Set((await client.listTools()).map((tool) => tool.name)));
+      const names = managed
+        ? filterManagedReadOnlyTools(managed.id, discovered)
+        : discovered.slice(0, 50);
+      if (managed && !names.length) throw new Error('No supported read tools are available.');
       const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
-      // Carry over read-only classification from the catalog where the names
-      // match; unknown tools default to write (audited + serialized) — safe.
-      const readOnly = (catalog?.suggestedTools ?? [])
-        .filter((t) => t.readOnly)
-        .map((t) => t.name)
-        .filter((n) => names.includes(n));
-      await this.prisma.withTenant(tenantId, (tx) =>
-        tx.clioMcpServer.update({
-          where: { id: serverId },
+      const readOnly = managed ? names : (catalog?.suggestedTools ?? [])
+        .filter((tool) => tool.readOnly && names.includes(tool.name)).map((tool) => tool.name);
+      const updated = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.clioMcpServer.updateMany({
+          where: { id: serverId, tenantId, enabled: true, connectionStatus: { not: 'disconnected' } },
           data: {
             toolAllowlist: names as Prisma.InputJsonValue,
             readOnlyTools: readOnly as Prisma.InputJsonValue,
             lastSyncAt: new Date(),
             lastError: null,
-            connectionStatus: 'connected',
+            // Managed connections become ready only in finalizeConnection.
+            connectionStatus: managed ? 'pending' : 'connected',
           },
         }),
       );
       this.invalidate(tenantId);
-      return names.length;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`MCP tool discovery failed [${server.name}]: ${message}`);
-      await this.prisma
-        .withTenant(tenantId, (tx) =>
-          tx.clioMcpServer.update({
-            where: { id: serverId },
-            data: {
-              lastError: message.slice(0, 500),
-              // Non-OAuth: surface the failure. OAuth: tokens are valid, so keep
-              // 'connected' and let the registry retry on the next turn.
-              ...(server.authType !== 'oauth' ? { connectionStatus: 'error' } : {}),
-            },
-          }),
-        )
-        .catch(() => {});
+      return updated.count === 1 ? names.length : 0;
+    } catch (error) {
+      const needsReauth = error instanceof Error &&
+        ['UnauthorizedError', 'InvalidGrantError', 'InvalidTokenError'].includes(error.name);
+      await this.prisma.withTenant(tenantId, (tx) =>
+        tx.clioMcpServer.updateMany({
+          where: { id: serverId, tenantId, connectionStatus: { not: 'disconnected' } },
+          data: {
+            lastError: managed ? 'The app could not finish connecting. Please try again.' : 'Tool discovery failed.',
+            ...(managed || server.authType !== 'oauth'
+              ? { connectionStatus: needsReauth ? 'needs_reauth' : 'error' }
+              : {}),
+          },
+        }),
+      ).catch(() => {});
       this.invalidate(tenantId);
+      this.logger.warn('MCP discovery failed for server ' + serverId);
       return 0;
     }
   }
@@ -449,9 +454,19 @@ export class MeriMcpService {
     if (!this.enabled()) return [];
     try {
       const registry = await this.registryFor(ctx);
+      // Status is shared in the database, whereas this registry is per process.
+      // Recheck visibility so disconnects on another API replica also take effect.
+      const visible = new Map((await this.visibleServers(ctx, { where: { enabled: true } }))
+        .map((server) => [server.id, server]));
       return registry.schemas.filter((schema) => {
         const entry = registry.byBridgedName.get(schema.name);
-        return !entry || !this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`);
+        if (!entry || this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`)) return false;
+        const server = visible.get(entry.serverId);
+        if (!server || (server.authType === 'oauth' && server.connectionStatus !== 'connected')) return false;
+        const managed = managedAppDefinition(server.catalogId);
+        return !managed || (managedAppConfigured(managed.id) && this.oauth.isConfigured() &&
+          entry.readOnly && isManagedReadOnlyTool(managed.id, entry.toolName) &&
+          asStringArray(server.toolAllowlist).includes(entry.toolName));
       });
     } catch (err) {
       this.logger.warn(
@@ -476,7 +491,11 @@ export class MeriMcpService {
     const schemas: BridgedTool[] = [];
     const byBridgedName = new Map<string, RegisteredMcpTool>();
     for (const server of servers) {
-      const allowlist = asStringArray(server.toolAllowlist);
+      const managed = managedAppDefinition(server.catalogId);
+      if (managed && (!managedAppConfigured(managed.id) || !this.oauth.isConfigured())) continue;
+      const allowlist = managed
+        ? filterManagedReadOnlyTools(managed.id, asStringArray(server.toolAllowlist))
+        : asStringArray(server.toolAllowlist);
       if (!allowlist.length) continue; // empty allowlist registers nothing (fail-closed)
       // Skip OAuth connectors that aren't connected yet — listing tools would
       // trigger a reauth redirect and just record noise.
@@ -484,6 +503,7 @@ export class MeriMcpService {
       try {
         const client = this.clientFor(server);
         const tools = filterAllowedMcpTools(await client.listTools(), allowlist);
+        if (managed && !tools.length) throw new Error('No supported read tools are available.');
         const readOnly = new Set(asStringArray(server.readOnlyTools));
         for (const tool of tools) {
           const bridged = bridgeMcpTool(server.name, tool);
@@ -511,14 +531,15 @@ export class MeriMcpService {
         // An OAuth connector that can no longer authorize (refresh token gone /
         // expired) surfaces as UnauthorizedError — flag it for reconnection.
         const needsReauth =
-          server.authType === 'oauth' && err instanceof Error && err.name === 'UnauthorizedError';
+          server.authType === 'oauth' && err instanceof Error &&
+          ['UnauthorizedError', 'InvalidGrantError', 'InvalidTokenError'].includes(err.name);
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
-            tx.clioMcpServer.update({
-              where: { id: server.id },
+            tx.clioMcpServer.updateMany({
+              where: { id: server.id, connectionStatus: { not: 'disconnected' } },
               data: {
-                lastError: message.slice(0, 500),
-                ...(needsReauth ? { connectionStatus: 'needs_reauth' } : {}),
+                lastError: managed ? 'The app could not be reached. Please try again.' : message.slice(0, 500),
+                ...(needsReauth ? { connectionStatus: 'needs_reauth' } : managed ? { connectionStatus: 'error' } : {}),
               },
             }),
           )
@@ -552,6 +573,15 @@ export class MeriMcpService {
       where: { id: entry.serverId, enabled: true },
     });
     if (!server) throw new NotFoundException('MCP server not found or disabled');
+    if (server.authType === 'oauth' && server.connectionStatus !== 'connected') {
+      throw new BadRequestException('Please reconnect this app to continue.');
+    }
+    const managed = managedAppDefinition(server.catalogId);
+    if (managed && (!managedAppConfigured(managed.id) || !this.oauth.isConfigured() ||
+        !entry.readOnly || !isManagedReadOnlyTool(managed.id, entry.toolName) ||
+        !asStringArray(server.toolAllowlist).includes(entry.toolName))) {
+      throw new BadRequestException('Connected-app tool is unavailable or not read-only.');
+    }
 
     if (!entry.readOnly) {
       await this.audit(ctx, 'clio.mcp_tool.call', server.id, {
@@ -565,6 +595,9 @@ export class MeriMcpService {
       const client = this.clientFor(server);
       assertMeriToolRequestActive();
       const result = await client.callTool(entry.toolName, input);
+      if (managed && result && typeof result === 'object' && 'isError' in result && result.isError === true) {
+        throw new BadRequestException('The app could not complete this request. Check your access and try again.');
+      }
       this.breaker.recordSuccess(breakerKey);
       return {
         tool: bridgedName,
@@ -619,6 +652,12 @@ export class MeriMcpService {
   }
 
   private clientFor(server: ServerRow) {
+    const managed = managedAppDefinition(server.catalogId);
+    if (managed && (!managedAppConfigured(managed.id) || !this.oauth.isConfigured() ||
+        server.endpoint !== managed.endpoint || server.name !== managed.catalogId ||
+        server.scope !== 'user' || server.transport !== 'http' || server.authType !== 'oauth')) {
+      throw new BadRequestException('This app connection is unavailable. Please reconnect.');
+    }
     let authToken: string | null = null;
     let authProvider: McpServerConnection['authProvider'];
     if (server.authType === 'oauth') {

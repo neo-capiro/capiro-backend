@@ -1,0 +1,86 @@
+name: meri-connectors-verify
+
+on:
+  push:
+    branches: [codex/meri-four-managed-connectors]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/meri/meri-*mcp*'
+      - 'apps/web/src/components/chat/*'
+      - 'apps/web/src/vnext/meri/*'
+      - '.github/workflows/meri-connectors-verify.yml'
+      - 'scripts/inspect-meri-connectors.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build prerequisites
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+          pnpm --filter @capiro/strategy-verifier build
+      - name: Check connector formatting
+        run: pnpm exec prettier --check 'apps/api/src/meri/meri-managed-mcp.helpers.ts' 'apps/api/src/meri/meri-managed-mcp.service.ts' 'apps/api/src/meri/meri-mcp.service.ts' 'apps/api/src/meri/meri-mcp-oauth.service.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.ts' 'apps/web/src/components/chat/managed-mcp-apps.tsx' 'apps/web/src/lib/use-api.ts' 'apps/web/src/vnext/meri/meri-connector-logos.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.tsx' 'apps/web/src/vnext/meri/VNextMeriIntegrations.tsx' 'apps/web/src/components/chat/ManagedComposerPlus.tsx' 'apps/api/src/meri/meriv3-settings.controller.ts' 'apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts' 'apps/api/src/meri/meri-mcp-transport.ts' 'apps/api/src/meri/meri-managed-mcp.helpers.spec.ts' 'apps/api/src/meri/meri-managed-mcp.service.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.provider.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.controller.spec.ts' 'apps/web/src/components/chat/ManagedComposerPlus.test.tsx' 'apps/web/src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx' 'apps/api/src/config/config.schema.ts' 'apps/web/src/components/chat/managed-mcp-apps.test.tsx' 'apps/api/src/meri/meri-mcp.managed-boundary.spec.ts' 'apps/api/src/meri/meri-mcp-oauth.service.spec.ts' 'apps/api/src/meri/meri-mcp-transport.pagination.spec.ts'
+      - name: API connector and OAuth regression tests
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/meri/meri-managed-mcp src/meri/meri-mcp
+      - name: Frontend connector and draft regression tests
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @capiro/web exec vitest run --poolOptions.threads.singleThread src/components/chat/managed-mcp-apps.test.tsx src/components/chat/ManagedComposerPlus.test.tsx src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx src/components/chat/MeriWorkspaceWindow.test.tsx
+      - name: Orchestrator managed connector regression tests
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @capiro/meriv2-orchestrator exec jest --runInBand --forceExit src/meri/meriv3/api-managed-mcp.repo.spec.ts src/meri/meriv3/meriv3-managed-mcp-assistant.service.spec.ts
+      - name: API typecheck and build
+        if: ${{ !cancelled() }}
+        run: |
+          pnpm --filter @capiro/api exec tsc --noEmit
+          pnpm --filter @capiro/api build
+      - name: Web typecheck and build
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @capiro/web build
+      - name: Orchestrator typecheck and build
+        if: ${{ !cancelled() }}
+        run: |
+          pnpm --filter @capiro/meriv2-orchestrator typecheck
+          pnpm --filter @capiro/meriv2-orchestrator build
+
+  deployed-configuration:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_READONLY_GHA_ROLE_ARN }}
+          role-session-name: meri-connector-inspection
+          aws-region: us-east-1
+      - name: Inspect running API configuration without secret values
+        run: python3 scripts/inspect-meri-connectors.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meri-connector-deployment
+          path: meri-connector-deployment.json

@@ -30,8 +30,13 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
 vi.mock('../../state/impersonation.js', () => ({ useImpersonation: () => mocks.impersonation }));
 vi.mock('../components/feedback/toast.js', () => ({ useCapiroToast: () => mocks.toast }));
-vi.mock('../../components/chat/managed-mcp-apps.js', () => ({
-  useManagedMcpApps: () => ({ apps: [] }),
+vi.mock('../../components/chat/managed-mcp-apps.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../components/chat/managed-mcp-apps.js')>(),
+  useManagedMcpApps: () => ({
+    apps: [{ id: 'hubspot', name: 'HubSpot', description: 'CRM', status: 'connected',
+      connected: true, available: true, needsReauth: false, lastError: null }],
+    busyAppId: null, error: null,
+  }),
 }));
 vi.mock('./meri-icons.js', () => ({ MeriIcon: () => null }));
 vi.mock('./meri-connector-logos.js', () => ({ ConnectorMark: () => null }));
@@ -358,7 +363,7 @@ describe('conversation composer drafts', () => {
       const view = await render(composer(controller(), integrations));
       enter('  Draft briefing\nwith an early constraint  ');
       fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: /Connect HubSpot/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /^HubSpot/ }));
       expect(integrations).toHaveBeenCalledOnce();
       view.unmount();
       await render(composer());

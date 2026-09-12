@@ -1,4 +1,4 @@
-export type MeriConnectorId = 'hubspot' | 'airtable' | 'sharepoint';
+export type MeriConnectorId = 'hubspot' | 'airtable' | 'sharepoint' | 'monday' | 'google-drive';
 
 /**
  * Simplified brand marks for the connectors Meri can read from — the
@@ -27,6 +27,26 @@ export function ConnectorMark({ id, size = 16 }: { id: MeriConnectorId; size?: n
         <path d="M12 3L21 7.3L12 11.6L3 7.3Z" fill="#FCB400" />
         <path d="M12.7 12.8L20.7 9.1V15.9L12.7 19.7Z" fill="#18BFFF" />
         <path d="M11.3 12.8L3.3 9.1V15.9L11.3 19.7Z" fill="#F82B60" />
+      </svg>
+    );
+  }
+
+  if (id === 'monday') {
+    return (
+      <svg {...props}>
+        <rect x="3" y="5" width="5" height="15" rx="2.5" fill="#F62B54" transform="rotate(25 5.5 12.5)" />
+        <rect x="11" y="5" width="5" height="15" rx="2.5" fill="#FFCC00" transform="rotate(25 13.5 12.5)" />
+        <circle cx="20" cy="17" r="2.5" fill="#00CA72" />
+      </svg>
+    );
+  }
+
+  if (id === 'google-drive') {
+    return (
+      <svg {...props}>
+        <path d="M8 3h8l8 14h-8Z" fill="#FBBC04" />
+        <path d="M8 3 0 17l4 7 8-14Z" fill="#34A853" />
+        <path d="M0 17h24l-4 7H4Z" fill="#4285F4" />
       </svg>
     );
   }

@@ -15,22 +15,14 @@ import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 
-function managedSuccessHtml(appName: string): string {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${appName} connected — Capiro</title>
-</head>
-<body style="margin:0;background:#f5f6f8;color:#131a24;font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;display:grid;place-items:center;min-height:100vh">
-  <main style="width:min(360px,calc(100vw - 40px));background:#fff;border:1px solid #dfe2e8;border-radius:14px;padding:28px;text-align:center;box-shadow:0 14px 40px rgba(19,26,36,.10)">
-    <div style="width:38px;height:38px;border-radius:999px;background:#e8f5ee;color:#247c53;display:grid;place-items:center;margin:0 auto 14px;font-size:20px">✓</div>
-    <h1 style="font-size:18px;margin:0 0 7px">${appName} connected</h1>
-    <p style="color:#667085;margin:0">You can return to Meri. This sign-in window will close from the Capiro workspace.</p>
-  </main>
-</body>
-</html>`;
+function completionHtml(title: string, message: string): string {
+  // Both strings are controlled application copy, never provider query text.
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8" />' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1" />' +
+    '<title>' + title + ' — Capiro</title></head>' +
+    '<body style="font:16px system-ui;padding:32px;color:#344054">' +
+    '<main><h1>' + title + '</h1><p>' + message + '</p>' +
+    '<p>You can close this window and return to Meri.</p></main></body></html>';
 }
 
 @Controller('clio/mcp-oauth')
@@ -50,27 +42,40 @@ export class MeriMcpOAuthController {
     @Res() res: Response,
   ): Promise<void> {
     const base = this.oauth.getSuccessRedirect();
-    const fail = (msg: string) =>
-      res.redirect(302, `${base}?provider=mcp&mcp_error=${encodeURIComponent(msg)}`);
-
-    if (error) return fail(errorDescription || error);
-    if (!code || !state) return fail('Missing authorization code or state');
-
+    const failure = () => res.status(400).type('html').send(
+      completionHtml('Sign-in did not complete', 'Return to Meri and try connecting again.'),
+    );
+    if (!state) { failure(); return; }
+    if (error || !code) {
+      try {
+        const result = await this.oauth.handleFailure(state, error === 'access_denied');
+        this.mcp.invalidate(result.tenantId);
+        const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
+        if (app) {
+          res.status(200).type('html').send(completionHtml(
+            error === 'access_denied' ? 'Sign-in cancelled' : 'Sign-in did not complete',
+            'Your conversation is saved. You can try connecting again in Meri.',
+          ));
+          return;
+        }
+        res.redirect(302, base + '?provider=mcp&mcp_error=Sign-in%20did%20not%20complete');
+      } catch { failure(); }
+      return;
+    }
     try {
       const result = await this.oauth.handleCallback({ code, state });
-      // Tokens are stored now → discover the server's real tools. Managed
-      // MeriV3 apps are then immediately narrowed back to their reviewed
-      // read-only context surface BEFORE the browser can return to chat.
-      await this.mcp.discoverTools(result.tenantId, result.serverId).catch(() => {});
-      const managedApp = await this.managedMcp.appForServer(result.tenantId, result.serverId);
-      if (managedApp) {
+      const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
+      const count = await this.mcp.discoverTools(result.tenantId, result.serverId);
+      if (app) {
+        if (!count) { failure(); return; }
         await this.managedMcp.finalizeConnection(result.tenantId, result.serverId);
-        res.status(200).type('html').send(managedSuccessHtml(managedApp.name));
+        res.status(200).type('html').send(completionHtml(
+          app.name + ' connected',
+          'Meri can now search and read the information you have authorized.',
+        ));
         return;
       }
-      res.redirect(302, `${base}?provider=mcp&mcp_connected=${encodeURIComponent(result.name)}`);
-    } catch (err) {
-      fail(err instanceof Error ? err.message : 'Authorization failed');
-    }
+      res.redirect(302, base + '?provider=mcp&mcp_connected=' + encodeURIComponent(result.name));
+    } catch { failure(); }
   }
 }

@@ -117,13 +117,15 @@ async function withClient<T>(
     });
   }
   const timeoutMs = conn.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`MCP operation timed out after ${timeoutMs}ms`)), timeoutMs),
-  );
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`MCP operation timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
   try {
     await Promise.race([client.connect(transport), timeout]);
     return await Promise.race([fn(client), timeout]);
   } finally {
+    clearTimeout(timer);
     await client.close().catch(() => {});
   }
 }
@@ -135,8 +137,20 @@ export function createMcpClient(
 ): McpClient {
   return {
     async listTools(): Promise<McpToolDescriptor[]> {
-      const result = await withClient(conn, stdioAllowlistCsv, (client) => client.listTools());
-      return parseMcpToolsList(result);
+      return withClient(conn, stdioAllowlistCsv, async (client) => {
+        const tools: McpToolDescriptor[] = [];
+        const seen = new Set<string>();
+        let cursor: string | undefined;
+        for (let page = 0; page < 100; page++) {
+          const result = await client.listTools(cursor ? { cursor } : undefined);
+          tools.push(...parseMcpToolsList(result));
+          if (!result.nextCursor) return tools;
+          if (seen.has(result.nextCursor)) throw new Error('MCP tool discovery repeated a page.');
+          seen.add(result.nextCursor);
+          cursor = result.nextCursor;
+        }
+        throw new Error('MCP tool discovery exceeded the page limit.');
+      });
     },
     async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
       return withClient(conn, stdioAllowlistCsv, (client) =>

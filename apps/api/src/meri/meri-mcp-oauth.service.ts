@@ -1,3 +1,4 @@
+import { managedAppDefinition, managedAppConfigured } from './meri-managed-mcp.helpers.js';
 /**
  * OAuth 2.1 connect flow for Meri MCP connectors (connector-library v1).
  *
@@ -51,6 +52,9 @@ type OAuthServerRow = {
   endpoint: string | null;
   authType: string;
   catalogId: string | null;
+  scope: string;
+  ownerUserId: string | null;
+  enabled: boolean;
 };
 
 @Injectable()
@@ -116,7 +120,9 @@ export class MeriMcpOAuthService {
       redirectUri: this.redirectUri()!,
       clientName: `Capiro Meri — ${server.name}`,
       signedState,
-      requestedScopes: catalog?.oauthScopes,
+      requestedScopes: managedAppDefinition(server.catalogId)?.oauthScopes ?? catalog?.oauthScopes,
+      managed: Boolean(managedAppDefinition(server.catalogId)),
+      offlineAccess: managedAppDefinition(server.catalogId)?.offlineAccess,
     });
   }
 
@@ -130,6 +136,7 @@ export class MeriMcpOAuthService {
   ): Promise<{ authUrl: string | null; alreadyConnected?: boolean }> {
     this.assertConfigured();
     const server = await this.loadOwnedServer(ctx, serverId);
+    this.assertManagedServer(server);
     if (server.authType !== 'oauth') {
       throw new BadRequestException('This connector does not use OAuth');
     }
@@ -150,7 +157,7 @@ export class MeriMcpOAuthService {
       signedState,
     );
 
-    await this.setStatus(ctx.tenantId, server.id, 'pending');
+    await this.setStatus(ctx.tenantId, server.id, 'pending', undefined, !managedAppDefinition(server.catalogId));
 
     let result: string;
     try {
@@ -163,7 +170,7 @@ export class MeriMcpOAuthService {
       await this.setStatus(ctx.tenantId, server.id, 'error', message);
       this.logger.warn(`MCP OAuth start failed [${server.name}]: ${message}`);
       throw new ServiceUnavailableException(
-        `Could not start OAuth with ${server.name}: ${message}`,
+        'Sign-in could not start. Please try connecting again.',
       );
     }
 
@@ -171,7 +178,7 @@ export class MeriMcpOAuthService {
     if (result !== 'REDIRECT' || !url) {
       // Valid tokens already on file — not an error; report it so the UI can
       // just refresh the connected state.
-      await this.setStatus(ctx.tenantId, server.id, 'connected');
+      await this.setStatus(ctx.tenantId, server.id, managedAppDefinition(server.catalogId) ? 'pending' : 'connected');
       return { authUrl: null, alreadyConnected: true };
     }
     // Defensive: ensure our signed state rides along even if the SDK didn't add it.
@@ -179,14 +186,18 @@ export class MeriMcpOAuthService {
     // Persist the nonce so the callback can consume it exactly once (anti-replay
     // beyond the single-use PKCE code). The provider created the credential row
     // during auth(), so it exists by now.
-    await this.prisma
-      .withTenant(ctx.tenantId, (tx) =>
+    try {
+      const saved = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioMcpOAuthCredential.updateMany({
           where: { serverId: server.id },
           data: { stateNonce: nonce },
         }),
-      )
-      .catch((err) => this.logger.warn(`Failed to persist state nonce: ${(err as Error).message}`));
+      );
+      if (saved.count !== 1) throw new Error('Authorization no longer active');
+    } catch {
+      await this.setStatus(ctx.tenantId, server.id, 'error', 'Sign-in could not start. Please try again.');
+      throw new ServiceUnavailableException('Sign-in could not start. Please try again.');
+    }
     return { authUrl: url.toString() };
   }
 
@@ -203,10 +214,14 @@ export class MeriMcpOAuthService {
     const server = await this.prisma.withTenant(decoded.t, (tx) =>
       tx.clioMcpServer.findFirst({
         where: { id: decoded.s, tenantId: decoded.t },
-        select: { id: true, name: true, endpoint: true, authType: true, catalogId: true },
+        select: { id: true, name: true, endpoint: true, authType: true, catalogId: true, scope: true, ownerUserId: true, enabled: true },
       }),
     );
     if (!server) throw new NotFoundException('Connector not found');
+    this.assertManagedServer(server);
+    if (managedAppDefinition(server.catalogId) && server.ownerUserId !== decoded.u) {
+      throw new ForbiddenException('This authorization is no longer active.');
+    }
     if (server.authType !== 'oauth' || !server.endpoint) {
       throw new BadRequestException('Connector is not an OAuth connector');
     }
@@ -244,26 +259,59 @@ export class MeriMcpOAuthService {
       const message = err instanceof Error ? err.message : String(err);
       await this.setStatus(decoded.t, server.id, 'error', message);
       this.logger.warn(`MCP OAuth callback failed [${server.name}]: ${message}`);
-      throw new BadRequestException(`Authorization failed: ${message}`);
+      throw new BadRequestException('Sign-in did not complete. Please try connecting again.');
     }
-    // saveTokens already set connectionStatus = 'connected'.
+    // Managed app tokens are saved while pending; discovery finalizes readiness.
     await this.audit(decoded.t, decoded.u, 'clio.mcp_oauth.connect', server.id, {
       name: server.name,
     });
     return { tenantId: decoded.t, serverId: server.id, name: server.name };
   }
 
+  async handleFailure(state: string, cancelled: boolean): Promise<{ tenantId: string; serverId: string }> {
+    const decoded = this.verifyState(state);
+    await this.prisma.withTenant(decoded.t, async (tx) => {
+      const consumed = await tx.clioMcpOAuthCredential.updateMany({
+        where: { serverId: decoded.s, stateNonce: decoded.n },
+        data: { stateNonce: null, codeVerifierCiphertext: null, codeVerifierIv: null, codeVerifierAuthTag: null },
+      });
+      if (consumed.count !== 1) throw new BadRequestException('Authorization state already used or invalid');
+      await tx.clioMcpServer.updateMany({
+        where: { id: decoded.s, tenantId: decoded.t, connectionStatus: 'pending' },
+        data: {
+          connectionStatus: 'error',
+          lastError: cancelled ? 'Sign-in was cancelled. Please try again.' : 'Sign-in did not complete. Please try again.',
+        },
+      });
+    });
+    return { tenantId: decoded.t, serverId: decoded.s };
+  }
+
   // ── disconnect ───────────────────────────────────────────────────────────
+
+  /** Cancel only an unfinished authorization; a completed connection is retained. */
+  async cancelPending(ctx: TenantContext, serverId: string): Promise<void> {
+    const server = await this.loadOwnedServer(ctx, serverId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const cancelled = await tx.clioMcpServer.updateMany({
+        where: { id: server.id, tenantId: ctx.tenantId, connectionStatus: 'pending' },
+        data: { connectionStatus: 'disconnected', lastError: null },
+      });
+      if (cancelled.count === 1) {
+        await tx.clioMcpOAuthCredential.deleteMany({ where: { serverId: server.id } });
+      }
+    });
+  }
 
   /** Revoke local tokens for a connector (owner / admin only). */
   async disconnect(ctx: TenantContext, serverId: string): Promise<void> {
     const server = await this.loadOwnedServer(ctx, serverId);
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.clioMcpOAuthCredential.deleteMany({ where: { serverId: server.id } });
       await tx.clioMcpServer.update({
         where: { id: server.id },
         data: { connectionStatus: 'disconnected', lastError: null },
       });
+      await tx.clioMcpOAuthCredential.deleteMany({ where: { serverId: server.id } });
     });
     await this.audit(ctx.tenantId, ctx.userId, 'clio.mcp_oauth.disconnect', server.id, {
       name: server.name,
@@ -285,6 +333,7 @@ export class MeriMcpOAuthService {
           catalogId: true,
           scope: true,
           ownerUserId: true,
+          enabled: true,
         },
       }),
     );
@@ -296,6 +345,15 @@ export class MeriMcpOAuthService {
       throw new ForbiddenException('You can only manage your own connectors');
     }
     return server;
+  }
+
+  private assertManagedServer(server: OAuthServerRow): void {
+    const app = managedAppDefinition(server.catalogId);
+    if (app && (!this.config.get('CLIO_MCP_ENABLED', { infer: true }) ||
+      !managedAppConfigured(app.id) || !server.enabled || server.scope !== 'user' ||
+      server.name !== app.catalogId || server.endpoint !== app.endpoint || server.authType !== 'oauth')) {
+      throw new ServiceUnavailableException('This app is temporarily unavailable. Please try again later.');
+    }
   }
 
   private async audit(
@@ -328,11 +386,12 @@ export class MeriMcpOAuthService {
     serverId: string,
     status: string,
     error?: string,
+    allowDisconnected = false,
   ): Promise<void> {
     await this.prisma
       .withTenant(tenantId, (tx) =>
-        tx.clioMcpServer.update({
-          where: { id: serverId },
+        tx.clioMcpServer.updateMany({
+          where: { id: serverId, tenantId, ...(allowDisconnected ? {} : { connectionStatus: { not: 'disconnected' } }) },
           data: {
             connectionStatus: status,
             ...(error !== undefined ? { lastError: error.slice(0, 500) } : {}),
@@ -352,8 +411,8 @@ export class MeriMcpOAuthService {
   private verifyState(state: string): OAuthStatePayload {
     const secret = this.rawStateSecret();
     if (!secret) throw new ServiceUnavailableException('OAUTH_STATE_SECRET is not set');
-    const [body, sig] = state.split('.');
-    if (!body || !sig) throw new BadRequestException('Malformed state');
+    const [body, sig, extra] = state.split('.');
+    if (!body || !sig || extra !== undefined) throw new BadRequestException('Malformed state');
     const expected = createHmac('sha256', Buffer.from(secret, 'utf8'))
       .update(body)
       .digest('base64url');
@@ -366,6 +425,9 @@ export class MeriMcpOAuthService {
     try {
       payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as OAuthStatePayload;
     } catch {
+      throw new BadRequestException('Malformed state payload');
+    }
+    if (!payload || ![payload.t, payload.s, payload.u, payload.n].every((value) => typeof value === 'string' && value.length > 0) || !Number.isFinite(payload.e)) {
       throw new BadRequestException('Malformed state payload');
     }
     if (payload.e < Math.floor(Date.now() / 1000)) {

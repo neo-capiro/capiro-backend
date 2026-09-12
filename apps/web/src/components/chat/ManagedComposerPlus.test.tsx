@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   managed: true,
 }));
 
-vi.mock('./managed-mcp-apps.js', () => ({
+vi.mock('./managed-mcp-apps.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./managed-mcp-apps.js')>(),
   useManagedMcpApps: () =>
     mocks.managed
       ? {
@@ -22,6 +23,11 @@ vi.mock('./managed-mcp-apps.js', () => ({
               needsReauth: false,
               lastError: null,
             },
+            ...(['monday', 'google-drive'] as const).map((id) => ({
+              id, name: id === 'monday' ? 'monday.com' : 'Google Drive',
+              description: 'Read your information', status: 'disconnected', connected: false,
+              available: true, needsReauth: false, lastError: null,
+            })),
             {
               id: 'airtable',
               name: 'Airtable',
@@ -52,12 +58,14 @@ describe('ManagedComposerPlus', () => {
     mocks.managed = true;
   });
 
-  test('MeriV3 plus menu contains upload, HubSpot and Airtable only', () => {
+  test('MeriV3 plus menu contains upload and all four managed apps', () => {
     render(<ManagedComposerPlus onUpload={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add files or connected apps' }));
     expect(screen.getByText('Upload files')).toBeTruthy();
     expect(screen.getByText('HubSpot')).toBeTruthy();
     expect(screen.getByText('Airtable')).toBeTruthy();
+    expect(screen.getByText('monday.com')).toBeTruthy();
+    expect(screen.getByText('Google Drive')).toBeTruthy();
     expect(screen.queryByText('SharePoint')).toBeNull();
     expect(screen.queryByText(/server url/i)).toBeNull();
     expect(screen.queryByText(/client secret/i)).toBeNull();
@@ -66,7 +74,7 @@ describe('ManagedComposerPlus', () => {
   test('connect and disconnect are one-click product actions', () => {
     render(<ManagedComposerPlus onUpload={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add files or connected apps' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Connect' })[0]!);
     expect(mocks.connect).toHaveBeenCalledWith('hubspot');
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     expect(mocks.disconnect).toHaveBeenCalledWith('airtable');

@@ -7,13 +7,10 @@ import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
 import { MeriMcpService } from './meri-mcp.service.js';
 import { bridgedToolName, type BridgedTool } from './meri-mcp.helpers.js';
 import {
-  AIRTABLE_READ_ONLY_TOOLS,
-  MERIV3_AIRTABLE_CATALOG_ID,
-  MERIV3_AIRTABLE_ENDPOINT,
-  MERIV3_HUBSPOT_CATALOG_ID,
-  MERIV3_HUBSPOT_ENDPOINT,
+  MANAGED_MCP_APPS,
   MERIV3_MANAGED_APP_IDS,
   filterManagedReadOnlyTools,
+  managedAppConfigured,
   managedAppIdFromCatalogId,
   managedCatalogId,
   type MeriV3ManagedAppId,
@@ -37,24 +34,8 @@ export interface MeriV3ManagedMcpSchema extends BridgedTool {
   readOnly: true;
 }
 
-const APP_META: Record<MeriV3ManagedAppId, { name: string; description: string }> = {
-  hubspot: {
-    name: 'HubSpot',
-    description: 'Let Meri search CRM contacts, companies, deals, activities, and account context.',
-  },
-  airtable: {
-    name: 'Airtable',
-    description: 'Let Meri search bases, tables, records, interfaces, and tracking data you can access.',
-  },
-};
-
-function stringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === 'string' && item.length > 0);
-}
-
-function sameStrings(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
+function strings(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
 function serverPrefix(name: string): string {
@@ -62,13 +43,19 @@ function serverPrefix(name: string): string {
   return probe.slice(0, probe.lastIndexOf('__') + 2);
 }
 
-function globalMcpEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env.CLIO_MCP_ENABLED?.trim().toLowerCase();
-  return raw === undefined || !['false', '0', 'no', 'off'].includes(raw);
+function globalMcpEnabled(): boolean {
+  const value = process.env.CLIO_MCP_ENABLED?.trim().toLowerCase();
+  return value === undefined || !['false', '0', 'no', 'off'].includes(value);
 }
 
 @Injectable()
 export class MeriManagedMcpService {
+  private readonly connecting = new Map<string, Promise<{
+    app: MeriV3ManagedAppStatus;
+    authUrl: string | null;
+    alreadyConnected: boolean;
+  }>>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mcp: MeriMcpService,
@@ -77,105 +64,120 @@ export class MeriManagedMcpService {
 
   async listApps(ctx: TenantContext): Promise<MeriV3ManagedAppStatus[]> {
     const rows = await this.personalRows(ctx);
-    const newest = new Map<MeriV3ManagedAppId, (typeof rows)[number]>();
-    for (const row of rows) {
-      const appId = managedAppIdFromCatalogId(row.catalogId);
-      if (appId && !newest.has(appId)) newest.set(appId, row);
-    }
     return MERIV3_MANAGED_APP_IDS.map((id) => {
-      const row = newest.get(id);
-      const status = this.publicStatus(row?.connectionStatus);
+      const app = MANAGED_MCP_APPS[id];
+      const row = rows.find((candidate) => candidate.catalogId === app.catalogId);
+      let status = this.publicStatus(row?.connectionStatus);
       const available = this.available(id);
-      const lastError = row?.lastError ? String(row.lastError).slice(0, 300) : null;
+      const usable = Boolean(row?.enabled && filterManagedReadOnlyTools(id, strings(row.toolAllowlist)).length);
+      if (status === 'connected' && !usable) status = 'error';
       return {
         id,
-        ...APP_META[id],
+        name: app.name,
+        description: app.description,
         status,
-        // A retained OAuth row can still say `connected` while the platform
-        // kill switch or provider setup is unavailable. Do not advertise a live
-        // connection that Meri cannot actually use.
-        connected: status === 'connected' && available,
+        connected: status === 'connected' && usable && available,
         available,
         needsReauth: status === 'needs_reauth',
-        lastError,
+        // Provider errors may contain URLs, codes, or internal configuration.
+        lastError: !available
+          ? app.name + ' is temporarily unavailable. Please try again later.'
+          : status === 'needs_reauth'
+            ? 'Please reconnect ' + app.name + ' to continue.'
+            : status === 'error'
+              ? app.name + ' could not finish connecting. Please try again.'
+              : null,
       };
     });
   }
 
-  async connect(
-    ctx: TenantContext,
-    appIdRaw: string,
-  ): Promise<{
-    app: MeriV3ManagedAppStatus;
-    authUrl: string | null;
-    alreadyConnected: boolean;
-  }> {
-    const appId = this.parseAppId(appIdRaw);
+  connect(ctx: TenantContext, rawId: string) {
+    const appId = this.parseAppId(rawId);
+    const key = ctx.tenantId + ':' + ctx.userId + ':' + appId;
+    const pending = this.connecting.get(key);
+    if (pending) return pending;
+    const operation = this.connectApp(ctx, appId).finally(() => this.connecting.delete(key));
+    this.connecting.set(key, operation);
+    return operation;
+  }
+
+  private async connectApp(ctx: TenantContext, appId: MeriV3ManagedAppId) {
     if (!globalMcpEnabled()) {
       throw new ServiceUnavailableException('Connected apps are temporarily disabled.');
     }
-    if (!this.oauth.isConfigured()) {
-      throw new ServiceUnavailableException('Connected apps are temporarily unavailable.');
-    }
     if (!this.available(appId)) {
-      throw new ServiceUnavailableException(
-        appId === 'hubspot'
-          ? 'HubSpot sign-in is not configured for Capiro yet.'
-          : 'Airtable sign-in is not configured for Capiro yet.',
-      );
+      throw new ServiceUnavailableException(MANAGED_MCP_APPS[appId].name + ' is temporarily unavailable. Please try again later.');
     }
 
     const existing = await this.rowsForApp(ctx, appId);
-    const connected = existing.find((row) => row.connectionStatus === 'connected' && row.enabled);
-    if (connected) {
-      await this.hardenServer(ctx.tenantId, connected.id);
-      const status = (await this.listApps(ctx)).find((item) => item.id === appId)!;
-      return { app: status, authUrl: null, alreadyConnected: true };
+    const retained = existing.find((row) => row.enabled && ['connected', 'error'].includes(row.connectionStatus));
+    if (retained) {
+      // Revalidate valid credentials in place. An upstream outage is not a
+      // reason to delete the user's connection or ask them to sign in again.
+      const count = await this.mcp.discoverTools(ctx.tenantId, retained.id);
+      if (count > 0) {
+        await this.finalizeConnection(ctx.tenantId, retained.id);
+        return { app: await this.statusFor(ctx, appId), authUrl: null, alreadyConnected: true };
+      }
+      const [current] = await this.rowsForApp(ctx, appId);
+      if (current?.connectionStatus !== 'needs_reauth') {
+        throw new ServiceUnavailableException('The app could not be reached. Please try again.');
+      }
     }
 
-    // A failed/abandoned OAuth handshake may leave a PKCE verifier or one-time
-    // state behind. Reconnect starts from a fresh personal connector rather than
-    // trying to repair opaque provider state in place.
-    for (const row of existing) {
-      await this.mcp.deleteServer(ctx, row.id);
-    }
-
-    const serverId =
-      appId === 'hubspot' ? await this.createHubSpot(ctx) : await this.createAirtable(ctx);
+    // Only abandoned/disconnected/expired authorizations are replaced.
+    for (const row of existing) await this.mcp.deleteServer(ctx, row.id);
+    const serverId = await this.createApp(ctx, appId);
     const started = await this.oauth.start(ctx, serverId);
-    const status = (await this.listApps(ctx)).find((item) => item.id === appId)!;
+    if (started.alreadyConnected) {
+      const count = await this.mcp.discoverTools(ctx.tenantId, serverId);
+      if (!count) throw new ServiceUnavailableException('The app could not finish connecting. Please try again.');
+      await this.finalizeConnection(ctx.tenantId, serverId);
+    }
     return {
-      app: status,
+      app: await this.statusFor(ctx, appId),
       authUrl: started.authUrl,
       alreadyConnected: Boolean(started.alreadyConnected),
     };
   }
 
-  async disconnect(ctx: TenantContext, appIdRaw: string): Promise<{ disconnected: true }> {
-    const appId = this.parseAppId(appIdRaw);
-    const rows = await this.rowsForApp(ctx, appId);
-    for (const row of rows) {
-      if (row.authType === 'oauth') await this.oauth.disconnect(ctx, row.id);
-      else await this.mcp.deleteServer(ctx, row.id);
+  async disconnect(ctx: TenantContext, rawId: string): Promise<{ disconnected: true }> {
+    const appId = this.parseAppId(rawId);
+    const pending = this.connecting.get(ctx.tenantId + ':' + ctx.userId + ':' + appId);
+    if (pending) await pending.catch(() => undefined);
+    for (const row of await this.rowsForApp(ctx, appId)) {
+      await this.oauth.disconnect(ctx, row.id);
     }
     this.mcp.invalidate(ctx.tenantId);
     return { disconnected: true };
   }
 
-  /**
-   * Called after OAuth tool discovery. It is safe to call repeatedly and is
-   * deliberately tenant-id based so the unauthenticated signed OAuth callback
-   * can harden the connector before returning the browser to Meri.
-   */
-  async finalizeConnection(tenantId: string, serverId: string): Promise<number> {
-    return this.hardenServer(tenantId, serverId);
+  async cancelPending(ctx: TenantContext, rawId: string): Promise<{ cancelled: true }> {
+    const appId = this.parseAppId(rawId);
+    const pending = this.connecting.get(ctx.tenantId + ':' + ctx.userId + ':' + appId);
+    if (pending) await pending.catch(() => undefined);
+    for (const row of await this.rowsForApp(ctx, appId)) {
+      await this.oauth.cancelPending(ctx, row.id);
+    }
+    this.mcp.invalidate(ctx.tenantId);
+    return { cancelled: true };
   }
 
-  /** Identify whether an OAuth callback belongs to the simple MeriV3 app UI. */
-  async appForServer(
-    tenantId: string,
-    serverId: string,
-  ): Promise<{ id: MeriV3ManagedAppId; name: string } | null> {
+  async finalizeConnection(tenantId: string, serverId: string): Promise<number> {
+    const count = await this.hardenServer(tenantId, serverId);
+    if (!count) throw new ServiceUnavailableException('No supported read tools are available. Please try reconnecting.');
+    const result = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.clioMcpServer.updateMany({
+        where: { id: serverId, tenantId, enabled: true, connectionStatus: { in: ['pending', 'connected'] } },
+        data: { connectionStatus: 'connected', lastError: null },
+      }),
+    );
+    if (result.count !== 1) throw new BadRequestException('This connection is no longer active.');
+    this.mcp.invalidate(tenantId);
+    return count;
+  }
+
+  async appForServer(tenantId: string, serverId: string) {
     const row = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clioMcpServer.findFirst({
         where: { id: serverId, tenantId },
@@ -183,149 +185,78 @@ export class MeriManagedMcpService {
       }),
     );
     const id = managedAppIdFromCatalogId(row?.catalogId);
-    return id ? { id, name: APP_META[id].name } : null;
+    return id ? { id, name: MANAGED_MCP_APPS[id].name } : null;
   }
 
-  /** Schemas MeriV3 may see. No connection => no schemas. */
   async schemasForMeriV3(ctx: TenantContext): Promise<MeriV3ManagedMcpSchema[]> {
-    if (!globalMcpEnabled()) return [];
-    const rows = (await this.personalRows(ctx)).filter(
-      (row) => row.enabled && row.connectionStatus === 'connected',
-    );
-    if (!rows.length) return [];
-
-    for (const row of rows) await this.hardenServer(ctx.tenantId, row.id);
-    const managedRows = (await this.personalRows(ctx)).filter(
-      (row) => row.enabled && row.connectionStatus === 'connected',
-    );
-    const prefixes = new Map<string, { id: MeriV3ManagedAppId; name: string }>();
-    for (const row of managedRows) {
+    if (!globalMcpEnabled() || !this.oauth.isConfigured()) return [];
+    const prefixes = new Map<string, MeriV3ManagedAppId>();
+    for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
-      if (!id) continue;
-      prefixes.set(serverPrefix(row.name), { id, name: APP_META[id].name });
+      if (!id || !this.available(id) || !row.enabled || row.connectionStatus !== 'connected') continue;
+      if (await this.hardenServer(ctx.tenantId, row.id)) prefixes.set(serverPrefix(row.name), id);
     }
     if (!prefixes.size) return [];
-
     const schemas = await this.mcp.bridgedSchemasFor(ctx);
     const out: MeriV3ManagedMcpSchema[] = [];
     for (const schema of schemas) {
-      const match = [...prefixes.entries()].find(([prefix]) => schema.name.startsWith(prefix));
-      if (!match) continue;
-      const [, app] = match;
-      if (!this.mcp.isBridgedToolReadOnly(ctx, schema.name)) continue;
-      out.push({
-        ...schema,
-        source: 'managed_mcp',
-        appId: app.id,
-        appName: app.name,
-        readOnly: true,
-      });
+      const match = [...prefixes].find(([prefix]) => schema.name.startsWith(prefix));
+      if (!match || !this.mcp.isBridgedToolReadOnly(ctx, schema.name)) continue;
+      const id = match[1];
+      out.push({ ...schema, source: 'managed_mcp', appId: id, appName: MANAGED_MCP_APPS[id].name, readOnly: true });
     }
     return out;
   }
 
-  /** Execute only a schema the server just proved is a connected managed read. */
-  async executeRead(
-    ctx: TenantContext,
-    toolName: string,
-    input: Record<string, unknown>,
-  ): Promise<unknown> {
+  async executeRead(ctx: TenantContext, toolName: string, input: Record<string, unknown>): Promise<unknown> {
     assertMeriToolRequestActive();
     const schemas = await this.schemasForMeriV3(ctx);
-    if (!schemas.some((schema) => schema.name === toolName)) {
+    if (!schemas.some((schema) => schema.name === toolName) || !this.mcp.isBridgedToolReadOnly(ctx, toolName)) {
       throw new BadRequestException('Connected-app tool is unavailable or not read-only.');
     }
-    if (!this.mcp.isBridgedToolReadOnly(ctx, toolName)) {
-      throw new BadRequestException('Connected-app writes are not enabled in MeriV3.');
-    }
     assertMeriToolRequestActive();
+    // executeBridged rechecks the current row immediately before provider I/O.
     return this.mcp.executeBridged(ctx, toolName, input);
   }
 
-  private async createHubSpot(ctx: TenantContext): Promise<string> {
-    const clientId = process.env.MERI_MCP_HUBSPOT_CLIENT_ID?.trim();
-    const clientSecret = process.env.MERI_MCP_HUBSPOT_CLIENT_SECRET?.trim();
-    if (!clientId || !clientSecret) {
-      throw new ServiceUnavailableException('HubSpot sign-in is not configured for Capiro yet.');
-    }
+  private async createApp(ctx: TenantContext, appId: MeriV3ManagedAppId): Promise<string> {
+    const app = MANAGED_MCP_APPS[appId];
     const created = (await this.mcp.createServer(ctx, {
-      name: MERIV3_HUBSPOT_CATALOG_ID,
+      name: app.catalogId,
       transport: 'http',
-      endpoint: MERIV3_HUBSPOT_ENDPOINT,
+      endpoint: app.endpoint,
       authType: 'oauth',
       scope: 'user',
       toolAllowlist: [],
       readOnlyTools: [],
       enabled: true,
-      oauthClientId: clientId,
-      oauthClientSecret: clientSecret,
+      ...(app.clientIdEnv ? { oauthClientId: process.env[app.clientIdEnv]?.trim() } : {}),
+      ...(app.clientSecretEnv ? { oauthClientSecret: process.env[app.clientSecretEnv]?.trim() } : {}),
     })) as { id?: unknown };
-    const id = typeof created.id === 'string' ? created.id : '';
-    if (!id) throw new ServiceUnavailableException('HubSpot connection could not be created.');
+    if (typeof created.id !== 'string') throw new ServiceUnavailableException('The app could not finish connecting.');
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.update({
-        where: { id },
-        data: { catalogId: MERIV3_HUBSPOT_CATALOG_ID },
-      }),
+      tx.clioMcpServer.update({ where: { id: created.id as string }, data: { catalogId: app.catalogId } }),
     );
     this.mcp.invalidate(ctx.tenantId);
-    return id;
-  }
-
-  private async createAirtable(ctx: TenantContext): Promise<string> {
-    const readOnly = [...AIRTABLE_READ_ONLY_TOOLS];
-    const created = (await this.mcp.createServer(ctx, {
-      name: MERIV3_AIRTABLE_CATALOG_ID,
-      transport: 'http',
-      endpoint: MERIV3_AIRTABLE_ENDPOINT,
-      authType: 'oauth',
-      scope: 'user',
-      toolAllowlist: readOnly,
-      readOnlyTools: readOnly,
-      enabled: true,
-    })) as { id?: unknown };
-    const id = typeof created.id === 'string' ? created.id : '';
-    if (!id) throw new ServiceUnavailableException('Airtable connection could not be created.');
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.update({
-        where: { id },
-        data: { catalogId: MERIV3_AIRTABLE_CATALOG_ID },
-      }),
-    );
-    this.mcp.invalidate(ctx.tenantId);
-    return id;
+    return created.id;
   }
 
   private async hardenServer(tenantId: string, serverId: string): Promise<number> {
     const row = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clioMcpServer.findFirst({
-        where: { id: serverId, tenantId },
-        select: {
-          id: true,
-          catalogId: true,
-          toolAllowlist: true,
-          readOnlyTools: true,
-          connectionStatus: true,
-        },
-      }),
+      tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
     );
-    if (!row) return 0;
-    const appId = managedAppIdFromCatalogId(row.catalogId);
-    if (!appId) return 0;
-    const discovered = stringArray(row.toolAllowlist);
-    const safe = filterManagedReadOnlyTools(appId, discovered);
-    const currentReads = stringArray(row.readOnlyTools);
-    if (!sameStrings(discovered, safe) || !sameStrings(currentReads, safe)) {
+    const id = managedAppIdFromCatalogId(row?.catalogId);
+    if (!row || !id || !this.available(id) || !row.enabled || !['pending', 'connected'].includes(row.connectionStatus)) return 0;
+    const safe = filterManagedReadOnlyTools(id, strings(row.toolAllowlist));
+    if (JSON.stringify(strings(row.toolAllowlist)) !== JSON.stringify(safe) ||
+        JSON.stringify(strings(row.readOnlyTools)) !== JSON.stringify(safe) || !safe.length) {
       await this.prisma.withTenant(tenantId, (tx) =>
-        tx.clioMcpServer.update({
-          where: { id: row.id },
+        tx.clioMcpServer.updateMany({
+          where: { id: row.id, tenantId, enabled: true, connectionStatus: { in: ['pending', 'connected'] } },
           data: {
             toolAllowlist: safe as Prisma.InputJsonValue,
             readOnlyTools: safe as Prisma.InputJsonValue,
-            lastError:
-              safe.length === 0 && row.connectionStatus === 'connected'
-                ? 'Connected, but no approved read-only tools are currently available.'
-                : null,
+            ...(!safe.length ? { connectionStatus: 'error', lastError: 'No supported read tools are available.' } : {}),
           },
         }),
       );
@@ -334,28 +265,22 @@ export class MeriManagedMcpService {
     return safe.length;
   }
 
-  private available(appId: MeriV3ManagedAppId): boolean {
-    if (!globalMcpEnabled() || !this.oauth.isConfigured()) return false;
-    if (appId === 'airtable') return true;
-    return Boolean(
-      process.env.MERI_MCP_HUBSPOT_CLIENT_ID?.trim() &&
-        process.env.MERI_MCP_HUBSPOT_CLIENT_SECRET?.trim(),
-    );
+  private available(id: MeriV3ManagedAppId): boolean {
+    return globalMcpEnabled() && this.oauth.isConfigured() && managedAppConfigured(id);
   }
 
   private parseAppId(value: string): MeriV3ManagedAppId {
-    if ((MERIV3_MANAGED_APP_IDS as readonly string[]).includes(value)) {
-      return value as MeriV3ManagedAppId;
-    }
+    if ((MERIV3_MANAGED_APP_IDS as readonly string[]).includes(value)) return value as MeriV3ManagedAppId;
     throw new BadRequestException('Unknown connected app.');
   }
 
   private publicStatus(value: string | undefined): MeriV3ManagedAppStatus['status'] {
-    if (value === 'connected') return 'connected';
-    if (value === 'pending') return 'pending';
-    if (value === 'needs_reauth') return 'needs_reauth';
-    if (value === 'error') return 'error';
+    if (value === 'connected' || value === 'pending' || value === 'needs_reauth' || value === 'error') return value;
     return 'disconnected';
+  }
+
+  private async statusFor(ctx: TenantContext, id: MeriV3ManagedAppId) {
+    return (await this.listApps(ctx)).find((app) => app.id === id)!;
   }
 
   private personalRows(ctx: TenantContext) {
@@ -365,22 +290,17 @@ export class MeriManagedMcpService {
           tenantId: ctx.tenantId,
           scope: 'user',
           ownerUserId: ctx.userId,
-          catalogId: { in: [MERIV3_HUBSPOT_CATALOG_ID, MERIV3_AIRTABLE_CATALOG_ID] },
+          catalogId: { in: MERIV3_MANAGED_APP_IDS.map(managedCatalogId) },
         },
         orderBy: { createdAt: 'desc' },
       }),
     );
   }
 
-  private rowsForApp(ctx: TenantContext, appId: MeriV3ManagedAppId) {
+  private rowsForApp(ctx: TenantContext, id: MeriV3ManagedAppId) {
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMcpServer.findMany({
-        where: {
-          tenantId: ctx.tenantId,
-          scope: 'user',
-          ownerUserId: ctx.userId,
-          catalogId: managedCatalogId(appId),
-        },
+        where: { tenantId: ctx.tenantId, scope: 'user', ownerUserId: ctx.userId, catalogId: managedCatalogId(id) },
         orderBy: { createdAt: 'desc' },
       }),
     );

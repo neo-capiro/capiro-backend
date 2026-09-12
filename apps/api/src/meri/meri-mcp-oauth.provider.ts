@@ -42,6 +42,8 @@ export interface DbOAuthProviderOptions {
   signedState?: string;
   /** Space-or-array scopes to request (from the catalog entry). */
   requestedScopes?: readonly string[];
+  managed?: boolean;
+  offlineAccess?: boolean;
 }
 
 export class DbOAuthClientProvider implements OAuthClientProvider {
@@ -140,62 +142,46 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
   }
 
   async saveTokens(tokens: OAuthTokens): Promise<void> {
-    const accessEnvelope = this.enc(tokens.access_token);
-    // refreshAuthorization preserves the prior refresh token, so it's normally
-    // present; only overwrite when one is returned.
-    const refreshEnvelope = tokens.refresh_token ? this.enc(tokens.refresh_token) : null;
-    const tokenExpiresAt = tokens.expires_in
-      ? new Date(Date.now() + tokens.expires_in * 1000)
-      : null;
+    const access = this.enc(tokens.access_token);
+    const refresh = tokens.refresh_token ? this.enc(tokens.refresh_token) : null;
     const scopes = tokens.scope ? tokens.scope.split(/\s+/).filter(Boolean) : undefined;
-
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
-      await tx.clioMcpOAuthCredential.upsert({
+      // Take the server row lock first, in the same order as disconnect.
+      // An in-flight refresh must never recreate credentials after disconnect.
+      const active = await tx.clioMcpServer.updateMany({
+        where: { id: this.opts.serverId, tenantId: this.opts.tenantId, enabled: true, connectionStatus: { not: 'disconnected' } },
+        data: { lastError: null, ...(!this.opts.managed ? { connectionStatus: 'connected' } : {}) },
+      });
+      if (active.count !== 1) throw new Error('This connection is no longer active.');
+      const saved = await tx.clioMcpOAuthCredential.updateMany({
         where: { serverId: this.opts.serverId },
-        update: {
-          accessTokenCiphertext: accessEnvelope.ciphertext,
-          accessTokenIv: accessEnvelope.iv,
-          accessTokenAuthTag: accessEnvelope.authTag,
-          ...(refreshEnvelope
-            ? {
-                refreshTokenCiphertext: refreshEnvelope.ciphertext,
-                refreshTokenIv: refreshEnvelope.iv,
-                refreshTokenAuthTag: refreshEnvelope.authTag,
-              }
-            : {}),
+        data: {
+          accessTokenCiphertext: access.ciphertext,
+          accessTokenIv: access.iv,
+          accessTokenAuthTag: access.authTag,
+          ...(refresh ? {
+            refreshTokenCiphertext: refresh.ciphertext,
+            refreshTokenIv: refresh.iv,
+            refreshTokenAuthTag: refresh.authTag,
+          } : {}),
           tokenType: tokens.token_type,
           ...(scopes ? { scopes } : {}),
-          tokenExpiresAt,
-          // The PKCE verifier is single-use; clear it once tokens are minted.
+          tokenExpiresAt: tokens.expires_in !== undefined ? new Date(Date.now() + tokens.expires_in * 1000) : null,
           codeVerifierCiphertext: null,
           codeVerifierIv: null,
           codeVerifierAuthTag: null,
           keyVersion: this.opts.keyVersion,
         },
-        create: {
-          tenantId: this.opts.tenantId,
-          serverId: this.opts.serverId,
-          accessTokenCiphertext: accessEnvelope.ciphertext,
-          accessTokenIv: accessEnvelope.iv,
-          accessTokenAuthTag: accessEnvelope.authTag,
-          refreshTokenCiphertext: refreshEnvelope?.ciphertext ?? null,
-          refreshTokenIv: refreshEnvelope?.iv ?? null,
-          refreshTokenAuthTag: refreshEnvelope?.authTag ?? null,
-          tokenType: tokens.token_type,
-          scopes: scopes ?? [],
-          tokenExpiresAt,
-          keyVersion: this.opts.keyVersion,
-        },
       });
-      // Tokens minted/refreshed → the connector is live again.
-      await tx.clioMcpServer.update({
-        where: { id: this.opts.serverId },
-        data: { connectionStatus: 'connected', lastError: null },
-      });
+      if (saved.count !== 1) throw new Error('This authorization is no longer active. Please reconnect.');
     });
   }
 
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
+    if (this.opts.offlineAccess) {
+      authorizationUrl.searchParams.set('access_type', 'offline');
+      authorizationUrl.searchParams.set('prompt', 'consent');
+    }
     this.capturedUrl = authorizationUrl;
   }
 
@@ -255,16 +241,17 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
       });
     }
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
+      // Use the same row-lock order as saveTokens and disconnect.
+      if (scope === 'all' || scope === 'tokens') {
+        await tx.clioMcpServer.updateMany({
+          where: { id: this.opts.serverId, connectionStatus: { not: 'disconnected' } },
+          data: { connectionStatus: 'needs_reauth' },
+        });
+      }
       await tx.clioMcpOAuthCredential.updateMany({
         where: { serverId: this.opts.serverId },
         data,
       });
-      if (scope === 'all' || scope === 'tokens') {
-        await tx.clioMcpServer.update({
-          where: { id: this.opts.serverId },
-          data: { connectionStatus: 'needs_reauth' },
-        });
-      }
     });
   }
 
@@ -279,8 +266,13 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
     fields: Prisma.ClioMcpOAuthCredentialUncheckedUpdateInput &
       Partial<Prisma.ClioMcpOAuthCredentialUncheckedCreateInput>,
   ): Promise<void> {
-    await this.opts.prisma.withTenant(this.opts.tenantId, (tx) =>
-      tx.clioMcpOAuthCredential.upsert({
+    await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
+      const active = await tx.clioMcpServer.updateMany({
+        where: { id: this.opts.serverId, tenantId: this.opts.tenantId, enabled: true, connectionStatus: { not: 'disconnected' } },
+        data: { updatedAt: new Date() },
+      });
+      if (active.count !== 1) throw new Error('This authorization is no longer active.');
+      await tx.clioMcpOAuthCredential.upsert({
         where: { serverId: this.opts.serverId },
         update: fields,
         create: {
@@ -288,8 +280,8 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
           serverId: this.opts.serverId,
           ...fields,
         } as Prisma.ClioMcpOAuthCredentialUncheckedCreateInput,
-      }),
-    );
+      });
+    });
   }
 
   private enc(plain: string): SecretEnvelope {
