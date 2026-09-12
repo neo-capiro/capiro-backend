@@ -194,7 +194,7 @@ describe('MeriV3ManagedMcpAssistantService', () => {
         noteComplianceOutcome: () => undefined,
       }),
     ).resolves.toEqual({ contacts: [{ name: 'Jane' }] });
-    expect(executeRead).toHaveBeenCalledWith(HUBSPOT_SEARCH, { query: 'Jane' });
+    expect(executeRead).toHaveBeenCalledWith(HUBSPOT_SEARCH, { query: 'Jane' }, undefined);
     expect(nativeInvoke).not.toHaveBeenCalled();
     expect(steps).toEqual([
       expect.objectContaining({
@@ -256,11 +256,14 @@ describe('MeriV3ManagedMcpAssistantService', () => {
       noteComplianceOutcome: () => undefined,
     });
 
-    expect(execute).toHaveBeenCalledWith({
-      code: 'print(1)',
-      purpose: 'Show funding movement',
-      conversationId: 'conversation-1',
-    });
+    expect(execute).toHaveBeenCalledWith(
+      {
+        code: 'print(1)',
+        purpose: 'Show funding movement',
+        conversationId: 'conversation-1',
+      },
+      undefined,
+    );
     expect(nativeInvoke).not.toHaveBeenCalled();
     expect(artifacts).toEqual([{ id: 'chart-1', title: 'FY27 movement', kind: 'analysis_chart' }]);
     expect(events).toEqual(
