@@ -1,3 +1,4 @@
+import { ConnectorMark } from '../../vnext/meri/meri-connector-logos.js';
 import { useEffect, useRef, useState } from 'react';
 import {
   CheckCircleFilled,
@@ -5,7 +6,7 @@ import {
   PaperClipOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { useManagedMcpApps, type ManagedApp } from './managed-mcp-apps.js';
+import { useManagedMcpApps, managedAppStatusLabel, type ManagedApp } from './managed-mcp-apps.js';
 import './managed-mcp-apps.css';
 
 export function ManagedComposerPlus({
@@ -134,18 +135,12 @@ function ManagedAppRow({
   return (
     <div className={`meri-app-menu-row meri-app-row meri-app-row--${app.id}`} role="group">
       <span className={`meri-app-menu-icon meri-app-brand meri-app-brand--${app.id}`} aria-hidden="true">
-        {app.id === 'hubspot' ? 'H' : 'A'}
+        <ConnectorMark id={app.id} size={18} />
       </span>
       <span className="meri-app-row-copy">
         <strong>{app.name}</strong>
         <small>
-          {app.connected
-            ? 'Connected'
-            : reconnect
-              ? 'Reconnect required'
-              : app.available
-                ? 'Connect your account'
-                : 'Not configured'}
+          {managedAppStatusLabel(app)}
         </small>
       </span>
       {busy ? (

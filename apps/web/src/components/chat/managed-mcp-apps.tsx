@@ -10,7 +10,8 @@ import {
 } from 'react';
 import { useApi } from '../../lib/use-api.js';
 
-export type ManagedAppId = 'hubspot' | 'airtable';
+export const MANAGED_APP_IDS = ['hubspot', 'airtable', 'monday', 'google-drive'] as const;
+export type ManagedAppId = (typeof MANAGED_APP_IDS)[number];
 export type ManagedAppConnectionStatus =
   | 'connected'
   | 'disconnected'
@@ -61,142 +62,161 @@ function popupFeatures(): string {
 
 export function ManagedMcpAppsProvider({ children }: { children: ReactNode }) {
   const api = useApi();
-  const [apps, setApps] = useState<ManagedApp[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busyAppId, setBusyAppId] = useState<ManagedAppId | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const scope = useMemo(() => ({}), [api]);
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
   const mounted = useRef(true);
-
-  useEffect(() => {
-    // React development StrictMode intentionally runs setup → cleanup → setup
-    // once to detect unsafe effects. Reset the ref on every setup so the first
-    // synthetic cleanup cannot permanently disable polling/state updates.
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+  const sequence = useRef(0);
+  const [snapshot, setSnapshot] = useState({ scope, apps: [] as ManagedApp[], loading: true, error: null as string | null });
+  const [action, setAction] = useState({ scope, busy: null as ManagedAppId | null, error: null as string | null });
+  const active = useRef<{ scope: object; popup?: Window; appId: ManagedAppId } | null>(null);
+  const isCurrent = useCallback(() => mounted.current && currentScope.current === scope, [scope]);
 
   const refresh = useCallback(async (): Promise<ManagedApp[]> => {
+    if (!isCurrent()) return [];
+    const request = ++sequence.current;
     try {
       const { data } = await api.get<{ apps: ManagedApp[] }>('/api/clio/v3/apps');
-      const next = Array.isArray(data.apps) ? data.apps : [];
-      if (mounted.current) {
-        setApps(next);
-        setError(null);
-      }
-      return next;
-    } catch (err) {
-      if (mounted.current) {
-        setError(err instanceof Error ? err.message : 'Connected apps could not be loaded.');
+      if (!isCurrent() || request !== sequence.current) return [];
+      const apps = Array.isArray(data.apps) ? data.apps : [];
+      setSnapshot({ scope, apps, loading: false, error: null });
+      return apps;
+    } catch {
+      if (isCurrent() && request === sequence.current) {
+        setSnapshot((previous) => ({
+          scope,
+          apps: previous.scope === scope ? previous.apps : [],
+          loading: false,
+          error: 'Connected apps could not be loaded. Please try again.',
+        }));
       }
       return [];
-    } finally {
-      if (mounted.current) setLoading(false);
     }
-  }, [api]);
+  }, [api, scope, isCurrent]);
 
   useEffect(() => {
+    mounted.current = true;
     void refresh();
     const onFocus = () => void refresh();
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [refresh]);
+    return () => {
+      mounted.current = false;
+      ++sequence.current;
+      window.removeEventListener('focus', onFocus);
+      if (active.current?.scope === scope) {
+        active.current.popup?.close();
+        active.current = null;
+      }
+    };
+  }, [scope, refresh]);
 
-  const connect = useCallback(
-    async (appId: ManagedAppId): Promise<void> => {
-      if (busyAppId) return;
-      // Open synchronously inside the click gesture. Waiting for the API before
-      // window.open would let browser popup blockers turn a one-click OAuth flow
-      // into a technical setup problem.
-      const popup = window.open('about:blank', `capiro-meri-connect-${appId}`, popupFeatures());
+  const connect = useCallback(async (appId: ManagedAppId): Promise<void> => {
+    if (active.current || !isCurrent()) return;
+    const operation = { scope, appId, popup: undefined as Window | undefined };
+    active.current = operation; // Synchronous guard also covers rapid double clicks.
+    setAction({ scope, busy: appId, error: null });
+    const fail = (message: string) => {
+      if (isCurrent()) setAction({ scope, busy: appId, error: message });
+    };
+    const popup = window.open('about:blank', 'capiro-meri-connect-' + appId, popupFeatures());
+    operation.popup = popup ?? undefined;
+    try {
       if (!popup) {
-        setError('Your browser blocked the sign-in window. Allow popups for Capiro and try again.');
+        fail('Your browser blocked sign-in. Allow popups for Capiro and try again.');
         return;
       }
       try {
         popup.document.title = 'Connecting to Capiro';
-        popup.document.body.innerHTML =
-          '<div style="font:14px system-ui;padding:28px;color:#374151">Opening secure sign-in…</div>';
-      } catch {
-        // about:blank may already have navigated; this is cosmetic only.
+        popup.document.body.textContent = 'Opening secure sign-in…';
+      } catch { /* Cosmetic; the popup may already have navigated. */ }
+      const { data } = await api.post<{ authUrl: string | null; alreadyConnected: boolean }>(
+        '/api/clio/v3/apps/' + appId + '/connect', {},
+      );
+      if (!isCurrent()) return;
+      if (data.alreadyConnected) {
+        await refresh();
+        return;
       }
-
-      setBusyAppId(appId);
-      setError(null);
-      try {
-        const { data } = await api.post<{
-          authUrl: string | null;
-          alreadyConnected: boolean;
-        }>(`/api/clio/v3/apps/${appId}/connect`, {});
-        if (data.alreadyConnected || !data.authUrl) {
-          popup.close();
-          await refresh();
+      if (!data.authUrl || new URL(data.authUrl).protocol !== 'https:') {
+        fail('Sign-in could not start. Please try again.');
+        return;
+      }
+      popup.location.replace(data.authUrl);
+      popup.focus();
+      const started = Date.now();
+      while (isCurrent() && Date.now() - started < POLL_TIMEOUT_MS) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, POLL_MS));
+        if (!isCurrent()) return;
+        const apps = await refresh();
+        const app = apps.find((item) => item.id === appId);
+        if (app?.connected) return;
+        if (app?.status === 'error' || app?.status === 'needs_reauth') {
+          fail(app.lastError || 'Sign-in did not complete. Please try again.');
           return;
         }
-        popup.location.replace(data.authUrl);
-        popup.focus();
-
-        const startedAt = Date.now();
-        while (mounted.current && Date.now() - startedAt < POLL_TIMEOUT_MS) {
+        if (popup.closed) {
           await new Promise<void>((resolve) => window.setTimeout(resolve, POLL_MS));
-          const next = await refresh();
-          const app = next.find((item) => item.id === appId);
-          if (app?.connected) {
-            popup.close();
-            return;
+          if (!isCurrent()) return;
+          const finalApps = await refresh();
+          if (!finalApps.find((item) => item.id === appId)?.connected) {
+            fail('Sign-in was closed before it finished. You can try again.');
           }
-          if (app?.status === 'error' || app?.status === 'needs_reauth') {
-            popup.close();
-            setError(app.lastError || `${app.name} sign-in did not complete.`);
-            return;
-          }
-          if (popup.closed) {
-            // The provider window may close itself. Give the callback one final
-            // chance to persist before returning the UI to idle.
-            await new Promise<void>((resolve) => window.setTimeout(resolve, POLL_MS));
-            await refresh();
-            return;
-          }
+          return;
         }
-        popup.close();
-        setError('Sign-in took too long. Try connecting again.');
-      } catch (err) {
-        popup.close();
-        setError(err instanceof Error ? err.message : 'Could not start sign-in.');
-        await refresh();
-      } finally {
-        if (mounted.current) setBusyAppId(null);
       }
-    },
-    [api, busyAppId, refresh],
-  );
-
-  const disconnect = useCallback(
-    async (appId: ManagedAppId): Promise<void> => {
-      if (busyAppId) return;
-      setBusyAppId(appId);
-      setError(null);
-      try {
-        await api.post(`/api/clio/v3/apps/${appId}/disconnect`, {});
-        await refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not disconnect the app.');
-      } finally {
-        if (mounted.current) setBusyAppId(null);
+      if (isCurrent()) fail('Sign-in took too long. Please try again.');
+    } catch {
+      fail('Could not complete sign-in. Please try again.');
+      await refresh(); // Refresh must not erase the action error.
+    } finally {
+      popup?.close();
+      if (active.current === operation) {
+        active.current = null;
+        if (isCurrent()) setAction((previous) => ({ ...previous, busy: null }));
       }
-    },
-    [api, busyAppId, refresh],
-  );
+    }
+  }, [api, scope, refresh, isCurrent]);
 
+  const disconnect = useCallback(async (appId: ManagedAppId): Promise<void> => {
+    if (active.current || !isCurrent()) return;
+    const operation = { scope, appId };
+    active.current = operation;
+    setAction({ scope, busy: appId, error: null });
+    try {
+      await api.post('/api/clio/v3/apps/' + appId + '/disconnect', {});
+      await refresh();
+    } catch {
+      if (isCurrent()) setAction({ scope, busy: null, error: 'Could not disconnect the app. Please try again.' });
+    } finally {
+      if (active.current === operation) {
+        active.current = null;
+        if (isCurrent()) setAction((previous) => ({ ...previous, busy: null }));
+      }
+    }
+  }, [api, scope, refresh, isCurrent]);
+
+  // Render empty state immediately on identity change, before effects run.
+  const apps = snapshot.scope === scope ? snapshot.apps : [];
+  const loading = snapshot.scope === scope ? snapshot.loading : true;
+  const busyAppId = action.scope === scope ? action.busy : null;
+  const error = (action.scope === scope ? action.error : null) ??
+    (snapshot.scope === scope ? snapshot.error : null);
   const value = useMemo<ManagedAppsContextValue>(
     () => ({ apps, loading, busyAppId, error, refresh, connect, disconnect }),
     [apps, loading, busyAppId, error, refresh, connect, disconnect],
   );
-
   return <ManagedAppsContext.Provider value={value}>{children}</ManagedAppsContext.Provider>;
 }
 
 export function useManagedMcpApps(): ManagedAppsContextValue | null {
   return useContext(ManagedAppsContext);
+}
+
+export function managedAppStatusLabel(app: ManagedApp): string {
+  if (!app.available) return 'Temporarily unavailable';
+  if (app.connected) return 'Connected';
+  if (app.status === 'pending') return 'Connecting…';
+  if (app.status === 'needs_reauth') return 'Reconnect';
+  if (app.status === 'error') return 'Try again';
+  return 'Connect';
 }

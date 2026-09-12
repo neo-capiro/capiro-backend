@@ -1,70 +1,51 @@
 import {
-  AIRTABLE_READ_ONLY_TOOLS,
-  MERIV3_AIRTABLE_CATALOG_ID,
-  MERIV3_HUBSPOT_CATALOG_ID,
-  filterManagedReadOnlyTools,
-  isManagedReadOnlyTool,
-  managedAppIdFromCatalogId,
-  managedCatalogId,
+  MANAGED_MCP_APPS, MERIV3_MANAGED_APP_IDS,
+  filterManagedReadOnlyTools, isManagedReadOnlyTool,
+  managedAppConfigured, managedAppIdFromCatalogId, managedCatalogId,
 } from './meri-managed-mcp.helpers.js';
 
-describe('MeriV3 managed MCP read-only boundary', () => {
-  test('maps only isolated managed connector ids, never legacy catalog rows', () => {
-    expect(managedCatalogId('hubspot')).toBe(MERIV3_HUBSPOT_CATALOG_ID);
-    expect(managedCatalogId('airtable')).toBe(MERIV3_AIRTABLE_CATALOG_ID);
-    expect(managedAppIdFromCatalogId(MERIV3_HUBSPOT_CATALOG_ID)).toBe('hubspot');
-    expect(managedAppIdFromCatalogId(MERIV3_AIRTABLE_CATALOG_ID)).toBe('airtable');
-    expect(managedAppIdFromCatalogId('hubspot')).toBeNull();
-    expect(managedAppIdFromCatalogId('sharepoint')).toBeNull();
-  });
-
-  test('Airtable is explicit allowlist only', () => {
-    expect(AIRTABLE_READ_ONLY_TOOLS.has('search_records')).toBe(true);
-    expect(isManagedReadOnlyTool('airtable', 'search_records')).toBe(true);
-    expect(isManagedReadOnlyTool('airtable', 'list_bases')).toBe(true);
-    expect(isManagedReadOnlyTool('airtable', 'create_record')).toBe(false);
-    expect(isManagedReadOnlyTool('airtable', 'update_record')).toBe(false);
-    expect(isManagedReadOnlyTool('airtable', 'mystery_read')).toBe(false);
-  });
-
-  test('HubSpot permits conservative read shapes and blocks mutation shapes', () => {
-    for (const name of [
-      'get_user_details',
-      'get_deal',
-      'list_contacts',
-      'search_companies',
-      'read_note',
-      'fetch_campaign',
-      'query_crm',
-      'lookup_contact',
-      'describe_object',
-    ]) {
-      expect(isManagedReadOnlyTool('hubspot', name)).toBe(true);
-    }
-    for (const name of [
-      'create_contact',
-      'update_deal',
-      'delete_note',
-      'archive_contact',
-      'publish_email',
-      'send_email',
-      'associate_records',
-      'set_property',
-      'execute_workflow',
-      'unknown_tool',
-    ]) {
-      expect(isManagedReadOnlyTool('hubspot', name)).toBe(false);
+describe('managed MCP read-only boundary', () => {
+  test.each(MERIV3_MANAGED_APP_IDS)('%s is isolated from legacy catalog connections', (id) => {
+    expect(managedAppIdFromCatalogId(managedCatalogId(id))).toBe(id);
+    expect(managedAppIdFromCatalogId(id)).toBeNull();
+    for (const tool of ['execute', 'execute_api', 'all_monday_api', 'create_record', 'update_deal', 'get_arbitrary_api', 'unknown_read_tool']) {
+      expect(isManagedReadOnlyTool(id, tool)).toBe(false);
     }
   });
 
-  test('filter dedupes and never carries a write through', () => {
-    expect(
-      filterManagedReadOnlyTools('hubspot', [
-        'get_user_details',
-        'get_user_details',
-        'search_contacts',
-        'create_contact',
-      ]),
-    ).toEqual(['get_user_details', 'search_contacts']);
+  test.each([
+    ['hubspot', 'get_user_details'],
+    ['airtable', 'list_bases'],
+    ['monday', 'get_board_items_page'],
+    ['google-drive', 'read_file_content'],
+  ] as const)('%s permits reviewed reads only', (id, tool) => {
+    expect(filterManagedReadOnlyTools(id, [tool, tool, 'execute_api', ' ' + tool])).toEqual([tool]);
+  });
+
+  test('HubSpot no longer trusts a tool because its name starts with a read verb', () => {
+    for (const tool of ['query_crm', 'read_note', 'fetch_campaign', 'lookup_contact', 'describe_object']) {
+      expect(isManagedReadOnlyTool('hubspot', tool)).toBe(false);
+    }
+  });
+
+  test('explicit read-only scopes and Google offline authorization are server owned', () => {
+    expect(MANAGED_MCP_APPS.airtable.oauthScopes).toEqual([
+      'data.records:read', 'schema.bases:read', 'data.recordComments:read', 'workspacesAndBases:read',
+    ]);
+    expect(MANAGED_MCP_APPS['google-drive'].oauthScopes).toEqual(['https://www.googleapis.com/auth/drive.readonly']);
+    expect(MANAGED_MCP_APPS['google-drive'].offlineAccess).toBe(true);
+    expect(MANAGED_MCP_APPS.hubspot.oauthScopes).toBeUndefined();
+  });
+
+  test('new providers require operator enablement and confidential clients require both credentials', () => {
+    expect(managedAppConfigured('airtable', {})).toBe(true);
+    expect(managedAppConfigured('monday', {})).toBe(false);
+    expect(managedAppConfigured('monday', { MERI_MCP_MONDAY_ENABLED: 'true' })).toBe(true);
+    expect(managedAppConfigured('hubspot', { MERI_MCP_HUBSPOT_CLIENT_ID: 'id' })).toBe(false);
+    expect(managedAppConfigured('google-drive', {
+      MERI_MCP_GOOGLE_DRIVE_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_ID: 'id',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_SECRET: 'secret',
+    })).toBe(true);
   });
 });

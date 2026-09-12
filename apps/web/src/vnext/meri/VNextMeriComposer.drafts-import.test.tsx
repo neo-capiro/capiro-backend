@@ -358,7 +358,7 @@ describe('conversation composer drafts', () => {
       const view = await render(composer(controller(), integrations));
       enter('  Draft briefing\nwith an early constraint  ');
       fireEvent.click(screen.getByRole('button', { name: 'Add to conversation' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: /Connect HubSpot/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: /Connectors/ }));
       expect(integrations).toHaveBeenCalledOnce();
       view.unmount();
       await render(composer());

@@ -1,6 +1,7 @@
 import {
   ManagedMcpAppsProvider,
   useManagedMcpApps,
+  managedAppStatusLabel,
   type ManagedApp,
 } from '../../components/chat/managed-mcp-apps.js';
 import { ConnectorMark } from './meri-connector-logos.js';
@@ -64,9 +65,8 @@ function VNextMeriIntegrationsContent({ onBack }: { onBack: () => void }) {
         <div className="vnext-meri-integrations__notice">
           <MeriIcon name="InfoCircle" size={16} color="#98A2B3" />
           <span>
-            HubSpot and Airtable are the only managed apps. Only apps returned by the MeriV3
-            capabilities service are shown here — connection credentials and server configuration
-            stay outside this workspace.
+            Connect your account to let Meri search and read information you can access.
+            You can disconnect any app here.
           </span>
         </div>
       </section>
@@ -86,13 +86,7 @@ function IntegrationCard({
   onDisconnect: () => void;
 }) {
   const reconnect = app.status === 'needs_reauth' || app.status === 'error';
-  const status = app.connected
-    ? 'CONNECTED'
-    : reconnect
-      ? 'NEEDS REAUTH'
-      : app.available
-        ? 'READY'
-        : 'NOT CONNECTED';
+  const status = managedAppStatusLabel(app);
   const statusTone = app.connected ? 'is-connected' : reconnect ? 'is-warning' : '';
 
   return (
@@ -108,7 +102,7 @@ function IntegrationCard({
           </span>
         </div>
         <p>{app.description}</p>
-        {app.lastError && reconnect ? (
+        {app.lastError ? (
           <div className="vnext-meri-integration-card__warning">{app.lastError}</div>
         ) : null}
       </div>
@@ -124,7 +118,7 @@ function IntegrationCard({
             onClick={onConnect}
             disabled={busy || !app.available}
           >
-            {busy ? 'Opening sign-in…' : reconnect ? 'Reconnect' : 'Connect'}
+            {busy ? 'Connecting…' : app.status === 'error' ? 'Try again' : reconnect ? 'Reconnect' : 'Connect'}
           </button>
         )}
       </div>

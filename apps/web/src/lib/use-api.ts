@@ -8,7 +8,7 @@ import { useImpersonation } from '../state/impersonation.js';
  * impersonation target changes so the right token + headers are attached.
  */
 export function useApi() {
-  const { getToken, orgId } = useAuth();
+  const { getToken, orgId, userId } = useAuth();
   const { actAsTenantSlug } = useImpersonation();
   return useMemo(
     () =>
@@ -16,6 +16,6 @@ export function useApi() {
         () => getToken({ template: 'capiro' }),
         actAsTenantSlug ?? undefined,
       ),
-    [getToken, orgId, actAsTenantSlug],
+    [getToken, orgId, userId, actAsTenantSlug],
   );
 }

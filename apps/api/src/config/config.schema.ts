@@ -608,6 +608,15 @@ export const configSchema = z.object({
   // registration). Must point at GET /api/clio/mcp-oauth/callback on the app
   // origin, e.g. https://app.capiro.ai/api/clio/mcp-oauth/callback. Unset =
   // OAuth connectors can't be connected (token/none connectors still work).
+  // Capiro-owned managed app configuration. Never accepted from browser requests.
+  MERI_MCP_HUBSPOT_ENABLED: z.string().optional(),
+  MERI_MCP_AIRTABLE_ENABLED: z.string().optional(),
+  MERI_MCP_MONDAY_ENABLED: z.string().optional(),
+  MERI_MCP_GOOGLE_DRIVE_ENABLED: z.string().optional(),
+  MERI_MCP_HUBSPOT_CLIENT_ID: z.string().optional(),
+  MERI_MCP_HUBSPOT_CLIENT_SECRET: z.string().optional(),
+  MERI_MCP_GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
+  MERI_MCP_GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
   CLIO_MCP_OAUTH_REDIRECT_URI: z.string().url().optional(),
   // Where the OAuth callback bounces the browser back to after connecting.
   CLIO_MCP_OAUTH_SUCCESS_REDIRECT: z.string().default('/settings/integrations'),

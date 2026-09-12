@@ -1,3 +1,4 @@
+import { MERIV3_MANAGED_APP_IDS } from './meri-managed-mcp.helpers.js';
 import {
   Body,
   Controller,
@@ -68,7 +69,7 @@ export class MeriV3SettingsController {
       rawReasoningVisible: false,
       providerStateStored: false,
       defaultPresentation: 'browser_window' as const,
-      managedApps: ['hubspot', 'airtable'] as const,
+      managedApps: [...MERIV3_MANAGED_APP_IDS],
       visualAnalysis: {
         enabled: visualAnalysisEnabled,
         version: ANALYSIS_VISUALIZATION_VERSION,

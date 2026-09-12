@@ -13,7 +13,7 @@ import {
   truncateFilenameMiddle,
   type StagedAttachment,
 } from '../../components/chat/chat-attachments.js';
-import { useManagedMcpApps } from '../../components/chat/managed-mcp-apps.js';
+import { useManagedMcpApps, managedAppStatusLabel, type ManagedAppId } from '../../components/chat/managed-mcp-apps.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { maySend, meriEffectiveIdentityKey } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
@@ -54,6 +54,7 @@ const ATTACH_ACCEPT = undefined;
 type MeriLibraryPaneId = 'prompts' | 'skills' | 'connectors' | 'reasoning';
 
 interface MeriLibraryPaneItem {
+  connectorId?: ManagedAppId;
   key: string;
   label: string;
   desc: string;
@@ -353,36 +354,29 @@ export function VNextMeriComposer({
   );
 
   const libraryConnectorItems = useMemo<MeriLibraryPaneItem[]>(
-    () =>
-      (managedApps?.apps ?? []).map((app) => {
-        const status = app.needsReauth
-          ? 'NEEDS REAUTH'
-          : app.connected
-            ? 'CONNECTED'
-            : 'NOT CONNECTED';
-        const tone = app.needsReauth
-          ? { bg: '#FFFAEB', fg: '#B54708' }
-          : app.connected
-            ? { bg: '#ECFDF3', fg: '#027A48' }
-            : { bg: '#F2F4F7', fg: '#475467' };
-        return {
-          key: app.id,
-          label: app.name,
-          desc: app.description || 'Manage on the integrations page.',
-          icon: app.id === 'hubspot' ? 'Database01' : 'Grid01',
-          hasBadge: true,
-          badge: status,
-          badgeBg: tone.bg,
-          badgeFg: tone.fg,
-          canDel: false,
-          run: () => {
-            setAddOpen(false);
-            setAddPane(null);
-            onOpenIntegrations();
-          },
-        };
-      }),
-    [managedApps?.apps, onOpenIntegrations],
+    () => (managedApps?.apps ?? []).map((app) => ({
+      key: app.id,
+      connectorId: app.id,
+      label: app.name,
+      desc: app.description,
+      icon: 'Dataflow03',
+      hasBadge: true,
+      badge: managedAppStatusLabel(app),
+      badgeBg: app.connected ? '#ECFDF3' : '#F2F4F7',
+      badgeFg: app.connected ? '#027A48' : '#475467',
+      canDel: false,
+      disabled: Boolean(managedApps?.busyAppId) || !app.available,
+      run: () => {
+        if (app.connected) {
+          setAddOpen(false);
+          setAddPane(null);
+          onOpenIntegrations();
+        } else {
+          void managedApps?.connect(app.id);
+        }
+      },
+    })),
+    [managedApps, onOpenIntegrations],
   );
 
   const libraryReasoningItems = useMemo<MeriLibraryPaneItem[]>(
@@ -446,7 +440,7 @@ export function VNextMeriComposer({
       count: String(managedApps?.apps.length ?? 0),
       items: libraryConnectorItems,
       emptyText: 'No connectors available.',
-      foot: 'HUBSPOT AND AIRTABLE ARE THE ONLY MANAGED APPS TODAY',
+      foot: 'CONNECT APPS TO SEARCH AND READ YOUR DATA',
     },
     {
       id: 'reasoning',
@@ -777,61 +771,33 @@ export function VNextMeriComposer({
                   </span>
                 </span>
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="vnext-meri__add-popover-item"
-                onClick={() => {
-                  setAddOpen(false);
-                  onOpenIntegrations();
-                }}
-              >
-                <span className="vnext-meri__add-popover-tile">
-                  <ConnectorMark id="hubspot" size={15} />
-                </span>
-                <span className="vnext-meri__add-popover-item-body">
-                  <span className="vnext-meri__add-popover-item-label">Connect HubSpot</span>
-                  <span className="vnext-meri__add-popover-item-desc">PULL CRM RECORDS</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="vnext-meri__add-popover-item"
-                onClick={() => {
-                  setAddOpen(false);
-                  toast.error(
-                    'SharePoint is not connectable yet. Open Integrations to see supported sources.',
-                  );
-                  onOpenIntegrations();
-                }}
-                aria-label="Connect SharePoint — not connectable yet"
-              >
-                <span className="vnext-meri__add-popover-tile">
-                  <ConnectorMark id="sharepoint" size={15} />
-                </span>
-                <span className="vnext-meri__add-popover-item-body">
-                  <span className="vnext-meri__add-popover-item-label">Connect SharePoint</span>
-                  <span className="vnext-meri__add-popover-item-desc">NOT CONNECTABLE YET</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="vnext-meri__add-popover-item"
-                onClick={() => {
-                  setAddOpen(false);
-                  onOpenIntegrations();
-                }}
-              >
-                <span className="vnext-meri__add-popover-tile">
-                  <ConnectorMark id="airtable" size={15} />
-                </span>
-                <span className="vnext-meri__add-popover-item-body">
-                  <span className="vnext-meri__add-popover-item-label">Connect Airtable</span>
-                  <span className="vnext-meri__add-popover-item-desc">ATTACH BASE CONTEXT</span>
-                </span>
-              </button>
+              {(managedApps?.apps ?? []).map((app) => (
+                <button
+                  key={app.id}
+                  type="button"
+                  role="menuitem"
+                  className="vnext-meri__add-popover-item"
+                  disabled={Boolean(managedApps?.busyAppId) || !app.available}
+                  onClick={() => {
+                    if (app.connected) {
+                      setAddOpen(false);
+                      onOpenIntegrations();
+                    } else {
+                      void managedApps?.connect(app.id);
+                    }
+                  }}
+                >
+                  <span className="vnext-meri__add-popover-tile">
+                    <ConnectorMark id={app.id} size={15} />
+                  </span>
+                  <span className="vnext-meri__add-popover-item-body">
+                    <span className="vnext-meri__add-popover-item-label">
+                      {app.connected ? app.name : (app.needsReauth ? 'Reconnect ' : 'Connect ') + app.name}
+                    </span>
+                    <span className="vnext-meri__add-popover-item-desc">{managedAppStatusLabel(app)}</span>
+                  </span>
+                </button>
+              ))}
               <button
                 type="button"
                 role="menuitem"
@@ -853,6 +819,7 @@ export function VNextMeriComposer({
               </button>
 
               <div className="vnext-meri__add-popover-separator" />
+              {managedApps?.error ? <div role="alert" className="vnext-meri__add-popover-pane-empty">{managedApps.error}</div> : null}
               <div className="vnext-meri__add-popover-eyebrow">LIBRARY</div>
               {LIBRARY_PANES.map((pane) => (
                 <button
@@ -916,7 +883,7 @@ export function VNextMeriComposer({
                       disabled={item.disabled}
                     >
                       <span className="vnext-meri__add-popover-tile">
-                        <MeriIcon name={item.icon} size={15} color="var(--m-gray-600)" />
+                        <>{item.connectorId ? <ConnectorMark id={item.connectorId} size={15} /> : <MeriIcon name={item.icon} size={15} color="var(--m-gray-600)" />}</>
                       </span>
                       <span className="vnext-meri__add-popover-item-body">
                         <span className="vnext-meri__add-popover-item-label">{item.label}</span>
@@ -952,6 +919,7 @@ export function VNextMeriComposer({
               {activePane.items.length === 0 && !(activePane.id === 'prompts' && (promptsQuery.isLoading || promptsQuery.isError)) ? (
                 <div className="vnext-meri__add-popover-pane-empty">{activePane.emptyText}</div>
               ) : null}
+              {managedApps?.error && activePane.id === 'connectors' ? <div role="alert" className="vnext-meri__add-popover-pane-empty">{managedApps.error}</div> : null}
               <div className="vnext-meri__add-popover-separator" />
               <div className="vnext-meri__add-popover-footer">{activePane.foot}</div>
             </>

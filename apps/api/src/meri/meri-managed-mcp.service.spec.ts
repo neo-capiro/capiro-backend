@@ -20,6 +20,7 @@ function make() {
     clioMcpServer: {
       findMany: jest.fn(async (): Promise<Array<Record<string, unknown>>> => []),
       findFirst: jest.fn(async (): Promise<Record<string, unknown> | null> => null),
+      updateMany: jest.fn(async () => ({ count: 1 })),
       update: jest.fn(async (): Promise<Record<string, unknown>> => ({})),
     },
   };
@@ -30,6 +31,7 @@ function make() {
   };
   const mcp = {
     createServer: jest.fn(),
+    discoverTools: jest.fn(async () => 2),
     deleteServer: jest.fn(async () => ({ deleted: true })),
     invalidate: jest.fn(),
     bridgedSchemasFor: jest.fn(async () => []),
@@ -66,10 +68,10 @@ describe('MeriManagedMcpService', () => {
     jest.restoreAllMocks();
   });
 
-  test('lists exactly HubSpot and Airtable even when nothing is connected', async () => {
+  test('lists all four personal apps even when nothing is connected', async () => {
     const { service } = make();
     const apps = await service.listApps(ctx);
-    expect(apps.map((app) => app.id)).toEqual(['hubspot', 'airtable']);
+    expect(apps.map((app) => app.id)).toEqual(['hubspot', 'airtable', 'monday', 'google-drive']);
     expect(apps.every((app) => app.connected === false)).toBe(true);
     expect(apps.every((app) => app.status === 'disconnected')).toBe(true);
   });
@@ -117,7 +119,7 @@ describe('MeriManagedMcpService', () => {
     delete process.env.MERI_MCP_HUBSPOT_CLIENT_SECRET;
     const { service, mcp } = make();
     await expect(service.connect(ctx, 'hubspot')).rejects.toThrow(
-      'HubSpot sign-in is not configured for Capiro yet.',
+      'HubSpot is temporarily unavailable. Please try again later.',
     );
     expect(mcp.createServer).not.toHaveBeenCalled();
   });
@@ -157,18 +159,71 @@ describe('MeriManagedMcpService', () => {
       catalogId: MERIV3_HUBSPOT_CATALOG_ID,
       toolAllowlist: ['get_user_details', 'search_contacts', 'create_contact', 'update_deal'],
       readOnlyTools: [],
-      connectionStatus: 'connected',
+      connectionStatus: 'pending',
+      enabled: true,
     });
     await expect(service.finalizeConnection(ctx.tenantId, 'hubspot-server')).resolves.toBe(2);
-    expect(tx.clioMcpServer.update).toHaveBeenCalledWith({
-      where: { id: 'hubspot-server' },
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       data: {
         toolAllowlist: ['get_user_details', 'search_contacts'],
         readOnlyTools: ['get_user_details', 'search_contacts'],
-        lastError: null,
       },
-    });
+    }));
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ enabled: true, connectionStatus: { in: ['pending', 'connected'] } }),
+      data: { connectionStatus: 'connected', lastError: null },
+    }));
     expect(mcp.invalidate).toHaveBeenCalledWith(ctx.tenantId);
+  });
+
+  test('a failed discovery retains credentials and cannot report success', async () => {
+    const { service, mcp, tx } = make();
+    tx.clioMcpServer.findMany.mockResolvedValue([{
+      id: 'existing', enabled: true, connectionStatus: 'connected', catalogId: MERIV3_HUBSPOT_CATALOG_ID,
+    }]);
+    mcp.discoverTools.mockResolvedValue(0);
+    await expect(service.connect(ctx, 'hubspot')).rejects.toThrow('could not be reached');
+    expect(mcp.deleteServer).not.toHaveBeenCalled();
+    expect(mcp.createServer).not.toHaveBeenCalled();
+  });
+
+  test('revalidates an existing authorization in place', async () => {
+    const { service, mcp, tx } = make();
+    const row = {
+      id: 'existing', enabled: true, connectionStatus: 'connected', catalogId: MERIV3_HUBSPOT_CATALOG_ID,
+      toolAllowlist: ['get_user_details'], readOnlyTools: ['get_user_details'],
+    };
+    tx.clioMcpServer.findMany.mockResolvedValue([row]);
+    tx.clioMcpServer.findFirst.mockResolvedValue(row);
+    expect((await service.connect(ctx, 'hubspot')).alreadyConnected).toBe(true);
+    expect(mcp.discoverTools).toHaveBeenCalledWith(ctx.tenantId, 'existing');
+    expect(mcp.deleteServer).not.toHaveBeenCalled();
+  });
+
+  test('two simultaneous connect requests share one authorization flow', async () => {
+    const { service, mcp, oauth } = make();
+    mcp.createServer.mockResolvedValue({ id: 'new' });
+    await Promise.all([service.connect(ctx, 'airtable'), service.connect(ctx, 'airtable')]);
+    expect(mcp.createServer).toHaveBeenCalledTimes(1);
+    expect(oauth.start).toHaveBeenCalledTimes(1);
+  });
+
+  test('a disconnected row cannot be finalized', async () => {
+    const { service, tx } = make();
+    tx.clioMcpServer.findFirst.mockResolvedValue({
+      id: 'old', enabled: true, catalogId: MERIV3_HUBSPOT_CATALOG_ID,
+      connectionStatus: 'disconnected', toolAllowlist: ['get_user_details'],
+    });
+    await expect(service.finalizeConnection(ctx.tenantId, 'old')).rejects.toThrow();
+    expect(tx.clioMcpServer.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('all personal queries include tenant and owner', async () => {
+    const { service, tx } = make();
+    await service.listApps(ctx);
+    expect(tx.clioMcpServer.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ tenantId: ctx.tenantId, ownerUserId: ctx.userId, scope: 'user' }),
+    }));
   });
 
   test('executeRead re-verifies current schema membership before external execution', async () => {
