@@ -415,6 +415,12 @@ export function usePrepMondayMapping(meetingId: string, enabled: boolean) {
   return { query, save };
 }
 
+export function useComprehensivePrepEnabled() {
+  const api = useApi();
+  return useQuery({ queryKey: ['comprehensive-prep-capability'], staleTime: 60_000,
+    queryFn: async () => (await api.get<{ meetingPrepComprehensiveEnabled?: boolean }>(`${BASE}/capabilities`)).data?.meetingPrepComprehensiveEnabled === true });
+}
+
 export interface UpdatePrepInput {
   prepId: string;
   summary?: string | null;

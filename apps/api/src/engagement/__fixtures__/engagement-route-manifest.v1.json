@@ -9,7 +9,7 @@
       "controller": "EngagementController",
       "handler": "overrideAssociation",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2589,
+      "sourceLine": 2806,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -34,7 +34,7 @@
       "controller": "EngagementController",
       "handler": "attachments",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2614,
+      "sourceLine": 2831,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -62,7 +62,7 @@
       "controller": "EngagementController",
       "handler": "deleteAttachment",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2670,
+      "sourceLine": 2887,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -87,7 +87,7 @@
       "controller": "EngagementController",
       "handler": "attachmentContextSource",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2650,
+      "sourceLine": 2867,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -113,7 +113,7 @@
       "controller": "EngagementController",
       "handler": "extractAttachmentContext",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2637,
+      "sourceLine": 2854,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -139,7 +139,7 @@
       "controller": "EngagementController",
       "handler": "extractAttachmentText",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2631,
+      "sourceLine": 2848,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -164,7 +164,7 @@
       "controller": "EngagementController",
       "handler": "confirmAttachment",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2608,
+      "sourceLine": 2825,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -189,7 +189,7 @@
       "controller": "EngagementController",
       "handler": "createAttachmentUploadUrl",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2599,
+      "sourceLine": 2816,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -214,7 +214,7 @@
       "controller": "EngagementController",
       "handler": "listCampaigns",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2675,
+      "sourceLine": 2892,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -240,7 +240,7 @@
       "controller": "EngagementController",
       "handler": "createCampaign",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2684,
+      "sourceLine": 2901,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -265,7 +265,7 @@
       "controller": "EngagementController",
       "handler": "deleteCampaign",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2703,
+      "sourceLine": 2920,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -290,7 +290,7 @@
       "controller": "EngagementController",
       "handler": "getCampaign",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2689,
+      "sourceLine": 2906,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -315,7 +315,7 @@
       "controller": "EngagementController",
       "handler": "updateCampaign",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2694,
+      "sourceLine": 2911,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -341,7 +341,7 @@
       "controller": "EngagementController",
       "handler": "generateCampaignEmail",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2726,
+      "sourceLine": 2943,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -367,7 +367,7 @@
       "controller": "EngagementController",
       "handler": "addCampaignRecipients",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2708,
+      "sourceLine": 2925,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -393,7 +393,7 @@
       "controller": "EngagementController",
       "handler": "removeCampaignRecipient",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2717,
+      "sourceLine": 2934,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -419,7 +419,7 @@
       "controller": "EngagementController",
       "handler": "sendCampaignEmails",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2736,
+      "sourceLine": 2953,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -444,7 +444,7 @@
       "controller": "EngagementController",
       "handler": "sendCampaignTest",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2742,
+      "sourceLine": 2959,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -469,7 +469,7 @@
       "controller": "EngagementController",
       "handler": "capabilities",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1826,
+      "sourceLine": 1952,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -491,7 +491,7 @@
       "controller": "EngagementController",
       "handler": "listContacts",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1859,
+      "sourceLine": 1986,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -516,7 +516,7 @@
       "controller": "EngagementController",
       "handler": "clientContext",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2594,
+      "sourceLine": 2811,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -541,7 +541,7 @@
       "controller": "EngagementController",
       "handler": "clientDebriefs",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2158,
+      "sourceLine": 2321,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -567,7 +567,7 @@
       "controller": "EngagementController",
       "handler": "integrations",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1864,
+      "sourceLine": 1991,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -593,7 +593,7 @@
       "controller": "EngagementController",
       "handler": "createIntegration",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1870,
+      "sourceLine": 1997,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -966,7 +966,7 @@
       "controller": "EngagementController",
       "handler": "mailThreads",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2098,
+      "sourceLine": 2261,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -992,7 +992,7 @@
       "controller": "EngagementController",
       "handler": "mailThreadDetail",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2116,
+      "sourceLine": 2279,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1017,7 +1017,7 @@
       "controller": "EngagementController",
       "handler": "rewriteEmail",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2152,
+      "sourceLine": 2315,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1042,7 +1042,7 @@
       "controller": "EngagementController",
       "handler": "sendSingleMail",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2128,
+      "sourceLine": 2291,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1067,7 +1067,7 @@
       "controller": "EngagementController",
       "handler": "updatePrep",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2084,
+      "sourceLine": 2247,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1093,7 +1093,7 @@
       "controller": "EngagementController",
       "handler": "approvePrep",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2093,
+      "sourceLine": 2256,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1118,7 +1118,7 @@
       "controller": "EngagementController",
       "handler": "meetings",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1876,
+      "sourceLine": 2003,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1146,7 +1146,7 @@
       "controller": "EngagementController",
       "handler": "createMeeting",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1910,
+      "sourceLine": 2037,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1171,7 +1171,7 @@
       "controller": "EngagementController",
       "handler": "meeting",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1905,
+      "sourceLine": 2032,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1196,7 +1196,7 @@
       "controller": "EngagementController",
       "handler": "updateMeeting",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1915,
+      "sourceLine": 2042,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1222,7 +1222,7 @@
       "controller": "EngagementController",
       "handler": "shareArtifacts",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1941,
+      "sourceLine": 2068,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1248,7 +1248,7 @@
       "controller": "EngagementController",
       "handler": "unshareArtifacts",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1950,
+      "sourceLine": 2077,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1274,7 +1274,7 @@
       "controller": "EngagementController",
       "handler": "approveMeetingAttachment",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2033,
+      "sourceLine": 2160,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1300,7 +1300,7 @@
       "controller": "EngagementController",
       "handler": "generateDebriefDraft",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2042,
+      "sourceLine": 2169,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1326,7 +1326,7 @@
       "controller": "EngagementController",
       "handler": "meetingDebriefs",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2004,
+      "sourceLine": 2131,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1351,7 +1351,7 @@
       "controller": "EngagementController",
       "handler": "createDebrief",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1995,
+      "sourceLine": 2122,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1377,7 +1377,7 @@
       "controller": "EngagementController",
       "handler": "updateDebrief",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2009,
+      "sourceLine": 2136,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1404,7 +1404,7 @@
       "controller": "EngagementController",
       "handler": "approveDebrief",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2021,
+      "sourceLine": 2148,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1430,7 +1430,7 @@
       "controller": "EngagementController",
       "handler": "meetingNotes",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1968,
+      "sourceLine": 2095,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1455,7 +1455,7 @@
       "controller": "EngagementController",
       "handler": "createNote",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1959,
+      "sourceLine": 2086,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1481,7 +1481,7 @@
       "controller": "EngagementController",
       "handler": "updateNote",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1973,
+      "sourceLine": 2100,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1508,7 +1508,7 @@
       "controller": "EngagementController",
       "handler": "approveNote",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1986,
+      "sourceLine": 2113,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1534,7 +1534,7 @@
       "controller": "EngagementController",
       "handler": "removeNotetaker",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2068,
+      "sourceLine": 2195,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1559,7 +1559,7 @@
       "controller": "EngagementController",
       "handler": "meetingNotetaker",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2062,
+      "sourceLine": 2189,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1584,7 +1584,7 @@
       "controller": "EngagementController",
       "handler": "dispatchNotetaker",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2052,
+      "sourceLine": 2179,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1610,7 +1610,34 @@
       "controller": "EngagementController",
       "handler": "generatePrep",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2074,
+      "sourceLine": 2201,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": 202,
+      "bodyDto": "GenerateMeetingPrepDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "body",
+        "response"
+      ],
+      "classification": "generation"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/meetings/:id/prep-jobs/:jobId",
+      "controller": "EngagementController",
+      "handler": "cancelPrepJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2235,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1621,14 +1648,142 @@
       "handlerRoles": [],
       "throttle": null,
       "httpCode": null,
-      "bodyDto": "GenerateMeetingPrepDto",
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "jobId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id/prep-jobs/:jobId",
+      "controller": "EngagementController",
+      "handler": "prepJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2230,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "jobId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/meetings/:id/prep-jobs/:jobId/resume",
+      "controller": "EngagementController",
+      "handler": "resumePrepJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2240,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": 202,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId",
+        "jobId"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id/prep-jobs/latest",
+      "controller": "EngagementController",
+      "handler": "latestPrepJob",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2215,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/meetings/:id/prep-monday-mapping",
+      "controller": "EngagementController",
+      "handler": "prepMondayMapping",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2220,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "meetingId"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/engagement/meetings/:id/prep-monday-mapping",
+      "controller": "EngagementController",
+      "handler": "updatePrepMondayMapping",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2225,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "MeetingPrepMondayMappingDto",
       "queryDto": null,
       "parameterNames": [
         "ctx",
         "meetingId",
         "body"
       ],
-      "classification": "generation"
+      "classification": "write"
     },
     {
       "method": "POST",
@@ -1636,7 +1791,7 @@
       "controller": "EngagementController",
       "handler": "shareMeeting",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1927,
+      "sourceLine": 2054,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1661,7 +1816,7 @@
       "controller": "EngagementController",
       "handler": "unshareMeeting",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1932,
+      "sourceLine": 2059,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1686,7 +1841,7 @@
       "controller": "EngagementController",
       "handler": "meetingLibrary",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 1900,
+      "sourceLine": 2027,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1763,7 +1918,7 @@
       "controller": "EngagementController",
       "handler": "outreachRecords",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2184,
+      "sourceLine": 2347,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1793,7 +1948,7 @@
       "controller": "EngagementController",
       "handler": "createOutreachRecord",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2498,
+      "sourceLine": 2685,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1818,7 +1973,7 @@
       "controller": "EngagementController",
       "handler": "deleteOutreachRecord",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2535,
+      "sourceLine": 2722,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1843,7 +1998,7 @@
       "controller": "EngagementController",
       "handler": "outreachRecord",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2493,
+      "sourceLine": 2680,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1868,7 +2023,7 @@
       "controller": "EngagementController",
       "handler": "updateOutreachRecord",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2503,
+      "sourceLine": 2690,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1894,7 +2049,7 @@
       "controller": "EngagementController",
       "handler": "generateOutreachDraft",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2513,
+      "sourceLine": 2700,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1920,7 +2075,7 @@
       "controller": "EngagementController",
       "handler": "openOutreachEmail",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2524,
+      "sourceLine": 2711,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1945,7 +2100,7 @@
       "controller": "EngagementController",
       "handler": "restoreOutreachRecord",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2540,
+      "sourceLine": 2727,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1970,7 +2125,7 @@
       "controller": "EngagementController",
       "handler": "sendCampaign",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2529,
+      "sourceLine": 2716,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -1995,7 +2150,7 @@
       "controller": "EngagementController",
       "handler": "listDraftArtifacts",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2392,
+      "sourceLine": 2555,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2015,12 +2170,38 @@
       "classification": "generation"
     },
     {
+      "method": "POST",
+      "path": "/api/engagement/outreach/:outreachRecordId/draft-artifacts",
+      "controller": "EngagementController",
+      "handler": "ensureDraftArtifact",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2569,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": "{ long: { ttl: 60_000, limit: 240 } }",
+      "httpCode": null,
+      "bodyDto": "EnsureDraftArtifactDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "outreachRecordId",
+        "body"
+      ],
+      "classification": "generation"
+    },
+    {
       "method": "GET",
       "path": "/api/engagement/outreach/ai-templates",
       "controller": "EngagementController",
       "handler": "listAiTemplates",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2225,
+      "sourceLine": 2388,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2044,7 +2225,7 @@
       "controller": "EngagementController",
       "handler": "createAiTemplate",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2230,
+      "sourceLine": 2393,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2069,7 +2250,7 @@
       "controller": "EngagementController",
       "handler": "deleteAiTemplate",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2244,
+      "sourceLine": 2407,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2094,7 +2275,7 @@
       "controller": "EngagementController",
       "handler": "updateAiTemplate",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2235,
+      "sourceLine": 2398,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2120,7 +2301,7 @@
       "controller": "EngagementController",
       "handler": "previewAiTemplate",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2251,
+      "sourceLine": 2414,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2145,7 +2326,7 @@
       "controller": "EngagementController",
       "handler": "listOutreachAudiences",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2477,
+      "sourceLine": 2664,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2170,7 +2351,7 @@
       "controller": "EngagementController",
       "handler": "createOutreachAudience",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2485,
+      "sourceLine": 2672,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2195,7 +2376,7 @@
       "controller": "EngagementController",
       "handler": "outreachContextLibrary",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2470,
+      "sourceLine": 2657,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2219,7 +2400,7 @@
       "controller": "EngagementController",
       "handler": "createDraftVersion",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2407,
+      "sourceLine": 2594,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2245,7 +2426,7 @@
       "controller": "EngagementController",
       "handler": "acceptCandidateVersion",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2429,
+      "sourceLine": 2616,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2272,7 +2453,7 @@
       "controller": "EngagementController",
       "handler": "getDraftVersion",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2418,
+      "sourceLine": 2605,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2297,7 +2478,7 @@
       "controller": "EngagementController",
       "handler": "generateBatchEmails",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2279,
+      "sourceLine": 2442,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2323,7 +2504,7 @@
       "controller": "EngagementController",
       "handler": "outreachInsights",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2257,
+      "sourceLine": 2420,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2348,7 +2529,7 @@
       "controller": "EngagementController",
       "handler": "generateTalkingPoints",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2263,
+      "sourceLine": 2426,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2373,7 +2554,7 @@
       "controller": "EngagementController",
       "handler": "getOutreachJob",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2361,
+      "sourceLine": 2524,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2398,7 +2579,7 @@
       "controller": "EngagementController",
       "handler": "cancelOutreachJob",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2368,
+      "sourceLine": 2531,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2423,7 +2604,7 @@
       "controller": "EngagementController",
       "handler": "retryOutreachJobItem",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2375,
+      "sourceLine": 2538,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2449,7 +2630,7 @@
       "controller": "EngagementController",
       "handler": "submitGenerateJob",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2309,
+      "sourceLine": 2472,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2474,7 +2655,7 @@
       "controller": "EngagementController",
       "handler": "submitSendJob",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2331,
+      "sourceLine": 2494,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2499,7 +2680,7 @@
       "controller": "EngagementController",
       "handler": "outboundCampaignContactData",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2204,
+      "sourceLine": 2367,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2524,7 +2705,7 @@
       "controller": "EngagementController",
       "handler": "getPriorContact",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2301,
+      "sourceLine": 2464,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2549,7 +2730,7 @@
       "controller": "EngagementController",
       "handler": "sendBatchEmails",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2293,
+      "sourceLine": 2456,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2574,7 +2755,7 @@
       "controller": "EngagementController",
       "handler": "createSendIntent",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2446,
+      "sourceLine": 2633,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2599,7 +2780,7 @@
       "controller": "EngagementController",
       "handler": "getSendIntent",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2452,
+      "sourceLine": 2639,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2624,7 +2805,7 @@
       "controller": "EngagementController",
       "handler": "cancelSendIntent",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2462,
+      "sourceLine": 2649,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2649,7 +2830,7 @@
       "controller": "EngagementController",
       "handler": "outreachTemplates",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2212,
+      "sourceLine": 2375,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2674,7 +2855,7 @@
       "controller": "EngagementController",
       "handler": "createOutreachTemplate",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2217,
+      "sourceLine": 2380,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2699,7 +2880,7 @@
       "controller": "EngagementController",
       "handler": "reportOverview",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2545,
+      "sourceLine": 2732,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2725,7 +2906,7 @@
       "controller": "EngagementController",
       "handler": "createReportTargetOffice",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2554,
+      "sourceLine": 2741,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2745,12 +2926,113 @@
       "classification": "write"
     },
     {
+      "method": "DELETE",
+      "path": "/api/engagement/reports/target-offices/:id",
+      "controller": "EngagementController",
+      "handler": "archiveReportTargetOffice",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2782,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engagement/reports/target-offices/:id",
+      "controller": "EngagementController",
+      "handler": "updateReportTargetOffice",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2773,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "UpdateReportTargetOfficeDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/reports/target-offices/link",
+      "controller": "EngagementController",
+      "handler": "linkReportTargetOffice",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2765,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "LinkReportTargetOfficeDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/engagement/reports/target-offices/overrides",
+      "controller": "EngagementController",
+      "handler": "clearReportTargetOfficeOverrides",
+      "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
+      "sourceLine": 2757,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "ClearReportTargetOfficeOverrideDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
       "method": "POST",
       "path": "/api/engagement/reports/target-offices/overrides",
       "controller": "EngagementController",
       "handler": "upsertReportTargetOffice",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2562,
+      "sourceLine": 2749,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2775,7 +3057,7 @@
       "controller": "EngagementController",
       "handler": "sharedMeetings",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2179,
+      "sourceLine": 2342,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2800,7 +3082,7 @@
       "controller": "EngagementController",
       "handler": "tasks",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2570,
+      "sourceLine": 2787,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2825,7 +3107,7 @@
       "controller": "EngagementController",
       "handler": "createTask",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2575,
+      "sourceLine": 2792,
       "controllerGuards": [
         "RolesGuard"
       ],
@@ -2850,7 +3132,7 @@
       "controller": "EngagementController",
       "handler": "updateTask",
       "sourceFile": "apps/api/src/engagement/engagement.controller.ts",
-      "sourceLine": 2580,
+      "sourceLine": 2797,
       "controllerGuards": [
         "RolesGuard"
       ],

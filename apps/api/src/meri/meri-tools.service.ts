@@ -5420,13 +5420,14 @@ export class MeriToolsService {
     if (meetingPrepEnabled() && this.meetingPrepJobs) {
       const jobId = optionalString(input, 'jobId', 80);
       const job = jobId ? await this.meetingPrepJobs.get(ctx, meetingId, jobId) : await this.meetingPrepJobs.submit(ctx, meetingId, {
-        additionalContext: optionalString(input, 'additionalContext', 4_000),
+        additionalContext: optionalString(input, 'additionalContext', 4_000) ?? undefined,
         depth: input.depth === 'deep' ? 'deep' : 'standard',
-        requestKey: optionalString(input, 'requestKey', 128),
+        requestKey: optionalString(input, 'requestKey', 128) ?? undefined,
       });
       const meeting = job?.status === 'completed' ? await this.engagement.getMeeting(ctx, meetingId) : undefined;
-      return { tool: 'create_meeting_brief', meetingId, job, artifact: meeting?.preps.find(prep => prep.id === job?.prepId) ?? null,
-        message: job?.status === 'completed' ? 'This is the same saved briefing shown in Engagement Manager.' : 'Preparation is durable and runs in the background. Use jobId to check status; do not repeatedly start new jobs.' };
+      const artifact = meeting?.preps.find(prep => prep.id === job?.prepId) ?? null;
+      return { tool: 'create_meeting_brief', meetingId, job, artifact,
+        message: artifact ? 'This is the same saved briefing shown in Engagement Manager.' : job?.status === 'completed' ? 'This job completed, but its briefing is no longer available as the current authorized artifact. Reopen the meeting or regenerate.' : 'Preparation is durable and runs in the background. Use jobId to check status; do not repeatedly start new jobs.' };
     }
     const conversationId = optionalString(input, 'conversationId', 80);
     const titleOverride = optionalString(input, 'title', 160);

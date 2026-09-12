@@ -216,7 +216,7 @@ export class MeriManagedMcpService {
     }
     assertMeriToolRequestActive();
     // executeBridged rechecks the current row immediately before provider I/O.
-    return this.mcp.executeBridged(ctx, toolName, input, options);
+    return options ? this.mcp.executeBridged(ctx, toolName, input, options) : this.mcp.executeBridged(ctx, toolName, input);
   }
 
   private async createApp(ctx: TenantContext, appId: MeriV3ManagedAppId): Promise<string> {

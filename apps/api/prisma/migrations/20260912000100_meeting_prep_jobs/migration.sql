@@ -1,8 +1,8 @@
 CREATE TABLE meeting_prep_jobs (
   id uuid PRIMARY KEY,
-  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  meeting_id uuid NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  meeting_id uuid NOT NULL REFERENCES meetings(id) ON DELETE CASCADE ON UPDATE CASCADE,
   request_key varchar(128) NOT NULL,
   request_hash varchar(64) NOT NULL,
   status varchar(24) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','completed','failed','cancelled')),
@@ -14,17 +14,17 @@ CREATE TABLE meeting_prep_jobs (
   lease_until timestamptz,
   deadline_at timestamptz NOT NULL,
   attempts integer NOT NULL DEFAULT 0,
-  prep_id uuid REFERENCES meeting_preps(id) ON DELETE SET NULL,
+  prep_id uuid REFERENCES meeting_preps(id) ON DELETE SET NULL ON UPDATE CASCADE,
   error_code varchar(64),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE meeting_prep_monday_mappings (
   id uuid PRIMARY KEY,
-  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  board_ids text[] NOT NULL,
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  board_ids text[],
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX meeting_prep_monday_mappings_tenant_id_user_id_client_id_key ON meeting_prep_monday_mappings(tenant_id,user_id,client_id);

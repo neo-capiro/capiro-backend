@@ -13,9 +13,11 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Response as ExpressResponse } from 'express';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -1960,6 +1962,7 @@ export class EngagementController {
     return {
       ...this.service.capabilities(),
       ...this.service.engagementTrustBoundaryCapabilities(),
+      meetingPrepComprehensiveEnabled: meetingPrepEnabled(),
       runtime: {
         serviceName: snapshot.serviceName,
         processMode: snapshot.processMode,
@@ -2202,8 +2205,10 @@ export class EngagementController {
     @CurrentTenant() ctx: TenantContext,
     @Param('id') meetingId: string,
     @Body() body: GenerateMeetingPrepDto,
+    @Res({ passthrough: true }) response?: ExpressResponse,
   ) {
     if (meetingPrepEnabled() && this.meetingPrepJobs) return this.meetingPrepJobs.submit(ctx, meetingId, body);
+    response?.status(201);
     return this.service.generateMeetingPrep(ctx, meetingId, body.additionalContext);
   }
 
@@ -2230,6 +2235,13 @@ export class EngagementController {
   @Delete('meetings/:id/prep-jobs/:jobId')
   cancelPrepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Param('jobId') jobId: string) {
     return this.meetingPrepJobs?.cancel(ctx, meetingId, jobId) ?? null;
+  }
+
+  @Post('meetings/:id/prep-jobs/:jobId/resume')
+  @HttpCode(202)
+  @EngagementRuntimeAction('meeting_prep_generate')
+  resumePrepJob(@CurrentTenant() ctx: TenantContext, @Param('id') meetingId: string, @Param('jobId') jobId: string) {
+    return this.meetingPrepJobs?.resume(ctx, meetingId, jobId) ?? null;
   }
 
   @Patch('meeting-preps/:id')

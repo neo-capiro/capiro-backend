@@ -133,6 +133,8 @@ enum BillingStatus {
 }
 
 model Tenant {
+  meetingPrepJobs MeetingPrepJob[]
+  meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                     String        @id @default(uuid()) @db.Uuid
   slug                   String        @unique @db.Citext
   name                   String
@@ -493,6 +495,8 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  meetingPrepJobs MeetingPrepJob[]
+  meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                    String    @id @default(uuid()) @db.Uuid
   clerkUserId           String    @unique @map("clerk_user_id")
   email                 String    @unique @db.Citext
@@ -714,6 +718,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                       String    @id @default(uuid()) @db.Uuid
   tenantId                 String    @map("tenant_id") @db.Uuid
   name                     String
@@ -1026,6 +1031,7 @@ model EngagementContact {
 }
 
 model Meeting {
+  prepJobs MeetingPrepJob[]
   id                 String            @id @default(uuid()) @db.Uuid
   tenantId           String            @map("tenant_id") @db.Uuid
   clientId           String?           @map("client_id") @db.Uuid
@@ -1323,6 +1329,10 @@ model MeetingNote {
 /// Durable actor-scoped preparation jobs. UUID FKs are enforced by the migration;
 /// encrypted payloads never contain credentials or bearer tokens.
 model MeetingPrepJob {
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  prep MeetingPrep? @relation(fields: [prepId], references: [id], onDelete: SetNull)
   id            String   @id @default(uuid()) @db.Uuid
   tenantId      String   @map("tenant_id") @db.Uuid
   userId        String   @map("user_id") @db.Uuid
@@ -1341,7 +1351,7 @@ model MeetingPrepJob {
   prepId        String?  @map("prep_id") @db.Uuid
   errorCode     String?  @map("error_code") @db.VarChar(64)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([tenantId, userId, requestKey])
   @@index([status, leaseUntil, createdAt])
@@ -1350,17 +1360,21 @@ model MeetingPrepJob {
 }
 
 model MeetingPrepMondayMapping {
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   clientId  String   @map("client_id") @db.Uuid
   boardIds  String[] @map("board_ids")
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   @@unique([tenantId, userId, clientId])
   @@map("meeting_prep_monday_mappings")
 }
 
 model MeetingPrep {
+  jobs MeetingPrepJob[]
   id             String            @id @default(uuid()) @db.Uuid
   tenantId       String            @map("tenant_id") @db.Uuid
   meetingId      String            @map("meeting_id") @db.Uuid

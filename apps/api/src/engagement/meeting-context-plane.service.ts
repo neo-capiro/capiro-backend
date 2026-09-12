@@ -383,7 +383,7 @@ function projectRecords(records: RetrievalRecord[], comprehensive = false): { te
   let truncated = false;
   for (const record of records) {
     const payload = projectPayload(record);
-    const recordBudget = comprehensive ? 24_000 : RECORD_CHAR_BUDGET;
+    const recordBudget = comprehensive ? 128_000 : RECORD_CHAR_BUDGET;
     const excerpt = boundedJson(payload, recordBudget);
     if (JSON.stringify(payload).length > recordBudget) truncated = true;
     const block = `[${record.domain}:${record.recordId}]\n${excerpt}`;
@@ -399,6 +399,16 @@ function projectRecords(records: RetrievalRecord[], comprehensive = false): { te
       recordId: record.recordId,
       observedAt: stringField(payload, 'updatedAt') ?? stringField(payload, 'sentAt') ?? stringField(payload, 'startsAt'),
       excerpt,
+      ...(comprehensive ? { access: {
+        ...(typeof payload.clientId === 'string' ? { clients: [payload.clientId] } : {}),
+        ...(record.domain === 'meetings' ? { meetings: [record.recordId],
+          notes: (Array.isArray(payload.notes) ? payload.notes : []).flatMap(value => typeof asRecord(value).id === 'string' ? [String(asRecord(value).id)] : []),
+          debriefs: (Array.isArray(payload.debriefs) ? payload.debriefs : []).flatMap(value => typeof asRecord(value).id === 'string' ? [String(asRecord(value).id)] : []),
+        } : {}),
+        ...(record.domain === 'mail' ? { mail: [record.recordId] } : {}),
+        ...(record.domain === 'tasks' ? { tasks: [record.recordId] } : {}),
+        ...(record.domain === 'monday' ? { mondayUsers: typeof record.payload.sourceActorUserId === 'string' ? [record.payload.sourceActorUserId] : [], mondayBoards: typeof asRecord(record.payload.origin).boardId === 'string' ? [String(asRecord(record.payload.origin).boardId)] : [] } : {}),
+      } } : {}),
     });
     used += block.length;
   }
@@ -428,7 +438,7 @@ function projectPayload(record: RetrievalRecord): Record<string, unknown> {
     case 'outreach':
       return { ...common, ...pick(payload, ['sentAt', 'recipientNames', 'recipientEmails']) };
     case 'mail':
-      return { ...common, ...pick(payload, ['sentAt', 'receivedAt', 'fromEmail', 'fromName', 'toRecipients', 'ccRecipients', 'bodyText', 'threadId', 'messages', 'contentCoverage']) };
+      return { ...common, ...pick(payload, ['sentAt', 'receivedAt', 'fromEmail', 'fromName', 'toRecipients', 'ccRecipients', 'bodyText', 'threadId', 'messages', 'contentCoverage', 'from', 'to', 'snippet', 'bodyPreview']) };
     case 'institutional_knowledge':
       return { ...common, ...pick(payload, ['key', 'value', 'scope', 'asOf', 'confidence']) };
     case 'legiwatch_bills':

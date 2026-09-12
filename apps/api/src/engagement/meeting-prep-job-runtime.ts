@@ -14,7 +14,8 @@ export interface MeetingPrepExecution {
 }
 const execution = new AsyncLocalStorage<MeetingPrepExecution>();
 export const currentMeetingPrepExecution = () => execution.getStore();
-export const withMeetingPrepExecution = <T>(value: MeetingPrepExecution, run: () => T): T => execution.run(value, run);
+export const withMeetingPrepExecution = <T>(value: MeetingPrepExecution, run: () => T): T =>
+  execution.run(value, run);
 
 export function prepStageTimeout(maxMs: number, reserveMs = 0): number {
   const run = execution.getStore();

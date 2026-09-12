@@ -61,6 +61,7 @@ export interface MeetingPrepInput {
 }
 
 export interface MeetingPrepResult {
+  promptHash?: string;
   briefing?: ComprehensiveBriefing;
   agenda: string[];
   talkingPoints: string[];

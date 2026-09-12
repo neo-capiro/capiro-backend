@@ -8,18 +8,28 @@ export class MeetingPrepWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MeetingPrepWorkerService.name);
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
-  constructor(private readonly jobs: MeetingPrepJobService, private readonly runtime: EngagementRuntimePolicyService) {}
+  constructor(
+    private readonly jobs: MeetingPrepJobService,
+    private readonly runtime: EngagementRuntimePolicyService,
+  ) {}
   onModuleInit(): void {
     if (this.timer || !meetingPrepEnabled() || !this.runtime.backgroundWorkersEnabled()) return;
     this.timer = setInterval(() => void this.tick(), 5_000);
     this.timer.unref?.();
   }
-  onModuleDestroy(): void { if (this.timer) clearInterval(this.timer); this.timer = undefined; }
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
+  }
   private async tick(): Promise<void> {
     if (this.running) return;
     this.running = true;
-    try { await this.jobs.runWorkerTick(); }
-    catch { this.logger.error('Meeting preparation worker could not complete its sweep.'); }
-    finally { this.running = false; }
+    try {
+      await this.jobs.runWorkerTick();
+    } catch {
+      this.logger.error('Meeting preparation worker could not complete its sweep.');
+    } finally {
+      this.running = false;
+    }
   }
 }
