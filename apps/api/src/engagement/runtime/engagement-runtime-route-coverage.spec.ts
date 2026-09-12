@@ -73,6 +73,9 @@ const LOCAL_SAFE_GENERATION_HANDLERS = new Set([
   'listDraftArtifacts',
   'getDraftVersion',
   'acceptCandidateVersion',
+  // Creates an empty placeholder artifact row (subject/body are always ''); no
+  // drafting LLM call or other external boundary crossing occurs.
+  'ensureDraftArtifact',
 ]);
 const LOCAL_SAFE_ATTACHMENT_HANDLERS = new Set([
   'attachments',
