@@ -1,6 +1,6 @@
 /** One named REVIEW re-extraction. Preview is read-only; publication is never performed. */
 import { createHash } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync, type Stats } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import type { ReextractionRequestV1 } from '../src/defense-budget/governed-reextraction/reextraction-repository-v1.js';
 
@@ -112,6 +112,15 @@ export function reextractionRuntimeConfigSha256V1(env: NodeJS.ProcessEnv): strin
   return createHash('sha256').update(JSON.stringify(settings)).digest('hex');
 }
 
+/** A missing/unreadable path is an invalid-configuration usage error (exit 2), never a raw ENOENT (exit 1). */
+function statOrUsageError(path: string, message: string): Stats {
+  try {
+    return statSync(path);
+  } catch {
+    throw new ReextractionUsageErrorV1(message);
+  }
+}
+
 function assertCommitParserRuntimeV1(env: NodeJS.ProcessEnv): void {
   const bucket = env.BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET?.trim();
   if (!bucket || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket)) {
@@ -122,9 +131,13 @@ function assertCommitParserRuntimeV1(env: NodeJS.ProcessEnv): void {
   if (!root || !isAbsolute(root) || !project || !isAbsolute(project)) {
     throw new ReextractionUsageErrorV1('Commit requires absolute BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT and DEFENSE_BUDGET_PARSER_PROJECT_DIR');
   }
-  if (!statSync(project).isDirectory()) throw new ReextractionUsageErrorV1('Parser project is not a directory');
+  if (!statOrUsageError(project, 'Parser project is not a directory').isDirectory()) {
+    throw new ReextractionUsageErrorV1('Parser project is not a directory');
+  }
   for (const relative of ['pyproject.toml', 'uv.lock', '.venv/bin/capiro-defense-budget-parser']) {
-    if (!statSync(join(project, relative)).isFile()) throw new ReextractionUsageErrorV1(`Parser runtime is missing ${relative}`);
+    if (!statOrUsageError(join(project, relative), `Parser runtime is missing ${relative}`).isFile()) {
+      throw new ReextractionUsageErrorV1(`Parser runtime is missing ${relative}`);
+    }
   }
 }
 
@@ -145,7 +158,9 @@ export async function mainReextractionV1(argv = process.argv.slice(2)): Promise<
   let reason = '';
   if (options.mode !== 'status') {
     // Read operator rationale exactly once, before any database access.
-    if (statSync(options.reasonFile).size > 64_000) throw new ReextractionUsageErrorV1('Reason file is too large');
+    if (statOrUsageError(options.reasonFile, `--reason-file does not exist or is not readable: ${options.reasonFile}`).size > 64_000) {
+      throw new ReextractionUsageErrorV1('Reason file is too large');
+    }
     reason = readFileSync(options.reasonFile, 'utf8').trim();
     if (!reason || reason.length > 16_000) throw new ReextractionUsageErrorV1('Reason must contain 1 to 16000 characters');
     if (options.mode === 'commit') assertCommitParserRuntimeV1(process.env);

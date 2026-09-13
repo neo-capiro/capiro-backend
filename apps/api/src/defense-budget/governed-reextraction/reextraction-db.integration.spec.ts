@@ -5,7 +5,7 @@
  * These sequential cases do not prove multi-backend lock scheduling.
  */
 import { createHash, randomUUID } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import {
   checkpointReextractionVerificationV1, createReextractionRepositoryV1,
   ReextractionLeaseLostErrorV1, reextractionRequestHashV1, type ReextractionRequestV1, type ReextractionLeaseContextV1,
@@ -271,11 +271,35 @@ integration('governed re-extraction: real PostgreSQL persistence', () => {
     expect(await originalRows(f)).toEqual(before);
   });
 
-  it.each(['cycleId', 'sourceDocumentId', 'sourceSha256'] as const)('rolls back fresh verification with mismatched %s', async field => {
+  it.each(['cycleId', 'sourceSha256'] as const)('rolls back fresh verification with mismatched %s', async field => {
     const f = await fixture();
     await claim(f);
     const identity = fresh(f, { [field]: field === 'sourceSha256' ? sha('wrong-source') : randomUUID() });
     await expect(fenced(f.context).persistCompletedVerification(verification(identity))).rejects.toBeInstanceOf(ReextractionLeaseLostErrorV1);
+    await expectAbsent(identity);
+  });
+
+  // Unlike cycleId/sourceSha256 (plain columns the fence itself must catch),
+  // "budget_extraction_candidate_v1.source_document_id" carries its own
+  // pre-existing real foreign key to "source_document" (not modeled as a
+  // Prisma @relation, so a schema reconstructed only from schema.prisma's
+  // relations - as the PGlite validation environment did - never recreates
+  // it). A nonexistent sourceDocumentId is therefore refused one layer
+  // earlier, by that FK, before the fence ever runs. Both layers roll back
+  // the same way; this asserts the actual (deeper, DB-enforced) guard rather
+  // than assuming every field is caught by the same code path.
+  it('rolls back fresh verification with a sourceDocumentId that does not reference a real source document', async () => {
+    const f = await fixture();
+    await claim(f);
+    const identity = fresh(f, { sourceDocumentId: randomUUID() });
+    let caught: unknown;
+    try {
+      await fenced(f.context).persistCompletedVerification(verification(identity));
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+    expect((caught as Prisma.PrismaClientKnownRequestError).code).toBe('P2003');
     await expectAbsent(identity);
   });
 
@@ -397,5 +421,108 @@ integration('governed re-extraction: real PostgreSQL persistence', () => {
     await expectSqlGuard(`UPDATE "budget_reextraction_operation_v1" SET "verification_correlations_jsonb"='[]'::jsonb WHERE "id"='${f.request.operationId}'::uuid`, 'append');
     expect(await repository.complete(f.context, terminal(f.identity))).toBe(true);
     await expectSqlGuard(`UPDATE "budget_reextraction_operation_v1" SET "last_error"='rewrite' WHERE "id"='${f.request.operationId}'::uuid`, 'immutable');
+  });
+
+  // Every case above issues one sequential await chain against one client, which
+  // is exactly what a single-backend embedded PostgreSQL (PGlite/WASM) can also
+  // exercise. It cannot prove genuine multi-connection lock scheduling: two real
+  // backend connections truly contending for the same advisory lock or row lock
+  // at the same instant. This suite opens a SECOND, fully independent
+  // PrismaClient and races it against the first with Promise.all/allSettled so
+  // PostgreSQL's own lock manager - not JavaScript await ordering - decides the
+  // outcome.
+  describe('real multi-connection concurrency (two independent PostgreSQL connections)', () => {
+    let second: PrismaClient;
+    let secondRepository: ReturnType<typeof createReextractionRepositoryV1>;
+
+    beforeAll(async () => {
+      second = new PrismaClient();
+      await second.$connect();
+      secondRepository = createReextractionRepositoryV1(second);
+    });
+    afterAll(async () => { await second?.$disconnect(); });
+
+    it('two connections truly racing to claim distinct historical candidates for one source: exactly one wins, the other is busy', async () => {
+      const f = await fixture();
+      const secondIdentity = fresh(f);
+      const secondCandidate = await new PrismaBudgetVerificationRepositoryV1(prisma).persistCompletedVerification(verification(secondIdentity));
+      const requestB = { ...f.request, operationId: randomUUID(), oldCandidateId: secondCandidate.candidate.id,
+        expectedOldVerificationRunId: secondCandidate.run.id, expectedOldExtractionArtifactSha256: secondIdentity.extractionArtifactSha256 };
+      const snapshotB = await resolveReextractionTargetV1(second, requestB);
+      const [resultA, resultB] = await Promise.all([
+        repository.claim({ request: f.request, snapshot: f.snapshot, leaseToken: randomUUID() }),
+        secondRepository.claim({ request: requestB, snapshot: snapshotB, leaseToken: randomUUID() }),
+      ]);
+      expect([resultA.outcome, resultB.outcome].sort()).toEqual(['busy', 'claimed']);
+    });
+
+    it('two connections truly racing to reclaim the same expired operation: exactly one wins the new lease', async () => {
+      const f = await fixture();
+      await claim(f);
+      await prisma.$executeRawUnsafe('UPDATE "budget_reextraction_operation_v1" SET "leased_until"=clock_timestamp()-interval \'1 second\' WHERE "id"=$1::uuid', f.request.operationId);
+      const [resultA, resultB] = await Promise.all([
+        repository.claim({ request: f.request, snapshot: f.snapshot, leaseToken: randomUUID() }),
+        secondRepository.claim({ request: f.request, snapshot: f.snapshot, leaseToken: randomUUID() }),
+      ]);
+      expect([resultA.outcome, resultB.outcome].sort()).toEqual(['busy', 'claimed']);
+      const winner = resultA.outcome === 'claimed' ? resultA : resultB;
+      expect((await repository.read(f.request.operationId))!.leaseToken).toBe(winner.operation!.leaseToken);
+      expect((await repository.read(f.request.operationId))!.attempts).toBe(2);
+    });
+
+    it('a stale token racing a real concurrent reclaim on a second connection cannot checkpoint; only the reclaimed connection persists evidence', async () => {
+      const f = await fixture();
+      await claim(f);
+      await prisma.$executeRawUnsafe('UPDATE "budget_reextraction_operation_v1" SET "leased_until"=clock_timestamp()-interval \'1 second\' WHERE "id"=$1::uuid', f.request.operationId);
+      const reclaimed = await secondRepository.claim({ request: f.request, snapshot: f.snapshot, leaseToken: randomUUID() });
+      expect(reclaimed.outcome).toBe('claimed');
+      const newContext = { operationId: f.request.operationId, leaseToken: reclaimed.operation!.leaseToken! };
+      const staleIdentity = fresh(f, { extractionArtifactId: 'stale-loser' });
+      const freshIdentity = fresh(f, { extractionArtifactId: 'reclaimed-winner' });
+      const staleFence = new PrismaBudgetVerificationRepositoryV1(prisma, (tx, identity, candidateId, runId) =>
+        checkpointReextractionVerificationV1(tx, f.context, identity, candidateId, runId));
+      const freshFence = new PrismaBudgetVerificationRepositoryV1(second, (tx, identity, candidateId, runId) =>
+        checkpointReextractionVerificationV1(tx, newContext, identity, candidateId, runId));
+      const [staleResult, freshResult] = await Promise.allSettled([
+        staleFence.persistCompletedVerification(verification(staleIdentity)),
+        freshFence.persistCompletedVerification(verification(freshIdentity)),
+      ]);
+      expect(staleResult.status).toBe('rejected');
+      if (staleResult.status === 'rejected') expect(staleResult.reason).toBeInstanceOf(ReextractionLeaseLostErrorV1);
+      expect(freshResult.status).toBe('fulfilled');
+      await expectAbsent(staleIdentity);
+      expect(await prisma.budgetExtractionCandidateV1.findUnique({ where: { id: computeCandidateId(freshIdentity) } })).not.toBeNull();
+      expect(await repository.complete(newContext, terminal(freshIdentity))).toBe(true);
+      expect(await repository.complete(f.context, terminal(staleIdentity))).toBe(false);
+    });
+
+    it('a real concurrent race between operator abandonment and worker reclaim resolves to exactly one outcome', async () => {
+      const f = await fixture();
+      await claim(f);
+      await prisma.$executeRawUnsafe('UPDATE "budget_reextraction_operation_v1" SET "leased_until"=clock_timestamp()-interval \'1 second\' WHERE "id"=$1::uuid', f.request.operationId);
+      const [abandonResult, claimResult] = await Promise.allSettled([
+        repository.abandonExpired(f.request.operationId, 'operator', 'concurrent recovery race', { commit: true }),
+        secondRepository.claim({ request: f.request, snapshot: f.snapshot, leaseToken: randomUUID() }),
+      ]);
+      expect(abandonResult.status).toBe('fulfilled');
+      expect(claimResult.status).toBe('fulfilled');
+      if (abandonResult.status !== 'fulfilled' || claimResult.status !== 'fulfilled') throw new Error('unreachable');
+      const finalState = (await repository.read(f.request.operationId))!.status;
+      if (abandonResult.value.outcome === 'abandoned') {
+        expect(claimResult.value.outcome).toBe('blocked');
+        expect(finalState).toBe('blocked');
+      } else {
+        expect(abandonResult.value.outcome).toBe('ineligible');
+        expect(claimResult.value.outcome).toBe('claimed');
+        expect(finalState).toBe('running');
+      }
+    });
+
+    it('concurrent claims on independent cycle/source pairs never contend and all commit', async () => {
+      const fixtures = await Promise.all([fixture(), fixture(), fixture(), fixture()]);
+      const results = await Promise.all(fixtures.map((f, i) =>
+        (i % 2 === 0 ? repository : secondRepository).claim({ request: f.request, snapshot: f.snapshot, leaseToken: randomUUID() })));
+      expect(results.map(r => r.outcome)).toEqual(['claimed', 'claimed', 'claimed', 'claimed']);
+    });
   });
 });
