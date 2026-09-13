@@ -1587,11 +1587,15 @@ export class EngagementAiService {
   private buildPrompt(input: MeetingPrepInput): string {
     const evidenceSources = prepEvidenceSources(input);
     const governedSources = input.evidenceSources ?? [];
-    const emailHighlights = formatMeetingPrepEmailHighlights(input.recentThreads);
-    const hasEmailThreads = input.recentThreads.length > 0 || governedSources.some((source) => source.kind === 'mail');
-    const hasPriorMeetings = input.recentMeetings.length > 0 || governedSources.some((source) => source.kind === 'meetings');
+    const hasEmailThreads =
+      input.recentThreads.length > 0 || governedSources.some((source) => source.kind === 'mail');
+    const hasPriorMeetings =
+      input.recentMeetings.length > 0 ||
+      governedSources.some((source) => source.kind === 'meetings');
     const hasDirectoryMatches = input.congressionalDirectoryMatches.length > 0;
-    const hasTasks = input.tasks.length > 0 || governedSources.some((source) => source.kind === 'tasks');
+    const hasTasks =
+      input.tasks.length > 0 ||
+      governedSources.some((source) => source.kind === 'tasks' || source.kind === 'monday');
     const userContext = (input.additionalContext ?? '').trim();
     const hasUserContext = userContext.length > 0;
     // Firm/author/client standing memory — HOW to frame + whose voice, not a
@@ -1599,10 +1603,16 @@ export class EngagementAiService {
     // can't mine it for invented facts; labeled as background below.
     const steeringBlock = (input.steeringContext ?? '').trim();
     const hasSteering = steeringBlock.length > 0;
-    // "Substantive" context = anything beyond the bare meeting record (subject,
-    // time, attendee names). With none of it, the model must NOT invent a brief.
+    // "Substantive" context = the client's own record beyond the bare meeting
+    // row. Steering/memory never counts: with none of it, the model must NOT
+    // invent a brief.
     const hasSubstantiveContext =
-      hasEmailThreads || hasPriorMeetings || hasTasks || hasDirectoryMatches || hasUserContext || governedSources.length > 0;
+      hasEmailThreads ||
+      hasPriorMeetings ||
+      hasTasks ||
+      hasDirectoryMatches ||
+      hasUserContext ||
+      governedSources.length > 0;
 
     // Surface meeting logistics so the brief can lead with them.
     const meetingRecord = toRecord(input.meeting);
@@ -1617,20 +1627,23 @@ export class EngagementAiService {
     const { formattedTime } = prepMeetingLogistics(meetingRecord);
 
     return [
-      'Write a lobbyist-ready meeting prep. Keep it concise, specific, and decision-focused.',
+      "Write a concise, accurate meeting briefing for a lobbyist from the FIRM'S RECORD with this client. The reader must walk in knowing: (1) what has happened with this client or issue recently, (2) the most important email exchanges, (3) previous meetings and conversations, (4) decisions already made, (5) outstanding questions or unresolved issues, (6) upcoming deadlines, meetings or legislative developments, and (7) what we committed to doing for the client.",
       // --- Hard anti-fabrication contract ---
       'STRICT GROUNDING RULES (highest priority, override everything else):',
       '- Every factual statement in agenda, talkingPoints, risks, followUps, summary, and emailEvidence MUST be directly supported by the supplied records or source excerpts below. Label proposed questions/actions as proposals; do not present them as established facts or commitments.',
       '- ATTENDEE IDENTITY: the canonical attendee roster below is the authority for who this meeting is with. Copy names exactly throughout the summary, agenda and talking points; never substitute a different first name, expand an email into a guessed name, or treat a person mentioned in an old email as a current attendee. Directory/history names that conflict with the roster must be called out in limitations, never silently substituted.',
       '- TRACEABLE SUPPORT: for every summary or list item, return evidenceReferences {section,itemIndex,sourceIds}; summary uses itemIndex 0, arrays use zero-based indexes. Use only exact source IDs in the source registry below. A source must support the specific statement, not merely concern the same client; for a proposed question/action, cite the context motivating it. If support is missing, omit the factual claim and explain the gap in limitations.',
       '- Keep raw source IDs and tool names (for example query_intelligence) out of user-facing prose. Source IDs belong only in evidenceReferences. Do not claim you called a tool or verified a fact externally. No invented URLs or citations.',
+      "- RELEVANCE: only the client's own record — emails with the client, prior meetings and their notes/debriefs, open tasks about them — establishes what happened, was discussed, decided, or promised. Firm/author memory, product or capability descriptions, and steering notes shape emphasis and tone only; never turn them into talking points, \"client interests\", history, or agenda items. If the record never mentions a topic (a program, product, funding line, competitor, bill), do not raise it.",
+      '- OWNERS & COMMITMENTS: a commitment exists only where a source shows someone promising or agreeing to do something; a question, idea, or proposal is not a commitment. Never assign a task, role, or next step to a named person unless a source states that person owns it. Anything you suggest must be labeled "Proposed:".',
+      '- CHRONOLOGY: report the latest state of each thread; when a later message or debrief resolves an earlier question, say it is resolved. Give dates when a source has them.',
       '- Do NOT introduce any fact, policy position, relationship, history, statistic, commitment, priority, or topic that is not explicitly present in that data. No outside/world knowledge. No plausible-sounding guesses.',
       '- Do NOT infer what attendees think, want, or will say unless the source text states it.',
       '- If you are tempted to add a detail and cannot point to where it came from in the supplied data, omit it.',
       "- The recentMeetings and recentThreads reflect your FIRM's history with this client (they may involve colleagues, not just the reader). Treat them as the firm's shared record.",
       '',
       `CANONICAL ATTENDEE ROSTER:\n${JSON.stringify(prepAttendees(input))}`,
-      `SOURCE REGISTRY (record IDs and supplied excerpts; not independent verification):\n${JSON.stringify(evidenceSources)}`,
+      `SOURCE REGISTRY (record IDs and supplied excerpts; not independent verification). Kinds: "mail" = an email thread with the client, messages newest first; "prior-meeting" = a past or already-scheduled meeting with the client, including the notes/debriefs the reader may see; "task" = open work for the client; "meeting" = this meeting's calendar record:\n${JSON.stringify(evidenceSources)}`,
       '',
       hasSubstantiveContext
         ? 'There IS supporting context below. Ground every line in it.'
@@ -1641,45 +1654,49 @@ export class EngagementAiService {
         : 'No additional context was provided by the user.',
       '',
       hasSteering
-        ? `FIRM, AUTHOR & CLIENT MEMORY (authoritative standing context — use it to shape strategy, emphasis, and tone; it is background, NOT a record of this meeting's events, so never present it as something said or decided here):\n${steeringBlock}`
+        ? `FIRM, AUTHOR & CLIENT MEMORY (background for emphasis and tone only — NOT a record of this client, this meeting, or anything said or decided; never cite it and never turn it into talking points or agenda items):\n${steeringBlock}`
         : '',
       '',
       hasLocation
         ? `MEETING LOGISTICS: this meeting has a location ("${location}"). OPEN the summary with a one-line logistics header stating "${formattedTime || 'the meeting date/time'}" and this location, before any narrative. Make a "Logistics" item the FIRST entry in the agenda, naming the location and that same time. Use the date/time exactly as given here; do not re-convert or reformat.`
         : `MEETING LOGISTICS: no location is recorded for this meeting. Do not invent one. Open the summary with "${formattedTime || 'the meeting date/time'}" only.`,
       '',
-      'CENTRAL SUBJECT & DISCUSSION POINTS: Determine the core subject of this meeting and its key discussion points by synthesizing the meeting subject/description, recentThreads (email correspondence), recentMeetings, tasks, and any user context. Surface them explicitly as a "Discussion Priorities" agenda section and as concrete talkingPoints. Where the threads or prior meetings reveal an open ask, pending decision, or unresolved thread, name it specifically. Do not assert a subject the supplied data does not support.',
-      '',
-      hasEmailThreads
-        ? 'PRIOR CORRESPONDENCE: Summarize relevant email content using ONLY supplied recentThreads or governed mail source excerpts. Name the sender/date only if present. Capture specifics in emailEvidence and cite the supporting source; a snippet does not establish the contents of the full email or the complete thread.'
-        : 'PRIOR CORRESPONDENCE: no email threads are linked to this client/meeting. Do not reference or invent email history.',
-      '',
-      'Output structure (JSON fields):',
-      'agenda: ordered section headers with one-line guidance. When supported by context, order them: Logistics (location/time, when present), Objective, Discussion Priorities, Attendee Context, Risks. Only include a section when supported by context.',
-      'talkingPoints: concrete points the lobbyist can say in the room, each grounded in supplied context (empty array if none).',
-      'risks: likely objections/sensitivities grounded in supplied context only (empty array if none).',
-      'followUps: specific next steps with owner/timing when known; if unknown, leave timing blank rather than fabricating.',
-      'summary: 2-4 sentence plain-language brief that OPENS with logistics (date/time, plus location when present), then covers who, why now, the central subject, and what success looks like — or the insufficient-context statement above when there is no context.',
-      'emailEvidence: bullets drawn from supplied threads or governed mail excerpts only; identify sender/date when supplied and the specific point, ask, or commitment. Empty array when no mail sources.',
-      'limitations: short, specific missing evidence or conflicting identity notes. Do not imply source-ID validation proves a factual claim.',
+      'Output structure (JSON fields), organized around the seven questions above:',
+      'summary: 3-5 plain-language sentences. OPEN with logistics (date/time, plus location when present). Then state what has happened with this client or issue recently and which decisions have already been made, per the record — or the insufficient-context statement above when there is no record.',
+      'emailEvidence: the most important email exchanges, newest first. Each bullet: date, who wrote to whom, the specific ask, answer, or commitment, and whether it is resolved. Only from supplied mail sources; a snippet does not establish the contents of the full email or the complete thread. Empty array when no mail sources.',
+      'agenda: ordered headers for the meeting, each with one line of guidance. Use, in this order and only when the record supports them: Logistics (location/time when present); Previous meetings and conversations (what was discussed or agreed last time, from debriefs, notes, and threads); Decisions already made; Open questions (unresolved issues to settle); Upcoming (deadlines, scheduled meetings, legislative developments named in the record); Our commitments (what we owe the client).',
+      "talkingPoints: concrete points the reader can say in the room, each tied to a specific email, prior meeting, or task — the client's own asks and words, never our product description or standing memory. Empty array if none.",
+      'risks: outstanding questions, unresolved issues, disagreements, stale or overdue promises, and sensitivities visible in the record. Empty array if none.',
+      'followUps: what WE committed to doing for the client, from emails, debriefs, and open tasks, with owner and timing only when a source states them (an open task is a commitment; name it as a task). Empty array if none.',
+      'limitations: short, specific gaps in the record (for example no emails in the window, restricted notes, no debrief for the last meeting) or conflicting identity notes. Do not imply source-ID validation proves a factual claim.',
       '',
       hasDirectoryMatches
         ? 'Use congressionalDirectoryMatches for attendee context (role, committee/jurisdiction, office details) when present.'
         : 'No congressional directory matches were provided.',
       hasPriorMeetings
-        ? 'Use recentMeetings or governed meeting excerpts for explicitly documented history; a meeting title alone does not prove an outcome or commitment.'
-        : 'No prior meetings with these attendees were found.',
+        ? 'Use recentMeetings or governed meeting excerpts for documented history; their notes/debriefs are the record of what was said, and a meeting title alone does not prove an outcome or commitment.'
+        : 'No prior meetings with this client were found.',
       hasTasks
-        ? 'Use tasks or governed task excerpts to surface open/overdue work relevant to this meeting.'
+        ? 'Use tasks or governed task excerpts to surface open or overdue work relevant to this meeting.'
         : 'No open tasks were found.',
       hasEmailThreads
         ? 'Use recentThreads or governed mail excerpts as evidence; quote or paraphrase only what is present.'
-        : 'No recentThreads were provided. Do not invent email-derived points.',
+        : 'No email threads are linked to this client/meeting. Do not reference or invent email history.',
       'Tone: professional federal lobbying operator, direct, practical, no fluff.',
       'Return JSON only with: agenda, talkingPoints, risks, followUps, summary, emailEvidence, evidenceReferences, limitations.',
-      'Email thread highlights (for grounding):',
-      emailHighlights,
-      JSON.stringify({ ...input, steeringContext: undefined, evidenceSources: undefined }, null, 2),
+      // The history arrays already appear as registry sources; repeating them
+      // here would only dilute the prompt.
+      JSON.stringify(
+        {
+          meeting: input.meeting,
+          client: input.client,
+          attendees: input.attendees,
+          congressionalDirectoryMatches: input.congressionalDirectoryMatches,
+          additionalContext: input.additionalContext ?? null,
+        },
+        null,
+        2,
+      ),
     ].join('\n\n');
   }
 
@@ -1974,52 +1991,3 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function formatMeetingPrepEmailHighlights(threads: Array<Record<string, unknown>>): string {
-  if (!threads.length) return '- None';
-
-  const lines: string[] = [];
-  for (const thread of threads.slice(0, 8)) {
-    const threadRecord = toRecord(thread);
-    const threadId = typeof threadRecord.id === 'string' ? threadRecord.id : 'unknown-thread';
-    const threadSubject =
-      typeof threadRecord.subject === 'string' ? threadRecord.subject.trim() : '';
-    const messages = Array.isArray(threadRecord.messages) ? threadRecord.messages : [];
-    const lastMessageAt =
-      typeof threadRecord.lastMessageAt === 'string' ? threadRecord.lastMessageAt : '';
-    const headline = `- Thread ${threadId}${threadSubject ? `: ${threadSubject}` : ''}${lastMessageAt ? ` (${lastMessageAt})` : ''}`;
-    lines.push(headline);
-
-    if (!messages.length) {
-      const snippet =
-        typeof threadRecord.snippet === 'string' ? compactText(threadRecord.snippet) : '';
-      if (snippet) lines.push(`  - Snippet: "${snippet}"`);
-      continue;
-    }
-
-    for (const message of messages.slice(0, 3)) {
-      const messageRecord = toRecord(message);
-      const sender =
-        typeof messageRecord.fromName === 'string' && messageRecord.fromName.trim()
-          ? messageRecord.fromName.trim()
-          : typeof messageRecord.fromEmail === 'string' && messageRecord.fromEmail.trim()
-            ? messageRecord.fromEmail.trim()
-            : 'unknown sender';
-      const sentAt = typeof messageRecord.sentAt === 'string' ? messageRecord.sentAt : '';
-      const quote =
-        typeof messageRecord.bodyText === 'string'
-          ? compactText(messageRecord.bodyText)
-          : typeof messageRecord.subject === 'string'
-            ? compactText(messageRecord.subject)
-            : '';
-      lines.push(`  - ${sender}${sentAt ? ` @ ${sentAt}` : ''}${quote ? `: "${quote}"` : ''}`);
-    }
-  }
-
-  return lines.join('\n');
-}
-
-function compactText(value: string, max = 180): string {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= max) return normalized;
-  return `${normalized.slice(0, Math.max(0, max - 1)).trim()}...`;
-}

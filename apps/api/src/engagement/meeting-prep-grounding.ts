@@ -72,6 +72,11 @@ export function prepMeetingLogistics(meeting: Record<string, unknown>): {
   return { timeZone, formattedTime };
 }
 
+// Threads carry several messages and prior meetings carry their notes/debriefs;
+// the model reads the registry excerpt, so those kinds need room.
+const EXCERPT_CHARS: Record<string, number> = { mail: 5_000, 'prior-meeting': 7_000 };
+const DEFAULT_EXCERPT_CHARS = 1_800;
+
 /** Only source records actually supplied at the provider seam enter this registry. */
 export function prepEvidenceSources(input: MeetingPrepInput): PrepEvidenceSource[] {
   const sources: PrepEvidenceSource[] = [];
@@ -84,7 +89,7 @@ export function prepEvidenceSources(input: MeetingPrepInput): PrepEvidenceSource
       recordId,
       observedAt:
         text(record.updatedAt) || text(record.lastMessageAt) || text(record.startsAt) || null,
-      excerpt: JSON.stringify(record).slice(0, 1800),
+      excerpt: JSON.stringify(record).slice(0, EXCERPT_CHARS[kind] ?? DEFAULT_EXCERPT_CHARS),
       ...(currentMeetingPrepExecution() && recordId
         ? {
             access:

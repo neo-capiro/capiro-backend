@@ -41,6 +41,14 @@ export const MEETING_CLIENT_CONTEXT_DOMAINS: readonly RetrievalDomain[] = [
 const INTERNAL_MEETING_CONTEXT_DOMAINS: readonly RetrievalDomain[] = [
   'institutional_knowledge',
 ];
+/**
+ * Interactive prep already carries the firm's client record (client-linked
+ * threads, prior meetings with notes/debriefs, open tasks) from
+ * EngagementService, and the shared record adapters match `query` as one
+ * literal phrase, so this lookup only adds institutional memory: framing for
+ * the steering block, never citable evidence.
+ */
+const PREP_BACKGROUND_DOMAINS: readonly RetrievalDomain[] = ['institutional_knowledge'];
 
 export interface ResolveMeetingContextInput {
   meetingId: string;
@@ -64,6 +72,7 @@ interface SecurityEnvelope {
   };
   effectiveClientId: string | null;
   clientName: string | null;
+  firmDomain: string | null;
   authorizedClientIds: string[];
   authorizedMailboxConnectionIds: string[];
 }
@@ -94,10 +103,13 @@ export class MeetingContextPlaneService {
       throw new ForbiddenException('Meeting client is outside the actor Context Plane security scope');
     }
 
-    const requestedDomains = clientId
-      ? [...MEETING_CLIENT_CONTEXT_DOMAINS]
-      : [...INTERNAL_MEETING_CONTEXT_DOMAINS];
     const execution = input.mode === 'prep' ? currentMeetingPrepExecution() : undefined;
+    const requestedDomains =
+      input.mode === 'prep' && !execution
+        ? [...PREP_BACKGROUND_DOMAINS]
+        : clientId
+          ? [...MEETING_CLIENT_CONTEXT_DOMAINS]
+          : [...INTERNAL_MEETING_CONTEXT_DOMAINS];
     const policy = PREP_POLICY[execution?.depth ?? 'standard'];
     if (execution) {
       await execution.checkpoint('retrieving');
@@ -213,10 +225,10 @@ export class MeetingContextPlaneService {
       packetId,
       traceHash,
       coverage,
-      evidenceSources: [...steering.sources, ...projection.sources],
+      evidenceSources: projection.sources,
       modelContextBlock: buildModelContextBlock({
         mode: input.mode,
-        steering: steering.text,
+        steering,
         packetId,
         coverage,
         records: projection.text,
@@ -274,7 +286,7 @@ export class MeetingContextPlaneService {
             })
           ).clientId;
 
-      const [clients, mailboxes, client] = await Promise.all([
+      const [clients, mailboxes, client, membership] = await Promise.all([
         tx.client.findMany({
           where: {
             tenantId: ctx.tenantId,
@@ -306,6 +318,10 @@ export class MeetingContextPlaneService {
               select: { name: true },
             })
           : Promise.resolve(null),
+        tx.tenantMembership.findFirst({
+          where: { tenantId: ctx.tenantId, userId: ctx.userId },
+          select: { user: { select: { email: true } } },
+        }),
       ]);
 
       if (effectiveClientId && !client) {
@@ -315,6 +331,7 @@ export class MeetingContextPlaneService {
         meeting,
         effectiveClientId,
         clientName: client?.name ?? null,
+        firmDomain: emailDomain(membership?.user.email),
         authorizedClientIds: clients.map((row) => row.id),
         authorizedMailboxConnectionIds: mailboxes.map((row) => row.id),
       };
@@ -339,14 +356,28 @@ function buildTask(security: SecurityEnvelope, input: ResolveMeetingContextInput
 }
 
 function meetingQuery(security: SecurityEnvelope): string {
+  // For a client meeting, the subject and the firm's own people on the invite
+  // pull memory about the firm and its product, not about the client; only the
+  // client side identifies what matters.
+  const clientScoped = !!security.effectiveClientId;
   const attendees = security.meeting.attendees
+    .filter((attendee) => !clientScoped || !isFirmAddress(attendee.email, security.firmDomain))
     .flatMap((attendee) => [attendee.name, attendee.email])
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     .slice(0, 16);
-  return [security.clientName, security.meeting.subject, ...attendees]
+  return [security.clientName, ...(clientScoped ? [] : [security.meeting.subject]), ...attendees]
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     .join(' ')
     .slice(0, 800);
+}
+
+function emailDomain(value: string | null | undefined): string | null {
+  const at = value?.lastIndexOf('@') ?? -1;
+  return at > 0 ? value!.slice(at + 1).trim().toLowerCase() || null : null;
+}
+
+function isFirmAddress(email: string | null, firmDomain: string | null): boolean {
+  return !!firmDomain && emailDomain(email) === firmDomain;
 }
 
 function validateResolvedScope(
@@ -392,6 +423,10 @@ function projectRecords(records: RetrievalRecord[], comprehensive = false): { te
       break;
     }
     blocks.push(block);
+    used += block.length;
+    // Harvested memory frames the steering block; it is not a record the
+    // briefing may cite as client history.
+    if (record.domain === 'institutional_knowledge') continue;
     sources.push({
       id: `${record.domain}:${record.recordId}`,
       kind: record.domain,
@@ -410,7 +445,6 @@ function projectRecords(records: RetrievalRecord[], comprehensive = false): { te
         ...(record.domain === 'monday' ? { mondayUsers: typeof record.payload.sourceActorUserId === 'string' ? [record.payload.sourceActorUserId] : [], mondayBoards: typeof asRecord(record.payload.origin).boardId === 'string' ? [String(asRecord(record.payload.origin).boardId)] : [] } : {}),
       } } : {}),
     });
-    used += block.length;
   }
   return {
     // Comprehensive runs batch the separate source registry into a fact ledger;
@@ -519,10 +553,9 @@ function projectCoverage(
   };
 }
 
-function projectSteering(packet: unknown): { text: string; sources: PrepEvidenceSource[] } {
+function projectSteering(packet: unknown): string {
   const value = asRecord(packet);
   const blocks: string[] = [];
-  const sources: PrepEvidenceSource[] = [];
   let remaining = 10_000;
   for (const raw of Array.isArray(value.rendered) ? value.rendered : []) {
     const item = asRecord(raw);
@@ -535,17 +568,9 @@ function projectSteering(packet: unknown): { text: string; sources: PrepEvidence
     const block = prefix + excerpt;
     blocks.push(block);
     remaining -= block.length;
-    sources.push({
-      id: `steering:${stringField(item, 'id') ?? blocks.length}`,
-      kind: 'steering',
-      title: stringField(item, 'title') ?? 'Approved client and firm context',
-      recordId: stringField(item, 'id'),
-      observedAt: stringField(item, 'updatedAt'),
-      excerpt,
-    });
     if (remaining <= 0) break;
   }
-  return { text: blocks.join(''), sources };
+  return blocks.join('');
 }
 
 function buildModelContextBlock(input: {

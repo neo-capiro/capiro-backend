@@ -90,14 +90,24 @@ function context(overrides: Record<string, unknown> = {}) {
           recordId: 'meeting-old',
           payload: { clientId: CLIENT, subject: 'Prior client meeting', status: 'completed' },
         },
+        {
+          domain: 'institutional_knowledge',
+          recordId: 'memory-1',
+          payload: {
+            title: 'user:neo:capiro_demo_structure',
+            key: 'capiro_demo_structure',
+            value: 'Standard Capiro demo covers meeting intelligence and budget tracking.',
+            scope: 'user_private',
+          },
+        },
       ],
       coverage: {
         requestedDomains: domains,
         searchedDomains: domains,
         requestedEntityCount: domains.length,
         searchedEntityCount: domains.length,
-        recordsEvaluated: 2,
-        recordsReturned: 2,
+        recordsEvaluated: 3,
+        recordsReturned: 3,
         paginationComplete: true,
         unavailableSources: [],
         sources: domains.map((domain) => source(domain)),
@@ -136,8 +146,14 @@ function harness(options: {
         endsAt: new Date('2026-08-21T15:00:00.000Z'),
         organizerEmail: 'neo@capiro.ai',
         organizerName: 'Neo Martinez',
-        attendees: [{ name: 'Jamie Contact', email: 'jamie@example.com' }],
+        attendees: [
+          { name: 'Jamie Contact', email: 'jamie@example.com' },
+          { name: 'Neo Martinez', email: 'neo@capiro.ai' },
+        ],
       }),
+    },
+    tenantMembership: {
+      findFirst: jest.fn().mockResolvedValue({ user: { email: 'neo@capiro.ai' } }),
     },
     client: {
       findMany: jest.fn().mockResolvedValue(
@@ -189,7 +205,7 @@ function harness(options: {
 const ctx = { tenantId: TENANT, userId: USER } as never;
 
 describe('MeetingContextPlaneService Phase 24', () => {
-  test('prep crosses the shared gateway with server-owned meeting/client/mailbox scope', async () => {
+  test('prep crosses the shared gateway with server-owned scope, a client-side background lookup and record-only evidence', async () => {
     const h = harness();
     const result = await h.service.resolve(ctx, {
       meetingId: MEETING,
@@ -203,9 +219,14 @@ describe('MeetingContextPlaneService Phase 24', () => {
     expect(result.modelContextBlock).toContain('Prior follow-up');
     expect(result.modelContextBlock).toContain('The office asked for a concise implementation timeline.');
     expect(result.modelContextBlock).not.toContain('PRIVATE FULL MAIL BODY MUST NOT PROPAGATE');
-    expect(result.evidenceSources).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'mail:mail-1', title: 'Prior follow-up', recordId: 'mail-1' })]));
+    // Steering and harvested memory frame the prompt but are never citable.
+    expect(result.modelContextBlock).toContain('Protect the verified client objective');
+    expect(result.modelContextBlock).toContain('Standard Capiro demo covers');
+    expect(result.evidenceSources?.map((source) => source.id)).toEqual([
+      'mail:mail-1',
+      'meetings:meeting-old',
+    ]);
     expect(JSON.stringify(result.evidenceSources)).not.toContain('PRIVATE FULL MAIL BODY MUST NOT PROPAGATE');
-    expect(result.evidenceSources).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'steering:client-1', title: 'Client Compass', excerpt: 'Protect the verified client objective and surface uncertainty.' })]));
     expect(h.associations.associate).not.toHaveBeenCalled();
     expect(h.gateway.requestContext).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -226,7 +247,10 @@ describe('MeetingContextPlaneService Phase 24', () => {
           }),
           retrieval: expect.objectContaining({
             queryClass: 'lookup',
-            requestedDomains: [...MEETING_CLIENT_CONTEXT_DOMAINS],
+            requestedDomains: ['institutional_knowledge'],
+            // The subject and the firm's own attendee would only pull memory
+            // about the firm; the client side drives the lookup.
+            query: 'Acme Corp Jamie Contact jamie@example.com',
           }),
         }),
         contextRequest: expect.objectContaining({
@@ -258,7 +282,7 @@ describe('MeetingContextPlaneService Phase 24', () => {
       TENANT,
       expect.objectContaining({
         subject: 'FY27 client strategy session',
-        attendeeEmails: ['jamie@example.com'],
+        attendeeEmails: ['jamie@example.com', 'neo@capiro.ai'],
       }),
     );
     expect(h.gateway.requestContext).toHaveBeenCalledWith(

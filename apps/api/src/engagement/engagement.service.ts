@@ -979,6 +979,31 @@ type AiTemplateItem = SystemAiTemplate | UserAiTemplate;
  * keep meeting AI/note paths on the same floor.
  */
 const MEETING_CONTEXT_TX_TIMEOUT_MS = 20_000;
+// The interactive prep reads the firm's record with the client in one bounded
+// pass: enough history to answer what happened, what was decided, what is
+// still open and what we owe, without turning every prep into a long job.
+const DAY_MS = 86_400_000;
+const PREP_MAIL_HISTORY_DAYS = 120;
+const PREP_THREAD_LIMIT = 20;
+const PREP_MESSAGES_PER_THREAD = 5;
+const PREP_MESSAGE_CHARS = 600;
+const PREP_MEETING_HISTORY_DAYS = 180;
+const PREP_UPCOMING_DAYS = 30;
+const PREP_MEETING_LIMIT = 12;
+const PREP_ARTIFACTS_PER_MEETING = 3;
+const PREP_ARTIFACT_CHARS = 1_800;
+const PREP_TASK_LIMIT = 25;
+const PREP_ENCRYPTED_ARTIFACT_SELECT = {
+  id: true,
+  status: true,
+  confidential: true,
+  accessLevel: true,
+  authorUserId: true,
+  bodyCiphertext: true,
+  iv: true,
+  authTag: true,
+  createdAt: true,
+} as const;
 
 @Injectable()
 export class EngagementService {
@@ -5533,7 +5558,7 @@ export class EngagementService {
         clientContext: clientContext ? pruneForAi(clientContext) : null,
         congressionalDirectoryMatches: directoryProfiles.map(pruneForAi),
         recentMeetings: context.recentMeetings.map(pruneForAi),
-        recentThreads: context.recentThreads.map(prepareThreadForAi),
+        recentThreads: context.recentThreads.map((thread) => prepareThreadForAi(thread)),
         steeringContext,
       },
       ctx,
@@ -5894,6 +5919,38 @@ export class EngagementService {
     });
   }
 
+  /** Note/debrief bodies the actor may read; restricted or undecryptable ones are dropped, never summarized. */
+  private readablePrepArtifacts(
+    ctx: TenantContext,
+    entries: Array<{
+      id: string;
+      status: string;
+      confidential: boolean;
+      accessLevel: string;
+      authorUserId: string | null;
+      bodyCiphertext: string;
+      iv: string;
+      authTag: string;
+      createdAt: Date;
+    }>,
+  ) {
+    return entries.flatMap((entry) => {
+      if (!canReadEncryptedEntry(ctx, entry)) return [];
+      try {
+        return [
+          {
+            id: entry.id,
+            status: entry.status,
+            createdAt: entry.createdAt,
+            body: this.notesCrypto.decrypt(entry).slice(0, PREP_ARTIFACT_CHARS),
+          },
+        ];
+      } catch {
+        return [];
+      }
+    });
+  }
+
   async generateMeetingPrep(ctx: TenantContext, meetingId: string, additionalContext?: string) {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const meeting = await tx.meeting.findFirst({
@@ -5912,15 +5969,7 @@ export class EngagementService {
       async (tx) => {
         const meeting = await tx.meeting.findFirst({
           where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-          include: {
-            client: true,
-            attendees: true,
-            tasks: {
-              where: {
-                status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
-              },
-            },
-          },
+          include: { client: true, attendees: true },
         });
         if (!meeting) throw new NotFoundException('Meeting not found');
 
@@ -5945,16 +5994,24 @@ export class EngagementService {
         const meetingAssociationWhere = correctClientId
           ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, correctClientId)
           : null;
-        // Firm-wide prep context: prior meetings are scoped to the tenant + the
-        // matched client, NOT to the requesting user. Any operator preparing for
-        // this client sees the firm's collective meeting history with them.
-        const recentMeetings = meetingAssociationWhere
+        const now = new Date();
+        // Firm-wide prep context: prior (and already-scheduled upcoming) meetings
+        // are scoped to the tenant + the matched client, NOT to the requesting
+        // user. Any operator preparing for this client sees the firm's collective
+        // meeting history with them; note/debrief bodies still honor each
+        // artifact's own access level.
+        const recentMeetingRows = meetingAssociationWhere
           ? await tx.meeting.findMany({
               where: {
                 AND: [
                   {
                     tenantId: ctx.tenantId,
                     id: { not: meeting.id },
+                    status: { not: 'deleted' },
+                    startsAt: {
+                      gte: new Date(now.getTime() - PREP_MEETING_HISTORY_DAYS * DAY_MS),
+                      lte: new Date(now.getTime() + PREP_UPCOMING_DAYS * DAY_MS),
+                    },
                   },
                   meetingAssociationWhere,
                 ],
@@ -5963,35 +6020,43 @@ export class EngagementService {
                 id: true,
                 subject: true,
                 startsAt: true,
+                endsAt: true,
+                status: true,
+                location: true,
                 associationReason: true,
                 attendees: { select: { email: true, name: true } },
+                notes: {
+                  select: PREP_ENCRYPTED_ARTIFACT_SELECT,
+                  orderBy: { createdAt: 'desc' },
+                  take: PREP_ARTIFACTS_PER_MEETING,
+                },
+                debriefs: {
+                  select: PREP_ENCRYPTED_ARTIFACT_SELECT,
+                  orderBy: { createdAt: 'desc' },
+                  take: PREP_ARTIFACTS_PER_MEETING,
+                },
               },
               orderBy: { startsAt: 'desc' },
-              take: 5,
+              take: PREP_MEETING_LIMIT,
             })
           : [];
-
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentMeetings = recentMeetingRows.map(({ notes, debriefs, ...row }) => ({
+          ...row,
+          notes: this.readablePrepArtifacts(ctx, notes),
+          debriefs: this.readablePrepArtifacts(ctx, debriefs),
+        }));
 
         // Firm-wide prep context: pull email threads associated with the matched
         // client across the tenant's connections (not just the requesting user's
         // mailbox), so prep reflects the firm's full correspondence with the
         // client. Still scoped to client-linked threads only — we never pull by
         // attendee/to/cc domains, so unrelated coworker inbox content is excluded.
-        const threadFilters: Prisma.MailThreadWhereInput[] = [];
-        if (correctClientId) {
-          threadFilters.push(
-            await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, correctClientId),
-          );
-        }
-
-        const recentThreads = threadFilters.length
+        const recentThreads = correctClientId
           ? await tx.mailThread.findMany({
               where: {
                 tenantId: ctx.tenantId,
-                lastMessageAt: { gte: thirtyDaysAgo },
-                OR: threadFilters,
+                lastMessageAt: { gte: new Date(now.getTime() - PREP_MAIL_HISTORY_DAYS * DAY_MS) },
+                ...(await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, correctClientId)),
               },
               select: {
                 id: true,
@@ -6008,15 +6073,37 @@ export class EngagementService {
                     sentAt: true,
                   },
                   orderBy: { sentAt: 'desc' },
-                  take: 3,
+                  take: PREP_MESSAGES_PER_THREAD,
                 },
               },
               orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-              take: 15,
+              take: PREP_THREAD_LIMIT,
             })
           : [];
 
-        return { meeting, client, recentMeetings, recentThreads };
+        // Open work for the client, not only items already attached to this
+        // meeting: outstanding tasks are what the firm has committed to doing.
+        const tasks = await tx.engagementTask.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
+            OR: [{ meetingId: meeting.id }, ...(correctClientId ? [{ clientId: correctClientId }] : [])],
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            dueDate: true,
+            meetingId: true,
+            mailThreadId: true,
+            updatedAt: true,
+          },
+          orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }],
+          take: PREP_TASK_LIMIT,
+        });
+
+        return { meeting, client, recentMeetings, recentThreads, tasks };
     
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
@@ -6036,14 +6123,16 @@ export class EngagementService {
       attendees: context.meeting.attendees.map(pruneForAi),
       congressionalDirectoryMatches: directoryProfiles.map(pruneForAi),
       recentMeetings: context.recentMeetings.map(pruneForAi),
-      recentThreads: context.recentThreads.map(prepareThreadForAi),
-      tasks: context.meeting.tasks.map(pruneForAi),
+      recentThreads: context.recentThreads.map((thread) =>
+        prepareThreadForAi(thread, PREP_MESSAGES_PER_THREAD, PREP_MESSAGE_CHARS),
+      ),
+      tasks: context.tasks.map(pruneForAi),
       additionalContext: additionalContext?.trim() || null,
       steeringContext,
     };
     const governed = currentMeetingGovernedContext();
     const promptHash = createHash('sha256').update(JSON.stringify(governed
-      ? { ...promptContext, recentMeetings: [], recentThreads: [], tasks: [], steeringContext: governed.modelContextBlock, evidenceSources: governed.evidenceSources }
+      ? { ...promptContext, steeringContext: governed.modelContextBlock, evidenceSources: governed.evidenceSources }
       : promptContext)).digest('hex');
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
     const generationPromptHash = generated.promptHash ?? promptHash;
@@ -11038,11 +11127,15 @@ export function resolveGenerationKeys(
   return unique.length ? unique : [`individual:${recipientId}`.slice(0, 512)];
 }
 
-function prepareThreadForAi(value: unknown): Record<string, unknown> {
+function prepareThreadForAi(
+  value: unknown,
+  messageLimit = 3,
+  quoteChars = 220,
+): Record<string, unknown> {
   const thread = pruneForAi(value);
   const messages = Array.isArray(thread.messages) ? thread.messages : [];
   const messageHighlights = messages
-    .slice(0, 3)
+    .slice(0, messageLimit)
     .map((message) => {
       if (!message || typeof message !== 'object' || Array.isArray(message)) return null;
       const row = message as Record<string, unknown>;
@@ -11050,6 +11143,7 @@ function prepareThreadForAi(value: unknown): Record<string, unknown> {
         (typeof row.bodyText === 'string' && row.bodyText) ||
           (typeof row.subject === 'string' && row.subject) ||
           '',
+        quoteChars,
       );
       return {
         fromName: typeof row.fromName === 'string' ? row.fromName : null,

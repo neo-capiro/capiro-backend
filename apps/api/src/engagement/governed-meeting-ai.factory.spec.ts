@@ -102,7 +102,7 @@ describe('createGovernedMeetingAiService Phase 24', () => {
     expect(h.prep).not.toHaveBeenCalled();
   });
 
-  test('prep keeps current meeting/attendee/directory facts but replaces legacy private history', async () => {
+  test("prep keeps the firm's client record and takes steering plus supplemental evidence from the bundle", async () => {
     const h = harness();
     const context = { ...bundle('prep'), evidenceSources: [{ id: 'mail:1', kind: 'mail', title: 'Actual source', recordId: '1', observedAt: null, excerpt: 'Supplied excerpt' }] };
     await runWithMeetingGovernedContext(context, () =>
@@ -117,13 +117,13 @@ describe('createGovernedMeetingAiService Phase 24', () => {
     });
     expect(input.attendees).toEqual([{ name: 'Jamie Contact', email: 'jamie@example.com' }]);
     expect(input.congressionalDirectoryMatches).toEqual([{ name: 'Staffer One' }]);
-    expect(input.recentMeetings).toEqual([]);
-    expect(input.recentThreads).toEqual([]);
-    expect(input.tasks).toEqual([]);
+    expect(input.recentMeetings).toEqual([{ subject: 'LEGACY RECENT MEETING' }]);
+    expect(input.recentThreads).toEqual([{ subject: 'LEGACY MAIL THREAD' }]);
+    expect(input.tasks).toEqual([{ title: 'LEGACY TASK' }]);
     expect(input.evidenceSources).toEqual(context.evidenceSources);
     expect(input.steeringContext).toContain('<capiro_meeting_context_plane>');
     expect(JSON.stringify(input)).not.toContain('LEGACY COMPILER BLOCK');
-    expect(JSON.stringify(input)).not.toContain('LEGACY MAIL THREAD');
+    expect(JSON.stringify(input.meeting)).not.toContain('legacy nested');
   });
 
   test('debrief preserves transcript and visible notes while removing legacy background as evidence', async () => {
