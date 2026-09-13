@@ -398,6 +398,19 @@ export function LiveHearingRoomPage({
   const [evidenceTime, setEvidenceTime] = useState<{ ms: number; revision: number }>();
   const [captureClock, setCaptureClock] = useState<{ wallMs: number; offsetMs: number }>();
   const [capturedElapsedMs, setCapturedElapsedMs] = useState(0);
+  const [savedRecording, setSavedRecording] = useState<{
+    scope: string;
+    sessionId: string;
+    endMs: number;
+    bytes: number;
+  } | null>(null);
+  const onRecordingProgress = useCallback(
+    (progress: { endMs: number; bytes: number } | null) =>
+      setSavedRecording(progress ? { ...progress, scope: apiScope, sessionId: id } : null),
+    [apiScope, id],
+  );
+  const currentSavedRecording =
+    savedRecording?.scope === apiScope && savedRecording.sessionId === id ? savedRecording : null;
   const [lastTranscriptAt, setLastTranscriptAt] = useState<number | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -1085,10 +1098,12 @@ export function LiveHearingRoomPage({
           lastTranscriptAt,
           wakeLock,
           bytesSaved:
-            session.data?.recordingPolicy === 'audio_and_transcript' ? bytesSaved : undefined,
+            session.data?.recordingPolicy === 'audio_and_transcript'
+              ? Math.max(bytesSaved, currentSavedRecording?.bytes ?? 0)
+              : undefined,
           captureStartedAt: captureClock?.wallMs,
           captureOffsetMs: captureClock?.offsetMs,
-          capturedElapsedMs,
+          capturedElapsedMs: Math.max(capturedElapsedMs, currentSavedRecording?.endMs ?? 0),
           recordingPanel:
             recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
               <HearingRecordingPanel
@@ -1097,6 +1112,7 @@ export function LiveHearingRoomPage({
                 live={captureActive}
                 canEnable={!captureActive && !session.data?.startedAt}
                 evidenceTime={evidenceTime}
+                onProgress={onRecordingProgress}
               />
             ) : null,
           publicationsPanel,
@@ -1322,6 +1338,7 @@ export function LiveHearingRoomPage({
           live={captureActive}
           canEnable={!captureActive && !session.data?.startedAt}
           evidenceTime={evidenceTime}
+          onProgress={onRecordingProgress}
         />
       )}
       {publicationsPanel}

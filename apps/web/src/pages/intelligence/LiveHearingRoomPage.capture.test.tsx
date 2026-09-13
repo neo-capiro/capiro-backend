@@ -274,6 +274,54 @@ describe('LiveHearingRoomPage browser capture', () => {
     browserSetup();
   });
 
+  test('reopens the saved recording clock and total bytes past a silent transcript tail', async () => {
+    mocks.recordingPolicy = 'audio_and_transcript';
+    mocks.transcriptItems = [
+      { id: 'early-final', startMs: 1000, endMs: 8000, text: 'Owned fixture.' },
+    ];
+    mocks.apiGet.mockImplementation(async (url: string) => ({
+      data: url.endsWith('/recording')
+        ? {
+            recordingPolicy: 'audio_and_transcript',
+            recording: {
+              id: 'saved',
+              state: 'partial',
+              originAt: '2026-09-12T00:00:00Z',
+              expiresAt: '2099-01-01',
+              transcriptState: 'finalized',
+              analysisState: 'ready',
+              epochs: [
+                {
+                  id: 'first',
+                  startMs: 0,
+                  durableEndMs: 70000,
+                  durableBytes: 1048576,
+                  state: 'ready',
+                  complete: false,
+                  playable: true,
+                  decodedDurationMs: 70000,
+                },
+                {
+                  id: 'second',
+                  startMs: 83000,
+                  durableEndMs: 152000,
+                  durableBytes: 1048576,
+                  state: 'ready',
+                  complete: true,
+                  playable: true,
+                  decodedDurationMs: 69000,
+                },
+              ],
+            },
+          }
+        : [],
+    }));
+    renderRoom(true);
+    await waitFor(() => expect(screen.getAllByText('00:02:32').length).toBeGreaterThan(0));
+    expect(screen.getByText(/Sent 0.00 MB · Saved 2.00 MB/)).toBeInTheDocument();
+    expect(mocks.getDisplayMedia).not.toHaveBeenCalled();
+  });
+
   test('restores persisted transcript history when a session is reopened', async () => {
     mocks.transcriptItems = [
       {

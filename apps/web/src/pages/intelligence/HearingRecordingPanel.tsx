@@ -20,11 +20,13 @@ export function HearingRecordingPanel({
   live,
   canEnable,
   evidenceTime,
+  onProgress,
 }: {
   sessionId: string;
   live: boolean;
   canEnable: boolean;
   evidenceTime?: { ms: number; revision: number };
+  onProgress?: (progress: { endMs: number; bytes: number } | null) => void;
 }) {
   const api = useApi(),
     { manifest, capability, enable, scope } = useHearingRecording(sessionId, live);
@@ -38,6 +40,16 @@ export function HearingRecordingPanel({
     generation = useRef(0);
   const [speed, setSpeed] = useState(1);
   const recording = manifest.data?.recording;
+  useEffect(() => {
+    onProgress?.(
+      recording && !manifest.isError
+        ? {
+            endMs: Math.max(0, ...recording.epochs.map((epoch) => epoch.durableEndMs)),
+            bytes: recording.epochs.reduce((sum, epoch) => sum + epoch.durableBytes, 0),
+          }
+        : null,
+    );
+  }, [recording, manifest.isError, onProgress]);
   useEffect(() => {
     generation.current++;
     audio.current?.pause();
