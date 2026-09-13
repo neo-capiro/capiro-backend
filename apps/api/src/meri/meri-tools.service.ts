@@ -727,9 +727,9 @@ export class MeriToolsService {
           meetingId: str('Meeting UUID'),
           depth: {
             type: 'string',
-            enum: ['standard', 'deep'],
+            enum: ['standard', 'deep', 'max'],
             description:
-              'Use deep for a longer search: up to 100 meetings and 300 email threads over a year.',
+              'standard: 10 meetings / 90 days and 15 email threads / 30 days; deep: 25 meetings / 180 days and 100 threads / 90 days; max: 100 meetings and 300 threads over a year.',
           },
           additionalContext: str('Optional client, issue, or internal strategy focus'),
           jobId: str(
@@ -5453,7 +5453,7 @@ export class MeriToolsService {
         ? await this.meetingPrepJobs.get(ctx, meetingId, jobId)
         : await this.meetingPrepJobs.submit(ctx, meetingId, {
             additionalContext: optionalString(input, 'additionalContext', 4_000) ?? undefined,
-            depth: input.depth === 'deep' ? 'deep' : 'standard',
+            depth: input.depth === 'deep' || input.depth === 'max' ? input.depth : 'standard',
             requestKey: optionalString(input, 'requestKey', 128) ?? undefined,
           });
       const meeting =

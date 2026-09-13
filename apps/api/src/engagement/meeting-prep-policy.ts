@@ -2,6 +2,15 @@
 export const MEETING_PREP_POLICY = {
   version: 'comprehensive-prep-v4',
   standard: {
+    meetings: 10,
+    meetingDays: 90,
+    threads: 15,
+    emailDays: 30,
+    messages: 150,
+    upcomingDays: 30,
+    deadlineMs: 60 * 60_000,
+  },
+  deep: {
     meetings: 25,
     meetingDays: 180,
     threads: 100,
@@ -10,7 +19,7 @@ export const MEETING_PREP_POLICY = {
     upcomingDays: 30,
     deadlineMs: 60 * 60_000,
   },
-  deep: {
+  max: {
     meetings: 100,
     meetingDays: 365,
     threads: 300,
@@ -36,7 +45,8 @@ export const MEETING_PREP_POLICY = {
   maxRepairPasses: 2,
 } as const;
 
-export type MeetingPrepDepth = 'standard' | 'deep';
+export const MEETING_PREP_DEPTHS = ['standard', 'deep', 'max'] as const;
+export type MeetingPrepDepth = (typeof MEETING_PREP_DEPTHS)[number];
 export const MEETING_BRIEFING_SECTIONS = [
   'recentDevelopments',
   'importantEmails',

@@ -27,8 +27,16 @@ const fact = {
 };
 
 describe('comprehensive meeting prep', () => {
-  test('increases history, reasoning and wall-clock budgets without changing interactive defaults', () => {
+  test('offers a light standard tier and keeps the two larger searches as deep and max', () => {
     expect(MEETING_PREP_POLICY.standard).toMatchObject({
+      meetings: 10,
+      meetingDays: 90,
+      threads: 15,
+      emailDays: 30,
+      messages: 150,
+      deadlineMs: 3600000,
+    });
+    expect(MEETING_PREP_POLICY.deep).toMatchObject({
       meetings: 25,
       meetingDays: 180,
       threads: 100,
@@ -36,7 +44,7 @@ describe('comprehensive meeting prep', () => {
       messages: 1000,
       deadlineMs: 3600000,
     });
-    expect(MEETING_PREP_POLICY.deep).toMatchObject({
+    expect(MEETING_PREP_POLICY.max).toMatchObject({
       meetings: 100,
       threads: 300,
       emailDays: 365,

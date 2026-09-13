@@ -16,6 +16,7 @@ import { ownMeetingWhere } from './engagement-access.helpers.js';
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import {
+  MEETING_PREP_DEPTHS,
   MEETING_PREP_POLICY as POLICY,
   meetingPrepEnabled,
   type MeetingPrepDepth,
@@ -52,7 +53,7 @@ export class MeetingPrepJobService {
     if (!meetingPrepEnabled())
       throw new ServiceUnavailableException('Comprehensive meeting preparation is not enabled.');
     const depth = input.depth ?? 'standard';
-    if (!['standard', 'deep'].includes(depth))
+    if (!(MEETING_PREP_DEPTHS as readonly string[]).includes(depth))
       throw new BadRequestException('Invalid preparation depth.');
     if ((input.additionalContext?.length ?? 0) > 4_000)
       throw new BadRequestException('Preparation focus is too long.');

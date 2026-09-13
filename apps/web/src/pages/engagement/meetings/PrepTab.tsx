@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
-import { useApprovePrep, useGeneratePrep, useUpdatePrep, useMeetingPrepJob, useCancelMeetingPrep, isMeetingPrepJob } from './meetings-api.js';
+import { useApprovePrep, useGeneratePrep, useUpdatePrep, useMeetingPrepJob, useCancelMeetingPrep, isMeetingPrepJob, type MeetingPrepDepth } from './meetings-api.js';
 import { ComprehensivePrep, PrepSearchSettings, briefingSectionLabels } from './ComprehensivePrep.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatMeetingDayTitle } from './meetings-format.js';
@@ -8,10 +9,12 @@ import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting } from './meetings-types.js';
 import { isCancelledMeeting } from './meetings-types.js';
-import { PrepEvidence, PrepSourceLinks, prepSourceExcerpt } from './PrepEvidence.js';
+import { PrepEvidence, PrepSourceLinks } from './PrepEvidence.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 import { errorMessage } from '../../../lib/error-message.js';
+import { useApi } from '../../../lib/use-api.js';
+import { EmailComposeModal } from '../../../vnext/pages/client-crm/EmailComposeModal.js';
 
 type PrepStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
@@ -70,7 +73,22 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   const job = useMeetingPrepJob(meeting.id);
   const cancelJob = useCancelMeetingPrep();
   const jobActive = !!job.data && ['queued', 'running'].includes(job.data.status);
-  const [depth, setDepth] = useState<'standard' | 'deep'>('standard');
+  const [depth, setDepth] = useState<MeetingPrepDepth>('standard');
+  const api = useApi();
+  const [emailAttachment, setEmailAttachment] = useState<{ id: string; fileName: string } | null>(null);
+  const teammates = useQuery({
+    queryKey: ['tenant-members'],
+    queryFn: async () =>
+      (await api.get<Array<{ id: string; email: string; name: string }>>('/api/users/tenant-members')).data,
+    enabled: emailAttachment !== null,
+    staleTime: 60_000,
+  });
+  const preparePdf = useMutation({
+    mutationFn: async (prepId: string) =>
+      (await api.post<{ id: string; fileName: string }>(`/api/engagement/meeting-preps/${prepId}/pdf-attachment`)).data,
+    onSuccess: setEmailAttachment,
+    onError: (error) => chrome.error(errorMessage(error, 'Could not prepare the PDF.')),
+  });
   const briefing = !prep?.generatedFrom?.grounding?.contentEdited ? prep?.generatedFrom?.briefing : undefined;
   const searchSettings = <PrepSearchSettings meetingId={meeting.id} clientId={meeting.client?.id ?? null} depth={depth} setDepth={setDepth} />;
   const jobProgress = job.data && <div role={job.data.status === 'failed' ? 'alert' : 'status'} style={{ fontSize: 12 }}>
@@ -208,22 +226,6 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         { heading: 'Follow-ups', items: prep.followUps },
         { heading: 'Email evidence', items: prep.emailEvidence },
         ]),
-        {
-          heading: 'Source review',
-          body: prep.generatedFrom?.grounding
-            ? 'Sources below were supplied for the original generation. Review names and whether each claim is supported. Edited text and changed client context require a fresh review.'
-            : 'This saved prep has no source references. Review names and claims before use.',
-        },
-        ...(prep.generatedFrom?.grounding?.sources ?? []).map((source, index) => ({
-          heading: `Source ${index + 1}: ${source.title}`,
-          body: [
-            source.observedAt,
-            prepSourceExcerpt(source.excerpt),
-            source.recordId ? `Source record: ${source.recordId}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n'),
-        })),
       ],
     );
 
@@ -436,6 +438,8 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
           setEditOpen(true);
         }}
         onExport={onExport}
+        onEmail={() => preparePdf.mutate(prep.id)}
+        emailing={preparePdf.isPending}
         approved={prep.status === 'approved'}
         shared={prep.sharedAt != null}
         onApprove={async () => {
@@ -448,6 +452,18 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         Refine, Regenerate, Export PDF and Approve are distinct controls. Approval never implies
         sharing.
       </RuleReinforcement>
+      {emailAttachment ? (
+        <EmailComposeModal
+          open
+          onClose={() => setEmailAttachment(null)}
+          to={[]}
+          recipientDirectory="team"
+          orgContacts={(teammates.data ?? []).filter((member) => member.email)}
+          clientName={meeting.client?.name}
+          defaultSubject={`Meeting prep — ${meeting.subject}`}
+          initialAttachments={[emailAttachment]}
+        />
+      ) : null}
       <EngagementDialog
         open={editOpen}
         eyebrow="Meeting · secondary actions"

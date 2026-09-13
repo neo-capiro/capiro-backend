@@ -2332,7 +2332,9 @@
       "importerFile": "apps/api/src/engagement/engagement.controller.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-policy.js",
       "importedSymbols": [
-        "meetingPrepEnabled"
+        "MEETING_PREP_DEPTHS",
+        "meetingPrepEnabled",
+        "MeetingPrepDepth"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3050,6 +3052,16 @@
     },
     {
       "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/hearing-record-document-access.js",
+      "importedSymbols": [
+        "assertHearingRecordDocumentAccess"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
       "importedFile": "apps/api/src/engagement/mail-message-state.js",
       "importedSymbols": [
         "activeMailMessageWhere"
@@ -3112,9 +3124,30 @@
     },
     {
       "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-grounding.js",
+      "importedSymbols": [
+        "prepMeetingLogistics"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-job-runtime.js",
       "importedSymbols": [
         "currentMeetingPrepExecution"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/engagement.service.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-pdf.js",
+      "importedSymbols": [
+        "meetingPrepPdfSections",
+        "renderMeetingPrepPdf"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -3592,6 +3625,16 @@
         "relevanceLabel",
         "threadExcerpt",
         "EmailThreadCandidate"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "importedFile": "apps/api/src/engagement/hearing-record-document-access.js",
+      "importedSymbols": [
+        "assertHearingRecordDocumentAccess"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -5147,6 +5190,16 @@
       "category": "other"
     },
     {
+      "importerFile": "apps/api/src/engagement/hearing-record-document-access.spec.ts",
+      "importedFile": "apps/api/src/engagement/hearing-record-document-access.js",
+      "importedSymbols": [
+        "assertHearingRecordDocumentAccess"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
       "importerFile": "apps/api/src/engagement/internal-ai-credentials.controller.spec.ts",
       "importedFile": "apps/api/src/engagement/ai-credential-resolver.service.js",
       "importedSymbols": [
@@ -5639,6 +5692,7 @@
       "importedFile": "apps/api/src/engagement/engagement-ai.service.js",
       "importedSymbols": [
         "EngagementAiService",
+        "resolveMeetingPrepModel",
         "MeetingPrepInput"
       ],
       "importKind": "value",
@@ -5780,6 +5834,7 @@
       "importerFile": "apps/api/src/engagement/meeting-prep-job.service.ts",
       "importedFile": "apps/api/src/engagement/meeting-prep-policy.js",
       "importedSymbols": [
+        "MEETING_PREP_DEPTHS",
         "POLICY",
         "meetingPrepEnabled",
         "MeetingPrepDepth"
@@ -5793,6 +5848,48 @@
       "importedFile": "apps/api/src/engagement/runtime/engagement-runtime-policy.service.js",
       "importedSymbols": [
         "EngagementRuntimePolicyService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-pdf.spec.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-pdf.js",
+      "importedSymbols": [
+        "meetingPrepPdfSections",
+        "renderMeetingPrepPdf"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-pdf.spec.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-policy.js",
+      "importedSymbols": [
+        "MEETING_BRIEFING_SECTIONS"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-pdf.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-comprehensive.js",
+      "importedSymbols": [
+        "ComprehensiveBriefing"
+      ],
+      "importKind": "type-only",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/meeting-prep-pdf.ts",
+      "importedFile": "apps/api/src/engagement/meeting-prep-policy.js",
+      "importedSymbols": [
+        "MEETING_BRIEFING_SECTIONS",
+        "MeetingBriefingSection"
       ],
       "importKind": "value",
       "isExternal": false,
@@ -6810,6 +6907,16 @@
       "importedFile": "apps/api/src/engagement/engagement.service.js",
       "importedSymbols": [
         "EngagementService"
+      ],
+      "importKind": "value",
+      "isExternal": false,
+      "category": "other"
+    },
+    {
+      "importerFile": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "importedFile": "apps/api/src/engagement/hearing-record-document-access.js",
+      "importedSymbols": [
+        "assertHearingRecordDocumentAccess"
       ],
       "importKind": "value",
       "isExternal": false,

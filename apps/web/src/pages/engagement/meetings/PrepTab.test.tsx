@@ -346,4 +346,25 @@ describe('PrepTab', () => {
     // success, no silently-stuck "Generating" spinner.
     expect(screen.getByText('No prep generated yet')).toBeInTheDocument();
   });
+
+  test('Email PDF renders the prep to an attachment and opens the compose window with teammates', async () => {
+    apiPostMock.mockResolvedValue({ data: { id: 'att1', fileName: 'Prep - Budget sync.pdf' } });
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data: url.endsWith('/tenant-members')
+        ? [{ id: 'u2', email: 'ryan@capiro.ai', name: 'Ryan Anderson' }]
+        : url.endsWith('/prep-jobs/latest')
+          ? null
+          : {},
+    }));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(buildTree(qc, { meeting: makeMeeting({ preps: [makePrep()] }), aiConfigured: true }));
+    fireEvent.click(screen.getByRole('button', { name: /email pdf/i }));
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meeting-preps/p1/pdf-attachment'),
+    );
+    expect(await screen.findByText('Prep - Budget sync.pdf')).toBeInTheDocument();
+    expect(screen.getByText('New email')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '+ Add recipient' })).toBeInTheDocument();
+    qc.clear();
+  });
 });

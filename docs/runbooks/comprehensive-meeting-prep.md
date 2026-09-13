@@ -18,13 +18,13 @@ Bullets display links when usable source references were returned. Missing or ma
 
 ## Search and generation policy
 
-| Setting              | Standard            | Deep                 |
-| -------------------- | ------------------- | -------------------- |
-| Past meetings        | Up to 25 / 180 days | Up to 100 / 365 days |
-| Recent email threads | Up to 100 / 90 days | Up to 300 / 365 days |
-| Email messages       | Up to 1,000         | Up to 3,000          |
-| Upcoming window      | 30 days             | 90 days              |
-| Overall job deadline | 1 hour              | 2 hours              |
+| Setting              | Standard            | Deep                 | Max                  |
+| -------------------- | ------------------- | -------------------- | -------------------- |
+| Past meetings        | Up to 10 / 90 days  | Up to 25 / 180 days  | Up to 100 / 365 days |
+| Recent email threads | Up to 15 / 30 days  | Up to 100 / 90 days  | Up to 300 / 365 days |
+| Email messages       | Up to 150           | Up to 1,000          | Up to 3,000          |
+| Upcoming window      | 30 days             | 30 days              | 90 days              |
+| Overall job deadline | 1 hour              | 1 hour               | 2 hours              |
 
 Open tasks have no age cutoff. Open tasks also pin older originating email threads outside the recency window; these can increase the selected thread count, but remain subject to the message cap. Email selection preserves original messages and latest replies across threads, then prioritizes important intermediate exchanges. Counts and truncation are disclosed; the caps are not promises that every record exists or can be read.
 
@@ -65,7 +65,7 @@ Prep calls also use an isolated HTTP dispatcher that disables the native client'
 
 With `MEETING_PREP_COMPREHENSIVE_ENABLED=true`:
 
-- `POST /api/engagement/meetings/:id/prep` accepts `additionalContext`, `depth` (`standard` or `deep`) and an optional `requestKey`; returns HTTP 202 with a job.
+- `POST /api/engagement/meetings/:id/prep` accepts `additionalContext`, `depth` (`standard`, `deep` or `max`) and an optional `requestKey`; returns HTTP 202 with a job.
 - `GET /api/engagement/meetings/:id/prep-jobs/latest` restores progress after reload.
 - `GET /api/engagement/meetings/:id/prep-jobs/:jobId` reads current status.
 - `DELETE /api/engagement/meetings/:id/prep-jobs/:jobId` cancels an active job.
