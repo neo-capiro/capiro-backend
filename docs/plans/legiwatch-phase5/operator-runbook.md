@@ -10,6 +10,8 @@ Build and qualify immutable native ARM64 images from the exact pushed source. AP
 
 Enable the published-record read feature for an explicitly approved tenant, then reconciliation/brief generation. Validate an exact record-only event, source locators, client/folder boundaries, current/as-of Meri reads and approved DOCX save/export. Only after source freshness, worker health and explicit audience approval should record delivery be enabled. Correction recipients must remain eligible and tied to the preserved earlier delivery. Never use an operational test to send to unapproved client recipients.
 
+The Engagement deployment config supports `publishedRecordRead.internalServiceSecretArn`, using the same exact internal service secret as API/Intel and listing it in `requiredSecretArns`. Synthesis grants that secret to the execution role and injects `INTERNAL_SERVICE_SECRET`; it changes no Engagement promotion or outward-action controls. Without this credential, private brief attachment reads fail closed. Preserve this explicit config in the deployment owner to prevent a later CDK release from removing it.
+
 ## Budgets and freshness
 
 LEGISCAN_VOTE_REFRESH_CAP defaults to 200 details per drain, capped at 1000. LEGISCAN_DOCUMENT_EVIDENCE_ENABLED defaults off; its document cap defaults to 10 and is bounded at 100. The existing monthly provider quota still governs all calls. Same bill hash plus fresh detail skips work; equal vote totals do not skip a due content check.

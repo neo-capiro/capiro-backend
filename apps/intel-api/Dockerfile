@@ -34,16 +34,20 @@ RUN apt-get update \
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/intel-api/package.json apps/intel-api/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=@capiro/intel-api... --filter=@capiro/shared...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
+COPY packages/meriv2-core/src packages/meriv2-core/src
+COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
 COPY apps/intel-api/src apps/intel-api/src
 COPY apps/intel-api/prisma apps/intel-api/prisma
 COPY apps/intel-api/tsconfig.json apps/intel-api/tsconfig.build.json apps/intel-api/nest-cli.json apps/intel-api/
 
 RUN pnpm --filter @capiro/shared build
+RUN pnpm --filter @capiro/meriv2-core build
 # Generate the Prisma client (outputs to apps/intel-api/generated/prisma-client)
 # BEFORE the Nest build, since src imports the generated client.
 RUN cd apps/intel-api && pnpm exec prisma generate
@@ -72,6 +76,9 @@ WORKDIR /app
 COPY --chown=capiro:capiro --from=build /workspace/node_modules /app/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/dist /app/packages/meriv2-core/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.json /app/packages/meriv2-core/package.json
+COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/dist /app/apps/intel-api/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/node_modules /app/apps/intel-api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/intel-api/package.json /app/apps/intel-api/package.json
