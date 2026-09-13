@@ -31,7 +31,10 @@ import { MeetingNotesCryptoService } from '../meeting-notes-crypto.service.js';
 import { AttachmentContentService } from '../attachment-content.service.js';
 import { intelAlertIdFromItemId } from '../outreach-context-enrichment.js';
 import { OutreachTruthService } from './outreach-truth.service.js';
-import { AlertPacketClientService, renderAlertPacketForOutreach } from './alert-packet-client.service.js';
+import {
+  AlertPacketClientService,
+  renderAlertPacketForOutreach,
+} from './alert-packet-client.service.js';
 import { canReadEncryptedEntry, ownMeetingWhere } from '../engagement-access.helpers.js';
 import { activeMailMessageWhere, activeMailThreadWhere } from '../mail-message-state.js';
 import {
@@ -507,7 +510,13 @@ export class EvidenceSourceService {
             where: activeMailMessageWhere(),
             orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
             take: 2,
-            select: { fromName: true, fromEmail: true, sentAt: true, receivedAt: true, bodyText: true },
+            select: {
+              fromName: true,
+              fromEmail: true,
+              sentAt: true,
+              receivedAt: true,
+              bodyText: true,
+            },
           },
           participants: true,
         },
@@ -659,7 +668,13 @@ export class EvidenceSourceService {
               where: activeMailMessageWhere(),
               orderBy: [{ receivedAt: 'desc' }, { sentAt: 'desc' }, { createdAt: 'desc' }],
               take: 2,
-              select: { fromName: true, fromEmail: true, sentAt: true, receivedAt: true, bodyText: true },
+              select: {
+                fromName: true,
+                fromEmail: true,
+                sentAt: true,
+                receivedAt: true,
+                bodyText: true,
+              },
             },
             participants: true,
           },
@@ -772,9 +787,21 @@ export class EvidenceSourceService {
       };
     }
 
-    try { await assertHearingRecordDocumentAccess(this.prisma, ctx, row); }
-    catch { return { failures: [sourceFailure('document', 'DOCUMENT_ACCESS_OR_VERSION_CHANGED', 'critical',
-      'The selected brief is no longer available in this review context. Select a current authorized brief.', item.id)] }; }
+    try {
+      await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
+    } catch {
+      return {
+        failures: [
+          sourceFailure(
+            'document',
+            'DOCUMENT_ACCESS_OR_VERSION_CHANGED',
+            'critical',
+            'The selected brief is no longer available in this review context. Select a current authorized brief.',
+            item.id,
+          ),
+        ],
+      };
+    }
 
     const readiness = this.attachments.readiness(
       {
@@ -868,7 +895,13 @@ export class EvidenceSourceService {
     }
     if (readiness.disclosure) {
       failures.push(
-        sourceFailure('document', 'ATTACHMENT_UNSCANNED', 'informational', readiness.disclosure, item.id),
+        sourceFailure(
+          'document',
+          'ATTACHMENT_UNSCANNED',
+          'informational',
+          readiness.disclosure,
+          item.id,
+        ),
       );
     }
 

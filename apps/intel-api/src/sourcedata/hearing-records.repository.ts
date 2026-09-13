@@ -76,19 +76,17 @@ export class HearingRecordsRepository {
     );
     return {
       event,
-      records: rows
-        .slice(0, limit)
-        .map((r) => ({
-          id: r.id,
-          billId: r.billId,
-          kind: r.kind,
-          hash: r.hash,
-          identity: r.identity,
-          date: r.date,
-          observedAt: r.observed.toISOString(),
-          evidence: object(r.evidence),
-          association: r.explicit ? 'explicit_event' : 'bill_context_only',
-        })),
+      records: rows.slice(0, limit).map((r) => ({
+        id: r.id,
+        billId: r.billId,
+        kind: r.kind,
+        hash: r.hash,
+        identity: r.identity,
+        date: r.date,
+        observedAt: r.observed.toISOString(),
+        evidence: object(r.evidence),
+        association: r.explicit ? 'explicit_event' : 'bill_context_only',
+      })),
       next: rows.length > limit ? offset + limit : null,
     };
   }

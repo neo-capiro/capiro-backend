@@ -137,7 +137,9 @@ function makeCreateHarness(opts: {
     }),
     readAttachmentBytes: opts.readBytes ?? (async () => DEFAULT_BYTES),
   };
-  patch.mailSender = { sendMail: async () => ({ ok: true, provider: 'gmail', correlationId: 'c' }) };
+  patch.mailSender = {
+    sendMail: async () => ({ ok: true, provider: 'gmail', correlationId: 'c' }),
+  };
   patch.attachmentContent = attachmentContent;
   patch.attachmentScanner = { scanRequired: opts.scanRequired ?? false };
 

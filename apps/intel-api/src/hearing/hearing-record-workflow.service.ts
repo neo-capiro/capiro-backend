@@ -193,7 +193,9 @@ export class HearingRecordWorkflowService {
     const latest = await this.actor(ctx, async (tx) => {
       await tx.$executeRaw`INSERT INTO intel_hearing_record_scan_cursor(tenant_id,owner_clerk_id)
         VALUES(${ctx.tenantId},${ctx.clerkUserId}) ON CONFLICT DO NOTHING`;
-      const cursor = await tx.$queryRaw<Array<{ last_event_id: string }>>`SELECT last_event_id FROM intel_hearing_record_scan_cursor
+      const cursor = await tx.$queryRaw<
+        Array<{ last_event_id: string }>
+      >`SELECT last_event_id FROM intel_hearing_record_scan_cursor
         WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} FOR UPDATE`;
       const rows = await tx.$queryRaw<
         Array<{ id: string; event_id: string; payload: unknown }>
@@ -210,8 +212,21 @@ export class HearingRecordWorkflowService {
           records = await this.source.snapshot(row.event_id, prior.sourceSelections),
           event = await this.source.event(row.event_id);
         if (
-          prior.sourceHash === digest([event, records.map((r) => [r.id, r.hash, r.evidence.sourceObservationId??null, r.evidence.currentSourceVersion??null])]) ||
-          records.some((r) => Date.now() - Date.parse(String(r.evidence.sourceLastChangedAt??r.observedAt)) < 120000)
+          prior.sourceHash ===
+            digest([
+              event,
+              records.map((r) => [
+                r.id,
+                r.hash,
+                r.evidence.sourceObservationId ?? null,
+                r.evidence.currentSourceVersion ?? null,
+              ]),
+            ]) ||
+          records.some(
+            (r) =>
+              Date.now() - Date.parse(String(r.evidence.sourceLastChangedAt ?? r.observedAt)) <
+              120000,
+          )
         )
           continue;
         // Debounce committed public updates. The frozen old run remains readable;
@@ -409,7 +424,16 @@ export class HearingRecordWorkflowService {
             currentSourceVersion: r.evidence.currentSourceVersion === true,
             publishedDate: r.date,
             observedAt: r.observedAt,
-            ...(r.kind === 'amendment' ? { amendmentDisposition: r.evidence.adopted === true ? 'adopted' as const : r.evidence.adopted === false ? 'not_marked_adopted' as const : 'unknown' as const } : {}),
+            ...(r.kind === 'amendment'
+              ? {
+                  amendmentDisposition:
+                    r.evidence.adopted === true
+                      ? ('adopted' as const)
+                      : r.evidence.adopted === false
+                        ? ('not_marked_adopted' as const)
+                        : ('unknown' as const),
+                }
+              : {}),
           });
       };
       if (r.evidence.selectedPassages)
@@ -1021,7 +1045,15 @@ export class HearingRecordWorkflowService {
     }
     const originalClaims = claims.map((c) => ({ ...c }));
     const checks = await this.source.checks(eventId),
-      sourceHash = digest([event, records.map((r) => [r.id, r.hash, r.evidence.sourceObservationId??null, r.evidence.currentSourceVersion??null])]);
+      sourceHash = digest([
+        event,
+        records.map((r) => [
+          r.id,
+          r.hash,
+          r.evidence.sourceObservationId ?? null,
+          r.evidence.currentSourceVersion ?? null,
+        ]),
+      ]);
     const fingerprint = digest([sourceHash, observation, claims, sourceSelections]);
     const lease = await this.claimJob(ctx, eventId, 'reconcile', fingerprint, { input });
     if (lease.resultId) return this.run(ctx, eventId, lease.resultId);
@@ -1188,7 +1220,16 @@ export class HearingRecordWorkflowService {
       event = await this.source.event(eventId);
     const current =
       observationCurrent &&
-      payload.sourceHash === digest([event, currentRecords.map((r) => [r.id, r.hash, r.evidence.sourceObservationId??null, r.evidence.currentSourceVersion??null])]);
+      payload.sourceHash ===
+        digest([
+          event,
+          currentRecords.map((r) => [
+            r.id,
+            r.hash,
+            r.evidence.sourceObservationId ?? null,
+            r.evidence.currentSourceVersion ?? null,
+          ]),
+        ]);
     return {
       id,
       inputHash: row.input_hash,
@@ -1203,7 +1244,12 @@ export class HearingRecordWorkflowService {
           .map((r) => ({
             id: r.id,
             createdAt: r.created_at,
-                ...this.decode<{outcome:string;rationale:string;references:RecordClaim['references'];reviewer:string}>(r.payload),
+            ...this.decode<{
+              outcome: string;
+              rationale: string;
+              references: RecordClaim['references'];
+              reviewer: string;
+            }>(r.payload),
           })),
       })),
     };

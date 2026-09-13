@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { LegiscanDocument } from '../external/legiscan/legiscan.client.js';
 import { extractPdfText } from '../meri/meri-attachment-extract.js';
 import { stripHtmlTags } from '../external/govinfo/govinfo.service.js';
-import {observeStateRecord} from './published-record-observations.js';
+import { observeStateRecord } from './published-record-observations.js';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 export const DOCUMENT_EXTRACTOR_VERSION = 'meri-pdf-native-pages-v1';
@@ -58,8 +58,8 @@ export async function documentEvidence(
         hash: sha(part),
       });
     }
-    extractionState = text.trim()?'extracted':'unreadable';
-    coverage = text.trim()?'complete_document':'unknown';
+    extractionState = text.trim() ? 'extracted' : 'unreadable';
+    coverage = text.trim() ? 'complete_document' : 'unknown';
   }
   // Permitted durable content snapshot; public reads omit raw bytes by default.
   // Activation is an operator decision for the existing provider/source terms.
@@ -91,7 +91,11 @@ export async function documentEvidence(
     contentHash,
     providerHash: doc.text_hash ?? null,
     parserVersion:
-      mime === 'text/html' ? 'govinfo-html-normalizer-locators-v1' : mime==='text/plain'?'utf8-normalized-character-locators-v1':DOCUMENT_EXTRACTOR_VERSION,
+      mime === 'text/html'
+        ? 'govinfo-html-normalizer-locators-v1'
+        : mime === 'text/plain'
+          ? 'utf8-normalized-character-locators-v1'
+          : DOCUMENT_EXTRACTOR_VERSION,
     extractionState,
     coverage,
     sections,
@@ -129,20 +133,23 @@ export async function persistDocumentEvidence(
     billId: doc.bill_id,
     docId: doc.doc_id,
   });
-  const identity=version?.id ?? `legiscan:${kind}:${doc.doc_id}`;
-  await prisma.$transaction(async tx=>{await tx.stateBillPublishedRecord.createMany({
-    data: [
-      {
-        billKey,
-        kind: 'document',
-        sourceIdentity: identity,
-        revisionHash,
-        eventDate: evidence.date,
-        sourceOrder: 0,
-        evidence,
-      },
-    ],
-    skipDuplicates: true,
-  });await observeStateRecord(tx,billKey,'document',identity,revisionHash);});
+  const identity = version?.id ?? `legiscan:${kind}:${doc.doc_id}`;
+  await prisma.$transaction(async (tx) => {
+    await tx.stateBillPublishedRecord.createMany({
+      data: [
+        {
+          billKey,
+          kind: 'document',
+          sourceIdentity: identity,
+          revisionHash,
+          eventDate: evidence.date,
+          sourceOrder: 0,
+          evidence,
+        },
+      ],
+      skipDuplicates: true,
+    });
+    await observeStateRecord(tx, billKey, 'document', identity, revisionHash);
+  });
   return evidence.extractionState;
 }

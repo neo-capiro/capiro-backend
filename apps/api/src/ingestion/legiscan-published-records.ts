@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
-import {observeStateRecord} from './published-record-observations.js';
+import { observeStateRecord } from './published-record-observations.js';
 
 const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const dateOnly = (s?: string) =>
@@ -158,7 +158,8 @@ export async function persistPublishedRecords(
         data,
         skipDuplicates: true,
       });
-    for(const r of data)await observeStateRecord(tx,billKey,r.kind,r.sourceIdentity,r.revisionHash);
+    for (const r of data)
+      await observeStateRecord(tx, billKey, r.kind, r.sourceIdentity, r.revisionHash);
     await tx.stateBill.update({
       where: { id: billKey },
       data: { reportSourceFacts: reportSourceFacts(raw) },

@@ -72,11 +72,20 @@ describe('vote revision owner/projection PostgreSQL', () => {
       passed: false,
       motion: corrected.desc,
     });
-    await persistVoteRevision(p,'FL',billKey,rc,{providerBillHash:'d',stub:{roll_call_id:providerId,state_link:'https://example.gov/vote.pdf'}});
-    expect(await p.stateBillPublishedRecord.count({where:{billKey}})).toBe(2);
-    const trail=await p.$queryRaw<Array<{state_record_id:string}>>`SELECT state_record_id FROM published_record_source_observation WHERE source_key=${`state:${billKey}:vote:${voteId}`} ORDER BY id`;
-    expect(trail).toHaveLength(3);expect(trail[0]!.state_record_id).toBe(first.id);expect(trail[2]!.state_record_id).toBe(first.id);
-    expect((await p.stateRollCallVote.findUniqueOrThrow({where:{id:voteId}})).currentRevisionHash).toBe(first.revisionHash);
+    await persistVoteRevision(p, 'FL', billKey, rc, {
+      providerBillHash: 'd',
+      stub: { roll_call_id: providerId, state_link: 'https://example.gov/vote.pdf' },
+    });
+    expect(await p.stateBillPublishedRecord.count({ where: { billKey } })).toBe(2);
+    const trail = await p.$queryRaw<
+      Array<{ state_record_id: string }>
+    >`SELECT state_record_id FROM published_record_source_observation WHERE source_key=${`state:${billKey}:vote:${voteId}`} ORDER BY id`;
+    expect(trail).toHaveLength(3);
+    expect(trail[0]!.state_record_id).toBe(first.id);
+    expect(trail[2]!.state_record_id).toBe(first.id);
+    expect(
+      (await p.stateRollCallVote.findUniqueOrThrow({ where: { id: voteId } })).currentRevisionHash,
+    ).toBe(first.revisionHash);
   });
   it('rejects partial detail without modifying the current projection', async () => {
     const before = await p.stateRollCallVote.findUnique({ where: { id: voteId } });

@@ -93,15 +93,26 @@ describe('governed owner published-record reads', () => {
     expect(f.workflow.authorize).not.toHaveBeenCalled();
   });
   it('returns only exact access metadata and requires distribution approval for saved attachments', async () => {
-    const f=fixture(), input={...body,view:'document-access',contentHash:'content',purpose:'read'};
-    const result=await f.controller.retrieve('synthetic-internal-secret',input);
-    expect(result).toMatchObject({kind:'capiro_record_document_access',id:'brief-a',sourceHash:'source'});
+    const f = fixture(),
+      input = { ...body, view: 'document-access', contentHash: 'content', purpose: 'read' };
+    const result = await f.controller.retrieve('synthetic-internal-secret', input);
+    expect(result).toMatchObject({
+      kind: 'capiro_record_document_access',
+      id: 'brief-a',
+      sourceHash: 'source',
+    });
     expect(result).not.toHaveProperty('payload');
-    await f.controller.retrieve('synthetic-internal-secret',{...input,purpose:'distribute'});
+    await f.controller.retrieve('synthetic-internal-secret', { ...input, purpose: 'distribute' });
     expect(f.workflow.approvedDocument).toHaveBeenCalledTimes(1);
-    f.workflow.approvedDocument.mockRejectedValueOnce(Error('RETAINED_DISTRIBUTION_PERMISSION_REVOKED') as never);
-    await expect(f.controller.retrieve('synthetic-internal-secret',{...input,purpose:'distribute'})).rejects.toThrow('REVOKED');
-    f.brief.current=false;
-    await expect(f.controller.retrieve('synthetic-internal-secret',input)).rejects.toThrow('CURRENT_REVIEWED');
+    f.workflow.approvedDocument.mockRejectedValueOnce(
+      Error('RETAINED_DISTRIBUTION_PERMISSION_REVOKED') as never,
+    );
+    await expect(
+      f.controller.retrieve('synthetic-internal-secret', { ...input, purpose: 'distribute' }),
+    ).rejects.toThrow('REVOKED');
+    f.brief.current = false;
+    await expect(f.controller.retrieve('synthetic-internal-secret', input)).rejects.toThrow(
+      'CURRENT_REVIEWED',
+    );
   });
 });

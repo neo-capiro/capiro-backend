@@ -283,69 +283,144 @@ describe('published record workflow on PostgreSQL', () => {
     expect((await w.run(ctx, eventId, runId)).current).toBe(false);
     expect((await w.run(ctx, eventId, runId)).payload.records).toHaveLength(1);
   });
-  it('invalidates a frozen run when a publisher restores a previously observed version',async()=>{
-    const sourceKey=`state:${billId}:vote:v1`, second=randomUUID(), secondHash=digest(second);
+  it('invalidates a frozen run when a publisher restores a previously observed version', async () => {
+    const sourceKey = `state:${billId}:vote:v1`,
+      second = randomUUID(),
+      secondHash = digest(second);
     await p.$executeRaw`INSERT INTO published_record_source_observation(source_key,state_record_id) VALUES(${sourceKey},${recordId}::uuid)`;
     await p.$executeRaw`INSERT INTO state_bill_published_record(id,bill_key,kind,source_identity,revision_hash,event_date,source_order,evidence)
       VALUES(${second}::uuid,${billId},'vote','v1',${secondHash},'2098-01-02',0,'{"yeas":8,"nays":1}'::jsonb)`;
     await p.$executeRaw`INSERT INTO published_record_source_observation(source_key,state_record_id) VALUES(${sourceKey},${second}::uuid)`;
-    const before=await w.reconcile(ctx,eventId,{sourceSelections:[{identity:'v1',locators:['record']}]});
+    const before = await w.reconcile(ctx, eventId, {
+      sourceSelections: [{ identity: 'v1', locators: ['record'] }],
+    });
     expect(before.current).toBe(true);
     await p.$executeRaw`INSERT INTO published_record_source_observation(source_key,state_record_id) VALUES(${sourceKey},${recordId}::uuid)`;
-    expect((await w.run(ctx,eventId,before.id)).current).toBe(false);
-    const current=await w.source.snapshot(eventId,[{identity:'v1',locators:['record']}]);
-    expect(current.find(r=>r.id===recordId)!.evidence.currentSourceVersion).toBe(true);
-    expect(current.find(r=>r.id===second)!.evidence.currentSourceVersion).toBe(false);
-    await expect(p.$transaction(async tx=>{
-      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
-      await tx.$executeRaw`UPDATE published_record_source_observation SET observed_at=now() WHERE source_key=${sourceKey}`;
-    })).rejects.toThrow();
+    expect((await w.run(ctx, eventId, before.id)).current).toBe(false);
+    const current = await w.source.snapshot(eventId, [{ identity: 'v1', locators: ['record'] }]);
+    expect(current.find((r) => r.id === recordId)!.evidence.currentSourceVersion).toBe(true);
+    expect(current.find((r) => r.id === second)!.evidence.currentSourceVersion).toBe(false);
+    await expect(
+      p.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+        await tx.$executeRaw`UPDATE published_record_source_observation SET observed_at=now() WHERE source_key=${sourceKey}`;
+      }),
+    ).rejects.toThrow();
   });
-  it('visits every event with a durable cursor despite intermittent owner scheduling',async()=>{
-    const ids:string[]=[];
-    for(let i=0;i<11;i++) {
-      const id=eventId+'-cursor-'+String(i).padStart(2,'0');ids.push(id);
+  it('visits every event with a durable cursor despite intermittent owner scheduling', async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 11; i++) {
+      const id = eventId + '-cursor-' + String(i).padStart(2, '0');
+      ids.push(id);
       await p.$executeRaw`INSERT INTO committee_hearing(id,geographic_jurisdiction,legislative_session,chamber,committee_name,title,date,visibility)
         VALUES(${id},'FL','2098','House','Synthetic committee','Cursor qualification','2098-01-02','public')`;
-      await w.reconcile(ctx,id,{});
+      await w.reconcile(ctx, id, {});
     }
-    const snapshot=jest.spyOn(w.source,'snapshot');
+    const snapshot = jest.spyOn(w.source, 'snapshot');
     // Date or minute parity has no role in choosing the next event.
-    for(let i=0;i<3;i++) await w.maintain(ctx);
-    const visited=new Set(snapshot.mock.calls.map(c=>c[0]));
-    expect(ids.every(id=>visited.has(id))).toBe(true);
+    for (let i = 0; i < 3; i++) await w.maintain(ctx);
+    const visited = new Set(snapshot.mock.calls.map((c) => c[0]));
+    expect(ids.every((id) => visited.has(id))).toBe(true);
     snapshot.mockRestore();
   });
-  it('reserves an explicit daily brief once under concurrent draft occurrences and rechecks folder access',async()=>{
-    const folder=await runtime.reports.folders.create(ctx,{name:'Daily brief qualification',clientId,jurisdiction:'FL',defaultSession:'2098'});
-    const run=await w.reconcile(ctx,eventId,{sourceSelections:[{identity:'v1',locators:['record']}]});
-    const brief=await w.generateBrief(ctx,eventId,run.id,{clientId,folderIds:[folder.id]});
-    await w.approveBrief(ctx,eventId,brief.id,{contentHash:brief.contentHash,attestSupported:true});
-    const approved=await w.brief(ctx,eventId,brief.id);
-    const refs=[{eventId,briefId:brief.id,contentHash:brief.contentHash,sourceHash:brief.payload.sourceHash,version:brief.version,approvedAt:approved.approvedAt!.toISOString()}];
-    const report=await runtime.reports.save(ctx,{name:'Daily brief qualification',folderIds:[folder.id],jurisdiction:'FL',sessionKey:'2098',settings:{committees:'off',actions:'five_days',summary:true}});
-    const sub=await runtime.subscriptions.save(ctx,{reportId:report.id,mode:'draft',timezone:'UTC',localMinutes:720,subject:'Synthetic daily',recordBriefs:refs});
+  it('reserves an explicit daily brief once under concurrent draft occurrences and rechecks folder access', async () => {
+    const folder = await runtime.reports.folders.create(ctx, {
+      name: 'Daily brief qualification',
+      clientId,
+      jurisdiction: 'FL',
+      defaultSession: '2098',
+    });
+    const run = await w.reconcile(ctx, eventId, {
+      sourceSelections: [{ identity: 'v1', locators: ['record'] }],
+    });
+    const brief = await w.generateBrief(ctx, eventId, run.id, { clientId, folderIds: [folder.id] });
+    await w.approveBrief(ctx, eventId, brief.id, {
+      contentHash: brief.contentHash,
+      attestSupported: true,
+    });
+    const approved = await w.brief(ctx, eventId, brief.id);
+    const refs = [
+      {
+        eventId,
+        briefId: brief.id,
+        contentHash: brief.contentHash,
+        sourceHash: brief.payload.sourceHash,
+        version: brief.version,
+        approvedAt: approved.approvedAt!.toISOString(),
+      },
+    ];
+    const report = await runtime.reports.save(ctx, {
+      name: 'Daily brief qualification',
+      folderIds: [folder.id],
+      jurisdiction: 'FL',
+      sessionKey: '2098',
+      settings: { committees: 'off', actions: 'five_days', summary: true },
+    });
+    const sub = await runtime.subscriptions.save(ctx, {
+      reportId: report.id,
+      mode: 'draft',
+      timezone: 'UTC',
+      localMinutes: 720,
+      subject: 'Synthetic daily',
+      recordBriefs: refs,
+    });
     expect(sub.recordBriefs).toEqual(refs);
-    const now=new Date();
-    const make=async(key:string,selected:unknown)=>p.legiWatchReportOccurrence.create({data:{tenantId,subscriptionId:sub.id,subscriptionVersion:sub.version,
-      occurrenceKey:key,intendedAt:now,windowStart:new Date(now.getTime()-86400000),windowEnd:now,
-      configuration:{ownerClerkId:actor,reportId:report.id,reportVersion:report.version,timezone:'UTC',subject:'Synthetic daily',introduction:'',recipients:[],mode:'draft',manual:true,recordBriefs:selected} as never}});
-    const a=await make('race-a',refs),b=await make('race-b',refs);
-    await Promise.all([runtime.subscriptions.generateOccurrence(tenantId,a.id,now),runtime.subscriptions.generateOccurrence(tenantId,b.id,now)]);
-    const results=await p.legiWatchReportOccurrence.findMany({where:{id:{in:[a.id,b.id]}}});
-    expect(results.map(r=>r.error)).toEqual([null,null]);
-    expect(results.filter(r=>r.state==='draft')).toHaveLength(1);
-    expect(results.filter(r=>r.state==='no_change')).toHaveLength(1);
-    const composition=results.find(r=>r.state==='draft')!.composition as Record<string,unknown>;
+    const now = new Date();
+    const make = async (key: string, selected: unknown) =>
+      p.legiWatchReportOccurrence.create({
+        data: {
+          tenantId,
+          subscriptionId: sub.id,
+          subscriptionVersion: sub.version,
+          occurrenceKey: key,
+          intendedAt: now,
+          windowStart: new Date(now.getTime() - 86400000),
+          windowEnd: now,
+          configuration: {
+            ownerClerkId: actor,
+            reportId: report.id,
+            reportVersion: report.version,
+            timezone: 'UTC',
+            subject: 'Synthetic daily',
+            introduction: '',
+            recipients: [],
+            mode: 'draft',
+            manual: true,
+            recordBriefs: selected,
+          } as never,
+        },
+      });
+    const a = await make('race-a', refs),
+      b = await make('race-b', refs);
+    await Promise.all([
+      runtime.subscriptions.generateOccurrence(tenantId, a.id, now),
+      runtime.subscriptions.generateOccurrence(tenantId, b.id, now),
+    ]);
+    const results = await p.legiWatchReportOccurrence.findMany({
+      where: { id: { in: [a.id, b.id] } },
+    });
+    expect(results.map((r) => r.error)).toEqual([null, null]);
+    expect(results.filter((r) => r.state === 'draft')).toHaveLength(1);
+    expect(results.filter((r) => r.state === 'no_change')).toHaveLength(1);
+    const composition = results.find((r) => r.state === 'draft')!.composition as Record<
+      string,
+      unknown
+    >;
     expect(composition.recordBriefs).toEqual(refs);
     expect(composition.plainText).toContain('CAPIRO BRIEF BASED ON PUBLISHED RECORDS');
-    const none=await make('unselected',[]);
-    await runtime.subscriptions.generateOccurrence(tenantId,none.id,now);
-    expect((await p.legiWatchReportOccurrence.findUniqueOrThrow({where:{id:none.id}})).state).toBe('no_change');
+    const none = await make('unselected', []);
+    await runtime.subscriptions.generateOccurrence(tenantId, none.id, now);
+    expect(
+      (await p.legiWatchReportOccurrence.findUniqueOrThrow({ where: { id: none.id } })).state,
+    ).toBe('no_change');
     await p.$executeRaw`UPDATE intel_legiwatch_folder SET archived=true,version=version+1 WHERE tenant_id=${tenantId} AND id=${folder.id}`;
-    await expect(w.brief(ctx,eventId,brief.id)).rejects.toThrow();
-    const history=await runtime.subscriptions.history(ctx,sub.id);
-    expect(history.find(r=>r.id===results.find(r=>r.state==='draft')!.id)!.composition).toBeNull();
-    expect(await p.legiWatchDelivery.count({where:{tenantId,subscriptionId:sub.id}})).toBe(0);
+    await expect(w.brief(ctx, eventId, brief.id)).rejects.toThrow();
+    const history = await runtime.subscriptions.history(ctx, sub.id);
+    expect(
+      history.find((r) => r.id === results.find((r) => r.state === 'draft')!.id)!.composition,
+    ).toBeNull();
+    expect(await p.legiWatchDelivery.count({ where: { tenantId, subscriptionId: sub.id } })).toBe(
+      0,
+    );
   });
 });

@@ -101,11 +101,19 @@ describe('published-record labeled qualification corpus', () => {
         'available',
       ).outcome,
     ).toBe('needs_review');
-    expect(assessRecordClaim(
-      {...claim,proposition:{...claim.proposition!,field:'adopted',expected:true}},
-      [{...record,kind:'amendment',evidence:{...record.evidence,adopted:false,disposition:'not_marked_adopted'}}],
-      'available',
-    ).outcome).toBe('needs_review');
+    expect(
+      assessRecordClaim(
+        { ...claim, proposition: { ...claim.proposition!, field: 'adopted', expected: true } },
+        [
+          {
+            ...record,
+            kind: 'amendment',
+            evidence: { ...record.evidence, adopted: false, disposition: 'not_marked_adopted' },
+          },
+        ],
+        'available',
+      ).outcome,
+    ).toBe('needs_review');
   });
   it('rejects wrong bill, changed hash, unknown member and altered quotations', () => {
     for (const invalid of [

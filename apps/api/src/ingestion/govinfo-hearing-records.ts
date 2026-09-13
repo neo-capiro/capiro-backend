@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import type { GovInfoService, HearingText } from '../external/govinfo/govinfo.service.js';
-import {observeOfficialRecord} from './published-record-observations.js';
+import { observeOfficialRecord } from './published-record-observations.js';
 const hash = (s: string) => createHash('sha256').update(s).digest('hex');
 const parserVersion = 'govinfo-normalized-character-locators-v2';
 type Cursor = { since: string; until: string; next: string | null; offset: number };
@@ -88,7 +88,7 @@ export async function persistOfficialTranscript(
     >`SELECT id FROM official_hearing_transcript_revision
       WHERE package_id=${doc.packageId} AND content_hash=${contentHash} AND extraction_hash=${extractionHash} AND parser_version=${parserVersion}`;
     const revisionId = revisions[0]!.id;
-    const sourceChanged=await observeOfficialRecord(tx,doc.packageId,revisionId);
+    const sourceChanged = await observeOfficialRecord(tx, doc.packageId, revisionId);
     // An exact package URL is an explicit event reference. A published-date row
     // is not fuzzy-merged with a held-date event. Separate event links may coexist.
     await tx.$executeRaw`INSERT INTO official_hearing_transcript_event(revision_id,hearing_id,method)

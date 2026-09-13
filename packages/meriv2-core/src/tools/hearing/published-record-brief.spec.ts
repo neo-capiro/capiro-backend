@@ -44,21 +44,28 @@ const claim = {
 };
 const run = (claims: unknown[], extra = {}) =>
   createGeneratePublishedRecordBriefTool({
-    completeWithSchema: async () => ({ input: { claims }, usage: { inputTokens: 0, outputTokens: 0 } }),
+    completeWithSchema: async () => ({
+      input: { claims },
+      usage: { inputTokens: 0, outputTokens: 0 },
+    }),
   } as unknown as LlmClient).handler({ ...input, ...extra }, ctx);
 describe('published-record Meri output boundary', () => {
   it('preserves exact source and original observation references', async () => {
     expect((await run([claim])).claims[0]).toMatchObject(claim);
   });
   it('holds a model contradiction based only on amendments not marked adopted', async () => {
-    const result=await run([{...claim,outcome:'contradicted',text:'The amendment was adopted.'}],
-      {records:[{...input.records[0],amendmentDisposition:'not_marked_adopted'}]});
+    const result = await run(
+      [{ ...claim, outcome: 'contradicted', text: 'The amendment was adopted.' }],
+      { records: [{ ...input.records[0], amendmentDisposition: 'not_marked_adopted' }] },
+    );
     expect(result.claims[0]!.outcome).toBe('needs_review');
     expect(result.claims[0]!.rationale).toContain('not rejection');
     expect(result.claims[0]!.supported).toEqual([]);
   });
-  it('treats a null parent as no association without accepting invented parents',async()=>{
-    expect((await run([{...claim,parentClaimId:null}])).claims[0]!.parentClaimId).toBeUndefined();
+  it('treats a null parent as no association without accepting invented parents', async () => {
+    expect(
+      (await run([{ ...claim, parentClaimId: null }])).claims[0]!.parentClaimId,
+    ).toBeUndefined();
   });
   it.each([
     [

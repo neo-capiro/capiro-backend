@@ -99,9 +99,15 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DirectoryService, type DirectoryEmailMatch } from '../directory/directory.service.js';
 import {
-  archiveReportTarget, clearReportTargetOverride, createReportTarget, linkReportTarget,
-  updateReportTarget, upsertReportTargetOverride,
-  type ReportTargetInput, type ReportTargetLinkInput, type ReportStatusField,
+  archiveReportTarget,
+  clearReportTargetOverride,
+  createReportTarget,
+  linkReportTarget,
+  updateReportTarget,
+  upsertReportTargetOverride,
+  type ReportTargetInput,
+  type ReportTargetLinkInput,
+  type ReportStatusField,
 } from './report-targets.js';
 import type { OfficeRecommendation } from '../intelligence/office-recommender.service.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
@@ -856,7 +862,8 @@ const SYSTEM_AI_TEMPLATES = [
     category: 'outreach',
     prompt:
       'Draft a short, polished outreach message to this recipient on behalf of the client. Sound like a real government affairs operator wrote it — direct, human, specific; use em dashes where natural and never open with "Dear". Set a concrete subject line (no "re:" padding). Body under 175 words, opening with a natural greeting using the recipient\'s real first name and closing with a brief line (do not sign a name — the app appends the sender\'s signature separately). Beyond that greeting and closing, do not impose a fixed structure — let the main idea and selected context drive what the message actually says and which angle to take. Do not overstate the relationship, do not claim the recipient supports anything unless the context proves it, and do not invent facts.',
-    description: 'Short, personalized Hill or client message — direct and specific, shaped by your main idea.',
+    description:
+      'Short, personalized Hill or client message — direct and specific, shaped by your main idea.',
     samplePreview:
       "Subject: FY27 follow-up on directed-energy funding\n\nHi Dana —\n\nFollowing your subcommittee's markup last week, I wanted to flag where our client's work lines up with the committee's directed-energy priorities. They build the beam-control subsystem fielded on two of the programs the mark funds and can turn around test data on short notice.\n\nWould you have 20 minutes in the next two weeks for a short briefing? I'm happy to send a one-pager ahead of time so the conversation is efficient.\n\nThanks for considering it —",
     tone: 'professional',
@@ -869,7 +876,8 @@ const SYSTEM_AI_TEMPLATES = [
     category: 'outreach',
     prompt:
       'Draft a short, direct email to congressional office staff requesting an in-person meeting on behalf of the client. Subject: name the client\'s capability or issue driving the request (no "re:" padding). Sound like a real government affairs operator wrote it — direct, human, specific; use em dashes where natural and never open with "Dear". Body under 150 words: open with a natural greeting using the recipient\'s real first name; introduce the client in one sentence; name the specific capability, program, or issue behind the request from the selected context; ask directly for an in-person meeting, offering flexibility on timing; end with a brief closing line (do not sign a name — the app appends the sender\'s signature separately). Let the main idea and selected context shape the specific angle. Do not overstate the relationship, do not claim the recipient supports anything unless the context proves it, and do not invent facts.',
-    description: 'Direct request for an in-person meeting — greets the office, introduces the client, names the ask.',
+    description:
+      'Direct request for an in-person meeting — greets the office, introduces the client, names the ask.',
     samplePreview:
       "Subject: Directed-energy test capability — meeting request\n\nHi Jordan —\n\nI'm reaching out on behalf of our client, which builds the beam-control subsystem used on two of the committee's priority programs.\n\nGiven the subcommittee's recent focus on directed-energy readiness, I'd welcome the chance to walk your office through what we're seeing on the program side — in person, whenever works over the next few weeks.\n\nHappy to work around the office's schedule —",
     tone: 'professional',
@@ -1454,10 +1462,16 @@ export class EngagementService {
       if (!existing) throw new NotFoundException('Meeting not found');
 
       if ('clientId' in input) {
-        attachmentIds.push(...await this.reassignMeetingClient(
-          tx, ctx, existing, input.clientId ?? null, false,
-          'Meeting client changed from meeting edit form.',
-        ));
+        attachmentIds.push(
+          ...(await this.reassignMeetingClient(
+            tx,
+            ctx,
+            existing,
+            input.clientId ?? null,
+            false,
+            'Meeting client changed from meeting edit form.',
+          )),
+        );
       }
 
       // Re-derive the virtual-meeting classification (Meetings v2 §5) whenever the
@@ -1518,7 +1532,9 @@ export class EngagementService {
 
   /** Serialize parent reads and artifact writes with client reassignment. */
   private async lockMeetingClientAssignment(
-    tx: Prisma.TransactionClient, ctx: TenantContext, meetingId: string,
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    meetingId: string,
   ): Promise<void> {
     // Read the prior client only after this lock. Otherwise a concurrent A→B
     // followed by an A→A save can skip child propagation using a stale read.
@@ -1539,22 +1555,32 @@ export class EngagementService {
     reason: string,
   ): Promise<string[]> {
     if (clientId) {
-      await ensureExists(tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId }, select: { id: true },
-      }), 'Client not found');
+      await ensureExists(
+        tx.client.findFirst({
+          where: { id: clientId, tenantId: ctx.tenantId },
+          select: { id: true },
+        }),
+        'Client not found',
+      );
     }
     const changed = existing.clientId !== clientId || Boolean(existing.isInternal) !== isInternal;
     await tx.meeting.update({
       where: { id: existing.id, tenantId: ctx.tenantId },
       data: {
-        clientId, isInternal,
+        clientId,
+        isInternal,
         associationScore: clientId ? 1 : null,
         associationReason: reason,
         associationSignals: {
-          manual: true, clientId, previousClientId: existing.clientId,
-          isInternal, changedByUserId: ctx.userId,
+          manual: true,
+          clientId,
+          previousClientId: existing.clientId,
+          isInternal,
+          changedByUserId: ctx.userId,
         },
-        ...(changed ? { visibility: MeetingVisibility.private, sharedAt: null, sharedByUserId: null } : {}),
+        ...(changed
+          ? { visibility: MeetingVisibility.private, sharedAt: null, sharedByUserId: null }
+          : {}),
       },
     });
     if (!changed) return [];
@@ -1577,7 +1603,10 @@ export class EngagementService {
         `DELETE FROM context_embeddings
           WHERE tenant_id = $1::uuid AND source_type = $2
             AND (source_id = $3 OR source_id LIKE $4)`,
-        ctx.tenantId, 'client_doc_chunk', attachment.id, docChunkSourceIdPrefix(attachment.id),
+        ctx.tenantId,
+        'client_doc_chunk',
+        attachment.id,
+        docChunkSourceIdPrefix(attachment.id),
       );
     }
     return clientId ? attachments.map((attachment) => attachment.id) : [];
@@ -2142,7 +2171,10 @@ export class EngagementService {
     tenantId: string,
     meetingIds: string[],
   ): Promise<Map<string, Array<{ kind: 'prep' | 'notes' | 'debrief'; current: boolean }>>> {
-    const result = new Map<string, Array<{ kind: 'prep' | 'notes' | 'debrief'; current: boolean }>>();
+    const result = new Map<
+      string,
+      Array<{ kind: 'prep' | 'notes' | 'debrief'; current: boolean }>
+    >();
     if (!meetingIds.length) return result;
     const add = (meetingId: string, kind: 'prep' | 'notes' | 'debrief', current: boolean) => {
       const list = result.get(meetingId) ?? [];
@@ -2178,7 +2210,11 @@ export class EngagementService {
 
     const currentPrepStatusByMeeting = new Map(latestPreps.map((p) => [p.meetingId, p.status]));
     for (const { meetingId } of approvedPreps) {
-      add(meetingId, 'prep', currentPrepStatusByMeeting.get(meetingId) === MeetingPrepStatus.approved);
+      add(
+        meetingId,
+        'prep',
+        currentPrepStatusByMeeting.get(meetingId) === MeetingPrepStatus.approved,
+      );
     }
     // Notes/debriefs update their own row in place on edit (never mint a new
     // one), so "an approved row exists" and "the current one is approved" are
@@ -2187,7 +2223,6 @@ export class EngagementService {
     for (const { meetingId } of approvedDebriefs) add(meetingId, 'debrief', true);
     return result;
   }
-
 
   /**
    * Shared meeting records for a client's Documents tab (Meetings v2 §8). Returns
@@ -2210,7 +2245,12 @@ export class EngagementService {
       const [tenant, rows] = await Promise.all([
         tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
         tx.meeting.findMany({
-          where: { tenantId: ctx.tenantId, clientId, visibility: MeetingVisibility.shared, status: { not: 'deleted' } },
+          where: {
+            tenantId: ctx.tenantId,
+            clientId,
+            visibility: MeetingVisibility.shared,
+            status: { not: 'deleted' },
+          },
           include: meetingInclude(),
           orderBy: [{ sharedAt: 'desc' }, { startsAt: 'desc' }],
         }),
@@ -2299,9 +2339,7 @@ export class EngagementService {
             select: { meetingId: true, status: true, error: true },
             orderBy: { createdAt: 'desc' },
           })
-        : Promise.resolve(
-            [] as Array<{ meetingId: string; status: string; error: string | null }>,
-          ),
+        : Promise.resolve([] as Array<{ meetingId: string; status: string; error: string | null }>),
     ]);
     const nameById = new Map(
       (
@@ -2319,47 +2357,57 @@ export class EngagementService {
         latestSessionByMeeting.set(s.meetingId, { status: s.status, error: s.error });
     }
 
-    return Promise.all(rows.map(async (row) => {
-      // Phase 2 §d: a note counts here only once APPROVED — existence alone is
-      // not approval (that was the pre-Phase-2 bug this fixes).
-      const hasApprovedNote = row.notes.some((n) => n.status === 'approved');
-      const artifacts: Array<'prep' | 'notes' | 'debrief'> = [];
-      if (row.preps[0]?.status === MeetingPrepStatus.approved) artifacts.push('prep');
-      if (hasApprovedNote) artifacts.push('notes');
-      if (row.debriefs.some((d) => d.status === MeetingDebriefStatus.approved)) {
-        artifacts.push('debrief');
-      }
-      const contributors = row.createdByUserId
-        ? [
-            {
-              userId: row.createdByUserId,
-              name: nameById.get(row.createdByUserId) ?? null,
-              artifacts,
-            },
-          ]
-        : [];
-      const latestSession = latestSessionByMeeting.get(row.id) ?? null;
-      const visiblePreps = [] as typeof row.preps;
-      for (const prep of row.preps) {
-        const value = prep as typeof prep & { generatedFrom?: { briefing?: unknown; grounding?: { sources?: import('./meeting-prep-grounding.js').PrepEvidenceSource[] } } };
-        if (value.generatedFrom?.briefing) {
-          try { await assertSavedMeetingPrepAccess(tx, ctx, value.generatedFrom); }
-          catch { continue; }
+    return Promise.all(
+      rows.map(async (row) => {
+        // Phase 2 §d: a note counts here only once APPROVED — existence alone is
+        // not approval (that was the pre-Phase-2 bug this fixes).
+        const hasApprovedNote = row.notes.some((n) => n.status === 'approved');
+        const artifacts: Array<'prep' | 'notes' | 'debrief'> = [];
+        if (row.preps[0]?.status === MeetingPrepStatus.approved) artifacts.push('prep');
+        if (hasApprovedNote) artifacts.push('notes');
+        if (row.debriefs.some((d) => d.status === MeetingDebriefStatus.approved)) {
+          artifacts.push('debrief');
         }
-        visiblePreps.push(prep);
-      }
-      return {
-        ...row,
-        preps: visiblePreps as T['preps'],
-        notesApproved: hasApprovedNote,
-        meri: coarseMeriState(latestSession?.status ?? null),
-        meriError: meriFailureReason(latestSession?.status ?? null, latestSession?.error ?? null),
-        contributors,
-        sharedBy: row.sharedByUserId
-          ? { userId: row.sharedByUserId, name: nameById.get(row.sharedByUserId) ?? null }
-          : null,
-      };
-    }));
+        const contributors = row.createdByUserId
+          ? [
+              {
+                userId: row.createdByUserId,
+                name: nameById.get(row.createdByUserId) ?? null,
+                artifacts,
+              },
+            ]
+          : [];
+        const latestSession = latestSessionByMeeting.get(row.id) ?? null;
+        const visiblePreps = [] as typeof row.preps;
+        for (const prep of row.preps) {
+          const value = prep as typeof prep & {
+            generatedFrom?: {
+              briefing?: unknown;
+              grounding?: { sources?: import('./meeting-prep-grounding.js').PrepEvidenceSource[] };
+            };
+          };
+          if (value.generatedFrom?.briefing) {
+            try {
+              await assertSavedMeetingPrepAccess(tx, ctx, value.generatedFrom);
+            } catch {
+              continue;
+            }
+          }
+          visiblePreps.push(prep);
+        }
+        return {
+          ...row,
+          preps: visiblePreps as T['preps'],
+          notesApproved: hasApprovedNote,
+          meri: coarseMeriState(latestSession?.status ?? null),
+          meriError: meriFailureReason(latestSession?.status ?? null, latestSession?.error ?? null),
+          contributors,
+          sharedBy: row.sharedByUserId
+            ? { userId: row.sharedByUserId, name: nameById.get(row.sharedByUserId) ?? null }
+            : null,
+        };
+      }),
+    );
   }
 
   /**
@@ -3905,9 +3953,7 @@ export class EngagementService {
         chamber: match?.member?.chamber ?? recipient.chamber ?? null,
         // Server-resolved committee context — reaches the recipient brief so
         // even a bioguide-less staffer hands the planner a committee hook.
-        ...(match?.member?.committees?.length
-          ? { committees: match.member.committees }
-          : {}),
+        ...(match?.member?.committees?.length ? { committees: match.member.committees } : {}),
         snapshot: pruneForAi(recipient as unknown as Record<string, unknown>) as Record<
           string,
           unknown
@@ -4867,7 +4913,14 @@ export class EngagementService {
             receivedAt: true,
             metadata: true,
             connection: { select: { accountEmail: true, displayName: true } },
-            thread: { select: { id: true, subject: true, clientId: true, client: { select: { name: true } } } },
+            thread: {
+              select: {
+                id: true,
+                subject: true,
+                clientId: true,
+                client: { select: { name: true } },
+              },
+            },
           },
           orderBy: [{ sentAt: 'desc' }, { receivedAt: 'desc' }],
         }),
@@ -4911,9 +4964,16 @@ export class EngagementService {
     const rowKey = (scopeKey: string, officeKey: string) => `${scopeKey}:${officeKey}`;
     // Retain archived identities when collecting activity so they cannot spring
     // back as new auto-generated targets. Counts in the summary remain factual.
-    const hiddenTargets = new Set(data.storedTargets.filter((target) =>
-      target.archivedAt && cycle.reportYear !== null && cycle.reportYear >= target.archivedAt.getUTCFullYear(),
-    ).map((target) => rowKey(target.scopeKey, target.officeKey)));
+    const hiddenTargets = new Set(
+      data.storedTargets
+        .filter(
+          (target) =>
+            target.archivedAt &&
+            cycle.reportYear !== null &&
+            cycle.reportYear >= target.archivedAt.getUTCFullYear(),
+        )
+        .map((target) => rowKey(target.scopeKey, target.officeKey)),
+    );
     const ensureRow = (input: {
       targetId?: string | null;
       archivedAt?: Date | null;
@@ -4939,7 +4999,8 @@ export class EngagementService {
         existing.clientId = existing.clientId ?? input.clientId ?? null;
         existing.clientName = existing.clientName ?? input.clientName ?? null;
         for (const field of ['committee', 'staffer', 'building', 'leadOwner'] as const) {
-          if (!existing.displayOverrides.includes(field)) existing[field] = existing[field] ?? input[field] ?? null;
+          if (!existing.displayOverrides.includes(field))
+            existing[field] = existing[field] ?? input[field] ?? null;
         }
         existing.source = existing.targetId ? existing.source : input.source;
         existing.storedPrepStatus = mergeStoredStatus(
@@ -5035,7 +5096,10 @@ export class EngagementService {
           source: 'directory',
         });
         row.meetingIds.add(meeting.id);
-        if (meeting.endsAt <= now && !['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase()))
+        if (
+          meeting.endsAt <= now &&
+          !['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase())
+        )
           row.heldMeetingIds.add(meeting.id);
         if (meeting.preps[0]) row.preparedMeetingIds.add(meeting.id);
         if (meeting.preps[0]?.status === MeetingPrepStatus.approved) {
@@ -5089,7 +5153,11 @@ export class EngagementService {
     );
     const heldMeetingIds = new Set(
       data.meetings
-        .filter((meeting) => meeting.endsAt <= now && !['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase()))
+        .filter(
+          (meeting) =>
+            meeting.endsAt <= now &&
+            !['cancelled', 'canceled'].includes(meeting.status.trim().toLowerCase()),
+        )
         .map((meeting) => meeting.id),
     );
 
@@ -5167,9 +5235,15 @@ export class EngagementService {
     return upsertReportTargetOverride(this.prisma, this.directory, ctx, input);
   }
 
-  clearReportTargetOfficeOverrides(ctx: TenantContext, input: {
-    clientId: string; officeKey: string; reportYear: number; field: ReportStatusField;
-  }) {
+  clearReportTargetOfficeOverrides(
+    ctx: TenantContext,
+    input: {
+      clientId: string;
+      officeKey: string;
+      reportYear: number;
+      field: ReportStatusField;
+    },
+  ) {
     return clearReportTargetOverride(this.prisma, ctx, input);
   }
 
@@ -5177,7 +5251,11 @@ export class EngagementService {
     return linkReportTarget(this.prisma, this.directory, ctx, input);
   }
 
-  updateReportTargetOffice(ctx: TenantContext, targetId: string, input: Partial<CreateReportTargetOfficeInput>) {
+  updateReportTargetOffice(
+    ctx: TenantContext,
+    targetId: string,
+    input: Partial<CreateReportTargetOfficeInput>,
+  ) {
     return updateReportTarget(this.prisma, ctx, targetId, input);
   }
 
@@ -5458,30 +5536,31 @@ export class EngagementService {
         const meetingAssociationWhere = effectiveClientId
           ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
           : null;
-        const recentMeetings = !currentMeetingPrepExecution() && meetingAssociationWhere
-          ? await tx.meeting.findMany({
-              where: {
-                AND: [
-                  {
-                    tenantId: ctx.tenantId,
-                    id: { not: meeting.id },
-                    ...ownMeetingWhere(ctx.userId),
-                  },
-                  meetingAssociationWhere,
-                ],
-              },
-              select: {
-                id: true,
-                subject: true,
-                startsAt: true,
-                endsAt: true,
-                location: true,
-                associationReason: true,
-              },
-              orderBy: { startsAt: 'desc' },
-              take: 5,
-            })
-          : [];
+        const recentMeetings =
+          !currentMeetingPrepExecution() && meetingAssociationWhere
+            ? await tx.meeting.findMany({
+                where: {
+                  AND: [
+                    {
+                      tenantId: ctx.tenantId,
+                      id: { not: meeting.id },
+                      ...ownMeetingWhere(ctx.userId),
+                    },
+                    meetingAssociationWhere,
+                  ],
+                },
+                select: {
+                  id: true,
+                  subject: true,
+                  startsAt: true,
+                  endsAt: true,
+                  location: true,
+                  associationReason: true,
+                },
+                orderBy: { startsAt: 'desc' },
+                take: 5,
+              })
+            : [];
 
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -5495,39 +5574,45 @@ export class EngagementService {
           );
         }
 
-        const recentThreads = !currentMeetingPrepExecution() && threadFilters.length
-          ? await tx.mailThread.findMany({
-              where: {
-                tenantId: ctx.tenantId,
-                ...ownMailThreadWhere(ctx.userId),
-                lastMessageAt: { gte: thirtyDaysAgo },
-                OR: threadFilters,
-              },
-              select: {
-                id: true,
-                subject: true,
-                snippet: true,
-                lastMessageAt: true,
-                status: true,
-                messages: {
-                  select: {
-                    fromEmail: true,
-                    fromName: true,
-                    subject: true,
-                    bodyText: true,
-                    sentAt: true,
-                  },
-                  orderBy: { sentAt: 'desc' },
-                  take: 3,
+        const recentThreads =
+          !currentMeetingPrepExecution() && threadFilters.length
+            ? await tx.mailThread.findMany({
+                where: {
+                  tenantId: ctx.tenantId,
+                  ...ownMailThreadWhere(ctx.userId),
+                  lastMessageAt: { gte: thirtyDaysAgo },
+                  OR: threadFilters,
                 },
-              },
-              orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-              take: 15,
-            })
-          : [];
+                select: {
+                  id: true,
+                  subject: true,
+                  snippet: true,
+                  lastMessageAt: true,
+                  status: true,
+                  messages: {
+                    select: {
+                      fromEmail: true,
+                      fromName: true,
+                      subject: true,
+                      bodyText: true,
+                      sentAt: true,
+                    },
+                    orderBy: { sentAt: 'desc' },
+                    take: 3,
+                  },
+                },
+                orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
+                take: 15,
+              })
+            : [];
 
-        return { meeting, client: effectiveClient, effectiveClientId, recentMeetings, recentThreads };
-    
+        return {
+          meeting,
+          client: effectiveClient,
+          effectiveClientId,
+          recentMeetings,
+          recentThreads,
+        };
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
@@ -5684,7 +5769,8 @@ export class EngagementService {
     // into a scoped campaign. Bodies remain access-filtered per item below.
     const ors: Prisma.MeetingDebriefWhereInput[] = [];
     if (clientId) ors.push({ meeting: { clientId } });
-    if (!clientId && emails.length) ors.push({ meeting: { attendees: { some: { email: { in: emails } } } } });
+    if (!clientId && emails.length)
+      ors.push({ meeting: { attendees: { some: { email: { in: emails } } } } });
     if (ors.length === 0) return [];
     const debriefs = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.meetingDebrief.findMany({
@@ -5884,10 +5970,16 @@ export class EngagementService {
       // re-sort newest-first here since that query had to order by meetingId.
       const readablePreps = [] as typeof preps;
       for (const prep of preps) {
-        const provenance = prep.generatedFrom as { briefing?: unknown; grounding?: { sources?: import('./meeting-prep-grounding.js').PrepEvidenceSource[] } } | null;
+        const provenance = prep.generatedFrom as {
+          briefing?: unknown;
+          grounding?: { sources?: import('./meeting-prep-grounding.js').PrepEvidenceSource[] };
+        } | null;
         if (provenance?.briefing) {
-          try { await assertSavedMeetingPrepAccess(tx, ctx, provenance); }
-          catch { continue; }
+          try {
+            await assertSavedMeetingPrepAccess(tx, ctx, provenance);
+          } catch {
+            continue;
+          }
         }
         readablePreps.push(prep);
       }
@@ -5961,7 +6053,9 @@ export class EngagementService {
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
       if (['cancelled', 'canceled'].includes(meeting.status.toLowerCase())) {
-        throw new BadRequestException('Prep cannot be generated for a cancelled meeting. Existing materials are still available.');
+        throw new BadRequestException(
+          'Prep cannot be generated for a cancelled meeting. Existing materials are still available.',
+        );
       }
     });
     // Keep the previous usable artifact until its replacement passes review.
@@ -6089,7 +6183,10 @@ export class EngagementService {
           where: {
             tenantId: ctx.tenantId,
             status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
-            OR: [{ meetingId: meeting.id }, ...(correctClientId ? [{ clientId: correctClientId }] : [])],
+            OR: [
+              { meetingId: meeting.id },
+              ...(correctClientId ? [{ clientId: correctClientId }] : []),
+            ],
           },
           select: {
             id: true,
@@ -6106,7 +6203,6 @@ export class EngagementService {
         });
 
         return { meeting, client, recentMeetings, recentThreads, tasks };
-    
       },
       { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
     );
@@ -6133,68 +6229,114 @@ export class EngagementService {
       steeringContext,
     };
     const governed = currentMeetingGovernedContext();
-    const promptHash = createHash('sha256').update(JSON.stringify(governed
-      ? { ...promptContext, steeringContext: governed.modelContextBlock, evidenceSources: governed.evidenceSources }
-      : promptContext)).digest('hex');
+    const promptHash = createHash('sha256')
+      .update(
+        JSON.stringify(
+          governed
+            ? {
+                ...promptContext,
+                steeringContext: governed.modelContextBlock,
+                evidenceSources: governed.evidenceSources,
+              }
+            : promptContext,
+        ),
+      )
+      .digest('hex');
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
     const generationPromptHash = generated.promptHash ?? promptHash;
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
-    const correctClientId = context.meeting.isInternal ? null : context.client?.id ?? context.meeting.clientId;
-    const created = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-      // Serialize with client reassignment while persisting an artifact generated
-      // outside the transaction. Never attach the old client's context to a new client.
-      await this.lockMeetingClientAssignment(tx, ctx, meetingId);
-      const current = await tx.meeting.findFirst({
-        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        select: { clientId: true, isInternal: true, status: true },
-      });
-      if (!current) throw new NotFoundException('Meeting not found');
-      if ((current.isInternal ? null : current.clientId) !== correctClientId) {
-        throw new BadRequestException('The meeting client changed while prep was generating. Generate again for the current client.');
-      }
-      if (['cancelled', 'canceled'].includes(current.status.toLowerCase())) {
-        throw new BadRequestException('This meeting was cancelled while prep was generating.');
-      }
-      if (generated.briefing) await assertSavedMeetingPrepAccess(tx, ctx, { briefing: generated.briefing, grounding: generated.grounding });
-      await tx.meetingPrep.updateMany({ where: { tenantId: ctx.tenantId, meetingId, status: { in: ['generated', 'edited'] } }, data: { status: 'stale' } });
-      const artifact = await tx.meetingPrep.create({
-        data: {
-          tenantId: ctx.tenantId,
-          meetingId,
-          clientId: correctClientId,
-          agenda: generated.agenda,
-          talkingPoints: generated.talkingPoints,
-          risks: generated.risks,
-          followUps: generated.followUps,
-          emailEvidence: generated.emailEvidence,
-          summary: generated.summary,
-          provider: generated.provider,
-          model: generated.model,
-          promptHash: generationPromptHash,
-          generatedFrom: {
-            promptHash: generationPromptHash,
+    const correctClientId = context.meeting.isInternal
+      ? null
+      : (context.client?.id ?? context.meeting.clientId);
+    const created = await this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      async (tx) => {
+        // Serialize with client reassignment while persisting an artifact generated
+        // outside the transaction. Never attach the old client's context to a new client.
+        await this.lockMeetingClientAssignment(tx, ctx, meetingId);
+        const current = await tx.meeting.findFirst({
+          where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+          select: { clientId: true, isInternal: true, status: true },
+        });
+        if (!current) throw new NotFoundException('Meeting not found');
+        if ((current.isInternal ? null : current.clientId) !== correctClientId) {
+          throw new BadRequestException(
+            'The meeting client changed while prep was generating. Generate again for the current client.',
+          );
+        }
+        if (['cancelled', 'canceled'].includes(current.status.toLowerCase())) {
+          throw new BadRequestException('This meeting was cancelled while prep was generating.');
+        }
+        if (generated.briefing)
+          await assertSavedMeetingPrepAccess(tx, ctx, {
+            briefing: generated.briefing,
+            grounding: generated.grounding,
+          });
+        await tx.meetingPrep.updateMany({
+          where: { tenantId: ctx.tenantId, meetingId, status: { in: ['generated', 'edited'] } },
+          data: { status: 'stale' },
+        });
+        const artifact = await tx.meetingPrep.create({
+          data: {
+            tenantId: ctx.tenantId,
             meetingId,
             clientId: correctClientId,
-            ...(governed ? { contextCoverage: JSON.parse(JSON.stringify(governed.coverage)), contextPacketId: governed.packetId, contextTraceHash: governed.traceHash } : {}),
-            ...(currentMeetingPrepExecution() ? { jobId: currentMeetingPrepExecution()!.jobId } : {}),
-            ...(generated.grounding ? { grounding: JSON.parse(JSON.stringify(generated.grounding)) as Prisma.InputJsonValue } : {}),
-            ...(generated.briefing ? { briefing: JSON.parse(JSON.stringify(generated.briefing)) as Prisma.InputJsonValue } : {}),
-            recentMeetings: context.recentMeetings.map((meeting) => meeting.id),
-            recentThreads: context.recentThreads.map((thread) => thread.id),
-            congressionalDirectoryContactIds: directoryProfiles.map(
-              (profile) => profile.directoryContactId,
-            ),
-            // Capture the timezone used for prep logistics so the UI and
-            // downstream consumers can detect preps generated with the bare-UTC
-            // fallback and offer to regenerate with the correct zone.
-            timeZone: (context.meeting as Record<string, unknown>).timeZone ?? null,
+            agenda: generated.agenda,
+            talkingPoints: generated.talkingPoints,
+            risks: generated.risks,
+            followUps: generated.followUps,
+            emailEvidence: generated.emailEvidence,
+            summary: generated.summary,
+            provider: generated.provider,
+            model: generated.model,
+            promptHash: generationPromptHash,
+            generatedFrom: {
+              promptHash: generationPromptHash,
+              meetingId,
+              clientId: correctClientId,
+              ...(governed
+                ? {
+                    contextCoverage: JSON.parse(JSON.stringify(governed.coverage)),
+                    contextPacketId: governed.packetId,
+                    contextTraceHash: governed.traceHash,
+                  }
+                : {}),
+              ...(currentMeetingPrepExecution()
+                ? { jobId: currentMeetingPrepExecution()!.jobId }
+                : {}),
+              ...(generated.grounding
+                ? {
+                    grounding: JSON.parse(
+                      JSON.stringify(generated.grounding),
+                    ) as Prisma.InputJsonValue,
+                  }
+                : {}),
+              ...(generated.briefing
+                ? {
+                    briefing: JSON.parse(
+                      JSON.stringify(generated.briefing),
+                    ) as Prisma.InputJsonValue,
+                  }
+                : {}),
+              recentMeetings: context.recentMeetings.map((meeting) => meeting.id),
+              recentThreads: context.recentThreads.map((thread) => thread.id),
+              congressionalDirectoryContactIds: directoryProfiles.map(
+                (profile) => profile.directoryContactId,
+              ),
+              // Capture the timezone used for prep logistics so the UI and
+              // downstream consumers can detect preps generated with the bare-UTC
+              // fallback and offer to regenerate with the correct zone.
+              timeZone: (context.meeting as Record<string, unknown>).timeZone ?? null,
+            },
           },
-        },
-      });
-      await currentMeetingPrepExecution()?.commit(tx, artifact.id);
-      return artifact;
-    }, currentMeetingPrepExecution() ? { timeoutMs: 15_000 } : undefined);
+        });
+        await currentMeetingPrepExecution()?.commit(tx, artifact.id);
+        return artifact;
+      },
+      currentMeetingPrepExecution() ? { timeoutMs: 15_000 } : undefined,
+    );
     if (this.qualityTelemetry) {
       await this.qualityTelemetry.recordEvent(
         buildMeetingPrepTelemetryEvent(
@@ -6217,8 +6359,12 @@ export class EngagementService {
       if (!prep) throw new NotFoundException('Meeting prep not found');
       await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
       await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-      const generatedFrom = prep.generatedFrom && typeof prep.generatedFrom === 'object' && !Array.isArray(prep.generatedFrom)
-        ? prep.generatedFrom : null;
+      const generatedFrom =
+        prep.generatedFrom &&
+        typeof prep.generatedFrom === 'object' &&
+        !Array.isArray(prep.generatedFrom)
+          ? prep.generatedFrom
+          : null;
       const grounding = generatedFrom?.grounding;
 
       return tx.meetingPrep.update({
@@ -6236,15 +6382,28 @@ export class EngagementService {
             : {}),
           status: MeetingPrepStatus.edited,
           editedByUserId: ctx.userId,
-          ...(generatedFrom && grounding && typeof grounding === 'object' && !Array.isArray(grounding)
-            ? { generatedFrom: { ...generatedFrom, grounding: { ...grounding, contentEdited: true } } as Prisma.InputJsonValue }
+          ...(generatedFrom &&
+          grounding &&
+          typeof grounding === 'object' &&
+          !Array.isArray(grounding)
+            ? {
+                generatedFrom: {
+                  ...generatedFrom,
+                  grounding: { ...grounding, contentEdited: true },
+                } as Prisma.InputJsonValue,
+              }
             : {}),
         },
       });
     });
     if (this.qualityTelemetry) {
       await this.qualityTelemetry.recordEvent(
-        buildMeetingPrepTelemetryEvent(ctx, { prepId, clientId: updated.clientId }, 'edited', new Date()),
+        buildMeetingPrepTelemetryEvent(
+          ctx,
+          { prepId, clientId: updated.clientId },
+          'edited',
+          new Date(),
+        ),
       );
     }
     return updated;
@@ -6270,7 +6429,12 @@ export class EngagementService {
     });
     if (this.qualityTelemetry) {
       await this.qualityTelemetry.recordEvent(
-        buildMeetingPrepTelemetryEvent(ctx, { prepId, clientId: approved.clientId }, 'approved', new Date()),
+        buildMeetingPrepTelemetryEvent(
+          ctx,
+          { prepId, clientId: approved.clientId },
+          'approved',
+          new Date(),
+        ),
       );
     }
     return approved;
@@ -6335,7 +6499,12 @@ export class EngagementService {
         });
         if (!existing) throw new NotFoundException('Meeting not found');
         await this.reassignMeetingClient(
-          tx, ctx, existing, null, true, input.reason ?? 'Meeting marked internal.',
+          tx,
+          ctx,
+          existing,
+          null,
+          true,
+          input.reason ?? 'Meeting marked internal.',
         );
         return tx.meeting.findFirst({
           where: { id: input.entityId, tenantId: ctx.tenantId },
@@ -6346,9 +6515,13 @@ export class EngagementService {
         throw new BadRequestException('clientId is required unless marking internal');
       }
       const clientId = input.clientId;
-      await ensureExists(tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId }, select: { id: true },
-      }), 'Client not found');
+      await ensureExists(
+        tx.client.findFirst({
+          where: { id: clientId, tenantId: ctx.tenantId },
+          select: { id: true },
+        }),
+        'Client not found',
+      );
 
       if (input.entityType === AssociationEntityType.meeting) {
         const existing = await tx.meeting.findFirst({
@@ -6360,9 +6533,16 @@ export class EngagementService {
         });
         if (!existing) throw new NotFoundException('Meeting not found');
         // Same transaction and child propagation as the meeting edit form.
-        attachmentIds.push(...await this.reassignMeetingClient(
-          tx, ctx, existing, clientId, false, input.reason ?? 'Manual association override.',
-        ));
+        attachmentIds.push(
+          ...(await this.reassignMeetingClient(
+            tx,
+            ctx,
+            existing,
+            clientId,
+            false,
+            input.reason ?? 'Manual association override.',
+          )),
+        );
         return tx.clientAssociationOverride.create({
           data: {
             tenantId: ctx.tenantId,
@@ -6874,7 +7054,8 @@ export class EngagementService {
     const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
         where: {
-          id, tenantId: ctx.tenantId,
+          id,
+          tenantId: ctx.tenantId,
           ...(options.clientId ? { clientId: options.clientId } : {}),
           supersededByAttachmentId: null,
           OR: [
@@ -6956,7 +7137,12 @@ export class EngagementService {
       if (options.section !== undefined && options.section !== 1) {
         throw new BadRequestException('Transcriptions have one text section');
       }
-      const text = await this.transcribeAttachmentWithOpenAi(bytes, fileName, contentType, options.signal);
+      const text = await this.transcribeAttachmentWithOpenAi(
+        bytes,
+        fileName,
+        contentType,
+        options.signal,
+      );
       options.signal?.throwIfAborted();
       if (!text.trim()) {
         throw new BadRequestException('No usable text could be extracted from this attachment');
@@ -6972,28 +7158,45 @@ export class EngagementService {
         source: 'transcription' as const,
         text,
         contentHash,
-        ...(options.section !== undefined ? {
-          section: 1, sectionCount: 1, sectionKind: 'document' as const, sectionLabel: 'Transcription',
-        } : {}),
+        ...(options.section !== undefined
+          ? {
+              section: 1,
+              sectionCount: 1,
+              sectionKind: 'document' as const,
+              sectionLabel: 'Transcription',
+            }
+          : {}),
         ...(disclosure ? { disclosure } : {}),
       };
     }
 
     if (options.section !== undefined) {
-      const extracted = await this.attachmentContent.extractSection(bytes, fileName, contentType, options.section, options.signal);
+      const extracted = await this.attachmentContent.extractSection(
+        bytes,
+        fileName,
+        contentType,
+        options.section,
+        options.signal,
+      );
       options.signal?.throwIfAborted();
       let text = extracted.text;
       let readability: DocumentReadability = {
         status: text.trim() ? 'text_readable' : 'no_readable_text',
-        method: 'text', scope: 'section', section: extracted.section,
-        sectionCount: extracted.sectionCount, chars: text.length,
+        method: 'text',
+        scope: 'section',
+        section: extracted.section,
+        sectionCount: extracted.sectionCount,
+        chars: text.length,
         note: 'Only this section has been read. Text extraction does not cover diagrams or images.',
       };
       if (extracted.source === 'pdf' && !text.trim()) {
         const visual = await this.attachmentPdfVision.read({
-          bytes, section: extracted.section, sectionCount: extracted.sectionCount,
+          bytes,
+          section: extracted.section,
+          sectionCount: extracted.sectionCount,
           cacheScope: `${ctx.tenantId}:${attachment.id}:${contentHash}`,
-          resolveCredential: () => this.documentAiCredentials?.resolveProvider(ctx, 'openai') ?? Promise.resolve(null),
+          resolveCredential: () =>
+            this.documentAiCredentials?.resolveProvider(ctx, 'openai') ?? Promise.resolve(null),
           signal: options.signal,
         });
         text = visual.text;
@@ -7001,15 +7204,31 @@ export class EngagementService {
       }
       const truncated = readability.status === 'ocr_partial';
       const extractionMetadata = {
-        chars: text.length, truncated, sectionRead: true,
-        emptySection: !text.trim(), section: extracted.section,
-        sectionCount: extracted.sectionCount, readability,
+        chars: text.length,
+        truncated,
+        sectionRead: true,
+        emptySection: !text.trim(),
+        section: extracted.section,
+        sectionCount: extracted.sectionCount,
+        readability,
       };
-      await this.recordExtractionOutcome(ctx, attachment.id,
-        !text.trim() ? 'empty' : truncated ? 'truncated' : 'extracted', extractionMetadata, true);
+      await this.recordExtractionOutcome(
+        ctx,
+        attachment.id,
+        !text.trim() ? 'empty' : truncated ? 'truncated' : 'extracted',
+        extractionMetadata,
+        true,
+      );
       return {
-        attachmentId: attachment.id, fileName, contentType, contentHash,
-        ...extracted, text, readability, truncated, extractionMetadata,
+        attachmentId: attachment.id,
+        fileName,
+        contentType,
+        contentHash,
+        ...extracted,
+        text,
+        readability,
+        truncated,
+        extractionMetadata,
         ...(disclosure ? { disclosure } : {}),
       };
     }
@@ -7073,26 +7292,34 @@ export class EngagementService {
         // A selected page says nothing about whole-document indexing. Retain
         // its last outcome separately so one blank page cannot erase a
         // successful text index (or falsely certify an unread whole file).
-        const previous = sectionOnly ? await tx.engagementAttachment.findFirst({
-          where: { id, tenantId: ctx.tenantId }, select: { extractionMetadata: true },
-        }) : null;
-        const previousMetadata = previous?.extractionMetadata &&
-          typeof previous.extractionMetadata === 'object' && !Array.isArray(previous.extractionMetadata)
-          ? previous.extractionMetadata : {};
+        const previous = sectionOnly
+          ? await tx.engagementAttachment.findFirst({
+              where: { id, tenantId: ctx.tenantId },
+              select: { extractionMetadata: true },
+            })
+          : null;
+        const previousMetadata =
+          previous?.extractionMetadata &&
+          typeof previous.extractionMetadata === 'object' &&
+          !Array.isArray(previous.extractionMetadata)
+            ? previous.extractionMetadata
+            : {};
         return tx.engagementAttachment.updateMany({
           where: { id, tenantId: ctx.tenantId },
-          data: sectionOnly ? {
-            extractionMetadata: {
-              ...previousMetadata,
-              lastSectionRead: { ...metadata, status, extractedAt: new Date().toISOString() },
-            } as unknown as Prisma.InputJsonValue,
-          } : {
-            extractionStatus: status,
-            extractionMetadata: {
-              ...metadata,
-              extractedAt: new Date().toISOString(),
-            } as unknown as Prisma.InputJsonValue,
-          },
+          data: sectionOnly
+            ? {
+                extractionMetadata: {
+                  ...previousMetadata,
+                  lastSectionRead: { ...metadata, status, extractedAt: new Date().toISOString() },
+                } as unknown as Prisma.InputJsonValue,
+              }
+            : {
+                extractionStatus: status,
+                extractionMetadata: {
+                  ...metadata,
+                  extractedAt: new Date().toISOString(),
+                } as unknown as Prisma.InputJsonValue,
+              },
         });
       })
       .catch((e) =>
@@ -7131,7 +7358,15 @@ export class EngagementService {
       untrustedUpload?: boolean;
       privateToUploader?: boolean;
     },
-  ): Promise<{ id: string; fileName: string; s3Key: string; lifecycleStatus?: string; scanStatus?: string | null; indexedAt?: Date | null; reused?: boolean }> {
+  ): Promise<{
+    id: string;
+    fileName: string;
+    s3Key: string;
+    lifecycleStatus?: string;
+    scanStatus?: string | null;
+    indexedAt?: Date | null;
+    reused?: boolean;
+  }> {
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
     if (!isAllowedAttachmentContentType(input.contentType)) {
       throw new BadRequestException(
@@ -7151,35 +7386,58 @@ export class EngagementService {
     // object key also cover concurrent calls and a retry after S3 succeeded but
     // the database write failed, without a second document store or migration.
     const digest = input.idempotencyKey
-      ? createHash('sha256').update(JSON.stringify([
-        'client-document-v1', ctx.tenantId, ctx.userId, input.clientId ?? null,
-        input.meetingId ?? null, input.idempotencyKey, input.contentType,
-        input.privateToUploader ?? false,
-        createHash('sha256').update(input.buffer).digest('hex'),
-      ])).digest('hex') : null;
+      ? createHash('sha256')
+          .update(
+            JSON.stringify([
+              'client-document-v1',
+              ctx.tenantId,
+              ctx.userId,
+              input.clientId ?? null,
+              input.meetingId ?? null,
+              input.idempotencyKey,
+              input.contentType,
+              input.privateToUploader ?? false,
+              createHash('sha256').update(input.buffer).digest('hex'),
+            ]),
+          )
+          .digest('hex')
+      : null;
     const stableId = digest
       ? `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`
       : null;
     if (stableId) {
       const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.engagementAttachment.findFirst({ where: {
-          id: stableId, tenantId: ctx.tenantId, uploadedByUserId: ctx.userId,
-          clientId: input.clientId ?? null,
-        } }),
+        tx.engagementAttachment.findFirst({
+          where: {
+            id: stableId,
+            tenantId: ctx.tenantId,
+            uploadedByUserId: ctx.userId,
+            clientId: input.clientId ?? null,
+          },
+        }),
       );
-      if (existing) return {
-        id: existing.id, fileName: existing.fileName, s3Key: existing.s3Key,
-        lifecycleStatus: existing.lifecycleStatus, scanStatus: existing.scanStatus,
-        indexedAt: existing.indexedAt, reused: true,
-      };
+      if (existing)
+        return {
+          id: existing.id,
+          fileName: existing.fileName,
+          s3Key: existing.s3Key,
+          lifecycleStatus: existing.lifecycleStatus,
+          scanStatus: existing.scanStatus,
+          indexedAt: existing.indexedAt,
+          reused: true,
+        };
     }
     const s3Key = stableId
       ? `tenants/${ctx.tenantId}/engagement/${stableId}/document`
       : `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
     const verifiedContentType = input.untrustedUpload
-      ? this.attachmentContent.detectContentType(input.buffer) : null;
-    if (input.untrustedUpload && verifiedContentType &&
-        this.attachmentContent.contentTypeConflicts(input.contentType, verifiedContentType)) {
+      ? this.attachmentContent.detectContentType(input.buffer)
+      : null;
+    if (
+      input.untrustedUpload &&
+      verifiedContentType &&
+      this.attachmentContent.contentTypeConflicts(input.contentType, verifiedContentType)
+    ) {
       throw new BadRequestException('The original file contents do not match its document type.');
     }
     await this.s3.send(
@@ -7191,12 +7449,15 @@ export class EngagementService {
       }),
     );
     const initialScan = input.untrustedUpload
-      ? await this.scanner.getStatus(this.bucket, s3Key) : null;
-    const scanReady = initialScan === 'clean' ||
+      ? await this.scanner.getStatus(this.bucket, s3Key)
+      : null;
+    const scanReady =
+      initialScan === 'clean' ||
       (initialScan === 'scanner_not_required' && !this.scanner.scanRequired);
-    const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
-      const data = {
+    const attachment = await this.prisma
+      .withTenant(ctx.tenantId, async (tx) => {
+        const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
+        const data = {
           ...(stableId ? { id: stableId } : {}),
           tenantId: ctx.tenantId,
           clientId,
@@ -7212,42 +7473,63 @@ export class EngagementService {
           sourceVersion: input.sourceVersion ?? null,
           sourceContentHash: input.sourceContentHash ?? null,
           uploadedByUserId: ctx.userId,
-          ...(input.privateToUploader ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] } : {}),
-          ...(input.untrustedUpload ? {
-            lifecycleStatus: scanReady ? 'ready' : initialScan === 'pending' ? 'quarantined' : 'blocked',
-            verifiedContentType,
-            calculatedSha256: this.attachmentContent.sha256(input.buffer),
-            scanProvider: this.scanner.providerName,
-            scanStatus: initialScan,
-            scanResultAt: initialScan === 'pending' ? null : new Date(),
-            extractionStatus: 'pending',
-          } : {}),
+          ...(input.privateToUploader
+            ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] }
+            : {}),
+          ...(input.untrustedUpload
+            ? {
+                lifecycleStatus: scanReady
+                  ? 'ready'
+                  : initialScan === 'pending'
+                    ? 'quarantined'
+                    : 'blocked',
+                verifiedContentType,
+                calculatedSha256: this.attachmentContent.sha256(input.buffer),
+                scanProvider: this.scanner.providerName,
+                scanStatus: initialScan,
+                scanResultAt: initialScan === 'pending' ? null : new Date(),
+                extractionStatus: 'pending',
+              }
+            : {}),
         };
-      return stableId
-        ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
-        : tx.engagementAttachment.create({ data });
-    }).catch(async (error: unknown) => {
-      // Prisma may emulate an upsert when tenant predicates are injected. The
-      // primary key still prevents duplicates; recover the concurrent winner
-      // after that transaction rolled back instead of reporting a false failure.
-      if (stableId && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        const winner = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.engagementAttachment.findFirst({ where: {
-            id: stableId, tenantId: ctx.tenantId, clientId: input.clientId ?? null,
-            uploadedByUserId: ctx.userId,
-          } }),
-        );
-        if (winner) return winner;
-      }
-      throw error;
-    });
+        return stableId
+          ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+          : tx.engagementAttachment.create({ data });
+      })
+      .catch(async (error: unknown) => {
+        // Prisma may emulate an upsert when tenant predicates are injected. The
+        // primary key still prevents duplicates; recover the concurrent winner
+        // after that transaction rolled back instead of reporting a false failure.
+        if (
+          stableId &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          const winner = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+            tx.engagementAttachment.findFirst({
+              where: {
+                id: stableId,
+                tenantId: ctx.tenantId,
+                clientId: input.clientId ?? null,
+                uploadedByUserId: ctx.userId,
+              },
+            }),
+          );
+          if (winner) return winner;
+        }
+        throw error;
+      });
     if (attachment.clientId && !input.privateToUploader && (!input.untrustedUpload || scanReady)) {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
     }
     return {
-      id: attachment.id, fileName: attachment.fileName, s3Key: attachment.s3Key,
-      lifecycleStatus: attachment.lifecycleStatus, scanStatus: attachment.scanStatus,
-      indexedAt: attachment.indexedAt, reused: false,
+      id: attachment.id,
+      fileName: attachment.fileName,
+      s3Key: attachment.s3Key,
+      lifecycleStatus: attachment.lifecycleStatus,
+      scanStatus: attachment.scanStatus,
+      indexedAt: attachment.indexedAt,
+      reused: false,
     };
   }
 
@@ -7651,7 +7933,9 @@ export class EngagementService {
   async readAttachmentBytes(s3Key: string, signal?: AbortSignal): Promise<Buffer> {
     signal?.throwIfAborted();
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
-    const object = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), { abortSignal: signal });
+    const object = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), {
+      abortSignal: signal,
+    });
     const body = object.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
     if (!body?.transformToByteArray) {
       throw new BadRequestException('Could not read uploaded attachment from S3');
@@ -7778,14 +8062,18 @@ export class EngagementService {
         clientId: null,
         isInternal: false,
         AND: [
-          { OR: [
-            { associationSignals: { path: ['manual'], equals: Prisma.AnyNull } },
-            { associationSignals: { path: ['manual'], equals: false } },
-          ] },
-          { OR: [
-            { organizerEmail: { in: emails } },
-            { attendees: { some: { email: { in: emails } } } },
-          ] },
+          {
+            OR: [
+              { associationSignals: { path: ['manual'], equals: Prisma.AnyNull } },
+              { associationSignals: { path: ['manual'], equals: false } },
+            ],
+          },
+          {
+            OR: [
+              { organizerEmail: { in: emails } },
+              { attendees: { some: { email: { in: emails } } } },
+            ],
+          },
         ],
       });
     }
@@ -7862,7 +8150,12 @@ export class EngagementService {
     // another client and save that second attribution on the prep/debrief.
     if (meeting.clientId) return meeting.clientId;
     const signals = meeting.associationSignals;
-    if (signals && typeof signals === 'object' && !Array.isArray(signals) && signals.manual === true) {
+    if (
+      signals &&
+      typeof signals === 'object' &&
+      !Array.isArray(signals) &&
+      signals.manual === true
+    ) {
       return null;
     }
     const attendeeEmails = meeting.attendees
@@ -8125,7 +8418,9 @@ export class EngagementService {
     const providerSlug = sendProviderSlug(connection.provider);
     const now = new Date();
     const participants = [
-      signature.senderEmail ? { email: signature.senderEmail, name: signature.senderFirstName, role: 'from' } : null,
+      signature.senderEmail
+        ? { email: signature.senderEmail, name: signature.senderFirstName, role: 'from' }
+        : null,
       ...input.to.map((r) => ({ email: r.email, name: r.name ?? null, role: 'to' })),
       ...(input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'cc' })),
       ...(input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'bcc' })),
@@ -8207,7 +8502,11 @@ export class EngagementService {
       const thread = input.threadId
         ? await (async () => {
             const existing = await tx.mailThread.findFirst({
-              where: { id: input.threadId, tenantId: ctx.tenantId, ...ownMailThreadWhere(ctx.userId) },
+              where: {
+                id: input.threadId,
+                tenantId: ctx.tenantId,
+                ...ownMailThreadWhere(ctx.userId),
+              },
               select: { id: true },
             });
             if (!existing) throw new NotFoundException('Mail thread not found');
@@ -8253,9 +8552,18 @@ export class EngagementService {
         subject: input.subject,
         fromEmail: signature.senderEmail,
         fromName: signature.senderFirstName,
-        toRecipients: input.to.map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
-        ccRecipients: (input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
-        bccRecipients: (input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null })) as unknown as Prisma.InputJsonValue,
+        toRecipients: input.to.map((r) => ({
+          email: r.email,
+          name: r.name ?? null,
+        })) as unknown as Prisma.InputJsonValue,
+        ccRecipients: (input.cc ?? []).map((r) => ({
+          email: r.email,
+          name: r.name ?? null,
+        })) as unknown as Prisma.InputJsonValue,
+        bccRecipients: (input.bcc ?? []).map((r) => ({
+          email: r.email,
+          name: r.name ?? null,
+        })) as unknown as Prisma.InputJsonValue,
         sentAt: now,
         bodyText: snippetFromHtml(body.content, 20_000),
         // The one fact about this message the mailbox cannot tell us any better
@@ -8287,7 +8595,9 @@ export class EngagementService {
       // field in `messageData` is a column the provider sync owns, so
       // `hasAttachments` is the only thing left worth asserting here.
       const message = await tx.mailMessage.upsert({
-        where: { tenantId_source_externalId: { tenantId: ctx.tenantId, source: messageSource, externalId } },
+        where: {
+          tenantId_source_externalId: { tenantId: ctx.tenantId, source: messageSource, externalId },
+        },
         create: { tenantId: ctx.tenantId, source: messageSource, externalId, ...messageData },
         update: sentWithAttachments ? { hasAttachments: true } : {},
       });
@@ -9481,7 +9791,8 @@ export class EngagementService {
       recipientEmail: firstRecipient?.email ?? null,
       objective: customContext ?? 'Draft the campaign follow-up email.',
     });
-    const campaignContext = [customContext, governed.promptBlock].filter(Boolean).join('\n\n') || null;
+    const campaignContext =
+      [customContext, governed.promptBlock].filter(Boolean).join('\n\n') || null;
 
     const result = await this.ai.generateCampaignEmail(
       {
@@ -10029,7 +10340,8 @@ function normalizeReportPeriod(value?: string): ReportPeriod {
 }
 
 function reportPeriodWindow(period: ReportPeriod) {
-  if (period === 'all') return { period, label: 'All time', from: null, to: null, reportYear: null };
+  if (period === 'all')
+    return { period, label: 'All time', from: null, to: null, reportYear: null };
 
   const now = new Date();
   const year = now.getUTCFullYear() + (period === 'previous' ? -1 : 0);

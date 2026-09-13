@@ -78,6 +78,7 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=4096
       DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
+      LEGIWATCH_PHASE5_TEST_DATABASE: disposable
     services:
       folder-postgres:
         image: pgvector/pgvector:pg16
@@ -373,4 +374,17 @@ jobs:
         with:
           name: legiwatch-phase4-qualification
           path: work/phase4-qualification/*.json
+          if-no-files-found: warn
+
+      - name: Phase 5 source revisions, private briefs and delivery qualification
+        env:
+          CAPIRO_SOURCE_SHA: ${{ github.sha }}
+        run: node scripts/legiwatch-phase5-qualification.mjs
+
+      - name: Preserve Phase 5 qualification results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legiwatch-phase5-qualification
+          path: work/phase5-qualification/*.json
           if-no-files-found: warn

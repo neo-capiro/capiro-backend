@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
-import {observeStateRecord} from './published-record-observations.js';
+import { observeStateRecord } from './published-record-observations.js';
 import type {
   LegiscanBillVoteStub,
   LegiscanRollCall,
@@ -198,7 +198,7 @@ export async function persistVoteRevision(
       providerBillHash: observation.providerBillHash ?? null,
       lastSyncedAt: observation.observedAt ?? new Date(),
     };
-    await observeStateRecord(tx,billKey,'vote',id,revisionHash);
+    await observeStateRecord(tx, billKey, 'vote', id, revisionHash);
     await tx.stateRollCallVote.upsert({ where: { id }, create: { id, ...data }, update: data });
     // Preserve canonical member-row IDs and directory crosswalks when positions change.
     for (const m of evidence.members)

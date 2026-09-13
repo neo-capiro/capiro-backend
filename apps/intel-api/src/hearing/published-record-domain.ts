@@ -188,8 +188,16 @@ export function assessRecordClaim(
       ...base,
       rationale: 'Subject, body, motion, date or the requested source field remains unresolved.',
     };
-  if (p.field === 'adopted' && p.expected === true && exact.some((r) => r.evidence.adopted === false))
-    return { ...base, rationale: 'Not marked adopted is not rejection or proof of non-adoption. A qualified disposition record is required.' };
+  if (
+    p.field === 'adopted' &&
+    p.expected === true &&
+    exact.some((r) => r.evidence.adopted === false)
+  )
+    return {
+      ...base,
+      rationale:
+        'Not marked adopted is not rejection or proof of non-adoption. A qualified disposition record is required.',
+    };
   const values = new Set(exact.map((r) => JSON.stringify(r.evidence[p.field])));
   if (values.size > 1)
     return {

@@ -36,13 +36,26 @@ export class HearingRecordRetrievalController {
       if (!body.clientId || brief.payload.clientId !== body.clientId)
         throw new BadRequestException('EXACT_AUTHORIZED_CLIENT_REQUIRED');
       if (body.view === 'document-access') {
-        if (body.asOf || !brief.current || !brief.approvedAt || brief.contentHash !== body.contentHash)
+        if (
+          body.asOf ||
+          !brief.current ||
+          !brief.approvedAt ||
+          brief.contentHash !== body.contentHash
+        )
           throw new BadRequestException('CURRENT_REVIEWED_BRIEF_REQUIRED');
         if (body.purpose === 'distribute')
           await this.records.approvedDocument(ctx, eventId, id, brief.contentHash);
-        else if (body.purpose !== 'read') throw new BadRequestException('DOCUMENT_PURPOSE_REQUIRED');
-        return { kind: 'capiro_record_document_access', tenantId: ctx.tenantId, eventId, id,
-          clientId: brief.payload.clientId, contentHash: brief.contentHash, sourceHash: brief.payload.sourceHash };
+        else if (body.purpose !== 'read')
+          throw new BadRequestException('DOCUMENT_PURPOSE_REQUIRED');
+        return {
+          kind: 'capiro_record_document_access',
+          tenantId: ctx.tenantId,
+          eventId,
+          id,
+          clientId: brief.payload.clientId,
+          contentHash: brief.contentHash,
+          sourceHash: brief.payload.sourceHash,
+        };
       }
       if (body.asOf) {
         if (!Number.isFinite(Date.parse(String(body.asOf))))

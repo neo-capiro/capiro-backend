@@ -181,20 +181,18 @@ export class HearingRecordDeliveryService {
       }),
     );
     return {
-      items: rows
-        .slice(0, 50)
-        .map((r) => ({
-          id: r.id,
-          deliveryId: r.deliveryId,
-          channel: r.channel,
-          state: r.state,
-          name: String(object(r.recipient).name ?? 'Recipient'),
-          destination:
-            r.channel === 'sms'
-              ? '••• ' + String(object(r.recipient).phone ?? '').slice(-4)
-              : String(object(r.recipient).email ?? ''),
-          error: r.error,
-        })),
+      items: rows.slice(0, 50).map((r) => ({
+        id: r.id,
+        deliveryId: r.deliveryId,
+        channel: r.channel,
+        state: r.state,
+        name: String(object(r.recipient).name ?? 'Recipient'),
+        destination:
+          r.channel === 'sms'
+            ? '••• ' + String(object(r.recipient).phone ?? '').slice(-4)
+            : String(object(r.recipient).email ?? ''),
+        error: r.error,
+      })),
       next: rows.length > 50 ? offset + 50 : null,
     };
   }
