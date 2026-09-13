@@ -14,7 +14,7 @@ import {
   RecordingPolicyDto,
 } from './dto/session.dto.js';
 
-const CAPTURE_LEASE_STALE_MS = Number.parseInt(
+export const CAPTURE_LEASE_STALE_MS = Number.parseInt(
   process.env.HEARING_CAPTURE_LEASE_STALE_MS ?? '90000',
   10,
 );
@@ -207,6 +207,7 @@ export class HearingSessionService {
         where: {
           id: sessionId,
           tenantId,
+          AND: [{ OR: [{ publicCaptureId: null }, { createdBy: userId }] }],
           OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
         },
       }),
@@ -221,6 +222,7 @@ export class HearingSessionService {
       tx.liveHearingSession.findMany({
         where: {
           tenantId,
+          publicCaptureId: null,
           OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
         },
         orderBy: { createdAt: 'desc' },
@@ -237,6 +239,7 @@ export class HearingSessionService {
     const limit = Math.min(Math.max(Math.floor(opts?.limit ?? 50), 1), 100);
     const cursor = decodeHistoryCursor(opts?.cursor);
     const visibility = {
+      publicCaptureId: null,
       OR: [{ sourceType: { in: [...PUBLIC_SOURCE_TYPES] } }, { createdBy: userId }],
     };
     const where = {
@@ -340,10 +343,33 @@ export class HearingSessionService {
     const session = userId
       ? await this.getAccessible(tenantId, sessionId, userId)
       : await this.getOwned(tenantId, sessionId);
+    if (session.publicCaptureId)
+      throw new ForbiddenException('CANONICAL_REVIEW_CONTEXT_CANNOT_CAPTURE');
     if (session.consentStatus === 'needs_review') {
       throw new ForbiddenException(
         'Consent required before recording (consent_status=needs_review)',
       );
+    }
+    if (session.hearingId) {
+      const state = await this.prisma.$queryRaw<
+        Array<{ id: string }>
+      >`SELECT id FROM committee_hearing
+        WHERE id=${session.hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
+      if (state.length) {
+        const grants = await this.prisma.withTenant(
+          tenantId,
+          (tx) => tx.$queryRaw<Array<{ id: string }>>`
+          SELECT p.id FROM intel_hearing_media_permission p
+          JOIN committee_hearing h ON h.id=p.hearing_id AND h.url=p.source_url AND h.visibility='public'
+          JOIN intel_feature_flag f ON f.tenant_id=p.tenant_id AND f.feature='legiwatch_hearing_recording_v1' AND f.enabled
+          WHERE p.tenant_id=${tenantId} AND p.hearing_id=${session.hearingId} AND p.source_url=${session.sourceUrl ?? ''}
+            AND p.mode='browser' AND p.revoked_at IS NULL AND p.expires_at>clock_timestamp()
+            AND p.operations @> ARRAY['capture','transcription']::text[]
+            AND h.event_status NOT IN ('canceled','cancelled')`,
+        );
+        if (!grants.length)
+          throw new ForbiddenException('STATE_BROWSER_CAPTURE_PERMISSION_REQUIRED');
+      }
     }
     return session;
   }
@@ -376,7 +402,7 @@ export class HearingSessionService {
     return row ? { startedAt: row.started_at } : null;
   }
 
-  /** Promote the owned preparation lease to live on the first audio frame. */
+  /** Promote the owned lease; retries of the first unsaved frame are idempotent. */
   async activateCapture(
     tenantId: string,
     sessionId: string,
@@ -390,7 +416,7 @@ export class HearingSessionService {
         SET status = 'live', updated_at = now()
         WHERE id = ${sessionId}
           AND tenant_id = ${tenantId}
-          AND status = 'paused'
+          AND status IN ('paused', 'live')
           AND started_at = ${claimStartedAt}
         RETURNING id
       `,
@@ -404,6 +430,7 @@ export class HearingSessionService {
     sessionId: string,
     claimStartedAt: Date,
   ): Promise<boolean> {
+    await this.assertCaptureAllowed(tenantId, sessionId);
     const rows = await this.prisma.withTenant(
       tenantId,
       (tx) =>

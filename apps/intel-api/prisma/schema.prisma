@@ -231,6 +231,7 @@ model LegiWatchReportContact {
   ownerClerkId String @map("owner_clerk_id")
   name String
   email String?
+  phone String?
   verified Boolean @default(false)
   active Boolean @default(true)
   optedOut Boolean @default(false) @map("opted_out")
@@ -774,6 +775,11 @@ model IntelSmsVerification {
   clientId  String?  @map("client_id")
   phone     String //                  E.164
   codeHash  String   @map("code_hash") // SHA-256 of `code:phone`
+  purpose String @default("legacy_unbound")
+  contactId String? @map("contact_id")
+  providerAccepted Boolean @default(false) @map("provider_accepted")
+  confirmedAt DateTime? @map("confirmed_at")
+  consentVersion String? @map("consent_version")
   expiresAt DateTime @map("expires_at")
   consumed  Boolean  @default(false)
   attempts  Int      @default(0)
@@ -782,6 +788,23 @@ model IntelSmsVerification {
   @@index([tenantId, userId, phone])
   @@index([tenantId, clientId])
   @@map("intel_sms_verification")
+}
+
+/// Explicit opt-in is scoped to one person, client, purpose and destination.
+model HearingSmsConsent {
+  id String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  userId String @map("user_id")
+  clientId String @map("client_id")
+  phone String
+  purpose String @default("hearing_updates")
+  contactId String? @map("contact_id")
+  verificationId String @unique @map("verification_id")
+  consentVersion String @map("consent_version")
+  consentedAt DateTime @default(now()) @map("consented_at")
+  revokedAt DateTime? @map("revoked_at")
+  @@unique([tenantId,userId,clientId,phone,purpose])
+  @@map("intel_hearing_sms_consent")
 }
 
 /// Single-use, short-TTL ticket authorizing exactly ONE WebSocket upgrade to
@@ -1000,6 +1023,8 @@ model LiveHearingSession {
   matterId           String?                @map("matter_id")
   issueIds           String[]               @map("issue_ids")
   hearingId          String?                @map("hearing_id")
+  // Review context for an existing canonical capture; never owns another recorder.
+  publicCaptureId    String?                @map("public_capture_id")
   committeeId        String?                @map("committee_id")
   billIds            String[]               @map("bill_ids")
   programElementIds  String[]               @map("program_element_ids")
@@ -1035,10 +1060,124 @@ model LiveHearingSession {
   actionItems        LiveActionItem[]
   entityMentions     EntityMention[]
   summaryCards       LiveSummaryCard[]
+  recordings         HearingRecording[]
 
+  @@unique([tenantId, id])
+  @@unique([tenantId, createdBy, publicCaptureId])
   @@index([tenantId, status])
   @@index([tenantId, clientId])
   @@map("intel_live_hearing_session")
+}
+
+// Phase 4 source-specific grants are operator-reviewed capability evidence.
+// Creating/following a calendar event never creates a grant or capture demand.
+model HearingMediaPermission {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  sourceUrl String @map("source_url")
+  hearingId String? @map("hearing_id")
+  mode String @default("browser")
+  operations String[]
+  evidence String
+  reviewedBy String @map("reviewed_by")
+  reviewedAt DateTime @default(now()) @map("reviewed_at")
+  expiresAt DateTime @map("expires_at")
+  retentionDays Int @map("retention_days")
+  revokedAt DateTime? @map("revoked_at")
+  @@unique([tenantId, id])
+  @@index([tenantId, sourceUrl, mode])
+  @@map("intel_hearing_media_permission")
+}
+
+model HearingRecording {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  sessionId String @map("session_id")
+  permissionId String @map("permission_id")
+  permissionSnapshot Json @map("permission_snapshot")
+  originAt DateTime @map("origin_at")
+  expiresAt DateTime @map("expires_at")
+  state String @default("recording")
+  transcriptState String @default("streaming") @map("transcript_state")
+  analysisState String @default("pending") @map("analysis_state")
+  finalizedAt DateTime? @map("finalized_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  session LiveHearingSession @relation(fields: [tenantId, sessionId], references: [tenantId, id], onDelete: Restrict)
+  epochs HearingRecordingEpoch[]
+  @@unique([tenantId, id])
+  @@unique([tenantId, sessionId])
+  @@index([expiresAt, state])
+  @@map("intel_hearing_recording")
+}
+
+model HearingRecordingEpoch {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  recordingId String @map("recording_id")
+  captureToken DateTime @map("capture_token")
+  mimeType String @map("mime_type")
+  startMs Int @map("start_ms")
+  durableEndMs Int @default(0) @map("durable_end_ms")
+  durableSequence Int @default(-1) @map("durable_sequence")
+  durableBytes BigInt @default(0) @map("durable_bytes")
+  expectedFinalSequence Int? @map("expected_final_sequence")
+  transcriptState String @default("streaming") @map("transcript_state")
+  transcriptRecoveryState String @default("none") @map("transcript_recovery_state")
+  complete Boolean @default(false)
+  state String @default("recording")
+  reason String?
+  artifactKey String? @map("artifact_key")
+  artifactHash String? @map("artifact_hash")
+  artifactBytes BigInt? @map("artifact_bytes")
+  decodedDurationMs Int? @map("decoded_duration_ms")
+  assemblyToken String? @map("assembly_token")
+  assemblyLeaseUntil DateTime? @map("assembly_lease_until")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  recording HearingRecording @relation(fields: [tenantId, recordingId], references: [tenantId, id], onDelete: Restrict)
+  parts HearingRecordingPart[]
+  @@unique([tenantId, id])
+  @@unique([tenantId, recordingId, captureToken])
+  @@index([state, assemblyLeaseUntil])
+  @@map("intel_hearing_recording_epoch")
+}
+
+model HearingRecordingPart {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  epochId String @map("epoch_id")
+  sequence Int
+  endMs Int @map("end_ms")
+  sha256 String
+  byteLength Int @map("byte_length")
+  objectKey String @map("object_key")
+  createdAt DateTime @default(now()) @map("created_at")
+  epoch HearingRecordingEpoch @relation(fields: [tenantId, epochId], references: [tenantId, id], onDelete: Restrict)
+  @@unique([tenantId, epochId, sequence])
+  @@map("intel_hearing_recording_part")
+}
+
+// Unofficial evidence publications. Every edit creates another immutable version.
+model HearingPublication {
+  id             String @id @default(uuid())
+  tenantId       String @map("tenant_id")
+  sessionId      String @map("session_id")
+  ownerClerkId   String @map("owner_clerk_id")
+  seriesId       String @map("series_id")
+  version        Int
+  kind           String
+  status         String @default("draft")
+  supersedesId   String? @map("supersedes_id")
+  contentHash    String @map("content_hash")
+  payload        Json
+  createdAt      DateTime @default(now()) @map("created_at")
+  approvedAt     DateTime? @map("approved_at")
+  approvedBy     String? @map("approved_by")
+  @@unique([tenantId, id])
+  @@unique([tenantId, seriesId, version])
+  @@index([tenantId, sessionId, createdAt])
+  @@map("intel_hearing_publication")
 }
 
 // --- transcript segment -----------------------------------------------------
@@ -1068,6 +1207,12 @@ model TranscriptSegment {
   textPlain            String?  @map("text_plain")
   clientRelevanceScore Float?   @map("client_relevance_score")
   issueTags            String[] @map("issue_tags")
+  analysisState        String   @default("untracked") @map("analysis_state")
+  analysisActor        String?  @map("analysis_actor")
+  analysisToken        String?  @map("analysis_token")
+  analysisLeaseUntil   DateTime? @map("analysis_lease_until")
+  analysisAttempts     Int      @default(0) @map("analysis_attempts")
+  analysisNextAttempt  DateTime? @map("analysis_next_attempt")
   createdAt            DateTime @default(now()) @map("created_at")
 
   session   LiveHearingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

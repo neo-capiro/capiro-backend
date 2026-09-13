@@ -25,6 +25,39 @@ function segment(text: string) {
 }
 
 describe('deterministic public hearing extraction', () => {
+  it('keeps Florida HB/SB distinct and resolves only supplied qualified canonical identities', () => {
+    const text = 'We recommend HB 123, SB 123, and H.R. 123.';
+    const state = {
+      ...context,
+      geographicJurisdiction: 'FL',
+      legislativeSession: '2026',
+      resolvedBills: [
+        { id: 'FL:2026:HB123', number: 'HB123' },
+        { id: 'FL:2026:SB123', number: 'SB123' },
+      ],
+    };
+    const bills = extractDeterministicPublicHearingInsights({
+      segment: segment(text),
+      context: state,
+    }).filter((item) => item.insightType === 'BILL_REFERENCE');
+    expect(bills.map((item) => item.entities?.[0]?.canonicalId)).toEqual([
+      'FL:2026:HB123',
+      'FL:2026:SB123',
+    ]);
+    const ambiguous = extractDeterministicPublicHearingInsights({
+      segment: segment(text),
+      context: {
+        ...state,
+        resolvedBills: [...state.resolvedBills, { id: 'conflicting-HB', number: 'HB123' }],
+      },
+    }).filter((item) => item.insightType === 'BILL_REFERENCE');
+    expect(ambiguous[0]?.entities?.[0]?.canonicalId).toBeUndefined();
+    const unknownSession = extractDeterministicPublicHearingInsights({
+      segment: segment(text),
+      context: { ...state, legislativeSession: null },
+    }).filter((item) => item.insightType === 'BILL_REFERENCE');
+    expect(unknownSession.every((item) => !item.entities?.[0]?.canonicalId)).toBe(true);
+  });
   it('extracts public questions, commitments, deadlines, funding, bills, PEs, and agencies', () => {
     const insights = extractDeterministicPublicHearingInsights({
       context,

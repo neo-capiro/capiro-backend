@@ -98,6 +98,14 @@ case "${1:-serve}" in
     shift
     exec node dist/hearing/capture/public-capture-task-runner.js preflight "$@"
     ;;
+  hearing-media)
+    shift
+    exec node dist/hearing/recording/run-hearing-media.js "$@"
+    ;;
+  hearing-delivery)
+    shift
+    exec node dist/hearing/run-hearing-delivery.js "$@"
+    ;;
   public-capture-worker)
     shift
     exec node dist/hearing/capture/public-capture-task-runner.js worker "$@"

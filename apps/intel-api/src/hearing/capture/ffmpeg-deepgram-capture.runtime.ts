@@ -8,6 +8,7 @@ import {
 } from './ffmpeg-audio-command.js';
 import type { CaptureGap, CaptureLease } from './public-hearing-capture-state.js';
 import type { PublicCaptureRuntimePort } from './public-capture.orchestrator.js';
+import type { PublicAudioAttempt, PublicAudioSinkPort } from './public-hearing-audio.store.js';
 import {
   ServerDeepgramStreamManager,
   type ServerDeepgramStreamCallbacks,
@@ -67,6 +68,7 @@ function captureRuntimeFailure(
 }
 
 export interface FfmpegDeepgramCaptureRuntimeOptions {
+  audioSink?: PublicAudioSinkPort;
   sampleRate?: number;
   channels?: number;
   deepgram?: Omit<ServerDeepgramStreamOptions, 'sampleRate' | 'channels' | 'initialTimelineMs'>;
@@ -156,6 +158,15 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
     let writeChain = Promise.resolve();
     let stderr = '';
     let stopped = false;
+    let audioAttempt: PublicAudioAttempt | undefined;
+    let audioChain = Promise.resolve(),
+      audioBuffer = Buffer.alloc(0);
+    let transcriptionFailedAt: number | undefined;
+    const cursor = () =>
+      audioAttempt
+        ? audioAttempt.startMs +
+          Math.floor((audioAttempt.pcmBytes / (this.sampleRate * this.channels * 2)) * 1000)
+        : transcriber.timelineCursorMs;
 
     const enqueueCriticalWrite = (operation: () => Promise<void>) => {
       writeChain = writeChain.then(operation).catch((error: unknown) => {
@@ -204,17 +215,46 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
       },
       onError: (error) => {
         transcriptionError = error;
-        stopProcess(process, this.terminationGraceMs);
+        transcriptionFailedAt ??= audioAttempt ? cursor() : input.timelineOffsetMs;
+        if (audioAttempt)
+          void this.options.audioSink
+            ?.markTranscriptPartial?.(audioAttempt)
+            .catch(() =>
+              this.logger.warn(
+                `public transcript health checkpoint delayed capture=${input.captureId}`,
+              ),
+            );
+        if (!audioAttempt) stopProcess(process, this.terminationGraceMs);
       },
     };
 
+    if (this.options.audioSink)
+      audioAttempt = await this.options.audioSink.begin({
+        ...input,
+        sampleRate: this.sampleRate,
+        channels: this.channels,
+      });
     const transcriber = this.createTranscriber(callbacks, {
       ...(this.options.deepgram ?? {}),
       sampleRate: this.sampleRate,
       channels: this.channels,
-      initialTimelineMs: Math.floor(input.timelineOffsetMs),
+      initialTimelineMs: Math.floor(audioAttempt?.startMs ?? input.timelineOffsetMs),
     });
     try {
+      if (audioAttempt && audioAttempt.startMs > input.timelineOffsetMs) {
+        const gap: CaptureGap = {
+          startMs: input.timelineOffsetMs,
+          endMs: audioAttempt.startMs,
+          reason: 'WORKER_RESTART',
+        };
+        gaps.push(gap);
+        await this.sink.appendGap({
+          captureId: input.captureId,
+          hearingId: input.hearingId,
+          lease: input.lease,
+          gap,
+        });
+      }
       transcriber.start();
       process = this.processFactory.spawn(command);
       const abortListener = () => {
@@ -225,9 +265,34 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
       try {
         await new Promise<void>((resolve, reject) => {
           process!.stdout.on('data', (chunk: Buffer | Uint8Array | string) => {
-            if (stopped || transcriptionError || sinkError) return;
+            if (stopped || (transcriptionError && !audioAttempt) || sinkError) return;
             const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
             if (bytes.byteLength === 0) return;
+            if (audioAttempt) {
+              process!.stdout.pause();
+              audioChain = audioChain
+                .then(async () => {
+                  audioBuffer = Buffer.concat([audioBuffer, bytes]);
+                  const partSize = this.sampleRate * this.channels * 2 * 5;
+                  while (audioBuffer.length >= partSize) {
+                    const part = audioBuffer.subarray(0, partSize);
+                    audioBuffer = audioBuffer.subarray(partSize);
+                    await this.options.audioSink!.append(audioAttempt!, part, input.signal);
+                    if (!transcriptionError && !transcriber.sendAudio(part)) {
+                      transcriptionError = new Error('Server transcription rejected saved audio');
+                      transcriptionFailedAt ??= cursor() - 5000;
+                    }
+                  }
+                })
+                .catch((error) => {
+                  sinkError = error instanceof Error ? error : new Error(String(error));
+                  stopProcess(process, this.terminationGraceMs);
+                })
+                .finally(() => {
+                  if (!process!.stdout.destroyed) process!.stdout.resume();
+                });
+              return;
+            }
             if (!transcriber.sendAudio(bytes)) {
               transcriptionError ??= new Error('Server transcription rejected PCM audio');
               stopProcess(process, this.terminationGraceMs);
@@ -244,7 +309,7 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
               reject(abortError(input.signal.reason));
               return;
             }
-            if (transcriptionError) {
+            if (transcriptionError && !audioAttempt) {
               reject(transcriptionError);
               return;
             }
@@ -270,25 +335,54 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
         input.signal.removeEventListener('abort', abortListener);
       }
 
+      await audioChain;
+      if (audioAttempt && audioBuffer.length && !sinkError) {
+        await this.options.audioSink!.append(audioAttempt, audioBuffer, input.signal);
+        if (!transcriptionError && !transcriber.sendAudio(audioBuffer)) {
+          transcriptionError = new Error('Server transcription rejected final saved audio');
+          transcriptionFailedAt ??= cursor();
+        }
+        audioBuffer = Buffer.alloc(0);
+      }
       await transcriber.stopAndWait(35_000);
       await writeChain;
-      if (transcriptionError) {
+      if (transcriptionError && !audioAttempt) {
         throw captureRuntimeFailure(transcriptionError, transcriber.timelineCursorMs, gaps);
       }
       if (sinkError) {
         throw captureRuntimeFailure(sinkError, transcriber.timelineCursorMs, gaps);
       }
-      if (transcriber.timelineCursorMs <= input.timelineOffsetMs) {
+      if (cursor() <= input.timelineOffsetMs) {
         throw captureRuntimeFailure(
           new Error('FFmpeg stream ended without producing audio'),
           transcriber.timelineCursorMs,
           gaps,
         );
       }
-      return { capturedMs: Math.floor(transcriber.timelineCursorMs), gaps };
+      if (audioAttempt) {
+        if (transcriptionError) {
+          const gap: CaptureGap = {
+            startMs: transcriptionFailedAt ?? input.timelineOffsetMs,
+            endMs: cursor(),
+            reason: 'DEEPGRAM_DISCONNECT',
+          };
+          if (gap.endMs > gap.startMs) {
+            gaps.push(gap);
+            await this.sink.appendGap({
+              captureId: input.captureId,
+              hearingId: input.hearingId,
+              lease: input.lease,
+              gap,
+            });
+          }
+        }
+        await this.options.audioSink!.seal(audioAttempt, true, Boolean(transcriptionError));
+      }
+      return { capturedMs: Math.floor(cursor()), gaps };
     } catch (error) {
       stopped = true;
       stopProcess(process, this.terminationGraceMs);
+      await audioChain;
       try {
         await transcriber.stopAndWait(35_000);
       } catch {
@@ -297,7 +391,14 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
       // Finalization may still produce final segments or explicit buffer gaps.
       // Persist them before the coordinator snapshots progress and retries.
       await writeChain;
-      throw captureRuntimeFailure(error, transcriber.timelineCursorMs, gaps);
+      if (audioAttempt)
+        await this.options.audioSink!.seal(
+          audioAttempt,
+          false,
+          true,
+          (error as Error).name ?? 'capture_interrupted',
+        );
+      throw captureRuntimeFailure(error, cursor(), gaps);
     } finally {
       stopped = true;
       stopProcess(process, this.terminationGraceMs);

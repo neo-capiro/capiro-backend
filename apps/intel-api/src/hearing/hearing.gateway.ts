@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import type { WebSocket } from 'ws';
@@ -17,6 +17,9 @@ import { OrchestratorClient } from './orchestrator.client.js';
 import { DeepgramStreamManager } from './deepgram-stream.manager.js';
 import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service.js';
 import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
+import { HearingRecordingService, type RecordingCapture } from './recording/recording.service.js';
+import { HearingAnalysisService } from './recording/hearing-analysis.service.js';
+import { decodeRecordingFrame, retryableRecordingFailure } from './recording/recording-domain.js';
 import type {
   ClientWsMessage,
   FinalSegment,
@@ -70,6 +73,12 @@ interface LiveConn {
   durationTimer?: ReturnType<typeof setTimeout>;
   rateWindowStartedAt: number;
   bytesThisWindow: number;
+  recording?: RecordingCapture;
+  finalSequence?: number;
+  gracefulStop?: boolean;
+  transcriptFailed?: boolean;
+  transcriptionUnavailable?: boolean;
+  analysisFailed?: boolean;
 }
 
 /**
@@ -104,6 +113,8 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private readonly linker: BillHearingLinkerService,
     private readonly promoter: WatchlistMatchPromoterService,
     config: ConfigService,
+    @Optional() private readonly recordings?: HearingRecordingService,
+    @Optional() private readonly analysis?: HearingAnalysisService,
   ) {
     this.deepgramApiKey = config.get<string>('DEEPGRAM_API_KEY') ?? '';
   }
@@ -176,10 +187,15 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       if (conn.state === 'stopping' || conn.state === 'ended') return;
       // Apply admission limits before closing over a frame in the async queue.
       // Downstream rate checks run too late when a DB operation is stalled.
-      if (conn.pendingInputBytes + raw.byteLength > MAX_PENDING_INPUT_BYTES ||
-          conn.pendingInputMessages >= MAX_PENDING_INPUT_MESSAGES) {
-        this.send(client, { type: 'error', code: 'CAPTURE_INPUT_OVERFLOW',
-          message: 'Capture input could not keep up. Restart transcription.' });
+      if (
+        conn.pendingInputBytes + raw.byteLength > MAX_PENDING_INPUT_BYTES ||
+        conn.pendingInputMessages >= MAX_PENDING_INPUT_MESSAGES
+      ) {
+        this.send(client, {
+          type: 'error',
+          code: 'CAPTURE_INPUT_OVERFLOW',
+          message: 'Capture input could not keep up. Restart transcription.',
+        });
         void this.finalize(conn, 'failed', true, 'CAPTURE_INPUT_OVERFLOW');
         return;
       }
@@ -191,7 +207,9 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       conn.inboundChain = conn.inboundChain
         .then(() => this.onMessage(client, raw, isBinary))
         .catch(async (error) => {
-          this.logger.warn(`capture message failed session=${sessionId}: ${(error as Error).message}`);
+          this.logger.warn(
+            `capture message failed session=${sessionId}: ${(error as Error).message}`,
+          );
           this.send(client, {
             type: 'error',
             code: 'CAPTURE_MESSAGE_FAILED',
@@ -216,7 +234,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       conn,
       conn.hasAudio ? 'ended' : 'failed',
       false,
-      'socket disconnected before any browser audio arrived',
+      conn.hasAudio ? 'browser_connection_lost' : 'socket_disconnected_before_audio',
     );
     this.conns.delete(client);
   }
@@ -243,8 +261,15 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     }
 
     if (msg.type === 'capture_start') {
-      await this.startCapture(conn, msg.mimeType, msg.displaySurface);
+      await this.startCapture(conn, msg.mimeType, msg.displaySurface, msg.recordingProtocol);
     } else if (msg.type === 'capture_stop' || msg.type === 'stop') {
+      conn.gracefulStop = true;
+      if (
+        msg.type === 'capture_stop' &&
+        Number.isInteger(msg.finalSequence) &&
+        msg.finalSequence! >= -1
+      )
+        conn.finalSequence = msg.finalSequence;
       await this.finalize(conn, 'ended', true);
     } else if (msg.type === 'audio') {
       await this.onAudioFrame(conn, Buffer.from(msg.chunk, 'base64'));
@@ -255,6 +280,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     conn: LiveConn,
     mimeType: string,
     displaySurface?: string,
+    recordingProtocol?: number,
   ): Promise<void> {
     if (conn.state !== 'connected') {
       this.send(conn.ws, {
@@ -273,6 +299,24 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
+    // Retention can be deliberately enabled after this socket was opened.
+    // Recheck current access and policy before acquiring a capture lease.
+    const currentSession = await captureDeadline(
+      this.sessions.assertCaptureAllowed(conn.tenantId, conn.sessionId, conn.userId),
+      'Capture authorization timed out',
+    );
+    conn.recordingPolicy = currentSession.recordingPolicy;
+    if (
+      conn.recordingPolicy === 'audio_and_transcript' &&
+      (recordingProtocol !== 1 || !this.recordings)
+    ) {
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'RECORDING_PROTOCOL_REQUIRED',
+        message: 'Refresh the room to use retained audio.',
+      });
+      return;
+    }
     const pendingClaim = this.sessions.claimCapture(conn.tenantId, conn.sessionId);
     let claim: Awaited<typeof pendingClaim>;
     try {
@@ -280,8 +324,11 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     } catch (error) {
       // Timing out a Promise does not cancel its SQL. If it eventually acquired
       // a claim, release that exact token without starting a late provider.
-      void pendingClaim.then((lateClaim) => lateClaim
-        ? this.releaseAbandonedClaim(conn, lateClaim.startedAt) : undefined).catch(() => undefined);
+      void pendingClaim
+        .then((lateClaim) =>
+          lateClaim ? this.releaseAbandonedClaim(conn, lateClaim.startedAt) : undefined,
+        )
+        .catch(() => undefined);
       throw error;
     }
     if (!claim) {
@@ -300,7 +347,25 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     conn.state = 'starting';
     conn.claimStartedAt = claim.startedAt;
     conn.timelineOffsetMs = await captureDeadline(
-      this.commit.maxEndMs(conn.tenantId, conn.sessionId), 'Capture timeline lookup timed out');
+      this.commit.maxEndMs(conn.tenantId, conn.sessionId),
+      'Capture timeline lookup timed out',
+    );
+    if (conn.recordingPolicy === 'audio_and_transcript') {
+      conn.recording = await this.recordings!.begin(
+        conn.tenantId,
+        conn.sessionId,
+        conn.userId,
+        claim.startedAt,
+        mimeType,
+      );
+      conn.timelineOffsetMs = conn.recording.startMs;
+      this.send(conn.ws, {
+        type: 'recording_epoch',
+        recordingId: conn.recording.recordingId,
+        epochId: conn.recording.epochId,
+        startMs: conn.recording.startMs,
+      });
+    }
     if (conn.state !== 'starting') return;
     this.logger.log(
       `capture claimed session=${conn.sessionId} user=${conn.userId} ` +
@@ -309,7 +374,7 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     conn.heartbeatTimer = setInterval(() => {
       const claimToken = conn.claimStartedAt;
-      if (!claimToken || conn.state === 'ended' || conn.state === 'stopping') return;
+      if (!claimToken || conn.state === 'ended') return;
       // DB heartbeats never cross the browser connection. Native WS ping/pong
       // keeps the proxy connection active during recesses without relying on a
       // background tab's JavaScript timer.
@@ -317,7 +382,12 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         try {
           conn.ws.ping();
         } catch (error) {
-          void this.finalize(conn, 'failed', true, `CAPTURE_SOCKET_UNAVAILABLE: ${(error as Error).message}`);
+          void this.finalize(
+            conn,
+            'failed',
+            true,
+            `CAPTURE_SOCKET_UNAVAILABLE: ${(error as Error).message}`,
+          );
           return;
         }
       }
@@ -360,31 +430,45 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       void this.finalize(conn, 'ended', true);
     }, MAX_SESSION_MS);
 
+    const ready = () => {
+      if (conn.state !== 'starting') return;
+      if (conn.startTimer) clearTimeout(conn.startTimer);
+      conn.state = 'ready';
+      this.send(conn.ws, { type: 'status', status: 'capture_ready' });
+      // A share-picker or recorder failure after the server claim used to leave
+      // Deepgram and the distributed lease alive for up to 12 hours. A ready
+      // capture must deliver its first browser audio promptly or release itself.
+      conn.firstAudioTimer = setTimeout(() => {
+        if (conn.state === 'ready' && !conn.hasAudio) {
+          this.send(conn.ws, {
+            type: 'error',
+            code: 'FIRST_AUDIO_TIMEOUT',
+            message: 'No browser audio arrived. Start transcription again and share tab audio.',
+          });
+          void this.finalize(
+            conn,
+            'failed',
+            true,
+            'FIRST_AUDIO_TIMEOUT: capture_ready but no browser audio within the window',
+          );
+        }
+      }, FIRST_AUDIO_TIMEOUT_MS);
+    };
+    const transcriptionDelayed = () => {
+      conn.transcriptFailed = true;
+      conn.transcriptionUnavailable = true;
+      this.persistTranscriptFailure(conn);
+      this.send(conn.ws, {
+        type: 'error',
+        code: 'TRANSCRIPTION_DELAYED',
+        message:
+          'Transcription is interrupted. Audio continues saving; transcript coverage is partial.',
+      });
+      ready();
+      void conn.deepgram?.stopAndWait(1000);
+    };
     conn.deepgram = new DeepgramStreamManager(this.deepgramApiKey, {
-      onOpen: () => {
-        if (conn.state !== 'starting') return;
-        if (conn.startTimer) clearTimeout(conn.startTimer);
-        conn.state = 'ready';
-        this.send(conn.ws, { type: 'status', status: 'capture_ready' });
-        // A share-picker or recorder failure after the server claim used to leave
-        // Deepgram and the distributed lease alive for up to 12 hours. A ready
-        // capture must deliver its first browser audio promptly or release itself.
-        conn.firstAudioTimer = setTimeout(() => {
-          if (conn.state === 'ready' && !conn.hasAudio) {
-            this.send(conn.ws, {
-              type: 'error',
-              code: 'FIRST_AUDIO_TIMEOUT',
-              message: 'No browser audio arrived. Start transcription again and share tab audio.',
-            });
-            void this.finalize(
-              conn,
-              'failed',
-              true,
-              'FIRST_AUDIO_TIMEOUT: capture_ready but no browser audio within the window',
-            );
-          }
-        }, FIRST_AUDIO_TIMEOUT_MS);
-      },
+      onOpen: ready,
       onInterim: (segment) => {
         if (conn.state === 'ended' || conn.state === 'stopping') return;
         this.send(conn.ws, {
@@ -397,6 +481,10 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       onReconnecting: () => undefined,
       onError: (err) => {
         this.logger.warn(`deepgram error session=${conn.sessionId}: ${err.message}`);
+        if (conn.recording && ['starting', 'ready', 'capturing'].includes(conn.state)) {
+          transcriptionDelayed();
+          return;
+        }
         this.send(conn.ws, {
           type: 'error',
           code: 'TRANSCRIPTION_RESTART_REQUIRED',
@@ -409,6 +497,10 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     conn.startTimer = setTimeout(() => {
       if (conn.state === 'starting') {
+        if (conn.recording) {
+          transcriptionDelayed();
+          return;
+        }
         this.send(conn.ws, {
           type: 'error',
           code: 'TRANSCRIPTION_START_TIMEOUT',
@@ -473,8 +565,10 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       try {
         activated = Boolean(
           claimToken &&
-          (await captureDeadline(this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken),
-            'Capture activation timed out')),
+          (await captureDeadline(
+            this.sessions.activateCapture(conn.tenantId, conn.sessionId, claimToken),
+            'Capture activation timed out',
+          )),
         );
       } catch (err) {
         this.logger.warn(`capture activation failed: ${(err as Error).message}`);
@@ -497,25 +591,70 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       if (conn.firstAudioTimer) clearTimeout(conn.firstAudioTimer);
     }
 
-    if (!conn.deepgram?.sendAudio(raw)) {
+    let transcriptionBytes = raw;
+    if (conn.recording) {
+      let saved;
+      try {
+        saved = await this.recordings!.append(conn.recording, raw);
+      } catch (error) {
+        if (!retryableRecordingFailure(error)) throw error;
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'RECORDING_STORAGE_DELAYED',
+          message:
+            'Audio storage is delayed. Retrying the unsaved part; the saved checkpoint has not advanced.',
+        });
+        return;
+      }
       this.send(conn.ws, {
-        type: 'error',
-        code: 'TRANSCRIPTION_NOT_READY',
-        message: 'The transcription service is not ready for audio.',
+        type: 'audio_saved',
+        epochId: conn.recording.epochId,
+        sequence: saved.sequence,
+        durableBytes: saved.durableBytes,
+        durableEndMs: saved.durableEndMs,
       });
-      await this.finalize(
-        conn,
-        'failed',
-        true,
-        'TRANSCRIPTION_NOT_READY: deepgram sendAudio refused the frame',
-      );
-      return;
+      if (saved.duplicate) return;
+      transcriptionBytes = decodeRecordingFrame(raw).bytes;
+    }
+    if (!conn.transcriptionUnavailable && !conn.deepgram?.sendAudio(transcriptionBytes)) {
+      if (conn.recording) {
+        conn.transcriptionUnavailable = true;
+        conn.transcriptFailed = true;
+        this.persistTranscriptFailure(conn);
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'TRANSCRIPTION_DELAYED',
+          message: 'Audio is saving, but transcription is interrupted.',
+        });
+      } else {
+        this.send(conn.ws, {
+          type: 'error',
+          code: 'TRANSCRIPTION_NOT_READY',
+          message: 'The transcription service is not ready for audio.',
+        });
+        await this.finalize(
+          conn,
+          'failed',
+          true,
+          'TRANSCRIPTION_NOT_READY: deepgram sendAudio refused the frame',
+        );
+        return;
+      }
     }
     if (!conn.hasAudio) {
       conn.hasAudio = true;
       conn.state = 'capturing';
       this.send(conn.ws, { type: 'status', status: 'capturing' });
     }
+  }
+
+  private persistTranscriptFailure(conn: LiveConn): void {
+    if (!conn.recording) return;
+    // This health write does not block the audio sink. Sealing repeats it if a
+    // transient database outage prevents an immediate durable health update.
+    void this.recordings!.markTranscriptPartial(conn.recording).catch(() =>
+      this.logger.warn(`transcript health checkpoint delayed session=${conn.sessionId}`),
+    );
   }
 
   private enqueueFinal(conn: LiveConn, segment: FinalSegment): void {
@@ -527,23 +666,30 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
           recordingPolicy: conn.recordingPolicy,
           segment,
           forceEncrypt: conn.forceEncrypt,
+          analysisActor: conn.userId,
         });
 
         this.send(conn.ws, { type: 'final', segmentId: raw.id ?? '', segment });
         if (!raw.id || !raw.created) return;
 
         let task!: Promise<void>;
-        task = this.enrichFinal(conn, raw.id, segment)
-          .catch((err) =>
+        task = (
+          conn.recording && this.analysis
+            ? this.analysis.runOne(raw.id).then(() => undefined)
+            : this.enrichFinal(conn, raw.id, segment)
+        )
+          .catch((err) => {
+            conn.analysisFailed = true;
             this.logger.warn(
               `segment enrichment failed session=${conn.sessionId} segment=${raw.id}: ` +
                 `${(err as Error).message}`,
-            ),
-          )
+            );
+          })
           .finally(() => conn.pendingEnrichment.delete(task));
         conn.pendingEnrichment.add(task);
       })
       .catch((err) => {
+        conn.transcriptFailed = true;
         this.logger.error(
           `raw segment commit failed session=${conn.sessionId}: ${(err as Error).message}`,
         );
@@ -639,11 +785,29 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       if (conn.startTimer) clearTimeout(conn.startTimer);
       if (conn.firstAudioTimer) clearTimeout(conn.firstAudioTimer);
       if (conn.durationTimer) clearTimeout(conn.durationTimer);
-      if (conn.heartbeatTimer) clearInterval(conn.heartbeatTimer);
-
       await conn.deepgram?.stopAndWait().catch(() => undefined);
-      await conn.rawChain;
-      await Promise.allSettled([...conn.pendingEnrichment]);
+      await captureDeadline(conn.rawChain, 'Transcript finalization timed out').catch(() => {
+        conn.transcriptFailed = true;
+      });
+      // Enrichment is not a media finalization dependency. Pending work is
+      // visible in the durable recording state for bounded worker recovery.
+      await boundedEnrichmentDrain([...conn.pendingEnrichment]);
+      if (conn.recording) {
+        await this.recordings!.seal(
+          conn.recording,
+          conn.finalSequence,
+          conn.gracefulStop && outcome === 'ended' ? undefined : (reason ?? 'capture_interrupted'),
+          Boolean(conn.transcriptFailed),
+          Boolean(conn.analysisFailed || conn.pendingEnrichment.size),
+        ).catch(() => {
+          outcome = 'failed';
+        });
+        await this.analysis?.refreshRecording(conn.tenantId, conn.sessionId).catch(() => {
+          conn.analysisFailed = true;
+        });
+      }
+      if (conn.transcriptFailed) outcome = 'failed';
+      if (conn.heartbeatTimer) clearInterval(conn.heartbeatTimer);
 
       let released = conn.claimStartedAt == null;
       if (conn.claimStartedAt) {
@@ -743,9 +907,27 @@ export class HearingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 async function captureDeadline<T>(operation: Promise<T>, message: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([operation, new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error(message)), CAPTURE_DATABASE_DEADLINE_MS);
-    })]);
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), CAPTURE_DATABASE_DEADLINE_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function boundedEnrichmentDrain(tasks: Promise<void>[]) {
+  if (!tasks.length) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.allSettled(tasks),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, 2000);
+      }),
+    ]);
   } finally {
     if (timer) clearTimeout(timer);
   }

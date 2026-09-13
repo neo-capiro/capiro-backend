@@ -19,9 +19,8 @@ export interface RawSegmentCommitResult {
  * recording_policy semantics (enforced here, not in the UI):
  *   - no_storage           -> persist NOTHING (return null; live UI only)
  *   - transcript_only      -> persist transcript (encrypted when sensitive)
- *   - audio_and_transcript -> accepted on the wire for older clients but
- *                             normalized to transcript_only at create time;
- *                             there is no audio sink, so nothing else changes
+ *   - audio_and_transcript -> transcript here; the separately gated recording
+ *                             service persists audio only after explicit enable
  *
  * Raw transcript persistence is intentionally separate from Meri enrichment:
  * the live transcript is no longer held behind an 8-second model call, and final
@@ -79,6 +78,7 @@ export class SegmentCommitService {
     recordingPolicy: string;
     segment: FinalSegment;
     forceEncrypt: boolean;
+    analysisActor?: string;
   }): Promise<RawSegmentCommitResult> {
     const { tenantId, sessionId, recordingPolicy, segment, forceEncrypt } = params;
     if (recordingPolicy === 'no_storage') return { id: null, created: false };
@@ -111,6 +111,9 @@ export class SegmentCommitService {
             source: 'deepgram',
             clientRelevanceScore: null,
             issueTags: [],
+            ...(recordingPolicy === 'audio_and_transcript' && params.analysisActor
+              ? { analysisState: 'pending', analysisActor: params.analysisActor }
+              : {}),
             ...textFields,
           },
         }),
@@ -177,6 +180,63 @@ export class SegmentCommitService {
       extraction,
       sensitive,
     );
+  }
+
+  /** Fenced metadata, derived rows and job completion commit together. */
+  async enrichDurable(params: {
+    tenantId: string;
+    sessionId: string;
+    segmentId: string;
+    token: string;
+    segment: FinalSegment;
+    extraction: ExtractionResult;
+    forceEncrypt: boolean;
+  }) {
+    const { tenantId, sessionId, segmentId, extraction } = params;
+    const sensitive =
+      params.forceEncrypt ||
+      extraction.entityMentions.length > 0 ||
+      (extraction.clientRelevanceScore ?? 0) >= CLIENT_RELEVANCE_ENCRYPT_THRESHOLD;
+    if (sensitive) await this.protectSegmentText(tenantId, sessionId, segmentId);
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const grants = await tx.$queryRaw<
+        Array<{ id: string }>
+      >`SELECT p.id FROM intel_hearing_media_permission p
+        JOIN intel_live_hearing_session s ON s.tenant_id=p.tenant_id AND s.source_url=p.source_url AND s.hearing_id IS NOT DISTINCT FROM p.hearing_id
+        WHERE s.tenant_id=${tenantId} AND s.id=${sessionId} AND p.revoked_at IS NULL AND p.expires_at>now()
+          AND p.operations @> ARRAY['analysis']::text[] LIMIT 1 FOR SHARE OF p`;
+      if (!grants.length) throw new Error('Source analysis permission changed');
+      const owned = await tx.transcriptSegment.updateMany({
+        where: {
+          id: segmentId,
+          tenantId,
+          sessionId,
+          analysisState: 'processing',
+          analysisToken: params.token,
+          analysisLeaseUntil: { gt: new Date() },
+          session: { recordingPolicy: { not: 'no_storage' } },
+        },
+        data: {
+          resolvedSpeakerId: extraction.resolvedSpeakerId ?? null,
+          resolvedSpeakerName: sensitive ? null : (extraction.resolvedSpeakerName ?? null),
+          clientRelevanceScore: extraction.clientRelevanceScore ?? null,
+          issueTags: extraction.issueTags,
+          analysisState: 'ready',
+          analysisToken: null,
+          analysisLeaseUntil: null,
+        },
+      });
+      if (owned.count !== 1) throw new Error('Hearing analysis lease lost');
+      await this.persistDerived(
+        tenantId,
+        sessionId,
+        segmentId,
+        params.segment.startMs,
+        extraction,
+        sensitive,
+        tx,
+      );
+    });
   }
 
   /**
@@ -279,8 +339,11 @@ export class SegmentCommitService {
     startMs: number,
     extraction: ExtractionResult,
     sensitive: boolean,
+    transaction?: Prisma.TransactionClient,
   ): Promise<void> {
     const ops: Promise<unknown>[] = [];
+    const scoped = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
+      transaction ? fn(transaction) : this.prisma.withTenant(tenantId, fn);
 
     // These three tables now carry encrypted text columns (migration
     // 20260803040000_hearing_derived_encrypted_text), so a sensitive session's
@@ -299,7 +362,7 @@ export class SegmentCommitService {
     for (const m of extraction.entityMentions) {
       const label = this.buildTextFields(m.entityLabel, sensitive);
       ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
+        scoped((tx) =>
           tx.entityMention.create({
             data: {
               sessionId,
@@ -328,7 +391,7 @@ export class SegmentCommitService {
     if (actionItem) {
       const desc = this.buildTextFields(actionItem.description, sensitive);
       ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
+        scoped((tx) =>
           tx.liveActionItem.create({
             data: {
               sessionId,
@@ -352,7 +415,7 @@ export class SegmentCommitService {
       const title = this.buildTextFields(summaryCard.title, sensitive);
       const body = summaryCard.body ? this.buildTextFields(summaryCard.body, sensitive) : null;
       ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
+        scoped((tx) =>
           tx.liveSummaryCard.create({
             data: {
               sessionId,
@@ -383,7 +446,7 @@ export class SegmentCommitService {
       const q = extraction.keyQuote;
       const qText = sensitive && this.crypto.configured ? this.crypto.encrypt(q.text) : null;
       ops.push(
-        this.prisma.withTenant(tenantId, (tx) =>
+        scoped((tx) =>
           tx.keyQuote.create({
             data: {
               sessionId,
@@ -409,6 +472,7 @@ export class SegmentCommitService {
     const results = await Promise.allSettled(ops);
     const failures = results.filter((r) => r.status === 'rejected');
     if (failures.length) {
+      if (transaction) throw new Error('Hearing analysis persistence failed');
       this.logger.warn(
         `persistDerived session=${sessionId} segment=${segmentId} failures=${failures.length}`,
       );

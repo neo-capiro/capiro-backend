@@ -43,6 +43,9 @@ import { SavedHearingSessions } from './SavedHearingSessions.js';
 import { useAttendance, useFollowConfig, useHearingUpdates } from '../lib/wave1-api.js';
 import { useHearingWakeLock } from '../../../../lib/use-hearing-wake-lock.js';
 import { PreparationPanel } from './PreparationPanel.js';
+import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
+import { PublicHearingAudioPanel } from '../../../../pages/intelligence/PublicHearingAudioPanel.js';
+import { PublicHearingReviewPanel } from '../../../../pages/intelligence/PublicHearingReviewPanel.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',
@@ -82,6 +85,8 @@ export function HearingDetailRoute() {
   const intelligence = useHearingIntelligence(hearingId);
   const [transcriptQuery, setTranscriptQuery] = useState('');
   const [segmentToReveal, setSegmentToReveal] = useState<string | null>(null);
+  const retainedAudio = useIntelFeatureEnabled('legiwatch_hearing_recording_v1');
+  const [audioSeek, setAudioSeek] = useState<{ positionMs: number; request: number }>();
   const lastHashJump = useRef('');
   const captureStatus = event.data?.capture?.status?.toUpperCase();
   useHearingWakeLock(
@@ -371,6 +376,16 @@ export function HearingDetailRoute() {
       </section>
 
       {/* 4. Transcript */}
+      {retainedAudio && !closed ? (
+        <PublicHearingAudioPanel hearingId={hearingId} seek={audioSeek} />
+      ) : null}
+      {!closed ? (
+        <PublicHearingReviewPanel
+          hearingId={hearingId}
+          clientId={clientId || undefined}
+          playEvidence={(positionMs) => setAudioSeek({ positionMs, request: Date.now() })}
+        />
+      ) : null}
       <section className="lw-card" style={{ padding: 18 }} aria-label="Transcript">
         <div className="lw-card__head">
           <h2 className="lw-card__title">Transcript</h2>
@@ -438,6 +453,20 @@ export function HearingDetailRoute() {
                       <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
                         {msToClock(s.startMs)}
                       </span>
+                      {retainedAudio ? (
+                        <button
+                          type="button"
+                          className="lw-backlink"
+                          onClick={() =>
+                            setAudioSeek((previous) => ({
+                              positionMs: s.startMs,
+                              request: (previous?.request ?? 0) + 1,
+                            }))
+                          }
+                        >
+                          Play audio
+                        </button>
+                      ) : null}
                       {s.speakerName || s.speakerLabel ? (
                         <strong style={{ fontSize: 13 }}>{s.speakerName ?? s.speakerLabel}</strong>
                       ) : null}

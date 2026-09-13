@@ -154,9 +154,11 @@ export function assessAttendance(input: {
   subscription?: AttendanceSubscriptionRow | null;
   /** Whether a canonical transcript exists yet (drives PROCESSING vs COMPLETE). */
   hasTranscript?: boolean;
+  /** A reviewed state adapter may narrow the modes independently. */
+  statePermission?: { policy: StrictScheduleAssessment; browserAllowed: boolean };
 }): AttendanceAssessment {
   const { hearing, candidates, capture, subscription } = input;
-  const policy = assessStrictSchedulePolicy(hearing, candidates);
+  const policy = input.statePermission?.policy ?? assessStrictSchedulePolicy(hearing, candidates);
   const scheduled = Boolean(subscription?.scheduledByUser);
 
   // 1. Verified closed session — terminal, and never an attendance affordance.
@@ -200,7 +202,8 @@ export function assessAttendance(input: {
       return {
         state: 'FAILED',
         reasonCode: capture.failureCode ?? capture.terminalReasonCode ?? 'CAPTURE_FAILED',
-        message: 'Capture of this proceeding failed. Any partial transcript is shown with its gaps.',
+        message:
+          'Capture of this proceeding failed. Any partial transcript is shown with its gaps.',
         canRequest: false,
         availableModes: [],
         consentRequired: false,
@@ -264,7 +267,10 @@ export function assessAttendance(input: {
         reasonCode: policy.reasonCode,
         message: policy.message,
         canRequest: true,
-        availableModes: ['automatic', 'browser'],
+        availableModes:
+          input.statePermission && !input.statePermission.browserAllowed
+            ? ['automatic']
+            : ['automatic', 'browser'],
         consentRequired: false,
         scheduled: false,
         policy,
@@ -275,7 +281,10 @@ export function assessAttendance(input: {
         reasonCode: policy.reasonCode,
         message: policy.message,
         canRequest: true,
-        availableModes: ['automatic', 'browser'],
+        availableModes:
+          input.statePermission && !input.statePermission.browserAllowed
+            ? ['automatic']
+            : ['automatic', 'browser'],
         consentRequired: false,
         scheduled: false,
         policy,

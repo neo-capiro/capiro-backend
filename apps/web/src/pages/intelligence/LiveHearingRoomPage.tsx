@@ -23,6 +23,13 @@ import { ArrowLeftOutlined, AudioOutlined, ReloadOutlined, SaveOutlined } from '
 import { useApi } from '../../lib/use-api.js';
 import { useHearingWakeLock } from '../../lib/use-hearing-wake-lock.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
+import { useApiScope } from '../../lib/use-api-scope.js';
+import {
+  HearingRecordingTransport,
+  type AudioSaved,
+} from '../../lib/hearing-recording-transport.js';
+import { HearingRecordingPanel } from './HearingRecordingPanel.js';
+import { HearingPublicationsPanel } from './HearingPublicationsPanel.js';
 import '../radar/legiwatch.css';
 import {
   briefToMarkdown,
@@ -77,11 +84,19 @@ export interface HearingRoomViewModel {
   cards: Card_[];
   transcriptLoading: boolean;
   transcriptError: boolean;
+  transcriptionDelayed?: boolean;
   intelligenceError: boolean;
   error: string | null;
   dismissError: () => void;
   statusText: string | null;
   bytesSent: number;
+  bytesSaved?: number;
+  recordingPanel?: ReactNode;
+  publicationsPanel?: ReactNode;
+  playEvidence?: (ms: number) => void;
+  captureStartedAt?: number;
+  captureOffsetMs?: number;
+  capturedElapsedMs?: number;
   lastTranscriptAt: number | null;
   wakeLock: ReturnType<typeof useHearingWakeLock>;
   sourcePlayer: ReactNode;
@@ -247,9 +262,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string)
 export function TranscriptList({
   segments,
   interim,
+  playEvidence,
 }: {
   segments: LiveSegment[];
   interim: string;
+  playEvidence?: (ms: number) => void;
 }) {
   const parentRef = useRef<HTMLDivElement | null>(null);
   const shouldVirtualize = segments.length > 200;
@@ -273,6 +290,11 @@ export function TranscriptList({
       <Text type="secondary" style={{ fontSize: 11 }}>
         [{Math.floor(s.startMs / 1000)}s]
       </Text>
+      {playEvidence && (
+        <Button type="link" size="small" onClick={() => playEvidence(s.startMs)}>
+          Play audio here
+        </Button>
+      )}
     </Paragraph>
   );
   return (
@@ -335,6 +357,11 @@ export function LiveHearingRoomPage({
   renderRoom?: (model: HearingRoomViewModel) => ReactNode;
 } = {}) {
   const enabled = useIntelFeatureEnabled('hearing_watch');
+  const recordingEnabled = useIntelFeatureEnabled('legiwatch_hearing_recording_v1');
+  const updatesEnabled = useIntelFeatureEnabled('legiwatch_hearing_updates_v1');
+  const recapsEnabled = useIntelFeatureEnabled('legiwatch_hearing_recaps_v1');
+  const smsEnabled = useIntelFeatureEnabled('legiwatch_hearing_sms_v1');
+  const apiScope = useApiScope();
   const params = useParams();
   const id = sessionId ?? params.id ?? '';
   const navigate = useNavigate();
@@ -346,7 +373,7 @@ export function LiveHearingRoomPage({
   const transcript = useHearingTranscript(id);
   // Clients (id→name) to resolve the recap's target client + label the picker.
   const clientsQuery = useQuery<Array<{ id: string; name: string }>>({
-    queryKey: ['clients'],
+    queryKey: ['clients', apiScope],
     queryFn: async () => (await api.get<Array<{ id: string; name: string }>>('/api/clients')).data,
     staleTime: 60_000,
   });
@@ -364,7 +391,26 @@ export function LiveHearingRoomPage({
   const [liveCards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string | null>(null);
+  const [transcriptionDelayed, setTranscriptionDelayed] = useState(false);
+  const transcriptionDelayedRef = useRef(false);
   const [bytesSent, setBytesSent] = useState(0);
+  const [bytesSaved, setBytesSaved] = useState(0);
+  const [evidenceTime, setEvidenceTime] = useState<{ ms: number; revision: number }>();
+  const [captureClock, setCaptureClock] = useState<{ wallMs: number; offsetMs: number }>();
+  const [capturedElapsedMs, setCapturedElapsedMs] = useState(0);
+  const [savedRecording, setSavedRecording] = useState<{
+    scope: string;
+    sessionId: string;
+    endMs: number;
+    bytes: number;
+  } | null>(null);
+  const onRecordingProgress = useCallback(
+    (progress: { endMs: number; bytes: number } | null) =>
+      setSavedRecording(progress ? { ...progress, scope: apiScope, sessionId: id } : null),
+    [apiScope, id],
+  );
+  const currentSavedRecording =
+    savedRecording?.scope === apiScope && savedRecording.sessionId === id ? savedRecording : null;
   const [lastTranscriptAt, setLastTranscriptAt] = useState<number | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -378,6 +424,8 @@ export function LiveHearingRoomPage({
   );
   const serverEndedRef = useRef<{ resolve: () => void } | null>(null);
   const stoppingRef = useRef(false);
+  const recordingTransportRef = useRef<HearingRecordingTransport | null>(null);
+  const recordingEpochRef = useRef<{ epochId: string; startMs: number } | null>(null);
 
   const persistedSegments = useMemo(
     () => transcript.data?.pages.flatMap((p) => p.items) ?? [],
@@ -397,10 +445,10 @@ export function LiveHearingRoomPage({
   const captureActive = ['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phase);
   const wakeLock = useHearingWakeLock(captureActive);
   const summary = useQuery<{ cards?: Card_[] }>({
-    queryKey: ['intel', 'hearing', id, 'summary'],
-    queryFn: async () => (await api.get<{ cards?: Card_[] }>(
-      `/intel-api/hearings/${encodeURIComponent(id)}/summary`,
-    )).data,
+    queryKey: ['intel', 'hearing', id, 'summary', apiScope],
+    queryFn: async () =>
+      (await api.get<{ cards?: Card_[] }>(`/intel-api/hearings/${encodeURIComponent(id)}/summary`))
+        .data,
     enabled: enabled && Boolean(id),
     retry: false,
     refetchInterval: captureActive || session.data?.status === 'live' ? 15_000 : false,
@@ -424,7 +472,12 @@ export function LiveHearingRoomPage({
     if (transcript.hasNextPage && !transcript.isFetchingNextPage && !transcript.isError) {
       void transcript.fetchNextPage();
     }
-  }, [transcript.hasNextPage, transcript.isFetchingNextPage, transcript.isError, transcript.fetchNextPage]);
+  }, [
+    transcript.hasNextPage,
+    transcript.isFetchingNextPage,
+    transcript.isError,
+    transcript.fetchNextPage,
+  ]);
 
   useEffect(() => {
     const onVisible = () => {
@@ -461,6 +514,8 @@ export function LiveHearingRoomPage({
   }, []);
 
   const disconnectSocket = useCallback(() => {
+    recordingTransportRef.current?.stop();
+    recordingTransportRef.current = null;
     if (connectTimerRef.current !== null) window.clearTimeout(connectTimerRef.current);
     connectTimerRef.current = null;
     socketGenerationRef.current += 1;
@@ -518,12 +573,21 @@ export function LiveHearingRoomPage({
         const ended = new Promise<void>((resolve) => {
           serverEndedRef.current = { resolve: () => resolve() };
         });
-        ws.send(JSON.stringify({ type: 'capture_stop' }));
+        ws.send(
+          JSON.stringify({
+            type: 'capture_stop',
+            finalSequence: recordingTransportRef.current?.finalSequence,
+          }),
+        );
         await withTimeout(
           ended,
           SERVER_END_TIMEOUT_MS,
           'The server did not confirm the session end.',
-        ).then(() => { confirmedEnd = true; }).catch(() => undefined);
+        )
+          .then(() => {
+            confirmedEnd = true;
+          })
+          .catch(() => undefined);
       }
     } catch (err) {
       setError((err as Error).message || 'The last browser audio could not be uploaded.');
@@ -532,12 +596,33 @@ export function LiveHearingRoomPage({
       captureReadyRef.current = null;
       serverEndedRef.current = null;
       setInterim('');
-      setStatusText(confirmedEnd ? 'Session ended' : 'Capture stopped. Server finalization has not been confirmed; refresh to check the saved transcript.');
+      setStatusText(
+        confirmedEnd
+          ? 'Session ended'
+          : 'Capture stopped. Server finalization has not been confirmed; refresh to check the saved transcript.',
+      );
       setPhaseNow('ended');
       stoppingRef.current = false;
       refreshPersisted();
     }
   }, [cleanupCaptureTracks, disconnectSocket, setPhaseNow, stopRecorderAndFlush, refreshPersisted]);
+
+  useEffect(() => {
+    cleanupCaptureTracks();
+    disconnectSocket();
+    recordingEpochRef.current = null;
+    setLiveSegments([]);
+    setCards([]);
+    setInterim('');
+    setBytesSaved(0);
+    setBytesSent(0);
+    setEvidenceTime(undefined);
+    setCaptureClock(undefined);
+    setCapturedElapsedMs(0);
+    transcriptionDelayedRef.current = false;
+    setTranscriptionDelayed(false);
+    setPhaseNow('idle');
+  }, [apiScope, id]);
 
   const connect = useCallback(async () => {
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'ended') return;
@@ -581,8 +666,12 @@ export function LiveHearingRoomPage({
         captureReadyRef.current = null;
         cleanupCaptureTracks();
         if (phaseRef.current !== 'ended' && phaseRef.current !== 'stopping') {
-          setError('Connection interrupted. Reconnect and share the hearing tab again to resume transcription.');
-          setStatusText('Capture stopped. Previously saved transcript and intelligence remain available.');
+          setError(
+            'Connection interrupted. Reconnect and share the hearing tab again to resume transcription.',
+          );
+          setStatusText(
+            'Capture stopped. Previously saved transcript and intelligence remain available.',
+          );
           setPhaseNow('idle');
         }
         setInterim('');
@@ -595,7 +684,14 @@ export function LiveHearingRoomPage({
         if (wsRef.current !== ws) return;
         try {
           const msg = JSON.parse(String(ev.data));
-          if (msg.type === 'interim') {
+          if (msg.type === 'recording_epoch') {
+            recordingEpochRef.current = { epochId: msg.epochId, startMs: msg.startMs };
+          } else if (msg.type === 'audio_saved') {
+            recordingTransportRef.current?.acknowledge(msg as AudioSaved);
+            setError((current) =>
+              current?.startsWith('Audio storage is delayed.') ? null : current,
+            );
+          } else if (msg.type === 'interim') {
             setInterim(msg.segment?.text ?? '');
           } else if (msg.type === 'final' && msg.segment) {
             setInterim('');
@@ -612,6 +708,12 @@ export function LiveHearingRoomPage({
           } else if (msg.type === 'error') {
             const err = new Error(msg.message ?? 'Transcription error');
             setError(err.message);
+            if (msg.code === 'TRANSCRIPTION_DELAYED') {
+              transcriptionDelayedRef.current = true;
+              setTranscriptionDelayed(true);
+              setStatusText('Audio is saving. Live transcription is interrupted.');
+              return;
+            }
             captureReadyRef.current?.reject(err);
             captureReadyRef.current = null;
             if (msg.code === 'TRANSCRIPTION_RESTART_REQUIRED') {
@@ -627,11 +729,19 @@ export function LiveHearingRoomPage({
             } else if (status === 'preparing_transcription') {
               setStatusText('Preparing transcription…');
             } else if (status === 'capture_ready') {
-              setStatusText('Transcription ready — starting browser audio capture…');
+              setStatusText(
+                transcriptionDelayedRef.current
+                  ? 'Audio storage ready — starting browser capture. Transcription is interrupted.'
+                  : 'Transcription ready — starting browser audio capture…',
+              );
               captureReadyRef.current?.resolve();
               captureReadyRef.current = null;
             } else if (status === 'capturing') {
-              setStatusText('Capturing and transcribing browser-tab audio…');
+              setStatusText(
+                transcriptionDelayedRef.current
+                  ? 'Audio is saving. Live transcription is interrupted.'
+                  : 'Capturing and transcribing browser-tab audio…',
+              );
             } else if (status === 'capture_restart_required') {
               setStatusText('Capture stopped — reconnect and start again to resume safely.');
               cleanupCaptureTracks();
@@ -689,6 +799,8 @@ export function LiveHearingRoomPage({
 
     setError(null);
     setPhaseNow('requesting_share');
+    transcriptionDelayedRef.current = false;
+    setTranscriptionDelayed(false);
     // The hearing plays in the embed on THIS page unless the source is
     // reference-only, in which case the analyst opened it in another tab.
     const capturesThisTab = Boolean(embeddableUrl || youtubeVideoId);
@@ -749,6 +861,8 @@ export function LiveHearingRoomPage({
           type: 'capture_start',
           mimeType: RECORDER_MIME,
           displaySurface: displaySurface ?? 'unknown',
+          recordingProtocol:
+            session.data?.recordingPolicy === 'audio_and_transcript' ? 1 : undefined,
         }),
       );
       await withTimeout(
@@ -758,8 +872,10 @@ export function LiveHearingRoomPage({
       );
       const phaseAfterReady = phaseRef.current as Phase;
       if (
-        generation !== socketGenerationRef.current || phaseAfterReady !== 'preparing' ||
-        wsRef.current !== captureSocket || captureSocket.readyState !== WebSocket.OPEN
+        generation !== socketGenerationRef.current ||
+        phaseAfterReady !== 'preparing' ||
+        wsRef.current !== captureSocket ||
+        captureSocket.readyState !== WebSocket.OPEN
       ) {
         display.getTracks().forEach((track) => track.stop());
         return;
@@ -769,9 +885,39 @@ export function LiveHearingRoomPage({
       const recorder = new MediaRecorder(new MediaStream(audioTracks), { mimeType: RECORDER_MIME });
       mediaRecorderRef.current = recorder;
       sendChainRef.current = Promise.resolve();
+      const epoch = recordingEpochRef.current;
+      const retained = session.data?.recordingPolicy === 'audio_and_transcript';
+      if (retained && !epoch)
+        throw new Error('The server did not establish a durable recording attempt.');
+      const transport = retained
+        ? new HearingRecordingTransport(captureSocket, epoch!.epochId, (ack) =>
+            setBytesSaved(ack.durableBytes),
+          )
+        : null;
+      recordingTransportRef.current = transport;
+      const recorderStartedAt = performance.now();
+      setCaptureClock({ wallMs: Date.now(), offsetMs: epoch?.startMs ?? 0 });
 
       recorder.ondataavailable = (event) => {
         if (!event.data.size) return;
+        setCapturedElapsedMs(
+          (epoch?.startMs ?? 0) + Math.round(performance.now() - recorderStartedAt),
+        );
+        if (transport) {
+          sendChainRef.current = transport.enqueue(
+            event.data,
+            Math.round(performance.now() - recorderStartedAt),
+          );
+          setBytesSent((n) => n + event.data.size);
+          sendChainRef.current.catch((err) => {
+            if (generation !== socketGenerationRef.current) return;
+            setError((err as Error).message);
+            cleanupCaptureTracks();
+            disconnectSocket();
+            setPhaseNow('idle');
+          });
+          return;
+        }
         sendChainRef.current = sendChainRef.current.then(async () => {
           const ws = wsRef.current;
           // 'stopping' is still a sending phase — that is the final flushed chunk,
@@ -784,8 +930,12 @@ export function LiveHearingRoomPage({
             );
           }
           const buffer = await event.data.arrayBuffer();
-          if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN ||
-              generation !== socketGenerationRef.current) return;
+          if (
+            wsRef.current !== ws ||
+            ws.readyState !== WebSocket.OPEN ||
+            generation !== socketGenerationRef.current
+          )
+            return;
           ws.send(buffer);
           setBytesSent((n) => n + buffer.byteLength);
         });
@@ -808,11 +958,19 @@ export function LiveHearingRoomPage({
       });
       recorder.start(500);
       setPhaseNow('capturing');
-      setStatusText('Capturing and transcribing browser-tab audio…');
+      setStatusText(
+        transcriptionDelayedRef.current
+          ? 'Audio is saving. Live transcription is interrupted.'
+          : 'Capturing and transcribing browser-tab audio…',
+      );
     } catch (err) {
       const phaseAfterError = phaseRef.current as Phase;
-      if (generation !== socketGenerationRef.current || phaseAfterError === 'ended' ||
-          phaseAfterError === 'stopping') return;
+      if (
+        generation !== socketGenerationRef.current ||
+        phaseAfterError === 'ended' ||
+        phaseAfterError === 'stopping'
+      )
+        return;
       captureReadyRef.current = null;
       cleanupCaptureTracks();
       // Once the handshake has begun, close that transport before a retry. A
@@ -824,7 +982,15 @@ export function LiveHearingRoomPage({
       );
       setPhaseNow(wsRef.current?.readyState === WebSocket.OPEN ? 'connected' : 'idle');
     }
-  }, [cleanupCaptureTracks, disconnectSocket, embeddableUrl, endSession, setPhaseNow, youtubeVideoId]);
+  }, [
+    cleanupCaptureTracks,
+    disconnectSocket,
+    embeddableUrl,
+    endSession,
+    session.data?.recordingPolicy,
+    setPhaseNow,
+    youtubeVideoId,
+  ]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -884,49 +1050,119 @@ export function LiveHearingRoomPage({
     );
   }
 
-  if (renderRoom) {
-    return <>
-      {renderRoom({
-        session: session.data,
-        loading: session.isLoading,
-        unavailable: session.isError || !session.data,
-        retry: () => { void session.refetch(); refreshPersisted(); },
-        phase, captureActive, sessionEnded, segments, interim, cards,
-        transcriptLoading: transcript.isLoading,
-        transcriptError: transcript.isError,
-        intelligenceError: summary.isError,
-        error, dismissError: () => setError(null), statusText, bytesSent, lastTranscriptAt, wakeLock,
-        sourcePlayer: embeddableUrl ? <MediaPlayer src={embeddableUrl} /> : youtubeVideoId ? (
-          <iframe
-            src={`https://www.youtube.com/embed/${youtubeVideoId}`}
-            title="Hearing video"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
-          />
-        ) : null,
-        connect: () => { void connect(); },
-        disconnect: disconnectSocket,
-        startCapture: () => { void startBrowserCapture(); },
-        endSession: () => { void endSession(); },
-        goBack: () => { void goBack(); },
-        confirmConsent: () => confirmConsent.mutate(
-          { id, attestation: 'Confirmed recording consent for this hearing.' },
-          {
-            onSuccess: () => message.success('Consent confirmed'),
-            onError: (e: unknown) => message.error((e as Error).message),
-          },
-        ),
-        confirmingConsent: confirmConsent.isPending,
-        saveRecap: () => setRecapOpen(true),
-      })}
-      {recapOpen && <SaveRecapModal
+  const publicationsPanel =
+    (updatesEnabled || recapsEnabled) &&
+    session.data &&
+    session.data.recordingPolicy !== 'no_storage' ? (
+      <HearingPublicationsPanel
+        key={`publications:${apiScope}:${id}`}
         sessionId={id}
-        sessionTitle={session.data?.title ?? 'Hearing'}
-        defaultClientId={session.data?.clientId ?? undefined}
+        title={session.data.title}
+        defaultClientId={session.data.clientId ?? undefined}
         clients={clientsQuery.data ?? []}
-        onClose={() => setRecapOpen(false)}
-      />}
-    </>;
+        updatesEnabled={updatesEnabled}
+        recapsEnabled={recapsEnabled}
+        smsEnabled={smsEnabled}
+        recapRequested={recapOpen}
+        onRecapOpened={() => setRecapOpen(false)}
+        playEvidence={(ms) =>
+          setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 }))
+        }
+      />
+    ) : null;
+  if (renderRoom) {
+    return (
+      <>
+        {renderRoom({
+          session: session.data,
+          loading: session.isLoading,
+          unavailable: session.isError || !session.data,
+          retry: () => {
+            void session.refetch();
+            refreshPersisted();
+          },
+          phase,
+          captureActive,
+          sessionEnded,
+          segments,
+          interim,
+          cards,
+          transcriptLoading: transcript.isLoading,
+          transcriptError: transcript.isError,
+          transcriptionDelayed,
+          intelligenceError: summary.isError,
+          error,
+          dismissError: () => setError(null),
+          statusText,
+          bytesSent,
+          lastTranscriptAt,
+          wakeLock,
+          bytesSaved:
+            session.data?.recordingPolicy === 'audio_and_transcript'
+              ? Math.max(bytesSaved, currentSavedRecording?.bytes ?? 0)
+              : undefined,
+          captureStartedAt: captureClock?.wallMs,
+          captureOffsetMs: captureClock?.offsetMs,
+          capturedElapsedMs: Math.max(capturedElapsedMs, currentSavedRecording?.endMs ?? 0),
+          recordingPanel:
+            recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
+              <HearingRecordingPanel
+                key={`recording:${apiScope}:${id}`}
+                sessionId={id}
+                live={captureActive}
+                canEnable={!captureActive && !session.data?.startedAt}
+                evidenceTime={evidenceTime}
+                onProgress={onRecordingProgress}
+              />
+            ) : null,
+          publicationsPanel,
+          playEvidence: (ms) =>
+            setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 })),
+          sourcePlayer: embeddableUrl ? (
+            <MediaPlayer src={embeddableUrl} />
+          ) : youtubeVideoId ? (
+            <iframe
+              src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+              title="Hearing video"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          ) : null,
+          connect: () => {
+            void connect();
+          },
+          disconnect: disconnectSocket,
+          startCapture: () => {
+            void startBrowserCapture();
+          },
+          endSession: () => {
+            void endSession();
+          },
+          goBack: () => {
+            void goBack();
+          },
+          confirmConsent: () =>
+            confirmConsent.mutate(
+              { id, attestation: 'Confirmed recording consent for this hearing.' },
+              {
+                onSuccess: () => message.success('Consent confirmed'),
+                onError: (e: unknown) => message.error((e as Error).message),
+              },
+            ),
+          confirmingConsent: confirmConsent.isPending,
+          saveRecap: () => setRecapOpen(true),
+        })}
+        {recapOpen && !recapsEnabled && (
+          <SaveRecapModal
+            sessionId={id}
+            sessionTitle={session.data?.title ?? 'Hearing'}
+            defaultClientId={session.data?.clientId ?? undefined}
+            clients={clientsQuery.data ?? []}
+            onClose={() => setRecapOpen(false)}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -1078,13 +1314,16 @@ export function LiveHearingRoomPage({
           </Text>
           {captureActive && (
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {wakeLock === 'active' ? 'Screen wake lock active.' : 'Keep this device awake while sharing audio.'}
-              {' '}Browser transcription needs this tab and device to stay open. Scheduled Capiro attendance runs on the server.
+              {wakeLock === 'active'
+                ? 'Screen wake lock active.'
+                : 'Keep this device awake while sharing audio.'}{' '}
+              Browser transcription needs this tab and device to stay open. Scheduled Capiro
+              attendance runs on the server.
             </Text>
           )}
           {statusText && <Badge status="processing" text={statusText} />}
           <Text type="secondary" style={{ fontSize: 11 }}>
-            Uploaded {(bytesSent / 1024 / 1024).toFixed(2)} MB
+            Sent {(bytesSent / 1024 / 1024).toFixed(2)} MB
             {lastTranscriptAt
               ? ` · last transcript ${Math.max(0, Math.round((Date.now() - lastTranscriptAt) / 1000))}s ago`
               : ''}
@@ -1092,9 +1331,28 @@ export function LiveHearingRoomPage({
         </Space>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 16 }}>
+      {(recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript') && (
+        <HearingRecordingPanel
+          key={`recording:${apiScope}:${id}`}
+          sessionId={id}
+          live={captureActive}
+          canEnable={!captureActive && !session.data?.startedAt}
+          evidenceTime={evidenceTime}
+          onProgress={onRecordingProgress}
+        />
+      )}
+      {publicationsPanel}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+          gap: 16,
+        }}
+      >
         <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
-          {transcript.isError && <Alert type="warning" message="Saved transcript could not be refreshed." />}
+          {transcript.isError && (
+            <Alert type="warning" message="Saved transcript could not be refreshed." />
+          )}
           {transcript.isLoading && segments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Spin />
@@ -1107,7 +1365,15 @@ export function LiveHearingRoomPage({
               }
             />
           ) : (
-            <TranscriptList segments={segments} interim={interim} />
+            <TranscriptList
+              segments={segments}
+              interim={interim}
+              playEvidence={
+                session.data?.recordingPolicy === 'audio_and_transcript'
+                  ? (ms) => setEvidenceTime({ ms, revision: Date.now() })
+                  : undefined
+              }
+            />
           )}
           {transcript.hasNextPage && (
             <Button
@@ -1122,7 +1388,9 @@ export function LiveHearingRoomPage({
         </Card>
 
         <Card title="Intelligence cards" size="small" style={{ minHeight: 420 }}>
-          {summary.isError && <Alert type="warning" message="Saved intelligence could not be refreshed." />}
+          {summary.isError && (
+            <Alert type="warning" message="Saved intelligence could not be refreshed." />
+          )}
           {cards.length === 0 ? (
             <Empty description="Relevant moments will appear here." />
           ) : (
@@ -1146,7 +1414,7 @@ export function LiveHearingRoomPage({
         </Card>
       </div>
 
-      {recapOpen && (
+      {recapOpen && !recapsEnabled && (
         <SaveRecapModal
           sessionId={id}
           sessionTitle={session.data?.title ?? 'Hearing'}
@@ -1320,7 +1588,9 @@ export function SaveRecapModal({
       ) : generating ? (
         <div style={{ textAlign: 'center', padding: 32 }}>
           <Spin />
-          <div style={{ marginTop: 12 }}>Meri is writing the recap for {clientName || 'this client'}…</div>
+          <div style={{ marginTop: 12 }}>
+            Meri is writing the recap for {clientName || 'this client'}…
+          </div>
         </div>
       ) : failed ? (
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
@@ -1340,7 +1610,7 @@ export function SaveRecapModal({
             {synthesized ? (
               <Tag color="green">Meri synthesis</Tag>
             ) : (
-              <Tag color="orange">Source-verified assembly — Meri was unavailable</Tag>
+              <Tag color="orange">Unofficial transcript-based recap — Meri was unavailable</Tag>
             )}
             {clientContext?.status === 'applied' ? (
               <Tag color="blue">

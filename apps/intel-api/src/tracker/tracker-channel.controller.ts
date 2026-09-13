@@ -31,11 +31,12 @@ export class TrackerChannelController {
   ) {}
 
   @Post(':clientId/tracker/sms/verify/start')
-  smsStart(
+  async smsStart(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
     @Body() body: SmsStartDto,
   ) {
+    await this.watchlists.assertClientInTenant(ctx.tenantId, clientId);
     return this.smsVerify.startVerification(ctx.tenantId, ctx.clerkUserId, clientId, body.phone);
   }
 
@@ -45,11 +46,13 @@ export class TrackerChannelController {
     @Param('clientId') clientId: string,
     @Body() body: SmsConfirmDto,
   ) {
+    await this.watchlists.assertClientInTenant(ctx.tenantId, clientId);
     const res = await this.smsVerify.confirmVerification(
       ctx.tenantId,
       ctx.clerkUserId,
       body.phone,
       body.code,
+      clientId,
     );
     await this.watchlists.markPhoneVerified(ctx.tenantId, clientId, ctx.clerkUserId, res.phone);
     return res;

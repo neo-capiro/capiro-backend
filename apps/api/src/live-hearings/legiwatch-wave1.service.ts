@@ -29,6 +29,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
+import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 import { LiveHearingsService, type CalendarQuery } from './live-hearings.service.js';
 import {
   assessAttendance,
@@ -432,6 +433,7 @@ export class LegiWatchWave1Service {
                    'browser', now(), now(), now())
            ON CONFLICT (tenant_id, user_id, hearing_id)
            DO UPDATE SET attendance_mode='browser',
+                         scheduled_by_user=false,
                          consent_acknowledged_at=COALESCE(hearing_subscription.consent_acknowledged_at, now()),
                          updated_at=now()`,
           ctx.tenantId,
@@ -536,6 +538,7 @@ export class LegiWatchWave1Service {
     ]);
 
     return assessAttendance({
+      statePermission: await stateCapturePolicy(this.prisma, ctx, hearing),
       hearing: {
         id: hearing.id,
         visibility: hearing.visibility,

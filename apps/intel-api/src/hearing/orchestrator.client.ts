@@ -48,6 +48,8 @@ export class OrchestratorClient {
      *  MeriV2, which resolves the Capiro user from it and 401s without one. */
     clerkUserId: string;
     segment: FinalSegment;
+    /** Durable jobs must distinguish a provider outage from an empty result. */
+    requireSuccess?: boolean;
     /**
      * The government-affairs frame the analyst set up the session with. Meri gets
      * only what the session actually carries — a null committee or an empty
@@ -62,10 +64,15 @@ export class OrchestratorClient {
       committeeId?: string | null;
       /** The scheduled committee_hearing row this session was created from. */
       hearingId?: string | null;
+      jurisdiction?: string | null;
+      legislativeSession?: string | null;
     };
   }): Promise<ExtractionResult> {
     const empty: ExtractionResult = { entityMentions: [], issueTags: [] };
-    if (!this.baseUrl) return empty;
+    if (!this.baseUrl) {
+      if (params.requireSuccess) throw new Error('Hearing analysis is not configured');
+      return empty;
+    }
 
     // BYOK3: resolve the tenant's key (cached) so this runs on THEIR credential,
     // not the orchestrator's global fallback. Absent/failed resolve → the
@@ -97,11 +104,18 @@ export class OrchestratorClient {
         signal: controller.signal,
       });
       if (!res.ok) {
+        if (params.requireSuccess) throw new Error(`Hearing analysis HTTP ${res.status}`);
         this.logger.warn(`orchestrator extract HTTP ${res.status}; degrading to raw segment`);
         return empty;
       }
       const envelope = (await res.json()) as { result?: Partial<ExtractionResult> } | null;
       const data: Partial<ExtractionResult> = envelope?.result ?? {};
+      if (
+        params.requireSuccess &&
+        (!envelope?.result || !Array.isArray(data.entityMentions) || !Array.isArray(data.issueTags))
+      ) {
+        throw new Error('Hearing analysis response is incomplete');
+      }
       return {
         entityMentions: data.entityMentions ?? [],
         keyQuote: data.keyQuote,
@@ -113,6 +127,7 @@ export class OrchestratorClient {
         summaryCard: data.summaryCard,
       };
     } catch (err) {
+      if (params.requireSuccess) throw err;
       this.logger.warn(
         `orchestrator extract failed (${(err as Error).message}); degrading to raw segment`,
       );
@@ -137,6 +152,30 @@ export class OrchestratorClient {
     actionItems: string[];
     /** The client the recap is written FOR; absent/null = client-agnostic brief. */
     client?: PostHearingClientInput | null;
+    evidence?: Array<{
+      segmentId: string;
+      text: string;
+      startMs: number;
+      endMs: number;
+      speakerLabel?: string | null;
+    }>;
+    jurisdiction?: string | null;
+    legislativeSession?: string | null;
+    publicationKind?: 'live_update' | 'hearing_recap';
+    folderContext?: Array<{
+      id: string;
+      name: string;
+      jurisdiction: string;
+      session: string;
+      bills: Array<{
+        id: string;
+        number: string;
+        position: string;
+        importance: string;
+        topPriority: boolean;
+        externalComments: string;
+      }>;
+    }>;
   }): Promise<{
     executiveSummary: string;
     tone: string;
@@ -146,6 +185,13 @@ export class OrchestratorClient {
     draftClientEmail: { subject: string; body: string };
     /** Absent from an orchestrator that predates client-aware briefs. */
     clientContext?: 'applied' | 'unavailable' | 'none';
+    claims?: Array<{
+      id: string;
+      kind: 'quote' | 'observation' | 'analysis';
+      text: string;
+      evidenceIds: string[];
+    }>;
+    promptVersion?: string;
   } | null> {
     // Every `return null` below is logged. This method degrades to a
     // deterministic recap on failure, and the caller ALSO swallows null quietly,
@@ -184,6 +230,15 @@ export class OrchestratorClient {
               mentions: params.mentions,
               actionItems: params.actionItems,
               ...(params.client ? { client: params.client } : {}),
+              ...(params.evidence
+                ? {
+                    evidence: params.evidence,
+                    jurisdiction: params.jurisdiction,
+                    legislativeSession: params.legislativeSession,
+                    publicationKind: params.publicationKind,
+                    folderContext: params.folderContext,
+                  }
+                : {}),
             },
             // Transport-level scope, not tool input: from `clientId` the
             // orchestrator compiles this client's steering and checks the ethical
@@ -212,6 +267,13 @@ export class OrchestratorClient {
           recommendedNextSteps: string[];
           draftClientEmail: { subject: string; body: string };
           clientContext?: 'applied' | 'unavailable' | 'none';
+          claims?: Array<{
+            id: string;
+            kind: 'quote' | 'observation' | 'analysis';
+            text: string;
+            evidenceIds: string[];
+          }>;
+          promptVersion?: string;
         };
       } | null;
       if (!envelope?.result) {

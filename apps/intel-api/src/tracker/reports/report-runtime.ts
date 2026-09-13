@@ -14,6 +14,10 @@ import { ReportDeliveryService } from './report-delivery.service.js';
 import { ReportSubscriptionService } from './report-subscription.service.js';
 import { RecordRuleService } from './record-rule.service.js';
 import { AgendaRuleService } from '../calendar/agenda-rule.service.js';
+import { HearingPublicationService } from '../../hearing/hearing-publication.service.js';
+import { HearingSessionService } from '../../hearing/hearing-session.service.js';
+import { HearingCryptoService } from '../../hearing/hearing-crypto.service.js';
+import { SmsService } from '../sms/sms.service.js';
 
 export function reportRuntime(prisma: PrismaService) {
   const folders = new FolderTrackerService(
@@ -23,11 +27,24 @@ export function reportRuntime(prisma: PrismaService) {
   );
   const reports = new ReportService(folders, new FeatureFlagService(prisma, new ConfigService()));
   const recipients = new ReportRecipientsService(reports);
-  const delivery = new ReportDeliveryService(reports, recipients, new IntelEmailService());
+  const publications = new HearingPublicationService(
+    reports,
+    recipients,
+    new HearingSessionService(prisma),
+    new HearingCryptoService(new ConfigService()),
+  );
+  const delivery = new ReportDeliveryService(
+    reports,
+    recipients,
+    new IntelEmailService(),
+    publications,
+    new SmsService(),
+  );
   return {
     reports,
     recipients,
     delivery,
+    publications,
     subscriptions: new ReportSubscriptionService(reports, recipients, delivery),
     rules: new RecordRuleService(reports),
     agendaRules: new AgendaRuleService(reports),

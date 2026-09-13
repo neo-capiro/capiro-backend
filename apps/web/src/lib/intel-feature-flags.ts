@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from './use-api.js';
+import { useApiScope } from './use-api-scope.js';
 
 /**
  * Intel-API feature flags for the current tenant (e.g. `hearing_watch`).
@@ -31,8 +32,9 @@ export const DEFENSE_FUNDING_INTEL_FEATURE = 'defense_funding_intel';
 
 export function useIntelFeatureFlags() {
   const api = useApi();
+  const scope = useApiScope();
   return useQuery<Record<string, boolean>>({
-    queryKey: ['intel', 'feature-flags'],
+    queryKey: ['intel', 'feature-flags', scope],
     queryFn: async () => {
       try {
         return (await api.get<Record<string, boolean>>('/intel-api/feature-flags')).data;

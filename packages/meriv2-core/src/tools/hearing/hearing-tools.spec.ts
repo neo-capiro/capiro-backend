@@ -1,4 +1,4 @@
-import { parseJsonObject, extractAnthropicText } from '../../llm/llm-client';
+import { AnthropicLlmClient, parseJsonObject, extractAnthropicText } from '../../llm/llm-client';
 import { createTagLivePolicyMentionsTool } from './tag-live-policy-mentions';
 import { createGeneratePostHearingSummaryTool } from './generate-post-hearing-summary';
 import type { LlmClient } from '../../llm/llm-client';
@@ -11,10 +11,80 @@ const ctx: MeriContext = {
   role: 'member' as never,
 };
 
-/** None of these hearing tools use schema-forced completion — a fake that throws if ever called. */
+/** Legacy narrative requests retain their JSON contract. */
 const completeWithSchema: LlmClient['completeWithSchema'] = async () => {
   throw new Error('completeWithSchema not used in this test');
 };
+
+describe('evidence hearing draft provider contract', () => {
+  const input = {
+    sessionId: 'owned',
+    title: 'Owned hearing fixture',
+    quotes: [],
+    mentions: [],
+    actionItems: [],
+    evidence: [{ segmentId: 'final-1', text: 'This is an owned test.', startMs: 0, endMs: 2000 }],
+  };
+  const claims = [
+    { id: 'claim-1', kind: 'quote', text: input.evidence[0]!.text, evidenceIds: ['final-1'] },
+  ];
+  it('requests a forced claim tool and reads its arguments when free text has no claims', async () => {
+    const fetchImpl = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: 'text', text: '{"executiveSummary":"A test fixture."}' },
+              {
+                type: 'tool_use',
+                name: 'submit_hearing_claims',
+                input: { claims: claims.map(({ text, ...selection }) => selection) },
+              },
+            ],
+            usage: { input_tokens: 20, output_tokens: 40 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    );
+    const llm = new AnthropicLlmClient({
+      apiKey: 'owned-test-key',
+      model: 'owned-test-model',
+      fetchImpl,
+    });
+    const result = await createGeneratePostHearingSummaryTool(llm).handler(input, ctx);
+    expect(result.claims).toEqual(claims);
+    const body = JSON.parse(
+      (fetchImpl.mock.calls as unknown as [[string, RequestInit]])[0][1].body as string,
+    );
+    expect(body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
+    expect(body.tools[0].input_schema.required).toEqual(['claims']);
+    expect(
+      body.tools[0].input_schema.properties.claims.items.anyOf[0].properties.evidenceIds.items.enum,
+    ).toEqual(['final-1']);
+    expect(
+      body.tools[0].input_schema.properties.claims.items.anyOf[1].properties.text,
+    ).toBeUndefined();
+  });
+  it.each([
+    {},
+    { claims: [] },
+    { claims: [{ id: 'unknown', kind: 'quote', evidenceIds: ['other-session'] }] },
+    { claims: [{ ...claims[0], text: 'The bill passed.' }] },
+    { claims: [1, 2].map(() => ({ id: 'duplicate', kind: 'quote', evidenceIds: ['final-1'] })) },
+    { claims: [{ id: 'joined', kind: 'quote', evidenceIds: ['final-1', 'final-1'] }] },
+  ])('rejects missing or unsupported structured claims: %j', async (response) => {
+    const llm: LlmClient = {
+      completeJson: async () => {
+        throw Error('Evidence requests must use the schema contract');
+      },
+      completeWithSchema: async () => ({
+        input: response,
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
+    };
+    await expect(createGeneratePostHearingSummaryTool(llm).handler(input, ctx)).rejects.toThrow();
+  });
+});
 
 describe('llm-client helpers', () => {
   it('parses JSON from a fenced code block', () => {

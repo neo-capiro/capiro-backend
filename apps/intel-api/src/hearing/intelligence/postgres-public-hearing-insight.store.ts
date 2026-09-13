@@ -1,5 +1,6 @@
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import { stateAnalysisTenants } from './state-hearing-intelligence-access.js';
 import type {
   PublicHearingEntity,
   PublicHearingInsight,
@@ -66,10 +67,7 @@ function mapRow(row: PublicInsightRow): PublicHearingInsight {
   };
 }
 
-function assertSegmentScope(
-  segmentId: string,
-  insights: readonly PublicHearingInsight[],
-): void {
+function assertSegmentScope(segmentId: string, insights: readonly PublicHearingInsight[]): void {
   if (insights.some((insight) => insight.segmentId !== segmentId)) {
     throw new Error(`Cannot replace ${segmentId} with insights from another segment`);
   }
@@ -126,21 +124,31 @@ export class PostgresPublicHearingInsightStore implements PublicHearingInsightSi
     assertSegmentScope(input.segmentId, input.insights);
     return this.prisma.withSystem(
       async (tx) => {
-        const rows = await tx.$queryRawUnsafe<Array<{ revision: number; isFinal: boolean }>>(
-          `SELECT revision, is_final AS "isFinal"
-           FROM public_hearing_transcript_segment
-           WHERE id=$1
-           FOR SHARE`,
+        const rows = await tx.$queryRawUnsafe<
+          Array<{
+            revision: number;
+            isFinal: boolean;
+            hearingId: string;
+            geographicJurisdiction: string | null;
+          }>
+        >(
+          `SELECT s.revision, s.is_final AS "isFinal",c.hearing_id AS "hearingId",h.geographic_jurisdiction AS "geographicJurisdiction"
+           FROM public_hearing_transcript_segment s
+           JOIN public_hearing_capture c ON c.id=s.capture_id JOIN committee_hearing h ON h.id=c.hearing_id
+           WHERE s.id=$1
+           FOR SHARE OF s,h`,
           input.segmentId,
         );
         const current = rows[0];
-        if (
-          !current ||
-          !current.isFinal ||
-          current.revision !== input.expectedRevision
-        ) {
+        if (!current || !current.isFinal || current.revision !== input.expectedRevision) {
           return false;
         }
+        if (
+          current.geographicJurisdiction &&
+          current.geographicJurisdiction !== 'US' &&
+          !(await stateAnalysisTenants(this.prisma, current.hearingId, tx)).length
+        )
+          return false;
         await this.replaceInTransaction(tx, input.segmentId, input.insights);
         return true;
       },

@@ -7,7 +7,11 @@ export class Phase9RuntimeHeartbeat {
   constructor(
     private readonly prisma: PrismaService,
     private readonly input: {
-      jobKey: 'capture-worker' | 'intelligence-worker';
+      jobKey:
+        | 'capture-worker'
+        | 'intelligence-worker'
+        | 'hearing-media-worker'
+        | 'hearing-delivery-worker';
       workerId: string;
       manual?: boolean;
       heartbeatMs?: number;
@@ -47,9 +51,7 @@ export class Phase9RuntimeHeartbeat {
     const heartbeatMs = Math.max(15_000, this.input.heartbeatMs ?? 60_000);
     this.timer = setInterval(() => {
       void this.beat().catch((error) => {
-        this.input.log?.(
-          `[phase9] ${this.input.jobKey} heartbeat failed: ${boundedError(error)}`,
-        );
+        this.input.log?.(`[phase9] ${this.input.jobKey} heartbeat failed: ${boundedError(error)}`);
       });
     }, heartbeatMs);
     this.timer.unref();

@@ -11,6 +11,7 @@ import { TrackerChannelController } from './tracker-channel.controller.js';
 import { TrackerTestAlertService } from './tracker-test-alert.service.js';
 import { SmsService } from './sms/sms.service.js';
 import { SmsVerificationService } from './sms/sms-verification.service.js';
+import { HearingSmsController } from '../hearing/hearing-sms.controller.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import {
   FolderTrackerController,
@@ -30,6 +31,14 @@ import { CalendarPreparationService } from './calendar/calendar-preparation.serv
 import { CalendarPreparationController } from './calendar/calendar-preparation.controller.js';
 import { AgendaRuleService } from './calendar/agenda-rule.service.js';
 import { AgendaRuleController } from './calendar/agenda-rule.controller.js';
+import { HearingPublicationService } from '../hearing/hearing-publication.service.js';
+import { HearingPublicationController } from '../hearing/hearing-publication.controller.js';
+import { PublicHearingReviewController } from '../hearing/public-hearing-review.controller.js';
+import { HearingSessionService } from '../hearing/hearing-session.service.js';
+import { HearingCryptoService } from '../hearing/hearing-crypto.service.js';
+import { OrchestratorClient } from '../hearing/orchestrator.client.js';
+import { HearingAiCredentialResolver } from '../hearing/hearing-ai-credential-resolver.client.js';
+import { ClientBriefContextClient } from '../hearing/client-brief-context.client.js';
 
 /**
  * Unified tracker feature module (Phase 2 CRUD + Phase 3 §6.2 board/recs +
@@ -43,6 +52,9 @@ import { AgendaRuleController } from './calendar/agenda-rule.controller.js';
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    HearingSmsController,
+    HearingPublicationController,
+    PublicHearingReviewController,
     CalendarPreparationController,
     AgendaRuleController,
     ReportController,
@@ -54,6 +66,12 @@ import { AgendaRuleController } from './calendar/agenda-rule.controller.js';
     TrackerChannelController,
   ],
   providers: [
+    HearingPublicationService,
+    HearingSessionService,
+    HearingCryptoService,
+    OrchestratorClient,
+    HearingAiCredentialResolver,
+    ClientBriefContextClient,
     CalendarPreparationService,
     AgendaRuleService,
     ReportService,

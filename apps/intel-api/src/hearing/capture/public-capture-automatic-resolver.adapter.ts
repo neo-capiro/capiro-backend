@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StreamResolverService } from '../stream-resolver.service.js';
 import {
+  approvedPublicCapture,
+  publicAudioEnabled,
+  stateCaptureEnabled,
+} from './public-capture-permission.js';
+import {
   AutomaticStreamResolver,
   type AutomaticStreamResolutionResult,
 } from './automatic-stream-resolver.js';
@@ -45,7 +50,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
 
   constructor(
     private readonly prisma: PrismaService,
-    resolver: StreamResolverService,
+    private readonly resolver: StreamResolverService,
   ) {
     this.automatic = new AutomaticStreamResolver(resolver);
   }
@@ -93,6 +98,46 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
       });
     }
     const videos = await this.loadVideoReferences(hearingId, new Date());
+    if (publicAudioEnabled() && (await approvedPublicCapture(this.prisma, hearingId)).length) {
+      const attempts: AutomaticStreamResolutionResult['attempts'] = [];
+      // Existing guarded provider resolution still validates every fetch/redirect.
+      // Permission enables this exact event; it does not relax the network guard.
+      for (const url of [
+        ...new Set(
+          [hearing.officialPageUrl, ...videos.map((v) => v.url)].filter((v): v is string =>
+            Boolean(v),
+          ),
+        ),
+      ].slice(0, 12)) {
+        const raw = await this.resolver.resolve({ pageUrl: url });
+        const rawResult = { ...raw, reviewedSourcePermission: raw.status === 'resolved' };
+        const outcome = classifyStreamResolution(rawResult, {
+          now: new Date(),
+          scheduledStart: hearing.scheduledStart ?? undefined,
+          eventStatus: hearing.eventStatus,
+          publicAccess: hearing.publicAccess,
+        });
+        const target = {
+          url,
+          kind: 'OFFICIAL_PAGE' as const,
+          priority: attempts.length,
+          automaticProbeAllowed: true,
+          policyHint: 'FIRST_PARTY_CANDIDATE' as const,
+        };
+        attempts.push({ target, rawResult, outcome, skipped: false });
+        if (outcome.state === 'READY_FOR_SERVER_CAPTURE') {
+          const result = { selected: outcome, rawResult, selectedTarget: target, attempts };
+          await this.persistAudit(hearingId, result, new Date());
+          return result;
+        }
+      }
+      if (attempts.length) {
+        const last = attempts.at(-1)!;
+        const result = { selected: last.outcome, rawResult: last.rawResult, attempts };
+        await this.persistAudit(hearingId, result, new Date());
+        return result;
+      }
+    }
     const result = await this.automatic.resolve({
       hearingId,
       officialPageUrl: input.pageUrl ?? hearing.officialPageUrl ?? undefined,
@@ -134,7 +179,15 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
        LIMIT 1`,
       hearingId,
     );
-    return rows[0] ?? null;
+    if (rows[0]) return rows[0];
+    if (!stateCaptureEnabled() || !(await approvedPublicCapture(this.prisma, hearingId)).length)
+      return null;
+    const state = await this.prisma.$queryRawUnsafe<HearingContextRow[]>(
+      `SELECT id,event_status AS "eventStatus",'PUBLIC' AS "publicAccess",starts_at AS "scheduledStart",url AS "officialPageUrl"
+      FROM committee_hearing WHERE id=$1 AND visibility='public' AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US' LIMIT 1`,
+      hearingId,
+    );
+    return state[0] ?? null;
   }
 
   private async loadVideoReferences(

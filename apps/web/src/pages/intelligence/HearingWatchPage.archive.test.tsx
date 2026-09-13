@@ -1,3 +1,6 @@
+// This isolated surface fixture supplies the same cache scope as its mocked API.
+vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'tenant-test:actor-test' }));
+
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

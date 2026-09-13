@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { canEditFolder } from '../folders/folder-tracker.service.js';
@@ -18,6 +19,14 @@ import {
 } from '../../feature-flags/feature-flag.service.js';
 import { ReportService } from './report.service.js';
 import { ReportRecipientsService, type RecipientSnapshot } from './recipients.service.js';
+import {
+  HearingPublicationService,
+  publicationFeature,
+  publicationSms,
+  type HearingSmsRecipient,
+} from '../../hearing/hearing-publication.service.js';
+import { SmsService } from '../sms/sms.service.js';
+import { publicationMarkdown } from '../../hearing/publication-domain.js';
 import {
   digest,
   escapeHtml,
@@ -44,6 +53,8 @@ export class ReportDeliveryService {
     readonly reports: ReportService,
     readonly recipients: ReportRecipientsService,
     readonly email: IntelEmailService,
+    @Optional() readonly hearing?: HearingPublicationService,
+    @Optional() readonly sms?: SmsService,
   ) {}
   async preview(ctx: WorkspaceTenantContext, runId: string, input: unknown) {
     const run = await this.reports.run(ctx, runId),
@@ -130,6 +141,11 @@ export class ReportDeliveryService {
     recipient: RecipientSnapshot,
     channel = 'email',
   ) {
+    if (delivery.kind === 'live_update' || delivery.kind === 'hearing_recap') {
+      if (!this.hearing) throw new ForbiddenException('HEARING_DELIVERY_ADAPTER_UNAVAILABLE');
+      await tx.$executeRaw`SELECT set_config('app.hearing_actor',${ctx.clerkUserId},true)`;
+      return this.hearing.checkDispatch(tx, ctx, delivery, recipient, channel);
+    }
     if (delivery.kind === 'bill_record' || delivery.kind === 'agenda')
       return this.checkRecordDispatch(tx, ctx, delivery, object(recipient), channel);
     if (!delivery.runId) throw new BadRequestException('REPORT_RUN_REQUIRED');
@@ -498,6 +514,15 @@ export class ReportDeliveryService {
   async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_report') {
     const prisma = this.reports.folders.prisma;
     if (
+      (kind === 'live_update' || kind === 'hearing_recap') &&
+      (!this.hearing ||
+        (process.env.LEGIWATCH_HEARING_EMAIL_ENABLED !== 'true' &&
+          process.env.LEGIWATCH_HEARING_SMS_ENABLED !== 'true' &&
+          process.env.LEGIWATCH_HEARING_INBOX_ENABLED !== 'true') ||
+        !(await this.reports.flags.isEnabled(publicationFeature(kind), tenantId)))
+    )
+      return { attempted: 0, held: 0 };
+    if (
       kind === 'agenda' &&
       (process.env.LEGIWATCH_AGENDA_ALERTS_ENABLED !== 'true' ||
         !(await this.reports.flags.isEnabled(AGENDA_ALERTS_FEATURE, tenantId)))
@@ -577,7 +602,11 @@ export class ReportDeliveryService {
       try {
         await this.reports.authorize(
           ctx,
-          candidate.delivery.kind === 'agenda' ? AGENDA_ALERTS_FEATURE : undefined,
+          candidate.delivery.kind === 'agenda'
+            ? AGENDA_ALERTS_FEATURE
+            : ['live_update', 'hearing_recap'].includes(candidate.delivery.kind)
+              ? publicationFeature(candidate.delivery.kind)
+              : undefined,
         );
         await this.reports.folders.withActor(ctx, (tx) =>
           this.checkDispatch(
@@ -618,7 +647,85 @@ export class ReportDeliveryService {
             await this.checkDispatch(tx, ctx, candidate.delivery, recipient, candidate.channel);
             const composition = candidate.delivery.composition as unknown as ReportComposition;
             let result;
-            if (candidate.delivery.kind === 'bill_record' || candidate.delivery.kind === 'agenda') {
+            if (
+              candidate.delivery.kind === 'live_update' ||
+              candidate.delivery.kind === 'hearing_recap'
+            ) {
+              const approved = await this.hearing!.get(
+                tx,
+                ctx,
+                String(object(candidate.delivery.composition).publicationId),
+              );
+              const plainText = publicationMarkdown(approved.payload);
+              if (candidate.channel === 'in_app') {
+                const secret = process.env.INTERNAL_SERVICE_SECRET;
+                if (!secret) throw new BadRequestException('INBOX_ADAPTER_NOT_CONFIGURED');
+                providerInvoked = true;
+                const response = await fetch(
+                  `${(process.env.API_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/api/internal/legiwatch/hearing-publication-notification`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'content-type': 'application/json',
+                      'x-internal-service-secret': secret,
+                    },
+                    signal: AbortSignal.timeout(15000),
+                    body: JSON.stringify({
+                      tenantId,
+                      userId: ctx.clerkUserId,
+                      publicationId: approved.row.id,
+                      contentHash: approved.row.contentHash,
+                      title: approved.payload.label + ': ' + approved.payload.title,
+                      body:
+                        plainText.length <= 10000
+                          ? plainText
+                          : plainText.slice(0, 9000) +
+                            '\n\nExcerpt — open the approved version for all claims and evidence.',
+                    }),
+                  },
+                );
+                const acknowledgement = response.ok
+                  ? ((await response.json()) as { suppressed?: boolean })
+                  : null;
+                result =
+                  response.ok && !acknowledgement?.suppressed
+                    ? { outcome: 'accepted' as const, messageId: 'inbox:' + approved.row.id }
+                    : {
+                        outcome: 'terminal' as const,
+                        error: response.ok
+                          ? 'INBOX_ACCESS_SUPPRESSED'
+                          : 'INBOX_HTTP_' + response.status,
+                      };
+              } else if (candidate.channel === 'sms') {
+                if (!this.sms) throw new BadRequestException('SMS_ADAPTER_UNAVAILABLE');
+                const message = publicationSms(approved.payload);
+                if (object(candidate.delivery.composition).smsText !== message)
+                  throw new ConflictException('APPROVED_SMS_CONTENT_CHANGED');
+                providerInvoked = true;
+                const sent = await this.sms.send((recipient as HearingSmsRecipient).phone, message);
+                result = {
+                  outcome: sent.sent
+                    ? ('accepted' as const)
+                    : sent.uncertain
+                      ? ('uncertain' as const)
+                      : ('terminal' as const),
+                  messageId: sent.providerMessageId,
+                  error: sent.error,
+                };
+              } else {
+                providerInvoked = true;
+                result = await this.email.sendReport(
+                  recipient.email,
+                  recipient.role,
+                  approved.payload.label + ': ' + approved.payload.title,
+                  `<html><body><pre style="white-space:pre-wrap">${escapeHtml(plainText)}</pre></body></html>`,
+                  plainText,
+                );
+              }
+            } else if (
+              candidate.delivery.kind === 'bill_record' ||
+              candidate.delivery.kind === 'agenda'
+            ) {
               const packet = object(candidate.delivery.composition),
                 staff = object(candidate.recipient);
               if (candidate.channel === 'in_app') {

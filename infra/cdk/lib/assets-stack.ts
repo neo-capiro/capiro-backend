@@ -148,6 +148,29 @@ export class AssetsStack extends cdk.Stack {
     );
   }
 
+  /** Immutable hearing media and complete version-aware retention cleanup. */
+  grantHearingAudioAccess(grantee: iam.IGrantable): void {
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          's3:GetObject',
+          's3:GetObjectVersion',
+          's3:PutObject',
+          's3:DeleteObject',
+          's3:DeleteObjectVersion',
+        ],
+        resources: [`${this.bucket.bucketArn}/hearing-audio/*`],
+      }),
+    );
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:ListBucket', 's3:ListBucketVersions'],
+        resources: [this.bucket.bucketArn],
+        conditions: { StringLike: { 's3:prefix': ['hearing-audio/*'] } },
+      }),
+    );
+  }
+
   /** Add the IAM policy statements an API task role needs to mint presigned URLs. */
   grantApiAccess(grantee: iam.IGrantable): void {
     grantee.grantPrincipal.addToPrincipalPolicy(

@@ -26,6 +26,7 @@ export const STREAM_CAPTURE_POLICIES = [
 export type StreamCapturePolicy = (typeof STREAM_CAPTURE_POLICIES)[number];
 
 export type StreamCoverageReasonCode =
+  | 'SOURCE_PERMISSION_REVIEWED'
   | 'FIRST_PARTY_STREAM_READY'
   | 'STREAM_NOT_LIVE_YET'
   | 'DELAYED_START_GRACE_EXPIRED'
@@ -51,6 +52,8 @@ export interface ResolverMediaLike {
 }
 
 export interface ResolverResultLike {
+  /** Set only by the internal canonical-event adapter after current grant checks. */
+  reviewedSourcePermission?: boolean;
   status: 'resolved' | 'candidates' | 'pending' | 'unresolvable';
   media?: ResolverMediaLike;
   candidates?: Array<{ title: string; pageUrl: string; programId?: string }>;
@@ -106,12 +109,19 @@ export function classifyStreamResolution(
   }
 
   if (result.status === 'resolved' && result.media) {
+    if (result.reviewedSourcePermission === true)
+      return ready(result, result.media, 'SOURCE_PERMISSION_REVIEWED');
     const provider = result.media.provider.trim().toLowerCase();
     if (provider === 'cspan' || provider === 'c-span') {
       return terminal('POLICY_BLOCKED', 'LICENSE_REQUIRED', 'CSPAN_LICENSE_REQUIRED', result);
     }
     if (provider === 'youtube-live' || isYoutubeUrl(result.media.url)) {
-      return terminal('BROWSER_CAPTURE_ONLY', 'BROWSER_CAPTURE_ONLY', 'YOUTUBE_BROWSER_ONLY', result);
+      return terminal(
+        'BROWSER_CAPTURE_ONLY',
+        'BROWSER_CAPTURE_ONLY',
+        'YOUTUBE_BROWSER_ONLY',
+        result,
+      );
     }
     if (provider === 'senate-isvp' || isApprovedCongressionalMediaUrl(result.media.url)) {
       return ready(result, result.media, 'FIRST_PARTY_STREAM_READY');
@@ -126,12 +136,7 @@ export function classifyStreamResolution(
 
   if (result.status === 'pending') {
     if (delayedStartGraceExpired(context)) {
-      return terminal(
-        'NO_PUBLIC_STREAM',
-        'BLOCKED',
-        'DELAYED_START_GRACE_EXPIRED',
-        result,
-      );
+      return terminal('NO_PUBLIC_STREAM', 'BLOCKED', 'DELAYED_START_GRACE_EXPIRED', result);
     }
     return retryable(
       'WAITING_FOR_STREAM',
@@ -147,7 +152,12 @@ export function classifyStreamResolution(
       return terminal('POLICY_BLOCKED', 'LICENSE_REQUIRED', 'CSPAN_LICENSE_REQUIRED', result);
     }
     if (candidateUrls.length > 0 && candidateUrls.every(isYoutubeUrl)) {
-      return terminal('BROWSER_CAPTURE_ONLY', 'BROWSER_CAPTURE_ONLY', 'YOUTUBE_BROWSER_ONLY', result);
+      return terminal(
+        'BROWSER_CAPTURE_ONLY',
+        'BROWSER_CAPTURE_ONLY',
+        'YOUTUBE_BROWSER_ONLY',
+        result,
+      );
     }
     return terminal(
       'POLICY_BLOCKED',
@@ -165,12 +175,7 @@ export function classifyStreamResolution(
     return terminal('BROWSER_CAPTURE_ONLY', 'BROWSER_CAPTURE_ONLY', 'YOUTUBE_BROWSER_ONLY', result);
   }
   if (combined.includes('blocked by network policy')) {
-    return retryable(
-      'SOURCE_ERROR',
-      'BLOCKED',
-      'RESOLVER_NETWORK_POLICY_BLOCK',
-      result,
-    );
+    return retryable('SOURCE_ERROR', 'BLOCKED', 'RESOLVER_NETWORK_POLICY_BLOCK', result);
   }
   if (delayedStartGraceExpired(context)) {
     return terminal('NO_PUBLIC_STREAM', 'BLOCKED', 'NO_MEDIA_DISCOVERED', result);
@@ -324,7 +329,9 @@ function isApprovedCongressionalMediaUrl(rawUrl: string): boolean {
 function isYoutubeUrl(rawUrl: string): boolean {
   try {
     const hostname = new URL(rawUrl).hostname.toLowerCase();
-    return hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com');
+    return (
+      hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com')
+    );
   } catch {
     return false;
   }

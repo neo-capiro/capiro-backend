@@ -76,6 +76,8 @@ jobs:
     # and a bounded larger heap so the absolute-zero gate is deterministic.
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+      LEGIWATCH_RECORDING_TEST_DATABASE: disposable
     services:
       folder-postgres:
         image: pgvector/pgvector:pg16
@@ -111,6 +113,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install FFmpeg for retained-media reconstruction
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
 
       # The api and intel-api suites import their generated Prisma clients.
       # `generate` never connects to a database. The saved-session association
@@ -355,3 +359,18 @@ jobs:
       - name: Assert apps/web scope is clean
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 249 805
+
+      # New real-DB, media, review, consent and UI suites have their own explicit
+      # floors. The earlier saved-session fixture stays on its separate DB.
+      - name: Phase 4 recording, review, delivery and document qualification
+        env:
+          CAPIRO_SOURCE_SHA: ${{ github.sha }}
+        run: node scripts/legiwatch-phase4-qualification.mjs
+
+      - name: Preserve Phase 4 qualification results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legiwatch-phase4-qualification
+          path: work/phase4-qualification/*.json
+          if-no-files-found: warn

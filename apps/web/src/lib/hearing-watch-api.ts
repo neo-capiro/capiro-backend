@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from './use-api.js';
+import { useApiScope } from './use-api-scope.js';
 
 export interface LiveHearingSession {
   id: string;
@@ -97,8 +98,9 @@ export interface HearingSessionHistoryPage {
 /** Paginated My Sessions history; preserves the legacy /hearings array endpoint for other callers. */
 export function useHearingSessionHistory() {
   const api = useApi();
+  const scope = useApiScope();
   return useInfiniteQuery<HearingSessionHistoryPage>({
-    queryKey: ['intel', 'hearings', 'history'],
+    queryKey: ['intel', 'hearings', 'history', scope],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const q = new URLSearchParams({ limit: '50' });
@@ -180,15 +182,17 @@ export function useResolveStream() {
 
 export function useHearingSession(id: string) {
   const api = useApi();
+  const scope = useApiScope();
   return useQuery<LiveHearingSession>({
-    queryKey: ['intel', 'hearing', id],
+    queryKey: ['intel', 'hearing', id, scope],
     queryFn: async () => (await api.get<LiveHearingSession>(`/intel-api/hearings/${id}`)).data,
     enabled: Boolean(id),
     retry: false,
     staleTime: 15_000,
-    refetchInterval: (query) => ['live', 'scheduled', 'failed-recoverable'].includes(
-      query.state.data?.status ?? '',
-    ) ? 15_000 : false,
+    refetchInterval: (query) =>
+      ['live', 'scheduled', 'failed-recoverable'].includes(query.state.data?.status ?? '')
+        ? 15_000
+        : false,
     refetchIntervalInBackground: true,
   });
 }
@@ -212,8 +216,9 @@ export interface HearingTranscriptPage {
 /** Persisted transcript pages for reopening an ended or interrupted session. */
 export function useHearingTranscript(id: string) {
   const api = useApi();
+  const scope = useApiScope();
   return useInfiniteQuery<HearingTranscriptPage>({
-    queryKey: ['intel', 'hearing', id, 'transcript'],
+    queryKey: ['intel', 'hearing', id, 'transcript', scope],
     queryFn: async ({ pageParam }) => {
       const offset = Number(pageParam ?? 0);
       return (
@@ -272,8 +277,9 @@ export function useConfirmConsent() {
 
 export function useUpcomingHearings() {
   const api = useApi();
+  const scope = useApiScope();
   return useQuery<UpcomingHearing[]>({
-    queryKey: ['intel', 'upcoming-hearings'],
+    queryKey: ['intel', 'upcoming-hearings', scope],
     queryFn: async () => (await api.get<UpcomingHearing[]>('/intel-api/upcoming-hearings')).data,
     retry: false,
     staleTime: 300_000,
@@ -300,6 +306,7 @@ export function useBrowseHearings(params: {
   offset: number;
 }) {
   const api = useApi();
+  const scope = useApiScope();
   return useQuery<BrowseHearingsResult>({
     queryKey: [
       'intel',
@@ -309,6 +316,7 @@ export function useBrowseHearings(params: {
       params.chamber ?? '',
       params.limit,
       params.offset,
+      scope,
     ],
     queryFn: async () => {
       const q = new URLSearchParams();
@@ -504,8 +512,9 @@ export interface SavedHearingRecapPage {
 
 export function useSavedHearingRecaps(clientId: string) {
   const api = useApi();
+  const scope = useApiScope();
   return useInfiniteQuery<SavedHearingRecapPage>({
-    queryKey: ['intel', 'hearing-recaps', clientId],
+    queryKey: ['intel', 'hearing-recaps', clientId, scope],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const q = new URLSearchParams({ limit: '25' });

@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { RecordingStorageService } from '../recording/recording-storage.service.js';
+import { PublicHearingAudioStore } from './public-hearing-audio.store.js';
 import { SourceDataModule } from '../../sourcedata/source-data.module.js';
 import { StreamResolverService } from '../stream-resolver.service.js';
 import { FfmpegDeepgramCaptureRuntime } from './ffmpeg-deepgram-capture.runtime.js';
@@ -49,11 +53,17 @@ import { HearingSubscriptionRepository } from './hearing-subscription.repository
       useFactory: async (
         credentials: PublicCaptureCredentialsAdapter,
         sink: PublicHearingTranscriptStore,
+        prisma: PrismaService,
       ) => {
         const credential = await credentials.resolve();
-        return new FfmpegDeepgramCaptureRuntime(credential.apiKey, sink);
+        return new FfmpegDeepgramCaptureRuntime(credential.apiKey, sink, {
+          audioSink: new PublicHearingAudioStore(
+            prisma,
+            new RecordingStorageService(new ConfigService()),
+          ),
+        });
       },
-      inject: [PublicCaptureCredentialsAdapter, PublicHearingTranscriptStore],
+      inject: [PublicCaptureCredentialsAdapter, PublicHearingTranscriptStore, PrismaService],
     },
     {
       provide: PublicCaptureWorkerCoordinator,

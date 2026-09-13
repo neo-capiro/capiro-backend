@@ -124,7 +124,10 @@ describe('HearingRecapService', () => {
     expect(sql).toContain('tenant_id =');
     expect(sql).toContain("source_type::text IN ('hearing', 'markup')");
     expect(sql).toContain('created_by =');
-    expect(values).toEqual(['session-1', ctx.tenantId, ctx.clerkUserId]);
+    expect(sql).toContain("recording_policy::text <> 'no_storage'");
+    expect(sql).toContain('public_capture_id IS NULL');
+    expect(sql).toContain('legiwatch_hearing_recaps_v1');
+    expect(values).toEqual([ctx.tenantId, 'session-1', ctx.tenantId, ctx.clerkUserId]);
   });
 
   it('is idempotent when a current recap already exists', async () => {
