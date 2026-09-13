@@ -35,7 +35,11 @@ describe('evidence hearing draft provider contract', () => {
           JSON.stringify({
             content: [
               { type: 'text', text: '{"executiveSummary":"A test fixture."}' },
-              { type: 'tool_use', name: 'submit_hearing_claims', input: { claims } },
+              {
+                type: 'tool_use',
+                name: 'submit_hearing_claims',
+                input: { claims: claims.map(({ text, ...selection }) => selection) },
+              },
             ],
             usage: { input_tokens: 20, output_tokens: 40 },
           }),
@@ -55,15 +59,19 @@ describe('evidence hearing draft provider contract', () => {
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
     expect(body.tools[0].input_schema.required).toEqual(['claims']);
     expect(
-      body.tools[0].input_schema.properties.claims.items.properties.evidenceIds.items.enum,
+      body.tools[0].input_schema.properties.claims.items.anyOf[0].properties.evidenceIds.items.enum,
     ).toEqual(['final-1']);
+    expect(
+      body.tools[0].input_schema.properties.claims.items.anyOf[1].properties.text,
+    ).toBeUndefined();
   });
   it.each([
     {},
     { claims: [] },
-    { claims: [{ ...claims[0], evidenceIds: ['other-session'] }] },
+    { claims: [{ id: 'unknown', kind: 'quote', evidenceIds: ['other-session'] }] },
     { claims: [{ ...claims[0], text: 'The bill passed.' }] },
-    { claims: [claims[0], claims[0]] },
+    { claims: [1, 2].map(() => ({ id: 'duplicate', kind: 'quote', evidenceIds: ['final-1'] })) },
+    { claims: [{ id: 'joined', kind: 'quote', evidenceIds: ['final-1', 'final-1'] }] },
   ])('rejects missing or unsupported structured claims: %j', async (response) => {
     const llm: LlmClient = {
       completeJson: async () => {

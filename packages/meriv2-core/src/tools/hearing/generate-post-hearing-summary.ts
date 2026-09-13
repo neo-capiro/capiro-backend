@@ -240,12 +240,23 @@ export function createGeneratePostHearingSummaryTool(
         const schema = z.object({
           claims: z
             .array(
-              z.object({
-                id: z.string().min(1).max(100),
-                kind: z.enum(['quote', 'observation', 'analysis']),
-                text: z.string().min(1).max(2500),
-                evidenceIds: z.array(z.string()).min(1).max(20),
-              }),
+              z.union([
+                z
+                  .object({
+                    id: z.string().min(1).max(100),
+                    kind: z.enum(['observation', 'analysis']),
+                    text: z.string().min(1).max(2500),
+                    evidenceIds: z.array(z.string()).min(1).max(20),
+                  })
+                  .strict(),
+                z
+                  .object({
+                    id: z.string().min(1).max(100),
+                    kind: z.literal('quote'),
+                    evidenceIds: z.array(z.string()).length(1),
+                  })
+                  .strict(),
+              ]),
             )
             .min(1)
             .max(40),
@@ -262,7 +273,7 @@ export function createGeneratePostHearingSummaryTool(
             claims: [
               {
                 id: 'claim-1',
-                kind: 'observation | quote | analysis',
+                kind: 'observation | analysis',
                 text: 'One supported claim',
                 evidenceIds: ['supplied segmentId'],
               },
@@ -275,7 +286,7 @@ export function createGeneratePostHearingSummaryTool(
           prompt,
           toolName: 'submit_hearing_claims',
           toolDescription:
-            'Return the unofficial draft with a final transcript reference for every claim. Prefer observation claims for summaries. A quote must be copied from one referenced segment exactly, including case and punctuation, without added quotation marks. Never join transcript fragments into a quote; summarize them as an observation citing every relevant segment. Do not repair transcription errors inside quotes.',
+            'Return the unofficial draft with a final transcript reference for every claim. Write summaries as observations or analysis. To include an exact quote, select one segment ID and omit text entirely; the application copies its persisted transcript text. Quote segments must be at most 2500 characters. Never author or join quote text. Use an observation with all relevant IDs to summarize multiple fragments.',
           inputSchema: {
             type: 'object',
             additionalProperties: false,
@@ -286,20 +297,39 @@ export function createGeneratePostHearingSummaryTool(
                 minItems: 1,
                 maxItems: 40,
                 items: {
-                  type: 'object',
-                  additionalProperties: false,
-                  required: ['id', 'kind', 'text', 'evidenceIds'],
-                  properties: {
-                    id: { type: 'string', minLength: 1, maxLength: 100 },
-                    kind: { type: 'string', enum: ['quote', 'observation', 'analysis'] },
-                    text: { type: 'string', minLength: 1, maxLength: 2500 },
-                    evidenceIds: {
-                      type: 'array',
-                      minItems: 1,
-                      maxItems: 20,
-                      items: { type: 'string', enum: input.evidence.map((e) => e.segmentId) },
+                  anyOf: [
+                    {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['id', 'kind', 'text', 'evidenceIds'],
+                      properties: {
+                        id: { type: 'string', minLength: 1, maxLength: 100 },
+                        kind: { type: 'string', enum: ['observation', 'analysis'] },
+                        text: { type: 'string', minLength: 1, maxLength: 2500 },
+                        evidenceIds: {
+                          type: 'array',
+                          minItems: 1,
+                          maxItems: 20,
+                          items: { type: 'string', enum: input.evidence.map((e) => e.segmentId) },
+                        },
+                      },
                     },
-                  },
+                    {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['id', 'kind', 'evidenceIds'],
+                      properties: {
+                        id: { type: 'string', minLength: 1, maxLength: 100 },
+                        kind: { type: 'string', enum: ['quote'] },
+                        evidenceIds: {
+                          type: 'array',
+                          minItems: 1,
+                          maxItems: 1,
+                          items: { type: 'string', enum: input.evidence.map((e) => e.segmentId) },
+                        },
+                      },
+                    },
+                  ],
                 },
               },
             },
@@ -308,7 +338,16 @@ export function createGeneratePostHearingSummaryTool(
         });
         // Provider shape constraints do not establish factual support. Revalidate
         // the returned shape, session references and exact quotes before saving.
-        const parsed = schema.parse(completion.input);
+        const selected = schema.parse(completion.input);
+        const parsed = {
+          claims: selected.claims.map((claim) => {
+            if (claim.kind !== 'quote') return claim;
+            const source = input.evidence!.find((e) => e.segmentId === claim.evidenceIds[0]);
+            if (!source || source.text.length > 2500)
+              throw new Error('Unsupported recap quote selection');
+            return { ...claim, text: source.text };
+          }),
+        };
         const seen = new Set<string>();
         for (const claim of parsed.claims) {
           if (

@@ -42,9 +42,7 @@ describe('Meri hearing evidence contract', () => {
   it('preserves qualified context and returns an evidence-linked unofficial draft', async () => {
     const completeWithSchema = jest.fn(async () => ({
       input: {
-        claims: [
-          { id: 'claim-1', kind: 'quote', text: evidence[0]!.text, evidenceIds: ['final-a'] },
-        ],
+        claims: [{ id: 'claim-1', kind: 'quote', evidenceIds: ['final-a'] }],
       },
       usage: { inputTokens: 1, outputTokens: 1 },
     }));
@@ -53,7 +51,7 @@ describe('Meri hearing evidence contract', () => {
     } as any).handler(input, {} as any);
     expect(result).toMatchObject({
       promptVersion: 'hearing-evidence-v1',
-      claims: [{ evidenceIds: ['final-a'] }],
+      claims: [{ text: evidence[0]!.text, evidenceIds: ['final-a'] }],
       clientContext: 'none',
     });
     const request = (
