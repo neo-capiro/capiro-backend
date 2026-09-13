@@ -19,6 +19,11 @@ export class ApprovedHearingRecapDto {
   @IsString() @MinLength(1) @MaxLength(128) publicationId!: string;
   @IsString() @Matches(/^[a-f0-9]{64}$/) contentHash!: string;
 }
+export class ApprovedRecordBriefDto {
+  @IsString() @MinLength(1) @MaxLength(128) eventId!: string;
+  @IsString() @MinLength(1) @MaxLength(128) briefId!: string;
+  @IsString() @Matches(/^[a-f0-9]{64}$/) contentHash!: string;
+}
 
 function positiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -30,6 +35,50 @@ function positiveInt(value: string | undefined, fallback: number): number {
 @Roles('standard_user')
 export class HearingRecapController {
   constructor(private readonly recaps: HearingRecapService) {}
+  @Post('clients/:clientId/record-briefs/approved')
+  saveRecordBrief(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() input: ApprovedRecordBriefDto,
+    @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string,
+  ) {
+    return this.recaps.recordBriefDocument(
+      ctx,
+      clientId,
+      input,
+      true,
+      authorization,
+      impersonation,
+    );
+  }
+  @Post('clients/:clientId/record-briefs/approved/export')
+  async exportRecordBrief(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() input: ApprovedRecordBriefDto,
+    @Res() response: Response,
+    @Headers('authorization') authorization?: string,
+    @Headers('x-capiro-impersonate-tenant') impersonation?: string,
+  ) {
+    const file = await this.recaps.recordBriefDocument(
+      ctx,
+      clientId,
+      input,
+      false,
+      authorization,
+      impersonation,
+    );
+    if (!('buffer' in file) || typeof file.fileName !== 'string')
+      throw new Error('RECORD_BRIEF_EXPORT_CONTRACT');
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Type', DOCX_MIME);
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    );
+    response.send(file.buffer);
+  }
   @Post('clients/:clientId/hearing-recaps/approved')
   saveApproved(
     @CurrentTenant() ctx: TenantContext,

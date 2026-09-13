@@ -415,6 +415,11 @@ describe('Meri tool registration', () => {
       items: { type: 'string', minLength: 1 },
     });
   });
+  it('advertises exact published-record views on the existing authoritative hearing tool',()=>{
+    const schema=schemas().find(tool=>tool.name==='search_committee_hearings')!;
+    expect(schema.input_schema.properties).toMatchObject({recordsView:{type:'string'},recordId:{type:'string'},asOf:{type:'string'},hearingId:{type:'string'},clientId:{type:'string'}});
+    expect(schema.description).toMatch(/published records|published-record/i);
+  });
 
   it('tools without required inputs declare an empty required array', () => {
     for (const schema of schemas()) {

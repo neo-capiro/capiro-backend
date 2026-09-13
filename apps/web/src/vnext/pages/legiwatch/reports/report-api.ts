@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { useApiScope } from '../../../../lib/use-api-scope.js';
+import type { SelectedRecordBrief } from './RecordBriefSelection.js';
 
 export const REPORT_BASE = '/intel-api/legiwatch/reports';
 export const reportKey = (scope: string) => ['legiwatch-reports', scope] as const;
@@ -115,9 +116,16 @@ export interface Recipient {
 export interface Composition {
   approvalHash: string;
   complete: boolean;
-  composition: { recipients: Recipient[]; html: string; subject: string; introduction: string };
+  composition: {
+    recipients: Recipient[];
+    html: string;
+    plainText?: string;
+    subject: string;
+    introduction: string;
+  };
 }
 export interface Subscription {
+  recordBriefs?: import('./RecordBriefSelection.js').SelectedRecordBrief[];
   id: string;
   reportId: string;
   mode: string;
@@ -133,6 +141,7 @@ export interface Subscription {
   sendNoChange: boolean;
 }
 export interface Occurrence {
+  composition?: { plainText: string; subject: string; recordBriefs?: SelectedRecordBrief[] } | null;
   id: string;
   state: string;
   intendedAt: string;

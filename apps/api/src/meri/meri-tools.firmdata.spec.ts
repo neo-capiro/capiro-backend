@@ -1125,6 +1125,16 @@ describe('read_client_documents canonical evidence reads', () => {
 });
 
 describe('search_committee_hearings canonical transcript reads', () => {
+  it('preserves the exact record view, historical cutoff and current client envelope through the governed handler',async()=>{
+    const retrieve=jest.fn().mockResolvedValue({coverage:{complete:false,sources:[]},records:[]});
+    const securityEnvelope=jest.fn().mockResolvedValue({authorizedClientIds:['client-1'],authorizedMailboxConnectionIds:[]});
+    const m=makeMocks({downstreamRetrieval:{retrieve},contextPlane:{securityEnvelope}});
+    await m.service.execute(ctx,'search_committee_hearings',{hearingId:'fl-event',clientId:'client-1',recordsView:'briefs',recordId:'approved-brief',asOf:'2026-09-03T12:00:00Z',cursor:'exact-continuation'});
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({asOf:new Date('2026-09-03T12:00:00Z'),hearingFilters:expect.objectContaining({hearingId:'fl-event',recordsView:'briefs',recordId:'approved-brief'}),cursors:{hearings:'exact-continuation'},caller:expect.objectContaining({tenantId:ctx.tenantId,userId:ctx.userId,clientIds:['client-1'],authorizedClientIds:['client-1']})}));
+    await expect(m.service.execute(ctx,'search_committee_hearings',{recordsView:'guessed-unscoped-view'})).rejects.toThrow('Invalid published-record view');
+    await expect(m.service.execute(ctx,'search_committee_hearings',{recordsView:'briefs',asOf:'invalid-date'})).rejects.toThrow('Valid historical record timestamp required');
+    expect(retrieve).toHaveBeenCalledTimes(1);
+  });
   it('calls the shared hearing reader with current security and exact hearing filters', async () => {
     const records = [{ recordId: 'official:source:0000000002', payload: { text: 'Late transcript evidence' }, provenance: { sourceRecordId: 'source' } }];
     const coverage = { complete: false, sources: [{ domain: 'hearings', nextCursor: 'official:source:0000000002' }] };

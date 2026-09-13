@@ -772,6 +772,10 @@ export class EvidenceSourceService {
       };
     }
 
+    try { await assertHearingRecordDocumentAccess(this.prisma, ctx, row); }
+    catch { return { failures: [sourceFailure('document', 'DOCUMENT_ACCESS_OR_VERSION_CHANGED', 'critical',
+      'The selected brief is no longer available in this review context. Select a current authorized brief.', item.id)] }; }
+
     const readiness = this.attachments.readiness(
       {
         id: row.id,
@@ -1658,3 +1662,4 @@ function toThreadCandidate(row: {
     })),
   };
 }
+import { assertHearingRecordDocumentAccess } from '../hearing-record-document-access.js';

@@ -29,7 +29,10 @@ import {
   HEARING_SMS_FEATURE,
 } from '../feature-flags/feature-flag.service.js';
 import { smsSize } from '../tracker/sms/sms.service.js';
-import { HEARING_SMS_CONSENT_VERSION } from '../tracker/sms/sms-verification.service.js';
+import {
+  HEARING_SMS_CONSENT_VERSION,
+  RECORD_SMS_CONSENT_VERSION,
+} from '../tracker/sms/sms-verification.service.js';
 import { HearingSessionService } from './hearing-session.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import {
@@ -213,6 +216,99 @@ export class HearingPublicationService {
       payload: target.payload,
     };
   }
+  /** Retained observations remain usable without renewed raw-media access.
+   * Current owner, session retention, folders and exact retained segments still
+   * govern this read. Expired capture permission grants no new recording rights. */
+  async retainedVersion(ctx: WorkspaceTenantContext, sessionId: string, id: string) {
+    const session = await this.sessions.getAccessible(ctx.tenantId, sessionId, ctx.clerkUserId);
+    if (session.recordingPolicy === 'no_storage' || session.createdBy !== ctx.clerkUserId)
+      throw new ForbiddenException('RETAINED_OBSERVATION_OWNER_REQUIRED');
+    return this.actor(ctx, async (tx) => {
+      const { row, payload } = await this.get(tx, ctx, id, sessionId);
+      await this.reports.authorize(ctx, publicationFeature(row.kind));
+      for (const ref of payload.folders) {
+        const folder = await this.reports.folders.folder(tx, ctx, ref.id);
+        if (folder.archived || folder.clientId !== ref.clientId)
+          throw new ForbiddenException('OBSERVATION_CONTEXT_UNAVAILABLE');
+      }
+      if (payload.clientId)
+        await this.reports.folders.validateReferences(ctx, {
+          name: 'Retained observation',
+          clientId: payload.clientId,
+        });
+      await this.lockRetainedObservation(tx, ctx, sessionId, row.createdAt);
+      const current = await this.evidence(
+        tx,
+        ctx,
+        sessionId,
+        payload.evidence.map((e) => e.segmentId),
+        true,
+      );
+      return {
+        id,
+        payload,
+        contentHash: row.contentHash,
+        createdAt: row.createdAt,
+        evidenceCurrent: payload.evidence.every((e) =>
+          current.some((c) => c.segmentId === e.segmentId && c.hash === e.hash),
+        ),
+      };
+    });
+  }
+  async lockRetainedObservation(
+    tx: Prisma.TransactionClient,
+    ctx: WorkspaceTenantContext,
+    sessionId: string,
+    publicationAt: Date,
+    distribution = false,
+  ) {
+    await tx.$queryRaw`SELECT id FROM intel_live_hearing_session WHERE tenant_id=${ctx.tenantId} AND id=${sessionId} AND created_by=${ctx.clerkUserId} FOR SHARE`;
+    const s = await tx.liveHearingSession.findFirst({
+      where: { tenantId: ctx.tenantId, id: sessionId, createdBy: ctx.clerkUserId },
+    });
+    if (!s || s.recordingPolicy === 'no_storage')
+      throw new ForbiddenException('RETAINED_OBSERVATION_OWNER_REQUIRED');
+    const operations = distribution
+      ? ['analysis', 'retention', 'distribution']
+      : ['analysis', 'retention'];
+    const grants = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT p.id FROM intel_hearing_media_permission p
+      WHERE p.tenant_id=${ctx.tenantId} AND p.hearing_id IS NOT DISTINCT FROM ${s.hearingId}::text AND p.source_url=${s.sourceUrl ?? ''}
+      AND p.mode=${s.publicCaptureId ? 'server' : 'browser'} AND p.revoked_at IS NULL AND p.reviewed_at<=${publicationAt}
+      AND p.operations @> ${operations}::text[] AND p.retention_days>0
+      AND ${s.createdAt}+p.retention_days*interval '1 day'>clock_timestamp()
+      AND (${distribution}::boolean=false OR p.expires_at>clock_timestamp()) FOR SHARE`;
+    if (!grants.length)
+      throw new ForbiddenException(
+        distribution
+          ? 'SOURCE_DISTRIBUTION_PERMISSION_REQUIRED'
+          : 'RETAINED_OBSERVATION_PERMISSION_WITHDRAWN',
+      );
+    if (s.publicCaptureId) {
+      const captures = await tx.$queryRaw<
+        Array<{ id: string }>
+      >`SELECT c.id FROM public_hearing_capture c JOIN committee_hearing h ON h.id=c.hearing_id
+      WHERE c.id=${s.publicCaptureId} AND h.id=${s.hearingId} AND h.visibility='public' AND h.url=${s.sourceUrl ?? ''}
+        AND EXISTS(SELECT 1 FROM intel_hearing_media_permission p WHERE p.id=ANY(${grants.map((g) => g.id)}::text[])
+          AND c.created_at+p.retention_days*interval '1 day'>clock_timestamp()) FOR SHARE OF c,h`;
+      if (!captures.length) throw new ForbiddenException('RETAINED_PUBLIC_EVIDENCE_UNAVAILABLE');
+    }
+  }
+  async requireCurrent(
+    tx: Prisma.TransactionClient,
+    ctx: WorkspaceTenantContext,
+    row: HearingPublication,
+  ) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':' + row.seriesId},0))`;
+    const latest = await tx.hearingPublication.findFirst({
+      where: { tenantId: ctx.tenantId, seriesId: row.seriesId },
+      orderBy: { version: 'desc' },
+      select: { id: true },
+    });
+    if (latest?.id !== row.id)
+      throw new ConflictException('PUBLICATION_SUPERSEDED_REVIEW_CURRENT_VERSION');
+  }
   async candidates(ctx: WorkspaceTenantContext, sessionId: string, kind: string) {
     const session = await this.authorize(ctx, sessionId, kind);
     return this.actor(ctx, async (tx) => {
@@ -355,6 +451,7 @@ export class HearingPublicationService {
     ctx: WorkspaceTenantContext,
     sessionId: string,
     segmentIds: string[],
+    retained = false,
   ) {
     if (!segmentIds.length || segmentIds.length > 500)
       throw new BadRequestException('SELECT_1_TO_500_FINAL_SEGMENTS');
@@ -362,9 +459,10 @@ export class HearingPublicationService {
       where: { tenantId: ctx.tenantId, id: sessionId },
     });
     if (session?.publicCaptureId) {
-      await this.publicSource(tx, ctx, session);
+      if (!retained) await this.publicSource(tx, ctx, session);
       return publicReviewEvidence(tx, session.publicCaptureId, segmentIds);
     }
+    await tx.$queryRaw`SELECT id FROM intel_transcript_segment WHERE tenant_id=${ctx.tenantId} AND session_id=${sessionId} AND id=ANY(${segmentIds}::text[]) FOR SHARE`;
     const rows = await tx.transcriptSegment.findMany({
       where: { tenantId: ctx.tenantId, sessionId, id: { in: segmentIds }, isFinal: true },
       orderBy: [{ startMs: 'asc' }, { id: 'asc' }],
@@ -847,6 +945,7 @@ export class HearingPublicationService {
       const { row, payload } = await this.get(tx, ctx, id, sessionId);
       if (body.contentHash !== row.contentHash || body.attestSupported !== true)
         throw new ConflictException('REVIEW_ALL_CLAIMS_AND_EXACT_CONTENT_REQUIRED');
+      await this.requireCurrent(tx, ctx, row);
       await this.recheck(tx, ctx, row, payload);
       if (row.status === 'approved')
         return { id, status: 'approved', contentHash: row.contentHash };
@@ -870,6 +969,7 @@ export class HearingPublicationService {
     return this.actor(ctx, async (tx) => {
       const { row, payload } = await this.get(tx, ctx, id, sessionId);
       if (row.status !== 'approved') throw new ConflictException('APPROVED_PUBLICATION_REQUIRED');
+      await this.requireCurrent(tx, ctx, row);
       await this.recheck(tx, ctx, row, payload);
       const channel =
         body.channel === 'sms' ? 'sms' : body.channel === 'in_app' ? 'in_app' : 'email';
@@ -1010,6 +1110,7 @@ export class HearingPublicationService {
       row.kind !== delivery.kind
     )
       throw new ConflictException('APPROVED_PUBLICATION_UNAVAILABLE');
+    await this.requireCurrent(tx, ctx, row);
     const session = await this.recheck(tx, ctx, row, payload);
     const grants = await tx.$queryRaw<
       Array<{ id: string }>
@@ -1036,11 +1137,12 @@ export class HearingPublicationService {
     await this.recipients.recheck(tx, ctx, recipient);
     return payload;
   }
-  private async smsRecipients(
+  async smsRecipients(
     tx: Prisma.TransactionClient,
     ctx: WorkspaceTenantContext,
-    payload: HearingPublicationPayload,
+    payload: Pick<HearingPublicationPayload, 'clientId'>,
     consentIds: string[],
+    purpose: 'hearing_updates' | 'hearing_records' = 'hearing_updates',
   ): Promise<HearingSmsRecipient[]> {
     if (!payload.clientId || !consentIds.length || consentIds.length > 25)
       throw new BadRequestException('SELECT_CLIENT_SMS_CONSENTS');
@@ -1049,6 +1151,7 @@ export class HearingPublicationService {
         tenantId: ctx.tenantId,
         userId: ctx.clerkUserId,
         clientId: payload.clientId,
+        purpose,
         id: { in: consentIds },
         revokedAt: null,
       },
@@ -1082,7 +1185,7 @@ export class HearingPublicationService {
     }
     return result.sort((a, b) => a.phone.localeCompare(b.phone));
   }
-  private async inboxRecipients(
+  async inboxRecipients(
     tx: Prisma.TransactionClient,
     ctx: WorkspaceTenantContext,
   ): Promise<HearingInboxRecipient[]> {
@@ -1102,25 +1205,28 @@ export class HearingPublicationService {
       },
     ];
   }
-  private async recheckSms(
+  async recheckSms(
     tx: Prisma.TransactionClient,
     ctx: WorkspaceTenantContext,
-    payload: HearingPublicationPayload,
+    payload: Pick<HearingPublicationPayload, 'clientId'>,
     recipient: HearingSmsRecipient,
+    purpose: 'hearing_updates' | 'hearing_records' = 'hearing_updates',
   ) {
     await tx.$queryRaw`SELECT id FROM intel_hearing_sms_consent WHERE tenant_id=${ctx.tenantId} AND id=${recipient.consentId} FOR SHARE`;
-    const current = await this.smsRecipients(tx, ctx, payload, [recipient.consentId]);
+    const current = await this.smsRecipients(tx, ctx, payload, [recipient.consentId], purpose);
     const row = await tx.hearingSmsConsent.findFirst({
       where: {
         tenantId: ctx.tenantId,
         id: recipient.consentId,
-        consentVersion: HEARING_SMS_CONSENT_VERSION,
+        consentVersion:
+          purpose === 'hearing_records' ? RECORD_SMS_CONSENT_VERSION : HEARING_SMS_CONSENT_VERSION,
+        purpose,
       },
     });
     if (!row || smsRecipientHash(current[0]!) !== smsRecipientHash(recipient))
       throw new ConflictException('SMS_CONSENT_OR_DESTINATION_CHANGED');
     await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_contact WHERE tenant_id=${ctx.tenantId} AND id=${row.contactId} FOR SHARE`;
-    const locked = await this.smsRecipients(tx, ctx, payload, [recipient.consentId]);
+    const locked = await this.smsRecipients(tx, ctx, payload, [recipient.consentId], purpose);
     if (smsRecipientHash(locked[0]!) !== smsRecipientHash(recipient))
       throw new ConflictException('SMS_DIRECTORY_CHANGED');
   }

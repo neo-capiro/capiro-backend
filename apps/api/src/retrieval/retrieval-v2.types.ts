@@ -145,7 +145,13 @@ export interface RetrievalRequest {
   /** Exact canonical item read for institutional_knowledge lookup/semantic recall. */
   memoryItemId?: string;
   /** Optional public hearing filters, also used by Meri's dedicated hearing reader. */
-  hearingFilters?: { hearingId?: string; chamber?: string; committeeName?: string };
+  hearingFilters?: {
+    hearingId?: string;
+    chamber?: string;
+    committeeName?: string;
+    recordsView?: 'published' | 'briefs' | 'reconciliation';
+    recordId?: string;
+  };
   /** Phase 11 typed exact/lexical lookup. Valid only with queryClass=lookup. */
   exactLexical?: ExactLexicalQuery;
   canonicalEntityIds?: readonly string[];

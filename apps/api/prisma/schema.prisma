@@ -6145,7 +6145,7 @@ model StateRollCallVote {
   billKey            String?  @map("bill_key")
   legiscanRollCallId Int      @unique @map("legiscan_roll_call_id")
   chamber            String?
-  date               DateTime @db.Date
+  date               DateTime? @db.Date
   motion             String?  @db.Text // LegiScan vote desc
   yeas               Int      @default(0)
   nays               Int      @default(0)
@@ -6153,6 +6153,8 @@ model StateRollCallVote {
   absent             Int      @default(0)
   passed             Boolean?
   sourceUrl          String?  @map("source_url")
+  currentRevisionHash String? @map("current_revision_hash")
+  providerBillHash String? @map("provider_bill_hash")
   lastSyncedAt       DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
   memberVotes StateMemberVote[]

@@ -69,6 +69,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
+import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
 import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
@@ -4390,6 +4391,7 @@ export class EngagementService {
           skippedAttachments.push(row.fileName);
           continue;
         }
+        await assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute');
         const bytes = await this.readAttachmentBytes(row.s3Key);
         if (bytes.length > GRAPH_INLINE_ATTACHMENT_MAX) {
           skippedAttachments.push(row.fileName);
@@ -6818,8 +6820,18 @@ export class EngagementService {
       const uploaderNameById = new Map(users.map((u) => [u.id, userDisplayName(u)]));
       return { rows, uploaderNameById };
     });
+    const accessibleRows = [];
+    for (const row of rows) {
+      try {
+        await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
+        accessibleRows.push(row);
+      } catch (error) {
+        if (row.sourceEntityType !== 'hearing_record_brief') throw error;
+        // A removed private context must not leak its title or signed bytes.
+      }
+    }
     return Promise.all(
-      rows.map(async (row) => {
+      accessibleRows.map(async (row) => {
         // Phase 1 §3.h1 — no download URL for a file that may not be used, and an
         // explicit disclosure when it was never actually scanned. A signed URL for
         // a quarantined or threat-flagged object is the download the gate exists
@@ -6886,6 +6898,7 @@ export class EngagementService {
     });
 
     // Phase 1 §3.h1 — readiness gate BEFORE the bytes are read at all.
+    await assertHearingRecordDocumentAccess(this.prisma, ctx, attachment);
     const { disclosure } = this.assertAttachmentUsable(attachment);
 
     options.signal?.throwIfAborted();
@@ -7600,6 +7613,7 @@ export class EngagementService {
       // these bytes. A quarantined / threat / unscanned file must never leave the
       // building, and the failure is LOUD.
       this.assertAttachmentUsable(row);
+      await assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute');
 
       // Global invariant: "no silently omitted attachment". This used to `continue`
       // past an oversized file, so the recipient received an email whose body

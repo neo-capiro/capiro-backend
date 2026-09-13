@@ -9,6 +9,8 @@ import {
   SmsVerificationService,
   HEARING_SMS_CONSENT_TEXT,
   HEARING_SMS_CONSENT_VERSION,
+  RECORD_SMS_CONSENT_VERSION,
+  RECORD_SMS_CONSENT_TEXT,
 } from '../tracker/sms/sms-verification.service.js';
 import { SmsService } from '../tracker/sms/sms.service.js';
 
@@ -24,6 +26,65 @@ export class HearingSmsController {
     await this.reports.authorize(ctx, HEARING_SMS_FEATURE);
     await this.reports.folders.validateReferences(ctx, { name: 'Hearing SMS', clientId });
   }
+  @Get('records')
+  @Header('Cache-Control', 'private, no-store')
+  async records(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('clientId') clientId: string) {
+    await this.authorize(ctx, clientId);
+    return {
+      consents: await this.reports.folders.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.hearingSmsConsent.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            userId: ctx.clerkUserId,
+            clientId,
+            purpose: 'hearing_records',
+          },
+          orderBy: { consentedAt: 'desc' },
+        }),
+      ),
+      consentText: RECORD_SMS_CONSENT_TEXT,
+      consentVersion: RECORD_SMS_CONSENT_VERSION,
+      providerConfigured: this.sms.isConfigured(),
+      dispatchEnabled:
+        process.env.LEGIWATCH_RECORD_SMS_ENABLED === 'true' &&
+        process.env.HEARING_SMS_READINESS_APPROVED === 'true',
+    };
+  }
+  @Post('records/verify/start')
+  async startRecords(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Body() input: unknown,
+  ) {
+    await this.authorize(ctx, clientId);
+    const body = object(input);
+    return this.verify.startVerification(
+      ctx.tenantId,
+      ctx.clerkUserId,
+      clientId,
+      text(body.phone, 30),
+      'hearing_records',
+      text(body.consentVersion, 60),
+      text(body.contactId, 100),
+    );
+  }
+  @Post('records/verify/confirm')
+  async confirmRecords(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('clientId') clientId: string,
+    @Body() input: unknown,
+  ) {
+    await this.authorize(ctx, clientId);
+    const body = object(input);
+    return this.verify.confirmVerification(
+      ctx.tenantId,
+      ctx.clerkUserId,
+      text(body.phone, 30),
+      text(body.code, 6),
+      clientId,
+      'hearing_records',
+    );
+  }
   @Get()
   @Header('Cache-Control', 'private, no-store')
   async settings(
@@ -33,7 +94,12 @@ export class HearingSmsController {
     await this.authorize(ctx, clientId);
     const consents = await this.reports.folders.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.hearingSmsConsent.findMany({
-        where: { tenantId: ctx.tenantId, userId: ctx.clerkUserId, clientId },
+        where: {
+          tenantId: ctx.tenantId,
+          userId: ctx.clerkUserId,
+          clientId,
+          purpose: 'hearing_updates',
+        },
         orderBy: { consentedAt: 'desc' },
       }),
     );

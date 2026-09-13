@@ -25,6 +25,7 @@ import {
   type Settings,
 } from './report-api.js';
 import './reports.css';
+import { RecordBriefSelection, type SelectedRecordBrief } from './RecordBriefSelection.js';
 
 const option = (value: string, label = value) => ({ value, label });
 const today = () => {
@@ -1132,6 +1133,7 @@ function Composer({
   deliveryEnabled: boolean;
   action: Action;
 }) {
+  const [recordBriefs, setRecordBriefs] = useState<SelectedRecordBrief[]>([]);
   const api = useApi(),
     [selection, setSelection] = useState<Selection[]>([]),
     [subject, setSubject] = useState('Legislative report'),
@@ -1145,6 +1147,11 @@ function Composer({
   return (
     <section className="lw-reports-card">
       <h3>Review exact delivery</h3>
+      <RecordBriefSelection
+        reportId={run.reportId}
+        value={recordBriefs}
+        onChange={(v) => change(() => setRecordBriefs(v))}
+      />
       <Recipients
         directory={directory}
         value={selection}
@@ -1169,6 +1176,7 @@ function Composer({
             async () =>
               (
                 await api.post<Composition>(`${B}/runs/${run.id}/compose`, {
+                  recordBriefs,
                   selection,
                   subject,
                   introduction,
@@ -1194,6 +1202,14 @@ function Composer({
             <strong>{review.composition.subject}</strong>
           </p>
           <p className="lw-reports-introduction">{review.composition.introduction}</p>
+          {review.composition.plainText ? (
+            <details open>
+              <summary>Exact message for approval</summary>
+              <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                {review.composition.plainText}
+              </pre>
+            </details>
+          ) : null}
           <CapiroButton
             variant="primary"
             disabled={!deliveryEnabled || !review.complete || sending}
@@ -1202,6 +1218,7 @@ function Composer({
               void action(
                 () =>
                   api.post(`${B}/runs/${run.id}/send`, {
+                    recordBriefs,
                     selection,
                     subject,
                     introduction,
@@ -1389,6 +1406,20 @@ function OccurrenceHistory({
             {o.windowStart} → {o.windowEnd}
           </small>
           {o.error && <small>{statusLabel(o.error)}</small>}
+          {o.composition ? (
+            <details>
+              <summary>
+                Frozen composition
+                {o.composition.recordBriefs?.length
+                  ? ' · includes selected published-record briefs'
+                  : ''}
+              </summary>
+              <strong>{o.composition.subject}</strong>
+              <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                {o.composition.plainText}
+              </pre>
+            </details>
+          ) : null}
           <div className="lw-reports-actions">
             {o.runId && (
               <CapiroButton size="compact" onClick={() => void loadRun(o.runId!)}>
@@ -1424,6 +1455,9 @@ function ScheduleEditor({
   save: (value: object) => Promise<void>;
   activate: (s: Subscription, confirm: boolean, resume: string) => Promise<void>;
 }) {
+  const [recordBriefs, setRecordBriefs] = useState<SelectedRecordBrief[]>(
+    initial === 'new' ? [] : (initial.recordBriefs ?? []),
+  );
   const [reportId, setReportId] = useState(
     initial === 'new' ? (reports[0]?.id ?? '') : initial.reportId,
   );
@@ -1459,7 +1493,12 @@ function ScheduleEditor({
           option('', 'Select report'),
           ...reports.map((r) => option(r.id, `${r.name} · ${r.id.slice(0, 8)}`)),
         ]}
-        onChange={(e) => change(() => setReportId(e.target.value))}
+        onChange={(e) =>
+          change(() => {
+            setReportId(e.target.value);
+            setRecordBriefs([]);
+          })
+        }
       />
       <CapiroSelect
         label="Occurrence mode"
@@ -1469,6 +1508,11 @@ function ScheduleEditor({
           option('send', 'Send automatically to reviewed recipients'),
         ]}
         onChange={(e) => change(() => setMode(e.target.value))}
+      />
+      <RecordBriefSelection
+        reportId={reportId}
+        value={recordBriefs}
+        onChange={(v) => change(() => setRecordBriefs(v))}
       />
       <div className="lw-reports-controls">
         <CapiroInput
@@ -1513,6 +1557,7 @@ function ScheduleEditor({
         disabled={busy || !reportId || (mode === 'send' && (!deliveryEnabled || !selection.length))}
         onClick={() =>
           void save({
+            recordBriefs,
             reportId,
             mode,
             timezone,

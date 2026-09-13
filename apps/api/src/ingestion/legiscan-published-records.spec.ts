@@ -13,6 +13,22 @@ const raw = {
   state_link: 'https://example.gov/bill',
 } as LegiscanBill;
 describe('published-record ingestion', () => {
+  it('preserves missing, explicit zero, and adopted dispositions without inferring rejection', () => {
+    const records = publishedRecords({
+      ...raw,
+      amendments: [
+        { amendment_id: 1 },
+        { amendment_id: 2, adopted: 0 },
+        { amendment_id: 3, adopted: 1 },
+      ],
+    }).filter((r) => r.kind === 'amendment');
+    expect(records.map((r) => (r.evidence as any).adopted)).toEqual([null, false, true]);
+    expect(records.map((r) => (r.evidence as any).disposition)).toEqual([
+      'unknown',
+      'not_marked_adopted',
+      'marked_adopted',
+    ]);
+  });
   it('retains two same-day actions and two amendments; replay is stable and reorder preserves identity', () => {
     const records = publishedRecords(raw);
     expect(records).toHaveLength(4);
@@ -41,6 +57,12 @@ describe('published-record ingestion', () => {
       amendments: true,
       committees: true,
       relations: true,
+      votes: false,
+      documentMetadata: false,
+      supplementMetadata: false,
     });
+    expect(
+      reportSourceFacts({ ...raw, votes: [], texts: [], supplements: [] }).coverage,
+    ).toMatchObject({ votes: true, documentMetadata: true, supplementMetadata: true });
   });
 });

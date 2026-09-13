@@ -3,6 +3,8 @@ import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { InternalServiceGuard } from '../auth/internal-service.guard.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { requestEventRecordRefresh } from '../ingestion/legiwatch-event-record-refresh.js';
 
 export class BillRecordNotificationDto {
   @IsUUID() tenantId!: string;
@@ -27,6 +29,21 @@ export class HearingPublicationNotificationDto {
   @IsString() @MaxLength(64) contentHash!: string;
   @IsString() @MaxLength(500) title!: string;
   @IsString() @MaxLength(10000) body!: string;
+}
+export class RecordBriefNotificationDto {
+  @IsUUID() tenantId!: string;
+  @IsString() @MaxLength(200) userId!: string;
+  @IsString() @MaxLength(200) eventId!: string;
+  @IsString() @MaxLength(200) briefId!: string;
+  @IsString() @MaxLength(64) contentHash!: string;
+  @IsString() @MaxLength(32) kind!: string;
+  @IsString() @MaxLength(500) title!: string;
+  @IsString() @MaxLength(10000) body!: string;
+}
+export class PublishedRecordRefreshDto {
+  @IsUUID() tenantId!: string;
+  @IsString() @MaxLength(200) actor!: string;
+  @IsString() @MaxLength(200) eventId!: string;
 }
 
 /**
@@ -70,7 +87,12 @@ export class InternalLegiWatchController {
   constructor(
     private readonly wave1: LegiWatchWave1Service,
     private readonly notifications: LegiWatchLifecycleNotificationService,
+    private readonly prisma: PrismaService,
   ) {}
+  @Post('published-record-refresh')
+  recordRefresh(@Body() input: PublishedRecordRefreshDto) {
+    return requestEventRecordRefresh(this.prisma, input.tenantId, input.actor, input.eventId);
+  }
 
   @Post('bill-record-notification')
   billRecord(@Body() input: BillRecordNotificationDto) {
@@ -83,6 +105,10 @@ export class InternalLegiWatchController {
   @Post('hearing-publication-notification')
   hearingPublication(@Body() input: HearingPublicationNotificationDto) {
     return this.notifications.emitHearingPublication(input);
+  }
+  @Post('record-brief-notification')
+  recordBrief(@Body() input: RecordBriefNotificationDto) {
+    return this.notifications.emitRecordBrief(input);
   }
 
   @Get('client-brief-context')

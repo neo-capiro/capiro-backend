@@ -18,6 +18,26 @@ export interface ApprovedHearingRecapInput {
   publicationId: string;
   contentHash: string;
 }
+export interface ApprovedRecordBriefInput {
+  eventId: string;
+  briefId: string;
+  contentHash: string;
+}
+interface ApprovedRecordBriefDocument extends ApprovedRecordBriefInput {
+  schema: string;
+  tenantId: string;
+  clientId: string;
+  seriesId: string;
+  version: number;
+  sourceHash: string;
+  title: string;
+  markdown: string;
+  approvedAt: string;
+  accessLocks: {
+    folders: Array<{ id: string; version: number; clientId: string | null }>;
+    observation: { sessionId: string; segmentIds: string[] } | null;
+  };
+}
 interface ApprovedRecapDocument extends ApprovedHearingRecapInput {
   schema: string;
   tenantId: string;
@@ -170,6 +190,162 @@ export class HearingRecapService {
     )
       throw new ServiceUnavailableException('APPROVED_RECAP_CONTRACT_INVALID');
     return { approved, client };
+  }
+  private async approvedRecordBrief(
+    ctx: TenantContext,
+    clientId: string,
+    input: ApprovedRecordBriefInput,
+    authorization?: string,
+    impersonation?: string,
+  ) {
+    const client = await this.clientOrThrow(ctx, clientId);
+    if (!authorization?.startsWith('Bearer ')) throw new UnauthorizedException();
+    const route = `/intel-api/hearing-events/${encodeURIComponent(input.eventId)}/published-records/briefs/${encodeURIComponent(input.briefId)}/approved-document?contentHash=${encodeURIComponent(input.contentHash)}`;
+    const response = await fetch(
+      (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '') + route,
+      {
+        headers: {
+          authorization,
+          ...(impersonation ? { 'x-capiro-impersonate-tenant': impersonation } : {}),
+        },
+        signal: AbortSignal.timeout(15000),
+        redirect: 'error',
+      },
+    );
+    if (!response.ok)
+      throw new ConflictException('APPROVED_RECORD_BRIEF_UNAVAILABLE_OR_ACCESS_CHANGED');
+    const approved = (await response.json()) as ApprovedRecordBriefDocument;
+    if (
+      approved.schema !== 'legiwatch.approved-record-brief-document.v1' ||
+      approved.tenantId !== ctx.tenantId ||
+      approved.clientId !== clientId ||
+      approved.eventId !== input.eventId ||
+      approved.briefId !== input.briefId ||
+      approved.contentHash !== input.contentHash ||
+      !/^[a-f0-9]{64}$/.test(approved.sourceHash) ||
+      typeof approved.seriesId !== 'string' ||
+      !approved.seriesId ||
+      !Number.isSafeInteger(approved.version) ||
+      approved.version < 1 ||
+      typeof approved.title !== 'string' ||
+      approved.title.length > 200 ||
+      typeof approved.markdown !== 'string' ||
+      approved.markdown.length > 300000 ||
+      !Number.isFinite(Date.parse(approved.approvedAt)) ||
+      !approved.accessLocks ||
+      !Array.isArray(approved.accessLocks.folders) ||
+      approved.accessLocks.folders.length > 20 ||
+      approved.accessLocks.folders.some(
+        (f) =>
+          typeof f.id !== 'string' ||
+          f.id.length > 100 ||
+          !Number.isSafeInteger(f.version) ||
+          f.clientId !== clientId,
+      ) ||
+      (approved.accessLocks.observation !== null &&
+        (!approved.accessLocks.observation ||
+          typeof approved.accessLocks.observation.sessionId !== 'string' ||
+          !Array.isArray(approved.accessLocks.observation.segmentIds) ||
+          approved.accessLocks.observation.segmentIds.length > 1000 ||
+          approved.accessLocks.observation.segmentIds.some(
+            (id) => typeof id !== 'string' || id.length > 100,
+          )))
+    )
+      throw new ServiceUnavailableException('APPROVED_RECORD_BRIEF_CONTRACT_INVALID');
+    return { approved, client };
+  }
+  async recordBriefDocument(
+    ctx: TenantContext,
+    clientId: string,
+    input: ApprovedRecordBriefInput,
+    save: boolean,
+    authorization?: string,
+    impersonation?: string,
+  ) {
+    const { approved, client } = await this.approvedRecordBrief(
+      ctx,
+      clientId,
+      input,
+      authorization,
+      impersonation,
+    );
+    const buffer = await renderApprovedHearingRecap(approved, client.name);
+    const fileName = `${approved.title} - v${approved.version}.docx`.replace(/[\\/:*?"<>|]+/g, '-');
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.folder_actor',${ctx.clerkUserId},true)`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended('legiwatch-published-record-commit-v1',0))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':' + ctx.clerkUserId + ':record-event:' + input.eventId},0))`;
+        // Keep the authoritative permissions checked by Intel stable through the
+        // attachment write. A second service read validates the locked rows; none
+        // of these lock identifiers come from the caller's request body.
+        await tx.$queryRaw`SELECT m.id FROM tenant_memberships m JOIN users u ON u.id=m.user_id
+        WHERE m.tenant_id=${ctx.tenantId}::uuid AND u.clerk_user_id=${ctx.clerkUserId} FOR SHARE OF m,u`;
+        await tx.$queryRaw`SELECT id FROM clients WHERE tenant_id=${ctx.tenantId}::uuid AND id=${clientId}::uuid FOR SHARE`;
+        await tx.$queryRaw`SELECT id FROM client_memory_access WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${clientId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+        await tx.$queryRaw`SELECT id FROM intel_feature_flag WHERE tenant_id=${ctx.tenantId} AND feature IN ('legiwatch_published_records_v1','legiwatch_record_briefs_v1') FOR SHARE`;
+        for (const folder of approved.accessLocks.folders)
+          await tx.$queryRaw`SELECT id FROM intel_legiwatch_folder WHERE tenant_id=${ctx.tenantId} AND id=${folder.id} FOR SHARE`;
+        const observation = approved.accessLocks.observation;
+        if (observation) {
+          await tx.$queryRaw`SELECT id FROM intel_live_hearing_session WHERE tenant_id=${ctx.tenantId} AND id=${observation.sessionId} FOR SHARE`;
+          await tx.$queryRaw`SELECT p.id FROM intel_hearing_media_permission p JOIN intel_live_hearing_session s ON s.tenant_id=p.tenant_id
+          AND p.hearing_id IS NOT DISTINCT FROM s.hearing_id AND p.source_url=coalesce(s.source_url,'')
+          WHERE s.tenant_id=${ctx.tenantId} AND s.id=${observation.sessionId} FOR SHARE OF p`;
+          await tx.$queryRaw`SELECT c.id FROM public_hearing_capture c JOIN intel_live_hearing_session s ON s.public_capture_id=c.id
+          JOIN committee_hearing h ON h.id=c.hearing_id WHERE s.tenant_id=${ctx.tenantId} AND s.id=${observation.sessionId} FOR SHARE OF c,h`;
+          await tx.$queryRaw`SELECT id FROM intel_transcript_segment WHERE tenant_id=${ctx.tenantId} AND session_id=${observation.sessionId} AND id=ANY(${observation.segmentIds}::text[]) FOR SHARE`;
+          await tx.$queryRaw`SELECT id FROM public_hearing_transcript_segment WHERE id::text=ANY(${observation.segmentIds}::text[]) FOR SHARE`;
+        }
+        const current = await this.approvedRecordBrief(
+          ctx,
+          clientId,
+          input,
+          authorization,
+          impersonation,
+        );
+        if (JSON.stringify(current.approved) !== JSON.stringify(approved))
+          throw new ConflictException('APPROVED_RECORD_BRIEF_CHANGED');
+        if (!save) return { buffer, fileName };
+        const saved = await this.documents.createAttachmentFromBuffer(ctx, {
+          clientId,
+          fileName,
+          contentType: DOCX_MIME,
+          buffer,
+          source: 'published_record_brief',
+          sourceEntityType: 'hearing_record_brief',
+          sourceEntityId: approved.briefId,
+          sourceVersion: approved.version,
+          sourceContentHash: approved.contentHash,
+          privateToUploader: true,
+          idempotencyKey: `approved-record-brief:${approved.briefId}:${approved.contentHash}`,
+        });
+        await tx.$executeRaw`INSERT INTO legiwatch_record_document(attachment_id,tenant_id,owner_clerk_id,client_id,event_id,brief_id,series_id,version,content_hash,source_hash)
+        VALUES(${saved.id}::uuid,${ctx.tenantId}::uuid,${ctx.clerkUserId},${clientId}::uuid,${approved.eventId},${approved.briefId},${approved.seriesId},${approved.version},${approved.contentHash},${approved.sourceHash}) ON CONFLICT DO NOTHING`;
+        const prior = await tx.$queryRaw<
+          Array<{ id: string }>
+        >`SELECT d.attachment_id AS id FROM legiwatch_record_document d JOIN engagement_attachments a ON a.id=d.attachment_id
+        WHERE d.tenant_id=${ctx.tenantId}::uuid AND d.owner_clerk_id=${ctx.clerkUserId} AND d.client_id=${clientId}::uuid AND d.series_id=${approved.seriesId}
+          AND d.version<${approved.version} AND a.superseded_by_attachment_id IS NULL`;
+        for (const old of prior) await this.documents.supersedeAttachment(ctx, old.id, saved.id);
+        return {
+          eventId: approved.eventId,
+          briefId: approved.briefId,
+          seriesId: approved.seriesId,
+          version: approved.version,
+          contentHash: approved.contentHash,
+          sourceHash: approved.sourceHash,
+          reused: saved.reused ?? false,
+          document: {
+            attachmentId: saved.id,
+            fileName: saved.fileName,
+            indexedAt: saved.indexedAt ?? null,
+          },
+        };
+      },
+      { timeoutMs: 60000 },
+    );
   }
 
   async exportApproved(

@@ -23,6 +23,9 @@ export const HEARING_RECORDING_FEATURE = 'legiwatch_hearing_recording_v1';
 export const HEARING_UPDATES_FEATURE = 'legiwatch_hearing_updates_v1';
 export const HEARING_RECAPS_FEATURE = 'legiwatch_hearing_recaps_v1';
 export const HEARING_SMS_FEATURE = 'legiwatch_hearing_sms_v1';
+export const PUBLISHED_RECORDS_FEATURE = 'legiwatch_published_records_v1';
+export const RECORD_BRIEFS_FEATURE = 'legiwatch_record_briefs_v1';
+export const RECORD_DELIVERY_FEATURE = 'legiwatch_record_delivery_v1';
 /**
  * Gates the defense-funding data on Bill 360 and Program Element 360 (Release R3,
  * §3.6). Dark by default. This is the ROLLOUT switch; the commercial boundary stays
@@ -111,6 +114,9 @@ export class FeatureFlagService {
         HEARING_UPDATES_FEATURE,
         HEARING_RECAPS_FEATURE,
         HEARING_SMS_FEATURE,
+        PUBLISHED_RECORDS_FEATURE,
+        RECORD_BRIEFS_FEATURE,
+        RECORD_DELIVERY_FEATURE,
       ].includes(feature)
     )
       return false;

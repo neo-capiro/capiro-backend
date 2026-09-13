@@ -18,6 +18,12 @@ import { HearingPublicationService } from '../../hearing/hearing-publication.ser
 import { HearingSessionService } from '../../hearing/hearing-session.service.js';
 import { HearingCryptoService } from '../../hearing/hearing-crypto.service.js';
 import { SmsService } from '../sms/sms.service.js';
+import { HearingRecordWorkflowService } from '../../hearing/hearing-record-workflow.service.js';
+import { HearingRecordDeliveryService } from '../../hearing/hearing-record-delivery.service.js';
+import { HearingRecordsRepository } from '../../sourcedata/hearing-records.repository.js';
+import { OrchestratorClient } from '../../hearing/orchestrator.client.js';
+import { HearingAiCredentialResolver } from '../../hearing/hearing-ai-credential-resolver.client.js';
+import { ClientBriefContextClient } from '../../hearing/client-brief-context.client.js';
 
 export function reportRuntime(prisma: PrismaService) {
   const folders = new FolderTrackerService(
@@ -33,18 +39,33 @@ export function reportRuntime(prisma: PrismaService) {
     new HearingSessionService(prisma),
     new HearingCryptoService(new ConfigService()),
   );
+  const records = new HearingRecordWorkflowService(
+    reports,
+    new HearingRecordsRepository(prisma),
+    new HearingCryptoService(new ConfigService()),
+    publications,
+    new OrchestratorClient(
+      new ConfigService(),
+      new HearingAiCredentialResolver(new ConfigService()),
+    ),
+    new ClientBriefContextClient(),
+  );
+  const recordDelivery = new HearingRecordDeliveryService(records, recipients);
   const delivery = new ReportDeliveryService(
     reports,
     recipients,
     new IntelEmailService(),
     publications,
     new SmsService(),
+    recordDelivery,
   );
   return {
     reports,
     recipients,
     delivery,
     publications,
+    records,
+    recordDelivery,
     subscriptions: new ReportSubscriptionService(reports, recipients, delivery),
     rules: new RecordRuleService(reports),
     agendaRules: new AgendaRuleService(reports),

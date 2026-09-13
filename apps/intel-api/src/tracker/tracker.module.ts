@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { HearingRecordWorkflowService } from '../hearing/hearing-record-workflow.service.js';
+import { HearingRecordDeliveryService } from '../hearing/hearing-record-delivery.service.js';
+import { HearingRecordRetrievalController } from '../hearing/hearing-record-retrieval.controller.js';
+import { HearingRecordsController } from '../hearing/hearing-records.controller.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
 import { IntelAlertModule } from '../intel-alert/intel-alert.module.js';
 import { TrackerWatchlistController } from './tracker-watchlist.controller.js';
@@ -52,6 +56,8 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    HearingRecordRetrievalController,
+    HearingRecordsController,
     HearingSmsController,
     HearingPublicationController,
     PublicHearingReviewController,
@@ -66,6 +72,8 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     TrackerChannelController,
   ],
   providers: [
+    HearingRecordWorkflowService,
+    HearingRecordDeliveryService,
     HearingPublicationService,
     HearingSessionService,
     HearingCryptoService,

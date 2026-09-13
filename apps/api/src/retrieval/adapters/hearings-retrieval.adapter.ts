@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { retrievePublishedHearingRecords } from './published-hearing-records.js';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { RetrievalSourceAdapter } from '../retrieval-source.adapter.js';
@@ -58,6 +59,8 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
     request: RetrievalRequest,
     cursor?: string,
   ): Promise<RetrievalSourceResult> {
+    if (dataset.domain === DOMAIN && request.hearingFilters?.recordsView)
+      return retrievePublishedHearingRecords(this.prisma, request, cursor);
     const invalid = currentReadError(request);
     if (dataset.domain !== DOMAIN || !QUERY_CLASSES.has(request.queryClass) || invalid) {
       return governmentResult(DOMAIN, request, {

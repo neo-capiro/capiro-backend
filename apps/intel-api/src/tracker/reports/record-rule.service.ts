@@ -445,6 +445,7 @@ export class RecordRuleService {
           });
         for (const bill of bills)
           for (const event of bill.events) {
+            if (event.notificationEligible === false) continue;
             const folderIds = [
               ...new Set(
                 ready.assignments

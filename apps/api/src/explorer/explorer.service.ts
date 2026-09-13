@@ -1875,7 +1875,7 @@ export class ExplorerService {
         })),
         votes: votes.map((v) => ({
           id: v.id,
-          date: v.date.toISOString(),
+          date: v.date?.toISOString() ?? null,
           motion: v.motion,
           chamber: v.chamber,
           yeas: v.yeas,

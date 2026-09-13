@@ -291,6 +291,7 @@ export class RequestScopedLlmClient implements LlmClient {
     toolDescription: string;
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
+    timeoutMs?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
     return this.runWithFailover('LLM schema completion', (client) =>
       client.completeWithSchema(params),

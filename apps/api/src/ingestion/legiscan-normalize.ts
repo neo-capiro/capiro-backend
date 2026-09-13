@@ -21,6 +21,7 @@ import type { PrismaClient } from '@prisma/client';
 import { isValidCanonicalId } from '@capiro/shared';
 import { pickLegislatorMatch } from './legislator-match.util.js';
 import { normalizeLegiscanCalendar, retainLegiscanCalendar } from './legiscan-calendar.js';
+import { persistVoteRevision, type VoteObservation } from './legiscan-vote-revisions.js';
 import type {
   LegiscanBill,
   LegiscanPerson,
@@ -498,53 +499,15 @@ export function stateRollCallId(state: string, legiscanRollCallId: number): stri
   return `${state.toLowerCase()}-rc-${legiscanRollCallId}`;
 }
 
-/**
- * Upsert one roll call + its per-member rows. Votes are immutable once
- * recorded (LegiScan never revises a historical tally) — member rows are
- * inserted with `skipDuplicates`, never deleted/replaced. Caller (the drain
- * verb) is responsible for skipping the `getRollCall` fetch entirely when a
- * roll call with matching totals is already stored — this function itself is
- * safe to call repeatedly (fully idempotent).
- */
+/** Pull and dataset ingestion share atomic immutable revisions/current projections. */
 export async function upsertStateRollCallVote(
   prisma: PrismaClient,
   state: string,
   billKey: string | null,
   rc: LegiscanRollCall,
+  observation: VoteObservation = {},
 ): Promise<void> {
-  const id = stateRollCallId(state, rc.roll_call_id);
-  const passed = typeof rc.passed === 'number' ? rc.passed === 1 : null;
-  const date = safeDate(rc.date) ?? new Date(0);
-  const data = {
-    billKey,
-    legiscanRollCallId: rc.roll_call_id,
-    chamber: rc.chamber ?? null,
-    date,
-    motion: rc.desc ?? null,
-    yeas: rc.yea ?? 0,
-    nays: rc.nay ?? 0,
-    nv: rc.nv ?? 0,
-    absent: rc.absent ?? 0,
-    passed,
-    sourceUrl: null as string | null,
-  };
-  await prisma.stateRollCallVote.upsert({
-    where: { id },
-    create: { id, ...data },
-    update: data,
-  });
-
-  const memberRows = (rc.votes ?? []).filter((v) => typeof v.people_id === 'number');
-  if (memberRows.length) {
-    await prisma.stateMemberVote.createMany({
-      data: memberRows.map((v) => ({
-        voteId: id,
-        legiscanPeopleId: v.people_id,
-        voteCast: v.vote_text,
-      })),
-      skipDuplicates: true,
-    });
-  }
+  await persistVoteRevision(prisma, state, billKey, rc, observation);
 }
 
 // ── People / legislators (S1.3.4 sync-openstates people loop + crosswalk) ──

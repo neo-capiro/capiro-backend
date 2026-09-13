@@ -118,6 +118,39 @@ interface Recipient {
 
 @Injectable()
 export class LegiWatchLifecycleNotificationService {
+  async emitRecordBrief(input: {
+    tenantId: string;
+    userId: string;
+    eventId: string;
+    briefId: string;
+    contentHash: string;
+    kind: string;
+    title: string;
+    body: string;
+  }) {
+    if (!['record_brief', 'record_correction'].includes(input.kind))
+      return { created: 0, suppressed: true };
+    return this.prisma.withTenant(input.tenantId, async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.folder_actor',${input.userId},true)`;
+      const rows = await tx.$queryRaw<
+        Array<{ user_id: string }>
+      >`SELECT u.id::text AS user_id FROM intel_hearing_record_brief b
+        JOIN intel_hearing_record_brief_review r ON r.tenant_id=b.tenant_id AND r.brief_id=b.id AND r.content_hash=b.content_hash
+        JOIN users u ON u.clerk_user_id=b.owner_clerk_id JOIN tenant_memberships m ON m.user_id=u.id AND m.tenant_id::text=b.tenant_id AND m.status::text='active'
+        JOIN intel_feature_flag f ON f.tenant_id=b.tenant_id AND f.feature='legiwatch_record_delivery_v1' AND f.enabled
+        WHERE b.tenant_id=${input.tenantId} AND b.owner_clerk_id=${input.userId} AND b.id=${input.briefId} AND b.event_id=${input.eventId} AND b.content_hash=${input.contentHash}
+          AND r.created_at>now()-interval '24 hours' AND NOT EXISTS(SELECT 1 FROM intel_hearing_record_brief newer WHERE newer.tenant_id=b.tenant_id AND newer.series_id=b.series_id AND newer.version>b.version)`;
+      if (!rows[0]) return { created: 0, suppressed: true };
+      const inserted = await tx.$queryRaw<
+        Array<{ id: string }>
+      >`INSERT INTO legiwatch_notification_event
+        (tenant_id,user_id,event_type,hearing_id,hearing_record_brief_id,title,body,deep_link,dedup_key,created_at)
+        VALUES(${input.tenantId}::uuid,${rows[0].user_id},${input.kind},${input.eventId},${input.briefId},${input.title},${input.body},
+        ${'/legiwatch/hearings/' + encodeURIComponent(input.eventId) + '?brief=' + encodeURIComponent(input.briefId) + '#published-records'},
+        ${'record-brief:' + input.briefId + ':' + input.contentHash},now()) ON CONFLICT(tenant_id,user_id,dedup_key) DO NOTHING RETURNING id`;
+      return { created: inserted.length, suppressed: false };
+    });
+  }
   /** Owner-selected inbox delivery of an immutable reviewed version. */
   async emitHearingPublication(input: {
     tenantId: string;

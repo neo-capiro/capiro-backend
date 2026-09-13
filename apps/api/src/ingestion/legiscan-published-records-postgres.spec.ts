@@ -33,7 +33,7 @@ describe('published records PostgreSQL ingestion', () => {
     await prisma.$executeRaw`INSERT INTO state_bill(id,state,session,session_key,identifier,bill_number,title) VALUES(${id},'FL','2094','2094','HB 93','hb93','Synthetic record measure')`;
   });
   afterAll(async () => {
-    await prisma.$executeRaw`DELETE FROM state_bill WHERE id=${id}`;
+    // Preserve immutable content and its observation trail in the disposable DB.
     await prisma.$disconnect();
   });
   it('persists same-day and late-dated occurrences once and replays without moving observation time', async () => {

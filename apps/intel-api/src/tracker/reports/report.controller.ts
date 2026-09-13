@@ -31,6 +31,23 @@ export class ReportController {
   @Get('staged') staged(@CurrentTenant() ctx: WorkspaceTenantContext) {
     return this.reports.staged(ctx);
   }
+  @Get('record-brief-options') recordBriefOptions(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Query('reportId') reportId: string,
+    @Query('offset') offset = '0',
+  ) {
+    if (!this.delivery.recordBriefs) return { options: [], next: null };
+    return this.delivery.recordBriefs.reportOptions(ctx, reportId, Number(offset));
+  }
+  @Get('record-bill-context') recordBillContext(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Query('billId') billId: string,
+    @Query('clientId') clientId?: string,
+    @Query('folderId') folderId?: string,
+  ) {
+    if (!this.delivery.recordBriefs) return { events: [], briefs: [], complete: false };
+    return this.delivery.recordBriefs.workflow.billContext(ctx, billId, clientId, folderId);
+  }
   @Post('promote/:id') promote(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('id') id: string,

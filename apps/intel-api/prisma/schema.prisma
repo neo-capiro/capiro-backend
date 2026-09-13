@@ -270,6 +270,7 @@ model LegiWatchReportSubscription {
   catchUp String @default("draft") @map("catch_up")
   catchUpDraftPending Boolean @default(false) @map("catch_up_draft_pending")
   recipients Json @default("[]")
+  recordBriefs Json @default("[]") @map("record_briefs")
   subject String
   introduction String @default("")
   version Int @default(0)
@@ -293,6 +294,7 @@ model LegiWatchReportOccurrence {
   windowStart DateTime @map("window_start")
   windowEnd DateTime @map("window_end")
   configuration Json
+  composition Json?
   state String @default("queued")
   runId String? @map("run_id")
   attempts Int @default(0)

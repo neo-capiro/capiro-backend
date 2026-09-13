@@ -1,6 +1,7 @@
 import { hostname } from 'node:os';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { HearingIntelligenceWorker } from './hearing-intelligence.worker.js';
+import { maintainHearingRecords } from '../hearing-record-maintenance.js';
 
 function integer(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -10,8 +11,7 @@ function integer(value: string | undefined, fallback: number): number {
 async function main(): Promise<void> {
   const prisma = new PrismaService();
   const workerId =
-    process.env.HEARING_INTELLIGENCE_WORKER_ID ??
-    `phase8:${hostname()}:${process.pid}`;
+    process.env.HEARING_INTELLIGENCE_WORKER_ID ?? `phase8:${hostname()}:${process.pid}`;
   const loop = process.argv.includes('--loop');
   const backfill = process.argv.includes('--backfill');
   const relevanceBackfill = process.argv.includes('--relevance-backfill');
@@ -38,8 +38,15 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ workerId, relevanceBackfill: rebuilt }));
     }
 
+    let recordsCheckedAt = 0;
     do {
       const result = await worker.drainOnce();
+      if (Date.now() - recordsCheckedAt >= 60000) {
+        recordsCheckedAt = Date.now();
+        const records = await maintainHearingRecords(prisma);
+        if (records.completed || records.failed)
+          console.log(JSON.stringify({ workerId, event: 'published_record_work', ...records }));
+      }
       console.log(JSON.stringify({ workerId, ...result }));
       const empty = result.publicClaimed === 0 && result.tenantClaimed === 0;
       if (!loop && (!drainUntilEmpty || empty)) break;
@@ -60,6 +67,6 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+  console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
   process.exitCode = 1;
 });

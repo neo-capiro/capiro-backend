@@ -143,7 +143,8 @@ export interface PublishedEvent {
   order: number;
   observedAt: string;
   url: string | null;
-  adopted?: boolean;
+  adopted?: boolean | null;
+  notificationEligible?: boolean;
 }
 export interface Committee {
   id: string;

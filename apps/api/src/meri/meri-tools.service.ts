@@ -674,6 +674,15 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
       }),
       search_committee_hearings: obj({
+        recordsView: str(
+          'Optional exact-version view: published | briefs | reconciliation. Requires hearingId and recordId; briefs also require the exact authorized clientId.',
+        ),
+        recordId: str(
+          'Exact published record revision, reviewed Capiro brief, or owner reconciliation ID. Never guess an ID.',
+        ),
+        asOf: str(
+          'Optional ISO timestamp for an explicitly historical published record or brief. History is labeled and current access still applies.',
+        ),
         query: str(
           'Literal keyword search across hearing metadata, official transcript chunks, machine transcript segments and intelligence. Omit to read all records for hearingId.',
         ),
@@ -716,9 +725,16 @@ export class MeriToolsService {
       create_meeting_brief: obj(
         {
           meetingId: str('Meeting UUID'),
-          depth: { type: 'string', enum: ['standard', 'deep'], description: 'Use deep for a longer search: up to 100 meetings and 300 email threads over a year.' },
+          depth: {
+            type: 'string',
+            enum: ['standard', 'deep'],
+            description:
+              'Use deep for a longer search: up to 100 meetings and 300 email threads over a year.',
+          },
           additionalContext: str('Optional client, issue, or internal strategy focus'),
-          jobId: str('Existing preparation job UUID to check; checking never starts a new generation'),
+          jobId: str(
+            'Existing preparation job UUID to check; checking never starts a new generation',
+          ),
           requestKey: str('Optional stable request key for idempotent generation'),
           title: str('Optional brief title'),
           conversationId: str('Optional conversation UUID for attribution'),
@@ -4868,6 +4884,13 @@ export class MeriToolsService {
       optionalString(input, 'committeeName', 200) ?? optionalString(input, 'committee', 200);
     const cursor = optionalString(input, 'cursor', 1024);
     const requestedClient = optionalString(input, 'clientId', 80);
+    const recordsView = optionalString(input, 'recordsView', 32),
+      recordId = optionalString(input, 'recordId', 200),
+      asOf = optionalString(input, 'asOf', 60);
+    if (recordsView && !['published', 'briefs', 'reconciliation'].includes(recordsView))
+      throw new BadRequestException('Invalid published-record view');
+    if (asOf && (!recordsView || !Number.isFinite(Date.parse(asOf))))
+      throw new BadRequestException('Valid historical record timestamp required');
     const clientId = requestedClient
       ? await this.ensureClientVisible(ctx, requestedClient)
       : undefined;
@@ -4879,10 +4902,17 @@ export class MeriToolsService {
         hearingId: hearingId ?? undefined,
         chamber: chamber ?? undefined,
         committeeName: committeeName ?? undefined,
+        ...(recordsView
+          ? {
+              recordsView: recordsView as 'published' | 'briefs' | 'reconciliation',
+              recordId: recordId ?? undefined,
+            }
+          : {}),
       },
       pageSize: 1,
       ...(cursor ? { cursors: { hearings: cursor } } : {}),
       ...(clientId ? { clientId } : {}),
+      ...(asOf ? { asOf: new Date(asOf) } : {}),
     });
     const { coverage, ...data } = result;
     return {
@@ -5419,15 +5449,27 @@ export class MeriToolsService {
     const meetingId = requiredString(input, 'meetingId', 80);
     if (meetingPrepEnabled() && this.meetingPrepJobs) {
       const jobId = optionalString(input, 'jobId', 80);
-      const job = jobId ? await this.meetingPrepJobs.get(ctx, meetingId, jobId) : await this.meetingPrepJobs.submit(ctx, meetingId, {
-        additionalContext: optionalString(input, 'additionalContext', 4_000) ?? undefined,
-        depth: input.depth === 'deep' ? 'deep' : 'standard',
-        requestKey: optionalString(input, 'requestKey', 128) ?? undefined,
-      });
-      const meeting = job?.status === 'completed' ? await this.engagement.getMeeting(ctx, meetingId) : undefined;
-      const artifact = meeting?.preps.find(prep => prep.id === job?.prepId) ?? null;
-      return { tool: 'create_meeting_brief', meetingId, job, artifact,
-        message: artifact ? 'This is the same saved briefing shown in Engagement Manager.' : job?.status === 'completed' ? 'This job completed, but its briefing is no longer available as the current authorized artifact. Reopen the meeting or regenerate.' : 'Preparation is durable and runs in the background. Use jobId to check status; do not repeatedly start new jobs.' };
+      const job = jobId
+        ? await this.meetingPrepJobs.get(ctx, meetingId, jobId)
+        : await this.meetingPrepJobs.submit(ctx, meetingId, {
+            additionalContext: optionalString(input, 'additionalContext', 4_000) ?? undefined,
+            depth: input.depth === 'deep' ? 'deep' : 'standard',
+            requestKey: optionalString(input, 'requestKey', 128) ?? undefined,
+          });
+      const meeting =
+        job?.status === 'completed' ? await this.engagement.getMeeting(ctx, meetingId) : undefined;
+      const artifact = meeting?.preps.find((prep) => prep.id === job?.prepId) ?? null;
+      return {
+        tool: 'create_meeting_brief',
+        meetingId,
+        job,
+        artifact,
+        message: artifact
+          ? 'This is the same saved briefing shown in Engagement Manager.'
+          : job?.status === 'completed'
+            ? 'This job completed, but its briefing is no longer available as the current authorized artifact. Reopen the meeting or regenerate.'
+            : 'Preparation is durable and runs in the background. Use jobId to check status; do not repeatedly start new jobs.',
+      };
     }
     const conversationId = optionalString(input, 'conversationId', 80);
     const titleOverride = optionalString(input, 'title', 160);
