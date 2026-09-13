@@ -81,6 +81,7 @@ run(
     'test/hearing-state-audio-postgres.spec.ts',
     'test/hearing-publication-postgres.spec.ts',
     'test/hearing-public-review-postgres.spec.ts',
+    'test/hearing-runtime-privileges-postgres.spec.ts',
     'src/hearing/recording/recording-domain.spec.ts',
     'src/hearing/recording/transcription-recovery-domain.spec.ts',
     'src/hearing/hearing-gateway.capture.spec.ts',
@@ -91,7 +92,7 @@ run(
     'src/hearing/intelligence/postgres-public-hearing-insight.store.spec.ts',
     'test/sms-verification.spec.ts',
   ],
-  [13, 96],
+  [14, 100],
 );
 run(
   'web',
