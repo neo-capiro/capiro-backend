@@ -6,6 +6,8 @@ Candidate affects API, Intel service/report worker, Workspace, Meri and web-vnex
 
 The new capabilities default off. Deployment alone does not activate client rules. No client pilot scope, labeled corpus or channel authorization was supplied during implementation.
 
+Workspace's legacy `migrate` wrapper auto-resolves failed rows in the shared migration ledger. For this rollout use its qualified image with entrypoint `node`, arguments `node_modules/prisma/build/index.js migrate deploy`, working directory `/app/apps/workspace`, and the existing owner connection supplied through normal secret injection. API and Intel use their existing fail-closed migration entrypoints. Preflight the ledger read-only; stop on unresolved failures and use the existing reviewed recovery process. Do not run Workspace's auto-resolution wrapper or reseed unrelated global templates for this migration. The immutable-image verification uses this direct packaged Workspace Prisma command.
+
 ## Gates and adapters
 
 | Capability | Tenant feature | Runtime gate |
@@ -48,3 +50,5 @@ Keyword history exposes query/control versions, source hashes, scan checkpoints/
 Disable keyword outbound and new automatic/internal effect gates first; pause the affected rule/template. Tenant gates and current rule state are checked before each effect, including a running worker; stopping a future schedule alone is insufficient. Observe no new assignment/output/message after pause and retain queued/held evidence. Do not disable unrelated report/agenda/record/capture workers.
 
 Keep completed drafts, manual/import memberships, source snapshots, decisions, suppression, report history and immutable receipts. Use targeted audited undo only when the sole automation contribution remains untouched; otherwise leave the work and explain the conflict. Never bulk-delete or resend uncertain messages. Retain additive schema and use compatible pinned images or forward repair. Roll back UI/backend behavior without discarding protected history.
+
+Exact application/image/worker qualification and infrastructure failures: [release-qualification.md](release-qualification.md).

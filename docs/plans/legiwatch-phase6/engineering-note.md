@@ -1,6 +1,6 @@
 # Phase 6 engineering note
 
-Status: implementation and local qualification; release preparation. Deployment, tenant enablement, pilot and client acceptance are separate outstanding gates. Source base is main `41eb8febebf89ebd108e96e8c8ff782d4d1e3ae6`, containing merged Phase 5 PRs #1617 and #1618. Branch: `agent/legiwatch-phase6-assisted-tagging-workflows`. The supplied handoff is a specification, not recipient/deployment authorization.
+Status: implementation, local/native test and immutable-image qualification; release preparation complete. See [release-qualification.md](release-qualification.md) for the distinct infrastructure upload/startup failures. Deployment, tenant enablement, pilot and client acceptance are separate outstanding gates. Source base is main `41eb8febebf89ebd108e96e8c8ff782d4d1e3ae6`, containing merged Phase 5 PRs #1617 and #1618. Branch: `agent/legiwatch-phase6-assisted-tagging-workflows`. The supplied handoff is a specification, not recipient/deployment authorization.
 
 Before native release qualification, merged refreshed main `84c761590cab87c1d78a6e425ef08fd901603235` to preserve intervening managed-connector and meeting-preparation releases. The shared tool registry merged without conflict.
 

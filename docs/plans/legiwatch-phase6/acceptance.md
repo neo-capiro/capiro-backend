@@ -1,5 +1,7 @@
 # Phase 6 acceptance and evidence
 
+See [release-qualification.md](release-qualification.md) for exact 575-test native results, immutable image digests, successful image verification and the separate GitHub/S3 infrastructure failures.
+
 ## Status boundaries
 
 Implemented: deterministic discovery, review decisions/manual precedence, typed imported rules, separate keyword delivery controls, fixed internal workflows, governed Meri tools and folder-centered UI.
@@ -12,7 +14,7 @@ Not deployed or enabled by this change. No production automatic assignment, new 
 
 - Clean and populated upgrade rehearsal: 458 applied migrations in each isolated database, including 11 Phase 6 owner migrations. Populated public/private assignment fields and Phase 5 publication payload remained byte-equivalent; snapshot SHA-256 `81a3a959f6ef0f36ff3b8cfb1791ab67521dc93448b5137d744edeaec0f97d1c`. Actual owner/default-ACL conditions exercised; immutable history privileges verified.
 - Browser component harness: 24 checks pass at 1440 and 390 px. Actual KeywordReview/WorkflowReview components with synthetic API fixtures, desktop/narrow screenshots, keyboard focus trap/Escape/restore, mixed frozen batch, empty/unsupported/read-only/archived/unresolved states, partial preparation/resume, held/uncertain delivery and delayed folder/tenant callback rejection. This is not a deployed full-shell or live provider test.
-- API, Intel, Workspace and web TypeScript checks passed locally; Meri status is recorded in release evidence. Existing Phase 3 preparation tests now assert that private folder notes do not enter public configuration. Report tests mount a router for new deep links.
+- API, Intel, Workspace and web TypeScript checks passed locally; Meri also passed; the exact native release checks passed for all five applications. Existing Phase 3 preparation tests now assert that private folder notes do not enter public configuration. Report tests mount a router for new deep links.
 - Import audit preserves all 190 definitions and exact raw hashes; 189 supported, 1 unsupported selected expression (32340 in alert-38); all 10 rules accounted for with 145 references/118 distinct selections. Historical membership is not a labeled relevance corpus.
 
 ## Design references
@@ -32,7 +34,7 @@ Figma is a design reference with illustrative folder/bill content. Implementatio
 
 | Gate | Current result | Required evidence |
 |---|---|---|
-| Exact native release | Pending candidate build/verification | source SHA/tree, ARM64 image digests, module and native Prisma probes, owner migration matrix |
+| Exact native release | Tests/migrations/images passed; primary job failed only on S3 evidence upload; separate image verification succeeded | Exact references and retained evidence in release-qualification.md |
 | Deployment | Not performed | authorized current service/worker migration rollout, health and active-capture continuity |
 | Current rule mapping | Review required for all 10 | selected owner/folder/jurisdiction/session/document scope/aggregation and active staff mapping |
 | Source coverage | Full-document corpus incomplete | qualified document classes/versions and explicit omitted counts |
