@@ -40,20 +40,24 @@ describe('Meri hearing evidence contract', () => {
     ],
   };
   it('preserves qualified context and returns an evidence-linked unofficial draft', async () => {
-    const completeJson = jest.fn(async () => ({
-      claims: [{ id: 'claim-1', kind: 'quote', text: evidence[0]!.text, evidenceIds: ['final-a'] }],
+    const completeWithSchema = jest.fn(async () => ({
+      input: {
+        claims: [
+          { id: 'claim-1', kind: 'quote', text: evidence[0]!.text, evidenceIds: ['final-a'] },
+        ],
+      },
+      usage: { inputTokens: 1, outputTokens: 1 },
     }));
-    const result = await createGeneratePostHearingSummaryTool({ completeJson } as any).handler(
-      input,
-      {} as any,
-    );
+    const result = await createGeneratePostHearingSummaryTool({
+      completeWithSchema,
+    } as any).handler(input, {} as any);
     expect(result).toMatchObject({
       promptVersion: 'hearing-evidence-v1',
       claims: [{ evidenceIds: ['final-a'] }],
       clientContext: 'none',
     });
     const request = (
-      completeJson.mock.calls as unknown as [[{ system: string; prompt: string }]]
+      completeWithSchema.mock.calls as unknown as [[{ system: string; prompt: string }]]
     )[0][0];
     expect(JSON.parse(request.prompt)).toMatchObject({
       jurisdiction: 'FL',
@@ -74,7 +78,10 @@ describe('Meri hearing evidence contract', () => {
     { id: 'claim-1', kind: 'analysis', text: 'An unsupported recommendation', evidenceIds: [] },
   ])('rejects invalid evidence or an altered quote: $text', async (claim) => {
     const tool = createGeneratePostHearingSummaryTool({
-      completeJson: async () => ({ claims: [claim] }),
+      completeWithSchema: async () => ({
+        input: { claims: [claim] },
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
     } as any);
     await expect(tool.handler(input, {} as any)).rejects.toThrow();
   });
