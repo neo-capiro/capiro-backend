@@ -1042,7 +1042,7 @@ export function LiveHearingRoomPage({
     session.data &&
     session.data.recordingPolicy !== 'no_storage' ? (
       <HearingPublicationsPanel
-        key={`${apiScope}:${id}`}
+        key={`publications:${apiScope}:${id}`}
         sessionId={id}
         title={session.data.title}
         defaultClientId={session.data.clientId ?? undefined}
@@ -1092,7 +1092,7 @@ export function LiveHearingRoomPage({
           recordingPanel:
             recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
               <HearingRecordingPanel
-                key={`${apiScope}:${id}`}
+                key={`recording:${apiScope}:${id}`}
                 sessionId={id}
                 live={captureActive}
                 canEnable={!captureActive && !session.data?.startedAt}
@@ -1317,7 +1317,7 @@ export function LiveHearingRoomPage({
 
       {(recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript') && (
         <HearingRecordingPanel
-          key={`${apiScope}:${id}`}
+          key={`recording:${apiScope}:${id}`}
           sessionId={id}
           live={captureActive}
           canEnable={!captureActive && !session.data?.startedAt}

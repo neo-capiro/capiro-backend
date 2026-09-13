@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiPost: vi.fn(),
   recordingPolicy: 'transcript_only',
+  publicationsEnabled: false,
   transcriptItems: [] as Array<{
     id: string;
     startMs: number;
@@ -28,7 +29,9 @@ vi.mock('../../lib/use-api.js', () => ({
 
 vi.mock('../../lib/intel-feature-flags.js', () => ({
   useIntelFeatureEnabled: (feature: string) =>
-    ['hearing_watch', 'legiwatch_hearing_recording_v1'].includes(feature),
+    ['hearing_watch', 'legiwatch_hearing_recording_v1'].includes(feature) ||
+    (mocks.publicationsEnabled &&
+      ['legiwatch_hearing_updates_v1', 'legiwatch_hearing_recaps_v1'].includes(feature)),
 }));
 
 vi.mock('../../lib/hearing-watch-api.js', () => ({
@@ -262,6 +265,7 @@ describe('LiveHearingRoomPage browser capture', () => {
     FakeMediaRecorder.instances = [];
     mocks.transcriptItems = [];
     mocks.recordingPolicy = 'transcript_only';
+    mocks.publicationsEnabled = false;
     mocks.mintWsTicket.mockResolvedValue({ ticket: 'ticket-1', expiresAt: '2030-01-01T00:00:00Z' });
     mocks.apiGet.mockResolvedValue({ data: [] });
     mocks.getDisplayMedia.mockResolvedValue(
@@ -304,6 +308,27 @@ describe('LiveHearingRoomPage browser capture', () => {
     act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
     await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe('recording'));
   });
+
+  test.each([false, true])(
+    'keeps one audio panel when reviewed publications load alongside it (vNext=%s)',
+    async (vnext) => {
+      mocks.apiGet.mockImplementation(async (url: string) => ({
+        data: url.includes('/publications/candidates') ? { evidence: [], candidates: [] } : [],
+      }));
+      renderRoom(vnext);
+      const socket = await connectRoom();
+      mocks.publicationsEnabled = true;
+      act(() => socket.receive({ type: 'status', status: 'preparing_transcription' }));
+      await screen.findByRole('region', { name: 'Reviewed hearing updates and recaps' });
+      for (const status of ['preparing_transcription', 'capture_ready', 'capturing']) {
+        act(() => socket.receive({ type: 'status', status }));
+        expect(screen.getAllByRole('region', { name: 'Saved hearing audio' })).toHaveLength(1);
+        expect(
+          screen.getAllByRole('region', { name: 'Reviewed hearing updates and recaps' }),
+        ).toHaveLength(1);
+      }
+    },
+  );
 
   test.each([false, true])(
     'keeps retained startup alive when transcription is delayed before capture_ready (vNext=%s)',
