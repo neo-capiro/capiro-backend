@@ -1,5 +1,7 @@
 # LegiWatch Phase 4 operations
 
+Current release coordination (September 13, 05:08 UTC): preserve API 335's meeting-preparation fix through merged candidate `63dc1139c`; do not restore API 331 over it. Qualify the combined API image and refresh the service baseline before rollout. Restricted recording-only controls and their HTTPS source transition are separate from full publication/Documents/delivery activation. WAF rejected the local source as SSRF; qualify the actual private S3 HTTPS page without changing WAF. Use timestamped owner and EventBridge proofs for current state. All inactive local fixture versions were archived and their exact prefixes cleared; do not rerun broad cleanup or touch active ECS/deployed recordings.
+
 This runbook separates code deployment from tenant/source/channel activation. Consult the accompanying release record for the actual source SHA, immutable images, task definitions, worker targets and validation times. Do not substitute a mutable image tag. The initial release keeps new Phase 4 capabilities disabled.
 
 ## Current release and coordination gate
