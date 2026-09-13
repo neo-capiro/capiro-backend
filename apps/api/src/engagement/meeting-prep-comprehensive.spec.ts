@@ -1,4 +1,5 @@
 import {
+  briefingWordCount,
   parseBriefingDraft,
   parseBriefingFacts,
   generateComprehensiveMeetingPrep,
@@ -226,4 +227,137 @@ describe('comprehensive meeting prep', () => {
       expect(Object.keys(schema.properties)).toEqual(['omittedFactIds']);
     },
   );
+});
+
+describe('bounded repair delivers the last renderable briefing', () => {
+  const evidence = {
+    id: 'mail:m1',
+    kind: 'mail',
+    title: 'Timeline thread',
+    recordId: 'm1',
+    observedAt: '2026-09-01',
+    excerpt: 'Mia asked for an implementation timeline by Friday.',
+  };
+  const extractionFact = {
+    section: 'commitments',
+    text: 'Mia asked for an implementation timeline by Friday.',
+    sourceId: 'mail:m1',
+    quote: 'Mia asked for an implementation timeline by Friday.',
+    importance: 'critical',
+    state: 'open',
+    eventAt: '2026-09-01',
+  };
+  const renderable = (factIds: string[]) => ({
+    takeaways: [{ text: 'The client is waiting on our timeline.', factIds }],
+    sections: Object.fromEntries(
+      MEETING_BRIEFING_SECTIONS.map((key) => [
+        key,
+        {
+          status: key === 'commitments' ? 'evidence_found' : 'no_evidence',
+          items: key === 'commitments' ? [{ text: 'Send the implementation timeline.', factIds }] : [],
+          gap: key === 'commitments' ? '' : 'No evidence was found in the searched scope.',
+        },
+      ]),
+    ),
+    limitations: [],
+  });
+  function run(complete: jest.Mock) {
+    return runWithMeetingGovernedContext(
+      {
+        kind: 'governed_packet',
+        mode: 'prep',
+        meetingId: 'meeting',
+        clientId: null,
+        packetId: 'packet',
+        traceHash: 'trace',
+        modelContextBlock: '',
+        coverage: {
+          complete: true,
+          requestedDomains: ['mail'],
+          searchedDomains: ['mail'],
+          missingDomains: [],
+          partialDomains: [],
+          recordsReturned: 1,
+          paginationComplete: true,
+          truncated: false,
+          stopReason: 'complete',
+        },
+      },
+      () =>
+        withMeetingPrepExecution(
+          {
+            jobId: 'job',
+            depth: 'standard',
+            requestedAt: Date.parse('2026-09-12T15:00:00Z'),
+            deadlineAt: Date.now() + 3600000,
+            signal: new AbortController().signal,
+            checkpoint: jest.fn(),
+            loadCheckpoint: () => undefined,
+            commit: jest.fn(),
+          },
+          () =>
+            generateComprehensiveMeetingPrep(
+              {
+                meeting: { id: 'meeting', subject: 'Client strategy', startsAt: '2026-09-12T15:00:00Z' },
+                client: null,
+                attendees: [],
+                congressionalDirectoryMatches: [],
+                recentMeetings: [],
+                recentThreads: [],
+                tasks: [],
+                evidenceSources: [evidence],
+              },
+              { provider: 'openai', apiKey: 'test-only', model: 'gpt-5', usedTenantKey: false } as never,
+              { complete } as never,
+            ),
+        ),
+    );
+  }
+  const reply = (value: unknown) => ({
+    text: JSON.stringify(value),
+    usage: { inputTokens: 1, outputTokens: 1 },
+    truncated: false,
+    stopReason: 'end_turn',
+    raw: {},
+  });
+
+  test('a review that keeps flagging omissions ends with the briefing plus a disclosed limitation, not a failure', async () => {
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    let reviews = 0;
+    const complete = jest.fn(async (request) =>
+      reply(
+        request.jsonSchemaName.endsWith('extracting')
+          ? { facts: [extractionFact], limitations: [] }
+          : request.jsonSchemaName.endsWith('checking_coverage')
+            ? (reviews++, { omittedFactIds: [extracted[0]!.id] })
+            : renderable([extracted[0]!.id]),
+      ),
+    );
+    const result = await run(complete);
+    expect(reviews).toBe(3);
+    expect(result.briefing?.sections.commitments.items[0]?.text).toBe('Send the implementation timeline.');
+    expect(result.briefing?.limitations.join(' ')).toContain('still flagged 1 item(s) after 2 repair passes');
+  });
+
+  test('only a briefing that never renders is refused', async () => {
+    const complete = jest.fn(async (request) =>
+      reply(
+        request.jsonSchemaName.endsWith('extracting')
+          ? { facts: [extractionFact], limitations: [] }
+          : { takeaways: [] },
+      ),
+    );
+    await expect(run(complete)).rejects.toThrow('could not be rendered');
+    expect(complete.mock.calls.filter(([r]) => r.jsonSchemaName.endsWith('repairing'))).toHaveLength(2);
+    // The model gets an actionable hint, not a raw error code.
+    const repair = complete.mock.calls.find(([r]) => r.jsonSchemaName.endsWith('repairing'))![0];
+    expect(JSON.parse(repair.userVolatile).reviewFeedback[0]).toContain('1-3 takeaways');
+  });
+
+  test('length is repair feedback rather than a rejection', () => {
+    const facts = parseBriefingFacts([extractionFact], [evidence]);
+    const long = renderable([facts[0]!.id]);
+    long.takeaways[0]!.text = 'word '.repeat(3_000);
+    expect(briefingWordCount(parseBriefingDraft(long, facts))).toBeGreaterThan(2_200);
+  });
 });

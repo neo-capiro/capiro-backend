@@ -1,4 +1,8 @@
-import { EngagementAiService, type MeetingPrepInput } from './engagement-ai.service.js';
+import {
+  EngagementAiService,
+  resolveMeetingPrepModel,
+  type MeetingPrepInput,
+} from './engagement-ai.service.js';
 import { buildPrepEvidence, prepEvidenceSources } from './meeting-prep-grounding.js';
 import { MEETING_PREP_POLICY } from './meeting-prep-policy.js';
 import { withMeetingPrepExecution } from './meeting-prep-job-runtime.js';
@@ -331,5 +335,17 @@ describe('meeting prep evidence display without a quality gate', () => {
         server.close((error) => (error ? reject(error) : resolve())),
       );
     }
+  });
+});
+
+describe('comprehensive prep model selection', () => {
+  const overrides = { openai: 'gpt-5', anthropic: 'claude-sonnet-4-6' };
+  test('uses the prep-scoped model per provider', () => {
+    expect(resolveMeetingPrepModel({ provider: 'openai', model: 'gpt-4.1-mini', modelOverridden: false }, overrides)).toBe('gpt-5');
+    expect(resolveMeetingPrepModel({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001', modelOverridden: false }, overrides)).toBe('claude-sonnet-4-6');
+  });
+  test('a tenant BYOK model override wins, and an empty override falls back to the resolved model', () => {
+    expect(resolveMeetingPrepModel({ provider: 'openai', model: 'gpt-4.1', modelOverridden: true }, overrides)).toBe('gpt-4.1');
+    expect(resolveMeetingPrepModel({ provider: 'openai', model: 'gpt-4.1-mini', modelOverridden: false }, { openai: '', anthropic: '' })).toBe('gpt-4.1-mini');
   });
 });
