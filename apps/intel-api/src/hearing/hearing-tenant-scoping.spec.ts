@@ -137,6 +137,7 @@ describe('G3: hearing module Prisma calls are tenant-scoped via withTenant', () 
             tenantId: 'tenant-1',
             AND: [
               {
+                publicCaptureId: null,
                 OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-1' }],
               },
             ],

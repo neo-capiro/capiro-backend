@@ -116,6 +116,7 @@ describe('HearingSessionService capture ownership', () => {
       where: {
         id: 'session-1',
         tenantId: 'tenant-1',
+        AND: [{ OR: [{ publicCaptureId: null }, { createdBy: 'user-2' }] }],
         OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-2' }],
       },
     });
@@ -141,6 +142,7 @@ describe('HearingSessionService capture ownership', () => {
       expect.objectContaining({
         where: {
           tenantId: 'tenant-1',
+          publicCaptureId: null,
           OR: [{ sourceType: { in: ['hearing', 'markup'] } }, { createdBy: 'user-2' }],
         },
       }),
@@ -176,7 +178,7 @@ describe('HearingSessionService capture ownership', () => {
 
     await expect(svc.activateCapture('tenant-1', 'session-1', token)).resolves.toBe(true);
     expect(h.rawSql[0]).toContain("SET status = 'live'");
-    expect(h.rawSql[0]).toContain("status = 'paused'");
+    expect(h.rawSql[0]).toContain("status IN ('paused', 'live')");
     expect(h.rawSql[0]).toContain('started_at =');
   });
 

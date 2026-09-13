@@ -108,7 +108,7 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
               COUNT(*) FILTER (WHERE schedule_enabled)::int AS scheduled
        FROM legiwatch_runtime_heartbeat`,
     );
-    expect(runtime[0]).toEqual({ total: 11, enabled: 0, scheduled: 0 });
+    expect(runtime[0]).toEqual({ total: 13, enabled: 0, scheduled: 0 });
   });
 
   it('rejects production-default, kill-switch release, and capture-all in SHADOW', async () => {

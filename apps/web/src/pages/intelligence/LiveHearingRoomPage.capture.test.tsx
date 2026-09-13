@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getDisplayMedia: vi.fn(),
   apiGet: vi.fn(),
   apiPost: vi.fn(),
+  recordingPolicy: 'transcript_only',
   transcriptItems: [] as Array<{
     id: string;
     startMs: number;
@@ -47,7 +48,7 @@ vi.mock('../../lib/hearing-watch-api.js', () => ({
       audioSource: 'browser_mic',
       sourceUrl: null,
       consentStatus: 'not_required',
-      recordingPolicy: 'transcript_only',
+      recordingPolicy: mocks.recordingPolicy,
     },
     isLoading: false,
   }),
@@ -260,6 +261,7 @@ describe('LiveHearingRoomPage browser capture', () => {
     FakeWebSocket.instances = [];
     FakeMediaRecorder.instances = [];
     mocks.transcriptItems = [];
+    mocks.recordingPolicy = 'transcript_only';
     mocks.mintWsTicket.mockResolvedValue({ ticket: 'ticket-1', expiresAt: '2030-01-01T00:00:00Z' });
     mocks.apiGet.mockResolvedValue({ data: [] });
     mocks.getDisplayMedia.mockResolvedValue(
@@ -300,6 +302,80 @@ describe('LiveHearingRoomPage browser capture', () => {
       expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
     );
     act(() => socket.receive({ type: 'status', status: 'capture_ready' }));
+    await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe('recording'));
+  });
+
+  test.each([false, true])(
+    'keeps retained startup alive when transcription is delayed before capture_ready (vNext=%s)',
+    async (vnext) => {
+      mocks.recordingPolicy = 'audio_and_transcript';
+      renderRoom(vnext);
+      const socket = await connectRoom();
+      fireEvent.click(screen.getByRole('button', { name: /Start transcription/i }));
+      await waitFor(() =>
+        expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(true),
+      );
+      act(() => {
+        socket.receive({ type: 'recording_epoch', epochId: 'saved-epoch', startMs: 0 });
+        socket.receive({
+          type: 'error',
+          code: 'TRANSCRIPTION_DELAYED',
+          message: 'Audio continues saving; transcription is interrupted.',
+        });
+        socket.receive({ type: 'status', status: 'capture_ready' });
+      });
+      await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe('recording'));
+      expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+      expect(
+        screen.getByText('Audio continues saving; transcription is interrupted.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Could not start browser capture/)).not.toBeInTheDocument();
+      if (vnext) {
+        expect(screen.getByText('INTERRUPTED')).toBeInTheDocument();
+        expect(screen.getByText('RECORDING · TRANSCRIPT DELAYED')).toBeInTheDocument();
+        expect(screen.queryByText('STREAMING')).not.toBeInTheDocument();
+      }
+      act(() => {
+        FakeMediaRecorder.instances[0]!.ondataavailable?.({
+          data: {
+            size: 2048,
+            slice: () => ({ arrayBuffer: async () => new ArrayBuffer(2048) }),
+          },
+        } as unknown as BlobEvent);
+      });
+      await waitFor(() =>
+        expect(socket.sent.some((frame) => frame instanceof ArrayBuffer)).toBe(true),
+      );
+      act(() =>
+        socket.receive({
+          type: 'audio_saved',
+          epochId: 'saved-epoch',
+          sequence: 0,
+          bytes: 2048,
+          durableBytes: 2048,
+          durableEndMs: 500,
+        }),
+      );
+      expect(FakeMediaRecorder.instances[0]!.state).toBe('recording');
+    },
+  );
+
+  test('uses the recording policy loaded after the page first renders', async () => {
+    renderRoom(true);
+    mocks.recordingPolicy = 'audio_and_transcript';
+    const socket = await connectRoom();
+    fireEvent.click(screen.getByRole('button', { name: 'Start transcription' }));
+    await waitFor(() =>
+      expect(sentJson(socket)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'capture_start', recordingProtocol: 1 }),
+        ]),
+      ),
+    );
+    act(() => {
+      socket.receive({ type: 'recording_epoch', epochId: 'loaded-policy-epoch', startMs: 0 });
+      socket.receive({ type: 'status', status: 'capture_ready' });
+    });
     await waitFor(() => expect(FakeMediaRecorder.instances[0]?.state).toBe('recording'));
   });
 

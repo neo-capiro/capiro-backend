@@ -84,6 +84,7 @@ export interface HearingRoomViewModel {
   cards: Card_[];
   transcriptLoading: boolean;
   transcriptError: boolean;
+  transcriptionDelayed?: boolean;
   intelligenceError: boolean;
   error: string | null;
   dismissError: () => void;
@@ -390,6 +391,8 @@ export function LiveHearingRoomPage({
   const [liveCards, setCards] = useState<Card_[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string | null>(null);
+  const [transcriptionDelayed, setTranscriptionDelayed] = useState(false);
+  const transcriptionDelayedRef = useRef(false);
   const [bytesSent, setBytesSent] = useState(0);
   const [bytesSaved, setBytesSaved] = useState(0);
   const [evidenceTime, setEvidenceTime] = useState<{ ms: number; revision: number }>();
@@ -603,6 +606,8 @@ export function LiveHearingRoomPage({
     setEvidenceTime(undefined);
     setCaptureClock(undefined);
     setCapturedElapsedMs(0);
+    transcriptionDelayedRef.current = false;
+    setTranscriptionDelayed(false);
     setPhaseNow('idle');
   }, [apiScope, id]);
 
@@ -690,6 +695,12 @@ export function LiveHearingRoomPage({
           } else if (msg.type === 'error') {
             const err = new Error(msg.message ?? 'Transcription error');
             setError(err.message);
+            if (msg.code === 'TRANSCRIPTION_DELAYED') {
+              transcriptionDelayedRef.current = true;
+              setTranscriptionDelayed(true);
+              setStatusText('Audio is saving. Live transcription is interrupted.');
+              return;
+            }
             captureReadyRef.current?.reject(err);
             captureReadyRef.current = null;
             if (msg.code === 'TRANSCRIPTION_RESTART_REQUIRED') {
@@ -705,11 +716,19 @@ export function LiveHearingRoomPage({
             } else if (status === 'preparing_transcription') {
               setStatusText('Preparing transcription…');
             } else if (status === 'capture_ready') {
-              setStatusText('Transcription ready — starting browser audio capture…');
+              setStatusText(
+                transcriptionDelayedRef.current
+                  ? 'Audio storage ready — starting browser capture. Transcription is interrupted.'
+                  : 'Transcription ready — starting browser audio capture…',
+              );
               captureReadyRef.current?.resolve();
               captureReadyRef.current = null;
             } else if (status === 'capturing') {
-              setStatusText('Capturing and transcribing browser-tab audio…');
+              setStatusText(
+                transcriptionDelayedRef.current
+                  ? 'Audio is saving. Live transcription is interrupted.'
+                  : 'Capturing and transcribing browser-tab audio…',
+              );
             } else if (status === 'capture_restart_required') {
               setStatusText('Capture stopped — reconnect and start again to resume safely.');
               cleanupCaptureTracks();
@@ -767,6 +786,8 @@ export function LiveHearingRoomPage({
 
     setError(null);
     setPhaseNow('requesting_share');
+    transcriptionDelayedRef.current = false;
+    setTranscriptionDelayed(false);
     // The hearing plays in the embed on THIS page unless the source is
     // reference-only, in which case the analyst opened it in another tab.
     const capturesThisTab = Boolean(embeddableUrl || youtubeVideoId);
@@ -924,7 +945,11 @@ export function LiveHearingRoomPage({
       });
       recorder.start(500);
       setPhaseNow('capturing');
-      setStatusText('Capturing and transcribing browser-tab audio…');
+      setStatusText(
+        transcriptionDelayedRef.current
+          ? 'Audio is saving. Live transcription is interrupted.'
+          : 'Capturing and transcribing browser-tab audio…',
+      );
     } catch (err) {
       const phaseAfterError = phaseRef.current as Phase;
       if (
@@ -949,6 +974,7 @@ export function LiveHearingRoomPage({
     disconnectSocket,
     embeddableUrl,
     endSession,
+    session.data?.recordingPolicy,
     setPhaseNow,
     youtubeVideoId,
   ]);
@@ -1050,6 +1076,7 @@ export function LiveHearingRoomPage({
           cards,
           transcriptLoading: transcript.isLoading,
           transcriptError: transcript.isError,
+          transcriptionDelayed,
           intelligenceError: summary.isError,
           error,
           dismissError: () => setError(null),

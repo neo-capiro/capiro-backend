@@ -181,7 +181,9 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
   const recoverable = Boolean(room.error) || session.status === 'failed-recoverable';
   const phaseLabel =
     room.phase === 'capturing'
-      ? 'TRANSCRIBING'
+      ? room.transcriptionDelayed
+        ? 'RECORDING · TRANSCRIPT DELAYED'
+        : 'TRANSCRIBING'
       : room.phase === 'stopping'
         ? 'SAVING'
         : recoverable
@@ -239,9 +241,11 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
             value={
               room.transcriptError
                 ? 'REFRESH FAILED'
-                : room.phase === 'capturing'
-                  ? 'STREAMING'
-                  : `${room.segments.length} SAVED SEGMENTS`
+                : room.transcriptionDelayed
+                  ? 'INTERRUPTED'
+                  : room.phase === 'capturing'
+                    ? 'STREAMING'
+                    : `${room.segments.length} SAVED SEGMENTS`
             }
           />
           <StatusPair
@@ -406,8 +410,6 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
             </div>
           </section>
 
-          {room.recordingPanel}
-          {room.publicationsPanel}
           <section
             className="lw-panel lw-live__transcript lw-room__transcript"
             aria-labelledby="room-transcript-title"
@@ -581,6 +583,8 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
             </div>
           </section>
         </div>
+        {room.recordingPanel}
+        {room.publicationsPanel}
       </div>
     </div>
   );

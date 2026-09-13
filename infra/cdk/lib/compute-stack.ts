@@ -727,6 +727,9 @@ export class ComputeStack extends cdk.Stack {
 
     // Identity-policy-only grant on the API task role for the assets bucket.
     assetsStack.grantApiAccess(apiTaskRole);
+    // Intel currently shares this role. Application permission checks still scope
+    // each browser recording and canonical public capture before issuing a URL.
+    assetsStack.grantHearingAudioAccess(apiTaskRole);
 
     // Read-only access to the pre-existing Hill directory data bucket. The
     // DirectoryService gunzips JSON snapshots out of this bucket on demand;

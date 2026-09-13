@@ -1572,6 +1572,10 @@
 .capiro-vnext-root .lw .lw-room__video .lw-video__body > audio { margin: 20px; width: calc(100% - 40px) !important; }
 .capiro-vnext-root .lw .lw-room__video-empty { padding: 16px; text-align: center; color: #fff; font-size: 13px; line-height: 20px; }
 .capiro-vnext-root .lw .lw-room__video-empty .lw-video__mark { margin: 0 auto; }
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-room__video:has(.lw-room__video-empty) { height: auto; }
+  .capiro-vnext-root .lw .lw-room__video-empty .lw-video__mark { width: 52px; height: 52px; }
+}
 .capiro-vnext-root .lw .lw-room__playback-note { min-width: 0; font-size: 11px; line-height: 16px; color: var(--lw-faint); }
 .capiro-vnext-root .lw .lw-room__transcript { display: flex; flex-direction: column; min-height: 420px; }
 .capiro-vnext-root .lw .lw-room__transcript-head { flex-wrap: wrap; gap: 8px; }

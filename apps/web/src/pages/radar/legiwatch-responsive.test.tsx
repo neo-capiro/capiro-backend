@@ -1,3 +1,6 @@
+// This isolated surface fixture supplies the same cache scope as its mocked API.
+vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'tenant-test:actor-test' }));
+
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';

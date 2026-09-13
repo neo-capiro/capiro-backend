@@ -71,7 +71,7 @@ run(
     'src/intelligence/alert-memo/approved-hearing-recap.spec.ts',
     'src/intelligence/alert-memo/hearing-evidence-generation.spec.ts',
   ],
-  [6, 30],
+  [6, 53],
 );
 run(
   'intel-api',
@@ -90,7 +90,7 @@ run(
     'src/hearing/intelligence/postgres-public-hearing-insight.store.spec.ts',
     'test/sms-verification.spec.ts',
   ],
-  [13, 70],
+  [13, 96],
 );
 run(
   'web',
@@ -98,12 +98,13 @@ run(
     'src/pages/intelligence/LiveHearingRoomPage.capture.test.tsx',
     'src/pages/intelligence/LiveHearingRoomPage.recap.test.tsx',
     'src/pages/intelligence/HearingPublicationsPanel.test.tsx',
+    'src/pages/intelligence/HearingRecordingPanel.test.tsx',
     'src/pages/intelligence/PublicHearingAudioPanel.test.tsx',
     'src/vnext/pages/legiwatch/live/HearingRoomVNextView.test.tsx',
     'src/lib/hearing-recording-transport.test.ts',
     'src/lib/hearing-watch-api.test.ts',
   ],
-  [7, 40],
+  [8, 65],
   true,
 );
 console.log(

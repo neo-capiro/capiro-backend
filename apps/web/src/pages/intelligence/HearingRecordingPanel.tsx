@@ -36,17 +36,21 @@ export function HearingRecordingPanel({
     } | null>(null);
   const audio = useRef<HTMLAudioElement>(null),
     generation = useRef(0);
+  const [speed, setSpeed] = useState(1);
   const recording = manifest.data?.recording;
   useEffect(() => {
     generation.current++;
+    audio.current?.pause();
     setPlayback(null);
     setError(null);
+    setSpeed(1);
     return () => {
       generation.current++;
     };
   }, [scope, sessionId]);
   async function play(epoch: RecordingEpoch, offset = 0) {
     const request = ++generation.current;
+    audio.current?.pause();
     try {
       const result = await api.post<{ url: string }>(
         `/intel-api/hearings/${encodeURIComponent(sessionId)}/recording/epochs/${encodeURIComponent(epoch.id)}/playback`,
@@ -54,6 +58,11 @@ export function HearingRecordingPanel({
       );
       if (request !== generation.current) return;
       setPlayback({ url: result.data.url, epoch, offset });
+      if (audio.current && result.data.url === playback?.url) {
+        audio.current.currentTime = offset;
+        audio.current.playbackRate = speed;
+        void audio.current.play().catch(() => undefined);
+      }
       setError(null);
     } catch {
       if (request === generation.current)
@@ -64,6 +73,9 @@ export function HearingRecordingPanel({
     if (!evidenceTime) return;
     const epoch = recordingSeek(recording?.epochs ?? [], evidenceTime.ms);
     if (!epoch) {
+      generation.current++;
+      audio.current?.pause();
+      setPlayback(null);
       setError('No saved audio covers this moment. The transcript remains available.');
       return;
     }
@@ -155,6 +167,7 @@ export function HearingRecordingPanel({
             aria-label="Retained hearing audio"
             onLoadedMetadata={() => {
               if (audio.current) {
+                audio.current.playbackRate = speed;
                 audio.current.currentTime = playback.offset;
                 void audio.current.play().catch(() => undefined);
               }
@@ -166,9 +179,11 @@ export function HearingRecordingPanel({
           <label>
             Playback speed{' '}
             <select
-              defaultValue="1"
+              value={speed}
               onChange={(event) => {
-                if (audio.current) audio.current.playbackRate = Number(event.target.value);
+                const next = Number(event.target.value);
+                setSpeed(next);
+                if (audio.current) audio.current.playbackRate = next;
               }}
             >
               <option value="0.75">0.75×</option>
