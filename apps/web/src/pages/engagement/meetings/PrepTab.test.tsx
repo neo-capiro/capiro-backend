@@ -204,24 +204,9 @@ describe('PrepTab', () => {
     );
     expect(
       screen.getByText(
-        'Refine, Regenerate, Export PDF and Approve are distinct controls. Approval never implies sharing.',
+        'Refine, Regenerate, Export PDF and Email PDF are distinct controls. A saved prep is never shared until you send it.',
       ),
     ).toBeInTheDocument();
-  });
-
-  test('clicking Approve on a generated prep POSTs the approve endpoint with the exact prep id', async () => {
-    apiPostMock.mockResolvedValue({ data: makePrep({ id: 'p42', status: 'approved' }) });
-    const qc = new QueryClient();
-    render(
-      buildTree(qc, {
-        meeting: makeMeeting({ preps: [makePrep({ id: 'p42', status: 'generated' })] }),
-        aiConfigured: true,
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }));
-    await waitFor(() =>
-      expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meeting-preps/p42/approve'),
-    );
   });
 
   test('legacy prep is explicitly missing source information', () => {

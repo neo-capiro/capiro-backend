@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
-import { useApprovePrep, useGeneratePrep, useUpdatePrep, useMeetingPrepJob, useCancelMeetingPrep, isMeetingPrepJob, type MeetingPrepDepth } from './meetings-api.js';
+import { useGeneratePrep, useUpdatePrep, useMeetingPrepJob, useCancelMeetingPrep, isMeetingPrepJob, type MeetingPrepDepth } from './meetings-api.js';
 import { ComprehensivePrep, PrepSearchSettings, briefingSectionLabels } from './ComprehensivePrep.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatMeetingDayTitle } from './meetings-format.js';
@@ -19,11 +19,11 @@ import { EmailComposeModal } from '../../../vnext/pages/client-crm/EmailComposeM
 type PrepStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
 /** The Prep tab's top-of-tab stage pill (see tab-kit.js's StagePill). Navy =
- *  approved (a real terminal, positive state); warn = stale (needs a
- *  regenerate); err = a failed generation; gray covers every other in-between
- *  state (not started, currently generating, or generated/edited but not yet
- *  approved) — approval is the one signal worth calling out in color here,
- *  same judgment call as the tab-strip dot fix (MeetingDetailPanel.tsx). */
+ *  approved, which every prep is from the moment it is saved; warn = stale
+ *  (needs a regenerate); err = a failed generation; gray covers the in-between
+ *  states (not started, currently generating, or a row saved back when preps
+ *  still waited for a manual approval) — same judgment call as the tab-strip
+ *  dot fix (MeetingDetailPanel.tsx). */
 function prepStage(
   prep: Meeting['preps'][number] | null,
   generating: boolean,
@@ -63,8 +63,8 @@ function splitLines(value: string): string[] {
     .filter(Boolean);
 }
 
-/** Prep tab — a port of the prototype PrepPanel. Meri drafts prep; the user
- *  refines (add context), regenerates, exports, and approves. */
+/** Prep tab — a port of the prototype PrepPanel. Meri drafts prep, saved ready
+ *  to use; the user refines (add context), regenerates, exports, and emails it. */
 export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigured: boolean }) {
   const chrome = useMeetingPanelChrome();
   const prep = meeting.preps[0] ?? null;
@@ -96,7 +96,6 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     {jobActive && <button type="button" className="btn sm" disabled={cancelJob.isPending} onClick={() => cancelJob.mutate(job.data!)}>Cancel preparation</button>}
     {cancelJob.isError && <p role="alert">Could not cancel. Refresh to check the current job status.</p>}
   </div>;
-  const approve = useApprovePrep();
   const update = useUpdatePrep();
   const [refine, setRefine] = useState('');
   const [editOpen, setEditOpen] = useState(false);
@@ -442,15 +441,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         emailing={preparePdf.isPending}
         approved={prep.status === 'approved'}
         shared={prep.sharedAt != null}
-        onApprove={async () => {
-          await approve.mutateAsync(prep.id);
-          chrome.success('Prep approved.');
-        }}
-        approving={approve.isPending}
       />
       <RuleReinforcement>
-        Refine, Regenerate, Export PDF and Approve are distinct controls. Approval never implies
-        sharing.
+        Refine, Regenerate, Export PDF and Email PDF are distinct controls. A saved prep is never
+        shared until you send it.
       </RuleReinforcement>
       {emailAttachment ? (
         <EmailComposeModal

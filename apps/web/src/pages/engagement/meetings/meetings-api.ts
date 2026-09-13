@@ -443,15 +443,6 @@ export function useUpdatePrep() {
   });
 }
 
-export function useApprovePrep() {
-  const api = useApi();
-  const invalidate = useInvalidateMeetings();
-  return useMutation<unknown, Error, string>({
-    mutationFn: async (prepId) => (await api.post(`${BASE}/meeting-preps/${prepId}/approve`)).data,
-    onSuccess: invalidate,
-  });
-}
-
 export function useGenerateDebriefDraft() {
   const api = useApi();
   return useMutation<

@@ -72,14 +72,14 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
 }
 
 describe('meeting prep persistence', () => {
-  test.each(['approve', 'edit'])('does not return a V2 briefing with missing source provenance through %s', async action => {
+  test('does not return a V2 briefing with missing source provenance through edit', async () => {
     const h = harness();
     const update = jest.fn();
     Object.assign(h.tx.meetingPrep, {
       findFirst: jest.fn().mockResolvedValue({ id: 'prep-1', meetingId: 'm1', generatedFrom: { briefing: { version: 2 }, grounding: { sources: [] } } }),
       update,
     });
-    const request = action === 'approve' ? h.service.approveMeetingPrep(ctx, 'prep-1') : h.service.updateMeetingPrep(ctx, 'prep-1', { summary: 'Edited' });
+    const request = h.service.updateMeetingPrep(ctx, 'prep-1', { summary: 'Edited' });
     await expect(request).rejects.toThrow('provenance is missing');
     expect(update).not.toHaveBeenCalled();
   });
@@ -100,10 +100,21 @@ describe('meeting prep persistence', () => {
     },
   );
 
-  test('saves canonical source metadata and the original client in generatedFrom', async () => {
+  test('saves canonical source metadata and the original client in generatedFrom, already approved', async () => {
     const h = harness();
     const saved = await h.service.generateMeetingPrep(ctx, 'm1');
     expect(saved.generatedFrom).toEqual(expect.objectContaining({ clientId: 'c1', grounding }));
+    expect(saved.status).toBe('approved');
+  });
+
+  test('regenerating supersedes the prep in use: the previous approved prep goes stale', async () => {
+    const h = harness();
+    await h.service.generateMeetingPrep(ctx, 'm1');
+    expect(h.tx.meetingPrep.updateMany).toHaveBeenCalledTimes(1);
+    expect(h.tx.meetingPrep.updateMany).toHaveBeenCalledWith({
+      where: { tenantId: 'tenant-1', meetingId: 'm1', status: 'approved' },
+      data: { status: 'stale' },
+    });
   });
 
   test('inferred association is persisted before the final client guard', async () => {

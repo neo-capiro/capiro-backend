@@ -1162,17 +1162,6 @@ export function EngagementPage() {
     onError: (err) => message.error(errorMessage(err)),
   });
 
-  const approvePrep = useMutation({
-    mutationFn: async (prepId: string) =>
-      (await api.post(`/api/engagement/meeting-preps/${prepId}/approve`)).data,
-    onSuccess: () => {
-      message.success('Meeting prep approved');
-      qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
-      qc.invalidateQueries({ queryKey: ['engagement-calendar-meetings'] });
-    },
-    onError: (err) => message.error(errorMessage(err)),
-  });
-
   const saveDebrief = useMutation({
     mutationFn: async ({
       meetingId,
@@ -1636,7 +1625,6 @@ export function EngagementPage() {
                   }
                   savingDebrief={saveDebrief.isPending}
                   generatingDebrief={generateDebriefDraft.isPending}
-                  approving={approvePrep.isPending}
                   onGeneratePrep={handleGeneratePrep}
                   onUploadTranscript={(meeting, file) =>
                     uploadTranscript.mutateAsync({ meeting, file })
@@ -1666,7 +1654,6 @@ export function EngagementPage() {
                     });
                     setEditingPrep({ meeting, prep });
                   }}
-                  onApprovePrep={(prep) => approvePrep.mutate(prep.id)}
                   onExportPdf={(meeting) =>
                     exportMeetingPdf({
                       meeting,
@@ -2775,7 +2762,6 @@ function MeetingDetailPanel({
   deletingAttachmentId,
   savingDebrief,
   generatingDebrief,
-  approving,
   onGeneratePrep,
   onUploadTranscript,
   onExtractAttachmentText,
@@ -2783,7 +2769,6 @@ function MeetingDetailPanel({
   onSaveDebrief,
   onGenerateDebrief,
   onEditPrep,
-  onApprovePrep,
   onExportPdf,
   notetakerSession,
   dispatchingNotetaker,
@@ -2807,7 +2792,6 @@ function MeetingDetailPanel({
   deletingAttachmentId: string | null;
   savingDebrief: boolean;
   generatingDebrief: boolean;
-  approving: boolean;
   onGeneratePrep: (meeting: Meeting, additionalContext?: string) => void;
   onUploadTranscript: (meeting: Meeting, file: File) => Promise<EngagementAttachment>;
   onExtractAttachmentText: (attachment: EngagementAttachment) => Promise<DebriefSourceExtraction>;
@@ -2819,7 +2803,6 @@ function MeetingDetailPanel({
     sourceText: string,
   ) => Promise<MeetingDebriefDraft>;
   onEditPrep: (meeting: Meeting, prep: MeetingPrep) => void;
-  onApprovePrep: (prep: MeetingPrep) => void;
   onExportPdf: (meeting: Meeting) => void;
   notetakerSession: MeetingBotSession | null;
   dispatchingNotetaker: boolean;
@@ -3029,16 +3012,6 @@ function MeetingDetailPanel({
           </Button>
           <Button icon={<DownloadOutlined />} onClick={() => onExportPdf(meeting)}>
             Export PDF
-          </Button>
-          <Button
-            type="primary"
-            className={prep.status === 'approved' ? 'engagement-approved-button' : undefined}
-            loading={approving}
-            onClick={() => {
-              if (prep.status !== 'approved') onApprovePrep(prep);
-            }}
-          >
-            {prep.status === 'approved' ? 'Approved' : 'Approve'}
           </Button>
         </div>
       ) : null}

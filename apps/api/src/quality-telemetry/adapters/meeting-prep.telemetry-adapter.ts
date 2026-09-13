@@ -8,10 +8,11 @@ export interface MeetingPrepTelemetrySource {
 
 /**
  * Builds a QualityTelemetryEvent for a MeetingPrep lifecycle transition
- * (generated/edited/approved — the only three states this codebase actually
- * writes for MeetingPrep; `stale`/`failed` exist in the status vocabulary
- * but this phase only wires the states with a confirmed, understood write
- * site). Deliberately scoped to MeetingPrep only: MeetingDebrief/MeetingNote
+ * (generated/edited — the two transitions this codebase actually writes for
+ * MeetingPrep now that a prep is saved approved and there is no separate
+ * approval step; `stale`/`failed` exist in the status vocabulary but this
+ * phase only wires the states with a confirmed, understood write site).
+ * Deliberately scoped to MeetingPrep only: MeetingDebrief/MeetingNote
  * bodies are encrypted client meeting content
  * (`notesCrypto.encrypt`/ciphertext columns) and are intentionally left
  * unwired this phase rather than risk any code path that could decrypt or
@@ -26,7 +27,7 @@ export interface MeetingPrepTelemetrySource {
 export function buildMeetingPrepTelemetryEvent(
   ctx: TenantContext,
   source: MeetingPrepTelemetrySource,
-  eventType: 'generated' | 'edited' | 'approved',
+  eventType: 'generated' | 'edited',
   observedAt: Date,
 ): RecordQualityTelemetryEventInput {
   return {
