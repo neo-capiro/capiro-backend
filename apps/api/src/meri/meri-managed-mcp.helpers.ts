@@ -162,16 +162,48 @@ export function managedAppConfigured(
 ): boolean {
   const app = MANAGED_MCP_APPS[appId];
   const value = env[app.enabledEnv]?.trim().toLowerCase();
-  const enabled = value === undefined ? app.enabledByDefault : ['true', '1', 'yes', 'on'].includes(value);
+  const enabled =
+    value === undefined ? app.enabledByDefault : ['true', '1', 'yes', 'on'].includes(value);
   return Boolean(
     enabled &&
-      (!app.clientIdEnv || env[app.clientIdEnv]?.trim()) &&
-      (!app.clientSecretEnv || env[app.clientSecretEnv]?.trim()),
+    (!app.clientIdEnv || env[app.clientIdEnv]?.trim()) &&
+    (!app.clientSecretEnv || env[app.clientSecretEnv]?.trim()),
   );
 }
 
 export function isManagedReadOnlyTool(appId: MeriV3ManagedAppId, toolName: string): boolean {
   return MANAGED_MCP_APPS[appId].readOnlyTools.has(toolName);
+}
+
+export interface ManagedMcpPrincipal {
+  tenantId?: string | null;
+  userId?: string | null;
+}
+
+/** Google preview access is limited to operator-approved internal identities.
+ * Both identifiers come from authenticated context or the owned database row.
+ * Missing allowlists deny access, including after a configuration rollback.
+ */
+export function managedAppAvailable(
+  appId: MeriV3ManagedAppId,
+  principal: ManagedMcpPrincipal,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (!managedAppConfigured(appId, env)) return false;
+  if (appId !== 'google-drive') return true;
+  const includes = (value: string | undefined, id: string | null | undefined) =>
+    Boolean(
+      id &&
+      value
+        ?.split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .includes(id),
+    );
+  return (
+    includes(env.MERI_MCP_GOOGLE_DRIVE_ALLOWED_USER_IDS, principal.userId) &&
+    includes(env.MERI_MCP_GOOGLE_DRIVE_ALLOWED_TENANT_IDS, principal.tenantId)
+  );
 }
 
 export function filterManagedReadOnlyTools(

@@ -1,6 +1,6 @@
 /** Operation-local budgets. Never raise the timeout of unrelated interactive tools. */
 export const MEETING_PREP_POLICY = {
-  version: 'comprehensive-prep-v2',
+  version: 'comprehensive-prep-v3',
   standard: {
     meetings: 25,
     meetingDays: 180,

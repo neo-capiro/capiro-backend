@@ -1,6 +1,9 @@
+import { bridgeMcpTool, type BridgedTool } from './meri-mcp.helpers.js';
 import type { TenantContext } from '@capiro/shared';
 import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import {
+  MANAGED_MCP_APPS,
+  type MeriV3ManagedAppId,
   MERIV3_AIRTABLE_CATALOG_ID,
   MERIV3_AIRTABLE_ENDPOINT,
   MERIV3_HUBSPOT_CATALOG_ID,
@@ -34,7 +37,7 @@ function make() {
     discoverTools: jest.fn(async () => 2),
     deleteServer: jest.fn(async () => ({ deleted: true })),
     invalidate: jest.fn(),
-    bridgedSchemasFor: jest.fn(async () => []),
+    bridgedSchemasFor: jest.fn(async (): Promise<BridgedTool[]> => []),
     isBridgedToolReadOnly: jest.fn(() => true),
     executeBridged: jest.fn(async () => ({ ok: true })),
   };
@@ -46,6 +49,74 @@ function make() {
   const service = new MeriManagedMcpService(prisma as never, mcp as never, oauth as never);
   return { service, prisma, mcp, oauth, tx };
 }
+
+describe('Google Drive internal preview lifecycle', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      CLIO_MCP_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_ID: 'id',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_SECRET: 'secret',
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_USER_IDS: ctx.userId,
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_TENANT_IDS: ctx.tenantId,
+    };
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+  test('the approved internal user can start the personal connection', async () => {
+    const { service, mcp, oauth } = make();
+    mcp.createServer.mockResolvedValue({ id: 'drive-server' });
+    expect((await service.listApps(ctx)).find((a) => a.id === 'google-drive')?.available).toBe(
+      true,
+    );
+    await service.connect(ctx, 'google-drive');
+    expect(oauth.start).toHaveBeenCalledWith(ctx, 'drive-server');
+  });
+  test.each(['user', 'tenant'])(
+    'a different %s cannot connect or expose persisted tools',
+    async (kind) => {
+      const { service, mcp, tx } = make();
+      const other = {
+        ...ctx,
+        ...(kind === 'user' ? { userId: 'outsider' } : { tenantId: 'customer' }),
+      };
+      tx.clioMcpServer.findMany.mockResolvedValue([
+        {
+          id: 'drive',
+          enabled: true,
+          connectionStatus: 'connected',
+          catalogId: 'meriv3-google-drive',
+          toolAllowlist: ['search_files'],
+        },
+      ]);
+      expect((await service.listApps(other)).find((a) => a.id === 'google-drive')).toMatchObject({
+        available: false,
+        connected: false,
+      });
+      await expect(service.connect(other, 'google-drive')).rejects.toThrow('unavailable');
+      expect(await service.schemasForMeriV3(other)).toEqual([]);
+      expect(mcp.createServer).not.toHaveBeenCalled();
+      expect(mcp.bridgedSchemasFor).not.toHaveBeenCalled();
+    },
+  );
+  test('revoking an owner during authorization prevents finalization', async () => {
+    const { service, tx } = make();
+    tx.clioMcpServer.findFirst.mockResolvedValue({
+      id: 'drive',
+      ownerUserId: ctx.userId,
+      enabled: true,
+      connectionStatus: 'pending',
+      catalogId: 'meriv3-google-drive',
+      toolAllowlist: ['search_files'],
+    });
+    delete process.env.MERI_MCP_GOOGLE_DRIVE_ALLOWED_USER_IDS;
+    await expect(service.finalizeConnection(ctx.tenantId, 'drive')).rejects.toThrow();
+    expect(tx.clioMcpServer.updateMany).not.toHaveBeenCalled();
+  });
+});
 
 describe('MeriManagedMcpService', () => {
   const originalClientId = process.env.MERI_MCP_HUBSPOT_CLIENT_ID;
@@ -163,24 +234,36 @@ describe('MeriManagedMcpService', () => {
       enabled: true,
     });
     await expect(service.finalizeConnection(ctx.tenantId, 'hubspot-server')).resolves.toBe(2);
-    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      data: {
-        toolAllowlist: ['get_user_details', 'search_crm_objects'],
-        readOnlyTools: ['get_user_details', 'search_crm_objects'],
-      },
-    }));
-    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ enabled: true, connectionStatus: { in: ['pending', 'connected'] } }),
-      data: { connectionStatus: 'connected', lastError: null },
-    }));
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          toolAllowlist: ['get_user_details', 'search_crm_objects'],
+          readOnlyTools: ['get_user_details', 'search_crm_objects'],
+        },
+      }),
+    );
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          enabled: true,
+          connectionStatus: { in: ['pending', 'connected'] },
+        }),
+        data: { connectionStatus: 'connected', lastError: null },
+      }),
+    );
     expect(mcp.invalidate).toHaveBeenCalledWith(ctx.tenantId);
   });
 
   test('a failed discovery retains credentials and cannot report success', async () => {
     const { service, mcp, tx } = make();
-    tx.clioMcpServer.findMany.mockResolvedValue([{
-      id: 'existing', enabled: true, connectionStatus: 'connected', catalogId: MERIV3_HUBSPOT_CATALOG_ID,
-    }]);
+    tx.clioMcpServer.findMany.mockResolvedValue([
+      {
+        id: 'existing',
+        enabled: true,
+        connectionStatus: 'connected',
+        catalogId: MERIV3_HUBSPOT_CATALOG_ID,
+      },
+    ]);
     mcp.discoverTools.mockResolvedValue(0);
     await expect(service.connect(ctx, 'hubspot')).rejects.toThrow('could not be reached');
     expect(mcp.deleteServer).not.toHaveBeenCalled();
@@ -190,8 +273,12 @@ describe('MeriManagedMcpService', () => {
   test('revalidates an existing authorization in place', async () => {
     const { service, mcp, tx } = make();
     const row = {
-      id: 'existing', enabled: true, connectionStatus: 'connected', catalogId: MERIV3_HUBSPOT_CATALOG_ID,
-      toolAllowlist: ['get_user_details'], readOnlyTools: ['get_user_details'],
+      id: 'existing',
+      enabled: true,
+      connectionStatus: 'connected',
+      catalogId: MERIV3_HUBSPOT_CATALOG_ID,
+      toolAllowlist: ['get_user_details'],
+      readOnlyTools: ['get_user_details'],
     };
     tx.clioMcpServer.findMany.mockResolvedValue([row]);
     tx.clioMcpServer.findFirst.mockResolvedValue(row);
@@ -211,8 +298,11 @@ describe('MeriManagedMcpService', () => {
   test('a disconnected row cannot be finalized', async () => {
     const { service, tx } = make();
     tx.clioMcpServer.findFirst.mockResolvedValue({
-      id: 'old', enabled: true, catalogId: MERIV3_HUBSPOT_CATALOG_ID,
-      connectionStatus: 'disconnected', toolAllowlist: ['get_user_details'],
+      id: 'old',
+      enabled: true,
+      catalogId: MERIV3_HUBSPOT_CATALOG_ID,
+      connectionStatus: 'disconnected',
+      toolAllowlist: ['get_user_details'],
     });
     await expect(service.finalizeConnection(ctx.tenantId, 'old')).rejects.toThrow();
     expect(tx.clioMcpServer.updateMany).not.toHaveBeenCalled();
@@ -221,9 +311,15 @@ describe('MeriManagedMcpService', () => {
   test('all personal queries include tenant and owner', async () => {
     const { service, tx } = make();
     await service.listApps(ctx);
-    expect(tx.clioMcpServer.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ tenantId: ctx.tenantId, ownerUserId: ctx.userId, scope: 'user' }),
-    }));
+    expect(tx.clioMcpServer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          scope: 'user',
+        }),
+      }),
+    );
   });
 
   test('executeRead re-verifies current schema membership before external execution', async () => {
@@ -250,5 +346,68 @@ describe('MeriManagedMcpService', () => {
     await expect(
       service.executeRead(ctx, 'mcp__meriv3_hubspot__create_contact', {}),
     ).rejects.toThrow('Connected-app tool is unavailable or not read-only.');
+  });
+});
+
+describe('connected managed app tool exposure', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      CLIO_MCP_ENABLED: 'true',
+      MERI_MCP_HUBSPOT_ENABLED: 'true',
+      MERI_MCP_HUBSPOT_CLIENT_ID: 'id',
+      MERI_MCP_HUBSPOT_CLIENT_SECRET: 'secret',
+      MERI_MCP_AIRTABLE_ENABLED: 'true',
+      MERI_MCP_MONDAY_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_ID: 'id',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_SECRET: 'secret',
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_USER_IDS: ctx.userId,
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_TENANT_IDS: ctx.tenantId,
+    };
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+  test.each<[MeriV3ManagedAppId, string]>([
+    ['hubspot', 'search_crm_objects'],
+    ['airtable', 'list_bases'],
+    ['monday', 'get_board_info'],
+    ['google-drive', 'search_files'],
+  ])('%s exposes its real bridged read schema and can execute it', async (appId, tool) => {
+    const { service, mcp, tx } = make();
+    const app = MANAGED_MCP_APPS[appId];
+    const row = {
+      id: 'connected-server',
+      tenantId: ctx.tenantId,
+      ownerUserId: ctx.userId,
+      name: app.catalogId,
+      catalogId: app.catalogId,
+      endpoint: app.endpoint,
+      scope: 'user',
+      authType: 'oauth',
+      transport: 'http',
+      enabled: true,
+      connectionStatus: 'connected',
+      toolAllowlist: [tool],
+      readOnlyTools: [tool],
+    };
+    tx.clioMcpServer.findMany.mockResolvedValue([row]);
+    tx.clioMcpServer.findFirst.mockResolvedValue(row);
+    const schema = bridgeMcpTool(app.catalogId, {
+      name: tool,
+      inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+    });
+    const foreign = bridgeMcpTool('another-connector', { name: tool });
+    mcp.bridgedSchemasFor.mockResolvedValue([schema, foreign]);
+    expect(await service.schemasForMeriV3(ctx)).toEqual([
+      { ...schema, source: 'managed_mcp', appId, appName: app.name, readOnly: true },
+    ]);
+    await expect(
+      service.executeRead(ctx, schema.name, { query: 'fixture' }),
+    ).resolves.toBeDefined();
+    expect(mcp.executeBridged).toHaveBeenCalled();
+    await expect(service.executeRead(ctx, foreign.name, {})).rejects.toThrow();
   });
 });

@@ -755,6 +755,9 @@ export class EngagementAiService {
   /** Debrief-only model overrides (see config.schema DEBRIEF_*_MODEL). */
   private readonly debriefOpenaiModel: string;
   private readonly debriefAnthropicModel: string;
+  /** Comprehensive-prep-only model overrides (see config.schema MEETING_PREP_*_MODEL). */
+  private readonly meetingPrepOpenaiModel: string;
+  private readonly meetingPrepAnthropicModel: string;
   /** D1 hardened completion client (retries, typed errors, caching, usage). */
   private readonly llm = new LlmCompletionService();
 
@@ -778,6 +781,8 @@ export class EngagementAiService {
     this.outreachDraftModel = config.get('OUTREACH_DRAFT_MODEL', { infer: true });
     this.debriefOpenaiModel = config.get('DEBRIEF_OPENAI_MODEL', { infer: true });
     this.debriefAnthropicModel = config.get('DEBRIEF_ANTHROPIC_MODEL', { infer: true });
+    this.meetingPrepOpenaiModel = config.get('MEETING_PREP_OPENAI_MODEL', { infer: true });
+    this.meetingPrepAnthropicModel = config.get('MEETING_PREP_ANTHROPIC_MODEL', { infer: true });
   }
 
   /**
@@ -922,7 +927,20 @@ export class EngagementAiService {
     input: MeetingPrepInput,
     ctx?: TenantContext | null,
   ): Promise<MeetingPrepResult> {
-    if (currentMeetingPrepExecution()) return this.withCredentialFallback('AI comprehensive meeting prep', ctx, cred => generateComprehensiveMeetingPrep(input, cred, this.llm));
+    if (currentMeetingPrepExecution())
+      return this.withCredentialFallback('AI comprehensive meeting prep', ctx, (cred) =>
+        generateComprehensiveMeetingPrep(
+          input,
+          {
+            ...cred,
+            model: resolveMeetingPrepModel(cred, {
+              openai: this.meetingPrepOpenaiModel,
+              anthropic: this.meetingPrepAnthropicModel,
+            }),
+          },
+          this.llm,
+        ),
+      );
     const deadlineAt = Date.now() + MEETING_PREP_POLICY.legacyDeadlineMs;
     const federalContext = await this.buildFederalContextBlock(this.extractClientName(input));
     const enriched: MeetingPrepInput = federalContext
@@ -1904,6 +1922,15 @@ export class EngagementAiService {
       .filter(Boolean)
       .join('\n\n');
   }
+}
+
+/** A tenant's BYOK model wins; otherwise the prep-scoped model, or the resolved one when unset. */
+export function resolveMeetingPrepModel(
+  cred: Pick<ResolvedAiCredential, 'provider' | 'model' | 'modelOverridden'>,
+  overrides: { openai: string; anthropic: string },
+): string {
+  if (cred.modelOverridden) return cred.model;
+  return (cred.provider === 'openai' ? overrides.openai : overrides.anthropic) || cred.model;
 }
 
 function extractOpenAiText(json: Record<string, unknown>): string {

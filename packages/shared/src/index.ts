@@ -3515,6 +3515,7 @@ export interface ModelPrice {
  */
 export const AI_PRICING: Record<string, ModelPrice> = {
   // OpenAI
+  'gpt-5': { inputPerM: 1.25, outputPerM: 10.0 },
   'gpt-4.1': { inputPerM: 2.0, outputPerM: 8.0 },
   'gpt-4.1-mini': { inputPerM: 0.4, outputPerM: 1.6 },
   'gpt-4o': { inputPerM: 2.5, outputPerM: 10.0 },

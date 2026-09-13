@@ -80,6 +80,79 @@ describe('MeriV3ManagedMcpAssistantService', () => {
     expect(managed.schemas).toHaveBeenCalledTimes(1);
   });
 
+  test.each([
+    ['hubspot', 'meriv3_hubspot', 'HubSpot', 'search_crm_objects'],
+    ['airtable', 'meriv3_airtable', 'Airtable', 'list_bases'],
+    ['monday', 'meriv3_monday', 'monday.com', 'get_board_info'],
+    ['google-drive', 'meriv3_google_drive', 'Google Drive', 'read_file_content'],
+  ])(
+    '%s schemas reach the model and route through the managed read bridge',
+    async (appId, server, appName, tool) => {
+      const nativeFetch = jest
+        .spyOn(MeriV3AssistantService.prototype as never, 'fetchToolSchemas' as never)
+        .mockResolvedValue([] as never);
+      const nativeInvoke = jest
+        .spyOn(MeriV3AssistantService.prototype as never, 'invokeTool' as never)
+        .mockResolvedValue({ native: true } as never);
+      const nativeAugment = jest
+        .spyOn(MeriV3AssistantService.prototype as never, 'augmentToolInput' as never)
+        .mockReturnValue({ input: { clientId: 'rewritten' } } as never);
+      const name = `mcp__${server}__${tool}`;
+      const external = {
+        name,
+        appId,
+        appName,
+        readOnly: true,
+        source: 'managed_mcp',
+        description: 'Read fixture',
+        input_schema: { type: 'object' },
+      };
+      const { service, managed } = make({
+        schemas: jest.fn(async () => [
+          external,
+          { ...external, name: 'mcp__unreviewed__read_file' },
+        ]),
+      });
+      const internals = service as unknown as {
+        fetchToolSchemas: () => Promise<Array<{ name: string; description: string }>>;
+        augmentToolInput: (dto: unknown, input: unknown, schema: unknown) => unknown;
+        invokeTool: (args: Record<string, unknown>) => Promise<unknown>;
+      };
+      const schemas = await internals.fetchToolSchemas();
+      expect(schemas.map((s) => s.name)).toEqual([name]);
+      expect(schemas[0]?.description).toContain(`[Connected app: ${appName};`);
+      const input = { fileId: 'fixture-file', clientId: 'provider-client' };
+      expect(internals.augmentToolInput({ clientId: 'capiro-client' }, input, external)).toEqual({
+        input,
+      });
+      expect(nativeAugment).not.toHaveBeenCalled();
+      const events: Array<Record<string, unknown>> = [];
+      await internals.invokeTool({
+        ctx: {},
+        name,
+        input,
+        steps: [],
+        pendingApprovals: [],
+        artifacts: [],
+        emit: (event: Record<string, unknown>) => events.push(event),
+        prePersistRefusal: () => null,
+        noteComplianceOutcome: () => undefined,
+      });
+      expect(managed.executeRead).toHaveBeenCalledWith(name, input, undefined);
+      expect(nativeInvoke).not.toHaveBeenCalled();
+      expect(nativeFetch).toHaveBeenCalledTimes(1);
+      expect(events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'tool_done',
+            status: 'done',
+            label: expect.stringContaining(`${appName}:`),
+          }),
+        ]),
+      );
+    },
+  );
+
   test('adds visual-output rules only to an available native run_analysis schema', async () => {
     jest
       .spyOn(
