@@ -2,6 +2,8 @@
 
 Status: implementation and local qualification; release preparation. Deployment, tenant enablement, pilot and client acceptance are separate outstanding gates. Source base is main `41eb8febebf89ebd108e96e8c8ff782d4d1e3ae6`, containing merged Phase 5 PRs #1617 and #1618. Branch: `agent/legiwatch-phase6-assisted-tagging-workflows`. The supplied handoff is a specification, not recipient/deployment authorization.
 
+Before native release qualification, merged refreshed main `84c761590cab87c1d78a6e425ef08fd901603235` to preserve intervening managed-connector and meeting-preparation releases. The shared tool registry merged without conflict.
+
 ## Result and ownership
 
 Folder staff can review keyword or Meri suggestions with exact source excerpts, freeze a selected batch, add/dismiss/exclude, see per-item stale/denied outcomes, inspect history and safely undo an untouched sole automation contribution. Existing assignments, per-folder position/priority/comments and Fast Tagger behavior remain authoritative. Manual removal suppresses every automatic rule for that folder/bill until deliberate manual restoration. Imported/manual assignments are never relabeled as automation-created.

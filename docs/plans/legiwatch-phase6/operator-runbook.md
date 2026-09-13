@@ -17,6 +17,8 @@ The new capabilities default off. Deployment alone does not activate client rule
 
 Rules and templates also require their own explicit reviewed activation. Existing reports/calendar/Phase 5 gates continue to apply. Report workflow UI requires `legiwatch_reports_updates_v1`; published review requires `LEGIWATCH_RECORD_RECONCILIATION_ENABLED=true` and existing source/owner gates. Existing reports/agenda/capture settings must not be changed to activate Phase 6.
 
+Keyword inbox delivery additionally checks `LEGIWATCH_KEYWORD_DELIVERY_ENABLED` in the API runtime. Keep it off together with Intel's gate until the separate channel qualification is approved.
+
 Intel service AND the scheduled report worker need `WORKSPACE_BASE_URL` (trusted Workspace origin) and the existing `INTERNAL_SERVICE_SECRET`. Workspace needs `INTEL_API_BASE_URL` (trusted Intel origin) and the same narrowly scoped service secret. Requests append `/workspace-api/internal/legiwatch/preparations` and `/intel-api/internal/legiwatch/workflow-actions/:id` respectively; do not include those suffixes in origin values. API's Meri bridge uses `TRACKER_APP_BASE_URL` and the existing service secret. Missing configuration holds preparation; it does not fall back to a public or guessed endpoint. Do not log secret values or action payloads/private notes.
 
 Use existing EventBridge `run-report-updates` targets with explicit tenant UUID; do not create another scheduler. New budgets: 10 owners/configs per tick, 25 scan bills/automatic additions per bounded pass, 10 source events per configuration, 25 delivery recipients per drain; batch review max 200. Actual processing SLA/cost is not established by these limits.
