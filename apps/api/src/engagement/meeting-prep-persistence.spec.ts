@@ -18,7 +18,6 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
     clientId: initialClient,
     isInternal: false,
     attendees: [],
-    tasks: [],
   };
   const tx = {
     $queryRaw: jest.fn(async () => [{ id: 'm1' }]),
@@ -29,6 +28,7 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
     },
     client: { findUnique: jest.fn(async ({ where }) => ({ id: where.id, name: 'Client' })) },
     mailThread: { findMany: jest.fn(async () => []) },
+    engagementTask: { findMany: jest.fn(async () => []) },
     meetingPrep: {
       updateMany: jest.fn(async () => ({ count: 0 })),
       create: jest.fn(async ({ data }) => ({ id: 'prep-1', ...data })),

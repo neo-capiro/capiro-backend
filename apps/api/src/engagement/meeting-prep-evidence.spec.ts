@@ -97,10 +97,33 @@ describe('meeting prep evidence display without a quality gate', () => {
     expect(prompt).toContain('Mia LaPinta');
     expect(prompt).toContain('mail:mail1');
     expect(prompt).not.toContain('attendeeReferences');
+    expect(prompt).toContain('what we committed to doing for the client');
+    expect(prompt).toContain('OWNERS & COMMITMENTS');
+    expect(prompt).toContain('never turn them into talking points');
     const logistics = JSON.parse(
       prepEvidenceSources(input).find((source) => source.kind === 'meeting')!.excerpt,
     );
     expect(prompt).toContain(logistics.formattedTime);
+  });
+  test('thread and prior-meeting excerpts keep their messages and debriefs, and history appears once in the prompt', () => {
+    const long = 'x'.repeat(8_000);
+    const history: MeetingPrepInput = {
+      ...input,
+      recentThreads: [
+        { id: 't1', subject: 'Timeline thread', messageHighlights: [{ quote: `UNIQUE-QUOTE-MARKER ${long}` }] },
+      ],
+      recentMeetings: [{ id: 'm0', subject: 'Kickoff', debriefs: [{ id: 'd1', body: long }] }],
+      tasks: [{ id: 'k1', title: 'Send timeline', description: long }],
+    };
+    const sources = prepEvidenceSources(history);
+    const excerpt = (id: string) => sources.find((source) => source.id === id)!.excerpt.length;
+    expect(excerpt('mail:t1')).toBe(5_000);
+    expect(excerpt('prior-meeting:m0')).toBe(7_000);
+    expect(excerpt('task:k1')).toBe(1_800);
+    const service = Object.create(EngagementAiService.prototype) as any;
+    const prompt: string = service.buildPrompt(history);
+    expect(prompt.split('UNIQUE-QUOTE-MARKER').length - 1).toBe(1);
+    expect(prompt).not.toContain('Email thread highlights');
   });
   test.each(['openai', 'anthropic'])(
     '%s returns uncited content after one generation call, without a reviewer',

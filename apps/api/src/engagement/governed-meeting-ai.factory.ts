@@ -11,10 +11,13 @@ export const RAW_ENGAGEMENT_AI_SERVICE = Symbol('RAW_ENGAGEMENT_AI_SERVICE');
  * Provider-seam enforcement for Phase 24.
  *
  * EngagementService still owns authoritative current-meeting, transcript/note,
- * directory and persistence behavior. Historical/private context assembled by
- * its pre-Phase-24 helper queries is removed before the provider sees it and is
- * replaced by the one request-scoped Context Plane bundle. A direct internal AI
- * call without that bundle fails closed.
+ * directory and persistence behavior. Prep keeps the firm's client record it
+ * assembled (client-linked threads, prior meetings with their notes/debriefs,
+ * open tasks) as the evidence the briefing answers from, and takes steering plus
+ * governed supplemental records from the one request-scoped Context Plane
+ * bundle. Debrief removes that history so only the transcript and visible notes
+ * can establish what happened. A direct internal AI call without a bundle fails
+ * closed.
  */
 export function createGovernedMeetingAiService(
   service: EngagementAiService,
@@ -31,11 +34,6 @@ export function createGovernedMeetingAiService(
           const sanitized: MeetingPrepInput = {
             ...input,
             meeting: sanitizeCurrentMeeting(input.meeting),
-            // These pre-Phase-24 history arrays are no longer model context.
-            // Their governed equivalents are in bundle.modelContextBlock.
-            recentMeetings: [],
-            recentThreads: [],
-            tasks: [],
             steeringContext: bundle.modelContextBlock,
             evidenceSources: bundle.evidenceSources ?? [],
           };
