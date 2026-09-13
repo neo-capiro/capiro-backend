@@ -31,3 +31,9 @@ For a delivery incident, turn off only the new record delivery process gates and
 For a code rollback, restore the previously pinned compatible images/task definitions after checking capture state. Keep additive migrations and immutable rows. Reverting to an API/sync writer predating the source-observation contract while new canonical source checking remains active is unsafe: suspend the affected source budget or keep the compatible source writer. Do not delete history, edit the migration ledger, expand source grants or replay imported bill events as a rollback shortcut.
 
 The final release package must contain source/image hashes, exact task and environment deltas, existing schedule targets, preflight checks, migration order, rollout verification and reverse task-definition changes. Publishing this runbook does not execute that plan.
+
+## Prepared release scope
+
+The September 13 execution package contains a sealed `release/plan.json`, 19 hash-verified task registration proposals, a read-only materializer/verifier, and exact staged commands for account 967807252336 / us-east-1 / capiro-dev. It proposes five services, 24 existing rule targets and API-then-Intel migrations, with the new outward gates off. Engagement receives the exact existing internal service secret and one scoped execution-role policy; the reports worker receives the existing hearing encryption secret under its already-authorized role. No CodeBuild S3 permission change is proposed.
+
+Use the engineering note's exact source/digests and the package seal. The final image verification succeeded, but GitHub hosted checks remain failed under the billing gate. Resolve the Phase 4 dependent PR and active capture before runtime replacement; do not bypass protected checks. After Phase 5 private Documents exist, retain compatible API/Engagement access guards during rollback. The package commands and reverse conditions are reviewable preparation, not evidence of execution.

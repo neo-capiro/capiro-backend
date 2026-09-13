@@ -40,7 +40,7 @@ Daily updates require an explicit selection of at most five exact approved brief
 
 ## Qualification evidence
 
-The local Phase 5 matrix passed 368 tests: API 173, Intel 26, core 51, orchestrator 64 and web 54, with no failures/skips. Real PostgreSQL tests cover immutable history, source restoration, source/review locking, owner RLS, client withdrawal, stale queued work, correction audience eligibility, durable scan fairness and concurrent daily composition. Separate earlier Phase 4 regression passed 223 tests; the rebased native candidate must repeat the relevant parent checks.
+The local Phase 5 matrix passed 368 tests: API 173, Intel 26, core 51, orchestrator 64 and web 54, with no failures/skips. Real PostgreSQL tests cover immutable history, source restoration, source/review locking, owner RLS, client withdrawal, stale queued work, correction audience eligibility, durable scan fairness and concurrent daily composition. The rebased native Phase 4 matrix passed 226 tests. Native broad regression passed 2,724 tests; these matrices overlap and must not be summed into a unique total.
 
 A populated Phase 4-to-5 rehearsal applied API then Intel migrations as capiro_master with broad observed default ACLs. It preserved both earlier action/amendment payloads and the earlier unofficial publication exactly, initialized current source pointers and denied application rewrite/deletion of immutable evidence. Both migration chains total 435 applied migrations in this rehearsal. Native clean and populated upgrade runs remain separately recorded by scripts/legiwatch-phase5-upgrade.mjs and the build evidence.
 
@@ -48,4 +48,30 @@ Real provider qualification selected Florida 2026 SB 474/HB 1211: four roll-call
 
 GovInfo qualification followed two live pages containing 200 unique CHRG packages and a continuation. A full Senate hearing package, CHRG-119shrg61840, yielded 96,076 characters with a qualified April 1, 2025 held date. The separate errata sample remains correction-only. Federal collection completeness, production source agreements and all-state equivalence are not claimed.
 
-Actual component browser evidence, seven design-system Figma frames and the deterministic one-page DOCX render are maintained in the execution evidence package. They distinguish synthetic private fixtures from real public source data. Native image qualification, shared deployment, recipient activation and client acceptance must be reported separately.
+Actual component browser evidence, seven design-system Figma frames and the deterministic one-page DOCX render are maintained in the execution evidence package. They distinguish synthetic private fixtures from real public source data. Native image qualification passed as recorded below. Shared deployment, recipient activation and client acceptance remain separate and unperformed.
+
+## Final native candidate and release preparation — September 13, 2026
+
+Qualified image source: `97c30ac4230bd52ec08ffb57198220eaf1045b7c`, tree `6859ef3fd49e6e4cf90d81cb9756a6089f9d1d20`. The branch subsequently incorporates Phase 4 checkpoint `78a148c0dbd7d0e592f7a7903b0c3f0248bf48ec` and these closeout notes; these changes affect documentation only. Runtime files must remain identical to the image source. Draft PR #1617 still depends on draft PR #1616; no PR was merged into main.
+
+Final image verification build `capiro-build-intel-api:b939b39d-66b7-4f91-b91b-21af50bc2929` **SUCCEEDED**. On native ARM64 it ran the actual API and Intel migration entrypoints against an owned TLS PostgreSQL database, then loaded the compiled modules and native Prisma engines in API, Engagement API, Intel and Meri with 435 applied migrations. The web image returned HTTP 200 and HTML. This validates the pinned image artifacts, not deployed authenticated behavior.
+
+| Image               | Immutable digest                                                          |
+| ------------------- | ------------------------------------------------------------------------- |
+| api                 | `sha256:df738e0d6cd5437471b73c4dadd5c1a6a1a064ce49eaa1909f3605509d616cee` |
+| engagement-api      | `sha256:c72d925d5d1aa9ff142307d964ff3f9b647074399080b9fd21631e7edb27f18d` |
+| intel-api           | `sha256:db38490bf1bfdfc72b82813c3d15c90df7e6e9d836be03bba5558b638436b77a` |
+| meriv2-orchestrator | `sha256:ec391b3cfdc38d440e56a40c64be6bb73901f32021c48996a4352b4c1a36ad3b` |
+| web-vnext           | `sha256:a967d56ae72f6fc041daa11d5e717b0edea53b74c9ac3c55a94e0ddae257b0e4` |
+
+The final source repeated all 368 Phase 5 tests, API/Intel/web/infrastructure typechecks, four Engagement credential-scope tests and the existing asset IAM tests. The earlier native broad regression (2,724) ran on `3374ad3`; the populated upgrade and Phase 4 matrix (226) ran on `8214ba0`. Subsequent runtime deltas were the narrow hash-wrap CSS, Intel Docker packaging and optional Engagement credential configuration, all checked in the final build. The Intel package fix was required by an actual failed native Docker build.
+
+The supplemental and final image-building jobs have overall **FAILED** status because their last S3 report-archive command lacked `s3:PutObject` permission. Test, upgrade and image stages completed before that failure. Their CloudWatch logs are retained. The independent final image verification above succeeded. No build-role permission was widened. GitHub-hosted checks could not start due to the account billing/spending-limit restriction and remain failed; native checks do not relabel them.
+
+The complete local workflow generated a brief using the existing live Meri route for real Florida event `state-fl-fb0915a33315584710340cb8ca4926b1`, six frozen published versions and a synthetic private client. A separate reviewed version was approved in the disposable database. Concurrent saves produced one owner-private Document; saved/exported bytes matched; current/as-of retrieval passed; wrong owner, pre-review historical access, client-wall withdrawal and changed folder version were denied before reading stored bytes. The storage transport was an in-memory fixture behind the actual workflow/document services. The reviewed one-page DOCX/PDF was visually verified; DOCX SHA-256 `8cb48730f6c96a61926385fc16a741a8668a86f318aea0020b999abfed89d61a`.
+
+The selected Senate first-party committee PDF independently confirms the January 26 SB 474 tally 9–0. Florida calendar coverage remains partial (4 of 5 expected Senate events); selected records are not complete minutes. Retrospective review of 10 live-provider atomic statements found no false support/contradiction or invalid citation identity/hash/locator, and one pending-records versus not-addressed disagreement. Both outcomes stay unresolved; the model result requires review. One generation sample took about 47.1 seconds, not a latency percentile.
+
+Release proposal seal: `5a82ddabdd1a3db0d0c13ed1bf4e10c68eed2cfde829a8fdebc75a8e645fcdd6`. The separately delivered evidence package contains `release/plan.json`, materializer, read-only audit/verifier and staged commands. All 19 task registrations were materialized and hash-verified locally. The proposal covers five services, 24 existing rules, 17 additive migrations, two credential injections and one exact-secret Engagement execution-role grant. New document/event-revisit/reconciliation and delivery gates stay off; the proposed existing vote drain cap is 25. No tenant features, recipients, consent or messages are changed by preparation.
+
+The live read-only preflight found one active Phase 4 browser capture, no unresolved migration and no task/service/rule drift. It is not ready for runtime replacement until capture completes and a fresh preflight passes. Full old-image rollback is conditional: once private Phase 5 Documents or source transitions exist, retain compatible API/Engagement access checks and source writers. Keep additive migrations, source history and accepted/unknown delivery receipts. Shared deployment and live tenant acceptance remain unperformed.
