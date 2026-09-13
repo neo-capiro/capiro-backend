@@ -10,7 +10,8 @@ import {
   MANAGED_MCP_APPS,
   MERIV3_MANAGED_APP_IDS,
   filterManagedReadOnlyTools,
-  managedAppConfigured,
+  managedAppAvailable,
+  type ManagedMcpPrincipal,
   managedAppIdFromCatalogId,
   managedCatalogId,
   type MeriV3ManagedAppId,
@@ -35,7 +36,9 @@ export interface MeriV3ManagedMcpSchema extends BridgedTool {
 }
 
 function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
 }
 
 function serverPrefix(name: string): string {
@@ -50,11 +53,14 @@ function globalMcpEnabled(): boolean {
 
 @Injectable()
 export class MeriManagedMcpService {
-  private readonly connecting = new Map<string, Promise<{
-    app: MeriV3ManagedAppStatus;
-    authUrl: string | null;
-    alreadyConnected: boolean;
-  }>>();
+  private readonly connecting = new Map<
+    string,
+    Promise<{
+      app: MeriV3ManagedAppStatus;
+      authUrl: string | null;
+      alreadyConnected: boolean;
+    }>
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -68,8 +74,10 @@ export class MeriManagedMcpService {
       const app = MANAGED_MCP_APPS[id];
       const row = rows.find((candidate) => candidate.catalogId === app.catalogId);
       let status = this.publicStatus(row?.connectionStatus);
-      const available = this.available(id);
-      const usable = Boolean(row?.enabled && filterManagedReadOnlyTools(id, strings(row.toolAllowlist)).length);
+      const available = this.available(id, ctx);
+      const usable = Boolean(
+        row?.enabled && filterManagedReadOnlyTools(id, strings(row.toolAllowlist)).length,
+      );
       if (status === 'connected' && !usable) status = 'error';
       return {
         id,
@@ -105,12 +113,16 @@ export class MeriManagedMcpService {
     if (!globalMcpEnabled()) {
       throw new ServiceUnavailableException('Connected apps are temporarily disabled.');
     }
-    if (!this.available(appId)) {
-      throw new ServiceUnavailableException(MANAGED_MCP_APPS[appId].name + ' is temporarily unavailable. Please try again later.');
+    if (!this.available(appId, ctx)) {
+      throw new ServiceUnavailableException(
+        MANAGED_MCP_APPS[appId].name + ' is temporarily unavailable. Please try again later.',
+      );
     }
 
     const existing = await this.rowsForApp(ctx, appId);
-    const retained = existing.find((row) => row.enabled && ['connected', 'error'].includes(row.connectionStatus));
+    const retained = existing.find(
+      (row) => row.enabled && ['connected', 'error'].includes(row.connectionStatus),
+    );
     if (retained) {
       // Revalidate valid credentials in place. An upstream outage is not a
       // reason to delete the user's connection or ask them to sign in again.
@@ -131,7 +143,10 @@ export class MeriManagedMcpService {
     const started = await this.oauth.start(ctx, serverId);
     if (started.alreadyConnected) {
       const count = await this.mcp.discoverTools(ctx.tenantId, serverId);
-      if (!count) throw new ServiceUnavailableException('The app could not finish connecting. Please try again.');
+      if (!count)
+        throw new ServiceUnavailableException(
+          'The app could not finish connecting. Please try again.',
+        );
       await this.finalizeConnection(ctx.tenantId, serverId);
     }
     return {
@@ -165,10 +180,18 @@ export class MeriManagedMcpService {
 
   async finalizeConnection(tenantId: string, serverId: string): Promise<number> {
     const count = await this.hardenServer(tenantId, serverId);
-    if (!count) throw new ServiceUnavailableException('No supported read tools are available. Please try reconnecting.');
+    if (!count)
+      throw new ServiceUnavailableException(
+        'No supported read tools are available. Please try reconnecting.',
+      );
     const result = await this.prisma.withTenant(tenantId, (tx) =>
       tx.clioMcpServer.updateMany({
-        where: { id: serverId, tenantId, enabled: true, connectionStatus: { in: ['pending', 'connected'] } },
+        where: {
+          id: serverId,
+          tenantId,
+          enabled: true,
+          connectionStatus: { in: ['pending', 'connected'] },
+        },
         data: { connectionStatus: 'connected', lastError: null },
       }),
     );
@@ -193,7 +216,8 @@ export class MeriManagedMcpService {
     const prefixes = new Map<string, MeriV3ManagedAppId>();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
-      if (!id || !this.available(id) || !row.enabled || row.connectionStatus !== 'connected') continue;
+      if (!id || !this.available(id, ctx) || !row.enabled || row.connectionStatus !== 'connected')
+        continue;
       if (await this.hardenServer(ctx.tenantId, row.id)) prefixes.set(serverPrefix(row.name), id);
     }
     if (!prefixes.size) return [];
@@ -203,20 +227,36 @@ export class MeriManagedMcpService {
       const match = [...prefixes].find(([prefix]) => schema.name.startsWith(prefix));
       if (!match || !this.mcp.isBridgedToolReadOnly(ctx, schema.name)) continue;
       const id = match[1];
-      out.push({ ...schema, source: 'managed_mcp', appId: id, appName: MANAGED_MCP_APPS[id].name, readOnly: true });
+      out.push({
+        ...schema,
+        source: 'managed_mcp',
+        appId: id,
+        appName: MANAGED_MCP_APPS[id].name,
+        readOnly: true,
+      });
     }
     return out;
   }
 
-  async executeRead(ctx: TenantContext, toolName: string, input: Record<string, unknown>, options?: { structuredRead?: boolean }): Promise<unknown> {
+  async executeRead(
+    ctx: TenantContext,
+    toolName: string,
+    input: Record<string, unknown>,
+    options?: { structuredRead?: boolean },
+  ): Promise<unknown> {
     assertMeriToolRequestActive();
     const schemas = await this.schemasForMeriV3(ctx);
-    if (!schemas.some((schema) => schema.name === toolName) || !this.mcp.isBridgedToolReadOnly(ctx, toolName)) {
+    if (
+      !schemas.some((schema) => schema.name === toolName) ||
+      !this.mcp.isBridgedToolReadOnly(ctx, toolName)
+    ) {
       throw new BadRequestException('Connected-app tool is unavailable or not read-only.');
     }
     assertMeriToolRequestActive();
     // executeBridged rechecks the current row immediately before provider I/O.
-    return options ? this.mcp.executeBridged(ctx, toolName, input, options) : this.mcp.executeBridged(ctx, toolName, input);
+    return options
+      ? this.mcp.executeBridged(ctx, toolName, input, options)
+      : this.mcp.executeBridged(ctx, toolName, input);
   }
 
   private async createApp(ctx: TenantContext, appId: MeriV3ManagedAppId): Promise<string> {
@@ -231,11 +271,17 @@ export class MeriManagedMcpService {
       readOnlyTools: [],
       enabled: true,
       ...(app.clientIdEnv ? { oauthClientId: process.env[app.clientIdEnv]?.trim() } : {}),
-      ...(app.clientSecretEnv ? { oauthClientSecret: process.env[app.clientSecretEnv]?.trim() } : {}),
+      ...(app.clientSecretEnv
+        ? { oauthClientSecret: process.env[app.clientSecretEnv]?.trim() }
+        : {}),
     })) as { id?: unknown };
-    if (typeof created.id !== 'string') throw new ServiceUnavailableException('The app could not finish connecting.');
+    if (typeof created.id !== 'string')
+      throw new ServiceUnavailableException('The app could not finish connecting.');
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioMcpServer.update({ where: { id: created.id as string }, data: { catalogId: app.catalogId } }),
+      tx.clioMcpServer.update({
+        where: { id: created.id as string },
+        data: { catalogId: app.catalogId },
+      }),
     );
     this.mcp.invalidate(ctx.tenantId);
     return created.id;
@@ -246,17 +292,34 @@ export class MeriManagedMcpService {
       tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
     );
     const id = managedAppIdFromCatalogId(row?.catalogId);
-    if (!row || !id || !this.available(id) || !row.enabled || !['pending', 'connected'].includes(row.connectionStatus)) return 0;
+    if (
+      !row ||
+      !id ||
+      !this.available(id, { tenantId, userId: row.ownerUserId }) ||
+      !row.enabled ||
+      !['pending', 'connected'].includes(row.connectionStatus)
+    )
+      return 0;
     const safe = filterManagedReadOnlyTools(id, strings(row.toolAllowlist));
-    if (JSON.stringify(strings(row.toolAllowlist)) !== JSON.stringify(safe) ||
-        JSON.stringify(strings(row.readOnlyTools)) !== JSON.stringify(safe) || !safe.length) {
+    if (
+      JSON.stringify(strings(row.toolAllowlist)) !== JSON.stringify(safe) ||
+      JSON.stringify(strings(row.readOnlyTools)) !== JSON.stringify(safe) ||
+      !safe.length
+    ) {
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.clioMcpServer.updateMany({
-          where: { id: row.id, tenantId, enabled: true, connectionStatus: { in: ['pending', 'connected'] } },
+          where: {
+            id: row.id,
+            tenantId,
+            enabled: true,
+            connectionStatus: { in: ['pending', 'connected'] },
+          },
           data: {
             toolAllowlist: safe as Prisma.InputJsonValue,
             readOnlyTools: safe as Prisma.InputJsonValue,
-            ...(!safe.length ? { connectionStatus: 'error', lastError: 'No supported read tools are available.' } : {}),
+            ...(!safe.length
+              ? { connectionStatus: 'error', lastError: 'No supported read tools are available.' }
+              : {}),
           },
         }),
       );
@@ -265,17 +328,24 @@ export class MeriManagedMcpService {
     return safe.length;
   }
 
-  private available(id: MeriV3ManagedAppId): boolean {
-    return globalMcpEnabled() && this.oauth.isConfigured() && managedAppConfigured(id);
+  private available(id: MeriV3ManagedAppId, principal: ManagedMcpPrincipal): boolean {
+    return globalMcpEnabled() && this.oauth.isConfigured() && managedAppAvailable(id, principal);
   }
 
   private parseAppId(value: string): MeriV3ManagedAppId {
-    if ((MERIV3_MANAGED_APP_IDS as readonly string[]).includes(value)) return value as MeriV3ManagedAppId;
+    if ((MERIV3_MANAGED_APP_IDS as readonly string[]).includes(value))
+      return value as MeriV3ManagedAppId;
     throw new BadRequestException('Unknown connected app.');
   }
 
   private publicStatus(value: string | undefined): MeriV3ManagedAppStatus['status'] {
-    if (value === 'connected' || value === 'pending' || value === 'needs_reauth' || value === 'error') return value;
+    if (
+      value === 'connected' ||
+      value === 'pending' ||
+      value === 'needs_reauth' ||
+      value === 'error'
+    )
+      return value;
     return 'disconnected';
   }
 
@@ -300,7 +370,12 @@ export class MeriManagedMcpService {
   private rowsForApp(ctx: TenantContext, id: MeriV3ManagedAppId) {
     return this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMcpServer.findMany({
-        where: { tenantId: ctx.tenantId, scope: 'user', ownerUserId: ctx.userId, catalogId: managedCatalogId(id) },
+        where: {
+          tenantId: ctx.tenantId,
+          scope: 'user',
+          ownerUserId: ctx.userId,
+          catalogId: managedCatalogId(id),
+        },
         orderBy: { createdAt: 'desc' },
       }),
     );
