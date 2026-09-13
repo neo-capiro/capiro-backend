@@ -122,6 +122,7 @@ function makeCreateHarness(opts: {
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
   patch.versionedOutreach = true;
   patch.externalSendV2Required = false;
+  patch.runtimePolicy = { assertExternalAction: () => {} };
   patch.prisma = {
     withTenant: (_t: string, fn: (t: unknown) => unknown) => fn(tx),
     withSystem: (fn: (t: unknown) => unknown) => fn(tx),
@@ -136,7 +137,9 @@ function makeCreateHarness(opts: {
     }),
     readAttachmentBytes: opts.readBytes ?? (async () => DEFAULT_BYTES),
   };
-  patch.mailSender = { sendMail: async () => ({ ok: true, provider: 'gmail', correlationId: 'c' }) };
+  patch.mailSender = {
+    sendMail: async () => ({ ok: true, provider: 'gmail', correlationId: 'c' }),
+  };
   patch.attachmentContent = attachmentContent;
   patch.attachmentScanner = { scanRequired: opts.scanRequired ?? false };
 

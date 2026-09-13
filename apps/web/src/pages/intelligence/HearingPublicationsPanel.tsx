@@ -89,6 +89,7 @@ const failure = (error: unknown) => {
 
 export function HearingPublicationsPanel({
   sessionId,
+  eventId,
   title,
   defaultClientId,
   clients,
@@ -100,6 +101,7 @@ export function HearingPublicationsPanel({
   playEvidence,
 }: {
   sessionId: string;
+  eventId?: string;
   title: string;
   defaultClientId?: string;
   clients: Array<{ id: string; name: string }>;
@@ -367,6 +369,15 @@ export function HearingPublicationsPanel({
         <div>
           <p className="hp-eyebrow">UNOFFICIAL HEARING INTELLIGENCE</p>
           <h2>Reviewed updates &amp; recaps</h2>
+          {eventId && current ? (
+            <p>
+              <a
+                href={`/legiwatch/hearings/${encodeURIComponent(eventId)}?session=${encodeURIComponent(sessionId)}&publication=${encodeURIComponent(current.id)}${clientId ? '&client=' + encodeURIComponent(clientId) : ''}#published-records`}
+              >
+                Compare this unofficial version with published records
+              </a>
+            </p>
+          ) : null}
         </div>
         <nav aria-label="Publication type">
           {updatesEnabled && (
@@ -873,16 +884,18 @@ export function HearingPublicationsPanel({
   );
 }
 
-function HearingSmsSetup({
+export function HearingSmsSetup({
   clientId,
   contacts,
   settings,
   refresh,
+  purpose = 'hearing_updates',
 }: {
   clientId: string;
   contacts: Contact[];
   settings?: SmsSettings;
   refresh: () => void;
+  purpose?: 'hearing_updates' | 'hearing_records';
 }) {
   const api = useApi(),
     [phone, setPhone] = useState(''),
@@ -893,18 +906,21 @@ function HearingSmsSetup({
     [sent, setSent] = useState(false),
     [message, setMessage] = useState('');
   const base = `/intel-api/clients/${encodeURIComponent(clientId)}/hearing-sms`;
+  const consentLabel = purpose === 'hearing_records' ? 'Published-record brief' : 'Hearing-update';
   async function submit(confirm = false) {
     setPending(true);
     setMessage('');
     try {
       await api.post(
-        base + (confirm ? '/verify/confirm' : '/verify/start'),
+        base +
+          (purpose === 'hearing_records' ? '/records' : '') +
+          (confirm ? '/verify/confirm' : '/verify/start'),
         confirm ? { phone, code } : { phone, contactId, consentVersion: settings?.consentVersion },
       );
       setSent(!confirm);
       setMessage(
         confirm
-          ? 'Hearing-update consent verified.'
+          ? `${consentLabel} consent verified.`
           : 'Verification code sent. Enter the code received on this phone.',
       );
       if (confirm) {
@@ -919,8 +935,14 @@ function HearingSmsSetup({
   }
   return (
     <details className="hp-sms">
-      <summary>Hearing-update SMS consent</summary>
-      <p>Verification and consent apply to this client and hearing updates.</p>
+      <summary>{consentLabel} SMS consent</summary>
+      <p>
+        Verification and consent apply to this client and{' '}
+        {purpose === 'hearing_records'
+          ? 'published-record briefs and corrections'
+          : 'hearing updates'}
+        .
+      </p>
       {!settings?.providerConfigured && (
         <p>SMS verification is unavailable until the provider is configured.</p>
       )}
@@ -982,7 +1004,7 @@ function HearingSmsSetup({
             />
           </label>
           <button disabled={pending || code.length !== 6} onClick={() => void submit(true)}>
-            Verify hearing-update consent
+            Verify {consentLabel.toLowerCase()} consent
           </button>
           <button
             disabled={pending}

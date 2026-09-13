@@ -34,6 +34,7 @@ export interface LlmClient {
     toolDescription: string;
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
+    timeoutMs?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }>;
 }
 
@@ -97,9 +98,14 @@ export class AnthropicLlmClient implements LlmClient {
     toolDescription: string;
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
+    timeoutMs?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const budget =
+      params.timeoutMs === undefined
+        ? this.timeoutMs
+        : Math.min(120000, Math.max(1000, params.timeoutMs));
+    const timer = setTimeout(() => controller.abort(), budget);
     try {
       const res = await this.fetchImpl('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -225,9 +231,14 @@ export class OpenAiLlmClient implements LlmClient {
     toolDescription: string;
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
+    timeoutMs?: number;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const budget =
+      params.timeoutMs === undefined
+        ? this.timeoutMs
+        : Math.min(120000, Math.max(1000, params.timeoutMs));
+    const timer = setTimeout(() => controller.abort(), budget);
     try {
       const res = await this.fetchImpl('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

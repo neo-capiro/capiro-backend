@@ -10,7 +10,10 @@ async function main() {
   if (
     process.env.LEGIWATCH_HEARING_EMAIL_ENABLED !== 'true' &&
     process.env.LEGIWATCH_HEARING_SMS_ENABLED !== 'true' &&
-    process.env.LEGIWATCH_HEARING_INBOX_ENABLED !== 'true'
+    process.env.LEGIWATCH_HEARING_INBOX_ENABLED !== 'true' &&
+    process.env.LEGIWATCH_RECORD_EMAIL_ENABLED !== 'true' &&
+    process.env.LEGIWATCH_RECORD_SMS_ENABLED !== 'true' &&
+    process.env.LEGIWATCH_RECORD_INBOX_ENABLED !== 'true'
   )
     throw Error('Hearing delivery is disabled');
   const prisma = new PrismaService();
@@ -25,7 +28,13 @@ async function main() {
       tx.featureFlag.findMany({
         where: {
           enabled: true,
-          feature: { in: ['legiwatch_hearing_updates_v1', 'legiwatch_hearing_recaps_v1'] },
+          feature: {
+            in: [
+              'legiwatch_hearing_updates_v1',
+              'legiwatch_hearing_recaps_v1',
+              'legiwatch_record_delivery_v1',
+            ],
+          },
         },
         select: { tenantId: true, feature: true },
         orderBy: { tenantId: 'asc' },
@@ -42,10 +51,24 @@ async function main() {
         scope.tenantId,
         25,
         new Date(),
-        scope.feature === 'legiwatch_hearing_updates_v1' ? 'live_update' : 'hearing_recap',
+        scope.feature === 'legiwatch_record_delivery_v1'
+          ? 'record_brief'
+          : scope.feature === 'legiwatch_hearing_updates_v1'
+            ? 'live_update'
+            : 'hearing_recap',
       );
       attempted += result.attempted;
       held += result.held;
+      if (scope.feature === 'legiwatch_record_delivery_v1') {
+        const corrections = await delivery.drain(
+          scope.tenantId,
+          25,
+          new Date(),
+          'record_correction',
+        );
+        attempted += corrections.attempted;
+        held += corrections.held;
+      }
       await heartbeat.beat({ attempted, held });
     }
     await heartbeat.succeed({ attempted, held });

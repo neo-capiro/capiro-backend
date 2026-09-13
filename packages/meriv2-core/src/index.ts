@@ -49,6 +49,7 @@ export * from './domain/domain-primer';
 export * from './domain/government-affairs-output';
 export * from './tools/hearing/tag-live-policy-mentions';
 export * from './tools/hearing/generate-post-hearing-summary';
+export * from './tools/hearing/generate-published-record-brief';
 export * from './verifier/confidence';
 export * from './verifier/verifier-claims';
 export * from './verifier/pe-structural';

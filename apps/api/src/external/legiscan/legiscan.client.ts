@@ -36,8 +36,10 @@ async function legiscanFetch<T>(
   op: string,
   params: Record<string, string | number> = {},
   attempt = 1,
+  onRetry?: () => void,
 ): Promise<T> {
   await pace();
+  if (attempt > 1) onRetry?.();
   const url = new URL(LEGISCAN_BASE);
   url.searchParams.set('key', apiKey);
   url.searchParams.set('op', op);
@@ -45,18 +47,21 @@ async function legiscanFetch<T>(
 
   let res: Response;
   try {
-    res = await fetch(url.toString());
+    res = await fetch(url.toString(), { signal: AbortSignal.timeout(30000), redirect: 'error' });
   } catch (err) {
     if (attempt <= 3) {
       await new Promise((r) => setTimeout(r, attempt * 2000));
-      return legiscanFetch<T>(apiKey, op, params, attempt + 1);
+      return legiscanFetch<T>(apiKey, op, params, attempt + 1, onRetry);
     }
     throw err;
   }
   if ((res.status === 429 || res.status >= 500) && attempt <= 3) {
-    const wait = Number(res.headers.get('retry-after') ?? String(attempt * 15)) * 1000;
+    const wait = Math.min(
+      60000,
+      Math.max(0, Number(res.headers.get('retry-after') ?? String(attempt * 15)) * 1000),
+    );
     await new Promise((r) => setTimeout(r, wait));
-    return legiscanFetch<T>(apiKey, op, params, attempt + 1);
+    return legiscanFetch<T>(apiKey, op, params, attempt + 1, onRetry);
   }
   if (!res.ok) throw new Error(`LegiScan HTTP ${res.status} for op=${op}`);
   const body = (await res.json()) as LegiscanEnvelope & T;
@@ -168,6 +173,56 @@ export interface LegiscanBillText {
   mime_id?: number;
   url?: string;
   state_link?: string;
+  text_hash?: string;
+  text_size?: number;
+}
+export interface LegiscanDocument extends LegiscanBillText {
+  bill_id: number;
+  doc: string;
+  document_kind?: 'text' | 'amendment' | 'supplement';
+  title?: string;
+}
+export async function getBillText(
+  apiKey: string,
+  docId: number,
+  onRetry?: () => void,
+): Promise<LegiscanDocument | null> {
+  const body = await legiscanFetch<{ text?: LegiscanDocument }>(
+    apiKey,
+    'getBillText',
+    { id: docId },
+    1,
+    onRetry,
+  );
+  return body.text ?? null;
+}
+export async function getSupportingDocument(
+  apiKey: string,
+  kind: 'amendment' | 'supplement',
+  id: number,
+  onRetry?: () => void,
+): Promise<LegiscanDocument | null> {
+  const response = await legiscanFetch<Record<string, Record<string, unknown>>>(
+    apiKey,
+    kind === 'amendment' ? 'getAmendment' : 'getSupplement',
+    { id },
+    1,
+    onRetry,
+  );
+  const doc = response[kind];
+  if (!doc) return null;
+  if (doc[kind + '_id'] !== id || !Number.isSafeInteger(doc.bill_id))
+    throw Error('DOCUMENT_SUBJECT_MISMATCH');
+  return {
+    ...doc,
+    doc_id: id,
+    bill_id: Number(doc.bill_id),
+    type: String(doc.type ?? doc.title ?? kind),
+    doc: doc.doc as string,
+    text_hash: doc[kind + '_hash'] as string | undefined,
+    text_size: doc[kind + '_size'] as number | undefined,
+    document_kind: kind,
+  } as LegiscanDocument;
 }
 export interface LegiscanBillVoteStub {
   roll_call_id: number;
@@ -238,11 +293,29 @@ export interface LegiscanBill {
   calendar?: LegiscanBillCalendarEvent[];
   committee?: LegiscanBillCommittee;
   amendments?: LegiscanBillAmendment[];
+  supplements?: Array<{
+    supplement_id: number;
+    supplement_hash?: string;
+    title?: string;
+    type?: string;
+    url?: string;
+    state_link?: string;
+  }>;
   referrals?: Array<LegiscanBillCommittee & { date?: string; committee_name?: string }>;
 }
 
-export async function getBill(apiKey: string, billId: number): Promise<LegiscanBill | null> {
-  const body = await legiscanFetch<{ bill?: LegiscanBill }>(apiKey, 'getBill', { id: billId });
+export async function getBill(
+  apiKey: string,
+  billId: number,
+  onRetry?: () => void,
+): Promise<LegiscanBill | null> {
+  const body = await legiscanFetch<{ bill?: LegiscanBill }>(
+    apiKey,
+    'getBill',
+    { id: billId },
+    1,
+    onRetry,
+  );
   return body.bill ?? null;
 }
 
@@ -272,10 +345,17 @@ export interface LegiscanRollCall {
 export async function getRollCall(
   apiKey: string,
   rollCallId: number,
+  onRetry?: () => void,
 ): Promise<LegiscanRollCall | null> {
-  const body = await legiscanFetch<{ roll_call?: LegiscanRollCall }>(apiKey, 'getRollCall', {
-    id: rollCallId,
-  });
+  const body = await legiscanFetch<{ roll_call?: LegiscanRollCall }>(
+    apiKey,
+    'getRollCall',
+    {
+      id: rollCallId,
+    },
+    1,
+    onRetry,
+  );
   return body.roll_call ?? null;
 }
 

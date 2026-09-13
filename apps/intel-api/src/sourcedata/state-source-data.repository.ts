@@ -266,9 +266,18 @@ export class StateSourceDataRepository {
   async getRecordPage(billId: string, section: 'history' | 'documents' | 'votes', offset: number) {
     const definitions = {
       history: {
-        table: 'state_bill_action',
-        select: 'id, date, text, chamber, order_key AS "orderKey"',
-        order: 'date DESC, order_key DESC, id',
+        table: `(SELECT r.id,r.bill_key,r.event_date AS date,r.evidence->>'text' AS text,
+          r.evidence->>'chamber' AS chamber,r.source_order AS order_key,r.first_observed_at,
+          r.revision_hash,r.evidence->>'url' AS url,'published_record'::text AS provenance
+          FROM state_bill_published_record r WHERE r.kind='action'
+          UNION ALL SELECT a.id,a.bill_key,to_char(a.date,'YYYY-MM-DD'),a.text,a.chamber,a.order_key,
+          a.first_seen_at,NULL::text,coalesce(b.state_url,b.url),'legacy_action'
+          FROM state_bill_action a JOIN state_bill b ON b.id=a.bill_key
+          WHERE coalesce(b.report_source_facts->'coverage'->>'actions','false')<>'true'
+          AND NOT EXISTS (SELECT 1 FROM state_bill_published_record r WHERE r.bill_key=a.bill_key AND r.kind='action')) records`,
+        select:
+          'id, date, text, chamber, order_key AS "orderKey", first_observed_at AS "firstObservedAt", revision_hash AS "revisionHash", url, provenance',
+        order: 'date DESC NULLS LAST, order_key DESC, id',
       },
       documents: {
         table: 'state_bill_version',
@@ -279,7 +288,7 @@ export class StateSourceDataRepository {
       votes: {
         table: 'state_roll_call_vote',
         select:
-          'id, motion AS label, date, chamber, yeas, nays, passed, source_url AS url, last_synced_at AS "lastSyncedAt"',
+          'id, motion AS label, date, chamber, yeas, nays, passed, source_url AS url, current_revision_hash AS "revisionHash", last_synced_at AS "lastSyncedAt"',
         order: 'date DESC, id',
       },
     };

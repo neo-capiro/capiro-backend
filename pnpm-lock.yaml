@@ -431,6 +431,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.665.0
         version: 3.665.0
+      '@capiro/meriv2-core':
+        specifier: workspace:^
+        version: link:../../packages/meriv2-core
       '@capiro/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import { useApiScope } from '../../../../lib/use-api-scope.js';
+import { HearingRecordContextLinks } from './HearingRecordContextLinks.js';
 import {
   STATE_CALENDAR_FEATURE,
   useIntelFeatureEnabled,
@@ -50,7 +51,9 @@ export function BillAgenda({
   const [routeParams, setRouteParams] = useSearchParams();
   const range = routeParams.get('agendaRange') === 'past' ? 'past' : 'upcoming';
   const today = easternDayOf(new Date().toISOString())!;
-  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86400000)
+    .toISOString()
+    .slice(0, 10);
   const api = useApi(),
     actor = useApiScope(),
     enabled = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
@@ -77,17 +80,31 @@ export function BillAgenda({
   return (
     <section aria-label="Published agenda appearances">
       <h3 className="lw-sect__title">Published agenda appearances</h3>
-      <div role="group" aria-label="Agenda date range" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+      <HearingRecordContextLinks billId={billId} clientId={clientId} folderId={folderId} />
+      <div
+        role="group"
+        aria-label="Agenda date range"
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}
+      >
         {(['upcoming', 'past'] as const).map((value) => (
-          <button key={value} className={`lw-btn${range === value ? ' lw-btn--primary' : ''}`} aria-pressed={range === value} onClick={() => {
-            const next = new URLSearchParams(routeParams);
-            next.set('agendaRange', value);
-            if (location.pathname.startsWith('/bills/')) next.set('section', 'hearings');
-            setRouteParams(next, { replace: true });
-          }}>{value === 'past' ? 'Past dates' : 'Today and upcoming'}</button>
+          <button
+            key={value}
+            className={`lw-btn${range === value ? ' lw-btn--primary' : ''}`}
+            aria-pressed={range === value}
+            onClick={() => {
+              const next = new URLSearchParams(routeParams);
+              next.set('agendaRange', value);
+              if (location.pathname.startsWith('/bills/')) next.set('section', 'hearings');
+              setRouteParams(next, { replace: true });
+            }}
+          >
+            {value === 'past' ? 'Past dates' : 'Today and upcoming'}
+          </button>
         ))}
       </div>
-      {range === 'past' ? <p>Past scheduled dates do not establish that a proceeding occurred.</p> : null}
+      {range === 'past' ? (
+        <p>Past scheduled dates do not establish that a proceeding occurred.</p>
+      ) : null}
       {events.isPending ? (
         <p role="status">Checking published agendas…</p>
       ) : events.isError ? (
@@ -116,7 +133,10 @@ export function BillAgenda({
           ))}
         </ul>
       ) : (
-        <p>No {range === 'past' ? 'past' : 'upcoming'} appearances are linked to this bill in the checked calendar sources.</p>
+        <p>
+          No {range === 'past' ? 'past' : 'upcoming'} appearances are linked to this bill in the
+          checked calendar sources.
+        </p>
       )}
       {events.data && events.data.total > events.data.items.length ? (
         <p>

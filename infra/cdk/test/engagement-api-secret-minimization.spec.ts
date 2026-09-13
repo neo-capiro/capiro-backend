@@ -14,10 +14,14 @@ const FIXTURE = path.join(CDK_ROOT, 'fixtures/engagement-api.test.json');
 const TARGET_GROUP_ARN =
   'arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/capiro-dev-engagement-api/3333';
 
-function synth(): Template {
+function synth(recordSecret?: string, inventoried = true): Template {
   const cfg = JSON.parse(readFileSync(FIXTURE, 'utf8')) as EngagementApiInfraConfig;
   cfg.imageDigest = `sha256:${'ab'.repeat(32)}`;
   cfg.releaseSha = 'c'.repeat(40);
+  if (recordSecret) {
+    cfg.publishedRecordRead = { internalServiceSecretArn: recordSecret };
+    if (inventoried) cfg.requiredSecretArns.push(recordSecret);
+  }
   const app = new cdk.App();
   return Template.fromStack(
     new EngagementApiServiceStack(app, 'Capiro-dev-EngagementApiService', {
@@ -61,4 +65,24 @@ test('the execution role receives no permission to read the webhook signing secr
   const rendered = JSON.stringify(synth().toJSON());
   assert.doesNotMatch(rendered, /webhook-signing-secret/);
   assert.doesNotMatch(rendered, /CLERK_WEBHOOK_SIGNING_SECRET/);
+});
+
+test('private record read credential is exact and does not promote the shadow service', () => {
+  const arn = 'arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/dev/internal-service-ABC123';
+  const template = synth(arn), container = taskContainer(template);
+  assert.deepEqual(container.Secrets.find((s: any) => s.Name === 'INTERNAL_SERVICE_SECRET'), {
+    Name: 'INTERNAL_SERVICE_SECRET', ValueFrom: arn,
+  });
+  const env = Object.fromEntries(container.Environment.map((e: any) => [e.Name, e.Value]));
+  assert.equal(env.ENGAGEMENT_EXTERNAL_ACTIONS, 'disabled');
+  assert.equal(env.ENGAGEMENT_API_PROMOTION_TOKEN, undefined);
+  const policies = JSON.stringify(template.findResources('AWS::IAM::Policy'));
+  assert.ok(policies.includes(arn));
+  assert.doesNotMatch(policies, /internal-service-\*/);
+});
+
+test('uninventoried and wildcard record read credentials fail synthesis', () => {
+  const arn = 'arn:aws:secretsmanager:us-east-1:000000000000:secret:capiro/dev/internal-service-ABC123';
+  assert.throws(() => synth(arn, false), /exact inventoried/);
+  assert.throws(() => synth(arn.replace('ABC123', '*')), /exact inventoried/);
 });

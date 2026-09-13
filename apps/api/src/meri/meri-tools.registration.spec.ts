@@ -243,14 +243,38 @@ describe('Meri tool registration', () => {
       getFundingOpportunityRequirements: jest.fn(async () => ({ state: 'available' })),
       getFundingOpportunity: jest.fn(async () => ({ state: 'available' })),
     };
-    const service = Object.assign(Object.create(MeriToolsService.prototype), { opportunityTools }) as MeriToolsService;
-    const discovery = { clientId: 'client-1', source: 'sam_gov', query: 'power conversion', page: 2, pageSize: 3, activeState: 'all' };
+    const service = Object.assign(Object.create(MeriToolsService.prototype), {
+      opportunityTools,
+    }) as MeriToolsService;
+    const discovery = {
+      clientId: 'client-1',
+      source: 'sam_gov',
+      query: 'power conversion',
+      page: 2,
+      pageSize: 3,
+      activeState: 'all',
+    };
     await service.execute(actor as never, 'search_funding_opportunities', discovery);
     expect(opportunityTools.searchFundingOpportunities).toHaveBeenCalledWith(actor, discovery);
-    const requirements = { clientId: 'client-1', source: 'sam_gov', sourceRecordId: 'notice-1', offset: 25, limit: 10 };
+    const requirements = {
+      clientId: 'client-1',
+      source: 'sam_gov',
+      sourceRecordId: 'notice-1',
+      offset: 25,
+      limit: 10,
+    };
     await service.execute(actor as never, 'get_funding_opportunity_requirements', requirements);
-    expect(opportunityTools.getFundingOpportunityRequirements).toHaveBeenCalledWith(actor, requirements);
-    const body = { clientId: 'client-1', source: 'grants_gov', sourceRecordId: 'grant-1', summaryOffset: 1200, summaryLimit: 4000 };
+    expect(opportunityTools.getFundingOpportunityRequirements).toHaveBeenCalledWith(
+      actor,
+      requirements,
+    );
+    const body = {
+      clientId: 'client-1',
+      source: 'grants_gov',
+      sourceRecordId: 'grant-1',
+      summaryOffset: 1200,
+      summaryLimit: 4000,
+    };
     await service.execute(actor as never, 'get_funding_opportunity', body);
     expect(opportunityTools.getFundingOpportunity).toHaveBeenCalledWith(actor, body);
   });
@@ -414,6 +438,17 @@ describe('Meri tool registration', () => {
       maxItems: 10,
       items: { type: 'string', minLength: 1 },
     });
+  });
+  it('advertises exact published-record views on the existing authoritative hearing tool', () => {
+    const schema = schemas().find((tool) => tool.name === 'search_committee_hearings')!;
+    expect(schema.input_schema.properties).toMatchObject({
+      recordsView: { type: 'string' },
+      recordId: { type: 'string' },
+      asOf: { type: 'string' },
+      hearingId: { type: 'string' },
+      clientId: { type: 'string' },
+    });
+    expect(schema.description).toMatch(/published records|published-record/i);
   });
 
   it('tools without required inputs declare an empty required array', () => {

@@ -82,6 +82,7 @@ function ScopedReview({
       {context.data ? (
         <HearingPublicationsPanel
           sessionId={context.data.sessionId}
+          eventId={hearingId}
           title={context.data.title}
           defaultClientId={clientId}
           clients={clients.data ?? []}

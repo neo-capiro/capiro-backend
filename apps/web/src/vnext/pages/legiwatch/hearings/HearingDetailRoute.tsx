@@ -46,6 +46,7 @@ import { PreparationPanel } from './PreparationPanel.js';
 import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
 import { PublicHearingAudioPanel } from '../../../../pages/intelligence/PublicHearingAudioPanel.js';
 import { PublicHearingReviewPanel } from '../../../../pages/intelligence/PublicHearingReviewPanel.js';
+import { HearingPublishedRecordsPanel } from '../../../../pages/intelligence/HearingPublishedRecordsPanel.js';
 
 const INTEL_LABEL: Record<string, string> = {
   QUESTION: 'Question',
@@ -376,6 +377,7 @@ export function HearingDetailRoute() {
       </section>
 
       {/* 4. Transcript */}
+      <HearingPublishedRecordsPanel eventId={hearingId} clientId={clientId || undefined} />
       {retainedAudio && !closed ? (
         <PublicHearingAudioPanel hearingId={hearingId} seek={audioSeek} />
       ) : null}

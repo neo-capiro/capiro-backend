@@ -180,6 +180,9 @@ export interface EngagementApiInfraConfig {
   openaiApiKeySecretArn: string;
   anthropicApiKeySecretArn: string;
 
+  /** Optional owner-authenticated private brief reads. Does not arm outward actions. */
+  publishedRecordRead?: { internalServiceSecretArn: string };
+
   requiredSecretArns: string[];
 
   // No `logs` key here: the Service stack creates and owns its own
@@ -356,6 +359,11 @@ export function collectConfigFailures(
   }
   for (const arn of c.requiredSecretArns ?? []) {
     if (!isArn(arn, 'secretsmanager')) fail(`requiredSecretArns contains a malformed ARN: ${arn}`);
+  }
+  if (c.publishedRecordRead) {
+    const arn = c.publishedRecordRead.internalServiceSecretArn;
+    if (!isArn(arn, 'secretsmanager') || /[*?]/.test(arn ?? '') || !c.requiredSecretArns?.includes(arn))
+      fail('publishedRecordRead requires an exact inventoried internal service secret ARN');
   }
   if (!isArn(c.kmsKeyArns?.ecr, 'kms')) fail(`kmsKeyArns.ecr is malformed: ${c.kmsKeyArns?.ecr}`);
   for (const arn of c.kmsKeyArns?.data ?? []) {

@@ -67,7 +67,10 @@ const SESSIONS_MODE = (process.env.LEGISCAN_SESSIONS ?? 'current').toLowerCase()
  * (N choose 2) — inflating month-to-date spend and risking a premature
  * quota-governor trip well before the true 30k/mo cap was reached.
  */
-export function sessionQueryCost(isFirstSessionThisRun: boolean, stateLevelQueries: number): number {
+export function sessionQueryCost(
+  isFirstSessionThisRun: boolean,
+  stateLevelQueries: number,
+): number {
   return 1 + (isFirstSessionThisRun ? stateLevelQueries : 0);
 }
 
@@ -168,15 +171,44 @@ async function backfillState(
         }
       }
 
+      const successfulVotes = new Set<number>();
       for (const vote of parsed.votes) {
         try {
           const billKey = vote.bill_id ? (billIdToKey.get(vote.bill_id) ?? null) : null;
-          await upsertStateRollCallVote(prisma, state, billKey, vote);
+          const parent = parsed.bills.find((b) => b.bill_id === vote.bill_id);
+          await upsertStateRollCallVote(prisma, state, billKey, vote, {
+            stub: parent?.votes?.find((v) => v.roll_call_id === vote.roll_call_id),
+            providerBillHash: parent?.change_hash,
+            providerBillId: parent?.bill_id,
+          });
+          successfulVotes.add(vote.roll_call_id);
           votes++;
         } catch (err) {
           errors++;
           console.error(`[backfill-legiscan] ${state} roll call ${vote.roll_call_id} failed:`, err);
         }
+      }
+
+      const incompleteBills: number[] = [];
+      for (const raw of parsed.bills) {
+        if (!billIdToKey.has(raw.bill_id)) continue;
+        const complete =
+          Array.isArray(raw.votes) && raw.votes.every((v) => successfulVotes.has(v.roll_call_id));
+        if (!complete) {
+          delete billHashes[String(raw.bill_id)];
+          incompleteBills.push(raw.bill_id);
+        }
+        await prisma.stateBill.updateMany({
+          where: { legiscanBillId: raw.bill_id },
+          data: {
+            sourceCheckAttemptedAt: new Date(),
+            sourceCheckStatus: complete ? 'success' : 'partial',
+            ...(complete ? { sourceCheckedAt: new Date() } : {}),
+            sourceCheckError: complete
+              ? null
+              : 'Dataset vote details incomplete; bounded pull retry pending',
+          },
+        });
       }
 
       // 2026-07-10 hot-fix: this session's OWN cost, plus the state-level
@@ -192,13 +224,17 @@ async function backfillState(
       const month = currentQuotaMonth();
       const existingCursor = await prisma.stateSyncCursor.findUnique({
         where: { id: cursorId },
-        select: { quotaMonth: true },
+        select: { quotaMonth: true, pendingBills: true, billHashes: true },
       });
       if (existingCursor) {
         await prisma.stateSyncCursor.update({
           where: { id: cursorId },
           data: {
-            billHashes,
+            billHashes: {
+              ...((existingCursor.billHashes as Record<string, string>) ?? {}),
+              ...billHashes,
+            },
+            pendingBills: [...new Set([...existingCursor.pendingBills, ...incompleteBills])],
             queriesUsed: nextQueriesUsed(existingCursor.quotaMonth, month, queriesForThisCursor),
             quotaMonth: month,
             lastListAt: new Date(),
@@ -213,6 +249,7 @@ async function backfillState(
             sessionId: session.session_id,
             sessionKey: normalizeSessionKeyFor(session),
             billHashes,
+            pendingBills: incompleteBills,
             queriesUsed: queriesForThisCursor,
             quotaMonth: month,
             lastListAt: new Date(),

@@ -197,6 +197,16 @@ export function buildEngagementApiIam(
   );
 
   const secrets: Record<string, ecs.Secret> = {};
+  if (cfg.publishedRecordRead) {
+    const arn = cfg.publishedRecordRead.internalServiceSecretArn;
+    if (
+      !/^arn:aws(?:-us-gov|-cn)?:secretsmanager:[a-z0-9-]+:\d{12}:secret:[^*?]+$/.test(arn) ||
+      !cfg.requiredSecretArns.includes(arn)
+    )
+      throw new Error('publishedRecordRead requires an exact inventoried internal service secret ARN');
+    const secret = secretsmanager.Secret.fromSecretCompleteArn(scope, 'PublishedRecordReadSecret', arn);
+    secrets.INTERNAL_SERVICE_SECRET = ecs.Secret.fromSecretsManager(secret);
+  }
   for (const name of ENGAGEMENT_API_SECRET_FIELDS.fromDatabaseHostSecret) {
     const jsonKey = DATABASE_HOST_SECRET_JSON_KEYS[name];
     if (!jsonKey) throw new Error(`no JSON key mapped for ${name}`);

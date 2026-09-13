@@ -3,6 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import type { FinalSegment, ExtractionResult } from './hearing.types.js';
 import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
 import type { PostHearingClientInput } from './client-brief-context.client.js';
+import {
+  publishedRecordOutput,
+  type PublishedRecordToolInput,
+  type PublishedRecordToolResult,
+} from '@capiro/meriv2-core';
 
 /**
  * Calls the MeriV2 orchestrator tool registry to turn a final transcript
@@ -35,6 +40,33 @@ export class OrchestratorClient {
 
   get configured(): boolean {
     return Boolean(this.baseUrl);
+  }
+  async publishedRecords(
+    tenantId: string,
+    clerkUserId: string,
+    input: PublishedRecordToolInput,
+    clientId?: string,
+  ): Promise<PublishedRecordToolResult> {
+    if (!this.baseUrl) throw Error('RECORD_BRIEF_PROVIDER_UNAVAILABLE');
+    const aiProvider = await this.aiCredentials.resolve(tenantId);
+    const response = await fetch(
+      `${this.baseUrl}/meri-api/tools/generate_published_record_brief/invoke`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...this.authHeaders(tenantId, clerkUserId),
+          'x-tenant-id': tenantId,
+          ...(aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(aiProvider) } : {}),
+        },
+        body: JSON.stringify({ input, ...(clientId ? { clientId, surface: 'memo' } : {}) }),
+        signal: AbortSignal.timeout(120000),
+      },
+    );
+    if (!response.ok) throw Error('RECORD_BRIEF_PROVIDER_UNAVAILABLE');
+    const envelope = (await response.json()) as { result?: unknown };
+    const result = publishedRecordOutput.parse(envelope.result);
+    return { ...result, promptVersion: 'published-record-brief-v1' };
   }
 
   /**

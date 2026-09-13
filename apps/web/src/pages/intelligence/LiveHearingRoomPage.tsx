@@ -30,6 +30,7 @@ import {
 } from '../../lib/hearing-recording-transport.js';
 import { HearingRecordingPanel } from './HearingRecordingPanel.js';
 import { HearingPublicationsPanel } from './HearingPublicationsPanel.js';
+import { HearingPublishedRecordsPanel } from './HearingPublishedRecordsPanel.js';
 import '../radar/legiwatch.css';
 import {
   briefToMarkdown,
@@ -1050,13 +1051,14 @@ export function LiveHearingRoomPage({
     );
   }
 
-  const publicationsPanel =
+  const unofficialPublicationsPanel =
     (updatesEnabled || recapsEnabled) &&
     session.data &&
     session.data.recordingPolicy !== 'no_storage' ? (
       <HearingPublicationsPanel
         key={`publications:${apiScope}:${id}`}
         sessionId={id}
+        eventId={session.data.hearingId ?? undefined}
         title={session.data.title}
         defaultClientId={session.data.clientId ?? undefined}
         clients={clientsQuery.data ?? []}
@@ -1070,6 +1072,18 @@ export function LiveHearingRoomPage({
         }
       />
     ) : null;
+  const publicationsPanel = (
+    <>
+      {unofficialPublicationsPanel}
+      {session.data?.hearingId ? (
+        <HearingPublishedRecordsPanel
+          eventId={session.data.hearingId}
+          sessionId={session.data.recordingPolicy === 'no_storage' ? undefined : id}
+          clientId={session.data.clientId ?? undefined}
+        />
+      ) : null}
+    </>
+  );
   if (renderRoom) {
     return (
       <>

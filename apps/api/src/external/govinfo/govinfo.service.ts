@@ -76,6 +76,10 @@ export interface HearingText {
   sourceUrl: string;
   dateIssued: string | null;
   title: string | null;
+  raw?: string;
+  lastModified?: string | null;
+  heldDates?: string[];
+  committees?: Array<{ authorityId: string; chamber: string; congress: string }>;
 }
 
 // ── Internal GovInfo API shapes (only the fields we read) ─────────────────────
@@ -150,12 +154,20 @@ export class GovInfoService {
     this.s3 = s3 ?? new S3Client({ region });
     this.limiter =
       limiter ?? new TokenBucket({ capacity: RATE_LIMIT_PER_HOUR, refillWindowMs: ONE_HOUR_MS });
-    this.xml = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', trimValues: true });
+    this.xml = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+      trimValues: true,
+    });
   }
 
   // ── Bills ───────────────────────────────────────────────────────────────────
 
-  async listBills(congress: number, billType: string, updatedSince?: string): Promise<BillSummary[]> {
+  async listBills(
+    congress: number,
+    billType: string,
+    updatedSince?: string,
+  ): Promise<BillSummary[]> {
     const rows = await this.listCollection('BILLS', congress, { docClass: billType, updatedSince });
     return rows.map((r) => ({
       billId: r.packageId,
@@ -213,7 +225,8 @@ export class GovInfoService {
   async getPublicLaw(plawId: string): Promise<PublicLaw> {
     const summary = await this.getPackageSummary(plawId);
     const pdfLink = summary.download?.pdfLink;
-    if (!pdfLink) throw new ServiceUnavailableException(`No PDF available for public law ${plawId}`);
+    if (!pdfLink)
+      throw new ServiceUnavailableException(`No PDF available for public law ${plawId}`);
     const pdfBuffer = await this.fetchPdfCached(plawId, pdfLink);
     return { url: pdfLink, pdfBuffer };
   }
@@ -231,6 +244,43 @@ export class GovInfoService {
       lastModified: r.lastModified ?? null,
       packageLink: r.packageLink ?? null,
     }));
+  }
+
+  /** Bounded source page, with a frozen window and credential-free continuation. */
+  async listHearingsPage(congress: number, since: string, until: string, next?: string | null) {
+    const start = since.replace(/\.\d+Z$/, 'Z'),
+      end = until.replace(/\.\d+Z$/, 'Z');
+    const initial = new URL(
+      `collections/CHRG/${encodeURIComponent(start)}/${encodeURIComponent(end)}`,
+      GOVINFO_API_ROOT,
+    );
+    initial.searchParams.set('congress', String(congress));
+    initial.searchParams.set('pageSize', '100');
+    initial.searchParams.set('offsetMark', '*');
+    const clean = (value: string) => {
+      const url = new URL(value, GOVINFO_API_ROOT);
+      if (
+        url.origin !== new URL(GOVINFO_API_ROOT).origin ||
+        decodeURIComponent(url.pathname) !== decodeURIComponent(initial.pathname) ||
+        url.username ||
+        url.password ||
+        (url.searchParams.has('congress') && url.searchParams.get('congress') !== String(congress))
+      )
+        throw new ServiceUnavailableException('GOVINFO_CONTINUATION_SCOPE_MISMATCH');
+      url.pathname = initial.pathname;
+      url.searchParams.delete('api_key');
+      url.searchParams.set('congress', String(congress));
+      url.searchParams.set('pageSize', '100');
+      return url;
+    };
+    const page = clean(next ?? initial.href);
+    const data = await this.getJsonCached<GovInfoCollectionResponse>(page.href, {});
+    return {
+      packages: data.packages ?? [],
+      nextPage: data.nextPage ? clean(data.nextPage).href : null,
+      count: data.count ?? null,
+      window: { since: start, until: end },
+    };
   }
 
   /**
@@ -258,6 +308,7 @@ export class GovInfoService {
         `No text transcript available for hearing ${packageId}`,
       );
     }
+    const mods = summary.download?.modsLink ? await this.fetchText(summary.download.modsLink) : '';
     return {
       packageId,
       text,
@@ -265,6 +316,14 @@ export class GovInfoService {
       sourceUrl: link,
       dateIssued: summary.dateIssued ?? null,
       title: summary.title ?? null,
+      raw,
+      lastModified: summary.lastModified ?? null,
+      heldDates: [...mods.matchAll(/<heldDate>([\d-]+)<\/heldDate>/g)].map((m) => m[1]!),
+      committees: [
+        ...mods.matchAll(
+          /<congCommittee authorityId="([a-z0-9]+)" chamber="([HSJ])" congress="(\d+)"/g,
+        ),
+      ].map((m) => ({ authorityId: m[1]!, chamber: m[2]!, congress: m[3]! })),
     };
   }
 
@@ -326,28 +385,46 @@ export class GovInfoService {
 
     await this.limiter.acquire();
     const response = await fetchJson<T>(url, { secrets: [key] });
+    // Some source continuations include credentials. They are not evidence and
+    // must never be persisted inside the cached JSON body either.
+    const sanitized = JSON.parse(JSON.stringify(response).split(key).join('[redacted]')) as T;
 
     await this.prisma.govInfoCache.upsert({
       where: { url: cacheUrl },
-      create: { url: cacheUrl, response: response as object, fetchedAt: new Date() },
-      update: { response: response as object, fetchedAt: new Date() },
+      create: { url: cacheUrl, response: sanitized as object, fetchedAt: new Date() },
+      update: { response: sanitized as object, fetchedAt: new Date() },
     });
-    return response;
+    return sanitized;
   }
 
   /** Fetch raw text (e.g. bill XML) through the rate limiter, with api_key auth. */
   private async fetchText(link: string): Promise<string> {
     const key = this.requireKey();
     const url = new URL(link);
+    if (
+      url.protocol !== 'https:' ||
+      !['www.govinfo.gov', 'api.govinfo.gov', 'govinfo.gov'].includes(url.hostname) ||
+      url.username ||
+      url.password
+    )
+      throw new ServiceUnavailableException('Unqualified GovInfo text URL');
     url.searchParams.set('api_key', key);
     await this.limiter.acquire();
-    const res = await fetch(url.toString());
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(30000),
+      redirect: 'error',
+    });
     if (!res.ok) {
       throw new ServiceUnavailableException(
         `GovInfo text fetch failed (${res.status}) for ${redactSecrets(url.toString(), [key])}`,
       );
     }
-    return res.text();
+    if (Number(res.headers?.get('content-length') ?? 0) > 30000000)
+      throw new ServiceUnavailableException('GovInfo text exceeds qualified size');
+    const content = await res.text();
+    if (content.length > 30000000)
+      throw new ServiceUnavailableException('GovInfo text exceeds qualified size');
+    return content;
   }
 
   /**
@@ -389,7 +466,9 @@ export class GovInfoService {
             ServerSideEncryption: 'AES256',
           }),
         )
-        .catch((err: unknown) => this.logger.warn(`S3 cache write failed for ${s3Key}: ${String(err)}`));
+        .catch((err: unknown) =>
+          this.logger.warn(`S3 cache write failed for ${s3Key}: ${String(err)}`),
+        );
     }
     return buffer;
   }
@@ -455,7 +534,7 @@ export class GovInfoService {
 
 /** Minimal HTML→text for the GovInfo HTM transcript fallback (txt is preferred):
  *  drop script/style + tags, decode a few entities, collapse whitespace. */
-function stripHtmlTags(html: string): string {
+export function stripHtmlTags(html: string): string {
   return html
     .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')

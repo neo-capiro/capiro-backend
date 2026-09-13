@@ -1,0 +1,77 @@
+# LegiWatch Phase 5 — published records and reviewed client briefs
+
+## Candidate and dependency
+
+The isolated branch is `agent/legiwatch-phase5-published-record-reconciliation`. Execution started from Phase 4 `d9ace479240fa7f136507bc2fb6bf28dd061a22a`; it was subsequently rebased onto Phase 4 `0f07ce4670a7d19d348826f552a4c76e4fc29625`, which includes main `e39f47822f6072f0bb94c4603b2dd7825531cfb0`. PR #1616 remains draft/open. Its later meeting-preparation, recording progress, combined-panel and exact-quote fixes are preserved. The protected Intel tenant guard and Clerk service are unchanged.
+
+All ten entries in the supplied evidence manifest passed size/SHA-256 verification. The handoff is the implementation specification, not authorization to merge, change shared runtime, activate recipients or send messages. This candidate does not claim deployed, enabled or client-accepted status. The final release evidence must pin the source SHA, image digests, migrations, task environments and rollback baseline after a fresh drift check.
+
+## Source ownership and immutable revisions
+
+The API remains the canonical legislative-data owner. The existing LegiScan bill drain and dataset path share immutable vote revision persistence. Refresh decisions use the enclosing bill hash and a seven-day detail age; detail calls have a bounded invocation budget. Equal totals no longer hide changed member positions, motion, chamber or passed fields. Member and roll-call IDs remain stable. Source URLs come from the actual provider stub. Historical cited snapshots do not change with the current projection.
+
+Amendment interpretation v2 preserves explicit 1, explicit 0 and missing disposition separately. Not marked adopted is neither rejection nor proof of non-adoption. Historical false values without retained raw evidence remain indeterminate; corrective interpretation appends a revision. Structured and Meri candidate assessments hold adoption contradictions based only on missing/not-marked disposition. The published-action ledger also supplies affected history reads; date-only values remain dates and changed action text without stable identity is a new observation.
+
+Exact document retrieval uses the existing LegiScan service and Meri attachment extractor, validates encoded size/MD5 and content type, and preserves bytes, hash, extraction version and page/character locators. Metadata-only, unreadable, partial and failed states remain distinct. Document defaults are off until the owner budget is enabled.
+
+GovInfo remains on the existing federal transcript ingestion path. A leased source checkpoint freezes a modified-since window, follows safe continuation pages, resumes after committed packages and revisits a 48-hour overlap. Package changes append immutable source/extraction snapshots. Held dates are extracted separately from issue/publication dates; errata remains correction-only material. A source URL match or unique qualified held-date/body/session relationship can establish event association. Ambiguous packages and bill-context records cannot establish hearing occurrence.
+
+Content revisions deduplicate exact bytes. An additional immutable source-observation trail records transitions, including restoration of an earlier revision. Its current view supplies the active pointer and latest source-change time. A repeated poll adds nothing. A return to earlier bytes invalidates frozen runs without rewriting those bytes. Global transaction advisory locks serialize committed source changes with exact review/export/dispatch decisions.
+
+## Private reconciliation and brief workflow
+
+Intel owns encrypted, immutable runs, atomic assessments, reviews, briefs and corrections. FORCE RLS limits private records to the current tenant and actor. Current membership, client wall, folder version and original retained-observation rights are rechecked on reads, generation, review, export and dispatch. Expiry of a raw-audio grant alone does not invalidate an authorized retained transcript; withdrawal of the retained analysis/distribution permission does. No-storage recordings cannot supply retained private evidence. Record-only hearings require no capture permission.
+
+Meri uses the existing registry, request-scoped credential resolver and provider failover. It receives frozen IDs/hashes/locators, explicit scope/coverage and bounded client context. Provider tool-schema output is independently validated for unique atomic claims, exact references, bill identity, parent observation IDs and verbatim quotes. The per-call schema budget is capped at 120 seconds; this tool requests 90 seconds. Existing call defaults remain unchanged. A model result is a staff-review candidate and cannot update canonical legislative facts.
+
+Runs preserve all original parent observations. Assessment and evidence pages use explicit pagination. Large generation requests require explicit source/claim selections; frozen payloads retain the selected IDs. Unselected evidence cannot silently become complete coverage. Jobs have expiring/renewed leases, bounded retries and an immutable input fingerprint. The existing hearing worker scans committed changes after a two-minute debounce. Durable per-owner event cursors and least-recently-scanned owner ordering prevent intermittent scheduling from starving an event.
+
+A brief is a separate Capiro artifact with development, change, implication, next-step and missing-record sections. Edits append versions. Approval binds exact content and source hashes and requires supported factual assertions. Corrections preserve prior text/hash/time and require mapped current statements plus staff classification of error-at-the-time, later change, continued support or uncertainty. Earlier unofficial recaps and delivered bodies remain intact.
+
+## Documents, Meri and delivery
+
+Approved briefs use the existing Capiro DOCX renderer and ClientDocumentWriter. Save/export re-read the authoritative approved contract after rendering under source, client, folder and retained-observation locks. API provenance binds the private attachment to actor/client/event/brief/version/content/source hashes. The exact save is idempotent; a later saved version supersedes the document list entry. Saved private bodies are excluded from shared client KB ingestion.
+
+Generic Documents listing, extraction, selected-document generation, legacy attachment sends and durable outreach attachment consumption also verify the saved brief through the authenticated owner-service seam. A withdrawn private context yields no title/text/download link; distribution additionally requires current approval and retained distribution rights. Existing signed URLs retain their ordinary bounded expiry after issuance. Explicit historical Meri retrieval remains available with an as-of cutoff and current access rights; default retrieval requires the current reviewed version.
+
+The existing delivery queue handles typed record-brief and correction email/SMS/inbox packets. Preview freezes exact content and recipients; dispatch rechecks the version, source freshness, runtime gates, current permissions and recipient consent/opt-out. Corrections target eligible destinations with prior accepted/delivered/uncertain receipts. Unknown provider outcomes are not automatically retried. SMS uses the existing OTP service with a separate hearing-record purpose/version and a three-segment limit.
+
+Daily updates require an explicit selection of at most five exact approved brief references. Compatible client/folder scope is mandatory. Each occurrence freezes the actual composed body, deduplicates repeated source developments, and reserves a given brief/content hash once per subscription under a row lock. Concurrent drafts cannot both include it. A later version requires a new explicit selection; no implicit latest-brief substitution occurs.
+
+## Qualification evidence
+
+The local Phase 5 matrix passed 368 tests: API 173, Intel 26, core 51, orchestrator 64 and web 54, with no failures/skips. Real PostgreSQL tests cover immutable history, source restoration, source/review locking, owner RLS, client withdrawal, stale queued work, correction audience eligibility, durable scan fairness and concurrent daily composition. The rebased native Phase 4 matrix passed 226 tests. Native broad regression passed 2,724 tests; these matrices overlap and must not be summed into a unique total.
+
+A populated Phase 4-to-5 rehearsal applied API then Intel migrations as capiro_master with broad observed default ACLs. It preserved both earlier action/amendment payloads and the earlier unofficial publication exactly, initialized current source pointers and denied application rewrite/deletion of immutable evidence. Both migration chains total 435 applied migrations in this rehearsal. Native clean and populated upgrade runs remain separately recorded by scripts/legiwatch-phase5-upgrade.mjs and the build evidence.
+
+Real provider qualification selected Florida 2026 SB 474/HB 1211: four roll-call details, two bill documents and one amendment document were retrieved through the owner pipeline. The first-party House PDF independently confirms the March 9 SB 474 third-reading tally of 110 yeas, 0 nays and 7 not voting. These selected records do not constitute complete hearing minutes or all roll calls. Existing Meri/provider routing produced both validated modes over six exact Florida vote/amendment versions. Earlier timeout, malformed-schema and unsupported-disposition findings are retained as failed attempts; the successful run does not erase them.
+
+GovInfo qualification followed two live pages containing 200 unique CHRG packages and a continuation. A full Senate hearing package, CHRG-119shrg61840, yielded 96,076 characters with a qualified April 1, 2025 held date. The separate errata sample remains correction-only. Federal collection completeness, production source agreements and all-state equivalence are not claimed.
+
+Actual component browser evidence, seven design-system Figma frames and the deterministic one-page DOCX render are maintained in the execution evidence package. They distinguish synthetic private fixtures from real public source data. Native image qualification passed as recorded below. Shared deployment, recipient activation and client acceptance remain separate and unperformed.
+
+## Final native candidate and release preparation — September 13, 2026
+
+Qualified image source: `97c30ac4230bd52ec08ffb57198220eaf1045b7c`, tree `6859ef3fd49e6e4cf90d81cb9756a6089f9d1d20`. The branch subsequently incorporates Phase 4 checkpoint `78a148c0dbd7d0e592f7a7903b0c3f0248bf48ec` and these closeout notes; these changes affect documentation only. Runtime files must remain identical to the image source. Draft PR #1617 still depends on draft PR #1616; no PR was merged into main.
+
+Final image verification build `capiro-build-intel-api:b939b39d-66b7-4f91-b91b-21af50bc2929` **SUCCEEDED**. On native ARM64 it ran the actual API and Intel migration entrypoints against an owned TLS PostgreSQL database, then loaded the compiled modules and native Prisma engines in API, Engagement API, Intel and Meri with 435 applied migrations. The web image returned HTTP 200 and HTML. This validates the pinned image artifacts, not deployed authenticated behavior.
+
+| Image               | Immutable digest                                                          |
+| ------------------- | ------------------------------------------------------------------------- |
+| api                 | `sha256:df738e0d6cd5437471b73c4dadd5c1a6a1a064ce49eaa1909f3605509d616cee` |
+| engagement-api      | `sha256:c72d925d5d1aa9ff142307d964ff3f9b647074399080b9fd21631e7edb27f18d` |
+| intel-api           | `sha256:db38490bf1bfdfc72b82813c3d15c90df7e6e9d836be03bba5558b638436b77a` |
+| meriv2-orchestrator | `sha256:ec391b3cfdc38d440e56a40c64be6bb73901f32021c48996a4352b4c1a36ad3b` |
+| web-vnext           | `sha256:a967d56ae72f6fc041daa11d5e717b0edea53b74c9ac3c55a94e0ddae257b0e4` |
+
+The final source repeated all 368 Phase 5 tests, API/Intel/web/infrastructure typechecks, four Engagement credential-scope tests and the existing asset IAM tests. The earlier native broad regression (2,724) ran on `3374ad3`; the populated upgrade and Phase 4 matrix (226) ran on `8214ba0`. Subsequent runtime deltas were the narrow hash-wrap CSS, Intel Docker packaging and optional Engagement credential configuration, all checked in the final build. The Intel package fix was required by an actual failed native Docker build.
+
+The supplemental and final image-building jobs have overall **FAILED** status because their last S3 report-archive command lacked `s3:PutObject` permission. Test, upgrade and image stages completed before that failure. Their CloudWatch logs are retained. The independent final image verification above succeeded. No build-role permission was widened. GitHub-hosted checks could not start due to the account billing/spending-limit restriction and remain failed; native checks do not relabel them.
+
+The complete local workflow generated a brief using the existing live Meri route for real Florida event `state-fl-fb0915a33315584710340cb8ca4926b1`, six frozen published versions and a synthetic private client. A separate reviewed version was approved in the disposable database. Concurrent saves produced one owner-private Document; saved/exported bytes matched; current/as-of retrieval passed; wrong owner, pre-review historical access, client-wall withdrawal and changed folder version were denied before reading stored bytes. The storage transport was an in-memory fixture behind the actual workflow/document services. The reviewed one-page DOCX/PDF was visually verified; DOCX SHA-256 `8cb48730f6c96a61926385fc16a741a8668a86f318aea0020b999abfed89d61a`.
+
+The selected Senate first-party committee PDF independently confirms the January 26 SB 474 tally 9–0. Florida calendar coverage remains partial (4 of 5 expected Senate events); selected records are not complete minutes. Retrospective review of 10 live-provider atomic statements found no false support/contradiction or invalid citation identity/hash/locator, and one pending-records versus not-addressed disagreement. Both outcomes stay unresolved; the model result requires review. One generation sample took about 47.1 seconds, not a latency percentile.
+
+Release proposal seal: `5a82ddabdd1a3db0d0c13ed1bf4e10c68eed2cfde829a8fdebc75a8e645fcdd6`. The separately delivered evidence package contains `release/plan.json`, materializer, read-only audit/verifier and staged commands. All 19 task registrations were materialized and hash-verified locally. The proposal covers five services, 24 existing rules, 17 additive migrations, two credential injections and one exact-secret Engagement execution-role grant. New document/event-revisit/reconciliation and delivery gates stay off; the proposed existing vote drain cap is 25. No tenant features, recipients, consent or messages are changed by preparation.
+
+The live read-only preflight found one active Phase 4 browser capture, no unresolved migration and no task/service/rule drift. It is not ready for runtime replacement until capture completes and a fresh preflight passes. Full old-image rollback is conditional: once private Phase 5 Documents or source transitions exist, retain compatible API/Engagement access checks and source writers. Keep additive migrations, source history and accepted/unknown delivery receipts. Shared deployment and live tenant acceptance remain unperformed.

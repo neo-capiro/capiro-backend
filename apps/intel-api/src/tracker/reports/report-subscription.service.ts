@@ -21,6 +21,7 @@ import {
   type ReportDocument,
 } from './report-domain.js';
 import { localTime, nextOccurrence, validateSchedule } from './report-schedule.js';
+import { selectedRecordBriefs, renderReportWithBriefs } from './record-report-composition.js';
 
 @Injectable()
 export class ReportSubscriptionService {
@@ -58,6 +59,12 @@ export class ReportSubscriptionService {
       const recipients = mode === 'send' ? await this.recipients.resolve(tx, ctx, b.selection) : [];
       if (mode === 'send' && !recipients.length)
         throw new BadRequestException('RECIPIENT_REVIEW_REQUIRED');
+      const recordBriefs = selectedRecordBriefs(b.recordBriefs);
+      if (recordBriefs.length) {
+        if (!this.delivery.recordBriefs)
+          throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
+        await this.delivery.recordBriefs.reportBriefs(ctx, reportId, recordBriefs);
+      }
       const data = {
         reportId,
         reportVersion: report.version,
@@ -66,6 +73,7 @@ export class ReportSubscriptionService {
         subject,
         introduction: typeof b.introduction === 'string' ? b.introduction.slice(0, 20000) : '',
         recipients: json(recipients),
+        recordBriefs: json(recordBriefs),
         sendNoChange: b.sendNoChange === true,
         catchUp: b.catchUp === 'send' ? 'send' : 'draft',
       };
@@ -109,6 +117,11 @@ export class ReportSubscriptionService {
         }),
       );
       if (!saved) throw new NotFoundException('SUBSCRIPTION_NOT_FOUND');
+      if (selectedRecordBriefs(saved.recordBriefs).length) {
+        if (!this.delivery.recordBriefs)
+          throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
+        await this.delivery.recordBriefs.reportBriefs(ctx, saved.reportId, saved.recordBriefs);
+      }
       if (saved.mode === 'send') {
         if (b.confirmSend !== true)
           throw new BadRequestException('EXPLICIT_AUTOMATIC_SEND_ACTIVATION_REQUIRED');
@@ -385,11 +398,6 @@ export class ReportSubscriptionService {
           e.observedAt > occurrence.windowStart.toISOString() &&
           e.observedAt <= occurrence.windowEnd.toISOString(),
       );
-      const state = !run.complete
-        ? 'held'
-        : !changed && config.sendNoChange !== true
-          ? 'no_change'
-          : 'draft';
       await this.reports.folders.withActor(ctx, async (tx) => {
         await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_subscription WHERE tenant_id=${tenantId} AND id=${occurrence.subscriptionId} FOR UPDATE`;
         const sub = await tx.legiWatchReportSubscription.findFirst({
@@ -401,6 +409,59 @@ export class ReportSubscriptionService {
           (!sub.enabled && config.manual !== true)
         )
           throw new ConflictException('SUBSCRIPTION_CHANGED_OR_PAUSED');
+        const selected = selectedRecordBriefs(config.recordBriefs),
+          refs = [];
+        for (const ref of selected) {
+          const previous = await tx.legiWatchDelivery.findFirst({
+            where: {
+              tenantId,
+              subscriptionId: occurrence.subscriptionId,
+              intentKey: { not: `scheduled:${id}` },
+              composition: {
+                path: ['recordBriefs'],
+                array_contains: [{ briefId: ref.briefId, contentHash: ref.contentHash }],
+              },
+            },
+          });
+          const drafted = await tx.legiWatchReportOccurrence.findFirst({
+            where: {
+              tenantId,
+              subscriptionId: occurrence.subscriptionId,
+              id: { not: id },
+              composition: {
+                path: ['recordBriefs'],
+                array_contains: [{ briefId: ref.briefId, contentHash: ref.contentHash }],
+              },
+            },
+          });
+          if (!previous && !drafted) refs.push(ref);
+        }
+        if (refs.length && !this.delivery.recordBriefs)
+          throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
+        const included = refs.length
+          ? await this.delivery.recordBriefs!.reportBriefs(ctx, run.reportId, refs)
+          : [];
+        const state = !run.complete
+          ? 'held'
+          : !changed && !refs.length && config.sendNoChange !== true
+            ? 'no_change'
+            : 'draft';
+        const rendered = included.length ? renderReportWithBriefs(doc, included) : run.rendered,
+          introduction = String(config.introduction ?? '');
+        const composition: ReportComposition = {
+          runId: run.id,
+          contentHash: run.contentHash,
+          recipients: config.recipients as unknown as RecipientSnapshot[],
+          subject: String(config.subject),
+          introduction,
+          envelopePolicy: 'isolated_recipients',
+          ...(refs.length ? { recordBriefs: refs } : {}),
+          html: rendered.html.replace(
+            '<body>',
+            `<body><p>${escapeHtml(introduction).replace(/\n/g, '<br>')}</p>`,
+          ),
+          plainText: `${introduction}\n\n${rendered.text}`,
+        };
         const claim = await tx.legiWatchReportOccurrence.updateMany({
           where: {
             tenantId,
@@ -412,6 +473,7 @@ export class ReportSubscriptionService {
           data: {
             state,
             runId: run.id,
+            ...(state === 'draft' ? { composition: json(composition) } : {}),
             error: state === 'held' ? 'SOURCE_CHECK_INCOMPLETE' : null,
           },
         });
@@ -421,21 +483,6 @@ export class ReportSubscriptionService {
             throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
           const recipients = config.recipients as unknown as RecipientSnapshot[];
           for (const r of recipients) await this.recipients.recheck(tx, ctx, r);
-          const rendered = run.rendered,
-            introduction = String(config.introduction ?? '');
-          const composition: ReportComposition = {
-            runId: run.id,
-            contentHash: run.contentHash,
-            recipients,
-            subject: String(config.subject),
-            introduction,
-            envelopePolicy: 'isolated_recipients',
-            html: rendered.html.replace(
-              '<body>',
-              `<body><p>${escapeHtml(introduction).replace(/\n/g, '<br>')}</p>`,
-            ),
-            plainText: `${introduction}\n\n${rendered.text}`,
-          };
           await this.delivery.enqueue(
             ctx,
             composition,
@@ -484,11 +531,23 @@ export class ReportSubscriptionService {
         where: { tenantId: ctx.tenantId, id, ownerClerkId: ctx.clerkUserId },
       });
       if (!sub) throw new NotFoundException('SUBSCRIPTION_NOT_FOUND');
-      return tx.legiWatchReportOccurrence.findMany({
+      const rows = await tx.legiWatchReportOccurrence.findMany({
         where: { tenantId: ctx.tenantId, subscriptionId: id },
         orderBy: { intendedAt: 'desc' },
         take: 100,
       });
+      for (const row of rows) {
+        const refs = selectedRecordBriefs(object(row.composition).recordBriefs);
+        if (!refs.length) continue;
+        try {
+          if (!this.delivery.recordBriefs) throw Error('RECORD_READ_UNAVAILABLE');
+          for (const ref of refs)
+            await this.delivery.recordBriefs.workflow.brief(ctx, ref.eventId, ref.briefId);
+        } catch {
+          row.composition = null;
+        }
+      }
+      return rows;
     });
   }
   async retry(ctx: WorkspaceTenantContext, id: string) {

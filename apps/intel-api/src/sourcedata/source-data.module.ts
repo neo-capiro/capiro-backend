@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HearingRecordsRepository } from './hearing-records.repository.js';
 import { SourceDataRepository } from './source-data.repository.js';
 import { StateSourceDataRepository } from './state-source-data.repository.js';
 import { FolderSourceDataRepository } from './folder-source-data.repository.js';
@@ -14,7 +15,17 @@ import { FolderSourceDataRepository } from './folder-source-data.repository.js';
  * import this module where they consume the repositories.
  */
 @Module({
-  providers: [SourceDataRepository, StateSourceDataRepository, FolderSourceDataRepository],
-  exports: [SourceDataRepository, StateSourceDataRepository, FolderSourceDataRepository],
+  providers: [
+    SourceDataRepository,
+    StateSourceDataRepository,
+    FolderSourceDataRepository,
+    HearingRecordsRepository,
+  ],
+  exports: [
+    SourceDataRepository,
+    StateSourceDataRepository,
+    FolderSourceDataRepository,
+    HearingRecordsRepository,
+  ],
 })
 export class SourceDataModule {}

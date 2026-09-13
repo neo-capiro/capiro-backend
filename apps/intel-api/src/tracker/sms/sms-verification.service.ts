@@ -5,7 +5,10 @@ import type { Prisma } from '../../../generated/prisma-client/index.js';
 import { SmsService, maskPhone, normalizeE164 } from './sms.service.js';
 
 const OTP_TTL_MS = 10 * 60_000;
-export type SmsPurpose = 'tracker_alerts' | 'hearing_updates';
+export type SmsPurpose = 'tracker_alerts' | 'hearing_updates' | 'hearing_records';
+export const RECORD_SMS_CONSENT_VERSION = 'hearing-record-briefs-v1';
+export const RECORD_SMS_CONSENT_TEXT =
+  'I agree to receive reviewed Capiro briefs based on published legislative records and related corrections for this client at this number. Message frequency varies. Message and data rates may apply. Reply STOP to opt out.';
 export const HEARING_SMS_CONSENT_VERSION = 'hearing-updates-v1';
 export const HEARING_SMS_CONSENT_TEXT =
   'I agree to receive reviewed, unofficial Capiro hearing updates for this client at this number. Message frequency varies. Message and data rates may apply. Reply STOP to opt out.';
@@ -48,14 +51,18 @@ export class SmsVerificationService {
   ): Promise<{ dormant: boolean; masked: string; devCode?: string }> {
     const phone = normalizeE164(rawPhone);
     if (!phone) throw new BadRequestException('Enter a valid E.164 phone number');
-    if (!['tracker_alerts', 'hearing_updates'].includes(purpose))
+    if (!['tracker_alerts', 'hearing_updates', 'hearing_records'].includes(purpose))
       throw new BadRequestException('Invalid verification purpose');
     if (purpose === 'hearing_updates' && consentVersion !== HEARING_SMS_CONSENT_VERSION)
       throw new BadRequestException('Review and accept the hearing SMS consent statement');
+    if (purpose === 'hearing_records' && consentVersion !== RECORD_SMS_CONSENT_VERSION)
+      throw new BadRequestException(
+        'Review and accept the published-record brief SMS consent statement',
+      );
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const row = await this.prisma.withTenant(tenantId, async (tx) => {
       const client = await this.client(tx, tenantId, clientId);
-      if (purpose === 'hearing_updates') {
+      if (purpose !== 'tracker_alerts') {
         const contact = contactId
           ? await tx.legiWatchReportContact.findFirst({
               where: {
@@ -154,8 +161,15 @@ export class SmsVerificationService {
         data: { consumed: true, confirmedAt: new Date() },
       });
       if (consumed.count !== 1) return false;
-      if (purpose === 'hearing_updates') {
-        if (row.consentVersion !== HEARING_SMS_CONSENT_VERSION || !row.contactId) return false;
+      if (purpose !== 'tracker_alerts') {
+        if (
+          row.consentVersion !==
+            (purpose === 'hearing_records'
+              ? RECORD_SMS_CONSENT_VERSION
+              : HEARING_SMS_CONSENT_VERSION) ||
+          !row.contactId
+        )
+          return false;
         const contact = await tx.legiWatchReportContact.updateMany({
           where: {
             tenantId,

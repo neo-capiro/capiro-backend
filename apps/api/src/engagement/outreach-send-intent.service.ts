@@ -38,6 +38,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -1135,6 +1136,9 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   /** The columns {@link AttachmentContentService.readiness} needs, shared by both read sites. */
   private static readonly ATTACHMENT_SELECT = {
     id: true,
+    sourceEntityType: true,
+    sourceEntityId: true,
+    clientId: true,
     fileName: true,
     contentType: true,
     byteSize: true,
@@ -1186,6 +1190,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
         oversized.push(row.fileName);
         continue;
       }
+      await assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute');
       const bytes = await this.engagement.readAttachmentBytes(row.s3Key);
       if (bytes.length > INLINE_ATTACHMENT_MAX_BYTES) {
         oversized.push(row.fileName);
@@ -1274,6 +1279,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           `Attachment "${row.fileName}" is no longer usable (${verdict.disclosure ?? 'not usable'}); blocking send.`,
         );
       }
+      await assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute');
       const bytes = await this.engagement.readAttachmentBytes(row.s3Key);
       const freshSha256 = this.attachmentContent.sha256(bytes);
       // Compare against the IMMUTABLE manifest captured at intent creation, not

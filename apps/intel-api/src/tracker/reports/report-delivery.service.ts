@@ -26,7 +26,17 @@ import {
   type HearingSmsRecipient,
 } from '../../hearing/hearing-publication.service.js';
 import { SmsService } from '../sms/sms.service.js';
+import {
+  HearingRecordDeliveryService,
+  recordDeliveryKind,
+} from '../../hearing/hearing-record-delivery.service.js';
+import { RECORD_DELIVERY_FEATURE } from '../../feature-flags/feature-flag.service.js';
 import { publicationMarkdown } from '../../hearing/publication-domain.js';
+import {
+  selectedRecordBriefs,
+  renderReportWithBriefs,
+  type SelectedRecordBrief,
+} from './record-report-composition.js';
 import {
   digest,
   escapeHtml,
@@ -46,6 +56,7 @@ export interface ReportComposition {
   html: string;
   plainText: string;
   envelopePolicy: 'isolated_recipients';
+  recordBriefs?: SelectedRecordBrief[];
 }
 @Injectable()
 export class ReportDeliveryService {
@@ -55,6 +66,7 @@ export class ReportDeliveryService {
     readonly email: IntelEmailService,
     @Optional() readonly hearing?: HearingPublicationService,
     @Optional() readonly sms?: SmsService,
+    @Optional() readonly recordBriefs?: HearingRecordDeliveryService,
   ) {}
   async preview(ctx: WorkspaceTenantContext, runId: string, input: unknown) {
     const run = await this.reports.run(ctx, runId),
@@ -70,7 +82,15 @@ export class ReportDeliveryService {
       this.recipients.resolve(tx, ctx, body.selection),
     );
     if (!recipients.length) throw new BadRequestException('AT_LEAST_ONE_RECIPIENT_REQUIRED');
-    const rendered = run.rendered;
+    const refs = selectedRecordBriefs(body.recordBriefs);
+    if (refs.length && !this.recordBriefs)
+      throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
+    const included = refs.length
+      ? await this.recordBriefs!.reportBriefs(ctx, run.reportId, refs)
+      : [];
+    const rendered = included.length
+      ? renderReportWithBriefs(run.snapshot as unknown as ReportDocument, included)
+      : run.rendered;
     const composition: ReportComposition = {
       runId,
       contentHash: run.contentHash,
@@ -83,6 +103,7 @@ export class ReportDeliveryService {
       ),
       plainText: `${introduction}\n\n${rendered.text}`,
       envelopePolicy: 'isolated_recipients',
+      ...(refs.length ? { recordBriefs: refs } : {}),
     };
     return { composition, approvalHash: digest(composition), complete: run.complete };
   }
@@ -141,6 +162,10 @@ export class ReportDeliveryService {
     recipient: RecipientSnapshot,
     channel = 'email',
   ) {
+    if (recordDeliveryKind(delivery.kind)) {
+      if (!this.recordBriefs) throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
+      return this.recordBriefs.checkDispatch(tx, ctx, delivery, recipient, channel);
+    }
     if (delivery.kind === 'live_update' || delivery.kind === 'hearing_recap') {
       if (!this.hearing) throw new ForbiddenException('HEARING_DELIVERY_ADAPTER_UNAVAILABLE');
       await tx.$executeRaw`SELECT set_config('app.hearing_actor',${ctx.clerkUserId},true)`;
@@ -160,6 +185,41 @@ export class ReportDeliveryService {
     )
       throw new ConflictException('APPROVED_CONTENT_UNAVAILABLE');
     const doc = run.snapshot as unknown as ReportDocument;
+    const refs = selectedRecordBriefs(object(delivery.composition).recordBriefs);
+    if (refs.length) {
+      if (!this.recordBriefs) throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
+      const included = await this.recordBriefs.reportBriefs(ctx, run.reportId, refs);
+      for (const brief of included)
+        await this.recordBriefs.checkDispatch(
+          tx,
+          ctx,
+          {
+            ...delivery,
+            kind: brief.kind,
+            contentHash: brief.contentHash,
+            composition: json({
+              schema: 'legiwatch.record-delivery.v1',
+              ...brief,
+              approvalHash: digest(delivery.composition),
+              smsText: null,
+            }),
+          },
+          recipient,
+          channel,
+        );
+      const rendered = renderReportWithBriefs(doc, included),
+        composition = object(delivery.composition),
+        intro = String(composition.introduction ?? '');
+      if (
+        composition.plainText !== `${intro}\n\n${rendered.text}` ||
+        composition.html !==
+          rendered.html.replace(
+            '<body>',
+            `<body><p>${escapeHtml(intro).replace(/\n/g, '<br>')}</p>`,
+          )
+      )
+        throw new ConflictException('RECORD_REPORT_COMPOSITION_CHANGED');
+    }
     await tx.$queryRaw`SELECT id FROM intel_legiwatch_report WHERE tenant_id=${ctx.tenantId} AND id=${run.reportId} FOR SHARE`;
     const report = await this.reports.get(tx, ctx, run.reportId);
     if (report.archived || report.version !== run.definitionVersion)
@@ -514,6 +574,17 @@ export class ReportDeliveryService {
   async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_report') {
     const prisma = this.reports.folders.prisma;
     if (
+      recordDeliveryKind(kind) &&
+      (!this.recordBriefs ||
+        !(await this.reports.flags.isEnabled(RECORD_DELIVERY_FEATURE, tenantId)) ||
+        ![
+          'LEGIWATCH_RECORD_EMAIL_ENABLED',
+          'LEGIWATCH_RECORD_SMS_ENABLED',
+          'LEGIWATCH_RECORD_INBOX_ENABLED',
+        ].some((key) => process.env[key] === 'true'))
+    )
+      return { attempted: 0, held: 0 };
+    if (
       (kind === 'live_update' || kind === 'hearing_recap') &&
       (!this.hearing ||
         (process.env.LEGIWATCH_HEARING_EMAIL_ENABLED !== 'true' &&
@@ -602,11 +673,13 @@ export class ReportDeliveryService {
       try {
         await this.reports.authorize(
           ctx,
-          candidate.delivery.kind === 'agenda'
-            ? AGENDA_ALERTS_FEATURE
-            : ['live_update', 'hearing_recap'].includes(candidate.delivery.kind)
-              ? publicationFeature(candidate.delivery.kind)
-              : undefined,
+          recordDeliveryKind(candidate.delivery.kind)
+            ? RECORD_DELIVERY_FEATURE
+            : candidate.delivery.kind === 'agenda'
+              ? AGENDA_ALERTS_FEATURE
+              : ['live_update', 'hearing_recap'].includes(candidate.delivery.kind)
+                ? publicationFeature(candidate.delivery.kind)
+                : undefined,
         );
         await this.reports.folders.withActor(ctx, (tx) =>
           this.checkDispatch(
@@ -647,7 +720,82 @@ export class ReportDeliveryService {
             await this.checkDispatch(tx, ctx, candidate.delivery, recipient, candidate.channel);
             const composition = candidate.delivery.composition as unknown as ReportComposition;
             let result;
-            if (
+            if (recordDeliveryKind(candidate.delivery.kind)) {
+              const packet = object(candidate.delivery.composition),
+                doc = await this.recordBriefs!.workflow.approvedDocument(
+                  ctx,
+                  String(packet.eventId),
+                  String(packet.briefId),
+                  candidate.delivery.contentHash,
+                );
+              if (candidate.channel === 'in_app') {
+                const secret = process.env.INTERNAL_SERVICE_SECRET;
+                if (!secret) throw new BadRequestException('INBOX_ADAPTER_NOT_CONFIGURED');
+                providerInvoked = true;
+                const response = await fetch(
+                  `${(process.env.API_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/api/internal/legiwatch/record-brief-notification`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'content-type': 'application/json',
+                      'x-internal-service-secret': secret,
+                    },
+                    signal: AbortSignal.timeout(15000),
+                    body: JSON.stringify({
+                      tenantId,
+                      userId: ctx.clerkUserId,
+                      eventId: doc.eventId,
+                      briefId: doc.briefId,
+                      contentHash: doc.contentHash,
+                      kind: candidate.delivery.kind,
+                      title: doc.title,
+                      body:
+                        doc.markdown.length > 10000
+                          ? doc.markdown.slice(0, 9000) +
+                            '\n\nExcerpt — open the reviewed brief for complete evidence.'
+                          : doc.markdown,
+                    }),
+                  },
+                );
+                const ack = response.ok
+                  ? ((await response.json()) as { suppressed?: boolean })
+                  : null;
+                result =
+                  response.ok && !ack?.suppressed
+                    ? { outcome: 'accepted' as const, messageId: 'record-inbox:' + doc.briefId }
+                    : {
+                        outcome: 'terminal' as const,
+                        error: response.ok
+                          ? 'INBOX_ACCESS_SUPPRESSED'
+                          : 'INBOX_HTTP_' + response.status,
+                      };
+              } else if (candidate.channel === 'sms') {
+                if (!this.sms) throw new BadRequestException('SMS_ADAPTER_UNAVAILABLE');
+                providerInvoked = true;
+                const sent = await this.sms.send(
+                  (recipient as HearingSmsRecipient).phone,
+                  String(packet.smsText),
+                );
+                result = {
+                  outcome: sent.sent
+                    ? ('accepted' as const)
+                    : sent.uncertain
+                      ? ('uncertain' as const)
+                      : ('terminal' as const),
+                  messageId: sent.providerMessageId,
+                  error: sent.error,
+                };
+              } else {
+                providerInvoked = true;
+                result = await this.email.sendReport(
+                  recipient.email,
+                  recipient.role,
+                  doc.title,
+                  `<html><body><pre style="white-space:pre-wrap">${escapeHtml(doc.markdown)}</pre></body></html>`,
+                  doc.markdown,
+                );
+              }
+            } else if (
               candidate.delivery.kind === 'live_update' ||
               candidate.delivery.kind === 'hearing_recap'
             ) {
@@ -865,14 +1013,22 @@ export class ReportDeliveryService {
           tenantId: ctx.tenantId,
           id,
           state: 'held',
-          delivery: { kind: 'bill_report', ownerClerkId: ctx.clerkUserId },
+          delivery: {
+            kind: { in: ['bill_report', 'record_brief', 'record_correction'] },
+            ownerClerkId: ctx.clerkUserId,
+          },
         },
         include: { delivery: true },
       });
       if (!row) throw new NotFoundException('HELD_REPORT_DELIVERY_NOT_FOUND');
       if (body.contentHash !== row.delivery.contentHash)
         throw new ConflictException('REVIEWED_CONTENT_CHANGED');
-      if (!(await this.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, ctx.tenantId)))
+      if (
+        !(await this.reports.flags.isEnabled(
+          recordDeliveryKind(row.delivery.kind) ? RECORD_DELIVERY_FEATURE : REPORT_DELIVERY_FEATURE,
+          ctx.tenantId,
+        ))
+      )
         throw new ForbiddenException('REPORT_DELIVERY_DISABLED');
       await this.checkDispatch(
         tx,

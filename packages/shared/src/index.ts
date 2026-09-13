@@ -3969,7 +3969,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_committee_hearings',
     description:
-      'Search congressional committee hearings, markups, and meetings. Filter by committee name, chamber (House/Senate/Joint), keyword, or date range.',
+      'Search congressional committee hearings, markups, and meetings. The exact-event published-record view also reads Florida or federal source revisions, owner reconciliations and reviewed Capiro briefs through governed access. Use exact record IDs and client scope; continue every evidence chunk. Current and explicitly historical versions retain separate publisher, captured-observation and Capiro authority.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],

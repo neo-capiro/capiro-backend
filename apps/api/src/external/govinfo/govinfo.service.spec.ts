@@ -46,13 +46,19 @@ interface CacheRow {
   fetchedAt: Date;
 }
 
-function makeService(opts?: { cacheBucket?: string; s3?: { send: (...args: unknown[]) => unknown }; seedCache?: CacheRow }) {
+function makeService(opts?: {
+  cacheBucket?: string;
+  s3?: { send: (...args: unknown[]) => unknown };
+  seedCache?: CacheRow;
+}) {
   const cache = new Map<string, CacheRow>();
   if (opts?.seedCache) cache.set(opts.seedCache.url, opts.seedCache);
 
   const prisma = {
     govInfoCache: {
-      findUnique: jest.fn(async ({ where }: { where: { url: string } }) => cache.get(where.url) ?? null),
+      findUnique: jest.fn(
+        async ({ where }: { where: { url: string } }) => cache.get(where.url) ?? null,
+      ),
       upsert: jest.fn(async ({ where, create }: { where: { url: string }; create: CacheRow }) => {
         cache.set(where.url, { ...create, fetchedAt: create.fetchedAt ?? new Date() });
         return cache.get(where.url)!;
@@ -62,7 +68,11 @@ function makeService(opts?: { cacheBucket?: string; s3?: { send: (...args: unkno
 
   const config = {
     get: (k: string) =>
-      k === 'GOVINFO_API_KEY' ? API_KEY : k === 'GOVINFO_CACHE_BUCKET' ? opts?.cacheBucket : 'us-east-1',
+      k === 'GOVINFO_API_KEY'
+        ? API_KEY
+        : k === 'GOVINFO_CACHE_BUCKET'
+          ? opts?.cacheBucket
+          : 'us-east-1',
   } as unknown as ConfigService<AppConfig, true>;
 
   const s3 = (opts?.s3 ?? { send: jest.fn() }) as unknown as import('@aws-sdk/client-s3').S3Client;
@@ -78,14 +88,65 @@ describe('GovInfoService', () => {
   let fetchMock: jest.MockedFunction<typeof fetch>;
 
   beforeEach(() => {
-    Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: jest.fn() });
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      writable: true,
+      value: jest.fn(),
+    });
     fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+  });
+  test('resumes CHRG beyond 100 with a frozen, credential-free source continuation', async () => {
+    const { svc } = makeService();
+    const since = '2026-01-01T00:00:00Z',
+      until = '2026-09-13T00:00:00Z';
+    // Live GovInfo returns unescaped ISO colons even when the request encoded them.
+    const next = `https://api.govinfo.gov/collections/CHRG/${since}/${until}?offsetMark=next&api_key=secret`;
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packages: Array.from({ length: 100 }, (_, i) => ({ packageId: `CHRG-119hhrg${i}` })),
+          nextPage: next,
+          count: 150,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packages: Array.from({ length: 50 }, (_, i) => ({ packageId: `CHRG-119hhrg${i + 100}` })),
+          count: 150,
+        }),
+      );
+    const first = await svc.listHearingsPage(119, since, until);
+    expect(first.nextPage).not.toContain('api_key');
+    const last = await svc.listHearingsPage(119, since, until, first.nextPage);
+    expect(first.packages.length + last.packages.length).toBe(150);
+    expect(last.nextPage).toBeNull();
+  });
+  test('rejects a CHRG continuation outside the exact source scope before fetching', async () => {
+    const { svc } = makeService();
+    await expect(
+      svc.listHearingsPage(
+        119,
+        '2026-01-01T00:00:00Z',
+        '2026-09-13T00:00:00Z',
+        'https://example.invalid/next',
+      ),
+    ).rejects.toThrow('SCOPE_MISMATCH');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test('listBills calls the BILLS collection endpoint with congress + docClass', async () => {
     const { svc } = makeService();
     fetchMock.mockResolvedValueOnce(
-      jsonResponse({ packages: [{ packageId: 'BILLS-118hr3935ih', title: 'NDAA', congress: '118', dateIssued: '2024-01-01' }] }),
+      jsonResponse({
+        packages: [
+          {
+            packageId: 'BILLS-118hr3935ih',
+            title: 'NDAA',
+            congress: '118',
+            dateIssued: '2024-01-01',
+          },
+        ],
+      }),
     );
 
     const bills = await svc.listBills(118, 'hr');
@@ -96,7 +157,13 @@ describe('GovInfoService', () => {
     expect(calledUrl).toContain('docClass=hr');
     expect(calledUrl).toContain(`api_key=${API_KEY}`);
     expect(bills).toEqual([
-      expect.objectContaining({ billId: 'BILLS-118hr3935ih', congress: 118, billType: 'hr', billNumber: '3935', title: 'NDAA' }),
+      expect.objectContaining({
+        billId: 'BILLS-118hr3935ih',
+        congress: 118,
+        billType: 'hr',
+        billNumber: '3935',
+        title: 'NDAA',
+      }),
     ]);
   });
 
@@ -104,7 +171,12 @@ describe('GovInfoService', () => {
     const { svc } = makeService();
     const billXml = `<bill><section id="s1"><num>1.</num><heading>Short title</heading><text>This Act may be cited.</text></section></bill>`;
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ packageId: 'BILLS-118hr1', download: { xmlLink: 'https://api.govinfo.gov/x.xml' } }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-118hr1',
+          download: { xmlLink: 'https://api.govinfo.gov/x.xml' },
+        }),
+      )
       .mockResolvedValueOnce(textResponse(billXml));
 
     const result = await svc.getBillText('BILLS-118hr1');
@@ -119,13 +191,22 @@ describe('GovInfoService', () => {
 
   test('listCommitteeReports calls the CRPT collection endpoint', async () => {
     const { svc } = makeService();
-    fetchMock.mockResolvedValueOnce(jsonResponse({ packages: [{ packageId: 'CRPT-118hrpt1', title: 'Report', congress: '118' }] }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        packages: [{ packageId: 'CRPT-118hrpt1', title: 'Report', congress: '118' }],
+      }),
+    );
 
     const reports = await svc.listCommitteeReports(118, 'house', 'authorization');
 
     expect(String(fetchMock.mock.calls[0]![0])).toContain('collections/CRPT/');
     expect(reports[0]).toEqual(
-      expect.objectContaining({ reportId: 'CRPT-118hrpt1', chamber: 'house', kind: 'authorization', congress: 118 }),
+      expect.objectContaining({
+        reportId: 'CRPT-118hrpt1',
+        chamber: 'house',
+        kind: 'authorization',
+        congress: 118,
+      }),
     );
   });
 
@@ -133,7 +214,12 @@ describe('GovInfoService', () => {
     const { svc } = makeService();
     const pdf = Buffer.from('%PDF-1.7 fake');
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ packageId: 'CRPT-118hrpt1', download: { pdfLink: 'https://api.govinfo.gov/r.pdf' } }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'CRPT-118hrpt1',
+          download: { pdfLink: 'https://api.govinfo.gov/r.pdf' },
+        }),
+      )
       .mockResolvedValueOnce(pdfResponse(pdf));
 
     const result = await svc.getCommitteeReport('CRPT-118hrpt1');
@@ -147,7 +233,12 @@ describe('GovInfoService', () => {
     const { svc } = makeService();
     const pdf = Buffer.from('%PDF public law');
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ packageId: 'PLAW-118publ1', download: { pdfLink: 'https://api.govinfo.gov/p.pdf' } }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'PLAW-118publ1',
+          download: { pdfLink: 'https://api.govinfo.gov/p.pdf' },
+        }),
+      )
       .mockResolvedValueOnce(pdfResponse(pdf));
 
     const result = await svc.getPublicLaw('PLAW-118publ1');
@@ -157,7 +248,14 @@ describe('GovInfoService', () => {
   test('cache hit avoids the HTTP call', async () => {
     const cacheUrl = 'https://api.govinfo.gov/packages/BILLS-118hr1/summary';
     const { svc } = makeService({
-      seedCache: { url: cacheUrl, response: { packageId: 'BILLS-118hr1', download: { xmlLink: 'https://api.govinfo.gov/x.xml' } }, fetchedAt: new Date() },
+      seedCache: {
+        url: cacheUrl,
+        response: {
+          packageId: 'BILLS-118hr1',
+          download: { xmlLink: 'https://api.govinfo.gov/x.xml' },
+        },
+        fetchedAt: new Date(),
+      },
     });
     fetchMock.mockResolvedValueOnce(textResponse('<bill></bill>'));
 
@@ -176,7 +274,12 @@ describe('GovInfoService', () => {
     const s3 = { send: sendMock };
     const { svc } = makeService({ cacheBucket: 'capiro-govinfo-cache', s3 });
     // Summary still comes from the API (1 fetch); the PDF must come from S3 (0 PDF fetch).
-    fetchMock.mockResolvedValueOnce(jsonResponse({ packageId: 'PLAW-118publ1', download: { pdfLink: 'https://api.govinfo.gov/p.pdf' } }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        packageId: 'PLAW-118publ1',
+        download: { pdfLink: 'https://api.govinfo.gov/p.pdf' },
+      }),
+    );
 
     const result = await svc.getPublicLaw('PLAW-118publ1');
 
@@ -195,7 +298,12 @@ describe('GovInfoService', () => {
     }) as unknown as (...args: unknown[]) => unknown;
     const { svc } = makeService({ cacheBucket: 'capiro-govinfo-cache', s3: { send: sendMock } });
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ packageId: 'PLAW-118publ1', download: { pdfLink: 'https://api.govinfo.gov/p.pdf' } }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'PLAW-118publ1',
+          download: { pdfLink: 'https://api.govinfo.gov/p.pdf' },
+        }),
+      )
       .mockResolvedValueOnce(pdfResponse(pdf));
 
     const result = await svc.getPublicLaw('PLAW-118publ1');

@@ -24,6 +24,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { syncGovInfoHearingRecords } from '../src/ingestion/govinfo-hearing-records.js';
 
 dotenvConfig();
 
@@ -84,81 +85,7 @@ async function main() {
       console.log(
         `[hearing-transcripts] listing CHRG for ${CONGRESS}th Congress (target year ${TARGET_YEAR})`,
       );
-      const all = await gov.listHearings(CONGRESS);
-      // listCollection currently reads one page (100). For the 2026 window this
-      // is ample (published transcripts lag); if we ever hit the cap, paginate.
-      if (all.length >= 100) {
-        console.warn(
-          `[hearing-transcripts] CHRG list returned ${all.length} (>=100 page cap) — ${TARGET_YEAR} packages may be truncated; add pagination if this persists.`,
-        );
-      }
-      const inYear = all.filter(
-        (h: { dateIssued: string | null }) => yearOf(h.dateIssued) === TARGET_YEAR,
-      );
-      console.log(
-        `[hearing-transcripts] ${all.length} CHRG packages listed, ${inYear.length} dated ${TARGET_YEAR}`,
-      );
-
-      let inserted = 0;
-      let skippedExisting = 0;
-      let skippedNoText = 0;
-      let errors = 0;
-
-      for (const h of inYear as Array<{ hearingId: string; title: string | null; dateIssued: string | null }>) {
-        const existing = await prisma.officialHearingTranscript.findUnique({
-          where: { id: h.hearingId },
-        });
-        if (existing) {
-          skippedExisting++;
-          continue;
-        }
-        try {
-          const doc = await gov.getHearingText(h.hearingId);
-          const text = (doc.text ?? '').trim();
-          if (text.length < MIN_TEXT_CHARS) {
-            skippedNoText++;
-            continue;
-          }
-          const iso = doc.dateIssued ?? h.dateIssued ?? '';
-          const date = new Date(iso);
-          if (isNaN(date.getTime())) {
-            skippedNoText++;
-            continue;
-          }
-          await prisma.officialHearingTranscript.create({
-            data: {
-              id: h.hearingId,
-              hearingId: null, // correlation to committee_hearing is H2b
-              source: 'govinfo',
-              congress: CONGRESS,
-              chamber: chamberFromPackageId(h.hearingId),
-              committeeName: committeeFromTitle(doc.title ?? h.title),
-              title: doc.title ?? h.title ?? '(untitled hearing)',
-              date,
-              sourceUrl: doc.sourceUrl,
-              format: doc.format,
-              text,
-              charCount: text.length,
-              publishedAt: date,
-            },
-          });
-          inserted++;
-        } catch (err) {
-          errors++;
-          console.warn(`[hearing-transcripts] ${h.hearingId}: ${(err as Error).message}`);
-        }
-      }
-
-      console.log(
-        `[hearing-transcripts] DONE inserted=${inserted} skipped(existing)=${skippedExisting} ` +
-          `skipped(no-text)=${skippedNoText} errors=${errors} in ${((Date.now() - t0) / 1000).toFixed(1)}s`,
-      );
-      return {
-        inserted,
-        updated: 0,
-        skipped: skippedExisting + skippedNoText,
-        errors,
-      };
+      return syncGovInfoHearingRecords(prisma, gov, CONGRESS, TARGET_YEAR);
     });
   } finally {
     await app.close();
