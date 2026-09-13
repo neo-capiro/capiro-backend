@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { KeywordReview, KEYWORD_FEATURE } from '../keywords/KeywordReview.js';
+import { WorkflowReview } from '../keywords/WorkflowReview.js';
+import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapiroButton } from '../../../components/actions/index.js';
@@ -112,6 +116,9 @@ function Workspace({
   initialTab: string;
   initialFolderId?: string;
 }) {
+  const [params, setParams] = useSearchParams();
+  const keywordsEnabled = useIntelFeatureEnabled(KEYWORD_FEATURE);
+  const workflowsEnabled = useIntelFeatureEnabled('legiwatch_internal_workflows_v1');
   const api = useApi(),
     qc = useQueryClient(),
     alive = useRef(true);
@@ -121,10 +128,19 @@ function Workspace({
       alive.current = false;
     };
   }, []);
-  const [tab, setTab] = useState(initialTab),
+  const [tab, setLocalTab] = useState(params.get('reportView') ?? initialTab),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const setTab = (value: string) => {
+    setLocalTab(value);
+    const next = new URLSearchParams(params);
+    next.set('reportView', value);
+    setParams(next);
+  };
+  useEffect(() => {
+    setLocalTab(params.get('reportView') ?? initialTab);
+  }, [params, initialTab]);
   const [editing, setEditing] = useState<Report | null>(null),
     [run, setRun] = useState<Run | null>(null);
   const [compose, setCompose] = useState(false),
@@ -170,6 +186,14 @@ function Workspace({
   }
   const loadRun = (id: string) =>
     action(async () => (await api.get<Run>(`${B}/runs/${id}`)).data, setRun);
+  const deepRun = useQuery({
+    ...query<Run>('/runs/' + encodeURIComponent(params.get('reportRun') ?? '')),
+    enabled: !!params.get('reportRun'),
+    retry: false,
+  });
+  useEffect(() => {
+    if (deepRun.data) setRun(deepRun.data);
+  }, [deepRun.data]);
   const newReport = () => {
     const f = folders.data?.find((f) => f.id === initialFolderId);
     setEditing({
@@ -219,6 +243,20 @@ function Workspace({
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
+      {keywordsEnabled ? (
+        <CapiroButton size="compact" onClick={() => setTab('keywords')}>
+          Keyword rules
+        </CapiroButton>
+      ) : null}
+      {workflowsEnabled ? (
+        <CapiroButton size="compact" onClick={() => setTab('workflows')}>
+          Follow-up workflows
+        </CapiroButton>
+      ) : null}
+      {tab === 'workflows' ? <WorkflowReview initialFolderId={initialFolderId} /> : null}
+      {tab === 'keywords' && keywordsEnabled ? (
+        <KeywordReview initialView="rules" folderId={initialFolderId} />
+      ) : null}
       {[
         reports,
         folders,

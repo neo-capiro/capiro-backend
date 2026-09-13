@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -99,7 +100,12 @@ export class CalendarPreparationService {
     if (!rows[0]) throw new NotFoundException('CALENDAR_EVENT_NOT_FOUND');
     return rows[0];
   }
-  async prepare(ctx: WorkspaceTenantContext, hearingId: string, input: CalendarScope) {
+  async prepare(
+    ctx: WorkspaceTenantContext,
+    hearingId: string,
+    input: CalendarScope,
+    requestKey?: string,
+  ) {
     const scope = await this.scope(ctx, input),
       event = await this.publicEvent(hearingId);
     const snapshot = object(event.snapshot),
@@ -154,8 +160,22 @@ export class CalendarPreparationService {
         'Preparation uses published schedules and bill facts. It does not imply that testimony occurred.',
       ].filter(Boolean),
     };
-    const frozen = await this.folders.withActor(ctx, (tx) =>
-      tx.legiWatchPreparationSnapshot.create({
+    const frozen = await this.folders.withActor(ctx, async (tx) => {
+      if (requestKey) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':' + ctx.clerkUserId + ':' + requestKey},0))`;
+        const [prior] = await tx.$queryRaw<
+          Array<{ snapshot_id: string; input_hash: string }>
+        >`SELECT snapshot_id,input_hash FROM intel_legiwatch_preparation_request
+          WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND request_key=${requestKey}`;
+        if (prior) {
+          if (prior.input_hash !== digest({ hearingId, input }))
+            throw new ConflictException('PREPARATION_REQUEST_KEY_REUSED');
+          return tx.legiWatchPreparationSnapshot.findFirstOrThrow({
+            where: { tenantId: ctx.tenantId, ownerClerkId: ctx.clerkUserId, id: prior.snapshot_id },
+          });
+        }
+      }
+      const result = await tx.legiWatchPreparationSnapshot.create({
         data: {
           tenantId: ctx.tenantId,
           ownerClerkId: ctx.clerkUserId,
@@ -165,20 +185,27 @@ export class CalendarPreparationService {
           payload: json(payload),
           contentHash: digest(payload),
         },
-      }),
-    );
+      });
+      if (requestKey)
+        await tx.$executeRaw`INSERT INTO intel_legiwatch_preparation_request(tenant_id,owner_clerk_id,request_key,input_hash,snapshot_id)
+        VALUES(${ctx.tenantId},${ctx.clerkUserId},${requestKey},${digest({ hearingId, input })},${result.id})`;
+      return result;
+    });
+    const saved = object(frozen.payload),
+      savedEvent = object(saved.event);
+    const savedBills = Array.isArray(saved.bills) ? saved.bills.map(object) : [];
     return {
-      draft: { docTitle: `Hearing preparation — ${event.title}` },
-      context: { ...payload, snapshotId: frozen.id, contentHash: frozen.contentHash },
+      draft: { docTitle: `Hearing preparation — ${String(savedEvent.title ?? '')}` },
+      context: { ...saved, snapshotId: frozen.id, contentHash: frozen.contentHash },
       sources: [
         {
           kind: 'hearing',
           id: hearingId,
           path: `/legiwatch/hearings/${encodeURIComponent(hearingId)}`,
-          revision: event.revision,
+          revision: frozen.calendarRevision,
         },
-        ...(event.sourceUrl ? [{ kind: 'official_page', url: event.sourceUrl }] : []),
-        ...bills.map((b) => ({ kind: 'bill', id: b.id, url: b.sourceUrl })),
+        ...(savedEvent.sourceUrl ? [{ kind: 'official_page', url: savedEvent.sourceUrl }] : []),
+        ...savedBills.map((b) => ({ kind: 'bill', id: b.id, url: b.sourceUrl })),
       ],
     };
   }
@@ -193,12 +220,34 @@ export class CalendarPreparationService {
       return row;
     });
     const event = await this.publicEvent(frozen.hearingId);
+    const saved = object(frozen.payload),
+      current = await this.scope(ctx, object(saved.scope) as CalendarScope);
+    const oldFolders = Array.isArray(saved.folders) ? saved.folders.map(object) : [];
+    const oldAssignments = Array.isArray(saved.folderContext)
+      ? saved.folderContext.map(object)
+      : [];
+    const savedBills = Array.isArray(saved.bills) ? saved.bills.map((b) => object(b).id) : [];
+    const savedAgenda = Array.isArray(saved.agenda)
+      ? saved.agenda.map((a) => object(object(a).bill).id)
+      : [];
+    const relevant = current.assignments.filter(
+      (a) => savedBills.includes(a.billId) || savedAgenda.includes(a.billId),
+    );
+    const contextChanged =
+      oldFolders.some(
+        (f) => !current.folders.some((c) => c.id === f.id && c.version === f.version),
+      ) ||
+      relevant.length !== oldAssignments.length ||
+      oldAssignments.some(
+        (a) => !relevant.some((c) => c.id === a.assignmentId && c.version === a.version),
+      );
     return {
       id,
       hearingId: frozen.hearingId,
       preparedRevision: frozen.calendarRevision,
       currentRevision: event.revision,
-      stale: event.revision !== frozen.calendarRevision,
+      stale: event.revision !== frozen.calendarRevision || contextChanged,
+      contextChanged,
       createdAt: frozen.createdAt,
       contentHash: frozen.contentHash,
     };

@@ -3975,6 +3975,38 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat', 'in_editor'],
   },
   {
+    name: 'get_legiwatch_review',
+    description:
+      'Read current authorized folders, keyword suggestions, raw rule interpretations and workflow history in an exact client/folder/jurisdiction/session. Follow page cursors. Quotations are canonical evidence; Meri relevance is a suggestion. Reads create no scans, assignments or drafts.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'preview_legiwatch_relevance',
+    description:
+      'Preview a semantic relevance suggestion for one canonical bill and authorized folder. Return verified source passages first, then provide a rationale and exact document quote offsets to obtain a bound previewHash. No assignment or persisted suggestion. A model score never permits auto-add.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'save_legiwatch_relevance',
+    description:
+      'Save one reviewed semantic suggestion using the exact previewHash, bill, folder, source quote and rationale returned by preview_legiwatch_relevance. Governed proposal required. This creates a pending suggestion only; it does not add a bill or enable a rule.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
+    name: 'apply_legiwatch_suggestion',
+    description:
+      'Apply an explicitly approved add, dismiss, rule-specific exclusion, restore or undo to one exact LegiWatch suggestion ID/version and request key. Governed proposal required. Current source, owner and folder permissions are rechecked; human context and manual removals prevail.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_crs_reports',
     description:
       'Search Congressional Research Service (CRS) reports and analyses. Filter by keyword, topic, or author.',

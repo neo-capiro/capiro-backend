@@ -30,6 +30,7 @@ import {
 import { FolderImportReview } from './FolderImportReview.js';
 import './folder-tracker.css';
 import { ReportWorkspace } from '../reports/ReportWorkspace.js';
+import { KeywordReview, KEYWORD_FEATURE } from '../keywords/KeywordReview.js';
 import { useReportsFlag } from '../reports/report-api.js';
 import {
   STATE_CALENDAR_FEATURE,
@@ -71,6 +72,8 @@ const emptyContext = {
 
 export function FolderBillsTab({ scope, clients }: { scope: string; clients: Client[] }) {
   const calendarEnabled = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
+  const keywordsEnabled = useIntelFeatureEnabled(KEYWORD_FEATURE);
+  const workflowsEnabled = useIntelFeatureEnabled('legiwatch_internal_workflows_v1');
   const reportsFlag = useReportsFlag();
   const [reportsOpen, setReportsOpen] = useState(false);
   useEffect(() => {
@@ -81,6 +84,9 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
     qc = useQueryClient(),
     navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.has('reportView')) setReportsOpen(true);
+  }, [params]);
   const visibleColumns = new Set(
     (params.get('folderColumns') ?? optionalColumns.join(',')).split(','),
   );
@@ -319,7 +325,12 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
           open
           title="Reports and updates"
           width={1280}
-          onClose={() => setReportsOpen(false)}
+          onClose={() => {
+            setReportsOpen(false);
+            const next = new URLSearchParams(params);
+            next.delete('reportView');
+            setParams(next);
+          }}
         >
           <ReportWorkspace initialFolderId={active?.id} />
         </CapiroModal>
@@ -352,6 +363,28 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             </p>
           </div>
           <div className="lw-folder-actions">
+            {keywordsEnabled && active ? (
+              <CapiroButton
+                size="compact"
+                aria-pressed={params.get('keywordReview') === '1'}
+                onClick={() =>
+                  setFilter('keywordReview', params.get('keywordReview') === '1' ? '' : '1')
+                }
+              >
+                Suggested bills
+              </CapiroButton>
+            ) : null}
+            {active && reportsFlag.enabled && workflowsEnabled ? (
+              <CapiroButton
+                size="compact"
+                onClick={() => {
+                  setFilter('reportView', 'workflows');
+                  setReportsOpen(true);
+                }}
+              >
+                Follow-up workflows
+              </CapiroButton>
+            ) : null}
             {reportsFlag.enabled && (
               <CapiroButton size="compact" onClick={() => setReportsOpen(true)}>
                 Reports
@@ -406,6 +439,9 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             ) : null}
           </div>
         </div>
+        {keywordsEnabled && active && params.get('keywordReview') === '1' ? (
+          <KeywordReview folderId={active.id} jurisdiction={jurisdiction} sessionKey={session} />
+        ) : null}
         <div className="lw-folder-filters">
           <CapiroSelect
             label="Jurisdiction"
@@ -921,7 +957,8 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
       >
         <p>
           Remove {selected.length} selected assignments from {active?.name}? Their context in this
-          folder will be removed. Other folders and client tracking are independent.
+          folder will be removed. Automatic rules will not add these bills to this folder again
+          until you manually add them. Decision history is retained. Other folders are independent.
         </p>
         <CapiroButton onClick={() => setRemoveOpen(false)}>Cancel</CapiroButton>
         <CapiroButton loading={busy} onClick={() => void bulk('remove')}>

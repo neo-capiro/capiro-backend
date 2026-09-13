@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { ReportWorkspace } from './ReportWorkspace.js';
 import { defaultSettings, type Run } from './report-api.js';
@@ -68,7 +69,9 @@ function mount(initialTab?: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   const ui = () => (
     <QueryClientProvider client={qc}>
-      <ReportWorkspace initialTab={initialTab} />
+      <MemoryRouter>
+        <ReportWorkspace initialTab={initialTab} />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   const view = render(ui());

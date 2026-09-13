@@ -55,6 +55,40 @@ describe('approved hearing version in the existing inbox', () => {
       deepLink: '/intelligence/hearing-watch/' + sessionId + '?publication=' + publicationId,
     });
   });
+  it('deduplicates typed keyword inbox events and honors its independent runtime and membership gates', async () => {
+    const prior = process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED;
+    const keyword = {
+      tenantId,
+      userId: actor,
+      billId: 'fl-keyword-' + randomUUID(),
+      eventKey: randomUUID(),
+      title: 'Synthetic keyword match',
+      body: 'Reviewed source excerpt',
+    };
+    try {
+      await p.$executeRaw`INSERT INTO intel_feature_flag(id,tenant_id,feature,enabled,created_at) VALUES(${randomUUID()},${tenantId},'legiwatch_keyword_delivery_v1',true,now())`;
+      process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED = 'false';
+      expect(await service.emitKeyword(keyword)).toMatchObject({ created: 0, suppressed: true });
+      process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED = 'true';
+      const results = await Promise.all([
+        service.emitKeyword(keyword),
+        new LegiWatchLifecycleNotificationService(sibling).emitKeyword(keyword),
+      ]);
+      expect(results.reduce((n, result) => n + result.created, 0)).toBe(1);
+      const page = await service.inbox({ tenantId, userId: internalUser } as any, {});
+      expect((page.rows as any[]).find((row) => row.eventType === 'bill_keyword')).toMatchObject({
+        title: keyword.title,
+        deepLink: '/bills/' + keyword.billId,
+      });
+      expect(await service.emitKeyword({ ...keyword, userId: 'removed-owner' })).toMatchObject({
+        created: 0,
+        suppressed: true,
+      });
+    } finally {
+      if (prior === undefined) delete process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED;
+      else process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED = prior;
+    }
+  });
   it('rejects an altered version hash, another owner, and removed membership', async () => {
     expect(
       await service.emitHearingPublication({ ...input, contentHash: 'b'.repeat(64) }),

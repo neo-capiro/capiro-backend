@@ -279,8 +279,82 @@ export class MeriToolsService {
       description ? { type: 'string', description } : { type: 'string' };
     const int = (description?: string) =>
       description ? { type: 'integer', description } : { type: 'integer' };
+    const legiwatchScope = {
+      clientId: str('Exact current conversation client UUID. Omit only for a client-less folder.'),
+      folderId: str('Exact authorized folder ID'),
+      jurisdiction: str('Two-letter jurisdiction or US'),
+      sessionKey: str('Exact canonical session key'),
+    };
+    const relevanceInput = {
+      ...legiwatchScope,
+      billId: str('Exact canonical bill ID'),
+      fields: {
+        type: 'array',
+        maxItems: 3,
+        items: { type: 'string', enum: ['title', 'bill_text', 'amendment_text'] },
+      },
+      explanation: str(
+        'Meri relevance rationale, at most 2000 characters; an inference, never canonical legislative fact',
+      ),
+      documentId: str('Source document ID from the evidence preview'),
+      start: { type: 'integer', minimum: 0 },
+      end: { type: 'integer', minimum: 1 },
+      quote: str('Exact verbatim source slice at start/end; at most 2000 characters'),
+    };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
+      get_legiwatch_review: obj(
+        {
+          ...legiwatchScope,
+          view: { type: 'string', enum: ['folders', 'suggestions', 'rules', 'workflows'] },
+          cursor: str('Opaque next cursor for this exact folder and session'),
+        },
+        ['view'],
+      ),
+      preview_legiwatch_relevance: obj(relevanceInput, [
+        'folderId',
+        'jurisdiction',
+        'sessionKey',
+        'billId',
+      ]),
+      save_legiwatch_relevance: obj(
+        {
+          ...relevanceInput,
+          previewHash: str('Exact bound preview hash'),
+          requestKey: str('Stable unique request key, reused for retries'),
+        },
+        [
+          'folderId',
+          'jurisdiction',
+          'sessionKey',
+          'billId',
+          'explanation',
+          'documentId',
+          'start',
+          'end',
+          'quote',
+          'previewHash',
+          'requestKey',
+        ],
+      ),
+      apply_legiwatch_suggestion: obj(
+        {
+          ...legiwatchScope,
+          suggestionId: str('Exact candidate ID from current review'),
+          expectedVersion: { type: 'integer', minimum: 1 },
+          requestKey: str('Stable unique request key, reused for retries'),
+          action: { type: 'string', enum: ['add', 'dismiss', 'exclude', 'restore', 'undo'] },
+        },
+        [
+          'folderId',
+          'jurisdiction',
+          'sessionKey',
+          'suggestionId',
+          'expectedVersion',
+          'requestKey',
+          'action',
+        ],
+      ),
       get_research_evidence: obj(
         {
           sessionId: str(
@@ -1594,10 +1668,55 @@ export class MeriToolsService {
       return { ok: false, reason: (e as Error).message };
     }
   }
+  private async legiwatchTool(ctx: TenantContext, name: string, input: Record<string, unknown>) {
+    const secret = process.env.INTERNAL_SERVICE_SECRET;
+    if (!secret || !ctx.clerkUserId)
+      throw new BadGatewayException('LegiWatch owner adapter unavailable');
+    const requestedClient = optionalString(input, 'clientId', 80);
+    const clientId = requestedClient
+      ? await this.ensureClientVisible(ctx, requestedClient)
+      : undefined;
+    const control = meriToolRequestControl();
+    assertMeriToolRequestActive();
+    const response = await fetch(
+      (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '') +
+        '/intel-api/internal/legiwatch/meri/' +
+        (this.isSideEffecting(name) ? 'apply' : 'read'),
+      {
+        method: 'POST',
+        redirect: 'error',
+        signal: control?.signal ?? AbortSignal.timeout(45000),
+        headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
+        body: JSON.stringify({
+          tenantId: ctx.tenantId,
+          actor: ctx.clerkUserId,
+          tool: name,
+          input: { ...input, clientId },
+        }),
+      },
+    );
+    if (!response.ok)
+      throw new BadRequestException(
+        `LegiWatch current scope, source or approval requires review (HTTP ${response.status})`,
+      );
+    const result = await response.json();
+    return {
+      tool: name,
+      generatedAt: new Date().toISOString(),
+      result,
+      authority:
+        'Source quotations retain their document identity. Meri relevance is an inference for review; keyword grammar and current folder decisions control assignments.',
+    };
+  }
 
   async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
     assertMeriToolRequestActive();
     switch (name) {
+      case 'get_legiwatch_review':
+      case 'preview_legiwatch_relevance':
+      case 'save_legiwatch_relevance':
+      case 'apply_legiwatch_suggestion':
+        return this.legiwatchTool(ctx, name, input);
       case 'get_research_evidence':
         return getResearchEvidence(ctx, input, this.prisma);
       case 'search_capiro_data':

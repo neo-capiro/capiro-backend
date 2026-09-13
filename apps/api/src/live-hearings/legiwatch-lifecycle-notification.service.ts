@@ -215,6 +215,32 @@ export class LegiWatchLifecycleNotificationService {
       return { created: rows.length, suppressed: false };
     });
   }
+  async emitKeyword(input: {
+    tenantId: string;
+    userId: string;
+    billId: string;
+    eventKey: string;
+    title: string;
+    body: string;
+  }) {
+    if (process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED !== 'true')
+      return { created: 0, suppressed: true };
+    return this.prisma.withTenant(input.tenantId, async (tx) => {
+      const eligible = await tx.$queryRaw<
+        Array<{ ok: number }>
+      >`SELECT 1 AS ok FROM tenant_memberships m JOIN users u ON u.id=m.user_id
+        JOIN intel_feature_flag f ON f.tenant_id=m.tenant_id::text AND f.feature='legiwatch_keyword_delivery_v1' AND f.enabled
+        WHERE m.tenant_id=${input.tenantId}::uuid AND u.clerk_user_id=${input.userId} AND m.status::text='active'`;
+      if (!eligible.length) return { created: 0, suppressed: true };
+      const rows = await tx.$queryRaw<
+        Array<{ id: string }>
+      >`INSERT INTO legiwatch_notification_event
+        (tenant_id,user_id,event_type,bill_id,title,body,deep_link,dedup_key,created_at)
+        VALUES(${input.tenantId}::uuid,${input.userId},'bill_keyword',${input.billId},${input.title},${input.body},${'/bills/' + encodeURIComponent(input.billId)},${'keyword:' + input.eventKey},now())
+        ON CONFLICT(tenant_id,user_id,dedup_key) DO NOTHING RETURNING id`;
+      return { created: rows.length, suppressed: false };
+    });
+  }
   private readonly logger = new Logger(LegiWatchLifecycleNotificationService.name);
   async emitAgenda(input: {
     tenantId: string;

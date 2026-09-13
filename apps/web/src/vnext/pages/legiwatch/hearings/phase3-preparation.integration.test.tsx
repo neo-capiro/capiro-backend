@@ -84,16 +84,33 @@ beforeEach(() => {
 afterEach(cleanup);
 describe('Phase 3 preparation workflow', () => {
   it('lets a bill inspect past published agendas without treating them as testimony', async () => {
-    mocks.post.mockImplementation(async (_url, input) => ({ data: {
-      items: input.to ? [{ id: 'state-fl-past', title: 'Past published notice', date: '2026-02-24', eventStatus: 'scheduled', chamber: 'Senate' }] : [],
-      total: input.to ? 1 : 0, page: 1, pageSize: 200,
-    } }));
+    mocks.post.mockImplementation(async (_url, input) => ({
+      data: {
+        items: input.to
+          ? [
+              {
+                id: 'state-fl-past',
+                title: 'Past published notice',
+                date: '2026-02-24',
+                eventStatus: 'scheduled',
+                chamber: 'Senate',
+              },
+            ]
+          : [],
+        total: input.to ? 1 : 0,
+        page: 1,
+        pageSize: 200,
+      },
+    }));
     render(<BillAgenda billId="fl-2026-s0174" />, { wrapper: wrapper() });
     await screen.findByText(/No upcoming appearances/);
     fireEvent.click(screen.getByRole('button', { name: 'Past dates' }));
     expect(await screen.findByRole('link', { name: 'Past published notice' })).toBeTruthy();
     expect(screen.getByText(/Past scheduled dates do not establish/)).toBeTruthy();
-    expect(mocks.post.mock.calls.at(-1)?.[1]).toMatchObject({ billIds: ['fl-2026-s0174'], to: expect.any(String) });
+    expect(mocks.post.mock.calls.at(-1)?.[1]).toMatchObject({
+      billIds: ['fl-2026-s0174'],
+      to: expect.any(String),
+    });
     expect(mocks.post.mock.calls.at(-1)?.[1]).not.toHaveProperty('from');
   });
   it('keeps the capability dark and starts no work during a read', () => {
@@ -159,12 +176,12 @@ describe('Phase 3 preparation workflow', () => {
     ]);
     expect(mocks.patch).toHaveBeenCalledWith('/workspace-api/drafts/draft-a', {
       config: expect.objectContaining({
-        legiwatch: context,
+        legiwatch: { mode: 'preparation', snapshotId: 'snapshot-a', contentHash: undefined },
         sections: expect.arrayContaining(['Published schedule', 'Ordered agenda']),
       }),
     });
     const config = mocks.patch.mock.calls[0]![1].config;
-    expect(JSON.stringify(config.sectionContent)).not.toContain('Permitted internal note');
+    expect(JSON.stringify(config)).not.toContain('Permitted internal note');
   });
   it('warns about changed source revisions without modifying the saved draft', async () => {
     mocks.get.mockResolvedValue({

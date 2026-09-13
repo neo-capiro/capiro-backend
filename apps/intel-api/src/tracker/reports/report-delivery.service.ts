@@ -1,3 +1,5 @@
+import { KeywordDeliveryService } from '../keywords/keyword-delivery.service.js';
+import { KEYWORD_DELIVERY_FEATURE } from '../keywords/keyword-rule.service.js';
 import {
   BadRequestException,
   ConflictException,
@@ -67,6 +69,7 @@ export class ReportDeliveryService {
     @Optional() readonly hearing?: HearingPublicationService,
     @Optional() readonly sms?: SmsService,
     @Optional() readonly recordBriefs?: HearingRecordDeliveryService,
+    @Optional() readonly keywords?: KeywordDeliveryService,
   ) {}
   async preview(ctx: WorkspaceTenantContext, runId: string, input: unknown) {
     const run = await this.reports.run(ctx, runId),
@@ -162,6 +165,10 @@ export class ReportDeliveryService {
     recipient: RecipientSnapshot,
     channel = 'email',
   ) {
+    if (delivery.kind === 'bill_keyword') {
+      if (!this.keywords) throw new ForbiddenException('KEYWORD_DELIVERY_ADAPTER_UNAVAILABLE');
+      return this.keywords.checkDispatch(tx, ctx, delivery, object(recipient), channel);
+    }
     if (recordDeliveryKind(delivery.kind)) {
       if (!this.recordBriefs) throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
       return this.recordBriefs.checkDispatch(tx, ctx, delivery, recipient, channel);
@@ -501,6 +508,7 @@ export class ReportDeliveryService {
       for (const row of rows) {
         const packet = object(row.delivery.composition);
         const baseKey = digest([
+          ...(kind === 'bill_keyword' ? [row.delivery.ownerClerkId] : []),
           object(row.recipient).userId,
           row.channel,
           packet.clientId,
@@ -528,7 +536,7 @@ export class ReportDeliveryService {
         const first = group[0]!,
           records = group.map((r) => object(r.delivery.composition));
         const intentKey = `${kind}-digest:${key}:${digest(group.map((r) => r.id).sort())}`;
-        const title = `${kind === 'agenda' ? 'Calendar agenda updates' : 'Published legislative records'} · ${records.length} developments`;
+        const title = `${kind === 'agenda' ? 'Calendar agenda updates' : kind === 'bill_keyword' ? 'Keyword matches' : 'Published legislative records'} · ${records.length} developments`;
         const content = records.map((r) => `${r.title}\n${r.content}`).join('\n\n');
         const eventKey = digest(records.map((r) => r.eventKey).sort());
         await tx.legiWatchDelivery.upsert({
@@ -574,6 +582,13 @@ export class ReportDeliveryService {
   async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_report') {
     const prisma = this.reports.folders.prisma;
     if (
+      kind === 'bill_keyword' &&
+      (!this.keywords ||
+        process.env.LEGIWATCH_KEYWORD_DELIVERY_ENABLED !== 'true' ||
+        !(await this.reports.flags.isEnabled(KEYWORD_DELIVERY_FEATURE, tenantId)))
+    )
+      return { attempted: 0, held: 0 };
+    if (
       recordDeliveryKind(kind) &&
       (!this.recordBriefs ||
         !(await this.reports.flags.isEnabled(RECORD_DELIVERY_FEATURE, tenantId)) ||
@@ -608,7 +623,8 @@ export class ReportDeliveryService {
         !(await this.reports.flags.isEnabled(TRACKER_OWNER_FEATURE, tenantId)))
     )
       return { attempted: 0, held: 0 };
-    if (kind === 'bill_record' || kind === 'agenda') await this.bundleEndOfDay(tenantId, now, kind);
+    if (['bill_record', 'agenda', 'bill_keyword'].includes(kind))
+      await this.bundleEndOfDay(tenantId, now, kind);
     // Expired attempts after dispatch began are uncertain. They never return to
     // the retry queue merely because a lease timed out.
     await prisma.withTenant(tenantId, (tx) =>
@@ -623,7 +639,7 @@ export class ReportDeliveryService {
           tenantId,
           delivery: {
             kind,
-            ...(kind === 'bill_record' || kind === 'agenda'
+            ...(['bill_record', 'agenda', 'bill_keyword'].includes(kind)
               ? { NOT: { composition: { path: ['cadence'], equals: 'end_of_day' } } }
               : {}),
           },
@@ -675,11 +691,13 @@ export class ReportDeliveryService {
           ctx,
           recordDeliveryKind(candidate.delivery.kind)
             ? RECORD_DELIVERY_FEATURE
-            : candidate.delivery.kind === 'agenda'
-              ? AGENDA_ALERTS_FEATURE
-              : ['live_update', 'hearing_recap'].includes(candidate.delivery.kind)
-                ? publicationFeature(candidate.delivery.kind)
-                : undefined,
+            : candidate.delivery.kind === 'bill_keyword'
+              ? KEYWORD_DELIVERY_FEATURE
+              : candidate.delivery.kind === 'agenda'
+                ? AGENDA_ALERTS_FEATURE
+                : ['live_update', 'hearing_recap'].includes(candidate.delivery.kind)
+                  ? publicationFeature(candidate.delivery.kind)
+                  : undefined,
         );
         await this.reports.folders.withActor(ctx, (tx) =>
           this.checkDispatch(
@@ -872,7 +890,8 @@ export class ReportDeliveryService {
               }
             } else if (
               candidate.delivery.kind === 'bill_record' ||
-              candidate.delivery.kind === 'agenda'
+              candidate.delivery.kind === 'agenda' ||
+              candidate.delivery.kind === 'bill_keyword'
             ) {
               const packet = object(candidate.delivery.composition),
                 staff = object(candidate.recipient);
@@ -881,7 +900,7 @@ export class ReportDeliveryService {
                 if (!secret) throw new BadRequestException('INBOX_ADAPTER_NOT_CONFIGURED');
                 providerInvoked = true;
                 const response = await fetch(
-                  `${(process.env.API_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/api/internal/legiwatch/${candidate.delivery.kind === 'agenda' ? 'agenda-notification' : 'bill-record-notification'}`,
+                  `${(process.env.API_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '')}/api/internal/legiwatch/${candidate.delivery.kind === 'agenda' ? 'agenda-notification' : candidate.delivery.kind === 'bill_keyword' ? 'keyword-notification' : 'bill-record-notification'}`,
                   {
                     method: 'POST',
                     headers: {
@@ -909,6 +928,17 @@ export class ReportDeliveryService {
                 result = response.ok
                   ? { outcome: 'accepted' as const, messageId: `inbox:${packet.eventKey}` }
                   : { outcome: 'retryable' as const, error: `INBOX_HTTP_${response.status}` };
+                if (candidate.delivery.kind === 'bill_keyword' && response.ok) {
+                  const ack = object(await response.json());
+                  if (ack.suppressed === true)
+                    result = {
+                      outcome: 'terminal' as const,
+                      error: 'INBOX_SUBSCRIPTION_REVOKED',
+                      messageId: undefined,
+                    };
+                  else if (typeof ack.created !== 'number')
+                    throw new Error('INBOX_ACKNOWLEDGEMENT_UNCONFIRMED');
+                }
               } else {
                 providerInvoked = true;
                 result = await this.email.sendReport(
@@ -1014,7 +1044,7 @@ export class ReportDeliveryService {
           id,
           state: 'held',
           delivery: {
-            kind: { in: ['bill_report', 'record_brief', 'record_correction'] },
+            kind: { in: ['bill_report', 'record_brief', 'record_correction', 'bill_keyword'] },
             ownerClerkId: ctx.clerkUserId,
           },
         },
@@ -1025,7 +1055,11 @@ export class ReportDeliveryService {
         throw new ConflictException('REVIEWED_CONTENT_CHANGED');
       if (
         !(await this.reports.flags.isEnabled(
-          recordDeliveryKind(row.delivery.kind) ? RECORD_DELIVERY_FEATURE : REPORT_DELIVERY_FEATURE,
+          recordDeliveryKind(row.delivery.kind)
+            ? RECORD_DELIVERY_FEATURE
+            : row.delivery.kind === 'bill_keyword'
+              ? KEYWORD_DELIVERY_FEATURE
+              : REPORT_DELIVERY_FEATURE,
           ctx.tenantId,
         ))
       )
