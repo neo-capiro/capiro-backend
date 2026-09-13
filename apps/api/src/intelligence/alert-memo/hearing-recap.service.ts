@@ -83,13 +83,25 @@ export class HearingRecapService {
     const rows = await this.prisma.withTenant(
       ctx.tenantId,
       (tx) =>
-        tx.$queryRaw<Array<{ id: string; title: string }>>`
-        SELECT id, title
+        tx.$queryRaw<
+          Array<{
+            id: string;
+            title: string;
+            recordingPolicy: string;
+            publicCaptureId: string | null;
+            recapsEnabled: boolean;
+          }>
+        >`
+        SELECT id, title, recording_policy::text AS "recordingPolicy",
+          public_capture_id AS "publicCaptureId",
+          EXISTS(SELECT 1 FROM intel_feature_flag f WHERE f.tenant_id=${ctx.tenantId}
+            AND f.feature='legiwatch_hearing_recaps_v1' AND f.enabled) AS "recapsEnabled"
         FROM intel_live_hearing_session
         WHERE id = ${sessionId}
           AND tenant_id = ${ctx.tenantId}
+          AND recording_policy::text <> 'no_storage'
           AND (
-            source_type::text IN ('hearing', 'markup')
+            (source_type::text IN ('hearing', 'markup') AND public_capture_id IS NULL)
             OR created_by = ${ctx.clerkUserId}
           )
         LIMIT 1
@@ -233,6 +245,15 @@ export class HearingRecapService {
       this.clientOrThrow(ctx, clientId),
       this.accessibleSession(ctx, input.sessionId),
     ]);
+    const requireLegacySession = (current: typeof session) => {
+      if (
+        current.recordingPolicy === 'audio_and_transcript' ||
+        current.publicCaptureId ||
+        current.recapsEnabled
+      )
+        throw new ConflictException('APPROVED_HEARING_RECAP_REQUIRED');
+    };
+    requireLegacySession(session);
     const existing = await this.currentRecap(ctx, clientId, input.sessionId);
 
     if (existing && !input.replaceAttachmentId) {
@@ -251,6 +272,7 @@ export class HearingRecapService {
       markdownToMemoDocInput(input.markdown, client.name, input.title),
     );
     const fileName = `${input.title}.docx`.replace(/[\/:*?"<>|]+/g, '-');
+    requireLegacySession(await this.accessibleSession(ctx, input.sessionId));
     const saved = await this.documents.createAttachmentFromBuffer(ctx, {
       clientId,
       fileName,
@@ -317,9 +339,10 @@ export class HearingRecapService {
           AND a.source = 'hearing_recap'
           AND a.superseded_by_attachment_id IS NULL
           AND a.lifecycle_status NOT IN ('delete_pending', 'delete_failed', 'blocked')
+          AND (s.id IS NULL OR s.recording_policy::text <> 'no_storage')
           AND (
             (s.id IS NULL AND a.uploaded_by_user_id = ${ctx.userId}::uuid)
-            OR s.source_type::text IN ('hearing', 'markup')
+            OR (s.source_type::text IN ('hearing', 'markup') AND s.public_capture_id IS NULL)
             OR s.created_by = ${ctx.clerkUserId}
           )
           ${cursorClause}

@@ -69,9 +69,10 @@ run(
     'src/live-hearings/legiwatch-wave1-attendance.spec.ts',
     'src/live-hearings/hearing-publication-inbox-postgres.spec.ts',
     'src/intelligence/alert-memo/approved-hearing-recap.spec.ts',
+    'src/intelligence/alert-memo/hearing-recap-postgres.spec.ts',
     'src/intelligence/alert-memo/hearing-evidence-generation.spec.ts',
   ],
-  [6, 53],
+  [7, 58],
 );
 run(
   'intel-api',
