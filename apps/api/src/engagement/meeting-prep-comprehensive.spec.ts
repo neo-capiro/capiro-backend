@@ -1,5 +1,4 @@
 import {
-  briefingWordCount,
   parseBriefingDraft,
   parseBriefingFacts,
   generateComprehensiveMeetingPrep,
@@ -28,8 +27,16 @@ const fact = {
 };
 
 describe('comprehensive meeting prep', () => {
-  test('increases history, reasoning and wall-clock budgets without changing interactive defaults', () => {
+  test('offers a light standard tier and keeps the two larger searches as deep and max', () => {
     expect(MEETING_PREP_POLICY.standard).toMatchObject({
+      meetings: 10,
+      meetingDays: 90,
+      threads: 15,
+      emailDays: 30,
+      messages: 150,
+      deadlineMs: 3600000,
+    });
+    expect(MEETING_PREP_POLICY.deep).toMatchObject({
       meetings: 25,
       meetingDays: 180,
       threads: 100,
@@ -37,7 +44,7 @@ describe('comprehensive meeting prep', () => {
       messages: 1000,
       deadlineMs: 3600000,
     });
-    expect(MEETING_PREP_POLICY.deep).toMatchObject({
+    expect(MEETING_PREP_POLICY.max).toMatchObject({
       meetings: 100,
       threads: 300,
       emailDays: 365,
@@ -354,10 +361,48 @@ describe('bounded repair delivers the last renderable briefing', () => {
     expect(JSON.parse(repair.userVolatile).reviewFeedback[0]).toContain('1-3 takeaways');
   });
 
-  test('length is repair feedback rather than a rejection', () => {
-    const facts = parseBriefingFacts([extractionFact], [evidence]);
-    const long = renderable([facts[0]!.id]);
-    long.takeaways[0]!.text = 'word '.repeat(3_000);
-    expect(briefingWordCount(parseBriefingDraft(long, facts))).toBeGreaterThan(2_200);
+  test('an extraction batch that keeps truncating is halved instead of failing the job', async () => {
+    const second = { ...evidence, id: 'mail:m2', recordId: 'm2', excerpt: 'Ryan promised the pricing sheet by Monday.' };
+    const secondFact = { ...extractionFact, sourceId: 'mail:m2', text: 'Ryan promised the pricing sheet by Monday.', quote: 'Ryan promised the pricing sheet by Monday.' };
+    const extracted = parseBriefingFacts([extractionFact, secondFact], [evidence, second]);
+    const complete = jest.fn(async (request) => {
+      const payload = JSON.parse(request.userVolatile);
+      if (request.jsonSchemaName.endsWith('extracting')) {
+        if (payload.sources.length > 1) return { ...reply({}), truncated: true, stopReason: 'incomplete' };
+        const facts =
+          payload.sources[0].id === 'mail:m1'
+            ? [extractionFact]
+            : payload.sources[0].id === 'mail:m2'
+              ? [secondFact]
+              : [];
+        return reply({ facts, limitations: [] });
+      }
+      if (request.jsonSchemaName.endsWith('checking_coverage')) return reply({ omittedFactIds: [] });
+      return reply(renderable(extracted.map((fact) => fact.id)));
+    });
+    const runTwo = () =>
+      runWithMeetingGovernedContext(
+        { kind: 'governed_packet', mode: 'prep', meetingId: 'meeting', clientId: null, packetId: 'packet', traceHash: 'trace', modelContextBlock: '', coverage: { complete: true, requestedDomains: ['mail'], searchedDomains: ['mail'], missingDomains: [], partialDomains: [], recordsReturned: 2, paginationComplete: true, truncated: false, stopReason: 'complete' } },
+        () =>
+          withMeetingPrepExecution(
+            { jobId: 'job', depth: 'standard', requestedAt: Date.parse('2026-09-12T15:00:00Z'), deadlineAt: Date.now() + 3600000, signal: new AbortController().signal, checkpoint: jest.fn(), loadCheckpoint: () => undefined, commit: jest.fn() },
+            () =>
+              generateComprehensiveMeetingPrep(
+                { meeting: { id: 'meeting', subject: 'Client strategy', startsAt: '2026-09-12T15:00:00Z' }, client: null, attendees: [], congressionalDirectoryMatches: [], recentMeetings: [], recentThreads: [], tasks: [], evidenceSources: [evidence, second] },
+                { provider: 'openai', apiKey: 'test-only', model: 'gpt-5', usedTenantKey: false } as never,
+                { complete } as never,
+              ),
+          ),
+      );
+    const result = await runTwo();
+    const extractions = complete.mock.calls.filter(([r]) => r.jsonSchemaName.endsWith('extracting'));
+    // The registry always carries the meeting's own record, so the batch holds
+    // three sources: whole batch (initial + full-allowance retry) -> halves
+    // [meeting, m1] (two truncated attempts) and [m2] -> [meeting] and [m1].
+    expect(extractions).toHaveLength(7);
+    expect(extractions[0]![0].maxTokens).toBe(24_576);
+    expect(extractions[0]![0].reasoningEffort).toBe('medium');
+    expect(extractions[1]![0].maxTokens).toBe(32_768);
+    expect(result.briefing?.facts.map((fact) => fact.sourceId).sort()).toEqual(['mail:m1', 'mail:m2']);
   });
 });

@@ -47,7 +47,7 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { EngagementService } from './engagement.service.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
-import { meetingPrepEnabled } from './meeting-prep-policy.js';
+import { MEETING_PREP_DEPTHS, meetingPrepEnabled, type MeetingPrepDepth } from './meeting-prep-policy.js';
 import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
@@ -438,8 +438,8 @@ class RewriteEmailDto {
 
 class GenerateMeetingPrepDto {
   @IsOptional()
-  @IsIn(['standard', 'deep'])
-  depth?: 'standard' | 'deep';
+  @IsIn([...MEETING_PREP_DEPTHS])
+  depth?: MeetingPrepDepth;
 
   @IsOptional()
   @IsString()
@@ -2256,6 +2256,14 @@ export class EngagementController {
   @Post('meeting-preps/:id/approve')
   approvePrep(@CurrentTenant() ctx: TenantContext, @Param('id') prepId: string) {
     return this.service.approveMeetingPrep(ctx, prepId);
+  }
+
+  // The on-screen prep rendered to PDF and stored as a meeting attachment, so
+  // the compose window can email it to teammates through the user's mailbox.
+  @Post('meeting-preps/:id/pdf-attachment')
+  @EngagementRuntimeAction('attachment_external_write')
+  prepPdfAttachment(@CurrentTenant() ctx: TenantContext, @Param('id') prepId: string) {
+    return this.service.createMeetingPrepPdfAttachment(ctx, prepId);
   }
 
   @Get('mail-threads')

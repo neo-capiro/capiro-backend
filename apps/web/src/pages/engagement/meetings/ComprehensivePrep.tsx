@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { MeetingPrep } from './meetings-types.js';
 import { PrepSourceLinks } from './PrepEvidence.js';
-import { usePrepMondayMapping, useComprehensivePrepEnabled } from './meetings-api.js';
+import { usePrepMondayMapping, useComprehensivePrepEnabled, type MeetingPrepDepth } from './meetings-api.js';
 
 export const briefingSectionLabels: Record<string, string> = {
   recentDevelopments: 'Recent developments',
@@ -68,8 +68,8 @@ export function PrepSearchSettings({
 }: {
   meetingId: string;
   clientId: string | null;
-  depth: 'standard' | 'deep';
-  setDepth: (depth: 'standard' | 'deep') => void;
+  depth: MeetingPrepDepth;
+  setDepth: (depth: MeetingPrepDepth) => void;
 }) {
   const enabled = useComprehensivePrepEnabled();
   const { query, save } = usePrepMondayMapping(meetingId, !!clientId && enabled.data === true);
@@ -85,17 +85,18 @@ export function PrepSearchSettings({
         Search depth{' '}
         <select
           value={depth}
-          onChange={(event) => setDepth(event.target.value as 'standard' | 'deep')}
+          onChange={(event) => setDepth(event.target.value as MeetingPrepDepth)}
         >
           <option value="standard">
-            Standard — 25 meetings / 180 days; 100 email threads / 90 days
+            Standard — 10 meetings / 90 days; 15 email threads / 30 days
           </option>
-          <option value="deep">Deep — 100 meetings; 300 email threads / 365 days</option>
+          <option value="deep">Deep — 25 meetings / 180 days; 100 email threads / 90 days</option>
+          <option value="max">Max — 100 meetings; 300 email threads / 365 days</option>
         </select>
       </label>
       <p>
-        Open tasks have no age cutoff. Standard searches have a 1-hour budget; deep searches have
-        2 hours. You can close this page while preparation runs.
+        Open tasks have no age cutoff. Standard and deep searches have a 1-hour budget; max
+        searches have 2 hours. You can close this page while preparation runs.
       </p>
       {query.data && (
         <>

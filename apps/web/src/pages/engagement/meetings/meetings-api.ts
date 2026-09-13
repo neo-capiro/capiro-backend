@@ -367,7 +367,7 @@ export function useGeneratePrep() {
   const api = useApi();
   const qc = useQueryClient();
   const invalidate = useInvalidateMeetings();
-  return useMutation<unknown, Error, { meetingId: string; additionalContext?: string; depth?: 'standard' | 'deep' }>({
+  return useMutation<unknown, Error, { meetingId: string; additionalContext?: string; depth?: MeetingPrepDepth }>({
     mutationFn: async ({ meetingId, additionalContext, depth }) =>
       (
         await api.post(`${BASE}/meetings/${meetingId}/prep`, {
@@ -383,9 +383,11 @@ export function useGeneratePrep() {
   });
 }
 
+export type MeetingPrepDepth = 'standard' | 'deep' | 'max';
+
 export interface MeetingPrepJob {
   jobId: string; meetingId: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-  stage: string; depth: 'standard' | 'deep'; prepId: string | null; errorCode: string | null; deadlineAt: string;
+  stage: string; depth: MeetingPrepDepth; prepId: string | null; errorCode: string | null; deadlineAt: string;
 }
 export function isMeetingPrepJob(value: unknown): value is MeetingPrepJob {
   return !!value && typeof value === 'object' && 'jobId' in value;

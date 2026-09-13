@@ -69,6 +69,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
+import { meetingPrepPdfSections, renderMeetingPrepPdf } from './meeting-prep-pdf.js';
+import { prepMeetingLogistics } from './meeting-prep-grounding.js';
 import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
 import {
   recordAiUsageEvent,
@@ -6438,6 +6440,49 @@ export class EngagementService {
       );
     }
     return approved;
+  }
+
+  /** The prep as the reader sees it on screen — no source appendix — stored as a PDF attachment ready to email. */
+  async createMeetingPrepPdfAttachment(ctx: TenantContext, prepId: string) {
+    const prep = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row = await tx.meetingPrep.findFirst({
+        where: { id: prepId, tenantId: ctx.tenantId },
+        select: {
+          id: true,
+          meetingId: true,
+          clientId: true,
+          summary: true,
+          agenda: true,
+          talkingPoints: true,
+          risks: true,
+          followUps: true,
+          emailEvidence: true,
+          generatedFrom: true,
+          meeting: { select: { subject: true, startsAt: true, timeZone: true } },
+        },
+      });
+      if (!row) throw new NotFoundException('Meeting prep not found');
+      await this.ensureOwnMeeting(tx, ctx, row.meetingId);
+      await assertSavedMeetingPrepAccess(tx, ctx, row.generatedFrom);
+      return row;
+    });
+    const title = `Prep - ${prep.meeting.subject}`;
+    const buffer = await renderMeetingPrepPdf({
+      title,
+      subtitle: prepMeetingLogistics(prep.meeting).formattedTime,
+      sections: meetingPrepPdfSections(prep),
+    });
+    const attachment = await this.createAttachmentFromBuffer(ctx, {
+      clientId: prep.clientId,
+      meetingId: prep.meetingId,
+      fileName: `${title}.pdf`,
+      contentType: 'application/pdf',
+      buffer,
+      source: 'meeting-prep-pdf',
+      sourceEntityType: 'meeting_prep',
+      sourceEntityId: prep.id,
+    });
+    return { id: attachment.id, fileName: attachment.fileName };
   }
 
   private async directoryProfilesForMeeting(

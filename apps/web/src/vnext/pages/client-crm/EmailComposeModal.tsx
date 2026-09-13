@@ -117,6 +117,14 @@ export interface EmailComposeModalProps {
    * nothing at all.
    */
   identityUnconfirmed?: boolean;
+  /** Attachments already prepared for this email (e.g. a rendered prep PDF): shown as chips and sent. */
+  initialAttachments?: Array<{ id: string; fileName: string }>;
+  /**
+   * Whose roster `orgContacts` is. 'client' (default) records the picked
+   * ClientPerson ids on send; 'team' is the user's own teammates, who have no
+   * ClientPerson record, so nothing is recorded and the copy says so.
+   */
+  recipientDirectory?: 'client' | 'team';
   /** Fires after a confirmed send so callers can invalidate their own queries. */
   onSent?: () => void;
 }
@@ -133,6 +141,8 @@ export function EmailComposeModal({
   defaultSubject,
   defaultCc,
   identityUnconfirmed = false,
+  initialAttachments,
+  recipientDirectory = 'client',
   onSent,
 }: EmailComposeModalProps) {
   const api = useApi();
@@ -159,6 +169,7 @@ export function EmailComposeModal({
 
   const toKey = to.map((r) => r.email).join(',');
   const defaultCcKey = (defaultCc ?? []).map((r) => r.email).join(',');
+  const initialAttachmentsKey = (initialAttachments ?? []).map((a) => a.id).join(',');
   useEffect(() => {
     if (open) {
       const ccEmails = (defaultCc ?? []).map((r) => r.email).join(', ');
@@ -173,11 +184,11 @@ export function EmailComposeModal({
       setBodyHtml('');
       setPreRewriteBodyHtml(null);
       setRewriteNote(null);
-      setAttachments([]);
+      setAttachments(initialAttachments ?? []);
       setAttachRefusal(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, toKey, threadId, defaultCcKey]);
+  }, [open, toKey, threadId, defaultCcKey, initialAttachmentsKey]);
 
   // Contacts not already selected — and searchable, since an org roster on a
   // large client account can run long.
@@ -268,9 +279,12 @@ export function EmailComposeModal({
 
   const send = useMutation({
     mutationFn: () => {
-      const personIds = selectedTo
-        .map((r) => orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id)
-        .filter((id): id is string => Boolean(id));
+      const personIds =
+        recipientDirectory === 'team'
+          ? []
+          : selectedTo
+              .map((r) => orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id)
+              .filter((id): id is string => Boolean(id));
       return sendSingleMail(api, {
         clientId,
         personIds: personIds.length ? personIds : undefined,
@@ -385,14 +399,22 @@ export function EmailComposeModal({
                 setRecipientSearch('');
               }}
               options={addableContacts}
-              placeholder="Search this client's contacts…"
+              placeholder={
+                recipientDirectory === 'team'
+                  ? 'Search your teammates…'
+                  : "Search this client's contacts…"
+              }
               searchValue={recipientSearch}
               onSearchChange={setRecipientSearch}
               searchPlaceholder="Search by name or email…"
               emptyMessage={
                 otherContacts.length === 0
-                  ? 'No other contacts on file for this client'
-                  : 'Everyone on file is already added'
+                  ? recipientDirectory === 'team'
+                    ? 'No other teammates found'
+                    : 'No other contacts on file for this client'
+                  : recipientDirectory === 'team'
+                    ? 'Everyone on your team is already added'
+                    : 'Everyone on file is already added'
               }
               leadingIcon={<DashboardIcon name="Users01" size={16} />}
             />
