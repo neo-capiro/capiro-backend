@@ -275,7 +275,7 @@ export function createGeneratePostHearingSummaryTool(
           prompt,
           toolName: 'submit_hearing_claims',
           toolDescription:
-            'Return the unofficial draft with a final transcript reference for every claim.',
+            'Return the unofficial draft with a final transcript reference for every claim. Prefer observation claims for summaries. A quote must be copied from one referenced segment exactly, including case and punctuation, without added quotation marks. Never join transcript fragments into a quote; summarize them as an observation citing every relevant segment. Do not repair transcription errors inside quotes.',
           inputSchema: {
             type: 'object',
             additionalProperties: false,
