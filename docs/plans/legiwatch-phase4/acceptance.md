@@ -1,49 +1,29 @@
 # Phase 4 acceptance evidence
 
-Implementation, tests, deployment, activation and client acceptance are separate.
-An entry remains pending until its evidence is linked here.
+Checkpoint: September 13, 2026, 03:02 UTC. Implementation, qualification, deployment, activation and client acceptance are separate. The entire phase is not accepted.
 
-| Gate | Status | Evidence |
+The qualified runtime source is `e85dad394ba473e572e1d0d49886d74531c713b8`, tree `7428ec999fd874f6dae9883d2e71c2a5fc53746d`. CI follow-up `76305bf284bbbcab7d8f2d118508715b6878ee14` adds the Phase 4 runner, FFmpeg and disposable-database settings to GitHub Actions and changes no application runtime source.
+
+| Gate | Status | Evidence and limits |
 | --- | --- | --- |
-| Evidence integrity and Phase 3 baseline | Verified | 45 manifest hashes/sizes; merged PR #1607; isolated current-main branch |
-| Additive migrations and RLS | Pending | Disposable PostgreSQL required |
-| Durable browser audio, reopen and seek | Pending | Real decoded retained media required |
-| Four-hour browser capture | Pending | Actual elapsed >=4 hours; simulated time is insufficient |
-| Four-hour unattended capture | Pending | Separate worker run, viewer closed, fencing and recovery |
-| Source permission and state bridge | Pending | Source-specific evidence and exact event/session identity |
-| Reviewed email and delivery races | Pending | Current audience, immutable evidence and authorized receipt |
-| SMS consent, suppression and receipt | Pending | Purpose-bound verification plus account readiness |
-| Versioned unofficial recap and export | Pending | Every factual claim resolves; approved bytes preserved |
-| Figma, accessibility and browser regression | Pending | Product-file Phase 4 states and implementation screenshots |
-| Release, rollback and client acceptance | Pending | Exact images/tasks, qualified activation and owner acceptance |
+| Input integrity and Phase 3 ancestry | Verified | All 45 package hashes/sizes; Phase 3 squash merge `e118400`; main through `285d848` |
+| Owner migrations and application privileges | Passed | Complete local owner/default-ACL rehearsal; four real application-role tests; live API migration task revision 114 then Intel revision 7 exited zero. Read-only live audit confirms `capiro_master` ownership and denied application source-grant expansion/history deletion |
+| Native release qualification | Passed | CodeBuild `72d43256-c1cd-4ae8-a5a8-0f2f816568b2` succeeded. Exact raw source tree and native ARM64 verified; full scoped API 1,045, Intel 768, web 809 tests; separate Phase 4 API 58, Intel 100, web 65 tests; zero failures/skips. Storage-policy isolation: three passing tests |
+| Durable browser audio, interruption and playback | Short local product-page proof passed | Actual shared React page and native Chrome tab capture; real gateway, S3 and Deepgram; 203.806 seconds, deliberately rejected initial transcription connection, page closure/re-share, 16 finals, two playable epochs and 1.5 speed. Fixture identity/read hooks replace deployed authorization |
+| Browser background defaults | Not accepted from local runs | Historical metadata incorrectly said browser defaults while Playwright background overrides remained. The deployed launcher removes those overrides. A fresh deployed run is required |
+| Four-hour browser | Not passed | Latest local run failed at 7,609.697 seconds when the disposable database environment disappeared. Replacement deployed run is held pending a consistent API release |
+| Short native server recovery | Passed within fixture scope | ECS task `e4fc1a78138e4d059f6b716b3edad89d`; pinned release image, isolated PostgreSQL sidecar, real FFmpeg/Deepgram/S3, two tenants and one capture; 184.967 seconds elapsed, 169.765 seconds saved media, 10.094-second process gap, 45 finals, six decoded samples and hashed exported evidence |
+| Four-hour server | Running; not accepted yet | ECS task `50381b822815431e947ad2391b012546`, owned WAV adapter, 250-minute target from about 02:40:32 UTC. Planned 16-minute silent recess and 90-minute process interruption. Local failed runs are not combined with it |
+| Active stop controls | Local five-case proof passed; native checks underway | Local source/demand/tenant/runtime/cancel process stops measured 4.594–7.067 seconds. Separate native source, last-demand and tenant withdrawals measured 129, 98 and 150 ms. These measure process stop, not a terminal canonical capture disposition or a latency percentile |
+| Source-qualified state unattended capture | Unqualified externally | Exact state/event/session and two-tenant/one-capture boundaries pass fixtures. Owned WAV injection does not qualify the guarded resolver, real broadcast mapping, provider agreement or production source schedule. Florida sources remain link-only |
+| Reviewed updates and recap integrity | Implementation and DB qualification passed | Persisted finals, claim evidence, private context, immutable versions/hashes, corrections, current permissions and audience/delivery races. Actual deployed generation, approval and delivery remain held |
+| Documents and DOCX | Local renderer passed; deployed indexing pending | Actual approved synthetic recap rendered deterministically through the existing API renderer; one page visually inspected. This does not prove deployed Documents/Meri indexing or a client hearing |
+| Email and SMS receipt | Unqualified | Existing SES/SNS adapters reused. No outward messages or OTPs sent. SNS remains sandboxed with no verified destination; client/purpose consent, authorized recipient and actual receipt remain separate gates |
+| Figma and UI | Design and local component checks passed; deployed read smoke passed | Desktop live/ready/recovery/recap and narrow Figma states; ten 1440/390-pixel synthetic component scenes without errors/overflow. Real deployed Clerk hearing list passed at 02:59 UTC with 28 existing sessions and no errors/overflow |
+| Deployment consistency | Held on concurrent API replacement | API/Intel/Meri/web initially rolled to qualified images; 17 worker rules updated with timing/input/state preserved; two new schedules disabled. A competing AWS CLI deployment replaced API 331 with 333, tagged earlier main, at 02:45:55 UTC. Its startup log lacks the approved-recap route. Current health is not Phase 4 compatibility |
+| Internal activation, rollback and client acceptance | Pending | New tenant flags and new worker switches remain off. Pilot activation requires all backends/UI to match the qualified release. No client acceptance claimed |
+| GitHub checks and merge | Blocked by account state | GitHub reports account billing/spending-limit failure before jobs start. PR #1616 remains draft; native results do not relabel failed GitHub checks |
 
-## Incremental local evidence (not release acceptance)
+Native stop tests and the long server run use independent disposable databases and exact owned sources. No live source grant, real client capture, imported audience or external recipient was activated. Runtime metadata from the lost local Docker databases is unavailable; surviving raw S3 objects do not constitute a recovered manifest. Their exact owned prefixes are inventoried for scoped cleanup after evidence preservation.
 
-- API state attendance/federal regression: 46 tests passed; four new scoped state
-  permission tests passed.
-- Real PostgreSQL state media/demand plus FFmpeg runtime: eight tests passed,
-  including two tenants/one capture, current permission, cancellation, gap denial
-  and immutable storage retry.
-- Recording/publication PostgreSQL: 19 tests passed at the preceding checkpoint;
-  subsequent playback revocation assertions are awaiting their next run.
-- Existing API inbox integration: two tests passed, including two independent
-  concurrent clients, immutable version/hash, actual internal user UUID,
-  wrong owner and removed membership. The first attempt hit the local client's
-  two-second transaction-start deadline; the rerun uses independent clients with
-  bounded ten-second fixture transaction settings.
-- Approved document tests: five passed, including deterministic DOCX bytes,
-  hash/client matching and permission withdrawal before attachment write.
-- API full typecheck, Intel typecheck, web typecheck and Meri build passed at the
-  preceding checkpoint; later edits require another final check.
-- Both four-hour gates remain pending. The first server long run failed; its
-  replacement began at 22:09:25.805 UTC. Details and honest fixture limitations
-  are recorded in the engineering note.
-
-No messages, hearing captures or Phase 4 production mutations have been performed
-at this baseline checkpoint.
-
-## Connected implementation checkpoint
-
-The scoped phase-four qualification runner completed locally with no failures or skips: API 53 tests, Intel 94 tests, web 59 tests. The separate gateway startup fix adds two tested cases (provider error and start timeout), bringing that gateway suite to 25 tests. The canonical server publication path and actual approved synthetic DOCX rendering are covered; deployed indexing and delivery are not yet accepted. Source/demand/tenant/runtime/capture stop measurements all remain below 30 seconds (see the engineering note for exact values).
-
-The earlier 250-minute browser attempt failed at about 115 minutes and cannot satisfy the long-run gate. The server run continues after one unplanned storage interruption. The first native build was stopped to incorporate the newly observed browser startup fix. Neither four-hour gate is accepted at this checkpoint.
+Engineering history and current release details are in [engineering-note.md](engineering-note.md). Recovery and activation procedures are in [operator-runbook.md](operator-runbook.md). Design reference: [Phase 4 hearing room](https://www.figma.com/design/2aa9ipR2qOfumaixZErCfU?node-id=1440-2620). Selected owned results, renderings and screenshots are also delivered in the execution evidence package; secrets, signed URLs and historical client account captures are excluded.
