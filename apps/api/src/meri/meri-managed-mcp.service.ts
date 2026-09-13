@@ -42,8 +42,9 @@ function strings(value: unknown): string[] {
 }
 
 function serverPrefix(name: string): string {
-  const probe = bridgedToolName(name, '__managed_probe__');
-  return probe.slice(0, probe.lastIndexOf('__') + 2);
+  // Use the namespace itself; a probe containing '__' makes the suffix look
+  // like another separator and excludes every real provider tool.
+  return bridgedToolName(name, '');
 }
 
 function globalMcpEnabled(): boolean {

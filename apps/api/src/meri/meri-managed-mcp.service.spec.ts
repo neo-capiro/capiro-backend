@@ -1,6 +1,9 @@
+import { bridgeMcpTool, type BridgedTool } from './meri-mcp.helpers.js';
 import type { TenantContext } from '@capiro/shared';
 import { MeriManagedMcpService } from './meri-managed-mcp.service.js';
 import {
+  MANAGED_MCP_APPS,
+  type MeriV3ManagedAppId,
   MERIV3_AIRTABLE_CATALOG_ID,
   MERIV3_AIRTABLE_ENDPOINT,
   MERIV3_HUBSPOT_CATALOG_ID,
@@ -34,7 +37,7 @@ function make() {
     discoverTools: jest.fn(async () => 2),
     deleteServer: jest.fn(async () => ({ deleted: true })),
     invalidate: jest.fn(),
-    bridgedSchemasFor: jest.fn(async () => []),
+    bridgedSchemasFor: jest.fn(async (): Promise<BridgedTool[]> => []),
     isBridgedToolReadOnly: jest.fn(() => true),
     executeBridged: jest.fn(async () => ({ ok: true })),
   };
@@ -343,5 +346,68 @@ describe('MeriManagedMcpService', () => {
     await expect(
       service.executeRead(ctx, 'mcp__meriv3_hubspot__create_contact', {}),
     ).rejects.toThrow('Connected-app tool is unavailable or not read-only.');
+  });
+});
+
+describe('connected managed app tool exposure', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      CLIO_MCP_ENABLED: 'true',
+      MERI_MCP_HUBSPOT_ENABLED: 'true',
+      MERI_MCP_HUBSPOT_CLIENT_ID: 'id',
+      MERI_MCP_HUBSPOT_CLIENT_SECRET: 'secret',
+      MERI_MCP_AIRTABLE_ENABLED: 'true',
+      MERI_MCP_MONDAY_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_ID: 'id',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_SECRET: 'secret',
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_USER_IDS: ctx.userId,
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_TENANT_IDS: ctx.tenantId,
+    };
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+  test.each<[MeriV3ManagedAppId, string]>([
+    ['hubspot', 'search_crm_objects'],
+    ['airtable', 'list_bases'],
+    ['monday', 'get_board_info'],
+    ['google-drive', 'search_files'],
+  ])('%s exposes its real bridged read schema and can execute it', async (appId, tool) => {
+    const { service, mcp, tx } = make();
+    const app = MANAGED_MCP_APPS[appId];
+    const row = {
+      id: 'connected-server',
+      tenantId: ctx.tenantId,
+      ownerUserId: ctx.userId,
+      name: app.catalogId,
+      catalogId: app.catalogId,
+      endpoint: app.endpoint,
+      scope: 'user',
+      authType: 'oauth',
+      transport: 'http',
+      enabled: true,
+      connectionStatus: 'connected',
+      toolAllowlist: [tool],
+      readOnlyTools: [tool],
+    };
+    tx.clioMcpServer.findMany.mockResolvedValue([row]);
+    tx.clioMcpServer.findFirst.mockResolvedValue(row);
+    const schema = bridgeMcpTool(app.catalogId, {
+      name: tool,
+      inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
+    });
+    const foreign = bridgeMcpTool('another-connector', { name: tool });
+    mcp.bridgedSchemasFor.mockResolvedValue([schema, foreign]);
+    expect(await service.schemasForMeriV3(ctx)).toEqual([
+      { ...schema, source: 'managed_mcp', appId, appName: app.name, readOnly: true },
+    ]);
+    await expect(
+      service.executeRead(ctx, schema.name, { query: 'fixture' }),
+    ).resolves.toBeDefined();
+    expect(mcp.executeBridged).toHaveBeenCalled();
+    await expect(service.executeRead(ctx, foreign.name, {})).rejects.toThrow();
   });
 });
