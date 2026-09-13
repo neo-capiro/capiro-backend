@@ -22,6 +22,11 @@
 .hearing-records p {
   margin: 8px 0;
 }
+.hearing-records code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .hearing-records header,
 .hr-toolbar,
 .hr-brief-head {
