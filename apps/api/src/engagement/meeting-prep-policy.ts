@@ -1,6 +1,6 @@
 /** Operation-local budgets. Never raise the timeout of unrelated interactive tools. */
 export const MEETING_PREP_POLICY = {
-  version: 'comprehensive-prep-v3',
+  version: 'comprehensive-prep-v4',
   standard: {
     meetings: 25,
     meetingDays: 180,
@@ -31,7 +31,7 @@ export const MEETING_PREP_POLICY = {
   leaseMs: 90_000,
   outputTokens: 32_768,
   retryOutputTokens: 49_152,
-  extractionTokens: 8_192,
+  extractionTokens: 24_576,
   evidenceTokens: 64_000,
   maxRepairPasses: 2,
 } as const;

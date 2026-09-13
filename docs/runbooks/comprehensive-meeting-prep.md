@@ -4,7 +4,7 @@ Implementation date: 2026-09-12. Release posture: **disabled by default; staging
 
 ## User outcome
 
-Meeting Prep and Meri's `create_meeting_brief` use the same durable job and saved briefing. The briefing targets about 1,000–1,600 words, with up to three takeaways and seven sections:
+Meeting Prep and Meri's `create_meeting_brief` use the same durable job and saved briefing. The briefing has no fixed length — it runs as long as the record requires — with up to three takeaways and seven sections:
 
 1. Recent client or issue developments.
 2. Important email exchanges.
@@ -36,10 +36,10 @@ The pipeline extracts facts in batches, synthesizes the briefing, checks the ent
 
 Budgets are operation-local in `apps/api/src/engagement/meeting-prep-policy.ts`:
 
-- Extraction: 8,192 output tokens and up to 10 minutes per batch; at most three concurrent calls.
+- Extraction: 24,576 output tokens at medium reasoning effort and up to 10 minutes per batch; at most three concurrent calls. A batch whose answer is still truncated after retrying at the full output allowance is halved and re-extracted rather than failing the job.
 - Synthesis: 32,768 output-token allowance and up to 20 minutes.
 - Coverage review: up to 10 minutes per batch. Repairs may use up to 49,152 output tokens when the configured model supports it.
-- Provider truncation: one bounded larger-output retry when context/output capacity permits; never save truncated output as completed.
+- Provider truncation: a truncated answer is retried with the full configured output allowance, then once more at medium reasoning effort (reasoning models spend the allowance on thinking first); never save truncated output as completed.
 - Monday reads: up to 45 seconds per call, bounded by the retrieval/job deadline.
 - Retrieval/extraction reserve downstream time; persistence retains a 15-second reserve.
 - Evidence packing uses conservative UTF-8 byte upper bounds, not an exact tokenizer. The 64,000 evidence budget therefore usually contains fewer than 64,000 actual tokens.
