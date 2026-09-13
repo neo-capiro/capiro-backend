@@ -45,7 +45,13 @@ interface AssistantInternals {
   ) => { input: Record<string, unknown>; scopeViolation?: string };
 }
 
-const MANAGED_PREFIXES = ['mcp__meriv3_hubspot__', 'mcp__meriv3_airtable__'] as const;
+const MANAGED_APP_NAMES = {
+  meriv3_hubspot: 'HubSpot',
+  meriv3_airtable: 'Airtable',
+  meriv3_monday: 'monday.com',
+  meriv3_google_drive: 'Google Drive',
+} as const;
+const MANAGED_PREFIXES = Object.keys(MANAGED_APP_NAMES).map((server) => `mcp__${server}__`);
 
 const VISUAL_ANALYSIS_GUIDANCE = [
   'Use run_analysis as Meri’s quantitative analyst after retrieving real numeric rows from Capiro or a connected app.',
@@ -68,12 +74,7 @@ function isManagedTool(name: string): boolean {
 function managedLabel(name: string): string {
   const parts = name.split('__');
   const server = (parts[1] ?? '').toLowerCase();
-  const app =
-    server === 'meriv3_hubspot'
-      ? 'HubSpot'
-      : server === 'meriv3_airtable'
-        ? 'Airtable'
-        : 'Connected app';
+  const app = MANAGED_APP_NAMES[server as keyof typeof MANAGED_APP_NAMES] ?? 'Connected app';
   const tool = parts.slice(2).join(' ').replace(/_/g, ' ');
   const toolTitle = tool.replace(/\b\w/g, (char) => char.toUpperCase());
   return `${app}: ${toolTitle}`.trim();
