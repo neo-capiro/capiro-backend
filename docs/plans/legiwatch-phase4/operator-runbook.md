@@ -1,10 +1,10 @@
 # LegiWatch Phase 4 operations
 
-Current release coordination (September 13, 05:08 UTC): preserve API 335's meeting-preparation fix through merged candidate `63dc1139c`; do not restore API 331 over it. Qualify the combined API image and refresh the service baseline before rollout. Restricted recording-only controls and their HTTPS source transition are separate from full publication/Documents/delivery activation. WAF rejected the local source as SSRF; qualify the actual private S3 HTTPS page without changing WAF. Use timestamped owner and EventBridge proofs for current state. All inactive local fixture versions were archived and their exact prefixes cleared; do not rerun broad cleanup or touch active ECS/deployed recordings.
+Current release coordination (September 13, 06:22 UTC): API 336/Intel 35/Web 276/Meri 45 are healthy with separately qualified immutable sources. Preserve API63dc's later main fix. The full owned HTTPS recording/update/recap pilot and both schedules are active; external channels and public/state capture remain off. The 250-minute browser run started 05:59:39 UTC and must complete on its frozen web/Intel runtime; do not redeploy Intel or disable/revoke its controls. Meri-only quote clarification is separately qualifying. The saved-clock web image may be prepared but its deployment requires completed long retained media. Refer to the current engineering note and timestamped sealed release plans; the 03:02 coordination table below is historical. Do not rerun broad cleanup or touch active recordings.
 
 This runbook separates code deployment from tenant/source/channel activation. Consult the accompanying release record for the actual source SHA, immutable images, task definitions, worker targets and validation times. Do not substitute a mutable image tag. The initial release keeps new Phase 4 capabilities disabled.
 
-## Current release and coordination gate
+## Historical release and coordination gate — 03:02 UTC
 
 At September 13, 03:02 UTC, native runtime `e85dad394ba473e572e1d0d49886d74531c713b8` passed qualification and all four image builds. API owner migration revision 114 then Intel owner migration revision 7 completed successfully. Live ownership and application privileges were verified. CI follow-up `76305bf28` changes no application runtime source.
 
