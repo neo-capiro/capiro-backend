@@ -4742,6 +4742,7 @@ model SourceDocument {
   defenseBudgetObservations        DefenseBudgetSourceObservation[]        @relation("DefenseBudgetObservationSource")
   // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
   bundleMemberBindings             DefenseBudgetSourceBundleMember[]
+  reextractionOperations           BudgetReextractionOperationV1[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -11510,6 +11511,8 @@ model BudgetExtractionCandidateV1 {
   /// Phase 10B-35c: present when this candidate IS the correction of an
   /// earlier one (at most one, enforced by a unique index on the link table).
   corrects          BudgetCandidateCorrectionV1? @relation("CandidateCorrectionNew")
+  reextractionSourceOperations BudgetReextractionOperationV1[] @relation("ReextractionOldCandidate")
+  reextractionResultOperations BudgetReextractionOperationV1[] @relation("ReextractionResultCandidate")
 
   @@unique([cycleId, manifestContentSha256, manifestDocumentKey, sourceDocumentId, sourceSha256, extractionArtifactId, extractionArtifactSha256, verifierVersion, policyVersion, policySha256], map: "budget_v1_candidate_identity_key")
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
@@ -11546,6 +11549,8 @@ model BudgetVerificationRunV1 {
   discrepancies     BudgetVerificationDiscrepancyV1[]
   reviewDecisions   BudgetReviewDecisionV1[]
   scopedFactReviews BudgetScopedFactReviewV1[]
+  reextractionSourceOperations BudgetReextractionOperationV1[] @relation("ReextractionOldRun")
+  reextractionResultOperations BudgetReextractionOperationV1[] @relation("ReextractionResultRun")
 
   @@index([candidateId, createdAt], map: "budget_v1_run_candidate_idx")
   @@map("budget_verification_run_v1")
@@ -12808,6 +12813,7 @@ model DefenseBudgetCycle {
   observations    DefenseBudgetSourceObservation[]
   outbox          DefenseBudgetIngestionOutbox[]
   signals         DefenseBudgetLifecycleSignal[]
+  reextractionOperations BudgetReextractionOperationV1[]
 
   // Cycle identity is (fiscalYear, authorityTrack). This unique constraint is
   // what makes "authorization and appropriations never overwrite each other"
@@ -13079,6 +13085,7 @@ model DefenseBudgetIngestionOutbox {
 
   observation DefenseBudgetSourceObservation @relation(fields: [observationId, observationState], references: [id, observationState], onDelete: Restrict, onUpdate: Cascade)
   cycle       DefenseBudgetCycle             @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reextractionOperations BudgetReextractionOperationV1[]
 
   // A changed source queues EXACTLY ONE job; a repeated observation or a
   // concurrent worker collides here instead of double-enqueueing.
@@ -13087,6 +13094,45 @@ model DefenseBudgetIngestionOutbox {
   @@index([state, availableAt], map: "defense_budget_ingestion_outbox_ready_idx")
   @@index([cycleId], map: "defense_budget_ingestion_outbox_cycle_idx")
   @@map("defense_budget_ingestion_outbox")
+}
+
+/// A named, resumable same-cycle REVIEW re-extraction. Request/snapshot and
+/// terminal results are immutable; SQL owns the lease, append-only checkpoint,
+/// and active-source uniqueness guards. Original candidate/outbox stay intact.
+model BudgetReextractionOperationV1 {
+  id                      String @id @db.Uuid
+  outboxRowId             String @map("outbox_row_id") @db.Uuid
+  oldCandidateId          String @map("old_candidate_id") @db.Uuid
+  oldVerificationRunId    String @map("old_verification_run_id") @db.Uuid
+  cycleId                 String @map("cycle_id") @db.Uuid
+  sourceDocumentId        String @map("source_document_id") @db.Uuid
+  sourceSha256            String @map("source_sha256") @db.Char(64)
+  requestHash             String @map("request_hash") @db.Char(64)
+  request                 Json @map("request_jsonb")
+  snapshot                Json @map("snapshot_jsonb")
+  status                  String @default("running")
+  leaseToken              String? @map("lease_token") @db.Uuid
+  leasedUntil             DateTime? @map("leased_until") @db.Timestamptz(6)
+  attempts                Int @default(1)
+  verificationCorrelations Json @default("[]") @map("verification_correlations_jsonb")
+  terminal                Json? @map("terminal_jsonb")
+  closure                 Json? @map("closure_jsonb")
+  candidateId             String? @map("candidate_id") @db.Uuid
+  verificationRunId       String? @map("verification_run_id") @db.Uuid
+  lastError               String? @map("last_error")
+  createdAt               DateTime @default(dbgenerated("clock_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime @default(dbgenerated("clock_timestamp()")) @map("updated_at") @db.Timestamptz(6)
+
+  outbox DefenseBudgetIngestionOutbox @relation(fields: [outboxRowId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  oldCandidate BudgetExtractionCandidateV1 @relation("ReextractionOldCandidate", fields: [oldCandidateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  oldRun BudgetVerificationRunV1 @relation("ReextractionOldRun", fields: [oldVerificationRunId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cycle DefenseBudgetCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  candidate BudgetExtractionCandidateV1? @relation("ReextractionResultCandidate", fields: [candidateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  run BudgetVerificationRunV1? @relation("ReextractionResultRun", fields: [verificationRunId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([status, leasedUntil], map: "budget_reextraction_operation_v1_claim_idx")
+  @@map("budget_reextraction_operation_v1")
 }
 
 model DefenseBudgetLifecycleSignal {

@@ -92,6 +92,8 @@ export interface PersistedRunV1 {
   status: string;
   route: string;
   riskScore: number;
+  /** Production returns the immutable winner, including exact replay races. */
+  resultSnapshot?: unknown;
 }
 
 export interface PersistedReviewDecisionV1 {

@@ -86,11 +86,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { evaluateBridgeEligibility, SOURCE_BYTES_CHANGED } from '@capiro/defense-domain';
 
 import { DocumentRegistrar } from './document-registrar.js';
+import {
+  observationIngestionStageReportV1,
+  type ObservationIngestionStageReportV1,
+} from './observation-ingestion-stage-report-v1.js';
 import { routingForSourceFamily } from './parser-router/source-family-routing.js';
 import type {
   ObservationBridgeStore,
   ObservationByteFetchPort,
   ParserHandoffPort,
+  ParserHandoffResult,
   SourceDocumentArchiveReadPort,
   VerifierDecision,
 } from './observation-ingestion-bridge.ports.js';
@@ -142,9 +147,12 @@ export interface ObservationIngestionBridgeResult {
   readonly parserHandoffError: string | null;
   /** The Phase 2 verifier's terminal decision, or null if handoff never resolved one. */
   readonly verifierDecision: VerifierDecision | null;
+  /** Additive operator reporting; never used for ingestion success or readiness routing. */
+  readonly stageReport?: ObservationIngestionStageReportV1;
 }
 
 interface DownstreamOutcome {
+  readonly handoff?: ParserHandoffResult;
   readonly parserHandoffInvoked: boolean;
   readonly parserHandoffError: string | null;
   readonly verifierDecision: VerifierDecision | null;
@@ -557,6 +565,7 @@ export class ObservationIngestionBridgeService {
       // evidence was durably persisted — treat exactly like a transient
       // failure, never as a governed REVIEW/REJECT disposition.
       return {
+        handoff: parserHandoffResult,
         parserHandoffInvoked: true,
         parserHandoffError: null,
         verifierDecision: 'UNKNOWN',
@@ -583,6 +592,7 @@ export class ObservationIngestionBridgeService {
           : `verification deterministically rejected (artifact: ${parserHandoffResult.artifactLocator})`;
 
     return {
+      handoff: parserHandoffResult,
       parserHandoffInvoked: true,
       parserHandoffError: null,
       verifierDecision: decision,
@@ -637,6 +647,11 @@ export class ObservationIngestionBridgeService {
       parserHandoffInvoked: downstream?.parserHandoffInvoked ?? false,
       parserHandoffError: downstream?.parserHandoffError ?? null,
       verifierDecision: downstream?.verifierDecision ?? null,
+      stageReport: observationIngestionStageReportV1({
+        sourceDocumentBound: input.sourceDocumentBound,
+        durableEvidencePersisted,
+        handoff: downstream?.handoff ?? null,
+      }),
     };
   }
 }

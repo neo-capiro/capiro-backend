@@ -23,7 +23,11 @@ import { PrismaObservationBridgeStore } from '../src/defense-budget/prisma-obser
 import { HttpsObservationByteFetchAdapter } from '../src/defense-budget/https-observation-byte-fetch.adapter.js';
 import { S3SourceDocumentArchiveReadAdapter } from '../src/defense-budget/s3-source-document-archive-read.adapter.js';
 import { DefaultParserHandoffAdapter } from '../src/defense-budget/default-parser-handoff.adapter.js';
-import { ObservationIngestionBridgeService } from '../src/defense-budget/observation-ingestion-bridge.service.js';
+import {
+  ObservationIngestionBridgeService,
+  type ObservationIngestionBridgeStatus,
+} from '../src/defense-budget/observation-ingestion-bridge.service.js';
+import type { ObservationIngestionStageReportV1 } from '../src/defense-budget/observation-ingestion-stage-report-v1.js';
 import { createIngestionOutboxDrainRepositoryPrismaV1 } from '../src/defense-budget/ingestion-outbox-drain-repository-prisma-v1.js';
 import {
   drainIngestionOutboxBatchV1,
@@ -88,9 +92,28 @@ async function main(): Promise<void> {
       archiveReader,
     );
     const readinessPorts = buildCycleFamilyReadinessPorts(prisma, { domain, environment });
+    const ingestionStages: {
+      observationId: string;
+      sourceDocumentId: string | null;
+      bridgeStatus: ObservationIngestionBridgeStatus;
+      ingestionSucceeded: boolean;
+      stages: ObservationIngestionStageReportV1 | null;
+    }[] = [];
     const workerPorts: IngestionOutboxDrainWorkerPortsV1 = {
       repository: createIngestionOutboxDrainRepositoryPrismaV1(prisma),
-      bridge,
+      bridge: {
+        async bridge(observationId) {
+          const outcome = await bridge.bridge(observationId);
+          ingestionStages.push({
+            observationId,
+            sourceDocumentId: outcome.sourceDocumentId,
+            bridgeStatus: outcome.status,
+            ingestionSucceeded: outcome.ingestionSucceeded,
+            stages: outcome.stageReport ?? null,
+          });
+          return outcome;
+        },
+      },
       async loadObservationScope(observationId) {
         const row = await prisma.defenseBudgetSourceObservation.findUnique({
           where: { id: observationId },
@@ -141,6 +164,10 @@ async function main(): Promise<void> {
         {
           safety:
             'Stops at awaiting_authorization; no authorization or canonical execution occurs.',
+          // Stages describe bridge evidence, independently of the worker's
+          // lease/outbox outcome. In particular REVIEW may be persisted with
+          // an extraction artifact while ingestionSucceeded remains false.
+          ingestionStages,
           parserRuntimeBlocker: PARSER_ARTIFACT_STORAGE_RUNTIME_GAP,
           domain,
           environment,

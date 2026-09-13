@@ -19,7 +19,7 @@ import type {
   ArtifactVerificationInputV1,
   VerificationContextV1,
 } from '../verification-input-v1.js';
-import type { BudgetVerificationRepositoryV1 } from '../persistence/verification-repository.js';
+import type { BudgetVerificationRepositoryV1, PersistedCandidateV1, PersistedRunV1 } from '../persistence/verification-repository.js';
 import type { CandidateIdentityV1 } from '../persistence/verification-repository.js';
 import { computePolicySha256, mergeManifestWithPolicy } from '../verification-policy-v1.js';
 import { lookupPolicyForManifestDocument } from '../authority-policy-resolution.js';
@@ -103,7 +103,11 @@ export class BudgetVerificationV1Service {
     if (this.repository) {
       const existing = await this.repository.findTerminalRunByIdentity(candidateIdentity);
       if (existing && existing.run.resultSnapshot) {
-        return defenseBudgetVerificationResultV1Schema.parse(existing.run.resultSnapshot);
+        return {
+          ...defenseBudgetVerificationResultV1Schema.parse(existing.run.resultSnapshot),
+          candidateId: existing.candidate.id,
+          verificationRunId: existing.run.id,
+        };
       }
     }
 
@@ -278,14 +282,31 @@ export class BudgetVerificationV1Service {
         // at verification time.
         artifact: resolution.artifact,
       });
-      return {
-        ...result,
-        candidateId: persisted.candidate.id,
-        verificationRunId: persisted.run.id,
-      };
+      return this.persistedResult(result, persisted);
     }
 
     return result;
+  }
+
+  private persistedResult(
+    computed: DefenseBudgetVerificationResultV1,
+    persisted: { candidate: PersistedCandidateV1; run: PersistedRunV1 },
+  ): DefenseBudgetVerificationResultV1 {
+    // A concurrent verifier may have committed a different decision/evidence
+    // set for this identity. Return its immutable result, with the actual row
+    // IDs, rather than attaching the winner's IDs to the losing evaluation.
+    const snapshot = persisted.run.resultSnapshot == null
+      ? computed
+      : defenseBudgetVerificationResultV1Schema.parse(persisted.run.resultSnapshot);
+    return defenseBudgetVerificationResultV1Schema.parse({
+      ...snapshot,
+      candidateId: persisted.candidate.id,
+      verificationRunId: persisted.run.id,
+      decision: persisted.run.decision,
+      status: persisted.run.status,
+      route: persisted.run.route,
+      riskScore: persisted.run.riskScore,
+    });
   }
 
   private sortChecks(checks: VerificationCheckV1[]): VerificationCheckV1[] {
@@ -524,7 +545,7 @@ export class BudgetVerificationV1Service {
           'persist_audit mode requires a repository, but no repository was configured',
         );
       }
-      await this.repository.persistCompletedVerification({
+      const persisted = await this.repository.persistCompletedVerification({
         candidateIdentity,
         result,
         proofBundle: resolution.proofBundle,
@@ -540,6 +561,7 @@ export class BudgetVerificationV1Service {
         // indistinguishable from an un-backfilled row.
         artifact: resolution.artifact,
       });
+      return this.persistedResult(result, persisted);
     }
     return result;
   }

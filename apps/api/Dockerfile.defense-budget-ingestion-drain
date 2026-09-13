@@ -30,6 +30,19 @@ FROM ${API_IMAGE} AS api
 
 USER root
 
+# Re-extraction requires an API_IMAGE rebuilt from this release, containing
+# the entire operation and persistence fence. Do not overlay these new files
+# onto an older API base: doing so can omit its migration or transactional
+# verification changes. GIT_SHA is checked again by the operator CLI.
+RUN test -f /app/apps/api/scripts/reextract-defense-budget-candidate-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/governed-reextraction/reextract-review-candidate-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/governed-reextraction/reextraction-repository-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/governed-reextraction/reextraction-target-v1.ts \
+ && test -f /app/apps/api/src/defense-budget/verification/persistence/verification-persistence-fence-v1.ts \
+ && test -f /app/apps/api/prisma/migrations/20280913010000_governed_review_reextraction/migration.sql \
+ && grep -q 'verificationPersistenceFence' /app/apps/api/src/defense-budget/verification/persistence/prisma-budget-verification.repository.ts \
+ && grep -q 'reextract-defense-budget-candidate-v1)' /usr/local/bin/entrypoint.sh
+
 # Phase 10B-23A: table-target (pdfplumber) PLUS the `ocr` extra (PaddleOCR +
 # PaddlePaddle CPU). Camelot's transitive pdftopng still has no manylinux
 # aarch64 wheel and stays deliberately omitted here, same as before; Docling
@@ -209,4 +222,3 @@ USER capiro
 WORKDIR /app/apps/api
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
 CMD ["drain-defense-budget-ingestion-outbox-v1"]
-
