@@ -13,6 +13,7 @@ describe('Phase 8 model-visible fiscal evidence', () => {
           id: 'FL:2026-27:H1:S1',
           title: 'Synthetic project',
           identities: ['House H1', 'Senate S1'],
+          evidence: { documentId: 'doc-1' },
         },
       ],
       amounts: ['House', 'Senate'].map((chamber, i) => ({
@@ -25,6 +26,7 @@ describe('Phase 8 model-visible fiscal evidence', () => {
           basis: 'total',
           allocationBasis: 'published-project-column-total',
           measure: 'money',
+          state: 'amount',
           currency: 'USD',
           unitMultiplier: '1',
           periodStart: '2026-07-01',
@@ -69,6 +71,11 @@ describe('Phase 8 model-visible fiscal evidence', () => {
       'https://example.gov/budget.pdf',
     );
     expect(visible.projection.documentMetadataSummarized).toBe(true);
+    expect(visible.amountDisplay).toEqual({
+      'amount-0': 'USD 50,000.00',
+      'amount-1': 'USD 54,000.00',
+    });
+    expect(visible.data[0].snippet).toContain('House: USD 50,000.00');
   });
   it('preserves scope and leaves the caller data unchanged', () => {
     const original = fixture();
@@ -92,5 +99,48 @@ describe('Phase 8 model-visible fiscal evidence', () => {
     }) as any;
     expect(visible.truncated).toBe(true);
     expect(visible.projection.monetaryObservationsPreserved).not.toBe(true);
+  });
+  it('converts a signed comparable cents delta exactly without scaling the source multiplier again', () => {
+    const rows = fixture().result.amounts;
+    const result = {
+      left: rows[1]!.observation,
+      right: { ...rows[0]!.observation, unitMultiplier: '1000' },
+      comparable: true,
+      deltaMinorUnits: '-400000',
+      percentage: '-7.40%',
+    };
+    const visible = projectMeriToolEvidence({
+      result: { tool: 'compare_florida_budget_amounts', result },
+      maxCharacters: 12000,
+      readOnly: true,
+    }) as any;
+    expect(visible.result).toEqual(result);
+    expect(visible.presentation).toMatchObject({
+      left: 'USD 54,000.00',
+      right: 'USD 50,000.00',
+      deltaRightMinusLeft: 'USD -4,000.00',
+    });
+  });
+  it('keeps zero, fractional cents storage and huge integers exact while unknown and incompatible amounts stay undisplayed', () => {
+    const observation = fixture().result.amounts[0]!.observation;
+    const show = (left: any, comparable = true) =>
+      (
+        projectMeriToolEvidence({
+          result: {
+            tool: 'compare_florida_budget_amounts',
+            result: { left, right: observation, comparable, deltaMinorUnits: '0' },
+          },
+          maxCharacters: 12000,
+          readOnly: true,
+        }) as any
+      ).presentation;
+    expect(show({ ...observation, state: 'zero', minorUnits: '0' }).left).toBe('USD 0.00');
+    expect(show({ ...observation, minorUnits: '1' }).left).toBe('USD 0.01');
+    expect(show({ ...observation, minorUnits: '900719925474099301' }).left).toBe(
+      'USD 9,007,199,254,740,993.01',
+    );
+    expect(show({ ...observation, state: 'blank', minorUnits: null }).left).toBeNull();
+    expect(show({ ...observation, measure: 'positions' }).left).toBeNull();
+    expect(show(observation, false).deltaRightMinusLeft).toBeNull();
   });
 });

@@ -10,6 +10,7 @@ import {
   type BriefingSchedule,
 } from '@capiro/shared';
 import { createGenerateEditorialBriefTool } from '@capiro/meriv2-core';
+import { fiscalContextFact } from '../src/tracker/editorial/editorial-fiscal-context';
 
 const amount = (overrides: Partial<BudgetAmount> = {}): BudgetAmount => ({
   id: 'a',
@@ -166,5 +167,26 @@ describe('Phase 8 exact query, money, schedule and grounded claims', () => {
         createGenerateEditorialBriefTool(llm as never).handler(input as never, {} as never),
       ).rejects.toThrow();
     }
+  });
+  test('scheduled fiscal context preserves explicit columns, qualified units, veto role and unknowns', () => {
+    const row = {
+      ...amount(),
+      qualified: true,
+      minorUnits: '100000000',
+      chamber: 'Senate',
+      fund: 'General Revenue',
+      valueRole: 'vetoed_allocation_amount',
+    };
+    expect(fiscalContextFact(row)).toMatchObject({
+      display: 'USD 1,000,000.00',
+      chamber: 'Senate',
+      fund: 'General Revenue',
+      valueRole: 'vetoed_allocation_amount',
+      sourceRevision: row.sourceRevision,
+      locator: row.locator,
+    });
+    expect(fiscalContextFact({ ...row, minorUnits: '0', state: 'zero' }).display).toBe('USD 0.00');
+    expect(fiscalContextFact({ ...row, state: 'blank', minorUnits: null }).display).toBeNull();
+    expect(fiscalContextFact({ ...row, qualified: false }).display).toBeNull();
   });
 });

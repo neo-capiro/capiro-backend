@@ -77,10 +77,46 @@ function sanitizeValue(value: unknown): unknown {
   );
 }
 
+function usdDisplay(minorUnits: unknown): string | null {
+  if (typeof minorUnits !== 'string' || !/^-?\d+$/.test(minorUnits)) return null;
+  const value = BigInt(minorUnits),
+    absolute = value < 0n ? -value : value;
+  const dollars = (absolute / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `USD ${value < 0n ? '-' : ''}${dollars}.${(absolute % 100n).toString().padStart(2, '0')}`;
+}
+
+function observationDisplay(value: unknown): string | null {
+  return object(value) &&
+    value.measure === 'money' &&
+    value.currency === 'USD' &&
+    (value.state === 'amount' || value.state === 'zero')
+    ? usdDisplay(value.minorUnits)
+    : null;
+}
+
 /** Fiscal tool responses wrap owner data in `result`. Keep all monetary
  * observations and their exact revisions; project only document metadata into
  * citable source identities before the generic limiter drops an opaque wrapper. */
 function projectFloridaBudgetEvidence(original: Record<string, unknown>, maxCharacters: number) {
+  if (original.tool === 'compare_florida_budget_amounts' && object(original.result)) {
+    const result = original.result;
+    const projected = {
+      ...original,
+      presentation: {
+        left: observationDisplay(result.left),
+        right: observationDisplay(result.right),
+        deltaRightMinusLeft:
+          result.comparable === true &&
+          observationDisplay(result.left) &&
+          observationDisplay(result.right)
+            ? usdDisplay(result.deltaMinorUnits)
+            : null,
+        moneyUnit:
+          'USD minorUnits and deltaMinorUnits are cents: 100 cents = USD 1.00. Display values are already converted; source unitMultiplier must not be applied again.',
+      },
+    };
+    return JSON.stringify(projected).length <= maxCharacters ? projected : null;
+  }
   if (original.tool !== 'get_florida_budget_project' || !object(original.result)) return null;
   const { documents, ...evidence } = original.result;
   if (
@@ -102,6 +138,13 @@ function projectFloridaBudgetEvidence(original: Record<string, unknown>, maxChar
     evidence.projects.length === 1 && referenced.size
       ? documentRows.filter((d) => referenced.has(d.id))
       : documentRows;
+  const primaryIds = new Set(
+    evidence.projects
+      .filter(object)
+      .flatMap((p) => (object(p.evidence) ? [p.evidence.documentId] : [])),
+  );
+  selected.sort((a, b) => Number(primaryIds.has(b.id)) - Number(primaryIds.has(a.id)));
+  const amountRows = evidence.amounts.filter(object);
   const data = selected.map((document) => ({
     id: document.id,
     title: document.title,
@@ -118,11 +161,29 @@ function projectFloridaBudgetEvidence(original: Record<string, unknown>, maxChar
     observedAt: document.observed_at,
     complete: document.complete,
     coverage: object(document.metadata) ? document.metadata.coverage : undefined,
+    snippet: amountRows
+      .filter(
+        (a) =>
+          primaryIds.has(document.id) &&
+          object(a.observation) &&
+          a.observation.documentId === document.id,
+      )
+      .flatMap((a) => {
+        const o = a.observation as Record<string, unknown>,
+          display = observationDisplay(o);
+        return display ? [`${o.chamber ?? ''}: ${display}`] : [];
+      })
+      .join('; '),
   }));
   const projected = {
     ...original,
     result: evidence,
     data,
+    amountDisplay: Object.fromEntries(
+      amountRows.map((a) => [String(a.id), observationDisplay(a.observation)]),
+    ),
+    moneyUnit:
+      'USD minorUnits are cents: 100 cents = USD 1.00. Display values are already converted; source unitMultiplier must not be applied again.',
     projection: {
       representation: 'fiscal_document_identities',
       documentMetadataSummarized: true,
