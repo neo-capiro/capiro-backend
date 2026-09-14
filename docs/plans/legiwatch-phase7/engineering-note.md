@@ -2,7 +2,7 @@
 
 Phase 7 extends the existing API evidence, Intel folder/report/workflow owners, Workspace drafts and shared Meri registry. Public legal text and notices remain API-owned; legal memberships, monitor configuration, research selections and import decisions remain tenant-owned. The dense folder tracker is preserved.
 
-The implementation includes exact retained document search/comparison; Florida statute and constitution revisions; rule notice history and published dates; six separately promoted statute-reference definitions; immutable monitor baselines; selective provider document hydration; additive prior-session datasets; citation-checked editable Workspace drafts; and reviewed internal report versions. Feature/process gates default off. The report runner owns scheduled monitor evaluation. No new message sender or capture service is introduced.
+The implementation includes exact retained document search/comparison; Florida statute and constitution revisions; rule notice history and published dates; support for separately promoting six captured statute-reference definitions; immutable monitor baselines; selective provider document hydration; additive prior-session datasets; citation-checked editable Workspace drafts; and reviewed internal report versions. Feature/process gates default off. The report runner owns scheduled monitor evaluation. No new message sender or capture service is introduced.
 
 ## Evidence and boundaries
 
@@ -15,4 +15,6 @@ The implementation includes exact retained document search/comparison; Florida s
 
 ## Release status
 
-Engineering qualification is in progress. Phase 6 merged during implementation, so the final candidate incorporates refreshed main before native qualification. No Phase 7 live migration, deployment, tenant activation, import application or outward delivery has been performed at this checkpoint. See the release and acceptance records for the final measured state; do not infer rollout from code or screenshots.
+Phase 7 is merged and deployed. Research is explicitly enabled for the internal and Rubin Turnbull workspaces; all five serving services are healthy. See `release-qualification.md` for the exact source/image identities, owner migrations and verified runtime paths. Current client administrator configuration, independent human source qualification and client acceptance remain pending. The six imported alert definitions remain staged and unpromoted. No outward delivery was requested or performed.
+
+Large statute chapters persist each immutable section as a checkpoint and retain an incomplete receipt after a later failure. Retry preserves previously saved evidence. Cross-session comparison remains bounded; oversized source pairs require selecting a smaller exact version. The final UI retains the concurrent Strategies deployment and provides current folder names, exact source links, source-stage filters and browser-tab recovery of private analysis and draft links.
