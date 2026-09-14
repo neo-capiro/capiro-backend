@@ -21,6 +21,7 @@ import { ResearchService } from '../src/tracker/research/research.service.js';
 import { Phase8EvidenceService } from '../src/tracker/editorial/evidence.service.js';
 import { EditorialService } from '../src/tracker/editorial/editorial.service.js';
 import { runEditorialWork } from '../src/tracker/editorial/editorial-runtime.js';
+import { discoverEditorialWork } from '../src/tracker/editorial/editorial-discovery.js';
 import { digest, object } from '../src/tracker/reports/report-domain.js';
 jest.setTimeout(120000);
 describe('Phase 8 public observations, private selections and actual database retries', () => {
@@ -59,6 +60,51 @@ describe('Phase 8 public observations, private selections and actual database re
     beforeFetch = global.fetch,
     beforeEnv = { ...process.env };
   const scope = () => ({ jurisdiction: 'FL', sessionKey: session, clientId: null, folderId });
+  it('discovers scheduled work under the real application role without bypassing owner RLS', async () => {
+    const monitorId = randomUUID(),
+      configId = randomUUID(),
+      foreignId = randomUUID();
+    await p.$executeRaw`INSERT INTO intel_legiwatch_news_monitor(id,tenant_id,owner_clerk_id,source_key,source,config,state) VALUES(${monitorId},${tenant},${actor},${monitorId},'{}','{}','active'),(${foreignId},${randomUUID()},${actor},${foreignId},'{}','{}','active')`;
+    await p.$executeRaw`INSERT INTO intel_legiwatch_editorial_config(id,tenant_id,owner_clerk_id,source_key,source,config,state) VALUES(${configId},${tenant},${actor},${configId},'{}','{}','active')`;
+    try {
+      const restricted = {
+        withSystem: (fn: Parameters<PrismaService['withSystem']>[0]) =>
+          p.withSystem(async (tx) => {
+            await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+            await tx.$executeRaw`SELECT set_config('app.current_tenant','',true),set_config('app.folder_actor','',true)`;
+            return fn(tx);
+          }),
+        withTenant: (id: string, fn: Parameters<PrismaService['withTenant']>[1]) =>
+          p.withTenant(id, async (tx) => {
+            await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+            await tx.$executeRaw`SELECT set_config('app.bypass_rls','off',true),set_config('app.folder_actor','',true)`;
+            return fn(tx);
+          }),
+      } as Pick<PrismaService, 'withSystem' | 'withTenant'>;
+      const invisible = await restricted.withSystem(
+        (tx) =>
+          tx.$queryRaw<
+            Array<{ id: string }>
+          >`SELECT id FROM intel_legiwatch_news_monitor WHERE id=${monitorId}`,
+      );
+      expect(invisible).toEqual([]);
+      const found = await discoverEditorialWork(restricted, tenant);
+      expect(found.monitors.map((m) => m.id)).toContain(monitorId);
+      expect(found.configurations.map((c) => c.id)).toContain(configId);
+      expect(found.monitors.map((m) => m.id)).not.toContain(foreignId);
+      const unscoped = await restricted.withTenant(
+        tenant,
+        (tx) =>
+          tx.$queryRaw<
+            Array<{ id: string }>
+          >`SELECT id FROM intel_legiwatch_news_monitor WHERE id=${monitorId}`,
+      );
+      expect(unscoped).toEqual([]);
+    } finally {
+      await p.$executeRaw`DELETE FROM intel_legiwatch_news_monitor WHERE id=ANY(${[monitorId, foreignId]}::text[])`;
+      await p.$executeRaw`DELETE FROM intel_legiwatch_editorial_config WHERE id=${configId}`;
+    }
+  });
   beforeAll(async () => {
     if (
       process.env.LEGIWATCH_PHASE8_TEST_DATABASE !== 'disposable' ||
