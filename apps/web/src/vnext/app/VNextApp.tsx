@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { CapiroToastProvider } from '../components/feedback/toast.js';
 import { VNextOnboardingGates } from './onboarding/VNextOnboardingGates.js';
 import { VNextTrialBanner } from './onboarding/VNextTrialBanner.js';
+import { VNextBroadcastAckGate } from '../broadcasts/VNextBroadcastAckGate.js';
 import { VNextMeriWorkspace } from '../meri/VNextMeriWorkspace.js';
 import { legacyMeriWindowRedirect } from '../meri/meri-route-state.js';
 import { AppShellUui } from '../shell/AppShellUui/index.js';
@@ -37,6 +38,7 @@ export function VNextApp() {
       <div className="capiro-vnext-root" data-web-surface="vnext" data-vnext-module="meri">
         <CapiroToastProvider>
           <VNextMeriWorkspace />
+          <VNextBroadcastAckGate />
         </CapiroToastProvider>
       </div>
     );
@@ -55,6 +57,9 @@ export function VNextApp() {
             <VNextRouter />
           </VNextOnboardingGates>
         </AppShellUui>
+        {/* Capiro-staff broadcasts: blocking acknowledgement dialog for the
+            signed-in user's pending messages. Renders nothing when none. */}
+        <VNextBroadcastAckGate />
       </CapiroToastProvider>
     </div>
   );

@@ -41,6 +41,7 @@ import { VNextIntelligenceMappingsPage } from './VNextIntelligenceMappingsPage.j
 import { VNextSkillsPage } from './VNextSkillsPage.js';
 import { VNextPolicyPacksPage } from './VNextPolicyPacksPage.js';
 import { VNextCapiroAdminPage } from './VNextCapiroAdminPage.js';
+import { VNextBroadcastsPage } from './VNextBroadcastsPage.js';
 import './settings-vnext.css';
 
 // Path predicate lives in its own UI-free module (settings-route.ts) so
@@ -129,6 +130,7 @@ export function VNextSettingsRoutes() {
         <Route path="intelligence-mappings" element={<VNextIntelligenceMappingsPage />} />
         <Route path="skills" element={<VNextSkillsPage />} />
         <Route path="tenants" element={<VNextCapiroAdminPage />} />
+        <Route path="broadcasts" element={<VNextBroadcastsPage />} />
       </Route>
       <Route path="*" element={<VNextSettingsNotFound />} />
     </Routes>

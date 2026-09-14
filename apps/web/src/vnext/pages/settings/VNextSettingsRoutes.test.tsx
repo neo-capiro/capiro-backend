@@ -57,6 +57,9 @@ vi.mock('./VNextPolicyPacksPage.js', () => ({
 vi.mock('./VNextCapiroAdminPage.js', () => ({
   VNextCapiroAdminPage: () => <div data-testid="page-tenants" />,
 }));
+vi.mock('./VNextBroadcastsPage.js', () => ({
+  VNextBroadcastsPage: () => <div data-testid="page-broadcasts" />,
+}));
 
 import { VNextSettingsRoutes } from './VNextSettingsRoutes.js';
 
@@ -116,6 +119,7 @@ describe('VNextSettingsRoutes — role-filtered tabs (same visibleSettingsTabs a
     ]);
     expect(names).not.toContain('Tenants');
     expect(names).not.toContain('Customers');
+    expect(names).not.toContain('Broadcasts');
   });
 
   it('user_admin WITHOUT billingAdmin does not see Billing or AI Usage', () => {
@@ -127,13 +131,14 @@ describe('VNextSettingsRoutes — role-filtered tabs (same visibleSettingsTabs a
     expect(names).toContain('Team');
   });
 
-  it('capiro_admin with billingAdmin sees all fourteen tabs including Tenants and Customers', () => {
+  it('capiro_admin with billingAdmin sees all fifteen tabs including Tenants, Customers and Broadcasts', () => {
     mockMe('capiro_admin', true);
     renderAt('/settings/personal');
     const names = tabNames();
     expect(names).toContain('Tenants');
     expect(names).toContain('Customers');
-    expect(names).toHaveLength(14);
+    expect(names).toContain('Broadcasts');
+    expect(names).toHaveLength(15);
   });
 });
 
@@ -148,6 +153,12 @@ describe('VNextSettingsRoutes — routing contract', () => {
     mockMe('capiro_admin', true);
     renderAt('/settings/tenants');
     expect(screen.getByTestId('page-tenants')).toBeInTheDocument();
+  });
+
+  it('routes /settings/broadcasts to the Broadcasts console', () => {
+    mockMe('capiro_admin', true);
+    renderAt('/settings/broadcasts');
+    expect(screen.getByTestId('page-broadcasts')).toBeInTheDocument();
   });
 
   it('renders Policy Packs in place of the outlet for /settings/skills?view=policy-packs', () => {
