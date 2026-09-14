@@ -34,7 +34,7 @@
 .capiro-vnext-root .capiro-strategies .st-editor__main {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding: 24px;
 }
 
@@ -46,7 +46,7 @@
   justify-content: space-between;
   padding: 24px 24px 20px;
 }
-.capiro-vnext-root .capiro-strategies .st-editor-header__left { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.capiro-vnext-root .capiro-strategies .st-editor-header__left { display: flex; flex: 1 1 400px; align-items: flex-start; gap: 12px; min-width: 0; }
 /* min-width:0 has to reach the title block itself, not just its flex parent. */
 .capiro-vnext-root .capiro-strategies .st-editor-header__left > div { min-width: 0; }
 /*
@@ -56,6 +56,8 @@
  * ScopeBar above the hero now, not in this stack.
  */
 .capiro-vnext-root .capiro-strategies .st-editor-header__right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0; }
+.capiro-vnext-root .capiro-strategies .st-editor-header__right .capiro-button { min-width: 88px; }
+.capiro-vnext-root .capiro-strategies .st-hero--editor .st-purpose { max-width: 720px; }
 .capiro-vnext-root .capiro-strategies .st-editor-header__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
 .capiro-vnext-root .capiro-strategies .st-editor-layers-label {
   font-size: 11px;
@@ -109,12 +111,44 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--st-gray-200);
   flex-wrap: wrap;
 }
-.capiro-vnext-root .capiro-strategies .st-timeline__meta { font-size: 14px; color: var(--st-gray-600); margin: 2px 0 0; }
+.capiro-vnext-root .capiro-strategies .st-timeline__meta { font-size: 12px; line-height: 18px; color: var(--st-gray-600); margin: 2px 0 0; }
+.capiro-vnext-root .capiro-strategies .st-timeline__head .capiro-button { min-width: 96px; }
+.capiro-vnext-root .capiro-strategies .st-timeline__caption { margin: 0; padding: 10px 20px; border-top: 1px solid var(--st-gray-200); font-size: 12px; line-height: 18px; color: var(--st-gray-500); }
+.capiro-vnext-root .capiro-strategies .st-timeline__coverage { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 10px 20px; border-top: 1px solid var(--st-gray-200); font-size: 12px; line-height: 18px; color: var(--st-gray-600); }
 .capiro-vnext-root .capiro-strategies .st-planhealth-chip { border: none; cursor: pointer; }
+
+/* Compact, always-visible summaries keep review findings close to the plan.
+   Details stay in normal document flow and are keyboard operable. These are
+   editor surfaces, so they must not depend on a modal's lazy-loaded CSS. */
+.capiro-vnext-root .capiro-strategies .st-editor-reviews { display: flex; flex-direction: column; gap: 8px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review {
+  border: 1px solid var(--st-gray-200);
+  border-radius: 10px;
+  background: var(--st-white);
+  color: var(--st-gray-700);
+  font-size: 13px;
+  line-height: 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-editor-review--warning { border-color: var(--st-warning-ring); background: var(--st-warning-bg); }
+.capiro-vnext-root .capiro-strategies .st-editor-review > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; padding: 12px 16px; cursor: pointer; list-style: none; }
+.capiro-vnext-root .capiro-strategies .st-editor-review > summary::-webkit-details-marker { display: none; }
+.capiro-vnext-root .capiro-strategies .st-editor-review > summary::before { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); flex: none; margin-right: 4px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review[open] > summary::before { transform: rotate(45deg); }
+.capiro-vnext-root .capiro-strategies .st-editor-review > summary > span { margin-left: auto; color: var(--st-gray-600); font-size: 12px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review > summary:focus-visible { outline: 2px solid var(--st-accent-focus); outline-offset: 2px; border-radius: 10px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review__body { padding: 0 16px 16px 40px; overflow-wrap: anywhere; }
+.capiro-vnext-root .capiro-strategies .st-editor-review__body p { margin: 0 0 10px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review__body ul { display: grid; gap: 10px; margin: 12px 0; padding-left: 18px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review__body li::marker { color: var(--st-gray-400); }
+.capiro-vnext-root .capiro-strategies .st-editor-review__body .st-library-clearlink { white-space: normal; text-align: left; font-size: 13px; line-height: 20px; }
+.capiro-vnext-root .capiro-strategies .st-editor-review__body li p { margin: 4px 0 0; color: var(--st-gray-500); font-size: 12px; }
+.capiro-vnext-root .capiro-strategies .st-editor-notice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px; border: 1px solid var(--st-gray-200); border-radius: 10px; background: var(--st-white); font-size: 13px; line-height: 20px; color: var(--st-gray-600); }
+.capiro-vnext-root .capiro-strategies .st-editor-notice .capiro-button { min-width: auto; }
+.capiro-vnext-root .capiro-strategies .st-editor-notice--error { background: var(--st-error-bg); border-color: var(--st-error-ring); color: var(--st-error-fg); }
 
 /* ══ Working timeline ═════════════════════════════════════════════════════
  *
@@ -710,6 +744,10 @@
   font-size: 36px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em; color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-planhealth__facts p { margin: 0; font-size: 13px; color: var(--st-gray-600); }
+.capiro-vnext-root .capiro-strategies .st-planhealth__facts { flex: 1 1 220px; min-width: 0; font-size: 12px; line-height: 20px; }
+.capiro-vnext-root .capiro-strategies .st-planhealth__facts summary { cursor: pointer; margin-top: 6px; }
+.capiro-vnext-root .capiro-strategies .st-planhealth__facts details p { margin-top: 8px; }
+.capiro-vnext-root .capiro-strategies .st-planhealth__facts summary:focus-visible { outline: 2px solid var(--st-accent-focus); outline-offset: 2px; }
 .capiro-vnext-root .capiro-strategies .st-planhealth__body .capiro-button { margin-left: auto; }
 
 /* ══ Responsive ═══════════════════════════════════════════════════════════
@@ -793,6 +831,12 @@
     justify-content: flex-start;
     width: 100%;
   }
+  .capiro-vnext-root .capiro-strategies .st-hero--editor { padding: 20px 16px; gap: 16px; }
+  .capiro-vnext-root .capiro-strategies .st-editor-review > summary > span { width: 100%; margin-left: 23px; }
+  .capiro-vnext-root .capiro-strategies .st-editor-review__body { padding-left: 16px; }
+  .capiro-vnext-root .capiro-strategies .st-timeline__head { padding: 14px 16px; gap: 12px; }
+  .capiro-vnext-root .capiro-strategies .st-editor-header__right .capiro-button,
+  .capiro-vnext-root .capiro-strategies .st-timeline__head .capiro-button { min-height: 44px; }
   /* A narrower label column buys back real track: the canvas scrolls at every
      width. */
   .capiro-vnext-root .capiro-strategies .st-tl {

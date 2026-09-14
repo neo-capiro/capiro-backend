@@ -418,10 +418,11 @@ export function StrategyEditorVNext() {
             </div>
             {/* Row 2: export / history / saved stamp / Ask Meri. */}
             <div className="st-editor-header__row">
-              <CapiroButton onClick={() => navigate(overlayPath('export'))}>Export</CapiroButton>
-              <CapiroButton onClick={() => navigate(overlayPath('history'))}>History</CapiroButton>
+              <CapiroButton size="compact" onClick={() => navigate(overlayPath('export'))}>Export</CapiroButton>
+              <CapiroButton size="compact" onClick={() => navigate(overlayPath('history'))}>History</CapiroButton>
               <SaveStamp updatedAt={detail.lastEditedAt ?? detail.createdAt} />
               <CapiroButton
+                size="compact"
                 variant="primary"
                 onClick={() => openInspector(openStep?.id ?? (openStepId === '__new__' ? '__new__' : '__strategy__'), 'meri')}
               >
@@ -432,32 +433,36 @@ export function StrategyEditorVNext() {
         </header>
 
         <div className="st-editor__main">
-        <WatchControls strategyId={detail.id} />
         {calendars.isError ? (
-          <div role="alert">Reference calendars could not be loaded. <CapiroButton onClick={() => void calendars.refetch()}>Retry calendars</CapiroButton></div>
+          <div className="st-editor-notice st-editor-notice--error" role="alert">Reference calendars could not be loaded. <CapiroButton size="compact" onClick={() => void calendars.refetch()}>Retry calendars</CapiroButton></div>
         ) : null}
-        {cycleIssues.length > 0 ? <div role="alert" className="st-modal__alert">
-          <strong>Budget cycle needs review.</strong> The plan contains annual budget or legislative steps dated after the usual cycle for its named fiscal year.
-          <details><summary>Review {cycleIssues.length} affected steps</summary><ul>{cycleIssues.map((issue) => <li key={issue.nodeIds[0]}><button type="button" className="st-library-clearlink" onClick={() => openInspector(issue.nodeIds[0]!)}>{issue.message}</button></li>)}</ul></details>
-          Review the cited year and edit the dates, or ask Meri to reconcile the plan against the correct fiscal cycle and dated primary sources.
-        </div> : null}
-        {layers.congress || layers.ppbe ? <p className="st-purpose">Calendar bands show planning reference windows. Confirm dated primary sources before treating them as official deadlines.</p> : null}
-        {dependencyIssues.length > 0 ? <div role="status" className="st-modal__alert">
-          <strong>Review prerequisites and overlaps.</strong> Overlapping actions can be intentional. Check the relationship before changing a date.
-          <details><summary>Review {dependencyIssues.length} dependency findings</summary><ul>{dependencyIssues.map((issue, index) => <li key={`${issue.code}-${index}`}>
-            <button type="button" className="st-library-clearlink" onClick={() => openInspector(issue.nodeIds[0]!)}>{issue.message}</button>
-            {issue.suggestion ? <p>{issue.suggestion}</p> : null}
-          </li>)}</ul></details>
-          <CapiroButton onClick={() => openInspector('__strategy__', 'meri')}>Review with Meri</CapiroButton>
-        </div> : null}
-        {firmPhases.data && phaseCoverageGaps(firmPhases.data, axis.startFy, axis.endFy).length > 0 ? <div role="status" className="st-modal__alert">
-          Firm phases do not cover the full visible horizon. <CapiroButton onClick={() => navigate(overlayPath('phases'))}>Review phase coverage</CapiroButton>
-        </div> : null}
+        {cycleIssues.length > 0 || dependencyIssues.length > 0 ? <section className="st-editor-reviews" aria-label="Plan review findings">
+          {cycleIssues.length > 0 ? <details className="st-editor-review st-editor-review--warning">
+            <summary><strong>Budget cycle needs review.</strong><span>Review {cycleIssues.length} affected steps</span></summary>
+            <div className="st-editor-review__body">
+              <p>The plan contains annual budget or legislative steps dated after the usual cycle for its named fiscal year.</p>
+              <ul>{cycleIssues.map((issue) => <li key={issue.nodeIds[0]}><button type="button" className="st-library-clearlink" onClick={() => openInspector(issue.nodeIds[0]!)}>{issue.message}</button></li>)}</ul>
+              <p>Review the cited year and edit the dates, or ask Meri to reconcile the plan against the correct fiscal cycle and dated primary sources.</p>
+              <CapiroButton size="compact" onClick={() => openInspector('__strategy__', 'meri')}>Review budget cycle with Meri</CapiroButton>
+            </div>
+          </details> : null}
+          {dependencyIssues.length > 0 ? <details className="st-editor-review">
+            <summary><strong>Review prerequisites and overlaps.</strong><span>Review {dependencyIssues.length} dependency findings</span></summary>
+            <div className="st-editor-review__body">
+              <p>Overlapping actions can be intentional. Check the relationship before changing a date.</p>
+              <ul>{dependencyIssues.map((issue, index) => <li key={`${issue.code}-${index}`}>
+                <button type="button" className="st-library-clearlink" onClick={() => openInspector(issue.nodeIds[0]!)}>{issue.message}</button>
+                {issue.suggestion ? <p>{issue.suggestion}</p> : null}
+              </li>)}</ul>
+              <CapiroButton size="compact" onClick={() => openInspector('__strategy__', 'meri')}>Review with Meri</CapiroButton>
+            </div>
+          </details> : null}
+        </section> : null}
         {firmPhases.isError ? (
-          <div role="alert">Firm phases could not be loaded. <CapiroButton onClick={() => void firmPhases.refetch()}>Retry phases</CapiroButton></div>
+          <div className="st-editor-notice st-editor-notice--error" role="alert">Firm phases could not be loaded. <CapiroButton size="compact" onClick={() => void firmPhases.refetch()}>Retry phases</CapiroButton></div>
         ) : null}
         {layers.watch && watchState.isError ? (
-          <div role="alert">Watch proposals could not be loaded. <CapiroButton onClick={() => void watchState.refetch()}>Retry proposals</CapiroButton></div>
+          <div className="st-editor-notice st-editor-notice--error" role="alert">Watch proposals could not be loaded. <CapiroButton size="compact" onClick={() => void watchState.refetch()}>Retry proposals</CapiroButton></div>
         ) : null}
         {/* Working timeline (§7.3). */}
         <section className="st-card st-timeline">
@@ -470,8 +475,8 @@ export function StrategyEditorVNext() {
             </div>
             <div className="st-actions">
               <PlanHealthChip detail={detail} onReview={() => setHealthPanelOpen(true)} />
-              <CapiroButton variant="secondary" onClick={() => navigate(overlayPath('phases'))}>Firm phases</CapiroButton>
-              <CapiroButton variant="primary" onClick={() => openInspector('__new__')}>Add step</CapiroButton>
+              <CapiroButton size="compact" variant="secondary" onClick={() => navigate(overlayPath('phases'))}>Firm phases</CapiroButton>
+              <CapiroButton size="compact" variant="primary" onClick={() => openInspector('__new__')}>Add step</CapiroButton>
             </div>
           </div>
 
@@ -492,6 +497,10 @@ export function StrategyEditorVNext() {
             onWatchClick={() => navigate('/strategies/agents/proposals')}
             onPhaseClick={() => navigate(overlayPath('phases'))}
           />
+          {firmPhases.data && phaseCoverageGaps(firmPhases.data, axis.startFy, axis.endFy).length > 0 ? <div role="status" className="st-timeline__coverage">
+            <span>Firm phases do not cover the full visible horizon.</span> <CapiroButton size="compact" onClick={() => navigate(overlayPath('phases'))}>Review phase coverage</CapiroButton>
+          </div> : null}
+          {layers.congress || layers.ppbe ? <p className="st-timeline__caption">Calendar bands show planning reference windows. Confirm dated primary sources before treating them as official deadlines.</p> : null}
         </section>
 
         {/* Bottom cards: Next 30 days + Plan health (§7.2). */}
@@ -499,6 +508,7 @@ export function StrategyEditorVNext() {
           <NextThirtyDays detail={detail} members={members.data} onOpen={(id) => openInspector(id)} />
           <PlanHealthCard detail={detail} onReview={() => setHealthPanelOpen(true)} />
         </div>
+        <WatchControls strategyId={detail.id} />
         <PlanHealthDiagnostics
           detail={detail}
           health={computePlanHealth(detail) ?? { score: 0, totalSteps: 0, ownedSteps: 0, totalGates: 0, groundedGates: 0, datedSteps: 0, overdueSteps: 0, groundingPct: null, timelinessPct: null }}
@@ -620,7 +630,7 @@ function NextThirtyDays({
               <span className="st-pill st-pill--warning">Due {formatDate(next.endsOn ?? next.startsOn)}</span>
               <span className="st-next30__owner">Owner · {memberName(members, next.ownerUserId)}</span>
             </div>
-            <CapiroButton onClick={() => onOpen(next.id)}>Open step</CapiroButton>
+            <CapiroButton size="compact" onClick={() => onOpen(next.id)}>Open step</CapiroButton>
           </>
         ) : (
           <p className="st-purpose">No unfinished plan commitments fall due in the next 30 days. Review suggested steps in the timeline.</p>
@@ -655,10 +665,12 @@ function PlanHealthCard({
           <p>{health.ownedSteps} of {health.totalSteps} steps have owners</p>
           <p>{health.totalGates ? `${health.groundedGates} of ${health.totalGates} gates have source references` : 'Gate source coverage: N/A — no gates'}</p>
           <p>{health.datedSteps ? `${health.overdueSteps} of ${health.datedSteps} unfinished dated commitments are overdue (UTC)` : 'Timeliness: N/A — no unfinished dated commitments'}</p>
-          <p>All live plan items. Client reports use approved, client-eligible sources. Linked outputs and approved context are assessed separately.</p>
-          <details><summary>How this score is calculated</summary><p>Ownership, gate source coverage and timeliness use weights 40:35:25. Dimensions with no applicable items are excluded and the remaining weights rescaled. A source reference does not verify its contents.</p></details>
+          <details><summary>How this score is calculated</summary>
+            <p>All live plan items. Client reports use approved, client-eligible sources. Linked outputs and approved context are assessed separately.</p>
+            <p>Ownership, gate source coverage and timeliness use weights 40:35:25. Dimensions with no applicable items are excluded and the remaining weights rescaled. A source reference does not verify its contents.</p>
+          </details>
         </div>
-        <CapiroButton onClick={onReview}>Review diagnostics</CapiroButton>
+        <CapiroButton size="compact" onClick={onReview}>Review diagnostics</CapiroButton>
       </div>
     </section>
   );
