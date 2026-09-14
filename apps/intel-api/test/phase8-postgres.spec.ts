@@ -582,11 +582,11 @@ describe('Phase 8 public observations, private selections and actual database re
       editorialBrief: jest.fn().mockImplementation(async (_tenant, _actor, inputs) => {
         expect(inputs.clientContext).toContain(projectId);
         expect(inputs.clientContext).toContain(title);
-        expect(inputs.clientContext).toContain('USD 20,000.00');
-        expect(inputs.clientContext).toContain('General Revenue');
-        expect(inputs.clientContext).toContain(revision);
+        expect(inputs.sources[0].text).toContain('USD 20,000.00');
+        expect(inputs.sources[0].text).toContain('General Revenue');
+        expect(inputs.sources[0].text).toContain(revision);
         expect(inputs.clientContext).not.toContain('Neighbor project');
-        expect(inputs.sources[0].text).toContain('Neighbor project');
+        expect(inputs.sources[0].text).not.toContain('Neighbor project');
         await evidence.track(ctx, {
           ...scope(),
           kind: 'budget',
