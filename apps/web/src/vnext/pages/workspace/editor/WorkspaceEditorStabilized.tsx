@@ -84,6 +84,7 @@ import {
   type InspectorTab,
   type SpineStop,
 } from './editor-model.js';
+import { EditableHtml } from './EditableHtml.js';
 import '../styles/workspace.css';
 import '../styles/workspace-audit.css';
 
@@ -107,13 +108,6 @@ function requestId(): string {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function plainText(html: string): string {
-  if (!html) return '';
-  if (typeof document === 'undefined') return html.replace(/<[^>]+>/g, '');
-  const parsed = new DOMParser().parseFromString(html, 'text/html');
-  return parsed.body.textContent ?? '';
-}
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
@@ -123,55 +117,6 @@ function initials(name: string): string {
 
 function roleLabel(role: string): string {
   return role.replace(/_/g, ' ').replace(/^./, (value) => value.toUpperCase());
-}
-
-function EditableHtml({
-  value,
-  section,
-  readOnly,
-  placeholder,
-  onChange,
-}: {
-  value: string;
-  section: string;
-  readOnly: boolean;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const focused = useRef(false);
-
-  useEffect(() => {
-    if (!focused.current && ref.current && ref.current.innerHTML !== value) {
-      ref.current.innerHTML = value;
-    }
-  }, [value]);
-
-  return (
-    <div
-      ref={ref}
-      className="ws-audit-editable-section"
-      data-empty={!plainText(value).trim()}
-      data-ws-section={section}
-      contentEditable={!readOnly}
-      suppressContentEditableWarning
-      role="textbox"
-      aria-label={`${section} body`}
-      aria-readonly={readOnly}
-      data-placeholder={placeholder}
-      onFocus={() => {
-        focused.current = true;
-      }}
-      onBlur={(event) => {
-        focused.current = false;
-        if (!readOnly) onChange(sanitizeWorkspaceBody(event.currentTarget.innerHTML));
-      }}
-      onInput={(event) => {
-        if (!readOnly) onChange(event.currentTarget.innerHTML);
-      }}
-      dangerouslySetInnerHTML={{ __html: value }}
-    />
-  );
 }
 
 function ModalShell({
