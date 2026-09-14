@@ -6,7 +6,7 @@ const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
 const observedAt = new Date('2026-08-21T00:00:00.000Z');
 
 describe('buildMeetingPrepTelemetryEvent', () => {
-  it.each(['generated', 'edited', 'approved'] as const)('builds a "%s" event for the meetings surface', (eventType) => {
+  it.each(['generated', 'edited'] as const)('builds a "%s" event for the meetings surface', (eventType) => {
     const event = buildMeetingPrepTelemetryEvent(ctx, { prepId: 'prep-1', clientId: 'client-1' }, eventType, observedAt);
     expect(event.surface).toBe('meetings');
     expect(event.eventType).toBe(eventType);

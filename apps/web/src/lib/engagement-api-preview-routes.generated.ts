@@ -28,18 +28,20 @@
 
 /** sha256 of the primary Engagement parity manifest. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
-  '1c3ff0922302e8b26048886c777f957ca9938081e71bd7255fc696d33e15b187';
+  '0b96735bf88116aa636d8f136296cd84c6a1237b1499094d913e43fe3c428cba';
 
 /** Primary manifest schema version. */
 export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = 1;
 
 /** Distinct primary + additive manifest paths covered below. */
-export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 142;
+export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 154;
 
 export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/associations/override$',
   '^/api/engagement/attachments$',
   '^/api/engagement/attachments/[^/]+$',
+  '^/api/engagement/attachments/[^/]+/context-source$',
+  '^/api/engagement/attachments/[^/]+/context-text$',
   '^/api/engagement/attachments/[^/]+/extract-text$',
   '^/api/engagement/attachments/confirm$',
   '^/api/engagement/attachments/upload-url$',
@@ -69,8 +71,11 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/integrations/microsoft/notifications$',
   '^/api/engagement/integrations/microsoft/start$',
   '^/api/engagement/mail-threads$',
+  '^/api/engagement/mail-threads/[^/]+$',
+  '^/api/engagement/mail/rewrite$',
+  '^/api/engagement/mail/send$',
   '^/api/engagement/meeting-preps/[^/]+$',
-  '^/api/engagement/meeting-preps/[^/]+/approve$',
+  '^/api/engagement/meeting-preps/[^/]+/pdf-attachment$',
   '^/api/engagement/meetings$',
   '^/api/engagement/meetings/[^/]+$',
   '^/api/engagement/meetings/[^/]+/artifacts/share$',
@@ -85,6 +90,10 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/meetings/[^/]+/notes/[^/]+/approve$',
   '^/api/engagement/meetings/[^/]+/notetaker$',
   '^/api/engagement/meetings/[^/]+/prep$',
+  '^/api/engagement/meetings/[^/]+/prep-jobs/[^/]+$',
+  '^/api/engagement/meetings/[^/]+/prep-jobs/[^/]+/resume$',
+  '^/api/engagement/meetings/[^/]+/prep-jobs/latest$',
+  '^/api/engagement/meetings/[^/]+/prep-monday-mapping$',
   '^/api/engagement/meetings/[^/]+/share$',
   '^/api/engagement/meetings/[^/]+/unshare$',
   '^/api/engagement/meetings/library$',
@@ -113,6 +122,7 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/[^/]+$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/[^/]+/cancel$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/[^/]+/items/[^/]+/retry$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/latest$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/generation/plan$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/generation/review-packet-approval$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/generation/samples$',
@@ -175,6 +185,8 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/outreach/templates$',
   '^/api/engagement/reports/overview$',
   '^/api/engagement/reports/target-offices$',
+  '^/api/engagement/reports/target-offices/[^/]+$',
+  '^/api/engagement/reports/target-offices/link$',
   '^/api/engagement/reports/target-offices/overrides$',
   '^/api/engagement/shared-meetings$',
   '^/api/engagement/tasks$',

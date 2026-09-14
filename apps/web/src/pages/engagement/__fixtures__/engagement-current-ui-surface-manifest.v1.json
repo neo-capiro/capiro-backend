@@ -246,20 +246,45 @@
     "apps/web/src/pages/clients/ClientWorkspacePage.tsx",
     "apps/web/src/pages/clients/intelligence-v1/sections/SnapshotSection.tsx",
     "apps/web/src/pages/clients/tracker/TrackerFeedPanel.tsx",
+    "apps/web/src/pages/dashboard/DashboardWorkQueue.tsx",
     "apps/web/src/pages/engagement/EngagementPage.tsx",
     "apps/web/src/pages/engagement/OutreachView.tsx",
+    "apps/web/src/pages/engagement/meetings/PrepTab.tsx",
     "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+    "apps/web/src/pages/engagement/outreach/LegiWatchOutreachHandoff.tsx",
     "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
-    "apps/web/src/pages/engagement/outreach/v2/StepContext.tsx",
     "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.tsx",
+    "apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx",
     "apps/web/src/pages/engagement/outreach/v2/groups.tsx",
     "apps/web/src/pages/engagement/outreach/v2/jobs.ts",
     "apps/web/src/pages/engagement/outreach/v2/priorContact.ts",
     "apps/web/src/pages/engagement/outreach/v2/send-intent.ts",
+    "apps/web/src/pages/engagement/outreach/v2/useContextPlan.ts",
     "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
     "apps/web/src/pages/program-element/api.ts",
     "apps/web/src/pages/settings/IntegrationsPage.tsx",
-    "apps/web/src/pages/workspace/ContextBuilderPage.tsx"
+    "apps/web/src/pages/workspace/ContextBuilderPage.tsx",
+    "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts",
+    "apps/web/src/vnext/adapters/legacy/useMailboxSyncStatus.ts",
+    "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+    "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+    "apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx",
+    "apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx",
+    "apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx",
+    "apps/web/src/vnext/pages/client-crm/mail-api.ts",
+    "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+    "apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx",
+    "apps/web/src/vnext/pages/engagement/VNextOutreachClassic.tsx",
+    "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+    "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+    "apps/web/src/vnext/pages/engagement/outreach-step-context.tsx",
+    "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+    "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+    "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.tsx",
+    "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
+    "apps/web/src/vnext/pages/portfolio/usePortfolioIndexModel.ts",
+    "apps/web/src/vnext/pages/settings/VNextClientsPage.tsx",
+    "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
   ],
   "routeCoverage": [
     {
@@ -267,7 +292,8 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/clients/ClientProfilePage.tsx",
-        "apps/web/src/pages/engagement/EngagementPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx"
       ],
       "runtimeAction": null
     },
@@ -287,7 +313,8 @@
       "routeManifestKey": "DELETE /api/engagement/integrations/google/:connectionId",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_disconnect"
     },
@@ -295,7 +322,8 @@
       "routeManifestKey": "DELETE /api/engagement/integrations/microsoft/:connectionId",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_disconnect"
     },
@@ -307,6 +335,14 @@
         "apps/web/src/pages/engagement/meetings/meetings-api.ts"
       ],
       "runtimeAction": "notetaker_remove"
+    },
+    {
+      "routeManifestKey": "DELETE /api/engagement/meetings/:id/prep-jobs/:jobId",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+      ],
+      "runtimeAction": null
     },
     {
       "routeManifestKey": "DELETE /api/engagement/outreach/:id",
@@ -323,6 +359,23 @@
       "runtimeAction": null
     },
     {
+      "routeManifestKey": "DELETE /api/engagement/reports/target-offices/:id",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
+      ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "DELETE /api/engagement/reports/target-offices/overrides",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
+      ],
+      "runtimeAction": null
+    },
+    {
       "routeManifestKey": "GET /api/engagement/attachments",
       "status": "consumed",
       "consumers": [
@@ -331,7 +384,10 @@
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
         "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
-        "apps/web/src/pages/workspace/ContextBuilderPage.tsx"
+        "apps/web/src/pages/workspace/ContextBuilderPage.tsx",
+        "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+        "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+        "apps/web/src/vnext/pages/engagement/engagement-api.ts"
       ],
       "runtimeAction": null
     },
@@ -351,7 +407,10 @@
       "routeManifestKey": "GET /api/engagement/capabilities",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+        "apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextOutreachClassic.tsx"
       ],
       "runtimeAction": null
     },
@@ -384,8 +443,14 @@
       "consumers": [
         "apps/web/src/components/AppShell.tsx",
         "apps/web/src/components/onboarding/OnboardingGates.tsx",
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/engagement/outreach/LegiWatchOutreachHandoff.tsx",
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/adapters/legacy/useMailboxSyncStatus.ts",
+        "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+        "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": null
     },
@@ -399,7 +464,8 @@
       "routeManifestKey": "GET /api/engagement/integrations/google/capabilities",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": null
     },
@@ -413,7 +479,8 @@
       "routeManifestKey": "GET /api/engagement/integrations/microsoft/capabilities",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": null
     },
@@ -428,7 +495,16 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/EngagementPage.tsx",
-        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx"
+        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
+        "apps/web/src/vnext/pages/client-crm/mail-api.ts"
+      ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "GET /api/engagement/mail-threads/:id",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/vnext/pages/client-crm/mail-api.ts"
       ],
       "runtimeAction": null
     },
@@ -440,7 +516,9 @@
         "apps/web/src/pages/clients/intelligence-v1/sections/SnapshotSection.tsx",
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
-        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+        "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts",
+        "apps/web/src/vnext/pages/portfolio/usePortfolioIndexModel.ts"
       ],
       "runtimeAction": null
     },
@@ -482,11 +560,31 @@
       "runtimeAction": null
     },
     {
-      "routeManifestKey": "GET /api/engagement/meetings/library",
+      "routeManifestKey": "GET /api/engagement/meetings/:id/prep-jobs/:jobId",
+      "status": "api_only",
+      "consumers": [],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "GET /api/engagement/meetings/:id/prep-jobs/latest",
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/meetings/meetings-api.ts"
       ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "GET /api/engagement/meetings/:id/prep-monday-mapping",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+      ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "GET /api/engagement/meetings/library",
+      "status": "api_only",
+      "consumers": [],
       "runtimeAction": null
     },
     {
@@ -500,7 +598,9 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/HomePage.tsx",
-        "apps/web/src/pages/engagement/OutreachView.tsx"
+        "apps/web/src/pages/dashboard/DashboardWorkQueue.tsx",
+        "apps/web/src/pages/engagement/OutreachView.tsx",
+        "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts"
       ],
       "runtimeAction": null
     },
@@ -524,7 +624,7 @@
       "routeManifestKey": "GET /api/engagement/outreach/ai-templates",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx"
+        "apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx"
       ],
       "runtimeAction": null
     },
@@ -539,7 +639,8 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.tsx",
-        "apps/web/src/pages/engagement/outreach/v2/groups.tsx"
+        "apps/web/src/pages/engagement/outreach/v2/groups.tsx",
+        "apps/web/src/vnext/pages/engagement/engagement-api.ts"
       ],
       "runtimeAction": null
     },
@@ -548,6 +649,7 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
+        "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
         "apps/web/src/pages/workspace/ContextBuilderPage.tsx"
       ],
       "runtimeAction": null
@@ -602,7 +704,8 @@
       "routeManifestKey": "GET /api/engagement/reports/overview",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
       ],
       "runtimeAction": null
     },
@@ -664,6 +767,15 @@
       "runtimeAction": null
     },
     {
+      "routeManifestKey": "PATCH /api/engagement/reports/target-offices/:id",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
+      ],
+      "runtimeAction": null
+    },
+    {
       "routeManifestKey": "PATCH /api/engagement/tasks/:id",
       "status": "consumed",
       "consumers": [
@@ -680,12 +792,24 @@
       "runtimeAction": null
     },
     {
+      "routeManifestKey": "POST /api/engagement/attachments/:id/context-source",
+      "status": "api_only",
+      "consumers": [],
+      "runtimeAction": "attachment_external_read"
+    },
+    {
+      "routeManifestKey": "POST /api/engagement/attachments/:id/context-text",
+      "status": "api_only",
+      "consumers": [],
+      "runtimeAction": "attachment_external_read"
+    },
+    {
       "routeManifestKey": "POST /api/engagement/attachments/:id/extract-text",
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-        "apps/web/src/pages/engagement/outreach/v2/StepContext.tsx",
+        "apps/web/src/pages/engagement/outreach/v2/useContextPlan.ts",
         "apps/web/src/pages/workspace/ContextBuilderPage.tsx"
       ],
       "runtimeAction": "attachment_external_read"
@@ -701,7 +825,16 @@
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
         "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx"
+        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
+        "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+        "apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx",
+        "apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx",
+        "apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx",
+        "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+        "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+        "apps/web/src/vnext/pages/engagement/outreach-step-context.tsx",
+        "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextClientsPage.tsx"
       ],
       "runtimeAction": "attachment_external_write"
     },
@@ -716,7 +849,16 @@
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/OutreachView.tsx",
         "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx"
+        "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
+        "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+        "apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx",
+        "apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx",
+        "apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx",
+        "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+        "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+        "apps/web/src/vnext/pages/engagement/outreach-step-context.tsx",
+        "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextClientsPage.tsx"
       ],
       "runtimeAction": "attachment_external_write"
     },
@@ -754,7 +896,8 @@
       "routeManifestKey": "POST /api/engagement/integrations",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": null
     },
@@ -762,7 +905,9 @@
       "routeManifestKey": "POST /api/engagement/integrations/google/:connectionId/sync",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_sync"
     },
@@ -771,7 +916,9 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/components/onboarding/OnboardingGates.tsx",
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_oauth_start"
     },
@@ -779,7 +926,8 @@
       "routeManifestKey": "POST /api/engagement/integrations/microsoft/:connectionId/calendar-window",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/components/AppShell.tsx"
+        "apps/web/src/components/AppShell.tsx",
+        "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts"
       ],
       "runtimeAction": "integration_sync"
     },
@@ -787,7 +935,8 @@
       "routeManifestKey": "POST /api/engagement/integrations/microsoft/:connectionId/subscriptions",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_subscription"
     },
@@ -796,7 +945,9 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/components/AppShell.tsx",
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_sync"
     },
@@ -811,24 +962,43 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/components/onboarding/OnboardingGates.tsx",
-        "apps/web/src/pages/settings/IntegrationsPage.tsx"
+        "apps/web/src/pages/settings/IntegrationsPage.tsx",
+        "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+        "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx"
       ],
       "runtimeAction": "integration_oauth_start"
     },
     {
-      "routeManifestKey": "POST /api/engagement/meeting-preps/:id/approve",
+      "routeManifestKey": "POST /api/engagement/mail/rewrite",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx",
-        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+        "apps/web/src/vnext/pages/client-crm/mail-api.ts"
       ],
-      "runtimeAction": null
+      "runtimeAction": "outreach_generate"
+    },
+    {
+      "routeManifestKey": "POST /api/engagement/mail/send",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/vnext/pages/client-crm/mail-api.ts",
+        "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.tsx"
+      ],
+      "runtimeAction": "outreach_send"
+    },
+    {
+      "routeManifestKey": "POST /api/engagement/meeting-preps/:id/pdf-attachment",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/meetings/PrepTab.tsx"
+      ],
+      "runtimeAction": "attachment_external_write"
     },
     {
       "routeManifestKey": "POST /api/engagement/meetings",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx"
       ],
       "runtimeAction": null
     },
@@ -884,8 +1054,10 @@
     },
     {
       "routeManifestKey": "POST /api/engagement/meetings/:id/notes",
-      "status": "api_only",
-      "consumers": [],
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+      ],
       "runtimeAction": null
     },
     {
@@ -902,7 +1074,8 @@
       "consumers": [
         "apps/web/src/pages/HomePage.tsx",
         "apps/web/src/pages/engagement/EngagementPage.tsx",
-        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+        "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts"
       ],
       "runtimeAction": "notetaker_dispatch"
     },
@@ -914,6 +1087,12 @@
         "apps/web/src/pages/engagement/EngagementPage.tsx",
         "apps/web/src/pages/engagement/meetings/meetings-api.ts"
       ],
+      "runtimeAction": "meeting_prep_generate"
+    },
+    {
+      "routeManifestKey": "POST /api/engagement/meetings/:id/prep-jobs/:jobId/resume",
+      "status": "api_only",
+      "consumers": [],
       "runtimeAction": "meeting_prep_generate"
     },
     {
@@ -981,10 +1160,18 @@
       "runtimeAction": "outreach_send"
     },
     {
-      "routeManifestKey": "POST /api/engagement/outreach/ai-templates",
+      "routeManifestKey": "POST /api/engagement/outreach/:outreachRecordId/draft-artifacts",
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx"
+      ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "POST /api/engagement/outreach/ai-templates",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx"
       ],
       "runtimeAction": null
     },
@@ -993,7 +1180,8 @@
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.tsx",
-        "apps/web/src/pages/engagement/outreach/v2/groups.tsx"
+        "apps/web/src/pages/engagement/outreach/v2/groups.tsx",
+        "apps/web/src/vnext/pages/engagement/engagement-api.ts"
       ],
       "runtimeAction": null
     },
@@ -1101,7 +1289,17 @@
       "routeManifestKey": "POST /api/engagement/reports/target-offices",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
+      ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "POST /api/engagement/reports/target-offices/link",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
       ],
       "runtimeAction": null
     },
@@ -1109,7 +1307,8 @@
       "routeManifestKey": "POST /api/engagement/reports/target-offices/overrides",
       "status": "consumed",
       "consumers": [
-        "apps/web/src/pages/engagement/EngagementPage.tsx"
+        "apps/web/src/pages/engagement/EngagementPage.tsx",
+        "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx"
       ],
       "runtimeAction": null
     },
@@ -1135,6 +1334,14 @@
     },
     {
       "routeManifestKey": "PUT /api/engagement/meetings/:id",
+      "status": "consumed",
+      "consumers": [
+        "apps/web/src/pages/engagement/meetings/meetings-api.ts"
+      ],
+      "runtimeAction": null
+    },
+    {
+      "routeManifestKey": "PUT /api/engagement/meetings/:id/prep-monday-mapping",
       "status": "consumed",
       "consumers": [
         "apps/web/src/pages/engagement/meetings/meetings-api.ts"
@@ -1424,6 +1631,19 @@
       "heuristicClassification": "safe_local_write"
     },
     {
+      "consumerFile": "apps/web/src/pages/dashboard/DashboardWorkQueue.tsx",
+      "consumerSymbol": "outreach",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach",
+      "routeManifestKey": "GET /api/engagement/outreach",
+      "surface": null,
+      "userAction": "outreach",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
       "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
       "consumerSymbol": "deleteAttachment",
       "method": "DELETE",
@@ -1448,6 +1668,19 @@
       "classificationReason": "@EngagementRuntimeAction('notetaker_remove')",
       "runtimeAction": "notetaker_remove",
       "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
+      "consumerSymbol": "restoreReportTarget",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/reports/target-offices/overrides",
+      "routeManifestKey": "DELETE /api/engagement/reports/target-offices/overrides",
+      "surface": "engagement-shell",
+      "userAction": "restore report target",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
@@ -1483,6 +1716,19 @@
       "routeManifestKey": "GET /api/engagement/context/:clientId",
       "surface": "engagement-shell",
       "userAction": "client context",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
+      "consumerSymbol": "integrations",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": "engagement-shell",
+      "userAction": "integrations",
       "classification": "read",
       "classificationReason": "read-only",
       "runtimeAction": null,
@@ -1620,6 +1866,19 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
+      "consumerSymbol": "request",
+      "method": "PATCH",
+      "requestPath": "/api/engagement/reports/target-offices/:param",
+      "routeManifestKey": "PATCH /api/engagement/reports/target-offices/:id",
+      "surface": "engagement-shell",
+      "userAction": "request",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
       "consumerSymbol": "updateTaskStatus",
       "method": "PATCH",
       "requestPath": "/api/engagement/tasks/:param",
@@ -1682,19 +1941,6 @@
       "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
       "runtimeAction": "attachment_external_write",
       "heuristicClassification": "external_action"
-    },
-    {
-      "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
-      "consumerSymbol": "approvePrep",
-      "method": "POST",
-      "requestPath": "/api/engagement/meeting-preps/:param/approve",
-      "routeManifestKey": "POST /api/engagement/meeting-preps/:id/approve",
-      "surface": "engagement-shell",
-      "userAction": "approve prep",
-      "classification": "safe_local_write",
-      "classificationReason": "database-local write, no declared external action",
-      "runtimeAction": null,
-      "heuristicClassification": "safe_local_write"
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
@@ -1776,6 +2022,19 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
+      "consumerSymbol": "linkTargetOffice",
+      "method": "POST",
+      "requestPath": "/api/engagement/reports/target-offices/link",
+      "routeManifestKey": "POST /api/engagement/reports/target-offices/link",
+      "surface": "engagement-shell",
+      "userAction": "link target office",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/EngagementPage.tsx",
       "consumerSymbol": "updateReportTarget",
       "method": "POST",
       "requestPath": "/api/engagement/reports/target-offices/overrides",
@@ -1812,6 +2071,32 @@
       "classificationReason": "@EngagementRuntimeAction('notetaker_remove')",
       "runtimeAction": "notetaker_remove",
       "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+      "consumerSymbol": "api",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/meetings/:param/prep-jobs/:param",
+      "routeManifestKey": "DELETE /api/engagement/meetings/:id/prep-jobs/:jobId",
+      "surface": "engagement-meetings-api",
+      "userAction": "api",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+      "consumerSymbol": "api",
+      "method": "GET",
+      "requestPath": "/api/engagement/capabilities",
+      "routeManifestKey": "GET /api/engagement/capabilities",
+      "surface": "engagement-meetings-api",
+      "userAction": "api",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
@@ -1880,12 +2165,25 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-      "consumerSymbol": "api",
+      "consumerSymbol": "query",
       "method": "GET",
-      "requestPath": "/api/engagement/meetings/library",
-      "routeManifestKey": "GET /api/engagement/meetings/library",
+      "requestPath": "/api/engagement/meetings/:param/prep-jobs/latest",
+      "routeManifestKey": "GET /api/engagement/meetings/:id/prep-jobs/latest",
       "surface": "engagement-meetings-api",
-      "userAction": "api",
+      "userAction": "query",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+      "consumerSymbol": "query",
+      "method": "GET",
+      "requestPath": "/api/engagement/meetings/:param/prep-monday-mapping",
+      "routeManifestKey": "GET /api/engagement/meetings/:id/prep-monday-mapping",
+      "surface": "engagement-meetings-api",
+      "userAction": "query",
       "classification": "read",
       "classificationReason": "read-only",
       "runtimeAction": null,
@@ -1986,19 +2284,6 @@
       "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
       "consumerSymbol": "invalidate",
       "method": "POST",
-      "requestPath": "/api/engagement/meeting-preps/:param/approve",
-      "routeManifestKey": "POST /api/engagement/meeting-preps/:id/approve",
-      "surface": "engagement-meetings-api",
-      "userAction": "invalidate",
-      "classification": "safe_local_write",
-      "classificationReason": "database-local write, no declared external action",
-      "runtimeAction": null,
-      "heuristicClassification": "safe_local_write"
-    },
-    {
-      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
-      "consumerSymbol": "invalidate",
-      "method": "POST",
       "requestPath": "/api/engagement/meetings/:param/artifacts/share",
       "routeManifestKey": "POST /api/engagement/meetings/:id/artifacts/share",
       "surface": "engagement-meetings-api",
@@ -2066,6 +2351,19 @@
       "method": "POST",
       "requestPath": "/api/engagement/meetings/:param/debriefs/:param/approve",
       "routeManifestKey": "POST /api/engagement/meetings/:id/debriefs/:debriefId/approve",
+      "surface": "engagement-meetings-api",
+      "userAction": "invalidate",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+      "consumerSymbol": "invalidate",
+      "method": "POST",
+      "requestPath": "/api/engagement/meetings/:param/notes",
+      "routeManifestKey": "POST /api/engagement/meetings/:id/notes",
       "surface": "engagement-meetings-api",
       "userAction": "invalidate",
       "classification": "safe_local_write",
@@ -2150,6 +2448,45 @@
       "classificationReason": "database-local write, no declared external action",
       "runtimeAction": null,
       "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+      "consumerSymbol": "save",
+      "method": "PUT",
+      "requestPath": "/api/engagement/meetings/:param/prep-monday-mapping",
+      "routeManifestKey": "PUT /api/engagement/meetings/:id/prep-monday-mapping",
+      "surface": "engagement-meetings-api",
+      "userAction": "save",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/meetings/PrepTab.tsx",
+      "consumerSymbol": "preparePdf",
+      "method": "POST",
+      "requestPath": "/api/engagement/meeting-preps/:param/pdf-attachment",
+      "routeManifestKey": "POST /api/engagement/meeting-preps/:id/pdf-attachment",
+      "surface": null,
+      "userAction": "prepare pdf",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/LegiWatchOutreachHandoff.tsx",
+      "consumerSymbol": "integrations",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": null,
+      "userAction": "integrations",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/outreach/v2/groups.tsx",
@@ -2270,12 +2607,12 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
-      "consumerSymbol": "templatesQuery",
+      "consumerSymbol": "resumeId",
       "method": "GET",
-      "requestPath": "/api/engagement/outreach/ai-templates",
-      "routeManifestKey": "GET /api/engagement/outreach/ai-templates",
+      "requestPath": "/api/engagement/outreach/:param/draft-artifacts",
+      "routeManifestKey": "GET /api/engagement/outreach/:outreachRecordId/draft-artifacts",
       "surface": "engagement-outreach-wizard",
-      "userAction": "templates query",
+      "userAction": "resume id",
       "classification": "read",
       "classificationReason": "read-only",
       "runtimeAction": null,
@@ -2374,12 +2711,12 @@
     },
     {
       "consumerFile": "apps/web/src/pages/engagement/outreach/v2/NewOutreachWizard.tsx",
-      "consumerSymbol": "createMutation",
+      "consumerSymbol": "recipient",
       "method": "POST",
-      "requestPath": "/api/engagement/outreach/ai-templates",
-      "routeManifestKey": "POST /api/engagement/outreach/ai-templates",
+      "requestPath": "/api/engagement/outreach/:param/draft-artifacts",
+      "routeManifestKey": "POST /api/engagement/outreach/:outreachRecordId/draft-artifacts",
       "surface": "engagement-outreach-wizard",
-      "userAction": "create mutation",
+      "userAction": "recipient",
       "classification": "safe_local_write",
       "classificationReason": "database-local write, no declared external action",
       "runtimeAction": null,
@@ -2490,19 +2827,6 @@
       "heuristicClassification": "external_action"
     },
     {
-      "consumerFile": "apps/web/src/pages/engagement/outreach/v2/StepContext.tsx",
-      "consumerSymbol": "res",
-      "method": "POST",
-      "requestPath": "/api/engagement/attachments/:param/extract-text",
-      "routeManifestKey": "POST /api/engagement/attachments/:id/extract-text",
-      "surface": "engagement-outreach-wizard",
-      "userAction": "res",
-      "classification": "external_action",
-      "classificationReason": "@EngagementRuntimeAction('attachment_external_read')",
-      "runtimeAction": "attachment_external_read",
-      "heuristicClassification": "external_action"
-    },
-    {
       "consumerFile": "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.tsx",
       "consumerSymbol": "audiences",
       "method": "GET",
@@ -2529,11 +2853,76 @@
       "heuristicClassification": "safe_local_write"
     },
     {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx",
+      "consumerSymbol": "templatesQuery",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach/ai-templates",
+      "routeManifestKey": "GET /api/engagement/outreach/ai-templates",
+      "surface": null,
+      "userAction": "templates query",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v2/StepTemplate.tsx",
+      "consumerSymbol": "createMutation",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach/ai-templates",
+      "routeManifestKey": "POST /api/engagement/outreach/ai-templates",
+      "surface": null,
+      "userAction": "create mutation",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v2/useContextPlan.ts",
+      "consumerSymbol": "res",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/:param/extract-text",
+      "routeManifestKey": "POST /api/engagement/attachments/:id/extract-text",
+      "surface": null,
+      "userAction": "res",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_read')",
+      "runtimeAction": "attachment_external_read",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "consumerSymbol": "data",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach-v3/:param",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "data",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
       "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
       "consumerSymbol": "data",
       "method": "GET",
       "requestPath": "/api/engagement/outreach-v3/reasoning/conversations/:param/turns",
       "routeManifestKey": null,
+      "surface": null,
+      "userAction": "data",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
+      "consumerSymbol": "data",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach/context-library",
+      "routeManifestKey": "GET /api/engagement/outreach/context-library",
       "surface": null,
       "userAction": "data",
       "classification": "read",
@@ -2829,12 +3218,12 @@
     },
     {
       "consumerFile": "apps/web/src/pages/HomePage.tsx",
-      "consumerSymbol": "prepQuery",
+      "consumerSymbol": "briefQuery",
       "method": "GET",
       "requestPath": "/api/engagement/meetings/:param",
       "routeManifestKey": "GET /api/engagement/meetings/:id",
       "surface": "home-dashboard",
-      "userAction": "prep query",
+      "userAction": "brief query",
       "classification": "read",
       "classificationReason": "read-only",
       "runtimeAction": null,
@@ -2881,12 +3270,12 @@
     },
     {
       "consumerFile": "apps/web/src/pages/HomePage.tsx",
-      "consumerSymbol": "generatePrep",
+      "consumerSymbol": "generateBrief",
       "method": "POST",
       "requestPath": "/api/engagement/meetings/:param/prep",
       "routeManifestKey": "POST /api/engagement/meetings/:id/prep",
       "surface": "home-dashboard",
-      "userAction": "generate prep",
+      "userAction": "generate brief",
       "classification": "external_action",
       "classificationReason": "@EngagementRuntimeAction('meeting_prep_generate')",
       "runtimeAction": "meeting_prep_generate",
@@ -3086,25 +3475,1137 @@
       "classificationReason": "@EngagementRuntimeAction('attachment_external_read')",
       "runtimeAction": "attachment_external_read",
       "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts",
+      "consumerSymbol": "meetings",
+      "method": "GET",
+      "requestPath": "/api/engagement/meetings",
+      "routeManifestKey": "GET /api/engagement/meetings",
+      "surface": null,
+      "userAction": "meetings",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts",
+      "consumerSymbol": "outreach",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach",
+      "routeManifestKey": "GET /api/engagement/outreach",
+      "surface": null,
+      "userAction": "outreach",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/adapters/legacy/useDashboardVNextModel.ts",
+      "consumerSymbol": "dispatchNotetaker",
+      "method": "POST",
+      "requestPath": "/api/engagement/meetings/:param/notetaker",
+      "routeManifestKey": "POST /api/engagement/meetings/:id/notetaker",
+      "surface": null,
+      "userAction": "dispatch notetaker",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('notetaker_dispatch')",
+      "runtimeAction": "notetaker_dispatch",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/adapters/legacy/useMailboxSyncStatus.ts",
+      "consumerSymbol": "query",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": null,
+      "userAction": "query",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+      "consumerSymbol": "connections",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": null,
+      "userAction": "connections",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+      "consumerSymbol": "reusableId",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/google/start",
+      "routeManifestKey": "POST /api/engagement/integrations/google/start",
+      "surface": null,
+      "userAction": "reusable id",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_oauth_start')",
+      "runtimeAction": "integration_oauth_start",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/app/onboarding/VNextOnboardingGates.tsx",
+      "consumerSymbol": "reusableId",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/microsoft/start",
+      "routeManifestKey": "POST /api/engagement/integrations/microsoft/start",
+      "surface": null,
+      "userAction": "reusable id",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_oauth_start')",
+      "runtimeAction": "integration_oauth_start",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+      "consumerSymbol": "docs",
+      "method": "GET",
+      "requestPath": "/api/engagement/attachments",
+      "routeManifestKey": "GET /api/engagement/attachments",
+      "surface": null,
+      "userAction": "docs",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+      "consumerSymbol": "s3Res",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "s3 res",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/CapabilityDrawerVNext.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/ClientCrmPage.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx",
+      "consumerSymbol": "confirmed",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "confirmed",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/ClientFillWithMeriDrawer.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx",
+      "consumerSymbol": "s3Res",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "s3 res",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/EmailComposeModal.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/mail-api.ts",
+      "consumerSymbol": "listMailThreads",
+      "method": "GET",
+      "requestPath": "/api/engagement/mail-threads",
+      "routeManifestKey": "GET /api/engagement/mail-threads",
+      "surface": null,
+      "userAction": "list mail threads",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/mail-api.ts",
+      "consumerSymbol": "getMailThread",
+      "method": "GET",
+      "requestPath": "/api/engagement/mail-threads/:param",
+      "routeManifestKey": "GET /api/engagement/mail-threads/:id",
+      "surface": null,
+      "userAction": "get mail thread",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/mail-api.ts",
+      "consumerSymbol": "rewriteEmail",
+      "method": "POST",
+      "requestPath": "/api/engagement/mail/rewrite",
+      "routeManifestKey": "POST /api/engagement/mail/rewrite",
+      "surface": null,
+      "userAction": "rewrite email",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('outreach_generate')",
+      "runtimeAction": "outreach_generate",
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/mail-api.ts",
+      "consumerSymbol": "sendSingleMail",
+      "method": "POST",
+      "requestPath": "/api/engagement/mail/send",
+      "routeManifestKey": "POST /api/engagement/mail/send",
+      "surface": null,
+      "userAction": "send single mail",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('outreach_send')",
+      "runtimeAction": "outreach_send",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+      "consumerSymbol": "remove",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/attachments/:param",
+      "routeManifestKey": "DELETE /api/engagement/attachments/:id",
+      "surface": null,
+      "userAction": "remove",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+      "consumerSymbol": "filesQuery",
+      "method": "GET",
+      "requestPath": "/api/engagement/attachments",
+      "routeManifestKey": "GET /api/engagement/attachments",
+      "surface": null,
+      "userAction": "files query",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+      "consumerSymbol": "attachment",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "attachment",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/client-crm/tabs/FilesTab.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "consumerSymbol": "listOutreachAttachments",
+      "method": "GET",
+      "requestPath": "/api/engagement/attachments",
+      "routeManifestKey": "GET /api/engagement/attachments",
+      "surface": null,
+      "userAction": "list outreach attachments",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "consumerSymbol": "listSavedOutreachAudiences",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach/audiences",
+      "routeManifestKey": "GET /api/engagement/outreach/audiences",
+      "surface": null,
+      "userAction": "list saved outreach audiences",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "consumerSymbol": "response",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "response",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "consumerSymbol": "upload",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "upload",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "consumerSymbol": "createSavedOutreachAudience",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach/audiences",
+      "routeManifestKey": "POST /api/engagement/outreach/audiences",
+      "surface": null,
+      "userAction": "create saved outreach audience",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-step-context.tsx",
+      "consumerSymbol": "s3Res",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "s3 res",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-step-context.tsx",
+      "consumerSymbol": "contentType",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "content type",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "response",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "response",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "response",
+      "method": "GET",
+      "requestPath": "/api/engagement/outreach-v3/templates/provenance/:param",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "response",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "updateOutreachTemplateMetadata",
+      "method": "PATCH",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "update outreach template metadata",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "replaceOutreachTemplateDraft",
+      "method": "PATCH",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param/draft",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "replace outreach template draft",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "archiveOutreachTemplate",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param/archive",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "archive outreach template",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "duplicateOutreachTemplate",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param/duplicate",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "duplicate outreach template",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "publishOutreachTemplate",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param/publish",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "publish outreach template",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "useOutreachTemplate",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param/use",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "outreach template",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "createOutreachTemplateVersionFromSession",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/:param/versions/from-session",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "create outreach template version from session",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "createOutreachTemplateFromScratch",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/from-scratch",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "create outreach template from scratch",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "consumerSymbol": "createOutreachTemplateFromSession",
+      "method": "POST",
+      "requestPath": "/api/engagement/outreach-v3/templates/from-session",
+      "routeManifestKey": null,
+      "surface": null,
+      "userAction": "create outreach template from session",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+      "consumerSymbol": "connections",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": null,
+      "userAction": "connections",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+      "consumerSymbol": "kind",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/google/:param/sync",
+      "routeManifestKey": "POST /api/engagement/integrations/google/:connectionId/sync",
+      "surface": null,
+      "userAction": "kind",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_sync')",
+      "runtimeAction": "integration_sync",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+      "consumerSymbol": "kind",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/microsoft/:param/calendar-window",
+      "routeManifestKey": "POST /api/engagement/integrations/microsoft/:connectionId/calendar-window",
+      "surface": null,
+      "userAction": "kind",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_sync')",
+      "runtimeAction": "integration_sync",
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/use-engagement-calendar-sync.ts",
+      "consumerSymbol": "kind",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/microsoft/:param/sync",
+      "routeManifestKey": "POST /api/engagement/integrations/microsoft/:connectionId/sync",
+      "surface": null,
+      "userAction": "kind",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_sync')",
+      "runtimeAction": "integration_sync",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx",
+      "consumerSymbol": "capabilities",
+      "method": "GET",
+      "requestPath": "/api/engagement/capabilities",
+      "routeManifestKey": "GET /api/engagement/capabilities",
+      "surface": null,
+      "userAction": "capabilities",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextMeetingsWorkspace.tsx",
+      "consumerSymbol": "createMeeting",
+      "method": "POST",
+      "requestPath": "/api/engagement/meetings",
+      "routeManifestKey": "POST /api/engagement/meetings",
+      "surface": null,
+      "userAction": "create meeting",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextOutreachClassic.tsx",
+      "consumerSymbol": "capabilities",
+      "method": "GET",
+      "requestPath": "/api/engagement/capabilities",
+      "routeManifestKey": "GET /api/engagement/capabilities",
+      "surface": null,
+      "userAction": "capabilities",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "archiveTargetOffice",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/reports/target-offices/:param",
+      "routeManifestKey": "DELETE /api/engagement/reports/target-offices/:id",
+      "surface": null,
+      "userAction": "archive target office",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "restoreOverride",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/reports/target-offices/overrides",
+      "routeManifestKey": "DELETE /api/engagement/reports/target-offices/overrides",
+      "surface": null,
+      "userAction": "restore override",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "report",
+      "method": "GET",
+      "requestPath": "/api/engagement/reports/overview",
+      "routeManifestKey": "GET /api/engagement/reports/overview",
+      "surface": null,
+      "userAction": "report",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "changed",
+      "method": "PATCH",
+      "requestPath": "/api/engagement/reports/target-offices/:param",
+      "routeManifestKey": "PATCH /api/engagement/reports/target-offices/:id",
+      "surface": null,
+      "userAction": "changed",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "createTargetOffice",
+      "method": "POST",
+      "requestPath": "/api/engagement/reports/target-offices",
+      "routeManifestKey": "POST /api/engagement/reports/target-offices",
+      "surface": null,
+      "userAction": "create target office",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "linkTargetOffice",
+      "method": "POST",
+      "requestPath": "/api/engagement/reports/target-offices/link",
+      "routeManifestKey": "POST /api/engagement/reports/target-offices/link",
+      "surface": null,
+      "userAction": "link target office",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "markRowComplete",
+      "method": "POST",
+      "requestPath": "/api/engagement/reports/target-offices/overrides",
+      "routeManifestKey": "POST /api/engagement/reports/target-offices/overrides",
+      "surface": null,
+      "userAction": "mark row complete",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/engagement/VNextReportsTracker.tsx",
+      "consumerSymbol": "updateOverride",
+      "method": "POST",
+      "requestPath": "/api/engagement/reports/target-offices/overrides",
+      "routeManifestKey": "POST /api/engagement/reports/target-offices/overrides",
+      "surface": null,
+      "userAction": "update override",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.tsx",
+      "consumerSymbol": "recipients",
+      "method": "POST",
+      "requestPath": "/api/engagement/mail/send",
+      "routeManifestKey": "POST /api/engagement/mail/send",
+      "surface": null,
+      "userAction": "recipients",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('outreach_send')",
+      "runtimeAction": "outreach_send",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/portfolio/PortfolioIndexPage.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/portfolio/usePortfolioIndexModel.ts",
+      "consumerSymbol": "meetings",
+      "method": "GET",
+      "requestPath": "/api/engagement/meetings",
+      "routeManifestKey": "GET /api/engagement/meetings",
+      "surface": null,
+      "userAction": "meetings",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextClientsPage.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/confirm",
+      "routeManifestKey": "POST /api/engagement/attachments/confirm",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextClientsPage.tsx",
+      "consumerSymbol": "presigned",
+      "method": "POST",
+      "requestPath": "/api/engagement/attachments/upload-url",
+      "routeManifestKey": "POST /api/engagement/attachments/upload-url",
+      "surface": null,
+      "userAction": "presigned",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('attachment_external_write')",
+      "runtimeAction": "attachment_external_write",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "disconnectGoogle",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/integrations/google/:param",
+      "routeManifestKey": "DELETE /api/engagement/integrations/google/:connectionId",
+      "surface": null,
+      "userAction": "disconnect google",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_disconnect')",
+      "runtimeAction": "integration_disconnect",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "disconnectMicrosoft",
+      "method": "DELETE",
+      "requestPath": "/api/engagement/integrations/microsoft/:param",
+      "routeManifestKey": "DELETE /api/engagement/integrations/microsoft/:connectionId",
+      "surface": null,
+      "userAction": "disconnect microsoft",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_disconnect')",
+      "runtimeAction": "integration_disconnect",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "integrations",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "GET /api/engagement/integrations",
+      "surface": null,
+      "userAction": "integrations",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "googleCapabilities",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations/google/capabilities",
+      "routeManifestKey": "GET /api/engagement/integrations/google/capabilities",
+      "surface": null,
+      "userAction": "google capabilities",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "microsoftCapabilities",
+      "method": "GET",
+      "requestPath": "/api/engagement/integrations/microsoft/capabilities",
+      "routeManifestKey": "GET /api/engagement/integrations/microsoft/capabilities",
+      "surface": null,
+      "userAction": "microsoft capabilities",
+      "classification": "read",
+      "classificationReason": "read-only",
+      "runtimeAction": null,
+      "heuristicClassification": "read"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "createIntegration",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations",
+      "routeManifestKey": "POST /api/engagement/integrations",
+      "surface": null,
+      "userAction": "create integration",
+      "classification": "safe_local_write",
+      "classificationReason": "database-local write, no declared external action",
+      "runtimeAction": null,
+      "heuristicClassification": "safe_local_write"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "syncGoogle",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/google/:param/sync",
+      "routeManifestKey": "POST /api/engagement/integrations/google/:connectionId/sync",
+      "surface": null,
+      "userAction": "sync google",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_sync')",
+      "runtimeAction": "integration_sync",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "startGoogleOAuth",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/google/start",
+      "routeManifestKey": "POST /api/engagement/integrations/google/start",
+      "surface": null,
+      "userAction": "start google oauth",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_oauth_start')",
+      "runtimeAction": "integration_oauth_start",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "enableMicrosoftRealtime",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/microsoft/:param/subscriptions",
+      "routeManifestKey": "POST /api/engagement/integrations/microsoft/:connectionId/subscriptions",
+      "surface": null,
+      "userAction": "enable microsoft realtime",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_subscription')",
+      "runtimeAction": "integration_subscription",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "syncMicrosoft",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/microsoft/:param/sync",
+      "routeManifestKey": "POST /api/engagement/integrations/microsoft/:connectionId/sync",
+      "surface": null,
+      "userAction": "sync microsoft",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_sync')",
+      "runtimeAction": "integration_sync",
+      "heuristicClassification": "external_action"
+    },
+    {
+      "consumerFile": "apps/web/src/vnext/pages/settings/VNextIntegrationsPage.tsx",
+      "consumerSymbol": "startMicrosoftOAuth",
+      "method": "POST",
+      "requestPath": "/api/engagement/integrations/microsoft/start",
+      "routeManifestKey": "POST /api/engagement/integrations/microsoft/start",
+      "surface": null,
+      "userAction": "start microsoft oauth",
+      "classification": "external_action",
+      "classificationReason": "@EngagementRuntimeAction('integration_oauth_start')",
+      "runtimeAction": "integration_oauth_start",
+      "heuristicClassification": "external_action"
     }
   ],
   "findings": [
     {
       "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/pages/engagement/meetings/meetings-api.ts",
+      "line": 96,
+      "detail": "could not resolve the URL argument of api.get<MeetingLibraryResponse>(`${BASE}/meetings/library`, {"
+    },
+    {
+      "kind": "unresolvable_request_url",
       "consumerFile": "apps/web/src/pages/engagement/outreach/v3/outreach-v3-api.ts",
-      "line": 65,
+      "line": 67,
       "detail": "could not resolve the URL argument of api.get<OutreachV3SessionEnvelope>(outreachV3SessionPath(sessionId))).data;"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 281,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3GenerationPlan>(sessionPath(sessionId, '/generation/plan'))).d"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 286,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3SampleGenerationResult>(sessionPath(sessionId, '/generation/s"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 292,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3ApproachApproval | null>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 304,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3ApproachApprovalResult>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 324,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3FullGenerationResponse>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 386,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3GenerationJob>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 404,
+      "detail": "could not resolve the URL argument of api.get<{ job: OutreachV3GenerationJob | null }>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 416,
+      "detail": "could not resolve the URL argument of api.post(sessionPath(sessionId, `/generation/jobs/${encodeURIComponent(jobId)}/c"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 427,
+      "detail": "could not resolve the URL argument of api.post("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 437,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3DraftArtifact[]>(sessionPath(sessionId, '/drafts'))).data;"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 447,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3DraftVersion>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 465,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3DraftVersion>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 486,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3DraftVersion>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 499,
+      "detail": "could not resolve the URL argument of api.post(sessionPath(sessionId, `/drafts/${encodeURIComponent(versionId)}/approv"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 504,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3SendSettings | null>(sessionPath(sessionId, '/send/settings'))"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 514,
+      "detail": "could not resolve the URL argument of api.put<{"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 534,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3ServerPreflight>(sessionPath(sessionId, '/send/preflight'), i"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 544,
+      "detail": "could not resolve the URL argument of api.post<{"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 558,
+      "detail": "could not resolve the URL argument of api.post<{"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 572,
+      "detail": "could not resolve the URL argument of api.get<OutreachV3SendIntentView>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 584,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3SendIntentView>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 596,
+      "detail": "could not resolve the URL argument of api.post(sessionPath(sessionId, `/send/intents/${encodeURIComponent(intentId)}/c"
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/engagement-api.ts",
+      "line": 743,
+      "detail": "could not resolve the URL argument of api.post<OutreachV3ReviewPacketApprovalResult>("
+    },
+    {
+      "kind": "unresolvable_request_url",
+      "consumerFile": "apps/web/src/vnext/pages/engagement/outreach-v3-template-api.ts",
+      "line": 369,
+      "detail": "could not resolve the URL argument of api.get<OutreachTemplateSummary[]>(ROOT, {"
     }
   ],
   "totals": {
     "surfaces": 13,
-    "consumerFiles": 23,
-    "requests": 148,
-    "routesTotal": 110,
-    "routesConsumed": 84,
-    "routesApiOnly": 26,
-    "read": 54,
-    "safeLocalWrite": 47,
-    "externalAction": 47
+    "consumerFiles": 48,
+    "requests": 236,
+    "routesTotal": 126,
+    "routesConsumed": 96,
+    "routesApiOnly": 30,
+    "read": 82,
+    "safeLocalWrite": 72,
+    "externalAction": 82
   }
 }

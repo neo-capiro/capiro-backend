@@ -240,7 +240,9 @@ describe('Phase 6 typed keyword delivery through the existing runner', () => {
     );
     expect(await runner.bundleEndOfDay(tenant, due, 'bill_keyword')).toBe(1);
     expect(await runner.bundleEndOfDay(tenant, due, 'bill_keyword')).toBe(0);
-    await runner.drain(tenant, 25, due, 'bill_keyword');
+    // A late run dispatches at the current time. Backdating its lease to today's
+    // cutoff would correctly expire it before the real database dispatch check.
+    await runner.drain(tenant, 25, new Date(Math.max(Date.now(), due.getTime())), 'bill_keyword');
     expect(email.sendReport).toHaveBeenCalledTimes(1);
     expect(localOccurrence('2026-03-08', 1020, 'America/New_York').toISOString()).toBe(
       '2026-03-08T21:00:00.000Z',

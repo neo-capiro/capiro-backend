@@ -204,24 +204,9 @@ describe('PrepTab', () => {
     );
     expect(
       screen.getByText(
-        'Refine, Regenerate, Export PDF and Approve are distinct controls. Approval never implies sharing.',
+        'Refine, Regenerate, Export PDF and Email PDF are distinct controls. A saved prep is never shared until you send it.',
       ),
     ).toBeInTheDocument();
-  });
-
-  test('clicking Approve on a generated prep POSTs the approve endpoint with the exact prep id', async () => {
-    apiPostMock.mockResolvedValue({ data: makePrep({ id: 'p42', status: 'approved' }) });
-    const qc = new QueryClient();
-    render(
-      buildTree(qc, {
-        meeting: makeMeeting({ preps: [makePrep({ id: 'p42', status: 'generated' })] }),
-        aiConfigured: true,
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }));
-    await waitFor(() =>
-      expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meeting-preps/p42/approve'),
-    );
   });
 
   test('legacy prep is explicitly missing source information', () => {
@@ -345,5 +330,26 @@ describe('PrepTab', () => {
     // Still communicates the no-prep state honestly afterward — no fabricated
     // success, no silently-stuck "Generating" spinner.
     expect(screen.getByText('No prep generated yet')).toBeInTheDocument();
+  });
+
+  test('Email PDF renders the prep to an attachment and opens the compose window with teammates', async () => {
+    apiPostMock.mockResolvedValue({ data: { id: 'att1', fileName: 'Prep - Budget sync.pdf' } });
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data: url.endsWith('/tenant-members')
+        ? [{ id: 'u2', email: 'ryan@capiro.ai', name: 'Ryan Anderson' }]
+        : url.endsWith('/prep-jobs/latest')
+          ? null
+          : {},
+    }));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(buildTree(qc, { meeting: makeMeeting({ preps: [makePrep()] }), aiConfigured: true }));
+    fireEvent.click(screen.getByRole('button', { name: /email pdf/i }));
+    await waitFor(() =>
+      expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meeting-preps/p1/pdf-attachment'),
+    );
+    expect(await screen.findByText('Prep - Budget sync.pdf')).toBeInTheDocument();
+    expect(screen.getByText('New email')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '+ Add recipient' })).toBeInTheDocument();
+    qc.clear();
   });
 });

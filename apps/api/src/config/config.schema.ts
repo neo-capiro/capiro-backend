@@ -131,7 +131,7 @@ export const configSchema = z.object({
   // hundreds of quoted facts needs a reasoning-capable model — gpt-4.1-mini and
   // haiku exhaust the bounded repair loop and fail the job. A tenant's explicit
   // BYOK modelOverride still wins. Set to '' to fall back to the global model.
-  MEETING_PREP_OPENAI_MODEL: z.string().default('gpt-5'),
+  MEETING_PREP_OPENAI_MODEL: z.string().default('gpt-5.6-sol'),
   MEETING_PREP_ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
 
   // Phase 1 SSOT-consolidation recall source (docs/plans/…phase-1-ssot-cutover-plan.md).

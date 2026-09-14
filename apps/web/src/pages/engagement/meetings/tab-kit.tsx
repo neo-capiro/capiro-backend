@@ -5,7 +5,7 @@
  * Approve). Presentational; the tabs wire the real mutations in.
  */
 import type { ChangeEvent, CSSProperties } from 'react';
-import { Check, Download, Pencil, RefreshCw } from 'lucide-react';
+import { Check, Download, Pencil, RefreshCw, Mail } from 'lucide-react';
 import { MeriGlyph } from './meetings-ui.js';
 
 /**
@@ -150,6 +150,8 @@ export function ArtifactActionBar({
   regenerateDisabled,
   onEdit,
   onExport,
+  onEmail,
+  emailing,
   approved,
   onApprove,
   approving,
@@ -169,6 +171,9 @@ export function ArtifactActionBar({
   regenerateDisabled?: boolean;
   onEdit?: () => void;
   onExport: () => void;
+  /** Renders the prep to a PDF attachment and opens the compose window. */
+  onEmail?: () => void;
+  emailing?: boolean;
   approved: boolean;
   onApprove?: () => void;
   approving?: boolean;
@@ -227,6 +232,18 @@ export function ArtifactActionBar({
           <Download size={13} />
           Export PDF
         </button>
+        {onEmail && (
+          <button
+            type="button"
+            className="btn sm"
+            style={{ gap: 6 }}
+            disabled={emailing}
+            onClick={onEmail}
+          >
+            <Mail size={13} />
+            {emailing ? 'Preparing PDF…' : 'Email PDF'}
+          </button>
+        )}
         <div style={{ flex: 1 }} />
         {approved ? (
           <>

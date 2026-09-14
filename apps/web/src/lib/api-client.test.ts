@@ -69,9 +69,9 @@ describe('meeting prep timeout', () => {
   test.each([
     '/api/engagement/meetings/m1/prep-jobs/latest',
     '/api/engagement/meetings/m1/prep-monday-mapping',
-    '/api/engagement/meeting-preps/p1/approve',
+    '/api/engagement/meeting-preps/p1/pdf-attachment',
     undefined,
-  ])('does not extend status, mapping or approval requests: %s', (url) => {
+  ])('does not extend status, mapping or attachment requests: %s', (url) => {
     expect(isMeetingPrepUrl(url)).toBe(false);
   });
   test('extends POST prep to 55 minutes without changing ordinary calls or explicit timeouts', async () => {

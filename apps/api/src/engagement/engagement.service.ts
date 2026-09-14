@@ -69,6 +69,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { currentMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 import { currentMeetingGovernedContext } from './meeting-context-runtime.js';
 import { assertSavedMeetingPrepAccess } from './meeting-prep-source-access.js';
+import { meetingPrepPdfSections, renderMeetingPrepPdf } from './meeting-prep-pdf.js';
+import { prepMeetingLogistics } from './meeting-prep-grounding.js';
 import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
 import {
   recordAiUsageEvent,
@@ -5303,7 +5305,7 @@ export class EngagementService {
   async createMeetingNote(
     ctx: TenantContext,
     meetingId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string },
+    input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(
@@ -5326,6 +5328,9 @@ export class EngagementService {
             keyVersion: encrypted.keyVersion,
             confidential: input.confidential ?? true,
             accessLevel: input.accessLevel ?? 'tenant_admins_and_author',
+            ...(input.approved
+              ? { status: 'approved', approvedAt: new Date(), approvedByUserId: ctx.userId }
+              : {}),
           },
           select: noteMetadataSelect(),
         });
@@ -5380,7 +5385,7 @@ export class EngagementService {
   async createMeetingDebrief(
     ctx: TenantContext,
     meetingId: string,
-    input: { body: string; confidential?: boolean; accessLevel?: string },
+    input: { body: string; confidential?: boolean; accessLevel?: string; approved?: boolean },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -5401,6 +5406,7 @@ export class EngagementService {
           keyVersion: encrypted.keyVersion,
           confidential: input.confidential ?? true,
           accessLevel: input.accessLevel ?? 'tenant_members',
+          ...(input.approved ? { status: MeetingDebriefStatus.approved } : {}),
         },
         select: debriefMetadataSelect(),
       });
@@ -5448,8 +5454,8 @@ export class EngagementService {
   }
 
   /**
-   * Approve a meeting debrief (Meetings v2 §5) — the symmetric counterpart to
-   * approveMeetingPrep. Only an `approved` debrief is eligible for the Meeting
+   * Approve a meeting debrief (Meetings v2 §5) — the counterpart to approveMeetingNote.
+   * Only an `approved` debrief is eligible for the Meeting
    * Library and for sharing. Reuses the same owner-guard + author/admin edit
    * check as updateMeetingDebrief.
    */
@@ -5474,7 +5480,7 @@ export class EngagementService {
 
   /**
    * Approve a meeting note (Phase 2 §d) — the note-side counterpart to
-   * approveMeetingDebrief/approveMeetingPrep. A note is captured on creation
+   * approveMeetingDebrief. A note is captured on creation
    * but is NOT approved merely by existing (that was the pre-Phase-2 bug: the
    * Library and decorateMeetings both inferred "approved" from mere
    * presence). Only an `approved` note is eligible for the Meeting Library and
@@ -6274,15 +6280,19 @@ export class EngagementService {
             briefing: generated.briefing,
             grounding: generated.grounding,
           });
+        // Every saved prep is already approved, so a regenerate supersedes the
+        // one currently in use rather than sitting beside it as a draft.
         await tx.meetingPrep.updateMany({
-          where: { tenantId: ctx.tenantId, meetingId, status: { in: ['generated', 'edited'] } },
-          data: { status: 'stale' },
+          where: { tenantId: ctx.tenantId, meetingId, status: MeetingPrepStatus.approved },
+          data: { status: MeetingPrepStatus.stale },
         });
         const artifact = await tx.meetingPrep.create({
           data: {
             tenantId: ctx.tenantId,
             meetingId,
             clientId: correctClientId,
+            // A prep is usable the moment it is saved; approval is not a gate.
+            status: MeetingPrepStatus.approved,
             agenda: generated.agenda,
             talkingPoints: generated.talkingPoints,
             risks: generated.risks,
@@ -6380,7 +6390,7 @@ export class EngagementService {
           ...('emailEvidence' in input
             ? { emailEvidence: normalizeStringArray(input.emailEvidence) }
             : {}),
-          status: MeetingPrepStatus.edited,
+          status: MeetingPrepStatus.approved,
           editedByUserId: ctx.userId,
           ...(generatedFrom &&
           grounding &&
@@ -6409,35 +6419,47 @@ export class EngagementService {
     return updated;
   }
 
-  async approveMeetingPrep(ctx: TenantContext, prepId: string) {
-    const approved = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const prep = await tx.meetingPrep.findFirst({
+  /** The prep as the reader sees it on screen — no source appendix — stored as a PDF attachment ready to email. */
+  async createMeetingPrepPdfAttachment(ctx: TenantContext, prepId: string) {
+    const prep = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const row = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
-        select: { id: true, meetingId: true, generatedFrom: true },
-      });
-      if (!prep) throw new NotFoundException('Meeting prep not found');
-      await this.ensureOwnMeeting(tx, ctx, prep.meetingId);
-      await assertSavedMeetingPrepAccess(tx, ctx, prep.generatedFrom);
-
-      return tx.meetingPrep.update({
-        where: { id: prepId },
-        data: {
-          status: MeetingPrepStatus.approved,
-          editedByUserId: ctx.userId,
+        select: {
+          id: true,
+          meetingId: true,
+          clientId: true,
+          summary: true,
+          agenda: true,
+          talkingPoints: true,
+          risks: true,
+          followUps: true,
+          emailEvidence: true,
+          generatedFrom: true,
+          meeting: { select: { subject: true, startsAt: true, timeZone: true } },
         },
       });
+      if (!row) throw new NotFoundException('Meeting prep not found');
+      await this.ensureOwnMeeting(tx, ctx, row.meetingId);
+      await assertSavedMeetingPrepAccess(tx, ctx, row.generatedFrom);
+      return row;
     });
-    if (this.qualityTelemetry) {
-      await this.qualityTelemetry.recordEvent(
-        buildMeetingPrepTelemetryEvent(
-          ctx,
-          { prepId, clientId: approved.clientId },
-          'approved',
-          new Date(),
-        ),
-      );
-    }
-    return approved;
+    const title = `Prep - ${prep.meeting.subject}`;
+    const buffer = await renderMeetingPrepPdf({
+      title,
+      subtitle: prepMeetingLogistics(prep.meeting).formattedTime,
+      sections: meetingPrepPdfSections(prep),
+    });
+    const attachment = await this.createAttachmentFromBuffer(ctx, {
+      clientId: prep.clientId,
+      meetingId: prep.meetingId,
+      fileName: `${title}.pdf`,
+      contentType: 'application/pdf',
+      buffer,
+      source: 'meeting-prep-pdf',
+      sourceEntityType: 'meeting_prep',
+      sourceEntityId: prep.id,
+    });
+    return { id: attachment.id, fileName: attachment.fileName };
   }
 
   private async directoryProfilesForMeeting(

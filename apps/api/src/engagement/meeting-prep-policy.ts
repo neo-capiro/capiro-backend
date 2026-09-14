@@ -1,7 +1,16 @@
 /** Operation-local budgets. Never raise the timeout of unrelated interactive tools. */
 export const MEETING_PREP_POLICY = {
-  version: 'comprehensive-prep-v3',
+  version: 'comprehensive-prep-v4',
   standard: {
+    meetings: 10,
+    meetingDays: 90,
+    threads: 15,
+    emailDays: 30,
+    messages: 150,
+    upcomingDays: 30,
+    deadlineMs: 60 * 60_000,
+  },
+  deep: {
     meetings: 25,
     meetingDays: 180,
     threads: 100,
@@ -10,7 +19,7 @@ export const MEETING_PREP_POLICY = {
     upcomingDays: 30,
     deadlineMs: 60 * 60_000,
   },
-  deep: {
+  max: {
     meetings: 100,
     meetingDays: 365,
     threads: 300,
@@ -31,12 +40,13 @@ export const MEETING_PREP_POLICY = {
   leaseMs: 90_000,
   outputTokens: 32_768,
   retryOutputTokens: 49_152,
-  extractionTokens: 8_192,
+  extractionTokens: 24_576,
   evidenceTokens: 64_000,
   maxRepairPasses: 2,
 } as const;
 
-export type MeetingPrepDepth = 'standard' | 'deep';
+export const MEETING_PREP_DEPTHS = ['standard', 'deep', 'max'] as const;
+export type MeetingPrepDepth = (typeof MEETING_PREP_DEPTHS)[number];
 export const MEETING_BRIEFING_SECTIONS = [
   'recentDevelopments',
   'importantEmails',
