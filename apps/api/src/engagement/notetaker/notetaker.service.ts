@@ -1020,9 +1020,9 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Notes-first: Meri writes its summary to MEETING NOTES as the primary,
-    // must-succeed deliverable. The user reviews it on the Notes tab and can
-    // always edit further. We reuse the debrief-draft generator (recap / action
-    // items / notes) purely as the summary body and store it as a note.
+    // must-succeed deliverable, saved approved so it is usable immediately; the
+    // user can always edit further on the Notes tab. We reuse the debrief-draft
+    // generator (recap / action items / notes) purely as the summary body.
     let draft: { recap: string; actionItems: string[]; notes: string };
     try {
       draft = await this.engagement.generateMeetingDebriefDraft(ctx, session.meetingId, {
@@ -1031,6 +1031,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       });
       await this.engagement.createMeetingNote(ctx, session.meetingId, {
         body: formatDebriefBody(draft),
+        approved: true,
       });
     } catch (err) {
       this.logger.warn(`notes save failed (session ${session.id}): ${(err as Error).message}`);
@@ -1038,16 +1039,15 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    // Also auto-create a Debrief from the same generated content, reusing the
-    // draft above (no extra LLM cost). Best-effort: a failure here must never
-    // cost the user their already-saved notes. createMeetingDebrief defaults new
-    // rows to the unapproved `generated` status — the user still has to approve
-    // it (existing debrief-approve endpoint) before it reaches the Library or
-    // becomes shareable, matching the "never silently publish AI notes" intent.
+    // Also auto-create the Debrief from the same generated content, reusing the
+    // draft above (no extra LLM cost), saved approved like the notes so it is in
+    // the Library and shareable without a review step. Best-effort: a failure
+    // here must never cost the user their already-saved notes.
     let debriefId: string | null = null;
     try {
       const debrief = await this.engagement.createMeetingDebrief(ctx, session.meetingId, {
         body: formatDebriefBody(draft),
+        approved: true,
       });
       debriefId = debrief.id;
     } catch (err) {

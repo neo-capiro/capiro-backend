@@ -320,30 +320,6 @@ describe('approveMeetingAttachment — single-user approval (Neo decision)', () 
   });
 });
 
-describe('approveMeetingPrep — unchanged: no per-item author check', () => {
-  test('approving a prep never checks an author field — only ensureOwnMeeting (meeting ownership) gates it', async () => {
-    let updateArgs: { data: Record<string, unknown> } | undefined;
-    const service = serviceWith({
-      meetingPrep: {
-        findFirst: async () => ({ id: 'p1', meetingId: 'm1' }),
-        update: async (args: { data: Record<string, unknown> }) => {
-          updateArgs = args;
-          return { id: 'p1', status: 'approved' };
-        },
-      },
-      meeting: { findFirst: async () => ({ id: 'm1' }) }, // ensureOwnMeeting
-    });
-
-    await service.approveMeetingPrep(ctx, 'p1');
-
-    expect(updateArgs!.data.status).toBe('approved');
-    expect(updateArgs!.data.editedByUserId).toBe('user-1');
-    // Deliberately no assertion about an author/uploader match — the
-    // service never loads or checks one for prep (see the plan's Neo-decision
-    // note: prep keeps its existing no-author-check gate unchanged).
-  });
-});
-
 describe('listMeetingNotes serialization — EM-05: the panel must see the same approval state as the tab/Library/Share dialog', () => {
   // Prod 2026-09-08 (EM-05, "Capiro Walktrhough" meeting): the Notes panel
   // showed "Draft" + an enabled Approve button for a note the DB had as

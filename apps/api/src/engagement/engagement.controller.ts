@@ -2108,7 +2108,7 @@ export class EngagementController {
   }
 
   // Approve a note (Phase 2 §d) — symmetric with debriefs/:debriefId/approve
-  // and meeting-preps/:id/approve below. Only an approved note reaches the
+  // and debriefs/:debriefId/approve below. Only an approved note reaches the
   // Library / is shareable.
   @Post('meetings/:id/notes/:noteId/approve')
   approveNote(
@@ -2143,7 +2143,7 @@ export class EngagementController {
     return this.service.updateMeetingDebrief(ctx, meetingId, debriefId, body);
   }
 
-  // Approve a debrief (Meetings v2 §6) — symmetric with meeting-preps/:id/approve.
+  // Approve a debrief (Meetings v2 §6).
   // Only an approved debrief reaches the Library / is shareable.
   @Post('meetings/:id/debriefs/:debriefId/approve')
   approveDebrief(
@@ -2251,11 +2251,6 @@ export class EngagementController {
     @Body() body: UpdateMeetingPrepDto,
   ) {
     return this.service.updateMeetingPrep(ctx, prepId, body);
-  }
-
-  @Post('meeting-preps/:id/approve')
-  approvePrep(@CurrentTenant() ctx: TenantContext, @Param('id') prepId: string) {
-    return this.service.approveMeetingPrep(ctx, prepId);
   }
 
   // The on-screen prep rendered to PDF and stored as a meeting attachment, so

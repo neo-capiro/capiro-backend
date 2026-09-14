@@ -450,8 +450,13 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     await service.handleBotEvent(makeEvent({ kind: 'transcript_done', transcriptId: 'tr1' }));
     expect(engagement.createAttachmentFromBuffer).not.toHaveBeenCalled();
     // Notes-first: the summary is written to Meeting Notes, and a Debrief is
-    // also auto-created from the same generated content (unapproved by default).
+    // also auto-created from the same generated content; both are saved approved.
     expect(engagement.createMeetingNote).toHaveBeenCalledTimes(1);
+    expect(engagement.createMeetingNote).toHaveBeenCalledWith(
+      expect.anything(),
+      'm1',
+      expect.objectContaining({ approved: true }),
+    );
     expect(engagement.createMeetingDebrief).toHaveBeenCalledTimes(1);
   });
 
@@ -487,7 +492,7 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     expect(engagement.createMeetingDebrief).toHaveBeenCalledWith(
       expect.anything(),
       'm1',
-      expect.objectContaining({ body: noteBody }),
+      expect.objectContaining({ body: noteBody, approved: true }),
     );
     expect(engagement.createAttachmentFromBuffer).toHaveBeenCalledWith(
       expect.anything(),
