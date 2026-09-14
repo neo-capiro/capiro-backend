@@ -31,6 +31,7 @@ for (const [app, files, web] of [
     false,
   ],
   ['intel-api', ['test/phase8-domain.spec.ts', 'test/phase8-postgres.spec.ts'], false],
+  ['meriv2-orchestrator', ['src/meri/meriv3/meriv3-phase8-evidence.spec.ts'], false],
   ['web', ['src/vnext/pages/legiwatch/editorial/EvidenceTab.test.tsx'], true],
 ]) {
   const cwd = join(root, 'apps', app),

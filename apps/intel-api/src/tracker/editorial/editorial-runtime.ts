@@ -7,6 +7,7 @@ import { HearingAiCredentialResolver } from '../../hearing/hearing-ai-credential
 import { EditorialService } from './editorial.service.js';
 import { object, digest, json } from '../reports/report-domain.js';
 import { phase8Scope } from './evidence.service.js';
+import { discoverEditorialWork } from './editorial-discovery.js';
 
 export async function runEditorialWork(
   editorial: EditorialService,
@@ -17,13 +18,14 @@ export async function runEditorialWork(
   const evidence = editorial.evidence,
     prisma = evidence.reports.folders.prisma,
     results: Array<Record<string, unknown>> = [];
+  const enabled =
+    process.env.LEGIWATCH_NEWS_MONITOR_ENABLED === 'true' ||
+    process.env.LEGIWATCH_EDITORIAL_PREPARE_ENABLED === 'true';
+  const work = enabled
+    ? await discoverEditorialWork(prisma, tenantId)
+    : { monitors: [], configurations: [] };
   if (process.env.LEGIWATCH_NEWS_MONITOR_ENABLED === 'true') {
-    const monitors = await prisma.withSystem(
-      (tx) =>
-        tx.$queryRaw<
-          Array<{ id: string; owner_clerk_id: string }>
-        >`SELECT id,owner_clerk_id FROM intel_legiwatch_news_monitor WHERE tenant_id=${tenantId} AND state='active' ORDER BY last_attempt_at NULLS FIRST,id LIMIT 10`,
-    );
+    const monitors = work.monitors;
     for (const monitor of monitors)
       try {
         results.push({
@@ -39,18 +41,7 @@ export async function runEditorialWork(
   }
   if (process.env.LEGIWATCH_EDITORIAL_PREPARE_ENABLED !== 'true')
     return { state: 'preparation_disabled', results };
-  const configs = await prisma.withSystem(
-    (tx) =>
-      tx.$queryRaw<
-        Array<{
-          id: string;
-          owner_clerk_id: string;
-          version: number;
-          config: Record<string, unknown>;
-          standing_approval: Record<string, unknown> | null;
-        }>
-      >`SELECT id,owner_clerk_id,version,config,standing_approval FROM intel_legiwatch_editorial_config WHERE tenant_id=${tenantId} AND state='active' ORDER BY last_attempt_at NULLS FIRST,id LIMIT 10`,
-  );
+  const configs = work.configurations;
   const orchestrator =
     generator ??
     new OrchestratorClient(

@@ -77,6 +77,67 @@ function sanitizeValue(value: unknown): unknown {
   );
 }
 
+/** Fiscal tool responses wrap owner data in `result`. Keep all monetary
+ * observations and their exact revisions; project only document metadata into
+ * citable source identities before the generic limiter drops an opaque wrapper. */
+function projectFloridaBudgetEvidence(original: Record<string, unknown>, maxCharacters: number) {
+  if (original.tool !== 'get_florida_budget_project' || !object(original.result)) return null;
+  const { documents, ...evidence } = original.result;
+  if (
+    !Array.isArray(documents) ||
+    !Array.isArray(evidence.projects) ||
+    !Array.isArray(evidence.amounts)
+  )
+    return null;
+  const documentRows = documents.filter(object);
+  const ids = new Set(documentRows.map((d) => d.id)),
+    referenced = new Set<unknown>();
+  const visit = (value: unknown): void => {
+    if (typeof value === 'string' && ids.has(value)) referenced.add(value);
+    else if (Array.isArray(value)) value.forEach(visit);
+    else if (object(value)) Object.values(value).forEach(visit);
+  };
+  visit(evidence);
+  const selected =
+    evidence.projects.length === 1 && referenced.size
+      ? documentRows.filter((d) => referenced.has(d.id))
+      : documentRows;
+  const data = selected.map((document) => ({
+    id: document.id,
+    title: document.title,
+    url: document.source_url,
+    sourceRevision: document.content_hash,
+    publisher: document.publisher,
+    fiscalYear: document.fiscal_year,
+    session: document.session_key,
+    chamber: document.chamber,
+    stage: document.stage,
+    role: document.role,
+    offer: document.offer,
+    publicationDate: document.publication_date,
+    observedAt: document.observed_at,
+    complete: document.complete,
+    coverage: object(document.metadata) ? document.metadata.coverage : undefined,
+  }));
+  const projected = {
+    ...original,
+    result: evidence,
+    data,
+    projection: {
+      representation: 'fiscal_document_identities',
+      documentMetadataSummarized: true,
+      projectRowsPreserved: true,
+      unreferencedDocumentIdsOmitted: documentRows
+        .filter((d) => !selected.includes(d))
+        .map((d) => d.id),
+      monetaryObservationsPreserved: true,
+      instruction:
+        'All returned project, amount and event records are preserved. Document rows are source-identity summaries with exact revision hashes and coverage; full document metadata and text were not returned. Source stages and monetary bases must be checked before comparison.',
+    },
+  };
+  return JSON.stringify(projected).length <= maxCharacters ? projected : null;
+}
+
 /** Mail inventory has a message page and a duplicate legacy thread view. Keep
  * the message rows once and advance only over complete rows the model sees.
  * A retained row's preview/body and citations are never shortened separately. */
@@ -404,6 +465,8 @@ export function projectMeriToolEvidence(args: {
   const safe = JSON.stringify(result);
   const original = object(result) ? result : {};
   if (args.readOnly) {
+    const fiscal = projectFloridaBudgetEvidence(original, args.maxCharacters);
+    if (fiscal) return fiscal;
     const mail = projectMailInventoryEvidence(original, args.maxCharacters, safe.length);
     if (mail) return mail;
     const thread = projectMailThreadEvidence(original, args.maxCharacters, safe.length);
