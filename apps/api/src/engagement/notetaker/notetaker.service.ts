@@ -10,7 +10,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext, TenantRole } from '@capiro/shared';
-import { detectMeetingProvider } from '@capiro/shared';
+import { detectMeetingProvider, extractMeetingJoinUrl } from '@capiro/shared';
+import type { ClientNotetakerPreference, Prisma } from '@prisma/client';
 import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { notetakerEnabled } from '../../common/tenant-flags.js';
@@ -235,6 +236,11 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
    */
   async runReconcileSweep(): Promise<void> {
     this.runtimePolicy.assertBackgroundOwner('notetaker-reconcile');
+    try {
+      await this.reconcileClientMeetings();
+    } catch (err) {
+      this.logger.error(`client notetaker sweep failed: ${(err as Error).message}`);
+    }
     await this.reconcileStuckRecordings();
     await this.reconcileStaleTranscripts();
     // Recover sessions a mid-generation crash stranded in `drafting`, then expire
@@ -485,8 +491,150 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     return stuck.length;
   }
 
+  async getClientPreference(ctx: TenantContext, clientId: string) {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const client = await tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId } });
+      if (!client) throw new NotFoundException('Client not found');
+      const preference = await tx.clientNotetakerPreference.findFirst({
+        where: { tenantId: ctx.tenantId, clientId, userId: ctx.userId },
+      });
+      const stopping = preference && !preference.enabled ? await tx.meetingBotSession.count({
+        where: this.automaticSessionsWhere(preference),
+      }) > 0 : false;
+      return { enabled: preference?.enabled ?? false, stopping };
+    });
+  }
+
+  async enableClientPreference(ctx: TenantContext, clientId: string, input: {
+    authorizedToRecord: boolean; allPartiesWillBeNotified: boolean;
+  }) {
+    this.runtimePolicy.assertExternalAction('notetaker_dispatch');
+    if (input.authorizedToRecord !== true || input.allPartiesWillBeNotified !== true) {
+      throw new BadRequestException('Recording authorization and participant notification are required');
+    }
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const client = await tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } } });
+      if (!client) throw new NotFoundException('Client not found');
+      const tenant = await tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } });
+      if (!notetakerEnabled(tenant?.settings)) throw new ForbiddenException('Meeting notetaker is not enabled for this tenant');
+      const consent = {
+        scope: 'client', clientId, mode: 'strict', authorizedToRecord: true,
+        allPartiesWillBeNotified: true, affirmedByUserId: ctx.userId,
+        affirmedAt: new Date().toISOString(),
+      };
+      await tx.clientNotetakerPreference.upsert({
+        where: { tenantId_clientId_userId: { tenantId: ctx.tenantId, clientId, userId: ctx.userId } },
+        create: { tenantId: ctx.tenantId, clientId, userId: ctx.userId, enabled: true, consent },
+        update: { enabled: true, consent, revision: { increment: 1 } },
+      });
+    });
+    return this.getClientPreference(ctx, clientId);
+  }
+
+  async disableClientPreference(ctx: TenantContext, clientId: string) {
+    this.runtimePolicy.assertExternalAction('notetaker_remove');
+    await this.getClientPreference(ctx, clientId);
+    const preference = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Save OFF before calling the vendor. Removal failures never restore ON.
+      await tx.clientNotetakerPreference.updateMany({
+        where: { tenantId: ctx.tenantId, clientId, userId: ctx.userId }, data: { enabled: false, revision: { increment: 1 } },
+      });
+      return tx.clientNotetakerPreference.findFirst({ where: { tenantId: ctx.tenantId, clientId, userId: ctx.userId } });
+    });
+    if (preference) await this.reconcileClientPreference(preference, false);
+    return this.getClientPreference(ctx, clientId);
+  }
+
+  private automaticSessionsWhere(preference: ClientNotetakerPreference): Prisma.MeetingBotSessionWhereInput {
+    return {
+      tenantId: preference.tenantId, requestedByUserId: preference.userId,
+      metadata: { path: ['clientNotetakerPreferenceId'], equals: preference.id },
+      status: { in: REMOVABLE_STATUSES },
+    };
+  }
+
+  private automaticMeetingWindow(): Prisma.MeetingWhereInput {
+    const now = new Date();
+    return {
+      // Join ongoing meetings as well as ones just starting. No vendor-side
+      // future schedules: changes/cancellations are read again at dispatch time.
+      startsAt: { lte: now }, endsAt: { gt: now }, isInternal: false,
+      status: { notIn: ['cancelled', 'canceled', 'deleted'] },
+    };
+  }
+
+  async reconcileClientMeetings(): Promise<void> {
+    this.runtimePolicy.assertBackgroundOwner('client-notetaker');
+    let cursor: string | undefined;
+    do {
+      const preferences = await this.prisma.withSystem((tx) => tx.clientNotetakerPreference.findMany({
+        orderBy: { id: 'asc' }, take: 100, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      }));
+      for (const preference of preferences) {
+        try { await this.reconcileClientPreference(preference, true); }
+        catch (err) { this.logger.error(`client notetaker ${preference.id}: ${(err as Error).message}`); }
+      }
+      cursor = preferences.length === 100 ? preferences[preferences.length - 1]?.id : undefined;
+    } while (cursor);
+  }
+
+  private async reconcileClientPreference(snapshot: ClientNotetakerPreference, send: boolean): Promise<void> {
+    const { tenantId, userId, clientId } = snapshot;
+    const state = await this.prisma.withTenant(tenantId, async (tx) => {
+      const preference = await tx.clientNotetakerPreference.findFirst({ where: { id: snapshot.id, tenantId, userId } });
+      const membership = await tx.tenantMembership.findFirst({ where: { tenantId, userId, status: 'active' } });
+      const client = await tx.client.findFirst({ where: { id: clientId, tenantId, status: { not: 'archived' } } });
+      const tenant = await tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } });
+      const consent = preference?.consent as Record<string, unknown> | undefined;
+      const enabled = Boolean(preference?.enabled && preference.revision === snapshot.revision && membership && client && notetakerEnabled(tenant?.settings)
+        && consent?.authorizedToRecord === true && consent?.allPartiesWillBeNotified === true);
+      const association = await this.engagement.clientMeetingAssociationWhere(tx, tenantId, clientId);
+      const sessions = await tx.meetingBotSession.findMany({ where: this.automaticSessionsWhere(snapshot) });
+      const eligibleWhere: Prisma.MeetingWhereInput = {
+        tenantId, AND: [ownMeetingWhere(userId), association, this.automaticMeetingWindow()],
+      };
+      const eligible = enabled ? await tx.meeting.findMany({ where: eligibleWhere }) : [];
+      return { preference, enabled, sessions, eligible };
+    });
+    const eligibleIds = new Set(state.eligible.map((m) => m.id));
+    for (const session of state.sessions) {
+      // Let normally ended calls complete their transcription pipeline.
+      const associatedMeeting = state.enabled ? await this.prisma.withTenant(tenantId, async (tx) => tx.meeting.findFirst({
+        where: { id: session.meetingId, tenantId, AND: [ownMeetingWhere(userId),
+          await this.engagement.clientMeetingAssociationWhere(tx, tenantId, clientId),
+          { startsAt: { lte: new Date() }, isInternal: false, status: { notIn: ['cancelled', 'canceled', 'deleted'] } },
+        ] }, select: { id: true, joinLink: true, metadata: true, location: true, description: true },
+      })) : null;
+      const currentUrl = associatedMeeting && (associatedMeeting.joinLink ?? extractMeetingJoinUrl({
+        ...associatedMeeting, metadata: associatedMeeting.metadata as Record<string, unknown>,
+      }));
+      if (currentUrl === session.joinUrl) continue;
+      if (!session.externalBotId) continue; // Dispatch's post-flight check handles this; next tick retries.
+      try {
+        await this.bot.leaveCall(session.externalBotId);
+        await this.prisma.withTenant(tenantId, (tx) => tx.meetingBotSession.updateMany({
+          where: { id: session.id, ...this.automaticSessionsWhere(snapshot) }, data: { status: 'removed' },
+        }));
+      } catch (err) { this.logger.error(`automatic bot removal ${session.id}: ${(err as Error).message}`); }
+    }
+    if (!send || !state.enabled || !state.preference || !eligibleIds.size) return;
+    const ctx = await this.hydrateContext(tenantId, userId);
+    if (!ctx) return;
+    for (const meeting of state.eligible) {
+      const meetingUrl = meeting.joinLink ?? extractMeetingJoinUrl({ ...meeting, metadata: meeting.metadata as Record<string, unknown> });
+      if (!meetingUrl) continue;
+      const attempted = await this.prisma.withTenant(tenantId, (tx) => tx.meetingBotSession.findFirst({
+        where: { tenantId, meetingId: meeting.id }, select: { id: true },
+      }));
+      if (attempted) continue;
+      try {
+        await this.dispatch(ctx, meeting.id, { meetingUrl, authorizedToRecord: true, allPartiesWillBeNotified: true }, state.preference);
+      } catch (err) { this.logger.warn(`automatic notetaker ${meeting.id}: ${(err as Error).message}`); }
+    }
+  }
+
   /** Send a meeting bot to a meeting the caller owns. Strict-consent gated. */
-  async dispatch(ctx: TenantContext, meetingId: string, input: DispatchNotetakerInput) {
+  async dispatch(ctx: TenantContext, meetingId: string, input: DispatchNotetakerInput, automatic?: ClientNotetakerPreference) {
     // Engagement API Phase 1 — assert external action before dispatching.
     this.runtimePolicy.assertExternalAction('notetaker_dispatch');
     const [tenant, requester] = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -549,16 +697,42 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     //    for a visible-but-not-owned meeting would record the whole meeting and
     //    only fail at debrief time.
     const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (automatic) {
+        // Serialize consent revocation with the dispatch claim. Recheck the
+        // current preference and meeting association, not the worker's snapshot.
+        await tx.$queryRaw`SELECT id FROM client_notetaker_preferences WHERE id = ${automatic.id}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`;
+        const current = await tx.clientNotetakerPreference.findFirst({ where: {
+          id: automatic.id, tenantId: ctx.tenantId, userId: ctx.userId, enabled: true,
+          revision: automatic.revision, client: { status: { not: 'archived' } },
+        } });
+        const membership = await tx.tenantMembership.findFirst({ where: {
+          tenantId: ctx.tenantId, userId: ctx.userId, status: 'active',
+        } });
+        if (!current || !membership) throw new BadRequestException('Automatic attendance is no longer enabled');
+      }
+      // All send paths share this lock: parallel worker replicas and manual
+      // sends cannot both create a bot for the same meeting.
+      await tx.$queryRaw`SELECT id FROM meetings WHERE id = ${meetingId}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`;
       const meeting = await tx.meeting.findFirst({
-        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        select: { id: true, clientId: true, status: true },
+        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId),
+          ...(automatic ? { AND: [
+            await this.engagement.clientMeetingAssociationWhere(tx, ctx.tenantId, automatic.clientId),
+            this.automaticMeetingWindow(),
+          ] } : {}),
+        },
+        select: { id: true, clientId: true, status: true, joinLink: true, metadata: true, location: true, description: true },
       });
       if (!meeting) throw new NotFoundException('Meeting not found');
+      if (automatic && meetingUrl !== (meeting.joinLink ?? extractMeetingJoinUrl({
+        ...meeting, metadata: meeting.metadata as Record<string, unknown>,
+      }))) throw new BadRequestException('The meeting link changed; automatic attendance will retry');
       if (['cancelled', 'canceled'].includes(meeting.status?.trim().toLowerCase() ?? '')) {
         throw new BadRequestException('Cannot send a notetaker to a cancelled meeting');
       }
       const active = await tx.meetingBotSession.findFirst({
-        where: { meetingId, tenantId: ctx.tenantId, status: { in: REMOVABLE_STATUSES } },
+        // Any previous attempt suppresses automatic re-entry, including a
+        // user removal or denied consent. A user can still explicitly resend.
+        where: { meetingId, tenantId: ctx.tenantId, ...(automatic ? {} : { status: { in: REMOVABLE_STATUSES } }) },
         select: { id: true },
       });
       if (active) {
@@ -576,6 +750,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
           joinUrl: meetingUrl,
           status: 'requested',
           recordingPolicy,
+          ...(automatic ? { metadata: { clientNotetakerPreferenceId: automatic.id } } : {}),
           consent: {
             mode: 'strict',
             affirmedByUserId: ctx.userId,
@@ -583,6 +758,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
             allPartyStatesFlagged: input.allPartyStates ?? [],
             allPartiesWillBeNotified: input.allPartiesWillBeNotified ?? false,
             disclosurePosted: true,
+            ...(automatic ? { scope: 'client', clientId: automatic.clientId, preferenceId: automatic.id, standingConsent: automatic.consent } : {}),
           },
         },
         select: { id: true },
@@ -618,13 +794,20 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
     //    consent violation, not just an inconsistency, so compensate by pulling
     //    the bot back out of the call before surfacing the error.
     try {
-      return await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      const session = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.meetingBotSession.update({
           where: { id: created.id },
           data: { status: 'joining', externalBotId, startedAt: new Date() },
           select: SESSION_SELECT,
         }),
       );
+      if (automatic) {
+        // A user can turn it off while the external dispatch is in flight.
+        // Persist the bot id first so retries can always find and remove it.
+        await this.reconcileClientPreference(automatic, false);
+        return this.getSessionForMeeting(ctx, meetingId);
+      }
+      return session;
     } catch (err) {
       this.logger.error(
         `failed to record bot id for session ${created.id} — removing bot ${externalBotId} from the call: ${(err as Error).message}`,

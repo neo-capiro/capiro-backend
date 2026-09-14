@@ -133,6 +133,7 @@ enum BillingStatus {
 }
 
 model Tenant {
+  clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs MeetingPrepJob[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                     String        @id @default(uuid()) @db.Uuid
@@ -495,6 +496,7 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs MeetingPrepJob[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                    String    @id @default(uuid()) @db.Uuid
@@ -718,6 +720,7 @@ model TenantUsageMeter {
 }
 
 model Client {
+  notetakerPreferences ClientNotetakerPreference[]
   meetingPrepMondayMappings MeetingPrepMondayMapping[]
   id                       String    @id @default(uuid()) @db.Uuid
   tenantId                 String    @map("tenant_id") @db.Uuid
@@ -1452,6 +1455,24 @@ model MeetingDebrief {
 /// the transcript then feeds generateMeetingDebriefDraft → createMeetingDebrief.
 /// Tenant-scoped with RLS (see the matching migration). Strict-consent affirmation
 /// is persisted in `consent`. Every access MUST go through prisma.withTenant.
+// A user's standing consent for meetings associated with a client.
+model ClientNotetakerPreference {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  enabled   Boolean  @default(false)
+  revision  Int      @default(1)
+  consent   Json     @default("{}") @map("consent_jsonb")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, clientId, userId], map: "client_notetaker_preferences_scope_key")
+  @@map("client_notetaker_preferences")
+}
+
 model MeetingBotSession {
   id                String    @id @default(uuid()) @db.Uuid
   tenantId          String    @map("tenant_id") @db.Uuid
