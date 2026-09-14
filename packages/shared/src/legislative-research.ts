@@ -127,6 +127,45 @@ export type CitationOccurrence = {
   relation: LegalRelation;
   basis: 'citation' | 'explicit_operative_wording';
 };
+function operativeStatuteHeadings(text: string) {
+  const found = new Map<number, LegalRelation>();
+  const relations: Record<string, LegalRelation> = {
+    amended: 'proposes_amend',
+    repealed: 'proposes_repeal',
+    created: 'proposes_create',
+    reenacted: 'reenacts',
+    renumbered: 'proposes_renumber',
+  };
+  for (const heading of text.matchAll(/^\s*Section[ \t]+\d+\.[ \t]+/gim)) {
+    // Native PDF lines carry printed line numbers. Remove only a trailing
+    // integer on each bounded heading line, retaining a map to original bytes.
+    const window = text
+      .slice(heading.index!, heading.index! + 1000)
+      .split('\n')
+      .slice(0, 6);
+    let normalized = '',
+      offset = heading.index!;
+    const offsets: number[] = [];
+    for (const line of window) {
+      const clean = line.replace(/[ \t]+\d{1,5}[ \t]*$/, '');
+      for (let i = 0; i < clean.length; i++) {
+        normalized += clean[i];
+        offsets.push(offset + i);
+      }
+      normalized += ' ';
+      offsets.push(offset + line.length);
+      offset += line.length + 1;
+    }
+    const operative = normalized.match(
+      /^\s*Section\s+\d+\.\s+(?:(?:subsections?|paragraphs?|subparagraphs?|and|of|the)\s+|\([a-z0-9]+\)[,;\s]*)*(?:Section|s\.)\s+(\d+\.\d+(?:\([A-Za-z0-9]+\))*)\s*,\s*Florida\s+Statutes,\s+(?:is|are)\s+(amended|repealed|created|reenacted|renumbered)\b/i,
+    );
+    if (operative) {
+      const start = offsets[operative[0].indexOf(operative[1]!)];
+      if (start !== undefined) found.set(start, relations[operative[2]!.toLowerCase()]!);
+    }
+  }
+  return found;
+}
 /** Deliberately conservative: a title, analysis, or quoted existing text cannot establish an operative effect. */
 export function floridaCitationOccurrences(
   text: string,
@@ -134,6 +173,10 @@ export function floridaCitationOccurrences(
 ): { occurrences: CitationOccurrence[]; unresolved: string[] } {
   if (text.length > 2_000_000) throw Error('CITATION_TEXT_LIMIT');
   const occurrences: CitationOccurrence[] = [];
+  const operative =
+    kind === 'bill_text' || kind === 'amendment_text'
+      ? operativeStatuteHeadings(text)
+      : new Map<number, LegalRelation>();
   const pattern =
     /\b(?:s\.|ss\.|section(?:s)?|F\.S\.)\s+(\d+\.\d+(?:\([A-Za-z0-9]+\))*)|\b(\d+\.\d+(?:\([A-Za-z0-9]+\))*)\s*,?\s*(?:F\.S\.|Florida Statutes)/gi;
   for (const match of text.matchAll(pattern)) {
@@ -142,33 +185,14 @@ export function floridaCitationOccurrences(
     if (!reference) continue;
     const start = match.index! + match[0].indexOf(raw),
       end = start + raw.length;
-    // Only an entire source paragraph with a legislative Section heading and
-    // explicit Florida Statutes operation is eligible; no punctuation trimming
-    // or nearby-keyword classification of nested citations.
-    const paragraphStart = text.lastIndexOf('\n', match.index!) + 1;
-    const paragraphEnd = text.indexOf('\n', end);
-    const paragraph = text.slice(paragraphStart, paragraphEnd < 0 ? text.length : paragraphEnd);
-    const operative = paragraph.match(
-      /^Section\s+\d+\.\s+(?:Section|s\.)\s+(\d+\.\d+(?:\([A-Za-z0-9]+\))*)\s*,\s*Florida Statutes,\s+is\s+(amended|repealed|created|reenacted|renumbered)\b/i,
-    );
-    const relationMap: Record<string, LegalRelation> = {
-      amended: 'proposes_amend',
-      repealed: 'proposes_repeal',
-      created: 'proposes_create',
-      reenacted: 'reenacts',
-      renumbered: 'proposes_renumber',
-    };
-    const eligible =
-      (kind === 'bill_text' || kind === 'amendment_text') &&
-      operative?.[1] === raw &&
-      paragraphStart + operative[0].indexOf(raw) === start;
+    const relation = operative.get(start);
     occurrences.push({
       reference,
       start,
       end,
       quote: text.slice(start, end),
-      relation: eligible ? relationMap[operative![2]!.toLowerCase()]! : 'cites',
-      basis: eligible ? 'explicit_operative_wording' : 'citation',
+      relation: relation ?? 'cites',
+      basis: relation ? 'explicit_operative_wording' : 'citation',
     });
     if (occurrences.length > 10000) throw Error('CITATION_OCCURRENCE_LIMIT');
   }

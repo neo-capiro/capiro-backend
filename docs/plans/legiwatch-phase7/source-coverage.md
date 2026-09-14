@@ -1,0 +1,19 @@
+# Phase 7 source coverage
+
+The supported new legal-reference jurisdiction is Florida. Public publisher evidence, client configuration, parser accuracy and live corpus coverage are measured independently. No nationwide completeness or provider refresh SLA is claimed.
+
+| Source | Measured scope | Limitation and next action |
+|---|---|---|
+| Florida Senate bill text | Three original PDFs: HB 1207 filed (173 pages), committee substitute 1 (4 pages), SB 1156 filed (150 pages). All pages extracted, no truncation or unreadable pages. | Original document bytes and native page locators retained. Underline/strike formatting is not fully interpreted. These are publisher qualification files, not yet a qualified live LegiScan document inventory. |
+| Exact comparison | HB 1207 filed → c1: 5,268 line changes, 93 additions and 5,165 removals; one observed local comparison took 12 ms. | This is one deterministic comparison timing, not p95 latency. Version difference does not establish enactment. |
+| Bill citation parser | 659 occurrences retained with source offsets under `fl-citation-v3`. | No measured accuracy. Independent source review and adjudication remain required; model agreement is not human evaluation. |
+| Florida statutes | 60 edition-qualified 2026 chapter pages checked against 174 client assignments. 155 exact identity/title matches, 10 proposed corrections, 9 unresolved. | Captured edition remains null. Proposed source edition is a distinct field. Corrections need a reviewed decision; no numeric guessing. |
+| Florida Constitution | Publisher article/section extraction and immutable section identities implemented. | No invented edition. Sections containing publisher encoding loss are partial. Article membership does not fabricate section relationships. |
+| FAC/FAR | Three actual tracked-rule histories and 26 notices fetched, including development, proposal, meeting, withdrawal and final records. Proposed notice 30565687 retains seven linked rules. | Proposed listing is the discovery source; other lifecycle coverage is bounded to tracked histories. Change/correction/emergency statewide completeness is unqualified. History pagination and failed fetches remain visible gaps. |
+| Adopted rule 1-1.008 | The actual publisher history attachment for notice 31220534 was fetched, bytes retained, rule identity checked and legacy Word text extracted. | Partial: embedded objects and markup need review. Filing 2026-08-04 and effective 2026-08-24 remain distinct; publication date is null. |
+| Historical bills | Canonical selected-session ingestion, archive validation, immutable ZIP retention, vote coverage and isolation tests implemented. | Florida 2025 regular provider session 2135 is the proposed bounded pilot. Current entitlement/dataset hash and actual ingest counts must be recorded before claiming a historical corpus. |
+| Historical client assignments | Supplied-export-only path tested through canonical folder imports, including manual removal and current-session preservation. | No earlier client export was supplied; zero historical client memberships imported. |
+
+`phase7-human-source-review.html` contains 60 source citation cases and 20 rule/date cases with blank labels. It is an initial review sample. It does not by itself measure missed citations/recall or cover every lifecycle family. Add independently selected negative and ambiguous passages before claiming the complete acceptance matrix.
+
+Source URLs: [HB 1207](https://www.flsenate.gov/Session/Bill/2026/1207/ByVersion), [SB 1156](https://www.flsenate.gov/Session/Bill/2026/1156/ByVersion), [2026 chapter 395](https://www.flsenate.gov/Laws/Statutes/2026/Chapter395/All), [proposal 30565687](https://flrules.org/Gateway/View_notice.asp?id=30565687), [adoption 31220534](https://flrules.org/Gateway/View_notice.asp?id=31220534).

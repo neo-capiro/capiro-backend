@@ -174,7 +174,7 @@ export class StatuteMonitorService {
       gaps.push('SOURCE_DOCUMENT_INVENTORY_NOT_QUALIFIED');
     const [quality] = await tx.$queryRaw<
       Array<{ id: string }>
-    >`SELECT id FROM legal_source_receipt WHERE source='fl-citation-qualification' AND scope->>'jurisdiction'='FL' AND complete AND manifest->>'parserVersion'='fl-citation-v2' AND jsonb_typeof(manifest->'reviewedOccurrences')='number' AND manifest->'reviewedOccurrences'>='60'::jsonb AND jsonb_typeof(manifest->'reviewedRuleRecords')='number' AND manifest->'reviewedRuleRecords'>='20'::jsonb AND manifest->>'humanReviewed'='true' ORDER BY observed_at DESC LIMIT 1`;
+    >`SELECT id FROM legal_source_receipt WHERE source='fl-citation-qualification' AND scope->>'jurisdiction'='FL' AND complete AND manifest->>'parserVersion'='fl-citation-v3' AND jsonb_typeof(manifest->'reviewedOccurrences')='number' AND manifest->'reviewedOccurrences'>='60'::jsonb AND jsonb_typeof(manifest->'reviewedRuleRecords')='number' AND manifest->'reviewedRuleRecords'>='20'::jsonb AND manifest->>'humanReviewed'='true' ORDER BY observed_at DESC LIMIT 1`;
     if (!quality) gaps.push('HELD_OUT_HUMAN_REVIEW_REQUIRED');
     const rows = await tx.$queryRaw<
       Array<{
@@ -189,7 +189,7 @@ export class StatuteMonitorService {
         observed_at: Date;
         content_hash: string | null;
       }>
-    >`SELECT o.*,r.identity,d.content_hash FROM legislative_legal_occurrence o JOIN legal_reference r ON r.id=o.reference_id JOIN legiwatch_research_document_source d ON d.document_id=o.document_id AND d.revision_hash=o.document_revision AND d.is_current WHERE o.jurisdiction=${c.jurisdiction ?? 'FL'} AND o.session_key=${c.sessionKey ?? ''} AND o.bill_id=ANY(${c.billIds ?? []}::text[]) AND o.parser_version='fl-citation-v2' ORDER BY o.id LIMIT 1001`;
+    >`SELECT o.*,r.identity,d.content_hash FROM legislative_legal_occurrence o JOIN legal_reference r ON r.id=o.reference_id JOIN legiwatch_research_document_source d ON d.document_id=o.document_id AND d.revision_hash=o.document_revision AND d.is_current WHERE o.jurisdiction=${c.jurisdiction ?? 'FL'} AND o.session_key=${c.sessionKey ?? ''} AND o.bill_id=ANY(${c.billIds ?? []}::text[]) AND o.parser_version='fl-citation-v3' ORDER BY o.id LIMIT 1001`;
     if (rows.length > 1000) gaps.push('OCCURRENCE_LIMIT_REACHED');
     const matches = rows.slice(0, 1000).flatMap((o) => {
       const memberships = targets.filter((t) =>

@@ -78,10 +78,10 @@ export async function indexLegislativeReferences(
         occurrence.start,
         occurrence.end,
         referenceId,
-        'fl-citation-v2',
+        'fl-citation-v3',
       ]);
       await tx.$executeRaw`INSERT INTO legislative_legal_occurrence(id,document_id,bill_id,jurisdiction,session_key,document_revision,reference_id,locator,start_offset,end_offset,quote,relation,basis,parser_version)
-    VALUES(${id},${document.id},${document.billId},${document.jurisdiction},${document.sessionKey},${document.revision},${referenceId},${section.locator},${occurrence.start},${occurrence.end},${occurrence.quote},${occurrence.relation},${occurrence.basis},'fl-citation-v2') ON CONFLICT DO NOTHING`;
+    VALUES(${id},${document.id},${document.billId},${document.jurisdiction},${document.sessionKey},${document.revision},${referenceId},${section.locator},${occurrence.start},${occurrence.end},${occurrence.quote},${occurrence.relation},${occurrence.basis},'fl-citation-v3') ON CONFLICT DO NOTHING`;
       count++;
     }
   }

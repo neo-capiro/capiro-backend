@@ -107,6 +107,22 @@ describe('exact legal identities and evidence', () => {
       floridaCitationOccurrences('ss. 1002.30 through 1002.35', 'bill_text').unresolved,
     ).toHaveLength(1);
   });
+  test('native PDF wrapped headings retain proposed effect and exact source offsets', () => {
+    const text =
+      'Section   41.   Subsection   (1)   and   paragraph   (d)   of   subsection 2267\n(5)   of section   395.003,   Florida   Statutes,   are   amended   to   read: 2268\n395.003 Licensure. Under s. 408.1, existing rules apply. 2269';
+    const found = floridaCitationOccurrences(text, 'bill_text').occurrences;
+    expect(found.map((x) => x.relation)).toEqual(['proposes_amend', 'cites']);
+    for (const x of found) expect(text.slice(x.start, x.end)).toBe(x.quote);
+    expect(
+      floridaCitationOccurrences(text, 'analysis').occurrences.every((x) => x.relation === 'cites'),
+    ).toBe(true);
+    expect(
+      floridaCitationOccurrences(
+        '"Section 1. Section 395.003, Florida Statutes, is repealed."',
+        'bill_text',
+      ).occurrences[0]!.relation,
+    ).toBe('cites');
+  });
   test('exact comparison preserves pair ordering and source locators', () => {
     const result = compareResearchVersions(
       version('a', 'First\nOld\nLast'),

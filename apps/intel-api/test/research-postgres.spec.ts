@@ -415,7 +415,7 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
       await tx.$executeRaw`INSERT INTO legal_reference(id,jurisdiction,code_kind,reference_kind,chapter,section,identity) VALUES(${ref},'FL','statute','section','395','395.003','{"jurisdiction":"FL","code":"statute","kind":"section","chapter":"395","section":"395.003","subdivisions":[]}'::jsonb) ON CONFLICT DO NOTHING`;
       await tx.$executeRaw`INSERT INTO intel_legiwatch_legal_membership(tenant_id,folder_id,reference_id,edition,version) VALUES(${tenant},${ruleFolder},${ref},'2026',1)`;
       await tx.$executeRaw`INSERT INTO intel_legiwatch_statute_rule(id,tenant_id,owner_clerk_id,config) VALUES(${ruleId},${tenant},${actor},${JSON.stringify(config)}::jsonb)`;
-      await tx.$executeRaw`INSERT INTO legislative_legal_occurrence(id,document_id,bill_id,jurisdiction,session_key,document_revision,reference_id,locator,start_offset,end_offset,quote,relation,basis,parser_version) VALUES(${randomUUID()},${ids[1]},${bill},'FL',${session},${revision(1)},${ref},'page:1',19,26,'395.003','proposes_amend','synthetic exact heading','fl-citation-v2')`;
+      await tx.$executeRaw`INSERT INTO legislative_legal_occurrence(id,document_id,bill_id,jurisdiction,session_key,document_revision,reference_id,locator,start_offset,end_offset,quote,relation,basis,parser_version) VALUES(${randomUUID()},${ids[1]},${bill},'FL',${session},${revision(1)},${ref},'page:1',19,26,'395.003','proposes_amend','synthetic exact heading','fl-citation-v3')`;
       const [fp] = await tx.$queryRaw<
         Array<{ value: string }>
       >`SELECT md5(coalesce(string_agg(document_id||revision_hash||is_current::text,'|' ORDER BY document_id COLLATE "C"),'')) AS value FROM legiwatch_research_document_source WHERE bill_id=${bill}`;
@@ -436,7 +436,7 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
     ).rejects.toThrow();
     await p.withSystem(
       (tx) =>
-        tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${randomUUID()},'fl-citation-qualification','{"jurisdiction":"FL"}'::jsonb,'{"parserVersion":"fl-citation-v2","reviewedOccurrences":60,"reviewedRuleRecords":20,"humanReviewed":true,"synthetic":true}'::jsonb,true)`,
+        tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${randomUUID()},'fl-citation-qualification','{"jurisdiction":"FL"}'::jsonb,'{"parserVersion":"fl-citation-v3","reviewedOccurrences":60,"reviewedRuleRecords":20,"humanReviewed":true,"synthetic":true}'::jsonb,true)`,
     );
     const preview = await service.preview(ctx, ruleId);
     expect(preview.gaps).toEqual([]);
