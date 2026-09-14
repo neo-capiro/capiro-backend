@@ -24,10 +24,12 @@ vi.mock('../../../../lib/intel-feature-flags.js', () => ({
 }));
 
 beforeEach(() => {
+  sessionStorage.clear();
   mocks.get.mockReset();
   mocks.post.mockReset();
   mocks.identity = 'tenant-a';
   mocks.enabled = true;
+  mocks.get.mockResolvedValue({ data: [] });
 });
 
 afterEach(cleanup);
@@ -135,6 +137,117 @@ test('reopened comparison requests both pinned revisions and keeps client scope'
       rightId: 'right-id',
       rightRevision: 'hash-b',
       clientId: 'client-a',
+    }),
+  );
+});
+
+test('a lost Workspace acknowledgement can be recovered after remount with the same request', async () => {
+  const route =
+    '/legiwatch?tab=research&researchView=compare&session=2026&left=left-id&leftRevision=hash-a&right=right-id&rightRevision=hash-b';
+  const comparison = {
+    left: {
+      id: 'left-id',
+      revision: 'hash-a',
+      sessionKey: '2026',
+      sourceUrl: 'https://www.flsenate.gov/left/PDF',
+    },
+    right: { id: 'right-id', revision: 'hash-b', sessionKey: '2026' },
+    changes: [
+      {
+        kind: 'removed',
+        text: 'Original source passage',
+        left: { locator: 'page:91', start: 0, end: 23 },
+        right: null,
+      },
+    ],
+  };
+  let lost = true;
+  mocks.post.mockImplementation(async (url) => {
+    if (url.endsWith('/drafts')) {
+      if (lost) {
+        lost = false;
+        throw new Error('Acknowledgement lost');
+      }
+      return { data: { selectionId: 'selection-id', draft: { draftId: 'draft-id' } } };
+    }
+    return { data: comparison };
+  });
+  const first = mount(route);
+  const analysis = await screen.findByLabelText('Capiro analysis for review');
+  fireEvent.change(analysis, { target: { value: 'Keep my source interpretation.' } });
+  fireEvent.click(screen.getByText('Save cited research draft'));
+  await screen.findByText(/Retry the same unchanged selection/);
+  const original = mocks.post.mock.calls.find((c) => c[0].endsWith('/drafts'))![1];
+  first.unmount();
+  mount(route);
+  expect(
+    ((await screen.findByLabelText('Capiro analysis for review')) as HTMLTextAreaElement).value,
+  ).toBe('Keep my source interpretation.');
+  expect(screen.getByText('Left source · page:91').getAttribute('href')).toBe(
+    'https://www.flsenate.gov/left/PDF#page=91',
+  );
+  fireEvent.click(screen.getByText('Save cited research draft'));
+  await screen.findByText('Open saved research draft');
+  const replay = mocks.post.mock.calls.filter((c) => c[0].endsWith('/drafts'))[1]![1];
+  expect(replay).toEqual(original);
+});
+
+test('the right bill picker sends an explicit independent session and pinned revision', async () => {
+  const left = {
+    id: 'left-id',
+    revision: 'hash-a',
+    billId: 'left-bill',
+    sessionKey: '2026',
+    kind: 'text',
+    publishedDate: '2026-01-01',
+  };
+  const right = {
+    id: 'prior-id',
+    revision: 'prior-hash',
+    billId: 'prior-bill',
+    sessionKey: '2025',
+    kind: 'text',
+    publishedDate: '2025-01-01',
+  };
+  mocks.get.mockImplementation(async (url) => ({
+    data: url.includes('/versions?')
+      ? { versions: [url.includes('billId=prior-bill') ? right : left] }
+      : [],
+  }));
+  mocks.post.mockImplementation(async (url) => ({
+    data: url.endsWith('/search')
+      ? {
+          items: [
+            {
+              ...right,
+              billIdentifier: 'HB 11',
+              billTitle: 'Earlier bill',
+              excerpt: { quote: 'Retained text' },
+            },
+          ],
+        }
+      : { changes: [], warning: 'Cross-session comparison' },
+  }));
+  mount(
+    '/legiwatch?tab=research&researchView=bills&session=2026&bill=left-bill&left=left-id&leftRevision=hash-a&rightPicker=true&rightSession=2025',
+  );
+  await screen.findByRole('option', { name: 'HB 11 · Earlier bill' });
+  fireEvent.change(await screen.findByLabelText('Right bill'), { target: { value: 'prior-bill' } });
+  await waitFor(() =>
+    expect(screen.getByLabelText('Right version').textContent).toContain('2025-01-01'),
+  );
+  fireEvent.change(screen.getByLabelText('Right version'), { target: { value: 'prior-id' } });
+  fireEvent.click(screen.getByText('Compare selected versions'));
+  await screen.findByText('Cross-session comparison');
+  expect(mocks.post).toHaveBeenCalledWith(
+    '/intel-api/legiwatch/research/compare',
+    expect.objectContaining({
+      leftId: 'left-id',
+      leftRevision: 'hash-a',
+      rightId: 'prior-id',
+      rightRevision: 'prior-hash',
+      rightSessionKey: '2025',
+      allowCrossBill: true,
     }),
   );
 });

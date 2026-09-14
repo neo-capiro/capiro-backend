@@ -57,7 +57,14 @@ for (const [app, files, web] of [
     false,
   ],
   ['workspace', ['src/drafts/drafts.list-projection.spec.ts'], false],
-  ['web', ['src/vnext/pages/legiwatch/research/ResearchTab.test.tsx'], true],
+  [
+    'web',
+    [
+      'src/vnext/pages/legiwatch/research/ResearchTab.test.tsx',
+      'src/vnext/pages/legiwatch/research/research-state.test.ts',
+    ],
+    true,
+  ],
 ]) {
   const cwd = join(root, 'apps', app),
     require = createRequire(join(cwd, 'package.json')),

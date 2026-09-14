@@ -209,7 +209,7 @@ export class ResearchService {
 
       const rightScope =
         b.allowCrossBill === true
-          ? { ...scope, sessionKey: String(b.rightSessionKey ?? scope.sessionKey) }
+          ? scopeOf({ ...scope, sessionKey: b.rightSessionKey ?? scope.sessionKey })
           : scope;
 
       const right = await this.exact(tx, b.rightId, rightScope);
@@ -260,8 +260,11 @@ export class ResearchService {
 
       const policy = b.versionPolicy ?? 'any_retained';
 
-      if (!['any_retained', 'current_extractions'].includes(String(policy)))
+      if (!['any_retained', 'current_extractions', 'newest_dated_text'].includes(String(policy)))
         throw new BadRequestException('VERSION_POLICY_UNSUPPORTED');
+      const stage = String(b.versionStage ?? 'all');
+      if (!['all', 'enrolled', 'chaptered'].includes(stage))
+        throw new BadRequestException('VERSION_STAGE_UNSUPPORTED');
 
       const kind = String(b.kind ?? 'all');
       if (!['all', 'text', 'amendment', 'supplement'].includes(kind))
@@ -292,6 +295,7 @@ export class ResearchService {
         billIds,
         expression,
         policy,
+        stage,
         kind,
         filters,
         b.referenceId ?? null,
@@ -328,6 +332,8 @@ export class ResearchService {
       >`SELECT d.* FROM legiwatch_research_document_source d WHERE jurisdiction=${scope.jurisdiction} AND session_key=${scope.sessionKey}
 
     AND (${billIds.length}=0 OR bill_id=ANY(${billIds}::text[])) AND document_id COLLATE "C">${after} COLLATE "C" AND (${policy}='any_retained' OR is_current) AND (${kind}='all' OR document_kind=${kind})
+    AND (${stage}='all' OR document_kind='text' AND lower(version_type)=${stage})
+    AND (${policy}<>'newest_dated_text' OR document_kind='text' AND event_date IS NOT NULL AND NOT EXISTS(SELECT 1 FROM legiwatch_research_document_source newer WHERE newer.bill_id=d.bill_id AND newer.jurisdiction=d.jurisdiction AND newer.session_key=d.session_key AND newer.document_kind='text' AND newer.is_current AND newer.event_date>d.event_date))
     AND (${filters.title}='' OR bill_title ILIKE ${like(filters.title)}) AND (${filters.sponsor}='' OR bill_sponsor ILIKE ${like(filters.sponsor)}) AND (${filters.chamber}='' OR bill_chamber=${filters.chamber}) AND (${filters.action}='' OR latest_action_text ILIKE ${like(filters.action)})
 
     AND (${String(b.referenceId ?? '')}='' OR EXISTS(SELECT 1 FROM legislative_legal_occurrence o WHERE o.document_id=d.document_id AND o.reference_id=${String(b.referenceId ?? '')})) ORDER BY document_id COLLATE "C" LIMIT 26`;
@@ -726,8 +732,15 @@ export class ResearchService {
       const documents: ResearchVersion[] = [];
 
       for (const item of b.documents) {
-        const selected = object(item),
-          version = await this.exact(tx, selected.id, scope);
+        const selected = object(item);
+        const selectedSession = selected.sessionKey ?? scope.sessionKey;
+        if (
+          selectedSession !== scope.sessionKey &&
+          (b.allowCrossBill !== true || selectedSession !== b.rightSessionKey)
+        )
+          throw new BadRequestException('EXPLICIT_CROSS_SESSION_SELECTION_REQUIRED');
+        const selectedScope = scopeOf({ ...scope, sessionKey: selectedSession });
+        const version = await this.exact(tx, selected.id, selectedScope);
         if (version.revision !== selected.revision)
           throw new ConflictException('RESEARCH_DOCUMENT_CHANGED');
         documents.push(version);
