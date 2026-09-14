@@ -1,6 +1,6 @@
 # Phase 7 release checkpoint
 
-Recorded 2026-09-14T01:14:08.843540+00:00. Candidate source `faff596fa35f88cfdfaa6b2db8fdd559f1658450`; Git tree `69efc47b2bcff3eed8c134ed146cdbe6aa22c59f`. Branch `agent/legiwatch-phase7-research-statutes-rules` incorporates main through `1202dd85c`, including the completed Phase 6 deployment record and merged client-meeting changes.
+Recorded 2026-09-14T01:18:43.746129+00:00. Candidate source `c553e36b31bfb35f98504400065c668d098a112e`; Git tree `1287a948f6aeab363d46d7364023c91108208b29`. Branch `agent/legiwatch-phase7-research-statutes-rules` incorporates main through `1202dd85c`, including the completed Phase 6 deployment record and merged client-meeting changes.
 
 | State | Value at this checkpoint | Evidence |
 |---|---|---|
@@ -13,6 +13,8 @@ Recorded 2026-09-14T01:14:08.843540+00:00. Candidate source `faff596fa35f88cfdfa
 | Scheduled execution verified | No Phase 7 scheduled run | New matching gate remains off |
 | Client accepted | Not yet | Human/source review and walkthrough pending |
 
-Native ARM64 build `capiro-build-intel-api:2629b5eb-58c9-4521-8be1-23351497c412` is in progress. The first native run passed 639 of 644 tests and found five stale Meri registry expectations. Those were corrected; focused API (12) and orchestrator (7) checks passed locally. New missing-inventory refresh tests (3) and historical-import suite (8) pass locally. Another candidate was superseded when new main runtime/schema changes landed; it is not release evidence.
+Native ARM64 build `capiro-build-intel-api:b2f48bfb-5457-4f55-a416-3025107bd719` succeeded on 2026-09-14 at 01:33 UTC for the exact source/tree above. All 649 Phase 6/7 tests, all five application type checks, clean/populated migration rehearsals and additional meeting/infra checks passed. Five immutable images were pushed, and native backend module/Prisma probes passed. Separate immutable-image entrypoint verification is in progress under build `capiro-build-intel-api:94275d71-3b13-4ae8-a140-94e75953f538`.
+
+GitHub Actions did not start because the account reports a billing/spending restriction. This is a CI availability failure, not a passing GitHub check; the native AWS evidence above is recorded separately. No branch-protection bypass or account spending-limit change is part of this release.
 
 No Phase 7 live migrations, service changes, matching activation, deliveries or outreach have been performed. Refresh this record with final immutable-image verification and actual rollout receipts before declaring those states complete. All source bytes/client captures and credentials remain outside Git.

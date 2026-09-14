@@ -2,7 +2,7 @@
 
 ## Ownership and entry points
 
-Public source evidence belongs to API (`legal_reference`, `legal_text_revision`, `rule_notice_revision`, `rule_notice_reference`, `legal_published_date`, `legislative_reference_occurrence`, `legal_source_receipt`, `legal_dataset_archive`). Private research/import/membership/monitor state belongs to Intel. Workspace owns editable drafts and immutable source-action receipts. Intel owns reviewed report versions and current scope checks.
+Public source evidence belongs to API (`legal_reference`, `legal_text_revision`, `rule_notice_revision`, `rule_notice_reference`, `legal_published_date`, `legislative_legal_occurrence`, `legal_source_receipt`, `legal_dataset_archive`). Private research/import/membership/monitor state belongs to Intel. Workspace owns editable drafts and immutable source-action receipts. Intel owns reviewed report versions and current scope checks.
 
 The UI route is `/legiwatch?tab=research&researchView=bills&jurisdiction=FL&session=2026`. Subviews are `bills`, `statutes`, `rules`, `dates`, `imports`, `coverage`; compare links include both document IDs and revision hashes. Bill session and statute edition are distinct. The folder tracker remains the default Bills view. Folder tracked-statutes, Bill 360 and linked-hearing entries reach the same research route.
 
@@ -12,9 +12,9 @@ Meri tools are `search_legislative_research`, `get_legal_reference`, `compare_le
 
 ## Controls
 
-`legiwatch_research_v1` enables research; `legiwatch_statute_rules_v1` enables monitor setup/reads. `LEGIWATCH_STATUTE_MONITOR_ENABLED=true` enables due scans in the existing `task run-report-updates TENANT` worker. Existing report, workflow and delivery gates remain authoritative. Imported definitions are paused; cadence, current recipients, scope, edition and descendant policy require explicit configuration. Activation from now records existing matches as baseline and emits no historical matches. Membership/configuration changes invalidate the prior preview.
+`legiwatch_research_v1` enables research and monitor setup/reads. The proposed separate statute-rules tenant flag was not added; the matcher has its own runtime control. `LEGIWATCH_STATUTE_MONITOR_ENABLED=true` enables due scans in the existing `task run-report-updates TENANT` worker. Existing report, workflow and delivery gates remain authoritative. Imported definitions are paused; cadence, current recipients, scope, edition and descendant policy require explicit configuration. Activation from now records existing matches as baseline and emits no historical matches. Membership/configuration changes invalidate the prior preview.
 
-`LEGIWATCH_RESEARCH_MANIFEST` points to an explicit JSON file for API `task sync-legal-research`. Default behavior is dry-run. `LEGIWATCH_RESEARCH_APPLY=true` applies the manifest. Maximum 30 citations, 30 bills, three constitution articles and three publisher-selected adopted-rule links. Document hydration also requires `LEGISCAN_DOCUMENT_EVIDENCE_ENABLED=true` and a `documentBudget` of 1–30. It reserves four query units per requested document and missing bill inventory, including transport retries; unused attempts are refunded. Changed canonical bill hashes hold for the regular writer. No quota increase is needed or permitted as an incidental fix.
+`LEGIWATCH_RESEARCH_MANIFEST` points to an explicit JSON file for API `sync-legal-research`. Default behavior is dry-run. `LEGIWATCH_RESEARCH_APPLY=true` applies the manifest. Maximum 30 citations, 30 bills, three constitution articles and three publisher-selected adopted-rule links. Document hydration also requires `LEGISCAN_DOCUMENT_EVIDENCE_ENABLED=true` and a `documentBudget` of 1–30. It reserves four query units per requested document and missing bill inventory, including transport retries; unused attempts are refunded. Changed canonical bill hashes hold for the regular writer. No quota increase is needed or permitted as an incidental fix.
 
 Example proposed source manifest (shared evidence only):
 
@@ -24,7 +24,7 @@ Example proposed source manifest (shared evidence only):
 
 FAR uses the existing state-register owner. Set explicit `STATE_REGISTER_TRACKED_RULES`, `STATE_REGISTER_MAX_PAGES`, and `STATE_REGISTER_REVISIT_DAYS`; inspect per-family gaps and retained receipts. A notice date cannot create a recording session. A correction or withdrawal holds affected private follow-up; never compute an unstated legal deadline.
 
-Historical mode uses `LEGISCAN_STATES=FL`, `LEGISCAN_SESSIONS=selected`, exact `LEGISCAN_SESSION_IDS`, the retained reviewed provider inventory and explicit apply gate. Never run `all` as a Phase 7 shortcut. See the helper's exact manifest gate names before invocation. Keep public corpus and client-export reconciliation separate.
+Historical mode uses `LEGISCAN_STATES=FL`, `LEGISCAN_SESSIONS=selected`, exact `LEGISCAN_SESSION_IDS`, the retained reviewed provider inventory and `LEGISCAN_SELECTED_HISTORY_APPLY=true`; `LEGISCAN_SESSION_INVENTORY_FILE` must name the retained reviewed session/dataset inventory. Never run `all` as a Phase 7 shortcut. See the helper's exact manifest gate names before invocation. Keep public corpus and client-export reconciliation separate.
 
 ## Qualification and rollout
 
