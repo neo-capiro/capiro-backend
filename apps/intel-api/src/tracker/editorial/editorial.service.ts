@@ -63,6 +63,18 @@ export class EditorialService {
         throw new BadRequestException('TIMEZONE_REQUIRED');
       }
       const inputHash = evidenceDigest(b);
+      if (Array.isArray(b.expectedProjectTracking)) {
+        if (b.expectedProjectTracking.length > 100)
+          throw new BadRequestException('BOUNDED_PROJECT_SCOPE_REQUIRED');
+        for (const item of b.expectedProjectTracking) {
+          const pin = object(item);
+          const rows = await tx.$queryRaw<
+            Array<{ version: number; removed: boolean }>
+          >`SELECT version,removed FROM intel_legiwatch_evidence_tracking WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND folder_id=${scope.folderId} AND kind='budget' AND id=${String(pin.id)} FOR SHARE`;
+          if (!rows[0] || rows[0].removed || rows[0].version !== pin.version)
+            throw new ConflictException('SELECTED_PROJECT_TRACKING_CHANGED');
+        }
+      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.tenantId + ':editorial:' + key},0))`;
       const prior = await tx.$queryRaw<
         Array<{ id: string; input_hash: string }>

@@ -581,4 +581,60 @@ describe('Meri tool registration', () => {
       }
     }
   });
+
+  it('preserves a confirmed briefing draft link through the governed action summary', async () => {
+    const beforeFetch = global.fetch,
+      beforeSecret = process.env.INTERNAL_SERVICE_SECRET;
+    process.env.INTERNAL_SERVICE_SECRET = 'synthetic-internal';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        selectionId: 'selection-1',
+        draft: { draftId: 'draft-1', state: 'complete', replayed: true },
+      }),
+    });
+    try {
+      const result = await (MeriToolsService.prototype as any).legiwatchTool.call(
+        { isSideEffecting: () => true },
+        { tenantId: 'tenant-1', clerkUserId: 'owner-1' },
+        'prepare_legiwatch_briefing',
+        { requestKey: 'same-key' },
+      );
+      expect(result).toMatchObject({
+        documentId: 'draft-1',
+        location: '/workspace/draft/draft-1',
+        status: 'saved',
+        reused: true,
+      });
+      expect(result.message).toBe('Private briefing draft saved in Workspace.');
+    } finally {
+      global.fetch = beforeFetch;
+      if (beforeSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+      else process.env.INTERNAL_SERVICE_SECRET = beforeSecret;
+    }
+  });
+
+  it('does not report a saved briefing when the Workspace receipt is missing', async () => {
+    const beforeFetch = global.fetch,
+      beforeSecret = process.env.INTERNAL_SERVICE_SECRET;
+    process.env.INTERNAL_SERVICE_SECRET = 'synthetic-internal';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ selectionId: 'selection-1', draftState: 'workspace_not_configured' }),
+    });
+    try {
+      await expect(
+        (MeriToolsService.prototype as any).legiwatchTool.call(
+          { isSideEffecting: () => true },
+          { tenantId: 'tenant-1', clerkUserId: 'owner-1' },
+          'prepare_legiwatch_briefing',
+          { requestKey: 'same-key' },
+        ),
+      ).rejects.toThrow('Private briefing draft receipt unavailable');
+    } finally {
+      global.fetch = beforeFetch;
+      if (beforeSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+      else process.env.INTERNAL_SERVICE_SECRET = beforeSecret;
+    }
+  });
 });

@@ -43,9 +43,82 @@ function approval(overrides: Partial<PendingApproval> = {}): PendingApproval {
 }
 
 describe('MeriApprovalsTab', () => {
+  test('opens the confirmed private briefing from a recovered action receipt', () => {
+    render(
+      <MeriApprovalsTab
+        approvals={[
+          approval({
+            tool: 'prepare_legiwatch_briefing',
+            status: 'succeeded',
+            resultSummary: {
+              documentId: 'draft-1',
+              location: '/workspace/draft/draft-1',
+              message: 'Private briefing draft saved in Workspace.',
+            },
+          }),
+        ]}
+        approvingProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('link', { name: 'Open editable Workspace draft' }).getAttribute('href'),
+    ).toBe('/workspace/draft/draft-1');
+  });
+  test.each(['outcome_unknown', 'failed_retryable', 'proposed'] as const)(
+    'does not expose a briefing link for %s',
+    (status) => {
+      render(
+        <MeriApprovalsTab
+          approvals={[
+            approval({
+              tool: 'prepare_legiwatch_briefing',
+              status,
+              resultSummary: { documentId: 'draft-1', location: '/workspace/draft/draft-1' },
+            }),
+          ]}
+          approvingProposalId={null}
+          onApprove={vi.fn()}
+          onApproveAll={vi.fn()}
+          onDismiss={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole('link', { name: 'Open editable Workspace draft' })).toBeNull();
+    },
+  );
+  test('rejects a receipt location that does not identify the confirmed local draft', () => {
+    render(
+      <MeriApprovalsTab
+        approvals={[
+          approval({
+            tool: 'prepare_legiwatch_briefing',
+            status: 'succeeded',
+            resultSummary: { documentId: 'draft-1', location: 'https://example.invalid' },
+          }),
+        ]}
+        approvingProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('link', { name: 'Open editable Workspace draft' })).toBeNull();
+  });
   test('renders an empty state when nothing is pending for this conversation', () => {
-    render(<MeriApprovalsTab approvals={[]} approvingProposalId={null} onApprove={vi.fn()} onApproveAll={vi.fn()} onDismiss={vi.fn()} />);
-    expect(screen.getByText('Nothing is awaiting your approval for this conversation.')).toBeTruthy();
+    render(
+      <MeriApprovalsTab
+        approvals={[]}
+        approvingProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText('Nothing is awaiting your approval for this conversation.'),
+    ).toBeTruthy();
   });
 
   test('a proposed action can be approved after the informed-consent dialog is confirmed', () => {
@@ -72,7 +145,13 @@ describe('MeriApprovalsTab', () => {
   test('dismiss calls onDismiss directly, without a confirm dialog', () => {
     const onDismiss = vi.fn();
     render(
-      <MeriApprovalsTab approvals={[approval()]} approvingProposalId={null} onApprove={vi.fn()} onApproveAll={vi.fn()} onDismiss={onDismiss} />,
+      <MeriApprovalsTab
+        approvals={[approval()]}
+        approvingProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={onDismiss}
+      />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(onDismiss).toHaveBeenCalledWith('proposal-1');
@@ -92,7 +171,16 @@ describe('MeriApprovalsTab', () => {
     expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy();
   });
 
-  test.each(['succeeded', 'executing', 'failed_terminal', 'dismissed', 'expired', 'blocked', 'outcome_unknown', 'approved'] as const)(
+  test.each([
+    'succeeded',
+    'executing',
+    'failed_terminal',
+    'dismissed',
+    'expired',
+    'blocked',
+    'outcome_unknown',
+    'approved',
+  ] as const)(
     'a %s action is withdrawn from the UI — no Approve or Dismiss control, not merely disabled',
     (status) => {
       render(
@@ -112,7 +200,13 @@ describe('MeriApprovalsTab', () => {
 
   test('offers "Approve all proposed actions" only when more than one proposal is proposed', () => {
     const { rerender } = render(
-      <MeriApprovalsTab approvals={[approval()]} approvingProposalId={null} onApprove={vi.fn()} onApproveAll={vi.fn()} onDismiss={vi.fn()} />,
+      <MeriApprovalsTab
+        approvals={[approval()]}
+        approvingProposalId={null}
+        onApprove={vi.fn()}
+        onApproveAll={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
     );
     expect(screen.queryByText('Approve all proposed actions')).toBeNull();
 
@@ -131,7 +225,12 @@ describe('MeriApprovalsTab', () => {
   test('renders an outcome line from resultSummary when present', () => {
     render(
       <MeriApprovalsTab
-        approvals={[approval({ status: 'failed_retryable', resultSummary: { summary: 'The recipient address bounced.' } })]}
+        approvals={[
+          approval({
+            status: 'failed_retryable',
+            resultSummary: { summary: 'The recipient address bounced.' },
+          }),
+        ]}
         approvingProposalId={null}
         onApprove={vi.fn()}
         onApproveAll={vi.fn()}

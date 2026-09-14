@@ -1854,6 +1854,29 @@ export class MeriToolsService {
         `LegiWatch current scope, source or approval requires review (HTTP ${response.status})`,
       );
     const result = await response.json();
+    if (name === 'prepare_legiwatch_briefing') {
+      const draft = (
+        result as { draft?: { state?: unknown; draftId?: unknown; replayed?: unknown } } | null
+      )?.draft;
+      if (
+        draft?.state !== 'complete' ||
+        typeof draft.draftId !== 'string' ||
+        !/^[a-zA-Z0-9-]{1,100}$/.test(draft.draftId)
+      )
+        throw new BadGatewayException(
+          'Private briefing draft receipt unavailable; retry the same request key',
+        );
+      const location = '/workspace/draft/' + encodeURIComponent(draft.draftId);
+      return {
+        tool: name,
+        result,
+        documentId: draft.draftId,
+        location,
+        status: 'saved',
+        reused: draft.replayed === true,
+        message: 'Private briefing draft saved in Workspace.',
+      };
+    }
     return {
       tool: name,
       generatedAt: new Date().toISOString(),

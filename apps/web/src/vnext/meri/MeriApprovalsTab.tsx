@@ -39,6 +39,21 @@ function proposalOutcome(value: unknown): string | null {
   return null;
 }
 
+function briefingDraftLocation(proposal: PendingApproval): string | null {
+  if (
+    proposal.tool !== 'prepare_legiwatch_briefing' ||
+    proposal.status !== 'succeeded' ||
+    !proposal.resultSummary ||
+    typeof proposal.resultSummary !== 'object'
+  )
+    return null;
+  const result = proposal.resultSummary as Record<string, unknown>;
+  if (typeof result.documentId !== 'string' || !/^[a-zA-Z0-9-]{1,100}$/.test(result.documentId))
+    return null;
+  const location = '/workspace/draft/' + encodeURIComponent(result.documentId);
+  return result.location === location ? location : null;
+}
+
 export interface MeriApprovalsTabProps {
   approvals: PendingApproval[];
   approvingProposalId: string | null;
@@ -108,6 +123,7 @@ export function MeriApprovalsTab({
           const canDismiss =
             proposal.status === 'proposed' || proposal.status === 'failed_retryable';
           const receipt = clientSaveReceipt(proposal);
+          const briefingLocation = briefingDraftLocation(proposal);
           const outcome =
             receipt?.summary ||
             proposalOutcome(proposal.resultSummary) ||
@@ -122,6 +138,11 @@ export function MeriApprovalsTab({
               </div>
               <div className="vnext-meri__pending-approval-reason">{proposal.reason}</div>
               {outcome ? <div className="vnext-meri__attachment-notice">{outcome}</div> : null}
+              {briefingLocation ? (
+                <a className="vnext-meri__rail-action-btn" href={briefingLocation}>
+                  Open editable Workspace draft
+                </a>
+              ) : null}
               {receipt?.location ? (
                 <a className="vnext-meri__rail-action-btn" href={receipt.location}>
                   Open saved note
