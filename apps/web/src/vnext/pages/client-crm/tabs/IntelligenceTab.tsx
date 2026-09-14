@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { resolveUsStateCode } from '@capiro/shared';
+import { useClientFacilities } from '../../../../pages/clients/use-client-facilities.js';
 import {
   Card,
   CardHead,
@@ -22,7 +24,6 @@ import {
   type ClientDistrictNexusV2,
   type DistrictNexusDistrictDetail,
 } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
-import { DistrictNexusMap } from '../DistrictNexusMap.js';
 import { PastPerformanceCard } from '../PastPerformanceCard.js';
 import { ManageFacilitiesModal } from '../ManageFacilitiesModal.js';
 import { AddBillModal } from './LegislativeAddBill.js';
@@ -1464,7 +1465,7 @@ export function facilityStatus(facility: ClientFacility, representation: Represe
   if (!district) return { label: 'U.S. House district missing', tone: 'warning' };
   if (representation && !representation.unresolved && representation.federal.house) {
     const house = representation.federal.house;
-    const houseDistrict = house.district == null ? '' : formatFacilityDistrict(house.state, String(house.district));
+    const houseDistrict = house.district == null ? '' : formatFacilityDistrict(resolveUsStateCode(house.state), String(house.district));
     if (houseDistrict !== district) return { label: 'Representation mismatch', tone: 'warning' };
     return { label: 'Matches saved district', tone: 'success' };
   }
@@ -1476,11 +1477,7 @@ function DistrictPanel({ client }: { client: Client }) {
   const [selected, setSelected] = useState<string | null>(null);
 
   const v2Q = useDistrictNexusV2(client, true);
-  const facilitiesQ = useQuery({
-    queryKey: ['client-facilities', client.id],
-    queryFn: () => getClientFacilities(api, client.id),
-    staleTime: 60_000,
-  });
+  const facilitiesQ = useClientFacilities(client.id);
   const nexusQ = useQuery({
     queryKey: ['client-district-nexus', client.id],
     queryFn: () => getClientDistrictNexus(api, client.id),
@@ -1561,11 +1558,11 @@ function DistrictPanel({ client }: { client: Client }) {
 
   const v2Districts = v2 ? [...v2.districts].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)) : [];
 
-  if (v2 && v2Districts.length > 0) {
+  if (v2 && (v2Districts.length > 0 || (facilitiesQ.data ?? []).some((f) => f.latitude != null && f.longitude != null))) {
     const effectiveSelected =
       selected && v2Districts.some((d) => d.districtKey === selected)
         ? selected
-        : (v2.bestDistrictKey ?? v2Districts[0]!.districtKey);
+        : (v2.bestDistrictKey ?? v2Districts[0]?.districtKey ?? null);
     const sel = v2Districts.find((d) => d.districtKey === effectiveSelected) ?? null;
     const selBand = sel ? bandOf(sel.score) : null;
     const selRep = sel ? repForDistrict.get(sel.districtKey) : undefined;
@@ -1589,6 +1586,7 @@ function DistrictPanel({ client }: { client: Client }) {
               <Suspense fallback={<div className="cap-pf-dn-loading" aria-busy="true" aria-label="Loading map" />}>
                 <DistrictNexusMapLibreLazy
                   districts={v2Districts}
+                  facilities={facilitiesQ.data ?? []}
                   selectedDistrictKey={effectiveSelected}
                   onSelectDistrict={setSelected}
                 />
@@ -1607,7 +1605,7 @@ function DistrictPanel({ client }: { client: Client }) {
           </div>
           {ungeocodedCount > 0 ? (
             <p className="capiro-intel-note" style={{ padding: '14px 24px 18px' }}>
-              {ungeocodedCount} facilit{ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded — the map shows district evidence, not facility pins.
+              {ungeocodedCount} location{ungeocodedCount === 1 ? ' needs' : 's need'} an address match before appearing on the map. Open Manage facilities to review and resolve the address.
             </p>
           ) : null}
         </Card>
@@ -1692,7 +1690,7 @@ function DistrictPanel({ client }: { client: Client }) {
           </span>
           <Pill tone="gray" dotless>{v1List.length} district{v1List.length === 1 ? '' : 's'}</Pill>
         </div>
-        {v1List.length === 0 ? (
+        {v1List.length === 0 && !(facilitiesQ.data ?? []).some((f) => f.latitude != null && f.longitude != null) ? (
           <p className="capiro-intel-note" style={{ padding: '0 24px 20px' }}>
             {ungeocodedCount > 0
               ? `${ungeocodedCount} facilit${ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded, so no district can be plotted yet.`
@@ -1701,11 +1699,23 @@ function DistrictPanel({ client }: { client: Client }) {
         ) : (
           <div className="cap-pf-map-cols">
             <div className="cap-pf-map-frame">
-              <DistrictNexusMap
-                districts={v1List.map((d) => ({ code: d.code, score: d.score, lat: d.lat, lon: d.lon }))}
-                selected={effectiveSelected ?? ''}
-                onSelect={setSelected}
-              />
+              <Suspense fallback={<div className="cap-pf-dn-loading" aria-busy="true" aria-label="Loading map" />}>
+                <DistrictNexusMapLibreLazy
+                  facilities={facilitiesQ.data ?? []}
+                  metric="clients"
+                  districts={v1List.map((d) => ({
+                    districtKey: d.code, state: d.code.split('-')[0]!, districtCode: d.code.split('-')[1]!,
+                    name: d.code, status: 'C' as const, clientCount: 1,
+                    // The legacy response has no normalized nexus score.
+                    score: null, coveragePercent: 0, employeeCount: d.employeeCount,
+                    employeesUnreported: d.employeeCount == null, warnings: [],
+                    awarded: { contractObligations: d.totalAmount, grantObligations: null, grantOutlays: null },
+                    opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+                  }))}
+                  selectedDistrictKey={effectiveSelected}
+                  onSelectDistrict={setSelected}
+                />
+              </Suspense>
             </div>
             <div className="capiro-intel-rail-col">
               {v1List.map((d) => (

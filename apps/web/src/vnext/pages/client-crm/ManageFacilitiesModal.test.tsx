@@ -83,6 +83,55 @@ beforeEach(() => {
 });
 
 describe('ManageFacilitiesModal', () => {
+  it('lets an automatic location move to another state without validating its old district against that state', async () => {
+    patchMock.mockResolvedValue({ data: { ...FACILITY, state: 'WY', congressionalDistrict: null, geocodeStatus: 'pending' } });
+    renderModal();
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    fireEvent.click(within(row).getByRole('button', { name: /Edit/i }));
+    fireEvent.change(await screen.findByLabelText('State'), { target: { value: 'WY' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save facility' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalled());
+    expect(patchMock.mock.calls[0]![1]).toMatchObject({ state: 'WY' });
+    expect(patchMock.mock.calls[0]![1]).not.toHaveProperty('congressionalDistrict');
+  });
+  it('does not send an unchanged automatic district back as a manual override', async () => {
+    patchMock.mockResolvedValue({ data: { ...FACILITY, employeeCount: 241 } });
+    renderModal();
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    fireEvent.click(within(row).getByRole('button', { name: /Edit/i }));
+    fireEvent.change(await screen.findByLabelText('Employees'), { target: { value: '241' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save facility' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalled());
+    expect(patchMock.mock.calls[0]![1]).not.toHaveProperty('congressionalDistrict');
+  });
+
+  it('allows a location with a manual district and no coordinates to be resolved', async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          ...FACILITY,
+          districtSource: 'user',
+          latitude: null,
+          longitude: null,
+          geocodeStatus: 'no_match',
+        },
+      ],
+    });
+    renderModal();
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    expect(within(row).getByRole('button', { name: 'Resolve district' })).toBeEnabled();
+  });
+
+  it('does not show a successful resolution message when the provider returned an error', async () => {
+    postMock.mockResolvedValue({ data: { ...FACILITY, geocodeStatus: 'error' } });
+    renderModal();
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Resolve district' }));
+    expect(
+      await screen.findByText('Location service unavailable. Try resolving again.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Location resolved')).toBeNull();
+  });
   it('lists the real facilities with location, headcount, and geocode state', async () => {
     renderModal();
 
@@ -105,7 +154,16 @@ describe('ManageFacilitiesModal', () => {
   });
 
   it('keeps the geocoder match separate from manual districts and hides state-only district values', async () => {
-    getMock.mockResolvedValue({ data: [{ ...FACILITY, districtSource: 'user', stateHouseDistrict: 'WA', stateSenateDistrict: 'WA' }] });
+    getMock.mockResolvedValue({
+      data: [
+        {
+          ...FACILITY,
+          districtSource: 'user',
+          stateHouseDistrict: 'WA',
+          stateSenateDistrict: 'WA',
+        },
+      ],
+    });
     renderModal();
     const row = (await screen.findByText('Seattle HQ')).closest('li')!;
     expect(row).toHaveTextContent('Geocoder: Matched');
@@ -188,7 +246,12 @@ describe('ManageFacilitiesModal', () => {
       'U.S. House source: Not recorded',
       'Geocoder: Ambiguous',
     ],
-    ['error', { districtSource: null, geocodeStatus: 'error' }, 'U.S. House source: Not recorded', 'Geocoder: Error'],
+    [
+      'error',
+      { districtSource: null, geocodeStatus: 'error' },
+      'U.S. House source: Not recorded',
+      'Geocoder: Error',
+    ],
   ])('keeps the %s resolution state visible', async (_name, overrides, source, geocoder) => {
     getMock.mockResolvedValue({ data: [{ ...FACILITY, ...overrides }] });
     renderModal();
@@ -222,14 +285,25 @@ describe('ManageFacilitiesModal', () => {
   });
 
   it('offers resolution for manual-review records with a saved federal district', async () => {
-    const manual = { ...FACILITY, districtSource: 'user', geocodeStatus: 'manual_review', stateHouseDistrict: 'WA' };
+    const manual = {
+      ...FACILITY,
+      districtSource: 'user',
+      geocodeStatus: 'manual_review',
+      stateHouseDistrict: 'WA',
+    };
     getMock.mockResolvedValue({ data: [manual] });
-    postMock.mockResolvedValue({ data: { ...manual, geocodeStatus: 'matched', stateHouseDistrict: '41' } });
+    postMock.mockResolvedValue({
+      data: { ...manual, geocodeStatus: 'matched', stateHouseDistrict: '41' },
+    });
     renderModal();
     const row = (await screen.findByText('Seattle HQ')).closest('li')!;
     expect(row).toHaveTextContent('Geocoder: Review required');
     fireEvent.click(within(row).getByRole('button', { name: 'Resolve district' }));
-    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/facilities/fac-1/resolve-district'));
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/clients/client-1/facilities/fac-1/resolve-district',
+      ),
+    );
     expect(patchMock).not.toHaveBeenCalled();
   });
 

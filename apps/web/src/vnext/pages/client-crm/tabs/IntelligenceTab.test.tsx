@@ -7,6 +7,10 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../../lib/use-api-scope.js', () => ({ useApiScope: () => 'test-tenant' }));
+vi.mock('../../../components/district-map/DistrictNexusMapLibre.js', () => ({
+  default: ({ facilities }: { facilities: unknown[] }) => <div data-testid="location-map" data-facilities={JSON.stringify(facilities)} />,
+}));
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, post: postMock }),
 }));
@@ -157,6 +161,13 @@ function mockDistrictApis(overrides: { facilities?: unknown; nexus?: unknown; re
 }
 
 describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)', () => {
+  it('supplies saved locations to the shared map even when District Nexus v2 is disabled', async () => {
+    const locations = [{ ...FACILITY, latitude: 47.6, longitude: -122.3 }, { ...FACILITY, id: 'fac-2', latitude: 47.5, longitude: -122.2 }];
+    mockDistrictApis({ facilities: locations });
+    renderDistrict();
+    const map = await screen.findByTestId('location-map');
+    expect(JSON.parse(map.getAttribute('data-facilities')!)).toEqual(locations);
+  });
   beforeEach(() => {
     getMock.mockReset();
   });
@@ -1056,5 +1067,16 @@ describe('facility verification evidence', () => {
     }
     const atLarge = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, state: 'AK', district: null }, senate: [] } };
     expect(facilityStatus({ ...FACILITY, state: 'AK', congressionalDistrict: '00' } as any, atLarge as any).label).toBe('Representation mismatch');
+  });
+
+  it.each([
+    ['FL', 'Florida', '08', 8],
+    ['CA', 'California', '12', 12],
+    ['WY', 'Wyoming', '00', 0],
+    ['WA', ' washington ', '07', 7],
+  ])('compares postal state %s with the roster full name %s', (state, fullName, district, houseDistrict) => {
+    const representation = { unresolved: false, federal: { house: { state: fullName, district: houseDistrict }, senate: [] }, state: { lower: null, upper: null } };
+    expect(facilityStatus({ ...FACILITY, state, congressionalDistrict: district } as any, representation as any).label).toBe('Matches saved district');
+    expect(facilityStatus({ ...FACILITY, state: 'AZ', congressionalDistrict: '01' } as any, representation as any).label).toBe('Representation mismatch');
   });
 });

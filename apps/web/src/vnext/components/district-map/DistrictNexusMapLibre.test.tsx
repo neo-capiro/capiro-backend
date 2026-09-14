@@ -49,7 +49,11 @@ vi.mock('@vis.gl/react-maplibre', async () => {
       {
         'data-testid': `source-${props.id}`,
         'data-features': JSON.stringify(
-          (props.data?.features ?? []).map((f: any) => ({ id: f.id, color: f.properties?.__color })),
+          (props.data?.features ?? []).map((f: any) => ({
+            id: f.id,
+            color: f.properties?.__color,
+            coordinates: f.geometry?.coordinates,
+          })),
         ),
       },
       props.children,
@@ -131,7 +135,15 @@ function district(overrides: Partial<DistrictNexusDistrictSummary>): DistrictNex
 
 const DISTRICTS = [
   district({}),
-  district({ districtKey: 'CA-12', state: 'CA', districtCode: '12', name: 'California 12th', score: 88, employeeCount: null, employeesUnreported: true }),
+  district({
+    districtKey: 'CA-12',
+    state: 'CA',
+    districtCode: '12',
+    name: 'California 12th',
+    score: 88,
+    employeeCount: null,
+    employeesUnreported: true,
+  }),
 ];
 
 const CONUS: [[number, number], [number, number]] = [
@@ -177,7 +189,11 @@ describe('camera fit — the viewport the user actually lands on', () => {
   test("default 'footprint' mode (client-crm) fits the districts' bbox union once loaded", async () => {
     renderMap();
     await waitFor(() => expect(fitBoundsMock).toHaveBeenCalled());
-    expect(fitBoundsMock).toHaveBeenCalledWith(FOOTPRINT_UNION, { padding: 48, maxZoom: 6.5, animate: false });
+    expect(fitBoundsMock).toHaveBeenCalledWith(FOOTPRINT_UNION, {
+      padding: 48,
+      maxZoom: 6.5,
+      animate: false,
+    });
   });
 
   test('token mode with NO client scope fits CONUS — never a stray footprint or world view', async () => {
@@ -190,7 +206,11 @@ describe('camera fit — the viewport the user actually lands on', () => {
   test('token mode WITH a client scope fits the footprint union', async () => {
     renderMap({ fit: { token: 'client-1' } });
     await waitFor(() => expect(fitBoundsMock).toHaveBeenCalled());
-    expect(fitBoundsMock).toHaveBeenCalledWith(FOOTPRINT_UNION, { padding: 48, maxZoom: 6.5, animate: false });
+    expect(fitBoundsMock).toHaveBeenCalledWith(FOOTPRINT_UNION, {
+      padding: 48,
+      maxZoom: 6.5,
+      animate: false,
+    });
   });
 
   test('the "Fit footprint" control refits the same union on demand', async () => {
@@ -198,7 +218,11 @@ describe('camera fit — the viewport the user actually lands on', () => {
     await waitFor(() => expect(fitBoundsMock).toHaveBeenCalled());
     fitBoundsMock.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Fit footprint' }));
-    expect(fitBoundsMock).toHaveBeenCalledWith(FOOTPRINT_UNION, { padding: 48, maxZoom: 6.5, animate: false });
+    expect(fitBoundsMock).toHaveBeenCalledWith(FOOTPRINT_UNION, {
+      padding: 48,
+      maxZoom: 6.5,
+      animate: false,
+    });
   });
 });
 
@@ -209,7 +233,9 @@ describe('layer presence — what actually reaches the GL engine', () => {
     expect(screen.getByTestId('layer-pfdn-district-fill')).toBeTruthy();
     expect(screen.getByTestId('layer-pfdn-district-outline')).toBeTruthy();
 
-    const byId = Object.fromEntries(sourceFeatures('source-pfdn-districts').map((f) => [f.id, f.color]));
+    const byId = Object.fromEntries(
+      sourceFeatures('source-pfdn-districts').map((f) => [f.id, f.color]),
+    );
     expect(byId['TX-23']).toBe(rampColorForValue(metricValue(DISTRICTS[0]!, 'nexus'), 'nexus'));
     expect(byId['CA-12']).toBe(rampColorForValue(metricValue(DISTRICTS[1]!, 'nexus'), 'nexus'));
     // A district with no nexus under current filters must be visually
@@ -222,7 +248,9 @@ describe('layer presence — what actually reaches the GL engine', () => {
   test('the metric prop recolors the choropleth (clients scale, not nexus)', async () => {
     renderMap({ metric: 'clients' });
     await screen.findByTestId('source-pfdn-districts');
-    const byId = Object.fromEntries(sourceFeatures('source-pfdn-districts').map((f) => [f.id, f.color]));
+    const byId = Object.fromEntries(
+      sourceFeatures('source-pfdn-districts').map((f) => [f.id, f.color]),
+    );
     expect(byId['TX-23']).toBe(rampColorForValue(metricValue(DISTRICTS[0]!, 'clients'), 'clients'));
     expect(screen.getByText('Clients with nexus')).toBeTruthy(); // legend follows the scale
   });
@@ -240,12 +268,12 @@ describe('layer presence — what actually reaches the GL engine', () => {
     expect(screen.queryByTestId('source-pfdn-facilities')).toBeNull();
   });
 
-  test('uncontrolled default (client-crm): facilities start off and the built-in toggle turns them on', async () => {
+  test('uncontrolled default (client-crm): facilities are visible and can be hidden', async () => {
     renderMap();
     await screen.findByTestId('source-pfdn-districts');
-    expect(screen.queryByTestId('source-pfdn-facilities')).toBeNull();
+    expect(screen.getByTestId('source-pfdn-facilities')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Facilities' }));
-    expect(await screen.findByTestId('source-pfdn-facilities')).toBeTruthy();
+    expect(screen.queryByTestId('source-pfdn-facilities')).toBeNull();
   });
 
   test('a layersSlot replaces the built-in Facilities toggle', async () => {
@@ -271,4 +299,39 @@ describe('layer presence — what actually reaches the GL engine', () => {
       { selected: false },
     );
   });
+});
+
+test('plots every saved coordinate without headcount or a district, and never substitutes a centroid', async () => {
+  const facility = {
+    id: 'a',
+    name: 'HQ',
+    state: 'TX',
+    congressionalDistrict: '23',
+    latitude: 30,
+    longitude: -100,
+    employeeCount: null,
+  };
+  renderMap({
+    facilities: [
+      facility,
+      { ...facility, id: 'b', latitude: 31, longitude: -99 },
+      { ...facility, id: 'c', congressionalDistrict: null, latitude: 47, longitude: -120 },
+      { ...facility, id: 'unresolved', latitude: null, longitude: null },
+      { ...facility, id: 'invalid', latitude: 100 },
+    ],
+  });
+  const source = await screen.findByTestId('source-pfdn-facilities');
+  expect(JSON.parse(source.getAttribute('data-features')!)).toEqual([
+    { id: 'a', coordinates: [-100, 30] },
+    { id: 'b', coordinates: [-99, 31] },
+    { id: 'c', coordinates: [-120, 47] },
+  ]);
+  expect(screen.getByText('3 mapped locations')).toBeTruthy();
+  expect(fitBoundsMock).toHaveBeenCalledWith(
+    [
+      [-122.6, 28.9],
+      [-98.2, 47],
+    ],
+    expect.anything(),
+  );
 });

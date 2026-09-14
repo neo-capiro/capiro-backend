@@ -124,13 +124,14 @@ export class ClientFacilitiesService {
    * must never hold an interactive Prisma transaction open.
    */
   private async geocodeFacility(tenantId: string, facilityId: string): Promise<void> {
-    const facility = await this.prisma.withTenant(tenantId, async (tx) =>
+    const found = await this.prisma.withTenant(tenantId, async (tx) =>
       tx.clientFacility.findUnique({ where: { id: facilityId } }),
     );
-    if (!facility) return;
+    if (!found) return;
+    const facility = { ...found };
 
     const outcome = await computeFacilityGeocode(facility);
-    await this.prisma.withTenant(tenantId, async (tx) => {
+    const persisted = await this.prisma.withTenant(tenantId, async (tx) => {
       const current = await tx.clientFacility.findUnique({ where: { id: facilityId } });
       if (!current) return;
       const attemptCount = (current.geocodeAttemptCount ?? 0) + 1;
@@ -145,8 +146,20 @@ export class ClientFacilitiesService {
           `Geocode discrepancy for facility ${facilityId}: hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
         );
       }
-      await tx.clientFacility.update({
-        where: { id: facilityId },
+      // Provider results belong to the address and district choices we read.
+      // A concurrent edit must never be overwritten by an older request.
+      return tx.clientFacility.updateMany({
+        where: {
+          id: facilityId,
+          addressLine: facility.addressLine,
+          city: facility.city,
+          state: facility.state,
+          zip: facility.zip,
+          congressionalDistrict: facility.congressionalDistrict,
+          districtSource: facility.districtSource,
+          stateHouseDistrict: facility.stateHouseDistrict,
+          stateSenateDistrict: facility.stateSenateDistrict,
+        },
         data: {
           ...(outcome.update ?? {}),
           ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
@@ -164,6 +177,7 @@ export class ClientFacilitiesService {
         },
       });
     });
+    if (persisted?.count) this.clientKb.indexFacilityFireAndForget(tenantId, facilityId);
   }
 
   /** Run the deterministic Census resolver immediately for an explicit retry. */
@@ -173,7 +187,15 @@ export class ClientFacilitiesService {
         where: { id, tenantId: ctx.tenantId, clientId },
       });
       if (!existing) throw new NotFoundException('Facility not found');
-      return tx.clientFacility.update({ where: { id }, data: { geocodeStatus: 'pending' } });
+      return tx.clientFacility.update({
+        where: { id },
+        data: {
+          geocodeStatus: 'pending',
+          geocodeAttemptCount: 0,
+          geocodeNextAttemptAt: null,
+          geocodeLastError: null,
+        },
+      });
     });
     await this.geocodeFacility(ctx.tenantId, facility.id);
     const resolved = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
@@ -188,7 +210,9 @@ export class ClientFacilitiesService {
     for (const field of ['stateHouseDistrict', 'stateSenateDistrict'] as const) {
       const value = input[field]?.trim().toUpperCase();
       if (value && Object.prototype.hasOwnProperty.call(US_HOUSE_SEATS, value)) {
-        throw new BadRequestException(`${field} must identify a legislative district, not a state abbreviation.`);
+        throw new BadRequestException(
+          `${field} must identify a legislative district, not a state abbreviation.`,
+        );
       }
     }
   }
@@ -257,14 +281,30 @@ export class ClientFacilitiesService {
     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
-        select: { id: true, state: true, congressionalDistrict: true, addressLine: true, city: true, zip: true,
-          stateHouseDistrict: true, stateSenateDistrict: true, districtSource: true },
+        select: {
+          id: true,
+          state: true,
+          congressionalDistrict: true,
+          addressLine: true,
+          city: true,
+          zip: true,
+          stateHouseDistrict: true,
+          stateSenateDistrict: true,
+          districtSource: true,
+        },
       });
       if (!existing) throw new NotFoundException('Facility not found');
-      const addressChanged = (['addressLine', 'city', 'state', 'zip'] as const)
-        .some((key) => key in input && (input[key] ?? null) !== existing[key]);
-      const districtChanged = (['congressionalDistrict', 'stateHouseDistrict', 'stateSenateDistrict', 'districtSource'] as const)
-        .some((key) => key in input && (input[key] ?? null) !== existing[key]);
+      const addressChanged = (['addressLine', 'city', 'state', 'zip'] as const).some(
+        (key) => key in input && (input[key] ?? null) !== existing[key],
+      );
+      const districtChanged = (
+        [
+          'congressionalDistrict',
+          'stateHouseDistrict',
+          'stateSenateDistrict',
+          'districtSource',
+        ] as const
+      ).some((key) => key in input && (input[key] ?? null) !== existing[key]);
       // The DTO's cross-field check only sees fields present in the PATCH
       // body, so a single-field update (state-only or district-only) pairs
       // with a stored sibling it was never validated against. Re-check the
@@ -279,9 +319,11 @@ export class ClientFacilitiesService {
       if ('state' in input || 'congressionalDistrict' in input) {
         effectiveState = 'state' in input ? (input.state ?? null) : existing.state;
         const effectiveDistrict =
-          'congressionalDistrict' in input
-            ? (input.congressionalDistrict ?? null)
-            : existing.congressionalDistrict;
+          addressChanged && existing.districtSource === 'geocoded' && !districtChanged
+            ? null
+            : 'congressionalDistrict' in input
+              ? (input.congressionalDistrict ?? null)
+              : existing.congressionalDistrict;
         if (!isValidDistrictForState(effectiveState, effectiveDistrict)) {
           throw new BadRequestException(
             `congressionalDistrict "${effectiveDistrict}" is not a valid district for state ${effectiveState}`,
@@ -309,7 +351,9 @@ export class ClientFacilitiesService {
                 districtSource:
                   input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? null),
               }
-            : 'congressionalDistrict' in input
+            : 'congressionalDistrict' in input &&
+                normalizeDistrictForStorage(effectiveState, input.congressionalDistrict) !==
+                  existing.congressionalDistrict
               ? { districtSource: 'user' }
               : {}),
           ...('stateHouseDistrict' in input
@@ -321,7 +365,29 @@ export class ClientFacilitiesService {
           ...('employeeCount' in input ? { employeeCount: input.employeeCount ?? null } : {}),
           ...('notes' in input ? { notes: input.notes ?? null } : {}),
           ...(addressChanged
-            ? { geocodeStatus: 'pending', geocodeInputHash: null, geocodedAt: null }
+            ? {
+                geocodeStatus: 'pending',
+                geocodeInputHash: null,
+                geocodedAt: null,
+                latitude: null,
+                longitude: null,
+                geocodeAttemptCount: 0,
+                geocodeNextAttemptAt: null,
+                geocodeLastError: null,
+                geocodeMatchedAddress: null,
+                geocodeCandidates: Prisma.JsonNull,
+                // Automatically derived districts describe the old address.
+                // Retain only an explicit manual choice or a new override.
+                ...(existing.districtSource === 'geocoded' && !districtChanged
+                  ? {
+                      congressionalDistrict: null,
+                      congressionalDistrictCongress: null,
+                      districtSource: null,
+                    }
+                  : {}),
+                ...(!('stateHouseDistrict' in input) ? { stateHouseDistrict: null } : {}),
+                ...(!('stateSenateDistrict' in input) ? { stateSenateDistrict: null } : {}),
+              }
             : districtChanged
               ? { geocodeStatus: 'manual_review', districtSource: 'user', geocodedAt: null }
               : {}),
@@ -331,7 +397,10 @@ export class ClientFacilitiesService {
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
     // Only re-geocode when the address itself changed — an unrelated field
     // edit (notes, employeeCount) shouldn't fire a Census API call.
-    if ('addressLine' in input || 'city' in input || 'state' in input || 'zip' in input) {
+    if (
+      facility.geocodeStatus === 'pending' &&
+      ('addressLine' in input || 'city' in input || 'state' in input || 'zip' in input)
+    ) {
       this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
     }
     return facility;

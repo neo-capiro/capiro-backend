@@ -5191,3 +5191,5 @@ export * from './legislative-research.js';
 
 export * from './legiwatch-query.js';
 export * from './legiwatch-phase8.js';
+
+export { US_STATE_BY_ABBR, resolveUsStateCode } from './us-states.js';

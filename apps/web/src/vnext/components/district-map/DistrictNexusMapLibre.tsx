@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  formatFacilityDistrict,
+  type ClientFacility,
+} from '../../../pages/clients/facilities-api.js';
 import { useQuery } from '@tanstack/react-query';
-import { Map as MaplibreMap, Source, Layer, type MapLayerMouseEvent, type MapRef } from '@vis.gl/react-maplibre';
+import {
+  Map as MaplibreMap,
+  Source,
+  Layer,
+  type MapLayerMouseEvent,
+  type MapRef,
+} from '@vis.gl/react-maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useApi } from '../../../lib/use-api.js';
 import { mapStyleUrl, mapStyleAttribution } from '../../../env.js';
@@ -73,7 +83,9 @@ function supportsWebGL(): boolean {
   try {
     const canvas = document.createElement('canvas');
     webglSupportCache = Boolean(
-      canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl'),
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl'),
     );
   } catch {
     webglSupportCache = false;
@@ -85,6 +97,11 @@ export type DistrictMapUnavailableReason = 'webgl' | 'artifact';
 
 export interface DistrictNexusMapLibreProps {
   districts: DistrictNexusDistrictSummary[];
+  /** Tenant-scoped saved locations. Omitted on the aggregate district view. */
+  facilities?: Pick<
+    ClientFacility,
+    'id' | 'name' | 'state' | 'congressionalDistrict' | 'latitude' | 'longitude' | 'employeeCount'
+  >[];
   selectedDistrictKey: string | null;
   onSelectDistrict: (districtKey: string) => void;
   /** Choropleth colour metric. Defaults to nexus strength. */
@@ -95,7 +112,7 @@ export interface DistrictNexusMapLibreProps {
   onHoverDistrict?: (districtKey: string | null) => void;
   /** Controlled facilities-layer state. When BOTH this and
    * `onShowFacilitiesChange` are provided the component never manages its own
-   * state; when omitted, an internal toggle (default off) drives the layer. */
+   * state; when omitted, an internal toggle (default on) drives the layer. */
   showFacilities?: boolean;
   onShowFacilitiesChange?: (value: boolean) => void;
   /**
@@ -119,6 +136,7 @@ export interface DistrictNexusMapLibreProps {
 
 export function DistrictNexusMapLibre({
   districts,
+  facilities,
   selectedDistrictKey,
   onSelectDistrict,
   metric = 'nexus',
@@ -133,10 +151,15 @@ export function DistrictNexusMapLibre({
 }: DistrictNexusMapLibreProps) {
   const api = useApi();
   const mapRef = useRef<MapRef | null>(null);
-  const [hover, setHover] = useState<{ key: string; x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<{
+    key: string;
+    x: number;
+    y: number;
+    facilityName?: string;
+  } | null>(null);
   const [renderError, setRenderError] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [internalShowFacilities, setInternalShowFacilities] = useState(false);
+  const [internalShowFacilities, setInternalShowFacilities] = useState(true);
   const webglOk = useMemo(supportsWebGL, []);
   const statusParam = view === 'future' ? 'F' : 'C';
 
@@ -170,29 +193,66 @@ export function DistrictNexusMapLibre({
       ...geojson.data,
       features: geojson.data.features.map((feature) => {
         const district = byKey.get(feature.id);
-        const color = district ? rampColorForValue(metricValue(district, metric), metric) : NO_NEXUS_FILL;
+        const color = district
+          ? rampColorForValue(metricValue(district, metric), metric)
+          : NO_NEXUS_FILL;
         return {
           ...feature,
-          properties: { ...feature.properties, __color: color, __hasNexus: Boolean(district) },
+          properties: {
+            ...feature.properties,
+            __districtKey: feature.id,
+            __color: color,
+            __hasNexus: Boolean(district),
+          },
         };
       }),
     };
   }, [geojson.data, byKey, metric]);
 
   /**
-   * One marker per DISTRICT, at the boundary centroid, sized by that
-   * district's aggregate employee count. This is deliberately NOT a facility
-   * map: the E1 aggregate carries no facility coordinates, and placing a
-   * marker at a centroid while calling it "Client facilities" claimed a
-   * precision we do not have. Rendering real coordinates needs a
-   * tenant-scoped facility-points field on the API — see the plan's §6.
+   * Client profiles supply saved coordinates, including locations without an
+   * employee count or resolved district. The firm aggregate view instead uses
+   * district centers and labels that layer explicitly as district aggregates.
    */
   const facilityPoints = useMemo(() => {
+    if (facilities) {
+      return {
+        type: 'FeatureCollection' as const,
+        features: facilities.flatMap((facility) => {
+          const { latitude, longitude } = facility;
+          if (
+            latitude == null ||
+            longitude == null ||
+            !Number.isFinite(latitude) ||
+            !Number.isFinite(longitude) ||
+            Math.abs(latitude) > 90 ||
+            Math.abs(longitude) > 180
+          )
+            return [];
+          return [
+            {
+              type: 'Feature' as const,
+              id: facility.id,
+              properties: {
+                districtKey: formatFacilityDistrict(facility.state, facility.congressionalDistrict),
+                facilityName: facility.name,
+                radius:
+                  facility.employeeCount == null
+                    ? 6
+                    : Math.min(14, 5 + Math.sqrt(Math.max(0, facility.employeeCount)) / 10),
+              },
+              geometry: { type: 'Point' as const, coordinates: [longitude, latitude] },
+            },
+          ];
+        }),
+      };
+    }
     if (!geojson.data) return { type: 'FeatureCollection' as const, features: [] };
     const features = geojson.data.features
       .map((feature) => {
         const district = byKey.get(feature.id);
-        if (!district || (district.employeeCount == null && !district.employeesUnreported)) return null;
+        if (!district || (district.employeeCount == null && !district.employeesUnreported))
+          return null;
         const radius = Math.min(13, 4 + Math.sqrt((district.employeeCount ?? 60) / 40));
         return {
           type: 'Feature' as const,
@@ -203,18 +263,30 @@ export function DistrictNexusMapLibre({
       })
       .filter((f): f is NonNullable<typeof f> => f != null);
     return { type: 'FeatureCollection' as const, features };
-  }, [geojson.data, byKey]);
+  }, [facilities, geojson.data, byKey]);
 
-  const fitToFootprint = () => {
+  const fitToFootprint = useCallback(() => {
     const map = mapRef.current;
     if (!map || !geojson.data) return;
-    const boxes = geojson.data.features.filter((f) => byKey.has(f.id)).map((f) => f.properties.bbox);
+    const boxes = geojson.data.features
+      .filter((f) => byKey.has(f.id))
+      .map((f) => f.properties.bbox);
+    if (facilities)
+      for (const point of facilityPoints.features) {
+        const [lng, lat] = point.geometry.coordinates;
+        boxes.push([lng!, lat!, lng!, lat!]);
+      }
     if (!boxes.length) {
       map.fitBounds(CONUS_BOUNDS, { padding: 24, animate: false });
       return;
     }
     const union = boxes.reduce<[number, number, number, number]>(
-      (acc, b) => [Math.min(acc[0], b[0]), Math.min(acc[1], b[1]), Math.max(acc[2], b[2]), Math.max(acc[3], b[3])],
+      (acc, b) => [
+        Math.min(acc[0], b[0]),
+        Math.min(acc[1], b[1]),
+        Math.max(acc[2], b[2]),
+        Math.max(acc[3], b[3]),
+      ],
       [Infinity, Infinity, -Infinity, -Infinity],
     );
     map.fitBounds(
@@ -224,7 +296,7 @@ export function DistrictNexusMapLibre({
       ],
       { padding: 48, maxZoom: 6.5, animate: false },
     );
-  };
+  }, [geojson.data, byKey, facilities, facilityPoints]);
 
   // Re-fit whenever the map finishes loading, the artifact arrives, or (in
   // token mode) the caller's fit token changes: footprint when a client scope
@@ -238,15 +310,17 @@ export function DistrictNexusMapLibre({
       return;
     }
     fitToFootprint();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitToken, loaded, geojson.data]);
+  }, [fitToken, loaded, fitToFootprint]);
 
   // Selected-district outline via feature-state.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loaded) return;
     districts.forEach((d) => {
-      map.setFeatureState({ source: 'pfdn-districts', id: d.districtKey }, { selected: d.districtKey === selectedDistrictKey });
+      map.setFeatureState(
+        { source: 'pfdn-districts', id: d.districtKey },
+        { selected: d.districtKey === selectedDistrictKey },
+      );
     });
   }, [selectedDistrictKey, districts, loaded]);
 
@@ -256,7 +330,9 @@ export function DistrictNexusMapLibre({
     return (
       <div className="cap-pf-dn-fail" role="note">
         <b>Boundary map unavailable.</b>{' '}
-        {reason === 'webgl' ? 'WebGL is unavailable in this browser session.' : 'The boundary artifact could not be loaded.'}{' '}
+        {reason === 'webgl'
+          ? 'WebGL is unavailable in this browser session.'
+          : 'The boundary artifact could not be loaded.'}{' '}
         The district list beside the map carries every number shown here.
       </div>
     );
@@ -264,7 +340,13 @@ export function DistrictNexusMapLibre({
 
   if (geojson.isPending || manifest.isPending) {
     if (loadingFallback) return <>{loadingFallback}</>;
-    return <div className="cap-pf-dn-loading" aria-busy="true" aria-label="Loading district boundaries" />;
+    return (
+      <div
+        className="cap-pf-dn-loading"
+        aria-busy="true"
+        aria-label="Loading district boundaries"
+      />
+    );
   }
 
   const hoveredDistrict = hover ? byKey.get(hover.key) : undefined;
@@ -276,19 +358,32 @@ export function DistrictNexusMapLibre({
         ref={mapRef}
         mapStyle={mapStyleUrl}
         initialViewState={{ bounds: CONUS_BOUNDS, fitBoundsOptions: { padding: 24 } }}
-        interactiveLayerIds={['pfdn-district-fill']}
+        interactiveLayerIds={[
+          'pfdn-district-fill',
+          ...(showFacilities && facilityPoints.features.length ? ['pfdn-facility-points'] : []),
+        ]}
         cursor={hover ? 'pointer' : 'grab'}
         onLoad={() => setLoaded(true)}
         onError={() => setRenderError(true)}
         onMouseMove={(e: MapLayerMouseEvent) => {
           const feature = e.features?.[0];
-          if (!feature?.id) {
+          if (!feature) {
             if (hover) setHover(null);
             onHoverDistrict?.(null);
             return;
           }
-          const key = String(feature.id);
-          setHover({ key, x: e.point.x, y: e.point.y });
+          const key = String(
+            feature.properties?.districtKey ??
+              feature.properties?.__districtKey ??
+              feature.id ??
+              '',
+          );
+          setHover({
+            key,
+            x: e.point.x,
+            y: e.point.y,
+            facilityName: feature.properties?.facilityName,
+          });
           onHoverDistrict?.(key);
         }}
         onMouseLeave={() => {
@@ -297,24 +392,43 @@ export function DistrictNexusMapLibre({
         }}
         onClick={(e: MapLayerMouseEvent) => {
           const feature = e.features?.[0];
-          const key = feature?.id != null ? String(feature.id) : null;
+          const key = feature
+            ? String(
+                feature.properties?.districtKey ??
+                  feature.properties?.__districtKey ??
+                  feature.id ??
+                  '',
+              )
+            : null;
           // Any boundary is selectable — zero-nexus seats open the public-intel
           // drawer. Requiring byKey hid the entire non-footprint map.
           if (key) onSelectDistrict(key);
         }}
       >
         {styledGeojson ? (
-          // No promoteId: features carry a top-level GeoJSON `id` ("TX-23")
-          // which MapLibre uses natively for feature-state.
-          <Source id="pfdn-districts" type="geojson" data={styledGeojson}>
-            <Layer id="pfdn-district-fill" type="fill" paint={{ 'fill-color': ['get', '__color'], 'fill-opacity': 0.96 }} />
+          <Source id="pfdn-districts" type="geojson" data={styledGeojson} promoteId="__districtKey">
+            <Layer
+              id="pfdn-district-fill"
+              type="fill"
+              paint={{ 'fill-color': ['get', '__color'], 'fill-opacity': 0.96 }}
+            />
             <Layer
               id="pfdn-district-outline"
               type="line"
               paint={{
-                'line-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#1a3f9f', '#12306e'],
+                'line-color': [
+                  'case',
+                  ['boolean', ['feature-state', 'selected'], false],
+                  '#1a3f9f',
+                  '#12306e',
+                ],
                 'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2.6, 0.6],
-                'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0.42],
+                'line-opacity': [
+                  'case',
+                  ['boolean', ['feature-state', 'selected'], false],
+                  1,
+                  0.42,
+                ],
               }}
             />
           </Source>
@@ -336,8 +450,12 @@ export function DistrictNexusMapLibre({
       </MaplibreMap>
 
       {hover ? (
-        <div className="cap-pf-dn-hovcard" style={{ left: Math.max(4, hover.x + 14), top: Math.max(4, hover.y + 14) }}>
-          <div className="cap-pf-dn-hk">{hover.key}</div>
+        <div
+          className="cap-pf-dn-hovcard"
+          style={{ left: Math.max(4, hover.x + 14), top: Math.max(4, hover.y + 14) }}
+        >
+          <div className="cap-pf-dn-hk">{hover.facilityName ?? hover.key}</div>
+          {hover.facilityName ? <div>{hover.key || 'District not resolved'}</div> : null}
           <div className="cap-pf-dn-hr">
             <span>Nexus</span>
             <b>
@@ -355,14 +473,19 @@ export function DistrictNexusMapLibre({
         <button type="button" onClick={fitToFootprint}>
           Fit footprint
         </button>
-        <button type="button" onClick={() => mapRef.current?.fitBounds(CONUS_BOUNDS, { padding: 24, animate: false })}>
+        <button
+          type="button"
+          onClick={() => mapRef.current?.fitBounds(CONUS_BOUNDS, { padding: 24, animate: false })}
+        >
           CONUS
         </button>
         {(['AK', 'HI', 'PR'] as const).map((region) => (
           <button
             key={region}
             type="button"
-            onClick={() => mapRef.current?.fitBounds(REGION_BOUNDS[region], { padding: 20, animate: false })}
+            onClick={() =>
+              mapRef.current?.fitBounds(REGION_BOUNDS[region], { padding: 20, animate: false })
+            }
           >
             {region}
           </button>
@@ -380,7 +503,11 @@ export function DistrictNexusMapLibre({
             <button
               type="button"
               aria-pressed={showFacilities}
-              title="Districts with client facilities · sized by employees"
+              title={
+                facilities
+                  ? 'Saved facility locations'
+                  : 'Districts with client facilities · sized by employees'
+              }
               onClick={() => setShowFacilities(!showFacilities)}
             >
               Facilities
@@ -406,8 +533,13 @@ export function DistrictNexusMapLibre({
         </div>
         {showFacilities ? (
           <div className="cap-pf-dn-ex">
-            <span className="cap-pf-dn-sw" style={{ borderRadius: '50%', background: '#fff', border: '2px solid #1a3f9f' }} />
-            Districts with client facilities · sized by employees
+            <span
+              className="cap-pf-dn-sw"
+              style={{ borderRadius: '50%', background: '#fff', border: '2px solid #1a3f9f' }}
+            />
+            {facilities
+              ? `${facilityPoints.features.length} mapped location${facilityPoints.features.length === 1 ? '' : 's'}`
+              : 'Districts with client facilities · sized by employees'}
           </div>
         ) : null}
       </div>
