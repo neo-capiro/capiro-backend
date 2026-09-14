@@ -546,7 +546,7 @@ describe('Phase 8 public observations, private selections and actual database re
     await api.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${receiptId},'test','https://example.invalid/budget',${revision},'{}','{}',true)`;
     await api.$executeRaw`INSERT INTO florida_budget_document(id,publisher,source_url,content_hash,title,fiscal_year,session_key,chamber,stage,role,receipt_id,sections,complete) VALUES(${documentId},'Test legislature',${'https://example.invalid/' + documentId},${revision},'Test budget','2026-27',${session},'House','proposed','comparison',${receiptId},${JSON.stringify(sections)}::jsonb,true)`;
     await api.$executeRaw`INSERT INTO florida_budget_project(id,fiscal_year,title,identities,evidence) VALUES(${projectId},'2026-27',${title},'[]','{}')`;
-    await api.$executeRaw`INSERT INTO florida_budget_amount(id,project_id,document_id,observation) VALUES(${randomUUID()},${projectId},${documentId},${JSON.stringify({ locator: 'page:1;project:1' })}::jsonb)`;
+    await api.$executeRaw`INSERT INTO florida_budget_amount(id,project_id,document_id,observation) VALUES(${randomUUID()},${projectId},${documentId},${JSON.stringify({ projectId, documentId, sourceRevision: revision, locator: 'page:1;project:1', measure: 'money', currency: 'USD', qualified: true, state: 'amount', minorUnits: '2000000', chamber: 'House', fund: 'General Revenue' })}::jsonb)`;
     const tracking = await evidence.track(ctx, {
       ...scope(),
       kind: 'budget',
@@ -582,6 +582,10 @@ describe('Phase 8 public observations, private selections and actual database re
       editorialBrief: jest.fn().mockImplementation(async (_tenant, _actor, inputs) => {
         expect(inputs.clientContext).toContain(projectId);
         expect(inputs.clientContext).toContain(title);
+        expect(inputs.clientContext).toContain('USD 20,000.00');
+        expect(inputs.clientContext).toContain('General Revenue');
+        expect(inputs.clientContext).toContain(revision);
+        expect(inputs.clientContext).not.toContain('Neighbor project');
         expect(inputs.sources[0].text).toContain('Neighbor project');
         await evidence.track(ctx, {
           ...scope(),
