@@ -98,6 +98,10 @@ export class InternalLegiWatchController {
   billRecord(@Body() input: BillRecordNotificationDto) {
     return this.notifications.emitBillRecord(input);
   }
+  @Post('keyword-notification')
+  keyword(@Body() input: BillRecordNotificationDto) {
+    return this.notifications.emitKeyword(input);
+  }
   @Post('agenda-notification')
   agenda(@Body() input: AgendaNotificationDto) {
     return this.notifications.emitAgenda(input);

@@ -105,6 +105,10 @@ export class FeatureFlagService {
     if (row) return row.enabled;
     if (
       [
+        'legiwatch_keyword_discovery_v1',
+        'legiwatch_keyword_auto_add_v1',
+        'legiwatch_internal_workflows_v1',
+        'legiwatch_keyword_delivery_v1',
         FOLDER_TRACKER_FEATURE,
         REPORTS_UPDATES_FEATURE,
         REPORT_DELIVERY_FEATURE,

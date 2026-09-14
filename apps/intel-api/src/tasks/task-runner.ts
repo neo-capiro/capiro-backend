@@ -285,6 +285,16 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         throw new Error('run-report-updates requires an explicit tenant UUID');
       const runtime = reportRuntime(deps.prisma);
       const result = await runtime.subscriptions.due(tenantId, 25);
+      const keywords = await runtime.keywords.due(tenantId);
+      const keywordIntents = await runtime.keywordDelivery.enqueue(tenantId);
+      const keywordDelivery = await runtime.delivery.drain(
+        tenantId,
+        25,
+        new Date(),
+        'bill_keyword',
+      );
+      const workflowTriggers = await runtime.workflowTriggers.detect(tenantId);
+      const workflows = await runtime.workflows.due(tenantId);
       const delivery = await runtime.delivery.drain(tenantId, 25);
       // Reuse the existing rule detector and durable transport. Canonical
       // provider ingestion remains exclusively in the API runtime.
@@ -292,7 +302,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const queued = await runtime.rules.enqueue(tenantId);
       const staff = await runtime.delivery.drain(tenantId, 25, new Date(), 'bill_record');
       deps.log(
-        `REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff })}`,
+        `REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff, keywords, keywordIntents, keywordDelivery, workflows, workflowTriggers })}`,
       );
       return;
     }

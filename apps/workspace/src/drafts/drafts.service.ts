@@ -1,4 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import type { Prisma } from '../../generated/prisma-client/index.js';
+import { preparationWorkspace } from './preparation-content.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
 import { detectNames } from '../generation/anonymize.js';
@@ -24,7 +32,13 @@ export class DraftsService {
     private readonly collaborators: CollaboratorsService,
   ) {}
 
-  async create(tenantId: string, ownerId: string, dto: CreateDraftDto) {
+  async create(
+    tenantId: string,
+    ownerId: string,
+    dto: CreateDraftDto,
+    transaction?: Prisma.TransactionClient,
+  ) {
+    const db = transaction ?? this.prisma;
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
     const sections = product ? WSC.suggestedSections(product) : [];
@@ -56,7 +70,7 @@ export class DraftsService {
       letterhead: { custom: false, firmName: '', firmAddr: '' },
     };
 
-    const draft = await this.prisma.wsDraft.create({
+    const draft = await db.wsDraft.create({
       data: {
         tenantId,
         ownerId,
@@ -73,7 +87,7 @@ export class DraftsService {
     });
 
     // Every draft starts with one primary document tab.
-    await this.prisma.wsDocument.create({
+    await db.wsDocument.create({
       data: {
         tenantId,
         draftId: draft.id,
@@ -83,7 +97,78 @@ export class DraftsService {
       },
     });
 
-    return this.byId(tenantId, draft.id);
+    return transaction
+      ? db.wsDraft.findFirstOrThrow({
+          where: { tenantId, id: draft.id },
+          include: { documents: { orderBy: { ordinal: 'asc' } } },
+        })
+      : this.byId(tenantId, draft.id);
+  }
+
+  /** All three Workspace steps and the source receipt commit together. An
+   * acknowledgement lost after this transaction resumes into the same draft.
+   * `prefill` is fetched from the authoritative Intel action by the controller.
+   */
+  async createPreparation(
+    tenantId: string,
+    ownerId: string,
+    sourceKey: string,
+    prefill: { draft: { docTitle: string }; context: Record<string, unknown>; sources: unknown[] },
+  ) {
+    const inputHash = createHash('sha256').update(JSON.stringify(prefill)).digest('hex');
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+        const members = await tx.$queryRaw<
+          Array<{ id: string }>
+        >`SELECT u.id FROM users u JOIN tenant_memberships m ON m.user_id=u.id
+        WHERE m.tenant_id=${tenantId}::uuid AND u.clerk_user_id=${ownerId} AND m.status::text='active' FOR SHARE OF m`;
+        if (!members.length) throw new ForbiddenException('ACTIVE_WORKFLOW_OWNER_REQUIRED');
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId + ':' + ownerId + ':' + sourceKey},0))`;
+        const [prior] = await tx.$queryRaw<
+          Array<{ input_hash: string; draft_id: string; context_item_id: string }>
+        >`SELECT input_hash,draft_id,context_item_id FROM ws_source_action
+        WHERE tenant_id=${tenantId}::uuid AND owner_id=${ownerId} AND source_type='legiwatch_preparation' AND source_key=${sourceKey}`;
+        if (prior) {
+          if (prior.input_hash !== inputHash)
+            throw new ConflictException('SOURCE_ACTION_INPUT_CHANGED');
+          const draft = await tx.wsDraft.findFirst({
+            where: { tenantId, ownerId, id: prior.draft_id },
+          });
+          if (!draft) throw new ConflictException('SOURCE_DRAFT_REMOVED_OR_OWNERSHIP_CHANGED');
+          const context = await tx.wsContextItem.findFirst({
+            where: { tenantId, draftId: prior.draft_id, id: prior.context_item_id },
+          });
+          if (!context) throw new ConflictException('SOURCE_CONTEXT_REMOVED_REVIEW_EXISTING_DRAFT');
+          return {
+            draftId: prior.draft_id,
+            contextItemId: prior.context_item_id,
+            state: 'complete',
+            replayed: true,
+          };
+        }
+        const draft = await this.create(tenantId, ownerId, prefill.draft, tx),
+          prepared = preparationWorkspace(prefill);
+        await tx.wsDraft.updateMany({
+          where: { tenantId, id: draft.id, ownerId },
+          data: {
+            config: { ...(draft.config as Record<string, unknown>), ...prepared.config } as never,
+          },
+        });
+        const item = await tx.wsContextItem.create({
+          data: {
+            tenantId,
+            draftId: draft.id,
+            kind: 'free-text',
+            payload: prepared.contextItem.payload as never,
+          },
+        });
+        await tx.$executeRaw`INSERT INTO ws_source_action(tenant_id,owner_id,source_type,source_key,input_hash,draft_id,context_item_id)
+        VALUES(${tenantId}::uuid,${ownerId},'legiwatch_preparation',${sourceKey},${inputHash},${draft.id}::uuid,${item.id}::uuid)`;
+        return { draftId: draft.id, contextItemId: item.id, state: 'complete', replayed: false };
+      },
+      { timeout: 30000 },
+    );
   }
 
   /**

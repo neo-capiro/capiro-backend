@@ -5,7 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { writeMembershipDecision } from './folder-decisions.js';
 import type { Prisma, LegiWatchFolder } from '../../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -66,11 +67,19 @@ export class FolderTrackerService {
     private readonly legacySource: SourceDataRepository,
   ) {}
 
-  withActor<T>(ctx: WorkspaceTenantContext, fn: (tx: Prisma.TransactionClient) => Promise<T>, opts?: { timeoutMs?: number }) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.folder_actor', ${ctx.clerkUserId}, true), set_config('app.folder_admin', ${isFolderAdmin(ctx) ? 'on' : 'off'}, true)`;
-      return fn(tx);
-    }, opts);
+  withActor<T>(
+    ctx: WorkspaceTenantContext,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number },
+  ) {
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.folder_actor', ${ctx.clerkUserId}, true), set_config('app.folder_admin', ${isFolderAdmin(ctx) ? 'on' : 'off'}, true)`;
+        return fn(tx);
+      },
+      opts,
+    );
   }
   async folder(
     tx: Prisma.TransactionClient,
@@ -262,26 +271,15 @@ export class FolderTrackerService {
       try {
         const status = await this.withActor(ctx, async (tx) => {
           await this.folder(tx, ctx, folderId, true);
-          if (input.action === 'remove') {
-            const deleted = await tx.legiWatchFolderBill.deleteMany({
-              where: { tenantId: ctx.tenantId, folderId, billId },
-            });
-            return deleted.count ? 'removed' : 'already_absent';
-          }
-          const added = await tx.legiWatchFolderBill.createMany({
-            data: [
-              {
-                tenantId: ctx.tenantId,
-                folderId,
-                billId,
-                jurisdiction: b!.jurisdiction,
-                sessionKey: b!.sessionKey,
-                updatedBy: ctx.clerkUserId,
-              },
-            ],
-            skipDuplicates: true,
+          const receipt = await writeMembershipDecision(tx, ctx, {
+            folderId,
+            billId,
+            action: input.action,
+            origin: 'manual',
+            requestKey: randomUUID(),
+            bill: b,
           });
-          return added.count ? 'added' : 'already_present';
+          return receipt.outcome;
         });
         results.push({ billId, status });
       } catch (e) {
