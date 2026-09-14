@@ -42,6 +42,28 @@ export function ownMeetingWhere(userId: string): Prisma.MeetingWhereInput {
   };
 }
 
+/** The same explicit assignment / contact-email association on every client surface. */
+export function clientAssociatedMeetingWhere(clientIds: string[], contactEmails: string[]): Prisma.MeetingWhereInput {
+  const emails = [...new Set(contactEmails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
+  return { OR: [
+    clientIds.length === 1 ? { clientId: clientIds[0] } : { clientId: { in: clientIds } },
+    ...(emails.length ? [{
+      clientId: null,
+      isInternal: false,
+      AND: [
+        { OR: [
+          { associationSignals: { path: ['manual'], equals: Prisma.AnyNull } },
+          { associationSignals: { path: ['manual'], equals: false } },
+        ] },
+        { OR: [
+          { organizerEmail: { in: emails } },
+          { attendees: { some: { email: { in: emails } } } },
+        ] },
+      ],
+    }] : []),
+  ] };
+}
+
 export function ownMailThreadWhere(userId: string): Prisma.MailThreadWhereInput {
   return {
     connection: { createdByUserId: userId },

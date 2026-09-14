@@ -1,8 +1,8 @@
 # Phase 6 engineering note
 
-Status: implementation, local/native test and immutable-image qualification; release preparation complete. See [release-qualification.md](release-qualification.md) for the distinct infrastructure upload/startup failures. Deployment, tenant enablement, pilot and client acceptance are separate outstanding gates. Source base is main `41eb8febebf89ebd108e96e8c8ff782d4d1e3ae6`, containing merged Phase 5 PRs #1617 and #1618. Branch: `agent/legiwatch-phase6-assisted-tagging-workflows`. The supplied handoff is a specification, not recipient/deployment authorization.
+Status: implementation, qualification, normal merge, live deployment and internal canonical preview verification complete. Client automation and recipient activation remain gated; see [release-qualification.md](release-qualification.md). The supplied handoff is a specification; the user subsequently authorized completion and rollout.
 
-Before native release qualification, merged refreshed main `84c761590cab87c1d78a6e425ef08fd901603235` to preserve intervening managed-connector and meeting-preparation releases. The shared tool registry merged without conflict.
+Before final native release qualification, merged refreshed main `99ca7f8b07c7cec4d14b3db60c13094bc37c764e` to preserve intervening managed-connector and meeting-preparation releases. The shared tool registry merged without conflict.
 
 ## Result and ownership
 
@@ -42,7 +42,7 @@ See [operator-runbook.md](operator-runbook.md) for gate names, adapter configura
 
 ## Migration ownership
 
-Deploy API, then Intel, then Workspace additive migrations. Existing migration IDs remain unchanged. Clean and populated isolated databases applied 458 migrations each, including these 11, using `capiro_master` with the observed broad default grants to `capiro_app`. Decision/control/reference/remote receipt update/delete privileges are explicitly revoked; owner RLS and immutable triggers provide retained history.
+Deploy API, then Intel, then Workspace additive migrations. Existing migration IDs remain unchanged. Clean and populated isolated databases applied 460 migrations each, including these 11, using `capiro_master` with the observed broad default grants to `capiro_app`. Decision/control/reference/remote receipt update/delete privileges are explicitly revoked; owner RLS and immutable triggers provide retained history.
 
 - `api/20280913020000_legiwatch_keyword_source_projection` — SHA-256 `7e81a66e5edede6c02605fd56c61fd07be60d028a7a54ad1f061283efbdeee6f`
 - `api/20280913021000_legiwatch_workflow_source_projection` — SHA-256 `c01ffb35c4d145fb7b18d20c7e250a2034d7fc7c0011edc0ce2c63b0844352e4`
@@ -55,3 +55,5 @@ Deploy API, then Intel, then Workspace additive migrations. Existing migration I
 - `intel-api/20260913025000_legiwatch_workflow_seen` — SHA-256 `637b4c16f8df905c1f131d2fbdd037896a594efc07c18abc8ea51303cc89d0bb`
 - `intel-api/20260913026000_legiwatch_keyword_delivery_history` — SHA-256 `047a3d8b2a38000b2b719068f88cc2a5e4bc8c591b12e036bad2fa86bdafe47e`
 - `workspace/20260913020000_legiwatch_preparation_actions` — SHA-256 `80dbc77755ba01033e9db4552c8aacacbc0a4d9cd59776c2afb9cc68f7c636e0`
+
+The end-of-day delivery regression uses the actual dispatch time after cutoff so its lease is not artificially backdated. The cutoff/DST assertions and production lease protections are unchanged.

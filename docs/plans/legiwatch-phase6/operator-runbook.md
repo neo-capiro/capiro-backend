@@ -51,4 +51,6 @@ Disable keyword outbound and new automatic/internal effect gates first; pause th
 
 Keep completed drafts, manual/import memberships, source snapshots, decisions, suppression, report history and immutable receipts. Use targeted audited undo only when the sole automation contribution remains untouched; otherwise leave the work and explain the conflict. Never bulk-delete or resend uncertain messages. Retain additive schema and use compatible pinned images or forward repair. Roll back UI/backend behavior without discarding protected history.
 
-Exact application/image/worker qualification and infrastructure failures: [release-qualification.md](release-qualification.md).
+Exact deployed application/image/worker qualification and current activation scope: [release-qualification.md](release-qualification.md).
+
+Release is deployed. Both report targets and all four new runtime gates remain off; internal preview was temporarily enabled and then disabled. Retain additive schema/history on rollback and use the pinned compatible images in release-qualification.md.

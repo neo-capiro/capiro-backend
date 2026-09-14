@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
@@ -77,15 +77,14 @@ export interface PortfolioRollupResponse {
   rollup: Record<string, PortfolioRollupEntry>;
 }
 
-function weekBounds(now: Date): { from: string; to: string } {
+export function weekBounds(now: Date): { from: string; to: string } {
   const day = now.getDay();
   const monday = new Date(now);
   monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
   monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { from: monday.toISOString(), to: sunday.toISOString() };
+  const nextMonday = new Date(monday);
+  nextMonday.setDate(monday.getDate() + 7);
+  return { from: monday.toISOString(), to: nextMonday.toISOString() };
 }
 
 export interface PortfolioRow {
@@ -150,6 +149,14 @@ function focusTagsOf(client: Client): string[] {
 export function usePortfolioIndexModel(route: PortfolioRoute) {
   const api = useApi();
   const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
+  const [week, setWeek] = useState(() => weekBounds(new Date()));
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const next = weekBounds(new Date());
+      setWeek((current) => current.from === next.from ? current : next);
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const clients = useQuery<Client[]>({
     // Shared with the canonical workspace so the list is a cache hit either way.
@@ -170,9 +177,10 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
   });
 
   const summary = useQuery<PortfolioSummary>({
-    queryKey: ['intelligence', 'portfolio-summary'],
+    queryKey: ['intelligence', 'portfolio-summary', week.from, week.to],
     queryFn: async () =>
-      (await api.get<PortfolioSummary>('/api/intelligence/portfolio-summary')).data,
+      (await api.get<PortfolioSummary>('/api/intelligence/portfolio-summary', { params: week })).data,
+    refetchInterval: 60_000,
   });
 
   // Reuse the authoritative Strategies library and Meetings endpoint for the
@@ -185,7 +193,6 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     refetchOnMount: 'always',
   });
 
-  const week = useMemo(() => weekBounds(new Date()), []);
   const meetings = useQuery<Meeting[]>({
     queryKey: ['engagement-meetings-week', week.from, week.to],
     queryFn: async () =>

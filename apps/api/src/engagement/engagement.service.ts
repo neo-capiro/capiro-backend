@@ -1,3 +1,4 @@
+import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -8062,45 +8063,14 @@ export class EngagementService {
     return Array.from(new Set(values));
   }
 
-  private async clientMeetingAssociationWhere(
+  async clientMeetingAssociationWhere(
     tx: Prisma.TransactionClient,
     tenantId: string,
     clientId: string,
     extraEmails: string[] = [],
   ): Promise<Prisma.MeetingWhereInput> {
     const profileEmails = await this.clientProfileEmails(tx, tenantId, clientId);
-    const emails = Array.from(
-      new Set([
-        ...profileEmails,
-        ...extraEmails.map((e) => e.trim().toLowerCase()).filter(Boolean),
-      ]),
-    );
-    const or: Prisma.MeetingWhereInput[] = [{ clientId }];
-
-    if (emails.length) {
-      // Email evidence may suggest an unassigned meeting. It must never make
-      // a meeting explicitly assigned elsewhere (or cleared/internal) reappear.
-      or.push({
-        clientId: null,
-        isInternal: false,
-        AND: [
-          {
-            OR: [
-              { associationSignals: { path: ['manual'], equals: Prisma.AnyNull } },
-              { associationSignals: { path: ['manual'], equals: false } },
-            ],
-          },
-          {
-            OR: [
-              { organizerEmail: { in: emails } },
-              { attendees: { some: { email: { in: emails } } } },
-            ],
-          },
-        ],
-      });
-    }
-
-    return { OR: or };
+    return clientAssociatedMeetingWhere([clientId], [...profileEmails, ...extraEmails]);
   }
 
   private async clientMailThreadAssociationWhere(

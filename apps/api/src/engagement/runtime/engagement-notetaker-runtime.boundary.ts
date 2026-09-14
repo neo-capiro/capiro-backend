@@ -13,6 +13,8 @@ export const NOTETAKER_EXTERNAL_METHODS: Readonly<
   Record<string, ExternalMethodMetadata>
 > = {
   dispatch: { action: 'notetaker_dispatch' },
+  enableClientPreference: { action: 'notetaker_dispatch' },
+  disableClientPreference: { action: 'notetaker_remove' },
   remove: { action: 'notetaker_remove' },
   receiveWebhook: {
     action: 'notetaker_dispatch',
@@ -39,6 +41,7 @@ export const MEETING_BOT_EXTERNAL_METHODS: Readonly<Record<string, EngagementExt
 
 export const NOTETAKER_BACKGROUND_METHODS: ReadonlySet<string> = new Set([
   'runReconcileSweep',
+  'reconcileClientMeetings',
   'reconcileStaleTranscripts',
   'reconcileStrandedDrafting',
   'reconcileExpiredTranscripts',
