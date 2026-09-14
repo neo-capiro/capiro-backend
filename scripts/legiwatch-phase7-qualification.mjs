@@ -48,7 +48,7 @@ for (const [app, files, web] of [
   ],
   [
     'intel-api',
-    ['test/research-postgres.spec.ts', 'src/tracker/research/research-domain.spec.ts'],
+    ['test/research-postgres.spec.ts', 'src/tracker/research/research-domain.spec.ts', 'test/historical-recommendation-postgres.spec.ts'],
     false,
   ],
   ['workspace', ['src/drafts/drafts.list-projection.spec.ts'], false],
