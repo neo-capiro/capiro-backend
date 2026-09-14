@@ -20,3 +20,5 @@ Read-only database audit: 2026-09-13T12:24:40.714Z. Namespace `lobbytools:rubin-
 Every row still requires explicit aggregation, current active owner, target folder(s), jurisdiction/session, document scope, current staff/channel mapping and a complete preview before any activation. The evidence does not establish an automatic target folder. Title matching can be qualified; full current text/amendment corpus coverage is incomplete and blocks that automation scope. No precision, recall or delivery success is inferred from parsing.
 
 The private output `phase6-ten-rule-ledger.json` includes exact selected IDs and the full per-row gate matrix. `phase6-keyword-qualification.json` retains exact raw text, UTF-8 SHA-256 and compiled interpretations. Raw client expressions and recipient identities are not copied into this repository note.
+
+Application deployment and internal preview verification are complete. This ledger continues to describe staged, unactivated client rules; deployment does not supply owner, aggregation, scope or channel acceptance.
