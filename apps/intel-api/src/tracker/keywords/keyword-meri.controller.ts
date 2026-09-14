@@ -12,6 +12,8 @@ import { KeywordRuleService } from './keyword-rule.service.js';
 import { KeywordDiscoveryService } from './keyword-discovery.service.js';
 import { InternalWorkflowService } from './internal-workflow.service.js';
 import { SemanticSuggestionService } from './semantic-suggestion.service.js';
+import { Phase8EvidenceService } from '../editorial/evidence.service.js';
+import { EditorialService } from '../editorial/editorial.service.js';
 import { ResearchService } from '../research/research.service.js';
 @Controller('internal/legiwatch/meri')
 @UseGuards(WorkflowSourceGuard)
@@ -22,6 +24,8 @@ export class KeywordMeriController {
     readonly workflows: InternalWorkflowService,
     readonly semantic: SemanticSuggestionService,
     readonly research: ResearchService,
+    readonly phase8: Phase8EvidenceService,
+    readonly editorial: EditorialService,
   ) {}
   @Post('read') read(@Body() body: unknown) {
     return this.route(body, false);
@@ -41,6 +45,27 @@ export class KeywordMeriController {
     )
       throw new BadRequestException('CANONICAL_ACTOR_SCOPE_REQUIRED');
     const ctx = { tenantId: b.tenantId, clerkUserId: b.actor, role: null };
+    if (
+      [
+        'search_legiwatch_news',
+        'get_florida_budget_project',
+        'compare_florida_budget_amounts',
+        'prepare_legiwatch_briefing',
+      ].includes(String(b.tool))
+    ) {
+      if (write !== (b.tool === 'prepare_legiwatch_briefing'))
+        throw new ForbiddenException('TOOL_SURFACE_MISMATCH');
+      if (b.tool === 'prepare_legiwatch_briefing') return this.editorial.save(ctx, input);
+      if (b.tool === 'get_florida_budget_project') return this.phase8.budget(ctx, input);
+      if (b.tool === 'compare_florida_budget_amounts') return this.phase8.compare(ctx, input);
+      if (input.view === 'source')
+        return this.phase8.run(ctx, input, input.kind === 'budget' ? 'budget' : 'news', (tx) =>
+          this.phase8.exact(tx, String(input.kind), String(input.id)),
+        );
+      if (input.view === 'personnel') return this.phase8.personnel(ctx, input);
+      if (input.view === 'monitors') return this.phase8.monitors(ctx);
+      return this.phase8.news(ctx, input);
+    }
     if (
       [
         'search_legislative_research',

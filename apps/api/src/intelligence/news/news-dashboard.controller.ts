@@ -58,7 +58,7 @@ export class NewsDashboardController {
       customTopics: splitCustomTopics(custom),
       lookback,
     };
-    return this.news.getDashboard(ctx.tenantId, filters);
+    return this.news.getDashboard(ctx.tenantId, filters, ctx.clerkUserId);
   }
 }
 

@@ -4,6 +4,9 @@ import type { FinalSegment, ExtractionResult } from './hearing.types.js';
 import { HearingAiCredentialResolver } from './hearing-ai-credential-resolver.client.js';
 import type { PostHearingClientInput } from './client-brief-context.client.js';
 import {
+  editorialOutput,
+  type EditorialToolInput,
+  type EditorialToolOutput,
   publishedRecordOutput,
   type PublishedRecordToolInput,
   type PublishedRecordToolResult,
@@ -40,6 +43,30 @@ export class OrchestratorClient {
 
   get configured(): boolean {
     return Boolean(this.baseUrl);
+  }
+  async editorialBrief(
+    tenantId: string,
+    clerkUserId: string,
+    input: EditorialToolInput,
+    clientId?: string,
+  ): Promise<EditorialToolOutput> {
+    if (!this.baseUrl) throw Error('EDITORIAL_PROVIDER_UNAVAILABLE');
+    const aiProvider = await this.aiCredentials.resolve(tenantId);
+    const response = await fetch(`${this.baseUrl}/meri-api/tools/generate_editorial_brief/invoke`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...this.authHeaders(tenantId, clerkUserId),
+        'x-tenant-id': tenantId,
+        ...(aiProvider ? { 'x-capiro-ai-provider': JSON.stringify(aiProvider) } : {}),
+      },
+      body: JSON.stringify({ input, ...(clientId ? { clientId, surface: 'memo' } : {}) }),
+      signal: AbortSignal.timeout(120000),
+      redirect: 'error',
+    });
+    if (!response.ok) throw Error('EDITORIAL_PROVIDER_UNAVAILABLE');
+    const envelope = (await response.json()) as { result?: unknown };
+    return { ...editorialOutput.parse(envelope.result), promptVersion: 'capiro-editorial-v1' };
   }
   async publishedRecords(
     tenantId: string,

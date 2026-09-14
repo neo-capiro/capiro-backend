@@ -67,7 +67,9 @@ function prismaWithClients(
       (row) =>
         row.issueCodes.length > 0 ||
         row.capabilities.some(
-          (cap) => Array.isArray(cap.issueCodes) && cap.issueCodes.some((value) => typeof value === 'string'),
+          (cap) =>
+            Array.isArray(cap.issueCodes) &&
+            cap.issueCodes.some((value) => typeof value === 'string'),
         ),
     ) || (options.ldaCodeRows?.length ?? 0) > 0;
   if (hasAnyIssueCode) rawResults.push(options.issueNameRows ?? []);
@@ -78,6 +80,9 @@ function prismaWithClients(
   return {
     withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
       callback({
+        $queryRaw: jest
+          .fn()
+          .mockResolvedValue(clients.map((c) => ({ id: c.id, revision: 'test' }))),
         client: {
           findMany: jest.fn().mockResolvedValue(clients),
         },
@@ -121,11 +126,12 @@ describe('NewsCatcherDashboardService', () => {
   });
 
   it('uses one portfolio policy+signal request and retains direct company coverage', async () => {
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [articleFixture()] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [articleFixture()] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -146,7 +152,7 @@ describe('NewsCatcherDashboardService', () => {
       ]),
     );
 
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -188,11 +194,12 @@ describe('NewsCatcherDashboardService', () => {
         ner_ORG: [{ entity_name: 'United States Army', count: 2 }],
       },
     };
-    global.fetch = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [article] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    global.fetch = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [article] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     ) as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(
@@ -212,7 +219,7 @@ describe('NewsCatcherDashboardService', () => {
       ]),
     );
 
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.clientMatches).toEqual([{ id: 'overland', name: 'Overland AI' }]);
@@ -227,17 +234,19 @@ describe('NewsCatcherDashboardService', () => {
       link: 'https://example.test/faa-rule',
       name_source: 'Policy Example',
       published_date: '2026-08-08 11:00:00',
-      description: 'A federal agency proposed a new aviation rulemaking and aircraft certification process.',
+      description:
+        'A federal agency proposed a new aviation rulemaking and aircraft certification process.',
       nlp: {
         summary: 'The federal aviation rule would alter aircraft certification.',
         ner_ORG: [{ entity_name: 'Federal Aviation Administration', count: 3 }],
       },
     };
-    global.fetch = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [article] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    global.fetch = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [article] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     ) as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(
@@ -247,7 +256,7 @@ describe('NewsCatcherDashboardService', () => {
       ),
     );
 
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.clientMatches).toEqual([{ id: 'small-aero', name: 'Small Aero Co.' }]);
@@ -264,26 +273,24 @@ describe('NewsCatcherDashboardService', () => {
       description: 'The federal agency advanced a communications regulatory proposal.',
       nlp: { summary: 'The FCC communications rule moved forward.', ner_ORG: [] },
     };
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [article] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [article] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(
-      prismaWithClients(
-        [client({ id: 'small-tech', name: 'Small Tech LLC' })],
-        {
-          ldaMappings: [{ clientId: 'small-tech', externalId: '42' }],
-          ldaCodeRows: [{ id: 42, code: 'COM' }],
-          issueNameRows: [{ code: 'COM', name: 'Communications/Broadcasting/Radio/TV' }],
-        },
-      ),
+      prismaWithClients([client({ id: 'small-tech', name: 'Small Tech LLC' })], {
+        ldaMappings: [{ clientId: 'small-tech', externalId: '42' }],
+        ldaCodeRows: [{ id: 42, code: 'COM' }],
+        issueNameRows: [{ code: 'COM', name: 'Communications/Broadcasting/Radio/TV' }],
+      }),
     );
 
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.items).toHaveLength(1);
@@ -303,11 +310,12 @@ describe('NewsCatcherDashboardService', () => {
         ner_ORG: [{ entity_name: 'United States Senate', count: 2 }],
       },
     };
-    global.fetch = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [generic] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    global.fetch = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [generic] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     ) as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(
@@ -324,7 +332,7 @@ describe('NewsCatcherDashboardService', () => {
       ),
     );
 
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(result.available).toBe(true);
     expect(result.items).toEqual([]);
@@ -340,42 +348,42 @@ describe('NewsCatcherDashboardService', () => {
       summary: 'Shiftwave was selected by a federal agency.',
       ner_ORG: [{ entity_name: 'Shiftwave', count: 2 }],
     };
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [article] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [article] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(
       prismaWithClients([client({ id: 'client-1', name: 'Shiftwave, Inc.' })]),
     );
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(String(body.q)).toContain('"Shiftwave Inc."');
     expect(String(body.q)).toContain('"Shiftwave"');
-    expect(result.items[0]?.clientMatches).toEqual([
-      { id: 'client-1', name: 'Shiftwave, Inc.' },
-    ]);
+    expect(result.items[0]?.clientMatches).toEqual([{ id: 'client-1', name: 'Shiftwave, Inc.' }]);
   });
 
   it('reuses the tenant cache instead of calling NewsCatcher again', async () => {
-    const fetchMock = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [articleFixture()] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    const fetchMock = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [articleFixture()] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
     global.fetch = fetchMock as unknown as typeof fetch;
     const service = new NewsCatcherDashboardService(
       prismaWithClients([client({ id: 'client-1', name: 'RTX' })]),
     );
 
-    const first = await service.getDashboard('tenant-1');
-    const second = await service.getDashboard('tenant-1');
+    const first = await service.getDashboard('tenant-1', {}, 'actor');
+    const second = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(first.cached).toBe(false);
     expect(second.cached).toBe(true);
@@ -390,7 +398,7 @@ describe('NewsCatcherDashboardService', () => {
       prismaWithClients([client({ id: 'client-1', name: 'RTX' })]),
     );
 
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(result).toMatchObject({
       available: false,

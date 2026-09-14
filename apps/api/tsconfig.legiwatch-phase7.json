@@ -8,6 +8,9 @@
     "declarationMap": false
   },
   "include": [
+    "scripts/sync-legiwatch-phase8.ts",
+    "scripts/check-legiwatch-phase8-sources.ts",
+    "scripts/sync-rss-intel.ts",
     "scripts/sync-legal-research.ts",
     "scripts/sync-state-register.ts",
     "scripts/backfill-legiscan-datasets.ts",

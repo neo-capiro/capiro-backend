@@ -287,6 +287,13 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const result = await runtime.subscriptions.due(tenantId, 25);
       const keywords = await runtime.keywords.due(tenantId);
       const statuteMonitors = await runtime.statuteMonitors.due(tenantId);
+      const editorialWork = await runtime.editorialWork(tenantId);
+      const editorialDelivery = await runtime.delivery.drain(
+        tenantId,
+        25,
+        new Date(),
+        'editorial_brief',
+      );
       const keywordIntents = await runtime.keywordDelivery.enqueue(tenantId);
       const keywordDelivery = await runtime.delivery.drain(
         tenantId,
@@ -303,7 +310,7 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
       const queued = await runtime.rules.enqueue(tenantId);
       const staff = await runtime.delivery.drain(tenantId, 25, new Date(), 'bill_record');
       deps.log(
-        `REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff, keywords, statuteMonitors, keywordIntents, keywordDelivery, workflows, workflowTriggers })}`,
+        `REPORT_UPDATES_DONE ${JSON.stringify({ ...result, ...delivery, records, queued, staff, keywords, statuteMonitors, editorialWork, editorialDelivery, keywordIntents, keywordDelivery, workflows, workflowTriggers })}`,
       );
       return;
     }

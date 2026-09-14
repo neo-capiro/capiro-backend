@@ -1,0 +1,368 @@
+{
+  "baselineAt": "2026-09-14T07:05:55.198Z",
+  "sourceAccount": "lobbytools:rubin-turnbull",
+  "sourceAlertCount": 40,
+  "rows": [
+    {
+      "captureKey": "alert-01",
+      "family": "research_update",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phase 8"
+    },
+    {
+      "captureKey": "alert-02",
+      "family": "budget",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phase 8"
+    },
+    {
+      "captureKey": "alert-03",
+      "family": "daily_legislative_brief",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phase 8"
+    },
+    {
+      "captureKey": "alert-04",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-05",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-06",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-07",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-08",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-09",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-10",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-11",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-12",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-13",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-14",
+      "family": "action_amendment",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-15",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-16",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-17",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-18",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-19",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-20",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-21",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-22",
+      "family": "agenda",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-23",
+      "family": "statute",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-24",
+      "family": "statute",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-25",
+      "family": "statute",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-26",
+      "family": "statute",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-27",
+      "family": "statute",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-28",
+      "family": "statute",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-29",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-30",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-31",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-32",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-33",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-34",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-35",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-36",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-37",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-38",
+      "family": "bill_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phases 1\u20137"
+    },
+    {
+      "captureKey": "alert-39",
+      "family": "morning_news_brief",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phase 8"
+    },
+    {
+      "captureKey": "alert-40",
+      "family": "news_keyword",
+      "historicalStaging": "retained",
+      "currentPromotion": "none_in_refreshed_baseline",
+      "activation": "paused_pending_current_configuration",
+      "clientAcceptance": "pending",
+      "implementationScope": "Phase 8"
+    }
+  ],
+  "note": "Every captured alert is retained. Earlier phases keep their original implementation and client-acceptance records."
+}

@@ -6,6 +6,10 @@ import {
 import type { MeriRetrievalDomain } from './meri-retrieval-plan.js';
 
 const TOOL_DOMAIN_OVERRIDES: Record<string, MeriRetrievalDomain[]> = {
+  search_legiwatch_news: ['legislation', 'clients'],
+  get_florida_budget_project: ['legislation', 'clients'],
+  compare_florida_budget_amounts: ['legislation', 'clients'],
+  prepare_legiwatch_briefing: ['legislation', 'clients'],
   search_legislative_research: ['legislation', 'clients'],
   get_legal_reference: ['legislation', 'clients'],
   compare_legislative_versions: ['legislation', 'clients'],
@@ -105,6 +109,10 @@ const EXHAUSTIVE_TOOLS = new Set([
  * exhaustive coverage before the APIs expose real cursors/totals.
  */
 const NON_EXHAUSTIVE_TOOLS = new Set([
+  'search_legiwatch_news',
+  'get_florida_budget_project',
+  'compare_florida_budget_amounts',
+  'prepare_legiwatch_briefing',
   'search_legislative_research',
   'get_legal_reference',
   'get_legiwatch_review',

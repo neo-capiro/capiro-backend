@@ -1,3 +1,4 @@
+import { EditorialDraftSourceController } from './editorial-source.controller.js';
 import { Module } from '@nestjs/common';
 import { DraftsController } from './drafts.controller.js';
 import { DraftsService } from './drafts.service.js';
@@ -8,7 +9,12 @@ import { ResearchDraftSourceController } from './research-source.controller.js';
 
 @Module({
   imports: [CollaboratorsModule],
-  controllers: [DraftsController, PreparationSourceController, ResearchDraftSourceController],
+  controllers: [
+    EditorialDraftSourceController,
+    DraftsController,
+    PreparationSourceController,
+    ResearchDraftSourceController,
+  ],
   providers: [DraftsService, PreparationSourceGuard],
   exports: [DraftsService],
 })

@@ -1,3 +1,4 @@
+import { addBasket, basketKey } from '../editorial/evidence-api.js';
 import { ImportReview } from './ImportReview.js';
 import { ResearchReportReview } from './ResearchReportReview.js';
 import {
@@ -735,6 +736,29 @@ function ResearchWorkspace() {
                       }
                     >
                       Select versions
+                    </CapiroButton>
+                    <CapiroButton
+                      disabled={!folderId}
+                      onClick={() => {
+                        addBasket(basketKey(identity, clientId, folderId), {
+                          kind: 'research',
+                          id: item.id,
+                          revision: item.revision,
+                          title: item.title ?? item.kind,
+                        });
+                        navigate(
+                          '/legiwatch?' +
+                            new URLSearchParams({
+                              tab: 'digest',
+                              digestMode: 'bill_report',
+                              reportView: 'briefings',
+                              client: clientId,
+                              folder: folderId,
+                            }),
+                        );
+                      }}
+                    >
+                      Include in briefing
                     </CapiroButton>
                   </TD>
                 </tr>

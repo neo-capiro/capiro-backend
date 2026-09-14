@@ -1,3 +1,4 @@
+import { assertEditorialAccess } from '../editorial/editorial-access.js';
 import { assertResearchReportAccess } from '../research/research-report-access.js';
 import {
   BadRequestException,
@@ -236,6 +237,7 @@ export class ReportService {
       await this.get(tx, ctx, r.reportId);
       const snapshot = r.snapshot as unknown as ReportDocument;
       await assertResearchReportAccess(tx, ctx, snapshot, (id) => this.folders.folder(tx, ctx, id));
+      await assertEditorialAccess(tx, ctx, snapshot, (id) => this.folders.folder(tx, ctx, id));
       for (const folderId of new Set(snapshot.rows.map((r) => r.folderId)))
         await this.folders.folder(tx, ctx, folderId);
       return { ...r, rendered: storedRendering(r.rendered) };
@@ -269,6 +271,9 @@ export class ReportService {
       for (const row of rows) {
         try {
           await assertResearchReportAccess(tx, ctx, row.snapshot, (id) =>
+            this.folders.folder(tx, ctx, id),
+          );
+          await assertEditorialAccess(tx, ctx, row.snapshot, (id) =>
             this.folders.folder(tx, ctx, id),
           );
           const { snapshot, ...metadata } = row;

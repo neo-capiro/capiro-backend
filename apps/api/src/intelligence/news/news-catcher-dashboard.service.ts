@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { NewsEvidenceService } from './news-evidence.service.js';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { buildSemanticIntelArticleWhere } from '../../explorer/news-semantic-matching.js';
 
@@ -113,6 +114,7 @@ interface ClientSeed {
 }
 
 interface RawNewsArticle {
+  clean_url?: unknown;
   _id?: unknown;
   title?: unknown;
   link?: unknown;
@@ -204,10 +206,7 @@ export interface SharedNewsDashboardResponse {
 @Injectable()
 export class NewsCatcherDashboardService {
   private readonly logger = new Logger(NewsCatcherDashboardService.name);
-  private readonly cache = new Map<
-    string,
-    { expiresAt: number; value: NewsDashboardResponse }
-  >();
+  private readonly cache = new Map<string, { expiresAt: number; value: NewsDashboardResponse }>();
   private readonly inflight = new Map<string, Promise<NewsDashboardResponse>>();
 
   constructor(private readonly prisma: PrismaService) {}
@@ -259,9 +258,19 @@ export class NewsCatcherDashboardService {
   async getDashboard(
     tenantId: string,
     input: NewsDashboardFilterInput = {},
+    actorId?: string,
   ): Promise<NewsDashboardResponse> {
     const filters = normalizeNewsDashboardFilters(input);
-    const cacheKey = `${tenantId}:${JSON.stringify(filters)}`;
+    if (!actorId) throw new ForbiddenException('CURRENT_NEWS_ACTOR_REQUIRED');
+    const scope = await this.allowedNewsClients(tenantId, actorId);
+    const allowed = new Set(scope.map((row) => row.id));
+    if (filters.clientIds.some((id) => !allowed.has(id)))
+      throw new ForbiddenException('NEWS_CLIENT_UNAVAILABLE');
+    const effectiveIds = filters.clientIds.length ? filters.clientIds : [...allowed];
+    if (!effectiveIds.length)
+      return unavailable('no_clients', new Date().toISOString(), 0, 0, false);
+    const permittedFilters = { ...filters, clientIds: effectiveIds };
+    const cacheKey = `${tenantId}:${actorId}:${JSON.stringify(scope)}:${JSON.stringify(permittedFilters)}`;
     const now = Date.now();
     const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
@@ -269,9 +278,16 @@ export class NewsCatcherDashboardService {
     }
 
     const existing = this.inflight.get(cacheKey);
-    if (existing) return existing;
+    if (existing) {
+      const result = await existing;
+      if (
+        JSON.stringify(await this.allowedNewsClients(tenantId, actorId)) !== JSON.stringify(scope)
+      )
+        throw new ForbiddenException('NEWS_CLIENT_ACCESS_CHANGED');
+      return result;
+    }
 
-    const run = this.computeDashboard(tenantId, filters, cached?.value)
+    const run = this.computeDashboard(tenantId, permittedFilters, cached?.value)
       .then((value) => {
         this.cache.set(cacheKey, {
           expiresAt: Date.now() + cacheMs(),
@@ -282,7 +298,23 @@ export class NewsCatcherDashboardService {
       .finally(() => this.inflight.delete(cacheKey));
 
     this.inflight.set(cacheKey, run);
-    return run;
+    const result = await run;
+    const current = await this.allowedNewsClients(tenantId, actorId);
+    if (JSON.stringify(current) !== JSON.stringify(scope))
+      throw new ForbiddenException('NEWS_CLIENT_ACCESS_CHANGED');
+    return result;
+  }
+
+  async allowedNewsClients(tenantId: string, actorId: string) {
+    return this.prisma.withTenant(
+      tenantId,
+      (tx) => tx.$queryRaw<Array<{ id: string; revision: string }>>`
+      SELECT c.id::text, md5(to_jsonb(c)::text) AS revision FROM clients c
+      JOIN tenant_memberships m ON m.tenant_id=c.tenant_id AND m.status::text='active'
+      JOIN users u ON u.id=m.user_id AND u.clerk_user_id=${actorId}
+      WHERE c.tenant_id=${tenantId}::uuid AND c.status::text<>'archived'
+      AND (NOT c.memory_wall OR EXISTS(SELECT 1 FROM client_memory_access a WHERE a.tenant_id=c.tenant_id AND a.client_id=c.id AND a.user_id=u.id)) ORDER BY c.id`,
+    );
   }
 
   private async computeDashboard(
@@ -297,7 +329,7 @@ export class NewsCatcherDashboardService {
     // retrieval envelope rather than just hiding cards at render time.
     const tenantClients = (await this.prisma.withTenant(tenantId, (tx) =>
       tx.client.findMany({
-        where: { status: { not: 'archived' } },
+        where: { status: { not: 'archived' }, id: { in: filters.clientIds } },
         select: {
           id: true,
           name: true,
@@ -336,7 +368,7 @@ export class NewsCatcherDashboardService {
     }
 
     const clientIds = allClients.map((client) => client.id);
-    const ldaMappings = await this.prisma.withTenant(tenantId, (tx) =>
+    const ldaMappings = (await this.prisma.withTenant(tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
         where: {
           clientId: { in: clientIds },
@@ -345,7 +377,7 @@ export class NewsCatcherDashboardService {
         },
         select: { clientId: true, externalId: true },
       }),
-    ) as Array<{ clientId: string; externalId: string }>;
+    )) as Array<{ clientId: string; externalId: string }>;
 
     const clientsByLdaId = new Map<number, string[]>();
     for (const mapping of ldaMappings) {
@@ -424,13 +456,30 @@ export class NewsCatcherDashboardService {
     }
 
     const monitoredClients = watched.filter((client) => selection.clientIds.has(client.id));
-    const portfolioQuery = selection.signals.map((signal) => quoteBooleanPhrase(signal)).join(' OR ');
+    const portfolioQuery = selection.signals
+      .map((signal) => quoteBooleanPhrase(signal))
+      .join(' OR ');
     const policyQuery = buildPolicyQuery(filters.policyTopics, filters.customTopics);
 
+    // The shared account cap includes the dashboard and every tenant's monitors.
+    if (
+      process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true' &&
+      !(await new NewsEvidenceService(this.prisma).chargeProviderRequest())
+    )
+      return staleOrUnavailable(
+        staleValue,
+        generatedAt,
+        monitoredClients.length,
+        tenantClients.length,
+        true,
+      );
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs());
     try {
-      const base = (process.env.NEWSCATCHER_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(/\/$/, '');
+      const base = (process.env.NEWSCATCHER_BASE_URL?.trim() || DEFAULT_BASE_URL).replace(
+        /\/$/,
+        '',
+      );
       const response = await fetch(`${base}/search`, {
         method: 'POST',
         headers: {
@@ -470,6 +519,25 @@ export class NewsCatcherDashboardService {
         ? (payload.articles.filter(isRecord) as RawNewsArticle[])
         : [];
 
+      if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true') {
+        const evidence = new NewsEvidenceService(this.prisma);
+        for (const row of articles)
+          try {
+            await evidence.retain({
+              provider: 'newscatcher-v3',
+              providerId: String(row._id ?? ''),
+              url: String(row.link ?? ''),
+              publisher: String(row.clean_url ?? row.name_source ?? ''),
+              title: String(row.title ?? ''),
+              publishedAt: typeof row.published_date === 'string' ? row.published_date : null,
+              rights: 'headline_link',
+            });
+          } catch {
+            this.logger.warn(
+              'A dashboard article could not be retained as qualified news evidence',
+            );
+          }
+      }
       const scored = articles
         .map((article) => normalizeArticle(article, watched))
         .filter((item): item is ScoredNewsDashboardItem => item != null);
@@ -544,10 +612,7 @@ function normalizedAllowedValues(
   return filtered.length ? filtered : [...fallback];
 }
 
-export function buildPolicyQuery(
-  topics: NewsPolicyTopic[],
-  customTopics: string[] = [],
-): string {
+export function buildPolicyQuery(topics: NewsPolicyTopic[], customTopics: string[] = []): string {
   const hasEveryDefault =
     topics.length === ALL_POLICY_TOPICS.length &&
     ALL_POLICY_TOPICS.every((topic) => topics.includes(topic));
@@ -609,13 +674,7 @@ function buildWatchedClient(
       add(peCode, `PE ${peCode}`, 'program', 2, true);
     }
     if (capability.appropriationAccount) {
-      add(
-        capability.appropriationAccount,
-        capability.appropriationAccount,
-        'program',
-        2,
-        true,
-      );
+      add(capability.appropriationAccount, capability.appropriationAccount, 'program', 2, true);
     }
     if (capability.targetSubcommittee) {
       add(capability.targetSubcommittee, capability.targetSubcommittee, 'program', 2, true);
@@ -659,11 +718,7 @@ function addSignal(map: Map<string, ClientSignal>, signal: ClientSignal): void {
   const key = normalizeText(term);
   const existing = map.get(key);
   const next = { ...signal, term };
-  if (
-    !existing ||
-    next.priority < existing.priority ||
-    (next.strong && !existing.strong)
-  ) {
+  if (!existing || next.priority < existing.priority || (next.strong && !existing.strong)) {
     map.set(key, next);
   }
 }
@@ -686,10 +741,7 @@ export function selectSignalsForSharedQuery(clients: WatchedClient[]): {
   const selectedKeys = new Set<string>();
   let chars = 0;
   let omitted = false;
-  const maxDepth = providerSignals.reduce(
-    (max, entry) => Math.max(max, entry.signals.length),
-    0,
-  );
+  const maxDepth = providerSignals.reduce((max, entry) => Math.max(max, entry.signals.length), 0);
 
   for (let depth = 0; depth < maxDepth; depth += 1) {
     for (const entry of providerSignals) {
@@ -789,7 +841,9 @@ function matchClientToArticle(
   const matchedSignals = client.signals.filter(
     (signal) => signal.kind !== 'alias' && matchesSignal(searchable, signal.term),
   );
-  const capability = matchedSignals.filter((signal) => signal.kind === 'capability' && signal.strong);
+  const capability = matchedSignals.filter(
+    (signal) => signal.kind === 'capability' && signal.strong,
+  );
   const issue = matchedSignals.filter((signal) => signal.kind === 'issue' && signal.strong);
   const program = matchedSignals.filter((signal) => signal.kind === 'program' && signal.strong);
   const supporting = matchedSignals.filter((signal) => !signal.strong);
@@ -940,10 +994,7 @@ function matchesSignal(searchable: string, term: string): boolean {
   if (tokens.length === 1 && normalized.length >= 8) {
     return searchable
       .split(' ')
-      .some(
-        (word) =>
-          word.length >= 8 && (word.includes(normalized) || normalized.includes(word)),
-      );
+      .some((word) => word.length >= 8 && (word.includes(normalized) || normalized.includes(word)));
   }
 
   return tokens.length >= 2 && tokens.every((token) => containsPhrase(searchable, token));
@@ -951,16 +1002,31 @@ function matchesSignal(searchable: string, term: string): boolean {
 
 function policyTopics(text: string): string[] {
   const checks: Array<[string, RegExp]> = [
-    ['Legislation', /\b(congress|senate|house of representatives|committee|hearing|markup|legislat(?:ion|ive|ure))\b/i],
-    ['Regulation', /\b(regulat(?:ion|ory)|federal register|rulemak(?:ing|e)|final rule|proposed rule|rule)\b/i],
+    [
+      'Legislation',
+      /\b(congress|senate|house of representatives|committee|hearing|markup|legislat(?:ion|ive|ure))\b/i,
+    ],
+    [
+      'Regulation',
+      /\b(regulat(?:ion|ory)|federal register|rulemak(?:ing|e)|final rule|proposed rule|rule)\b/i,
+    ],
     ['Budget', /\b(budget|appropriat(?:ion|ions|e)|authoriz(?:ation|e)|funding level)\b/i],
     ['Procurement', /\b(procurement|acquisition|contract(?:ing|or|ors|s)?|solicitation|award)\b/i],
     ['Grants', /\b(grant|grants|funding opportunity|notice of funding)\b/i],
-    ['Defense', /\b(pentagon|department of defense|dod|army|navy|air force|space force|marine corps)\b/i],
-    ['State government', /\b(governor|statehouse|state legislature|state senate|state assembly|attorney general)\b/i],
+    [
+      'Defense',
+      /\b(pentagon|department of defense|dod|army|navy|air force|space force|marine corps)\b/i,
+    ],
+    [
+      'State government',
+      /\b(governor|statehouse|state legislature|state senate|state assembly|attorney general)\b/i,
+    ],
     ['Executive / agency', /\b(executive order|white house|federal agency|department|agency)\b/i],
   ];
-  return checks.filter(([, pattern]) => pattern.test(text)).map(([label]) => label).slice(0, 3);
+  return checks
+    .filter(([, pattern]) => pattern.test(text))
+    .map(([label]) => label)
+    .slice(0, 3);
 }
 
 function issueNameVariants(value: string): string[] {

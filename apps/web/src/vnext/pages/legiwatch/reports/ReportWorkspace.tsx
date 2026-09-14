@@ -1,3 +1,4 @@
+import { BriefingWorkspace } from '../editorial/BriefingWorkspace.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { KeywordReview, KEYWORD_FEATURE } from '../keywords/KeywordReview.js';
@@ -221,6 +222,7 @@ function Workspace({
       <nav className="lw-reports-tabs" aria-label="Report views">
         {[
           ['reports', 'Report library'],
+          ['briefings', 'Client briefings'],
           ['history', 'Run history'],
           ['updates', 'Daily updates'],
           ['alerts', 'Published-record alerts'],
@@ -253,6 +255,7 @@ function Workspace({
           Follow-up workflows
         </CapiroButton>
       ) : null}
+      {tab === 'briefings' ? <BriefingWorkspace /> : null}
       {tab === 'workflows' ? <WorkflowReview initialFolderId={initialFolderId} /> : null}
       {tab === 'keywords' && keywordsEnabled ? (
         <KeywordReview initialView="rules" folderId={initialFolderId} />
