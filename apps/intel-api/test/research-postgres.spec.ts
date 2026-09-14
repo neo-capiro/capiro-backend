@@ -468,6 +468,118 @@ describe('Phase 7 exact research, tenant boundaries and durable Workspace receip
     });
     expect(await service.scan(ctx, ruleId)).toMatchObject({ state: 'held' });
   });
+  test('newest dated texts retain ties, omit undated files and keep publisher stages separate', async () => {
+    const selectedBill = 'stage-' + randomUUID(),
+      selectedSession = 'stage-' + randomUUID().slice(0, 8);
+    const documents = [
+      { id: randomUUID(), date: '2026-01-01', stage: 'Introduced', kind: 'text' },
+      { id: randomUUID(), date: '2026-02-01', stage: 'Enrolled', kind: 'text' },
+      { id: randomUUID(), date: '2026-02-01', stage: 'Chaptered', kind: 'text' },
+      { id: randomUUID(), date: null, stage: 'Introduced', kind: 'text' },
+      { id: randomUUID(), date: '2026-03-01', stage: 'Enrolled', kind: 'supplement' },
+    ];
+    await p.withSystem(async (tx) => {
+      await tx.$executeRaw`INSERT INTO state_bill(id,state,session,session_key,identifier,bill_number,title) VALUES(${selectedBill},'FL',${selectedSession},${selectedSession},'HB 9','HB9','Synthetic stage selection')`;
+      for (const d of documents) {
+        const evidence = {
+          documentKind: d.kind,
+          versionType: d.stage,
+          title: d.stage,
+          url: 'https://www.flsenate.gov/',
+          contentHash: hash(d.id),
+          parserVersion: 'test-paragraph-v1',
+          extractionState: 'extracted',
+          coverage: 'complete_document',
+          sections: [
+            { locator: 'page:1', text: 'Published stage text', hash: hash('Published stage text') },
+          ],
+        };
+        await tx.$executeRaw`INSERT INTO state_bill_published_record(id,bill_key,kind,source_identity,revision_hash,event_date,source_order,evidence) VALUES(${d.id}::uuid,${selectedBill},'document',${d.id},${hash(d.id)},${d.date},0,${JSON.stringify(evidence)}::jsonb)`;
+        await tx.$executeRaw`INSERT INTO published_record_source_observation(source_key,state_record_id) VALUES(${selectedBill + ':' + d.id},${d.id}::uuid)`;
+      }
+    });
+    const input = { ...scope(), sessionKey: selectedSession, billIds: [selectedBill], query: '' };
+    const newest = await research.search(ctx, { ...input, versionPolicy: 'newest_dated_text' });
+    expect(newest.items.map((x) => x.id).sort()).toEqual(
+      [documents[1]!.id, documents[2]!.id].sort(),
+    );
+    expect(newest.coverage.complete).toBe(false);
+    expect(
+      (await research.search(ctx, { ...input, versionStage: 'enrolled' })).items.map((x) => x.id),
+    ).toEqual([documents[1]!.id]);
+    expect(
+      (await research.search(ctx, { ...input, versionStage: 'chaptered' })).items.map((x) => x.id),
+    ).toEqual([documents[2]!.id]);
+    await expect(research.search(ctx, { ...input, versionStage: 'enacted' })).rejects.toThrow(
+      'VERSION_STAGE_UNSUPPORTED',
+    );
+  });
+  test('a cross-session research draft requires the explicit right session and retains its exact citation', async () => {
+    const priorSession = 'prior-' + randomUUID().slice(0, 8),
+      priorBill = 'prior-' + randomUUID(),
+      documentId = randomUUID(),
+      quote = 'Earlier session source passage';
+    const evidence = {
+      documentKind: 'text',
+      title: 'Earlier session',
+      url: 'https://www.flsenate.gov/',
+      contentHash: hash(quote),
+      parserVersion: 'test-paragraph-v1',
+      extractionState: 'extracted',
+      coverage: 'complete_document',
+      sections: [{ locator: 'page:1', text: quote, hash: hash(quote) }],
+    };
+    await p.withSystem(async (tx) => {
+      await tx.$executeRaw`INSERT INTO state_bill(id,state,session,session_key,identifier,bill_number,title) VALUES(${priorBill},'FL',${priorSession},${priorSession},'HB 11','HB11','Synthetic prior text')`;
+      await tx.$executeRaw`INSERT INTO state_bill_published_record(id,bill_key,kind,source_identity,revision_hash,event_date,source_order,evidence) VALUES(${documentId}::uuid,${priorBill},'document',${documentId},${hash(documentId)},'2025-01-01',0,${JSON.stringify(evidence)}::jsonb)`;
+      await tx.$executeRaw`INSERT INTO published_record_source_observation(source_key,state_record_id) VALUES(${priorBill + ':source'},${documentId}::uuid)`;
+    });
+    const input = {
+      ...scope(),
+      requestKey: randomUUID(),
+      title: 'Explicit prior-session selection',
+      analysis: 'Source review only',
+      documents: [
+        { id: ids[1], revision: revision(1), sessionKey: session },
+        { id: documentId, revision: hash(documentId), sessionKey: priorSession },
+      ],
+      citations: [
+        {
+          documentId,
+          revision: hash(documentId),
+          locator: 'page:1',
+          start: 0,
+          end: quote.length,
+          quote,
+        },
+      ],
+    };
+    await expect(research.saveResearch(ctx, input)).rejects.toThrow(
+      'EXPLICIT_CROSS_SESSION_SELECTION_REQUIRED',
+    );
+    await expect(
+      research.saveResearch(ctx, { ...input, allowCrossBill: true, rightSessionKey: 'different' }),
+    ).rejects.toThrow('EXPLICIT_CROSS_SESSION_SELECTION_REQUIRED');
+    const saved = await research.saveResearch(ctx, {
+      ...input,
+      allowCrossBill: true,
+      rightSessionKey: priorSession,
+    });
+    expect(saved).toHaveProperty('draft.draftId');
+    const source = await research.researchSource(ctx, saved.selectionId);
+    expect(source.prefill.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: documentId,
+          sessionKey: priorSession,
+          revision: hash(documentId),
+        }),
+      ]),
+    );
+    expect(source.prefill.context.citations).toEqual(
+      expect.arrayContaining([expect.objectContaining({ quote, documentId })]),
+    );
+  });
   test('published date revision holds pending leased follow-up and retains the existing editable draft', async () => {
     const noticeId = 'FL-' + String(Date.now()),
       noticeRevision = hash(noticeId),

@@ -1,5 +1,11 @@
 import { ImportReview } from './ImportReview.js';
 import { ResearchReportReview } from './ResearchReportReview.js';
+import {
+  researchDraftKey,
+  readResearchDraft,
+  writeResearchDraft,
+  passageSourceUrl,
+} from './research-state.js';
 
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 
@@ -31,7 +37,9 @@ import type { ResearchVersion, ComparisonLine } from '@capiro/shared';
 import './research.css';
 
 const BASE = '/intel-api/legiwatch/research';
-const Bill360Drawer=lazy(()=>import('../bills/Bill360Drawer.js').then(m=>({default:m.Bill360Drawer})));
+const Bill360Drawer = lazy(() =>
+  import('../bills/Bill360Drawer.js').then((m) => ({ default: m.Bill360Drawer })),
+);
 
 type Result = {
   left?: ResearchVersion;
@@ -51,7 +59,7 @@ type Result = {
   >;
   rows?: any[];
   related?: any[];
-  versions?: ResearchVersion[];
+  versions?: Array<ResearchVersion & { title?: string }>;
   cursor?: string | null;
   coverage?: { complete: boolean; reason: string };
   changes?: ComparisonLine[];
@@ -101,6 +109,11 @@ export function ResearchTab() {
         scopeParams.get('folder'),
         scopeParams.get('session'),
         scopeParams.get('edition'),
+        scopeParams.get('left'),
+        scopeParams.get('leftRevision'),
+        scopeParams.get('right'),
+        scopeParams.get('rightRevision'),
+        scopeParams.get('rightSession'),
       ])}
     />
   );
@@ -120,14 +133,22 @@ function ResearchWorkspace() {
   const jurisdiction = params.get('jurisdiction') ?? 'FL',
     sessionKey = params.get('session') ?? '2026',
     edition = params.get('edition') ?? '2026';
+  const leftBill = params.get('leftBill') ?? params.get('bill') ?? '';
 
+  const storageKey = researchDraftKey(identity, params),
+    recovered = readResearchDraft(storageKey);
   const [draft, setDraft] = useState(query),
     [error, setError] = useState(''),
-    [analysis, setAnalysis] = useState(''),
-    [saved, setSaved] = useState<{ draftId?: string; selectionId: string } | null>(null);
+    [analysis, setAnalysis] = useState(recovered.analysis),
+    [saved, setSaved] = useState<{ draftId?: string; selectionId: string } | null>(recovered.saved),
+    [rightSearch, setRightSearch] = useState(params.get('rightSearch') ?? '');
 
-  const pending = useRef<{ hash: string; key: string } | null>(null),
+  const pending = useRef<{ hash: string; key: string } | null>(recovered.pending),
     mounted = useRef(true);
+
+  useEffect(() => {
+    writeResearchDraft(storageKey, { analysis, saved, pending: pending.current });
+  }, [storageKey, analysis, saved]);
 
   useEffect(() => {
     mounted.current = true;
@@ -181,11 +202,14 @@ function ResearchWorkspace() {
     params.get('noticeId'),
     params.get('researchCode'),
     params.get('versionPolicy'),
+    params.get('versionStage'),
     params.get('bill'),
     params.get('billTitle'),
     params.get('sponsor'),
     params.get('chamber'),
     params.get('action'),
+    params.get('allowCrossBill'),
+    params.get('rightSession'),
   ];
 
   const read = useQuery<Result>({
@@ -198,6 +222,8 @@ function ResearchWorkspace() {
           rightId: params.get('right'),
           leftRevision: params.get('leftRevision'),
           rightRevision: params.get('rightRevision'),
+          allowCrossBill: params.get('allowCrossBill') === 'true',
+          rightSessionKey: params.get('rightSession') ?? sessionKey,
         });
 
       if (view === 'bills')
@@ -207,6 +233,7 @@ function ResearchWorkspace() {
           cursor: params.get('cursor'),
           kind: params.get('documentKind') ?? 'all',
           versionPolicy: params.get('versionPolicy') ?? 'any_retained',
+          versionStage: params.get('versionStage') ?? 'all',
           ...(params.get('bill') ? { billIds: [params.get('bill')] } : {}),
           referenceId: params.get('referenceId'),
           title: params.get('billTitle'),
@@ -236,20 +263,78 @@ function ResearchWorkspace() {
   });
 
   const selected = useQuery<Result>({
-    queryKey: ['research-versions', identity, scope, params.get('bill')],
-    enabled: Boolean(params.get('bill')),
+    queryKey: ['research-versions', identity, scope, leftBill],
+    enabled: Boolean(leftBill),
     queryFn: () => {
-      shared.set('billId', params.get('bill')!);
+      shared.set('billId', leftBill);
       return get(BASE + '/versions?' + shared);
     },
   });
 
+  const rightSession = params.get('rightSession') ?? sessionKey,
+    rightBill = params.get('rightBill') ?? '';
+  const rightSelected = useQuery<Result>({
+    queryKey: ['research-right-versions', identity, scope, rightSession, rightBill],
+    enabled: Boolean(rightBill),
+    queryFn: () =>
+      get(
+        BASE +
+          '/versions?' +
+          new URLSearchParams({
+            ...Object.fromEntries(shared),
+            billId: rightBill,
+            sessionKey: rightSession,
+          }),
+      ),
+  });
+  const rightCandidates = useQuery<Result>({
+    queryKey: [
+      'research-right-bills',
+      identity,
+      scope,
+      rightSession,
+      params.get('rightSearch'),
+      params.get('rightCursor'),
+    ],
+    enabled: params.get('rightPicker') === 'true',
+    queryFn: () =>
+      post(BASE + '/search', {
+        ...scope,
+        sessionKey: rightSession,
+        query: '',
+        title: params.get('rightSearch') ?? '',
+        kind: 'text',
+        versionPolicy: 'current_extractions',
+        cursor: params.get('rightCursor'),
+      }),
+    retry: false,
+  });
+  const folder = useQuery({
+    queryKey: ['research-folder-name', identity, folderId],
+    enabled: Boolean(folderId),
+    retry: false,
+    queryFn: async () =>
+      (
+        await api.get<Array<{ id: string; name: string }>>('/intel-api/legiwatch/folders')
+      ).data.find((f) => f.id === folderId) ?? null,
+  });
+  const client = useQuery({
+    queryKey: ['research-client-name', identity, clientId],
+    enabled: Boolean(clientId),
+    retry: false,
+    queryFn: async () =>
+      (await api.get<{ name: string }>('/api/clients/' + encodeURIComponent(clientId))).data,
+  });
+
   const selectPair = (side: 'left' | 'right', id: string) => {
-    const version = selected.data?.versions?.find((v) => v.id === id);
+    const version = (side === 'right' && rightBill ? rightSelected : selected).data?.versions?.find(
+      (v) => v.id === id,
+    );
     if (version) change({ [side]: id, [side + 'Revision']: version.revision });
   };
 
   const versions = selected.data?.versions ?? [];
+  const rightVersions = rightBill ? (rightSelected.data?.versions ?? []) : versions;
 
   const memberships = useQuery({
     queryKey: ['research-memberships', identity, scope],
@@ -290,8 +375,13 @@ function ResearchWorkspace() {
 
       <div className="lw-research__scope">
         <span>
-          {folderId ? 'Selected folder retained' : 'All permitted public sources'} ·{' '}
-          {clientId ? 'Selected client retained' : 'No client selected'}
+          {folderId
+            ? (folder.data?.name ?? 'Selected folder (name unavailable)')
+            : 'All permitted public sources'}{' '}
+          ·{' '}
+          {clientId
+            ? (client.data?.name ?? 'Selected client (name unavailable)')
+            : 'No client selected'}
         </span>
         <CapiroSelect
           label="Jurisdiction"
@@ -387,9 +477,32 @@ function ResearchWorkspace() {
             options={[
               { value: 'any_retained', label: 'All retained versions' },
               { value: 'current_extractions', label: 'Current extraction of each document' },
+              { value: 'newest_dated_text', label: 'Newest dated bill text' },
             ]}
             onChange={(e) => change({ versionPolicy: e.target.value, cursor: '' })}
           />
+          <CapiroSelect
+            label="Publisher text stage"
+            value={params.get('versionStage') ?? 'all'}
+            options={[
+              { value: 'all', label: 'All published stages' },
+              { value: 'enrolled', label: 'Publisher-labeled enrolled text' },
+              { value: 'chaptered', label: 'Publisher-labeled chaptered text' },
+            ]}
+            onChange={(e) => change({ versionStage: e.target.value, cursor: '' })}
+          />
+          {params.get('versionPolicy') === 'newest_dated_text' ? (
+            <p>
+              Uses the newest retained publisher date, including ties. Undated texts are omitted;
+              missing evidence may affect the result.
+            </p>
+          ) : null}
+          {params.get('versionStage') && params.get('versionStage') !== 'all' ? (
+            <p>
+              The publisher's document label does not establish which provisions became effective.
+              Review the original record and any related outcomes.
+            </p>
+          ) : null}
           {params.get('bill') ? (
             <CapiroButton onClick={() => change({ bill: '', cursor: '' })}>
               Search all bills in session
@@ -426,24 +539,30 @@ function ResearchWorkspace() {
         </aside>
       ) : null}
 
-      {params.get('bill') && versions.length > 0 ? (
+      {leftBill && versions.length > 0 ? (
         <div className="lw-research__pair">
           <CapiroSelect
             label="Left version"
             value={params.get('left') ?? ''}
-            options={versions.map((v) => ({
-              value: v.id,
-              label: `${v.kind} · ${v.publishedDate ?? 'date unavailable'} · ${v.id.slice(0, 8)}`,
-            }))}
+            options={[
+              { value: '', label: 'Choose the left version' },
+              ...versions.map((v) => ({
+                value: v.id,
+                label: `${v.title ?? v.kind} · ${v.publishedDate ?? 'date unavailable'} · ${v.id.slice(0, 8)}`,
+              })),
+            ]}
             onChange={(e) => selectPair('left', e.target.value)}
           />
           <CapiroSelect
             label="Right version"
             value={params.get('right') ?? ''}
-            options={versions.map((v) => ({
-              value: v.id,
-              label: `${v.kind} · ${v.publishedDate ?? 'date unavailable'} · ${v.id.slice(0, 8)}`,
-            }))}
+            options={[
+              { value: '', label: 'Choose the right version' },
+              ...rightVersions.map((v) => ({
+                value: v.id,
+                label: `${v.title ?? v.kind} · ${v.publishedDate ?? 'date unavailable'} · ${v.id.slice(0, 8)}`,
+              })),
+            ]}
             onChange={(e) => selectPair('right', e.target.value)}
           />
           <CapiroButton
@@ -452,7 +571,107 @@ function ResearchWorkspace() {
           >
             Compare selected versions
           </CapiroButton>
+          <CapiroButton
+            onClick={() =>
+              change({ rightPicker: params.get('rightPicker') === 'true' ? '' : 'true', leftBill })
+            }
+          >
+            Choose another bill or session
+          </CapiroButton>
         </div>
+      ) : null}
+
+      {params.get('rightPicker') === 'true' ? (
+        <section aria-label="Choose the right bill">
+          <h3>Compare another bill or session</h3>
+          <p>The left version remains pinned. Choose the right bill, then its exact version.</p>
+          <CapiroInput
+            label="Right bill session"
+            value={rightSession}
+            onChange={(e) =>
+              change({
+                rightSession: e.target.value,
+                rightBill: '',
+                right: '',
+                rightRevision: '',
+                rightCursor: '',
+                researchView: 'bills',
+              })
+            }
+          />
+          <form
+            className="lw-research__search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              change({ rightSearch, rightCursor: '' });
+            }}
+          >
+            <CapiroInput
+              label="Find the right bill by title"
+              value={rightSearch}
+              onChange={(e) => setRightSearch(e.target.value)}
+            />
+            <CapiroButton type="submit">Find bills</CapiroButton>
+          </form>
+          {rightCandidates.isPending ? <p role="status">Loading retained bill texts…</p> : null}
+          {rightCandidates.isError || rightSelected.isError ? (
+            <p role="alert">
+              The right source is unavailable. Check its session and current access.
+            </p>
+          ) : null}
+          <CapiroSelect
+            label="Right bill"
+            value={rightBill}
+            options={[
+              { value: '', label: 'Choose a bill with retained text' },
+              ...Array.from(
+                new Map(
+                  (rightCandidates.data?.items ?? []).map((v) => [
+                    v.billId,
+                    {
+                      value: v.billId,
+                      label: `${v.billIdentifier ?? v.billId} · ${v.billTitle ?? ''}`,
+                    },
+                  ]),
+                ).values(),
+              ),
+            ]}
+            onChange={(e) =>
+              change({
+                rightBill: e.target.value,
+                right: '',
+                rightRevision: '',
+                allowCrossBill: 'true',
+                researchView: 'bills',
+              })
+            }
+          />
+          <p>
+            Only retained source documents are listed. Review source coverage for missing bills or
+            versions.
+          </p>
+          {rightCandidates.data?.cursor ? (
+            <CapiroButton onClick={() => change({ rightCursor: rightCandidates.data!.cursor! })}>
+              More retained bills
+            </CapiroButton>
+          ) : null}
+          {rightBill ? (
+            <CapiroButton
+              onClick={() =>
+                change({
+                  rightBill: '',
+                  right: '',
+                  rightRevision: '',
+                  rightSession: '',
+                  allowCrossBill: '',
+                  researchView: 'bills',
+                })
+              }
+            >
+              Use the left bill on both sides
+            </CapiroButton>
+          ) : null}
+        </section>
       ) : null}
 
       {view === 'bills' && read.data && !read.data.items?.length ? (
@@ -507,7 +726,12 @@ function ResearchWorkspace() {
                     </CapiroButton>
                     <CapiroButton
                       onClick={() =>
-                        change({ bill: item.billId, left: item.id, leftRevision: item.revision })
+                        change({
+                          bill: item.billId,
+                          leftBill: item.billId,
+                          left: item.id,
+                          leftRevision: item.revision,
+                        })
                       }
                     >
                       Select versions
@@ -552,7 +776,26 @@ function ResearchWorkspace() {
                 <pre className="lw-research__right" aria-label="Right passage">
                   {line.right ? line.text : ''}
                 </pre>
-                <small>{line.left?.locator ?? line.right?.locator}</small>
+                <small>
+                  {line.left ? (
+                    <a
+                      href={passageSourceUrl(read.data?.left?.sourceUrl, line.left.locator)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Left source · {line.left.locator}
+                    </a>
+                  ) : null}{' '}
+                  {line.right ? (
+                    <a
+                      href={passageSourceUrl(read.data?.right?.sourceUrl, line.right.locator)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Right source · {line.right.locator}
+                    </a>
+                  ) : null}
+                </small>
               </div>
             ))}
           </div>
@@ -600,12 +843,16 @@ function ResearchWorkspace() {
                 documents: [result.left!, result.right!].map((v) => ({
                   id: v.id,
                   revision: v.revision,
+                  sessionKey: v.sessionKey,
                 })),
+                allowCrossBill: params.get('allowCrossBill') === 'true',
+                rightSessionKey: rightSession,
                 citations,
               };
               const fingerprint = JSON.stringify(body);
               if (pending.current?.hash !== fingerprint)
                 pending.current = { hash: fingerprint, key: crypto.randomUUID() };
+              writeResearchDraft(storageKey, { analysis, saved, pending: pending.current });
 
               try {
                 const response = await api.post<{
@@ -745,17 +992,20 @@ function ResearchWorkspace() {
       ) : null}
       {params.get('researchBill') ? (
         <Suspense fallback={<p role="status">Loading Bill 360…</p>}>
-        <Bill360Drawer
-          billId={params.get('researchBill')!}
-          clientId={clientId}
-          folderId={folderId || undefined}
-          onClose={() => change({ researchBill: '' })}
-          onOpenFull={() =>
-            navigate(
-              '/bills/' + encodeURIComponent(params.get('researchBill')!) + '?' + params.toString(),
-            )
-          }
-        />
+          <Bill360Drawer
+            billId={params.get('researchBill')!}
+            clientId={clientId}
+            folderId={folderId || undefined}
+            onClose={() => change({ researchBill: '' })}
+            onOpenFull={() =>
+              navigate(
+                '/bills/' +
+                  encodeURIComponent(params.get('researchBill')!) +
+                  '?' +
+                  params.toString(),
+              )
+            }
+          />
         </Suspense>
       ) : null}
 
