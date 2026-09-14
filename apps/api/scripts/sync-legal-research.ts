@@ -50,20 +50,22 @@ export async function runLegalResearch(prisma: PrismaClient, input: LegalResearc
     try {
       const result = await fetchFloridaStatutes(manifest.edition, reference);
 
-      await prisma.$transaction(
-        async (tx) => {
-          await persistLegalReference(tx, reference);
-
-          for (const revision of result.revisions) {
+      await prisma.$transaction((tx) => persistLegalReference(tx, reference));
+      // Each immutable section is its own checkpoint. A large chapter must not
+      // lose completed sections when a later insert reaches the transaction limit.
+      // The enclosing source receipt remains incomplete until every section succeeds.
+      for (const revision of result.revisions) {
+        await prisma.$transaction(
+          async (tx) => {
             const referenceId = await persistLegalReference(tx, revision.reference);
 
             await tx.$executeRaw`INSERT INTO legal_text_revision(id,reference_id,edition,source_url,content_hash,extraction_hash,parser_version,title,sections,original_html,history_text,complete,coverage)
 
       VALUES(${revision.id},${referenceId},${revision.edition},${revision.sourceUrl},${revision.contentHash},${revision.extractionHash},${revision.parserVersion},${revision.title},${JSON.stringify(revision.sections)}::jsonb,${revision.originalHtml},${revision.historyText},${revision.complete},${JSON.stringify(revision.coverage)}::jsonb) ON CONFLICT DO NOTHING`;
-          }
-        },
-        { timeout: 30000 },
-      );
+          },
+          { timeout: 30000 },
+        );
+      }
 
       outcomes.push({ citation, status: 'ingested', revisions: result.revisions.map((r) => r.id) });
     } catch (e) {
