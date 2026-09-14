@@ -52,6 +52,10 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
  */
 
 const EXPECTED_TOOLS = [
+  'search_legiwatch_news',
+  'get_florida_budget_project',
+  'compare_florida_budget_amounts',
+  'prepare_legiwatch_briefing',
   'search_legislative_research',
   'get_legal_reference',
   'compare_legislative_versions',
@@ -175,6 +179,20 @@ const EXPECTED_TOOLS = [
 
 /** Tools whose schema must enforce required inputs, and exactly which. */
 const REQUIRED_INPUTS: Record<string, string[]> = {
+  search_legiwatch_news: ['view'],
+  get_florida_budget_project: ['fiscalYear'],
+  compare_florida_budget_amounts: ['leftId', 'leftRevision', 'rightId', 'rightRevision'],
+  prepare_legiwatch_briefing: [
+    'folderId',
+    'template',
+    'title',
+    'analysis',
+    'cutoff',
+    'timezone',
+    'requestKey',
+    'sources',
+    'citations',
+  ],
   search_legislative_research: ['jurisdiction', 'sessionKey'],
   get_legal_reference: ['jurisdiction', 'view'],
   compare_legislative_versions: [
@@ -466,6 +484,7 @@ describe('Meri tool registration', () => {
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {
     const svc = Object.create(MeriToolsService.prototype) as MeriToolsService;
     const writeTools = [
+      'prepare_legiwatch_briefing',
       'save_legislative_research',
       'save_legiwatch_relevance',
       'apply_legiwatch_suggestion',
