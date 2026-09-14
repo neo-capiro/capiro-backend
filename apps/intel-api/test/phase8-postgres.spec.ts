@@ -349,7 +349,7 @@ describe('Phase 8 public observations, private selections and actual database re
       },
     ],
   });
-  test('retained RSS monitoring works without provider calls and keeps historical limitations visible', async () => {
+  test('RSS replay clears completed windows and advances without duplicate matches or provider calls', async () => {
     const monitor = ((await evidence.monitors(ctx)).monitors as any[]).find(
       (m) => m.state !== 'active',
     );
@@ -375,9 +375,31 @@ describe('Phase 8 public observations, private selections and actual database re
     });
     await api.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${randomUUID()},'rss','https://example.invalid/feed',${'a'.repeat(64)},${JSON.stringify({ domain: 'example.invalid' })}::jsonb,${JSON.stringify({ items: 1, retained: 1, history: 'unqualified' })}::jsonb,false)`;
     const before = (global.fetch as jest.Mock).mock.calls.length,
-      clock = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 3600000);
+      actualNow = Date.now(),
+      clock = jest.spyOn(Date, 'now').mockReturnValue(actualNow + 3600000);
     try {
-      expect(await evidence.scan(ctx, monitor.id)).toMatchObject({ state: 'complete', matches: 1 });
+      const first = await evidence.scan(ctx, monitor.id);
+      expect(first).toMatchObject({ state: 'complete', matches: 1 });
+      expect(await evidence.scan(ctx, monitor.id)).toEqual(first);
+      const replayed = await folders.withActor(ctx, (tx) => evidence.monitor(tx, ctx, monitor.id));
+      expect(replayed.pending_window).toBeNull();
+      clock.mockReturnValue(actualNow + 2 * 3600000);
+      const next = await evidence.scan(ctx, monitor.id);
+      expect(next).toMatchObject({ state: 'complete', matches: 1 });
+      expect(new Date(String(next.cutoff)).getTime()).toBeGreaterThan(
+        new Date(String(first.cutoff)).getTime(),
+      );
+      const advanced = await folders.withActor(ctx, (tx) => evidence.monitor(tx, ctx, monitor.id));
+      expect(advanced.pending_window).toBeNull();
+      expect(advanced.checkpoint?.toISOString()).toBe(next.cutoff);
+      const matches = await folders.withActor(
+        ctx,
+        (tx) =>
+          tx.$queryRaw<
+            any[]
+          >`SELECT id FROM intel_legiwatch_news_match WHERE monitor_id=${monitor.id}`,
+      );
+      expect(matches).toHaveLength(1);
     } finally {
       clock.mockRestore();
     }
