@@ -24,6 +24,7 @@ import type { DefenseBudgetExtractionArtifactV1 } from '../../contracts/extracti
 import { parseDefenseBudgetExtractionArtifactV1 } from '../../contracts/extraction-artifact-v1.semantic.js';
 import { sha256CanonicalJson } from '../../contracts/canonical-json.js';
 import type { JsonValue } from '../../contracts/canonical-json.js';
+import type { TrustedByteLocatorReader } from '../../verification/trusted-proof/trusted-byte-locator-reader.js';
 import type {
   BudgetVerificationRepositoryV1,
   ReadCandidateV1,
@@ -55,6 +56,28 @@ export class FilesystemScopedFactReviewArtifactLoaderV1 implements ScopedFactRev
       throw new ScopedFactReviewError('artifact_locator_unsupported', `filesystem loader cannot read ${input.locator}`);
     }
     return readFile(input.locator);
+  }
+}
+
+/**
+ * Production-capable loader: filesystem or version-pinned `s3://` (via the
+ * same `TrustedByteLocatorReader` that `wireProductionProofBoundary` uses for
+ * every other production_proof read in this program). No new S3 client, no
+ * new locator format -- every real candidate's `extraction_artifact_locator`
+ * is already written by `S3ExtractionArtifactStore` as
+ * `s3://bucket/key?versionId=...`, and this reader parses that exact
+ * versionId and pins the read to it rather than the bucket's current/latest
+ * object. Any other scheme, a missing object, or a denied/failed read
+ * surfaces as a plain `Error` from the reader, which the caller
+ * (`ScopedFactReviewV1Service.review`) already wraps as `artifact_unreadable`
+ * -- never a silent fallback to another version or another scheme.
+ */
+export class TrustedByteLocatorScopedFactReviewArtifactLoaderV1 implements ScopedFactReviewArtifactLoaderV1 {
+  constructor(private readonly reader: TrustedByteLocatorReader) {}
+
+  async load(input: { locator: string }): Promise<Buffer> {
+    const located = await this.reader.read(input.locator);
+    return located.bytes;
   }
 }
 

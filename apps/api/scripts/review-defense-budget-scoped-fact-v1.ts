@@ -31,11 +31,17 @@ import * as fs from 'node:fs';
 import {
   ScopedFactReviewV1Service,
   ScopedFactReviewError,
-  FilesystemScopedFactReviewArtifactLoaderV1,
+  TrustedByteLocatorScopedFactReviewArtifactLoaderV1,
 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-v1.service.js';
 import { SCOPED_FACT_REVIEW_SCOPE_KIND_PE_TOTAL_V1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-policy-v1.js';
 import { PrismaScopedFactReviewRepositoryV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-repository-v1.js';
 import { PrismaScopedFactReviewCandidateLocatorReaderV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-prisma-locator-reader-v1.js';
+import {
+  CompositeByteLocatorReader,
+  FilesystemByteLocatorReader,
+  S3ByteLocatorReader,
+} from '../src/defense-budget/verification/trusted-proof/trusted-byte-locator-reader.js';
+import { SdkS3ProofClient } from '../src/defense-budget/verification/trusted-proof/s3-proof-adapters.js';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
@@ -138,13 +144,24 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   }
 
+  // Real candidates' artifact locators are `s3://...?versionId=...` in every
+  // deployed environment; `file://`/bare-path locators appear only in local
+  // rehearsals. Same construction as `wireProductionProofBoundary` and
+  // `backfill-budget-candidate-source-metadata-v1.ts` -- one owned S3 client,
+  // destroyed in `finally`, no silent fallback between schemes or versions.
+  const s3ProofClient = new SdkS3ProofClient();
+  const byteReader = new CompositeByteLocatorReader(
+    new FilesystemByteLocatorReader(),
+    new S3ByteLocatorReader(s3ProofClient),
+  );
+
   try {
     const { createPrismaBudgetVerificationRepository } = await import(
       '../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js'
     );
     const verification = createPrismaBudgetVerificationRepository(prisma);
     const locators = new PrismaScopedFactReviewCandidateLocatorReaderV1(prisma);
-    const artifacts = new FilesystemScopedFactReviewArtifactLoaderV1();
+    const artifacts = new TrustedByteLocatorScopedFactReviewArtifactLoaderV1(byteReader);
     const reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
     const service = new ScopedFactReviewV1Service(verification, locators, artifacts, reviews);
 
@@ -181,6 +198,7 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   } finally {
     await prisma.$disconnect().catch(() => {});
+    await s3ProofClient.destroy().catch(() => {});
   }
   process.exit(EXIT_OK);
 }

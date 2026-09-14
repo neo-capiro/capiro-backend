@@ -17,10 +17,16 @@ import * as fs from 'node:fs';
 import {
   ScopedFactReviewV1Service,
   ScopedFactReviewError,
-  FilesystemScopedFactReviewArtifactLoaderV1,
+  TrustedByteLocatorScopedFactReviewArtifactLoaderV1,
 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-v1.service.js';
 import { PrismaScopedFactReviewRepositoryV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-repository-v1.js';
 import { PrismaScopedFactReviewCandidateLocatorReaderV1 } from '../src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-prisma-locator-reader-v1.js';
+import {
+  CompositeByteLocatorReader,
+  FilesystemByteLocatorReader,
+  S3ByteLocatorReader,
+} from '../src/defense-budget/verification/trusted-proof/trusted-byte-locator-reader.js';
+import { SdkS3ProofClient } from '../src/defense-budget/verification/trusted-proof/s3-proof-adapters.js';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
@@ -60,13 +66,24 @@ async function main(): Promise<void> {
 
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
+  // `revoke()` never touches `artifacts` (pinned by
+  // scoped-fact-review-v1.service.spec.ts's "must not touch
+  // verification/locators/artifacts" fake) -- a storage outage must never
+  // block withdrawing an approval. This loader is constructed only to keep
+  // the service's dependency shape uniform with the review CLI's real one;
+  // it is exercised by nothing on this path.
+  const s3ProofClient = new SdkS3ProofClient();
+  const byteReader = new CompositeByteLocatorReader(
+    new FilesystemByteLocatorReader(),
+    new S3ByteLocatorReader(s3ProofClient),
+  );
   try {
     const { createPrismaBudgetVerificationRepository } = await import(
       '../src/defense-budget/verification/persistence/prisma-budget-verification.repository.js'
     );
     const verification = createPrismaBudgetVerificationRepository(prisma);
     const locators = new PrismaScopedFactReviewCandidateLocatorReaderV1(prisma);
-    const artifacts = new FilesystemScopedFactReviewArtifactLoaderV1();
+    const artifacts = new TrustedByteLocatorScopedFactReviewArtifactLoaderV1(byteReader);
     const reviews = new PrismaScopedFactReviewRepositoryV1(prisma as never);
     const service = new ScopedFactReviewV1Service(verification, locators, artifacts, reviews);
 
@@ -96,6 +113,7 @@ async function main(): Promise<void> {
     process.exit(EXIT_ERROR);
   } finally {
     await prisma.$disconnect().catch(() => {});
+    await s3ProofClient.destroy().catch(() => {});
   }
   process.exit(EXIT_OK);
 }

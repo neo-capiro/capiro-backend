@@ -13,9 +13,14 @@
  * whose revoke() already handles both correctly. This spec pins that
  * behavior directly (it was previously untested at the service layer).
  */
-import { describe, expect, it } from '@jest/globals';
-import { ScopedFactReviewV1Service, ScopedFactReviewError } from './scoped-fact-review-v1.service.js';
+import { describe, expect, it, jest } from '@jest/globals';
+import {
+  ScopedFactReviewV1Service,
+  ScopedFactReviewError,
+  TrustedByteLocatorScopedFactReviewArtifactLoaderV1,
+} from './scoped-fact-review-v1.service.js';
 import type { ScopedFactReviewRepositoryV1, ScopedFactReviewRowV1 } from './scoped-fact-review-repository-v1.js';
+import type { TrustedByteLocatorReader, TrustedLocatedBytes } from '../../verification/trusted-proof/trusted-byte-locator-reader.js';
 
 function fakeRow(overrides: Partial<ScopedFactReviewRowV1> = {}): ScopedFactReviewRowV1 {
   return {
@@ -118,5 +123,72 @@ describe('ScopedFactReviewV1Service.revoke', () => {
     await expect(svc.revoke({ id: 'row-1', actor: 'operator-b', reason: 'second, too late' })).rejects.toMatchObject({
       code: 'not_active',
     });
+  });
+});
+
+/**
+ * TrustedByteLocatorScopedFactReviewArtifactLoaderV1 -- the production-capable
+ * loader added alongside this defect fix. `review-defense-budget-scoped-fact-v1.ts`
+ * and `revoke-defense-budget-scoped-fact-v1.ts` previously constructed
+ * `FilesystemScopedFactReviewArtifactLoaderV1`, which throws
+ * `artifact_locator_unsupported` on every `s3://` locator -- exactly the shape
+ * every real production candidate's `extraction_artifact_locator` takes, so
+ * every real scoped-review preview failed closed before reaching eligibility.
+ * These are fast, no-DB unit tests of the loader's own delegation and error
+ * behavior; `scoped-fact-review-s3-artifact-loader.integration.spec.ts` proves
+ * the same class against a real disposable Postgres + versioned MinIO.
+ */
+describe('TrustedByteLocatorScopedFactReviewArtifactLoaderV1', () => {
+  function fakeReader(result: TrustedLocatedBytes | (() => Promise<TrustedLocatedBytes>)): TrustedByteLocatorReader {
+    return {
+      read: jest.fn(async (_locator: string) => (typeof result === 'function' ? result() : result)),
+    };
+  }
+
+  it('returns the reader-provided bytes for a filesystem locator', async () => {
+    const bytes = Buffer.from('{"ok":true}', 'utf8');
+    const reader = fakeReader({ locator: '/tmp/x.json', bytes, kind: 'filesystem', contentLength: bytes.length, checksumSha256: 'x' });
+    const loader = new TrustedByteLocatorScopedFactReviewArtifactLoaderV1(reader);
+
+    const result = await loader.load({ locator: '/tmp/x.json' });
+
+    expect(result).toBe(bytes);
+    expect(reader.read).toHaveBeenCalledWith('/tmp/x.json');
+  });
+
+  it('returns the reader-provided bytes for a version-pinned s3:// locator -- the exact locator shape every real candidate has', async () => {
+    const bytes = Buffer.from('{"artifactId":"a1"}', 'utf8');
+    const locator = 's3://capiro-defense-budget-raw-dev/key/path?versionId=abc123';
+    const reader = fakeReader({ locator, bytes, kind: 's3', bucket: 'capiro-defense-budget-raw-dev', key: 'key/path', versionId: 'abc123', contentLength: bytes.length, checksumSha256: 'y' });
+    const loader = new TrustedByteLocatorScopedFactReviewArtifactLoaderV1(reader);
+
+    const result = await loader.load({ locator });
+
+    expect(result).toBe(bytes);
+    expect(reader.read).toHaveBeenCalledWith(locator);
+  });
+
+  it('propagates the reader error as a plain Error -- ScopedFactReviewV1Service.review already wraps it as artifact_unreadable, no double-wrapping here', async () => {
+    const reader: TrustedByteLocatorReader = {
+      read: jest.fn(async () => {
+        throw new Error('S3 object not found: capiro-defense-budget-raw-dev/key/path@abc123');
+      }),
+    };
+    const loader = new TrustedByteLocatorScopedFactReviewArtifactLoaderV1(reader);
+
+    await expect(loader.load({ locator: 's3://capiro-defense-budget-raw-dev/key/path?versionId=abc123' })).rejects.toThrow(
+      'S3 object not found',
+    );
+  });
+
+  it('propagates an unsupported-scheme error from the reader untouched (no scheme sniffing duplicated in the loader)', async () => {
+    const reader: TrustedByteLocatorReader = {
+      read: jest.fn(async () => {
+        throw new Error('unsupported locator scheme: "ftp://example.mil/x.json"');
+      }),
+    };
+    const loader = new TrustedByteLocatorScopedFactReviewArtifactLoaderV1(reader);
+
+    await expect(loader.load({ locator: 'ftp://example.mil/x.json' })).rejects.toThrow('unsupported locator scheme');
   });
 });
