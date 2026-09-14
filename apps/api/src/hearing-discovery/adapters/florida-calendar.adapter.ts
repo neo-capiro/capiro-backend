@@ -11,16 +11,25 @@ import type {
 
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-11.3';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-14.1';
 
 /** Florida LegiScan bill labels use H/S plus four digits; notices use HB/SB. */
 export function floridaBillNumberAliases(raw: string): string[] {
-  const number = raw.replace(/^(?:CS\/)+/i, '').replace(/\s+/g, '').toUpperCase();
+  const number = raw
+    .replace(/^(?:CS\/)+/i, '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
   const bill = /^(H|S)B0*(\d+)$/.exec(number);
   if (!bill) return [number];
   const digits = bill[2]!;
-  return [...new Set([`${bill[1]}B${digits}`, `${bill[1]}${digits}`,
-    `${bill[1]}B${digits.padStart(4, '0')}`, `${bill[1]}${digits.padStart(4, '0')}`])];
+  return [
+    ...new Set([
+      `${bill[1]}B${digits}`,
+      `${bill[1]}${digits}`,
+      `${bill[1]}B${digits.padStart(4, '0')}`,
+      `${bill[1]}${digits.padStart(4, '0')}`,
+    ]),
+  ];
 }
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
 export type SenateNoticeRef = {
@@ -41,6 +50,31 @@ export function floridaDate(raw: string): string | null {
     ? `${slash[3]}-${slash[1]!.padStart(2, '0')}-${slash[2]!.padStart(2, '0')}`
     : raw.slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(day) && calendarDayParts(day) ? day : null;
+}
+/** A publisher calendar heading identifies a day, not a local-midnight instant. */
+function headingDate(raw: string): string | null {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  const match =
+    /^(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/i.exec(
+      raw,
+    );
+  if (!match) return null;
+  const month = months.findIndex((name) => name.toLowerCase() === match[1]!.toLowerCase()) + 1;
+  if (!month) return null;
+  return floridaDate(`${match[3]}-${String(month).padStart(2, '0')}-${match[2]!.padStart(2, '0')}`);
 }
 function localTime(date: string, rawTime: string, end: string | null = null): CalendarTime {
   const clock = rawTime
@@ -90,7 +124,9 @@ export function senateNoticeRefs(
   if (!$('#meetingsTbl').length) {
     if (/no meetings|no meeting records/i.test($('#tabBodyMeetings').text()))
       return { notices, issues };
-    return { notices, issues: ['Senate meeting table unavailable'] };
+    // An unreadable layout is a source failure, unlike a readable row whose
+    // event identity still needs qualification. Never assert empty coverage.
+    throw new Error('Senate meeting table unavailable');
   }
   $('#meetingsTbl tbody tr').each((_, tr) => {
     const tds = $(tr).find('td'),
@@ -148,8 +184,7 @@ export function senateDailyCalendar(html: string, date: string, session: string)
   const header = clean($('.calHeader h2').text())
     .replace(/Open Calendar.*$/, '')
     .trim();
-  if (new Date(header).toISOString().slice(0, 10) !== date)
-    throw new Error('Senate daily calendar date mismatch');
+  if (headingDate(header) !== date) throw new Error('Senate daily calendar date mismatch');
   if (!$('#CalendarContents').length) {
     if (/No events scheduled for this day\./i.test($('#tabCalendar').text()))
       return { notices, floors, issues, unresolved: 0 };
@@ -251,7 +286,21 @@ export function houseDailyCalendar(html: string, date: string, session: string) 
     issues: string[] = [],
     floors: LegislativeObservation[] = [];
   let unresolved = 0;
-  if (!$('.schedule-list').length) throw new Error('House schedule list unavailable');
+  if (!$('.schedule-list').length) {
+    // On quiet days the publisher omits the list and supplies an explicit
+    // empty state. Qualify it only for the day in its own dated heading.
+    const heading = $('h1,h2,h3')
+      .toArray()
+      .map((el) => clean($(el).text()))
+      .find((value) => /^House Schedule for /i.test(value));
+    const published = heading ? headingDate(heading.replace(/^House Schedule for /i, '')) : null;
+    if (
+      published === date &&
+      /No scheduled events before the house\./i.test(clean($.root().text()))
+    )
+      return { floors, issues, unresolved };
+    throw new Error('House schedule list unavailable or its dated empty state does not match');
+  }
   $('.schedule-list .schedule-event').each((_, el) => {
     const event = $(el);
     if (event.find('a[href*="MeetingId="]').length) return;
@@ -660,7 +709,13 @@ export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
   for (let redirects = 0; redirects < 4; redirects++) {
     let response: Response | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
-      response = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+      try {
+        response = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+      } catch (error) {
+        if (attempt === 2) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+        continue;
+      }
       if (![429, 502, 503, 504].includes(response.status) || attempt === 2) break;
       const retryAfter = Number(response.headers.get('retry-after'));
       await response.body?.cancel();
@@ -708,6 +763,16 @@ export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
+    // Some publisher edge filters return HTTP 200 with a denial page. Keep
+    // that outcome visible as access failure, not a parser or empty-day result.
+    // Inspect a bounded prefix, and do not expose support identifiers/content.
+    const prefix = new TextDecoder().decode(bytes.subarray(0, 8192));
+    if (
+      /^\s*(?:<!doctype html[^>]*>\s*)?<html\b/i.test(prefix) &&
+      (/<title>\s*(?:Request Rejected|Access Denied)\s*<\/title>/i.test(prefix) ||
+        /The requested URL was rejected\. Please consult with your administrator\./i.test(prefix))
+    )
+      throw new Error('Florida publisher access denied (HTTP 200 rejection page)');
     return bytes;
   }
   throw new Error('Florida source redirect limit exceeded');

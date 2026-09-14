@@ -6460,6 +6460,13 @@ model MemberPressItem {
 
 model CommitteeHearing {
   id            String    @id @default(uuid())
+  /// Retained legacy ID after an explicitly reviewed official-identifier merge.
+  /// Never delete alias rows: old URLs and external references remain resolvable.
+  canonicalHearingId String? @map("canonical_hearing_id")
+  canonicalHearing CommitteeHearing? @relation("HearingAliases", fields: [canonicalHearingId], references: [id], onDelete: Restrict)
+  aliases CommitteeHearing[] @relation("HearingAliases")
+  aliasEvidence Json? @map("alias_evidence")
+  aliasedAt DateTime? @map("aliased_at") @db.Timestamptz(6)
   geographicJurisdiction String? @map("geographic_jurisdiction")
   legislativeSession String? @map("legislative_session")
   stateCommitteeId String? @map("state_committee_id")
@@ -6519,6 +6526,7 @@ model CommitteeHearing {
   coverageStatus         String    @default("not_covered") @map("coverage_status")
 
   @@index([date])
+  @@index([canonicalHearingId])
   @@index([committeeName, date])
   @@index([geographicJurisdiction, legislativeSession, date])
   @@index([startsAt])

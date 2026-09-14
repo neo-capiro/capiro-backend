@@ -52,6 +52,8 @@ export function FolderImportReview({ onClose }: { onClose: () => void }) {
     enabled: Boolean(id),
     retry: false,
   });
+  const runsErrorStatus = (runs.error as { response?: { status?: number } } | null)?.response
+    ?.status;
   return (
     <CapiroModal open title="Import review" onClose={onClose} width={960}>
       {review.data && (
@@ -126,8 +128,19 @@ export function FolderImportReview({ onClose }: { onClose: () => void }) {
           <CapiroButton onClick={() => setReportId('68654')}>Preview Acadia report</CapiroButton>
         </div>
       )}
-      {runs.isError ? (
-        <p role="alert">Import review requires tenant administrator access.</p>
+      {runs.isPending ? (
+        <p role="status">Loading import runs…</p>
+      ) : runs.isError ? (
+        <div role="alert">
+          <p>
+            {runsErrorStatus === 401
+              ? 'Your session has expired. Sign in again, then retry import review.'
+              : runsErrorStatus === 403
+                ? 'Import review requires a verified tenant administrator. If you are an administrator, refresh your session and ask your tenant administrator to verify your current membership.'
+                : 'Import runs could not be loaded. Retry to check the service again.'}
+          </p>
+          <CapiroButton onClick={() => void runs.refetch()}>Retry import review</CapiroButton>
+        </div>
       ) : !runs.data?.length ? (
         <p>
           No import runs are available. Prepare an evidence package and explicit tenant mapping
@@ -223,7 +236,12 @@ export function FolderImportReview({ onClose }: { onClose: () => void }) {
           </div>
         </>
       )}
-      {review.isError && <p role="alert">Import results could not be loaded.</p>}
+      {review.isError && (
+        <div role="alert">
+          <p>Import results could not be loaded.</p>
+          <CapiroButton onClick={() => void review.refetch()}>Retry import results</CapiroButton>
+        </div>
+      )}
       {error && <p role="alert">{error}</p>}
       {review.data && (
         <details>

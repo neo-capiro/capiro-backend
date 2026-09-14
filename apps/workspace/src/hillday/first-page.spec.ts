@@ -88,7 +88,7 @@ function harness() {
     }
   }) };
   const source = { tenantName: async () => 'Firm', userDisplays: async () => new Map([['owner', { name: 'Owner', initials: 'O' }]]), getClient: async () => ({ hasLogo: false }) };
-  return { service: new HillDayDocumentService(prisma as never, source as never, {} as never), doc, meetings, prisma };
+  return { service: new HillDayDocumentService(prisma as never, source as never, {} as never, {} as never), doc, meetings, prisma };
 }
 
 describe('HillDayDocumentService first-page saves', () => {

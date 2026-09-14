@@ -48,7 +48,11 @@ function legislator(overrides: Partial<StateLegislatorDetail> = {}): StateLegisl
 
 function renderView(leg: StateLegislatorDetail) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      initialEntries={[
+        '/directory/state-legislators/ocd-person%2Fabc-123?client=client-a&folder=folder-a',
+      ]}
+    >
       <StateLegislatorProfileViewVNext legislator={leg} />
     </MemoryRouter>,
   );
@@ -63,7 +67,10 @@ describe('StateLegislatorProfileViewVNext', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Senate Judiciary')).toBeInTheDocument();
     expect(screen.getByText('Sponsored bills (1)')).toBeInTheDocument();
-    expect(screen.getByText('S 2001')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Bill 360 for S 2001' })).toHaveAttribute(
+      'href',
+      '/bills/bill-1?client=client-a&folder=folder-a',
+    );
     expect(screen.getByText('An act relating to courts')).toBeInTheDocument();
     // Missing email keeps canonical's explicit placeholder on this surface.
     expect(screen.getAllByText('Not provided by source').length).toBeGreaterThan(0);

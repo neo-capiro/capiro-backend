@@ -135,6 +135,7 @@ function ResearchWorkspace() {
     sessionKey = params.get('session') ?? '2026',
     edition = params.get('edition') ?? '2026';
   const leftBill = params.get('leftBill') ?? params.get('bill') ?? '';
+  const isBillView = view === 'bills' || view === 'compare';
 
   const storageKey = researchDraftKey(identity, params),
     recovered = readResearchDraft(storageKey);
@@ -265,7 +266,7 @@ function ResearchWorkspace() {
 
   const selected = useQuery<Result>({
     queryKey: ['research-versions', identity, scope, leftBill],
-    enabled: Boolean(leftBill),
+    enabled: isBillView && Boolean(leftBill),
     queryFn: () => {
       shared.set('billId', leftBill);
       return get(BASE + '/versions?' + shared);
@@ -276,7 +277,7 @@ function ResearchWorkspace() {
     rightBill = params.get('rightBill') ?? '';
   const rightSelected = useQuery<Result>({
     queryKey: ['research-right-versions', identity, scope, rightSession, rightBill],
-    enabled: Boolean(rightBill),
+    enabled: isBillView && Boolean(rightBill),
     queryFn: () =>
       get(
         BASE +
@@ -297,7 +298,7 @@ function ResearchWorkspace() {
       params.get('rightSearch'),
       params.get('rightCursor'),
     ],
-    enabled: params.get('rightPicker') === 'true',
+    enabled: isBillView && params.get('rightPicker') === 'true',
     queryFn: () =>
       post(BASE + '/search', {
         ...scope,
@@ -540,7 +541,7 @@ function ResearchWorkspace() {
         </aside>
       ) : null}
 
-      {leftBill && versions.length > 0 ? (
+      {isBillView && leftBill && versions.length > 0 ? (
         <div className="lw-research__pair">
           <CapiroSelect
             label="Left version"
@@ -582,7 +583,7 @@ function ResearchWorkspace() {
         </div>
       ) : null}
 
-      {params.get('rightPicker') === 'true' ? (
+      {isBillView && params.get('rightPicker') === 'true' ? (
         <section aria-label="Choose the right bill">
           <h3>Compare another bill or session</h3>
           <p>The left version remains pinned. Choose the right bill, then its exact version.</p>

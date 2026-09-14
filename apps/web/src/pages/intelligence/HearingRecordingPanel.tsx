@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
 import {
   recordingSeek,
+  recordingLoadError,
   useHearingRecording,
   type RecordingEpoch,
 } from '../../lib/hearing-recording-api.js';
@@ -37,9 +38,21 @@ export function HearingRecordingPanel({
       offset: number;
     } | null>(null);
   const audio = useRef<HTMLAudioElement>(null),
-    generation = useRef(0);
+    generation = useRef(0),
+    handledEvidence = useRef<string | null>(null);
   const [speed, setSpeed] = useState(1);
+  const [seekRetry, setSeekRetry] = useState(0);
   const recording = manifest.data?.recording;
+  const expired =
+    recording?.state === 'expired' ||
+    recording?.playbackAvailability === 'expired' ||
+    Boolean(recording && new Date(recording.expiresAt).getTime() <= Date.now());
+  const permissionUnavailable = recording?.playbackAvailability === 'permission_unavailable';
+  const playbackUnavailable = expired
+    ? 'Saved audio retention has expired.'
+    : permissionUnavailable
+      ? 'Saved audio playback is unavailable because source permission has expired or changed. Ask a tenant administrator to review the source permission.'
+      : null;
   useEffect(() => {
     onProgress?.(
       recording && !manifest.isError
@@ -56,10 +69,30 @@ export function HearingRecordingPanel({
     setPlayback(null);
     setError(null);
     setSpeed(1);
+    handledEvidence.current = null;
     return () => {
       generation.current++;
     };
   }, [scope, sessionId]);
+  useEffect(() => {
+    if (!manifest.isError && !playbackUnavailable) return;
+    generation.current++;
+    audio.current?.pause();
+    setPlayback(null);
+    setError(null);
+  }, [manifest.isError, playbackUnavailable]);
+  async function refreshStatus() {
+    const previousEvidence = handledEvidence.current;
+    setError(null);
+    await Promise.all([manifest.refetch(), capability.refetch()]);
+    // A previously unresolved seek resumes automatically when data arrives.
+    // Only retry a request already handled before this refresh; do not replay
+    // a newer request (or issue two URLs when a failed initial read recovers).
+    if (previousEvidence && handledEvidence.current === previousEvidence) {
+      handledEvidence.current = null;
+      setSeekRetry((value) => value + 1);
+    }
+  }
   async function play(epoch: RecordingEpoch, offset = 0) {
     const request = ++generation.current;
     audio.current?.pause();
@@ -77,22 +110,51 @@ export function HearingRecordingPanel({
       }
       setError(null);
     } catch {
-      if (request === generation.current)
+      if (request === generation.current) {
+        setPlayback(null);
         setError('Saved audio is unavailable or your access has changed.');
+        // Refresh the manifest so a revoked permission or expired retention
+        // replaces stale play controls with the current authorized state.
+        void manifest.refetch();
+      }
     }
   }
   useEffect(() => {
-    if (!evidenceTime) return;
+    // A missing/failed manifest says nothing about whether audio was saved.
+    // Wait for a successful read, including when a seek preceded that read.
+    if (!evidenceTime || !manifest.isSuccess || manifest.isError || playbackUnavailable) return;
+    const requestKey = `${scope}:${sessionId}:${evidenceTime.revision}:${evidenceTime.ms}`;
+    if (handledEvidence.current === requestKey) return;
+    handledEvidence.current = requestKey;
     const epoch = recordingSeek(recording?.epochs ?? [], evidenceTime.ms);
     if (!epoch) {
       generation.current++;
       audio.current?.pause();
       setPlayback(null);
-      setError('No saved audio covers this moment. The transcript remains available.');
+      const covered = recording?.epochs.find(
+        (item) => evidenceTime.ms >= item.startMs && evidenceTime.ms < item.durableEndMs,
+      );
+      setError(
+        covered
+          ? ['recording', 'queued', 'processing'].includes(covered.state)
+            ? 'Audio for this moment is still being saved or prepared. Refresh recording status to try again.'
+            : 'Audio for this moment is not playable. Review the recording coverage and refresh its status.'
+          : 'No saved audio covers this moment. The transcript remains available.',
+      );
       return;
     }
     void play(epoch, (evidenceTime.ms - epoch.startMs) / 1000);
-  }, [evidenceTime?.revision]);
+  }, [
+    evidenceTime?.revision,
+    evidenceTime?.ms,
+    manifest.isSuccess,
+    manifest.isError,
+    recording,
+    playbackUnavailable,
+    scope,
+    sessionId,
+    seekRetry,
+  ]);
   return (
     <section
       className="lw-panel"
@@ -101,9 +163,12 @@ export function HearingRecordingPanel({
     >
       <h2 className="lw-panel__title">Recording &amp; saved audio</h2>
       {manifest.isError ? (
-        <p role="alert">Recording status could not be loaded.</p>
+        <p role="alert">{recordingLoadError(manifest.error)}</p>
+      ) : manifest.isPending ? (
+        <p role="status">Loading recording status…</p>
       ) : recording ? (
         <>
+          {playbackUnavailable && <p role="status">{playbackUnavailable}</p>}
           <p>
             Audio: {recording.state} · Transcript: {recording.transcriptState} · Analysis:{' '}
             {recording.analysisState}
@@ -113,7 +178,8 @@ export function HearingRecordingPanel({
             {(
               recording.epochs.reduce((sum, epoch) => sum + epoch.durableBytes, 0) / 1048576
             ).toFixed(2)}{' '}
-            MB · Retained until {new Date(recording.expiresAt).toLocaleString()}
+            MB · {expired ? 'Retention ended' : 'Retained until'}{' '}
+            {new Date(recording.expiresAt).toLocaleString()}
           </p>
           <ol aria-label="Recording coverage">
             {recording.epochs.map((epoch, index) => (
@@ -125,12 +191,14 @@ export function HearingRecordingPanel({
                 )}
                 {clock(epoch.startMs)}–{clock(epoch.durableEndMs)} ·{' '}
                 {epoch.complete ? 'Final audio saved' : 'Partial recording'}
-                {epoch.playable && (
+                {epoch.playable && !playbackUnavailable && (
                   <button className="lw-btn" onClick={() => void play(epoch)}>
                     Play saved audio
                   </button>
                 )}
-                {!epoch.playable && <span> · {epoch.state}</span>}
+                {(!epoch.playable || playbackUnavailable) && (
+                  <span> · {expired ? 'expired' : epoch.state}</span>
+                )}
               </li>
             ))}
           </ol>
@@ -166,6 +234,13 @@ export function HearingRecordingPanel({
           {!capability.data?.available && <p>{capability.data?.reason}</p>}
         </>
       )}
+      <button
+        className="lw-btn"
+        disabled={manifest.isFetching}
+        onClick={() => void refreshStatus()}
+      >
+        {manifest.isError ? 'Retry recording status' : 'Refresh recording status'}
+      </button>
       {enable.isError && (
         <p role="alert">Audio retention could not be enabled. Refresh to check permissions.</p>
       )}

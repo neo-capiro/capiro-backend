@@ -1,4 +1,5 @@
 import { federalHearingWhere } from './hearing-geography.js';
+import { resolveCanonicalHearingId } from './hearing-alias.js';
 /**
  * `committee_hearing` persistence for the canonical reconciler.
  *
@@ -87,6 +88,10 @@ const EXISTING_SELECT = {
 export class CanonicalHearingRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  resolveAlias(hearingId: string): Promise<string> {
+    return resolveCanonicalHearingId(this.prisma, hearingId);
+  }
+
   /**
    * Resolve an observed event to an existing canonical hearing, or report that
    * it is new. Walks the ladder in confidence order and stops at the first hit;
@@ -98,9 +103,20 @@ export class CanonicalHearingRepository {
       if (key.kind === 'id' && key.id) {
         const hit = await this.prisma.committeeHearing.findUnique({
           where: { id: key.id },
-          select: { id: true },
+          select: { id: true, chamber: true, geographicJurisdiction: true },
         });
-        if (hit) return { kind: 'id', hearingId: hit.id };
+        if (
+          hit &&
+          (hit.chamber !== displayChamber(event.chamber) ||
+            (hit.geographicJurisdiction && hit.geographicJurisdiction !== 'US'))
+        )
+          throw new Error('Official hearing ID is occupied by a different scope');
+        if (
+          hit &&
+          hit.chamber === displayChamber(event.chamber) &&
+          (!hit.geographicJurisdiction || hit.geographicJurisdiction === 'US')
+        )
+          return { kind: 'id', hearingId: await this.resolveAlias(hit.id) };
         continue;
       }
       const p = key.predicate;

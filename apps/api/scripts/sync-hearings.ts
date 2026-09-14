@@ -11,7 +11,8 @@
  *      scheduled hearings & markups (with date, time, room, status). The
  *      list endpoint is minimal (eventId, chamber, url); we fan out to the
  *      detail endpoint for date/title/type/committee/location.
- *      Row id: `cm-{congress}-{eventId}`.
+ *      Existing exact event IDs are reused. New IDs: cm-{congress}-{eventId}
+ *      for House, sen-{congress}-{eventId} for Senate (shared with discovery).
  *
  *   2. /hearing/{congress}  ← historical / transcript records + witnesses.
  *      Records here only appear weeks-to-months AFTER a hearing, so on its
@@ -28,6 +29,10 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import {
+  resolveOfficialMeetingId,
+  supplementCanonicalHearing,
+} from '../src/hearing-discovery/hearing-alias.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 // Eastern-time derivation lives in ./lib so it is unit-testable without pulling
 // in PrismaClient (and therefore without a generated client). See that file's
@@ -438,7 +443,11 @@ async function main() {
             // detail is authoritative for cm-* rows, so setting it each run is
             // idempotent; Source 3 (docs.house) preserves this on its later merge.
             const witnesses = formatWitnesses(d.witnesses);
-            const id = `cm-${congress}-${item.eventId}`;
+            const id = await resolveOfficialMeetingId(prisma, {
+              congress,
+              eventId: String(item.eventId),
+              chamber,
+            });
             // Durable zone-protection guard (2026-09-04): a canonical row the
             // pipeline corrected to an explicit local zone is higher authority
             // than this script's central-calendar re-derivation. Time fields
@@ -446,6 +455,7 @@ async function main() {
             // the official correction; display fields still refresh.
             const protectedTz = await existingTimezone(prisma, id);
             const fields = {
+              congress,
               title,
               chamber,
               committeeName,
@@ -471,9 +481,13 @@ async function main() {
             // it. See sync-hearings-zone-guard.spec.ts for the regression test;
             // this exact crash happened in production on 2026-09-07.
             const row = stripProtectedTimeFields(fields, protectedTz);
+            const canonical = /^sen-\d+-\d+$/.test(id)
+              ? await prisma.committeeHearing.findUnique({ where: { id } })
+              : null;
+            const update = canonical ? supplementCanonicalHearing(row, canonical) : row;
             await prisma.committeeHearing.upsert({
               where: { id },
-              update: { ...row, geographicJurisdiction: 'US', syncedAt: new Date() },
+              update: { ...update, geographicJurisdiction: 'US', syncedAt: new Date() },
               create: { id, ...fields, geographicJurisdiction: 'US' },
             });
             meetingUpserts++;

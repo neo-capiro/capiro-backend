@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
   floridaDate,
   floridaBillNumberAliases,
+  fetchFloridaSource,
   houseNoticeObservation,
   senateNoticeObservation,
   senateNoticeRefs,
@@ -26,6 +27,110 @@ const ref: SenateNoticeRef = {
   canceled: false,
 };
 describe('Florida first-party calendar contract', () => {
+  it('treats missing Senate meeting structure as a source failure but accepts explicit no-meetings', () => {
+    expect(() => senateNoticeRefs('<main>Unrecognized page</main>', 'FP', 'Fiscal Policy')).toThrow(
+      'Senate meeting table unavailable',
+    );
+    expect(
+      senateNoticeRefs('<div id="tabBodyMeetings">No meeting records</div>', 'FP', 'Fiscal Policy'),
+    ).toEqual({ notices: [], issues: [] });
+  });
+  it('reports publisher denial HTML despite HTTP 200 without retrying or exposing the support ID', async () => {
+    const bytes = new TextEncoder().encode(
+      '<html><head><title>Request Rejected</title></head>' +
+        '<body>The requested URL was rejected. Please consult with your administrator.' +
+        'Your support ID is: 123456789</body></html>',
+    );
+    const read = jest
+      .fn()
+      .mockResolvedValueOnce({ done: false, value: bytes })
+      .mockResolvedValueOnce({ done: true });
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      body: { getReader: () => ({ read }) },
+    } as unknown as Response);
+    try {
+      await expect(
+        fetchFloridaSource('https://www.flhouse.gov/Sections/HouseSchedule/houseschedule.aspx'),
+      ).rejects.toThrow('Florida publisher access denied (HTTP 200 rejection page)');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+  it('retries a transient network error, returning the publisher bytes unchanged after recovery', async () => {
+    jest.useFakeTimers();
+    const bytes = new TextEncoder().encode('<html><body>House Schedule</body></html>');
+    const read = jest
+      .fn()
+      .mockResolvedValueOnce({ done: false, value: bytes })
+      .mockResolvedValueOnce({ done: true });
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        body: { getReader: () => ({ read }) },
+      } as unknown as Response);
+    try {
+      const result = fetchFloridaSource(
+        'https://www.flhouse.gov/Sections/HouseSchedule/houseschedule.aspx',
+      );
+      await jest.advanceTimersByTimeAsync(1000);
+      await expect(result).resolves.toEqual(bytes);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchMock.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+  it('stops retrying network failures after three attempts', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('fetch failed'));
+    try {
+      const result = expect(
+        fetchFloridaSource('https://www.flsenate.gov/Committees'),
+      ).rejects.toThrow('fetch failed');
+      await jest.advanceTimersByTimeAsync(3000);
+      await result;
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      fetchMock.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+  it('recognizes a publisher-dated empty House schedule without inventing events', () => {
+    const html =
+      '<h1>House Schedule</h1><h2>House Schedule for Monday, September 14, 2026</h2>' +
+      '<p>No scheduled events before the house.</p>';
+    expect(houseDailyCalendar(html, '2026-09-14', '2026')).toEqual({
+      floors: [],
+      issues: [],
+      unresolved: 0,
+    });
+    expect(() => houseDailyCalendar(html, '2026-09-15', '2026')).toThrow('does not match');
+    expect(() =>
+      houseDailyCalendar(
+        '<h1>House Schedule</h1><p>No scheduled events before the house.</p>',
+        '2026-09-14',
+        '2026',
+      ),
+    ).toThrow('dated empty state');
+    expect(() =>
+      houseDailyCalendar(
+        '<h2>House Schedule for February 30, 2026</h2>' +
+          '<p>No scheduled events before the house.</p>',
+        '2026-03-02',
+        '2026',
+      ),
+    ).toThrow('dated empty state');
+  });
   it('matches zero-padded Florida bill labels without changing proposal or resolution types', () => {
     expect(floridaBillNumberAliases('CS/CS/SB 174')).toEqual(['SB174', 'S174', 'SB0174', 'S0174']);
     expect(floridaBillNumberAliases('HB 0032')).toEqual(['HB32', 'H32', 'HB0032', 'H0032']);
@@ -33,16 +138,23 @@ describe('Florida first-party calendar contract', () => {
     expect(floridaBillNumberAliases('SJR 12')).toEqual(['SJR12']);
   });
   it('preserves repeated proposed-bill headings with unique, replay-stable identities', () => {
-    const text = 'COMMITTEE MEETING NOTICE\nTIME: 9:00—11:00 a.m.\nConsideration of proposed bill:\nSPB 7046 by Finance and Tax—Taxation\nConsideration of proposed bill:\nSPB 7048 by Finance and Tax—Internal Revenue Code';
+    const text =
+      'COMMITTEE MEETING NOTICE\nTIME: 9:00—11:00 a.m.\nConsideration of proposed bill:\nSPB 7046 by Finance and Tax—Taxation\nConsideration of proposed bill:\nSPB 7048 by Finance and Tax—Internal Revenue Code';
     const noticeRef = { ...ref, id: '6890', bodyCode: 'FT', bodyName: 'Finance and Tax' };
     const observation = senateNoticeObservation(noticeRef, text, '2026');
     validateCalendarObservation(observation);
-    expect(observation.fields.agenda?.map((item) => item.evidence.identifier ?? item.title)).toEqual([
-      'Consideration of proposed bill:', 'SPB 7046',
-      'Consideration of proposed bill:', 'SPB 7048',
+    expect(
+      observation.fields.agenda?.map((item) => item.evidence.identifier ?? item.title),
+    ).toEqual([
+      'Consideration of proposed bill:',
+      'SPB 7046',
+      'Consideration of proposed bill:',
+      'SPB 7048',
     ]);
     expect(new Set(observation.fields.agenda?.map((item) => item.key)).size).toBe(4);
-    expect(senateNoticeObservation(noticeRef, text, '2026').fields.agenda).toEqual(observation.fields.agenda);
+    expect(senateNoticeObservation(noticeRef, text, '2026').fields.agenda).toEqual(
+      observation.fields.agenda,
+    );
   });
   it('discovers the daily-only Special Order notice and qualifies floor timing without inventing a bill agenda', () => {
     const html = `<div class="calHeader"><h2>Thursday, February 26, 2026 Open Calendar</h2></div><div id="CalendarContents">

@@ -108,7 +108,7 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
     eyebrow: 'Preferences',
     title: 'Settings',
     description:
-      'Personal LegiWatch display preferences — how hearings are shown, never the canonical data itself.',
+      'Manage agenda alerts, report settings, saved views, monitoring and display preferences.',
   },
 };
 
@@ -276,6 +276,16 @@ export function LegiWatchModule() {
         const next = new URLSearchParams(prev);
         if (value == null || value === '') next.delete(key);
         else next.set(key, value);
+        if (key === 'client' && prev.get('client') !== next.get('client')) {
+          // A folder belongs to its client. Evidence and research validate
+          // that pair before returning private context.
+          next.delete('folder');
+          next.delete('researchCursor');
+          next.delete('offset');
+          for (const name of Array.from(next.keys())) {
+            if (/^(news|budget).*Offset$/.test(name)) next.delete(name);
+          }
+        }
         return next;
       },
       { replace: false },
@@ -287,6 +297,13 @@ export function LegiWatchModule() {
       (prev) => {
         const p = new URLSearchParams(prev);
         p.set('tab', next);
+        // Search terms belong to their own view. Keep client/folder scope and
+        // namespaced view filters, but never carry legacy search pagination
+        // from News into Budget, Research, or another primary destination.
+        if (next !== tab) {
+          p.delete('q');
+          p.delete('offset');
+        }
         if (p.get('sub') === 'watchlist') p.delete('sub');
         if (next !== 'feed') p.delete('alert');
         return p;

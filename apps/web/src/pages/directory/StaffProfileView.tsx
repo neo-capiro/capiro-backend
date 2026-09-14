@@ -160,7 +160,7 @@ export function StaffProfileView({ staff: rawStaff }: { staff: StaffDetail }) {
         items={staff.committeeAssociations}
         render={(c, i) => (
           <div key={`${c.committeeId}-${i}`}>
-            <Link to={`/directory/committees/${encodeURIComponent(c.committeeId)}`}>{c.committeeId}</Link>{' '}
+            <Link to={`/directory/committees/${encodeURIComponent(c.committeeId)}`}>{c.committeeName?.trim() || 'Committee name unavailable'}</Link>{' '}
             <Tag>{c.position ?? 'Staff'}</Tag>
           </div>
         )}

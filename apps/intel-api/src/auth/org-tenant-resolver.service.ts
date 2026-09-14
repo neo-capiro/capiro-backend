@@ -59,8 +59,9 @@ export class OrgTenantResolverService {
 
     let rows: TenantRow[] = [];
     try {
-      rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<TenantRow[]>`
+      rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<TenantRow[]>`
           SELECT id::text AS id, slug::text AS slug, clerk_org_id AS "clerkOrgId"
           FROM tenants
           WHERE clerk_org_id = ${clerkOrgId}
@@ -84,8 +85,9 @@ export class OrgTenantResolverService {
 
     let rows: TenantRow[] = [];
     try {
-      rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<TenantRow[]>`
+      rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<TenantRow[]>`
           SELECT id::text AS id, slug::text AS slug, clerk_org_id AS "clerkOrgId"
           FROM tenants
           WHERE id = ${tenantId}::uuid
@@ -110,8 +112,9 @@ export class OrgTenantResolverService {
     if (hit !== undefined) return hit;
 
     try {
-      const rows = await this.prisma.withSystem((tx) =>
-        tx.$queryRaw<Array<{ ok: number }>>`
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<Array<{ ok: number }>>`
           SELECT 1 AS ok
           FROM tenant_memberships tm
           JOIN users u ON u.id = tm.user_id
@@ -128,6 +131,35 @@ export class OrgTenantResolverService {
       // Fail CLOSED.
       this.logger.error(`hasActiveMembership failed: ${(err as Error).message}`);
       return false;
+    }
+  }
+
+  /**
+   * Resolve a missing JWT role from the same canonical membership used by
+   * apps/api. This is deliberately uncached: an old positive membership cache
+   * entry must not grant an administrator role after removal or demotion.
+   */
+  async activeMembershipRole(
+    tenantId: string,
+    clerkUserId: string,
+  ): Promise<{ role: string | null } | null> {
+    try {
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<Array<{ role: string | null }>>`
+          SELECT tm.role::text AS role
+          FROM tenant_memberships tm
+          JOIN users u ON u.id = tm.user_id
+          WHERE tm.tenant_id = ${tenantId}::uuid
+            AND u.clerk_user_id = ${clerkUserId}
+            AND tm.status::text = 'active'
+          LIMIT 1
+        `,
+      );
+      return rows[0] ?? null;
+    } catch (err) {
+      this.logger.error(`activeMembershipRole failed: ${(err as Error).message}`);
+      return null;
     }
   }
 }

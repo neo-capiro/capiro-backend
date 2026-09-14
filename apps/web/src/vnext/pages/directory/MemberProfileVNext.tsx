@@ -111,7 +111,7 @@ export function MemberProfileViewVNext({ member }: { member: MemberDetail }) {
               className="capiro-dirprofile__link"
               to={`/directory/committees/${encodeURIComponent(m.committeeId)}`}
             >
-              {m.committeeId}
+              {m.committeeName?.trim() || 'Committee name unavailable'}
             </Link>{' '}
             <CapiroBadge>{m.position ?? 'Member'}</CapiroBadge>
           </div>

@@ -35,6 +35,8 @@
 export interface CalendarExportHearing {
   /** Canonical `committee_hearing.id`. */
   id: string;
+  /** Retained ID of a previously exported alias; facts/detail links stay canonical. */
+  uidHearingId?: string;
   title: string;
   /** Official Eastern calendar day `YYYY-MM-DD` (canonical `date`). */
   date: string;
@@ -303,7 +305,7 @@ function buildVEventProps(
   const allDay = start === null;
   if (allDay && h.timePrecision && !options.dateOnlyReminder)
     throw new Error('Time not announced: choose a date-only reminder to export this event');
-  const uid = calendarUid(h.id);
+  const uid = calendarUid(h.uidHearingId ?? h.id);
   const origin = options.appOrigin.replace(/\/+$/, '');
   const detailUrl = `${origin}/legiwatch/hearings/${encodeURIComponent(h.id)}`;
   const status = icsStatus(h.eventStatus);

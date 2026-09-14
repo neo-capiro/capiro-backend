@@ -231,14 +231,14 @@ export class DraftsService {
    * Internal callers (create/update return paths) omit actorId — access was
    * already established by the write they just performed.
    */
-  async byId(tenantId: string, id: string, actorId?: string) {
+  async byId(tenantId: string, id: string, actorId?: string, signal?: AbortSignal) {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!draft) throw new NotFoundException('Draft not found');
     if (actorId) {
-      const role = await this.collaborators.resolveRole(tenantId, id, actorId);
+      const role = await this.collaborators.resolveRole(tenantId, id, actorId, signal);
       if (!role) throw new NotFoundException('Draft not found');
     }
     return draft;

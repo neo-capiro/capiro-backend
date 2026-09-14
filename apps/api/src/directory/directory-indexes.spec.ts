@@ -77,6 +77,7 @@ describe('buildDirectoryIndexes', () => {
     const ordinary = roster.find((m) => m.person.id === 'member-600')!;
     expect(ordinary.position).toBe('Member');
     expect(ordinary.membershipType).toBe('member');
+    expect(ordinary.committeeName).toBe('House Armed Services Committee');
   });
 
   test('joins staff committee positions by exact office id and dedupes by source membership id', () => {
@@ -84,6 +85,7 @@ describe('buildDirectoryIndexes', () => {
     const staffRows = roster.filter((m) => m.person.id === 'staff-1');
     expect(staffRows).toHaveLength(1); // deduped despite the repeated position id 20
     expect(staffRows[0]!.membershipType).toBe('staff');
+    expect(staffRows[0]!.committeeName).toBe('House Armed Services Committee');
     // The staff member-office position (office 950) is NOT a committee membership.
     expect(idx.committeesByPersonId.get('staff-1')).toEqual(['committee-100']);
   });

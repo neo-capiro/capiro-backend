@@ -1,5 +1,6 @@
 import { CitationPicker } from './CitationPicker.js';
 import { BriefingConfigurations } from './BriefingConfiguration.js';
+import { BriefingHistory } from './BriefingHistory.js';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BRIEFING_TEMPLATES, PHASE8_FEATURES } from '@capiro/shared';
@@ -11,7 +12,7 @@ import { CapiroInput, CapiroSelect, CapiroTextarea } from '../../../components/f
 import { EVIDENCE_BASE, basketKey, readBasket, useEvidence, type Row } from './evidence-api.js';
 import { REPORT_BASE, type Report } from '../reports/report-api.js';
 import { FOLDER_BASE, type Folder } from '../bills/folder-api.js';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import './evidence.css';
 const option = (value: string, label = value) => ({ value, label });
 export function BriefingWorkspace() {
@@ -26,6 +27,7 @@ export function BriefingWorkspace() {
 }
 function BriefingView() {
   const api = useApi(),
+    qc = useQueryClient(),
     scope = useApiScope(),
     [p, setP] = useSearchParams(),
     client = p.get('client') ?? '',
@@ -106,6 +108,36 @@ function BriefingView() {
     n.set('folder', id);
     setP(n);
   };
+  const resumeEdition = (edition: Row) => {
+    const saved = { selectionId: edition.selectionId, draft: edition.draft };
+    const editionClient = edition.clientId ?? '',
+      editionFolder = edition.folderId ?? '';
+    if (editionClient !== client || editionFolder !== folder) {
+      const targetKey = basketKey(scope, editionClient, editionFolder) + ':draft';
+      sessionStorage.setItem(
+        targetKey,
+        JSON.stringify({
+          saved,
+          title: edition.draft?.title ?? edition.title,
+          template: edition.template,
+          cutoff: edition.cutoff,
+        }),
+      );
+      const next = new URLSearchParams(p);
+      if (editionClient) next.set('client', editionClient);
+      else next.delete('client');
+      if (editionFolder) next.set('folder', editionFolder);
+      else next.delete('folder');
+      setP(next);
+      return;
+    }
+    setSaved(saved);
+    setPreview(null);
+    setRunId('');
+    setMessage(
+      'Existing edition selected. Open its draft to edit, then preview the current output above.',
+    );
+  };
   const create = () =>
     action(async () => {
       const selected = [],
@@ -138,6 +170,7 @@ function BriefingView() {
       });
       setSaved(response.data);
       setPreview(null);
+      await qc.invalidateQueries({ queryKey: ['briefing-history', scope] });
     }, 'Private draft saved. Open Workspace to edit before reviewing this edition.');
   return (
     <section className="lw-evidence">
@@ -267,7 +300,7 @@ function BriefingView() {
         <div className="lw-evidence-comparison">
           <p>
             {saved.draft?.draftId ? (
-              <Link to={`/workspace/draft/${encodeURIComponent(saved.draft.draftId)}`}>
+              <Link to={`/workspace/${encodeURIComponent(saved.draft.draftId)}`}>
                 Open editable Workspace draft →
               </Link>
             ) : (
@@ -339,7 +372,17 @@ function BriefingView() {
               <p>
                 {preview.audience} · {preview.deliveryState}
               </p>
-              <pre className="lw-evidence-text">{preview.rendered.text}</pre>
+              <iframe
+                title="Exact edited edition preview"
+                sandbox=""
+                srcDoc={preview.rendered.html}
+                style={{
+                  width: '100%',
+                  minHeight: 640,
+                  border: '1px solid var(--color-border-secondary, #d0d5dd)',
+                  borderRadius: 12,
+                }}
+              />
               <CapiroButton
                 disabled={busy}
                 onClick={() =>
@@ -379,7 +422,13 @@ function BriefingView() {
           )}
         </div>
       )}
-      <BriefingConfigurations client={client} folder={folder} reports={reports.data ?? []} />
+      <BriefingHistory client={client} folder={folder} onReview={resumeEdition} />
+      <BriefingConfigurations
+        client={client}
+        folder={folder}
+        reports={reports.data ?? []}
+        onReview={resumeEdition}
+      />
     </section>
   );
 }

@@ -75,6 +75,19 @@ export class Phase8Controller {
   ) {
     return this.editorial.save(ctx, b);
   }
+  @Get('briefings/drafts') drafts(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Query() b: unknown,
+  ) {
+    return this.editorial.history(ctx, b);
+  }
+  @Get('briefings/configurations/:id/occurrences') occurrences(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('id') id: string,
+    @Query() b: unknown,
+  ) {
+    return this.editorial.history(ctx, b, id);
+  }
   @Post('briefings/preview') preview(
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Body() b: unknown,

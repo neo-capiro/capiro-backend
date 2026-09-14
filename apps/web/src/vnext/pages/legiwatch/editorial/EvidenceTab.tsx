@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PHASE8_FEATURES, compileNewsQuery } from '@capiro/shared';
@@ -43,6 +43,25 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
     client = p.get('client') ?? '',
     folder = p.get('folder') ?? '',
     view = p.get(lane + 'View') ?? (lane === 'news' ? 'articles' : 'projects');
+  // Keep independent searches and pagination when moving between evidence views.
+  // Upgrade old shared-q links in place before they can leak into another lane.
+  const viewPrefix = lane + view.charAt(0).toUpperCase() + view.slice(1),
+    queryKey = viewPrefix + 'Query',
+    offsetKey = viewPrefix + 'Offset';
+  useEffect(() => {
+    if (!p.has('q') && !p.has('offset')) return;
+    setP(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        if (next.has('q') && !next.has(queryKey)) next.set(queryKey, next.get('q')!);
+        if (next.has('offset') && !next.has(offsetKey)) next.set(offsetKey, next.get('offset')!);
+        next.delete('q');
+        next.delete('offset');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [p, setP, queryKey, offsetKey]);
   const [message, setMessage] = useState(''),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
@@ -54,21 +73,29 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
     [right, setRight] = useState('');
   const set = (key: string, value: string) => {
     const n = new URLSearchParams(p);
-    value ? n.set(key, value) : n.delete(key);
-    if (key !== 'offset') n.delete('offset');
+    const scopedKey = key === 'q' ? queryKey : key === 'offset' ? offsetKey : key;
+    value ? n.set(scopedKey, value) : n.delete(scopedKey);
+    n.delete('q');
+    n.delete('offset');
+    if (key !== 'offset' && key !== lane + 'View') n.delete(offsetKey);
+    if (key === 'folder') {
+      for (const name of Array.from(n.keys())) {
+        if (/^(news|budget).*Offset$/.test(name)) n.delete(name);
+      }
+    }
     setP(n);
   };
   const params = {
     clientId: client,
     folderId: folder,
     days: p.get('days') ?? '7',
-    q: p.get('q') ?? '',
+    q: p.get(queryKey) ?? p.get('q') ?? '',
     monitorId: p.get('monitor') ?? '',
     publisher: p.get('publisher') ?? '',
     fiscalYear: p.get('fiscalYear') ?? '2026-27',
     sessionKey: p.get('budgetSession') ?? '',
     projectId: p.get('project') ?? '',
-    offset: p.get('offset') ?? '0',
+    offset: p.get(offsetKey) ?? p.get('offset') ?? '0',
   };
   const news = useEvidence<Row>('news', params, lane === 'news' && view === 'articles'),
     monitors = useEvidence<Row>('news/monitors', {}, lane === 'news'),

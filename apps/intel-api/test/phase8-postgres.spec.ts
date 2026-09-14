@@ -211,6 +211,8 @@ describe('Phase 8 public observations, private selections and actual database re
               url.searchParams.get('ownerId')!,
             ),
         } as Response;
+      if (url.pathname.endsWith('/editorial/lookup'))
+        return { ok: true, json: () => output.lookup(JSON.parse(String(init!.body))) } as Response;
       const b = JSON.parse(String(init!.body)),
         source = await editorial.source(ctx, b.actionId),
         result = await drafts.createEditorial(
@@ -438,6 +440,31 @@ describe('Phase 8 public observations, private selections and actual database re
     const recovered = (await editorial.save(ctx, b)) as any;
     expect(recovered.draft.draftId).toBe(receipts[0].draft_id);
     expect(recovered.draft.replayed).toBe(true);
+    const history = await editorial.history(ctx, {
+      clientId: b.clientId,
+      folderId: b.folderId,
+      limit: 1,
+    });
+    expect(history.items[0]).toMatchObject({
+      selectionId: recovered.selectionId,
+      draft: { draftId: recovered.draft.draftId, title: 'Human title' },
+    });
+    expect(history.draftLookupState).toBe('available');
+    const scopedHistory = await editorial.history(ctx, {
+      folderId: b.folderId,
+      cursor: history.nextCursor ?? undefined,
+    });
+    expect(
+      scopedHistory.items.every(
+        (item) => item.selectionId !== recovered.selectionId || !history.nextCursor,
+      ),
+    ).toBe(true);
+    await expect(
+      editorial.history({ ...ctx, clerkUserId: 'foreign' }, { folderId: b.folderId }),
+    ).rejects.toThrow();
+    await expect(
+      editorial.history({ ...ctx, tenantId: randomUUID() }, { folderId: b.folderId }),
+    ).rejects.toThrow();
     await expect(editorial.save(ctx, { ...b, analysis: 'Changed' })).rejects.toThrow(
       'BRIEFING_REQUEST_CHANGED',
     );
@@ -453,6 +480,8 @@ describe('Phase 8 public observations, private selections and actual database re
       audience: 'internal',
     });
     expect(object(preview.review.outputSnapshot).title).toBe('Human title');
+    expect(preview.rendered.html).toContain('<h1>Human title</h1>');
+    expect(preview.rendered.html).not.toContain('<pre');
     const run = await editorial.approve(ctx, {
       selectionId: recovered.selectionId,
       reportId,

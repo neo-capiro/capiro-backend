@@ -57,6 +57,7 @@ const MEMBER: MemberDetail = {
   committees: [
     {
       committeeId: 'committee-100',
+      committeeName: 'House Armed Services Committee',
       person: { personType: 'member', id: 'member-500', sourceId: 500, fullName: 'Mike Rogers', title: 'Chair', photoUrl: null, photoSource: null, party: 'R', state: 'AL', district: '3', isCurrent: true },
       membershipType: 'member',
       position: 'Chair',
@@ -86,7 +87,7 @@ describe('MemberProfileViewVNext', () => {
       </QueryClientProvider>,
     );
     expect(screen.getByRole('heading', { name: 'Mike Rogers' })).toBeInTheDocument();
-    const committeeLink = screen.getByRole('link', { name: 'committee-100' });
+    const committeeLink = screen.getByRole('link', { name: 'House Armed Services Committee' });
     expect(committeeLink).toHaveAttribute('href', '/directory/committees/committee-100');
     expect(screen.getByText('Chairman')).toBeInTheDocument();
     // Present bio field renders...

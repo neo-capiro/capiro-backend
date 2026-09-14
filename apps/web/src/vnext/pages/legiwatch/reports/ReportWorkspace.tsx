@@ -454,13 +454,14 @@ function Workspace({
                     {formatTime(s.localMinutes)} {s.timezone}
                   </p>
                   <small>
-                    Next:{' '}
-                    {s.nextDueAt
-                      ? new Date(s.nextDueAt).toLocaleString(undefined, {
-                          timeZone: s.timezone,
-                          timeZoneName: 'short',
-                        })
-                      : 'Not scheduled'}
+                    {s.enabled ? 'Next: ' : 'No updates while paused'}
+                    {s.enabled &&
+                      (s.nextDueAt
+                        ? new Date(s.nextDueAt).toLocaleString(undefined, {
+                            timeZone: s.timezone,
+                            timeZoneName: 'short',
+                          })
+                        : 'Not scheduled')}
                   </small>
                 </div>
                 <div className="lw-reports-actions">
@@ -1784,11 +1785,7 @@ export function RuleEditor({
         ) : readiness.data?.ready ? (
           <p>Targets, staff, and published records are ready.</p>
         ) : (
-          <ul>
-            {readiness.data?.issues.map((i) => (
-              <li key={i}>{i}</li>
-            ))}
-          </ul>
+          <ul>{readiness.data?.issues.map((i) => <li key={i}>{i}</li>)}</ul>
         )}
         <h4>Source examples</h4>
         {readiness.data?.examples.map((e) => (

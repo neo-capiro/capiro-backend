@@ -1,3 +1,4 @@
+import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
@@ -42,7 +43,7 @@ export class LiveHearingsPhase8Controller {
   @Get('events/:id/intelligence-v2')
   intelligence(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Query() query: Phase8IntelligenceQueryDto,
   ) {
     return this.phase8.intelligence(ctx, id, query);

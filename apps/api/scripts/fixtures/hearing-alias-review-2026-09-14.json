@@ -1,0 +1,29 @@
+[
+  {
+    "aliasId": "cm-119-338740",
+    "canonicalId": "sen-119-338740",
+    "reason": "Live UI QA confirmed the same September 15, 2026 Senate Judiciary FBI hearing at 9 AM ET in SH-216 under both provider prefixes. Retain the source-qualified Senate row and retain the Congress ID as a durable alias. Database fields and references still require the dry-run review before application.",
+    "evidenceUrls": [
+      "https://www.congress.gov/event/119th-Congress/senate-event/338740",
+      "https://www.senate.gov/general/committee_schedules/hearings.xml"
+    ]
+  },
+  {
+    "aliasId": "cm-119-338745",
+    "canonicalId": "sen-119-338745",
+    "reason": "Live UI QA confirmed the same public scheduled Senate Judiciary Nominations proceeding on September 16, 2026 at 10:15 AM ET, room SD-G50, under both provider prefixes. Retain the source-qualified Senate row; database fields and references still require the dry-run review before application.",
+    "evidenceUrls": [
+      "https://www.congress.gov/event/119th-Congress/senate-event/338745",
+      "https://www.senate.gov/general/committee_schedules/hearings.xml"
+    ]
+  },
+  {
+    "aliasId": "cm-119-338752",
+    "canonicalId": "sen-119-338752",
+    "reason": "Live UI QA confirmed the same public scheduled Senate Judiciary Executive Business Meeting proceeding on September 17, 2026 at 10:15 AM ET, room SH-216, under both provider prefixes. Retain the source-qualified Senate row; database fields and references still require the dry-run review before application.",
+    "evidenceUrls": [
+      "https://www.congress.gov/event/119th-Congress/senate-event/338752",
+      "https://www.senate.gov/general/committee_schedules/hearings.xml"
+    ]
+  }
+]

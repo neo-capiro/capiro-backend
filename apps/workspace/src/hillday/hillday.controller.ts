@@ -76,7 +76,7 @@ export class HillDayController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.documents.listDocuments(ctx.tenantId, { clientId, status, cursor, limit });
+    return this.documents.listDocuments(ctx.tenantId, ctx.clerkUserId, { clientId, status, cursor, limit });
   }
 
   @Post('documents')

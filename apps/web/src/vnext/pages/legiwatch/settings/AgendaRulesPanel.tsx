@@ -31,9 +31,15 @@ export function AgendaRulesPanel() {
     queryFn: async () => (await api.get<Folder[]>(FOLDER_BASE)).data,
     retry: false,
   });
+  const capabilities = useQuery({
+    queryKey: ['lw-agenda-capabilities', scope],
+    enabled,
+    queryFn: async () => (await api.get<{ canPromote: boolean }>(`${BASE}/capabilities`)).data,
+    retry: false,
+  });
   const staged = useQuery({
     queryKey: ['lw-agenda-staged', scope],
-    enabled,
+    enabled: enabled && capabilities.data?.canPromote === true,
     queryFn: async () =>
       (
         await api.get<
@@ -50,6 +56,7 @@ export function AgendaRulesPanel() {
     try {
       await fn();
       await cache.invalidateQueries({ queryKey: ['lw-agenda-rules', scope] });
+      await cache.invalidateQueries({ queryKey: ['lw-agenda-staged', scope] });
       await cache.invalidateQueries({ queryKey: ['legiwatch-reports', scope, 'readiness'] });
     } catch {
       setError('This change could not be saved. Refresh current mappings and try again.');
@@ -61,12 +68,25 @@ export function AgendaRulesPanel() {
     <section className="lw-card" style={{ padding: 18 }} aria-label="Tagged bill agenda alerts">
       <h2 className="lw-card__title">Tagged bill agenda alerts</h2>
       <p>
-        Review the eight captured definitions, current folder targets, staff channels, and a Capiro
-        cadence. Activation starts from the reviewed baseline.
+        Review agenda rules, current folder targets, staff channels, and delivery cadence.
+        Activation starts from the reviewed baseline.
       </p>
       {error ? <p role="alert">{error}</p> : null}
-      {rules.isError || folders.isError || staged.isError ? (
-        <p role="alert">Agenda rule configuration could not be loaded.</p>
+      {rules.isError ? (
+        <div role="alert">
+          <p>Agenda rules could not be loaded.</p>
+          <CapiroButton size="compact" onClick={() => void rules.refetch()}>
+            Retry agenda rules
+          </CapiroButton>
+        </div>
+      ) : null}
+      {folders.isError ? (
+        <div role="alert">
+          <p>Folder targets could not be loaded. Reload them before editing a rule.</p>
+          <CapiroButton size="compact" onClick={() => void folders.refetch()}>
+            Retry folder targets
+          </CapiroButton>
+        </div>
       ) : null}
       {rules.isPending ? (
         <p role="status">Loading agenda rules…</p>
@@ -79,7 +99,10 @@ export function AgendaRulesPanel() {
           ))}
         </div>
       )}
-      {rule ? (
+      {rules.isSuccess && rules.data.length === 0 ? (
+        <p>No agenda rules have been created yet.</p>
+      ) : null}
+      {rule && folders.isSuccess ? (
         <RuleEditor
           initial={rule}
           folders={folders.data ?? []}
@@ -96,38 +119,70 @@ export function AgendaRulesPanel() {
           }
         />
       ) : null}
-      <details>
-        <summary>Captured definitions awaiting reconciliation</summary>
-        <p>
-          Creating a review draft preserves the capture and leaves delivery inactive. Current staff
-          mappings and channels must be reviewed in the draft.
-        </p>
-        <ul>
-          {(staged.data ?? []).map((s) => (
-            <li key={s.id}>
-              {s.payload.audit_key} · {s.payload.name}
-              <CapiroButton
-                size="compact"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const result = (
-                      await api.post<{ id?: string; state?: string }>(`${BASE}/promote/${s.id}`, {})
-                    ).data;
-                    if (result.id) setSelected(result.id);
-                    else
-                      setError(
-                        'This capture needs reconciliation with an existing rule before a new draft can be created.',
-                      );
-                  })
-                }
-              >
-                Create review draft
+      {capabilities.isError ? (
+        <div role="alert">
+          <p>Import review access could not be checked. Existing agenda rules remain available.</p>
+          <CapiroButton size="compact" onClick={() => void capabilities.refetch()}>
+            Retry import review access
+          </CapiroButton>
+        </div>
+      ) : null}
+      {capabilities.isSuccess && !capabilities.data.canPromote ? (
+        <p>Captured definitions can be reconciled by a tenant administrator.</p>
+      ) : null}
+      {capabilities.data?.canPromote ? (
+        <details>
+          <summary>Captured definitions awaiting reconciliation</summary>
+          <p>
+            Creating a review draft preserves the capture and leaves delivery inactive. Current
+            staff mappings and channels must be reviewed in the draft.
+          </p>
+          {staged.isPending ? <p role="status">Loading captured definitions…</p> : null}
+          {staged.isError ? (
+            <div role="alert">
+              <p>
+                {(staged.error as { response?: { status?: number } })?.response?.status === 403
+                  ? 'Administrator access could not be verified. Refresh your session and retry captured definitions.'
+                  : 'Captured definitions could not be loaded. Existing agenda rules remain available.'}
+              </p>
+              <CapiroButton size="compact" onClick={() => void staged.refetch()}>
+                Retry captured definitions
               </CapiroButton>
-            </li>
-          ))}
-        </ul>
-      </details>
+            </div>
+          ) : null}
+          {staged.isSuccess && staged.data.length === 0 ? (
+            <p>No captured definitions are awaiting reconciliation.</p>
+          ) : null}
+          <ul>
+            {(staged.data ?? []).map((s) => (
+              <li key={s.id}>
+                {s.payload.audit_key} · {s.payload.name}
+                <CapiroButton
+                  size="compact"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      const result = (
+                        await api.post<{ id?: string; state?: string }>(
+                          `${BASE}/promote/${s.id}`,
+                          {},
+                        )
+                      ).data;
+                      if (result.id) setSelected(result.id);
+                      else
+                        setError(
+                          'This capture needs reconciliation with an existing rule before a new draft can be created.',
+                        );
+                    })
+                  }
+                >
+                  Create review draft
+                </CapiroButton>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }

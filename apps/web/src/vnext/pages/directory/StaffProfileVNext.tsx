@@ -180,7 +180,7 @@ export function StaffProfileViewVNext({ staff: rawStaff }: { staff: StaffDetail 
               className="capiro-dirprofile__link"
               to={`/directory/committees/${encodeURIComponent(c.committeeId)}`}
             >
-              {c.committeeId}
+              {c.committeeName?.trim() || 'Committee name unavailable'}
             </Link>{' '}
             <CapiroBadge>{c.position ?? 'Staff'}</CapiroBadge>
           </div>

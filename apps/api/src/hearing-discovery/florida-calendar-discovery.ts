@@ -5,6 +5,7 @@ import { HearingReconcilerService } from './hearing-reconciler.service.js';
 import { runWithSyncRun } from '../ingestion/sync-run.helper.js';
 import type { LegislativeObservation } from './legislative-calendar.js';
 import { contentHash } from './hearing-identity.js';
+import { floridaSourceOutcome } from './florida-source-outcome.js';
 import {
   FL_CALENDAR_PARSER,
   FL_HOUSE,
@@ -58,17 +59,26 @@ export async function discoverFloridaCalendar(
     updated: number;
     unchanged: number;
     issues: string[];
+    sourceIssues: string[];
+    skippedOutsideWindow: number;
     events: string[];
   }> = [];
   for (const chamber of ['senate', 'house'] as const) {
     const now = new Date(),
       issues: string[] = [],
+      sourceIssues: string[] = [],
       observations: LegislativeObservation[] = [];
+    const sourceFailure = (context: string, error: unknown) => {
+      const message = `${context}: ${error instanceof Error ? error.message : String(error)}`;
+      sourceIssues.push(message);
+      issues.push(message);
+    };
     let pages = 0,
       expected = 0,
       inserted = 0,
       updated = 0,
-      unchanged = 0;
+      unchanged = 0,
+      skippedOutsideWindow = 0;
     const source = repo
       ? await repo.ensureSource({
           committeeSystemCode: null,
@@ -102,6 +112,8 @@ export async function discoverFloridaCalendar(
         updated: 0,
         unchanged: 0,
         issues: ['Source disabled by operator'],
+        sourceIssues: [],
+        skippedOutsideWindow: 0,
         events: [],
       });
       continue;
@@ -156,11 +168,11 @@ export async function discoverFloridaCalendar(
                 pages++;
                 observations.push(senateNoticeObservation(ref, noticeText, options.session));
               } catch (e) {
-                issues.push(`${ref.id}: ${e instanceof Error ? e.message : String(e)}`);
+                sourceFailure(ref.sourceUrl, e);
               }
             }
           } catch (e) {
-            issues.push(`${body.code}: ${e instanceof Error ? e.message : String(e)}`);
+            sourceFailure(body.url, e);
           }
         }
         for (
@@ -198,11 +210,11 @@ export async function discoverFloridaCalendar(
                   await pdf.destroy();
                 }
               } catch (e) {
-                issues.push(`${ref.id}: ${e instanceof Error ? e.message : String(e)}`);
+                sourceFailure(ref.sourceUrl, e);
               }
             }
           } catch (e) {
-            issues.push(`${date}: ${e instanceof Error ? e.message : String(e)}`);
+            sourceFailure(`Senate daily calendar ${date}`, e);
           }
         }
       } else {
@@ -215,17 +227,25 @@ export async function discoverFloridaCalendar(
         ) {
           await pause();
           const day = `${date.getUTCMonth() + 1}-${date.getUTCDate()}-${date.getUTCFullYear()}`;
-          const html = await text(
-            `${FL_HOUSE}/Sections/HouseSchedule/houseschedule.aspx?date=${day}`,
-          );
-          pages++;
-          if (!/House Schedule|HouseSchedule/i.test(html))
-            throw new Error('House schedule layout unavailable');
-          for (const url of houseNoticeLinks(html)) urls.add(url);
-          const daily = houseDailyCalendar(html, date.toISOString().slice(0, 10), options.session);
-          unresolved += daily.unresolved + daily.floors.length;
-          observations.push(...daily.floors);
-          issues.push(...daily.issues);
+          const url = `${FL_HOUSE}/Sections/HouseSchedule/houseschedule.aspx?date=${day}`;
+          try {
+            const html = await text(url);
+            pages++;
+            if (!/House Schedule|HouseSchedule/i.test(html))
+              throw new Error('House schedule layout unavailable');
+            for (const noticeUrl of houseNoticeLinks(html)) urls.add(noticeUrl);
+            const daily = houseDailyCalendar(
+              html,
+              date.toISOString().slice(0, 10),
+              options.session,
+            );
+            unresolved += daily.unresolved + daily.floors.length;
+            observations.push(...daily.floors);
+            issues.push(...daily.issues);
+          } catch (e) {
+            // One unavailable day must not starve every later day in the window.
+            sourceFailure(url, e);
+          }
         }
         expected = urls.size + unresolved;
         for (const url of urls) {
@@ -242,14 +262,16 @@ export async function discoverFloridaCalendar(
               observation.fields.time.date <= options.to
             )
               observations.push(observation);
-            else
-              issues.push(
-                `${observation.officialIdentity}: linked notice falls outside the requested schedule window`,
-              );
+            else if (observation.fields.time) {
+              // Daily pages also link adjacent-week notices. They were read and
+              // verified outside this window, not missing expected events.
+              skippedOutsideWindow++;
+              expected--;
+            } else {
+              issues.push(`${observation.officialIdentity}: linked notice has no qualified date`);
+            }
           } catch (e) {
-            issues.push(
-              `${new URL(url).searchParams.get('MeetingId')}: ${e instanceof Error ? e.message : String(e)}`,
-            );
+            sourceFailure(url, e);
           }
         }
       }
@@ -287,7 +309,7 @@ export async function discoverFloridaCalendar(
         );
       }
     } catch (e) {
-      issues.push(e instanceof Error ? e.message : String(e));
+      sourceFailure(`Florida ${chamber} calendar`, e);
     }
     const result = {
       chamber,
@@ -298,30 +320,28 @@ export async function discoverFloridaCalendar(
       updated,
       unchanged,
       issues,
+      sourceIssues,
+      skippedOutsideWindow,
       events: observations.map((o) => o.officialIdentity),
     };
     results.push(result);
     if (prisma && source && coverage && repo) {
-      const state = issues.length ? (observations.length ? 'partial' : 'failed') : 'complete';
+      const outcome = floridaSourceOutcome({
+        pages,
+        observations: observations.length,
+        issues,
+        sourceIssues,
+      });
       await prisma.legislativeCalendarCoverage.update({
         where: { id: coverage.id },
         data: {
-          status: state,
+          status: outcome.coverage,
           pages,
           items: observations.length,
           details: result as Prisma.InputJsonValue,
         },
       });
-      await repo.recordOutcome(
-        source.id,
-        {
-          ok: state === 'complete',
-          observedEvents: observations.length,
-          error: issues.length ? `${issues.length} source qualification issues` : null,
-        },
-        new Date(),
-        FL_CALENDAR_PARSER,
-      );
+      await repo.recordOutcome(source.id, outcome.health, new Date(), FL_CALENDAR_PARSER);
     }
     log(JSON.stringify(result));
   }

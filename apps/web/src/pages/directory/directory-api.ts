@@ -34,6 +34,7 @@ export interface DirectoryPersonRef {
 
 export interface DirectoryCommitteeMembership {
   committeeId: string;
+  committeeName?: string | null;
   person: DirectoryPersonRef;
   membershipType: DirectoryPersonType;
   position: string | null;

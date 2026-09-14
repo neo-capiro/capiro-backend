@@ -6,6 +6,10 @@ export function federalHearingWhere(
   where: Prisma.CommitteeHearingWhereInput = {},
 ): Prisma.CommitteeHearingWhereInput {
   return {
-    AND: [{ OR: [{ geographicJurisdiction: 'US' }, { geographicJurisdiction: null }] }, where],
+    AND: [
+      { canonicalHearingId: null },
+      { OR: [{ geographicJurisdiction: 'US' }, { geographicJurisdiction: null }] },
+      where,
+    ],
   };
 }

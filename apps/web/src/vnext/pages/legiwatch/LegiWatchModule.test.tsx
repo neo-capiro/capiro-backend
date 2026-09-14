@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@clerk/clerk-react', () => ({
@@ -33,12 +33,17 @@ function apiShape(url: string): unknown {
   return { items: [], total: 0, page: 1, pages: 1 };
 }
 
-function mount() {
+function LocationProbe() {
+  return <output aria-label="Current navigation">{useLocation().search}</output>;
+}
+
+function mount(entry = '/legiwatch?tab=hearings') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/legiwatch?tab=hearings']}>
+      <MemoryRouter initialEntries={[entry]}>
         <LegiWatchModule />
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -67,5 +72,39 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     expect(screen.getByRole('tab', { name: /archive/i })).toBeTruthy();
     expect(screen.getByText(/public record/i)).toBeTruthy();
     expect(screen.getByText(/your analysis/i)).toBeTruthy();
+  });
+
+  it("keeps client and folder scope while removing another tab's legacy search", async () => {
+    mount(
+      '/legiwatch?tab=hearings&client=c1&folder=f1&q=Rubin&offset=25&budgetProjectsQuery=housing',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Budget' }));
+    const params = new URLSearchParams(
+      screen.getByLabelText('Current navigation').textContent ?? '',
+    );
+    expect(params.get('tab')).toBe('budget');
+    expect(params.get('client')).toBe('c1');
+    expect(params.get('folder')).toBe('f1');
+    expect(params.get('budgetProjectsQuery')).toBe('housing');
+    expect(params.has('q')).toBe(false);
+    expect(params.has('offset')).toBe(false);
+  });
+
+  it('returns scoped result lists to their first page when the client changes', async () => {
+    mount(
+      '/legiwatch?tab=news&folder=old-folder&newsArticlesQuery=Clarity&newsArticlesOffset=50&budgetProjectsOffset=25&researchCursor=old-cursor',
+    );
+    await waitFor(() => expect(getMock).toHaveBeenCalledWith('/api/clients'));
+    fireEvent.click(screen.getByRole('button', { name: /Client lens/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Overland AI/ }));
+    const params = new URLSearchParams(
+      screen.getByLabelText('Current navigation').textContent ?? '',
+    );
+    expect(params.get('client')).toBe('c1');
+    expect(params.has('folder')).toBe(false);
+    expect(params.has('researchCursor')).toBe(false);
+    expect(params.get('newsArticlesQuery')).toBe('Clarity');
+    expect(params.has('newsArticlesOffset')).toBe(false);
+    expect(params.has('budgetProjectsOffset')).toBe(false);
   });
 });

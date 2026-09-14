@@ -1,3 +1,4 @@
+import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 /**
  * LegiWatch V2 Wave 1 — HTTP surface.
  *
@@ -70,7 +71,10 @@ export class LegiWatchWave1Controller {
   // ── W1-1 · configurable hearing following ────────────────────────────────
 
   @Get('events/:id/follow-config')
-  followState(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  followState(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.wave1.followState(ctx, id);
   }
 
@@ -78,21 +82,24 @@ export class LegiWatchWave1Controller {
   @Put('events/:id/follow-config')
   upsertFollow(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Body() body: FollowConfigDto,
   ) {
     return this.wave1.upsertFollow(ctx, id, body);
   }
 
   @Delete('events/:id/follow-config')
-  unfollow(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  unfollow(@CurrentTenant() ctx: TenantContext, @Param('id', CanonicalHearingIdPipe) id: string) {
     return this.wave1.unfollow(ctx, id);
   }
 
   // ── W1-2 · configurable attendance / capture request ─────────────────────
 
   @Get('events/:id/attendance')
-  attendanceState(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  attendanceState(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.wave1.attendanceState(ctx, id);
   }
 
@@ -104,21 +111,27 @@ export class LegiWatchWave1Controller {
   @Put('events/:id/attendance')
   requestAttendance(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Body() body: AttendanceRequestDto,
   ) {
     return this.wave1.requestAttendance(ctx, id, body);
   }
 
   @Delete('events/:id/attendance')
-  cancelAttendance(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  cancelAttendance(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.wave1.cancelAttendance(ctx, id);
   }
 
   // ── W1-3 · archive + global hearing research ─────────────────────────────
 
   @Get('events/:id/sessions')
-  savedSessions(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  savedSessions(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.wave1.savedSessions(ctx, id);
   }
 
@@ -167,7 +180,7 @@ export class LegiWatchWave1Controller {
   @Get('events/:id/client-relevance')
   clientRelevance(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Query() query: ClientRelevanceQueryDto,
   ) {
     return query.clientId
@@ -178,7 +191,11 @@ export class LegiWatchWave1Controller {
   // ── W1-7 · actions ───────────────────────────────────────────────────────
 
   @Post('events/:id/actions/ask-meri')
-  askMeri(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() body: AskMeriDto) {
+  askMeri(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+    @Body() body: AskMeriDto,
+  ) {
     return this.wave1.buildMeriContextPacket(ctx, id, body);
   }
 
@@ -189,7 +206,7 @@ export class LegiWatchWave1Controller {
   @Post('events/:id/actions/brief-prefill')
   briefPrefill(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Body() body: BriefPrefillDto,
   ) {
     return this.wave1.buildBriefPrefill(ctx, id, body);
@@ -199,7 +216,7 @@ export class LegiWatchWave1Controller {
   @Post('events/:id/actions/outreach-prefill')
   outreachPrefill(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Body() body: OutreachPrefillDto,
   ) {
     return this.wave1.buildOutreachPrefill(ctx, id, body);
@@ -208,7 +225,7 @@ export class LegiWatchWave1Controller {
   @Post('events/:id/saved-items')
   saveItem(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Body() body: SaveItemDto,
   ) {
     return this.wave1.saveItem(ctx, id, body);
@@ -306,7 +323,7 @@ export class LegiWatchWave1Controller {
   @Get('events/:id/detail-v2')
   detailV2(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Query() query: DetailV2QueryDto,
   ) {
     return this.wave1.detailV2(ctx, id, query);
