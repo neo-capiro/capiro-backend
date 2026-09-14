@@ -1,3 +1,5 @@
+import { assertEditorialAccess } from '../editorial/editorial-access.js';
+import { PHASE8_FEATURES } from '@capiro/shared';
 import { KeywordDeliveryService } from '../keywords/keyword-delivery.service.js';
 import { KEYWORD_DELIVERY_FEATURE } from '../keywords/keyword-rule.service.js';
 import {
@@ -50,6 +52,7 @@ import {
 } from './report-domain.js';
 
 export interface ReportComposition {
+  kind?: 'editorial_brief';
   runId: string;
   contentHash: string;
   subject: string;
@@ -86,6 +89,8 @@ export class ReportDeliveryService {
     );
     if (!recipients.length) throw new BadRequestException('AT_LEAST_ONE_RECIPIENT_REQUIRED');
     const refs = selectedRecordBriefs(body.recordBriefs);
+    if (refs.length && object(run.snapshot).mode === 'editorial_brief')
+      throw new BadRequestException('SELECT_RECORD_EVIDENCE_IN_EDITORIAL_DRAFT');
     if (refs.length && !this.recordBriefs)
       throw new ForbiddenException('RECORD_DELIVERY_ADAPTER_UNAVAILABLE');
     const included = refs.length
@@ -95,6 +100,9 @@ export class ReportDeliveryService {
       ? renderReportWithBriefs(run.snapshot as unknown as ReportDocument, included)
       : run.rendered;
     const composition: ReportComposition = {
+      ...(object(run.snapshot).mode === 'editorial_brief'
+        ? { kind: 'editorial_brief' as const }
+        : {}),
       runId,
       contentHash: run.contentHash,
       subject,
@@ -142,6 +150,7 @@ export class ReportDeliveryService {
           intentKey,
           ownerClerkId: ctx.clerkUserId,
           runId: composition.runId,
+          kind: composition.kind ?? 'bill_report',
           subscriptionId: subscription?.id,
           subscriptionVersion: subscription?.version,
           contentHash: composition.contentHash,
@@ -191,6 +200,70 @@ export class ReportDeliveryService {
       run.contentHash !== delivery.contentHash
     )
       throw new ConflictException('APPROVED_CONTENT_UNAVAILABLE');
+    if (delivery.kind === 'editorial_brief') {
+      const composition = object(delivery.composition),
+        rendered = object(run.rendered),
+        intro = String(composition.introduction ?? '');
+      const textMatches =
+        composition.plainText === `${intro}\n\n${rendered.text}` ||
+        (!intro && composition.plainText === rendered.text);
+      const htmlMatches =
+        composition.html ===
+          String(rendered.html).replace(
+            '<body>',
+            `<body><p>${escapeHtml(intro).replace(/\n/g, '<br>')}</p>`,
+          ) ||
+        (!intro && composition.html === rendered.html);
+      if (!textMatches || !htmlMatches)
+        throw new ConflictException('EDITORIAL_COMPOSITION_CHANGED');
+      if (selectedRecordBriefs(object(delivery.composition).recordBriefs).length)
+        throw new ConflictException('EDITORIAL_COMPOSITION_CHANGED');
+      if (object(run.snapshot).mode !== 'editorial_brief' || object(run.snapshot).researchReview)
+        throw new ConflictException('TYPED_EDITORIAL_RUN_REQUIRED');
+      if (
+        process.env.LEGIWATCH_EDITORIAL_SEND_ENABLED !== 'true' ||
+        !(await this.reports.flags.isEnabled(PHASE8_FEATURES.editorial, ctx.tenantId)) ||
+        !(await this.reports.flags.isEnabled(REPORT_DELIVERY_FEATURE, ctx.tenantId))
+      )
+        throw new ForbiddenException('EDITORIAL_DELIVERY_PAUSED');
+      await assertEditorialAccess(
+        tx,
+        ctx,
+        run.snapshot,
+        (id) => this.reports.folders.folder(tx, ctx, id),
+        true,
+      );
+      await tx.$queryRaw`SELECT id FROM intel_legiwatch_report WHERE tenant_id=${ctx.tenantId} AND id=${run.reportId} FOR SHARE`;
+      const report = await this.reports.get(tx, ctx, run.reportId);
+      if (
+        report.archived ||
+        report.version !== run.definitionVersion ||
+        report.ownerClerkId !== ctx.clerkUserId
+      )
+        throw new ConflictException('EDITORIAL_REPORT_CHANGED');
+      const review = object(object(run.snapshot).editorialReview),
+        base = process.env.WORKSPACE_BASE_URL,
+        secret = process.env.INTERNAL_SERVICE_SECRET;
+      if (!base || !secret) throw new ConflictException('EDITORIAL_OUTPUT_UNAVAILABLE');
+      const response = await fetch(
+        `${base.replace(/\/+$/, '')}/workspace-api/internal/legiwatch/editorial/${encodeURIComponent(String(review.selectionId))}/output?${new URLSearchParams({ tenantId: ctx.tenantId, ownerId: ctx.clerkUserId })}`,
+        {
+          headers: { 'x-internal-service-secret': secret },
+          signal: AbortSignal.timeout(15000),
+          redirect: 'error',
+        },
+      );
+      if (!response.ok || object(await response.json()).outputHash !== review.outputHash)
+        throw new ConflictException('EDITORIAL_OUTPUT_CHANGED');
+      const contactIds = recipient.contacts.map((c) => c.id),
+        listIds = recipient.lists.map((l) => l.id);
+      await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_contact WHERE tenant_id=${ctx.tenantId} AND (id=ANY(${contactIds}::text[]) OR lower(email)=${recipient.email}) FOR SHARE`;
+      await tx.$queryRaw`SELECT id FROM intel_legiwatch_report_list WHERE tenant_id=${ctx.tenantId} AND id=ANY(${listIds}::text[]) FOR SHARE`;
+      await this.recipients.recheck(tx, ctx, recipient);
+      return;
+    }
+    if (object(run.snapshot).mode === 'editorial_brief')
+      throw new ConflictException('EDITORIAL_DELIVERY_KIND_REQUIRED');
     const doc = run.snapshot as unknown as ReportDocument;
     const refs = selectedRecordBriefs(object(delivery.composition).recordBriefs);
     if (refs.length) {
@@ -581,6 +654,8 @@ export class ReportDeliveryService {
   }
   async drain(tenantId: string, limit = 25, now = new Date(), kind = 'bill_report') {
     const prisma = this.reports.folders.prisma;
+    if (kind === 'editorial_brief' && process.env.LEGIWATCH_EDITORIAL_SEND_ENABLED !== 'true')
+      return { attempted: 0, held: 0 };
     if (
       kind === 'bill_keyword' &&
       (!this.keywords ||
@@ -1044,7 +1119,15 @@ export class ReportDeliveryService {
           id,
           state: 'held',
           delivery: {
-            kind: { in: ['bill_report', 'record_brief', 'record_correction', 'bill_keyword'] },
+            kind: {
+              in: [
+                'bill_report',
+                'editorial_brief',
+                'record_brief',
+                'record_correction',
+                'bill_keyword',
+              ],
+            },
             ownerClerkId: ctx.clerkUserId,
           },
         },

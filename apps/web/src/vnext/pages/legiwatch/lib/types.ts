@@ -101,6 +101,8 @@ export type LegiWatchTab =
   | 'committees'
   | 'bills'
   | 'research'
+  | 'news'
+  | 'budget'
   | 'feed'
   | 'digest'
   | 'analytics'
@@ -113,6 +115,8 @@ export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
   'bills',
 
   'research',
+  'news',
+  'budget',
 
   'feed',
   'digest',
@@ -123,12 +127,12 @@ export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
 /** The six primary destinations rendered in the tab strip (LEGIWATCH-V2-HANDOFF
  *  §1.1/§2) — Committees is first-class, equal to Hearings and Bills. */
 export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
+  'bills',
+  'research',
+  'news',
+  'budget',
   'hearings',
   'committees',
-  'bills',
-
-  'research',
-
   'feed',
   'digest',
   'analytics',

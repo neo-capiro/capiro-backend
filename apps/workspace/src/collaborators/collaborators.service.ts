@@ -71,8 +71,8 @@ export class CollaboratorsService {
    * Research stays private to its author and rechecks the current Intel folder/client wall. */
   async sourceAccess(tenantId: string, draftId: string, clerkUserId: string): Promise<boolean> {
     const rows = await this.prisma.$queryRaw<
-      Array<{ source_key: string; owner_id: string }>
-    >`SELECT source_key,owner_id FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid AND source_type='legiwatch_research'`;
+      Array<{ source_key: string; owner_id: string; source_type: string }>
+    >`SELECT source_key,owner_id,source_type FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid AND source_type IN ('legiwatch_research','legiwatch_editorial')`;
     if (!rows.length) return true;
     const source = rows[0]!;
     if (source.owner_id !== clerkUserId) return false;
@@ -82,7 +82,7 @@ export class CollaboratorsService {
     try {
       const query = new URLSearchParams({ tenantId, ownerId: clerkUserId });
       const response = await fetch(
-        `${base.replace(/\/+$/, '')}/intel-api/internal/legiwatch/research-source/${encodeURIComponent(source.source_key)}/access?${query}`,
+        `${base.replace(/\/+$/, '')}/intel-api/internal/legiwatch/${source.source_type === 'legiwatch_editorial' ? 'editorial' : 'research'}-source/${encodeURIComponent(source.source_key)}/access?${query}`,
         {
           headers: { 'x-internal-service-secret': secret },
           signal: AbortSignal.timeout(10000),

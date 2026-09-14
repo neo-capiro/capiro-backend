@@ -1,3 +1,6 @@
+import { Phase8EvidenceService } from '../editorial/evidence.service.js';
+import { EditorialService } from '../editorial/editorial.service.js';
+import { runEditorialWork } from '../editorial/editorial-runtime.js';
 import { ConfigService } from '@nestjs/config';
 import { ResearchService } from '../research/research.service.js';
 import { StatuteMonitorService } from '../research/statute-monitor.service.js';
@@ -78,6 +81,15 @@ export function reportRuntime(prisma: PrismaService) {
     new ResearchService(keywordRules),
   );
   return {
+    editorialWork: (tenantId: string) =>
+      runEditorialWork(
+        new EditorialService(
+          new Phase8EvidenceService(new ResearchService(keywordRules)),
+          recipients,
+          delivery,
+        ),
+        tenantId,
+      ),
     statuteMonitors: new StatuteMonitorService(new ResearchService(keywordRules)),
     keywords: new KeywordDiscoveryService(
       new KeywordRuleService(reports, new KeywordSourceRepository(prisma)),

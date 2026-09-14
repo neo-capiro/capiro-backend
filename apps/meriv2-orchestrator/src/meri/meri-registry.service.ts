@@ -12,6 +12,7 @@ import {
   createTagLivePolicyMentionsTool,
   createGeneratePostHearingSummaryTool,
   createGeneratePublishedRecordBriefTool,
+  createGenerateEditorialBriefTool,
   type ToolRegistry,
 } from '@capiro/meriv2-core';
 import { ApiClientContextRepo } from './api-client-context.repo.js';
@@ -160,6 +161,7 @@ export class MeriRegistryService {
     registry.register(createTagLivePolicyMentionsTool(llm));
     registry.register(createGeneratePostHearingSummaryTool(llm));
     registry.register(createGeneratePublishedRecordBriefTool(llm));
+    registry.register(createGenerateEditorialBriefTool(llm));
     this.logger.log(
       `Hearing reasoning tools registered (defaultModel=${model}, globalKeyFallback=${Boolean(apiKey)}, ` +
         `providerFailover=${globalFallback ? `global→${globalFallback.provider}` : 'off (no OPENAI_API_KEY)'}, ` +

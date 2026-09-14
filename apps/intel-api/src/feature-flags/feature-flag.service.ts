@@ -105,6 +105,9 @@ export class FeatureFlagService {
     if (row) return row.enabled;
     if (
       [
+        'legiwatch_news_v1',
+        'legiwatch_florida_budget_v1',
+        'legiwatch_editorial_v1',
         'legiwatch_research_v1',
         'legiwatch_keyword_discovery_v1',
         'legiwatch_keyword_auto_add_v1',

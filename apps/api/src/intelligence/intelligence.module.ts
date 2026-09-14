@@ -1,3 +1,5 @@
+import { NewsEvidenceService } from './news/news-evidence.service.js';
+import { NewsEvidenceController } from './news/news-evidence.controller.js';
 import { Module } from '@nestjs/common';
 import { IntelligenceController } from './intelligence.controller.js';
 import { IntelligenceService } from './intelligence.service.js';
@@ -54,6 +56,7 @@ import { XFeedModule } from './x-feed/x-feed.module.js';
     CoverageController,
     FirmOnboardingController,
     NewsDashboardController,
+    NewsEvidenceController,
   ],
   providers: [
     IntelligenceService,
@@ -72,6 +75,7 @@ import { XFeedModule } from './x-feed/x-feed.module.js';
     TrustMetricsService,
     CoverageGapService,
     NewsCatcherDashboardService,
+    NewsEvidenceService,
   ],
   // ClientPeRelevanceService is EXPORTED so the program-element delta writer (Agent B)
   // and other modules can inject the cross-tenant relevance path without a DI cycle.

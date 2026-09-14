@@ -7,6 +7,9 @@ import { Module } from '@nestjs/common';
 
 import { ResearchController, ResearchSourceController } from './research/research.controller.js';
 
+import { Phase8EvidenceService } from './editorial/evidence.service.js';
+import { EditorialService } from './editorial/editorial.service.js';
+import { Phase8Controller, EditorialSourceController } from './editorial/editorial.controller.js';
 import { ResearchService } from './research/research.service.js';
 
 import { KeywordController } from './keywords/keyword.controller.js';
@@ -81,6 +84,8 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
     ResearchController,
+    Phase8Controller,
+    EditorialSourceController,
 
     ResearchSourceController,
 
@@ -105,6 +110,8 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
   ],
   providers: [
     ResearchService,
+    Phase8EvidenceService,
+    EditorialService,
 
     ResearchImportService,
     ResearchReportService,

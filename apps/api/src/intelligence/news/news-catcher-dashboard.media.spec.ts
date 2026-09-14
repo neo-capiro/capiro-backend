@@ -8,6 +8,7 @@ function prismaForClient(): PrismaService {
   return {
     withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
       callback({
+        $queryRaw: jest.fn().mockResolvedValue([{ id: 'client-1', revision: 'test' }]),
         client: {
           findMany: jest.fn().mockResolvedValue([
             {
@@ -58,30 +59,32 @@ describe('NewsCatcher dashboard thumbnails', () => {
   });
 
   it('passes through a valid NewsCatcher media URL as imageUrl', async () => {
-    global.fetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({ articles: [article('https://cdn.example.test/news/shiftwave.jpg')] }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      ),
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ articles: [article('https://cdn.example.test/news/shiftwave.jpg')] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
     ) as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(prismaForClient());
-    const result = await service.getDashboard('tenant-1');
+    const result = await service.getDashboard('tenant-1', {}, 'actor');
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.imageUrl).toBe('https://cdn.example.test/news/shiftwave.jpg');
   });
 
   it('drops a non-http media value instead of exposing it to the browser', async () => {
-    global.fetch = jest.fn(async () =>
-      new Response(JSON.stringify({ articles: [article('javascript:alert(1)')] }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    global.fetch = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ articles: [article('javascript:alert(1)')] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     ) as unknown as typeof fetch;
 
     const service = new NewsCatcherDashboardService(prismaForClient());
-    const result = await service.getDashboard('tenant-2');
+    const result = await service.getDashboard('tenant-2', {}, 'actor');
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.imageUrl).toBeNull();

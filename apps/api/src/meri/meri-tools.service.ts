@@ -303,6 +303,92 @@ export class MeriToolsService {
     };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
+      search_legiwatch_news: obj(
+        {
+          ...legiwatchScope,
+          view: { type: 'string', enum: ['articles', 'monitors', 'personnel', 'source'] },
+          kind: str('Typed source kind'),
+          id: str('Exact source ID'),
+          q: str('Retained text filter'),
+          monitorId: str('Exact monitor'),
+          days: { type: 'integer', enum: [1, 3, 7, 14] },
+          offset: { type: 'integer', minimum: 0 },
+          publisher: str('Exact publisher'),
+        },
+        ['view'],
+      ),
+      get_florida_budget_project: obj(
+        {
+          ...legiwatchScope,
+          fiscalYear: str('Fiscal year such as 2026-27'),
+          projectId: str('Typed canonical project ID'),
+          offset: { type: 'integer', minimum: 0 },
+        },
+        ['fiscalYear'],
+      ),
+      compare_florida_budget_amounts: obj(
+        {
+          ...legiwatchScope,
+          leftId: str('Exact amount observation'),
+          leftRevision: str('Exact document revision'),
+          rightId: str('Exact amount observation'),
+          rightRevision: str('Exact document revision'),
+        },
+        ['leftId', 'leftRevision', 'rightId', 'rightRevision'],
+      ),
+      prepare_legiwatch_briefing: obj(
+        {
+          ...legiwatchScope,
+          template: {
+            type: 'string',
+            enum: ['research_update', 'daily_legislative_brief', 'morning_news_brief'],
+          },
+          title: str('Edition title'),
+          analysis: str('Original attributed and cited Capiro analysis'),
+          cutoff: str('ISO knowledge cutoff'),
+          timezone: str('IANA timezone'),
+          requestKey: str('Durable intended output key'),
+          sources: {
+            type: 'array',
+            maxItems: 50,
+            items: obj(
+              {
+                kind: str('news, budget, personnel or research'),
+                id: str('Exact source ID'),
+                revision: str('Exact revision hash'),
+              },
+              ['kind', 'id', 'revision'],
+            ),
+          },
+          citations: {
+            type: 'array',
+            maxItems: 150,
+            items: obj(
+              {
+                kind: str('Source kind'),
+                id: str('Source ID'),
+                revision: str('Source hash'),
+                locator: str('Exact section or available-text'),
+                start: { type: 'integer', minimum: 0 },
+                end: { type: 'integer', minimum: 1 },
+                quote: str('Exact source slice'),
+              },
+              ['kind', 'id', 'revision', 'locator', 'start', 'end', 'quote'],
+            ),
+          },
+        },
+        [
+          'folderId',
+          'template',
+          'title',
+          'analysis',
+          'cutoff',
+          'timezone',
+          'requestKey',
+          'sources',
+          'citations',
+        ],
+      ),
       search_legislative_research: obj(
         {
           ...legiwatchScope,
@@ -1780,6 +1866,10 @@ export class MeriToolsService {
   async execute(ctx: TenantContext, name: MeriToolName, input: Record<string, unknown>) {
     assertMeriToolRequestActive();
     switch (name) {
+      case 'search_legiwatch_news':
+      case 'get_florida_budget_project':
+      case 'compare_florida_budget_amounts':
+      case 'prepare_legiwatch_briefing':
       case 'get_legiwatch_review':
       case 'search_legislative_research':
       case 'get_legal_reference':

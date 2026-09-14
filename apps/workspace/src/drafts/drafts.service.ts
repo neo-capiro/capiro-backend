@@ -7,6 +7,7 @@ import {
 import { createHash } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { preparationWorkspace } from './preparation-content.js';
+import { editorialWorkspace } from './editorial-content.js';
 import { researchWorkspace } from './research-content.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
@@ -138,6 +139,21 @@ export class DraftsService {
       prefill,
       'legiwatch_research',
       researchWorkspace,
+    );
+  }
+  async createEditorial(
+    tenantId: string,
+    ownerId: string,
+    sourceKey: string,
+    prefill: { draft: { docTitle: string }; context: Record<string, unknown>; sources: unknown[] },
+  ) {
+    return this.createSourceDraft(
+      tenantId,
+      ownerId,
+      sourceKey,
+      prefill,
+      'legiwatch_editorial',
+      editorialWorkspace,
     );
   }
   private async createSourceDraft(

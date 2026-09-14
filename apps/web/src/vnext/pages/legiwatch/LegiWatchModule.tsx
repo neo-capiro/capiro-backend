@@ -37,6 +37,7 @@ import { HearingsTab } from './hearings/HearingsTab.js';
 import { CommitteesTab } from './committees/CommitteesTab.js';
 import { FeedTab } from './feed/FeedTab.js';
 import { BillsTab } from './bills/BillsTab.js';
+import { EvidenceTab } from './editorial/EvidenceTab.js';
 import { ResearchTab } from './research/ResearchTab.js';
 import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
@@ -52,6 +53,16 @@ import './legiwatch.css';
 type Overlay = 'views' | 'watch' | 'states' | 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
+  news: {
+    eyebrow: 'Monitored coverage',
+    title: 'News',
+    description: 'Source-linked news, personnel changes and monitored expressions.',
+  },
+  budget: {
+    eyebrow: 'Florida appropriations',
+    title: 'Budget',
+    description: 'Fiscal documents, project identities and supported stage comparisons.',
+  },
   research: {
     eyebrow: 'Legislative research',
     title: 'Research',
@@ -83,7 +94,7 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
   },
   digest: {
     eyebrow: 'Portfolio briefing',
-    title: 'Digest',
+    title: 'Reports',
     description:
       'A compact briefing of the highest-priority movement in the current LegiWatch feed.',
   },
@@ -175,7 +186,8 @@ export function LegiWatchModule() {
   const tab: LegiWatchTab = useMemo(() => {
     if (rawTab && Object.prototype.hasOwnProperty.call(TAB_ALIASES, rawTab))
       return TAB_ALIASES[rawTab] ?? 'hearings';
-    if (!rawTab || REMOVED_TABS.has(rawTab)) return 'hearings';
+    if (!rawTab) return 'bills';
+    if (REMOVED_TABS.has(rawTab)) return 'hearings';
     return (LEGIWATCH_TABS as readonly string[]).includes(rawTab)
       ? (rawTab as LegiWatchTab)
       : 'hearings';
@@ -499,6 +511,8 @@ export function LegiWatchModule() {
         <FeedTab scope={scope} clients={visibleClients} />
       ) : tab === 'bills' ? (
         <BillsTab scope={scope} clients={visibleClients} />
+      ) : tab === 'news' || tab === 'budget' ? (
+        <EvidenceTab lane={tab} />
       ) : tab === 'research' ? (
         <ResearchTab />
       ) : tab === 'digest' ? (
