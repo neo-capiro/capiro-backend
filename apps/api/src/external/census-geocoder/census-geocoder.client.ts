@@ -43,6 +43,9 @@ const ARCGIS_GEOCODER_BASE = 'https://geocode.arcgis.com/arcgis/rest/services/Wo
 const BENCHMARK = 'Public_AR_Current';
 const VINTAGE = 'Current_Current';
 const ARCGIS_MIN_SCORE = 90;
+// One budget for matching, fallback, geography lookup, retries AND body reads.
+// Explicit resolution must finish before the browser's 30-second deadline.
+export const GEOCODE_TIMEOUT_MS = 25_000;
 
 interface ArcGisCandidate {
   address?: string;
@@ -131,20 +134,22 @@ const NO_MATCH_RESULT: CensusGeocodeResult = {
   matchedAddress: null,
 };
 
-async function fetchJson<T>(url: string, attempt = 1): Promise<T> {
+async function fetchJson<T>(url: string, signal: AbortSignal, attempt = 1): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { headers: { accept: 'application/json' } });
+    signal.throwIfAborted();
+    res = await fetch(url, { headers: { accept: 'application/json' }, signal });
   } catch (err) {
-    if (attempt <= 3) {
-      await new Promise((r) => setTimeout(r, attempt * 2000));
-      return fetchJson<T>(url, attempt + 1);
+    if (!signal.aborted && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 250));
+      return fetchJson<T>(url, signal, attempt + 1);
     }
     throw err;
   }
-  if ((res.status === 429 || res.status >= 500) && attempt <= 3) {
-    await new Promise((r) => setTimeout(r, attempt * 3000));
-    return fetchJson<T>(url, attempt + 1);
+  if ((res.status === 429 || res.status >= 500) && attempt < 2 && !signal.aborted) {
+    await res.body?.cancel();
+    await new Promise((r) => setTimeout(r, 500));
+    return fetchJson<T>(url, signal, attempt + 1);
   }
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return (await res.json()) as T;
@@ -222,7 +227,10 @@ export function parseGeocodeMatch(match: CensusAddressMatch): CensusGeocodeCandi
  * return one high-confidence physical point; postal/street-name candidates are
  * rejected because they cannot safely determine a district.
  */
-async function geocodeWithArcGis(oneLine: string): Promise<{
+async function geocodeWithArcGis(
+  oneLine: string,
+  signal: AbortSignal,
+): Promise<{
   latitude: number;
   longitude: number;
   matchedAddress: string;
@@ -230,7 +238,7 @@ async function geocodeWithArcGis(oneLine: string): Promise<{
   const url =
     `${ARCGIS_GEOCODER_BASE}/findAddressCandidates?SingleLine=${encodeURIComponent(oneLine)}` +
     '&f=json&outFields=Addr_type&maxLocations=3';
-  const json = await fetchJson<ArcGisResponse>(url);
+  const json = await fetchJson<ArcGisResponse>(url, signal);
   const candidates = (json.candidates ?? []).filter(
     (candidate) =>
       Number(candidate.score ?? 0) >= ARCGIS_MIN_SCORE &&
@@ -250,11 +258,15 @@ async function geocodeWithArcGis(oneLine: string): Promise<{
 async function censusDistrictsAtCoordinates(
   latitude: number,
   longitude: number,
+  signal: AbortSignal,
 ): Promise<ReturnType<typeof extractDistricts>> {
   const url =
     `${GEOCODER_BASE}/geographies/coordinates?x=${encodeURIComponent(String(longitude))}` +
     `&y=${encodeURIComponent(String(latitude))}&benchmark=${BENCHMARK}&vintage=${VINTAGE}&format=json`;
-  const json = await fetchJson<{ result?: { geographies?: Record<string, CensusGeographyRow[]> } }>(url);
+  const json = await fetchJson<{ result?: { geographies?: Record<string, CensusGeographyRow[]> } }>(
+    url,
+    signal,
+  );
   return extractDistricts({ geographies: json.result?.geographies });
 }
 
@@ -270,13 +282,14 @@ export async function geocodeAddress(
   state: string,
   zip: string,
 ): Promise<CensusGeocodeResult> {
+  const signal = AbortSignal.timeout(GEOCODE_TIMEOUT_MS);
   const oneLine = [street, city, `${state} ${zip}`.trim()].filter(Boolean).join(', ');
   const url =
     `${GEOCODER_BASE}/geographies/onelineaddress?address=${encodeURIComponent(oneLine)}` +
     `&benchmark=${BENCHMARK}&vintage=${VINTAGE}&format=json`;
   let json: CensusGeographiesResponse;
   try {
-    json = await fetchJson<CensusGeographiesResponse>(url);
+    json = await fetchJson<CensusGeographiesResponse>(url, signal);
   } catch (err) {
     console.error(`[census-geocoder] geocode failed for "${oneLine}":`, (err as Error).message);
     return { ...NO_MATCH_RESULT, status: 'error' };
@@ -297,18 +310,25 @@ export async function geocodeAddress(
   }
 
   try {
-    const fallback = await geocodeWithArcGis(oneLine);
+    const fallback = await geocodeWithArcGis(oneLine, signal);
     if (!fallback) return NO_MATCH_RESULT;
-    const districts = await censusDistrictsAtCoordinates(fallback.latitude, fallback.longitude);
-        return {
-          status: 'matched',
-          latitude: fallback.latitude,
-          longitude: fallback.longitude,
-          matchedAddress: fallback.matchedAddress,
-          ...districts,
-        };
+    const districts = await censusDistrictsAtCoordinates(
+      fallback.latitude,
+      fallback.longitude,
+      signal,
+    );
+    return {
+      status: 'matched',
+      latitude: fallback.latitude,
+      longitude: fallback.longitude,
+      matchedAddress: fallback.matchedAddress,
+      ...districts,
+    };
   } catch (err) {
-    console.warn(`[census-geocoder] ArcGIS fallback failed for "${oneLine}":`, (err as Error).message);
-    return NO_MATCH_RESULT;
+    console.warn(
+      `[census-geocoder] ArcGIS fallback failed for "${oneLine}":`,
+      (err as Error).message,
+    );
+    return { ...NO_MATCH_RESULT, status: 'error' };
   }
 }

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useClientFacilities } from '../../../pages/clients/use-client-facilities.js';
 import { useApi } from '../../../lib/use-api.js';
 import {
   createClientFacility,
   chooseClientFacilityGeocodeCandidate,
   deleteClientFacility,
-  getClientFacilities,
   resolveClientFacilityDistrict,
   updateClientFacility,
   DISTRICT_PATTERN,
@@ -104,15 +104,7 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
   const [editing, setEditing] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ClientFacility | null>(null);
 
-  const facilitiesQ = useQuery({
-    // The shared key — District Nexus and the Overview pulse read this too.
-    queryKey: ['client-facilities', clientId],
-    queryFn: () => getClientFacilities(api, clientId),
-    // Geocoding is intentionally asynchronous. Keep the source/status visible
-    // while the backend works, then stop polling as soon as it settles.
-    refetchInterval: (query) =>
-      query.state.data?.some(isFacilityResolutionPending) ? 2000 : false,
-  });
+  const facilitiesQ = useClientFacilities(clientId);
   const facilities = facilitiesQ.data ?? [];
 
   const invalidate = () => {
@@ -143,7 +135,14 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
       qc.setQueryData<ClientFacility[]>(['client-facilities', clientId], (current) =>
         current?.map((item) => (item.id === facility.id ? facility : item)),
       );
-      toast.success('District resolution requested');
+      if (facility.geocodeStatus === 'matched') toast.success('Location resolved');
+      else if (facility.geocodeStatus === 'pending') toast.success('Location resolution requested');
+      else
+        toast.error(
+          facility.geocodeStatus === 'error'
+            ? 'Location service unavailable. Try resolving again.'
+            : 'Address needs review. Check the address or choose a suggested match.',
+        );
       invalidate();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -302,31 +301,10 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
   );
 }
 
-function isFacilityResolutionPending(facility: ClientFacility): boolean {
-  return facility.geocodeStatus === 'pending';
-}
-
-function isManualFacility(facility: ClientFacility): boolean {
-  return facility.districtSource === 'user' || facility.districtSource === 'manual';
-}
-
 function canResolveFacility(facility: ClientFacility): boolean {
-  // The resolver preserves an explicitly supplied U.S. House district while
-  // refreshing the address and state districts. Older manual-review records
-  // need this recovery action even when their federal district is populated.
-  if (facility.districtSource === 'user' && facility.geocodeStatus === 'manual_review') {
-    return true;
-  }
-  if (
-    isFacilityResolutionPending(facility) ||
-    (isManualFacility(facility) && Boolean(facility.congressionalDistrict))
-  ) {
-    return false;
-  }
-  return (
-    !facility.congressionalDistrict ||
-    ['no_match', 'ambiguous', 'error'].includes(facility.geocodeStatus ?? '')
-  );
+  // A manual district is not a coordinate. Keep recovery available for those
+  // locations too, including an interrupted background attempt.
+  return Boolean(facility.addressLine?.trim() && facility.city?.trim() && facility.state?.trim());
 }
 
 function FacilityResolutionSummary({
@@ -420,7 +398,9 @@ function FacilityForm({
     const next: Partial<Record<keyof Draft, string>> = {};
     if (!draft.name.trim()) next.name = 'Give the facility a name';
 
-    const district = draft.congressionalDistrict.trim();
+    const district = resolution?.districtSource === 'geocoded' &&
+      draft.congressionalDistrict.trim() === initial.congressionalDistrict.trim()
+      ? '' : draft.congressionalDistrict.trim();
     if (district) {
       if (!DISTRICT_PATTERN.test(district)) {
         next.congressionalDistrict = 'Use the bare number, e.g. 12 (or 00 for at-large)';
@@ -464,7 +444,9 @@ function FacilityForm({
       city: draft.city.trim() || null,
       state: draft.state || null,
       zip: draft.zip.trim() || null,
-      congressionalDistrict: draft.congressionalDistrict.trim() || null,
+      ...(!resolution || draft.congressionalDistrict.trim() !== initial.congressionalDistrict.trim()
+        ? { congressionalDistrict: draft.congressionalDistrict.trim() || null }
+        : {}),
       employeeCount: employees ? Number(employees) : null,
       notes: draft.notes.trim() || null,
     });

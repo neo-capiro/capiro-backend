@@ -86,6 +86,11 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
         if (row) Object.assign(row, data);
         return row;
       },
+      updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+        const rows = scopedFacilities().filter((f) => matchWhere(f, where));
+        rows.forEach((row) => Object.assign(row, data));
+        return { count: rows.length };
+      },
       delete: async ({ where }: { where: { id: string } }) => {
         // Scope to the current tenant (as RLS does): splice only a row visible under the
         // current tenant GUC, so a cross-tenant delete regression cannot silently succeed.
@@ -118,6 +123,140 @@ function seedClient(tenantId: string, id = 'client-1'): Row {
 }
 
 describe('ClientFacilitiesService — CRUD', () => {
+  test('a full-form save preserves automatic provenance when the district is unchanged', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'HQ',
+          addressLine: '1 Main St',
+          city: 'Austin',
+          state: 'TX',
+          zip: '78701',
+          congressionalDistrict: '10',
+          districtSource: 'geocoded',
+          geocodeStatus: 'matched',
+        },
+      ],
+    });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const result = await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      name: 'Renamed HQ',
+      addressLine: '1 Main St',
+      city: 'Austin',
+      state: 'TX',
+      zip: '78701',
+      congressionalDistrict: '10',
+    });
+    expect(result).toMatchObject({ districtSource: 'geocoded', geocodeStatus: 'matched' });
+  });
+
+  test('moving an automatically resolved location clears the old point and districts and resets exhausted retries', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'HQ',
+          addressLine: '1 Main St',
+          city: 'Austin',
+          state: 'TX',
+          zip: '78701',
+          congressionalDistrict: '10',
+          congressionalDistrictCongress: 119,
+          districtSource: 'geocoded',
+          latitude: 30,
+          longitude: -97,
+          stateHouseDistrict: '1',
+          stateSenateDistrict: '2',
+          geocodeStatus: 'matched',
+          geocodeAttemptCount: 24,
+          geocodeMatchedAddress: 'OLD ADDRESS',
+        },
+      ],
+    });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const result = await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      state: 'WY',
+      city: 'Cheyenne',
+      zip: '82001',
+    });
+    expect(result).toMatchObject({
+      latitude: null,
+      longitude: null,
+      congressionalDistrict: null,
+      congressionalDistrictCongress: null,
+      stateHouseDistrict: null,
+      stateSenateDistrict: null,
+      geocodeStatus: 'pending',
+      geocodeAttemptCount: 0,
+      geocodeMatchedAddress: null,
+    });
+  });
+
+  test('an older provider response cannot overwrite a newer address', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'HQ',
+          addressLine: '1 Old St',
+          city: 'Austin',
+          state: 'TX',
+          zip: '78701',
+          latitude: null,
+          longitude: null,
+          geocodeAttemptCount: 24,
+        },
+      ],
+    });
+    let finish!: (value: any) => void;
+    let started!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const provider = jest
+      .spyOn(facilityGeocode, 'computeFacilityGeocode')
+      .mockImplementation(() => {
+        started();
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      });
+    try {
+      const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+      const resolving = svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1');
+      await ready;
+      Object.assign(prisma.__store.facilities[0]!, {
+        addressLine: '2 New St',
+        latitude: 40,
+        longitude: -105,
+      });
+      finish({
+        status: 'matched',
+        update: { latitude: 30, longitude: -97, geocodeStatus: 'matched' },
+        matchedAddress: 'OLD ADDRESS',
+        candidates: null,
+      });
+      const result = await resolving;
+      expect(result).toMatchObject({
+        addressLine: '2 New St',
+        latitude: 40,
+        longitude: -105,
+        geocodeAttemptCount: 0,
+      });
+    } finally {
+      provider.mockRestore();
+    }
+  });
   test('listFacilities returns the client facilities ordered by createdAt', async () => {
     const prisma = makePrisma({
       clients: [seedClient(TENANT_A)],
@@ -218,11 +357,20 @@ describe('ClientFacilitiesService — CRUD', () => {
   test('resolveFacilityDistrict does not keep the tenant transaction open during provider resolution', async () => {
     const prisma = makePrisma({
       clients: [seedClient(TENANT_A)],
-      facilities: [{
-        id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'HQ',
-        addressLine: '1 Main St', city: 'Austin', state: 'TX', zip: '78701',
-        geocodeStatus: 'pending', geocodeAttemptCount: 0,
-      }],
+      facilities: [
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'HQ',
+          addressLine: '1 Main St',
+          city: 'Austin',
+          state: 'TX',
+          zip: '78701',
+          geocodeStatus: 'pending',
+          geocodeAttemptCount: 0,
+        },
+      ],
     });
     const calls: string[] = [];
     const originalWithTenant = prisma.withTenant;
@@ -236,12 +384,17 @@ describe('ClientFacilitiesService — CRUD', () => {
       return result;
     };
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
-    const provider = jest.spyOn(facilityGeocode, 'computeFacilityGeocode').mockImplementation(async () => {
-      expect(calls.at(-1)).toBe('end');
-      return { status: 'no_match', update: null, discrepancy: null } as any;
-    });
-    try { await svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1'); }
-    finally { provider.mockRestore(); }
+    const provider = jest
+      .spyOn(facilityGeocode, 'computeFacilityGeocode')
+      .mockImplementation(async () => {
+        expect(calls.at(-1)).toBe('end');
+        return { status: 'no_match', update: null, discrepancy: null } as any;
+      });
+    try {
+      await svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1');
+    } finally {
+      provider.mockRestore();
+    }
     expect(calls.filter((x) => x === 'begin').length).toBeGreaterThanOrEqual(3);
     expect(calls.filter((x) => x === 'end').length).toBe(calls.filter((x) => x === 'begin').length);
   });
@@ -797,13 +950,39 @@ describe('facility QA verification guards', () => {
   test('rejects state abbreviations used as state-legislative districts', async () => {
     const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
-    await expect(svc.createFacility(ctx(TENANT_A), 'client-1', { name: 'Campus', state: 'CA', stateHouseDistrict: 'CA' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      svc.createFacility(ctx(TENANT_A), 'client-1', {
+        name: 'Campus',
+        state: 'CA',
+        stateHouseDistrict: 'CA',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.__store.facilities).toHaveLength(0);
   });
   test('invalidates geocode confirmation when the district is hand-edited', async () => {
-    const prisma = makePrisma({ clients: [seedClient(TENANT_A)], facilities: [{ id: 'f1', tenantId: TENANT_A, clientId: 'client-1', state: 'CA', congressionalDistrict: '08', geocodeStatus: 'matched', districtSource: 'geocoded', geocodedAt: new Date() }] });
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          state: 'CA',
+          congressionalDistrict: '08',
+          geocodeStatus: 'matched',
+          districtSource: 'geocoded',
+          geocodedAt: new Date(),
+        },
+      ],
+    });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
-    const row = await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', { congressionalDistrict: '47' });
-    expect(row).toMatchObject({ geocodeStatus: 'manual_review', districtSource: 'user', geocodedAt: null });
+    const row = await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      congressionalDistrict: '47',
+    });
+    expect(row).toMatchObject({
+      geocodeStatus: 'manual_review',
+      districtSource: 'user',
+      geocodedAt: null,
+    });
   });
 });

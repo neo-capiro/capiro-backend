@@ -162,6 +162,33 @@ describe('parseGeocodeMatch', () => {
 describe('geocodeAddress ArcGIS fallback', () => {
   afterEach(() => jest.restoreAllMocks());
 
+  it('cancels a stalled request and records an error instead of leaving resolution pending', async () => {
+    const controller = new AbortController();
+    const timeout = jest.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    jest.spyOn(global, 'fetch').mockImplementation(
+      async (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init!.signal!.addEventListener('abort', () => reject(new Error('timeout')), {
+            once: true,
+          });
+        }),
+    );
+    const result = geocodeAddress('1 Main St', 'Austin', 'TX', '78701');
+    controller.abort();
+    await expect(result).resolves.toMatchObject({ status: 'error' });
+    expect(timeout).toHaveBeenCalledWith(25_000);
+  });
+
+  it('records a fallback service outage as retryable error rather than an invalid address', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { addressMatches: [] } })))
+      .mockResolvedValue(new Response('', { status: 403 }));
+    await expect(geocodeAddress('1 Main St', 'Austin', 'TX', '78701')).resolves.toMatchObject({
+      status: 'error',
+    });
+  });
+
   it('falls back to a high-confidence ArcGIS point and Census coordinate geography when Census has no address match', async () => {
     const fetchMock = jest.spyOn(global, 'fetch');
     fetchMock
@@ -197,7 +224,9 @@ describe('geocodeAddress ArcGIS fallback', () => {
         ),
       );
 
-    await expect(geocodeAddress('1025 W NASA Boulevard', 'Palm Bay', 'FL', '32919')).resolves.toEqual(
+    await expect(
+      geocodeAddress('1025 W NASA Boulevard', 'Palm Bay', 'FL', '32919'),
+    ).resolves.toEqual(
       expect.objectContaining({
         status: 'matched',
         latitude: 28.0907543,
@@ -237,10 +266,11 @@ describe('geocodeAddress ArcGIS fallback', () => {
         ),
       );
 
-    await expect(geocodeAddress('602 E Vermont Ave', 'Irvine', 'CA', '92604')).resolves.toMatchObject({
+    await expect(
+      geocodeAddress('602 E Vermont Ave', 'Irvine', 'CA', '92604'),
+    ).resolves.toMatchObject({
       status: 'no_match',
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
-
