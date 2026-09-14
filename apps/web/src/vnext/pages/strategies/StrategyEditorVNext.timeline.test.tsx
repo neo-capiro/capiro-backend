@@ -356,6 +356,9 @@ describe('Calendar persistence and fiscal boundaries', () => {
     try {
       renderEditor();
       expect(screen.getByText('Budget cycle needs review.')).toBeTruthy();
+      const dependencySummary = screen.getByText(/Review 1 dependency findings/).closest('summary')!;
+      expect(dependencySummary.parentElement).not.toHaveAttribute('open');
+      fireEvent.click(dependencySummary);
       expect(screen.getByRole('button', { name: /Prepare request.*starts before its dependency/ })).toBeTruthy();
     } finally { detail.nodes = original; }
   });
