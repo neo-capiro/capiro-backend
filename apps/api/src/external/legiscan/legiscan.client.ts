@@ -263,6 +263,7 @@ export interface LegiscanBillAmendment {
   amendment_hash?: string;
 }
 export interface LegiscanBill {
+  state?: string;
   bill_id: number;
   change_hash: string;
   session: LegiscanSession;

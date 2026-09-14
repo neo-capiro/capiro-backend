@@ -30,13 +30,8 @@ export type PacketBand =
   | 'REGULATION';
 
 /** §6.2 — server-authoritative per-user work state. */
-export type WorkState =
-  | 'new'
-  | 'in_review'
-  | 'assigned'
-  | 'actioned'
-  | 'snoozed'
-  | 'dismissed';
+
+export type WorkState = 'new' | 'in_review' | 'assigned' | 'actioned' | 'snoozed' | 'dismissed';
 
 export const WORK_STATE_LABEL: Record<WorkState, string> = {
   new: 'NEW',
@@ -100,13 +95,25 @@ export const CAPABILITY_LABEL: Record<HearingCapability, string> = {
  *  action, LEGIWATCH-V2-HANDOFF §1.9/§2) but is not a primary destination —
  *  it is excluded from `LEGIWATCH_PRIMARY_TABS`, the set rendered in the tab
  *  strip. */
-export type LegiWatchTab = 'hearings' | 'committees' | 'bills' | 'feed' | 'digest' | 'analytics' | 'settings';
+
+export type LegiWatchTab =
+  | 'hearings'
+  | 'committees'
+  | 'bills'
+  | 'research'
+  | 'feed'
+  | 'digest'
+  | 'analytics'
+  | 'settings';
 
 /** Every URL-addressable tab value, including the header-only `settings`. */
 export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
   'hearings',
   'committees',
   'bills',
+
+  'research',
+
   'feed',
   'digest',
   'analytics',
@@ -119,6 +126,9 @@ export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
   'hearings',
   'committees',
   'bills',
+
+  'research',
+
   'feed',
   'digest',
   'analytics',
@@ -143,8 +153,9 @@ export const TAB_ALIASES: Record<string, LegiWatchTab> = {
  *  module-local derivations live under this namespace. */
 export const lwKeys = {
   root: ['lw-vnext'] as const,
-  packet: (clientId: string, alertId: string) =>
-    ['lw-vnext', 'packet', clientId, alertId] as const,
+
+  packet: (clientId: string, alertId: string) => ['lw-vnext', 'packet', clientId, alertId] as const,
+
   dossier: (clientId: string | null, billId: string) =>
     ['lw-vnext', 'dossier', clientId ?? '_', billId] as const,
 };

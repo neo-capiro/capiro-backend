@@ -328,6 +328,7 @@ export async function resolveCurrentCommittee(
 export async function upsertNormalizedStateBill(
   prisma: PrismaClient,
   n: NormalizedStateBill,
+  options: { historical?: boolean } = {},
 ): Promise<{ isNew: boolean }> {
   const existing = await prisma.stateBill.findUnique({
     where: { id: n.billKey },
@@ -335,7 +336,10 @@ export async function upsertNormalizedStateBill(
   });
   const isNew = !existing;
 
-  const currentCommitteeId = await resolveCurrentCommittee(prisma, n.state, n.committee);
+  // Prior-session research must not rename a current committee or create capture events.
+  const currentCommitteeId = options.historical
+    ? null
+    : await resolveCurrentCommittee(prisma, n.state, n.committee);
 
   const billData = {
     state: n.state,
@@ -436,7 +440,7 @@ export async function upsertNormalizedStateBill(
     });
   }
 
-  await retainLegiscanCalendar(prisma, n.billKey, n.calendarSnapshot);
+  if (!options.historical) await retainLegiscanCalendar(prisma, n.billKey, n.calendarSnapshot);
 
   return { isNew };
 }

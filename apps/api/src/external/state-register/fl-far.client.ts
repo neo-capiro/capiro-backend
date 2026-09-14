@@ -1,31 +1,18 @@
-/**
- * Florida Administrative Register (FAR) client — Phase 1 M3.2, the FIRST
- * (and, per the M3.2 feasibility spike, ONLY currently-verified) state
- * register adapter. flrules.org is classic server-rendered ASP with no API/
- * feed — every field below was confirmed by fetching REAL live pages
- * (`View_notice.asp?id=...`, `QuickResult.asp?P0=Stat_Prop_All...`) and
- * inspecting the actual HTML, not guessed from documentation. Uses cheerio
- * (not regex) because the real markup is inconsistently quoted
- * (`class=notice_text` vs `class="notice_text"`, `id=textarea2` unquoted) —
- * exactly the kind of markup regex silently mis-parses.
- *
- * Scope, stated plainly (never silently missing):
- * - PROPOSED rules only for v1 (Stat_Prop_All listing). Emergency rules
- *   (`emergencyRules.asp`) have a verified-different field layout (no
- *   register citation, a direct effective-date field) and are deferred
- *   until that page is spiked separately — NOT built blind.
- * - `effectiveDate` is left null for every proposed-rule notice: FL doesn't
- *   publish it on the notice page for an ordinary amendment — only on the
- *   rule's own history page (`RuleNo.asp?id=<ruleNumber>`), a second
- *   chained fetch this v1 does not make. Documented gap, not a guess.
- * - A notice amending MULTIPLE rules is stored once, keyed to the FIRST
- *   rule row (the register-level entity is the notice; finer per-rule
- *   granularity is a P2 nice-to-have, not a data-integrity issue).
- */
+/** Florida notices, all linked rules and bounded tracked-rule history.
+
+ * Discovery remains the proposed-notice listing; each other family reports its qualified scope.
+
+ * Notice identity, publication, filing, effective and observed dates remain distinct. */
+
 import * as cheerio from 'cheerio';
 
+import { createHash } from 'node:crypto';
+
+import { validDateOnly } from '@capiro/shared';
+
+import { fetchPublisherBytes } from './publisher-fetch.js';
+
 const BASE_URL = 'https://flrules.org';
-const USER_AGENT = 'Capiro-Ingestion-Bot/1.0 (+https://capiro.ai)';
 
 export interface FlFarListingRow {
   noticeId: string;
@@ -41,6 +28,22 @@ export interface FlFarListingPage {
 }
 
 export interface FlFarNoticeDetail {
+  rules: Array<{ number: string; title: string | null; sourceUrl: string }>;
+
+  filingDate: string | null;
+
+  effectiveDate: string | null;
+
+  rawDates: Record<string, string>;
+
+  originalHtml: string;
+
+  contentHash: string;
+
+  parserVersion: string;
+
+  linkedNotices: string[];
+
   noticeId: string;
   /** Raw text, e.g. "Notice of Proposed Rule" — used for ruleType classification. */
   noticeType: string | null;
@@ -65,7 +68,10 @@ export function parseMdyDate(raw: string | null | undefined): string | null {
   const m = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return null;
   const [, mo, d, y] = m;
-  return `${y}-${mo!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+
+  const value = `${y}-${mo!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+
+  return validDateOnly(value) ? value : null;
 }
 
 function textOf($el: cheerio.Cheerio<never>): string {
@@ -118,6 +124,9 @@ export function parseFlFarNoticeDetail(html: string, noticeId: string): FlFarNot
   });
 
   const fields = new Map<string, string>();
+
+  const rules: FlFarNoticeDetail['rules'] = [];
+
   let ruleNumber: string | null = null;
   let ruleTitle: string | null = null;
   $('td.field_header').each((_, el) => {
@@ -129,8 +138,24 @@ export function parseFlFarNoticeDetail(html: string, noticeId: string): FlFarNot
     if (!label) return;
     const $value = $label.next('td');
     if (label === 'RULE') {
-      ruleNumber = textOf($value.find('a.FX_Link_ID') as cheerio.Cheerio<never>) || null;
-      ruleTitle = textOf($value.find('td.results') as cheerio.Cheerio<never>) || null;
+      $value.find('a.FX_Link_ID').each((_, a) => {
+        const number = $(a).text().trim();
+
+        const sourceUrl = publisherLink($(a).attr('href'));
+
+        if (!/^[A-Za-z0-9]+-\d+[A-Za-z0-9.-]*\.\d+$/.test(number) || !sourceUrl) return;
+
+        const row = $(a).closest('tr');
+
+        const title = row.find('td.results').last().text().replace(/\s+/g, ' ').trim() || null;
+
+        if (!rules.some((r) => r.number === number)) rules.push({ number, title, sourceUrl });
+      });
+
+      ruleNumber = rules[0]?.number ?? null;
+
+      ruleTitle = rules[0]?.title ?? null;
+
       return;
     }
     fields.set(label, textOf($value as cheerio.Cheerio<never>));
@@ -144,6 +169,29 @@ export function parseFlFarNoticeDetail(html: string, noticeId: string): FlFarNot
   const commentDates = [...commentsRaw.matchAll(/(\d{1,2}\/\d{1,2}\/\d{4})/g)].map((m) => m[1]);
 
   return {
+    rules,
+
+    filingDate: parseMdyDate(fields.get('RULE FILE DATE')),
+
+    effectiveDate: parseMdyDate(fields.get('RULE EFFECTIVE DATE')),
+
+    rawDates: Object.fromEntries([...fields].filter(([key]) => /DATE|COMMENTS/.test(key))),
+
+    originalHtml: html,
+
+    contentHash: createHash('sha256').update(html).digest('hex'),
+
+    parserVersion: 'fl-far-notice-v2',
+
+    linkedNotices: [
+      ...new Set(
+        $('a[href]')
+          .toArray()
+          .map((a) => publisherLink($(a).attr('href')))
+          .filter((u): u is string => Boolean(u && /view_notice\.asp\?id=\d+/i.test(u))),
+      ),
+    ],
+
     noticeId,
     noticeType,
     department: fields.get('DEPARTMENT') || null,
@@ -160,6 +208,8 @@ export function parseFlFarNoticeDetail(html: string, noticeId: string): FlFarNot
 }
 
 export interface StateRuleUpsertInput {
+  noticeEvidence?: FlFarNoticeDetail;
+
   id: string;
   state: string;
   agency: string;
@@ -168,7 +218,15 @@ export interface StateRuleUpsertInput {
   ruleType: string;
   docketId: string | null;
   registerCitation: string | null;
-  publicationDate: string;
+
+  publicationDate: string | null;
+
+  filingDate: string | null;
+
+  linkedRuleNumbers: string[];
+
+  sourceRevision: string;
+
   commentStartDate: string | null;
   commentEndDate: string | null;
   effectiveDate: string | null;
@@ -177,20 +235,23 @@ export interface StateRuleUpsertInput {
 
 /**
  * Map a parsed notice to the StateRule upsert shape, or null when a
- * required field (rule title, publication date) is missing — never
+
+ * required title or all source dates are missing — never
+
  * fabricated, the row is simply skipped and logged by the caller.
  */
 export function toStateRuleInput(detail: FlFarNoticeDetail): StateRuleUpsertInput | null {
-  if (!detail.ruleTitle || !detail.publishDate) return null;
+  if (!detail.ruleTitle || (!detail.publishDate && !detail.filingDate && !detail.effectiveDate))
+    return null;
+
   const agency =
     [detail.department, detail.division].filter(Boolean).join(' — ') || 'Unknown agency';
-  const noticeTypeLower = (detail.noticeType ?? '').toLowerCase();
-  const ruleType = /emergency/.test(noticeTypeLower)
-    ? 'emergency'
-    : /adopted|final/.test(noticeTypeLower)
-      ? 'final'
-      : 'proposed';
+
+  const ruleType = classifyFlNotice(detail.noticeType);
+
   return {
+    noticeEvidence: detail,
+
     id: `FL-${detail.noticeId}`,
     state: 'FL',
     agency,
@@ -200,9 +261,18 @@ export function toStateRuleInput(detail: FlFarNoticeDetail): StateRuleUpsertInpu
     docketId: detail.noticeId,
     registerCitation: detail.registerCitation,
     publicationDate: detail.publishDate,
+
+    filingDate: detail.filingDate,
+
+    linkedRuleNumbers: detail.rules.map((r) => r.number),
+
+    sourceRevision: detail.contentHash,
+
     commentStartDate: detail.commentStartDate,
     commentEndDate: detail.commentEndDate,
-    effectiveDate: null, // documented gap — see file header
+
+    effectiveDate: detail.effectiveDate,
+
     sourceUrl: `${BASE_URL}/Gateway/View_notice.asp?id=${detail.noticeId}`,
   };
 }
@@ -211,12 +281,11 @@ async function fetchWithRetry(url: string, maxRetries = 3): Promise<string> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-      if (res.status === 429 || res.status >= 500) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status} (non-retryable)`);
-      return await res.text();
+      const result = await fetchPublisherBytes(url, ['flrules.org', 'www.flrules.org']);
+
+      if (result.contentType !== 'text/html') throw Error('FAR_INVALID_BODY');
+
+      return result.bytes.toString('utf8');
     } catch (err) {
       lastErr = err;
       if (attempt < maxRetries) await new Promise((r) => setTimeout(r, 1000 * attempt));
@@ -231,6 +300,92 @@ export async function fetchFlFarListingPage(page: number): Promise<FlFarListingP
 }
 
 export async function fetchFlFarNoticeDetail(noticeId: string): Promise<FlFarNoticeDetail> {
+  if (!/^\d{1,12}$/.test(noticeId)) throw Error('INVALID_NOTICE_ID');
+
   const url = `${BASE_URL}/Gateway/View_notice.asp?id=${encodeURIComponent(noticeId)}`;
-  return parseFlFarNoticeDetail(await fetchWithRetry(url), noticeId);
+
+  const detail = parseFlFarNoticeDetail(await fetchWithRetry(url), noticeId);
+
+  if (
+    !new RegExp(`Notice:\\s*${noticeId}\\b`).test(
+      cheerio.load(detail.originalHtml)('body').text(),
+    ) ||
+    !detail.noticeType
+  )
+    throw Error('FAR_NOTICE_IDENTITY_OR_LAYOUT_UNQUALIFIED');
+
+  return detail;
+}
+
+export function classifyFlNotice(raw: string | null): string {
+  const value = (raw ?? '').toLowerCase();
+
+  if (/withdraw/.test(value)) return 'withdrawal';
+
+  if (/correct/.test(value)) return 'correction';
+
+  if (/change/.test(value)) return 'change';
+
+  if (/development/.test(value)) return 'development';
+
+  if (/emergency/.test(value)) return 'emergency';
+
+  if (/final adopted|adopted version/.test(value)) return 'final';
+
+  if (/proposed rule/.test(value)) return 'proposed';
+
+  if (/meeting|hearing|workshop/.test(value)) return 'meeting';
+
+  return 'unknown';
+}
+
+export function publisherLink(href: string | undefined): string | null {
+  try {
+    const url = new URL(href ?? '', BASE_URL);
+    if (
+      !href ||
+      (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+      !['flrules.org', 'www.flrules.org'].includes(url.hostname) ||
+      url.username ||
+      url.password
+    )
+      return null;
+    url.protocol = 'https:';
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export function parseFlRuleHistory(html: string, ruleNumber: string) {
+  const $ = cheerio.load(html);
+
+  const notices = parseFlFarListingPage(html);
+
+  const attachments = $('a[href]')
+    .toArray()
+    .map((a) => ({ url: publisherLink($(a).attr('href')), label: $(a).text().trim() }))
+    .filter((a): a is { url: string; label: string } =>
+      Boolean(a.url && /\/(?:readFile|textdownload|notice_Files)\.asp/i.test(a.url)),
+    );
+
+  return {
+    ruleNumber,
+    notices,
+    attachments,
+    originalHtml: html,
+    contentHash: createHash('sha256').update(html).digest('hex'),
+    parserVersion: 'fl-fac-history-v1',
+    complete: !notices.hasNextPage,
+    coverage: 'history_and_publisher_links_only',
+  };
+}
+
+export async function fetchFlRuleHistory(ruleNumber: string) {
+  if (!/^[A-Za-z0-9]+-\d+[A-Za-z0-9.-]*\.\d+$/.test(ruleNumber)) throw Error('INVALID_RULE_NUMBER');
+
+  return parseFlRuleHistory(
+    await fetchWithRetry(`${BASE_URL}/gateway/RuleNo.asp?id=${encodeURIComponent(ruleNumber)}`),
+    ruleNumber,
+  );
 }

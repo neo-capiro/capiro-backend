@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FolderResearchButton } from '../research/FolderResearchButton.js';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
@@ -384,6 +385,21 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
               >
                 Follow-up workflows
               </CapiroButton>
+            ) : null}
+            {active ? (
+              <FolderResearchButton
+                folderId={active.id}
+                clientId={active.clientId}
+                jurisdiction={jurisdiction}
+                sessionKey={session}
+                onOpen={() => {
+                  const next = new URLSearchParams(params);
+                  next.set('tab', 'research');
+                  next.set('researchView', 'statutes');
+                  next.set('folder', active.id);
+                  setParams(next);
+                }}
+              />
             ) : null}
             {reportsFlag.enabled && (
               <CapiroButton size="compact" onClick={() => setReportsOpen(true)}>

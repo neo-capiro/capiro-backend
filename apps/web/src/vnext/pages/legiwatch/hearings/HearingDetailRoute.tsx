@@ -305,6 +305,33 @@ export function HearingDetailRoute() {
       </section>
 
       <SavedHearingSessions hearingId={hearingId} />
+      {e.agenda?.some((item) => item.bill) ? (
+        <section
+          className="lw-card"
+          style={{ padding: 18 }}
+          aria-label="Research linked legislation"
+        >
+          <h2>Research linked legislation</h2>
+          {e.agenda
+            .filter((item) => item.bill)
+            .map((item) => (
+              <LwButton
+                key={item.key}
+                onClick={() => {
+                  const query = new URLSearchParams(searchParams);
+                  query.set('tab', 'research');
+                  query.set('researchView', 'bills');
+                  query.set('jurisdiction', item.bill!.jurisdiction);
+                  query.set('session', item.bill!.session);
+                  query.set('bill', item.bill!.id);
+                  navigate('/legiwatch?' + query);
+                }}
+              >
+                {item.title} · Research source versions
+              </LwButton>
+            ))}
+        </section>
+      ) : null}
 
       {/* 3. Live & Capture — explicit, honest state (LEGIWATCH-V2-HANDOFF §5.4) */}
       <PreparationPanel

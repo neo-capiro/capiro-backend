@@ -1,3 +1,5 @@
+import { ResearchService } from '../research/research.service.js';
+
 import {
   Injectable,
   Optional,
@@ -22,7 +24,16 @@ import {
 import { object } from '../reports/report-domain.js';
 import { hash } from '../folders/folder-tracker.service.js';
 type WorkflowInput = {
-  template: 'hearing_preparation' | 'added_bill_review' | 'published_review' | 'report_review';
+  template:
+    | 'hearing_preparation'
+    | 'added_bill_review'
+    | 'published_review'
+    | 'report_review'
+    | 'legal_research'
+    | 'legal_deadline';
+
+  selectionId?: string;
+
   eventId: string | null;
   folderIds: string[];
   jurisdiction: string;
@@ -60,6 +71,8 @@ export class InternalWorkflowService {
     readonly rules: KeywordRuleService,
     readonly calendar: CalendarPreparationService,
     @Optional() readonly records?: HearingRecordWorkflowService,
+
+    @Optional() readonly research?: ResearchService,
   ) {}
   async authorize(ctx: WorkspaceTenantContext) {
     await this.rules.reports.authorize(ctx, KEYWORD_WORKFLOWS_FEATURE);
@@ -68,9 +81,14 @@ export class InternalWorkflowService {
     await this.authorize(ctx);
     const b = object(body);
     if (
-      !['hearing_preparation', 'added_bill_review', 'published_review', 'report_review'].includes(
-        String(b.template),
-      ) ||
+      ![
+        'hearing_preparation',
+        'added_bill_review',
+        'published_review',
+        'report_review',
+        'legal_research',
+        'legal_deadline',
+      ].includes(String(b.template)) ||
       !Array.isArray(b.folderIds) ||
       !b.folderIds.length ||
       b.folderIds.length > 20 ||
@@ -87,6 +105,50 @@ export class InternalWorkflowService {
     await this.rules.reports.folders.withActor(ctx, async (tx) => {
       for (const f of scope.folders) await this.rules.folder(tx, ctx, f.id);
     });
+
+    if (b.template === 'legal_research' || b.template === 'legal_deadline') {
+      if (!this.research || typeof b.selectionId !== 'string')
+        throw new BadRequestException('EXACT_RESEARCH_SELECTION_REQUIRED');
+
+      const source = await this.research.researchSource(ctx, b.selectionId),
+        selected = object(object(source.prefill.context).scope);
+      if (b.template === 'legal_deadline' && !object(source.prefill.context).deadline)
+        throw new BadRequestException('EXACT_PUBLISHED_DATE_SELECTION_REQUIRED');
+      if (source.stale) throw new ConflictException('RESEARCH_SOURCE_STALE_REVIEW_NEW_SELECTION');
+
+      if (
+        scope.folders.length !== 1 ||
+        selected.folderId !== scope.folders[0]!.id ||
+        selected.sessionKey !== b.sessionKey ||
+        selected.jurisdiction !== b.jurisdiction
+      )
+        throw new BadRequestException('RESEARCH_SELECTION_SCOPE_MISMATCH');
+
+      const input: WorkflowInput = {
+        template: b.template as 'legal_research' | 'legal_deadline',
+        selectionId: b.selectionId,
+        eventId: null,
+        eventRevision: null,
+        folderIds: scope.folders.map((f) => f.id),
+        jurisdiction: b.jurisdiction,
+        sessionKey: b.sessionKey,
+        reportId: null,
+        reportVersion: null,
+        billId: null,
+        contextHash: hash([
+          source.prefill.context.contentHash,
+          scope.folders.map((f) => [f.id, f.version]),
+        ]),
+      };
+
+      return {
+        input,
+        inputHash: hash(input),
+        effects: [{ kind: 'private_research_draft', outbound: false }],
+        limits: [],
+      };
+    }
+
     const event = b.eventId ? await this.calendar.publicEvent(String(b.eventId)) : null;
     if (
       ['hearing_preparation', 'published_review'].includes(String(b.template)) &&
@@ -279,7 +341,19 @@ export class InternalWorkflowService {
       throw new ConflictException('INTERNAL_WORKFLOWS_PAUSED');
     let action = await this.get(ctx, id);
     if (action.state === 'complete') return action;
-    await this.current(ctx, action);
+
+    try {
+      await this.current(ctx, action);
+    } catch (error) {
+      if (action.template !== 'legal_research' && action.template !== 'legal_deadline') throw error;
+      await this.rules.reports.folders.withActor(
+        ctx,
+        (tx) =>
+          tx.$executeRaw`UPDATE intel_legiwatch_workflow_action SET state='held',reason='LEGAL_SOURCE_OR_SCOPE_CHANGED_REVIEW_REQUIRED' WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND id=${id} AND state<>'complete' AND (lease_until IS NULL OR lease_until<now())`,
+      );
+      return this.get(ctx, id);
+    }
+
     const token = randomUUID();
     const claimed = await this.rules.reports.folders.withActor(
       ctx,
@@ -290,7 +364,30 @@ export class InternalWorkflowService {
     );
     if (!claimed) return this.get(ctx, id);
     try {
-      if (action.template === 'hearing_preparation') {
+      if (action.template === 'legal_research' || action.template === 'legal_deadline') {
+        await this.current(ctx, action);
+
+        if (!this.research) throw new ServiceUnavailableException('RESEARCH_ADAPTER_UNAVAILABLE');
+
+        const result = await this.research.createWorkspace(ctx, action.input.selectionId!);
+
+        const draft = object('draft' in result ? result.draft : null);
+
+        if (
+          draft.state !== 'complete' ||
+          typeof draft.draftId !== 'string' ||
+          typeof draft.contextItemId !== 'string'
+        )
+          throw new ServiceUnavailableException('RESEARCH_WORKSPACE_OUTPUT_PENDING');
+
+        await this.step(
+          ctx,
+          id,
+          token,
+          { draftId: draft.draftId, contextItemId: draft.contextItemId },
+          'complete',
+        );
+      } else if (action.template === 'hearing_preparation') {
         if (!action.steps.prefill) {
           const prefill = await this.calendar.prepare(
             ctx,

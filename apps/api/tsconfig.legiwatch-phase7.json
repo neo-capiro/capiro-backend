@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "scripts/sync-legal-research.ts",
+    "scripts/sync-state-register.ts",
+    "scripts/backfill-legiscan-datasets.ts",
+    "src/types/**/*.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", "test"]
+}

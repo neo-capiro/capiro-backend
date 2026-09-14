@@ -58,12 +58,43 @@ export class CollaboratorsService {
       select: { ownerId: true },
     });
     if (!draft) return null;
+    if (!(await this.sourceAccess(tenantId, draftId, clerkUserId))) return null;
     if (draft.ownerId === clerkUserId) return 'owner';
     const row = await this.prisma.wsCollaborator.findFirst({
       where: { tenantId, draftId, subjectId: clerkUserId, status: 'active' },
       select: { role: true },
     });
     return row?.role ?? null;
+  }
+
+  /** Immutable origin receipts remain authoritative even after a draft is edited.
+   * Research stays private to its author and rechecks the current Intel folder/client wall. */
+  async sourceAccess(tenantId: string, draftId: string, clerkUserId: string): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ source_key: string; owner_id: string }>
+    >`SELECT source_key,owner_id FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid AND source_type='legiwatch_research'`;
+    if (!rows.length) return true;
+    const source = rows[0]!;
+    if (source.owner_id !== clerkUserId) return false;
+    const base = process.env.INTEL_API_BASE_URL,
+      secret = process.env.INTERNAL_SERVICE_SECRET;
+    if (!base || !secret) return false;
+    try {
+      const query = new URLSearchParams({ tenantId, ownerId: clerkUserId });
+      const response = await fetch(
+        `${base.replace(/\/+$/, '')}/intel-api/internal/legiwatch/research-source/${encodeURIComponent(source.source_key)}/access?${query}`,
+        {
+          headers: { 'x-internal-service-secret': secret },
+          signal: AbortSignal.timeout(10000),
+          redirect: 'error',
+        },
+      );
+      if (!response.ok) return false;
+      const result = (await response.json()) as { allowed?: boolean; selectionId?: string };
+      return result.allowed === true && result.selectionId === source.source_key;
+    } catch {
+      return false;
+    }
   }
 
   /**
