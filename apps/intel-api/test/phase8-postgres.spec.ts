@@ -485,6 +485,91 @@ describe('Phase 8 public observations, private selections and actual database re
     expect(rows[0].state).toBe('complete');
     expect(rows[0].run_id).toBeNull();
   });
+  test('scheduled budget generation receives project scope and holds removal during generation', async () => {
+    const receiptId = randomUUID(),
+      documentId = randomUUID(),
+      projectId = randomUUID();
+    const title = 'Selected water improvement project',
+      revision = 'b'.repeat(64);
+    const sections = [
+      {
+        locator: 'page:1',
+        text: 'Selected water improvement project: 20000. Neighbor project: 90000.',
+      },
+    ];
+    await api.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${receiptId},'test','https://example.invalid/budget',${revision},'{}','{}',true)`;
+    await api.$executeRaw`INSERT INTO florida_budget_document(id,publisher,source_url,content_hash,title,fiscal_year,session_key,chamber,stage,role,receipt_id,sections,complete) VALUES(${documentId},'Test legislature',${'https://example.invalid/' + documentId},${revision},'Test budget','2026-27',${session},'House','proposed','comparison',${receiptId},${JSON.stringify(sections)}::jsonb,true)`;
+    await api.$executeRaw`INSERT INTO florida_budget_project(id,fiscal_year,title,identities,evidence) VALUES(${projectId},'2026-27',${title},'[]','{}')`;
+    await api.$executeRaw`INSERT INTO florida_budget_amount(id,project_id,document_id,observation) VALUES(${randomUUID()},${projectId},${documentId},${JSON.stringify({ locator: 'page:1;project:1' })}::jsonb)`;
+    const tracking = await evidence.track(ctx, {
+      ...scope(),
+      kind: 'budget',
+      sourceId: projectId,
+      expectedVersion: 0,
+    });
+    const configs = (await editorial.configurations(ctx)).configurations as any[],
+      selected = configs[2];
+    const config = {
+      ...scope(),
+      template: 'research_update',
+      reportId,
+      reportVersion: 0,
+      monitorIds: [],
+      includedKinds: ['budget'],
+      prepareEnabled: true,
+      sendEnabled: false,
+      schedule: {
+        timezone: 'UTC',
+        hour: 0,
+        minute: 0,
+        weekdays: [0, 1, 2, 3, 4, 5, 6],
+        noChange: 'skip',
+        sourceGap: 'draft',
+        mode: 'prepare',
+      },
+    };
+    await folders.withActor(ctx, async (tx) => {
+      await tx.$executeRaw`UPDATE intel_legiwatch_editorial_config SET state='paused' WHERE tenant_id=${tenant}`;
+      await tx.$executeRaw`UPDATE intel_legiwatch_editorial_config SET state='active',config=${JSON.stringify(config)}::jsonb WHERE id=${selected.id}`;
+    });
+    const generator = {
+      editorialBrief: jest.fn().mockImplementation(async (_tenant, _actor, inputs) => {
+        expect(inputs.clientContext).toContain(projectId);
+        expect(inputs.clientContext).toContain(title);
+        expect(inputs.sources[0].text).toContain('Neighbor project');
+        await evidence.track(ctx, {
+          ...scope(),
+          kind: 'budget',
+          sourceId: projectId,
+          expectedVersion: tracking.version,
+          removed: true,
+        });
+        return {
+          promptVersion: 'test-v1',
+          claims: [{ kind: 'analysis', text: 'Review this project.', references: [] }],
+        };
+      }),
+    };
+    const result = await runEditorialWork(
+      editorial,
+      tenant,
+      new Date(Date.now() + 1000),
+      generator,
+    );
+    expect(generator.editorialBrief).toHaveBeenCalledTimes(1);
+    expect(result.results.find((r) => r.configurationId === selected.id)).toMatchObject({
+      state: 'held',
+      reason: 'SELECTED_PROJECT_TRACKING_CHANGED',
+    });
+    const selections = await folders.withActor(
+      ctx,
+      (tx) =>
+        tx.$queryRaw<
+          any[]
+        >`SELECT s.id FROM intel_legiwatch_editorial_selection s JOIN intel_legiwatch_editorial_occurrence o ON o.id=s.request_key WHERE o.config_id=${selected.id}`,
+    );
+    expect(selections).toHaveLength(0);
+  });
   test('current memory-wall membership gates dashboard context and scoped evidence', async () => {
     const clientId = randomUUID(),
       dashboard = new NewsCatcherDashboardService(api);
