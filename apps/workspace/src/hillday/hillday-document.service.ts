@@ -52,6 +52,7 @@ import type {
   SummaryRow,
 } from './hillday.types.js';
 import { normalizeAddress, partyLine } from './resolution.rules.js';
+import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 
 const DEFAULT_TZ = 'America/New_York';
 const MAX_PAGE = 50;
@@ -216,6 +217,7 @@ export class HillDayDocumentService {
     private readonly prisma: PrismaService,
     private readonly source: HillDaySourceService,
     private readonly bridge: DirectoryBridgeClient,
+    private readonly collaborators: CollaboratorsService,
   ) {}
 
   // ── Blueprints ────────────────────────────────────────────────────────────
@@ -254,6 +256,7 @@ export class HillDayDocumentService {
 
   async listDocuments(
     tenantId: string,
+    actorId: string,
     opts: { clientId?: string; status?: string; cursor?: string; limit?: string },
   ): Promise<Page<LibraryRow>> {
     const limit = clampLimit(opts.limit);
@@ -263,7 +266,9 @@ export class HillDayDocumentService {
     const clientId = opts.clientId && isUuid(opts.clientId) ? opts.clientId : null;
     let clientName: string | null = null;
     if (clientId) {
-      const client = await this.source.getClient(tenantId, null, clientId).catch(() => null);
+      const userId = await this.source.resolveUserId(actorId);
+      const client = await this.source.getClient(tenantId, userId, clientId);
+      if (!client?.wallAllowed) throw new NotFoundException('Client not found');
       clientName = client?.name ?? null;
     }
     const cursorWhere =
@@ -287,9 +292,14 @@ export class HillDayDocumentService {
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
     });
+    const shared = await this.prisma.wsCollaborator.findMany({
+      where: { tenantId, subjectId: actorId, status: 'active' },
+      select: { draftId: true },
+    });
     const drafts = await this.prisma.wsDraft.findMany({
       where: {
         tenantId,
+        AND: [{ OR: [{ ownerId: actorId }, { id: { in: shared.map((r) => r.draftId) } }] }],
         ...(clientName ? { client: clientName } : {}),
         ...(opts.status && (opts.status === 'draft' || opts.status === 'complete')
           ? { status: opts.status }
@@ -333,8 +343,17 @@ export class HillDayDocumentService {
       })),
     ].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : b.id.localeCompare(a.id)));
 
-    const items = rows.slice(0, limit);
-    const last = items[items.length - 1];
+    // Advance through the scanned window, including revoked source drafts.
+    // Filtering after limiting must never strand older accessible documents.
+    const window = rows.slice(0, limit);
+    const items: LibraryRow[] = [];
+    const accessBudget = AbortSignal.timeout(12_000);
+    for (let i = 0; i < window.length; i += 8) {
+      const batch = await Promise.all(window.slice(i, i + 8).map(async (row) =>
+        row.kind !== 'draft' || await this.collaborators.sourceAccess(tenantId, row.id, actorId, accessBudget) ? row : null));
+      for (const row of batch) if (row) items.push(row);
+    }
+    const last = window[window.length - 1];
     const nextCursor = rows.length > limit && last ? encodeCursor({ u: last.updatedAt, i: last.id }) : null;
     return { items, nextCursor };
   }

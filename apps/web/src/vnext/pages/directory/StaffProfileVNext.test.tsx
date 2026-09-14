@@ -75,6 +75,7 @@ const STAFF: StaffDetail = {
   committeeAssociations: [
     {
       committeeId: 'committee-100',
+      committeeName: 'House Armed Services Committee',
       person: { personType: 'staff', id: 'staff-800', sourceId: 800, fullName: 'Grace Hopper', title: 'Staff Director', photoUrl: null, photoSource: null, party: null, state: null, district: null, isCurrent: true },
       membershipType: 'staff',
       position: 'Staff Director',
@@ -110,7 +111,7 @@ describe('StaffProfileViewVNext', () => {
       expect(link).toHaveAttribute('href', '/directory/members/member-500');
     }
     // committee association links to the committee dictionary route
-    const committeeLink = screen.getByRole('link', { name: 'committee-100' });
+    const committeeLink = screen.getByRole('link', { name: 'House Armed Services Committee' });
     expect(committeeLink).toHaveAttribute('href', '/directory/committees/committee-100');
     // Present bio fields render...
     expect(screen.getByText('Counsel')).toBeInTheDocument();

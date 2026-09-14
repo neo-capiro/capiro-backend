@@ -21,7 +21,7 @@ import type { WorkspaceTenantContext } from '../../auth/tenant-context.js';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 import { Phase8EvidenceService, phase8Scope, type SourceRow } from './evidence.service.js';
 import { assertEditorialAccess } from './editorial-access.js';
-import { object, digest, json, escapeHtml, settings } from '../reports/report-domain.js';
+import { object, digest, json, settings } from '../reports/report-domain.js';
 import { requestKey, checkedVersion } from '../keywords/keyword-rule.service.js';
 import { ReportRecipientsService } from '../reports/recipients.service.js';
 import { ReportDeliveryService } from '../reports/report-delivery.service.js';
@@ -292,13 +292,24 @@ export class EditorialService {
         redirect: 'error',
       },
     );
-    if (!response.ok) throw new ServiceUnavailableException('EDITED_BRIEFING_UNAVAILABLE');
+    if (!response.ok) {
+      const failure = object(await response.json().catch(() => ({})));
+      if (failure.message === 'EDITORIAL_MEDIA_REQUIRES_DOCUMENT_EXPORT')
+        throw new BadRequestException(
+          'This edition contains inserted images. Export it from Workspace, or remove the images before reviewing a report.',
+        );
+      throw new ServiceUnavailableException('EDITED_BRIEFING_UNAVAILABLE');
+    }
     const output = object(await response.json());
     if (
       output.selectionId !== id ||
       typeof output.text !== 'string' ||
       !output.text ||
       output.text.length > 200000 ||
+      typeof output.html !== 'string' ||
+      !output.html ||
+      output.html.length > 1_000_000 ||
+      output.rendererVersion !== 'workspace-editorial-html-v1' ||
       !/^[a-f0-9]{64}$/.test(String(output.outputHash))
     )
       throw new BadRequestException('EXACT_EDITED_OUTPUT_REQUIRED');
@@ -327,7 +338,7 @@ export class EditorialService {
     )
       throw new BadRequestException('REVIEW_SOURCE_GAPS_FOR_DISTRIBUTION');
     const rendered = {
-      html: `<!doctype html><html><body><h1>${escapeHtml(output.snapshot ? object(output.snapshot).title : source.prefill.draft.docTitle)}</h1><pre style="white-space:pre-wrap">${escapeHtml(output.text)}</pre></body></html>`,
+      html: output.html,
       text: output.text,
     };
     return {
@@ -395,7 +406,7 @@ export class EditorialService {
     });
   }
   async configurations(ctx: WorkspaceTenantContext) {
-    return this.evidence.run(ctx, {}, 'editorial', async (tx) => {
+    const configurations = await this.evidence.run(ctx, {}, 'editorial', async (tx) => {
       const rows = await tx.$queryRaw<
         Array<Record<string, unknown>>
       >`SELECT * FROM intel_legiwatch_editorial_config WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} ORDER BY source_key`;
@@ -403,13 +414,167 @@ export class EditorialService {
       for (const row of rows) {
         try {
           await this.evidence.context(tx, ctx, phase8Scope(object(row.config)));
-          allowed.push({ ...row, approvalHash: digest(row.config) });
+          const editions = await tx.$queryRaw<Array<{ selection_id: string }>>`
+            SELECT selection_id FROM intel_legiwatch_editorial_occurrence
+            WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId}
+              AND config_id=${String(row.id)} AND selection_id IS NOT NULL
+            ORDER BY created_at DESC,id DESC LIMIT 1`;
+          allowed.push({
+            ...row,
+            approvalHash: digest(row.config),
+            latestSelectionId: editions[0]?.selection_id ?? null,
+          });
         } catch (e) {
           if (!(e instanceof NotFoundException || e instanceof ForbiddenException)) throw e;
         }
       }
-      return { configurations: allowed };
+      return allowed;
     });
+    const lookup = await this.lookupDrafts(
+      ctx,
+      configurations.map((r) => r.latestSelectionId).filter((id): id is string => !!id),
+    );
+    return {
+      configurations: configurations.map((r) => ({
+        ...r,
+        latestEdition: lookup.drafts.find((d) => d.selectionId === r.latestSelectionId) ?? null,
+      })),
+      draftLookupState: lookup.state,
+    };
+  }
+  private async lookupDrafts(ctx: WorkspaceTenantContext, selectionIds: string[]) {
+    const drafts: Array<{
+      selectionId: string;
+      draftId: string;
+      title: string;
+      updatedAt?: string;
+    }> = [];
+    if (!selectionIds.length) return { state: 'available', drafts };
+    const base = process.env.WORKSPACE_BASE_URL,
+      secret = process.env.INTERNAL_SERVICE_SECRET;
+    if (!base || !secret) return { state: 'unavailable', drafts };
+    try {
+      const response = await fetch(
+        `${base.replace(/\/+$/, '')}/workspace-api/internal/legiwatch/editorial/lookup`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-internal-service-secret': secret },
+          body: JSON.stringify({ tenantId: ctx.tenantId, ownerId: ctx.clerkUserId, selectionIds }),
+          signal: AbortSignal.timeout(15000),
+          redirect: 'error',
+        },
+      );
+      if (!response.ok) return { state: 'unavailable', drafts };
+      const result = object(await response.json());
+      for (const raw of Array.isArray(result.drafts) ? result.drafts : []) {
+        const d = object(raw);
+        if (
+          selectionIds.includes(String(d.selectionId)) &&
+          /^[a-f0-9-]{36}$/i.test(String(d.draftId)) &&
+          typeof d.title === 'string'
+        )
+          drafts.push({
+            selectionId: String(d.selectionId),
+            draftId: String(d.draftId),
+            title: d.title,
+            updatedAt: typeof d.updatedAt === 'string' ? d.updatedAt : undefined,
+          });
+      }
+      return { state: 'available', drafts };
+    } catch {
+      return { state: 'unavailable', drafts };
+    }
+  }
+  async history(ctx: WorkspaceTenantContext, input: unknown, configurationId?: string) {
+    const b = object(input),
+      limit = Math.max(1, Math.min(50, Number(b.limit) || 20));
+    if (!Number.isInteger(limit)) throw new BadRequestException('INVALID_HISTORY_LIMIT');
+    let before: string | null = null,
+      beforeId: string | null = null;
+    if (b.cursor) {
+      try {
+        if (typeof b.cursor !== 'string' || b.cursor.length > 1000) throw Error();
+        const c = object(JSON.parse(Buffer.from(String(b.cursor), 'base64url').toString()));
+        if (typeof c.at !== 'string' || typeof c.id !== 'string') throw Error();
+        // Preserve PostgreSQL sub-millisecond precision in the continuation.
+        before = c.at;
+        beforeId = c.id;
+        if (!Number.isFinite(Date.parse(before)) || !beforeId || beforeId.length > 200)
+          throw Error();
+      } catch {
+        throw new BadRequestException('INVALID_HISTORY_CURSOR');
+      }
+    }
+    const page = await this.evidence.run(ctx, b, 'editorial', async (tx, _b, scope) => {
+      if (configurationId) {
+        const configs = await tx.$queryRaw<Array<{ config: Record<string, unknown> }>>`
+          SELECT config FROM intel_legiwatch_editorial_config WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND id=${configurationId}`;
+        if (!configs[0]) throw new NotFoundException('CONFIGURATION_NOT_FOUND');
+        await this.evidence.context(tx, ctx, phase8Scope(configs[0].config));
+      }
+      const rows = configurationId
+        ? await tx.$queryRaw<Array<Record<string, unknown>>>`
+        SELECT id,selection_id AS "selectionId",definition_version AS "definitionVersion",state,
+          created_at AS "createdAt",created_at::text AS "cursorAt",occurrence_key AS "occurrenceKey",payload->>'reason' AS reason
+        FROM intel_legiwatch_editorial_occurrence
+        WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND config_id=${configurationId}
+          AND (${before}::timestamptz IS NULL OR (created_at,id)<(${before}::timestamptz,${beforeId}))
+        ORDER BY created_at DESC,id DESC LIMIT ${limit + 1}`
+        : await tx.$queryRaw<Array<Record<string, unknown>>>`
+        SELECT s.id,s.id AS "selectionId",s.created_at AS "createdAt",s.created_at::text AS "cursorAt",s.payload->>'title' AS title,
+          s.payload->>'template' AS template,s.payload->>'cutoff' AS cutoff,'prepared' AS state
+        FROM intel_legiwatch_editorial_selection s
+        WHERE s.tenant_id=${ctx.tenantId} AND s.owner_clerk_id=${ctx.clerkUserId}
+          AND s.client_id IS NOT DISTINCT FROM ${scope.clientId} AND (${scope.folderId}::text IS NULL OR s.folder_id=${scope.folderId})
+          AND (${before}::timestamptz IS NULL OR (s.created_at,s.id)<(${before}::timestamptz,${beforeId}))
+        ORDER BY s.created_at DESC,s.id DESC LIMIT ${limit + 1}`;
+      const scanned = rows.slice(0, limit),
+        items: Array<Record<string, unknown>> = [];
+      for (const row of scanned) {
+        if (row.selectionId) {
+          try {
+            // Recheck the original scope; a moved/deleted folder must not leak edition metadata.
+            const selection = await tx.$queryRaw<
+              Array<{ payload: Record<string, unknown> }>
+            >`SELECT payload FROM intel_legiwatch_editorial_selection WHERE tenant_id=${ctx.tenantId} AND owner_clerk_id=${ctx.clerkUserId} AND id=${String(row.selectionId)}`;
+            if (!selection[0]) continue;
+            const selectionScope = phase8Scope(object(selection[0].payload.scope));
+            await this.evidence.context(tx, ctx, selectionScope);
+            Object.assign(row, selectionScope, {
+              title: selection[0].payload.title,
+              template: selection[0].payload.template,
+              cutoff: selection[0].payload.cutoff,
+            });
+          } catch (e) {
+            if (e instanceof NotFoundException || e instanceof ForbiddenException) continue;
+            throw e;
+          }
+        }
+        items.push(row);
+      }
+      const last = scanned[scanned.length - 1];
+      return {
+        items,
+        nextCursor:
+          rows.length > limit && last
+            ? Buffer.from(
+                JSON.stringify({ at: last.cursorAt ?? last.createdAt, id: last.id }),
+              ).toString('base64url')
+            : null,
+      };
+    });
+    const lookup = await this.lookupDrafts(
+      ctx,
+      page.items.map((r) => String(r.selectionId ?? '')).filter(Boolean),
+    );
+    return {
+      ...page,
+      items: page.items.map((r) => ({
+        ...r,
+        draft: lookup.drafts.find((d) => d.selectionId === r.selectionId) ?? null,
+      })),
+      draftLookupState: lookup.state,
+    };
   }
   async configure(ctx: WorkspaceTenantContext, id: string, input: unknown) {
     return this.evidence.run(ctx, input, 'editorial', async (tx, b) => {

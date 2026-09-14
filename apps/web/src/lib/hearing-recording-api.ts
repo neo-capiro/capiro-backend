@@ -19,12 +19,25 @@ export interface RecordingManifest {
   recording: null | {
     id: string;
     state: string;
+    playbackAvailability?: 'available' | 'expired' | 'permission_unavailable';
     originAt: string;
     expiresAt: string;
     transcriptState: string;
     analysisState: string;
     epochs: RecordingEpoch[];
   };
+}
+
+export function recordingLoadError(error: unknown) {
+  const response = (error as { response?: { status?: number; data?: { code?: string } } })
+    ?.response;
+  if (response?.status === 401)
+    return 'Your session has expired. Sign in again, then retry recording status.';
+  if (response?.data?.code === 'RECORDING_ACCESS_UNAVAILABLE')
+    return 'Saved-audio access is unavailable. Ask a tenant administrator to check your active membership and saved-audio access, then retry.';
+  if (response?.status === 403 || response?.status === 404)
+    return 'Recording access is unavailable for this account. Check your current workspace and ask a tenant administrator to review access, then retry.';
+  return 'Recording status could not be loaded. Retry to check saved audio; its coverage is not yet known.';
 }
 
 export function useHearingRecording(sessionId: string, live: boolean) {

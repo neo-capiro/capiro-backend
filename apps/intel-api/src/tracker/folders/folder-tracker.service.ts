@@ -31,9 +31,15 @@ import {
 export const hash = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const isFolderAdmin = (ctx: WorkspaceTenantContext) =>
-  ['org:admin', 'admin', 'owner', 'org:owner', 'capiro_admin', 'client_admin'].includes(
-    ctx.role ?? '',
-  );
+  [
+    'org:admin',
+    'admin',
+    'owner',
+    'org:owner',
+    'capiro_admin',
+    'user_admin',
+    'client_admin',
+  ].includes(ctx.role ?? '');
 export const canEditFolder = (
   f: Pick<LegiWatchFolder, 'ownerClerkId' | 'otherUserAccess'>,
   actor: string,

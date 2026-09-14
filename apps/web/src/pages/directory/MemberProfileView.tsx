@@ -95,7 +95,7 @@ export function MemberProfileView({ member }: { member: MemberDetail }) {
         items={member.committees}
         render={(m, i) => (
           <div key={`${m.committeeId}-${i}`}>
-            <Link to={`/directory/committees/${encodeURIComponent(m.committeeId)}`}>{m.committeeId}</Link>{' '}
+            <Link to={`/directory/committees/${encodeURIComponent(m.committeeId)}`}>{m.committeeName?.trim() || 'Committee name unavailable'}</Link>{' '}
             <Tag>{m.position ?? 'Member'}</Tag>
           </div>
         )}

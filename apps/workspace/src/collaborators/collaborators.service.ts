@@ -52,13 +52,18 @@ export class CollaboratorsService {
    * Pending external invites carry no subjectId, so they never resolve a role
    * for a signed-in actor here (they gain access once accepted → active + subjectId).
    */
-  async resolveRole(tenantId: string, draftId: string, clerkUserId: string): Promise<ResolvedRole> {
+  async resolveRole(
+    tenantId: string,
+    draftId: string,
+    clerkUserId: string,
+    signal?: AbortSignal,
+  ): Promise<ResolvedRole> {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       select: { ownerId: true },
     });
     if (!draft) return null;
-    if (!(await this.sourceAccess(tenantId, draftId, clerkUserId))) return null;
+    if (!(await this.sourceAccess(tenantId, draftId, clerkUserId, signal))) return null;
     if (draft.ownerId === clerkUserId) return 'owner';
     const row = await this.prisma.wsCollaborator.findFirst({
       where: { tenantId, draftId, subjectId: clerkUserId, status: 'active' },
@@ -69,7 +74,12 @@ export class CollaboratorsService {
 
   /** Immutable origin receipts remain authoritative even after a draft is edited.
    * Research stays private to its author and rechecks the current Intel folder/client wall. */
-  async sourceAccess(tenantId: string, draftId: string, clerkUserId: string): Promise<boolean> {
+  async sourceAccess(
+    tenantId: string,
+    draftId: string,
+    clerkUserId: string,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
     const rows = await this.prisma.$queryRaw<
       Array<{ source_key: string; owner_id: string; source_type: string }>
     >`SELECT source_key,owner_id,source_type FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid AND source_type IN ('legiwatch_research','legiwatch_editorial')`;
@@ -85,7 +95,9 @@ export class CollaboratorsService {
         `${base.replace(/\/+$/, '')}/intel-api/internal/legiwatch/${source.source_type === 'legiwatch_editorial' ? 'editorial' : 'research'}-source/${encodeURIComponent(source.source_key)}/access?${query}`,
         {
           headers: { 'x-internal-service-secret': secret },
-          signal: AbortSignal.timeout(10000),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+            : AbortSignal.timeout(10000),
           redirect: 'error',
         },
       );

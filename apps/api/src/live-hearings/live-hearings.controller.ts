@@ -1,3 +1,4 @@
+import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 /**
  * LegiWatch Live Hearings — canonical read surface (master plan §12).
  *
@@ -244,7 +245,10 @@ export class LiveHearingsController {
   }
 
   @Get('events/:id')
-  async event(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  async event(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     const event = await this.service.event(ctx, id);
     if (!event) throw new NotFoundException(`hearing ${id} not found`);
     return event;
@@ -253,7 +257,7 @@ export class LiveHearingsController {
   @Get('events/:id/updates')
   async updates(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Query() query: UpdatesQueryDto,
   ) {
     const event = await this.service.event(ctx, id);

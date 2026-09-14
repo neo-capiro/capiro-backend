@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CollaboratorsModule } from '../collaborators/collaborators.module.js';
 import { AiCredentialService } from '../generation/ai-credential.service.js';
 import { DirectoryBridgeClient } from './directory-bridge.client.js';
 import { HillDayContextService } from './hillday-context.service.js';
@@ -16,6 +17,7 @@ import { HillDayFileController } from './hillday-file.controller.js';
  * reused except the tenant-scoped AI credential resolver.
  */
 @Module({
+  imports: [CollaboratorsModule],
   controllers: [HillDayController, HillDayFileController],
   providers: [
     HillDaySourceService,

@@ -187,7 +187,7 @@ function makeSetMeetingsHarness(initial: FakeMeetingRow[]) {
   const bridge = {
     matchEmails: jest.fn(async () => ({ ok: true as const, data: { matches: [], committeeStaff: [] } })),
   };
-  const service = new HillDayDocumentService(prisma as never, source as never, bridge as never);
+  const service = new HillDayDocumentService(prisma as never, source as never, bridge as never, {} as never);
   return { service, meetings, doc };
 }
 
@@ -265,7 +265,7 @@ describe('HillDayDocumentService.quality', () => {
         ]),
       },
     };
-    const service = new HillDayDocumentService(prisma as never, {} as never, {} as never);
+    const service = new HillDayDocumentService(prisma as never, {} as never, {} as never, {} as never);
     const quality = await service.quality('t', 'doc-1');
     const byId = new Map(quality.checks.map((c) => [c.id, c]));
     expect(byId.get('offices_resolved')?.state).toBe('warn');

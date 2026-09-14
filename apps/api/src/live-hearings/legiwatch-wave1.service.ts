@@ -17,6 +17,7 @@
  * they belong to, so they are validated against the caller's tenant before
  * being persisted or used as a filter.
  */
+import { resolveCanonicalHearingId } from '../hearing-discovery/hearing-alias.js';
 import {
   BadRequestException,
   ConflictException,
@@ -203,6 +204,7 @@ interface CanonicalHearingRow {
   legislativeSession?: string | null;
   stateCommitteeId?: string | null;
   calendarRevision?: number;
+  sourceRevision?: number;
   calendarSnapshot?: unknown;
   calendarCheckedAt?: Date | null;
   calendarCheckState?: string;
@@ -1960,9 +1962,31 @@ export class LegiWatchWave1Service {
     appOrigin: string,
     options: { dateOnlyReminder?: boolean } = {},
   ): Promise<CalendarExportResult> {
-    const hearing = await this.requireHearing(hearingId, ctx);
+    const canonicalId = await resolveCanonicalHearingId(this.prisma, hearingId);
+    const hearing = await this.requireHearing(canonicalId, ctx);
     const payload = await this.toCalendarExportHearing(hearing);
+    await this.preserveExportIdentity(payload, hearingId);
     return buildCalendarExport(payload, { appOrigin, ...options });
+  }
+
+  private async preserveExportIdentity(
+    payload: CalendarExportHearing,
+    requestedId: string,
+  ): Promise<void> {
+    if (payload.id !== requestedId) {
+      const alias = await this.prisma.committeeHearing.findUnique({
+        where: { id: requestedId },
+        select: { calendarRevision: true, sourceRevision: true },
+      });
+      payload.uidHearingId = requestedId;
+      // Offset, not max: every later canonical/source revision must advance
+      // even when the retained alias used to have a much larger revision.
+      payload.calendarRevision =
+        (payload.calendarRevision ?? 0) +
+        (alias?.calendarRevision ?? 0) +
+        (alias?.sourceRevision ?? 0) +
+        1;
+    }
   }
 
   private async toCalendarExportHearing(
@@ -1981,7 +2005,7 @@ export class LegiWatchWave1Service {
       startsAt: hearing.startsAt,
       actualEnd: hearing.actualEnd,
       scheduledEnd: hearing.scheduledEnd,
-      calendarRevision: hearing.calendarRevision,
+      calendarRevision: (hearing.calendarRevision ?? 0) + (hearing.sourceRevision ?? 0),
       timePrecision: hearing.timePrecision,
       time: hearing.time,
       timezone: hearing.timezone,
@@ -2017,6 +2041,13 @@ export class LegiWatchWave1Service {
     if (input.hearingIds || (input.from && input.to)) {
       const calendar = new LiveHearingsService(this.prisma);
       const hearings: CalendarExportHearing[] = [];
+      const requestedByCanonical = new Map<string, string>();
+      for (const requestedId of input.hearingIds ?? []) {
+        const canonicalId = await resolveCanonicalHearingId(this.prisma, requestedId);
+        // If both IDs were selected, canonical wins independently of order.
+        if (!requestedByCanonical.has(canonicalId) || requestedId === canonicalId)
+          requestedByCanonical.set(canonicalId, requestedId);
+      }
       let total = 0;
       for (let page = 1; page <= MAX / 200; page++) {
         const result = await calendar.calendar(ctx, { ...input, page, pageSize: 200 });
@@ -2025,8 +2056,13 @@ export class LegiWatchWave1Service {
           throw new BadRequestException(
             `Selection contains ${total} events; narrow it to at most ${MAX}`,
           );
-        for (const row of result.rows)
-          hearings.push(await this.toCalendarExportHearing(await this.requireHearing(row.id, ctx)));
+        for (const row of result.rows) {
+          const payload = await this.toCalendarExportHearing(
+            await this.requireHearing(row.id, ctx),
+          );
+          await this.preserveExportIdentity(payload, requestedByCanonical.get(row.id) ?? row.id);
+          hearings.push(payload);
+        }
         if (hearings.length >= total || !result.rows.length) break;
       }
       if (hearings.length !== total)
@@ -2037,9 +2073,11 @@ export class LegiWatchWave1Service {
         appOrigin,
         dateOnlyReminder: input.dateOnlyReminder,
       });
-      for (const id of new Set(input.hearingIds ?? []))
-        if (!hearings.some((h) => h.id === id))
+      for (const id of new Set(input.hearingIds ?? [])) {
+        const canonicalId = await resolveCanonicalHearingId(this.prisma, id);
+        if (!hearings.some((h) => h.id === canonicalId))
           result.skipped.push({ id, reason: 'Event unavailable in this selection' });
+      }
       return result;
     }
     throw new BadRequestException('calendarExportBulk requires hearingIds or a from/to window');
@@ -2182,6 +2220,7 @@ export class LegiWatchWave1Service {
         legislativeSession: true,
         stateCommitteeId: true,
         calendarRevision: true,
+        sourceRevision: true,
         calendarSnapshot: true,
         calendarCheckedAt: true,
         calendarCheckState: true,

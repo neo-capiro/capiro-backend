@@ -251,3 +251,47 @@ test('the right bill picker sends an explicit independent session and pinned rev
     }),
   );
 });
+
+test('comparison controls and version fetches stay within bill views while the pinned pair survives navigation', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.includes('/versions?')
+      ? {
+          versions: [
+            { id: 'left-id', revision: 'hash-a', kind: 'text', title: 'Introduced' },
+            { id: 'right-id', revision: 'hash-b', kind: 'text', title: 'Enrolled' },
+          ],
+        }
+      : { rows: [], receipts: [] },
+  }));
+  mocks.post.mockResolvedValue({ data: { changes: [], items: [] } });
+  mount(
+    '/legiwatch?tab=research&researchView=compare&leftBill=bill-a&left=left-id&leftRevision=hash-a&right=right-id&rightRevision=hash-b&rightPicker=true&client=client-a&folder=folder-a',
+  );
+  expect(await screen.findByLabelText('Left version')).toBeTruthy();
+  const versionCalls = () =>
+    mocks.get.mock.calls.filter(([url]) => url.includes('/versions?')).length;
+  const initialCalls = versionCalls();
+  for (const label of ['Statutes & Constitution', 'Rules & deadlines', 'Source coverage']) {
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    await waitFor(() => expect(screen.queryByLabelText('Left version')).toBeNull());
+    expect(screen.queryByLabelText('Right version')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Compare selected versions' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Choose the right bill' })).toBeNull();
+    expect(versionCalls()).toBe(initialCalls);
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Bills' }));
+  expect(await screen.findByLabelText('Left version')).toHaveValue('left-id');
+  expect(screen.getByLabelText('Right version')).toHaveValue('right-id');
+  fireEvent.click(screen.getByRole('button', { name: 'Compare selected versions' }));
+  await waitFor(() =>
+    expect(mocks.post).toHaveBeenCalledWith(
+      '/intel-api/legiwatch/research/compare',
+      expect.objectContaining({
+        leftRevision: 'hash-a',
+        rightRevision: 'hash-b',
+        clientId: 'client-a',
+        folderId: 'folder-a',
+      }),
+    ),
+  );
+});

@@ -10,23 +10,43 @@
  */
 
 const ALLOWED_TAGS = new Set([
-  'p', 'br', 'strong', 'em', 'u', 's', 'del', 'ins',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'ul', 'ol', 'li',
-  'blockquote', 'pre', 'code',
-  'a', 'span', 'div',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  'sup', 'sub',
+  'p',
+  'br',
+  'strong',
+  'em',
+  'u',
+  's',
+  'del',
+  'ins',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'ul',
+  'ol',
+  'li',
+  'blockquote',
+  'pre',
+  'code',
+  'a',
+  'span',
+  'div',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
+  'sup',
+  'sub',
   'hr',
 ]);
 
-const ALLOWED_ATTRIBUTES = new Set([
-  'href', 'title', 'colspan', 'rowspan', 'target', 'rel',
-]);
+const ALLOWED_ATTRIBUTES = new Set(['href', 'title', 'colspan', 'rowspan', 'target', 'rel']);
 
-const ALLOWED_PROTOCOLS = new Set([
-  'http:', 'https:', 'mailto:', 'tel:',
-]);
+const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 
 /**
  * Sanitize an HTML fragment from model generation output.
@@ -44,8 +64,18 @@ export function sanitizeGeneratedHtml(input: string): string {
   // embed, svg, math, noscript, template, form, input, textarea, button,
   // select, option).
   const dangerousBlocks = [
-    'script', 'style', 'iframe', 'object', 'embed', 'svg', 'math',
-    'noscript', 'template', 'base', 'link', 'meta',
+    'script',
+    'style',
+    'iframe',
+    'object',
+    'embed',
+    'svg',
+    'math',
+    'noscript',
+    'template',
+    'base',
+    'link',
+    'meta',
   ];
   let cleaned = input;
   for (const tag of dangerousBlocks) {
@@ -73,10 +103,7 @@ export function sanitizeGeneratedHtml(input: string): string {
   );
 
   // Step 4: Remove data: URLs in src (can be used for exfiltration).
-  cleaned = cleaned.replace(
-    /(\ssrc\s*=\s*)("data:[^"]*"|'data:[^']*'|data:[^\s>]+)/gi,
-    '$1"#"',
-  );
+  cleaned = cleaned.replace(/(\ssrc\s*=\s*)("data:[^"]*"|'data:[^']*'|data:[^\s>]+)/gi, '$1"#"');
 
   // Step 5: Remove style attributes (CSS-based exfiltration).
   cleaned = cleaned.replace(/\sstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
@@ -131,39 +158,61 @@ export function sanitizeGeneratedHtml(input: string): string {
   return cleaned.trim();
 }
 
-function stripDisallowedAttributes(tag: string, _tagName: string): string {
-  // For <a> tags, validate href protocol
-  if (tag.toLowerCase().startsWith('<a ')) {
-    const hrefMatch = tag.match(/href\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i);
-    if (hrefMatch) {
-      const href = (hrefMatch[1] ?? '').replace(/^["']|["']$/g, '');
-      try {
-        const url = new URL(href, 'http://placeholder.invalid');
-        if (!ALLOWED_PROTOCOLS.has(url.protocol)) {
-          return tag.replace(hrefMatch[0], 'href="#"');
+function stripDisallowedAttributes(tag: string, tagName: string): string {
+  if (tag.startsWith('</')) return `</${tagName}>`;
+  const decode = (value: string) =>
+    value.replace(
+      /&#(x[0-9a-f]+|[0-9]+);?|&(amp|quot|apos|lt|gt|colon|tab|newline);/gi,
+      (entity, numeric, named) => {
+        if (numeric) {
+          const n = parseInt(
+            numeric[0].toLowerCase() === 'x' ? numeric.slice(1) : numeric,
+            numeric[0].toLowerCase() === 'x' ? 16 : 10,
+          );
+          return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '\ufffd';
         }
+        return (
+          (
+            {
+              amp: '&',
+              quot: '"',
+              apos: "'",
+              lt: '<',
+              gt: '>',
+              colon: ':',
+              tab: '\t',
+              newline: '\n',
+            } as Record<string, string>
+          )[named.toLowerCase()] ?? entity
+        );
+      },
+    );
+  const escape = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+    );
+  const attrs = new Map<string, string>();
+  const pattern = /\s([a-zA-Z][a-zA-Z0-9-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(tag))) {
+    const name = match[1]!.toLowerCase();
+    if (!ALLOWED_ATTRIBUTES.has(name) || attrs.has(name)) continue;
+    let value = decode(match[2]!.replace(/^["']|["']$/g, ''));
+    if (name === 'href') {
+      if (tagName !== 'a') continue;
+      try {
+        if (!ALLOWED_PROTOCOLS.has(new URL(value, 'https://placeholder.invalid').protocol))
+          value = '#';
       } catch {
-        return tag.replace(hrefMatch[0], 'href="#"');
+        value = '#';
       }
     }
+    if ((name === 'colspan' || name === 'rowspan') && !/^[1-9][0-9]{0,2}$/.test(value)) continue;
+    if (name === 'target' && !['_blank', '_self'].includes(value)) continue;
+    if (name === 'rel') continue;
+    attrs.set(name, value);
   }
-
-  // Rebuild the tag with only allowed attributes
-  const isClosing = tag.startsWith('</');
-  if (isClosing) return `</${_tagName}>`;
-
-  const attrs: string[] = [];
-  const attrRegex = /([a-zA-Z]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = attrRegex.exec(tag)) !== null) {
-    const attrName = (match[1] ?? '').toLowerCase();
-    if (ALLOWED_ATTRIBUTES.has(attrName)) {
-      attrs.push(match[0]);
-    }
-  }
-  // Add rel="noopener noreferrer" to target="_blank" links
-  if (attrs.some((a) => a.startsWith('target=')) && !attrs.some((a) => a.startsWith('rel='))) {
-    attrs.push('rel="noopener noreferrer"');
-  }
-  return `<${_tagName}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
+  if (attrs.has('target')) attrs.set('rel', 'noopener noreferrer');
+  return `<${tagName}${Array.from(attrs, ([name, value]) => ` ${name}="${escape(value)}"`).join('')}>`;
 }

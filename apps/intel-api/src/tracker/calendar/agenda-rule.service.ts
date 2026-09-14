@@ -82,6 +82,10 @@ export class AgendaRuleService extends RecordRuleService {
   constructor(reports: ReportService) {
     super(reports);
   }
+  async capabilities(ctx: WorkspaceTenantContext) {
+    await this.authorize(ctx);
+    return { canPromote: isFolderAdmin(ctx) };
+  }
   async readiness(ctx: WorkspaceTenantContext, id: string) {
     const ready = await super.readiness(ctx, id);
     if (ready.assignments.some((a) => a.jurisdiction === 'FL')) {

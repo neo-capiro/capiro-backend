@@ -31,8 +31,8 @@ export const COMMITTEE_SITE_ADAPTER = 'committee-site';
 
 /**
  * Adapters whose `externalEventId` IS the official Congress.gov/House event id,
- * and which therefore must mint the legacy `cm-{congress}-{eventId}` id so their
- * rows merge with what `sync-hearings.ts` already wrote.
+ * and which use the shared official-event namespace (cm for House, sen for
+ * Senate) while recognizing IDs already written by sync-hearings.ts.
  */
 const EVENT_ID_ADAPTERS = new Set<string>([CONGRESS_GOV_ADAPTER, HOUSE_REPOSITORY_ADAPTER]);
 
@@ -126,8 +126,8 @@ export function normalizedTitleKey(title: string | null | undefined): string {
 /**
  * The canonical `committee_hearing.id` for an observed event.
  *
- * - Congress.gov / docs.house.gov: `cm-{congress}-{eventId}` — the EXISTING
- *   convention. Both sources key on the same House/Senate `EventID`, which is
+ * - Congress.gov / docs.house.gov House events: `cm-{congress}-{eventId}`.
+ *   New Senate events use `sen-{congress}-{eventId}` across both adapters. Both sources key on the same House/Senate `EventID`, which is
  *   why they already merge today.
  * - Senate central schedule: no official event id exists, so a stable synthetic
  *   key from (system code, day, ET clock). Deterministic, so a re-run of the
@@ -140,7 +140,7 @@ export function normalizedTitleKey(title: string | null | undefined): string {
 export function canonicalHearingId(event: SourceEvent, adapterKey: string): string {
   const congress = event.congress ?? 0;
   if (EVENT_ID_ADAPTERS.has(adapterKey) && /^\d+$/.test(event.externalEventId)) {
-    return `cm-${congress}-${event.externalEventId}`;
+    return `${event.chamber === 'senate' ? 'sen' : 'cm'}-${congress}-${event.externalEventId}`;
   }
   const day = event.calendarDate ? dayKey(event.calendarDate) : 'nodate';
   const clock = clockKey(event.startsAt);
@@ -152,6 +152,9 @@ export function canonicalHearingId(event: SourceEvent, adapterKey: string): stri
     // an unknown event and FORKED a duplicate canonical row (caught by the
     // disposable-Postgres verification, section H).
     if (/^\d+$/.test(event.externalEventId)) {
+      // Congress.gov's senate-event and this feed share the identifier. Both
+      // new writers use sen-* to retain canonical schedule-update ownership;
+      // matchKeys still recognizes the historical cm-* rows.
       return `sen-${congress}-${event.externalEventId}`;
     }
     return `sen-${congress}-${body}-${day}-${clock}`;
@@ -218,6 +221,13 @@ export function matchKeys(event: SourceEvent, adapterKey: string): MatchKey[] {
   // id is date-derived, and it cannot be expressed here because it is a lookup
   // against the observation ledger rather than a predicate over hearings.
   const keys: MatchKey[] = [{ kind: 'id', id: canonicalHearingId(event, adapterKey) }];
+  if (
+    event.chamber === 'senate' &&
+    /^\d+$/.test(event.externalEventId) &&
+    (adapterKey === SENATE_SCHEDULE_ADAPTER || adapterKey === CONGRESS_GOV_ADAPTER)
+  ) {
+    keys.push({ kind: 'id', id: `cm-${event.congress ?? 0}-${event.externalEventId}` });
+  }
   const calendarDate = event.calendarDate;
   if (!calendarDate) return keys;
 

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { BriefingHistory } from './BriefingHistory.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BRIEFING_TEMPLATES } from '@capiro/shared';
 import { useApi } from '../../../../lib/use-api.js';
@@ -28,10 +30,12 @@ export function BriefingConfigurations({
   client,
   folder,
   reports,
+  onReview,
 }: {
   client: string;
   folder: string;
   reports: Report[];
+  onReview: (edition: Row) => void;
 }) {
   const api = useApi(),
     scope = useApiScope(),
@@ -39,6 +43,7 @@ export function BriefingConfigurations({
     query = useEvidence<Row>('briefings/configurations', {}),
     [editing, setEditing] = useState<Row | null>(null),
     [review, setReview] = useState<Row | null>(null),
+    [history, setHistory] = useState<Row | null>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const action = async (fn: () => Promise<unknown>) => {
@@ -61,6 +66,18 @@ export function BriefingConfigurations({
         reviewed. Historical audience entries require a current recipient selection.
       </p>
       {error && <p role="alert">{error}</p>}
+      {query.isError && (
+        <p role="alert">
+          Briefing configurations could not be loaded.{' '}
+          <button onClick={() => void query.refetch()}>Retry configurations</button>
+        </p>
+      )}
+      {query.data?.draftLookupState === 'unavailable' && (
+        <p role="status">
+          Latest draft links are temporarily unavailable.{' '}
+          <button onClick={() => void query.refetch()}>Retry draft links</button>
+        </p>
+      )}
       <div className="lw-evidence-table">
         <table>
           <thead>
@@ -97,9 +114,17 @@ export function BriefingConfigurations({
                     {r.last_success_at ? new Date(r.last_success_at).toLocaleString() : 'None'}
                   </small>
                   <small>{r.last_held_reason}</small>
+                  {r.latestEdition && (
+                    <Link to={`/workspace/${encodeURIComponent(r.latestEdition.draftId)}`}>
+                      Open latest prepared edition
+                    </Link>
+                  )}
                 </td>
                 <td>
                   <div className="lw-evidence-actions">
+                    <CapiroButton size="compact" onClick={() => setHistory(r)}>
+                      Edition history
+                    </CapiroButton>
                     <CapiroButton
                       size="compact"
                       disabled={!folder || busy}
@@ -130,10 +155,27 @@ export function BriefingConfigurations({
           </tbody>
         </table>
       </div>
-      {!query.isPending && !query.data?.configurations?.length && (
+      {!query.isPending && !query.isError && !query.data?.configurations?.length && (
         <p>
           No alert families have been staged. Use News → Monitors & import to review the capture.
         </p>
+      )}
+      {history && (
+        <CapiroModal
+          open
+          onClose={() => setHistory(null)}
+          title={`${history.source.family?.displayName ?? 'Briefing'} editions`}
+        >
+          <BriefingHistory
+            configurationId={history.id}
+            client={history.config.clientId ?? ''}
+            folder={history.config.folderId ?? ''}
+            onReview={(edition) => {
+              onReview(edition);
+              setHistory(null);
+            }}
+          />
+        </CapiroModal>
       )}
       {editing && (
         <ConfigurationEditor

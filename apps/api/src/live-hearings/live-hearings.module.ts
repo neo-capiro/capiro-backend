@@ -8,6 +8,7 @@
  * and cutover control plane.
  */
 import { Module } from '@nestjs/common';
+import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
@@ -58,6 +59,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchPhase9AdminController,
   ],
   providers: [
+    CanonicalHearingIdPipe,
     LiveHearingsService,
     CommitteeDirectoryService,
     LiveHearingsPhase7Service,

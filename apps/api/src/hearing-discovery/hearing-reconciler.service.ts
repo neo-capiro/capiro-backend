@@ -89,7 +89,10 @@ export class HearingReconcilerService {
     // duplicate canonical row every time a Senate hearing moved (found by the
     // disposable-Postgres verification, section H, before this existed).
     const match: MatchOutcome = observation.existingHearingId
-      ? { kind: 'observation', hearingId: observation.existingHearingId }
+      ? {
+          kind: 'observation',
+          hearingId: await this.hearings.resolveAlias(observation.existingHearingId),
+        }
       : await this.hearings.resolveHearingId(event, source.adapterKey);
     await this.observations.linkToHearing(observation.observationId, match.hearingId);
 

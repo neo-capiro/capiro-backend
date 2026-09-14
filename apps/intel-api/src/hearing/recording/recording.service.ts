@@ -45,13 +45,37 @@ export class HearingRecordingService {
         JOIN tenant_memberships m ON m.user_id=u.id AND m.tenant_id=${tenantId}::uuid AND m.status::text='active'
         JOIN intel_feature_flag f ON f.tenant_id=${tenantId} AND f.feature='legiwatch_hearing_recording_v1' AND f.enabled
         WHERE u.clerk_user_id=${userId} FOR SHARE OF m,f`;
-      if (!current.length) throw new NotFoundException('Recording access is unavailable');
+      if (!current.length)
+        throw new NotFoundException({
+          code: 'RECORDING_ACCESS_UNAVAILABLE',
+          message:
+            'Recording access is unavailable. A tenant administrator must check active membership and saved-audio access.',
+        });
       return fn(tx);
     });
   }
 
   async capability(tenantId: string, sessionId: string, userId: string) {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
+    try {
+      // Match the capture/manifest actor policy before offering an enable action.
+      // A visible transcript alone does not grant retained-media access.
+      await this.actor(tenantId, userId, async () => undefined);
+    } catch (error) {
+      if (
+        error instanceof NotFoundException &&
+        (error.getResponse() as { code?: string }).code === 'RECORDING_ACCESS_UNAVAILABLE'
+      )
+        return {
+          available: false,
+          recordingPolicy: session.recordingPolicy,
+          retentionDays: null,
+          reason:
+            'Saved-audio access is unavailable. Ask a tenant administrator to check your active membership and saved-audio access.',
+          code: 'RECORDING_ACCESS_UNAVAILABLE',
+        };
+      throw error;
+    }
     const permission =
       session.recordingPolicy === 'no_storage'
         ? null
@@ -389,12 +413,16 @@ export class HearingRecordingService {
     const session = await this.sessions.getAccessible(tenantId, sessionId, userId);
     if (session.recordingPolicy !== 'audio_and_transcript')
       return { recording: null, recordingPolicy: session.recordingPolicy };
-    const row = await this.actor(tenantId, userId, (tx) =>
-      tx.hearingRecording.findFirst({
+    const { row, permissionAvailable } = await this.actor(tenantId, userId, async (tx) => {
+      const row = await tx.hearingRecording.findFirst({
         where: { tenantId, sessionId },
         include: { epochs: { orderBy: { startMs: 'asc' } } },
-      }),
-    );
+      });
+      const permissionAvailable = Boolean(
+        row && (await this.retentionPermission(tx, tenantId, session, row.permissionId)),
+      );
+      return { row, permissionAvailable };
+    });
     if (!row) return { recording: null, recordingPolicy: session.recordingPolicy };
     const expired = row.expiresAt <= new Date() || row.state === 'expired';
     return {
@@ -402,6 +430,11 @@ export class HearingRecordingService {
       recording: {
         id: row.id,
         state: expired ? 'expired' : row.state,
+        playbackAvailability: expired
+          ? 'expired'
+          : permissionAvailable
+            ? 'available'
+            : 'permission_unavailable',
         expiresAt: row.expiresAt,
         originAt: row.originAt,
         transcriptState: row.transcriptState,
@@ -418,10 +451,34 @@ export class HearingRecordingService {
           complete: epoch.complete,
           reason: epoch.reason,
           decodedDurationMs: epoch.decodedDurationMs,
-          playable: !expired && epoch.state === 'ready' && Boolean(epoch.artifactKey),
+          playable:
+            !expired &&
+            permissionAvailable &&
+            epoch.state === 'ready' &&
+            Boolean(epoch.artifactKey),
         })),
       },
     };
+  }
+
+  private retentionPermission(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    session: { hearingId: string | null; sourceUrl: string | null },
+    permissionId: string,
+  ) {
+    return tx.hearingMediaPermission.findFirst({
+      where: {
+        tenantId,
+        id: permissionId,
+        mode: 'browser',
+        hearingId: session.hearingId,
+        sourceUrl: session.sourceUrl ?? '',
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+        operations: { has: 'retention' },
+      },
+    });
   }
 
   async playback(tenantId: string, sessionId: string, userId: string, epochId: string) {
@@ -432,18 +489,12 @@ export class HearingRecordingService {
         include: { recording: true },
       });
       if (!row) return null;
-      const grant = await tx.hearingMediaPermission.findFirst({
-        where: {
-          tenantId,
-          id: row.recording.permissionId,
-          mode: 'browser',
-          hearingId: session.hearingId,
-          sourceUrl: session.sourceUrl ?? '',
-          revokedAt: null,
-          expiresAt: { gt: new Date() },
-          operations: { has: 'retention' },
-        },
-      });
+      const grant = await this.retentionPermission(
+        tx,
+        tenantId,
+        session,
+        row.recording.permissionId,
+      );
       return grant ? row : null;
     });
     if (

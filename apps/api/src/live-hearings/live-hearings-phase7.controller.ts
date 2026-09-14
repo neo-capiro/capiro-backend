@@ -1,3 +1,4 @@
+import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
@@ -102,39 +103,51 @@ export class LiveHearingsPhase7Controller {
   ) {}
 
   @Get('events/:id/room')
-  room(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  room(@CurrentTenant() ctx: TenantContext, @Param('id', CanonicalHearingIdPipe) id: string) {
     return this.phase7.room(ctx, id);
   }
 
   @Get('events/:id/transcript')
-  async transcript(@Param('id') id: string, @Query() query: TranscriptQueryDto) {
+  async transcript(
+    @Param('id', CanonicalHearingIdPipe) id: string,
+    @Query() query: TranscriptQueryDto,
+  ) {
     await this.publicGuard.assertPublic(id);
     return this.phase7.transcript(id, query);
   }
 
   @Get('events/:id/participation')
-  participation(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  participation(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.phase7.participation(ctx, id);
   }
 
   @Post('events/:id/schedule')
-  async schedule(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  async schedule(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     await this.scheduleGuard.assertSchedulable(id);
     return this.phase7.schedule(ctx, id);
   }
 
   @Delete('events/:id/schedule')
-  cancelSchedule(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  cancelSchedule(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.phase7.cancelSchedule(ctx, id);
   }
 
   @Post('events/:id/follow')
-  follow(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  follow(@CurrentTenant() ctx: TenantContext, @Param('id', CanonicalHearingIdPipe) id: string) {
     return this.phase7.follow(ctx, id);
   }
 
   @Delete('events/:id/follow')
-  unfollow(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  unfollow(@CurrentTenant() ctx: TenantContext, @Param('id', CanonicalHearingIdPipe) id: string) {
     return this.phase7.unfollow(ctx, id);
   }
 
@@ -143,7 +156,10 @@ export class LiveHearingsPhase7Controller {
    * already-running canonical transcript. Never returns a raw media URL.
    */
   @Post('events/:id/join-browser')
-  joinBrowser(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  joinBrowser(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+  ) {
     return this.phase7.browserJoin(ctx, id);
   }
 
@@ -160,7 +176,7 @@ export class LiveHearingsPhase7Controller {
   @Get('events/:id/intelligence')
   async intelligence(
     @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
+    @Param('id', CanonicalHearingIdPipe) id: string,
     @Query() query: IntelligenceQueryDto,
   ) {
     return withLegacyIntelligenceEvidence(await this.phase8.intelligence(ctx, id, query));

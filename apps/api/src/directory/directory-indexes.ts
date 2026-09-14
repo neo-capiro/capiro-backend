@@ -31,6 +31,8 @@ export interface DirectoryPersonRef {
 
 export interface DirectoryCommitteeMembership {
   committeeId: string; // committee-{office_id}
+  /** Publisher name joined by exact committee office identity. */
+  committeeName?: string | null;
   person: DirectoryPersonRef;
   membershipType: DirectoryPersonType;
   position: string | null; // Chair, Ranking Member, Member, Staff Director…
@@ -296,6 +298,7 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
       addMembership(
         {
           committeeId: detail.id,
+          committeeName: detail.name,
           person: { ...ref, title: String(committee.position ?? 'Member') },
           membershipType: 'member',
           position: committee.position ? String(committee.position) : 'Member',
@@ -334,6 +337,7 @@ export function buildDirectoryIndexes(input: BuildDirectoryIndexesInput): Direct
       addMembership(
         {
           committeeId: detail.id,
+          committeeName: detail.name,
           person: {
             personType: 'staff',
             id: personId,

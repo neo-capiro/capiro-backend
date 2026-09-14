@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { stateBillStatusLabel } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
 import { getStateLegislatorDetail } from '../../../pages/directory/directory-api.js';
@@ -38,6 +38,12 @@ export function StateLegislatorProfileViewVNext({
 }: {
   legislator: StateLegislatorDetail;
 }) {
+  const [searchParams] = useSearchParams();
+  const billScope = new URLSearchParams();
+  for (const key of ['client', 'folder']) {
+    const value = searchParams.get(key);
+    if (value) billScope.set(key, value);
+  }
   const districtLine = [
     legislator.state,
     chamberLabel(legislator.chamber),
@@ -141,7 +147,13 @@ export function StateLegislatorProfileViewVNext({
           <div className="capiro-dirpage__rows">
             {bills.map((b) => (
               <div key={b.billId} className="capiro-dirpage__row">
-                <span className="capiro-dirpage__row-title">{orNotProvided(b.identifier)}</span>{' '}
+                <Link
+                  className="capiro-dirpage__row-title capiro-dirprofile__link"
+                  to={`/bills/${encodeURIComponent(b.billId)}${billScope.size ? `?${billScope}` : ''}`}
+                  aria-label={`Open Bill 360 for ${orNotProvided(b.identifier)}`}
+                >
+                  {orNotProvided(b.identifier)}
+                </Link>{' '}
                 <span className="capiro-dirprofile__line">{orNotProvided(b.title)}</span>{' '}
                 {b.status ? <CapiroBadge>{stateBillStatusLabel(b.status)}</CapiroBadge> : null}
                 {b.sponsorType ? (

@@ -11,7 +11,8 @@
  * firm's other workspace documents.
  */
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useApiScope } from '../../../../lib/use-api-scope.js';
 import { useHillDayApi } from './api.js';
 import { HdIcon, HdPill, HdPrimary, HdSecondary } from './ui.js';
 import { relativeTime, statusPill } from './types.js';
@@ -21,13 +22,16 @@ const RECENT_LIMIT = 8;
 export function HillDayLibrary() {
   const navigate = useNavigate();
   const api = useHillDayApi();
-  const docsQuery = useQuery({
-    queryKey: ['hd', 'documents', RECENT_LIMIT],
-    queryFn: () => api.listDocuments({ limit: RECENT_LIMIT }),
+  const scope = useApiScope();
+  const docsQuery = useInfiniteQuery({
+    queryKey: ['hd', 'documents', scope, RECENT_LIMIT],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => api.listDocuments({ limit: RECENT_LIMIT, cursor: pageParam }),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: 15_000,
   });
 
-  const docs = docsQuery.data?.items ?? [];
+  const docs = docsQuery.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <div className="hd-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: 'var(--hd-canvas)' }}>
@@ -84,7 +88,7 @@ export function HillDayLibrary() {
             ? 'Loading…'
             : docsQuery.isError
               ? 'Documents unavailable'
-              : `${docs.length} most recent${docsQuery.data?.nextCursor ? ' · more in the library' : ''}`}
+              : `${docs.length} documents${docsQuery.hasNextPage ? ' · older documents available' : ''}`}
         </span>
       </div>
 
@@ -131,7 +135,7 @@ export function HillDayLibrary() {
             </button>
           );
         })}
-        {!docsQuery.isPending && !docsQuery.isError && docs.length === 0 && (
+        {!docsQuery.isPending && !docsQuery.isError && !docsQuery.hasNextPage && docs.length === 0 && (
           <div className="hd-doc-table__row" style={{ cursor: 'default' }}>
             <span className="hd-doc-table__doc-cell">
               <span className="hd-doc-table__icon">
@@ -164,6 +168,16 @@ export function HillDayLibrary() {
             <span />
             <span />
           </div>
+        )}
+      </div>
+      <div className="hd-library__actions" style={{ marginTop: 20 }}>
+        {docsQuery.hasNextPage && (
+          <HdSecondary disabled={docsQuery.isFetchingNextPage} onClick={() => void docsQuery.fetchNextPage()}>
+            {docsQuery.isFetchingNextPage ? 'Loading older documents…' : 'Load older documents'}
+          </HdSecondary>
+        )}
+        {docsQuery.isError && (
+          <HdSecondary onClick={() => void docsQuery.refetch()}>Retry documents</HdSecondary>
         )}
       </div>
       </div>

@@ -10,6 +10,9 @@ export class AgendaRuleController {
   @Get() list(@CurrentTenant() ctx: WorkspaceTenantContext) {
     return this.rules.list(ctx);
   }
+  @Get('capabilities') capabilities(@CurrentTenant() ctx: WorkspaceTenantContext) {
+    return this.rules.capabilities(ctx);
+  }
   @Get('staged') staged(@CurrentTenant() ctx: WorkspaceTenantContext) {
     return this.rules.staged(ctx);
   }

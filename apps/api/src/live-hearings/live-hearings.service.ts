@@ -1,3 +1,7 @@
+import {
+  resolveCanonicalHearingId,
+  resolveCanonicalHearingIds,
+} from '../hearing-discovery/hearing-alias.js';
 /**
  * Master Calendar reads for LegiWatch Live Hearings (Phase 3, plan §4 + §12).
  *
@@ -357,7 +361,10 @@ export class LiveHearingsService {
     if (query.jurisdiction && query.jurisdiction !== 'US')
       await requireStateCalendar(this.prisma, ctx.tenantId);
     const selection: Prisma.CommitteeHearingWhereInput[] = [];
-    if (query.hearingIds) selection.push({ id: { in: query.hearingIds } });
+    if (query.hearingIds)
+      selection.push({
+        id: { in: await resolveCanonicalHearingIds(this.prisma, query.hearingIds) },
+      });
     if (query.billIds) {
       const agenda = await this.prisma.legislativeAgendaItem.findMany({
         where: {
@@ -371,7 +378,14 @@ export class LiveHearingsService {
         where: { billId: { in: query.billIds } },
         select: { hearingId: true },
       });
-      selection.push({ id: { in: [...new Set([...agenda, ...federal].map((a) => a.hearingId))] } });
+      selection.push({
+        id: {
+          in: await resolveCanonicalHearingIds(
+            this.prisma,
+            [...agenda, ...federal].map((a) => a.hearingId),
+          ),
+        },
+      });
     }
     if (query.following !== undefined) {
       const follows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -380,10 +394,12 @@ export class LiveHearingsService {
           select: { hearingId: true },
         }),
       );
+      const followedIds = await resolveCanonicalHearingIds(
+        this.prisma,
+        follows.map((f) => f.hearingId),
+      );
       selection.push({
-        id: query.following
-          ? { in: follows.map((f) => f.hearingId) }
-          : { notIn: follows.map((f) => f.hearingId) },
+        id: query.following ? { in: followedIds } : { notIn: followedIds },
       });
     }
     if (selection.length)
@@ -432,6 +448,7 @@ export class LiveHearingsService {
     const rows = await this.prisma.committeeHearing.findMany({
       where: {
         geographicJurisdiction: 'US',
+        canonicalHearingId: null,
         OR: [
           { eventStatus: 'in_progress' },
           {
@@ -451,6 +468,7 @@ export class LiveHearingsService {
 
   /** One canonical event with the tenant overlay, or null when unknown. */
   async event(ctx: TenantContext, id: string): Promise<CalendarEvent | null> {
+    id = await resolveCanonicalHearingId(this.prisma, id);
     const row = await this.prisma.committeeHearing.findUnique({ where: { id } });
     if (!row) return null;
     if (row.geographicJurisdiction && row.geographicJurisdiction !== 'US')
@@ -509,7 +527,10 @@ export class LiveHearingsService {
         select: { hearingId: true },
       }),
     );
-    return rows.map((r) => r.hearingId);
+    return resolveCanonicalHearingIds(
+      this.prisma,
+      rows.map((r) => r.hearingId),
+    );
   }
 
   /**
@@ -676,7 +697,7 @@ function clampPageSize(raw: number | undefined): number {
 
 /** Translate the calendar filters into a Prisma predicate. */
 export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereInput {
-  const where: Prisma.CommitteeHearingWhereInput = {};
+  const where: Prisma.CommitteeHearingWhereInput = { canonicalHearingId: null };
   where.AND =
     query.jurisdiction === 'ALL'
       ? [

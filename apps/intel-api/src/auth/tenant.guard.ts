@@ -21,10 +21,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ClerkService, type ClerkSessionClaims } from './clerk.service.js';
-import {
-  OrgTenantResolverService,
-  type ResolvedTenant,
-} from './org-tenant-resolver.service.js';
+import { OrgTenantResolverService, type ResolvedTenant } from './org-tenant-resolver.service.js';
 import type { WorkspaceTenantContext } from './tenant-context.js';
 
 /**
@@ -154,11 +151,28 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException('No active membership for this tenant');
     }
 
+    // The capiro JWT template may omit both organization-role placeholders.
+    // Only then use the server-maintained role for this verified tenant and
+    // subject. An explicit signed member/custom role is never upgraded by a
+    // stale local mirror, and no identity or role is taken from request headers.
+    let role = nonEmpty(claims.org_role) ?? nonEmpty(claims.capiro_org_role);
+    if (!role) {
+      const membership = await this.tenants.activeMembershipRole(resolved.tenantId, claims.sub);
+      if (!membership) {
+        this.denied('no_active_membership', {
+          tenantId: resolved.tenantId,
+          clerkUserId: claims.sub,
+        });
+        throw new ForbiddenException('No active membership for this tenant');
+      }
+      role = membership.role ?? undefined;
+    }
+
     req.tenantContext = {
       // ALWAYS the canonical UUID — never the raw `org_...` claim.
       tenantId: resolved.tenantId,
       clerkUserId: claims.sub,
-      role: claims.org_role ?? claims.capiro_org_role ?? null,
+      role: role ?? null,
     };
     return true;
   }
