@@ -544,10 +544,17 @@ export class Phase8EvidenceService {
         const m = await this.monitor(tx, ctx, id);
         if (m.state !== 'active' || m.version !== start.version)
           throw new ConflictException('MONITOR_CHANGED');
+        const completeWindow = () =>
+          tx.$executeRaw`UPDATE intel_legiwatch_news_monitor SET checkpoint=GREATEST(checkpoint,${end}),pending_window=NULL,last_error=NULL WHERE id=${id} AND version=${m.version} AND state='active' AND pending_window=${JSON.stringify(start.pending_window)}::jsonb`;
         const previous = await tx.$queryRaw<
           Array<{ receipt: Record<string, unknown> }>
         >`SELECT receipt FROM intel_legiwatch_news_run WHERE monitor_id=${id} AND tenant_id=${ctx.tenantId} AND definition_version=${m.version} AND window_start=${from} AND window_end=${end} AND page=${page} AND successful ORDER BY created_at DESC LIMIT 1`;
-        if (previous[0]) return previous[0].receipt;
+        if (previous[0]) {
+          // A replay starts a pending window too. Clear it when its retained
+          // receipt is complete so the next hour can advance normally.
+          if (previous[0].receipt.complete === true) await completeWindow();
+          return previous[0].receipt;
+        }
         const base = process.env.API_BASE_URL,
           secret = process.env.INTERNAL_SERVICE_SECRET;
         let receipt: Record<string, unknown> = {
@@ -657,8 +664,7 @@ export class Phase8EvidenceService {
         // Only successful pages are checkpointed; failures can retry this exact window.
         await tx.$executeRaw`INSERT INTO intel_legiwatch_news_run(id,tenant_id,owner_clerk_id,monitor_id,definition_version,window_start,window_end,page,receipt,complete,successful) VALUES(${randomUUID()},${ctx.tenantId},${ctx.clerkUserId},${id},${m.version},${from},${end},${page},${JSON.stringify(stored)}::jsonb,${receipt.complete === true},${receipt.complete === true || receipt.reason === 'more_pages'}) ON CONFLICT DO NOTHING`;
         await tx.$executeRaw`UPDATE intel_legiwatch_news_monitor SET last_error=${receipt.complete === true ? null : String(receipt.reason ?? 'partial')} WHERE id=${id}`;
-        if (receipt.complete === true)
-          await tx.$executeRaw`UPDATE intel_legiwatch_news_monitor SET checkpoint=${end},pending_window=NULL,last_error=NULL WHERE id=${id} AND version=${m.version} AND state='active'`;
+        if (receipt.complete === true) await completeWindow();
         return stored;
       });
       total += Number(result.matches ?? 0);
