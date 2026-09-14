@@ -24,3 +24,9 @@ Preparation and sending remain separate. Failed source windows hold sending. Lim
 ## Rollback
 
 Pause the new monitor/configuration states and process controls first. Restore the exact previous scheduler states/targets and compatible service task definitions from the release baseline. Check active recordings before service replacement. Preserve all additive tables, source bytes, imports, manual edits, draft receipts, approved runs and delivery outcomes. Do not delete a migration or resolve a failed migration automatically. A source rollback cannot substitute an older revision under an already reviewed hash. Re-enable only after the current source, scope, audience and configuration have been reviewed.
+
+## Verified internal release
+
+The release qualification record lists actual task revisions and verification. The internal pilot enables matching and private preparation only. Intel and the report worker use `MERIV2_ORCHESTRATOR_URL=https://os.capiro.ai` and `API_BASE_URL=https://os.capiro.ai`; these complement the existing authenticated Workspace path. The API/RSS provider budget is `LEGIWATCH_NEWS_DAILY_REQUEST_CAP=0`. The global report rule and outward send control remain off.
+
+For deployment or recovery, pause the internal qualification rule and let prior report tasks drain before revising a configuration. Inspect cluster-wide running/pending tasks and recent dispatches; a healthy API service does not prove old report workers have stopped. Then update the target and resume only the intended private preparation scope. Pause the rule before restoring its original target. Restore the initial qualified Intel task after a fresh capture check to turn new matching off. Restore the original qualified RSS target while preserving its prior enabled state. The release package provides the exact commands and target JSON; no recovery was executed during qualification.
