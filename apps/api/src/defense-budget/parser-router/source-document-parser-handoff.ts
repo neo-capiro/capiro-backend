@@ -20,7 +20,7 @@ import type { ParserPolicyV1 } from '../contracts/budget-cycle-manifest-v1.js';
 import type { BudgetAuthorityV1, BudgetComponentV1, BudgetFamilyV1, ExhibitV1 } from '../contracts/extraction-artifact-v1.js';
 import { DEFAULT_PROFILING_THRESHOLDS, computeProfilingConfigSha256, parseDocumentProfileResultV1 } from './page-profiler.js';
 import { LocalParserRuntimeClient } from './local-parser-runtime-client.js';
-import { ParserRouterV1Service, type ParserRouterDependencies } from './parser-router-v1.service.js';
+import { ParserRouterV1Service, type ParserRouterDependencies, type ParserRouterTerminalOutputV1 } from './parser-router-v1.service.js';
 import type { ParserArtifactStoreV1, ParserRunRecorderV1 } from './parser-artifact-store.js';
 import { FilesystemParserArtifactStore } from './filesystem-parser-artifact-store.js';
 import { FilesystemProofResolver } from '../verification/trusted-proof/filesystem-proof-resolver.js';
@@ -30,6 +30,7 @@ import { createProductionParserVerificationContext } from './production-parser-v
 import { FilesystemExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 import { resolveArtifactFactoryForFamilyV1 } from './rdte-durable-semantic-artifact-factory-v1.js';
 import { lifecycleBridgeManifestCycleIdV1 } from './lifecycle-bridge-manifest-cycle-id-v1.js';
+import type { VerificationPersistenceFenceV1 } from '../verification/persistence/verification-persistence-fence-v1.js';
 
 export interface SourceDocumentParserHandoffInput {
   readonly executionId: string;
@@ -65,6 +66,9 @@ export interface SourceDocumentParserHandoffInput {
   readonly maxPaidPages?: number;
   readonly persistVerificationAudit?: boolean;
   readonly parserProjectDir?: string;
+  readonly verificationPersistenceFence?: VerificationPersistenceFenceV1;
+  /** Persist the router terminal before any fallible local artifact copy. */
+  readonly onTerminal?: (output: ParserRouterTerminalOutputV1) => Promise<void>;
 }
 
 export interface SourceDocumentParserHandoffResult {
@@ -72,6 +76,11 @@ export interface SourceDocumentParserHandoffResult {
   readonly finalState: string;
   readonly artifactLocator: string;
   readonly outputPath: string;
+  readonly candidateId?: string;
+  readonly verificationRunId?: string;
+  readonly artifactId?: string;
+  readonly artifactContentSha256?: string;
+  readonly artifactByteSha256?: string;
 }
 
 /**
@@ -226,7 +235,11 @@ async function createVerificationContext(input: {
   sourcePdfPath: string;
   parserArtifactRoot: string;
   allowPaidParse: boolean;
+  verificationPersistenceFence?: VerificationPersistenceFenceV1;
 }): Promise<VerificationContext> {
+  if (input.verificationPersistenceFence && !input.persist) {
+    throw new Error('verification persistence fencing requires persisted verification audit');
+  }
   if (!input.persist) {
     const artifactStore = new FilesystemParserArtifactStore(input.parserArtifactRoot);
     return {
@@ -245,6 +258,7 @@ async function createVerificationContext(input: {
   const production = await createProductionParserVerificationContext({
     parserArtifactRoot: input.parserArtifactRoot,
     allowPaidParse: input.allowPaidParse,
+    verificationPersistenceFence: input.verificationPersistenceFence,
   });
   return {
     service: production.verificationService,
@@ -352,6 +366,7 @@ export async function runParserHandoffForSourceDocument(
     sourcePdfPath: input.sourcePath,
     parserArtifactRoot: parserArtifactRoot({ persistVerificationAudit, workDir: input.workDir }),
     allowPaidParse,
+    verificationPersistenceFence: input.verificationPersistenceFence,
   });
   try {
     // See buildLifecycleBridgeSyntheticManifestV1 for why this manifest exists
@@ -428,6 +443,7 @@ export async function runParserHandoffForSourceDocument(
       dependencies,
     );
     const terminal = await router.execute(profile.pages, requestedPages);
+    await input.onTerminal?.(terminal);
     const outputPath = path.join(documentWorkDir, `${input.sourceDocumentId}.extraction-v1.json`);
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     const scratch = await verification.extractionArtifactStore.materializeForLocalConsumer({
@@ -445,6 +461,11 @@ export async function runParserHandoffForSourceDocument(
       finalState: terminal.finalState,
       artifactLocator: terminal.artifactLocator,
       outputPath,
+      ...(terminal.candidateId ? { candidateId: terminal.candidateId } : {}),
+      ...(terminal.verificationRunId ? { verificationRunId: terminal.verificationRunId } : {}),
+      artifactId: terminal.artifactId,
+      artifactContentSha256: terminal.artifactContentSha256,
+      artifactByteSha256: terminal.artifactByteSha256,
     };
   } finally {
     await verification.dispose();

@@ -18,6 +18,7 @@ import { ProofBoundParserRunRecorder } from './proof-bound-parser-run-recorder.j
 import { createS3ParserArtifactStore } from './s3-parser-artifact-store.js';
 import { AwsParserArtifactObjectStore } from './s3-parser-artifact-store.js';
 import { S3Client } from '@aws-sdk/client-s3';
+import type { VerificationPersistenceFenceV1 } from '../verification/persistence/verification-persistence-fence-v1.js';
 import { FilesystemExtractionArtifactStore, S3ExtractionArtifactStore, type ExtractionArtifactStoreV1 } from './extraction-artifact-store.js';
 
 export interface ProductionParserVerificationContextV1 {
@@ -37,6 +38,7 @@ export interface ProductionParserVerificationContextV1 {
 export async function createProductionParserVerificationContext(input: {
   parserArtifactRoot: string;
   allowPaidParse: boolean;
+  verificationPersistenceFence?: VerificationPersistenceFenceV1;
 }): Promise<ProductionParserVerificationContextV1> {
   const trimmedRoot = input.parserArtifactRoot.trim();
   if (!trimmedRoot) {
@@ -63,6 +65,7 @@ export async function createProductionParserVerificationContext(input: {
       s3ProofClient,
       approvedFilesystemPrefixes: [parserArtifactRoot],
       parserArtifactStoreRootDir: parserArtifactRoot,
+      verificationPersistenceFence: input.verificationPersistenceFence,
       ...(llamaOutputBucket ? { llamaParseOutputBucket: llamaOutputBucket } : {}),
     });
 

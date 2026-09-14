@@ -23,6 +23,7 @@ import {
 } from './parser-output-proof-adapters.js';
 import type { BudgetVerificationRepositoryV1 } from '../persistence/verification-repository.js';
 import { createPrismaBudgetVerificationRepository } from '../persistence/prisma-budget-verification.repository.js';
+import type { VerificationPersistenceFenceV1 } from '../persistence/verification-persistence-fence-v1.js';
 
 export class ProductionProofWiringError extends Error {
   constructor(message: string) {
@@ -40,6 +41,7 @@ export interface ProductionProofWiringOptions {
   parserArtifactStoreRootDir?: string;
   llamaParseOutputBucket?: string;
   parserOutputProofSource?: ParserOutputProofSource;
+  verificationPersistenceFence?: VerificationPersistenceFenceV1;
 }
 
 export interface ProductionProofWiringResult {
@@ -119,7 +121,7 @@ export async function wireProductionProofBoundary(
     byteLocatorReader,
     parserOutputProofSource,
   });
-  const repository = createPrismaBudgetVerificationRepository(prisma);
+  const repository = createPrismaBudgetVerificationRepository(prisma, options.verificationPersistenceFence);
 
   return {
     proofResolver,

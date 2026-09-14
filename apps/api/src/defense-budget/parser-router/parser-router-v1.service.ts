@@ -85,6 +85,8 @@ export interface ExecutionRoundReportV1 {
 export interface ParserRouterTerminalOutputV1 {
   executionId: string;
   finalState: ParserDocumentStateV1;
+  candidateId?: string;
+  verificationRunId?: string;
   artifactId: string;
   artifactLocator: string;
   artifactContentSha256: string;
@@ -751,6 +753,10 @@ export class ParserRouterV1Service {
     return {
       executionId: this.config.executionId,
       finalState: this.state,
+      ...(verificationResult?.candidateId ? { candidateId: verificationResult.candidateId } : {}),
+      ...(verificationResult?.verificationRunId
+        ? { verificationRunId: verificationResult.verificationRunId }
+        : {}),
       artifactId: bridgeOutput?.artifactId ?? 'none',
       artifactLocator: bridgeOutput?.artifactLocator ?? 'none',
       artifactContentSha256: bridgeOutput?.artifactContentSha256 ?? '',

@@ -40,6 +40,7 @@ import type {
   PersistedReviewDecisionV1,
 } from './verification-repository.js';
 import { tryDeriveCandidateSourceMetadataV1 } from '../candidate-source-metadata-v1.js';
+import type { VerificationPersistenceFenceV1 } from './verification-persistence-fence-v1.js';
 import {
   mapCheckToRow,
   mapDiscrepancyToRow,
@@ -108,12 +109,37 @@ function extractAttemptId(result: { verificationRunId: string }): string {
 /* ------------------------------------------------------------------ */
 
 export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationRepositoryV1 {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly verificationPersistenceFence?: VerificationPersistenceFenceV1,
+  ) {}
 
   async findTerminalRunByIdentity(
     identity: CandidateIdentityV1,
   ): Promise<{ candidate: ReadCandidateV1; run: ReadRunV1 } | null> {
-    const candidate = await this.prisma.budgetExtractionCandidateV1.findUnique({
+    const fence = this.verificationPersistenceFence;
+    if (fence) {
+      // Verification can return from this cache without calling persist. The
+      // caller's checkpoint must therefore fence this reuse in its own atomic
+      // transaction, including the P2002 recovery path that calls this method.
+      return this.prisma.$transaction(async (tx) => {
+        const existing = await this.loadTerminalRunByIdentity(tx, identity);
+        if (existing) {
+          await fence(
+            tx, identity, existing.candidate.id, existing.run.id,
+          );
+        }
+        return existing;
+      });
+    }
+    return this.loadTerminalRunByIdentity(this.prisma, identity);
+  }
+
+  private async loadTerminalRunByIdentity(
+    client: Prisma.TransactionClient,
+    identity: CandidateIdentityV1,
+  ): Promise<{ candidate: ReadCandidateV1; run: ReadRunV1 } | null> {
+    const candidate = await client.budgetExtractionCandidateV1.findUnique({
       where: {
         cycleId_manifestContentSha256_manifestDocumentKey_sourceDocumentId_sourceSha256_extractionArtifactId_extractionArtifactSha256_verifierVersion_policyVersion_policySha256:
           {
@@ -133,7 +159,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
     if (!candidate) return null;
     if (!candidate.currentRunId) return null;
 
-    const run = await this.prisma.budgetVerificationRunV1.findFirst({
+    const run = await client.budgetVerificationRunV1.findFirst({
       where: { id: candidate.currentRunId },
       orderBy: { createdAt: 'desc' },
     });
@@ -197,6 +223,9 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
               orderBy: { createdAt: 'desc' },
             });
             if (existingRun) {
+              await this.verificationPersistenceFence?.(
+                tx, candidateIdentity, existing.id, existingRun.id,
+              );
               return {
                 candidate: {
                   id: existing.id,
@@ -210,6 +239,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
                   status: existingRun.status,
                   route: existingRun.route,
                   riskScore: existingRun.riskScore,
+                  resultSnapshot: existingRun.resultSnapshot,
                 },
               };
             }
@@ -372,6 +402,12 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
           );
         }
 
+        // The lease/correlation checkpoint commits with all verification rows.
+        // A rejected or expired caller rolls back candidate, run and evidence.
+        await this.verificationPersistenceFence?.(
+          tx, candidateIdentity, candidateIdToUse, runId,
+        );
+
         return {
           candidate: { id: candidateIdToUse, status: finalStatus, currentRunId: runId },
           run: {
@@ -381,6 +417,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
             status: result.status,
             route: result.route,
             riskScore: result.riskScore,
+            resultSnapshot: result,
           },
         };
       });
@@ -404,6 +441,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
               status: existing.run.status,
               route: existing.run.route,
               riskScore: existing.run.riskScore,
+              resultSnapshot: existing.run.resultSnapshot,
             },
           };
         }
@@ -604,6 +642,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
 
 export function createPrismaBudgetVerificationRepository(
   prisma: PrismaClient,
+  verificationPersistenceFence?: VerificationPersistenceFenceV1,
 ): PrismaBudgetVerificationRepositoryV1 {
-  return new PrismaBudgetVerificationRepositoryV1(prisma);
+  return new PrismaBudgetVerificationRepositoryV1(prisma, verificationPersistenceFence);
 }
