@@ -58,6 +58,9 @@
 
 .lw-research__line small {
   grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
 .lw-research__line.is-added {
@@ -77,7 +80,7 @@
     display: grid;
   }
   .lw-research__line {
-    grid-template-columns: 65px minmax(0, 1fr);
+    grid-template-columns: 86px minmax(0, 1fr);
   }
 }
 
