@@ -4112,6 +4112,21 @@ border-bottom: 1px solid var(--meri-border);
   background: #F2F4F7;
 }
 
+.capiro-vnext-root .vnext-meri__save-receipt-links {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .vnext-meri__save-receipt-links a {
+  color: #363F72;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* The Approve action inside the turn inspector's Approvals tab sits in a
    flex actions row with its own gap — the inline card's marginTop:0 override
    becomes a real rule here instead of following along as an inline style. */

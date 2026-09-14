@@ -459,6 +459,9 @@ export function useMeriChatController({
   // was about to approve. They now persist until explicitly approved or
   // dismissed, and resolved rows stay visible carrying their outcome.
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+  const [proposalRecoveryVersion, setProposalRecoveryVersion] = useState(0);
+  const proposalMutationEpochRef = useRef(0);
+  const pendingDismissalsRef = useRef(new Map<symbol, { sessionId: string | null; identityKey: string }>());
   // Mirror for reading the live set inside sequential loops (Approve all) and
   // async callbacks without tripping over a stale closure.
   const pendingApprovalsRef = useRef<PendingApproval[]>([]);
@@ -2403,6 +2406,9 @@ export function useMeriChatController({
         if (streamEpoch === streamEpochRef.current) {
           setStreaming(false);
           setTurnProgress(null);
+          // PASS writes do not emit pending_approval. Recover their durable
+          // receipts even if React batches a short turn's streaming changes.
+          setProposalRecoveryVersion((version) => version + 1);
         }
       }
       return accepted;
@@ -2736,6 +2742,7 @@ export function useMeriChatController({
       ) {
         return;
       }
+      proposalMutationEpochRef.current += 1;
       setApprovingProposalId(proposalId);
       try {
         // authHeaders() is async — a route change can occur while it is pending.
@@ -2800,6 +2807,7 @@ export function useMeriChatController({
           )
         ) {
           setApprovingProposalId(null);
+          setProposalRecoveryVersion((version) => version + 1);
         }
       }
     },
@@ -2879,7 +2887,11 @@ export function useMeriChatController({
    */
   const handleDismissPending = useCallback(
     async (proposalId: string) => {
+      proposalMutationEpochRef.current += 1;
       const requestIdentityKey = identityKeyRef.current;
+      const requestSessionId = currentSessionRef.current;
+      const dismissal = Symbol(proposalId);
+      pendingDismissalsRef.current.set(dismissal, { sessionId: requestSessionId, identityKey: requestIdentityKey });
       setPendingApprovals((prev) => prev.filter((p) => p.proposalId !== proposalId));
       try {
         const headers = await authHeaders();
@@ -2894,17 +2906,35 @@ export function useMeriChatController({
       } catch {
         /* optimistic; the card is already gone locally and server-side expiry/
            dismissal state does not depend on this request succeeding */
+      } finally {
+        pendingDismissalsRef.current.delete(dismissal);
+        if (requestSessionId &&
+          mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+          requestSessionId === currentSessionRef.current) {
+          setProposalRecoveryVersion((version) => version + 1);
+        }
       }
     },
     [authHeaders],
   );
 
   // Recover outstanding/recent proposals from the server whenever the active
-  // conversation changes (including on first load of a persisted session) —
-  // cards must survive a page reload, not just live in memory for one tab.
+  // conversation changes and after each turn. Policy-approved writes run
+  // without a pending_approval frame, so their results need this same lookup.
   useEffect(() => {
-    if (!sessionId) return;
+    // A stream can finish while a dismiss POST is still pending. Wait for all
+    // dismissals so an older server list cannot restore an optimistically hidden card.
+    const hasCurrentDismissal = [...pendingDismissalsRef.current.values()].some((pending) =>
+      pending.sessionId === sessionId && pending.identityKey === identityKey,
+    );
+    if (!sessionId || isStreaming || approvingProposalId || hasCurrentDismissal) return;
     const requestIdentityKey = identityKey;
+    const requestRouteEpoch = routeEpochRef.current;
+    const requestMutationEpoch = proposalMutationEpochRef.current;
+    const stillCurrent = () =>
+      mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+      mayApplyApprovalResult(sessionId, currentSessionRef.current, requestRouteEpoch, routeEpochRef.current) &&
+      requestMutationEpoch === proposalMutationEpochRef.current;
     let cancelled = false;
     void (async () => {
       try {
@@ -2912,7 +2942,7 @@ export function useMeriChatController({
         // pending, which would send THIS tenant's conversation id under the
         // next tenant's credentials. Fence the dispatch, not just the commit.
         const headers = await authHeaders();
-        if (cancelled || !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current))
+        if (cancelled || !stillCurrent())
           return;
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}`,
@@ -2924,7 +2954,7 @@ export function useMeriChatController({
         // recovery must never restore them under a newly authenticated one.
         if (
           !cancelled &&
-          mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+          stillCurrent() &&
           Array.isArray(data)
         ) {
           setPendingApprovals(data);
@@ -2936,7 +2966,7 @@ export function useMeriChatController({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, authHeaders, identityKey]);
+  }, [sessionId, authHeaders, identityKey, isStreaming, approvingProposalId, proposalRecoveryVersion]);
 
   // Held-approval cards belong to ONE conversation — switching sessions must
   // not carry them over (approving would re-run the WRONG conversation's

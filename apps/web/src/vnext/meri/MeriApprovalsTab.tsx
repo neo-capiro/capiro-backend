@@ -145,7 +145,7 @@ export function MeriApprovalsTab({
               ) : null}
               {receipt?.location ? (
                 <a className="vnext-meri__rail-action-btn" href={receipt.location}>
-                  Open saved note
+                  Open saved note in Files
                 </a>
               ) : null}
               {receipt?.files.length ? (
@@ -162,7 +162,7 @@ export function MeriApprovalsTab({
                       </span>
                       {file.reason ? <span>{file.reason}</span> : null}
                       {file.location ? (
-                        <a href={file.location}>Open saved document: {file.name}</a>
+                        <a href={file.location}>Open in Files: {file.name}</a>
                       ) : null}
                     </li>
                   ))}

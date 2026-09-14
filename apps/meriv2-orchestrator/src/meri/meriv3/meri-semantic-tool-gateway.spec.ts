@@ -125,6 +125,47 @@ describe('MeriSemanticToolGateway', () => {
   });
 
   test.each([
+    'Send it to the client profile.',
+    'Send Strat Discussion.pptx to the client profile.',
+    'Save the doc under the selected client.',
+    'Upload this document to the selected profile.',
+    'Upload it to their Files tab.',
+    'Put these attachments in their Files tab.',
+    'Add the PDF to this client’s profile.',
+  ])('exposes original-file saving for a profile filing request: %s', (request) => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
+    expect(selected.decision.mode).toBe('enabled');
+    expect(selected.decision.fallbackToLegacy).toBe(false);
+    expect(selected.decision.exposedNames).toEqual(expect.arrayContaining([
+      'save_chat_attachments', 'lookup_client_registry', 'read_client_documents',
+    ]));
+  });
+
+  test.each([
+    'Send the email to Jordan.',
+    'Send the attachments to Jordan by email.',
+    'Read the document in the client profile.',
+    'Show the Files tab for this client.',
+    'Read the uploaded document and draft a reply.',
+  ])('does not offer client filing for unrelated email or read requests: %s', (request) => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const selected = gateway.select({ schemas, tenantId: 'tenant-1', request, plan: plan(null) });
+    expect(selected.decision.exposedNames).not.toContain('save_chat_attachments');
+    if (/^Send/.test(request)) expect(selected.decision.exposedNames).toContain('send_email');
+  });
+
+  test.each([
     'For client Sightline I want to log the notes from the Sen Wyden Engagement.',
     'How should I file my notes under Sightline?',
     'These notes should be saved under the selected client. Please save them.',

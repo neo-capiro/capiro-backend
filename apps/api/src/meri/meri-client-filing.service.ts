@@ -45,7 +45,7 @@ export class MeriClientFilingService {
         }
       }
       return { clientId: client.id, clientName: client.name,
-        location: `/clients?clientId=${client.id}&tab=documents` };
+        location: `/clients?clientId=${client.id}&tab=files` };
     });
   }
 
@@ -75,12 +75,12 @@ export class MeriClientFilingService {
       !['ready', 'legacy_ready', 'quarantined'].includes(document.lifecycleStatus);
     return {
       tool: 'save_note', status: failed ? 'failed' : pending ? 'pending' : 'saved', generatedAt: new Date().toISOString(),
-      ...destination, documentId: document.id,
+      ...destination, location: `${destination.location}&attachmentId=${encodeURIComponent(document.id)}`, documentId: document.id,
       note: { id: document.id, clientId: input.clientId, title: document.fileName.replace(/\.txt$/i, ''), body },
       indexingStatus: failed || pending || input.confidential ? 'not_indexed' : document.indexedAt ? 'indexed' : 'pending',
       ...(failed ? { message: 'The note is unavailable under the document readiness policy.' }
-        : pending ? { message: 'The note is stored in client Documents; document scanning is still pending.' }
-        : input.confidential ? { message: 'Private note saved in client Documents for your access. It is excluded from shared client knowledge.' } : {}),
+        : pending ? { message: 'The note is stored in the client profile Files tab; document scanning is still pending.' }
+        : input.confidential ? { message: 'Private note saved in the client profile Files tab for your access. It is excluded from shared client knowledge.' } : {}),
       reused: document.reused === true,
     };
   }
@@ -135,7 +135,7 @@ export class MeriClientFilingService {
           !['ready', 'legacy_ready', 'quarantined'].includes(document.lifecycleStatus);
         files.push({ attachmentId, fileName: row.filename,
           status: failed ? 'failed' : pending ? 'pending' : 'saved',
-          documentId: document.id, location: destination.location,
+          documentId: document.id, location: `${destination.location}&attachmentId=${encodeURIComponent(document.id)}`,
           indexingStatus: failed || pending ? 'not_indexed' : document.indexedAt ? 'indexed' : 'pending', reused: document.reused === true,
           ...(failed ? { reason: 'The file was stored but is unavailable under the document readiness policy.' }
             : pending ? { reason: 'The original file is stored; document scanning is still pending.' }

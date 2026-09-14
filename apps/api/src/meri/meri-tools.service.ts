@@ -1000,7 +1000,7 @@ export class MeriToolsService {
       save_chat_attachments: obj(
         {
           clientId: str(
-            'Explicit destination client UUID; resolve the client before proposing a save.',
+            'Destination client UUID. Use the selected conversation client when present; it is already resolved and does not need to be asked for again. Otherwise resolve the intended client.',
           ),
           conversationId: str('Current Meri conversation UUID containing the user attachments.'),
           attachmentIds: {
@@ -1009,7 +1009,7 @@ export class MeriToolsService {
             maxItems: 10,
             items: { type: 'string', minLength: 1 },
             description:
-              '1–10 attachment IDs from this conversation. Saves the original files to client Documents, with a per-file receipt.',
+              '1–10 authorized attachment IDs from this conversation. Saves the original files to the client profile Files tab, with a per-file receipt and link. Use for requests to save the doc or send an uploaded file to the selected client profile.',
           },
         },
         ['clientId', 'conversationId', 'attachmentIds'],

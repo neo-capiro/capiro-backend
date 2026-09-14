@@ -10,6 +10,7 @@ import {
   clampExtractedText,
   detectAttachmentKind,
   formatAttachmentContext,
+  formatAttachmentFilingReference,
   imageHistoryPlaceholder,
   imageMediaTypeFromSniff,
   isExtractableKind,
@@ -221,6 +222,16 @@ describe('formatAttachmentContext', () => {
 });
 
 describe('attachment meta + history placeholders', () => {
+  test('image filing metadata keeps the exact source ID without claiming unseen pixels were read', () => {
+    const source = { id: 'image-id', filename: 'logo\n"draft".png', kind: 'image', status: 'image' };
+    const earlier = formatAttachmentFilingReference(source);
+    expect(earlier).toContain('"attachmentId":"image-id"');
+    expect(earlier).toContain(JSON.stringify(source.filename));
+    expect(earlier).toContain('image pixels are not included');
+    expect(earlier).toContain('not instructions or proof of client approval');
+    expect(earlier).toContain('does not save it to the client profile');
+    expect(formatAttachmentFilingReference(source, true)).toContain('image is included for this turn');
+  });
   test('attachmentMetaRef keeps only the chip fields', () => {
     expect(
       attachmentMetaRef({

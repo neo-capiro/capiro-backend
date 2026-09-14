@@ -1,4 +1,4 @@
-import { assertAttachmentConversation, compactedAttachmentContext } from './meri-attachment-continuity.js';
+import { assertAttachmentConversation, authorizedAttachmentSources, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -138,7 +138,7 @@ import {
   attachmentMetaRef,
   attachmentRefsFromMetadata,
   formatAttachmentContext,
-  imageHistoryPlaceholder,
+  formatAttachmentFilingReference,
   imageMediaTypeFromSniff,
   validateAttachment,
   validateVisionSet,
@@ -796,6 +796,8 @@ export class MeriService implements MeriTurnMaintenance {
       tx.clioMessage.findMany({
         where: {
           conversationId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
           role: { in: ['user', 'assistant'] },
           ...(summaryBoundary
             ? {
@@ -821,39 +823,41 @@ export class MeriService implements MeriTurnMaintenance {
     // knows they existed).
     const attachmentRefsByMessage = new Map<string, AttachmentMetaRef[]>();
     for (const m of history) {
+      if (m.role !== 'user') continue;
       const refs = attachmentRefsFromMetadata(m.metadata);
       if (refs.length) attachmentRefsByMessage.set(m.id, refs);
     }
     const lastUserMessage = [...history].reverse().find((m) => m.role === 'user') ?? null;
     const docTextById = new Map<string, { id: string; filename: string; text: string; status: string; reason: string | null }>();
+    const filingSources = new Map<string, { id: string; filename: string; kind: string; status: string; reason: string | null }>();
+    const visibleImageIds = new Set<string>();
+    const sourceMessageIds = history.filter(message => message.role === 'user').map(message => message.id);
     const currentTurnImages: Array<{ filename: string; mediaType: string; dataBase64: string }> =
       [];
     if (attachmentRefsByMessage.size) {
       const allRefIds = [...attachmentRefsByMessage.values()].flat().map((r) => r.id);
-      const docRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.clioAttachment.findMany({
-          where: { id: { in: allRefIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: { not: 'image' }, textContent: { not: null } },
-          select: { id: true, filename: true, textContent: true, status: true, reason: true },
-        }),
-      );
+      const docRows = await authorizedAttachmentSources(this.prisma, ctx, conversationId, allRefIds, sourceMessageIds);
       for (const row of docRows) {
+        filingSources.set(row.id, row);
+        if (row.kind === 'image' || row.textContent == null) continue;
         docTextById.set(row.id, { id: row.id, filename: row.filename, text: row.textContent ?? '', status: row.status, reason: row.reason });
       }
       const lastUserImageIds = (
         (lastUserMessage && attachmentRefsByMessage.get(lastUserMessage.id)) ??
         []
       )
-        .filter((r) => r.kind === 'image')
+        .filter((r) => r.kind === 'image' && filingSources.has(r.id))
         .map((r) => r.id);
       if (lastUserImageIds.length) {
         const imageRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioAttachment.findMany({
-            where: { id: { in: lastUserImageIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'image' },
+            where: { id: { in: lastUserImageIds }, tenantId: ctx.tenantId, userId: ctx.userId, kind: 'image', messageId: { in: docRows.flatMap(source => source.messageId ? [source.messageId] : []) } },
             select: { id: true, filename: true, mediaType: true, data: true },
           }),
         );
         for (const row of imageRows) {
           if (row.data && row.mediaType) {
+            visibleImageIds.add(row.id);
             currentTurnImages.push({
               filename: row.filename,
               mediaType: row.mediaType,
@@ -870,9 +874,10 @@ export class MeriService implements MeriTurnMaintenance {
       for (const ref of refs) {
         const doc = docTextById.get(ref.id);
         if (doc) parts.push(formatAttachmentContext(doc.filename, doc.text, undefined, doc));
-        else if (ref.kind === 'image' && m.id !== lastUserMessage?.id) {
-          parts.push(imageHistoryPlaceholder(ref.filename));
-        } else if (ref.kind !== 'image') {
+        else if (filingSources.has(ref.id)) {
+          const imageVisible = m.id === lastUserMessage?.id && visibleImageIds.has(ref.id);
+          parts.push(formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible));
+        } else {
           parts.push(`Attachment ${JSON.stringify(ref.filename)} (ID ${ref.id}) is unavailable for this turn. Ask for that file again; do not claim to have read it.`);
         }
       }

@@ -12,12 +12,8 @@ import { MeriIcon } from './meri-icons.js';
  * link that opens the turn inspector's Approvals tab, focused on the turn
  * this notice belongs to.
  *
- * Built and unit-tested in isolation here, but NOT yet swapped in as
- * PendingApprovalsInline's live rendering: doing that now would strip the
- * only reachable Approve/Retry/Dismiss UI from production before the turn
- * inspector panel is mounted anywhere (VNextMeriShell.tsx is intentionally
- * untouched in this piece). That swap belongs in the same follow-up
- * integration step that wires the panel in.
+ * Confirmed client saves also link directly to their saved files. The
+ * inspector remains the place to review pending actions and retry failures.
  */
 
 /**
@@ -61,10 +57,32 @@ export interface MeriApprovalNoticeProps {
 
 export function MeriApprovalNotice({ approvals, onReview }: MeriApprovalNoticeProps) {
   if (approvals.length === 0) return null;
+  const savedLinks = approvals.flatMap((approval) => {
+    const receipt = clientSaveReceipt(approval);
+    if (!receipt) return [];
+    return [
+      ...(receipt.location ? [{ location: receipt.location, label: 'Open saved note in Files' }] : []),
+      ...receipt.files.flatMap((file) => file.location
+        ? [{ location: file.location, label: `Open in Files: ${file.name}` }]
+        : []),
+    ];
+  });
+  const uniqueSavedLinks = savedLinks.filter((link, index) =>
+    savedLinks.findIndex((candidate) => candidate.location === link.location) === index,
+  );
 
   return (
     <div className="vnext-meri__approval-notice" role="status">
-      <span className="vnext-meri__approval-notice-text">{noticeSentence(approvals)}</span>
+      <div className="vnext-meri__approval-notice-text">
+        <span>{noticeSentence(approvals)}</span>
+        {uniqueSavedLinks.length > 0 && (
+          <ul className="vnext-meri__save-receipt-links">
+            {uniqueSavedLinks.map((link) => (
+              <li key={link.location}><a href={link.location}>{link.label}</a></li>
+            ))}
+          </ul>
+        )}
+      </div>
       <button type="button" className="vnext-meri__approval-notice-link" onClick={onReview}>
         Review it
         <MeriIcon name="ArrowNarrowRight" size={14} color="#363F72" />

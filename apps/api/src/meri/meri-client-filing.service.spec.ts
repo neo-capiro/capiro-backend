@@ -2,6 +2,12 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 
+// The canonical writer is injected below; this suite exercises the adapter's
+// authorization and receipts without booting the unrelated Engagement graph.
+jest.mock('../client-documents/client-document-writer.service.js', () => ({
+  ClientDocumentWriterService: class {},
+}));
+
 const CLIENT = '10000000-0000-4000-8000-000000000001';
 const CONVERSATION = '20000000-0000-4000-8000-000000000002';
 const FILE = '30000000-0000-4000-8000-000000000003';
@@ -45,7 +51,8 @@ describe('Meri client filing', () => {
     }, select: { id: true } });
     expect(result).toMatchObject({ status: 'saved', savedCount: 1,
       clientName: 'Sightline Intelligence', files: [{ documentId: 'durable-document', indexingStatus: 'pending' }] });
-    expect(result.location).toBe(`/clients?clientId=${CLIENT}&tab=documents`);
+    expect(result.location).toBe(`/clients?clientId=${CLIENT}&tab=files`);
+    expect(result.files[0]!.location).toBe(`/clients?clientId=${CLIENT}&tab=files&attachmentId=durable-document`);
   });
 
   it('retains successful siblings and only retries the same source identity after a partial save', async () => {
@@ -124,6 +131,7 @@ describe('Meri client filing', () => {
     const result = await service.saveNote(ctx, input);
     expect(result).toMatchObject({ status: 'saved', documentId: 'durable-document',
       clientId: CLIENT, clientName: 'Sightline Intelligence', note: { body: input.body }, indexingStatus: 'not_indexed' });
+    expect(result.location).toBe(`/clients?clientId=${CLIENT}&tab=files&attachmentId=durable-document`);
     expect(documents.createAttachmentFromBuffer).toHaveBeenLastCalledWith(ctx,
       expect.objectContaining({ privateToUploader: true, contentType: 'text/plain',
         buffer: Buffer.from(input.body), source: 'meri_note', untrustedUpload: true }));
@@ -137,4 +145,26 @@ describe('Meri client filing', () => {
         .toMatchObject({ status, documentId: 'stored-note', indexingStatus: 'not_indexed' });
     },
   );
+
+  it('copies image and PowerPoint originals using their own source identities and exact file links', async () => {
+    const { service, tx, documents, row } = harness();
+    const sources = [
+      { ...row, filename: 'logo.png', mediaType: 'image/png', data: Buffer.from('original-image'), status: 'image' },
+      { ...row, id: FILE2, filename: 'Strat Discussion.pptx', mediaType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: Buffer.from('original-pptx'), status: 'truncated' },
+    ];
+    tx.clioAttachment.findMany.mockResolvedValue(sources);
+    documents.createAttachmentFromBuffer.mockResolvedValueOnce({ id: 'image-document', lifecycleStatus: 'ready' })
+      .mockResolvedValueOnce({ id: 'pptx-document', lifecycleStatus: 'ready' });
+    const result = await service.saveAttachments(ctx, { clientId: CLIENT, conversationId: CONVERSATION, attachmentIds: [FILE, FILE2] });
+    expect(result).toMatchObject({ status: 'saved', savedCount: 2, files: [
+      { documentId: 'image-document', location: `/clients?clientId=${CLIENT}&tab=files&attachmentId=image-document` },
+      { documentId: 'pptx-document', location: `/clients?clientId=${CLIENT}&tab=files&attachmentId=pptx-document` },
+    ] });
+    for (const [index, source] of sources.entries()) {
+      expect(documents.createAttachmentFromBuffer.mock.calls[index]![1]).toMatchObject({
+        clientId: CLIENT, buffer: source.data, contentType: source.mediaType, fileName: source.filename,
+        sourceEntityId: source.id, idempotencyKey: `meri-chat-attachment:${source.id}`, untrustedUpload: true,
+      });
+    }
+  });
 });

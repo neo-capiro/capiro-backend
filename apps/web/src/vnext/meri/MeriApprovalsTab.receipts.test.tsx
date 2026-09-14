@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
+import { clientSaveReceipt } from '../../components/chat/meri-client-save-receipt.js';
+import { resolveCrmRoute } from '../pages/client-crm/client-crm-routing.js';
 import { describeApprovalOutcome } from '../../components/chat/meri-pending-approvals.js';
 
 vi.mock('./meri-icons.js', () => ({ MeriIcon: () => null }));
@@ -14,6 +16,7 @@ import { MeriApprovalNotice } from './MeriApprovalNotice.js';
 
 const clientId = '13d1f9a3-3b37-41df-8a62-63bd450d6d73';
 const location = `/clients?clientId=${clientId}&tab=documents`;
+const savedLocation = `/clients?clientId=${clientId}&tab=files&attachmentId=document-a`;
 
 function proposal(
   resultSummary: unknown,
@@ -60,8 +63,8 @@ describe('confirmed client save receipts', () => {
     const value = proposal(noteReceipt());
     show(value);
     expect(screen.getByText('NOTE SAVED · SAVE NOTE')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open saved note' })).toHaveAttribute('href', location);
-    expect(describeApprovalOutcome(value)).toBe('Note saved under Sightline Intelligence.');
+    expect(screen.getByRole('link', { name: 'Open saved note in Files' })).toHaveAttribute('href', savedLocation);
+    expect(describeApprovalOutcome(value)).toBe('Note saved in Sightline Intelligence’s Files.');
   });
 
   test.each([
@@ -95,12 +98,12 @@ describe('confirmed client save receipts', () => {
     show(value);
     expect(screen.getByText('NOTE PROCESSING · SAVE NOTE')).toBeInTheDocument();
     expect(
-      screen.getByText(`Note processing under Sightline Intelligence. ${message}`),
+      screen.getByText(`Note processing in Sightline Intelligence’s Files. ${message}`),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Open saved note' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open saved note in Files' })).not.toBeInTheDocument();
     expect(screen.queryByText(/SAVE NOT CONFIRMED/)).not.toBeInTheDocument();
     expect(describeApprovalOutcome(value)).toBe(
-      `Note processing under Sightline Intelligence. ${message}`,
+      `Note processing in Sightline Intelligence’s Files. ${message}`,
     );
   });
 
@@ -112,12 +115,12 @@ describe('confirmed client save receipts', () => {
     show(value);
     expect(screen.getByText('NOTE FILING FAILED · SAVE NOTE')).toBeInTheDocument();
     expect(
-      screen.getByText(`Note filing failed under Sightline Intelligence. ${message}`),
+      screen.getByText(`Note filing failed in Sightline Intelligence’s Files. ${message}`),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Open saved note' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open saved note in Files' })).not.toBeInTheDocument();
     expect(describeApprovalOutcome(value)).toBe(
-      `Note filing failed under Sightline Intelligence. ${message}`,
+      `Note filing failed in Sightline Intelligence’s Files. ${message}`,
     );
   });
 
@@ -137,7 +140,7 @@ describe('confirmed client save receipts', () => {
     const value = proposal(noteReceipt({ message }));
     show(value);
     expect(screen.getByText(/It is excluded from shared client knowledge/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open saved note' })).toHaveAttribute('href', location);
+    expect(screen.getByRole('link', { name: 'Open saved note in Files' })).toHaveAttribute('href', savedLocation);
     expect(describeApprovalOutcome(value)).toContain(message);
   });
 
@@ -147,9 +150,51 @@ describe('confirmed client save receipts', () => {
     'javascript:alert(1)',
     '/clients?clientId=another-client&tab=documents',
     `/clients?clientId=${clientId}&tab=intelligence`,
+    `/clients?clientId=${clientId}&tab=files&attachmentId=different-document`,
+    `/clients?clientId=${clientId}&clientId=another-client&tab=files`,
+    `/clients?clientId=${clientId}&tab=files&tab=documents`,
+    `${savedLocation}&attachmentId=different-document`,
+    `${savedLocation}#other-document`,
   ])('never opens a noncanonical or wrong-client receipt URL: %s', (href) => {
     show(proposal(noteReceipt({ location: href })));
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  test.each([location, savedLocation])('opens the exact filed document from current and legacy receipts: %s', (href) => {
+    const value = proposal(noteReceipt({ location: href }));
+    const receipt = clientSaveReceipt(value);
+    expect(receipt?.location).toBe(savedLocation);
+    const params = new URL(receipt!.location!, 'https://capiro.invalid').searchParams;
+    expect(resolveCrmRoute(params)).toEqual({ tab: 'files', view: null, didNormalize: false });
+    expect(params.get('clientId')).toBe(clientId);
+    expect(params.get('attachmentId')).toBe('document-a');
+  });
+
+  test('the transcript exposes exact saved files while preserving pending and failed results', () => {
+    const value = proposal({
+      tool: 'save_chat_attachments', status: 'partial', clientId, clientName: 'Sightline Intelligence',
+      files: [
+        { attachmentId: 'chat-a', documentId: 'document-a', fileName: 'Strat Discussion.pptx', status: 'saved', location: savedLocation },
+        { attachmentId: 'chat-b', documentId: 'document-b', fileName: 'scan.pdf', status: 'pending', location },
+        { attachmentId: 'chat-c', fileName: 'corrupt.pdf', status: 'failed', location, reason: 'Unreadable.' },
+      ],
+    }, { tool: 'save_chat_attachments', status: 'failed_retryable' });
+    render(<MeriApprovalNotice approvals={[value]} onReview={vi.fn()} />);
+    expect(screen.getByRole('link', { name: 'Open in Files: Strat Discussion.pptx' })).toHaveAttribute('href', savedLocation);
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent('1 saved, 1 processing, 1 failed in Sightline Intelligence’s Files');
+    expect(screen.getByRole('button', { name: 'Review it' })).toBeInTheDocument();
+  });
+
+  test.each(['proposed', 'executing', 'outcome_unknown'] as const)('the transcript never exposes a saved link for %s', (status) => {
+    render(<MeriApprovalNotice approvals={[proposal(noteReceipt({ location: savedLocation }), { status })]} onReview={vi.fn()} />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  test('does not duplicate the same saved file across repeated action receipts', () => {
+    const value = proposal(noteReceipt({ location: savedLocation }));
+    render(<MeriApprovalNotice approvals={[value, { ...value, proposalId: 'proposal-b' }]} onReview={vi.fn()} />);
+    expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 
   test('reports processing separately from saved even when the action execution succeeded', () => {
@@ -179,7 +224,7 @@ describe('confirmed client save receipts', () => {
     expect(screen.getByText('scanned-letter.pdf — Processing')).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(describeApprovalOutcome(value)).toBe(
-      '0 saved, 1 processing, 0 failed under Sightline Intelligence.',
+      '0 saved, 1 processing, 0 failed in Sightline Intelligence’s Files.',
     );
   });
 
@@ -218,11 +263,11 @@ describe('confirmed client save receipts', () => {
     show(value);
     expect(screen.getByText('PARTIALLY SAVED · SAVE NOTE')).toBeInTheDocument();
     expect(
-      screen.getByText(/1 saved, 1 processing, 1 failed under Sightline Intelligence/),
+      screen.getByText(/1 saved, 1 processing, 1 failed in Sightline Intelligence’s Files/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open saved document: letter.docx' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open in Files: letter.docx' })).toHaveAttribute(
       'href',
-      location,
+      savedLocation,
     );
     expect(screen.getAllByRole('link')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
@@ -266,7 +311,7 @@ describe('confirmed client save receipts', () => {
     expect(screen.getByText(/PROCESSING FILES/)).toBeInTheDocument();
     expect(screen.getByText('1 saved, 1 processing, 0 failed.')).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'Open saved document: letter.docx' }),
+      screen.getByRole('link', { name: 'Open in Files: letter.docx' }),
     ).toBeInTheDocument();
   });
 
@@ -298,7 +343,7 @@ describe('confirmed client save receipts', () => {
     );
     expect(screen.getByText('Unavailable attachment — Failed')).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'Open saved document: letter.docx' }),
+      screen.getByRole('link', { name: 'Open in Files: letter.docx' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/1 saved, 0 processing, 1 failed/)).toBeInTheDocument();
   });

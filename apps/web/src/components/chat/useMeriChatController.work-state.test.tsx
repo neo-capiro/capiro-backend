@@ -12,7 +12,8 @@ vi.mock('../../lib/use-api.js', () => ({ useApi: () => stableApi }));
 vi.mock('../../state/impersonation.js', () => ({ useImpersonation: () => stableImpersonation }));
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'https://api.test' } }));
 
-import { useMeriChatController } from './useMeriChatController.js';
+import { useMeriChatController, type PendingApproval } from './useMeriChatController.js';
+import { clientSaveReceipt } from './meri-client-save-receipt.js';
 import { getChatStateSnapshot, resetChatStoreForTests, setActiveConversation, setChatOpen, setChatSession, setConversations } from './chat-store.js';
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -90,6 +91,153 @@ function routeFetch(stream: (init?: RequestInit) => Response | Promise<Response>
 }
 
 describe('Meri work belongs to its pending turn', () => {
+  const savedFileProposal = (): PendingApproval => ({
+    proposalId: 'saved-file', tool: 'save_chat_attachments', status: 'succeeded',
+    preview: { label: 'Save attached files', fields: {}, counts: {} },
+    resultSummary: {
+      tool: 'save_chat_attachments', status: 'saved', clientId: 'client-a', clientName: 'Client A',
+      files: [{ attachmentId: 'chat-file', documentId: 'file-a', fileName: 'Strat Discussion.pptx', status: 'saved',
+        location: '/clients?clientId=client-a&tab=files&attachmentId=file-a' }],
+    },
+    updatedAt: '2026-09-15T00:01:00.000Z',
+  } as PendingApproval);
+  const ok = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
+
+  test('recovers a completed automatic save without a pending_approval frame or reload', async () => {
+    let filed = false;
+    let recoveries = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/stream')) { filed = true; return completeInventory(); }
+      if (url.includes('/action-proposals?')) { recoveries++; return ok(filed ? [savedFileProposal()] : []); }
+      return ok([]);
+    }));
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(recoveries).toBe(1));
+    await act(async () => { await result.current.sendMessage('Save this attachment to the client profile'); });
+    await waitFor(() => expect(result.current.pendingApprovals).toHaveLength(1));
+    expect(clientSaveReceipt(result.current.pendingApprovals[0]!)?.files[0]?.location)
+      .toBe('/clients?clientId=client-a&tab=files&attachmentId=file-a');
+    expect(recoveries).toBe(2);
+  });
+
+  test.each(['conversation', 'identity'] as const)('ignores completed-turn recovery after a %s switch', async (boundary) => {
+    let recoveries = 0;
+    let resolveOld!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/stream')) return completeInventory();
+      if (url.includes('/action-proposals?')) {
+        recoveries++;
+        if (recoveries === 2) return new Promise<Response>((resolve) => { resolveOld = resolve; });
+      }
+      return ok([]);
+    }));
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(recoveries).toBe(1));
+    await act(async () => { await result.current.sendMessage('Save this file'); });
+    await waitFor(() => expect(recoveries).toBe(2));
+    if (boundary === 'identity') {
+      stableAuth.orgId = 'org-2';
+      rerender();
+    }
+    act(() => setChatSession('conversation-2'));
+    await act(async () => { resolveOld(ok([savedFileProposal()])); });
+    expect(result.current.pendingApprovals).toEqual([]);
+  });
+
+  test('a late completed-turn recovery cannot overwrite a newer approval result', async () => {
+    const saved = savedFileProposal();
+    const proposed = { ...saved, status: 'proposed', resultSummary: null, updatedAt: '2026-09-15T00:00:00.000Z' };
+    let recoveries = 0;
+    let resolveOld!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/stream')) return completeInventory();
+      if (url.endsWith('/approve')) return ok(saved);
+      if (url.includes('/action-proposals?')) {
+        recoveries++;
+        if (recoveries === 2) return new Promise<Response>((resolve) => { resolveOld = resolve; });
+        return ok([recoveries === 1 ? proposed : saved]);
+      }
+      return ok([]);
+    }));
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(result.current.pendingApprovals[0]?.status).toBe('proposed'));
+    await act(async () => { await result.current.sendMessage('Continue'); });
+    await waitFor(() => expect(recoveries).toBe(2));
+    await act(async () => { await result.current.handleApprovePending(saved.proposalId); });
+    expect(result.current.pendingApprovals[0]?.status).toBe('succeeded');
+    await act(async () => { resolveOld(ok([proposed])); });
+    expect(result.current.pendingApprovals[0]?.status).toBe('succeeded');
+    expect(clientSaveReceipt(result.current.pendingApprovals[0]!)?.files[0]?.location).toContain('attachmentId=file-a');
+  });
+
+  test('waits for every concurrent dismissal before recovering a short turn’s automatic save', async () => {
+    const saved = savedFileProposal();
+    let serverRows = ['dismiss-a', 'dismiss-b'].map((proposalId) => ({ ...saved, proposalId, status: 'proposed' }));
+    const dismissals = new Map<string, (response: Response) => void>();
+    let recoveries = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/stream')) { serverRows.push(saved); return completeInventory(); }
+      if (url.endsWith('/dismiss')) {
+        const id = url.split('/').at(-2)!;
+        return new Promise<Response>((resolve) => { dismissals.set(id, resolve); });
+      }
+      if (url.includes('/action-proposals?')) { recoveries++; return ok(serverRows); }
+      return ok([]);
+    }));
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(result.current.pendingApprovals).toHaveLength(2));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.handleDismissPending('dismiss-a');
+      second = result.current.handleDismissPending('dismiss-b');
+    });
+    await waitFor(() => expect(dismissals.size).toBe(2));
+    await act(async () => { await result.current.sendMessage('Save the next file'); });
+    expect(result.current.pendingApprovals).toEqual([]);
+    expect(recoveries).toBe(1);
+    await act(async () => {
+      serverRows = serverRows.filter((row) => row.proposalId !== 'dismiss-a');
+      dismissals.get('dismiss-a')!(ok({}));
+      await first;
+    });
+    expect(recoveries).toBe(1);
+    expect(result.current.pendingApprovals).toEqual([]);
+    await act(async () => {
+      serverRows = serverRows.filter((row) => row.proposalId !== 'dismiss-b');
+      dismissals.get('dismiss-b')!(ok({}));
+      await second;
+    });
+    await waitFor(() => expect(result.current.pendingApprovals).toEqual([saved]));
+    expect(recoveries).toBe(2);
+  });
+
+  test.each(['conversation', 'identity'] as const)('a prior %s dismissal does not block recovery in the new session', async (boundary) => {
+    let recoveries = 0;
+    let finishDismiss!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/dismiss')) return new Promise<Response>((resolve) => { finishDismiss = resolve; });
+      if (url.includes('/action-proposals?')) { recoveries++; return ok(recoveries === 1 ? [savedFileProposal()] : []); }
+      return ok([]);
+    }));
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }), { wrapper });
+    await waitFor(() => expect(result.current.pendingApprovals).toHaveLength(1));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.handleDismissPending('saved-file'); });
+    await waitFor(() => expect(finishDismiss).toBeTypeOf('function'));
+    if (boundary === 'identity') { stableAuth.orgId = 'org-2'; rerender(); }
+    act(() => setChatSession('conversation-2'));
+    await waitFor(() => expect(recoveries).toBe(2));
+    await act(async () => { finishDismiss(ok({})); await pending; });
+    expect(result.current.pendingApprovals).toEqual([]);
+    expect(recoveries).toBe(2);
+  });
+
   test('keeps streamed saved documents on their assistant turn after closing the canvas and starting a new turn', async () => {
     const stream = controlledStream();
     const artifact = { id: 'saved-pdf', title: 'Glass Harbor', kind: 'pdf_document',
@@ -153,6 +301,7 @@ describe('Meri work belongs to its pending turn', () => {
   });
 
   beforeEach(() => {
+    stableAuth.orgId = 'org-1';
     resetChatStoreForTests();
     setChatSession('conversation-1');
     stableGetToken.mockImplementation(async () => 'test-token');

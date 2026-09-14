@@ -170,7 +170,16 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
     // in Sightline Intelligence") or a later turn. Offering a schema does not
     // authorize a write: the canonical registry still enforces approval.
     pattern:
-      /^(?=[\s\S]*\b(?:save|file|store|ingest|import|log)\b)(?=[\s\S]*\b(?:attachments?|attached|documents?|files?|uploads?)\b)/i,
+      /^(?=[\s\S]*\b(?:save|file|store|ingest|import|log)\b)(?=[\s\S]*\b(?:attachments?|attached|doc(?:ument)?s?|files?|uploads?)\b)/i,
+    tools: ['save_chat_attachments', 'lookup_client_registry', 'read_client_documents'],
+  },
+  {
+    // "Send it" can mean filing rather than email when the destination is
+    // explicitly a profile or Files tab. Offer the original-file tool even
+    // when the file noun appears only on an earlier turn. This does not grant
+    // write authority or suppress email tools for a genuine combined request.
+    pattern:
+      /\b(?:send|put|add|upload)\b[^\n]{0,100}\b(?:to|in|into|under|on)\b[^\n]{0,60}\b(?:(?:client(?:['’]s)?|selected)\s+profile|files\s+tab)\b/i,
     tools: ['save_chat_attachments', 'lookup_client_registry', 'read_client_documents'],
   },
   {

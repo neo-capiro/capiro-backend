@@ -23,20 +23,24 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-/** Receipt links may open only the canonical document view for the recorded client. */
-function documentLocation(value: unknown, clientId: string): string | null {
+/** Old receipts used Documents. Open the saved file in the client's canonical Files tab. */
+function documentLocation(value: unknown, clientId: string, documentId: string): string | null {
   if (typeof value !== 'string' || !value.startsWith('/clients?')) return null;
   try {
     const url = new URL(value, 'https://capiro.invalid');
     if (
       url.origin !== 'https://capiro.invalid' ||
       url.pathname !== '/clients' ||
+      url.searchParams.getAll('clientId').length !== 1 ||
       url.searchParams.get('clientId') !== clientId ||
-      url.searchParams.get('tab') !== 'documents' ||
+      url.searchParams.getAll('tab').length !== 1 ||
+      !['documents', 'files'].includes(url.searchParams.get('tab') ?? '') ||
+      url.searchParams.getAll('attachmentId').length > 1 ||
+      (url.searchParams.has('attachmentId') && url.searchParams.get('attachmentId') !== documentId) ||
       url.hash
     )
       return null;
-    return `/clients?clientId=${encodeURIComponent(clientId)}&tab=documents`;
+    return `/clients?${new URLSearchParams({ clientId, tab: 'files', attachmentId: documentId })}`;
   } catch {
     return null;
   }
@@ -56,7 +60,11 @@ export function clientSaveReceipt(proposal: PendingApproval): MeriClientSaveRece
   const clientId =
     text(raw.clientId) ?? (proposal.tool === 'save_note' ? text(note.clientId) : null);
   const clientName = text(raw.clientName);
-  const target = clientId && clientName ? ` under ${clientName}` : '';
+  const target = clientId && clientName
+    ? proposal.tool === 'save_note' && !text(raw.documentId)
+      ? ` under ${clientName}`
+      : ` in ${clientName}’s Files`
+    : '';
   const unconfirmed: MeriClientSaveReceipt = {
     status: 'unconfirmed',
     label: 'Save not confirmed',
@@ -93,7 +101,7 @@ export function clientSaveReceipt(proposal: PendingApproval): MeriClientSaveRece
       files: [],
       location:
         status === 'saved' && documentId && clientId
-          ? documentLocation(raw.location, clientId)
+          ? documentLocation(raw.location, clientId, documentId)
           : null,
     };
   }
@@ -105,17 +113,20 @@ export function clientSaveReceipt(proposal: PendingApproval): MeriClientSaveRece
     const file = object(entry);
     const name = text(file.fileName) ?? 'Unavailable attachment';
     const status = file.status;
+    const documentId = text(file.documentId);
     if (
       !text(file.attachmentId) ||
       !['saved', 'pending', 'failed'].includes(String(status)) ||
-      (status !== 'failed' && !text(file.documentId))
+      (status !== 'failed' && !documentId)
     )
       return unconfirmed;
     files.push({
       name,
       status: status as 'saved' | 'pending' | 'failed',
       reason: text(file.reason),
-      location: status === 'saved' ? documentLocation(file.location, clientId) : null,
+      location: status === 'saved' && documentId
+        ? documentLocation(file.location, clientId, documentId)
+        : null,
     });
   }
   const saved = files.filter((file) => file.status === 'saved').length;
