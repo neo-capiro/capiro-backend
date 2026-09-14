@@ -393,6 +393,7 @@ export class StateSourceDataRepository {
     const rows = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT DISTINCT sb.id
          FROM state_bill sb
+         JOIN state_session ss ON ss.state=sb.state AND ss.session_key=sb.session_key AND NOT ss.prior
         WHERE sb.state = ANY($1::text[])
           AND ( sb.subjects && $2::text[]
              OR LOWER(sb.title) ~ ANY($3::text[]) )
