@@ -153,7 +153,7 @@ export class RuleChangeDetectorService {
               stage: 'New rule',
               // Verbatim from the record (Workstream C discipline) — never a summary.
               actionText: rule.abstract ?? rule.title,
-              actionDate: rule.publicationDate.toISOString().slice(0, 10),
+              actionDate: rule.publicationDate?.toISOString().slice(0, 10) ?? null,
               url: rule.sourceUrl,
               sourceUrl: rule.sourceUrl,
               why,

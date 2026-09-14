@@ -16,6 +16,7 @@ import { InternalWorkflowService } from '../src/tracker/keywords/internal-workfl
 import { WorkflowTriggerService } from '../src/tracker/keywords/workflow-trigger.service.js';
 import { CalendarPreparationService } from '../src/tracker/calendar/calendar-preparation.service.js';
 import { KeywordMeriController } from '../src/tracker/keywords/keyword-meri.controller.js';
+import { ResearchService } from '../src/tracker/research/research.service.js';
 import { KeywordDeliveryService } from '../src/tracker/keywords/keyword-delivery.service.js';
 import { hash } from '../src/tracker/folders/folder-tracker.service.js';
 
@@ -287,7 +288,13 @@ describe('Phase 6 committed workflows and cross-service recovery', () => {
       ),
     ).rejects.toThrow('AUTOMATIC_ASSIGNMENT_HELD');
     delete process.env.LEGIWATCH_KEYWORD_AUTO_ADD_ENABLED;
-    const bridge = new KeywordMeriController(rules, discovery, actions, semantic);
+    const bridge = new KeywordMeriController(
+      rules,
+      discovery,
+      actions,
+      semantic,
+      new ResearchService(rules),
+    );
     await expect(
       bridge.route(
         {

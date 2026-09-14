@@ -36,14 +36,23 @@ function makeService() {
   };
   const collaborators = {
     assertCan: jest.fn(async () => 'owner'),
+    sourceAccess: jest.fn(async () => true),
   };
   return {
     service: new DraftsService(prisma as never, collaborators as never),
     prisma,
+    collaborators,
   };
 }
 
 describe('DraftsService.list projection', () => {
+  it('omits private research metadata after current source access is withdrawn', async () => {
+    const { service, collaborators } = makeService();
+    collaborators.sourceAccess.mockResolvedValueOnce(false);
+    const result = await service.list('tenant-1', 'user-1', { scope: 'all' });
+    expect(result.drafts).toEqual([]);
+    expect(collaborators.sourceAccess).toHaveBeenCalledWith('tenant-1', 'draft-1', 'user-1');
+  });
   it('requests a slim select without config JSONB', async () => {
     const { service, prisma } = makeService();
 

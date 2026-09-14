@@ -6,7 +6,7 @@ import { stripHtmlTags } from '../external/govinfo/govinfo.service.js';
 import { observeStateRecord } from './published-record-observations.js';
 
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
-export const DOCUMENT_EXTRACTOR_VERSION = 'meri-pdf-native-pages-v1';
+export const DOCUMENT_EXTRACTOR_VERSION = 'meri-pdf-native-lines-v2';
 export async function documentEvidence(
   doc: LegiscanDocument,
   expected: { billId: number; docId: number },
@@ -38,6 +38,8 @@ export async function documentEvidence(
   const mime = doc.mime?.toLowerCase();
   if (mime === 'application/pdf' && bytes.subarray(0, 5).toString() === '%PDF-') {
     const result = await extractPdfText(bytes, {
+      limits:{pages:500,characters:2_000_000},
+      preserveLineBreaks:true,
       onPage: (page, text) => sections.push({ locator: `page:${page}`, text, hash: sha(text) }),
     });
     extractionState = result.unreadablePages.length
@@ -85,6 +87,7 @@ export async function documentEvidence(
     url,
     documentKind: doc.document_kind ?? 'text',
     title: doc.title ?? doc.type,
+    versionType: doc.type ?? null,
     date: publicationDate,
     rawDate: doc.date ?? null,
     mime: mime ?? null,

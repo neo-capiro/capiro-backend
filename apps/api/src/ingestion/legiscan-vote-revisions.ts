@@ -7,6 +7,7 @@ import type {
 } from '../external/legiscan/legiscan.client.js';
 
 export interface VoteObservation {
+  historical?: boolean;
   stub?: LegiscanBillVoteStub;
   providerBillHash?: string;
   providerBillId?: number;
@@ -198,7 +199,7 @@ export async function persistVoteRevision(
       providerBillHash: observation.providerBillHash ?? null,
       lastSyncedAt: observation.observedAt ?? new Date(),
     };
-    await observeStateRecord(tx, billKey, 'vote', id, revisionHash);
+    if (!observation.historical) await observeStateRecord(tx, billKey, 'vote', id, revisionHash);
     await tx.stateRollCallVote.upsert({ where: { id }, create: { id, ...data }, update: data });
     // Preserve canonical member-row IDs and directory crosswalks when positions change.
     for (const m of evidence.members)

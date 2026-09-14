@@ -7,6 +7,7 @@ import {
 import { createHash } from 'node:crypto';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { preparationWorkspace } from './preparation-content.js';
+import { researchWorkspace } from './research-content.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
 import { detectNames } from '../generation/anonymize.js';
@@ -115,6 +116,41 @@ export class DraftsService {
     sourceKey: string,
     prefill: { draft: { docTitle: string }; context: Record<string, unknown>; sources: unknown[] },
   ) {
+    return this.createSourceDraft(
+      tenantId,
+      ownerId,
+      sourceKey,
+      prefill,
+      'legiwatch_preparation',
+      preparationWorkspace,
+    );
+  }
+  async createResearch(
+    tenantId: string,
+    ownerId: string,
+    sourceKey: string,
+    prefill: { draft: { docTitle: string }; context: Record<string, unknown>; sources: unknown[] },
+  ) {
+    return this.createSourceDraft(
+      tenantId,
+      ownerId,
+      sourceKey,
+      prefill,
+      'legiwatch_research',
+      researchWorkspace,
+    );
+  }
+  private async createSourceDraft(
+    tenantId: string,
+    ownerId: string,
+    sourceKey: string,
+    prefill: { draft: { docTitle: string }; context: Record<string, unknown>; sources: unknown[] },
+    sourceType: string,
+    render: (prefill: { context: Record<string, unknown>; sources: unknown[] }) => {
+      config: Record<string, unknown>;
+      contextItem: { payload: Record<string, unknown> };
+    },
+  ) {
     const inputHash = createHash('sha256').update(JSON.stringify(prefill)).digest('hex');
     return this.prisma.$transaction(
       async (tx) => {
@@ -128,7 +164,7 @@ export class DraftsService {
         const [prior] = await tx.$queryRaw<
           Array<{ input_hash: string; draft_id: string; context_item_id: string }>
         >`SELECT input_hash,draft_id,context_item_id FROM ws_source_action
-        WHERE tenant_id=${tenantId}::uuid AND owner_id=${ownerId} AND source_type='legiwatch_preparation' AND source_key=${sourceKey}`;
+        WHERE tenant_id=${tenantId}::uuid AND owner_id=${ownerId} AND source_type=${sourceType} AND source_key=${sourceKey}`;
         if (prior) {
           if (prior.input_hash !== inputHash)
             throw new ConflictException('SOURCE_ACTION_INPUT_CHANGED');
@@ -148,7 +184,7 @@ export class DraftsService {
           };
         }
         const draft = await this.create(tenantId, ownerId, prefill.draft, tx),
-          prepared = preparationWorkspace(prefill);
+          prepared = render(prefill);
         await tx.wsDraft.updateMany({
           where: { tenantId, id: draft.id, ownerId },
           data: {
@@ -164,7 +200,7 @@ export class DraftsService {
           },
         });
         await tx.$executeRaw`INSERT INTO ws_source_action(tenant_id,owner_id,source_type,source_key,input_hash,draft_id,context_item_id)
-        VALUES(${tenantId}::uuid,${ownerId},'legiwatch_preparation',${sourceKey},${inputHash},${draft.id}::uuid,${item.id}::uuid)`;
+        VALUES(${tenantId}::uuid,${ownerId},${sourceType},${sourceKey},${inputHash},${draft.id}::uuid,${item.id}::uuid)`;
         return { draftId: draft.id, contextItemId: item.id, state: 'complete', replayed: false };
       },
       { timeout: 30000 },
@@ -249,7 +285,10 @@ export class DraftsService {
 
     // Never reintroduce config. phase/qualityScore stay undefined on list;
     // status is the draft column (not agent run-status).
-    const drafts = rows.map((row) => {
+    const allowed = [];
+    for (const row of rows)
+      if (await this.collaborators.sourceAccess(tenantId, row.id, ownerId)) allowed.push(row);
+    const drafts = allowed.map((row) => {
       const { config: _config, ...rest } = row as typeof row & { config?: unknown };
       return {
         ...rest,

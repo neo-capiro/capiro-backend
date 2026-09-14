@@ -18,7 +18,7 @@ export interface SourceRule {
   abstract: string | null;
   ruleType: string;
   agency: string;
-  publicationDate: Date;
+  publicationDate: Date | null;
   commentEndDate: Date | null;
   sourceUrl: string | null;
 }
@@ -37,7 +37,7 @@ export class SourceRuleRepository {
           abstract: string | null;
           type: string;
           agencyNames: string[];
-          publicationDate: Date;
+          publicationDate: Date | null;
           commentEndDate: Date | null;
           htmlUrl: string | null;
         }>
@@ -57,7 +57,7 @@ export class SourceRuleRepository {
           abstract: string | null;
           ruleType: string;
           agency: string;
-          publicationDate: Date;
+          publicationDate: Date | null;
           commentEndDate: Date | null;
           sourceUrl: string;
         }>

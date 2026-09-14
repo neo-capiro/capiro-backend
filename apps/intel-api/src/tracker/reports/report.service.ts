@@ -1,3 +1,4 @@
+import { assertResearchReportAccess } from '../research/research-report-access.js';
 import {
   BadRequestException,
   ConflictException,
@@ -234,6 +235,7 @@ export class ReportService {
       if (!r) throw new NotFoundException('RUN_NOT_FOUND');
       await this.get(tx, ctx, r.reportId);
       const snapshot = r.snapshot as unknown as ReportDocument;
+      await assertResearchReportAccess(tx, ctx, snapshot, (id) => this.folders.folder(tx, ctx, id));
       for (const folderId of new Set(snapshot.rows.map((r) => r.folderId)))
         await this.folders.folder(tx, ctx, folderId);
       return { ...r, rendered: storedRendering(r.rendered) };
@@ -243,7 +245,7 @@ export class ReportService {
     await this.authorize(ctx);
     return this.folders.withActor(ctx, async (tx) => {
       if (reportId) await this.get(tx, ctx, reportId);
-      return tx.legiWatchReportRun.findMany({
+      const rows = await tx.legiWatchReportRun.findMany({
         where: {
           tenantId: ctx.tenantId,
           ...(reportId ? { reportId } : {}),
@@ -258,10 +260,22 @@ export class ReportService {
           contentHash: true,
           complete: true,
           generatedAt: true,
+          snapshot: true,
         },
         orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }],
         take: 100,
       });
+      const allowed = [];
+      for (const row of rows) {
+        try {
+          await assertResearchReportAccess(tx, ctx, row.snapshot, (id) =>
+            this.folders.folder(tx, ctx, id),
+          );
+          const { snapshot, ...metadata } = row;
+          allowed.push(metadata);
+        } catch {}
+      }
+      return allowed;
     });
   }
   async promote(ctx: WorkspaceTenantContext, stagedId: string) {

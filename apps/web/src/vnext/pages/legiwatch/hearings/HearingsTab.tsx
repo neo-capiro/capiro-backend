@@ -1,3 +1,5 @@
+import { LegalDeadlineOverlay } from '../research/LegalDeadlineOverlay.js';
+
 /**
  * Hearings tab (§7.7) — the module's landing tab. Two columns: the schedule
  * (left) and sessions + scheduled recordings (right).
@@ -610,6 +612,15 @@ export function HearingsTab({ scope }: { scope: string }) {
             {exportWeek.isPending ? 'Preparing…' : 'Export calendar'}
           </LwButton>
         </div>
+      ) : null}
+
+      {sub === 'schedule' && jurisdiction === 'FL' ? (
+        <LegalDeadlineOverlay
+          from={rangeFrom}
+          to={rangeTo}
+          clientId={clientId || undefined}
+          folderId={selectedFolders.length === 1 ? selectedFolders[0] : undefined}
+        />
       ) : null}
       {exportWeek.isError ? (
         <p role="alert">Calendar export failed. Refresh the selection and try again.</p>

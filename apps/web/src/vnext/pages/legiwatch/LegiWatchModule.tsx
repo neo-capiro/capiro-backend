@@ -37,6 +37,7 @@ import { HearingsTab } from './hearings/HearingsTab.js';
 import { CommitteesTab } from './committees/CommitteesTab.js';
 import { FeedTab } from './feed/FeedTab.js';
 import { BillsTab } from './bills/BillsTab.js';
+import { ResearchTab } from './research/ResearchTab.js';
 import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
 import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
@@ -51,6 +52,11 @@ import './legiwatch.css';
 type Overlay = 'views' | 'watch' | 'states' | 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
+  research: {
+    eyebrow: 'Legislative research',
+    title: 'Research',
+    description: 'Explore exact bill versions, statutes, rule notices and published dates.',
+  },
   hearings: {
     eyebrow: 'Legislative intelligence',
     title: 'Hearings',
@@ -493,6 +499,8 @@ export function LegiWatchModule() {
         <FeedTab scope={scope} clients={visibleClients} />
       ) : tab === 'bills' ? (
         <BillsTab scope={scope} clients={visibleClients} />
+      ) : tab === 'research' ? (
+        <ResearchTab />
       ) : tab === 'digest' ? (
         <DigestTab scope={scope} />
       ) : tab === 'analytics' ? (

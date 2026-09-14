@@ -1,4 +1,6 @@
 import { ConfigService } from '@nestjs/config';
+import { ResearchService } from '../research/research.service.js';
+import { StatuteMonitorService } from '../research/statute-monitor.service.js';
 import { KeywordSourceRepository } from '../../sourcedata/keyword-source.repository.js';
 import { KeywordRuleService } from '../keywords/keyword-rule.service.js';
 import { KeywordDeliveryService } from '../keywords/keyword-delivery.service.js';
@@ -73,8 +75,10 @@ export function reportRuntime(prisma: PrismaService) {
     new KeywordRuleService(reports, new KeywordSourceRepository(prisma)),
     new CalendarPreparationService(folders, reports.flags),
     records,
+    new ResearchService(keywordRules),
   );
   return {
+    statuteMonitors: new StatuteMonitorService(new ResearchService(keywordRules)),
     keywords: new KeywordDiscoveryService(
       new KeywordRuleService(reports, new KeywordSourceRepository(prisma)),
     ),

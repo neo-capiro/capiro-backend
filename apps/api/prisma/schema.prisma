@@ -6366,7 +6366,7 @@ model StateRule {
   ruleType         String    @map("rule_type") // 'proposed' | 'emergency' | 'final' | 'notice' | 'executive_order'
   docketId         String?   @map("docket_id")
   registerCitation String?   @map("register_citation")
-  publicationDate  DateTime  @map("publication_date") @db.Date
+  publicationDate  DateTime? @map("publication_date") @db.Date
   commentStartDate DateTime? @map("comment_start_date") @db.Date
   // The deadline anchor M3.4's comment-period reuse (check-comment-periods.ts) reads.
   commentEndDate   DateTime? @map("comment_end_date") @db.Date
@@ -6375,6 +6375,9 @@ model StateRule {
   // Bill -> rule successor (deferred to P2 per the plan; column ships now so a
   // later linker doesn't need a migration).
   linkedBillKeys   String[]  @default([]) @map("linked_bill_keys")
+  filingDate      DateTime? @map("filing_date") @db.Date
+  linkedRuleNumbers String[] @default([]) @map("linked_rule_numbers")
+  sourceRevision String? @map("source_revision")
   syncedAt         DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
 
   @@index([state, publicationDate])

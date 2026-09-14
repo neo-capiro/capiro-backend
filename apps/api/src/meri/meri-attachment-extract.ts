@@ -30,12 +30,17 @@ export async function extractPdfText(
     ) => Promise<{ text: string; partial: boolean }>;
     signal?: AbortSignal;
     onPage?: (page: number, text: string) => void;
+    /** Explicit bounded source-ingestion limits; ordinary uploads retain defaults. */
+    limits?: { pages: number; characters: number };
+    preserveLineBreaks?: boolean;
   } = {},
 ): Promise<PdfExtraction> {
+  const maxPages=options.limits?.pages??PDF_MAX_PAGES,maxChars=options.limits?.characters??DOC_TEXT_MAX_CHARS;
+  if(!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>500||!Number.isSafeInteger(maxChars)||maxChars<1||maxChars>2_000_000)throw Error('PDF_EXTRACTION_LIMITS_INVALID');
   const bytes =
     buffer instanceof Uint8Array && !(buffer instanceof Buffer) ? buffer : new Uint8Array(buffer);
   const pdf = await getDocumentProxy(bytes);
-  const pageCount = Math.min(pdf.numPages, PDF_MAX_PAGES);
+  const pageCount = Math.min(pdf.numPages, maxPages);
   const parts: string[] = [];
   let chars = 0;
   let pagesRead = 0;
@@ -43,16 +48,17 @@ export async function extractPdfText(
   const unreadablePages: number[] = [];
   const visuallyReadPages: number[] = [];
   try {
-    for (let i = 1; i <= pageCount && chars < DOC_TEXT_MAX_CHARS; i += 1) {
+    for (let i = 1; i <= pageCount && chars < maxChars; i += 1) {
       if (options.signal?.aborted) {
         truncated = true;
         break;
       }
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      let pageText = (content.items as Array<{ str?: string }>)
-        .map((item) => item.str ?? '')
-        .join(' ');
+      let pageText = (content.items as Array<{ str?: string;hasEOL?:boolean }>)
+        .map((item) => (item.str ?? '')+(options.preserveLineBreaks&&item.hasEOL?'\n':' '))
+        .join('');
+      if(!options.preserveLineBreaks) pageText=pageText.slice(0,-1);
       if (!pageText.trim()) {
         if (options.readScannedPage) {
           const visual = await options.readScannedPage(i, pdf.numPages);
@@ -64,7 +70,7 @@ export async function extractPdfText(
         }
       }
       const separatorChars = parts.length ? 1 : 0;
-      const remaining = DOC_TEXT_MAX_CHARS - chars - separatorChars;
+      const remaining = maxChars - chars - separatorChars;
       if (remaining <= 0) {
         truncated = true;
         break;

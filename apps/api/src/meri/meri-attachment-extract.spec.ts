@@ -5,6 +5,14 @@ import { DOC_TEXT_MAX_CHARS, PDF_MAX_PAGES } from './meri-attachment.helpers.js'
 jest.mock('unpdf', () => ({ getDocumentProxy: jest.fn() }));
 
 describe('PDF indexing extraction coverage', () => {
+  it('uses explicit research limits while retaining ordinary attachment truncation',async()=>{
+    const body='A'.repeat(DOC_TEXT_MAX_CHARS+1000);
+    document([body]);
+    expect((await extractPdfText(Buffer.from('fixture'))).truncated).toBe(true);
+    document([body]);
+    expect(await extractPdfText(Buffer.from('fixture'),{limits:{pages:500,characters:2_000_000},preserveLineBreaks:true})).toMatchObject({truncated:false,pagesRead:1});
+    await expect(extractPdfText(Buffer.from('fixture'),{limits:{pages:501,characters:2_000_000}})).rejects.toThrow('PDF_EXTRACTION_LIMITS_INVALID');
+  });
   function document(pageTexts: string[], pageCount = pageTexts.length) {
     const destroy = jest.fn().mockResolvedValue(undefined);
     const getPage = jest.fn(async (page: number) => ({

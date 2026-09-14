@@ -11,7 +11,9 @@
  */
 import { useRef, useState } from 'react';
 import { useDialogFocus } from '../../../components/overlays/index.js';
-import { useNavigate } from 'react-router-dom';
+
+import { Link, useNavigate } from 'react-router-dom';
+
 import { useBillDossier } from '../../../../pages/bills/bill-360-api.js';
 import {
   kpiSubText,
@@ -180,6 +182,26 @@ export function Bill360Drawer({
               {folderId && tab === 'Overview' && (
                 <FolderContextPanel folderId={folderId} billId={billId} />
               )}
+
+              {tab === 'Evidence' ? (
+                <Link
+                  to={
+                    '/legiwatch?' +
+                    new URLSearchParams({
+                      tab: 'research',
+                      researchView: 'bills',
+                      bill: billId,
+                      jurisdiction: billId.split('-')[0] ?? 'FL',
+                      session: billId.split('-')[1] ?? '',
+                      ...(clientId ? { client: clientId } : {}),
+                      ...(folderId ? { folder: folderId } : {}),
+                    })
+                  }
+                >
+                  Research and compare exact bill documents
+                </Link>
+              ) : null}
+
               {d.bill.isState && (tab === 'Evidence' || tab === 'Path & Votes') && (
                 <BillSourceRecords
                   key={`${billId}:${tab}`}
@@ -428,7 +450,11 @@ function HearingsTabView({
   if (loading) return <LwStateLoading rows={2} />;
   const list = hearings?.hearings ?? [];
   if (!list.length) {
-    return <p className="lw-state__body">No linked saved-session references are available in this view.</p>;
+    return (
+      <p className="lw-state__body">
+        No linked saved-session references are available in this view.
+      </p>
+    );
   }
   return (
     <section>

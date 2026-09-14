@@ -17,6 +17,7 @@
  * skip count to be zero.
  */
 import type { LegiscanBill, LegiscanPerson, LegiscanRollCall } from './legiscan.client.js';
+import type { Readable } from 'node:stream';
 
 export interface ParsedDataset {
   bills: LegiscanBill[];
@@ -40,6 +41,7 @@ function unwrap<T>(json: unknown, wrapperKeys: string[], requiredField: string):
 
 /** Parse a LegiScan bulk dataset ZIP (already base64-decoded to a Buffer). */
 export async function parseDatasetZip(zipBuffer: Buffer): Promise<ParsedDataset> {
+  if (zipBuffer.length > 120_000_000) throw Error('DATASET_COMPRESSED_SIZE_LIMIT');
   const { default: JSZip } = await import('jszip');
   const zip = await JSZip.loadAsync(zipBuffer);
 
@@ -49,9 +51,46 @@ export async function parseDatasetZip(zipBuffer: Buffer): Promise<ParsedDataset>
   const skipped = { bills: 0, people: 0, votes: 0 };
 
   const entries = Object.values(zip.files).filter((f) => !f.dir && f.name.endsWith('.json'));
+  if (Object.keys(zip.files).length > 50000) throw Error('DATASET_ENTRY_LIMIT');
+  for (const entry of Object.values(zip.files)) {
+    const original =
+      (entry as typeof entry & { unsafeOriginalName?: string }).unsafeOriginalName ?? entry.name;
+    if (
+      original.startsWith('/') ||
+      original.includes('\\') ||
+      /^[A-Za-z]:/.test(original) ||
+      original.split('/').includes('..') ||
+      original.includes('\0')
+    )
+      throw Error('DATASET_UNSAFE_ENTRY_PATH');
+  }
+  let expanded = 0;
   for (const entry of entries) {
     const lowerPath = entry.name.toLowerCase();
-    const text = await entry.async('text');
+    const bytes = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      let size = 0,
+        failed = false;
+      const stream = entry.nodeStream('nodebuffer') as Readable;
+      stream
+        .on('data', (chunk: Buffer) => {
+          if (failed) return;
+          size += chunk.length;
+          expanded += chunk.length;
+          if (size > 10_000_000 || expanded > 512_000_000) {
+            failed = true;
+            stream.destroy();
+            reject(Error('DATASET_EXPANSION_LIMIT'));
+            return;
+          }
+          chunks.push(chunk);
+        })
+        .on('error', reject)
+        .on('end', () => {
+          if (!failed) resolve(Buffer.concat(chunks));
+        });
+    });
+    const text = bytes.toString('utf8');
     let json: unknown;
     try {
       json = JSON.parse(text);

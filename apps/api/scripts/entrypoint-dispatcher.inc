@@ -564,6 +564,7 @@ case "${1:-serve}" in
   normalize-state-committees) exec ./node_modules/.bin/tsx scripts/normalize-state-committees.ts ;;
   backtest-deadline-physics)  exec ./node_modules/.bin/tsx scripts/backtest-deadline-physics.ts ;;
   sync-state-register)        exec ./node_modules/.bin/tsx scripts/sync-state-register.ts ;;
+  sync-legal-research)        exec ./node_modules/.bin/tsx scripts/sync-legal-research.ts ;;
   sync-bls)               exec ./node_modules/.bin/tsx scripts/sync-bls.ts ;;
   sync-bea)               exec ./node_modules/.bin/tsx scripts/sync-bea.ts ;;
   sync-census)            exec ./node_modules/.bin/tsx scripts/sync-census.ts ;;

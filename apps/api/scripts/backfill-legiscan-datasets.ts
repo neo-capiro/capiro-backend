@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { pullHistoricalDatasets } from '../src/ingestion/legiscan-historical-research.js';
+
 /**
  * One-time LegiScan bulk-dataset backfill + quota-exhaustion fallback (State
  * Legislation Platform, Phase 0 S1.3.1). Seeds every state/session from
@@ -28,6 +31,14 @@ import {
   getSessionList,
 } from '../src/external/legiscan/legiscan.client.js';
 import { parseDatasetZip } from '../src/external/legiscan/legiscan-dataset.util.js';
+
+import {
+  selectedSessionIds,
+  selectHistoricalSessions,
+} from '../src/ingestion/legiscan-selected-sessions.js';
+
+import { createHash } from 'node:crypto';
+
 import { ALL_US_STATE_CODES, PRIORITY_STATE_CODES } from '../src/external/legiscan/us-states.js';
 import {
   normalizeLegiscanBill,
@@ -55,6 +66,13 @@ const RAW_STATES = (process.env.LEGISCAN_STATES ?? PRIORITY_STATE_CODES.join(','
 const STATES =
   RAW_STATES.length === 1 && RAW_STATES[0] === 'ALL' ? [...ALL_US_STATE_CODES] : RAW_STATES;
 const SESSIONS_MODE = (process.env.LEGISCAN_SESSIONS ?? 'current').toLowerCase();
+
+const SESSION_ALLOWLIST = selectedSessionIds(process.env.LEGISCAN_SESSION_IDS);
+
+const DRY_RUN = process.env.LEGISCAN_DATASET_DRY_RUN === 'true';
+
+if (SESSIONS_MODE === 'selected' && STATES.length !== 1)
+  throw Error('SELECTED_HISTORY_REQUIRES_ONE_STATE');
 
 /**
  * (2026-07-10 hot-fix) The cost to attribute to ONE session's cursor this
@@ -107,11 +125,12 @@ async function backfillState(
     console.warn(`[backfill-legiscan] ${state}: no sessions returned`);
     return { bills, people, votes, errors, queries: stateLevelQueries };
   }
-  for (const session of sessions) {
-    await upsertStateSession(prisma, state, session);
-  }
 
-  const targetSessions = sessions.filter((s) => (SESSIONS_MODE === 'all' ? true : s.prior !== 1));
+  const targetSessions = selectHistoricalSessions(sessions, SESSIONS_MODE, SESSION_ALLOWLIST);
+
+  if (!DRY_RUN)
+    for (const session of targetSessions) await upsertStateSession(prisma, state, session);
+
   const datasetList = await getDatasetList(LEGISCAN_API_KEY, state);
   stateLevelQueries++;
 
@@ -128,13 +147,59 @@ async function backfillState(
       );
       continue;
     }
+
+    if (DRY_RUN) {
+      console.log(
+        'HISTORICAL_SESSION_MANIFEST ' +
+          JSON.stringify({
+            state,
+            sessionId: session.session_id,
+            sessionKey: normalizeSessionKeyFor(session),
+            dataset: { session_id: listing.session_id },
+            mode: 'dry_run',
+            documentHydration: false,
+            clientAssignments: 'specific_export_required',
+            delivery: false,
+          }),
+      );
+      continue;
+    }
+
     try {
       const dataset = await getDataset(LEGISCAN_API_KEY, listing.session_id, listing.access_key);
       if (!dataset?.zip) {
         console.warn(`[backfill-legiscan] ${state} session ${session.session_id}: empty dataset`);
         continue;
       }
-      const parsed = await parseDatasetZip(Buffer.from(dataset.zip, 'base64'));
+
+      const archive = Buffer.from(dataset.zip, 'base64');
+
+      const parsed = await parseDatasetZip(archive);
+
+      if (
+        parsed.bills.some(
+          (b) =>
+            ((b as typeof b & { state?: string }).state !== undefined &&
+              (b as typeof b & { state?: string }).state !== state) ||
+            b.session?.session_id !== session.session_id,
+        )
+      )
+        throw Error('DATASET_SESSION_OR_JURISDICTION_MISMATCH');
+      console.log(
+        'HISTORICAL_DATASET_RECEIPT ' +
+          JSON.stringify({
+            state,
+            sessionId: session.session_id,
+            archiveHash: createHash('sha256').update(archive).digest('hex'),
+            bills: parsed.bills.length,
+            people: parsed.people.length,
+            votes: parsed.votes.length,
+            skipped: parsed.skipped,
+            documentHydration: false,
+            clientMemberships: 0,
+          }),
+      );
+
       if (parsed.skipped.bills || parsed.skipped.people || parsed.skipped.votes) {
         console.warn(
           `[backfill-legiscan] ${state} session ${session.session_id}: skipped ${JSON.stringify(parsed.skipped)} (see legiscan-dataset.util.ts wrapper-key note)`,
@@ -266,7 +331,8 @@ async function backfillState(
     }
   }
 
-  await backfillStateBillLinkTargets(prisma);
+  if (!DRY_RUN) await backfillStateBillLinkTargets(prisma);
+
   return { bills, people, votes, errors, queries: totalQueriesThisRun };
 }
 
@@ -281,6 +347,64 @@ function normalizeSessionKeyFor(session: {
 }
 
 async function main() {
+  if (DRY_RUN) {
+    const file = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
+
+    if (!file) throw Error('DRY_RUN_REQUIRES_RETAINED_PROVIDER_SESSION_INVENTORY');
+
+    const inventory = JSON.parse(readFileSync(file, 'utf8'));
+
+    if (
+      inventory.state !== STATES[0] ||
+      STATES.length !== 1 ||
+      !Array.isArray(inventory.sessions) ||
+      !Array.isArray(inventory.datasets) ||
+      typeof inventory.observedAt !== 'string'
+    )
+      throw Error('INVALID_RETAINED_SESSION_INVENTORY');
+
+    const sessions = selectHistoricalSessions(inventory.sessions, SESSIONS_MODE, SESSION_ALLOWLIST);
+
+    console.log(
+      'HISTORICAL_SESSION_MANIFEST ' +
+        JSON.stringify({
+          state: inventory.state,
+          observedAt: inventory.observedAt,
+          inventoryHash: createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
+          sessions: sessions.map((session: any) => ({
+            sessionId: session.session_id,
+            name: session.session_name ?? null,
+            sessionKey: normalizeSessionKeyFor(session),
+            dataset:
+              inventory.datasets.find((d: any) => d.session_id === session.session_id) ?? null,
+          })),
+          providerCalls: 0,
+          mutations: 0,
+          clientAssignments: 'specific_export_required',
+          applyState: 'explicit_prior_session_and_unchanged_dataset_required',
+        }),
+    );
+
+    return;
+  }
+
+  if (SESSIONS_MODE === 'selected') {
+    const path = process.env.LEGISCAN_SESSION_INVENTORY_FILE;
+    if (!path) throw Error('REVIEWED_SESSION_INVENTORY_REQUIRED');
+    console.log(
+      'HISTORICAL_APPLY_RECEIPT ' +
+        JSON.stringify(
+          await pullHistoricalDatasets(
+            prisma,
+            STATES[0]!,
+            SESSION_ALLOWLIST,
+            JSON.parse(readFileSync(path, 'utf8')),
+          ),
+        ),
+    );
+    return;
+  }
+
   if (!LEGISCAN_API_KEY) throw new Error('LEGISCAN_API_KEY env var is required');
   console.log(`[backfill-legiscan] states: ${STATES.join(', ')} (sessions=${SESSIONS_MODE})`);
 

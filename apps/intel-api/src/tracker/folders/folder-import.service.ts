@@ -33,6 +33,31 @@ export class FolderImportService {
     bounded(input.mappingManifest, 64000);
     bounded(input.items, 1000000);
     const manifest = input.mappingManifest;
+    const historical = manifest.purpose === 'historical_client_assignments';
+    if (historical) {
+      const sessions = Object.values(object(manifest.sessions)).map(object);
+      if (
+        !sessions.length ||
+        sessions.length > 4 ||
+        !input.captureId ||
+        input.items.some(
+          (i) =>
+            i.kind !== 'assignment' || !str(i.payload.evidence_file) || !str(i.payload.session),
+        )
+      )
+        throw new BadRequestException('SPECIFIC_HISTORICAL_EXPORT_AND_SESSION_REQUIRED');
+      for (const session of sessions) {
+        if (!Number.isSafeInteger(session.providerSessionId))
+          throw new BadRequestException('EXACT_HISTORICAL_PROVIDER_SESSION_REQUIRED');
+        const rows = await this.folders.prisma.withSystem(
+          (tx) =>
+            tx.$queryRaw<
+              Array<{ id: string }>
+            >`SELECT id FROM state_session WHERE state=${str(session.jurisdiction)} AND session_key=${str(session.sessionKey)} AND legiscan_session_id=${Number(session.providerSessionId)} AND prior AND year_end<extract(year FROM current_date)`,
+        );
+        if (!rows.length) throw new BadRequestException('CANONICAL_PRIOR_SESSION_NOT_RECONCILED');
+      }
+    }
     if (
       manifest.tenantId !== ctx.tenantId ||
       manifest.sourceAccount !== input.sourceAccount ||
@@ -121,8 +146,9 @@ export class FolderImportService {
           }
         }
       }
-      const sourceId =
-        item.kind === 'alert' || item.kind === 'alert_target' || item.kind === 'alert_channel'
+      const sourceId = historical
+        ? `${input.captureId}:${str(raw.session)}:${item.sourceId}`
+        : item.kind === 'alert' || item.kind === 'alert_target' || item.kind === 'alert_channel'
           ? `${input.captureId}:${item.sourceId}`
           : item.sourceId;
       await this.folders.withActor(ctx, async (tx) => {
@@ -135,6 +161,14 @@ export class FolderImportService {
           resolved,
           rawHash: hash(raw),
           sourceTimezone: manifest.sourceTimezone,
+          historicalImport: historical
+            ? {
+                captureId: input.captureId,
+                sourceHash: input.sourceHash,
+                sessionMapping: object(object(manifest.sessions)[str(raw.session)]),
+                baseline: 'existing_records_are_not_new_source_transitions',
+              }
+            : null,
         });
         if (
           existing &&

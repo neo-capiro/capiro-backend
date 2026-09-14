@@ -381,6 +381,73 @@ describe('folder import PostgreSQL recovery and database permissions', () => {
     expect(retained.archived).toBe(false);
     expect(retained.name).toBe(rawFolder.name);
   });
+  it('imports a supplied prior-session capture separately and preserves manual removals on replay', async () => {
+    const sessionId = 700000000 + Math.floor(Math.random() * 10000000),
+      sessionKey = '2024x' + sessionId,
+      historicalBill = 'fl-' + sessionKey + '-hb42';
+    await prisma.withSystem(async (tx) => {
+      await tx.$executeRaw`INSERT INTO state_session(id,state,legiscan_session_id,session_key,name,year_start,year_end,special,prior) VALUES(${'FL-' + sessionId},'FL',${sessionId},${sessionKey},'Synthetic prior',2024,2024,true,true)`;
+      await tx.$executeRaw`INSERT INTO state_bill(id,state,session,session_key,identifier,bill_number,title,chamber,description) VALUES(${historicalBill},'FL',${sessionKey},${sessionKey},'HB 42','hb42','Synthetic prior bill','lower','Historical fixture')`;
+    });
+    const parent = await apply(
+      await preview('history-parent', [
+        { kind: 'folder', sourceId: 'history-folder', payload: rawFolder },
+      ]),
+    );
+    const folderId = parent.items[0]!.targetId!;
+    await folders.bulk(ctx, folderId, { action: 'add', billIds: [bill] });
+    const mapping = {
+      ...manifest,
+      purpose: 'historical_client_assignments',
+      sessions: { prior: { jurisdiction: 'FL', sessionKey, providerSessionId: sessionId } },
+    };
+    const item: FolderImportItemDto = {
+      kind: 'assignment',
+      sourceId: 'same-export-row',
+      payload: {
+        folder_id: 'history-folder',
+        session: 'prior',
+        bill_number: 'HB 42',
+        evidence_file: 'synthetic/history-2024.csv',
+        top_priority: false,
+        importance: 'OFF',
+        position: 'OFF',
+      },
+    };
+    await expect(
+      preview(
+        'missing-history',
+        [{ ...item, payload: { ...item.payload, evidence_file: undefined } }],
+        mapping,
+      ),
+    ).rejects.toThrow('SPECIFIC_HISTORICAL_EXPORT_AND_SESSION_REQUIRED');
+    await expect(
+      preview('wrong-history', [item], {
+        ...mapping,
+        sessions: { prior: { jurisdiction: 'FL', sessionKey, providerSessionId: sessionId + 1 } },
+      }),
+    ).rejects.toThrow('CANONICAL_PRIOR_SESSION_NOT_RECONCILED');
+    const first = await apply(await preview('history-2024', [item], mapping));
+    expect(first.items[0]!.sourceId).toBe('history-2024:prior:same-export-row');
+    expect(first.items[0]!.status).toBe('applied');
+    expect(
+      (await prisma.legiWatchFolderBill.findMany({ where: { tenantId: tenant, folderId } }))
+        .map((r) => r.billId)
+        .sort(),
+    ).toEqual([bill, historicalBill].sort());
+    await folders.bulk(ctx, folderId, { action: 'remove', billIds: [historicalBill] });
+    await apply(await preview('history-2024-recapture', [item], mapping));
+    expect(
+      await prisma.legiWatchFolderBill.count({
+        where: { tenantId: tenant, folderId, billId: historicalBill },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.legiWatchFolderBill.count({
+        where: { tenantId: tenant, folderId, billId: bill },
+      }),
+    ).toBe(1);
+  });
   it('enforces real RLS reads, readonly writes and owner-only access changes with a non-bypass database role', async () => {
     const f = await folders.create(ctx, { name: 'Restricted', otherUserAccess: 'read_only' });
     await folders.bulk(ctx, f.id, { action: 'add', billIds: [bill] });

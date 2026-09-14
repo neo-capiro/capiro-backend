@@ -12,6 +12,7 @@ import { KeywordRuleService } from './keyword-rule.service.js';
 import { KeywordDiscoveryService } from './keyword-discovery.service.js';
 import { InternalWorkflowService } from './internal-workflow.service.js';
 import { SemanticSuggestionService } from './semantic-suggestion.service.js';
+import { ResearchService } from '../research/research.service.js';
 @Controller('internal/legiwatch/meri')
 @UseGuards(WorkflowSourceGuard)
 export class KeywordMeriController {
@@ -20,6 +21,7 @@ export class KeywordMeriController {
     readonly discovery: KeywordDiscoveryService,
     readonly workflows: InternalWorkflowService,
     readonly semantic: SemanticSuggestionService,
+    readonly research: ResearchService,
   ) {}
   @Post('read') read(@Body() body: unknown) {
     return this.route(body, false);
@@ -39,6 +41,26 @@ export class KeywordMeriController {
     )
       throw new BadRequestException('CANONICAL_ACTOR_SCOPE_REQUIRED');
     const ctx = { tenantId: b.tenantId, clerkUserId: b.actor, role: null };
+    if (
+      [
+        'search_legislative_research',
+        'get_legal_reference',
+        'compare_legislative_versions',
+        'save_legislative_research',
+      ].includes(String(b.tool))
+    ) {
+      if (write !== (b.tool === 'save_legislative_research'))
+        throw new ForbiddenException('TOOL_SURFACE_MISMATCH');
+      if (b.tool === 'search_legislative_research') return this.research.search(ctx, input);
+      if (b.tool === 'get_legal_reference')
+        return input.view === 'rules'
+          ? this.research.rules(ctx, input)
+          : input.view === 'versions'
+            ? this.research.versions(ctx, input)
+            : this.research.references(ctx, input);
+      if (b.tool === 'compare_legislative_versions') return this.research.compare(ctx, input);
+      return this.research.saveResearch(ctx, input);
+    }
     await this.rules.authorize(ctx);
     const writes = ['apply_legiwatch_suggestion', 'save_legiwatch_relevance'];
     if (write !== writes.includes(String(b.tool)))

@@ -1,4 +1,14 @@
+import { ResearchImportService } from './research/research-import.service.js';
+import { ResearchReportService } from './research/research-report.service.js';
+import { ResearchDeadlineService } from './research/research-deadline.service.js';
+import { StatuteMonitorService } from './research/statute-monitor.service.js';
+
 import { Module } from '@nestjs/common';
+
+import { ResearchController, ResearchSourceController } from './research/research.controller.js';
+
+import { ResearchService } from './research/research.service.js';
+
 import { KeywordController } from './keywords/keyword.controller.js';
 import { KeywordMeriController } from './keywords/keyword-meri.controller.js';
 import { SemanticSuggestionService } from './keywords/semantic-suggestion.service.js';
@@ -70,6 +80,10 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    ResearchController,
+
+    ResearchSourceController,
+
     KeywordController,
     KeywordMeriController,
     InternalWorkflowController,
@@ -90,6 +104,13 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     TrackerChannelController,
   ],
   providers: [
+    ResearchService,
+
+    ResearchImportService,
+    ResearchReportService,
+    ResearchDeadlineService,
+    StatuteMonitorService,
+
     KeywordRuleService,
     SemanticSuggestionService,
     KeywordDeliveryService,

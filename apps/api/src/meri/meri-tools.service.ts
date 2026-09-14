@@ -303,6 +303,74 @@ export class MeriToolsService {
     };
 
     const schemas: Record<MeriToolName, Record<string, unknown>> = {
+      search_legislative_research: obj(
+        {
+          ...legiwatchScope,
+          query: str('Qualified lexical expression'),
+          cursor: str('Opaque continuation cursor'),
+          kind: { type: 'string', enum: ['all', 'text', 'amendment', 'supplement'] },
+          referenceId: str('Exact legal reference ID'),
+          versionPolicy: { type: 'string', enum: ['any_retained', 'current_extractions'] },
+        },
+        ['jurisdiction', 'sessionKey'],
+      ),
+      get_legal_reference: obj(
+        {
+          ...legiwatchScope,
+          view: { type: 'string', enum: ['statutes', 'rules', 'versions'] },
+          citation: str('Exact citation string, never a decimal'),
+          edition: str('Statute edition separate from bill session'),
+          referenceId: str('Canonical legal reference'),
+          billId: str('Bill whose versions are requested'),
+          ruleNumber: str('Exact administrative rule number'),
+          noticeId: str('Exact notice ID'),
+        },
+        ['jurisdiction', 'view'],
+      ),
+      compare_legislative_versions: obj(
+        {
+          ...legiwatchScope,
+          leftId: str('Exact left document ID'),
+          leftRevision: str('Exact left revision hash'),
+          rightId: str('Exact right document ID'),
+          rightRevision: str('Exact right revision hash'),
+          allowCrossBill: { type: 'boolean' },
+          rightSessionKey: str('Explicit right session for cross-session comparison'),
+        },
+        ['jurisdiction', 'sessionKey', 'leftId', 'leftRevision', 'rightId', 'rightRevision'],
+      ),
+      save_legislative_research: obj(
+        {
+          ...legiwatchScope,
+          title: str('Research draft title'),
+          analysis: str('Editable cited Capiro analysis; never canonical facts'),
+          requestKey: str('Stable idempotency key'),
+          documents: {
+            type: 'array',
+            maxItems: 10,
+            items: obj({ id: str('Exact document ID'), revision: str('Selected revision hash') }, [
+              'id',
+              'revision',
+            ]),
+          },
+          citations: {
+            type: 'array',
+            maxItems: 100,
+            items: obj(
+              {
+                documentId: str('Selected document ID'),
+                revision: str('Selected revision hash'),
+                locator: str('Exact source section locator'),
+                start: { type: 'integer', minimum: 0 },
+                end: { type: 'integer', minimum: 1 },
+                quote: str('Verbatim source slice'),
+              },
+              ['documentId', 'revision', 'locator', 'start', 'end', 'quote'],
+            ),
+          },
+        },
+        ['jurisdiction', 'sessionKey', 'title', 'analysis', 'documents', 'citations', 'requestKey'],
+      ),
       get_legiwatch_review: obj(
         {
           ...legiwatchScope,
@@ -1713,6 +1781,10 @@ export class MeriToolsService {
     assertMeriToolRequestActive();
     switch (name) {
       case 'get_legiwatch_review':
+      case 'search_legislative_research':
+      case 'get_legal_reference':
+      case 'compare_legislative_versions':
+      case 'save_legislative_research':
       case 'preview_legiwatch_relevance':
       case 'save_legiwatch_relevance':
       case 'apply_legiwatch_suggestion':
@@ -4927,7 +4999,16 @@ export class MeriToolsService {
       ruleType,
       stage,
       stageLabel,
-      publicationDate: row.publicationDate as Date,
+      publicationDate: row.publicationDate as Date | null,
+      ...(jurisdiction === 'state'
+        ? {
+            filingDate: row.filingDate ?? null,
+            linkedRuleNumbers: row.linkedRuleNumbers ?? [],
+            sourceRevision: row.sourceRevision ?? null,
+            coverage:
+              'Notice metadata; adopted text/history qualification is reported by legislative research.',
+          }
+        : {}),
       commentPeriod: {
         start: commentStartDate,
         end: commentEndDate,

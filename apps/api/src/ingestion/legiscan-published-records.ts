@@ -73,6 +73,30 @@ export function publishedRecords(raw: LegiscanBill) {
 export function reportSourceFacts(raw: LegiscanBill) {
   return {
     policy: 'legiscan-published-records-v1',
+    documentInventory: {
+      providerBillId: raw.bill_id,
+      providerChangeHash: raw.change_hash,
+      providerSessionId: raw.session?.session_id,
+      sourceListComplete:
+        Array.isArray(raw.texts) && Array.isArray(raw.amendments) && Array.isArray(raw.supplements),
+      expected: [
+        ...(raw.texts ?? []).map((d) => ({
+          kind: 'text',
+          providerId: d.doc_id,
+          providerHash: d.text_hash ?? null,
+        })),
+        ...(raw.amendments ?? []).map((d) => ({
+          kind: 'amendment',
+          providerId: d.amendment_id,
+          providerHash: d.amendment_hash ?? null,
+        })),
+        ...(raw.supplements ?? []).map((d) => ({
+          kind: 'supplement',
+          providerId: d.supplement_id,
+          providerHash: d.supplement_hash ?? null,
+        })),
+      ],
+    },
     coverage: {
       actions: Array.isArray(raw.history),
       committees: Array.isArray(raw.referrals),
@@ -111,6 +135,7 @@ export async function persistPublishedRecords(
   prisma: PrismaClient,
   billKey: string,
   raw: LegiscanBill,
+  options: { historical?: boolean } = {},
 ) {
   const records = publishedRecords(raw);
   // Both record history and coverage become visible together. No backdated
@@ -158,8 +183,9 @@ export async function persistPublishedRecords(
         data,
         skipDuplicates: true,
       });
-    for (const r of data)
-      await observeStateRecord(tx, billKey, r.kind, r.sourceIdentity, r.revisionHash);
+    if (!options.historical)
+      for (const r of data)
+        await observeStateRecord(tx, billKey, r.kind, r.sourceIdentity, r.revisionHash);
     await tx.stateBill.update({
       where: { id: billKey },
       data: { reportSourceFacts: reportSourceFacts(raw) },
