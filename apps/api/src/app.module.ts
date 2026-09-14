@@ -58,6 +58,7 @@ import { BudgetPackagesModule } from './budget-packages/budget-packages.module.j
 import { LiveHearingsModule } from './live-hearings/live-hearings.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { TangoModule } from './external/tango/tango.module.js';
+import { AdminBroadcastsModule } from './admin-broadcasts/admin-broadcasts.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
 
 @Module({
@@ -84,6 +85,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     WebhooksModule,
     RecallWebhookModule,
     CapiroAdminModule,
+    AdminBroadcastsModule,
     TenantAdminModule,
     ClientsModule,
     BrandingModule,

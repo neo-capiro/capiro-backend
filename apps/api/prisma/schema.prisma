@@ -193,6 +193,8 @@ model Tenant {
   updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships                        TenantMembership[]
+  adminBroadcasts                    AdminBroadcast[]
+  adminBroadcastRecipients           AdminBroadcastRecipient[]
   auditLogs                          AuditLog[]
   clients                            Client[]
   impersonationSessions              ImpersonationSession[]
@@ -531,6 +533,8 @@ model User {
 
   memberships                      TenantMembership[]
   auditLogs                        AuditLog[]                     @relation("AuditActor")
+  adminBroadcastsCreated           AdminBroadcast[]               @relation("AdminBroadcastCreator")
+  adminBroadcastReceipts           AdminBroadcastRecipient[]      @relation("AdminBroadcastRecipientUser")
   impersonationSessions            ImpersonationSession[]         @relation("ImpersonationActor")
   directoryContactNotes            DirectoryContactNote[]         @relation("DirectoryContactNoteAuthor")
   directoryContactFavorites        DirectoryContactFavorite[]     @relation("DirectoryContactFavoriteUser")
@@ -593,6 +597,51 @@ model TenantMembership {
   @@index([tenantId, role], map: "tenant_memberships_tenant_role_idx")
   @@index([userId], map: "tenant_memberships_user_idx")
   @@map("tenant_memberships")
+}
+
+enum AdminBroadcastAudience {
+  all_users
+  selected_users
+
+  @@map("admin_broadcast_audience")
+}
+
+/// Capiro-staff broadcast to one tenant's users. Recipients are snapshotted at
+/// send time (see AdminBroadcastRecipient) so the acknowledgement roster is
+/// exact; archiving hides it from users who have not yet acknowledged.
+model AdminBroadcast {
+  id              String                 @id @default(uuid()) @db.Uuid
+  tenantId        String                 @map("tenant_id") @db.Uuid
+  title           String
+  body            String
+  audience        AdminBroadcastAudience
+  createdByUserId String?                @map("created_by_user_id") @db.Uuid
+  archivedAt      DateTime?              @map("archived_at") @db.Timestamptz(6)
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy  User?                     @relation("AdminBroadcastCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  recipients AdminBroadcastRecipient[]
+
+  @@index([tenantId, createdAt], map: "admin_broadcasts_tenant_created_idx")
+  @@map("admin_broadcasts")
+}
+
+model AdminBroadcastRecipient {
+  id             String    @id @default(uuid()) @db.Uuid
+  broadcastId    String    @map("broadcast_id") @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  acknowledgedAt DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  broadcast AdminBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User           @relation("AdminBroadcastRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([broadcastId, userId], map: "admin_broadcast_recipients_broadcast_user_unique")
+  @@index([tenantId, userId, acknowledgedAt], map: "admin_broadcast_recipients_pending_idx")
+  @@map("admin_broadcast_recipients")
 }
 
 /// Ledger of identity-rebinding events: every time an existing local user row

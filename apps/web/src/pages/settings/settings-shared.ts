@@ -34,6 +34,7 @@ export const SETTINGS_TABS: SettingsTab[] = [
   { key: POLICY_PACKS_TAB_KEY, label: 'Policy Packs', minRole: 'user_admin' },
   { key: '/settings/tenants', label: 'Tenants', minRole: 'capiro_admin' },
   { key: '/settings/customers', label: 'Customers', minRole: 'capiro_admin' },
+  { key: '/settings/broadcasts', label: 'Broadcasts', minRole: 'capiro_admin' },
 ];
 
 export function visibleSettingsTabs(input: {

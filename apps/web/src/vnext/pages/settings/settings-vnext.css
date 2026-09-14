@@ -674,6 +674,47 @@
    .settings-vnext? It does not portal — CapiroModal renders in place, so the
    .settings-vnext scope still applies. These classes exist for width only. */
 
+/* ── Broadcasts: recipient checklist ────────────────────────────────────── */
+
+.capiro-vnext-root .settings-vnext .stv-checklist {
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  overflow: auto;
+  padding: var(--capiro-space-02);
+  border: 1px solid var(--stv-border);
+  border-radius: var(--capiro-radius-control);
+  background: var(--stv-surface);
+}
+.capiro-vnext-root .settings-vnext .stv-checklist label {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: 6px var(--capiro-space-03);
+  border-radius: calc(var(--capiro-radius-control) - 2px);
+  cursor: pointer;
+}
+.capiro-vnext-root .settings-vnext .stv-checklist label:hover {
+  background: var(--stv-inset);
+}
+.capiro-vnext-root .settings-vnext .stv-checklist input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--capiro-color-action-accent-default);
+}
+.capiro-vnext-root .settings-vnext .stv-checklist__name {
+  font-weight: var(--uui-weight-medium);
+  color: var(--stv-ink);
+}
+.capiro-vnext-root .settings-vnext .stv-checklist__email {
+  font-size: var(--uui-text-xs);
+  line-height: var(--uui-line-xs);
+  color: var(--stv-ink-3);
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 780px) {
   .capiro-vnext-root .settings-vnext .stv-header {
     padding: var(--capiro-space-05) var(--capiro-space-04) 0;
