@@ -97,6 +97,51 @@ describe('native capability registration contract', () => {
       MERI_CAPABILITY_REGISTRY.map((tool) => tool.name),
     );
   });
+  it.each(['save_legiwatch_relevance', 'apply_legiwatch_suggestion'])(
+    '%s requires the governed proposal before any API effect',
+    async (name) => {
+      const { service, execute } = registry();
+      expect(service.registry.executionMetadata(name)).toMatchObject({
+        executionMode: 'approval_required',
+      });
+      await expect(
+        service.registry.invoke(
+          name,
+          {
+            folderId: 'folder-1',
+            suggestionId: 'suggestion-1',
+            expectedVersion: 1,
+            requestKey: 'request-1',
+            action: 'add',
+          },
+          ctx,
+        ),
+      ).rejects.toBeInstanceOf(ApprovalPendingError);
+      expect(execute).not.toHaveBeenCalled();
+      expect(
+        selectMeriCapabilitySchemas(
+          MERI_CAPABILITY_REGISTRY,
+          'in_editor',
+          service.registry.list(),
+        ).some((t) => t.name === name),
+      ).toBe(false);
+    },
+  );
+  it.each(['get_legiwatch_review', 'preview_legiwatch_relevance'])(
+    '%s preserves selected folder/session and caller in full chat',
+    async (name) => {
+      const { service, execute } = registry(),
+        input = {
+          view: 'suggestions',
+          folderId: 'folder-1',
+          jurisdiction: 'FL',
+          sessionKey: '2026',
+        },
+        control = { signal: new AbortController().signal, deadlineAt: Date.now() + 10000 };
+      await service.registry.invoke(name, input, ctx, control);
+      expect(execute).toHaveBeenCalledWith(ctx, name, input, control);
+    },
+  );
 
   it.each(MERI_FEDERAL_MARKET_TOOL_DEFINITIONS.map(({ name }) => name))(
     '%s reaches the existing authenticated API executor',

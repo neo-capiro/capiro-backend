@@ -1,4 +1,11 @@
 import { ConfigService } from '@nestjs/config';
+import { KeywordSourceRepository } from '../../sourcedata/keyword-source.repository.js';
+import { KeywordRuleService } from '../keywords/keyword-rule.service.js';
+import { KeywordDeliveryService } from '../keywords/keyword-delivery.service.js';
+import { KeywordDiscoveryService } from '../keywords/keyword-discovery.service.js';
+import { InternalWorkflowService } from '../keywords/internal-workflow.service.js';
+import { WorkflowTriggerService } from '../keywords/workflow-trigger.service.js';
+import { CalendarPreparationService } from '../calendar/calendar-preparation.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   FeatureFlagService,
@@ -51,6 +58,8 @@ export function reportRuntime(prisma: PrismaService) {
     new ClientBriefContextClient(),
   );
   const recordDelivery = new HearingRecordDeliveryService(records, recipients);
+  const keywordRules = new KeywordRuleService(reports, new KeywordSourceRepository(prisma));
+  const keywordDelivery = new KeywordDeliveryService(keywordRules);
   const delivery = new ReportDeliveryService(
     reports,
     recipients,
@@ -58,8 +67,20 @@ export function reportRuntime(prisma: PrismaService) {
     publications,
     new SmsService(),
     recordDelivery,
+    keywordDelivery,
+  );
+  const workflows = new InternalWorkflowService(
+    new KeywordRuleService(reports, new KeywordSourceRepository(prisma)),
+    new CalendarPreparationService(folders, reports.flags),
+    records,
   );
   return {
+    keywords: new KeywordDiscoveryService(
+      new KeywordRuleService(reports, new KeywordSourceRepository(prisma)),
+    ),
+    workflows,
+    workflowTriggers: new WorkflowTriggerService(workflows),
+    keywordDelivery,
     reports,
     recipients,
     delivery,

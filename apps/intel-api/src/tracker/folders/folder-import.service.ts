@@ -491,6 +491,14 @@ export class FolderImportService {
             await finish('blocked', 'FOLDER_NOT_WRITABLE');
             return;
           }
+          const manualState = await tx.$queryRaw<
+            Array<{ suppressed: boolean }>
+          >`SELECT suppressed FROM intel_legiwatch_membership_state
+            WHERE tenant_id=${ctx.tenantId} AND folder_id=${f.id} AND bill_id=${billId}`;
+          if (manualState[0]?.suppressed) {
+            await finish('conflict', 'LOCAL_EDIT_OR_REMOVAL_PRESERVED', targetId);
+            return;
+          }
           const data = {
             topPriority: raw.top_priority === true,
             importance: raw.importance === 'OFF' ? 'normal' : str(raw.importance).toLowerCase(),

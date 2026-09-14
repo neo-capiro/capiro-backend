@@ -52,6 +52,10 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
  */
 
 const EXPECTED_TOOLS = [
+  'get_legiwatch_review',
+  'preview_legiwatch_relevance',
+  'save_legiwatch_relevance',
+  'apply_legiwatch_suggestion',
   // Engagement + research
   'get_client_context',
   'search_capiro_data',
@@ -179,6 +183,30 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   draft_policy_memo: ['clientId'],
   save_note: ['body'],
   save_chat_attachments: ['clientId', 'conversationId', 'attachmentIds'],
+  get_legiwatch_review: ['view'],
+  preview_legiwatch_relevance: ['folderId', 'jurisdiction', 'sessionKey', 'billId'],
+  save_legiwatch_relevance: [
+    'folderId',
+    'jurisdiction',
+    'sessionKey',
+    'billId',
+    'explanation',
+    'documentId',
+    'start',
+    'end',
+    'quote',
+    'previewHash',
+    'requestKey',
+  ],
+  apply_legiwatch_suggestion: [
+    'folderId',
+    'jurisdiction',
+    'sessionKey',
+    'suggestionId',
+    'expectedVersion',
+    'requestKey',
+    'action',
+  ],
   send_email: ['to', 'subject', 'body'],
   reply_email: ['threadId', 'body'],
   get_email_thread: ['threadId'],
@@ -236,6 +264,56 @@ function schemas() {
 }
 
 describe('Meri tool registration', () => {
+  it.each(['get_legiwatch_review', 'apply_legiwatch_suggestion'] as const)(
+    '%s injects authenticated identity and validates the client before the owner-service call',
+    async (name) => {
+      const original = global.fetch,
+        secret = process.env.INTERNAL_SERVICE_SECRET;
+      const ctx = {
+          tenantId: '11111111-1111-4111-8111-111111111111',
+          clerkUserId: 'current-actor',
+        },
+        input = {
+          view: 'suggestions',
+          clientId: 'client-1',
+          folderId: 'folder-1',
+          jurisdiction: 'FL',
+          sessionKey: '2026',
+          tenantId: 'spoofed',
+          actor: 'spoofed',
+        };
+      const ensureClientVisible = jest.fn(async () => 'client-1'),
+        service = Object.assign(Object.create(MeriToolsService.prototype), {
+          ensureClientVisible,
+        }) as MeriToolsService;
+      try {
+        process.env.INTERNAL_SERVICE_SECRET = 'synthetic-adapter-secret';
+        global.fetch = jest.fn(
+          async () => ({ ok: true, json: async () => ({ rows: [], effects: [] }) }) as Response,
+        );
+        await service.execute(ctx as never, name, input);
+        expect(ensureClientVisible).toHaveBeenCalledWith(ctx, 'client-1');
+        const [url, request] = (global.fetch as jest.Mock).mock.calls[0]!;
+        expect(url).toContain(
+          '/internal/legiwatch/meri/' + (name === 'get_legiwatch_review' ? 'read' : 'apply'),
+        );
+        expect(JSON.parse(request.body)).toMatchObject({
+          tenantId: ctx.tenantId,
+          actor: ctx.clerkUserId,
+          input: { folderId: 'folder-1', jurisdiction: 'FL', sessionKey: '2026' },
+        });
+        ensureClientVisible.mockRejectedValueOnce(new Error('client withdrawn'));
+        await expect(service.execute(ctx as never, name, input)).rejects.toThrow(
+          'client withdrawn',
+        );
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+      } finally {
+        global.fetch = original;
+        if (secret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+        else process.env.INTERNAL_SERVICE_SECRET = secret;
+      }
+    },
+  );
   it('passes authorized actor, client and continuation parameters to canonical funding handlers', async () => {
     const actor = { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as const;
     const opportunityTools = {
@@ -365,6 +443,8 @@ describe('Meri tool registration', () => {
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {
     const svc = Object.create(MeriToolsService.prototype) as MeriToolsService;
     const writeTools = [
+      'save_legiwatch_relevance',
+      'apply_legiwatch_suggestion',
       'send_email',
       'reply_email',
       'update_client_profile',

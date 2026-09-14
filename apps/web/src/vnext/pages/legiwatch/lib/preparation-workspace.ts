@@ -91,7 +91,11 @@ export function preparationWorkspace(prefill: BriefPrefill) {
   const folderContext = list(context.folderContext);
   return {
     config: {
-      legiwatch: context,
+      legiwatch: {
+        mode: 'preparation',
+        snapshotId: context.snapshotId,
+        contentHash: context.contentHash,
+      },
       sources: prefill.sources,
       sections,
       sectionContent,

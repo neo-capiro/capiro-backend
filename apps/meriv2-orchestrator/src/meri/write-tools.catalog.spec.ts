@@ -6,6 +6,8 @@ import { WRITE_DELEGATED_TOOLS } from './write-tools.catalog';
  * apps/api is not importable from the orchestrator package.
  */
 const EXPECTED_WRITE_TOOLS = [
+  'save_legiwatch_relevance',
+  'apply_legiwatch_suggestion',
   'create_meeting_brief',
   'draft_policy_memo',
   'save_note',
@@ -28,10 +30,10 @@ const EXPECTED_WRITE_TOOLS = [
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (19 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (21 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(19);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(21);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {

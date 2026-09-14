@@ -1,4 +1,18 @@
 import { Module } from '@nestjs/common';
+import { KeywordController } from './keywords/keyword.controller.js';
+import { KeywordMeriController } from './keywords/keyword-meri.controller.js';
+import { SemanticSuggestionService } from './keywords/semantic-suggestion.service.js';
+import { KeywordRuleService } from './keywords/keyword-rule.service.js';
+import { KeywordDeliveryService } from './keywords/keyword-delivery.service.js';
+import { KeywordDiscoveryService } from './keywords/keyword-discovery.service.js';
+import { KeywordSourceRepository } from '../sourcedata/keyword-source.repository.js';
+import { InternalWorkflowService } from './keywords/internal-workflow.service.js';
+import { WorkflowTriggerService } from './keywords/workflow-trigger.service.js';
+import {
+  InternalWorkflowController,
+  WorkflowSourceController,
+  WorkflowSourceGuard,
+} from './keywords/internal-workflow.controller.js';
 import { HearingRecordWorkflowService } from '../hearing/hearing-record-workflow.service.js';
 import { HearingRecordDeliveryService } from '../hearing/hearing-record-delivery.service.js';
 import { HearingRecordRetrievalController } from '../hearing/hearing-record-retrieval.controller.js';
@@ -56,6 +70,10 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
 @Module({
   imports: [SourceDataModule, IntelAlertModule],
   controllers: [
+    KeywordController,
+    KeywordMeriController,
+    InternalWorkflowController,
+    WorkflowSourceController,
     HearingRecordRetrievalController,
     HearingRecordsController,
     HearingSmsController,
@@ -72,6 +90,14 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     TrackerChannelController,
   ],
   providers: [
+    KeywordRuleService,
+    SemanticSuggestionService,
+    KeywordDeliveryService,
+    KeywordDiscoveryService,
+    KeywordSourceRepository,
+    InternalWorkflowService,
+    WorkflowTriggerService,
+    WorkflowSourceGuard,
     HearingRecordWorkflowService,
     HearingRecordDeliveryService,
     HearingPublicationService,
