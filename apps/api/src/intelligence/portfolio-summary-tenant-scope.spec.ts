@@ -23,8 +23,8 @@ describe('IntelligenceService.getPortfolioSummary tenant scoping', () => {
     const tx = {
       client: {
         findMany: jest.fn(async () => [
-          { id: 'c1', profileStatus: 'ACTIVE' },
-          { id: 'c2', profileStatus: 'PAUSED' },
+          { id: 'c1', profileStatus: 'ACTIVE', primaryContactEmail: null, people: [] },
+          { id: 'c2', profileStatus: 'PAUSED', primaryContactEmail: null, people: [] },
         ]),
       },
       clientIntelMapping: {
@@ -74,7 +74,17 @@ describe('IntelligenceService.getPortfolioSummary tenant scoping', () => {
     };
 
     const svc = new IntelligenceService(prisma as never);
-    const summary = await svc.getPortfolioSummary(tenantId);
+    const summary = await svc.getPortfolioSummary(tenantId, 'u1', {
+      from: '2026-09-07T04:00:00.000Z', to: '2026-09-14T04:00:00.000Z',
+    });
+    expect(tx.meeting.count).toHaveBeenCalledWith({ where: {
+      tenantId,
+      OR: [{ createdByUserId: 'u1' }, { connection: { createdByUserId: 'u1' } }],
+      startsAt: { gte: new Date('2026-09-07T04:00:00.000Z'), lt: new Date('2026-09-14T04:00:00.000Z') },
+      AND: [{ OR: [{ clientId: { in: ['c1', 'c2'] } }] }],
+      isInternal: false,
+      status: { notIn: ['cancelled', 'canceled', 'deleted'] },
+    } });
 
     expect(withTenantCalls).toBe(1);
     expect(txStrategyRawCalls).toBe(1);

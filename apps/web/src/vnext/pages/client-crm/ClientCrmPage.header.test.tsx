@@ -168,11 +168,11 @@ describe('ClientCrmPage header wiring', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/clients');
   });
 
-  it('opens the real Meri workspace scoped to this client from the overflow menu (item 18)', async () => {
+  it('opens the real Meri workspace scoped to this client from the Meri Actions menu', async () => {
     openMeriMock.mockReturnValue({ focus: vi.fn() });
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Meri Actions/ }));
     fireEvent.click(screen.getByText('Ask Meri about this client'));
 
     // clientId must be carried, and a prompt must be present — Meri's own
@@ -191,7 +191,7 @@ describe('ClientCrmPage header wiring', () => {
     openMeriMock.mockReturnValue(null);
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Meri Actions/ }));
     fireEvent.click(screen.getByText('Ask Meri about this client'));
 
     await waitFor(() => expect(openMeriMock).toHaveBeenCalled());

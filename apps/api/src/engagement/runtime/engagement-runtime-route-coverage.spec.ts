@@ -88,7 +88,7 @@ const LOCAL_SAFE_SEND_HANDLERS = new Set([
   // Updates local state and returns a mailto: URL; no provider send occurs.
   'openOutreachEmail',
 ]);
-const LOCAL_SAFE_NOTETAKER_HANDLERS = new Set(['meetingNotetaker']);
+const LOCAL_SAFE_NOTETAKER_HANDLERS = new Set(['meetingNotetaker', 'clientNotetaker']);
 
 function externallySensitive(route: RouteEntry): boolean {
   if (route.controller === 'RecallWebhookController') return false;

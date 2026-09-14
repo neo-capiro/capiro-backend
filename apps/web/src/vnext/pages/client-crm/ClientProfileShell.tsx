@@ -15,6 +15,7 @@ import { ClientRecordDirectory } from './ClientRecordDirectory.js';
 import { RecordDrawer } from './RecordDrawer.js';
 import { ManageAccountTeamModal } from './ManageAccountTeamModal.js';
 import { clientTeamKey, getClientTeam, teamMemberLabel } from './client-team-api.js';
+import { ClientNotetakerAction } from './ClientNotetakerAction.js';
 import './client-profile-shell.css';
 
 /**
@@ -236,7 +237,7 @@ export function ClientProfileShell({
           {/* Right cluster */}
           <div className="cap-pf-identity-right">
             <div className="cap-pf-identity-actions">
-              <MeriActionsMenu busy={fillBusy} fillLabel={fillLabel} onFillWithMeri={onFillWithMeri} />
+              <MeriActionsMenu key={client.id} client={client} busy={fillBusy} fillLabel={fillLabel} onFillWithMeri={onFillWithMeri} />
               <OverflowMenu
                 client={client}
                 onDataHealth={onDataHealth}
@@ -475,26 +476,15 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
   );
 }
 
-/**
- * One Meri entry point on the record (replaces the plain "Fill with Meri"
- * button). Fill still opens the same review drawer via the same `onClick`
- * prop and still writes nothing until the caller applies it.
- *
- * "Send Meri to Meetings" is drawn from the design handoff, but there is no
- * per-client auto-join-meetings preference anywhere in the schema — Meri's
- * notetaker is wired per-meeting today (`apps/api/src/engagement/notetaker`),
- * not as a standing "join every meeting with this client" setting. Rendering
- * it as a working action would show a false success message for something
- * that does not happen, so it stays disabled with a "Coming soon" tag until a
- * real preference exists to back it — same treatment STATES.md already
- * anticipates for the Coalitions rail item.
- */
-function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; fillLabel: string; onFillWithMeri: () => void }) {
+/** Client-scoped Meri actions share one menu. */
+function MeriActionsMenu({ client, busy, fillLabel, onFillWithMeri }: { client: Client; busy: boolean; fillLabel: string; onFillWithMeri: () => void }) {
+  const toast = useCapiroToast();
   const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || dialogOpen) return undefined;
     const onDoc = (e: MouseEvent) => {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -507,7 +497,7 @@ function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; f
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, dialogOpen]);
 
   return (
     <div ref={wrapRef} className="cap-pf-menu-anchor">
@@ -533,6 +523,36 @@ function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; f
         >
           <MeriActionItem
             icon="Stars02"
+            label="Ask Meri about this client"
+            detail="Open Meri with this client in context."
+            onSelect={() => {
+              setOpen(false);
+              void (async () => {
+                const prompt = `What should I know about ${client.name} right now?`;
+                let copied = false;
+                try {
+                  if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(prompt);
+                    copied = true;
+                  }
+                } catch {
+                  copied = false;
+                }
+                const popup = openMeriWorkspaceWithContext({ prompt, clientId: client.id });
+                if (!popup) {
+                  toast.error(
+                    copied
+                      ? 'The Meri window was blocked. The prompt is copied to your clipboard.'
+                      : 'The Meri window was blocked. Allow pop-ups for Capiro and try again.',
+                  );
+                  return;
+                }
+                toast.success('Meri opened with this client in context.');
+              })();
+            }}
+          />
+          <MeriActionItem
+            icon="Stars02"
             label={busy ? 'Analyzing…' : fillLabel}
             detail="Meri proposes field values from connected sources. Nothing is written until you review each one."
             onSelect={() => {
@@ -540,13 +560,7 @@ function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; f
               onFillWithMeri();
             }}
           />
-          <MeriActionItem
-            icon="Calendar2"
-            label="Send Meri to Meetings"
-            detail="Meri joins every meeting with this client as a notetaker, automatically."
-            disabled
-            disabledReason="Coming soon"
-          />
+          <ClientNotetakerAction client={client} onDialogChange={setDialogOpen} />
         </div>
       ) : null}
     </div>
@@ -695,45 +709,6 @@ function OverflowMenu({
     ...(onEditProfile
       ? [{ label: 'Edit client profile', onSelect: () => { setOpen(false); onEditProfile(); } }]
       : []),
-    {
-      // Item 18 (wire-audit "2 Wire existing APIs"): opens the real Meriv3
-      // workspace scoped to this client. The prompt is required — Meri's own
-      // `readContextRequest()` drops a clientId that arrives without one — so
-      // it carries the client by name rather than being left blank.
-      //
-      // QA-04: `openMeriWorkspaceWithContext` returns `null` when the popup is
-      // blocked (silently — no thrown error). Every sibling call-site
-      // (DistrictFederalMarketPanel, FederalMarketDetailDrawerVNext, FilesTab's
-      // own "Create with Meri") checks that return value and gives the user a
-      // clipboard-backup + toast; this menu item used to ignore it entirely, so
-      // a blocked popup looked like a dead click with no feedback at all.
-      label: 'Ask Meri about this client',
-      onSelect: () => {
-        setOpen(false);
-        void (async () => {
-          const prompt = `What should I know about ${client.name} right now?`;
-          let copied = false;
-          try {
-            if (navigator.clipboard?.writeText) {
-              await navigator.clipboard.writeText(prompt);
-              copied = true;
-            }
-          } catch {
-            copied = false;
-          }
-          const popup = openMeriWorkspaceWithContext({ prompt, clientId: client.id });
-          if (!popup) {
-            toast.error(
-              copied
-                ? 'The Meri window was blocked. The prompt is copied to your clipboard.'
-                : 'The Meri window was blocked. Allow pop-ups for Capiro and try again.',
-            );
-            return;
-          }
-          toast.success('Meri opened with this client in context.');
-        })();
-      },
-    },
     { label: 'Profile & source health', onSelect: () => { setOpen(false); onDataHealth(); } },
     { label: exporting ? 'Exporting…' : 'Export client profile (JSON)', onSelect: exportProfile },
   ];

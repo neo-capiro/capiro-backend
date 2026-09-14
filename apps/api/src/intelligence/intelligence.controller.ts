@@ -365,8 +365,8 @@ export class IntelligenceController {
   }
 
   @Get('portfolio-summary')
-  getPortfolioSummary(@CurrentTenant() ctx: TenantContext) {
-    return this.service.getPortfolioSummary(ctx.tenantId);
+  getPortfolioSummary(@CurrentTenant() ctx: TenantContext, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.service.getPortfolioSummary(ctx.tenantId, ctx.userId, { from, to });
   }
 
   @Get('portfolio-alerts')

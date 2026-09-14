@@ -33,6 +33,12 @@ const asyncMock = (value: any) => jest.fn(async (..._args: any[]): Promise<any> 
 
 function makeTx() {
   return {
+    $queryRaw: asyncMock([]),
+    client: { findFirst: asyncMock({ id: 'c1', status: 'active' }) },
+    clientNotetakerPreference: {
+      findMany: asyncMock([]), findFirst: asyncMock(null),
+      upsert: asyncMock(null), updateMany: asyncMock({ count: 1 }),
+    },
     tenant: {
       findFirst: asyncMock({
         settings: { clioFeatureFlags: { 'notetaker.enabled': true } },
@@ -50,9 +56,11 @@ function makeTx() {
     },
     meeting: {
       findFirst: asyncMock({ id: 'm1', clientId: 'c1', status: 'confirmed' }),
+      findMany: asyncMock([]),
       updateMany: asyncMock({ count: 1 }),
     },
     meetingBotSession: {
+      count: asyncMock(0),
       create: asyncMock({ id: 's1' }),
       findFirst: asyncMock(null),
       findMany: asyncMock([]),
@@ -89,6 +97,7 @@ function makeService(tx: Tx, configOverrides: Record<string, unknown> = {}) {
   };
 
   const engagement = {
+    clientMeetingAssociationWhere: asyncMock({ clientId: 'c1' }),
     createAttachmentFromBuffer: asyncMock({
       id: 'a1',
       fileName: 't.txt',
@@ -158,6 +167,116 @@ const baseSession = {
   debriefId: null,
   recordingPolicy: 'transcript_only',
 };
+
+describe('Client standing notetaker consent', () => {
+  beforeEach(() => { process.env.NOTETAKER_ENABLED = 'true'; });
+  afterEach(() => { delete process.env.NOTETAKER_ENABLED; });
+  const preference = {
+    id: 'p1', tenantId: 't1', userId: 'u1', clientId: 'c1', enabled: true, revision: 1,
+    consent: { authorizedToRecord: true, allPartiesWillBeNotified: true },
+    createdAt: new Date(), updatedAt: new Date(),
+  };
+  const meeting = {
+    id: 'm1', clientId: 'c1', status: 'scheduled',
+    joinLink: 'https://meet.google.com/abc-defg-hij', metadata: {},
+    startsAt: new Date(Date.now() - 60_000), endsAt: new Date(Date.now() + 600_000),
+  };
+  function setup() {
+    const tx = makeTx();
+    tx.clientNotetakerPreference.findFirst.mockResolvedValue({ ...preference });
+    tx.clientNotetakerPreference.findMany.mockResolvedValue([{ ...preference }]);
+    tx.meeting.findFirst.mockResolvedValue(meeting);
+    tx.meeting.findMany.mockResolvedValue([meeting]);
+    return makeService(tx);
+  }
+
+  test.each([[false, false], [false, true], [true, false]])('rejects incomplete standing consent (%s, %s)', async (authorizedToRecord, allPartiesWillBeNotified) => {
+    const { service, tx } = setup();
+    await expect(service.enableClientPreference(ctx, 'c1', { authorizedToRecord, allPartiesWillBeNotified })).rejects.toThrow('authorization and participant notification');
+    expect(tx.clientNotetakerPreference.upsert).not.toHaveBeenCalled();
+  });
+
+  test('saves affirmative consent for the requesting user and client', async () => {
+    const { service, tx } = setup();
+    await expect(service.enableClientPreference(ctx, 'c1', { authorizedToRecord: true, allPartiesWillBeNotified: true })).resolves.toEqual({ enabled: true, stopping: false });
+    expect(tx.clientNotetakerPreference.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { tenantId_clientId_userId: { tenantId: 't1', clientId: 'c1', userId: 'u1' } },
+      create: expect.objectContaining({ consent: expect.objectContaining({ scope: 'client', affirmedByUserId: 'u1' }) }),
+    }));
+    tx.client.findFirst.mockResolvedValue(null);
+    await expect(service.getClientPreference(ctx, 'foreign-client')).rejects.toThrow('Client not found');
+  });
+
+  test('the worker sends a bot using the stored join link and original consent', async () => {
+    const { service, bot, tx } = setup();
+    await service.reconcileClientMeetings();
+    expect(bot.dispatchBot).toHaveBeenCalledTimes(1);
+    expect(bot.dispatchBot).toHaveBeenCalledWith(expect.objectContaining({ meetingUrl: meeting.joinLink, joinAt: undefined }));
+    expect(tx.meetingBotSession.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      metadata: { clientNotetakerPreferenceId: 'p1' },
+      consent: expect.objectContaining({ scope: 'client', preferenceId: 'p1', standingConsent: preference.consent }),
+    }) }));
+    expect(tx.meeting.findMany).toHaveBeenCalledWith({ where: {
+      tenantId: 't1', AND: [
+        { OR: [{ createdByUserId: 'u1' }, { connection: { createdByUserId: 'u1' } }], status: { not: 'deleted' } },
+        { clientId: 'c1' },
+        { startsAt: { lte: expect.any(Date) }, endsAt: { gt: expect.any(Date) }, isInternal: false, status: { notIn: ['cancelled', 'canceled', 'deleted'] } },
+      ],
+    } });
+  });
+
+  test.each(['removed', 'denied_consent', 'joining', 'done', 'failed'])('never automatically re-sends after a %s session', async (status) => {
+    const { service, bot, tx } = setup();
+    tx.meetingBotSession.findFirst.mockResolvedValue({ id: 'existing', status });
+    await service.reconcileClientMeetings();
+    expect(bot.dispatchBot).not.toHaveBeenCalled();
+  });
+
+  test.each(['disabled', 'lost-membership', 'archived', 'missing-consent'])('does not send for %s', async (reason) => {
+    const { service, bot, tx } = setup();
+    if (reason === 'disabled') tx.clientNotetakerPreference.findFirst.mockResolvedValue({ ...preference, enabled: false });
+    if (reason === 'lost-membership') tx.tenantMembership.findFirst.mockResolvedValue(null);
+    if (reason === 'archived') tx.client.findFirst.mockResolvedValue(null);
+    if (reason === 'missing-consent') tx.clientNotetakerPreference.findFirst.mockResolvedValue({ ...preference, consent: {} });
+    await service.reconcileClientMeetings();
+    expect(bot.dispatchBot).not.toHaveBeenCalled();
+  });
+
+  test('rechecks revocation before claiming a session', async () => {
+    const { service, bot, tx } = setup();
+    tx.clientNotetakerPreference.findFirst.mockResolvedValue(null);
+    await expect(service.dispatch(ctx, 'm1', { meetingUrl: meeting.joinLink, authorizedToRecord: true, allPartiesWillBeNotified: true }, preference)).rejects.toThrow('no longer enabled');
+    expect(bot.dispatchBot).not.toHaveBeenCalled();
+  });
+
+  test('pulls back a bot when OFF arrives during dispatch', async () => {
+    const { service, bot, tx } = setup();
+    bot.dispatchBot.mockImplementation(async () => {
+      tx.clientNotetakerPreference.findFirst.mockResolvedValue({ ...preference, enabled: false });
+      tx.meetingBotSession.findMany.mockResolvedValue([{ id: 's1', meetingId: 'm1', externalBotId: 'bot_1', status: 'joining' }]);
+      return { externalBotId: 'bot_1', raw: {} };
+    });
+    await service.reconcileClientMeetings();
+    expect(bot.leaveCall).toHaveBeenCalledWith('bot_1');
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'removed' } }));
+  });
+
+  test('keeps OFF durable and reports pending removal when the provider fails', async () => {
+    const { service, bot, tx } = setup();
+    tx.clientNotetakerPreference.updateMany.mockImplementation(async () => {
+      tx.clientNotetakerPreference.findFirst.mockResolvedValue({ ...preference, enabled: false });
+      return { count: 1 };
+    });
+    tx.meetingBotSession.findMany.mockResolvedValue([{ id: 's1', meetingId: 'm1', externalBotId: 'bot_1', status: 'recording' }]);
+    tx.meetingBotSession.count.mockResolvedValue(1);
+    bot.leaveCall.mockRejectedValue(new Error('vendor unavailable'));
+    await expect(service.disableClientPreference(ctx, 'c1')).resolves.toEqual({ enabled: false, stopping: true });
+    expect(tx.meetingBotSession.updateMany).not.toHaveBeenCalled();
+    expect(tx.meetingBotSession.findMany).toHaveBeenCalledWith({ where: expect.objectContaining({
+      tenantId: 't1', requestedByUserId: 'u1', metadata: { path: ['clientNotetakerPreferenceId'], equals: 'p1' },
+    }) });
+  });
+});
 
 describe('NotetakerService.dispatch (strict consent gate)', () => {
   beforeEach(() => {

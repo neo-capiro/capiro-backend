@@ -20,6 +20,7 @@ import {
   passageProbability,
 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ownMeetingWhere, clientAssociatedMeetingWhere } from '../engagement/engagement-access.helpers.js';
 import { EMBEDDING_MODEL, embedText, normalize, vectorLiteral } from '../embeddings/embedder.js';
 import { toCanonicalAlert } from './canonical-alert.adapter.js';
 import { classifyTrajectory } from './trajectory-classifier.model.js';
@@ -7177,7 +7178,7 @@ export class IntelligenceService {
    * as the Clients table Intelligence column / portfolio-rollup — not the LDA
    * issue-code × congress_bill subject join (which can be empty while pins exist).
    */
-  async getPortfolioSummary(tenantId: string) {
+  async getPortfolioSummary(tenantId: string, userId: string, window?: { from?: string; to?: string }) {
     const now = new Date();
     const quarterStart = startOfQuarter(now);
 
@@ -7186,27 +7187,38 @@ export class IntelligenceService {
     const monday = new Date(now);
     monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
     monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(monday.getDate() + 7);
+    const from = window?.from ? new Date(window.from) : monday;
+    const to = window?.to ? new Date(window.to) : nextMonday;
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || to <= from || to.getTime() - from.getTime() > 8 * 86400_000) {
+      throw new BadRequestException('A valid week window is required');
+    }
 
     const [tenantScoped, regulationsTracked] = await Promise.all([
       this.prisma.withTenant(tenantId, async (tx) => {
-        const [clients, mappings, meetingsThisWeek, billsTracked, activeStrategies] =
-          await Promise.all([
-            tx.client.findMany({
-              where: { status: { not: 'archived' } },
-              select: { id: true, profileStatus: true },
-            }),
+        const clients = await tx.client.findMany({
+          where: { tenantId, status: { not: 'archived' } },
+          select: { id: true, profileStatus: true, primaryContactEmail: true, people: { where: { tenantId }, select: { email: true } } },
+        });
+        const clientAssociations = clientAssociatedMeetingWhere(
+          clients.map((client) => client.id),
+          clients.flatMap((client) => [client.primaryContactEmail, ...client.people.map((person) => person.email)])
+            .filter((email): email is string => Boolean(email)),
+        );
+        const [mappings, meetingsThisWeek, billsTracked, activeStrategies] = await Promise.all([
             tx.clientIntelMapping.findMany({
               where: { confirmed: true, source: 'lda' },
               select: { clientId: true, externalId: true },
             }),
             tx.meeting.count({
               where: {
-                startsAt: { gte: monday, lte: sunday },
-                visibility: 'shared',
-                status: { not: 'cancelled' },
+                tenantId,
+                ...ownMeetingWhere(userId),
+                startsAt: { gte: from, lt: to },
+                AND: [clientAssociations],
+                isInternal: false,
+                status: { notIn: ['cancelled', 'canceled', 'deleted'] },
               },
             }),
             // Match Clients → Intelligence column (rollup uses trackedBill.groupBy).

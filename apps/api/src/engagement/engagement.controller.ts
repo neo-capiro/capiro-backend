@@ -291,6 +291,14 @@ class GenerateDebriefDraftDto {
   sourceText!: string;
 }
 
+class ClientNotetakerConsentDto {
+  @IsBoolean()
+  authorizedToRecord!: boolean;
+
+  @IsBoolean()
+  allPartiesWillBeNotified!: boolean;
+}
+
 class DispatchNotetakerDto {
   @IsString()
   @Length(1, 2000)
@@ -2184,6 +2192,23 @@ export class EngagementController {
     @Body() body: DispatchNotetakerDto,
   ) {
     return this.notetaker.dispatch(ctx, meetingId, body);
+  }
+
+  @Get('clients/:id/notetaker')
+  clientNotetaker(@CurrentTenant() ctx: TenantContext, @Param('id') clientId: string) {
+    return this.notetaker.getClientPreference(ctx, clientId);
+  }
+
+  @Post('clients/:id/notetaker')
+  @EngagementRuntimeAction('notetaker_dispatch')
+  enableClientNotetaker(@CurrentTenant() ctx: TenantContext, @Param('id') clientId: string, @Body() body: ClientNotetakerConsentDto) {
+    return this.notetaker.enableClientPreference(ctx, clientId, body);
+  }
+
+  @Delete('clients/:id/notetaker')
+  @EngagementRuntimeAction('notetaker_remove')
+  disableClientNotetaker(@CurrentTenant() ctx: TenantContext, @Param('id') clientId: string) {
+    return this.notetaker.disableClientPreference(ctx, clientId);
   }
 
   @Get('meetings/:id/notetaker')
