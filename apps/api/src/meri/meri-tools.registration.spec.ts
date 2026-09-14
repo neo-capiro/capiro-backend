@@ -52,6 +52,10 @@ import { MeriToolsService, TOOL_DEFINITIONS } from './meri-tools.service.js';
  */
 
 const EXPECTED_TOOLS = [
+  'search_legislative_research',
+  'get_legal_reference',
+  'compare_legislative_versions',
+  'save_legislative_research',
   'get_legiwatch_review',
   'preview_legiwatch_relevance',
   'save_legiwatch_relevance',
@@ -171,6 +175,25 @@ const EXPECTED_TOOLS = [
 
 /** Tools whose schema must enforce required inputs, and exactly which. */
 const REQUIRED_INPUTS: Record<string, string[]> = {
+  search_legislative_research: ['jurisdiction', 'sessionKey'],
+  get_legal_reference: ['jurisdiction', 'view'],
+  compare_legislative_versions: [
+    'jurisdiction',
+    'sessionKey',
+    'leftId',
+    'leftRevision',
+    'rightId',
+    'rightRevision',
+  ],
+  save_legislative_research: [
+    'jurisdiction',
+    'sessionKey',
+    'title',
+    'analysis',
+    'requestKey',
+    'documents',
+    'citations',
+  ],
   get_client_context: ['clientId'],
   search_capiro_data: ['query', 'domains'],
   get_research_evidence: ['sessionId'],
@@ -443,6 +466,7 @@ describe('Meri tool registration', () => {
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {
     const svc = Object.create(MeriToolsService.prototype) as MeriToolsService;
     const writeTools = [
+      'save_legislative_research',
       'save_legiwatch_relevance',
       'apply_legiwatch_suggestion',
       'send_email',

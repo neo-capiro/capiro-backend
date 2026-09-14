@@ -1,9 +1,70 @@
 import type { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { getBillText, getSupportingDocument } from '../external/legiscan/legiscan.client.js';
+import {
+  getBill,
+  getBillText,
+  getSupportingDocument,
+} from '../external/legiscan/legiscan.client.js';
+import { reportSourceFacts } from './legiscan-published-records.js';
 import { persistDocumentEvidence } from './legiscan-document-evidence.js';
 import { currentQuotaMonth, LEGISCAN_HARD_CAP, monthToDateQueries } from './legiscan-quota.util.js';
 import type { LegalResearchManifest } from './legal-research-manifest.js';
+
+/** Backfill the missing document inventory only when the provider still describes
+ * the exact canonical bill revision. A changed bill must use the normal writer. */
+export async function refreshResearchBillInventory(
+  prisma: PrismaClient,
+  apiKey: string,
+  bill: { id: string; legiscanBillId: number | null; legiscanChangeHash: string | null },
+  manifest: LegalResearchManifest,
+  providerSessionId: number,
+  cursorId: string,
+) {
+  if (!bill.legiscanBillId || !bill.legiscanChangeHash)
+    throw Error('CANONICAL_BILL_IDENTITY_REQUIRED');
+  const month = currentQuotaMonth(),
+    reservationId = randomUUID();
+  const budget = Math.min(LEGISCAN_HARD_CAP, Number(process.env.LEGISCAN_MONTHLY_BUDGET ?? 28000));
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('legiscan-research-quota',0))`;
+    const cursors = await tx.stateSyncCursor.findMany({
+      select: { queriesUsed: true, quotaMonth: true },
+    });
+    if (!Number.isFinite(budget) || monthToDateQueries(cursors, month) + 4 > budget)
+      throw Error('EXISTING_PROVIDER_BUDGET_HOLD');
+    const updated =
+      await tx.$executeRaw`UPDATE state_sync_cursor SET queries_used=CASE WHEN quota_month=${month} THEN queries_used+4 ELSE 4 END,quota_month=${month} WHERE id=${cursorId}`;
+    if (updated !== 1) throw Error('EXISTING_PROVIDER_CURSOR_REQUIRED');
+    await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${reservationId},'legiscan-research-inventory-reservation',${JSON.stringify({ jurisdiction: manifest.jurisdiction, sessionKey: manifest.sessionKey, billId: bill.id })}::jsonb,${JSON.stringify({ providerBillId: bill.legiscanBillId, reservedQueries: 4, quotaMonth: month })}::jsonb,false)`;
+  });
+  let attempts = 1;
+  try {
+    const raw = await getBill(apiKey, bill.legiscanBillId, () => {
+      attempts++;
+    });
+    if (
+      !raw ||
+      raw.bill_id !== bill.legiscanBillId ||
+      raw.state !== manifest.jurisdiction ||
+      raw.session?.session_id !== providerSessionId ||
+      raw.change_hash !== bill.legiscanChangeHash
+    )
+      throw Error('CANONICAL_BILL_REVISION_REFRESH_REQUIRED');
+    const inventory = reportSourceFacts(raw).documentInventory;
+    if (!inventory.sourceListComplete || inventory.expected.length > 500)
+      throw Error('PROVIDER_DOCUMENT_INVENTORY_INCOMPLETE');
+    await prisma.$transaction(async (tx) => {
+      const updated =
+        await tx.$executeRaw`UPDATE state_bill SET report_source_facts=jsonb_set(coalesce(report_source_facts,'{}'::jsonb),'{documentInventory}',${JSON.stringify(inventory)}::jsonb) WHERE id=${bill.id} AND legiscan_bill_id=${bill.legiscanBillId} AND legiscan_change_hash=${bill.legiscanChangeHash}`;
+      if (updated !== 1) throw Error('CANONICAL_BILL_REVISION_CHANGED_DURING_REFRESH');
+      await tx.$executeRaw`INSERT INTO legal_source_receipt(id,source,scope,manifest,complete) VALUES(${randomUUID()},'legiscan-research-document-inventory',${JSON.stringify({ jurisdiction: manifest.jurisdiction, sessionKey: manifest.sessionKey, billId: bill.id })}::jsonb,${JSON.stringify({ inventory, reservationId, attempts })}::jsonb,true)`;
+    });
+    return inventory;
+  } finally {
+    if (attempts < 4)
+      await prisma.$executeRaw`UPDATE state_sync_cursor SET queries_used=greatest(0,queries_used-${4 - attempts}) WHERE id=${cursorId} AND quota_month=${month}`;
+  }
+}
 
 /** Selected documents use the existing provider, evidence writer and quota cursor.
  * Four query units are reserved before retrieval (including transport retries).
@@ -30,25 +91,40 @@ export async function hydrateResearchDocuments(
     where: { state: manifest.jurisdiction, sessionKey: manifest.sessionKey },
     select: { legiscanSessionId: true },
   });
-  if (!session) throw Error('EXACT_RETAINED_PROVIDER_SESSION_REQUIRED');
+  if (!session?.legiscanSessionId) throw Error('EXACT_RETAINED_PROVIDER_SESSION_REQUIRED');
   const cursorId = `${manifest.jurisdiction}-${session.legiscanSessionId}`,
     outcomes: Array<Record<string, unknown>> = [];
   let documentsRequested = 0;
   for (const bill of bills) {
-    const facts = bill.reportSourceFacts as Record<string, any> | null,
-      inventory = facts?.documentInventory;
+    const facts = bill.reportSourceFacts as Record<string, any> | null;
+    let inventory = facts?.documentInventory;
     if (
       !bill.legiscanBillId ||
       !inventory ||
       inventory.providerChangeHash !== bill.legiscanChangeHash ||
       !Array.isArray(inventory.expected)
     ) {
-      outcomes.push({
-        billId: bill.id,
-        status: 'held',
-        reason: 'REFRESH_EXACT_BILL_DOCUMENT_INVENTORY',
-      });
-      continue;
+      try {
+        inventory = await refreshResearchBillInventory(
+          prisma,
+          apiKey,
+          bill,
+          manifest,
+          session.legiscanSessionId,
+          cursorId,
+        );
+        outcomes.push({ billId: bill.id, status: 'inventory_refreshed' });
+      } catch (error) {
+        outcomes.push({
+          billId: bill.id,
+          status: 'held',
+          reason:
+            error instanceof Error && /^[A-Z_]+$/.test(error.message)
+              ? error.message
+              : 'PROVIDER_INVENTORY_REFRESH_FAILED',
+        });
+        continue;
+      }
     }
     if (inventory.expected.length > 500) throw Error('PROVIDER_DOCUMENT_LIST_LIMIT');
     for (const stub of inventory.expected as Array<{

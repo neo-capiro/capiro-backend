@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { StatuteMonitors } from './StatuteMonitors.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapiroButton } from '../../../components/actions/index.js';
@@ -215,6 +216,7 @@ function RuleReview({
   scope: Scope;
   refresh: () => Promise<unknown>;
 }) {
+  const queryClient = useQueryClient();
   const api = useApi(),
     [preview, setPreview] = useState<any>(null),
     [status, setStatus] = useState(''),
@@ -292,6 +294,7 @@ function RuleReview({
             });
             setStatus('Definition saved for review. Matching and delivery remain paused.');
             await refresh();
+            await queryClient.invalidateQueries({ queryKey: ['statute-monitors'] });
           } catch {
             setStatus('The captured source changed or promotion requires administrator access.');
           }
