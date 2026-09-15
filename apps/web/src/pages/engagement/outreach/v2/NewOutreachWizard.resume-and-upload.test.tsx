@@ -31,7 +31,7 @@
 // metadata.targets), same mocking pattern as engagement-url-state.test.tsx
 // (useMe / useApi mocked, real component tree, real effects).
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
@@ -119,7 +119,7 @@ const apiGetMock = vi.fn(async (url: string) => {
   if (url.endsWith('/draft-artifacts')) return draftArtifactsMock();
   return { data: {} };
 });
-const apiPostMock = vi.fn(async (url: string) => {
+const apiPostMock = vi.fn(async (url: string, _body?: unknown) => {
   if (url === '/api/engagement/outreach/generate-batch') {
     return { data: { results: [] } };
   }
@@ -157,7 +157,9 @@ function renderWizard(initialRecord: OutreachRecord | null) {
           aiConfigured={true}
           emailConnected={true}
           sendFrom="me@example.com"
-          sendableInboxes={[{ id: 'inbox-1', provider: 'microsoft_365', accountEmail: 'me@example.com' } as never]}
+          sendableInboxes={[
+            { id: 'inbox-1', provider: 'microsoft_365', accountEmail: 'me@example.com' } as never,
+          ]}
           onCancel={() => {}}
           onComplete={() => {}}
           initialRecord={initialRecord}
@@ -225,6 +227,60 @@ describe('Resuming a saved draft at Generate & Review', () => {
     draftArtifactsMock.mockClear();
   });
 
+  test('submits the full three-person and two-person groups when generating real wizard drafts', async () => {
+    draftArtifactsMock.mockResolvedValueOnce({ data: [] });
+    const record = savedDraftRecordWithStaleCache();
+    record.metadata = {
+      ...(record.metadata as Record<string, unknown>),
+      targets: [
+        {
+          key: 'group-a',
+          audienceId: 'saved-a',
+          type: 'group',
+          name: 'First group',
+          cc: [],
+          bcc: [],
+          recipients: ['a@example.test', 'b@example.test', 'c@example.test'].map((email) => ({
+            email,
+          })),
+        },
+        {
+          key: 'group-b',
+          audienceId: 'saved-b',
+          type: 'group',
+          name: 'Second group',
+          cc: [],
+          bcc: [],
+          recipients: ['d@example.test', 'e@example.test'].map((email) => ({ email })),
+        },
+      ],
+    };
+    renderWizard(record);
+    await waitFor(() =>
+      expect(
+        apiPostMock.mock.calls.filter(([url]) => url.endsWith('/generate-batch')),
+      ).toHaveLength(2),
+    );
+    const payloads = apiPostMock.mock.calls
+      .filter(([url]) => url.endsWith('/generate-batch'))
+      .map(
+        ([, body]) =>
+          body as {
+            recipients: Array<{ groupMembers: Array<{ email: string }>; generationKeys: string[] }>;
+          },
+      );
+    expect(
+      payloads.map((payload) => payload.recipients[0]!.groupMembers.map((member) => member.email)),
+    ).toEqual([
+      ['a@example.test', 'b@example.test', 'c@example.test'],
+      ['d@example.test', 'e@example.test'],
+    ]);
+    expect(payloads.map((payload) => payload.recipients[0]!.generationKeys)).toEqual([
+      ['group:saved-a'],
+      ['group:saved-b'],
+    ]);
+  });
+
   test('does NOT call generate-batch when the cache is stale but the server has real content — backfills from draft-artifacts instead', async () => {
     renderWizard(savedDraftRecordWithStaleCache());
 
@@ -233,9 +289,9 @@ describe('Resuming a saved draft at Generate & Review', () => {
 
     // The backfill fetch must actually happen.
     await waitFor(() =>
-      expect(
-        apiGetMock.mock.calls.some(([url]) => String(url).endsWith('/draft-artifacts')),
-      ).toBe(true),
+      expect(apiGetMock.mock.calls.some(([url]) => String(url).endsWith('/draft-artifacts'))).toBe(
+        true,
+      ),
     );
 
     // The real server-saved subject must appear — proof the backfill won
@@ -306,6 +362,109 @@ describe('Uploading an attachment in Generate & Review', () => {
   beforeEach(() => {
     apiPostMock.mockClear();
     fetchMock.mockClear();
+  });
+
+  test('recognizes a supported file with an empty browser MIME type, then includes it in Send', async () => {
+    const { container } = renderWizard(savedDraftRecordWithStaleCache());
+    await waitFor(() => expect(screen.getByText('Generate & review')).toBeTruthy());
+    const file = new File(['briefing'], 'brief.docx', { type: '' });
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    await waitFor(() =>
+      expect(apiPostMock.mock.calls.some(([url]) => url.endsWith('/attachments/confirm'))).toBe(
+        true,
+      ),
+    );
+    const upload = apiPostMock.mock.calls.find(([url]) => url.endsWith('/attachments/upload-url'))!;
+    const confirm = apiPostMock.mock.calls.find(([url]) => url.endsWith('/attachments/confirm'))!;
+    const expectedType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    expect(upload[1]).toMatchObject({ contentType: expectedType });
+    expect(confirm[1]).toMatchObject({ contentType: expectedType });
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Review Emails' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Review Emails' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm Send' })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Send' }));
+    await waitFor(() =>
+      expect(apiPostMock.mock.calls.some(([url]) => url.endsWith('/send-intents'))).toBe(true),
+    );
+    expect(apiPostMock.mock.calls.find(([url]) => url.endsWith('/send-intents'))![1]).toMatchObject(
+      {
+        draftVersionIds: ['v-1'],
+        attachmentIds: ['att-1'],
+        testMode: false,
+      },
+    );
+  });
+
+  test('keeps Continue disabled until both concurrent uploads finish', async () => {
+    let finishFirst!: (response: Response) => void;
+    let finishSecond!: (response: Response) => void;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishSecond = resolve;
+        }),
+    );
+    const { container } = renderWizard(savedDraftRecordWithStaleCache());
+    await waitFor(() => expect(screen.getByText('Generate & review')).toBeTruthy());
+    fireEvent.change(container.querySelector('input[type="file"]')!, {
+      target: {
+        files: [
+          new File(['a'], 'first.pdf', { type: 'application/pdf' }),
+          new File(['b'], 'second.pdf', { type: 'application/pdf' }),
+        ],
+      },
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(
+      (screen.getByRole('button', { name: 'Review Emails' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    await act(async () => {
+      finishFirst({ ok: true, status: 204 } as Response);
+    });
+    await waitFor(() => expect(screen.getByText(/Uploading 1 attachment/)).toBeTruthy());
+    expect(
+      (screen.getByRole('button', { name: 'Review Emails' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    await act(async () => {
+      finishSecond({ ok: true, status: 204 } as Response);
+    });
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Review Emails' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+  });
+
+  test('an upload failure stays visible and blocks continuing until explicitly removed', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 403 } as Response);
+    const { container } = renderWizard(savedDraftRecordWithStaleCache());
+    await waitFor(() => expect(screen.getByText('Generate & review')).toBeTruthy());
+    fireEvent.change(container.querySelector('input[type="file"]')!, {
+      target: { files: [new File(['a'], 'failed.pdf', { type: 'application/pdf' })] },
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Remove failed files' })).toBeTruthy(),
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Review Emails' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(apiPostMock.mock.calls.some(([url]) => url.endsWith('/send-intents'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove failed files' }));
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Review Emails' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
   });
 
   test('a chosen file reaches the presigned-upload flow end to end (client side only; server-side root cause for bug 2 is still open)', async () => {
