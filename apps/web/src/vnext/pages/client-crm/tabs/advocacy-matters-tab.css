@@ -38,6 +38,14 @@
   gap: 24px;
 }
 
+/* Right-aligned create action — sits where the removed duplicate page head
+   used to carry it, mirroring the reference's header action row. */
+.capiro-vnext-root .capiro-advocacy-head-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -12px;
+}
+
 /* ── KPI summary band (Client Record v3: "21px KPI figures") ─────────────
    New layout — this tab previously had no aggregate stat display, only
    per-matter rows/pills. Every figure below is derived from
@@ -48,32 +56,34 @@
 .capiro-vnext-root .capiro-advocacy-kpis {
   display: flex;
   flex-wrap: wrap;
+  /* Reference advocacy.html: a single borderless strip with only a bottom
+     hairline — no per-cell dividers. */
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
 }
 .capiro-vnext-root .capiro-advocacy-kpi {
-  flex: 1 1 160px;
-  min-width: 160px;
-  padding: 18px 24px;
-  border-right: 1px solid var(--capiro-color-border-quiet);
+  flex: 1 1 110px;
+  min-width: 110px;
+  padding-right: 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 .capiro-vnext-root .capiro-advocacy-kpi:last-child {
   border-right: none;
 }
 .capiro-vnext-root .capiro-advocacy-kpi__value {
+  /* Reference: 21px/600, -0.03em, line-height 1.1, #101828, tabular. */
   font-size: 21px;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   color: var(--capiro-color-text-primary);
   font-variant-numeric: tabular-nums;
 }
 .capiro-vnext-root .capiro-advocacy-kpi__label {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  /* Reference: 11px plain #667085 — not an uppercase eyebrow. */
+  font-size: 11px;
   color: var(--capiro-color-text-muted);
 }
 

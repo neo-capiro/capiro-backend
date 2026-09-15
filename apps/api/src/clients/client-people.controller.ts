@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
@@ -36,7 +37,7 @@ class CreatePersonDto {
   role?: string;
 
   @IsOptional()
-  @IsString()
+  @IsISO8601({ strict: true, strictSeparator: true })
   lastContact?: string;
 
   @IsOptional()
@@ -66,7 +67,7 @@ class UpdatePersonDto {
   role?: string;
 
   @IsOptional()
-  @IsString()
+  @IsISO8601({ strict: true, strictSeparator: true })
   lastContact?: string;
 
   @IsOptional()

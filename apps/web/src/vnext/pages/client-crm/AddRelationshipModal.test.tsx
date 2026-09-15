@@ -131,13 +131,30 @@ describe('AddRelationshipModal', () => {
     await search('whit');
 
     const staffRow = (await screen.findByText('Dana Whitfield')).closest('li')!;
-    expect(staffRow).toHaveTextContent('Staff');
+    // The people search returns personal-office AND committee staff under one
+    // `staff` directory with no distinguishing field — the honest badge is the
+    // general "Congressional staff", not a "Committee Staff" that mislabels
+    // every personal-office result.
+    expect(staffRow).toHaveTextContent('Congressional staff');
+    expect(staffRow).not.toHaveTextContent('Committee Staff');
     // A committee staffer's committee role travels through as their "where".
     expect(staffRow).toHaveTextContent('House Armed Services Committee');
 
     const memberRow = screen.getByText('Sen. John Cornyn').closest('li')!;
     expect(memberRow).toHaveTextContent('Member');
     expect(memberRow).toHaveTextContent('Senate');
+  });
+
+  it('scopes the staff filter with the honest Congressional staff label', async () => {
+    mockDirectories();
+    renderPicker();
+    await search('whit');
+    await screen.findByText('Dana Whitfield');
+
+    // The scope chip is the same honest label, and it still narrows to staff.
+    fireEvent.click(screen.getByRole('button', { name: 'Congressional staff' }));
+    await waitFor(() => expect(screen.queryByText('Sen. John Cornyn')).not.toBeInTheDocument());
+    expect(screen.getByText('Dana Whitfield')).toBeInTheDocument();
   });
 
   it('narrows to one directory when a scope is picked', async () => {

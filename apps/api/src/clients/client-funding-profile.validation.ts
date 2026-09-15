@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { isValidEin, normalizeEin, normalizeNaicsCodes, reconcileRegistrationNaics, registrationConflicts } from '@capiro/shared/client-registration-integrity';
+import { DURABLE_SET_ASIDE_CERTIFICATIONS } from '../funding-opportunities/set-aside.js';
 import {
   applicantTypeKey,
   GRANTS_GOV_ORGANIZATION_TYPE_GROUPS,
@@ -60,6 +61,35 @@ export function validateClientFundingProfile(
       if (!normalized.includes(value)) normalized.push(value);
     }
     result.applicantTypes = normalized;
+  }
+
+  // Set-aside certifications: only the six DURABLE socioeconomic certifications
+  // are valid NEW selections. A client row can carry historical values recorded
+  // under the old SAM `typeOfSetAside` vocabulary (sole-source/restriction codes
+  // such as SDVOSBC/HZC/SBA). Those stored values are preserved verbatim so an
+  // unrelated profile save does not fail, and may be removed — but they are
+  // never re-claimed as a NEW certification, and an arbitrary invalid code is
+  // never accepted. This mirrors the applicantTypes preserve-existing pattern.
+  if ('setAsideCertifications' in input) {
+    const certs = input.setAsideCertifications ?? [];
+    if (!Array.isArray(certs)) {
+      throw new BadRequestException('Set-aside certifications must be a list of codes.');
+    }
+    const existingCerts = new Set(existing?.setAsideCertifications ?? []);
+    const durable = new Set<string>(DURABLE_SET_ASIDE_CERTIFICATIONS);
+    const normalized: string[] = [];
+    for (const code of certs) {
+      if (typeof code !== 'string') {
+        throw new BadRequestException('Each set-aside certification must be a text value.');
+      }
+      if (!durable.has(code) && !existingCerts.has(code)) {
+        throw new BadRequestException(
+          'Choose a set-aside certification the client actually holds. Sole-source and small-business restriction codes are solicitation rules, not company certifications.',
+        );
+      }
+      if (!normalized.includes(code)) normalized.push(code);
+    }
+    result.setAsideCertifications = normalized;
   }
 
   if ('intakeData' in input) {

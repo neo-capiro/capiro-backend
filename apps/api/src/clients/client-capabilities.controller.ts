@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import {
   IsArray,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -78,8 +77,9 @@ class CreateCapabilityDto {
   targetSubcommittee?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
+  @Max(2147483647) // DB column is Int32 — beyond this Postgres rejects with a 500
   fundingAsk?: number;
 
   @IsOptional()
@@ -178,8 +178,9 @@ class UpdateCapabilityDto {
   targetSubcommittee?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
+  @Max(2147483647) // DB column is Int32 — beyond this Postgres rejects with a 500
   fundingAsk?: number;
 
   @IsOptional()

@@ -107,6 +107,15 @@ export interface BoardBill {
   trackedAt: string;
   unread: boolean;
   change: BoardBillChange | null;
+  /** The bill's canonical derived stage label (congress_bill.status), distinct
+   *  from the coarse board lane. Optional for cache/older-response tolerance. */
+  canonicalStatus?: string | null;
+  /** Latest official action text (Congress.gov verbatim). */
+  latestActionText?: string | null;
+  /** Latest official action date, ISO `YYYY-MM-DD`. */
+  latestActionDate?: string | null;
+  /** The analyst note on the tracked row (legacy `tracked_bill.note` column). */
+  note?: string | null;
 }
 
 export interface BoardColumn {

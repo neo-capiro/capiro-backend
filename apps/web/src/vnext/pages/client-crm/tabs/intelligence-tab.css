@@ -111,31 +111,96 @@
   overflow: hidden;
 }
 .capiro-vnext-root .capiro-intel-stats-cell {
+  /* Reference accordion strip: 5 cells in ONE row. Inside the accordion panel
+     (~600px content) 132px minima wrapped the fifth cell onto a second row;
+     108px keeps all five on one line at 1440 while still wrapping sanely
+     when the surface gets genuinely narrow. */
   flex: 1;
-  min-width: 168px;
-  padding: 20px 24px;
+  min-width: 108px;
+  padding: 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   box-shadow: inset 1px 0 0 var(--capiro-color-border-divider);
 }
 .capiro-vnext-root .capiro-intel-stats-cell:first-child { box-shadow: none; }
 .capiro-vnext-root .capiro-intel-stats-value {
-  font-size: 28px;
+  /* Reference: 23px/600/-0.03em/1.1 tabular (was 28px). */
+  font-size: 23px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--capiro-color-text-primary);
-  line-height: 1.2;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 .capiro-vnext-root .capiro-intel-stats-value--loading { color: var(--capiro-color-text-faint); }
 .capiro-vnext-root .capiro-intel-stats-label {
-  font-size: 12px;
+  /* Reference strip is 70px tall with single-line 10.5px labels on a 12px
+     line — the shell's inherited 24px leading was still inflating it. */
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: .04em;
+  line-height: 12px;
   text-transform: uppercase;
   color: var(--capiro-color-text-muted);
-  text-wrap: pretty;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* ── Intelligence accordion (reference intelligence.html) ───────────────────
+   One white card holds the three domains; each header is a full-width button
+   with chevron, 14.5px/600 title, and a compact real stat read from the same
+   queries the open panel uses. */
+.capiro-vnext-root .cap-pf-intel-accordion {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.capiro-vnext-root .cap-pf-intel-domain + .cap-pf-intel-domain {
+  border-top: 1px solid #f2f4f7;
+}
+.capiro-vnext-root .cap-pf-intel-domain__head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 20px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-vnext-root .cap-pf-intel-domain__head:hover { background: #f9fafb; }
+.capiro-vnext-root .cap-pf-intel-domain__chevron {
+  flex: 0 0 auto;
+  display: flex;
+  color: #98a2b3;
+  transition: transform .12s ease;
+}
+.capiro-vnext-root .cap-pf-intel-domain__chevron--open { transform: rotate(90deg); }
+.capiro-vnext-root .cap-pf-intel-domain__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #101828;
+}
+.capiro-vnext-root .cap-pf-intel-domain__stat {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: #667085;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-intel-domain__panel {
+  padding: 0 20px 18px;
+  animation: capPfFade .14s ease;
+}
+/* The headless domain panel renders its actions row then the stats strip;
+   drop the stack's top gap so the panel hugs the accordion header. */
+.capiro-vnext-root .cap-pf-intel-domain__panel .capiro-intel-stack-24 { gap: 16px; }
+.capiro-vnext-root .cap-pf-intel-domain__panel .capiro-intel-actions-row { margin-bottom: 4px; }
 
 /* ── Generic text roles reused across every domain ────────────────────────── */
 .capiro-vnext-root .capiro-intel-eyebrow {
@@ -280,6 +345,20 @@
 .capiro-vnext-root .capiro-intel-bill-meta { font-size: 12px; color: var(--capiro-color-text-muted); text-wrap: pretty; }
 .capiro-vnext-root .capiro-intel-align-start { align-self: flex-start; }
 
+.capiro-vnext-root .capiro-intel-table-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 14px;
+  text-transform: uppercase;
+}
 .capiro-vnext-root .capiro-intel-table-row {
   display: flex;
   width: 100%;
@@ -292,7 +371,9 @@
 }
 .capiro-vnext-root .capiro-intel-table-num { flex: 0 0 auto; width: 88px; font-size: 14px; font-weight: 600; color: var(--capiro-color-text-primary); }
 .capiro-vnext-root .capiro-intel-table-main { flex: 1; min-width: 0; }
-.capiro-vnext-root .capiro-intel-table-title { display: block; font-size: 14px; color: var(--capiro-color-text-primary); text-wrap: pretty; }
+/* Reference row: single-line title (the action text got its own column). */
+.capiro-vnext-root .capiro-intel-table-title { display: block; font-size: 14px; line-height: 20px; color: var(--capiro-color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.capiro-vnext-root .capiro-intel-table-action { flex: 1; min-width: 0; font-size: 13px; line-height: 18px; color: var(--capiro-color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .capiro-vnext-root .capiro-intel-table-sub { display: block; margin-top: 2px; font-size: 13px; color: var(--capiro-color-text-muted); }
 .capiro-vnext-root .capiro-intel-table-stage { flex: 0 0 auto; width: 104px; font-size: 13px; color: var(--capiro-color-text-body-secondary); text-transform: capitalize; }
 .capiro-vnext-root .capiro-intel-table-end { flex: 0 0 auto; display: flex; justify-content: flex-end; }
@@ -442,7 +523,17 @@
   box-shadow: var(--capiro-intel-shadow-card);
   padding: 20px 24px 22px;
 }
-.capiro-vnext-root .capiro-intel-foot-card-head { display: flex; align-items: center; gap: 12px; }
+.capiro-vnext-root .capiro-intel-foot-card-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* The header action (e.g. the full "Open <committee> on FEC" link) must stay
+   inside the card: an unbreakable nowrap label wider than the remaining flex
+   track would otherwise overflow the accordion at 1440px. Let it shrink below
+   its content width and wrap instead of clipping outside the card. */
+.capiro-vnext-root .capiro-intel-foot-card-head > * { min-width: 0; }
+.capiro-vnext-root .capiro-intel-foot-card-head .capiro-intel-btn-link {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
 .capiro-vnext-root .capiro-intel-headline { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
 .capiro-vnext-root .capiro-intel-headline-solo { margin-top: 16px; font-size: 32px; font-weight: 600; letter-spacing: -0.02em; color: var(--capiro-color-text-primary); }
 .capiro-vnext-root .capiro-intel-headline-caption { margin-top: 2px; }
@@ -569,4 +660,26 @@
   font-size: 12px;
   color: var(--capiro-color-text-secondary);
   overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .capiro-intel-export-error {
+  margin: 0;
+  font-size: 13px;
+  color: #B42318;
+}
+
+.capiro-vnext-root .capiro-intel-v2-error {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #FECDCA;
+  border-radius: 8px;
+  background: #FEF3F2;
+  color: #B42318;
+  font-size: 13px;
+}
+.capiro-vnext-root .capiro-intel-v2-error__retry {
+  font-size: 13px;
+  font-weight: 600;
+  color: #B42318;
+  text-decoration: underline;
 }

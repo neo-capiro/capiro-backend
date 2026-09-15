@@ -143,12 +143,13 @@ export interface Client {
 
 export interface ClientPayload {
   name: string;
-  website?: string;
-  description?: string;
-  productDescription?: string;
-  primaryContactName?: string;
-  primaryContactEmail?: string;
-  primaryContactPhone?: string;
+  /** On edit, an empty wizard field is sent as explicit null to clear the column. */
+  website?: string | null;
+  description?: string | null;
+  productDescription?: string | null;
+  primaryContactName?: string | null;
+  primaryContactEmail?: string | null;
+  primaryContactPhone?: string | null;
   intakeData?: Record<string, unknown>;
   sectorTag?: string | null;
   profileType?: string | null;

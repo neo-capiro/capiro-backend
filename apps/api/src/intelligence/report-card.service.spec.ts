@@ -84,6 +84,34 @@ describe('report-card source definitions', () => {
     expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
   });
 
+  it('binds tenant/client ids as TEXT against intel_* tables and UUID against legacy tracked_bill', async () => {
+    // intel_feature_flag.tenant_id and intel_tracked_bill.tenant_id/client_id are
+    // TEXT (RLS compares current_tenant_id()::text); legacy tracked_bill ids are
+    // UUID. A ::uuid bind on a TEXT column is PG 42883 and wrongly marked the
+    // board Unavailable on the v2 rail. The tagged-template mock joins the raw
+    // strings with '?' for each bound value, so `${x}::uuid` renders as
+    // "?::uuid" in the joined text.
+    const { service, tx } = harness();
+    const joined = () => tx.$queryRaw.mock.calls.map((c) => (c[0] as string[]).join('?'));
+
+    // v2 rail: NO ::uuid cast anywhere (flag read + intel_tracked_bill count).
+    tx.$queryRaw.mockResolvedValueOnce([{ enabled: true }]).mockResolvedValueOnce([{ count: 5 }]);
+    await (service as any).getTrackedBillsCount(CLIENT, TENANT);
+    const [flagSql, intelSql] = joined();
+    expect(flagSql).toContain('FROM intel_feature_flag');
+    expect(flagSql).not.toContain('::uuid');
+    expect(intelSql).toContain('FROM intel_tracked_bill');
+    expect(intelSql).not.toContain('::uuid');
+
+    // legacy rail: both ids ARE ::uuid-cast against tracked_bill.
+    tx.$queryRaw.mockClear();
+    tx.$queryRaw.mockResolvedValueOnce([{ enabled: false }]).mockResolvedValueOnce([{ count: 2 }]);
+    await (service as any).getTrackedBillsCount(CLIENT, TENANT);
+    const [, legacySql] = joined();
+    expect(legacySql).toContain('FROM tracked_bill');
+    expect(legacySql).toContain('?::uuid');
+  });
+
   it('qualifies broad issue-code overlap as organization records across the corpus', async () => {
     const { service, tx, prisma } = harness();
     tx.clientIntelMapping.findFirst.mockResolvedValue({ externalId: '42' });

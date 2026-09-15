@@ -21,6 +21,7 @@ import {
   SOURCE_LABELS,
   WORKFLOW_LABELS,
   formatDeadline,
+  formatSourceDate,
   isOpportunitySource,
   moneyLine,
   type CatalogOpportunityRef,
@@ -306,9 +307,10 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
             label="Next action due"
             value={
               (o.workflow?.nextActionDueAt ?? o.decision?.nextActionDueAt)
-                ? new Date(
+                ? formatSourceDate(
                     (o.workflow?.nextActionDueAt ?? o.decision?.nextActionDueAt)!,
-                  ).toLocaleDateString()
+                    'No date',
+                  )
                 : 'No date'
             }
           />
@@ -397,7 +399,11 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
           <div className="fov-card__facts">
             <FovFact
               label="Posted"
-              value={o.postedDate ? new Date(o.postedDate).toLocaleDateString() : 'Not provided'}
+              value={
+                o.postedDate
+                  ? formatSourceDate(o.postedDate, 'Not provided')
+                  : 'Not provided'
+              }
             />
             <FovFact
               label="Response deadline"
@@ -420,7 +426,7 @@ export function FundingOpportunityDetail({ refValue }: { refValue: CatalogOpport
               label="Closes / archives"
               value={
                 o.closeOrArchiveDate
-                  ? new Date(o.closeOrArchiveDate).toLocaleDateString()
+                  ? formatSourceDate(o.closeOrArchiveDate, 'Not provided')
                   : 'Not provided'
               }
             />

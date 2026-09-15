@@ -9,7 +9,8 @@ import { ClientCrmGovernmentProto } from './tabs/RelationshipsGovTab.js';
 import { ClientCrmHistoryProto } from './tabs/RelationshipsHistoryTab.js';
 import { ClientCrmAdvocacyMattersProto } from './tabs/AdvocacyMattersTab.js';
 import { ClientCrmWorkProto } from './tabs/WorkTab.js';
-import { ClientCrmIntelligenceProto } from './tabs/IntelligenceTab.js';
+import { ClientCrmIntelligenceProto, useDomainStats } from './tabs/IntelligenceTab.js';
+import { UIcon } from './portfolio-primitives.js';
 import { ClientCrmOpportunitiesProto } from './tabs/OpportunitiesTab.js';
 import { ClientCrmFilesProto } from './tabs/FilesTab.js';
 import {
@@ -18,6 +19,7 @@ import {
   INTELLIGENCE_VIEWS,
   type CrmSurface,
   type CrmView,
+  type IntelligenceView,
   type RelationshipView,
 } from './client-crm-routing.js';
 import { ClientProfileShell } from './ClientProfileShell.js';
@@ -28,7 +30,7 @@ import {
   drawerKeyForRoute,
 } from './ClientRecordDirectory.js';
 import { SegmentedTabs } from './portfolio-primitives.js';
-import { RELATIONSHIP_VIEW_LABELS } from './client-crm-routing.js';
+import { RELATIONSHIP_VIEW_LABELS, INTELLIGENCE_VIEW_LABELS } from './client-crm-routing.js';
 import { ClientFormDialogVNext } from './ClientFormDialogVNext.js';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -213,9 +215,13 @@ export function ClientCrmPage({ client }: { client: Client }) {
         onArchive={() => setArchiving(true)}
         onEditProfile={() => setEditing(true)}
         canEditFocus={canManageClients}
-        drawerContent={drawerRow ? <ClientCrmDrawerBody client={client} route={route} onNavigate={goTo} /> : null}
-        drawerTitle={drawerRow?.label}
-        drawerSub={drawerRow?.description}
+        // While the profile editor is open, the record drawer must yield — its
+        // overlay would otherwise stack beneath the editor's and block even
+        // the editor's Cancel. The route is untouched, so the drawer (and its
+        // scroll/selection) returns exactly as it was when the editor closes.
+        drawerContent={drawerRow && !editing ? <ClientCrmDrawerBody client={client} route={route} onNavigate={goTo} onEditProfile={() => setEditing(true)} /> : null}
+        drawerTitle={editing ? undefined : drawerRow?.label}
+        drawerSub={editing ? undefined : drawerRow?.description}
         // The prototype leaves the record on its lead Timeline surface after
         // a directory drawer closes.
         onCloseDrawer={() => goTo('relationships', 'history')}
@@ -225,6 +231,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
           route={route}
           pendingOpenMatterId={pendingOpenMatterId}
           onOpenMatterConsumed={() => setPendingOpenMatterId(null)}
+          onNavigate={goTo}
         />
       </ClientProfileShell>
       {fillOpen ? (
@@ -285,11 +292,13 @@ function ClientCrmBody({
   route,
   pendingOpenMatterId,
   onOpenMatterConsumed,
+  onNavigate,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   pendingOpenMatterId?: string | null;
   onOpenMatterConsumed?: () => void;
+  onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
 }) {
   const key = activeDirectoryKey(route.tab, route.view);
   const row =
@@ -306,7 +315,7 @@ function ClientCrmBody({
       />
     );
   } else if (row.key === 'intelligence') {
-    content = <IntelligenceDomainStack client={client} />;
+    content = <IntelligenceDomainStack client={client} view={route.view} onNavigate={onNavigate} />;
   } else if (row.key === 'opportunities') {
     content = <ClientCrmOpportunitiesProto client={client} />;
   } else {
@@ -327,18 +336,98 @@ function ClientCrmBody({
 }
 
 /** Intelligence is one active directory surface containing its three domains. */
-function IntelligenceDomainStack({ client }: { client: Client }) {
+function IntelligenceDomainStack({
+  client,
+  view,
+  onNavigate,
+}: {
+  client: Client;
+  view: CrmView | null;
+  onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+}) {
+  // Reference intelligence.html: ONE white card holding the three domains as
+  // an accordion — a chevron + 14.5px/600 title + compact real stat per
+  // header, hairline dividers, the open domain's panel inside the same card.
+  // The URL's view= deep-link selects the open panel (default legislative),
+  // so existing links keep working and a header click navigates.
+  const open: IntelligenceView =
+    view === 'footprint' || view === 'district' ? view : 'legislative';
   return (
-    <div className="cap-pf-intelligence-domain-stack">
-      {INTELLIGENCE_VIEWS.map((view) => (
-        <div key={view} id={`cap-pf-intel-${view}`} className="cap-pf-intelligence-domain">
-          <ClientCrmIntelligenceProto client={client} view={view} />
-        </div>
+    <div className="cap-pf-intel-accordion">
+      {INTELLIGENCE_VIEWS.map((v) => (
+        <IntelligenceDomainSection
+          key={v}
+          client={client}
+          view={v}
+          open={v === open}
+          onOpen={() => onNavigate('intelligence', v)}
+        />
       ))}
     </div>
   );
 }
 
+function IntelligenceDomainSection({
+  client,
+  view,
+  open,
+  onOpen,
+}: {
+  client: Client;
+  view: IntelligenceView;
+  open: boolean;
+  onOpen: () => void;
+}) {
+  const api = useApi();
+  const label = INTELLIGENCE_VIEW_LABELS.find((item) => item.key === view)?.label ?? view;
+  // The reference's toggle permits every panel closed (openDomain === clicked
+  // ? null : clicked). Local override wins over the route: clicking the open
+  // header collapses without touching the URL; any route change re-syncs.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => setCollapsed(false), [view, open]);
+  const expanded = open && !collapsed;
+  // Same react-query keys the open panel's own stats strip uses — the header
+  // stat is a cache read, not an extra request.
+  const stats = useDomainStats(client, view, api);
+  const compact = stats
+    ?.slice(0, 2)
+    .filter(([value]) => value && value !== '—')
+    .map(([value, statLabel]) => `${value} ${statLabel.toLowerCase()}`)
+    .join(' · ');
+  const panelId = `cap-pf-intel-panel-${view}`;
+  return (
+    <div className="cap-pf-intel-domain" id={`cap-pf-intel-${view}`}>
+      <button
+        type="button"
+        className="cap-pf-intel-domain__head"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        onClick={() => {
+          if (expanded) {
+            setCollapsed(true);
+          } else {
+            // QA finding: after a collapse, the same header must REOPEN — a
+            // same-route onOpen is a URL no-op, so reset the local override
+            // here as well as on route change.
+            setCollapsed(false);
+            onOpen();
+          }
+        }}
+      >
+        <span className={expanded ? 'cap-pf-intel-domain__chevron cap-pf-intel-domain__chevron--open' : 'cap-pf-intel-domain__chevron'} aria-hidden>
+          <UIcon name="ChevronRight" size={15} color="#98a2b3" />
+        </span>
+        <span className="cap-pf-intel-domain__title">{label}</span>
+        {compact ? <span className="cap-pf-intel-domain__stat">{compact}</span> : null}
+      </button>
+      {expanded ? (
+        <div className="cap-pf-intel-domain__panel" id={panelId}>
+          <ClientCrmIntelligenceProto client={client} view={view} headless />
+        </div>
+      ) : null}
+    </div>
+  );
+}
 /**
  * Drawer body for the four directory surfaces. The route contract and real
  * tab implementations remain unchanged.
@@ -347,12 +436,15 @@ function ClientCrmDrawerBody({
   client,
   route,
   onNavigate,
+  onEditProfile,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+  /** Opens the real profile editor (ClientCrmPage owns its `editing` state). */
+  onEditProfile?: () => void;
 }) {
-  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} drawer />;
+  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} drawer onEditProfile={onEditProfile} />;
   if (route.tab === 'work') return <ClientCrmWorkProto client={client} drawer />;
   if (route.tab === 'files') return <ClientCrmFilesProto client={client} drawer />;
 

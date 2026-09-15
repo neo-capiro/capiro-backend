@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CAPABILITY_TAG_SUGGESTIONS } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
@@ -69,7 +69,11 @@ export function CapabilityDrawerVNext({ capability, clientId, onClose, onUpdated
 
   const patchCapability = useMutation({
     mutationFn: async (patch: Record<string, unknown>) =>
-      (await api.patch(`/api/clients/${clientId}/capabilities/${capability!.id}`, patch)).data,
+      // `data` is the full updated capability row with server-canonicalized
+      // fields (the PATCH handler returns the Prisma record directly, e.g.
+      // tags lowercased/trimmed/deduped). InlineTokenList's `acknowledge`
+      // reads the canonical list back from it.
+      await api.patch(`/api/clients/${clientId}/capabilities/${capability!.id}`, patch).then((res) => res.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-capabilities', clientId] });
       onUpdated();
@@ -143,7 +147,12 @@ export function CapabilityDrawerVNext({ capability, clientId, onClose, onUpdated
 
       <div className="capiro-capd__body">
         {drawerTab === 'profile' && (
-          <ProfileTab capability={capability} onPatch={(p) => patchCapability.mutate(p)} />
+          <ProfileTab
+            capability={capability}
+            onPatch={(p) => patchCapability.mutate(p)}
+            onPatchAsync={(p) => patchCapability.mutateAsync(p)}
+            patchError={patchCapability.isError ? errorMessage(patchCapability.error) : null}
+          />
         )}
         {drawerTab === 'documents' && (
           <CapabilityDocumentsTab clientId={clientId} capabilityId={capability.id} />
@@ -156,9 +165,13 @@ export function CapabilityDrawerVNext({ capability, clientId, onClose, onUpdated
 function ProfileTab({
   capability,
   onPatch,
+  onPatchAsync,
+  patchError,
 }: {
   capability: Capability;
   onPatch: (patch: Record<string, unknown>) => void;
+  onPatchAsync: (patch: Record<string, unknown>) => Promise<unknown>;
+  patchError: string | null;
 }) {
   return (
     <>
@@ -169,7 +182,17 @@ function ProfileTab({
         placeholder="Pick or add tags"
         values={capability.tags ?? []}
         suggestions={[...CAPABILITY_TAG_SUGGESTIONS]}
-        onSave={(tags) => onPatch({ tags })}
+        onSave={async (tags) => onPatchAsync({ tags })}
+        acknowledge={(saved) =>
+          // The server canonicalizes tags on write (see the API's
+          // normalizeCapabilityTags: lowercase, trim, collapse whitespace,
+          // dedupe). Acknowledge what it ACTUALLY persisted, not the raw
+          // list we sent, or the ack comparison below never matches the
+          // canonical props ('ORCHID' vs 'orchid') and clean server updates
+          // stay blocked behind a stale held ack.
+          (saved as { tags?: unknown } | undefined)?.tags as string[] | undefined
+        }
+        saveError={patchError}
       />
 
       {/* Step 2.3 — explicit PE numbers (strongest relevance path) + match keywords. */}
@@ -178,14 +201,16 @@ function ProfileTab({
         placeholder="e.g. 0604201A — add and press Enter"
         values={capability.peNumbers ?? []}
         upper
-        onSave={(peNumbers) => onPatch({ peNumbers })}
+        onSave={async (peNumbers) => onPatchAsync({ peNumbers })}
+        saveError={patchError}
       />
 
       <InlineTokenList
         label="Match keywords"
         placeholder="Keywords that match PE text (e.g. counter-UAS)"
         values={capability.keywords ?? []}
-        onSave={(keywords) => onPatch({ keywords })}
+        onSave={async (keywords) => onPatchAsync({ keywords })}
+        saveError={patchError}
       />
 
       <InlineTextArea
@@ -260,6 +285,26 @@ export function TrlScale({ value, onSave }: { value: number | null; onSave: (v: 
  * focus, never blurs, and a remove that only touched `draft` silently never
  * reached the server. `remove` PATCHes immediately instead; `add` keeps
  * deferring to blur since typing implies more interaction with the input.
+ *
+ * The blur save holds the draft until the server ACKNOWLEDGES it (the async
+ * `onSave` resolves) instead of clearing `dirty` the moment the PATCH is
+ * fired. The old sequence — save, immediately `setDirty(false)` — re-armed
+ * the resync-from-props below while `values` still held the PRE-save list,
+ * so the just-added chip vanished a beat before the refetch caught up, the
+ * sections under it (Notes) jumped mid-click, and the click landed on the
+ * body instead of its target. On a failed save the draft is kept too, the
+ * error is surfaced, and a Retry offers the same write again — edits are
+ * never silently thrown away.
+ *
+ * `acknowledge` (optional) extracts the server's canonical saved list from
+ * the resolved save value. The API canonicalizes some fields on write — Tags
+ * are lowercased/trimmed/deduped server-side — so holding the raw sent list
+ * as the ack would never match the canonical props the refetch delivers
+ * ('ORCHID' vs 'orchid'): `lastSavedRef` would stay set forever, blocking
+ * clean external updates and reverting the draft on the next save. When
+ * provided, the extracted canonical list becomes the acknowledged content;
+ * when omitted the sent list is used (fields the server stores verbatim,
+ * like PE numbers and keywords).
  */
 function InlineTokenList({
   label,
@@ -268,22 +313,77 @@ function InlineTokenList({
   suggestions,
   upper = false,
   onSave,
+  saveError = null,
+  acknowledge,
 }: {
   label: string;
   placeholder: string;
   values: string[];
   suggestions?: string[];
   upper?: boolean;
-  onSave: (values: string[]) => void;
+  onSave: (values: string[]) => void | Promise<unknown>;
+  /** The parent mutation's current error message, if the last PATCH failed. */
+  saveError?: string | null;
+  /**
+   * Reads the server's canonical saved list out of the resolved save value
+   * (e.g. the updated capability row returned by PATCH). Return undefined
+   * when the value carries no usable list — the sent list is kept instead.
+   */
+  acknowledge?: (saved: unknown) => string[] | undefined;
 }) {
   const [draft, setDraft] = useState<string[]>(values);
   const [pending, setPending] = useState('');
-  const [dirty, setDirty] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  /**
+   * Monotonic revision of the LOCAL draft — bumped on every user edit, never
+   * reset. This is the source of truth for "is there unsaved work".
+   */
+  const localRevRef = useRef(0);
+  /**
+   * The revision the server has ACKNOWLEDGED (a persist for this revision
+   * resolved). Advances monotonically, only forward, and never past
+   * `localRevRef`. `localRevRef > ackRevRef` means the draft is ahead of the
+   * server — unsaved edits exist and must survive any stale refetch.
+   */
+  const ackRevRef = useRef(0);
+  /**
+   * The list content the server last confirmed, keyed by the revision it was
+   * saved at. Used by the blur save-condition to diff against the server's
+   * known state, not the (possibly stale) props.
+   */
+  const lastSavedRef = useRef<string[] | null>(null);
+  /**
+   * Serializes overlapping PATCHes: each save chains onto the previous one, so
+   * a newer save can never resolve before an older one and let the older ack
+   * overwrite the newer intent. `run` is the current tail; each persist awaits
+   * it before issuing its request.
+   */
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const listId = suggestions ? `capiro-capd-suggest-${label.replace(/\W+/g, '-')}` : undefined;
 
-  // Keep local draft in sync when the underlying capability changes (after a
-  // save re-fetches), unless the user is mid-edit.
-  if (!dirty && draft !== values && draft.join('\0') !== values.join('\0')) {
+  const normalizeKey = (list: string[]) => list.join('\0');
+
+  // Unsaved work = the local draft has advanced past what the server confirmed.
+  const dirty = localRevRef.current > ackRevRef.current;
+
+  // Keep local draft in sync when the underlying capability changes. TWO guards
+  // stack:
+  //  1. Mid-click protection (original D3): after a save resolves, the props
+  //     still predate the PATCH until the refetch lands. `lastSavedRef` holds
+  //     the just-saved list and only clears once `values` catches up to it, so
+  //     the acknowledged-but-pending-refetch window can't stomp the draft.
+  //  2. Newer-draft protection (pending-edit race): both branches only adopt
+  //     when there is no unsaved work (`!dirty`, i.e. localRev === ackRev). An
+  //     older ack that resolves after the user kept editing leaves `dirty` set,
+  //     so the stale acknowledged list is never adopted over the newer draft.
+  if (lastSavedRef.current !== null) {
+    // Only adopt the ack when it IS the saved list arriving, and no newer edit
+    // is in flight. Otherwise hold until props catch up.
+    if (!dirty && normalizeKey(values) === normalizeKey(lastSavedRef.current)) {
+      lastSavedRef.current = null;
+      if (normalizeKey(draft) !== normalizeKey(values)) setDraft(values);
+    }
+  } else if (!dirty && normalizeKey(draft) !== normalizeKey(values)) {
     setDraft(values);
   }
 
@@ -307,19 +407,51 @@ function InlineTokenList({
     if (!tokens.length) return draft;
     const next = [...draft];
     for (const token of tokens) if (!next.includes(token)) next.push(token);
-    setDirty(true);
+    localRevRef.current += 1;
     setDraft(next);
     return next;
   };
 
-  // Saves immediately (Q05, see doc comment above). Stays `dirty` so the
-  // resync-from-props check above doesn't stomp this optimistic update
-  // before the PATCH's refetch lands a fresh value.
+  /**
+   * One save, serialized against any other in-flight save and held until the
+   * server acknowledges THIS draft. On success the acknowledged revision
+   * advances to this draft's revision — only forward, and only to a revision
+   * that existed when this save was issued, so a newer edit made during the
+   * flight keeps `dirty` set and is never reverted. On failure the draft is
+   * kept, the failure is surfaced, and Retry offers the same write again.
+   * The acknowledged CONTENT is the server's canonical list when `acknowledge`
+   * can read one from the resolved value — the refetch delivers canonical
+   * props, so comparing against anything else would never converge.
+   */
+  const persist = async (next: string[], rev: number) => {
+    setSaveFailed(false);
+    // Chain onto the prior save so overlapping writes apply in issue order.
+    const run = saveChainRef.current.then(async () => {
+      const saved = await onSave(next);
+      // Advance the acknowledged revision monotonically, only forward.
+      if (rev > ackRevRef.current) ackRevRef.current = rev;
+      lastSavedRef.current = acknowledge?.(saved) ?? next;
+    });
+    saveChainRef.current = run.catch(() => {});
+    try {
+      await run;
+    } catch {
+      setSaveFailed(true);
+    }
+  };
+
+  /** Issue a save for the current draft at its current revision. */
+  const persistCurrent = (list: string[]) => void persist(list, localRevRef.current);
+
+  // Saves immediately (Q05): clicking a chip's × is often the ONLY interaction,
+  // so the input never blurs and a draft-only remove would never reach the
+  // server. The revision bump keeps the removal from being reverted by a stale
+  // refetch before the PATCH's own refetch lands.
   const remove = (token: string) => {
     const next = normalize(draft.filter((t) => t !== token));
-    setDirty(true);
+    localRevRef.current += 1;
     setDraft(next);
-    onSave(next);
+    persistCurrent(next);
   };
 
   return (
@@ -362,10 +494,22 @@ function InlineTokenList({
           // Commit anything still typed, then save once — only when changed.
           const next = pending.trim() ? add(pending) : draft;
           setPending('');
-          if (dirty || next !== draft) onSave(normalize(next));
-          setDirty(false);
+          // Save when the draft differs from what the server last confirmed
+          // (`lastSavedRef`, falling back to props before any save). After an
+          // older ack while a newer edit was in flight, the draft is ahead of
+          // the last save and this blur must persist the merged intent.
+          const base = lastSavedRef.current ?? values;
+          if (dirty || normalizeKey(next) !== normalizeKey(base)) persistCurrent(normalize(next));
         }}
       />
+      {saveFailed ? (
+        <p className="capiro-capd__field-error" role="alert">
+          {saveError ?? 'Could not save this change.'}{' '}
+          <button type="button" className="capiro-capd__retry" onClick={() => persistCurrent(normalize(draft))}>
+            Retry
+          </button>
+        </p>
+      ) : null}
       {suggestions ? (
         <datalist id={listId}>
           {suggestions.map((s) => (
@@ -510,6 +654,16 @@ function CapabilityDocumentsTab({
 
       {docs.isLoading ? (
         <div className="capiro-capd__doc-skeleton" aria-busy="true" aria-label="Loading documents" />
+      ) : docs.isError ? (
+        /* A failed read is not an empty capability — the old branch fell
+           through to "No documents yet", so a 503 looked identical to "nothing
+           uploaded" and the real files were indistinguishable from absent. */
+        <p className="capiro-capd__empty capiro-capd__state--error" role="alert">
+          Documents could not be loaded.{' '}
+          <button type="button" className="capiro-capd__retry" onClick={() => void docs.refetch()}>
+            Retry
+          </button>
+        </p>
       ) : list.length ? (
         <div className="capiro-capd__docs">
           {list.map((d) => (

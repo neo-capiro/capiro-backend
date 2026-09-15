@@ -1556,6 +1556,56 @@ describe('the client-profile summary always returns a payload', () => {
   });
 });
 
+// ── Source calendar dates cross the API as YYYY-MM-DD, not midnight-UTC ─────
+// A `@db.Date` column returned by Prisma as a UTC-midnight Date must serialize
+// to its stated calendar date. `.toISOString()` produced `...T00:00:00.000Z`,
+// which the browser parses as a UTC instant and renders one day earlier west of
+// Greenwich. SAM response_deadline is a real timestamp and keeps its instant.
+
+describe('source calendar dates survive the API boundary unchanged', () => {
+  test('grant open/close dates emit YYYY-MM-DD, never a midnight-UTC instant', async () => {
+    const state = makeState({
+      grants: [
+        grantRow({
+          id: 'GRANT-CAL',
+          openDate: new Date('2026-09-01T00:00:00Z'),
+          closeDate: new Date('2026-11-15T00:00:00Z'),
+        }),
+      ],
+      sam: [],
+    });
+    const { service } = makeService(state);
+    const summary = await service.getClientSummary(TENANT, CLIENT);
+    const grant = summary.topGrants.find((g) => g.id === 'grants_gov:GRANT-CAL');
+    expect(grant?.postedDate).toBe('2026-09-01');
+    expect(grant?.responseDeadline).toBe('2026-11-15');
+    expect(grant?.closeOrArchiveDate).toBe('2026-11-15');
+    // The next-deadline card carries the same calendar date, not the instant.
+    expect(summary.nextDeadline?.responseDeadline).toBe('2026-11-15');
+  });
+
+  test('SAM posted/archive dates emit their stated calendar date; response_deadline keeps its real timestamp', async () => {
+    const state = makeState({
+      grants: [],
+      sam: [
+        samRow({
+          id: SAM_ID,
+          postedDate: new Date('2026-09-01T00:00:00Z'),
+          archiveDate: new Date('2026-12-20T00:00:00Z'),
+          responseDeadline: new Date('2026-11-20T17:00:00Z'),
+        }),
+      ],
+    });
+    const { service } = makeService(state);
+    const summary = await service.getClientSummary(TENANT, CLIENT);
+    const sam = summary.topContracts.find((c) => c.id === `sam_gov:${SAM_ID}`);
+    expect(sam?.postedDate).toBe('2026-09-01');
+    expect(sam?.closeOrArchiveDate).toBe('2026-12-20');
+    // response_deadline is a real instant — the timezone semantics are retained.
+    expect(sam?.responseDeadline).toBe('2026-11-20T17:00:00.000Z');
+  });
+});
+
 // ── placeOfPerformance parsing ───────────────────────────────────────────────
 
 describe('parsePlaceOfPerformance never assumes the vendor JSON shape', () => {

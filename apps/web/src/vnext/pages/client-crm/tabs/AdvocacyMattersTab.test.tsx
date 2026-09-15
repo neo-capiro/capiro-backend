@@ -551,4 +551,132 @@ describe('ClientCrmAdvocacyMattersProto', () => {
 
     await waitFor(() => expect(screen.getByText('No advocacy activity yet')).toBeInTheDocument());
   });
+
+  it('opens the newly created matter whether the create API returns { id } or a bare UUID string', async () => {
+    meRoleMock.mockReturnValue('user_admin');
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };
+      if (url.includes('/advocacy-matters/matter-new')) {
+        return { data: { ...matterFixture({ id: 'matter-new', title: 'A fresh ask' }), records: [], links: [] } };
+      }
+      return { data: { ...matterFixture(), records: [], links: [] } };
+    });
+    // Older server versions returned the new id as a bare string body, not
+    // `{ id }` — reading `.id` off that yielded undefined and the drawer
+    // never opened. The frontend must accept both shapes.
+    postMock.mockResolvedValue({ data: 'matter-new' });
+    renderMatters();
+
+    fireEvent.click(await screen.findByText('New matter'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. FY27 Ground Robotics Funding'), {
+      target: { value: 'A fresh ask' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create matter' }));
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/advocacy-matters', {
+        title: 'A fresh ask',
+        matterType: 'other',
+      }),
+    );
+    // The drawer for the just-created matter opens (its detail fetch fired).
+    await waitFor(() =>
+      expect(getMock).toHaveBeenCalledWith(expect.stringContaining('/advocacy-matters/matter-new')),
+    );
+  });
+
+  it('names a failed matter-detail fetch instead of showing the loading skeleton forever', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };
+      return Promise.reject({ response: { status: 500, data: { message: 'detail exploded' } } });
+    });
+    renderMatters();
+
+    fireEvent.click(await screen.findByText('0605053A Program Element'));
+
+    expect(
+      await screen.findByText(/This matter could not be loaded\./),
+    ).toBeInTheDocument();
+  });
+
+  it('a rapid re-edit after saving a status opens the form on the just-saved value, not the stale pre-save cache (failure-15)', async () => {
+    meRoleMock.mockReturnValue('user_admin');
+    // The detail GET is delayed so the invalidation refetch has NOT landed
+    // when the user reopens Edit — the exact race the browser QA hit.
+    let detailCalls = 0;
+    let releaseRefetch: (() => void) | undefined;
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture({ status: 'planning', outcomeCount: 0 })] };
+      detailCalls += 1;
+      if (detailCalls === 1) {
+        return { data: { ...matterFixture({ status: 'planning', outcomeCount: 0 }), records: [], links: [] } };
+      }
+      // Do not release the persisted response until after the assertion:
+      // otherwise a slow test runner can accidentally miss the cache race.
+      await new Promise<void>((resolve) => { releaseRefetch = resolve; });
+      return { data: { ...matterFixture({ status: 'successful', outcomeCount: 0 }), records: [], links: [] } };
+    });
+    patchMock.mockResolvedValue({ data: {} });
+    renderMatters();
+
+    fireEvent.click(await screen.findByText('0605053A Program Element'));
+    fireEvent.click(await screen.findByText('Edit'));
+    await waitFor(() => expect(screen.getByText('Edit advocacy matter')).toBeInTheDocument());
+    fireEvent.change(screen.getByDisplayValue('Planning'), { target: { value: 'successful' } });
+    // Outcome-claim confirmation is required when there is no outcome evidence.
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalledWith(
+      '/api/clients/client-1/advocacy-matters/matter-1',
+      expect.objectContaining({ status: 'successful' }),
+    ));
+    await waitFor(() => expect(screen.queryByText('Edit advocacy matter')).not.toBeInTheDocument());
+
+    try {
+      await waitFor(() => expect(releaseRefetch).toBeDefined());
+      // Immediately reopen Edit while the real refetch is still pending.
+      fireEvent.click(await screen.findByText('Edit'));
+      await waitFor(() => expect(screen.getByText('Edit advocacy matter')).toBeInTheDocument());
+
+      // The form must start from the just-saved value before any fresh GET.
+      expect(screen.getByRole('combobox')).toHaveValue('successful');
+    } finally {
+      releaseRefetch?.();
+    }
+  });
+
+  it('a lifecycle correction invalidates the cross-Matter timeline cache as well as the matter detail', async () => {
+    meRoleMock.mockReturnValue('user_admin');
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };
+      return { data: { ...matterFixture(), records: [recordFixture()], links: [] } };
+    });
+    postMock.mockResolvedValue({ data: {} });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ClientCrmAdvocacyMattersProto client={client} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByText('0605053A Program Element'));
+    await waitFor(() => expect(screen.getByText('FY27 ground robotics funding ask')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Detach'));
+    await waitFor(() => expect(screen.getByText('Detach record')).toBeInTheDocument());
+    const dialogs = screen.getAllByRole('dialog');
+    fireEvent.click(within(dialogs[dialogs.length - 1]!).getByRole('button', { name: 'Detach' }));
+
+    await waitFor(() => expect(postMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: ['client-advocacy-timeline', 'client-1'] }),
+      ),
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['client-advocacy-matter', 'client-1'] }),
+    );
+  });
 });

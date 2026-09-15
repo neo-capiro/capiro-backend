@@ -120,7 +120,7 @@ function useDistrictNexusV2(client: Client, active: boolean) {
   });
 }
 
-export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
+export function ClientCrmIntelligenceProto({ client, view, headless = false }: { client: Client; view: IntelligenceView; /** Rendered inside the Intelligence accordion panel: the accordion header already carries the domain title/stat, so the in-panel TabPageHead drops to an actions-only row. */ headless?: boolean }) {
   const navigate = useNavigate();
   const api = useApi();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.legislative!;
@@ -206,7 +206,26 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
 
   return (
     <div className="cap-pf-anim-rise capiro-intel capiro-intel-stack-24">
-      <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
+      {headless ? (
+        // Accordion panel: the domain header (title + compact stat + chevron)
+        // sits in IntelligenceDomainStack; keep the domain's real actions
+        // reachable inside the open panel.
+        <div className="capiro-intel-actions-row">{actions}</div>
+      ) : (
+        <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
+      )}
+      {view === 'footprint' && exportProfile.isError ? (
+        // The Export mutation previously had no visible failure at all — the
+        // button just returned from "Exporting…" to "Export profile" with no
+        // message, reading as "nothing happened" (the same silent class as a
+        // missing onError elsewhere in this module).
+        <p role="alert" className="capiro-intel-export-error">
+          The report could not be exported.{' '}
+          {exportProfile.error instanceof Error && exportProfile.error.message
+            ? exportProfile.error.message
+            : 'Try again in a moment.'}
+        </p>
+      ) : null}
       <DomainStatsStrip view={view} realValues={realStats} />
       {view === 'legislative' ? (
         <>
@@ -243,7 +262,7 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
  * ready or not applicable. Each case reuses the same query key the panel
  * below uses so cache is shared — zero extra network calls.
  */
-function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<typeof useApi>): Array<[string, string]> | undefined {
+export function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<typeof useApi>): Array<[string, string]> | undefined {
   const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
   const boardQ = useQuery<BoardResponse>({
     queryKey: trackerKeys.board(client.id),
@@ -290,6 +309,14 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     staleTime: 60_000,
   });
   const nexusV2Q = useDistrictNexusV2(client, view === 'district');
+  // The v1 fallback below keys on the v2 QUERY's outcome, but when the
+  // district_nexus_v2 flag is off the query never runs at all (data stays
+  // `undefined` forever) — the strip then rendered dashes even though v1
+  // facilities/nexus had real answers. Treat "flag off" as the same
+  // fallback signal as "v2 answered 404/dark".
+  const { enabled: nexusV2Enabled, ready: nexusV2FlagReady } = useIntelFeature('district_nexus_v2');
+  const v2Unavailable =
+    nexusV2Q.data === null || nexusV2Q.isError || (nexusV2FlagReady && !nexusV2Enabled);
 
   // Legislative & Regulatory is one merged view: tracked bills alongside
   // active regulatory matters + upcoming deadlines. Each source renders its
@@ -334,17 +361,18 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     const pac = fecQ.isSuccess ? fecQ.data.pacGiving : null;
     return [
       [lda ? (lda.matched ? formatNumber(lda.totalFilings) : '0') : '—', 'LDA filings'],
-      [lda ? formatMoney(ldaAmount) : '—', 'Lobbying · last 4 completed quarters'],
+      // Compact labels: the reference stats strip is single-line 10.5px.
+      [lda ? formatMoney(ldaAmount) : '—', 'Lobbying · 4 quarters'],
       // Unlinked is "no confirmed mapping", never $0 — formatMoney(null) = '—'.
       [
         nexusQ.isSuccess ? formatMoney(nexusQ.data.linked ? nexusQ.data.totalAmount : null) : '—',
-        'Federal contracts · on record',
+        'Federal contracts',
       ],
       [
         fecQ.isSuccess ? formatMoney(pac ? pacGivingAmount(pac) : null) : '—',
         pac && pac.tracked && pacGivingStatus(pac) !== 'complete'
-          ? 'PAC political contributions · incomplete'
-          : 'PAC political contributions',
+          ? 'PAC contributions · incomplete'
+          : 'PAC contributions',
       ],
       [lda ? (lda.matched ? formatNumber(lda.registrants.length) : '0') : '—', 'Registrants'],
     ];
@@ -367,7 +395,7 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     view === 'district' &&
     facilitiesQ.isSuccess &&
     nexusQ.isSuccess &&
-    (nexusV2Q.data === null || nexusV2Q.isError)
+    v2Unavailable
   ) {
     const linkedNexus = nexusQ.data.linked ? nexusQ.data.districts.length : 0;
     const totalAmount = nexusQ.data.linked
@@ -481,7 +509,7 @@ export function CouldNotLoad({ what, error, onRetry }: { what: string; error?: u
 export function DomainStatsStrip({ view, realValues }: { view: string; realValues?: Array<[string, string]> }) {
   const labels: Record<string, string[]> = {
     legislative: ['Tracked bills', 'Active matters', 'Deadline < 14 days', 'Material changes', 'Watchlist coverage'],
-    footprint: ['LDA filings', 'Lobbying · last 4 completed quarters', 'Federal contracts · on record', 'PAC political contributions', 'Registrants'],
+    footprint: ['LDA filings', 'Lobbying · 4 quarters', 'Federal contracts', 'PAC contributions', 'Registrants'],
     district: ['Districts', 'Contract obligations', 'Grant obligations', 'Employees mapped', 'Coverage'],
   };
   const labelSource = (labels[view] ?? []).map((label): [string, string] => ['—', label]);
@@ -514,7 +542,9 @@ function LegislativePanel({
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [boardView, setBoardView] = useState(true);
+  // Reference opens the tracked-bill list as the TABLE; the board columns
+  // remain one toggle away ("Board view" in the card header).
+  const [boardView, setBoardView] = useState(false);
   // The tracked bill the "latest updates" drawer is showing, or null.
   const [openBill, setOpenBill] = useState<BoardBill | null>(null);
 
@@ -736,6 +766,15 @@ function RealBillTable({ board, onOpenBill }: { board: BoardResponse; onOpenBill
   const rows = board.columns.flatMap((col) => col.bills.map((b) => ({ bill: b, stageLabel: col.label })));
   return (
     <div>
+      {/* Reference table head: BILL / TITLE / LATEST ACTION / PASS, with the
+          existing board-stage chip retained as a fifth column. */}
+      <div className="capiro-intel-table-head" aria-hidden>
+        <span className="capiro-intel-table-num">Bill</span>
+        <span className="capiro-intel-table-main">Title</span>
+        <span className="capiro-intel-table-action">Latest action</span>
+        <span className="capiro-intel-table-stage">Stage</span>
+        <span className="capiro-intel-table-end-76">Pass</span>
+      </div>
       {rows.map(({ bill: r, stageLabel }) => (
         <button
           key={r.billId}
@@ -747,9 +786,9 @@ function RealBillTable({ board, onOpenBill }: { board: BoardResponse; onOpenBill
           <span className="capiro-intel-table-num">{r.displayNum}</span>
           <span className="capiro-intel-table-main">
             <span className="capiro-intel-table-title">{r.title}</span>
-            <span className="capiro-intel-table-sub">
-              {r.latestActionText ?? r.canonicalStatus ?? 'No action recorded'}
-            </span>
+          </span>
+          <span className="capiro-intel-table-action">
+            {r.latestActionText ?? r.canonicalStatus ?? 'No action recorded'}
           </span>
           <span className="capiro-intel-table-stage">{stageLabel}</span>
           <span className="capiro-intel-table-end-76">
@@ -1492,6 +1531,11 @@ function DistrictPanel({ client }: { client: Client }) {
   const facilitiesLoaded = facilitiesQ.data !== undefined && !facilitiesQ.isError;
   const v2 = v2Q.data ?? null;
   const v2Settled = v2Q.data !== undefined || v2Q.isError || !v2Q.isLoading;
+  // Two distinct v2 failure modes, previously conflated: (a) request ERROR
+  // (500, timeout) was silently treated like the 404-disabled path, so a real
+  // outage looked exactly like "the feature is off"; (b) feature-disabled→404
+  // is a configuration answer and falls through to v1 quietly.
+  const v2Failed = v2Q.isError;
 
   const nexusByDistrict = useMemo(() => {
     const map = new Map<string, DistrictNexusRow>();
@@ -1499,6 +1543,11 @@ function DistrictPanel({ client }: { client: Client }) {
     return map;
   }, [nexusQ.data]);
   const repByFacilityId = useMemo(
+    // A failed representation fetch used to degrade to `new Map([])` — every
+    // facility then honestly-rendered as "unmatched", which reads as data,
+    // not outage. `representationQ.isError` is now surfaced in the v1 list
+    // header instead (below), and unresolved rows stay out of the mismatch
+    // vocabulary entirely until the request answers.
     () => new Map((representationQ.data ?? []).map((r) => [r.facility.id, r.representation])),
     [representationQ.data],
   );
@@ -1556,6 +1605,19 @@ function DistrictPanel({ client }: { client: Client }) {
     );
   }
 
+  // A v2 REQUEST failure (not the 404 feature-off answer) must say so above
+  // whichever view ends up rendering — the v1 fallback below is real data,
+  // but the user asked for the scored view and it failed, not vanished.
+  const v2FailureNotice = v2Failed ? (
+    <p role="alert" className="capiro-intel-v2-error">
+      Scored district data is unavailable right now — showing the facility view instead.{' '}
+      {v2Q.error instanceof Error && v2Q.error.message ? v2Q.error.message : null}{' '}
+      <button type="button" className="capiro-intel-v2-error__retry" onClick={() => void v2Q.refetch()}>
+        Retry
+      </button>
+    </p>
+  ) : null;
+
   const v2Districts = v2 ? [...v2.districts].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)) : [];
 
   if (v2 && (v2Districts.length > 0 || (facilitiesQ.data ?? []).some((f) => f.latitude != null && f.longitude != null))) {
@@ -1569,6 +1631,7 @@ function DistrictPanel({ client }: { client: Client }) {
 
     return (
       <div className="capiro-intel-stack-24">
+        {v2FailureNotice}
         <Card>
           <div className="capiro-intel-panel-head">
             <span className="capiro-intel-panel-head-copy">
@@ -1680,6 +1743,17 @@ function DistrictPanel({ client }: { client: Client }) {
 
   return (
     <div className="capiro-intel-stack-24">
+      {v2FailureNotice}
+      {representationQ.isError ? (
+        // Without this the failed representation fetch silently read as
+        // "every facility unmatched" — data, not outage.
+        <p role="alert" className="capiro-intel-v2-error">
+          Representation for these facilities could not be resolved — district rows below show location and award data only.{' '}
+          <button type="button" className="capiro-intel-v2-error__retry" onClick={() => void representationQ.refetch()}>
+            Retry
+          </button>
+        </p>
+      ) : null}
       <Card>
         <div className="capiro-intel-panel-head">
           <span className="capiro-intel-panel-head-copy">

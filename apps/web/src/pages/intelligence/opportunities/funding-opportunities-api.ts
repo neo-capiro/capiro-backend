@@ -864,7 +864,16 @@ export function formatSourceDate(
 ): string {
   if (!value) return placeholder;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!m) return value;
+  if (!m) {
+    // A midnight-UTC instant (`YYYY-MM-DDT00:00:00(.000)(Z|+00:00)`) is how a
+    // stored calendar date crosses the wire when the column is a timestamp that
+    // only ever carries a date. Render its UTC calendar date, not the local
+    // instant — a local render moves it one day back for readers west of UTC.
+    const mid =
+      /^(\d{4})-(\d{2})-(\d{2})T00:00:00(?:\.0+)?(?:Z|\+00:00)$/.exec(value);
+    if (mid) return formatSourceDate(`${mid[1]}-${mid[2]}-${mid[3]}`, placeholder);
+    return value;
+  }
   const [, y, mo, d] = m as unknown as [string, string, string, string];
   const MONTHS = [
     'Jan',
@@ -1884,6 +1893,25 @@ export function formatDeadline(
   if (!responseDeadline) {
     return { text: note?.trim() ? note.trim() : 'No deadline stated', daysRemaining: null };
   }
+  // A `@db.Date` calendar field arrives as a bare `YYYY-MM-DD` (no instant).
+  // `Date.parse('2026-11-15')` is UTC midnight, which renders one day earlier
+  // for every reader west of Greenwich — format the calendar date directly and
+  // compute remaining days against the reader's own midnight, not a UTC instant.
+  const cal = /^(\d{4})-(\d{2})-(\d{2})$/.exec(responseDeadline);
+  if (cal) {
+    const y = Number(cal[1]);
+    const mo = Number(cal[2]);
+    const d = Number(cal[3]);
+    const endOfDayLocal = new Date(y, mo - 1, d, 23, 59, 59, 999).getTime();
+    const days = Math.ceil((endOfDayLocal - Date.now()) / 86_400_000);
+    const text = new Date(y, mo - 1, d).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    return { text, daysRemaining: days };
+  }
+  // A real timestamp (e.g. SAM response_deadline) keeps its instant semantics.
   const t = Date.parse(responseDeadline);
   if (!Number.isFinite(t)) return { text: 'No deadline stated', daysRemaining: null };
   const days = Math.ceil((t - Date.now()) / 86_400_000);

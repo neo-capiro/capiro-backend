@@ -35,8 +35,10 @@ vi.mock('./tabs/WorkTab.js', () => ({
   ClientCrmWorkProto: () => <div data-testid="work-surface">work</div>,
 }));
 vi.mock('./tabs/IntelligenceTab.js', () => ({
-  ClientCrmIntelligenceProto: ({ view }: { view: string }) => (
-    <div data-testid={`intelligence-surface-${view}`}>{view}</div>
+  useDomainStats: (_client: Client, view: string) =>
+    view === 'legislative' ? [['3', 'Tracked bills']] : [['2', 'Records']],
+  ClientCrmIntelligenceProto: ({ view, headless }: { view: string; headless?: boolean }) => (
+    <div data-testid={`intelligence-surface-${view}`} data-headless={headless}>{view}</div>
   ),
 }));
 vi.mock('./tabs/OpportunitiesTab.js', () => ({
@@ -132,15 +134,51 @@ describe('prototype client-record information architecture', () => {
     expect(directoryRow('advocacy')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('uses one Intelligence surface containing the three real domains', () => {
+  it('deep-links to one Intelligence panel and opens each domain through its header', () => {
     renderAt('/clients?clientId=client-1&tab=intelligence&view=footprint');
-    for (const view of ['legislative', 'footprint', 'district']) {
-      expect(screen.getByTestId(`intelligence-surface-${view}`)).toBeInTheDocument();
+    const domains = [
+      ['legislative', 'Legislative & Regulatory'],
+      ['footprint', 'Federal Footprint'],
+      ['district', 'District Nexus'],
+    ];
+    expect(screen.getByTestId('intelligence-surface-footprint')).toBeInTheDocument();
+    expect(screen.queryByTestId('intelligence-surface-legislative')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('intelligence-surface-district')).not.toBeInTheDocument();
+
+    for (const [view, label] of domains) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label!) }));
+      expect(url()).toContain(`view=${view}`);
+      expect(screen.getByTestId(`intelligence-surface-${view}`)).toHaveAttribute('data-headless', 'true');
+      for (const [otherView, otherLabel] of domains) {
+        const header = screen.getByRole('button', { name: new RegExp(otherLabel!) });
+        expect(header).toHaveAttribute('aria-expanded', String(otherView === view));
+        expect(header).toHaveAttribute('aria-controls', `cap-pf-intel-panel-${otherView}`);
+        if (otherView !== view) {
+          expect(screen.queryByTestId(`intelligence-surface-${otherView}`)).not.toBeInTheDocument();
+        }
+      }
     }
-    // Funding & Budget moved out into its own Opportunities directory — it is
-    // no longer one of Intelligence's stacked domains.
     expect(screen.queryByTestId('intelligence-surface-funding')).not.toBeInTheDocument();
     expect(screen.queryByTestId('history-surface')).not.toBeInTheDocument();
+  });
+
+  it('collapses and reopens the same Intelligence header without changing its deep link', () => {
+    renderAt('/clients?clientId=client-1&tab=intelligence&view=footprint');
+    const header = screen.getByRole('button', { name: /Federal Footprint/ });
+    const initialUrl = url();
+    expect(header.tagName).toBe('BUTTON');
+    expect(header).toHaveAttribute('type', 'button');
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryAllByTestId(/^intelligence-surface-/)).toHaveLength(0);
+    expect(url()).toBe(initialUrl);
+
+    fireEvent.click(header);
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByTestId(/^intelligence-surface-/)).toHaveLength(1);
+    expect(screen.getByTestId('intelligence-surface-footprint')).toBeInTheDocument();
+    expect(url()).toBe(initialUrl);
   });
 
   it('redirects a stale ?tab=intelligence&view=funding bookmark to Opportunities', () => {
@@ -223,4 +261,3 @@ describe('header content', () => {
     expect(screen.getByText('Autonomy')).toBeInTheDocument();
   });
 });
-

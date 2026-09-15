@@ -1904,10 +1904,10 @@ export class FundingOpportunitiesService {
         subAgency: g.subAgency ?? null,
         office: null,
         status: g.status ?? null,
-        postedDate: g.openDate ? g.openDate.toISOString() : null,
-        responseDeadline: g.closeDate ? g.closeDate.toISOString() : null,
+        postedDate: toSourceDateString(g.openDate),
+        responseDeadline: toSourceDateString(g.closeDate),
         responseDeadlineNote: g.responseDateDesc ?? null,
-        closeOrArchiveDate: g.closeDate ? g.closeDate.toISOString() : null,
+        closeOrArchiveDate: toSourceDateString(g.closeDate),
         isActive: isGrantActive(g.status, g.closeDate, today),
         isPursuable: !NON_PURSUABLE_KINDS.has(kind),
         summary: g.description ?? null,
@@ -1971,10 +1971,12 @@ export class FundingOpportunitiesService {
       subAgency: s.subAgency ?? null,
       office: s.office ?? null,
       status: s.active ? 'active' : 'archived',
-      postedDate: s.postedDate ? s.postedDate.toISOString() : null,
+      postedDate: toSourceDateString(s.postedDate),
+      // SAM response_deadline is a real timestamp (@db.Timestamptz), not a
+      // calendar date — keep the instant (and its timezone semantics) verbatim.
       responseDeadline: s.responseDeadline ? s.responseDeadline.toISOString() : null,
       responseDeadlineNote: null,
-      closeOrArchiveDate: s.archiveDate ? s.archiveDate.toISOString() : null,
+      closeOrArchiveDate: toSourceDateString(s.archiveDate),
       isActive: isSamActive(s.active, s.responseDeadline, s.archiveDate, new Date()),
       isPursuable: !NON_PURSUABLE_KINDS.has(kind),
       summary,
@@ -2717,6 +2719,24 @@ function isDegraded(status: string | null, errorCount: number | null): boolean {
 
 function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/**
+ * Serialize a `@db.Date` calendar field as its stated `YYYY-MM-DD`, WITHOUT a
+ * timezone round trip. Prisma returns such a column as a Date at UTC midnight;
+ * `.toISOString()` yields `YYYY-MM-DDT00:00:00.000Z`, which the browser parses
+ * as a UTC instant and renders one day earlier for every reader west of
+ * Greenwich. A DATE has no instant — emit the calendar date verbatim so the UI
+ * can format it without a `new Date()` local-time shift. Use ONLY for `@db.Date`
+ * source calendar fields; a `@db.Timestamptz` field (e.g. SAM responseDeadline)
+ * is a real instant and keeps `.toISOString()`.
+ */
+function toSourceDateString(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function isDismissed(o: FundingOpportunity): boolean {

@@ -126,11 +126,17 @@ function RealPersonCard({ person, onOpen, titleConflict = false }: { person: Cli
   return (
     <button type="button" onClick={onOpen} className={cardClass}>
       {person.hierarchyLevel ? <Eyebrow tight>{LEVEL_META[person.hierarchyLevel].label}</Eyebrow> : null}
-      <span className="rel-org-person-avatar">
-        <Avatar initials={initialsFor(person.name)} size={32} />
+      {/* Reference relationships.html person card: horizontal head row
+          (40px circular avatar + left-aligned name/title), meta rows below. */}
+      <span className="rel-org-person-head">
+        <span className="rel-org-person-avatar">
+          <Avatar initials={initialsFor(person.name)} size={40} />
+        </span>
+        <span className="rel-org-person-id">
+          <span className="rel-org-person-name">{person.name}</span>
+          <span className="rel-org-person-title">{person.title ?? 'Open role'}</span>
+        </span>
       </span>
-      <span className="rel-org-person-name">{person.name}</span>
-      <span className="rel-org-person-title">{person.title ?? 'Open role'}</span>
       {placed ? <span className="rel-org-person-meta">{placementLabel(person)}</span> : null}
       <span className="rel-org-person-meta">{contactAddedLabel(person.createdAt)}</span>
       {titleConflict ? <span className="rel-org-person-pill"><Pill tone="warning">Role overlap · Review current title</Pill></span> : null}

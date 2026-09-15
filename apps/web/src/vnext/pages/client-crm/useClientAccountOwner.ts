@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
+import { clientTeamKey } from './client-team-api.js';
 
 export interface ClientAccountOwner {
   id: string;
@@ -46,6 +47,11 @@ export function useClientAccountOwner(clientId: string, canAssign = false) {
       ).data,
     onSuccess: (next) => {
       queryClient.setQueryData(assignmentKey, next);
+      // The team roster endpoint MERGES the account owner in as an `isOwner`
+      // row (see client-team-api.ts), so reassigning the owner changes the
+      // roster too — leaving that cache stale showed the old owner (or
+      // "nobody") in the Manage modal right after a successful reassignment.
+      void queryClient.invalidateQueries({ queryKey: clientTeamKey(clientId) });
     },
   });
 

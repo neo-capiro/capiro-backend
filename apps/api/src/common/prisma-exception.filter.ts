@@ -37,6 +37,10 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
     switch (exception.code) {
       // P2023: inconsistent column data (e.g. invalid UUID syntax in a param).
       // P2000: value too long for the column's type.
+      // P2010: raw query failed — only remapped when the underlying Postgres
+      // error is 22P02 (invalid text representation, e.g. CAST('not-a-uuid'
+      // AS uuid) in a hand-written $queryRaw WHERE clause). Any other P2010
+      // is a genuine server fault and must keep its 500 so it stays visible.
       case 'P2023':
       case 'P2000':
         // Warn-log even though we answer 400: this branch reclassifies the
@@ -48,6 +52,26 @@ export class PrismaClientExceptionFilter implements ExceptionFilter {
           .status(HttpStatus.BAD_REQUEST)
           .json({ statusCode: HttpStatus.BAD_REQUEST, message: 'Invalid request parameter' });
         return;
+      case 'P2010': {
+        const pgCode = (exception.meta as { code?: string } | undefined)?.code;
+        if (pgCode === '22P02') {
+          this.logger.warn(`Prisma P2010/22P02 mapped to 400: ${lastLine(exception.message)}`);
+          res
+            .status(HttpStatus.BAD_REQUEST)
+            .json({ statusCode: HttpStatus.BAD_REQUEST, message: 'Invalid request parameter' });
+          return;
+        }
+        this.logger.error(
+          `Unhandled Prisma error ${exception.code}: ${exception.message}` +
+            (exception.meta ? ` meta=${JSON.stringify(exception.meta)}` : ''),
+          exception.stack,
+        );
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Internal server error',
+        });
+        return;
+      }
       // P2025: an operation depended on a record that does not exist.
       case 'P2025':
         res

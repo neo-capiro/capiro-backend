@@ -50,11 +50,14 @@
   width: 196px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 14px 12px;
-  border-radius: var(--capiro-radius-surface);
+  /* Reference person card: left-aligned compact rows, not a centred stack. */
+  align-items: stretch;
+  gap: 9px;
+  padding: 12px 13px;
+  border-radius: 10px;
   background: var(--capiro-color-bg-surface);
   border: 1px solid var(--capiro-color-border-divider);
+  text-align: left;
 }
 .cap-pf .rel-org-person-card:hover {
   background: var(--capiro-color-bg-surface-2);
@@ -68,14 +71,28 @@
   border-color: var(--capiro-color-warning-rail);
 }
 
-.cap-pf .rel-org-person-avatar {
-  margin-top: 10px;
+/* Reference head row: 40px circular avatar + name/title column. */
+.cap-pf .rel-org-person-head {
   display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.cap-pf .rel-org-person-avatar {
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.cap-pf .rel-org-person-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .cap-pf .rel-org-person-name {
   display: block;
-  margin-top: 10px;
   max-width: 100%;
   font-size: 14px;
   font-weight: 600;
@@ -87,9 +104,9 @@
 
 .cap-pf .rel-org-person-title {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   max-width: 100%;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--capiro-color-text-body-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -98,7 +115,6 @@
 
 .cap-pf .rel-org-person-meta {
   display: block;
-  margin-top: 8px;
   max-width: 100%;
   font-size: 12px;
   color: var(--capiro-color-text-muted);
@@ -108,7 +124,7 @@
 }
 
 .cap-pf .rel-org-person-pill {
-  margin-top: 8px;
+  align-self: flex-start;
 }
 
 /* Ghost (open-role) card — dashed feel via the subtle fill; not clickable. */

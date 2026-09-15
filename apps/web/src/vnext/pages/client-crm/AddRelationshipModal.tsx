@@ -53,14 +53,20 @@ import './add-relationship-modal.css';
 const SCOPES = [
   { id: 'all', label: 'All' },
   { id: 'congress', label: 'Members' },
-  { id: 'staff', label: 'Committee Staff' },
+  // This scope searches BOTH personal-office and committee staff — the
+  // directory indexes both under `staff` and does not distinguish them here.
+  { id: 'staff', label: 'Congressional staff' },
   { id: 'state', label: 'State' },
 ] as const;
 type Scope = (typeof SCOPES)[number]['id'];
 
 const DIR_BADGE: Record<TargetDirectory, string> = {
   congress: 'Member',
-  staff: 'Committee Staff',
+  // NOT 'Committee Staff': the people search returns personal-office staff
+  // through the same `staff` directory with no distinguishing field, so that
+  // badge mislabeled every personal-office result (a Legislative Director read
+  // as committee staff). Honest general label until the source can say which.
+  staff: 'Congressional staff',
   state: 'State',
 };
 

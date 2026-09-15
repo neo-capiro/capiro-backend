@@ -485,6 +485,12 @@ export class TrackerService {
               dot: unread,
             }
           : null,
+        canonicalStatus: bill.status ?? null,
+        latestActionText: bill.latest_action_text ?? null,
+        latestActionDate: bill.latest_action_date
+          ? bill.latest_action_date.toISOString().slice(0, 10)
+          : null,
+        note: t.note ?? null,
       };
       const col = columns[stage];
       if (!col) continue;
