@@ -2,7 +2,10 @@ import {
   invertOpenstatesCommittees,
   fetchAllPages,
   resolveSyncStates,
+  parseRetryAfterMs,
+  aggregateStateOutcomes,
   type OpenstatesCommittee,
+  type OpenstatesStateOutcome,
 } from './sync-openstates';
 
 // Fixtures mirror the live OpenStates v3 `/committees?include=memberships`
@@ -133,12 +136,22 @@ describe('invertOpenstatesCommittees', () => {
   });
 });
 
-function mockOsResponse(status: number, body: unknown) {
+function mockOsResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
   return {
     status,
     ok: status >= 200 && status < 300,
     json: async () => body,
+    headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
   } as unknown as Response;
+}
+
+/** Deterministic sleep recorder — no real timers, no wall-clock dependence. */
+function fakeSleep() {
+  const calls: number[] = [];
+  const sleep = async (ms: number) => {
+    calls.push(ms);
+  };
+  return { calls, sleep };
 }
 
 describe('fetchAllPages', () => {
@@ -159,9 +172,15 @@ describe('fetchAllPages', () => {
         mockOsResponse(200, { results: [{ id: 'b' }], pagination: { max_page: 2 } }),
       ) as unknown as typeof fetch;
 
-    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' });
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'va' },
+      5,
+      { sleep },
+    );
     expect(result).toEqual({ rows: [{ id: 'a' }, { id: 'b' }], complete: true });
-  }, 15000);
+  });
 
   it('reports complete:false and only the successfully-fetched rows when a later page fails after retries', async () => {
     // PD2: a failed page must never be reported the same way as a legitimate
@@ -175,18 +194,321 @@ describe('fetchAllPages', () => {
       )
       .mockResolvedValue(mockOsResponse(500, {})) as unknown as typeof fetch;
 
-    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' });
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'va' },
+      5,
+      { sleep },
+    );
     expect(result).toEqual({ rows: [{ id: 'a' }], complete: false });
-  }, 15000);
+  });
 
   it('reports complete:true on a genuinely empty first page (no error, just nothing there)', async () => {
     global.fetch = jest
       .fn()
       .mockResolvedValueOnce(mockOsResponse(200, { results: [] })) as unknown as typeof fetch;
 
-    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' });
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'va' },
+      5,
+      { sleep },
+    );
     expect(result).toEqual({ rows: [], complete: true });
-  }, 15000);
+  });
+
+  it('reports complete:false when the local maxPages ceiling truncates a longer provider tail', async () => {
+    // Committee ceiling is 5 pages of 20; a state whose /committees reports
+    // max_page 7 must NOT come back complete:true — the two unfetched pages
+    // are a truncated tail, not end-of-results.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(200, { results: [{ id: 'x' }], pagination: { max_page: 7 } }),
+      ) as unknown as typeof fetch;
+
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      3,
+      { sleep },
+    );
+    expect(result.complete).toBe(false);
+    expect(result.rows).toHaveLength(3); // 3 pages fetched, rows preserved
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(3);
+  });
+
+  it('reports complete:true when the local ceiling is reached exactly at the provider max_page', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(200, { results: [{ id: 'x' }], pagination: { max_page: 2 } }),
+      ) as unknown as typeof fetch;
+
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'va' },
+      5,
+      { sleep },
+    );
+    expect(result).toEqual({ rows: [{ id: 'x' }, { id: 'x' }], complete: true });
+  });
+});
+
+describe('parseRetryAfterMs', () => {
+  const now = Date.parse('Tue, 15 Sep 2026 12:00:00 GMT');
+
+  it('parses delta-seconds', () => {
+    expect(parseRetryAfterMs('5', now)).toBe(5000);
+    expect(parseRetryAfterMs('0', now)).toBe(0);
+  });
+
+  it('parses an HTTP-date as a future delta', () => {
+    expect(parseRetryAfterMs('Tue, 15 Sep 2026 12:00:10 GMT', now)).toBe(10000);
+  });
+
+  it('rejects missing, malformed, negative, and past-date values', () => {
+    expect(parseRetryAfterMs(null, now)).toBeNull();
+    expect(parseRetryAfterMs('', now)).toBeNull();
+    expect(parseRetryAfterMs('soon', now)).toBeNull();
+    expect(parseRetryAfterMs('-5', now)).toBeNull();
+    expect(parseRetryAfterMs('Tue, 15 Sep 2026 11:59:00 GMT', now)).toBeNull();
+  });
+});
+
+describe('fetchAllPages 429 retry semantics', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it('honors a Retry-After delta-seconds hint beyond the local backoff ceiling', async () => {
+    // Defect #3 probe: a 120s Retry-After used to be clamped to 30s, so the
+    // retry landed inside the provider's rate-limit window and was 429'd
+    // again, exhausting all retries before the 120s deadline. The valid hint
+    // must now be honored in full.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(mockOsResponse(429, {}, { 'retry-after': '120' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep, now: () => 0 },
+    );
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    // inter-page DELAY_MS, then max(backoff 4000, Retry-After 120000).
+    expect(calls).toEqual([2000, 120000]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+  });
+
+  it('succeeds on the next attempt after a 120s Retry-After deadline has actually elapsed', async () => {
+    // Full probe shape: the provider keeps answering 429 while the clock is
+    // before the deadline and 200 once it passes. With the injected clock the
+    // only advance comes from the recorded sleeps, so the sequence proves the
+    // retry waits at least as long as the provider required.
+    const t0 = Date.parse('Tue, 15 Sep 2026 12:00:00 GMT');
+    let clock = t0;
+    global.fetch = jest.fn().mockImplementation(async () => {
+      if (clock < t0 + 120000) return mockOsResponse(429, {}, { 'retry-after': '120' });
+      return mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } });
+    }) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const clockedSleep = async (ms: number) => {
+      await sleep(ms);
+      clock += ms;
+    };
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep: clockedSleep, now: () => clock },
+    );
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    // 2000 inter-page, then one full 120000 wait before the successful retry.
+    expect(calls).toEqual([2000, 120000]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+    expect(clock).toBeGreaterThanOrEqual(t0 + 120000);
+  });
+
+  it('honors a Retry-After HTTP-date hint and retries to success', async () => {
+    const now = Date.parse('Tue, 15 Sep 2026 12:00:00 GMT');
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        mockOsResponse(429, {}, { 'retry-after': 'Tue, 15 Sep 2026 12:02:00 GMT' }),
+      )
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep, now: () => now },
+    );
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    // 120s HTTP-date hint honored in full (was previously capped to 30000).
+    expect(calls).toEqual([2000, 120000]);
+  });
+
+  it('falls back to bounded exponential backoff when Retry-After is absent or invalid', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(mockOsResponse(429, {})) // no header
+      .mockResolvedValueOnce(mockOsResponse(429, {}, { 'retry-after': 'bogus' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep },
+    );
+    expect(result.complete).toBe(true);
+    // attempt 0 -> 4000, attempt 1 -> 8000 (invalid header ignored)
+    expect(calls).toEqual([2000, 4000, 8000]);
+  });
+
+  it('does NOT sleep after the final exhausted 429 attempt and reports complete:false', async () => {
+    // Old defect: on the 4th 429 the loop slept 30s then fell through without
+    // the announced retry (logs showed "attempt 4/3"). Now the exhausted
+    // attempt returns immediately — no trailing sleep, no phantom retry.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(mockOsResponse(429, {})) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep },
+    );
+    expect(result).toEqual({ rows: [], complete: false });
+    // 1 page-walk sleep + 3 retry waits (4000/8000/16000); NO 30s trailing sleep.
+    expect(calls).toEqual([2000, 4000, 8000, 16000]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(4); // 1 initial + 3 retries
+  });
+
+  it('keeps rows fetched before a rate-limit wall and reports the walk partial (max-page partial)', async () => {
+    // Page 1 succeeds, page 2 hits an unending 429: the walk must stop with
+    // complete:false but keep page 1's real rows — a fetch failure is not a
+    // fact that the state has only those rows.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 3 } }),
+      )
+      .mockResolvedValue(mockOsResponse(429, {})) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep },
+    );
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: false });
+    // inter-page sleeps + bounded local backoff 4000/8000/16000 (no hint), no
+    // trailing sleep after the final 429.
+    expect(calls).toEqual([2000, 2000, 4000, 8000, 16000]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(5); // page1 + 4 attempts on page2
+  });
+
+  it('defers without retrying on an unschedulable Retry-After instead of overflowing a timer', async () => {
+    // setTimeout clamps delays above 2^31-1 ms to 1ms — pretending to wait
+    // ~24.8 days would actually retry instantly. The honest behavior is to
+    // return partial/defer immediately without sleeping.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(mockOsResponse(429, {}, { 'retry-after': '2147483648' })) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>(
+      '/committees',
+      { jurisdiction: 'md' },
+      5,
+      { sleep, now: () => 0 },
+    );
+    expect(result).toEqual({ rows: [], complete: false });
+    expect(calls).toEqual([2000]); // only the inter-page delay; no retry attempted
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+  });
+});
+
+describe('aggregateStateOutcomes', () => {
+  const base: OpenstatesStateOutcome = {
+    peopleFetched: 100,
+    peopleComplete: true,
+    committeesComplete: true,
+  };
+
+  it('reports a clean complete run when every state finished', () => {
+    expect(aggregateStateOutcomes([base, { ...base, peopleFetched: 50 }])).toEqual({
+      inserted: 150,
+      updated: 0,
+      skipped: 0,
+      errors: 0,
+      complete: true,
+    });
+  });
+
+  it('reports a legitimate zero-row state as complete (empty success, not a failure)', () => {
+    expect(
+      aggregateStateOutcomes([{ peopleFetched: 0, peopleComplete: true, committeesComplete: true }]),
+    ).toEqual({ inserted: 0, updated: 0, skipped: 0, errors: 0, complete: true });
+  });
+
+  it('aggregates a failed later people page as partial with the rows it did write', () => {
+    const counts = aggregateStateOutcomes([
+      base,
+      { peopleFetched: 40, peopleComplete: false, committeesComplete: true },
+    ]);
+    expect(counts.complete).toBe(false);
+    expect(counts.errors).toBe(1);
+    expect(counts.inserted).toBe(140);
+    expect(counts.incompleteReason).toContain('1 state(s) with incomplete people pages');
+    expect(counts.errorMessage).toBe(counts.incompleteReason);
+  });
+
+  it('aggregates a committee failure as partial even when people were clean', () => {
+    const counts = aggregateStateOutcomes([
+      { peopleFetched: 191, peopleComplete: true, committeesComplete: false },
+    ]);
+    expect(counts.complete).toBe(false);
+    expect(counts.errors).toBe(1);
+    expect(counts.incompleteReason).toContain('1 state(s) with incomplete committee pages');
+  });
+
+  it('aggregates people-partial + committee-failure across states', () => {
+    const counts = aggregateStateOutcomes([
+      { peopleFetched: 40, peopleComplete: false, committeesComplete: false },
+      { peopleFetched: 0, peopleComplete: true, committeesComplete: false },
+      base,
+    ]);
+    expect(counts.complete).toBe(false);
+    expect(counts.errors).toBe(2);
+    expect(counts.incompleteReason).toContain('1 state(s) with incomplete people pages');
+    expect(counts.incompleteReason).toContain('2 state(s) with incomplete committee pages');
+  });
 });
 
 describe('resolveSyncStates', () => {

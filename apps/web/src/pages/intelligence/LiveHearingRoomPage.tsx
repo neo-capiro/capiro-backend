@@ -29,6 +29,7 @@ import {
   type AudioSaved,
 } from '../../lib/hearing-recording-transport.js';
 import { HearingRecordingPanel } from './HearingRecordingPanel.js';
+import { PublicHearingAudioPanel } from './PublicHearingAudioPanel.js';
 import { HearingPublicationsPanel } from './HearingPublicationsPanel.js';
 import { HearingPublishedRecordsPanel } from './HearingPublishedRecordsPanel.js';
 import '../radar/legiwatch.css';
@@ -45,6 +46,11 @@ import {
   type HearingBrief,
   type HearingTranscriptItem,
 } from '../../lib/hearing-watch-api.js';
+import {
+  useHearingIntelligence,
+  usePublicHearingTranscript,
+} from '../radar/live-hearings/live-hearings-api.js';
+import type { PublicTranscriptSegment } from '../radar/live-hearings/live-hearings.types.js';
 
 const { Title, Text, Paragraph } = Typography;
 const RECORDER_MIME = 'audio/webm;codecs=opus';
@@ -69,6 +75,9 @@ interface Card_ {
   title: string;
   body?: string;
   startMs?: number;
+  /** The finding's cited transcript segment id, when the source carries one.
+   *  This is the authoritative jump target at shared interval boundaries. */
+  segmentId?: string;
 }
 
 /** Presentation boundary: both rooms use the same capture/recovery lifecycle. */
@@ -87,6 +96,9 @@ export interface HearingRoomViewModel {
   transcriptError: boolean;
   transcriptionDelayed?: boolean;
   intelligenceError: boolean;
+  /** True while extraction is still producing public findings (loading,
+   *  PROCESSING, or pending public jobs) — never claimed when DEGRADED only. */
+  intelligenceProcessing?: boolean;
   error: string | null;
   dismissError: () => void;
   statusText: string | null;
@@ -372,6 +384,63 @@ export function LiveHearingRoomPage({
   const confirmConsent = useConfirmConsent();
   const session = useHearingSession(id);
   const transcript = useHearingTranscript(id);
+  const isPublicReview = Boolean(session.data?.publicCaptureId && session.data?.hearingId);
+  const publicTranscript = usePublicHearingTranscript(
+    isPublicReview ? (session.data?.hearingId ?? '') : '',
+  );
+  // Saved public reviews read canonical PUBLIC intelligence (the same paged,
+  // reconciled hook HearingDetailRoute uses); the private tenant summary below
+  // stays the source for browser-capture sessions.
+  const publicIntelRaw = useHearingIntelligence(
+    isPublicReview ? (session.data?.hearingId ?? '') : '',
+  );
+  // Capture identity guard: the transcript rail already proved the returned
+  // capture matches this session's canonical capture. Until it does (or if a
+  // newer capture replaced it), that event's intelligence is NOT this saved
+  // capture's — render nothing rather than another capture's findings.
+  const publicIntelCaptureVerified = Boolean(
+    isPublicReview &&
+      session.data?.publicCaptureId &&
+      publicTranscript.data &&
+      publicTranscript.data.captureId === session.data.publicCaptureId,
+  );
+  const publicIntel = useMemo(
+    () =>
+      publicIntelCaptureVerified
+        ? publicIntelRaw
+        : { ...publicIntelRaw, data: undefined },
+    [publicIntelCaptureVerified, publicIntelRaw],
+  );
+  const publicSegments = useMemo(
+    () => {
+      const canonical = session.data?.publicCaptureId;
+      const capture = publicTranscript.data?.captureId;
+      // The hook already reconciles capture changes; if the returned capture
+      // still doesn't match the session's canonical capture, the public rail
+      // is inconsistent — render nothing rather than another capture's text.
+      if (!isPublicReview || !publicTranscript.data || !canonical || capture !== canonical)
+        return [] as HearingTranscriptItem[];
+      return publicTranscript.data.pages
+        .flatMap((p) => p.items)
+        .filter((s: PublicTranscriptSegment) => s.isFinal)
+        .map(
+          (s): HearingTranscriptItem => ({
+            id: s.id,
+            startMs: s.startMs,
+            endMs: s.endMs,
+            text: s.text,
+            speakerLabel: s.speakerLabel,
+            resolvedSpeakerName: s.speakerName,
+            confidence: s.confidence,
+          }),
+        );
+    },
+    [isPublicReview, publicTranscript.data, session.data?.publicCaptureId],
+  );
+  const transcriptLoading = isPublicReview
+    ? publicTranscript.isLoading && publicSegments.length === 0
+    : transcript.isLoading;
+  const transcriptError = isPublicReview ? publicTranscript.isError : transcript.isError;
   // Clients (id→name) to resolve the recap's target client + label the picker.
   const clientsQuery = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['clients', apiScope],
@@ -397,6 +466,13 @@ export function LiveHearingRoomPage({
   const [bytesSent, setBytesSent] = useState(0);
   const [bytesSaved, setBytesSaved] = useState(0);
   const [evidenceTime, setEvidenceTime] = useState<{ ms: number; revision: number }>();
+  /** Shared by the transcript list and the publications panel: both must drive
+   *  the SAME mounted player, with a monotonic revision so a repeated position
+   *  still re-seeks. */
+  const playEvidenceAt = useCallback(
+    (ms: number) => setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 })),
+    [],
+  );
   const [captureClock, setCaptureClock] = useState<{ wallMs: number; offsetMs: number }>();
   const [capturedElapsedMs, setCapturedElapsedMs] = useState(0);
   const [savedRecording, setSavedRecording] = useState<{
@@ -429,8 +505,11 @@ export function LiveHearingRoomPage({
   const recordingEpochRef = useRef<{ epochId: string; startMs: number } | null>(null);
 
   const persistedSegments = useMemo(
-    () => transcript.data?.pages.flatMap((p) => p.items) ?? [],
-    [transcript.data],
+    () =>
+      isPublicReview
+        ? publicSegments
+        : transcript.data?.pages.flatMap((p) => p.items) ?? [],
+    [isPublicReview, publicSegments, transcript.data],
   );
   const segments = useMemo(
     () => mergeSegments(persistedSegments, liveSegments),
@@ -450,30 +529,52 @@ export function LiveHearingRoomPage({
     queryFn: async () =>
       (await api.get<{ cards?: Card_[] }>(`/intel-api/hearings/${encodeURIComponent(id)}/summary`))
         .data,
-    enabled: enabled && Boolean(id),
+    // Tenant summary is private to browser-capture sessions; public reviews
+    // have canonical insights instead of tenant cards.
+    enabled: enabled && Boolean(id) && !isPublicReview,
     retry: false,
     refetchInterval: captureActive || session.data?.status === 'live' ? 15_000 : false,
     refetchIntervalInBackground: true,
   });
   const cards = useMemo(() => {
+    if (isPublicReview) {
+      // Genuine canonical fields only: real id/type/title/summary plus the
+      // evidence's own startMs. Findings without a timestamp stay (the views
+      // already omit the jump control when startMs is undefined) — never
+      // dropped, never given a guessed position.
+      return (publicIntel.data ?? [])
+        .map(
+          (item): Card_ => ({
+            id: item.id,
+            cardType: item.insightType,
+            title: item.title,
+            body: item.summary,
+            startMs: item.startMs,
+            segmentId: item.segmentId,
+          }),
+        )
+        .sort((a, b) => (b.startMs ?? 0) - (a.startMs ?? 0));
+    }
     const merged = new Map<string, Card_>();
     for (const card of [...(summary.data?.cards ?? []), ...liveCards]) {
       const key = card.id || `${card.cardType}:${card.startMs}:${card.title}`;
       merged.set(key, { ...card, id: key });
     }
     return [...merged.values()].sort((a, b) => (b.startMs ?? 0) - (a.startMs ?? 0));
-  }, [summary.data, liveCards]);
+  }, [isPublicReview, publicIntel.data, summary.data, liveCards]);
   const refreshPersisted = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['intel', 'hearing', id] });
   }, [queryClient, id]);
 
   // Reopened sessions and a refreshed first page may expose additional history.
   // Drain it automatically so a four-hour room never stops at 500 segments.
+  // The public review path already drains internally via usePublicHearingTranscript.
   useEffect(() => {
-    if (transcript.hasNextPage && !transcript.isFetchingNextPage && !transcript.isError) {
+    if (!isPublicReview && transcript.hasNextPage && !transcript.isFetchingNextPage && !transcript.isError) {
       void transcript.fetchNextPage();
     }
   }, [
+    isPublicReview,
     transcript.hasNextPage,
     transcript.isFetchingNextPage,
     transcript.isError,
@@ -1051,6 +1152,30 @@ export function LiveHearingRoomPage({
     );
   }
 
+  // One playback surface per room, shared by both presentations. Public review
+  // sessions play the canonical server capture through the SAME public player
+  // the hearing detail page uses — never the tenant-private browser recorder.
+  // The key carries the canonical capture id so a source/capture reassignment
+  // remounts the player instead of replaying the previous capture's state.
+  const recordingPanelNode = isPublicReview ? (
+    <PublicHearingAudioPanel
+      key={`public-audio:${apiScope}:${session.data?.hearingId ?? ''}:${session.data?.publicCaptureId ?? ''}`}
+      hearingId={session.data?.hearingId ?? ''}
+      seek={
+        evidenceTime ? { positionMs: evidenceTime.ms, request: evidenceTime.revision } : undefined
+      }
+    />
+  ) : recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
+    <HearingRecordingPanel
+      key={`recording:${apiScope}:${id}`}
+      sessionId={id}
+      live={captureActive}
+      canEnable={!captureActive && !session.data?.startedAt}
+      evidenceTime={evidenceTime}
+      onProgress={onRecordingProgress}
+    />
+  ) : null;
+
   const unofficialPublicationsPanel =
     (updatesEnabled || recapsEnabled) &&
     session.data &&
@@ -1067,9 +1192,7 @@ export function LiveHearingRoomPage({
         smsEnabled={smsEnabled}
         recapRequested={recapOpen}
         onRecapOpened={() => setRecapOpen(false)}
-        playEvidence={(ms) =>
-          setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 }))
-        }
+        playEvidence={playEvidenceAt}
       />
     ) : null;
   const publicationsPanel = (
@@ -1093,6 +1216,7 @@ export function LiveHearingRoomPage({
           unavailable: session.isError || !session.data,
           retry: () => {
             void session.refetch();
+            if (isPublicReview) void publicIntelRaw.refetch();
             refreshPersisted();
           },
           phase,
@@ -1101,10 +1225,15 @@ export function LiveHearingRoomPage({
           segments,
           interim,
           cards,
-          transcriptLoading: transcript.isLoading,
-          transcriptError: transcript.isError,
+          transcriptLoading,
+          transcriptError,
           transcriptionDelayed,
-          intelligenceError: summary.isError,
+          intelligenceError: isPublicReview ? publicIntel.isError : summary.isError,
+          intelligenceProcessing:
+            isPublicReview &&
+            (publicIntel.isLoading ||
+              publicIntel.data?.status === 'PROCESSING' ||
+              (publicIntel.data?.jobs?.public?.pending ?? 0) > 0),
           error,
           dismissError: () => setError(null),
           statusText,
@@ -1118,20 +1247,9 @@ export function LiveHearingRoomPage({
           captureStartedAt: captureClock?.wallMs,
           captureOffsetMs: captureClock?.offsetMs,
           capturedElapsedMs: Math.max(capturedElapsedMs, currentSavedRecording?.endMs ?? 0),
-          recordingPanel:
-            recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
-              <HearingRecordingPanel
-                key={`recording:${apiScope}:${id}`}
-                sessionId={id}
-                live={captureActive}
-                canEnable={!captureActive && !session.data?.startedAt}
-                evidenceTime={evidenceTime}
-                onProgress={onRecordingProgress}
-              />
-            ) : null,
+          recordingPanel: recordingPanelNode,
           publicationsPanel,
-          playEvidence: (ms) =>
-            setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 })),
+          playEvidence: playEvidenceAt,
           sourcePlayer: embeddableUrl ? (
             <MediaPlayer src={embeddableUrl} />
           ) : youtubeVideoId ? (
@@ -1345,16 +1463,7 @@ export function LiveHearingRoomPage({
         </Space>
       </Card>
 
-      {(recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript') && (
-        <HearingRecordingPanel
-          key={`recording:${apiScope}:${id}`}
-          sessionId={id}
-          live={captureActive}
-          canEnable={!captureActive && !session.data?.startedAt}
-          evidenceTime={evidenceTime}
-          onProgress={onRecordingProgress}
-        />
-      )}
+      {recordingPanelNode}
       {publicationsPanel}
       <div
         style={{
@@ -1364,10 +1473,10 @@ export function LiveHearingRoomPage({
         }}
       >
         <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
-          {transcript.isError && (
+          {transcriptError && (
             <Alert type="warning" message="Saved transcript could not be refreshed." />
           )}
-          {transcript.isLoading && segments.length === 0 ? (
+          {transcriptLoading && segments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Spin />
             </div>
@@ -1383,8 +1492,8 @@ export function LiveHearingRoomPage({
               segments={segments}
               interim={interim}
               playEvidence={
-                session.data?.recordingPolicy === 'audio_and_transcript'
-                  ? (ms) => setEvidenceTime({ ms, revision: Date.now() })
+                isPublicReview || session.data?.recordingPolicy === 'audio_and_transcript'
+                  ? playEvidenceAt
                   : undefined
               }
             />
@@ -1402,11 +1511,20 @@ export function LiveHearingRoomPage({
         </Card>
 
         <Card title="Intelligence cards" size="small" style={{ minHeight: 420 }}>
-          {summary.isError && (
+          {(isPublicReview ? publicIntel.isError : summary.isError) && (
             <Alert type="warning" message="Saved intelligence could not be refreshed." />
           )}
           {cards.length === 0 ? (
-            <Empty description="Relevant moments will appear here." />
+            <Empty
+              description={
+                isPublicReview &&
+                (publicIntel.isLoading ||
+                  publicIntel.data?.status === 'PROCESSING' ||
+                  (publicIntel.data?.jobs?.public?.pending ?? 0) > 0)
+                  ? 'Public intelligence is still being extracted from the canonical transcript.'
+                  : 'Relevant moments will appear here.'
+              }
+            />
           ) : (
             <div style={{ maxHeight: 560, overflowY: 'auto' }}>
               {cards.map((c) => (

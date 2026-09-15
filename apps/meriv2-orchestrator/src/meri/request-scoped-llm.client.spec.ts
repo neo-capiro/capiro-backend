@@ -304,6 +304,114 @@ describe('RequestScopedLlmClient.completeWithTools (tool-use round)', () => {
   });
 });
 
+describe('RequestScopedLlmClient.completeWithSchema — H57 strict forwarding', () => {
+  it('forwards strict:true on the SAME tenant BYOK key + qualified model to the wire (strict + projected schema)', async () => {
+    const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers, body: JSON.parse(init.body) });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            content: [{ type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } }],
+            usage: { input_tokens: 10, output_tokens: 20 },
+          }),
+        };
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await RequestCredentialsStore.run(
+      {
+        bearerToken: 't',
+        aiProvider: {
+          provider: 'anthropic' as const,
+          apiKey: '«redacted:sk-…»',
+          model: 'claude-sonnet-4-5',
+          usedTenantKey: true,
+          modelOverridden: true,
+        },
+      },
+      () =>
+        client.completeWithSchema({
+          system: 's',
+          prompt: 'p',
+          toolName: 'submit_hearing_claims',
+          toolDescription: 'd',
+          inputSchema: {
+            type: 'object',
+            properties: { id: { type: 'string', minLength: 1, maxLength: 100 } },
+          },
+          maxTokens: 6000,
+          reasoning: { effort: 'low' },
+          strict: true,
+        }),
+    );
+    // Same BYOK key and tenant-qualified model reach the wire.
+    expect(calls[0]?.headers['x-api-key']).toBe('«redacted:sk-…»');
+    expect(calls[0]?.body.model).toBe('claude-sonnet-4-5');
+    const tool = (calls[0]?.body.tools as Array<Record<string, unknown>>)[0]!;
+    expect(tool.strict).toBe(true);
+    expect(tool.input_schema).toEqual({
+      type: 'object',
+      properties: { id: { type: 'string' } },
+    });
+    expect(calls[0]?.body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 });
+    expect(calls[0]?.body.tool_choice).toEqual({ type: 'auto' });
+    expect(calls[0]?.body.max_tokens).toBe(6000);
+  });
+
+  it('tenant on an UNQUALIFIED model + strict:true keeps the prior wire (no strict, original schema, same key/model)', async () => {
+    const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers, body: JSON.parse(init.body) });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            content: [{ type: 'tool_use', id: 't1', name: 'submit', input: {} }],
+            usage: { input_tokens: 1, output_tokens: 1 },
+          }),
+        };
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await RequestCredentialsStore.run(
+      {
+        bearerToken: 't',
+        aiProvider: {
+          provider: 'anthropic' as const,
+          apiKey: '«redacted:sk-…»',
+          model: 'claude-opus-4-8',
+          usedTenantKey: true,
+          modelOverridden: true,
+        },
+      },
+      () =>
+        client.completeWithSchema({
+          system: 's',
+          prompt: 'p',
+          toolName: 'submit',
+          toolDescription: 'd',
+          inputSchema: {
+            type: 'object',
+            properties: { id: { type: 'string', minLength: 1, maxLength: 100 } },
+          },
+          strict: true,
+        }),
+    );
+    expect(calls[0]?.headers['x-api-key']).toBe('«redacted:sk-…»');
+    expect(calls[0]?.body.model).toBe('claude-opus-4-8');
+    const tool = (calls[0]?.body.tools as Array<Record<string, unknown>>)[0]!;
+    expect(tool.strict).toBeUndefined();
+    expect(tool.input_schema).toEqual({
+      type: 'object',
+      properties: { id: { type: 'string', minLength: 1, maxLength: 100 } },
+    });
+  });
+});
+
 describe('classifyLlmError (resilience classification)', () => {
   it('credit/quota exhaustion → failover, NOT retry (the 2026-07-15 outage class)', () => {
     expect(
@@ -1029,5 +1137,113 @@ describe('RequestScopedLlmClient.completeWithTools (toolChoice wire forwarding)'
       type: 'function',
       function: { name: 'some_tool' },
     });
+  });
+});
+
+describe('RequestScopedLlmClient.completeWithSchema — reasoning option forwarding', () => {
+  const schemaOk = {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      content: [{ type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } }],
+      usage: { input_tokens: 500, output_tokens: 1400 },
+    }),
+  };
+
+  it('forwards the reasoning opt-in to the resolved Anthropic provider on the SAME tenant credential + overridden model, preserving usage', async () => {
+    const calls: Array<{ headers: Record<string, string>; body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { headers: Record<string, string>; body: string }) => {
+        calls.push({ headers: init.headers, body: JSON.parse(init.body) });
+        return schemaOk;
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    const out = await RequestCredentialsStore.run(
+      {
+        bearerToken: 't',
+        aiProvider: {
+          ...tenantCred,
+          model: 'claude-sonnet-4-5',
+          modelOverridden: true,
+        },
+      },
+      () =>
+        client.completeWithSchema({
+          system: 's',
+          prompt: 'p',
+          toolName: 'submit_hearing_claims',
+          toolDescription: 'd',
+          inputSchema: { type: 'object' },
+          maxTokens: 6000,
+          reasoning: { effort: 'low' },
+        }),
+    );
+    // Same resolved tenant credential + overridden model reach the wire (BYOK
+    // isolation preserved — no model switch, no credential change).
+    expect(calls[0]?.headers['x-api-key']).toBe(tenantCred.apiKey);
+    expect(calls[0]?.body.model).toBe('claude-sonnet-4-5');
+    // The reasoning option produced the manual-thinking wire on the qualified model.
+    expect(calls[0]?.body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 });
+    expect(calls[0]?.body.tool_choice).toEqual({ type: 'auto' });
+    expect(calls[0]?.body.max_tokens).toBe(6000);
+    // Aggregate usage (incl. thinking tokens) is preserved for metering.
+    expect(out.usage).toEqual({ inputTokens: 500, outputTokens: 1400 });
+    expect(out.input).toEqual({ claims: [] });
+  });
+
+  it('forwards reasoning but a non-qualified tenant model sends NO thinking field (no silent model replacement)', async () => {
+    const calls: Array<{ body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { body: string }) => {
+        calls.push({ body: JSON.parse(init.body) });
+        return schemaOk;
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await RequestCredentialsStore.run(
+      {
+        bearerToken: 't',
+        aiProvider: { ...tenantCred, model: 'claude-sonnet-4-6', modelOverridden: true },
+      },
+      () =>
+        client.completeWithSchema({
+          system: 's',
+          prompt: 'p',
+          toolName: 'submit_hearing_claims',
+          toolDescription: 'd',
+          inputSchema: { type: 'object' },
+          maxTokens: 6000,
+          reasoning: { effort: 'low' },
+        }),
+    );
+    expect(calls[0]?.body.model).toBe('claude-sonnet-4-6'); // tenant's model kept
+    expect(calls[0]?.body.thinking).toBeUndefined(); // no incompatible field sent
+    expect(calls[0]?.body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
+  });
+
+  it('reasoning absent → the prior forced-tool request is sent unchanged on the tenant credential', async () => {
+    const calls: Array<{ body: Record<string, unknown> }> = [];
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      async (_url: string, init: { body: string }) => {
+        calls.push({ body: JSON.parse(init.body) });
+        return schemaOk;
+      },
+    );
+    const client = new RequestScopedLlmClient('sk-global', 'claude-default');
+    await RequestCredentialsStore.run(
+      { bearerToken: 't', aiProvider: { ...tenantCred, model: 'claude-sonnet-4-5', modelOverridden: true } },
+      () =>
+        client.completeWithSchema({
+          system: 's',
+          prompt: 'p',
+          toolName: 'submit_hearing_claims',
+          toolDescription: 'd',
+          inputSchema: { type: 'object' },
+          maxTokens: 6000,
+        }),
+    );
+    expect(calls[0]?.body.thinking).toBeUndefined();
+    expect(calls[0]?.body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
   });
 });

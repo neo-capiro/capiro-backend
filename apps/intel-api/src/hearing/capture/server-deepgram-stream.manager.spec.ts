@@ -289,4 +289,129 @@ describe('ServerDeepgramStreamManager', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 
+  it('splits a mixed-speaker final into contiguous runs with the base applied exactly once', () => {
+    const connection = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => connection) } } as never);
+    const cb = callbacks();
+    const manager = new ServerDeepgramStreamManager('key', cb, { initialTimelineMs: 1_000 });
+
+    manager.start();
+    connection.emit('open'); // connectionBaseMs = source cursor = 1000
+    connection.emit('transcript', {
+      is_final: true,
+      start: 0,
+      duration: 3.5,
+      channel: {
+        alternatives: [
+          {
+            transcript: 'Hello there. Yes indeed. Back to me.',
+            confidence: 0.9,
+            words: [
+              { word: 'Hello', punctuated_word: 'Hello', start: 0, end: 0.5, speaker: 0 },
+              { word: 'there', punctuated_word: 'there.', start: 0.5, end: 1.0, speaker: 0 },
+              { word: 'Yes', punctuated_word: 'Yes', start: 1.2, end: 1.6, speaker: 1 },
+              { word: 'indeed', punctuated_word: 'indeed.', start: 1.6, end: 2.0, speaker: 1 },
+              { word: 'Back', punctuated_word: 'Back', start: 2.4, end: 2.8, speaker: 0 },
+              { word: 'to', punctuated_word: 'to', start: 2.8, end: 3.0, speaker: 0 },
+              { word: 'me', punctuated_word: 'me.', start: 3.0, end: 3.5, speaker: 0 },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect((cb.onFinal as jest.Mock).mock.calls.map(([segment]) => segment)).toEqual([
+      { startMs: 1_000, endMs: 2_000, text: 'Hello there.', speakerLabel: '0', confidence: 0.9 },
+      { startMs: 2_200, endMs: 3_000, text: 'Yes indeed.', speakerLabel: '1', confidence: 0.9 },
+      { startMs: 3_400, endMs: 4_500, text: 'Back to me.', speakerLabel: '0', confidence: 0.9 },
+    ]);
+  });
+
+  it('produces identical ranges when an identical final is replayed and keeps an unsplittable frame whole + unknown', () => {
+    const connection = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => connection) } } as never);
+    const cb = callbacks();
+    const manager = new ServerDeepgramStreamManager('key', cb);
+    manager.start();
+    connection.emit('open');
+
+    const final = {
+      is_final: true,
+      start: 10,
+      duration: 2,
+      channel: {
+        alternatives: [
+          {
+            transcript: 'one two three four',
+            confidence: 0.5,
+            words: [
+              { word: 'one', start: 10.0, end: 10.4, speaker: 0 },
+              { word: 'two', start: 10.4, end: 10.8, speaker: 0 },
+              { word: 'three', start: 11.0, end: 11.5, speaker: 1 },
+              { word: 'four', start: 11.5, end: 12.0, speaker: 1 },
+            ],
+          },
+        ],
+      },
+    };
+    connection.emit('transcript', final);
+    const firstReplay = (cb.onFinal as jest.Mock).mock.calls.map(([segment]) => segment);
+    connection.emit('transcript', final);
+    const secondReplay = (cb.onFinal as jest.Mock).mock.calls
+      .slice(firstReplay.length)
+      .map(([segment]) => segment);
+    expect(secondReplay).toEqual(firstReplay);
+    expect(firstReplay.map((s) => [s.startMs, s.endMs, s.speakerLabel])).toEqual([
+      [10_000, 10_800, '0'],
+      [11_000, 12_000, '1'],
+    ]);
+
+    // Interim with mixed speakers must not wear the first word's label.
+    connection.emit('transcript', {
+      is_final: false,
+      start: 20,
+      duration: 1,
+      channel: {
+        alternatives: [
+          {
+            transcript: 'mixed interim',
+            words: [
+              { word: 'mixed', start: 20, end: 20.5, speaker: 0 },
+              { word: 'interim', start: 20.5, end: 21.0, speaker: 1 },
+            ],
+          },
+        ],
+      },
+    });
+    expect(cb.onInterim).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: 'mixed interim', speakerLabel: undefined }),
+    );
+
+    // Unsplittable final (out-of-order word timing): complete frame, unknown.
+    connection.emit('transcript', {
+      is_final: true,
+      start: 30,
+      duration: 2.5,
+      channel: {
+        alternatives: [
+          {
+            transcript: 'alpha beta gamma',
+            words: [
+              { word: 'alpha', start: 30, end: 32.0, speaker: 0 },
+              { word: 'beta', start: 30.5, end: 31.0, speaker: 1 },
+              { word: 'gamma', start: 32.0, end: 32.5, speaker: 1 },
+            ],
+          },
+        ],
+      },
+    });
+    const last = (cb.onFinal as jest.Mock).mock.calls.at(-1)![0];
+    expect(last).toMatchObject({
+      startMs: 30_000,
+      endMs: 32_500,
+      text: 'alpha beta gamma',
+      speakerLabel: undefined,
+    });
+  });
+
 });

@@ -116,6 +116,291 @@ test('citation review selects a page and rejects text absent from that page', as
   );
 });
 
+// --- Confirmed native-browser regressions (native-budget-scope/report.json) ---
+
+const amount = (id: string, projectId: string, chamber: string, minorUnits: string) => ({
+  id,
+  observation: {
+    id,
+    projectId,
+    chamber,
+    stage: 'proposed',
+    fund: 'Synthetic QA fund',
+    basis: 'total',
+    state: 'amount',
+    minorUnits,
+    sourceRevision: `rev-${id}`,
+    fiscalYear: '2026-27',
+  },
+});
+const budgetPayload = (projectId: string, prefix: string) => ({
+  notice: 'Selected publisher evidence.',
+  projects: [{ id: projectId, title: `Synthetic QA Budget ${prefix}`, fiscal_year: '2026-27' }],
+  amounts: [
+    amount(`${prefix}-amt1`, projectId, 'House', '10000'),
+    amount(`${prefix}-amt2`, projectId, 'Senate', '15000'),
+  ],
+  documents: [],
+  events: [],
+});
+function mockBudgetApi() {
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/folders')
+      ? [{ id: 'folder', name: 'Client folder', clientId: 'client-a' }]
+      : url.includes('/budget?')
+        ? url.includes('projectId=project-a')
+          ? budgetPayload('project-a', 'a')
+          : url.includes('projectId=project-b')
+            ? budgetPayload('project-b', 'b')
+            : {
+                notice: '',
+                projects: [
+                  { id: 'project-a', title: 'Synthetic QA Budget A', fiscal_year: '2026-27' },
+                  { id: 'project-b', title: 'Synthetic QA Budget B', fiscal_year: '2026-27' },
+                ],
+                amounts: [],
+                documents: [],
+                events: [],
+              }
+        : { items: [], coverage: [] },
+  }));
+  mocks.post.mockImplementation(async (url: string, body: Record<string, unknown>) => {
+    if (url.includes('/budget/compare')) {
+      if (!body.leftRevision || !body.rightRevision)
+        throw new Error('EXACT_BUDGET_REVISIONS_REQUIRED');
+      return {
+        data: {
+          comparable: true,
+          reasons: [],
+          deltaMinorUnits: '5000',
+          percentage: '50.00%',
+          left: { id: body.leftId, chamber: 'House', stage: 'proposed', fiscalYear: '2026-27' },
+          right: { id: body.rightId, chamber: 'Senate', stage: 'proposed', fiscalYear: '2026-27' },
+        },
+      };
+    }
+    return { data: {} };
+  });
+}
+
+test('all-clients folder selector retains accessible client-bound folders', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/folders')
+      ? [
+          { id: 'private-folder', name: 'Private scope', clientId: null },
+          { id: 'client-folder', name: 'Client bound folder', clientId: 'client-a' },
+          { id: 'archived-folder', name: 'Archived', clientId: null, archived: true },
+        ]
+      : url.includes('/monitors')
+        ? { monitors: [] }
+        : { items: [], coverage: [] },
+  }));
+  mount(<EvidenceTab lane="news" />, '/legiwatch?tab=news');
+  const select = (await screen.findByLabelText('Folder')) as HTMLSelectElement;
+  await waitFor(() => expect(select.options.length).toBe(3));
+  const values = Array.from(select.options).map((o) => o.value);
+  expect(values).toEqual(['', 'private-folder', 'client-folder']);
+});
+
+test('changing project clears stale observation selections and disables compare', async () => {
+  mockBudgetApi();
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  expect(
+    (screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled,
+  ).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Synthetic QA Budget B' }));
+  const nextLeft = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const nextRight = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(nextLeft.value).toBe(''));
+  expect(nextRight.value).toBe('');
+  expect(
+    (screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  expect(mocks.post.mock.calls.some(([url]) => url.includes('/budget/compare'))).toBe(false);
+});
+
+test('changing fiscal year clears the old comparison result', async () => {
+  mockBudgetApi();
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  expect(await screen.findByText(/Change: \$50\.00 · 50\.00%/)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: '2027-28' } });
+  await waitFor(() =>
+    expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull(),
+  );
+  expect(leftSelect.value).toBe('');
+  expect(rightSelect.value).toBe('');
+});
+
+test('a comparison finishing after a scope switch does not surface under the new scope', async () => {
+  mockBudgetApi();
+  let resolveCompare: ((v: unknown) => void) | undefined;
+  mocks.post.mockImplementation(
+    async (url: string, body: Record<string, unknown>) =>
+      url.includes('/budget/compare')
+        ? new Promise((resolve) => {
+            resolveCompare = resolve;
+          })
+        : { data: {} },
+  );
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  await waitFor(() => expect(resolveCompare).toBeTruthy());
+  fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: '2027-28' } });
+  resolveCompare!({
+    data: {
+      comparable: true,
+      reasons: [],
+      deltaMinorUnits: '5000',
+      percentage: '50.00%',
+      left: { id: 'a-amt1', chamber: 'House', stage: 'proposed', fiscalYear: '2026-27' },
+      right: { id: 'a-amt2', chamber: 'Senate', stage: 'proposed', fiscalYear: '2026-27' },
+    },
+  });
+  await waitFor(() =>
+    expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull(),
+  );
+});
+
+test('a valid comparison survives an unrelated refetch with an unchanged selection', async () => {
+  mockBudgetApi();
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  expect(await screen.findByText(/Change: \$50\.00 · 50\.00%/)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Search project title or request identity'), {
+    target: { value: 'ASHA' },
+  });
+  await waitFor(() =>
+    expect(
+      mocks.get.mock.calls.some(([url]) => url.includes('/budget?') && url.includes('q=ASHA')),
+    ).toBe(true),
+  );
+  expect(screen.getByText(/Change: \$50\.00 · 50\.00%/)).toBeTruthy();
+});
+
+// --- Root review: scope ownership must include the chosen amount ids/revisions ---
+
+test('changing an amount selection after a successful compare clears the prior result', async () => {
+  mockBudgetApi();
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  expect(await screen.findByText(/Change: \$50\.00 · 50\.00%/)).toBeTruthy();
+  // The displayed result belongs to the a-amt1/a-amt2 operands. Changing either
+  // selection must drop it; the project/fiscal-year scope did not change.
+  fireEvent.change(rightSelect, { target: { value: '' } });
+  await waitFor(() => expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull());
+  expect(
+    (screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+});
+
+test('a comparison finishing after the amount selection changed is not applied', async () => {
+  mockBudgetApi();
+  let resolveCompare: ((v: unknown) => void) | undefined;
+  mocks.post.mockImplementation(
+    async (url: string, body: Record<string, unknown>) =>
+      url.includes('/budget/compare')
+        ? new Promise((resolve) => {
+            resolveCompare = resolve;
+          })
+        : { data: {} },
+  );
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  await waitFor(() => expect(resolveCompare).toBeTruthy());
+  // Change the operands while the request is in flight; the former amounts'
+  // response must not surface once it resolves.
+  fireEvent.change(leftSelect, { target: { value: 'a-amt2' } });
+  resolveCompare!({
+    data: {
+      comparable: true,
+      reasons: [],
+      deltaMinorUnits: '5000',
+      percentage: '50.00%',
+      left: { id: 'a-amt1', chamber: 'House', stage: 'proposed', fiscalYear: '2026-27' },
+      right: { id: 'a-amt2', chamber: 'Senate', stage: 'proposed', fiscalYear: '2026-27' },
+    },
+  });
+  await waitFor(() => expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull());
+});
+
+test('a late action error after a scope change is not surfaced', async () => {
+  mockBudgetApi();
+  let rejectCompare: ((e: unknown) => void) | undefined;
+  mocks.post.mockImplementation(
+    async (url: string, body: Record<string, unknown>) =>
+      url.includes('/budget/compare')
+        ? new Promise((_, reject) => {
+            rejectCompare = reject;
+          })
+        : { data: {} },
+  );
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  await waitFor(() => expect(rejectCompare).toBeTruthy());
+  // The scope is abandoned before the rejection arrives; its error belongs to
+  // the old selection and must not appear under the new one.
+  fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: '2027-28' } });
+  rejectCompare!(new Error('EXACT_BUDGET_REVISIONS_REQUIRED'));
+  await waitFor(() =>
+    expect(screen.queryByText(/EXACT_BUDGET_REVISIONS_REQUIRED/)).toBeNull(),
+  );
+});
+
+test('a scope collision across concatenated parts still clears state', async () => {
+  // Under the old join('') key, scope [a, bc] and [ab, c] were identical. Drive
+  // a real scope change (project switch) and assert the stale result is gone;
+  // the JSON-tuple key can never equate two different scopes.
+  mockBudgetApi();
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
+  const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
+  const rightSelect = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
+  await waitFor(() => expect(leftSelect.options.length).toBe(3));
+  fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
+  fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+  expect(await screen.findByText(/Change: \$50\.00 · 50\.00%/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Synthetic QA Budget B' }));
+  await waitFor(() => expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull());
+});
+
 function EvidenceNavigation() {
   const [params, setParams] = useSearchParams();
   return (

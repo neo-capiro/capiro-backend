@@ -38,20 +38,54 @@ export interface FolderSourceBill {
   latestActionAt: Date | null;
   sourceUrl: string | null;
   chamber?: string | null;
+  summary?: string | null;
+  classifications?: string[];
+  subjects?: string[];
+  currentCommittee?: string | null;
 }
+
+/**
+ * Origin-chamber projection for the state branch of FOLDER_SOURCE_SQL.
+ *
+ * StateBill.chamber is the bill's CURRENT chamber (LegiScan current_body), not
+ * its origin — a Senate bill that crossed to the House is stored chamber='H'.
+ * Origin is instead read from the identifier's canonical chamber prefix family
+ * (S/SB → Senate, H/HB → House, A/AB → Assembly), but ONLY behind the same
+ * anchored full-number guard the number parser uses. Both the guard and the
+ * prefix read apply the SAME normalized trim (btrim + upper): the guard
+ * '^\s*[A-Z]+\s*0*\d+$' tolerates leading whitespace, so the prefix substring
+ * must read from btrim(identifier) — a bare '^[A-Z]+' substring on untrimmed
+ * text finds no prefix on ' SB 9' and wrongly falls through to the
+ * current-chamber fallback. Malformed/non-numeric identifiers never match the
+ * guard and fall back to the existing current-chamber mapping. Federal bills
+ * already use origin_chamber directly; current-chamber consumers are untouched.
+ */
+export const FOLDER_ORIGIN_SQL = `CASE
+  WHEN upper(sb.identifier) ~ '^\\s*[A-Z]+\\s*0*\\d+$' AND substring(upper(btrim(sb.identifier)) from '^[A-Z]+') ~ '^S' THEN 'upper'
+  WHEN upper(sb.identifier) ~ '^\\s*[A-Z]+\\s*0*\\d+$' AND substring(upper(btrim(sb.identifier)) from '^[A-Z]+') ~ '^[HA]' THEN 'lower'
+  ELSE CASE upper(sb.chamber) WHEN 'H' THEN 'lower' WHEN 'HOUSE' THEN 'lower' WHEN 'A' THEN 'lower' WHEN 'ASSEMBLY' THEN 'lower' WHEN 'LOWER' THEN 'lower' WHEN 'S' THEN 'upper' WHEN 'SENATE' THEN 'upper' WHEN 'UPPER' THEN 'upper' ELSE NULL END
+  END`;
 
 /** Global canonical read projection; no legislative copies or source mutations. */
 export const FOLDER_SOURCE_SQL = `
   SELECT id, identifier AS number, title, sponsor_name AS sponsor,
     upper(state) AS jurisdiction, session_key AS "sessionKey", status,
     latest_action_text AS "latestAction", latest_action_date AS "latestActionAt",
-    coalesce(state_url, url) AS "sourceUrl", chamber
-  FROM state_bill
+    coalesce(state_url, url) AS "sourceUrl",
+    ${FOLDER_ORIGIN_SQL} AS chamber,
+    description AS summary, classification AS classifications, subjects,
+    coalesce(
+      (SELECT c.name FROM state_committee c WHERE c.id = sb.current_committee_id),
+      report_source_facts->'currentCommittee'->>'name'
+    ) AS "currentCommittee"
+  FROM state_bill sb
   UNION ALL
   SELECT id, upper(bill_type) || ' ' || bill_number::text AS number, title,
     sponsor_name AS sponsor, 'US' AS jurisdiction, congress::text AS "sessionKey", status,
     latest_action_text AS "latestAction", latest_action_date AS "latestActionAt", url AS "sourceUrl",
-    CASE origin_chamber WHEN 'house' THEN 'lower' WHEN 'senate' THEN 'upper' ELSE origin_chamber END AS chamber
+    CASE origin_chamber WHEN 'house' THEN 'lower' WHEN 'senate' THEN 'upper' ELSE origin_chamber END AS chamber,
+    NULL AS summary, ARRAY[]::text[] AS classifications, subjects,
+    NULL AS "currentCommittee"
   FROM congress_bill`;
 
 @Injectable()

@@ -217,7 +217,14 @@ export function buildFactSheetLines(
   h('Key figures');
   for (const k of orderedKpis(d.kpis)) {
     const sub = kpiSubText(k);
-    p(`${k.label}: ${kpiValueText(k)}${sub ? ` — ${sub}` : ''}`);
+    // PDF-only label: the shared KPI strip's "Δ from request" cell uses the Greek
+    // Δ, which jsPDF's built-in Helvetica cannot encode (it renders as a curly
+    // quote — see native-bill360-root/fact-sheet-page-1.png). The UI strip keeps
+    // the compact Δ; the fact sheet spells it out so the printed KPI is readable.
+    // Substitution is keyed on the cell's stable semantic id (delta_from_request),
+    // never on the display string, so a re-label elsewhere can't break this.
+    const label = k.id === 'delta_from_request' ? 'Change from request' : k.label;
+    p(`${label}: ${kpiValueText(k)}${sub ? ` — ${sub}` : ''}`);
   }
 
   h('Overview');

@@ -152,7 +152,10 @@ describe('Feed saved-view restoration and client isolation', () => {
     expect(screen.getByRole('tab', { name: 'Newest' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Single stream' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('button', { name: /^Active queue/ })).toHaveAttribute('aria-pressed', 'true');
-    const request = new URL(apiGet.mock.calls[0]![0], 'https://example.test');
+    // LW-QA-021: useLwAssignSelf fires a /api/me fetch that can land in the
+    // call list before the feed request — select the feed call, not calls[0].
+    const feedCall = apiGet.mock.calls.find(([url]) => url.includes('/feed'))![0];
+    const request = new URL(feedCall, 'https://example.test');
     expect(request.searchParams.get('order')).toBe('date');
     expect(request.searchParams.has('sourceType')).toBe(false);
     expect(request.searchParams.has('workState')).toBe(false);

@@ -82,12 +82,9 @@ export interface LegiscanSession {
   session_name: string;
   session_tag?: string;
   special: 0 | 1;
-  // NOT independently verified live (no LEGISCAN_API_KEY in this build
-  // environment) whether LegiScan returns this as a 0/1 "has adjourned" flag
-  // or an actual sine-die date string — handled defensively wherever
-  // consumed (legiscan-normalize.ts `upsertStateSession`). CONFIRM against a
-  // real getSessionList response in week 1 per the Phase 0 plan's own
-  // validate-in-week-1 posture for LegiScan specifics.
+  // LegiScan returns this as a 0/1 "has adjourned" flag (verified against a
+  // real getSessionList response), not a date — parseSineDieDate in
+  // legiscan-normalize.ts handles it defensively.
   sine_die?: string | number | null;
   prior: 0 | 1;
   prefile?: 0 | 1;

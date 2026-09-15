@@ -49,6 +49,9 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
   }, [room.captureActive]);
 
   // Matching comes from real intelligence cards, never invented transcript flags.
+  // A moment belongs to the segment it STARTS in: intervals are half-open
+  // [startMs, endMs), so a moment exactly at a shared boundary lands on the
+  // segment that begins there, never on the prior segment that ends there.
   const matchTimes = useMemo(
     () =>
       room.cards
@@ -56,16 +59,17 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
         .flatMap((card) => (card.startMs == null ? [] : [card.startMs])),
     [room.cards],
   );
+  const matchesTime = (segment: HearingTranscriptItem, time: number) =>
+    time >= segment.startMs && time < segment.endMs;
   const matches = (segment: HearingTranscriptItem) =>
-    matchTimes.some((time) => time >= segment.startMs && time <= segment.endMs);
+    matchTimes.some((time) => matchesTime(segment, time));
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
     return room.segments.filter(
       (segment) =>
         (!search || segment.text.toLowerCase().includes(search)) &&
         (!speaker || (segment.resolvedSpeakerName ?? segment.speakerLabel) === speaker) &&
-        (!matchedOnly ||
-          matchTimes.some((time) => time >= segment.startMs && time <= segment.endMs)),
+        (!matchedOnly || matchTimes.some((time) => matchesTime(segment, time))),
     );
   }, [room.segments, query, speaker, matchedOnly, matchTimes]);
   const speakers = useMemo(
@@ -107,8 +111,22 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
     }
   }, [filtered, room.interim, follow, selectedId, jumpRevision, virtualized, virtualizer]);
 
-  const jumpToMoment = (startMs: number) => {
-    const segment = room.segments.find((item) => item.endMs >= startMs) ?? room.segments.at(-1);
+  // Resolve a cited moment to its transcript segment with correct interval
+  // semantics. Prefer the finding's own cited segment id when the card carries
+  // it (the authoritative mapping). Otherwise treat a timestamp as belonging
+  // to the segment it STARTS in: an exact segment start wins (this is what
+  // fixes a moment at a shared boundary selecting the prior segment), then the
+  // segment whose half-open interval [startMs, endMs) contains it, then the
+  // nearest segment that starts after it, then the final segment. No selection
+  // when the transcript is empty.
+  const jumpToMoment = (startMs: number, segmentId?: string) => {
+    const byId = segmentId ? room.segments.find((item) => item.id === segmentId) : undefined;
+    const segment =
+      byId ??
+      room.segments.find((item) => item.startMs === startMs) ??
+      room.segments.find((item) => item.startMs <= startMs && startMs < item.endMs) ??
+      room.segments.find((item) => item.startMs > startMs) ??
+      room.segments.at(-1);
     if (!segment) return;
     setQuery('');
     setSpeaker('');
@@ -179,6 +197,12 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
     );
 
   const recoverable = Boolean(room.error) || session.status === 'failed-recoverable';
+  // A session with a canonical public capture is a REVIEW of that capture: the
+  // browser share-tab capture flow was never its source and cannot resume it.
+  const isPublicReview = Boolean(session.publicCaptureId && session.hearingId);
+  const publicDetailPath = session.hearingId
+    ? `/legiwatch/hearings/${encodeURIComponent(session.hearingId)}`
+    : null;
   const phaseLabel =
     room.phase === 'capturing'
       ? room.transcriptionDelayed
@@ -230,50 +254,6 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
           )}
         </div>
 
-        <div className="lw-status" aria-label="Hearing health">
-          <StatusPair label="Source" value={session.sourceType ?? 'Unavailable'} />
-          <StatusPair
-            label="Audio"
-            value={room.phase === 'capturing' ? 'SHARING TAB AUDIO' : 'BROWSER TAB'}
-          />
-          <StatusPair
-            label="Transcript"
-            value={
-              room.transcriptError
-                ? 'REFRESH FAILED'
-                : room.transcriptionDelayed
-                  ? 'INTERRUPTED'
-                  : room.phase === 'capturing'
-                    ? 'STREAMING'
-                    : `${room.segments.length} SAVED SEGMENTS`
-            }
-          />
-          <StatusPair
-            label="Capture"
-            value={
-              room.phase === 'capturing'
-                ? 'RECORDING'
-                : room.phase === 'stopping'
-                  ? 'SAVING'
-                  : 'STOPPED'
-            }
-          />
-          <StatusPair
-            label="Last final"
-            value={
-              room.lastTranscriptAt
-                ? `${Math.max(0, Math.floor((now - room.lastTranscriptAt) / 1000))}s ago`
-                : '—'
-            }
-          />
-          <span className="lw-room__spacer" />
-          <LwPill
-            tone={recoverable ? 'warning' : room.phase === 'capturing' ? 'error' : 'gray'}
-            pulse={room.phase === 'capturing'}
-          >
-            {phaseLabel}
-          </LwPill>
-        </div>
         {room.error && (
           <div className="lw-room__notice" role="alert">
             {room.error}
@@ -312,103 +292,181 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
             <div className="lw-video__bar">
               <span className="lw-video__clock">{clock(elapsed)}</span>
               <span className="lw-room__playback-note">
-                Playback controls belong to the player. Transcription uses the shared tab’s audio.
+                Playback controls belong to the player.{' '}
+                {isPublicReview
+                  ? 'Transcription comes from the shared public capture.'
+                  : 'Transcription uses the shared tab’s audio.'}
               </span>
             </div>
           </section>
 
-          <section className="lw-panel lw-live__source" aria-labelledby="room-source-title">
-            <div className="lw-panel__head">
-              <h2 className="lw-panel__title" id="room-source-title">
-                Source &amp; capture
-              </h2>
-            </div>
-            <div className="lw-room__panel-body">
-              <LwPill tone="brand" size="26">
-                {session.sourceType ?? 'Hearing'}
+          <div className="lw-live__left">
+            <div className="lw-status lw-status--card" aria-label="Hearing health">
+              <h2 className="lw-status__heading">Capture health</h2>
+              <StatusPair label="Source" value={session.sourceType ?? 'Unavailable'} />
+              <StatusPair
+                label="Audio"
+                value={
+                  room.phase === 'capturing'
+                    ? 'SHARING TAB AUDIO'
+                    : isPublicReview
+                      ? session.audioSource
+                        ? session.audioSource.replaceAll('_', ' ').toUpperCase()
+                        : 'PUBLIC CAPTURE'
+                      : 'BROWSER TAB'
+                }
+              />
+              <StatusPair
+                label="Transcript"
+                value={
+                  room.transcriptError
+                    ? 'REFRESH FAILED'
+                    : room.transcriptionDelayed
+                      ? 'INTERRUPTED'
+                      : room.phase === 'capturing'
+                        ? 'STREAMING'
+                        : `${room.segments.length} SAVED SEGMENTS`
+                }
+              />
+              <StatusPair
+                label="Capture"
+                value={
+                  room.phase === 'capturing'
+                    ? 'RECORDING'
+                    : room.phase === 'stopping'
+                      ? 'SAVING'
+                      : 'STOPPED'
+                }
+              />
+              <StatusPair
+                label="Last final"
+                value={
+                  room.lastTranscriptAt
+                    ? `${Math.max(0, Math.floor((now - room.lastTranscriptAt) / 1000))}s ago`
+                    : '—'
+                }
+              />
+              <LwPill
+                tone={recoverable ? 'warning' : room.phase === 'capturing' ? 'error' : 'gray'}
+                pulse={room.phase === 'capturing'}
+              >
+                {phaseLabel}
               </LwPill>
-              <div className="lw-block">
-                <div className="lw-block__label">Browser recording</div>
-                <p className="lw-room__copy">
-                  Connect, play the hearing, then start transcription. Choose the playing tab and
-                  enable Share tab audio in Chrome or Edge.
-                </p>
-                <div className="lw-room__row">
-                  {canConnect && (
-                    <LwButton
-                      variant="primary"
-                      onClick={room.connect}
-                      disabled={room.phase === 'connecting'}
-                    >
-                      {room.phase === 'connecting'
-                        ? 'Connecting…'
-                        : room.sessionEnded
-                          ? 'Connect to resume'
-                          : 'Connect'}
-                    </LwButton>
-                  )}
-                  {room.phase === 'connected' && (
-                    <LwButton onClick={room.disconnect}>Disconnect</LwButton>
-                  )}
-                  <LwButton
-                    variant="primary"
-                    onClick={room.startCapture}
-                    disabled={room.phase !== 'connected'}
-                  >
-                    Start transcription
-                  </LwButton>
-                  {room.captureActive && (
-                    <LwButton onClick={room.endSession} disabled={room.phase === 'stopping'}>
-                      Stop capture
-                    </LwButton>
-                  )}
-                </div>
+            </div>
+
+            <section className="lw-panel lw-live__source" aria-labelledby="room-source-title">
+              <div className="lw-panel__head">
+                <h2 className="lw-panel__title" id="room-source-title">
+                  Source &amp; capture
+                </h2>
               </div>
-              {session.consentStatus === 'needs_review' && (
-                <div className="lw-block">
-                  <p className="lw-room__copy">Recording consent needs review.</p>
-                  <LwButton onClick={room.confirmConsent} disabled={room.confirmingConsent}>
-                    Confirm consent
-                  </LwButton>
-                </div>
-              )}
-              {session.sourceUrl && (
-                <a
-                  className="lw-room__link"
-                  href={session.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open hearing source ↗
-                </a>
-              )}
-              {room.statusText && (
-                <p className="lw-room__copy" role="status">
-                  {room.statusText}
-                </p>
-              )}
-              <p className="lw-room__meta">
-                Sent {(room.bytesSent / 1024 / 1024).toFixed(2)} MB
-                {room.bytesSaved != null && (
-                  <> · Saved {(room.bytesSaved / 1024 / 1024).toFixed(2)} MB</>
+              <div className="lw-room__panel-body">
+                <LwPill tone="brand" size="26">
+                  {session.sourceType ?? 'Hearing'}
+                </LwPill>
+                {isPublicReview ? (
+                  <div className="lw-block">
+                    <div className="lw-block__label">Public capture</div>
+                    <p className="lw-room__copy">
+                      This session reviews the shared server capture of the public hearing source.
+                      The saved audio and canonical transcript below come from that capture, not
+                      from this browser.
+                    </p>
+                    {publicDetailPath && (
+                      <a className="lw-room__link" href={publicDetailPath}>
+                        Open saved public audio ↗
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="lw-block">
+                    <div className="lw-block__label">Browser recording</div>
+                    <p className="lw-room__copy">
+                      Connect, play the hearing, then start transcription. Choose the playing tab and
+                      enable Share tab audio in Chrome or Edge.
+                    </p>
+                    <div className="lw-room__row">
+                      {canConnect && (
+                        <LwButton
+                          variant="primary"
+                          onClick={room.connect}
+                          disabled={room.phase === 'connecting'}
+                        >
+                          {room.phase === 'connecting'
+                            ? 'Connecting…'
+                            : room.sessionEnded
+                              ? 'Connect to resume'
+                              : 'Connect'}
+                        </LwButton>
+                      )}
+                      {room.phase === 'connected' && (
+                        <LwButton onClick={room.disconnect}>Disconnect</LwButton>
+                      )}
+                      <LwButton
+                        variant="primary"
+                        onClick={room.startCapture}
+                        disabled={room.phase !== 'connected'}
+                      >
+                        Start transcription
+                      </LwButton>
+                      {room.captureActive && (
+                        <LwButton onClick={room.endSession} disabled={room.phase === 'stopping'}>
+                          Stop capture
+                        </LwButton>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </p>
-              <div className="lw-block">
-                <div className="lw-block__label">Keep recording</div>
-                {room.captureActive && (
-                  <p className="lw-room__copy">
-                    {room.wakeLock === 'active'
-                      ? 'Screen wake lock active.'
-                      : 'Keep this device awake while sharing audio.'}
+                {session.consentStatus === 'needs_review' && (
+                  <div className="lw-block">
+                    <p className="lw-room__copy">Recording consent needs review.</p>
+                    <LwButton onClick={room.confirmConsent} disabled={room.confirmingConsent}>
+                      Confirm consent
+                    </LwButton>
+                  </div>
+                )}
+                {session.sourceUrl && (
+                  <a
+                    className="lw-room__link"
+                    href={session.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open hearing source ↗
+                  </a>
+                )}
+                {room.statusText && (
+                  <p className="lw-room__copy" role="status">
+                    {room.statusText}
                   </p>
                 )}
-                <p className="lw-room__copy">
-                  Browser transcription needs this tab and device to stay open. Scheduled Capiro
-                  attendance runs on the server.
-                </p>
+                {!isPublicReview && (
+                  <p className="lw-room__meta">
+                    Sent {(room.bytesSent / 1024 / 1024).toFixed(2)} MB
+                    {room.bytesSaved != null && (
+                      <> · Saved {(room.bytesSaved / 1024 / 1024).toFixed(2)} MB</>
+                    )}
+                  </p>
+                )}
+                {!isPublicReview && (
+                  <div className="lw-block">
+                    <div className="lw-block__label">Keep recording</div>
+                    {room.captureActive && (
+                      <p className="lw-room__copy">
+                        {room.wakeLock === 'active'
+                          ? 'Screen wake lock active.'
+                          : 'Keep this device awake while sharing audio.'}
+                      </p>
+                    )}
+                    <p className="lw-room__copy">
+                      Browser transcription needs this tab and device to stay open. Scheduled Capiro
+                      attendance runs on the server.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
           <section
             className="lw-panel lw-live__transcript lw-room__transcript"
@@ -486,7 +544,9 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                 <p className="lw-room__empty">
                   {hasFilters
                     ? 'No transcript segments match these filters.'
-                    : 'No transcript yet. Connect, play the hearing, and start transcription.'}
+                    : session.publicCaptureId
+                      ? 'No canonical transcript segments are saved for this hearing yet.'
+                      : 'No transcript yet. Connect, play the hearing, and start transcription.'}
                 </p>
               ) : virtualized ? (
                 <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -536,7 +596,9 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
               <div className="lw-history__label lw-room__intel-label">Moments</div>
               {!room.cards.length ? (
                 <p className="lw-room__empty">
-                  Relevant moments will appear here as the hearing is transcribed.
+                  {room.intelligenceProcessing
+                    ? 'Public intelligence is still being extracted from the canonical transcript.'
+                    : 'Relevant moments will appear here as the hearing is transcribed.'}
                 </p>
               ) : (
                 room.cards.map((card) => (
@@ -554,7 +616,7 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                           className="lw-room__link"
                           disabled={!room.segments.length}
                           aria-label={`Jump to ${clock(card.startMs)}: ${card.title}`}
-                          onClick={() => jumpToMoment(card.startMs!)}
+                          onClick={() => jumpToMoment(card.startMs!, card.segmentId)}
                         >
                           {clock(card.startMs)}
                         </button>

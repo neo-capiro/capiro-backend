@@ -90,9 +90,17 @@ function Download({ run }: { run: Run }) {
 export function ReportWorkspace({
   initialTab = 'reports',
   initialFolderId,
+  onClose,
 }: {
   initialTab?: string;
   initialFolderId?: string;
+  /**
+   * Existing dialog close callback, present only when the workspace is
+   * composed inside a modal mount (FolderBillsTab). Renders the reference
+   * footer Close — a relocation of the dialog's existing close action, not a
+   * new control. Omitted on full-page mounts, where no footer appears.
+   */
+  onClose?: () => void;
 }) {
   const flag = useReportsFlag();
   if (!flag.enabled) return null;
@@ -103,6 +111,7 @@ export function ReportWorkspace({
       deliveryEnabled={flag.deliveryEnabled}
       initialTab={initialTab}
       initialFolderId={initialFolderId}
+      onClose={onClose}
     />
   );
 }
@@ -111,11 +120,13 @@ function Workspace({
   deliveryEnabled,
   initialTab,
   initialFolderId,
+  onClose,
 }: {
   scope: string;
   deliveryEnabled: boolean;
   initialTab: string;
   initialFolderId?: string;
+  onClose?: () => void;
 }) {
   const [params, setParams] = useSearchParams();
   const keywordsEnabled = useIntelFeatureEnabled(KEYWORD_FEATURE);
@@ -212,7 +223,7 @@ function Workspace({
       <header className="lw-reports-heading">
         <div>
           <p className="lw-reports-eyebrow">LEGIWATCH / CLIENT COMMUNICATIONS</p>
-          <h2>Reports & updates</h2>
+          <h2>Reports &amp; updates</h2>
           <p>Published legislative records, organized by your live folders.</p>
         </div>
         <CapiroButton variant="primary" size="compact" onClick={newReport}>
@@ -228,10 +239,14 @@ function Workspace({
           ['alerts', 'Published-record alerts'],
           ['contacts', 'Contacts & lists'],
           ['imports', 'Import review'],
+          ...(keywordsEnabled ? [['keywords', 'Keyword rules'] as const] : []),
+          ...(workflowsEnabled ? [['workflows', 'Follow-up workflows'] as const] : []),
         ].map(([id, label]) => (
           <button
             key={id}
             type="button"
+            role="tab"
+            aria-selected={tab === id}
             aria-current={tab === id ? 'page' : undefined}
             onClick={() => setTab(id!)}
           >
@@ -245,16 +260,6 @@ function Workspace({
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      {keywordsEnabled ? (
-        <CapiroButton size="compact" onClick={() => setTab('keywords')}>
-          Keyword rules
-        </CapiroButton>
-      ) : null}
-      {workflowsEnabled ? (
-        <CapiroButton size="compact" onClick={() => setTab('workflows')}>
-          Follow-up workflows
-        </CapiroButton>
-      ) : null}
       {tab === 'briefings' ? <BriefingWorkspace /> : null}
       {tab === 'workflows' ? <WorkflowReview initialFolderId={initialFolderId} /> : null}
       {tab === 'keywords' && keywordsEnabled ? (
@@ -855,6 +860,17 @@ function Workspace({
           />
         </CapiroModal>
       )}
+      {onClose ? (
+        // Reference reports modal footer: the dialog's existing close action
+        // (FolderBillsTab's onClose) relocated to the bottom-right Close. The
+        // generic header X is visually hidden by the modal-context CSS, so
+        // this button keeps an always-visible close control in the tab order.
+        <footer className="lw-reports-modal-footer">
+          <CapiroButton size="compact" onClick={onClose}>
+            Close
+          </CapiroButton>
+        </footer>
+      ) : null}
     </section>
   );
 }

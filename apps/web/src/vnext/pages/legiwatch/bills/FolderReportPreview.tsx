@@ -39,7 +39,7 @@ export function FolderReportPreview({
 }) {
   const api = useApi(),
     identity = useApiScope();
-  const [asOf, setAsOf] = useState('2026-06-26');
+  const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10));
   const preview = useQuery({
     queryKey: [...folderKey(identity), 'report', runId, reportId, asOf],
     queryFn: async () =>
@@ -55,10 +55,15 @@ export function FolderReportPreview({
         label="Historical action cutoff"
         value={asOf}
         onChange={(e) => setAsOf(e.target.value)}
-        helpText="Qualification cutoff: June 26, 2026. The action window includes this date and the preceding four dates."
+        helpText="Actions are shown for the cutoff date and the four preceding calendar days. The cutoff defaults to today; choose an earlier date to review a past action window."
       />
       {preview.isPending && <p role="status">Preparing preview…</p>}
-      {preview.isError && <p role="alert">{folderError(preview.error)}</p>}
+      {preview.isError && (
+        <div role="alert">
+          <p>{folderError(preview.error)}</p>
+          <CapiroButton onClick={() => void preview.refetch()}>Retry preview</CapiroButton>
+        </div>
+      )}
       {preview.data && (
         <article className="lw-folder-report">
           <h2>{preview.data.name}</h2>

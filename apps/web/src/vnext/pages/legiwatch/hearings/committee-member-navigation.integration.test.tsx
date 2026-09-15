@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MemberDetail } from '../../../../pages/directory/directory-api.js';
 import { CommitteeRoomRoute } from './CommitteeRoomRoute.js';
 import { VNextDirectoryRoutes } from '../../directory/VNextDirectoryRoutes.js';
+// Warm the lazy member-profile route chunk once at import time. The click
+// target renders through VNextDirectoryRoutes, which lazy-imports
+// MemberProfileVNext on first mount; under the broad runner's default
+// findBy window (1s) that first dynamic import could not resolve. Eagerly
+// importing it here keeps the test's waits about DATA, not module loading,
+// and preserves every assertion below untouched.
+import '../../directory/MemberProfileVNext.js';
 
 const apiGet = vi.fn<(url: string) => Promise<{ data: unknown }>>();
 vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => ({ get: apiGet }) }));

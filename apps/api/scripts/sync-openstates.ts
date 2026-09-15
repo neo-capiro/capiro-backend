@@ -36,6 +36,10 @@ const OS_BASE = 'https://v3.openstates.org';
 const OS_KEY = process.env.OPENSTATES_API_KEY ?? '';
 const DELAY_MS = 2000;
 const MAX_RETRIES = 3;
+// Local exponential backoff stays bounded (DELAY_MS * 2^attempt, capped here)
+// for 429s that carry no usable Retry-After hint. A VALID provider hint is
+// honored in full instead — see fetchOS.
+const MAX_LOCAL_BACKOFF_MS = 30000;
 const PER_PAGE = 20; // OpenStates v3 hard max; per_page>20 -> HTTP 400 (old per_page=100/200 fetched 0 rows)
 const MAX_PAGES = 5; // default page ceiling for small resources (committees) — the walk stops early anyway once pagination.max_page is reached
 // People must be fully paged, not capped: every priority state legislature has
@@ -81,7 +85,41 @@ const PRIORITY_STATES = resolveSyncStates(
   BATCH_SIZE,
 );
 
-async function fetchOS<T>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+export interface FetchOSOptions {
+  /** Injectable sleep for deterministic tests. Defaults to setTimeout. */
+  sleep?: (ms: number) => Promise<void>;
+  /** Injectable clock (ms since epoch) for Retry-After HTTP-date parsing. */
+  now?: () => number;
+}
+
+const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Parse a Retry-After header value into milliseconds from `nowMs`.
+ * Supports both valid forms: delta-seconds and HTTP-date (RFC 9110 §10.2.3).
+ * Returns null for missing/invalid/negative values — a malformed hint must
+ * never extend or shorten the wait beyond the local backoff policy.
+ */
+export function parseRetryAfterMs(header: string | null, nowMs: number): number | null {
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    return Number.isSafeInteger(seconds) ? seconds * 1000 : null;
+  }
+  const dateMs = Date.parse(trimmed);
+  if (Number.isNaN(dateMs)) return null;
+  const delta = dateMs - nowMs;
+  return delta > 0 ? delta : null;
+}
+
+async function fetchOS<T>(
+  path: string,
+  params: Record<string, string> = {},
+  options: FetchOSOptions = {},
+): Promise<T | null> {
+  const sleep = options.sleep ?? defaultSleep;
+  const now = options.now ?? Date.now;
   const url = new URL(`${OS_BASE}${path}`);
   url.searchParams.set('apikey', OS_KEY);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -89,17 +127,36 @@ async function fetchOS<T>(path: string, params: Record<string, string> = {}): Pr
     try {
       const resp = await fetch(url.toString());
       if (resp.status === 429) {
-        const wait = Math.min(DELAY_MS * Math.pow(2, attempt + 1), 30000);
+        if (attempt === MAX_RETRIES) {
+          // Retries exhausted: surface the failure WITHOUT sleeping again —
+          // the old code slept 30s here and then left the loop without ever
+          // making the announced retry (logs showed "attempt 4/3").
+          console.warn(`GET ${path}: 429 rate limited, retries exhausted`);
+          return null;
+        }
+        const backoff = Math.min(DELAY_MS * Math.pow(2, attempt + 1), MAX_LOCAL_BACKOFF_MS);
+        // A valid provider Retry-After is the wait floor and is honored in
+        // full — retrying sooner just earns another 429 (the old code capped
+        // the hint at 30s, so a 120s Retry-After was retried at 30/60/90s and
+        // exhausted before the provider's deadline). With no valid hint the
+        // bounded local backoff applies. An unrepresentably large hint cannot
+        // be scheduled honestly: return null now (partial/defer) instead of
+        // overflowing a timer or pretending the wait happened.
+        const hint = parseRetryAfterMs(resp.headers?.get?.('retry-after') ?? null, now());
+        if (hint !== null && hint > 0x7fffffff) {
+          console.warn(`GET ${path}: 429 Retry-After ${hint}ms is unschedulable — deferring`);
+          return null;
+        }
+        const wait = hint !== null ? Math.max(backoff, hint) : backoff;
         console.warn(
           `GET ${path}: 429 rate limited, retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
         );
-        await new Promise((r) => setTimeout(r, wait));
+        await sleep(wait);
         continue;
       }
       if (!resp.ok) throw new Error(`${resp.status}`);
       return (await resp.json()) as T;
     } catch (err) {
-      if (attempt < MAX_RETRIES && (err as Error).message?.includes('429')) continue;
       console.warn(`GET ${path}: ${(err as Error).message}`);
       return null;
     }
@@ -117,33 +174,48 @@ export interface PagedFetchResult<T> {
   complete: boolean;
 }
 
+export interface FetchAllPagesOptions extends FetchOSOptions {}
+
 /**
  * Page through an OpenStates v3 list endpoint at the API's max page size.
  * OpenStates rejects per_page>20 with HTTP 400, so we request PER_PAGE rows and
- * walk pages up to MAX_PAGES (or the reported max_page). A failed page (fetchOS
+ * walk pages up to maxPages (or the reported max_page). A failed page (fetchOS
  * exhausted retries) ends the walk with `complete: false` and whatever rows were
  * collected so far — distinct from a legitimate empty/final page, which ends the
- * walk with `complete: true`.
+ * walk with `complete: true`. Exhausting the LOCAL maxPages ceiling while the
+ * provider reports more pages (pagination.max_page beyond the pages fetched)
+ * is also `complete: false`: a truncated tail is not end-of-results.
  */
 export async function fetchAllPages<T>(
   path: string,
   params: Record<string, string> = {},
   maxPages: number = MAX_PAGES,
+  options: FetchAllPagesOptions = {},
 ): Promise<PagedFetchResult<T>> {
+  const sleep = options.sleep ?? defaultSleep;
   const all: T[] = [];
   for (let page = 1; page <= maxPages; page++) {
-    await new Promise((r) => setTimeout(r, DELAY_MS));
-    const resp = await fetchOS<{ results: T[]; pagination?: { max_page?: number } }>(path, {
-      ...params,
-      per_page: String(PER_PAGE),
-      page: String(page),
-    });
+    await sleep(DELAY_MS);
+    const resp = await fetchOS<{ results: T[]; pagination?: { max_page?: number } }>(
+      path,
+      {
+        ...params,
+        per_page: String(PER_PAGE),
+        page: String(page),
+      },
+      options,
+    );
     if (resp === null) return { rows: all, complete: false };
     const rows = resp.results ?? [];
-    if (!rows.length) break;
+    if (!rows.length) return { rows: all, complete: true };
     all.push(...rows);
     const maxPage = resp.pagination?.max_page ?? page;
-    if (page >= maxPage) break;
+    if (page >= maxPage) return { rows: all, complete: true };
+    if (page === maxPages) {
+      // Local ceiling hit with provider pages still unfetched — the tail was
+      // truncated by OUR cap, not by the source running out of rows.
+      return { rows: all, complete: false };
+    }
   }
   return { rows: all, complete: true };
 }
@@ -211,6 +283,49 @@ export function invertOpenstatesCommittees(
   return { committeesByPerson, unlinkedCount };
 }
 
+/**
+ * Per-state source outcome from the two OpenStates fetches, aggregated into
+ * the run-level counts main() returns. Pure + exported for unit testing.
+ * `peoplePartial`/`committeesPartial` are row counts written from incomplete
+ * page walks; they stay visible instead of masquerading as a clean success.
+ */
+export interface OpenstatesStateOutcome {
+  peopleFetched: number;
+  peopleComplete: boolean;
+  committeesComplete: boolean;
+}
+
+export function aggregateStateOutcomes(states: OpenstatesStateOutcome[]): {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  complete: boolean;
+  incompleteReason?: string;
+  errorMessage?: string;
+} {
+  const inserted = states.reduce((n, s) => n + s.peopleFetched, 0);
+  const incomplete = states.filter((s) => !s.peopleComplete || !s.committeesComplete);
+  if (!incomplete.length) {
+    return { inserted, updated: 0, skipped: 0, errors: 0, complete: true };
+  }
+  const peopleFailed = incomplete.filter((s) => !s.peopleComplete).length;
+  const committeesFailed = incomplete.filter((s) => !s.committeesComplete).length;
+  const parts: string[] = [];
+  if (peopleFailed) parts.push(`${peopleFailed} state(s) with incomplete people pages`);
+  if (committeesFailed) parts.push(`${committeesFailed} state(s) with incomplete committee pages`);
+  const reason = parts.join('; ');
+  return {
+    inserted,
+    updated: 0,
+    skipped: 0,
+    errors: incomplete.length,
+    complete: false,
+    incompleteReason: reason,
+    errorMessage: reason,
+  };
+}
+
 async function main() {
   const prisma = new PrismaClient();
   const t0 = Date.now();
@@ -223,25 +338,37 @@ async function main() {
   try {
     await runWithSyncRun(prisma as never, 'sync-openstates', async () => {
       let totalPeople = 0;
+      const outcomes: OpenstatesStateOutcome[] = [];
 
       for (const state of PRIORITY_STATES) {
         // Fetch current legislators — fully paged (PEOPLE_MAX_PAGES), since every
         // priority state has >100 members and a truncated roster means missing
-        // legislators that can never be crosswalked to their bills.
-        const { rows: peopleList } = await fetchAllPages<any>(
+        // legislators that can never be crosswalked to their bills. Rows already
+        // fetched before a failed page are still real data and are upserted below
+        // (incremental people behavior), but the state is NOT complete.
+        const { rows: peopleList, complete: peopleComplete } = await fetchAllPages<any>(
           '/people',
           { jurisdiction: state },
           PEOPLE_MAX_PAGES,
         );
 
+        let committeesComplete = true;
+        if (!peopleComplete) {
+          console.warn(
+            `[openstates-sync] ${state.toUpperCase()} people fetch incomplete after ` +
+              `retries — ${peopleList.length} partial rows kept; source run will be partial`,
+          );
+        }
+
         if (peopleList.length) {
           // Fetch committee rosters for the same state and invert to person -> committees,
           // so each legislator upsert below can attach their real assignments.
-          const { rows: committeesList, complete: committeesComplete } =
-            await fetchAllPages<OpenstatesCommittee>('/committees', {
-              jurisdiction: state,
-              include: 'memberships',
-            });
+          const committeesPage = await fetchAllPages<OpenstatesCommittee>('/committees', {
+            jurisdiction: state,
+            include: 'memberships',
+          });
+          const committeesList = committeesPage.rows;
+          committeesComplete = committeesPage.complete;
           const { committeesByPerson, unlinkedCount } = invertOpenstatesCommittees(committeesList);
           if (committeesList.length) {
             const linkedCount = [...committeesByPerson.values()].reduce((n, l) => n + l.length, 0);
@@ -310,11 +437,21 @@ async function main() {
           }
           console.log(`[openstates-sync] ${state.toUpperCase()} legislators: ${peopleList.length}`);
         }
+
+        outcomes.push({
+          peopleFetched: peopleList.length,
+          peopleComplete,
+          committeesComplete,
+        });
       }
 
       console.log(`[openstates-sync] total: ${totalPeople} legislators`);
       console.log(`[openstates-sync] DONE in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-      return { inserted: totalPeople, updated: 0, skipped: 0, errors: 0 };
+      const counts = aggregateStateOutcomes(outcomes);
+      if (!counts.complete) {
+        console.warn(`[openstates-sync] run INCOMPLETE: ${counts.incompleteReason}`);
+      }
+      return counts;
     });
   } finally {
     await prisma.$disconnect();

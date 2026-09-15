@@ -44,11 +44,56 @@ export interface FolderBill extends FolderContext {
   addedAt: string | null;
   addedDateRaw: string | null;
   addedDatePrecision: string | null;
+  // Additive parity fields — present only when summaryIncluded=true is requested.
+  summary?: string | null;
+  classifications?: string[];
+  subjects?: string[];
+  currentCommittee?: string | null;
 }
 export interface FolderPage {
   rows: FolderBill[];
   total: number;
   nextCursor: string | null;
+}
+export interface ActivityRow {
+  id: string;
+  billId: string;
+  number: string;
+  title: string;
+  jurisdiction: string;
+  sessionKey: string;
+  date: string | null;
+  kind: string;
+  text: string | null;
+  url: string | null;
+  providerDocumentId: number | null;
+  chamber: string | null;
+  provenance: string;
+}
+export interface ActivityPage {
+  rows: ActivityRow[];
+  total: number;
+  nextCursor: string | null;
+  /**
+   * Source availability for this jurisdiction+kind. 'unavailable' means the
+   * retained activity sources do not cover it at all (e.g. federal texts or
+   * amendments) — total/rows must NOT be read as a real zero-event count.
+   */
+  availability?: 'available' | 'unavailable';
+  /** Human-readable reason when availability is 'unavailable'. */
+  reason?: string | null;
+  kind: string;
+  from: string | null;
+  to: string | null;
+  /** Structured scope metadata — never rendered directly in the UI. */
+  scope: {
+    jurisdiction: string;
+    sessionKey: string;
+    folderId: string | null;
+    clientId: string | null;
+    onlyTracked: boolean;
+    chamber: string | null;
+  } | null;
 }
 export function useFolderTrackerFlag() {
   const api = useApi(),

@@ -166,3 +166,34 @@ describe('LW-QA-019 — bulk triage in the All-clients view', () => {
     expect(screen.getByText('1 SELECTED')).toBeTruthy(); // selection survives the failure
   });
 });
+
+describe('LW-QA-021 — assign to me sends the resolved actor id', () => {
+  it('posts state=assigned with assignedTo from /api/me', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/intel-api/clients/_all/feed?')) return Promise.resolve({ data: FEED });
+      if (url === '/api/me') return Promise.resolve({ data: { user: { id: 'db-user-9', clerkUserId: 'u-1' } } });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    apiPost.mockResolvedValue({ data: { ok: true } });
+    renderFeed();
+    const [first] = await rowSelects();
+    fireEvent.change(first!, { target: { value: 'assigned' } });
+
+    await waitFor(() =>
+      expect(apiPost).toHaveBeenCalledWith('/intel-api/clients/_all/alerts/a1/work-state', {
+        state: 'assigned',
+        assignedTo: 'db-user-9',
+      }),
+    );
+  });
+
+  it('blocks the mutation when the actor id cannot be resolved — never a bare 400', async () => {
+    apiPost.mockResolvedValue({ data: { ok: true } });
+    renderFeed(); // /api/me rejects in the default mock → self unresolved
+    const [first] = await rowSelects();
+    fireEvent.change(first!, { target: { value: 'assigned' } });
+
+    expect(await screen.findByText('Assignee could not be resolved — state not changed')).toBeTruthy();
+    expect(apiPost).not.toHaveBeenCalled();
+  });
+});

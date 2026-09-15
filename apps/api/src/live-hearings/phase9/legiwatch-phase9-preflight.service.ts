@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
+/**
+ * Automatic server-capture demand — the same predicate the Intel capture worker
+ * and public-capture-permission.ts use: attendance_mode='automatic' AND an
+ * explicit schedule origin (scheduled_by_user OR scheduled_by_rule_id). Browser
+ * attendance and bare notification interest must not make the planner create
+ * server capture/preflight work; a surviving rule still counts after
+ * cancelSchedule clears scheduled_by_user.
+ */
+const AUTOMATIC_DEMAND_SQL = `s.attendance_mode='automatic' AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`;
+
 const CHECKPOINTS_MINUTES = [60, 15, 2, 0] as const;
 const TERMINAL_CAPTURE_STATES = new Set([
   'COMPLETE',
@@ -77,7 +87,7 @@ export class LegiWatchPhase9PreflightService {
               h.visibility,
               c.id AS "captureId",
               c.domain_status AS "captureStatus",
-              COUNT(DISTINCT s.id)::int AS "demandCount",
+              COUNT(DISTINCT s.id) FILTER (WHERE ${AUTOMATIC_DEMAND_SQL})::int AS "demandCount",
               COUNT(DISTINCT candidate.id)::int AS "candidateCount",
               COUNT(DISTINCT candidate.id) FILTER (
                 WHERE candidate.capture_policy='SERVER_CAPTURE_ALLOWED'

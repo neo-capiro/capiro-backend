@@ -1,6 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { createClient, type ListenLiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import type { DeepgramStreamCallbacks } from '../deepgram-stream.manager.js';
+import {
+  finalizeDeepgramAlternative,
+  interimSpeakerLabel,
+  type DeepgramAlternative,
+} from '../deepgram-word-segments.js';
 
 export interface ServerDeepgramStreamCallbacks extends DeepgramStreamCallbacks {
   onGap: (gap: {
@@ -271,25 +276,31 @@ export class ServerDeepgramStreamManager {
       const localEndMs = Math.round(((data.start ?? 0) + (data.duration ?? 0)) * 1_000);
       const startMs = Math.round(this.connectionBaseMs + localStartMs);
       const endMs = Math.max(startMs, Math.round(this.connectionBaseMs + localEndMs));
-      const speakerLabel =
-        alternative.words?.[0]?.speaker != null
-          ? String(alternative.words[0].speaker)
-          : undefined;
 
       if (data.is_final) {
-        this.callbacks.onFinal({
-          startMs,
-          endMs,
-          text: alternative.transcript,
-          speakerLabel,
-          confidence: alternative.confidence,
-        });
+        // Split mixed-speaker frames into contiguous word-derived runs.
+        // connectionBaseMs is applied exactly once, here, to each run's
+        // connection-local range. Lossless-only: an unsplittable frame stays
+        // whole with an unknown speaker rather than words[0]'s label.
+        for (const segment of finalizeDeepgramAlternative(alternative, {
+          startMs: localStartMs,
+          endMs: localEndMs,
+        })) {
+          this.callbacks.onFinal({
+            ...segment,
+            startMs: Math.round(this.connectionBaseMs + segment.startMs),
+            endMs: Math.max(
+              Math.round(this.connectionBaseMs + segment.startMs),
+              Math.round(this.connectionBaseMs + segment.endMs),
+            ),
+          });
+        }
       } else {
         this.callbacks.onInterim({
           startMs,
           endMs,
           text: alternative.transcript,
-          speakerLabel,
+          speakerLabel: interimSpeakerLabel(alternative),
         });
       }
     });
@@ -478,11 +489,7 @@ interface DeepgramTranscript {
   start?: number;
   duration?: number;
   channel?: {
-    alternatives?: Array<{
-      transcript: string;
-      confidence?: number;
-      words?: Array<{ speaker?: number }>;
-    }>;
+    alternatives?: DeepgramAlternative[];
   };
 }
 

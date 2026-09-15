@@ -112,10 +112,11 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
   },
 };
 
-/** Intelligence sub-nav (§7.1 row 1) — static destinations; the source-health
- *  string is live data. There is no source-health endpoint (GAPS LW-G5), so
- *  the health chip renders its honest unavailable/refreshed state from the
- *  feed query, never a fabricated "5 sources healthy". */
+/** Intelligence sub-nav (§7.1 row 1) — static destinations; the status chip
+ *  is live data. There is no source-health endpoint (GAPS LW-G5), so the chip
+ *  reports ONLY the feed query's fetch state — explicitly labelled as feed
+ *  refresh, never as ingestion/source health, and never a fabricated
+ *  "5 sources healthy". */
 function IntelligenceSubNav({
   feedState,
   onOpenStates,
@@ -126,17 +127,20 @@ function IntelligenceSubNav({
   const items: Array<{ id: string; label: string; path: string }> = [
     { id: 'explorer', label: 'Data Explorer', path: '/explorer' },
     { id: 'legiwatch', label: 'LegiWatch', path: '/legiwatch' },
-    { id: 'pe', label: 'Defense Budget', path: '/program-elements' },
+    { id: 'pe', label: 'Program Elements', path: '/program-elements' },
     { id: 'fo', label: 'Funding Opportunities', path: '/intelligence/opportunities' },
     { id: 'nexus', label: 'District Nexus', path: '/intelligence/district-nexus' },
   ];
-  const health = feedState.isError
-    ? 'Source status unavailable'
+  const status = feedState.isError
+    ? 'Feed refresh failed'
     : feedState.isFetching
-      ? 'Refreshing sources…'
+      ? 'Refreshing feed…'
       : feedState.dataUpdatedAt
-        ? `Refreshed ${Math.max(0, Math.round((Date.now() - feedState.dataUpdatedAt) / 60000))} min ago`
-        : 'Source status unavailable';
+        ? `Feed refreshed ${Math.max(0, Math.round((Date.now() - feedState.dataUpdatedAt) / 60000))} min ago`
+        : 'Feed status unavailable';
+  const tip = feedState.isError
+    ? 'The LegiWatch feed query failed. This reflects the feed fetch only — not source ingestion or capture health.'
+    : 'Last feed-list fetch time. Source ingestion and capture health are reported separately, not here.';
   return (
     <nav className="lw-subnav" aria-label="Intelligence">
       {items.map((item) => (
@@ -154,7 +158,7 @@ function IntelligenceSubNav({
         className="lw-subnav__health"
         style={{ background: 'none', border: 0, cursor: 'pointer' }}
         onClick={onOpenStates}
-        title="System states reference"
+        title={`${tip} Open system states reference.`}
       >
         <span
           aria-hidden="true"
@@ -166,7 +170,7 @@ function IntelligenceSubNav({
             display: 'inline-block',
           }}
         />
-        {health}
+        {status}
       </button>
     </nav>
   );
@@ -268,7 +272,15 @@ export function LegiWatchModule() {
   // Settings, archive/search stay public for every client; a no-watchlist
   // client gets inline setup guidance on the dependent tabs instead.
   const watchlistLimitedTab = tab === 'feed' || tab === 'digest' || tab === 'analytics';
-  const coldStart = watchlistMissing && watchlistLimitedTab && !browse;
+  // Report library/history/frozen runs/contacts are persisted documents, not
+  // monitoring output, so when DigestTab's own effective mode resolves to the
+  // reports workspace (digestMode ?? reportView) the scope gate stays out of
+  // the way; the legacy morning-brief mode keeps its watchlist dependency.
+  const digestMode = searchParams.get('digestMode');
+  const reportDeepLink =
+    tab === 'digest' &&
+    (digestMode ?? (searchParams.get('reportView') ? 'bill_report' : 'legacy')) === 'bill_report';
+  const coldStart = watchlistMissing && watchlistLimitedTab && !browse && !reportDeepLink;
 
   const setParam = (key: string, value: string | null) => {
     setSearchParams(

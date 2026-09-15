@@ -292,6 +292,18 @@ export class RequestScopedLlmClient implements LlmClient {
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
     timeoutMs?: number;
+    /** Optional per-call reasoning request — forwarded untouched to the
+     *  resolved provider client on the SAME credential/model; the provider
+     *  client decides support (Anthropic thinking-capable models only) and
+     *  ignores it otherwise. No credential, model-selection, BYOK-isolation,
+     *  failover or retry behavior changes. */
+    reasoning?: { effort: 'low' | 'medium' | 'high' };
+    /** Strict tool-use opt-in — forwarded untouched on the SAME resolved
+     *  credential/model; the provider client applies it only on the qualified
+     *  Sonnet 4.5 models and ignores it otherwise (OpenAI: not sent at all).
+     *  No credential, model-selection, BYOK-isolation, failover or retry
+     *  behavior changes. */
+    strict?: boolean;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
     return this.runWithFailover('LLM schema completion', (client) =>
       client.completeWithSchema(params),
