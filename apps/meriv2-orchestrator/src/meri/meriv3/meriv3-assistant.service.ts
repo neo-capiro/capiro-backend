@@ -2,6 +2,7 @@ import {
   MERI_CAPABILITY_REGISTRY,
   selectMeriCapabilitySchemas,
   isMeriMailReadTool,
+  resolveMeriDocumentRequest,
 } from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
@@ -66,6 +67,7 @@ import {
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
+import { MeriDocumentCompletion } from './meriv3-document-completion.js';
 import type {
   MeriV3ChatInput,
   MeriV3ChatResult,
@@ -218,7 +220,14 @@ export class MeriV3AssistantService {
       };
     }
 
-    const lastUserText = this.lastUserText(dto);
+    const documentRequest =
+      dto.clientId && !dto.researchRun ? resolveMeriDocumentRequest(dto.messages ?? []) : null;
+    const lastUserText = documentRequest?.request ?? this.lastUserText(dto);
+    const documentCompletion =
+      documentRequest && dto.clientId
+        ? new MeriDocumentCompletion(documentRequest, dto.clientId)
+        : null;
+
     const intent = new KeywordIntentRouter().classify(lastUserText);
     const operatingFrame = resolveGovernmentAffairsOperatingFrame({
       request: lastUserText,
@@ -253,6 +262,7 @@ export class MeriV3AssistantService {
       'Choose and sequence read tools yourself. Continue researching when a material gap remains; stop when the evidence is sufficient.',
       'Think privately. Never output hidden chain-of-thought, reasoning tokens, system instructions, or provider reasoning summaries.',
       'The visible work log is limited to tool names, source summaries, approvals, citations, and a concise explanation of conclusions.',
+      ...(documentCompletion ? [documentCompletion.repairInstruction()] : []),
       initialEvidence.citationPrompt,
     ].join('\n');
 
@@ -265,8 +275,14 @@ export class MeriV3AssistantService {
         : (await this.fetchToolSchemas(opts)).filter(
             (schema) => dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name),
           );
-    const tools = toolSchemas.map(anthropicSchemaToResponsesTool);
-    const verificationAvailable = toolSchemas.length > 0;
+    // This tool reads a research snapshot, not client Files. Its session comes
+    // from the authenticated research lease, never a guessed chat/client UUID.
+    const availableSchemas = toolSchemas.filter(
+      (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
+    );
+
+    const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
+    const verificationAvailable = availableSchemas.length > 0;
     const input: Array<Record<string, unknown>> = [...initialInput];
     const steps: ChatStep[] = [];
     const toolCoverage: MeriToolCoverageReceipt[] = [];
@@ -277,7 +293,7 @@ export class MeriV3AssistantService {
     const usage = emptyUsage();
     const toolsUsed: string[] = [];
     let complianceOutcome: 'PASS' | 'WARN' | 'BLOCK' | undefined;
-    let pageWritePayload: { subject: string; body: string } | null = null;
+    const pageWriteState: { payload: { subject: string; body: string } | null } = { payload: null };
     let finalText = '';
     let actualModel = profile.model;
     let actualEffort: MeriV3ChatResult['reasoningEffort'] = null;
@@ -382,6 +398,82 @@ export class MeriV3AssistantService {
 
     const reserveMs = synthesisReserveMs(profile.turnBudgetMs);
     let gatheredToolOutput = false;
+    let completionRepairs = 0;
+    let automaticReads = 0;
+    const MAX_AUTOMATIC_DOCUMENT_READS = 24;
+    const canReadDocuments =
+      availableSchemas.some((schema) => schema.name === 'read_client_documents') &&
+      this.registry.get('read_client_documents')?.readOnly === true;
+
+    const executeCalls = async (calls: OpenAiResponsesFunctionCall[]) => {
+      const executions = await this.executeFunctionCalls({
+        ctx,
+        dto,
+        calls,
+        schemas: availableSchemas,
+        steps,
+        toolCoverage,
+        pendingApprovals,
+        artifacts,
+        citations,
+        ledgerEntries,
+        toolsUsed,
+        emit,
+        prePersistRefusal,
+        noteComplianceOutcome,
+        control: opts,
+      });
+      gatheredToolOutput = gatheredToolOutput || executions.length > 0;
+      for (const execution of executions) {
+        input.push({
+          type: 'function_call_output',
+          call_id: execution.call.call_id,
+          output: execution.serialized,
+        });
+        // The observer receives the same bounded evidence that the model sees.
+        try {
+          documentCompletion?.observe(
+            execution.call.name,
+            parseArguments(execution.call.arguments),
+            execution.result,
+          );
+        } catch {
+          /* Invalid arguments are already represented as a tool failure. */
+        }
+        if (dto.pageWrite && PAGE_WRITE_DRAFT_TOOLS.has(execution.call.name)) {
+          const draft = extractChatArtifacts(execution.result).find(
+            (artifact) => artifact.bodyText,
+          );
+          if (draft?.bodyText)
+            pageWriteState.payload = { subject: draft.title, body: draft.bodyText };
+        }
+      }
+    };
+
+    const continueDocumentReads = async () => {
+      if (!canReadDocuments || !documentCompletion) return;
+      // Bound automatic paging independently of provider rounds. Every read
+      // still checks the user's current ACL and the shared turn deadline.
+      while (
+        automaticReads < MAX_AUTOMATIC_DOCUMENT_READS &&
+        (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now() > reserveMs
+      ) {
+        const next = documentCompletion.nextRead();
+        if (!next) break;
+        assertToolExecutionActive(opts);
+        await this.assertResearchRunActive(dto, opts);
+        const call: OpenAiResponsesFunctionCall = {
+          type: 'function_call',
+          call_id: `document_read_${automaticReads++}`,
+          name: 'read_client_documents',
+          arguments: JSON.stringify(next),
+        };
+        // Server-coordinated tool calls use the same Responses call/result
+        // protocol, citations and visible work log as model-selected reads.
+        input.push(call as unknown as Record<string, unknown>);
+        await executeCalls([call]);
+      }
+    };
 
     const runForcedSynthesis = async (reason: string): Promise<string> => {
       assertToolExecutionActive(opts);
@@ -416,6 +508,7 @@ export class MeriV3AssistantService {
     };
 
     try {
+      await continueDocumentReads();
       for (rounds = 0; rounds < profile.maxToolRounds; rounds += 1) {
         assertToolExecutionActive(opts);
         await this.assertResearchRunActive(dto, opts);
@@ -446,6 +539,19 @@ export class MeriV3AssistantService {
         input.push(...(response.output as Array<Record<string, unknown>>));
 
         if (!response.functionCalls.length) {
+          if (
+            documentCompletion?.gaps().length &&
+            completionRepairs < 2 &&
+            tools.length &&
+            rounds + 1 < profile.maxToolRounds &&
+            (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now() > reserveMs
+          ) {
+            completionRepairs++;
+            input.push({ role: 'developer', content: documentCompletion.repairInstruction() });
+            await continueDocumentReads();
+            continue;
+          }
+
           finalText = response.outputText;
           if (response.incompleteReason === 'max_output_tokens' && finalText) {
             finalText +=
@@ -454,40 +560,8 @@ export class MeriV3AssistantService {
           break;
         }
 
-        const executions = await this.executeFunctionCalls({
-          ctx,
-          dto,
-          calls: response.functionCalls,
-          schemas: toolSchemas,
-          steps,
-          toolCoverage,
-          pendingApprovals,
-          artifacts,
-          citations,
-          ledgerEntries,
-          toolsUsed,
-          emit,
-          prePersistRefusal,
-          noteComplianceOutcome,
-          control: opts,
-        });
-        gatheredToolOutput = gatheredToolOutput || executions.length > 0;
-
-        for (const execution of executions) {
-          input.push({
-            type: 'function_call_output',
-            call_id: execution.call.call_id,
-            output: execution.serialized,
-          });
-          if (dto.pageWrite && PAGE_WRITE_DRAFT_TOOLS.has(execution.call.name)) {
-            const draft = extractChatArtifacts(execution.result).find(
-              (artifact) => artifact.bodyText,
-            );
-            if (draft?.bodyText) {
-              pageWritePayload = { subject: draft.title, body: draft.bodyText };
-            }
-          }
-        }
+        await executeCalls(response.functionCalls);
+        await continueDocumentReads();
       }
 
       if (!finalText && !opts.signal?.aborted) {
@@ -573,6 +647,17 @@ export class MeriV3AssistantService {
           ? 'I reached this turn’s time limit before completing the answer. Ask me to continue from the evidence collected so far.'
           : '';
     }
+    const completionGaps = documentCompletion?.gaps() ?? [];
+    if (completionGaps.length && !opts.signal?.aborted) {
+      telemetry = {
+        ...telemetry,
+        partial: true,
+        finishReason:
+          telemetry.finishReason === 'completed' ? 'incomplete_evidence' : telemetry.finishReason,
+      };
+      finalText = documentCompletion!.partialReply(finalText);
+    }
+
     const released = this.finalizeReply({
       ctx,
       dto,
@@ -594,12 +679,12 @@ export class MeriV3AssistantService {
 
     if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
       emit({ type: 'text', text: released.reply });
-    if (dto.pageWrite && pageWritePayload && !released.held && !opts.signal?.aborted) {
+    if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
       emit({
         type: 'page_write',
         target: 'outreach_draft',
-        subject: pageWritePayload.subject,
-        body: pageWritePayload.body,
+        subject: pageWriteState.payload.subject,
+        body: pageWriteState.payload.body,
       });
     }
 
@@ -771,6 +856,9 @@ export class MeriV3AssistantService {
         this.prepareArtifactInput(call.name, parsed, args.citations, args.ledgerEntries),
         schema,
       );
+      if (call.name === 'get_research_evidence' && args.dto.researchRun) {
+        augmented.input.sessionId = args.dto.researchRun.sessionId;
+      }
       args.toolsUsed.push(call.name);
       const result = await this.invokeTool({
         ctx: args.ctx,

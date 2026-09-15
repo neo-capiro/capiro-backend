@@ -1,7 +1,58 @@
 jest.mock('../context/context-plane-gateway.service.js', () => ({ ContextPlaneGatewayService: class ContextPlaneGatewayService {} }));
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaService {} }));
 
-import { planMeriTurn } from './meri-context-plane.service.js';
+import { MeriContextPlaneService, planMeriTurn } from './meri-context-plane.service.js';
+
+describe('client document clarification context', () => {
+  test('replans the original meeting/contact request using only this authorized conversation', async () => {
+    const task =
+      'I uploaded our meeting transcripts. List the meetings and find exact names, positions and contact information.';
+    const clarification = 'I uploaded the transcript into the Acme files.';
+    const findMany = jest.fn(async () => [
+      { role: 'user', body: clarification },
+      { role: 'user', body: task },
+    ]);
+    const tx = {
+      clioConversation: { findFirst: jest.fn(async () => ({ clientId: 'client-1' })) },
+      client: { findFirst: jest.fn(async () => ({ name: 'Acme' })) },
+      clioMessage: { findMany },
+    };
+    const prisma = {
+      withTenant: jest.fn(async (_id: string, fn: (tx: unknown) => unknown) => fn(tx)),
+      withTenantUser: jest.fn(async (_id: string, _user: string, fn: (tx: unknown) => unknown) =>
+        fn(tx),
+      ),
+    };
+    const service = new MeriContextPlaneService(prisma as never, {} as never);
+    const resolve = jest.spyOn(service as any, 'resolve').mockResolvedValue({});
+    await service.resolveChat({ tenantId: 'tenant-1', userId: 'user-1' } as never, {
+      conversationId: 'thread-1',
+      task: clarification,
+    });
+    expect(tx.clioConversation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'thread-1',
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          archivedAt: null,
+        },
+      }),
+    );
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { conversationId: 'thread-1', role: 'user' },
+        take: 4,
+      }),
+    );
+    const effective = (resolve.mock.calls[0]![1] as { task: string }).task;
+    expect(effective).toContain(task);
+    expect(
+      planMeriTurn({ task: effective, uiClientId: 'client-1', uiClientName: 'Acme' })
+        .requiredDomains,
+    ).toEqual(expect.arrayContaining(['meetings', 'contacts']));
+  });
+});
 
 describe('MeriContextPlaneService Phase 19 planning', () => {
   test.each([

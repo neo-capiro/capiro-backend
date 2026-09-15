@@ -21,6 +21,95 @@ const usage = {
   cacheCreationTokens: 0,
 };
 
+const clientDocumentSchemas = [
+  {
+    name: 'read_client_documents',
+    description: 'Read client files',
+    input_schema: {
+      type: 'object',
+      properties: {
+        clientId: { type: 'string' },
+        documentId: { type: 'string' },
+        cursor: { type: 'string' },
+        query: { type: 'string' },
+        limit: { type: 'number' },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'get_research_evidence',
+    description: 'Read a research snapshot',
+    input_schema: {
+      type: 'object',
+      properties: { sessionId: { type: 'string' } },
+      required: ['sessionId'],
+    },
+  },
+  {
+    name: 'find_contacts',
+    description: 'Find contacts',
+    input_schema: {
+      type: 'object',
+      properties: { query: { type: 'string' } },
+    },
+  },
+];
+
+function documentFixture(text: string) {
+  return jest.fn(async (name: string, args: Record<string, unknown>) => {
+    if (name === 'find_contacts')
+      return { contacts: [{ id: 'person-1', name: 'Alex Carter', title: 'Director' }] };
+    if (name !== 'read_client_documents') throw new Error('Research session not found');
+    if (args.clientId !== 'client-1') throw new Error('Client access denied');
+    if (!args.documentId)
+      return {
+        tool: name,
+        clientId: 'client-1',
+        documents: [
+          { id: 'transcript-1', fileName: 'September meeting transcript.txt', usable: true },
+        ],
+        coverage: { total: 1, complete: true, paginationComplete: true, nextCursor: null },
+      };
+    const start = args.cursor ? Number(String(args.cursor).split(':')[1]) : 0;
+    const end = Math.min(start + 5000, text.length);
+    return {
+      tool: name,
+      clientId: 'client-1',
+      document: {
+        id: 'transcript-1',
+        fileName: 'September meeting transcript.txt',
+        contentHash: 'a'.repeat(64),
+      },
+      coverage: {
+        section: 1,
+        sectionCount: 1,
+        sectionCharacters: text.length,
+        characterStart: start,
+        characterEnd: end,
+        complete: start === 0 && end === text.length,
+        truncated: end < text.length,
+        nextCursor: end < text.length ? `page:${end}` : null,
+        query: null,
+      },
+      records: [
+        {
+          recordId: `transcript-1:${start}-${end}`,
+          payload: {
+            id: `transcript-1:${start}-${end}`,
+            documentId: 'transcript-1',
+            title: 'September meeting transcript.txt',
+            text: text.slice(start, end),
+            section: 1,
+            characterStart: start,
+            characterEnd: end,
+          },
+        },
+      ],
+    };
+  });
+}
+
 function response(overrides: Record<string, unknown> = {}) {
   return {
     id: 'resp-1',
@@ -993,4 +1082,299 @@ describe('Durable research cancellation across API replicas', () => {
       expect(result.telemetry).toMatchObject({ finishReason: 'runtime_error', partial: true });
     },
   );
+});
+
+describe('MeriV3 client transcript task completion', () => {
+  const originalFetch = global.fetch;
+  beforeEach(() => {
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: clientDocumentSchemas }), { status: 200 }),
+    ) as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  const call = (name: string, args: Record<string, unknown>, id: string) => ({
+    type: 'function_call' as const,
+    call_id: id,
+    name,
+    arguments: JSON.stringify(args),
+  });
+  const toolResponse = (item: ReturnType<typeof call>) =>
+    response({ outputText: '', output: [item], functionCalls: [item] });
+  const task =
+    'I uploaded the transcripts from our last meetings. Make a list of the meetings and find exact names, positions and contact information.';
+
+  test('replays a location clarification, reads beyond 35k characters, and continues contact research after premature prose', async () => {
+    const text =
+      'Introductory discussion.\n'.repeat(1600) +
+      '\nSeptember 21-24: arrange meetings with Alex Carter and Dana Smith.\n' +
+      'Closing discussion.\n'.repeat(700);
+    const invoke = documentFixture(text);
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        toolResponse(call('get_research_evidence', { sessionId: 'guessed-chat-id' }, 'wrong-tool')),
+      )
+      .mockResolvedValueOnce(
+        toolResponse(
+          call(
+            'read_client_documents',
+            { clientId: 'client-1', documentId: 'transcript-1' },
+            'read',
+          ),
+        ),
+      )
+      .mockResolvedValueOnce(
+        response({ outputText: 'Would you like me to find names and contact details?' }),
+      )
+      .mockResolvedValueOnce(
+        toolResponse(call('find_contacts', { query: 'Alex Carter Dana Smith' }, 'contacts')),
+      )
+      .mockResolvedValueOnce(
+        response({
+          outputText:
+            'September 21-24: Alex Carter, Director. Dana Smith: identity and contact details remain unverified.',
+        }),
+      );
+    const assistant = build(
+      registry(
+        clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })),
+        invoke,
+      ),
+      complete,
+    );
+    const onEvent = jest.fn();
+    const result = await RequestCredentialsStore.run({ bearerToken: 'test-token' }, () =>
+      assistant.run(
+        context,
+        {
+          clientId: 'client-1',
+          conversationId: 'thread-1',
+          messages: [
+            { role: 'user', text: 'What should I know about Acme?' },
+            { role: 'assistant', text: 'Client overview.' },
+            { role: 'user', text: task },
+            { role: 'assistant', text: 'Where are the files?' },
+            { role: 'user', text: 'I uploaded the transcript into the Acme files.' },
+          ],
+        },
+        { onEvent },
+      ),
+    );
+    expect(
+      complete.mock.calls[0][0].tools.map((tool: { name: string }) => tool.name),
+    ).not.toContain('get_research_evidence');
+    expect(invoke.mock.calls.some(([name]) => name === 'get_research_evidence')).toBe(false);
+    expect(invoke.mock.calls[0]?.slice(0, 2)).toMatchObject([
+      'read_client_documents',
+      { clientId: 'client-1' },
+    ]);
+    expect(
+      invoke.mock.calls.some(
+        ([name, args]) => name === 'read_client_documents' && args.cursor === 'page:40000',
+      ),
+    ).toBe(true);
+    expect(invoke.mock.calls.some(([name]) => name === 'find_contacts')).toBe(true);
+    const modelInput = JSON.stringify(complete.mock.calls[2][0].input);
+    expect(modelInput).toContain('arrange meetings with Alex Carter and Dana Smith');
+    expect(complete.mock.calls[0][0].instructions).toContain(task);
+    expect(result.telemetry).toMatchObject({ partial: false, finishReason: 'completed' });
+    expect(result.reply).toContain('September 21-24');
+    expect(
+      onEvent.mock.calls
+        .filter(([event]) => event.type === 'text')
+        .map(([event]) => event.text)
+        .join(''),
+    ).not.toContain('Would you like');
+  });
+
+  test('a file listing alone cannot release made-up content or claim an upload failure', async () => {
+    const invoke = documentFixture('Real document.');
+    const complete = jest.fn().mockResolvedValue(
+      response({
+        outputText: 'Your upload failed. The transcript says to meet Fictional Person.',
+      }),
+    );
+    const assistant = build(
+      registry(
+        clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })),
+        invoke,
+      ),
+      complete,
+    );
+    const result = await RequestCredentialsStore.run({ bearerToken: 'test-token' }, () =>
+      assistant.run(context, {
+        clientId: 'client-1',
+        messages: [{ role: 'user', text: task }],
+      }),
+    );
+    expect(complete).toHaveBeenCalledTimes(3);
+    expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'incomplete_evidence' });
+    expect(result.reply).toContain('contents have not been read');
+    expect(result.reply).not.toContain('Fictional Person');
+    expect(result.reply).not.toContain('Your upload failed');
+  });
+
+  test('bounds automatic reads and discloses an unfinished document instead of reporting completion', async () => {
+    const invoke = documentFixture('Discussion.\n'.repeat(20000));
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        toolResponse(
+          call(
+            'read_client_documents',
+            { clientId: 'client-1', documentId: 'transcript-1' },
+            'read',
+          ),
+        ),
+      )
+      .mockResolvedValue(
+        response({ outputText: 'Here is a partial summary of the text reviewed.' }),
+      );
+    const assistant = build(
+      registry(
+        clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })),
+        invoke,
+      ),
+      complete,
+    );
+    const result = await RequestCredentialsStore.run({ bearerToken: 'test-token' }, () =>
+      assistant.run(context, {
+        clientId: 'client-1',
+        messages: [
+          { role: 'user', text: 'Review the uploaded meeting transcript and list the meetings.' },
+        ],
+      }),
+    );
+    expect(invoke.mock.calls.filter(([name]) => name === 'read_client_documents')).toHaveLength(25);
+    expect(result.reply).toContain('not been fully reviewed');
+    expect(result.telemetry?.partial).toBe(true);
+  });
+
+  test('checks access again for each page and stops after a revoked read', async () => {
+    const source = documentFixture('Discussion.\n'.repeat(1000));
+    const invoke = jest.fn(async (name, args) => {
+      if (args.cursor) throw new Error('Attachment not found');
+      return source(name, args);
+    });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        toolResponse(
+          call(
+            'read_client_documents',
+            { clientId: 'client-1', documentId: 'transcript-1' },
+            'read',
+          ),
+        ),
+      )
+      .mockResolvedValue(response({ outputText: 'Only the first passage was available.' }));
+    const assistant = build(
+      registry(
+        clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })),
+        invoke,
+      ),
+      complete,
+    );
+    const result = await RequestCredentialsStore.run({ bearerToken: 'test-token' }, () =>
+      assistant.run(context, {
+        clientId: 'client-1',
+        messages: [{ role: 'user', text: 'Review the uploaded meeting transcript.' }],
+      }),
+    );
+    expect(invoke.mock.calls.filter(([, args]) => args.cursor)).toHaveLength(1);
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.reply).toContain('not been fully reviewed');
+  });
+
+  test('binds research evidence to the authenticated run instead of a model-supplied session', async () => {
+    const call = {
+      type: 'function_call' as const,
+      call_id: 'evidence-1',
+      name: 'get_research_evidence',
+      arguments: JSON.stringify({ sessionId: 'guessed-chat-id' }),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ outputText: '', output: [call], functionCalls: [call] }))
+      .mockResolvedValueOnce(response());
+    const invoke = jest.fn(async () => ({ records: [] }));
+    const assistant = build(
+      registry([{ name: 'get_research_evidence', readOnly: true }], invoke),
+      complete,
+    );
+    global.fetch = jest.fn(
+      async (url) =>
+        new Response(
+          JSON.stringify(
+            String(url).includes('/runs/')
+              ? { active: true }
+              : {
+                  schemas: clientDocumentSchemas.filter(
+                    (schema) => schema.name === 'get_research_evidence',
+                  ),
+                },
+          ),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Review the research evidence.' }],
+        toolPolicy: 'read-only',
+        researchRun: { sessionId: 'session-a', runId: 'run-a' },
+      }),
+    );
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.slice(0, 2)).toEqual([
+      'get_research_evidence',
+      { sessionId: 'session-a' },
+    ]);
+  });
+
+  test('cancellation stops automatic reads before another page or model call', async () => {
+    const controller = new AbortController();
+    const source = documentFixture('Discussion.\n'.repeat(1000));
+    const invoke = jest.fn(async (name, args) => {
+      const result = await source(name, args);
+      if (args.documentId) controller.abort();
+      return result;
+    });
+    const complete = jest.fn().mockResolvedValueOnce(
+      toolResponse(
+        call(
+          'read_client_documents',
+          {
+            clientId: 'client-1',
+            documentId: 'transcript-1',
+          },
+          'read',
+        ),
+      ),
+    );
+    const assistant = build(
+      registry(
+        clientDocumentSchemas.map(({ name }) => ({ name, readOnly: true })),
+        invoke,
+      ),
+      complete,
+    );
+    const result = await RequestCredentialsStore.run({ bearerToken: 'test-token' }, () =>
+      assistant.run(
+        context,
+        {
+          clientId: 'client-1',
+          messages: [{ role: 'user', text: 'Review the uploaded meeting transcript.' }],
+        },
+        { signal: controller.signal },
+      ),
+    );
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'cancelled' });
+    expect(result.reply).toBe('');
+  });
 });
