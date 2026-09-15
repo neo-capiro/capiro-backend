@@ -314,7 +314,9 @@ describe('RequestScopedLlmClient.completeWithSchema — H57 strict forwarding', 
           ok: true,
           status: 200,
           json: async () => ({
-            content: [{ type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } }],
+            content: [
+              { type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } },
+            ],
             usage: { input_tokens: 10, output_tokens: 20 },
           }),
         };
@@ -1145,7 +1147,9 @@ describe('RequestScopedLlmClient.completeWithSchema — reasoning option forward
     ok: true,
     status: 200,
     json: async () => ({
-      content: [{ type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } }],
+      content: [
+        { type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } },
+      ],
       usage: { input_tokens: 500, output_tokens: 1400 },
     }),
   };
@@ -1232,7 +1236,10 @@ describe('RequestScopedLlmClient.completeWithSchema — reasoning option forward
     );
     const client = new RequestScopedLlmClient('sk-global', 'claude-default');
     await RequestCredentialsStore.run(
-      { bearerToken: 't', aiProvider: { ...tenantCred, model: 'claude-sonnet-4-5', modelOverridden: true } },
+      {
+        bearerToken: 't',
+        aiProvider: { ...tenantCred, model: 'claude-sonnet-4-5', modelOverridden: true },
+      },
       () =>
         client.completeWithSchema({
           system: 's',

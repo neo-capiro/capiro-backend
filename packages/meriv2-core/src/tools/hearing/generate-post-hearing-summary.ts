@@ -283,8 +283,7 @@ function hearingClaimsInputSchema(evidence: EvidenceSegment[]): Record<string, u
         type: 'array',
         minItems: 1,
         maxItems: 40,
-        description:
-          'The finished claim array: 1 to 40 claims, each one speaker and one point.',
+        description: 'The finished claim array: 1 to 40 claims, each one speaker and one point.',
         items: {
           anyOf: [
             {

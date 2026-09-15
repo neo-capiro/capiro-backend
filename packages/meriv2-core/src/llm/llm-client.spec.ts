@@ -394,7 +394,12 @@ describe('schemaCompletionWire (reasoning wire shape — pure)', () => {
   it('keeps the forced tool choice on an unsupported/lookalike model even when reasoning is requested', () => {
     for (const model of ['claude-sonnet-4-5-x', 'claude-opus-4-8', 'gpt-5']) {
       expect(
-        schemaCompletionWire({ model, toolName: 'submit', maxTokens: 6000, reasoning: { effort: 'low' } }),
+        schemaCompletionWire({
+          model,
+          toolName: 'submit',
+          maxTokens: 6000,
+          reasoning: { effort: 'low' },
+        }),
       ).toEqual({ tool_choice: { type: 'tool', name: 'submit' } });
     }
   });
@@ -412,7 +417,14 @@ describe('schemaCompletionWire (reasoning wire shape — pure)', () => {
   });
 
   it('refuses on non-finite / fractional / insufficient ceilings — never emits budget >= max_tokens', () => {
-    for (const maxTokens of [1024, 1000, 1024.5, Number.NaN, Number.POSITIVE_INFINITY, -5] as number[]) {
+    for (const maxTokens of [
+      1024,
+      1000,
+      1024.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      -5,
+    ] as number[]) {
       expect(
         schemaCompletionWire({
           model: 'claude-sonnet-4-5',
@@ -427,11 +439,24 @@ describe('schemaCompletionWire (reasoning wire shape — pure)', () => {
   it('a higher effort (larger budget) requires proportionally more ceiling', () => {
     // high = 4096 budget: 4096 ceiling is not > 4096 → forced; 6000 > 4096 → thinking.
     expect(
-      schemaCompletionWire({ model: 'claude-sonnet-4-5', toolName: 'submit', maxTokens: 4096, reasoning: { effort: 'high' } }),
+      schemaCompletionWire({
+        model: 'claude-sonnet-4-5',
+        toolName: 'submit',
+        maxTokens: 4096,
+        reasoning: { effort: 'high' },
+      }),
     ).toEqual({ tool_choice: { type: 'tool', name: 'submit' } });
     expect(
-      schemaCompletionWire({ model: 'claude-sonnet-4-5', toolName: 'submit', maxTokens: 6000, reasoning: { effort: 'high' } }),
-    ).toEqual({ thinking: { type: 'enabled', budget_tokens: 4096 }, tool_choice: { type: 'auto' } });
+      schemaCompletionWire({
+        model: 'claude-sonnet-4-5',
+        toolName: 'submit',
+        maxTokens: 6000,
+        reasoning: { effort: 'high' },
+      }),
+    ).toEqual({
+      thinking: { type: 'enabled', budget_tokens: 4096 },
+      tool_choice: { type: 'auto' },
+    });
   });
 });
 
@@ -443,7 +468,9 @@ describe('AnthropicLlmClient.completeWithSchema — reasoning mode wire (mocked 
     ({
       ok: true,
       json: async () => ({
-        content: [{ type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } }],
+        content: [
+          { type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [] } },
+        ],
         usage: { input_tokens: 500, output_tokens: 1300 },
       }),
     }) as Response;
@@ -516,7 +543,12 @@ describe('AnthropicLlmClient.completeWithSchema — reasoning mode wire (mocked 
           content: [
             { type: 'thinking', thinking: 'secret chain-of-thought', signature: 'sig' },
             { type: 'text', text: 'draft note' },
-            { type: 'tool_use', id: 't1', name: 'submit_hearing_claims', input: { claims: [{ id: 'c1' }] } },
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'submit_hearing_claims',
+              input: { claims: [{ id: 'c1' }] },
+            },
           ],
           usage: { input_tokens: 500, output_tokens: 1500 },
         }),
@@ -565,7 +597,9 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
       return {
         ok: true,
         json: async () => ({
-          choices: [{ message: { tool_calls: [{ function: { name: 'submit', arguments: '{}' } }] } }],
+          choices: [
+            { message: { tool_calls: [{ function: { name: 'submit', arguments: '{}' } }] } },
+          ],
           usage: { prompt_tokens: 1, completion_tokens: 1 },
         }),
       } as Response;
@@ -590,7 +624,9 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
       return {
         ok: true,
         json: async () => ({
-          choices: [{ message: { tool_calls: [{ function: { name: 'submit', arguments: '{}' } }] } }],
+          choices: [
+            { message: { tool_calls: [{ function: { name: 'submit', arguments: '{}' } }] } },
+          ],
           usage: { prompt_tokens: 1, completion_tokens: 1 },
         }),
       } as Response;

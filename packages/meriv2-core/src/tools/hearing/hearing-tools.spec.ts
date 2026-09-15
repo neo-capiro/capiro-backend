@@ -268,7 +268,12 @@ describe('groupEvidenceTurns (H57 prompt organization only)', () => {
   });
 
   it('null/undefined labels stay truthfully unknown and split turns like any label change', () => {
-    const turns = groupEvidenceTurns([seg('a', null), seg('b', null), seg('c', '1'), seg('d', null)]);
+    const turns = groupEvidenceTurns([
+      seg('a', null),
+      seg('b', null),
+      seg('c', '1'),
+      seg('d', null),
+    ]);
     expect(turns.map((t) => t.displayLabel)).toEqual([null, 'Speaker 1', null]);
     expect(turns[0]!.segments.map((s) => s.segmentId)).toEqual(['a', 'b']);
   });
@@ -364,7 +369,12 @@ describe('evidence hearing strict wire (H57 mocked-fetch)', () => {
     expect(schema.properties.claims.minItems).toBe(1);
     expect(schema.additionalProperties).toBe(false);
     expect(schema.required).toEqual(['claims']);
-    expect(Object.keys(obsBranch(schema).properties)).toEqual(['id', 'kind', 'evidenceIds', 'text']);
+    expect(Object.keys(obsBranch(schema).properties)).toEqual([
+      'id',
+      'kind',
+      'evidenceIds',
+      'text',
+    ]);
     expect(obsBranch(schema).required).toEqual(['id', 'kind', 'evidenceIds', 'text']);
     expect(obsBranch(schema).additionalProperties).toBe(false);
     expect(quoteBranch(schema).required).toEqual(['id', 'kind', 'evidenceIds']);
@@ -442,7 +452,12 @@ describe('evidence hearing strict wire (H57 mocked-fetch)', () => {
     expect(obsBranch(schema).properties.text.maxLength).toBe(2500);
     expect(obsBranch(schema).properties.evidenceIds.maxItems).toBe(20);
     expect(quoteBranch(schema).properties.evidenceIds.maxItems).toBe(1);
-    expect(Object.keys(obsBranch(schema).properties)).toEqual(['id', 'kind', 'evidenceIds', 'text']);
+    expect(Object.keys(obsBranch(schema).properties)).toEqual([
+      'id',
+      'kind',
+      'evidenceIds',
+      'text',
+    ]);
     expect(obsBranch(schema).properties.evidenceIds.items.enum).toEqual([
       input.evidence[0]!.segmentId,
       input.evidence[1]!.segmentId,
