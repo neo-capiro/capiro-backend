@@ -59,6 +59,36 @@ describe('PrismaClientExceptionFilter', () => {
     });
   });
 
+  test('P2010 with Postgres 22P02 (malformed UUID in a raw CAST) maps to 400', () => {
+    const res = makeRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Raw query failed', {
+      code: 'P2010',
+      clientVersion: '0.0.0-test',
+      meta: { code: '22P02', message: 'invalid input syntax for type uuid: "not-a-uuid"' },
+    });
+
+    filter.catch(err, makeHost(res));
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: HttpStatus.BAD_REQUEST,
+      message: 'Invalid request parameter',
+    });
+  });
+
+  test('P2010 with any other Postgres error keeps the 500 (a real server fault must stay visible)', () => {
+    const res = makeRes();
+    const err = new Prisma.PrismaClientKnownRequestError('Raw query failed', {
+      code: 'P2010',
+      clientVersion: '0.0.0-test',
+      meta: { code: '42P01', message: 'relation "nope" does not exist' },
+    });
+
+    filter.catch(err, makeHost(res));
+
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+  });
+
   // Pool exhaustion: a burst of background Graph syncs starved the Prisma pool
   // and made unrelated user writes fail. As a 500 that read as a bug in
   // whatever the user was saving, with no hint that retrying would work.

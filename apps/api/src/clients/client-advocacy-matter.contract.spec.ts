@@ -114,7 +114,12 @@ describe('Advocacy Matter architecture contract', () => {
 
   it('requires evidence or explicit confirmation before an outcome-claim status', () => {
     expect(service).toContain('confirmOutcome');
-    expect(service).toMatch(/OUTCOME_STATUSES[\s\S]{0,600}outcome_event/);
+    expect(service).toMatch(/OUTCOME_STATUSES[\s\S]{0,1200}outcome_event/);
+    // The gate is scoped to actual transitions INTO an outcome status —
+    // an ordinary edit re-submitting the unchanged status must not be
+    // re-challenged. See the correction service spec's
+    // "an ordinary edit re-submitting the UNCHANGED outcome status" test.
+    expect(service).toContain('isTransition');
   });
 
   it('supports the full product lifecycle status set in the correction migration constraint', () => {

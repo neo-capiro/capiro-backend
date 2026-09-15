@@ -220,6 +220,10 @@ export function Eyebrow({ children, tight = false, style }: { children: ReactNod
         letterSpacing: tight ? '.05em' : '.04em',
         textTransform: 'uppercase',
         color: '#667085',
+        // The vNext shell content column inherits line-height: 24px; an
+        // 11-12px uppercase label on that leading doubles its slot. Pin the
+        // label's own leading.
+        lineHeight: '15px',
         ...style,
       }}
     >

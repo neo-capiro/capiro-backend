@@ -154,22 +154,51 @@ export function formValuesToClientPayload(
 
   const payload: ClientPayload = {
     name: optionalText(values.name) ?? '',
-    ...compactObject({
-      website: optionalText(values.website),
-      description: optionalText(values.description),
-      primaryContactName: optionalText(values.primaryContactName),
-      primaryContactEmail: optionalText(values.primaryContactEmail),
-      primaryContactPhone: formatPhone(values.primaryContactPhone),
-    }),
   };
+
+  // Identity + contact fields. On EDIT these are always owned by the wizard, so
+  // an empty field is an intentional clear and must reach the API as `null` —
+  // the service (`clients.service.ts` update) nulls the column on explicit null,
+  // whereas omitting the key (the old compactObject behavior) left the stored
+  // value in place, which is exactly how cleared contact fields silently came
+  // back. On CREATE an empty field is simply "not provided" and stays absent.
+  const editing = existing !== undefined;
+  const clearableText = <K extends 'website' | 'description' | 'primaryContactName' | 'primaryContactEmail' | 'primaryContactPhone'>(
+    key: K,
+    raw: string | undefined,
+    format: (v: string | undefined) => string | undefined = optionalText,
+  ) => {
+    const text = optionalText(raw);
+    if (text === undefined) {
+      // Empty/absent input. On EDIT that is an intentional clear -> explicit
+      // null (the service nulls the column). On CREATE it is simply "not
+      // provided" — the wizard renders every field even when untouched, so an
+      // empty string must NOT become a null write on a brand-new record.
+      if (editing) payload[key] = null as ClientPayload[K];
+      return;
+    }
+    payload[key] = (format(raw) ?? null) as ClientPayload[K];
+  };
+  clearableText('website', values.website);
+  clearableText('description', values.description);
+  clearableText('primaryContactName', values.primaryContactName);
+  clearableText('primaryContactEmail', values.primaryContactEmail);
+  clearableText('primaryContactPhone', values.primaryContactPhone, formatPhone);
   payload.intakeData = intakeData;
   // Mirror primary sector → controlled top-level tag. Map the chosen label/value
   // to a controlled SECTOR_TAG; SECTOR_TAGS values pass through normalizeSector
   // (which uppercases + matches), so a free label like "Other" still resolves.
+  // On EDIT an empty sector list is an intentional clear -> explicit null.
   if (primarySector) {
     payload.sectorTag = normalizeSector(primarySector) ?? primarySector;
+  } else if (editing) {
+    payload.sectorTag = null;
   }
-  if (values.submissionTracks?.length) payload.submissionTracks = values.submissionTracks;
+  // Always send submissionTracks on edit (even when empty) so clearing persists;
+  // the update writes `input.submissionTracks ?? []`. On create, omit when empty.
+  if (values.submissionTracks !== undefined) {
+    if (values.submissionTracks.length || editing) payload.submissionTracks = values.submissionTracks;
+  }
   // Always send issueCodes (even when empty) so clearing the override persists.
   payload.issueCodes = Array.isArray(values.issueCodes) ? values.issueCodes : [];
   if (values.profileType) payload.profileType = values.profileType;

@@ -244,30 +244,30 @@ const COMMITMENTS = [
   },
 ];
 
-/** The rail lives inside the "Relationship controls" sub-section of the
- *  combined "Account relationship timeline" card; the same activity also
+/** The rail is the named "Relationship controls" landmark inside the
+ *  combined timeline card; the same activity also
  *  appears in the timeline column, so every rail assertion is scoped to the
  *  rail's own container — the <aside> landmark, not the whole card. */
 async function railCard() {
-  const heading = await screen.findByText('Relationship controls');
-  const card = heading.closest('aside');
-  if (!card) throw new Error('Relationship controls rail not found');
-  return within(card);
+  return within(await screen.findByRole('complementary', { name: 'Relationship controls' }));
 }
 
 describe('ClientCrmHistoryProto — consolidated timeline + controls card', () => {
-  it('renders "Account relationship timeline" and "Relationship controls" inside one card', async () => {
+  it('keeps timeline search, filters, activity and relationship controls inside one card', async () => {
     getMock.mockResolvedValue({ data: ACTIVITY });
     renderHistory();
 
-    await screen.findByText('Quarterly check-in with program office');
-    const timelineHeading = screen.getByRole('heading', { name: 'Account relationship timeline' });
-    const card = timelineHeading.closest('section');
+    const activity = await screen.findByText('Quarterly check-in with program office');
+    const card = activity.closest('section');
     if (!card) throw new Error('Account relationship timeline card not found');
-    // "Relationship controls" is a sub-section INSIDE this card, not its own
-    // Card — the old duplicate two-card layout is gone.
-    expect(within(card).getByText('Relationship controls')).toBeInTheDocument();
-    expect(screen.queryAllByRole('heading', { name: 'Account relationship timeline' })).toHaveLength(1);
+    // The mockup begins with the functional filter bar. The rail keeps its
+    // accessible landmark name without adding a duplicate visible heading.
+    expect(within(card).getByRole('textbox', { name: 'Search history' })).toBeInTheDocument();
+    expect(within(card).getByRole('group', { name: 'Timeline filters' })).toBeInTheDocument();
+    const rail = within(card).getByRole('complementary', { name: 'Relationship controls' });
+    expect(within(rail).getByRole('button', { name: 'Log a call' })).toBeInTheDocument();
+    expect(rail.closest('section')).toBe(card);
+    expect(screen.getAllByRole('complementary', { name: 'Relationship controls' })).toHaveLength(1);
   });
 });
 
@@ -763,5 +763,65 @@ describe('Manual activity timing and cleanup', () => {
     expect(screen.getByText('Intelligence memo · Sent')).toBeInTheDocument();
     expect(screen.getByText('intel_memo')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove Capabilities' })).not.toBeInTheDocument();
+  });
+});
+
+describe('ClientCrmHistoryProto — pin/settle failure visibility', () => {
+  const recordedNote = {
+    id: 'act-note-1', kind: 'note' as const, occurredAt: '2026-08-10T12:00:00.000Z',
+    title: 'Priority shifted toward procurement', body: 'Focus the next meeting on procurement.',
+    personId: null, sourceType: null, sourceId: null, pinned: false, dueAt: null, settledAt: null,
+    origin: 'recorded' as const,
+  };
+  const commitment = {
+    id: 'act-com-1', kind: 'commitment' as const, occurredAt: '2026-07-30T12:00:00.000Z',
+    title: 'Send Army procurement assessment', body: null, personId: null, sourceType: null,
+    sourceId: null, pinned: false, dueAt: '2026-08-12T00:00:00.000Z', settledAt: null,
+    origin: 'recorded' as const,
+  };
+
+  it('a failed Pin shows a toast + durable banner with Retry instead of silently reverting (HTTP 503 repro)', async () => {
+    getMock.mockResolvedValue({ data: [recordedNote] });
+    patchMock.mockRejectedValue({ response: { status: 503 }, message: 'Request failed with status code 503' });
+    renderHistory();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalled());
+
+    // Durable banner with the retry, not just a transient toast.
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Could not update this activity');
+    expect(within(banner).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    // Still not pinned — the row honestly stayed unmarked.
+    expect(screen.getByRole('button', { name: 'Pin' })).toBeInTheDocument();
+  });
+
+  it('a failed Settle names itself in the banner and Retry re-issues the exact same patch', async () => {
+    getMock.mockResolvedValue({ data: [commitment] });
+    patchMock
+      .mockRejectedValueOnce(new Error('settle exploded'))
+      .mockResolvedValueOnce({ data: {} });
+    renderHistory();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Settle Send Army procurement assessment' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/activity/act-com-1', { settled: true }));
+
+    const banner = await screen.findByRole('alert');
+    fireEvent.click(within(banner).getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => expect(patchMock).toHaveBeenCalledTimes(2));
+    expect(patchMock).toHaveBeenNthCalledWith(2, '/api/clients/client-1/activity/act-com-1', { settled: true });
+    // Second attempt succeeded — the banner clears.
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('a successful Pin carries no banner (existing behavior preserved)', async () => {
+    getMock.mockResolvedValue({ data: [recordedNote] });
+    patchMock.mockResolvedValue({ data: {} });
+    renderHistory();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin' }));
+    await waitFor(() => expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/activity/act-note-1', { pinned: true }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

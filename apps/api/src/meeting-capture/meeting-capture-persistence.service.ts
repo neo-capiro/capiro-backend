@@ -41,4 +41,14 @@ export class MeetingCapturePersistenceService {
   createMeetingDebrief(...args: Parameters<EngagementService['createMeetingDebrief']>) {
     return this.engagement.createMeetingDebrief(...args);
   }
+
+  // Notetaker's reconcileClientPreference needs the existing
+  // tenant/client-scoped meeting-association predicate to count client
+  // meetings before persisting a preference change. Forward the existing
+  // scoped helper verbatim — no new access semantics, no broadening.
+  clientMeetingAssociationWhere(
+    ...args: Parameters<EngagementService['clientMeetingAssociationWhere']>
+  ) {
+    return this.engagement.clientMeetingAssociationWhere(...args);
+  }
 }

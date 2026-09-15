@@ -363,9 +363,19 @@ function AccountSummaryCard({ client, canAssign }: { client: Client; canAssign: 
   );
 }
 
+/**
+ * `client.createdAt` is a full timestamp, but a date-only `YYYY-MM-DD` string
+ * can also arrive here (e.g. when a caller passes an intake date such as
+ * `engagementStartDate`). `new Date('2026-01-12')` is UTC midnight, which
+ * renders as the previous day anywhere behind UTC — the live header showed
+ * "Jan 11, 2026" for the 2026-01-12 seed in America/New_York. Anchor the
+ * date-only form to local noon so the calendar day survives every timezone;
+ * full timestamps still parse normally.
+ */
 function formatAccountSince(value: string | null | undefined): string {
   if (!value) return 'Not recorded';
-  const date = new Date(value);
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = new Date(dateOnly ? `${value}T12:00:00` : value);
   if (Number.isNaN(date.getTime())) return 'Not recorded';
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }

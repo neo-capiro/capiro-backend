@@ -4,6 +4,7 @@ import {
   useBillHearings,
   type BillHearing,
 } from '../../../../pages/clients/tracker/bill-hearings-api.js';
+import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import { CapiroDrawer } from '../../../components/overlays/index.js';
 import { Pill } from '../portfolio-primitives.js';
 import type { PillTone } from '../portfolio-primitives.js';
@@ -96,6 +97,14 @@ function BillUpdatesBody({ clientId, bill }: { clientId: string; bill: BoardBill
   // scoped to this client; this drawer needs the identical destination.
   const openFullBoardHref = `/legiwatch?tab=bills&client=${encodeURIComponent(clientId)}`;
   // Lazy: only fetched while the drawer is open (this body mounts with the drawer).
+  // The query is also flag-gated (tracker_v2) — when the gate blocks fetching
+  // entirely, `isPending` is forever true and the old branch rendered
+  // "Loading hearings…" indefinitely. Distinguish "the flag gates this" from
+  // "the request is in flight" so a disabled workspace reads as a plain note,
+  // and a real request failure names itself instead of falsely claiming
+  // "No hearings".
+  const { enabled: trackerV2, ready: flagsReady } = useIntelFeature('tracker_v2');
+  const hearingsQueryActive = flagsReady && Boolean(trackerV2) && Boolean(bill.billId);
   const hearingsQ = useBillHearings(clientId, bill.billId, true);
   const hearings = useMemo(() => hearingsQ.data?.hearings ?? [], [hearingsQ.data]);
   const latestActionDate = fmtDate(bill.latestActionDate);
@@ -160,17 +169,27 @@ function BillUpdatesBody({ clientId, bill }: { clientId: string; bill: BoardBill
       {/* Discussed in hearings (Bill→Hearing interlink; tracker_v2 tenants). */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <SectionLabel>Discussed in hearings</SectionLabel>
-        {hearingsQ.isPending ? (
-          <div style={{ fontSize: 14, color: '#667085' }} aria-busy="true">Loading hearings…</div>
-        ) : hearings.length === 0 ? (
-          <div style={{ fontSize: 14, color: '#667085' }}>
-            No hearings have discussed this bill yet.
+        {hearingsQ.isError ? (
+          <div style={{ fontSize: 14, color: '#B42318' }}>
+            Hearings for this bill could not be loaded. Try again in a moment.
           </div>
+        ) : hearingsQueryActive ? (
+          hearingsQ.isPending ? (
+            <div style={{ fontSize: 14, color: '#667085' }} aria-busy="true">Loading hearings…</div>
+          ) : hearings.length === 0 ? (
+            <div style={{ fontSize: 14, color: '#667085' }}>
+              No hearings have discussed this bill yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {hearings.map((h) => (
+                <HearingRow key={h.sessionId} hearing={h} onOpen={(id) => navigate(`/intelligence/hearing-watch/${encodeURIComponent(id)}`)} />
+              ))}
+            </div>
+          )
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {hearings.map((h) => (
-              <HearingRow key={h.sessionId} hearing={h} onOpen={(id) => navigate(`/intelligence/hearing-watch/${encodeURIComponent(id)}`)} />
-            ))}
+          <div style={{ fontSize: 14, color: '#667085' }}>
+            Hearing links are not enabled for this workspace.
           </div>
         )}
       </div>

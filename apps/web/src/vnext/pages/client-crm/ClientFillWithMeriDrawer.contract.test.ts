@@ -122,9 +122,70 @@ describe('Client Fill with Meri document and review contracts', () => {
       sourceStates: { client_document: { status: 'failed', attachmentId: 'original-document' } },
     });
     fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    // Legacy flat-attachment run retries through the advanced contract:
+    // the same single document, legacy document-only scope (sources: []).
     await waitFor(() =>
       expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/fill-with-meri/runs', {
-        attachmentId: 'original-document',
+        attachmentIds: ['original-document'],
+        sources: [],
+      }),
+    );
+  });
+  it('retries an advanced document run with ALL persisted attachments and its original sources', async () => {
+    postMock.mockResolvedValue({ data: baseRun });
+    renderDrawer({
+      ...baseRun,
+      status: 'failed',
+      attachmentIds: ['doc-a', 'doc-b'],
+      requestedSources: ['synced_email', 'lda'],
+      selectedLdaIds: [42],
+      setup: {
+        website: 'https://orchidkite.example',
+        attachmentIds: ['doc-a', 'doc-b'],
+        attachments: [
+          { id: 'doc-a', fileName: 'a.pdf' },
+          { id: 'doc-b', fileName: 'b.pdf' },
+        ],
+        sources: ['synced_email', 'lda'],
+        selectedLdaIds: [42],
+      },
+      sourceStates: {
+        client_document: {
+          status: 'failed',
+          attachments: [
+            { id: 'doc-a', fileName: 'a.pdf' },
+            { id: 'doc-b', fileName: 'b.pdf' },
+          ],
+        },
+      },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/fill-with-meri/runs', {
+        attachmentIds: ['doc-a', 'doc-b'],
+        sources: ['synced_email', 'lda'],
+        website: 'https://orchidkite.example',
+        ldaClientIds: [42],
+      }),
+    );
+  });
+  it('retries a source-only failed run with its persisted sources and saved website, not the defaults', async () => {
+    postMock.mockResolvedValue({ data: baseRun });
+    renderDrawer({
+      ...baseRun,
+      status: 'failed',
+      requestedSources: ['synced_email'],
+      setup: {
+        website: 'https://saved.example',
+        sources: ['synced_email'],
+      },
+      sourceStates: { synced_email: { status: 'failed', count: 0 } },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/fill-with-meri/runs', {
+        sources: ['synced_email'],
+        website: 'https://saved.example',
       }),
     );
   });

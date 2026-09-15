@@ -129,6 +129,78 @@ describe('client funding profile write validation', () => {
       intakeData: { fundingPriorities },
     });
   });
+
+  // ── Set-aside certifications: durable new codes, preserved legacy stored codes ──
+  describe('set-aside certifications', () => {
+    test.each(['8A', 'SDVOSB', 'VOSB', 'WOSB', 'EDWOSB', 'HUBZONE'])(
+      'accepts each durable certification as a new selection: %s',
+      (code) => {
+        expect(validateClientFundingProfile({ setAsideCertifications: [code] })).toEqual({
+          setAsideCertifications: [code],
+        });
+      },
+    );
+
+    test.each(['SDVOSBC', 'HZC', 'SBA', 'SBP', '8AN', 'WOSBSS', 'EDWOSBSS', 'HZS', 'NOTACODE'])(
+      'rejects a legacy restriction/sole-source or invalid code as a NEW selection: %s',
+      (code) => {
+        expect(() => validateClientFundingProfile({ setAsideCertifications: [code] })).toThrow(
+          BadRequestException,
+        );
+        // Even alongside a valid durable code, an unrecognized new value is refused.
+        expect(() =>
+          validateClientFundingProfile({ setAsideCertifications: ['8A', code] }),
+        ).toThrow(BadRequestException);
+      },
+    );
+
+    test.each(['SDVOSBC', 'HZC', 'SBA'])(
+      'preserves an exact stored legacy code while allowing durable edits and removals: %s',
+      (legacy) => {
+        const existing = { setAsideCertifications: [legacy] };
+        // Unchanged historical value round-trips so an unrelated save does not fail.
+        expect(
+          validateClientFundingProfile({ setAsideCertifications: [legacy] }, existing),
+        ).toEqual({ setAsideCertifications: [legacy] });
+        // A legacy value plus a valid new durable selection both survive.
+        expect(
+          validateClientFundingProfile({ setAsideCertifications: [legacy, '8A'] }, existing),
+        ).toEqual({ setAsideCertifications: [legacy, '8A'] });
+        // Removing the legacy value (clearing) is allowed.
+        expect(validateClientFundingProfile({ setAsideCertifications: ['8A'] }, existing)).toEqual({
+          setAsideCertifications: ['8A'],
+        });
+        expect(validateClientFundingProfile({ setAsideCertifications: [] }, existing)).toEqual({
+          setAsideCertifications: [],
+        });
+        // Omitting the field entirely leaves it untouched.
+        expect(validateClientFundingProfile({}, existing)).toEqual({});
+      },
+    );
+
+    test('does not let a legacy stored code be re-claimed under a different client that never held it', () => {
+      // 'SDVOSBC' stored on THIS client may persist; it may NOT be introduced onto
+      // a client whose stored set is different (the preserve set is per-client).
+      expect(() =>
+        validateClientFundingProfile(
+          { setAsideCertifications: ['SDVOSBC'] },
+          { setAsideCertifications: ['8A'] },
+        ),
+      ).toThrow(BadRequestException);
+    });
+
+    test('removes duplicate codes and rejects non-string entries', () => {
+      expect(
+        validateClientFundingProfile({ setAsideCertifications: ['8A', '8A', 'WOSB'] }),
+      ).toEqual({ setAsideCertifications: ['8A', 'WOSB'] });
+      expect(() =>
+        validateClientFundingProfile({ setAsideCertifications: [42] } as never),
+      ).toThrow(BadRequestException);
+      expect(() =>
+        validateClientFundingProfile({ setAsideCertifications: 'SDVOSB' } as never),
+      ).toThrow(BadRequestException);
+    });
+  });
 });
 
 describe('registration integrity on canonical writes', () => {
@@ -148,7 +220,7 @@ describe('registration integrity on canonical writes', () => {
   });
   test('keeps cross-field nonprofit/business ambiguity reviewable instead of rejecting unverified affiliate facts', () => {
     const input = { applicantTypes: [nonprofit], intakeData: { sbClassification: { sb: true } }, setAsideCertifications: ['8A'] };
-    expect(validateClientFundingProfile(input)).toEqual({ applicantTypes: [nonprofit], intakeData: input.intakeData });
+    expect(validateClientFundingProfile(input)).toEqual({ applicantTypes: [nonprofit], intakeData: input.intakeData, setAsideCertifications: ['8A'] });
   });
   test.each(['12-3456789', '123456789', ' 12-3456789 '])('normalizes EIN %s', (ein) => {
     expect(validateClientFundingProfile({ intakeData: { ein } })).toEqual({ intakeData: { ein: '123456789' } });

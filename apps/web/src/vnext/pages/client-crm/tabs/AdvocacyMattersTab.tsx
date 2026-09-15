@@ -11,7 +11,6 @@ import {
   PfSkeleton,
   PfEmptyState,
   PfButton,
-  TabPageHead,
   UIcon,
   SegmentedTabs,
   type PillTone,
@@ -295,11 +294,16 @@ export function ClientCrmAdvocacyMattersProto({
 
   const createMatter = useMutation({
     mutationFn: async (input: { title: string; matterType: string }) =>
-      (await api.post<{ id: string }>(`/api/clients/${client.id}/advocacy-matters`, input)).data,
+      (await api.post<{ id: string } | string>(`/api/clients/${client.id}/advocacy-matters`, input)).data,
     onSuccess: (created) => {
       setCreating(false);
       refreshList();
-      setOpenMatterId(created.id);
+      // The create endpoint has returned two shapes across server versions:
+      // the current `{ id }` object and an older bare UUID string. Reading
+      // `.id` off the string yielded `undefined`, so the just-created Matter
+      // never opened — accept both rather than depending on the deploy order.
+      const id = typeof created === 'string' ? created : created?.id;
+      if (id) setOpenMatterId(id);
     },
   });
 
@@ -374,17 +378,18 @@ export function ClientCrmAdvocacyMattersProto({
 
   return (
     <div className="cap-pf-anim-rise capiro-advocacy">
-      <TabPageHead
-        title="Advocacy matters"
-        sub="What this client has advocated for, grouped into one coherent history per ask — not a flat timeline of unrelated records."
-        actions={
-          isAdmin ? (
-            <PfButton variant="secondary" size="sm" onClick={() => setCreating(true)}>
-              New matter
-            </PfButton>
-          ) : undefined
-        }
-      />
+      {/* The page-level record-surface head already says "Advocacy history"
+          with the prototype's description — a second TabPageHead here
+          ("Advocacy matters") duplicated it the way the timeline's in-card
+          CardHead did. The create action stays, right-aligned like the
+          reference's header actions. */}
+      {isAdmin ? (
+        <div className="capiro-advocacy-head-actions">
+          <PfButton variant="secondary" size="sm" onClick={() => setCreating(true)}>
+            New matter
+          </PfButton>
+        </div>
+      ) : null}
       <Card>
         <div className="capiro-advocacy-kpis" role="group" aria-label="Advocacy summary">
           {kpiCells.map((kpi) => (
@@ -555,9 +560,14 @@ function CreateMatterForm({
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </PfButton>
-        <PfButton variant="primary" size="sm" disabled={!title.trim() || busy} busy={busy}>
-          Create matter
-        </PfButton>
+        {/* PfButton renders type="button" — a form's primary action must
+            trigger onSubmit itself, since a click never reaches the form
+            handler otherwise (only Enter inside the input did). */}
+        <span onClick={(e) => { e.preventDefault(); if (title.trim() && !busy) onSubmit({ title: title.trim(), matterType }); }}>
+          <PfButton variant="primary" size="sm" disabled={!title.trim() || busy} busy={busy}>
+            Create matter
+          </PfButton>
+        </span>
       </div>
     </form>
   );
@@ -751,14 +761,38 @@ export function AdvocacyMatterDrawer({
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: detailKey });
+    // A lifecycle correction (merge, reassign, detach, not-advocacy) changes
+    // more than this Matter's own detail: the cross-Matter Timeline view, and
+    // the detail cache of any source/destination Matter a record moved
+    // between. Invalidate all three so no surface keeps showing the record
+    // under its old grouping until a manual reload.
+    void qc.invalidateQueries({ queryKey: ['client-advocacy-timeline', clientId] });
+    void qc.invalidateQueries({ queryKey: ['client-advocacy-matter', clientId] });
     onChanged();
   };
 
   const updateMatter = useMutation({
     mutationFn: async (input: { title?: string; status?: string; summary?: string; confirmOutcome?: boolean }) =>
       (await api.patch(`/api/clients/${clientId}/advocacy-matters/${matterId}`, input)).data,
-    onSuccess: () => {
+    onSuccess: (_data, input) => {
       setEditing(false);
+      // Stale-edit race (browser failure-15): save status planning→successful,
+      // reopen Edit before the invalidated detail GET lands — the form used to
+      // initialize from the still-stale cache (planning) and a follow-up save
+      // silently reverted the just-saved status. Seed the detail cache with
+      // the submitted fields so the reopened form starts from the save the
+      // user actually made; the refetch still corrects it if the server
+      // computed anything else.
+      qc.setQueryData<AdvocacyMatterDetail | undefined>(detailKey, (current) =>
+        current
+          ? {
+              ...current,
+              ...(input.title !== undefined ? { title: input.title } : {}),
+              ...(input.status !== undefined ? { status: input.status } : {}),
+              ...(input.summary !== undefined ? { summary: input.summary } : {}),
+            }
+          : current,
+      );
       refresh();
     },
   });
@@ -819,7 +853,19 @@ export function AdvocacyMatterDrawer({
 
   return (
     <CapiroDrawer open onClose={onClose} title={detail.data?.title ?? 'Advocacy matter'}>
-      {!detail.data ? (
+      {detail.isError ? (
+        // A failed detail fetch used to render the loading skeleton forever —
+        // `!detail.data` is true for both "in flight" and "failed", so a 500
+        // looked identical to a slow network and the drawer never said so.
+        <div className="capiro-advocacy-drawer-loading" role="alert">
+          <p style={{ margin: 0, fontSize: 14, color: '#B42318' }}>
+            This matter could not be loaded.{' '}
+            {detail.error instanceof Error && detail.error.message
+              ? detail.error.message
+              : 'Try again in a moment.'}
+          </p>
+        </div>
+      ) : !detail.data ? (
         <div className="capiro-advocacy-drawer-loading">
           <PfSkeleton width="60%" height={16} />
           <PfSkeleton width="40%" height={13} />
@@ -1050,9 +1096,20 @@ function EditMatterForm({
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </PfButton>
-        <PfButton variant="primary" size="sm" disabled={busy || (requiresConfirmation && !confirmOutcome)} busy={busy}>
-          Save
-        </PfButton>
+        {/* PfButton renders type="button" — route the click into the form's
+            onSubmit so a mouse click on Save does what Enter already did. */}
+        <span
+          onClick={(e) => {
+            e.preventDefault();
+            if (!busy && !(requiresConfirmation && !confirmOutcome)) {
+              onSubmit({ title, status, summary, confirmOutcome: requiresConfirmation ? confirmOutcome : undefined });
+            }
+          }}
+        >
+          <PfButton variant="primary" size="sm" disabled={busy || (requiresConfirmation && !confirmOutcome)} busy={busy}>
+            Save
+          </PfButton>
+        </span>
       </div>
     </form>
   );

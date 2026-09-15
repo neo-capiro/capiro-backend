@@ -72,6 +72,113 @@ describe('client funding profile form mapping', () => {
   });
 });
 
+describe('edit-mode intentional clears (D10)', () => {
+  const saved = {
+    name: 'Contact Co',
+    website: 'contact.example',
+    description: 'Has contact details.',
+    primaryContactName: 'Jane Smith',
+    primaryContactEmail: 'jane@contact.example',
+    primaryContactPhone: '+1 202-555-0100',
+    sectorTag: 'DEFENSE',
+    submissionTracks: ['NDAA'],
+    intakeData: { profileNotes: 'keep me', peNumber: '0604215N' },
+  } as unknown as Client;
+
+  it('sends explicit null for cleared contact/identity fields on edit (the API nulls the column)', () => {
+    const payload = formValuesToClientPayload(
+      {
+        name: 'Contact Co',
+        website: '',
+        description: '',
+        primaryContactName: '',
+        primaryContactEmail: '',
+        primaryContactPhone: '',
+        sectors: [],
+        submissionTracks: [],
+      },
+      saved,
+    );
+    expect(payload.website).toBeNull();
+    expect(payload.description).toBeNull();
+    expect(payload.primaryContactName).toBeNull();
+    expect(payload.primaryContactEmail).toBeNull();
+    expect(payload.primaryContactPhone).toBeNull();
+    expect(payload.sectorTag).toBeNull();
+    expect(payload.submissionTracks).toEqual([]);
+    // Unknown / non-wizard intake keys ride through untouched.
+    expect(payload.intakeData).toMatchObject({ profileNotes: 'keep me', peNumber: '0604215N' });
+  });
+
+  it('a partial clear nulls only the cleared field and keeps the rest', () => {
+    const payload = formValuesToClientPayload(
+      {
+        name: 'Contact Co',
+        website: 'contact.example',
+        description: 'Has contact details.',
+        primaryContactName: '',
+        primaryContactEmail: 'jane@contact.example',
+        primaryContactPhone: '+1 202-555-0100',
+        sectors: ['DEFENSE'],
+        submissionTracks: ['NDAA'],
+      },
+      saved,
+    );
+    expect(payload.primaryContactName).toBeNull();
+    expect(payload.primaryContactEmail).toBe('jane@contact.example');
+    expect(payload.website).toBe('contact.example');
+    expect(payload.sectorTag).toBe('DEFENSE');
+    expect(payload.submissionTracks).toEqual(['NDAA']);
+  });
+
+  it('create mode omits empty fields instead of sending null (create semantics preserved)', () => {
+    const payload = formValuesToClientPayload({
+      name: 'New Co',
+      website: '',
+      description: '',
+      primaryContactName: '',
+      primaryContactEmail: '',
+      primaryContactPhone: '',
+      sectors: [],
+      submissionTracks: [],
+    });
+    expect(payload).not.toHaveProperty('website');
+    expect(payload).not.toHaveProperty('description');
+    expect(payload).not.toHaveProperty('primaryContactName');
+    expect(payload).not.toHaveProperty('primaryContactEmail');
+    expect(payload).not.toHaveProperty('primaryContactPhone');
+    expect(payload).not.toHaveProperty('sectorTag');
+    expect(payload).not.toHaveProperty('submissionTracks');
+  });
+
+  it('create mode keeps a formatted phone (unchanged from before the clear fix)', () => {
+    const payload = formValuesToClientPayload({
+      name: 'New Co',
+      primaryContactPhone: '2025550100',
+    });
+    // formatPhone applies in BOTH modes — a regression dropped it on create.
+    expect(payload.primaryContactPhone).toBe('+1 202-555-0100');
+  });
+
+  it('edit mode keeps a non-empty value and a formatted phone as before', () => {
+    const payload = formValuesToClientPayload(
+      {
+        name: 'Contact Co',
+        website: 'contact.example',
+        description: 'Has contact details.',
+        primaryContactName: 'Jane Smith',
+        primaryContactEmail: 'jane@contact.example',
+        primaryContactPhone: '2025550100',
+        sectors: ['DEFENSE'],
+        submissionTracks: ['NDAA'],
+      },
+      saved,
+    );
+    expect(payload.primaryContactPhone).toBe('+1 202-555-0100');
+    expect(payload.website).toBe('contact.example');
+  });
+});
+
 describe('registration editing round trips', () => {
   it('retains every legacy generic NAICS code through an unrelated save without inventing a primary', () => {
     const saved = { ...client, intakeData: { naics: '541330, 541512; 336414', note: 'retain' } } as Client;

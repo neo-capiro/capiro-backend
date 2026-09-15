@@ -24,6 +24,13 @@ const MATTER_STATUSES = [
   'successful', 'partially_successful', 'unsuccessful', 'withdrawn', 'archived',
 ] as const;
 
+/** Legacy statuses retained at the DB layer for pre-existing rows (see
+ *  migration 20271231050000 — they were part of the original 4-value enum
+ *  and are still valid on existing Matters). The edit form renders them as
+ *  "(legacy)" options and submits them back unchanged on an ordinary edit;
+ *  rejecting them here would 400 every save of a legacy Matter. */
+const LEGACY_MATTER_STATUSES = ['open', 'resolved', 'stalled'] as const;
+
 class UpdateAdvocacyMatterDto {
   @IsOptional()
   @IsString()
@@ -31,7 +38,7 @@ class UpdateAdvocacyMatterDto {
   title?: string;
 
   @IsOptional()
-  @IsIn(MATTER_STATUSES)
+  @IsIn([...MATTER_STATUSES, ...LEGACY_MATTER_STATUSES])
   status?: string;
 
   @IsOptional()
@@ -100,7 +107,7 @@ class CreateManualAdvocacyRecordDto {
   summary?: string;
 
   @IsOptional()
-  @IsISO8601()
+  @IsISO8601({ strict: true, strictSeparator: true })
   activityDate?: string;
 
   @IsOptional()

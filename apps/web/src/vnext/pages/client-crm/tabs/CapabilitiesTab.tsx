@@ -8,6 +8,7 @@ import {
   FitChip,
   Pill,
   TabPageHead,
+  UIcon,
   type EvidenceTier,
   type PillTone,
 } from '../portfolio-primitives.js';
@@ -64,7 +65,7 @@ import './capabilities-tab.css';
  * branch's own controls are what must actually read as clickable.
  */
 
-export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
+export function ClientCrmCapabilitiesProto({ client, drawer = false, onEditProfile }: { client: Client; drawer?: boolean; onEditProfile?: () => void }) {
   const api = useApi();
   const qc = useQueryClient();
   // Track the OPEN CAPABILITY BY ID, not by snapshot object (Q04). The editor
@@ -101,6 +102,19 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
     setEditingId(null);
     setCreating(false);
     setJustCreated(null);
+  };
+
+  /**
+   * "Edit client profile" from the registrations empty state. The editor the
+   * page opens (ClientCrmPage's `editing`) must not stack UNDER this tab's own
+   * overlays — close the registrations modal first, then hand off. Without the
+   * close, the editor's overlay sits beneath the still-open registrations modal
+   * (and the parent record drawer), so even its Cancel is unreachable.
+   */
+  const handleEditProfile = () => {
+    if (!onEditProfile) return;
+    setRegistrationsOpen(false);
+    onEditProfile();
   };
 
   const remove = useMutation({
@@ -156,7 +170,9 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
                   className="cap-pf-caps-drawer__card"
                   onClick={() => area.capability && setEditingId(area.capability.id)}
                 >
-                  <span className="cap-pf-caps-drawer__icon" aria-hidden>▦</span>
+                  <span className="cap-pf-caps-drawer__icon" aria-hidden>
+                    <UIcon name="Grid01" size={20} color="#475467" />
+                  </span>
                   <span className="cap-pf-caps-drawer__copy">
                     <strong>{area.name}</strong>
                     <small>{area.body}</small>
@@ -200,14 +216,14 @@ export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client:
 
       {/* §7.2 Registrations & codes · Where capabilities create fit (two-up) */}
       <div className="cap-pf-grid-2">
-        <RegistrationsCard client={client} />
+        <RegistrationsCard client={client} onEditProfile={handleEditProfile} />
         <CapabilityFitCard client={client} onAddCapability={() => setCreating(true)} />
       </div>
         </>
       )}
 
       <CapiroModal open={registrationsOpen} title="Registrations & codes" onClose={() => setRegistrationsOpen(false)}>
-        <RegistrationsCard client={client} />
+        <RegistrationsCard client={client} onEditProfile={handleEditProfile} />
       </CapiroModal>
 
       {/* The canonical editor is an in-flow side panel on the legacy profile.
@@ -476,7 +492,7 @@ function formatRegDate(value: string): string {
  * expiration, not a sync timestamp — nothing in this product verifies against
  * SAM.gov on a schedule, so it never claims a verification it did not perform.
  */
-function RegistrationsCard({ client }: { client: Client }) {
+function RegistrationsCard({ client, onEditProfile }: { client: Client; onEditProfile?: () => void }) {
   const navigate = useNavigate();
   const { rows, samStatus, samExpiration } = readClientRegistrations(client);
   return (
@@ -497,9 +513,16 @@ function RegistrationsCard({ client }: { client: Client }) {
             <p className="cap-pf-caps__muted-note">
               No registrations or codes recorded for this client yet.
             </p>
-            {/* The Company Info wizard has no deep link of its own — it opens
-                from the canonical profile page, so that is where this goes. */}
-            <SecondaryBtn onClick={() => navigate(`/clients?clientId=${client.id}`)}>
+            {/* Open the real profile editor. The page owns its `editing` state,
+                so when the parent hands us `onEditProfile` we call it and the
+                editor opens in place. Only without it (no editor on the page)
+                fall back to navigating to the canonical profile page. */}
+            <SecondaryBtn
+              onClick={() => {
+                if (onEditProfile) onEditProfile();
+                else navigate(`/clients?clientId=${client.id}`);
+              }}
+            >
               Edit client profile
             </SecondaryBtn>
           </div>

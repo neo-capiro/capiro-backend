@@ -1488,7 +1488,7 @@ export class ClientAdvocacyMatterService {
     ctx: TenantContext,
     clientId: string,
     input: { title: string; matterType?: string; summary?: string | null },
-  ): Promise<string> {
+  ): Promise<{ id: string }> {
     await this.assertClient(ctx, clientId);
     const externalKey = `manual:${randomUUID()}`;
     const inserted = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -1507,7 +1507,7 @@ export class ClientAdvocacyMatterService {
         ctx.userId,
       ),
     );
-    return inserted[0]!.id;
+    return { id: inserted[0]!.id };
   }
 
   /** Record types product spec §25 asks "Add advocacy record" to support,
@@ -1563,12 +1563,33 @@ export class ClientAdvocacyMatterService {
     if (input.matterId) {
       await this.assertMatterBelongsToClient(ctx, clientId, input.matterId);
     }
-    const matterId = input.newMatter
-      ? await this.createMatter(ctx, clientId, input.newMatter)
-      : input.matterId ?? null;
     const evidenceClass = input.sourceUrl ? 'PUBLIC_VERIFIED' : 'CLIENT_VERIFIED';
     const externalKey = `manual:${randomUUID()}`;
+    // Matter creation (when newMatter is given) and the record INSERT share
+    // ONE transaction: previously createMatter committed in its own
+    // withTenant before the record INSERT ran, so a record-write failure
+    // (e.g. an invalid activityDate rejected by Postgres) left an orphaned
+    // Matter with no record — exactly the probe-reported defect.
     const inserted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      let matterId = input.matterId ?? null;
+      if (input.newMatter) {
+        const matterExternalKey = `manual:${randomUUID()}`;
+        const matterRows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `INSERT INTO client_advocacy_matter
+             (tenant_id, client_id, title, matter_type, status, summary, external_key,
+              auto_generated, opened_at, created_by_user_id)
+           VALUES ($1::uuid, $2::uuid, $3, $4, 'planning', $5, $6, false, now(), $7::uuid)
+           RETURNING id`,
+          ctx.tenantId,
+          clientId,
+          input.newMatter.title,
+          input.newMatter.matterType ?? 'other',
+          input.newMatter.summary ?? null,
+          matterExternalKey,
+          ctx.userId,
+        );
+        matterId = matterRows[0]!.id;
+      }
       const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
         `INSERT INTO client_advocacy_record
            (tenant_id, client_id, record_type, title, summary, activity_date, status, outcome,
@@ -1630,19 +1651,36 @@ export class ClientAdvocacyMatterService {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       let confirmOutcomeNow = false;
       if (input.status && OUTCOME_STATUSES.has(input.status)) {
-        const evidence = await tx.$queryRawUnsafe<Array<{ count: number }>>(
-          `SELECT COUNT(*)::int AS count FROM client_advocacy_matter_link
-            WHERE tenant_id = $1::uuid AND matter_id = $2::uuid AND link_type = 'outcome_event'`,
+        // The evidence/confirmation gate applies to a TRANSITION into an
+        // outcome-claim status. An ordinary edit that re-submits the
+        // Matter's already-current outcome status (the edit form always
+        // sends the selected status, unchanged on a title/summary-only
+        // edit) must not re-challenge the earlier confirmation — the
+        // transition already required it when it first happened.
+        const current = await tx.$queryRawUnsafe<Array<{ status: string }>>(
+          `SELECT status FROM client_advocacy_matter
+            WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
           ctx.tenantId,
+          clientId,
           matterId,
         );
-        const hasOutcomeEvidence = (evidence[0]?.count ?? 0) > 0;
-        if (!hasOutcomeEvidence && input.confirmOutcome !== true) {
-          throw new BadRequestException(
-            `Setting status to "${input.status}" requires either a linked outcome event or explicit human confirmation (confirmOutcome: true)`,
+        if (current.length === 0) throw new NotFoundException('Advocacy matter not found');
+        const isTransition = current[0]!.status !== input.status;
+        if (isTransition) {
+          const evidence = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+            `SELECT COUNT(*)::int AS count FROM client_advocacy_matter_link
+              WHERE tenant_id = $1::uuid AND matter_id = $2::uuid AND link_type = 'outcome_event'`,
+            ctx.tenantId,
+            matterId,
           );
+          const hasOutcomeEvidence = (evidence[0]?.count ?? 0) > 0;
+          if (!hasOutcomeEvidence && input.confirmOutcome !== true) {
+            throw new BadRequestException(
+              `Setting status to "${input.status}" requires either a linked outcome event or explicit human confirmation (confirmOutcome: true)`,
+            );
+          }
+          confirmOutcomeNow = true;
         }
-        confirmOutcomeNow = true;
       }
 
       const changed = await tx.$executeRawUnsafe(
@@ -1801,7 +1839,7 @@ export class ClientAdvocacyMatterService {
       if (targets.length !== 2) throw new NotFoundException('Advocacy matter not found');
 
       await tx.$executeRawUnsafe(
-        `UPDATE client_advocacy_record SET matter_id = $3::uuid, updated_at = now()
+        `UPDATE client_advocacy_record SET matter_id = $3::uuid, matter_locked = true, updated_at = now()
           WHERE tenant_id = $1::uuid AND matter_id = $2::uuid`,
         ctx.tenantId,
         sourceMatterId,
@@ -1809,9 +1847,13 @@ export class ClientAdvocacyMatterService {
       );
       // Links are matter-scoped-unique on (matter_id, link_type, link_key);
       // a link already present on the target loses the source's duplicate.
+      // Copy the full evidence/provenance column set (relationship_type,
+      // confidence, provenance, evidence_class) through — dropping them
+      // would silently erase the per-link evidence badges and rationale a
+      // merge is supposed to preserve (provenance loss defect).
       await tx.$executeRawUnsafe(
-        `INSERT INTO client_advocacy_matter_link (tenant_id, matter_id, link_type, link_key, label, metadata_jsonb, created_by_user_id)
-         SELECT tenant_id, $3::uuid, link_type, link_key, label, metadata_jsonb, created_by_user_id
+        `INSERT INTO client_advocacy_matter_link (tenant_id, matter_id, link_type, link_key, label, relationship_type, confidence, provenance, evidence_class, metadata_jsonb, created_by_user_id)
+         SELECT tenant_id, $3::uuid, link_type, link_key, label, relationship_type, confidence, provenance, evidence_class, metadata_jsonb, created_by_user_id
            FROM client_advocacy_matter_link
           WHERE tenant_id = $1::uuid AND matter_id = $2::uuid
          ON CONFLICT (matter_id, link_type, link_key) DO NOTHING`,

@@ -136,6 +136,9 @@ export function PfDrawer({
                 letterSpacing: record ? '.06em' : '.05em',
                 textTransform: 'uppercase',
                 color: record ? '#98A2B3' : '#667085',
+                // Record header: reference drawer head is 100px — the shell's
+                // inherited 24px leading on the 11px eyebrow alone added ~13px.
+                lineHeight: record ? '14px' : undefined,
               }}
             >
               {eyebrow}

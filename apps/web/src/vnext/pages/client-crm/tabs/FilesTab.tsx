@@ -19,6 +19,7 @@ import {
   type ClientAccountOwner,
 } from '../useClientAccountOwner.js';
 import { CLIENT_STORAGE_QUOTA_BYTES, CLIENT_STORAGE_WARN_THRESHOLD } from '@capiro/shared';
+import { attachmentContentType } from '../../../../lib/attachment-content-type.js';
 import './files-tab.css';
 import { fileReadability } from './file-readability.js';
 
@@ -544,6 +545,32 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
     ? allRows.filter((row) => (row.linked.split(/ · | \/ /)[0]?.trim() || 'Unfiled') === drawerGroup)
     : allRows;
 
+  /**
+   * Where the drawer's "+ Upload" actually files the upload. The button used
+   * to hardcode `triggerUpload(null)`, so a draft folder the user had just
+   * created and opened could never receive a file — it stayed a draft until
+   * something was MOVED into it, and the upload silently landed at the root
+   * instead.
+   *
+   * The drawer has no folder tree; it scopes its "All files" list by
+   * `drawerGroup`, which is keyed by the row's `linked` label — for a filed
+   * file the folder label itself, for a smart link the source label
+   * ("Capability", "Meeting", …), never a folder. So only a group that is a
+   * REAL folder label (from the folders endpoint) or a live draft name is a
+   * valid upload target; a smart-link group or nothing selected still files
+   * at the root. Matches by label with the same case-folding the duplicate
+   * check uses.
+   */
+  const drawerUploadFolder = useMemo(() => {
+    if (!drawerGroup) return null;
+    const named = folders.find(
+      (f) => f.id !== 'root' && f.id !== UNFILED_ID && f.folder && sameFolder(f.folder, drawerGroup),
+    );
+    if (named) return named.folder ?? null;
+    const draft = draftFolders.find((name) => sameFolder(name, drawerGroup));
+    return draft ?? null;
+  }, [drawerGroup, folders, draftFolders]);
+
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
     // Search spans every folder; otherwise match the selected stored label.
@@ -612,7 +639,12 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
       }
       setUploads((previous) => [...previous, { name: file.name, status: 'uploading' }]);
       try {
-        const contentType = file.type || 'application/octet-stream';
+        // See attachment-content-type.ts: an empty file.type (common for
+        // .txt/.csv/.docx depending on the OS picker) must not fall back to
+        // 'application/octet-stream' — the one content type the server's
+        // allowlist rejects. Infer from the extension first; an unrecognized
+        // extension still falls through and fails loudly server-side.
+        const contentType = attachmentContentType(file);
         const presigned = (
           await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
             '/api/engagement/attachments/upload-url',
@@ -705,7 +737,11 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
             <button type="button" className="cap-pf-files-drawer__link" onClick={() => setCreatingFolder({ ids: [...selected] })}>
               New folder
             </button>
-            <button type="button" className="cap-pf-files-drawer__upload" onClick={() => triggerUpload(null)}>
+            {/* Files into the folder group the user is actually looking at —
+                a real or draft folder. Was hardcoded to `null`, so an upload
+                from inside a draft folder landed at the root and the draft
+                never became real. */}
+            <button type="button" className="cap-pf-files-drawer__upload" onClick={() => triggerUpload(drawerUploadFolder)}>
               + Upload
             </button>
           </div>
@@ -777,7 +813,16 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                     <span>{drawerGroup}</span>
                   </div>
                 ) : null}
-                {drawerShownRows.map((row, index) => (
+                {/* A failed read must not masquerade as an empty file room —
+                    the Folders tab has its own error/retry branch, and this
+                    list needs the same honesty. */}
+                {filesQuery.isError ? (
+                  <div className="cap-pf-files-drawer__state cap-pf-files-drawer__state--error">
+                    Files could not be loaded.{' '}
+                    <button type="button" onClick={() => void filesQuery.refetch()}>Retry</button>
+                  </div>
+                ) : (
+                  drawerShownRows.map((row, index) => (
                   <FileRow
                     key={row.id}
                     row={row}
@@ -799,12 +844,14 @@ export function ClientCrmFilesProto({ client, drawer = false }: { client: Client
                     }}
                     onRequestDelete={() => { setMenuRowId(null); setDeletingId(row.id); }}
                   />
-                ))}
+                  ))
+                )}
                 {/* Scoped to what's actually shown, not the whole client's
                     row count — filtering into an empty real folder or a fresh
                     draft used to render a blank list with no explanation
-                    (allRows.length only reflects the unfiltered total). */}
-                {!filesQuery.isPending && drawerShownRows.length === 0 ? (
+                    (allRows.length only reflects the unfiltered total). Never
+                    claim "no files" while the read itself failed. */}
+                {!filesQuery.isPending && !filesQuery.isError && drawerShownRows.length === 0 ? (
                   <div className="cap-pf-files-drawer__state">
                     {drawerGroup && draftFolders.some((name) => sameFolder(name, drawerGroup))
                       ? 'Draft folder · upload or move a file here to create it'

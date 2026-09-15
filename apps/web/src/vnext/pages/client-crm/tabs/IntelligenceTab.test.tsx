@@ -15,6 +15,19 @@ vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, post: postMock }),
 }));
 
+// Deterministic per-test control over the intel feature flags. The real
+// hook reads /api/intelligence/feature-flags; the district tests below need
+// to flip district_nexus_v2 on/off/failing without a network round-trip.
+const intelFlags = vi.hoisted(() => ({
+  current: { tracker_v2: false, district_nexus_v2: false } as Record<string, boolean>,
+}));
+vi.mock('../../../../lib/intel-feature-flags.js', () => ({
+  useIntelFeature: (feature: string) => ({
+    enabled: Boolean(intelFlags.current[feature]),
+    ready: true,
+  }),
+}));
+
 const client: Client = {
   id: 'client-1',
   name: 'Overland AI',
@@ -162,6 +175,7 @@ function mockDistrictApis(overrides: { facilities?: unknown; nexus?: unknown; re
 
 describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)', () => {
   it('supplies saved locations to the shared map even when District Nexus v2 is disabled', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
     const locations = [{ ...FACILITY, latitude: 47.6, longitude: -122.3 }, { ...FACILITY, id: 'fac-2', latitude: 47.5, longitude: -122.2 }];
     mockDistrictApis({ facilities: locations });
     renderDistrict();
@@ -170,6 +184,7 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
   });
   beforeEach(() => {
     getMock.mockReset();
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
   });
 
   it('binds the map, rail, and selected-district panel to real facilities/district-nexus/representation data', async () => {
@@ -249,6 +264,55 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     expect(within(dialog).getByRole('button', { name: 'Add facility' })).toBeInTheDocument();
     // In-place: no navigation, and in particular not the old dead ?tab=facilities.
     expect(screen.getByTestId('location')).not.toHaveTextContent('tab=facilities');
+  });
+
+  it('a v2 request ERROR (not the 404 feature-off answer) is named with a retry, while the v1 facility view still renders', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
+    mockDistrictApis();
+    // The v2 endpoint 500s; facilities/nexus/representation succeed.
+    const original = getMock.getMockImplementation()!;
+    getMock.mockImplementation((url: string) =>
+      url.includes('district-nexus-v2')
+        ? Promise.reject({ response: { status: 500 }, message: 'nexus v2 exploded' })
+        : original(url),
+    );
+    renderDistrict();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Scored district data is unavailable right now');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    // The v1 fallback still rendered real data — an outage is not an absence.
+    await waitFor(() => expect(screen.getAllByText('WA-07').length).toBeGreaterThan(0));
+  });
+
+  it('a failed representation fetch is named, not silently rendered as "every facility unmatched"', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/clients/client-1/facilities') return Promise.resolve({ data: [{ ...FACILITY, latitude: 47.6, longitude: -122.3 }] });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: NEXUS_LINKED });
+      if (url === '/api/clients/client-1/representation') return Promise.reject({ response: { status: 500 }, message: 'representation down' });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderDistrict();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Representation for these facilities could not be resolved');
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  });
+
+  it('with the v2 flag OFF the stats strip falls back to real v1 counts instead of permanent dashes', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
+    mockDistrictApis();
+    renderDistrict();
+
+    // v1 strip: districts count from the linked nexus rows, not '—'.
+    const label = await screen.findByText('Districts');
+    const cell = label.closest('.capiro-intel-stats-cell');
+    if (!cell) throw new Error('District count statistic not found');
+    // Wait for the request to settle and assert this statistic's value,
+    // rather than finding a coincidental "1" elsewhere in the whole panel.
+    await waitFor(() => expect(within(cell as HTMLElement).getByText('1', { exact: true })).toBeInTheDocument());
+    expect(cell.closest('section')).toHaveAttribute('data-source', 'live');
   });
 });
 
@@ -481,14 +545,14 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     // before the district-nexus query settles and assert against a cell that
     // is still legitimately loading.
     await screen.findByText('$12.0M');
-    const awardsCell = screen.getByText('Federal contracts · on record');
+    const awardsCell = screen.getByText('Federal contracts', { selector: '.capiro-intel-stats-label' });
     expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
 
     const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
     expect(within(ldaCell as HTMLElement).getByText('1')).toBeInTheDocument();
 
     // FEC never answered — its own cell stays an honest dash, not $0 and not blank.
-    const pacCell = screen.getByText('PAC political contributions').closest('.capiro-intel-stats-cell');
+    const pacCell = screen.getByText('PAC contributions', { selector: '.capiro-intel-stats-label' }).closest('.capiro-intel-stats-cell');
     expect(within(pacCell as HTMLElement).getByText('—')).toBeInTheDocument();
   });
 
@@ -610,7 +674,7 @@ describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)'
     await screen.findByText('Source update failed.');
     expect(screen.getByText('$90,000')).toBeInTheDocument();
     expect(screen.getByText(/The amount shown reflects the available records/)).toBeInTheDocument();
-    expect(screen.getByText('PAC political contributions · incomplete')).toBeInTheDocument();
+    expect(screen.getByText('PAC contributions · incomplete', { selector: '.capiro-intel-stats-label' })).toBeInTheDocument();
   });
 });
 

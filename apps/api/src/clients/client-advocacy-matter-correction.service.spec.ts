@@ -157,14 +157,64 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
     });
   });
 
+  describe('mergeMatters — provenance preservation', () => {
+    test('copies evidence/provenance columns (relationship_type, confidence, provenance, evidence_class) through the link move', async () => {
+      const { service, tx } = makeService();
+      // Both Matters exist for this tenant/client.
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: matterId }, { id: otherMatterId }]);
+
+      await service.mergeMatters(ctx, clientId, matterId, otherMatterId);
+
+      const linkCopyCall = tx.$executeRawUnsafe.mock.calls.find((call) =>
+        String(call[0]).includes('INSERT INTO client_advocacy_matter_link'),
+      );
+      expect(linkCopyCall).toBeDefined();
+      const sql = String(linkCopyCall![0]);
+      // Every provenance column the link table carries must appear in BOTH
+      // the INSERT column list and the SELECT list — dropping any of them
+      // silently erases per-link evidence badges/rationale on merge.
+      for (const col of ['relationship_type', 'confidence', 'provenance', 'evidence_class', 'metadata_jsonb']) {
+        expect(sql).toContain(col);
+      }
+      expect(String(linkCopyCall![0])).toContain('ON CONFLICT (matter_id, link_type, link_key) DO NOTHING');
+      // Source Matter is deleted after the move.
+      const deleteCall = tx.$executeRawUnsafe.mock.calls.find((call) =>
+        String(call[0]).includes('DELETE FROM client_advocacy_matter'),
+      );
+      expect(deleteCall).toBeDefined();
+    });
+
+    test('is a no-op when source and target are the same Matter', async () => {
+      const { service, tx } = makeService();
+
+      await service.mergeMatters(ctx, clientId, matterId, matterId);
+
+      expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    test('throws NotFoundException when either Matter is missing from this client', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: matterId }]); // only one found
+
+      await expect(service.mergeMatters(ctx, clientId, matterId, otherMatterId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('createMatter', () => {
-    test('creates a manually-keyed, non-auto-generated Matter in planning status', async () => {
+    test('creates a manually-keyed, non-auto-generated Matter in planning status and returns { id }', async () => {
       const { service, tx } = makeService();
       tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: matterId }]);
 
       const result = await service.createMatter(ctx, clientId, { title: 'New ask' });
 
-      expect(result).toBe(matterId);
+      // Contract: callers (AdvocacyMattersTab's POST, createManualRecord's
+      // newMatter path) read `result.id`. Returning the bare UUID string
+      // left `created.id` undefined on the frontend and broke the
+      // open-detail follow-up.
+      expect(result).toEqual({ id: matterId });
       const insertCall = tx.$queryRawUnsafe.mock.calls[0]!;
       expect(String(insertCall[0])).toContain("'planning'");
       expect(String(insertCall[0])).toContain('false'); // auto_generated = false
@@ -382,9 +432,11 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
   });
 
   describe('updateMatter — outcome status evidence/confirmation gate', () => {
-    test('rejects "successful" with no outcome evidence and no confirmation', async () => {
+    test('rejects transitioning into "successful" with no outcome evidence and no confirmation', async () => {
       const { service, tx } = makeService();
-      tx.$queryRawUnsafe.mockResolvedValueOnce([{ count: 0 }]); // no outcome_event links
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ status: 'active' }]) // current status
+        .mockResolvedValueOnce([{ count: 0 }]); // no outcome_event links
 
       await expect(
         service.updateMatter(ctx, clientId, matterId, { status: 'successful' }),
@@ -392,18 +444,22 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
       expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
     });
 
-    test('allows "successful" when the Matter already has linked outcome evidence', async () => {
+    test('allows transitioning into "successful" when the Matter already has linked outcome evidence', async () => {
       const { service, tx } = makeService();
-      tx.$queryRawUnsafe.mockResolvedValueOnce([{ count: 1 }]);
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ status: 'outcome_observed' }])
+        .mockResolvedValueOnce([{ count: 1 }]);
 
       await service.updateMatter(ctx, clientId, matterId, { status: 'successful' });
 
       expect(tx.$executeRawUnsafe).toHaveBeenCalledTimes(1);
     });
 
-    test('allows "successful" with no evidence when confirmOutcome:true is explicit', async () => {
+    test('allows transitioning into "successful" with no evidence when confirmOutcome:true is explicit', async () => {
       const { service, tx } = makeService();
-      tx.$queryRawUnsafe.mockResolvedValueOnce([{ count: 0 }]);
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ status: 'active' }])
+        .mockResolvedValueOnce([{ count: 0 }]);
 
       await service.updateMatter(ctx, clientId, matterId, { status: 'successful', confirmOutcome: true });
 
@@ -411,12 +467,39 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
       expect(updateCall).toContain(true); // confirmOutcomeNow flag bound as $8
     });
 
+    test('an ordinary edit re-submitting the UNCHANGED outcome status is not re-challenged', async () => {
+      const { service, tx } = makeService();
+      // Stored status already 'successful' (previously confirmed/evidenced);
+      // the edit form always submits the selected status, so a title/summary
+      // edit carries status:'successful' with confirmOutcome undefined.
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ status: 'successful' }]);
+
+      await service.updateMatter(ctx, clientId, matterId, { title: 'Renamed', status: 'successful' });
+
+      // No evidence SELECT was issued — only the current-status read.
+      expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+      expect(tx.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+      const updateCall = tx.$executeRawUnsafe.mock.calls[0]!;
+      // confirmOutcomeNow stays false on a non-transition — we do NOT stamp
+      // a fresh outcome_confirmed_at for an edit that didn't change status.
+      expect(updateCall).toContain(false);
+    });
+
     test('"outcome_observed" requires no evidence/confirmation', async () => {
       const { service, tx } = makeService();
 
       await service.updateMatter(ctx, clientId, matterId, { status: 'outcome_observed' });
 
-      // No evidence SELECT was issued for a non-outcome-claim status.
+      // No status/evidence SELECT was issued for a non-outcome-claim status.
+      expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+      expect(tx.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+    });
+
+    test('legacy status values (open/resolved/stalled) save without an evidence gate', async () => {
+      const { service, tx } = makeService();
+
+      await service.updateMatter(ctx, clientId, matterId, { status: 'resolved' });
+
       expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
       expect(tx.$executeRawUnsafe).toHaveBeenCalledTimes(1);
     });
@@ -428,6 +511,16 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
       await expect(
         service.updateMatter(ctx, clientId, matterId, { title: 'Renamed' }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    test('throws NotFoundException when transitioning the status of a Matter that does not exist', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([]); // current-status read finds nothing
+
+      await expect(
+        service.updateMatter(ctx, clientId, matterId, { status: 'successful', confirmOutcome: true }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
     });
   });
 

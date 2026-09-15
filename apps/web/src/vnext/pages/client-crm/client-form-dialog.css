@@ -233,3 +233,19 @@
   padding-top: 14px;
   border-top: 1px solid var(--capiro-color-border-default);
 }
+
+/* Failed reference-list read (LDA issue codes) — truthful error + retry,
+   same recipe as the module's other error states. The base field-note class
+   has no stylesheet entry, so the modifier carries the full presentation. */
+.capiro-vnext-root .capiro-cform__state--error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #B42318;
+}
+.capiro-vnext-root .capiro-cform__retry {
+  font-size: inherit;
+  font-weight: 600;
+  color: #B42318;
+  text-decoration: underline;
+  cursor: pointer;
+}

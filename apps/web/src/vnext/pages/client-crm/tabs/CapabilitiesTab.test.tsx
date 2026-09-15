@@ -119,8 +119,10 @@ describe('ClientCrmCapabilitiesProto', () => {
     expect(screen.getByText('5865, R425')).toBeInTheDocument();
     expect(screen.getByText('541512')).toBeInTheDocument();
     // SAM codes render as their English labels, from the same option list the
-    // Company Info wizard writes them with.
-    expect(screen.getByText('HUBZone')).toBeInTheDocument();
+    // Company Info wizard writes them with. HZC is a legacy solicitation
+    // restriction code already stored on the record — it renders legacy-tagged,
+    // not as a current certification.
+    expect(screen.getByText('HUBZone (legacy)')).toBeInTheDocument();
     expect(screen.getByText('Small Business · WOSB')).toBeInTheDocument();
     // The header stamp is the recorded SAM status, not a hardcoded date.
     expect(screen.getByText(/SAM\.gov · Active · expires/)).toBeInTheDocument();
@@ -137,6 +139,31 @@ describe('ClientCrmCapabilitiesProto', () => {
     expect(await screen.findByText('No registrations or codes recorded for this client yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit client profile' })).toBeInTheDocument();
     expect(screen.queryByText('ZQ4M8TR2LKD7')).not.toBeInTheDocument();
+  });
+
+  it('D8: "Edit client profile" invokes the page editor callback instead of a dead navigate', async () => {
+    getMock.mockResolvedValue({ data: [] });
+    const onEditProfile = vi.fn();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ClientCrmCapabilitiesProto client={client} drawer onEditProfile={onEditProfile} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // In the drawer the Registrations card opens in a modal.
+    fireEvent.click(await screen.findByRole('button', { name: /Registrations & codes/ }));
+    expect(await screen.findByRole('dialog', { name: 'Registrations & codes' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit client profile' }));
+    // The button used to navigate to `/clients?clientId=…` — a no-op that left
+    // the user on the same view. It must hand off to the page's real editor.
+    expect(onEditProfile).toHaveBeenCalledTimes(1);
+    // …and the registrations modal must close first, so the editor's overlay
+    // doesn't stack beneath it (which blocked even the editor's Cancel).
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Registrations & codes' })).not.toBeInTheDocument());
   });
 });
 

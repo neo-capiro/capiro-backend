@@ -91,6 +91,17 @@ export interface FillRun {
   stage?: 'preparing' | 'research' | 'reconciliation' | 'review_ready' | 'failed' | 'cancelled' | string;
   progress?: FillProgress;
   tasks?: FillTask[];
+  /** Persisted start contract for durable whole-review retry after reload.
+   *  All present on workflow-version ≥2 runs; absent on older runs. */
+  attachmentIds?: string[];
+  selectedLdaIds?: number[];
+  setup?: {
+    website?: string | null;
+    attachmentIds?: string[];
+    attachments?: Array<{ id: string; fileName: string }>;
+    sources?: string[];
+    selectedLdaIds?: number[];
+  } | null;
   error: string | null;
   startedAt: string;
   completedAt: string | null;
@@ -156,16 +167,36 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
   const current = run.data ?? latest.data ?? null;
 
   const start = useMutation({
-    mutationFn: async (input: { sources?: string[]; attachmentId?: string; website?: string } = {}) =>
+    mutationFn: async (input: {
+      sources?: string[];
+      attachmentId?: string;
+      attachmentIds?: string[];
+      website?: string;
+      ldaClientIds?: number[];
+    } = {}) =>
       (
         await api.post<FillRun>(
           `${base}/runs`,
-          input.attachmentId
-            ? { attachmentId: input.attachmentId }
-            : {
-                ...(input.sources?.length ? { sources: input.sources } : {}),
+          // Initial upload (attachmentId alone) posts exactly {attachmentId}
+          // and keeps the server's default source set — unchanged behavior.
+          // A whole-review retry (attachmentIds present, even one) replays
+          // the persisted contract: all attachments, the original source list
+          // (explicit [] for a legacy document-only run), and the original
+          // website / LDA identity selections when they were persisted.
+          input.attachmentIds?.length
+            ? {
+                attachmentIds: input.attachmentIds,
+                ...(input.sources !== undefined ? { sources: input.sources as never } : {}),
                 ...(input.website?.trim() ? { website: input.website.trim() } : {}),
-              },
+                ...(input.ldaClientIds?.length ? { ldaClientIds: input.ldaClientIds } : {}),
+              }
+            : input.attachmentId
+              ? { attachmentId: input.attachmentId }
+              : {
+                  ...(input.sources?.length ? { sources: input.sources } : {}),
+                  ...(input.website?.trim() ? { website: input.website.trim() } : {}),
+                  ...(input.ldaClientIds?.length ? { ldaClientIds: input.ldaClientIds } : {}),
+                },
         )
       ).data,
     onSuccess: (created) => {
@@ -398,6 +429,29 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
       start.mutate({ sources: input?.sources, website: input?.website });
     },
     startForAttachment: (attachmentId: string) => start.mutate({ attachmentId }),
+    // Durable whole-review retry: replays the original document set AND the
+    // original persisted scope. sources===[] is meaningful (legacy
+    // document-only); sources===undefined means the run predates the
+    // persisted list and the server applies its defaults. website /
+    // ldaClientIds are passed only when the run actually persisted them.
+    startForAttachments: (
+      attachmentIds: string[],
+      sources?: string[],
+      website?: string | null,
+      ldaClientIds?: number[],
+    ) => start.mutate({ attachmentIds, sources, website: website ?? undefined, ldaClientIds }),
+    // Durable source-only retry: replays the persisted source selection,
+    // saved website, and LDA identity selections exactly — no attachments,
+    // no default widening. Distinct from start(): start({sources, website})
+    // also posts this shape, but only when sources is non-empty; the
+    // separate entry point keeps the drawer's retry branch honest about
+    // what it is replaying.
+    startRetrySources: (input: { sources: string[]; website?: string; ldaClientIds?: number[] }) =>
+      start.mutate({
+        sources: input.sources,
+        website: input.website,
+        ldaClientIds: input.ldaClientIds,
+      }),
     cancelRun: () => cancel.mutate(),
     cancelPending: cancel.isPending,
     cancelError: cancel.error,

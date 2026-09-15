@@ -15,6 +15,7 @@ import {
   useClientFillWithMeri,
   type FillFinding,
   type FillProgress,
+  type FillRun,
   type FillTask,
   type FillTaskStatus,
 } from '../../adapters/legacy/useClientFillWithMeri.js';
@@ -65,7 +66,7 @@ export function ClientFillWithMeriDrawer({
     enabled: open && hasPendingAdvocacy,
   });
 
-  const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
+  const documentContract = persistedDocumentContract(fill.run);
 
   const startEnrichment = () => {
     setRetryError(null);
@@ -77,14 +78,34 @@ export function ClientFillWithMeriDrawer({
       fill.run?.sourceStates ?? {},
       'client_document',
     );
-    const attachmentId = isDocumentRun ? persistedAttachmentId ?? selectedAttachmentId : null;
-    if (isDocumentRun && attachmentId) {
+    if (isDocumentRun && documentContract) {
       setRetryError(null);
-      fill.startForAttachment(attachmentId);
+      fill.startForAttachments(
+        documentContract.attachmentIds,
+        documentContract.sources,
+        documentContract.website,
+        documentContract.ldaClientIds,
+      );
       return;
     }
     if (isDocumentRun) {
       setRetryError('The original document is no longer available for retry.');
+      return;
+    }
+    // A source-only failed run must retry ITS persisted scope — the selected
+    // sources and the saved website it captured — not the initial defaults.
+    // Falling through to startEnrichment() would widen a synced_email-only
+    // run into every connected source and drop the saved website.
+    const persistedSources = fill.run?.setup?.sources ?? fill.run?.requestedSources;
+    const persistedWebsite = fill.run?.setup?.website ?? null;
+    const persistedLdaIds = fill.run?.selectedLdaIds ?? fill.run?.setup?.selectedLdaIds;
+    if (Array.isArray(persistedSources) && persistedSources.length) {
+      setRetryError(null);
+      fill.startRetrySources({
+        sources: persistedSources,
+        website: persistedWebsite ?? undefined,
+        ldaClientIds: persistedLdaIds,
+      });
       return;
     }
     startEnrichment();
@@ -1069,6 +1090,49 @@ function documentAttachmentId(sourceStates: Record<string, unknown> | undefined)
   if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
   const attachmentId = (state as { attachmentId?: unknown }).attachmentId;
   return typeof attachmentId === 'string' && attachmentId ? attachmentId : null;
+}
+
+/** The full document set + scope a run persisted, for a durable whole-review
+ *  retry after reload. Advanced workflow runs carry attachmentIds (plural)
+ *  and sources in top-level fields, setup, and sourceStates.client_document
+ *  .attachments; legacy runs carry a flat sourceStates.client_document
+ *  .attachmentId. Empty attachmentIds means the run's documents can no
+ *  longer be identified — the UI shows the retry as unavailable rather than
+ *  guessing at one attachment and silently dropping the rest. */
+function persistedDocumentContract(run: FillRun | null | undefined): {
+  attachmentIds: string[];
+  sources: string[] | undefined;
+  website: string | null;
+  ldaClientIds: number[] | undefined;
+} | null {
+  if (!run) return null;
+  const state = run.sourceStates?.client_document;
+  const stateObj =
+    state && typeof state === 'object' && !Array.isArray(state)
+      ? (state as { attachmentId?: unknown; attachments?: unknown })
+      : null;
+  const stateAttachments = Array.isArray(stateObj?.attachments)
+    ? (stateObj!.attachments as Array<{ id?: unknown }>)
+        .map((a) => (typeof a?.id === 'string' ? a.id : null))
+        .filter((id): id is string => Boolean(id))
+    : [];
+  const flatLegacy = documentAttachmentId(run.sourceStates);
+  const attachmentIds = [
+    ...new Set([
+      ...(run.attachmentIds ?? []),
+      ...(run.setup?.attachmentIds ?? []),
+      ...stateAttachments,
+      ...(flatLegacy ? [flatLegacy] : []),
+    ]),
+  ];
+  if (!attachmentIds.length) return null;
+  const sources = run.setup?.sources ?? run.requestedSources;
+  return {
+    attachmentIds,
+    sources: Array.isArray(sources) ? sources : undefined,
+    website: run.setup?.website ?? null,
+    ldaClientIds: run.selectedLdaIds ?? run.setup?.selectedLdaIds,
+  };
 }
 
 function sourceLabel(source: string): string {

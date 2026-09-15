@@ -114,12 +114,22 @@ function AddBillBody({
   });
 
   const isTracked = (billId: string) => boardBillIds.has(billId) || added.has(billId);
+  // A failed track write must say so on the row itself — previously the
+  // rejection was swallowed here (the caller's toast is easy to miss and the
+  // row just snapped back to an untouched "Track" button, reading as "the
+  // click did nothing"). The message clears on the next attempt or keystroke.
+  const [trackError, setTrackError] = useState<{ billId: string; message: string } | null>(null);
   const handle = (b: BillSearchResult) => {
     setPendingId(b.billId);
+    setTrackError(null);
     void Promise.resolve(onTrack(b.billId))
       .then(() => setAdded((s) => new Set(s).add(b.billId)))
-      .catch(() => {
-        /* the caller surfaces the error; the row simply stays untracked */
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : 'Could not track this bill. Try again.';
+        setTrackError({ billId: b.billId, message });
       })
       .finally(() => setPendingId((cur) => (cur === b.billId ? null : cur)));
   };
@@ -257,7 +267,17 @@ function AddBillBody({
             </div>
           );
         })}
-        {q.trim().length >= 2 && !results.isFetching && rows.length === 0 ? (
+        {trackError ? (
+          <div role="alert" style={{ padding: '8px 12px', fontSize: 13, color: '#B42318' }}>
+            Couldn’t track {rows.find((b) => b.billId === trackError.billId)?.displayNum ?? 'this bill'}.{' '}
+            {trackError.message}
+          </div>
+        ) : null}
+        {results.isError ? (
+          <div style={{ padding: '16px 12px', fontSize: 14, color: '#B42318' }}>
+            Bill search is unavailable right now. Try again in a moment.
+          </div>
+        ) : q.trim().length >= 2 && !results.isFetching && rows.length === 0 ? (
           <div style={{ padding: '16px 12px', fontSize: 14, color: '#667085' }}>
             No bills match “{q}”. Try a bill number or keyword.
           </div>

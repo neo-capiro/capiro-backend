@@ -353,15 +353,20 @@ Based on this client's activity and intelligence data for the past ${period === 
     // or silently substitute the stale legacy board after a v2 read failure.
     try {
       return await this.prisma.withTenant(tenantId, async (tx) => {
+        // intel_feature_flag.tenant_id is TEXT (RLS compares current_tenant_id()::text),
+        // so a ::uuid bind here fails with PG 42883 "operator does not exist: text = uuid".
         const flags = await tx.$queryRaw<Array<{ enabled: boolean }>>`
           SELECT enabled FROM intel_feature_flag
-          WHERE tenant_id = ${tenantId}::uuid AND feature = 'tracker_v2'
+          WHERE tenant_id = ${tenantId} AND feature = 'tracker_v2'
         `;
         const intel = flags[0]?.enabled === true;
+        // intel_tracked_bill.tenant_id/client_id are TEXT like every intel_* table;
+        // legacy tracked_bill.tenant_id/client_id remain UUID. Cast per-table or the
+        // v2 read fails 42883 and the export wrongly reports the board Unavailable.
         const rows = intel
           ? await tx.$queryRaw<Array<{ count: number }>>`
               SELECT COUNT(*)::int AS count FROM intel_tracked_bill
-              WHERE tenant_id = ${tenantId}::uuid AND client_id = ${clientId}::uuid
+              WHERE tenant_id = ${tenantId} AND client_id = ${clientId}
             `
           : await tx.$queryRaw<Array<{ count: number }>>`
               SELECT COUNT(*)::int AS count FROM tracked_bill

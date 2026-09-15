@@ -25,27 +25,53 @@ import { toRecord } from './client-profile-crm-model.js';
  * where the field only ever lived there.
  */
 
-/** SAM.gov set-aside certifications — value is the SAM code, label is English. */
+/**
+ * SAM.gov set-aside certifications offered in the editor — value is the code
+ * the API accepts, label is English.
+ *
+ * Reconciled to the canonical durable-certification set in
+ * `apps/api/src/funding-opportunities/set-aside.ts`
+ * (`DURABLE_SET_ASIDE_CERTIFICATIONS`) and the update DTO's `@IsIn`. The list
+ * previously offered SAM *solicitation restriction* codes — SBA/SBP (general
+ * small-business restrictions, not certifications) and the sole-source /
+ * competed variants 8AN, SDVOSBC/SDVOSBS, WOSBSS, EDWOSBSS, HZC/HZS — which
+ * the API rejects with a 400, so picking "Total small business set-aside
+ * eligible" could never save. A restriction describes what a NOTICE is limited
+ * to; a certification is a status the COMPANY holds. Only the durable statuses
+ * are offered now.
+ */
 export const SET_ASIDE_CERTIFICATION_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: 'SBA', label: 'Total small business set-aside eligible' },
-  { value: 'SBP', label: 'Partial small business set-aside eligible' },
-  { value: '8A', label: '8(a)' },
-  { value: '8AN', label: '8(a) sole source' },
-  { value: 'SDVOSBC', label: 'Service-disabled veteran-owned small business' },
-  { value: 'SDVOSBS', label: 'SDVOSB sole source' },
+  { value: '8A', label: '8(a) Business Development' },
+  { value: 'SDVOSB', label: 'Service-disabled veteran-owned small business' },
+  { value: 'VOSB', label: 'Veteran-owned small business' },
   { value: 'WOSB', label: 'Women-owned small business' },
-  { value: 'WOSBSS', label: 'WOSB sole source' },
-  { value: 'EDWOSB', label: 'Economically disadvantaged WOSB' },
-  { value: 'EDWOSBSS', label: 'EDWOSB sole source' },
-  { value: 'HZC', label: 'HUBZone' },
-  { value: 'HZS', label: 'HUBZone sole source' },
+  { value: 'EDWOSB', label: 'Economically disadvantaged women-owned small business' },
+  { value: 'HUBZONE', label: 'HUBZone' },
 ];
 
 const SET_ASIDE_LABEL = new Map(SET_ASIDE_CERTIFICATION_OPTIONS.map((o) => [o.value, o.label]));
 
+/**
+ * Display labels for codes that are NOT current certifications but may already
+ * be persisted on older records — kept so a stored legacy value renders as
+ * English instead of a raw code. Mirrors the canonical
+ * `LEGACY_SET_ASIDE_VALUE_MIGRATION` keys; never offered for new edits.
+ */
+const LEGACY_SET_ASIDE_LABEL: Readonly<Record<string, string>> = {
+  SBA: 'Total small business set-aside (legacy)',
+  SBP: 'Partial small business set-aside (legacy)',
+  '8AN': '8(a) sole source (legacy)',
+  SDVOSBC: 'Service-disabled veteran-owned small business (legacy)',
+  SDVOSBS: 'SDVOSB sole source (legacy)',
+  WOSBSS: 'WOSB sole source (legacy)',
+  EDWOSBSS: 'EDWOSB sole source (legacy)',
+  HZC: 'HUBZone (legacy)',
+  HZS: 'HUBZone sole source (legacy)',
+};
+
 /** An unrecognized code is shown as-is rather than dropped — it is real data. */
 export function setAsideLabel(code: string): string {
-  return SET_ASIDE_LABEL.get(code) ?? code;
+  return SET_ASIDE_LABEL.get(code) ?? LEGACY_SET_ASIDE_LABEL[code] ?? code;
 }
 
 /** Small Business Classification flags, in the order the wizard renders them. */
