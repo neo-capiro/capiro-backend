@@ -307,6 +307,24 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
 
     const provider = connection.provider === 'google_workspace' ? 'gmail' : 'microsoft_graph';
     const planned = versions.map((v) => {
+      const snapshot = (v.artifact.recipientSnapshot ?? {}) as Record<string, unknown>;
+      const isGroup =
+        v.artifact.audienceKind === 'group' || v.artifact.generationKey.startsWith('group:');
+      if (!testMode && isGroup) {
+        const members = Array.isArray(snapshot.groupMembers) ? snapshot.groupMembers : [];
+        if (
+          members.length === 0 ||
+          members.some((member) => {
+            const email = String((member as { email?: unknown } | null)?.email ?? '').trim();
+            return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+          })
+        ) {
+          throw new BadRequestException(
+            'This group draft does not contain a complete recipient list. ' +
+              'Create a new group draft with all recipients before sending.',
+          );
+        }
+      }
       const envelope = testMode
         ? {
             to: [{ email: signature.senderEmail!, name: signature.senderFirstName }],
@@ -1084,6 +1102,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
               currentVersion: true,
               generationKey: true,
               recipientKey: true,
+              audienceKind: true,
               recipientSnapshot: true,
               createdByUserId: true,
               outreachRecordId: true,

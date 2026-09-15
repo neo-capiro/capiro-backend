@@ -25,7 +25,7 @@ import {
   type GenerationSourceManifest,
   type SelectedContextItem,
 } from './types.js';
-import type { OutreachTarget, TargetType } from './targets.js';
+import { flattenTargets, type OutreachTarget, type TargetType } from './targets.js';
 
 /**
  * Stable signature of the inputs that drive draft generation — the selected
@@ -115,9 +115,7 @@ export function computeAffectedGenerationKeys(
     if (scope === 'all') return allKeys;
     if (scope.startsWith('list:')) {
       const aid = scope.slice('list:'.length);
-      return model.slots
-        .filter((s) => s.genKey.startsWith(`list:${aid}:`))
-        .map((s) => s.genKey);
+      return model.slots.filter((s) => s.genKey.startsWith(`list:${aid}:`)).map((s) => s.genKey);
     }
     if (scope.startsWith('group:')) {
       const aid = scope.slice('group:'.length);
@@ -140,7 +138,8 @@ export function computeAffectedGenerationKeys(
       for (const key of keysForScope(prior.scope)) {
         addReason(key, `"${item.title}" no longer applies here`);
       }
-      for (const key of keysForScope(item.scope)) addReason(key, `"${item.title}" now applies here`);
+      for (const key of keysForScope(item.scope))
+        addReason(key, `"${item.title}" now applies here`);
       continue;
     }
     if (itemContentFingerprint(prior) !== itemContentFingerprint(item)) {
@@ -229,8 +228,11 @@ export function buildGenerationModel(targets: OutreachTarget[]): {
   const slots: GenSlot[] = [];
 
   for (const t of targets) {
+    // Generation snapshots become the delivery envelope. Use the same resolved
+    // copies as sending, including list-wide and per-member Cc/Bcc.
+    const resolvedRecipients = flattenTargets([t]);
     if (t.type === 'individual') {
-      const r = t.recipients[0];
+      const r = resolvedRecipients[0];
       if (!r) continue;
       const genKey = `individual:${recipientKey(r)}`;
       slots.push({
@@ -256,7 +258,7 @@ export function buildGenerationModel(targets: OutreachTarget[]): {
     } else if (t.type === 'list') {
       const aid = audienceIdOf(t);
       const members: RailSlot[] = [];
-      for (const m of t.recipients) {
+      for (const m of resolvedRecipients) {
         const genKey = `list:${aid}:${recipientKey(m)}`;
         slots.push({ genKey, appliesTo: 'member', genRecipients: [m], resultId: recipientKey(m) });
         members.push({
@@ -280,12 +282,23 @@ export function buildGenerationModel(targets: OutreachTarget[]): {
       const aid = audienceIdOf(t);
       const rep = t.recipients[0];
       if (!rep) continue;
+      const groupRecipient: OutreachRecipient = {
+        ...rep,
+        ...resolvedRecipients[0],
+        id: `group:${t.key}`,
+        // Keep every selected member. Invalid/missing addresses must reach
+        // validation instead of silently shrinking the group.
+        groupMembers: t.recipients.map((member) => ({
+          email: (member.email ?? '').trim(),
+          ...(member.name ? { name: member.name } : {}),
+        })),
+      };
       const genKey = `group:${aid}`;
       slots.push({
         genKey,
         appliesTo: 'group',
-        genRecipients: [rep],
-        resultId: recipientKey(rep),
+        genRecipients: [groupRecipient],
+        resultId: recipientKey(groupRecipient),
         additionalContext: groupAdditionalContext(t.name || 'Group', t.recipients),
       });
       const count = t.recipients.length;
@@ -504,7 +517,12 @@ export function partitionGenerationResults(
   slots: Array<{ genKey: string; resultId: string }>,
   results: BatchDraftResult[],
 ): {
-  drafts: Array<{ genKey: string; subject: string; body: string; manifest?: GenerationSourceManifest }>;
+  drafts: Array<{
+    genKey: string;
+    subject: string;
+    body: string;
+    manifest?: GenerationSourceManifest;
+  }>;
   /** Held content, preserved. Non-sendable, but shown to the user for review. */
   heldDrafts: Array<{
     genKey: string;

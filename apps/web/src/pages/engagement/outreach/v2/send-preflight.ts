@@ -38,6 +38,8 @@ export interface SendPreflightInput {
    *  is exactly the double-Send bug the durable request key exists to close;
    *  preflight blocks it too so the button visibly reflects why it's disabled. */
   sendInFlight?: boolean;
+  attachmentUploadsPending?: number;
+  attachmentUploadFailures?: string[];
 }
 
 export interface SendPreflightResult {
@@ -77,6 +79,20 @@ export function computeSendPreflight(input: SendPreflightInput): SendPreflightRe
   }
 
   // ── attachments ──────────────────────────────────────────────────────────
+  if (input.attachmentUploadsPending) {
+    issues.push({
+      category: 'attachments',
+      severity: 'blocker',
+      message: 'Wait for all attachment uploads to finish before sending.',
+    });
+  }
+  if (input.attachmentUploadFailures?.length) {
+    issues.push({
+      category: 'attachments',
+      severity: 'blocker',
+      message: `Upload failed: ${input.attachmentUploadFailures.join(', ')}. Retry the upload or remove the failed files before sending.`,
+    });
+  }
   for (const a of attachmentPreflight(input.attachmentIds, input.docs)) {
     issues.push({
       category: 'attachments',
@@ -100,11 +116,11 @@ export function computeSendPreflight(input: SendPreflightInput): SendPreflightRe
     if (reason) blockReasonCounts.set(reason, (blockReasonCounts.get(reason) ?? 0) + 1);
   }
   for (const [reason, count] of blockReasonCounts) {
-    // 'dirty'/'pending' are transient (autosave/verification in flight) —
-    // real blockers, but distinct from a durably failed/rejected draft.
+    // A transiently unsendable draft still represents an intended recipient.
+    // Sending the ready subset would silently drop the rest of the campaign.
     issues.push({
       category: 'verification',
-      severity: reason === 'dirty' || reason === 'pending' ? 'warning' : 'blocker',
+      severity: 'blocker',
       message: `${count} draft${count === 1 ? '' : 's'}: ${
         DRAFT_BLOCK_COPY[reason as keyof typeof DRAFT_BLOCK_COPY]
       }`,
