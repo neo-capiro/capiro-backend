@@ -60,7 +60,9 @@ export function VNextMeriTopBar({
 
   const { clients, selectedClientValue, changeSessionClient } = controller;
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
-  const scopeLabel = selectedClient ? selectedClient.name.toUpperCase() : 'ALL CLIENTS';
+  // v6 reference: the chip carries the client's exact recorded name in its own
+  // casing ("Overland AI"), never an uppercased rewrite.
+  const scopeLabel = selectedClient ? selectedClient.name : 'All clients';
   const scopeMeta = selectedClient ? 'CLIENT' : `${clients.length} IN SCOPE`;
 
   /**

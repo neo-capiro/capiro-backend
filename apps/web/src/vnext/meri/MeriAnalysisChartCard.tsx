@@ -70,6 +70,11 @@ const GRID = '#EAECF0';
 const MUTED = '#667085';
 const BODY = '#344054';
 const INK = '#101828';
+const FAINT = '#98A2B3';
+const BAR_GRAY = '#D0D5DD';
+const BAR_GRAY_ALT = '#98A2B3';
+/* Reference metallic gradient, also used for the Approve button. */
+const METAL = 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)';
 const MONO = "var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif)";
 const SANS = "var(--meri-font-sans, Inter, sans-serif)";
 
@@ -539,6 +544,81 @@ function TimelineVisual({ spec }: { spec: VisualizationSpec }) {
   );
 }
 
+/**
+ * The reference compact bar card is a single-series, non-negative, vertical
+ * column chart with a handful of categories and no explicit axis labels:
+ * proportional bars with the value on top and the category below, no axes or
+ * grid. Only that exact data shape uses this renderer — more than a few
+ * categories, any supplied xAxisLabel/yAxisLabel (which the compact plot has
+ * nowhere to show), negative values, multiple series, stacked/horizontal
+ * layouts and every other chart type keep the truthful Recharts rendering
+ * below so axes, labels and scales are never dropped to match a picture.
+ */
+const COMPACT_BAR_MAX_CATEGORIES = 6;
+
+function compactBarRows(
+  spec: VisualizationSpec,
+  visibleSeries: Set<string>,
+): Array<{ key: string; label: string; value: number; formatted: string }> | null {
+  if (spec.chartType !== 'bar' || spec.layout === 'vertical' || !spec.xKey) return null;
+  // The compact plot cannot surface explicit axis labels — keep the full
+  // Recharts axes when the spec supplies them.
+  if (spec.xAxisLabel || spec.yAxisLabel) return null;
+  // Too many categories crowd the small card; the full chart handles them.
+  if (spec.data.length > COMPACT_BAR_MAX_CATEGORIES) return null;
+  const series = (spec.series ?? []).filter((item) => visibleSeries.has(item.dataKey));
+  if (series.length !== 1) return null;
+  const item = series[0];
+  if (!item) return null;
+  const rows: Array<{ key: string; label: string; value: number; formatted: string }> = [];
+  for (const [index, row] of spec.data.entries()) {
+    const value = safeNumber(row[item.dataKey]);
+    if (value === null || value < 0) return null;
+    rows.push({
+      key: `${String(row[spec.xKey] ?? index)}-${index}`,
+      label: String(row[spec.xKey] ?? ''),
+      value,
+      formatted: formatValue(value, item),
+    });
+  }
+  return rows.length ? rows : null;
+}
+
+function CompactBarVisual({
+  spec,
+  visibleSeries,
+}: {
+  spec: VisualizationSpec;
+  visibleSeries: Set<string>;
+}) {
+  const rows = compactBarRows(spec, visibleSeries);
+  if (!rows) return null;
+  const max = Math.max(...rows.map((row) => row.value));
+  return (
+    <div className="meri-acc-bars" role="img" aria-label={spec.title}>
+      {rows.map((row, index) => {
+        // Bar height is a fixed proportion of the plot slot's pixel height, so
+        // bars of different values keep distinct rendered heights on a shared
+        // zero baseline (never flattened by flex shrink). 0 -> 0 height.
+        const heightPct = max > 0 ? (row.value / max) * 100 : 0;
+        const isMax = row.value === max && max > 0;
+        // Reference fills: the leading bar is the lighter gray, the largest bar
+        // is the metallic gradient, every other bar is the darker gray.
+        const background = isMax ? METAL : index === 0 ? BAR_GRAY : BAR_GRAY_ALT;
+        return (
+          <div key={row.key} className="meri-acc-bar-col">
+            <span className="meri-acc-bar-value">{row.formatted}</span>
+            <span className="meri-acc-bar-plot">
+              <span className="meri-acc-bar" style={{ height: `${heightPct}%`, background }} />
+            </span>
+            <span className="meri-acc-bar-label">{row.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function InteractiveVisual({
   spec,
   visibleSeries,
@@ -546,6 +626,9 @@ function InteractiveVisual({
   spec: VisualizationSpec;
   visibleSeries: Set<string>;
 }) {
+  if (compactBarRows(spec, visibleSeries)) {
+    return <CompactBarVisual spec={spec} visibleSeries={visibleSeries} />;
+  }
   switch (spec.chartType) {
     case 'line':
     case 'area':
@@ -728,60 +811,14 @@ export function MeriAnalysisChartCard({ artifactId, title }: MeriAnalysisChartCa
   const content = (
     <figure className="meri-acc-card" aria-label={displayTitle}>
       <header className="meri-acc-header">
-        <div className="meri-acc-heading">
-          <span className="meri-acc-eyebrow">
-            ANALYSIS{spec ? ` · ${chartTypeLabel(spec.chartType)}` : ' · SAVED CHART'}
-          </span>
-          <h3>{displayTitle}</h3>
-          {spec?.description ? <p>{spec.description}</p> : null}
-        </div>
-        <div className="meri-acc-actions">
-          {spec ? (
-            <>
-              <button
-                type="button"
-                className={view === 'chart' ? 'is-active' : ''}
-                onClick={() => setView('chart')}
-              >
-                CHART
-              </button>
-              <button
-                type="button"
-                className={view === 'data' ? 'is-active' : ''}
-                onClick={() => setView('data')}
-              >
-                DATA
-              </button>
-            </>
-          ) : null}
-          {imageSrc ? (
-            <button
-              type="button"
-              className={view === 'image' ? 'is-active' : ''}
-              onClick={() => setView('image')}
-            >
-              IMAGE
-            </button>
-          ) : null}
-          {spec ? (
-            <button type="button" onClick={downloadCsv} title="Download data as CSV">
-              CSV
-            </button>
-          ) : null}
-          {imageBlob ? (
-            <button type="button" onClick={downloadPng} title="Download canonical PNG">
-              PNG
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setExpanded((current) => !current)}
-            aria-label={expanded ? 'Close expanded chart' : 'Expand chart'}
-          >
-            {expanded ? 'CLOSE' : 'EXPAND'}
-          </button>
-        </div>
+        <span className="meri-acc-header-icon" aria-hidden="true">
+          <MeriIcon name="BarChart01" size={15} color="#475467" />
+        </span>
+        <h3 className="meri-acc-title">{displayTitle}</h3>
+        {spec ? <span className="meri-acc-kind">{chartTypeLabel(spec.chartType)}</span> : null}
       </header>
+
+      {spec?.description ? <p className="meri-acc-description">{spec.description}</p> : null}
 
       {spec?.insight ? (
         <div className="meri-acc-insight">
@@ -838,8 +875,59 @@ export function MeriAnalysisChartCard({ artifactId, title }: MeriAnalysisChartCa
         ) : null}
       </div>
 
-      <ProvenanceStrip provenance={artifact?.provenance} />
-      {spec?.footer ? <figcaption>{spec.footer}</figcaption> : null}
+      <div className="meri-acc-footer">
+        <div className="meri-acc-footer-controls">
+          {spec ? (
+            <>
+              <button
+                type="button"
+                className={view === 'chart' ? 'is-active' : ''}
+                onClick={() => setView('chart')}
+              >
+                Chart
+              </button>
+              <button
+                type="button"
+                className={view === 'data' ? 'is-active' : ''}
+                onClick={() => setView('data')}
+              >
+                Data
+              </button>
+            </>
+          ) : null}
+          {imageSrc ? (
+            <button
+              type="button"
+              className={view === 'image' ? 'is-active' : ''}
+              onClick={() => setView('image')}
+            >
+              Image
+            </button>
+          ) : null}
+          {spec ? (
+            <button type="button" onClick={downloadCsv} title="Download data as CSV">
+              CSV
+            </button>
+          ) : null}
+          {imageBlob ? (
+            <button type="button" onClick={downloadPng} title="Download canonical PNG">
+              <MeriIcon name="DownloadCloud01" size={13} color="#667085" />
+              PNG
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            aria-label={expanded ? 'Close expanded chart' : 'Expand chart'}
+          >
+            {expanded ? 'Close' : 'Expand'}
+          </button>
+        </div>
+        <div className="meri-acc-footer-meta">
+          <ProvenanceStrip provenance={artifact?.provenance} />
+          {spec?.footer ? <figcaption>{spec.footer}</figcaption> : null}
+        </div>
+      </div>
     </figure>
   );
 

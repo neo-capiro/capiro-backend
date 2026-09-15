@@ -1,0 +1,222 @@
+/*
+ * Meri v6 workspace — responsive (phone/tablet) overrides.
+ *
+ * Loaded by VNextMeriShell after vnext-meri.css so these media queries win at
+ * equal-or-greater specificity. Everything is scoped to
+ * `.capiro-vnext-root .vnext-meri` and activates only below 1180px; desktop
+ * geometry (>=1180px) is untouched.
+ *
+ * The desktop base lays `.vnext-meri__body` out as a horizontal flex row of
+ * three fixed/min-width columns (left rail 282px, main min-width 620px, right
+ * rail 382px/46px). The window has overflow:hidden, so below ~1180px that sum
+ * clips the chat column and pushes the top bar's right-side controls off
+ * screen. These rules keep the chat and composer usable and every existing
+ * control reachable at narrow widths.
+ */
+
+/* ── Tablet and phone (<= 1179px) ─────────────────────────────────────────
+   The conversation column is already fluid (min-width:0, max 720px, auto
+   margins); only the 620px floor on .vnext-meri__main forces the overflow.
+   The right rail is auto-collapsed by the shell at <=1179px; the left rail
+   opens as an overlay drawer rather than squeezing the chat column. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .vnext-meri .vnext-meri__main {
+    min-width: 0;
+  }
+
+  /* Slim the top bar: drop the "AI Chief of Staff" wordmark caption. The
+     "WHAT MERI CAN DO" pro-tip stays reachable as an icon-only lightbulb
+     button (same button, same action, same panel) — its text node is hidden
+     by zeroing font-size but kept in the DOM so its accessible name and
+     tests-by-name still resolve. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__brand-workspace {
+    display: none;
+  }
+  .capiro-vnext-root .vnext-meri button.vnext-meri__protip-trigger {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    font-size: 0;
+    letter-spacing: 0;
+  }
+  .capiro-vnext-root .vnext-meri button.vnext-meri__protip-trigger svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  /* The left rail's "Hide thread rail" control is hover/focus-revealed in the
+     section heading, which is unreachable on touch — force it visible inside
+     the drawer. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__rail-left .vnext-meri__rail-collapse {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Positioning context for the rail drawers below. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__body {
+    position: relative;
+  }
+
+  /* When opened below 1180px the 282px thread rail overlays the chat as a left
+     drawer instead of squeezing the chat column. Its existing "Hide thread
+     rail" control dismisses it; the existing header/landing "Show thread
+     rail" toggle brings it back. Because it overlays, opening it never
+     changes the chat width. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__rail-left {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--meri-z-menu);
+    width: min(282px, 84vw);
+    box-shadow: 0 0 0 1px #E4E7EC, 12px 0 24px -12px rgba(16, 24, 40, 0.25);
+  }
+
+  /* The scope trigger shrinks and ellipsizes instead of forcing the row wide;
+     its label is the flexible part. The "N IN SCOPE" meta drops first. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope-trigger {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope-meta,
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope-divider {
+    display: none;
+  }
+
+  /* The brand block and action cluster shrink to their content rather than
+     forcing overflow. No overflow:hidden on the top bar — the scope menu and
+     pro-tip panel are absolutely positioned children and would be clipped. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__brand {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__topbar {
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__topbar-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  /* The collapsed right rail holds its 46px strip; the vertical "BEHIND THE
+     ANSWER" label's intrinsic size otherwise pushes the flex item wider. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__rail-right.is-collapsed {
+    flex: 0 0 46px;
+    width: 46px;
+    max-width: 46px;
+    min-width: 46px;
+    overflow: hidden;
+  }
+}
+
+/* ── Phone (<= 767px) ──────────────────────────────────────────────────────
+   Chat and composer fill the width; the right rail, when expanded, overlays
+   the chat as a dismissible right drawer. */
+@media (max-width: 767px) {
+  /* Present the window edge-to-edge (the existing maximised chrome) — the
+     floating-card frame's 22px padding and rounded corners only waste scarce
+     width on a phone. */
+  .capiro-vnext-root .vnext-meri-page {
+    padding: 0;
+  }
+  .capiro-vnext-root .vnext-meri {
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .capiro-vnext-root .vnext-meri .vnext-meri__main {
+    min-width: 0;
+  }
+
+  /* The expanded right rail (context / source / artifact / turn inspector)
+     overlays the chat from the right as a drawer, dismissed by its existing
+     Collapse control; the collapsed 46px strip stays in-flow so "Expand
+     panel" stays reachable. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__rail-right.is-expanded,
+  .capiro-vnext-root .vnext-meri .vnext-meri__rail-right.is-turn-inspector {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: var(--meri-z-menu);
+    width: min(382px, 92vw);
+    box-shadow: 0 0 0 1px #E4E7EC, -12px 0 24px -12px rgba(16, 24, 40, 0.25);
+  }
+
+  /* Tighter top-bar gutters on a narrow screen. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__topbar {
+    padding: 0 8px;
+    gap: 8px;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope {
+    margin-left: 0;
+  }
+
+  /* The wordmark image's intrinsic width is 78.3px at 26px tall, wider than
+     the 52px brand box on phones; pin it to the brand width so the scope
+     picker is not painted over the right edge of the logo. The divider is
+     dead space at this width. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__brand {
+    flex: 0 0 52px;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__brand-mark {
+    width: 52px;
+    height: auto;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__brand-divider {
+    display: none;
+  }
+}
+
+/* Very small handsets: further trim so the scope picker plus the primary
+   actions all fit without pushing the window controls off the right edge. */
+@media (max-width: 400px) {
+  .capiro-vnext-root .vnext-meri .vnext-meri__topbar {
+    gap: 4px;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__topbar-actions {
+    gap: 2px;
+  }
+  /* The wordmark caption is already hidden, so the brand divider that
+     separated it from the mark is dead space. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__brand-divider {
+    display: none;
+  }
+  /* The scope trigger's leading icon is decorative (the client name carries
+     the meaning); the trigger may shrink to its ellipsized name + chevron. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope {
+    flex: 0 1 auto;
+    min-width: 44px;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope-trigger {
+    padding: 0 6px;
+    gap: 6px;
+    width: 100%;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__scope-trigger > svg:first-child {
+    display: none;
+  }
+  /* Pure-spacing trims so the whole action cluster fits a 390px screen. */
+  .capiro-vnext-root .vnext-meri .vnext-meri__avatar {
+    padding-left: 0;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__topbar-divider {
+    margin: 0 2px;
+  }
+}

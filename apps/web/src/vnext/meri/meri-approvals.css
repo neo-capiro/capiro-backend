@@ -1,0 +1,437 @@
+/*
+ * meri-approvals.css — v6 Approvals tab presentation (MeriApprovalsTab).
+ *
+ * Scoped to this component: every selector hangs off
+ * `.capiro-vnext-root .vnext-meri__pending-approvals` (the approvals tab's own
+ * container) and the repeated-class trick lifts specificity above the generic
+ * vnext-meri.css card/banner/button rules so this component's look wins here
+ * without touching any other surface.
+ *
+ * The non-empty state renders bare on the gray panel (no outer white card —
+ * that is only the empty placeholder); orange AWAITING YOUR APPROVAL header,
+ * tinted external/irreversible flag rows, white field table, counts row,
+ * reason paragraph, metallic-gradient Approve + white Dismiss, collapsed
+ * policy grid.
+ */
+
+/* ── Layout container (bare on the gray panel; no card) ──────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approvals.vnext-meri__pending-approvals {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The card class is retained on the per-approval element for tests/hooks, but
+   the reference non-empty state is NOT a white card — neutralize the generic
+   card chrome from vnext-meri.css. */
+.capiro-vnext-root .vnext-meri__pending-approval-card.vnext-meri__pending-approval-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ── Header: status icon + status label + risk label ─────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-head-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-status.vnext-meri__pending-approval-status {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--meri-font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #667085;
+}
+
+/* Status tones (reference AP_STATUS tones) */
+.capiro-vnext-root .vnext-meri__pending-approval-card[data-tone='warning']
+  .vnext-meri__pending-approval-status {
+  color: #b54708;
+}
+.capiro-vnext-root .vnext-meri__pending-approval-card[data-tone='success']
+  .vnext-meri__pending-approval-status {
+  color: #067647;
+}
+.capiro-vnext-root .vnext-meri__pending-approval-card[data-tone='error']
+  .vnext-meri__pending-approval-status {
+  color: #b42318;
+}
+.capiro-vnext-root .vnext-meri__pending-approval-card[data-tone='navy']
+  .vnext-meri__pending-approval-status {
+  color: #363f72;
+}
+.capiro-vnext-root .vnext-meri__pending-approval-card[data-tone='gray']
+  .vnext-meri__pending-approval-status {
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-risk {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #98a2b3;
+}
+
+/* ── Action title ────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-title {
+  margin-top: 11px;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #101828;
+  text-wrap: pretty;
+}
+
+/* ── Flags (external / irreversible) ─────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-flag {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: #fef3f2;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-flag-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  color: #b42318;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-flag-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #b42318;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-flag-sub {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: #b54708;
+}
+
+/* ── Field table + counts ────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-fields {
+  margin-top: 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #eaecf0;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-field {
+  display: flex;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #f2f4f7;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-field-label {
+  flex: 0 0 auto;
+  width: 74px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #98a2b3;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-field-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: #344054;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 12px;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-count {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-count-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #101828;
+  font-variant-numeric: tabular-nums;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-count-label {
+  font-size: 10.5px;
+  color: #667085;
+}
+
+/* ── Reason + outcome note ───────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-reason.vnext-meri__pending-approval-reason {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 20px;
+  color: #475467;
+  text-wrap: pretty;
+}
+
+/* Outcome / error note (replaces the flat attachment-notice inside these
+   cards only): left-railed tinted block, tone follows status. */
+.capiro-vnext-root .vnext-meri__pending-approvals .vnext-meri__attachment-notice {
+  display: flex;
+  gap: 9px;
+  margin: 12px 0 0;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 18px;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root
+  .vnext-meri__pending-approval-card[data-tone='error']
+  .vnext-meri__attachment-notice {
+  background: #fffbfa;
+  box-shadow: inset 2px 0 0 #f04438;
+  color: #912018;
+}
+
+.capiro-vnext-root
+  .vnext-meri__pending-approval-card[data-tone='warning']
+  .vnext-meri__attachment-notice {
+  background: #fffaeb;
+  box-shadow: inset 2px 0 0 #f79009;
+  color: #93370d;
+}
+
+.capiro-vnext-root
+  .vnext-meri__pending-approval-card[data-tone='success']
+  .vnext-meri__attachment-notice,
+.capiro-vnext-root
+  .vnext-meri__pending-approval-card[data-tone='navy']
+  .vnext-meri__attachment-notice,
+.capiro-vnext-root
+  .vnext-meri__pending-approval-card[data-tone='gray']
+  .vnext-meri__attachment-notice {
+  background: #f9fafb;
+  box-shadow: inset 2px 0 0 #98a2b3;
+  color: #475467;
+}
+
+/* ── Receipt links + saved-file list ─────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approvals .vnext-meri__save-receipt-files {
+  margin: 12px 0 0;
+  padding: 11px 12px 11px 26px;
+  border-radius: 10px;
+  background: #f9fafb;
+  box-shadow: 0 0 0 1px #eaecf0;
+}
+
+/* ── Actions row: Approve / Dismiss / expiry ─────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Reference ButtonsButton size=md: 40px tall, 14px label, radius 8.
+   Primary = metallic navy gradient; secondary = white with subtle border. */
+.capiro-vnext-root .vnext-meri button.vnext-meri__pending-approval-btn.vnext-meri__pending-approval-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  font-family: var(--meri-font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.capiro-vnext-root
+  .vnext-meri
+  button.vnext-meri__pending-approval-btn--approve.vnext-meri__pending-approval-btn--approve {
+  background: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 2px rgba(16, 24, 40, 0.12);
+  color: #ffffff;
+}
+
+.capiro-vnext-root
+  .vnext-meri
+  button.vnext-meri__pending-approval-btn--approve:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.capiro-vnext-root
+  .vnext-meri
+  button.vnext-meri__pending-approval-btn--dismiss.vnext-meri__pending-approval-btn--dismiss {
+  background: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px #d0d5dd,
+    inset 0 -2px 0 0 rgba(0, 0, 0, 0.05),
+    0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  color: #344054;
+}
+
+.capiro-vnext-root
+  .vnext-meri
+  button.vnext-meri__pending-approval-btn--dismiss:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__pending-approval-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-expiry {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: #98a2b3;
+  white-space: nowrap;
+}
+
+/* ── Bulk approve-all button ─────────────────────────────────────────── */
+
+.capiro-vnext-root
+  .vnext-meri
+  button.vnext-meri__pending-approvals-bulk.vnext-meri__pending-approvals-bulk {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #d0d5dd;
+  font-family: var(--meri-font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: #344054;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__pending-approvals-bulk:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__pending-approvals-bulk:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Policy disclosure ───────────────────────────────────────────────── */
+
+.capiro-vnext-root .vnext-meri__pending-approval-policy {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eaecf0;
+}
+
+.capiro-vnext-root
+  .vnext-meri
+  button.vnext-meri__pending-approval-policy-toggle.vnext-meri__pending-approval-policy-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-family: var(--meri-font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #667085;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__pending-approval-policy-toggle:hover {
+  background: #eaecf0;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-policy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+  margin-top: 8px;
+  padding: 12px 13px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #eaecf0;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-policy-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-policy-key {
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+.capiro-vnext-root .vnext-meri__pending-approval-policy-value {
+  font-size: 11px;
+  font-weight: 500;
+  color: #475467;
+  text-align: right;
+  overflow-wrap: anywhere;
+}

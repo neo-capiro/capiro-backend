@@ -591,6 +591,16 @@ describe('Meri route isolation', () => {
           resolveApproval = resolve;
         });
       }
+      if (url.includes('/action-proposals')) {
+        // The real server holds the proposal it streamed AGAINST thread-a —
+        // a recovery GET scoped to thread-a must return it, but a GET for
+        // thread-b (after navigation) honestly returns nothing. Keying the
+        // mock by conversation id is what keeps this test about the late
+        // approval-result race instead of an unfaithful [] fixture.
+        const match = /[?&]conversationId=([^&]+)/.exec(url);
+        const proposals = match?.[1] === 'thread-a' ? [heldProposal] : [];
+        return Promise.resolve({ ok: true, json: async () => proposals });
+      }
       return Promise.resolve({ ok: true, json: async () => [] });
     });
     vi.stubGlobal('fetch', fetchMock);

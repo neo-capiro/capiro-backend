@@ -49,6 +49,13 @@ export interface MeriTurnInspectorProps {
   activeTab: MeriTurnInspectorTab;
   /** Closes the inspector, returning the rail to Context/Memory. */
   onClose: () => void;
+  /**
+   * When true, the in-body BACK row is omitted because the parent rail header
+   * already supplies navigation (the compact Context/Memory / return
+   * controls). The onClose capability is preserved for callers that render
+   * their own back control.
+   */
+  suppressBack?: boolean;
   approvingProposalId: string | null;
   onApprove: (proposalId: string) => void;
   onApproveAll: () => void;
@@ -59,6 +66,7 @@ export function MeriTurnInspector({
   data,
   activeTab,
   onClose,
+  suppressBack = false,
   approvingProposalId,
   onApprove,
   onApproveAll,
@@ -66,10 +74,12 @@ export function MeriTurnInspector({
 }: MeriTurnInspectorProps) {
   return (
     <>
-      <button type="button" className="vnext-meri__turn-inspector-back" onClick={onClose}>
-        <MeriIcon name="ChevronLeft" size={13} />
-        BACK
-      </button>
+      {suppressBack ? null : (
+        <button type="button" className="vnext-meri__turn-inspector-back" onClick={onClose}>
+          <MeriIcon name="ChevronLeft" size={13} />
+          BACK
+        </button>
+      )}
       <div className="vnext-meri__turn-inspector-body">
         {activeTab === 'thinking' ? <MeriThinkingTab {...data.thinking} /> : null}
         {activeTab === 'evidence' ? <MeriEvidenceTab {...data.evidence} /> : null}
