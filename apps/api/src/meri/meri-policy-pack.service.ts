@@ -133,12 +133,7 @@ export function policyChannelForTool(
 ): 'internal' | 'email' | 'document' | 'filing' | 'automation' | 'crm' {
   if (/^(?:send_email|reply_email)$/.test(tool)) return 'email';
   if (/^(?:schedule_task|cancel_scheduled_task)$/.test(tool)) return 'automation';
-  if (
-    /^(?:create_client|update_client_profile|create_task|update_task|save_chat_attachments)$/.test(
-      tool,
-    )
-  )
-    return 'crm';
+  if (/^(?:create_client|update_client_profile|create_task|update_task)$/.test(tool)) return 'crm';
   if (/^(?:submit_filing|file_comment|submit_comment)$/.test(tool)) return 'filing';
   if (
     /^(?:draft_policy_memo|create_meeting_brief|create_word|create_excel|create_powerpoint)$/.test(

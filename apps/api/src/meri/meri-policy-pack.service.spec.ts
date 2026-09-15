@@ -197,6 +197,18 @@ describe('Phase 10 authoritative policy source', () => {
     expect(decision.binding).toContain('internal_artifacts.pass');
   });
 
+  it('files an already-authorized chat attachment immediately, with no approval gate', async () => {
+    delete process.env.MERI_POLICY_PACK_SOURCE;
+    const decision = await harness([]).service.decideForAction(context(), 'save_chat_attachments', {
+      clientId: '77777777-7777-4777-8777-777777777777',
+      conversationId: '88888888-8888-4888-8888-888888888888',
+      attachmentIds: ['99999999-9999-4999-8999-999999999999'],
+    });
+    expect(decision.source).toBe('static');
+    expect(decision.outcome).toBe('PASS');
+    expect(decision.binding).toContain('internal_artifacts.pass');
+  });
+
   it('shadow never lets a persisted decision bind real traffic', async () => {
     process.env.MERI_POLICY_PACK_SOURCE = 'shadow';
     const decision = await harness().service.decideForAction(context(), 'send_email', {
