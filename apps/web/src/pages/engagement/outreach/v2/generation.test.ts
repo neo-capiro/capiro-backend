@@ -70,8 +70,52 @@ describe('buildGenerationModel', () => {
     const groupSlot = slots.find((s) => s.genKey === 'group:aud2')!;
     expect(groupSlot.appliesTo).toBe('group');
     expect(groupSlot.genRecipients).toHaveLength(1);
+    expect(groupSlot.genRecipients[0]).toMatchObject({
+      id: 'group:G1',
+      groupMembers: [{ email: 'd@x.com' }, { email: 'e@x.com' }],
+    });
     expect(groupSlot.additionalContext).toContain('d@x.com');
     expect(groupSlot.additionalContext).toContain('e@x.com');
+  });
+
+  it('preserves groups of three and two through the actual generation task payloads', () => {
+    const targets = [
+      group('first', 'group-a', ['a@example.test', 'b@example.test', 'c@example.test']),
+      group('second', 'group-b', ['d@example.test', 'e@example.test']),
+    ];
+    targets[0]!.cc = ['copy@example.test'];
+    targets[1]!.bcc = ['private@example.test'];
+    const { slots } = buildGenerationModel(targets);
+    const tasks = buildGenerateTasks(slots, 20);
+    expect(tasks).toHaveLength(2);
+    expect(
+      tasks.map((task) => task.recipients[0]!.groupMembers?.map((member) => member.email)),
+    ).toEqual([
+      ['a@example.test', 'b@example.test', 'c@example.test'],
+      ['d@example.test', 'e@example.test'],
+    ]);
+    expect(tasks[0]!.recipients[0]!.cc).toEqual(['copy@example.test']);
+    expect(tasks[1]!.recipients[0]!.bcc).toEqual(['private@example.test']);
+  });
+
+  it('uses distinct result identities for groups that share their first member', () => {
+    const { slots } = buildGenerationModel([
+      group('first', 'group-a', ['a@example.test', 'b@example.test']),
+      group('second', 'group-b', ['a@example.test', 'c@example.test']),
+    ]);
+    expect(new Set(slots.map((slot) => slot.resultId)).size).toBe(2);
+  });
+
+  it('preserves selected copies on individual and list member draft snapshots', () => {
+    const one = individual('a@example.test');
+    one.ccContacts = [{ id: 'copy', name: 'Copy', email: 'copy@example.test', source: 'manual' }];
+    const many = list('list', 'aud', ['b@example.test', 'c@example.test']);
+    many.cc = ['team@example.test'];
+    many.memberBcc = { 'c@example.test': ['private@example.test'] };
+    const { slots } = buildGenerationModel([one, many]);
+    expect(slots[0]!.genRecipients[0]!.cc).toEqual(['copy@example.test']);
+    expect(slots[1]!.genRecipients[0]!.cc).toEqual(['team@example.test']);
+    expect(slots[2]!.genRecipients[0]!.bcc).toEqual(['private@example.test']);
   });
 
   it('falls back to the target key when a list/group has no saved audienceId', () => {
@@ -552,7 +596,10 @@ describe('computeAffectedGenerationKeys (Phase 2 §3.f1)', () => {
   });
 
   it('a shared ("all") context item change affects every slot', () => {
-    const next: GenerationSnapshot = { ...base, contextItems: [ctxItem('bill-1', 'all', { note: 'edited' })] };
+    const next: GenerationSnapshot = {
+      ...base,
+      contextItems: [ctxItem('bill-1', 'all', { note: 'edited' })],
+    };
     const result = computeAffectedGenerationKeys(base, next, { slots: model });
     expect(result.affected.sort()).toEqual([...ALL_KEYS].sort());
     expect(result.reasonsByKey['group:aud2']).toEqual(['"bill-1" changed']);

@@ -38,6 +38,43 @@ const INPUT = {
   correlationId: CORRELATION,
 };
 
+test('Outlook receives every To/Cc/Bcc recipient and both exact attachments', async () => {
+  const h = makeService({});
+  const attachments = [
+    {
+      name: 'brief.pdf',
+      contentType: 'application/pdf',
+      contentBytes: Buffer.from('%PDF-1.7\nbrief').toString('base64'),
+    },
+    {
+      name: 'contacts.csv',
+      contentType: 'text/csv',
+      contentBytes: Buffer.from('name,email\r\nA,a@example.test').toString('base64'),
+    },
+  ];
+  await h.service.sendMail(ctx, 'conn-1', {
+    ...INPUT,
+    toRecipients: ['a@example.test', 'b@example.test', 'c@example.test'].map((email) => ({
+      email,
+    })),
+    ccRecipients: [{ email: 'copy@example.test' }],
+    bccRecipients: [{ email: 'private@example.test' }],
+    attachments,
+  });
+  expect(h.calls[0]!.body).toMatchObject({
+    toRecipients: ['a@example.test', 'b@example.test', 'c@example.test'].map((address) => ({
+      emailAddress: { address },
+    })),
+    ccRecipients: [{ emailAddress: { address: 'copy@example.test' } }],
+    bccRecipients: [{ emailAddress: { address: 'private@example.test' } }],
+    attachments: attachments.map((attachment) => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      ...attachment,
+    })),
+  });
+  expect(h.calls.map((call) => call.url)).toEqual(['/me/messages', '/me/messages/draft-1/send']);
+});
+
 interface Call {
   url: string;
   body: unknown;
@@ -79,9 +116,9 @@ describe('sanitizeGraphHeaderValue', () => {
 
 describe('isAmbiguousGraphSendFailure', () => {
   test('a plain HttpException with no known status is NOT ambiguous (unchanged, backward-compatible default)', () => {
-    expect(isAmbiguousGraphSendFailure(new ServiceUnavailableException('Graph 400 bad request'))).toBe(
-      false,
-    );
+    expect(
+      isAmbiguousGraphSendFailure(new ServiceUnavailableException('Graph 400 bad request')),
+    ).toBe(false);
   });
 
   test('transport failures ARE ambiguous', () => {
@@ -97,9 +134,9 @@ describe('isAmbiguousGraphSendFailure', () => {
   // request — it does not guarantee nothing was accepted, so it is treated
   // the same as a transport-level ambiguity, not a confirmed rejection.
   test.each([500, 502, 503, 504])('a GraphHttpError carrying status %i IS ambiguous', (status) => {
-    expect(isAmbiguousGraphSendFailure(new GraphHttpError(`Graph failed (${status})`, status))).toBe(
-      true,
-    );
+    expect(
+      isAmbiguousGraphSendFailure(new GraphHttpError(`Graph failed (${status})`, status)),
+    ).toBe(true);
   });
 
   test.each([400, 401, 403, 404, 429])(

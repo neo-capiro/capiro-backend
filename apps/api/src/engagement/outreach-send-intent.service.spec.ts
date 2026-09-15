@@ -50,11 +50,7 @@ describe('buildEnvelope', () => {
   test('a GROUP representative fans every member into ONE To list (not one email each)', () => {
     const env = buildEnvelope({
       email: 'rep@x.com',
-      groupMembers: [
-        { email: 'd@x.com', name: 'D' },
-        { email: 'e@x.com' },
-        { email: '  ' },
-      ],
+      groupMembers: [{ email: 'd@x.com', name: 'D' }, { email: 'e@x.com' }, { email: '  ' }],
     });
     expect(env.to.map((t) => t.email)).toEqual(['d@x.com', 'e@x.com']);
   });
@@ -146,9 +142,9 @@ describe('deriveParentOutreachStatus (plan §f3/f4)', () => {
     expect(deriveParentOutreachStatus(countByStatus(['sent']))).toBe('sent');
     expect(deriveParentOutreachStatus(countByStatus(['sent', 'unknown']))).toBe('sent');
     expect(deriveParentOutreachStatus(countByStatus(['sent', 'failed']))).toBe('sent');
-    expect(deriveParentOutreachStatus(countByStatus(['sent', 'unknown', 'failed', 'skipped']))).toBe(
-      'sent',
-    );
+    expect(
+      deriveParentOutreachStatus(countByStatus(['sent', 'unknown', 'failed', 'skipped'])),
+    ).toBe('sent');
   });
 
   test('no sent, but an undetermined outcome → delivery_unknown, never failed', () => {
@@ -243,6 +239,9 @@ function makeIntentHarness(opts: {
   secondVersion?: Record<string, unknown>;
   /** If set, returned by the SECOND+ outreachDraftVersion.findMany call (the TOCTOU recheck) instead of the first call's row(s) — simulates something changing between the pre-transaction load and the commit. */
   toctouVersions?: unknown[];
+  generationKey?: string;
+  audienceKind?: string;
+  recipientSnapshot?: Record<string, unknown>;
 }): IntentHarness {
   const createdIntents: Array<Record<string, unknown>> = [];
   const createdDeliveries: Array<Record<string, unknown>> = [];
@@ -260,9 +259,10 @@ function makeIntentHarness(opts: {
     artifact: {
       id: 'art-1',
       currentVersion: opts.artifactCurrent ?? 1,
-      generationKey: 'individual:a@x.com',
+      generationKey: opts.generationKey ?? 'individual:a@x.com',
+      audienceKind: opts.audienceKind ?? 'individual',
       recipientKey: 'a@x.com',
-      recipientSnapshot: { email: 'a@x.com', name: 'A', cc: [], bcc: [] },
+      recipientSnapshot: opts.recipientSnapshot ?? { email: 'a@x.com', name: 'A', cc: [], bcc: [] },
       createdByUserId: 'u1',
       outreachRecordId: opts.versionRecordId ?? 'rec-1',
     },
@@ -355,7 +355,14 @@ function makeIntentHarness(opts: {
     assertExternalAction: () => {},
     assertCallbacksEnabled: () => {},
     externalActionAllowed: () => true,
-    snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+    snapshot: () => ({
+      serviceName: 'api',
+      processMode: 'active',
+      backgroundOwner: 'api',
+      externalActions: 'enabled',
+      callbacksEnabled: true,
+      recallWebhookEnabled: true,
+    }),
     isRecallWebhookEnabled: () => true,
   };
   patch.staleMs = 120_000;
@@ -406,6 +413,94 @@ const intentInput = {
   senderConnectionId: 'conn-1',
   draftVersionIds: ['v-1'],
 };
+
+describe('complete group recipient envelopes', () => {
+  test('refuses the production defect: a group artifact containing only its representative', async () => {
+    const h = makeIntentHarness({ generationKey: 'group:audience', audienceKind: 'group' });
+    await expect(h.service.createIntent(ctx, intentInput)).rejects.toThrow(
+      /complete recipient list/,
+    );
+    expect(h.createdIntents).toHaveLength(0);
+    expect(h.createdDeliveries).toHaveLength(0);
+    expect(h.providerCalls).toBe(0);
+  });
+
+  test.each([
+    { groupMembers: [] },
+    { groupMembers: [{ email: 'a@example.test' }, { email: '' }] },
+    { groupMembers: [{ email: 'bad-address' }] },
+  ])(
+    'refuses empty or partially invalid group membership: $groupMembers',
+    async ({ groupMembers }) => {
+      const h = makeIntentHarness({
+        generationKey: 'group:audience',
+        audienceKind: 'group',
+        recipientSnapshot: { email: 'a@example.test', groupMembers },
+      });
+      await expect(h.service.createIntent(ctx, intentInput)).rejects.toThrow(
+        /complete recipient list/,
+      );
+      expect(h.createdDeliveries).toHaveLength(0);
+    },
+  );
+
+  test('commits all five group members and the attachment on both group deliveries', async () => {
+    const h = makeIntentHarness({
+      attachmentByteSize: Buffer.byteLength('bytes'),
+      generationKey: 'group:first',
+      audienceKind: 'group',
+      recipientSnapshot: {
+        email: 'a@example.test',
+        groupMembers: ['a@example.test', 'b@example.test', 'c@example.test'].map((email) => ({
+          email,
+        })),
+        cc: ['copy@example.test'],
+      },
+      secondVersion: {
+        id: 'v-2',
+        version: 1,
+        subject: 'Second group',
+        body: 'Body',
+        auditStatus: 'passed',
+        approvalStatus: 'not_required',
+        promptSpecVersion: 'v2.1',
+        artifact: {
+          id: 'art-2',
+          currentVersion: 1,
+          generationKey: 'group:second',
+          audienceKind: 'group',
+          recipientKey: 'group:second',
+          createdByUserId: 'u1',
+          outreachRecordId: 'rec-1',
+          recipientSnapshot: {
+            groupMembers: ['d@example.test', 'e@example.test'].map((email) => ({ email })),
+            bcc: ['private@example.test'],
+          },
+        },
+      },
+    });
+    await h.service.createIntent(ctx, {
+      ...intentInput,
+      draftVersionIds: ['v-1', 'v-2'],
+      attachmentIds: ['att-1'],
+    });
+    expect(h.createdDeliveries).toHaveLength(2);
+    const envelopes = h.createdDeliveries.map(
+      (delivery) => delivery.recipientEnvelope as ReturnType<typeof buildEnvelope>,
+    );
+    expect(envelopes.map((envelope) => envelope.to.map((recipient) => recipient.email))).toEqual([
+      ['a@example.test', 'b@example.test', 'c@example.test'],
+      ['d@example.test', 'e@example.test'],
+    ]);
+    expect(envelopes[0]!.cc).toEqual(['copy@example.test']);
+    expect(envelopes[1]!.bcc).toEqual(['private@example.test']);
+    for (const delivery of h.createdDeliveries) {
+      expect(delivery.attachmentManifest).toEqual([
+        expect.objectContaining({ id: 'att-1', sha256: DEFAULT_ATTACHMENT_SHA256 }),
+      ]);
+    }
+  });
+});
 
 /** What createIntent will actually compute for the default fixture above — used to simulate a TRUE retry (matching fingerprint) versus a key reused for a different request. */
 const DEFAULT_FINGERPRINT = sendIntentRequestFingerprint({
@@ -524,9 +619,9 @@ describe('createIntent — refuses anything not cleared to send', () => {
 
   test('a too-short request key is rejected', async () => {
     const h = makeIntentHarness({});
-    await expect(h.service.createIntent(ctx, { ...intentInput, requestKey: 'short' })).rejects.toThrow(
-      /8/,
-    );
+    await expect(
+      h.service.createIntent(ctx, { ...intentInput, requestKey: 'short' }),
+    ).rejects.toThrow(/8/);
   });
 });
 
@@ -805,9 +900,9 @@ describe('createIntent — request-key reuse with a DIFFERENT payload (plan §3.
       existingIntentId: 'intent-existing',
       existingFingerprint: DEFAULT_FINGERPRINT, // matches the ORIGINAL (non-test) request only
     });
-    await expect(
-      h.service.createIntent(ctx, { ...intentInput, testMode: true }),
-    ).rejects.toThrow(/different send request/i);
+    await expect(h.service.createIntent(ctx, { ...intentInput, testMode: true })).rejects.toThrow(
+      /different send request/i,
+    );
   });
 
   test('reusing a key for a DIFFERENT set of draft versions does not silently dedupe', async () => {
@@ -911,7 +1006,14 @@ function makeWorkerHarness(opts: {
     assertExternalAction: () => {},
     assertCallbacksEnabled: () => {},
     externalActionAllowed: () => true,
-    snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+    snapshot: () => ({
+      serviceName: 'api',
+      processMode: 'active',
+      backgroundOwner: 'api',
+      externalActions: 'enabled',
+      callbacksEnabled: true,
+      recallWebhookEnabled: true,
+    }),
     isRecallWebhookEnabled: () => true,
   };
   patch.staleMs = 120_000;
@@ -946,14 +1048,24 @@ describe('persistAcceptance / finishDelivery — guarded to sending rows only (p
     const warnings: string[] = [];
     const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
     const patch = service as unknown as Record<string, unknown>;
-    patch.logger = { warn: (m: string) => warnings.push(m), error: (m: string) => warnings.push(m) };
+    patch.logger = {
+      warn: (m: string) => warnings.push(m),
+      error: (m: string) => warnings.push(m),
+    };
     patch.runtimePolicy = {
       backgroundWorkersEnabled: () => true,
       assertBackgroundOwner: () => {},
       assertExternalAction: () => {},
       assertCallbacksEnabled: () => {},
       externalActionAllowed: () => true,
-      snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+      snapshot: () => ({
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
+        recallWebhookEnabled: true,
+      }),
       isRecallWebhookEnabled: () => true,
     };
     patch.prisma = {
@@ -1134,7 +1246,14 @@ describe('worker reconciliation (plan §g4 — bounded and logged)', () => {
       assertExternalAction: () => {},
       assertCallbacksEnabled: () => {},
       externalActionAllowed: () => true,
-      snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
+      snapshot: () => ({
+        serviceName: 'api',
+        processMode: 'active',
+        backgroundOwner: 'api',
+        externalActions: 'enabled',
+        callbacksEnabled: true,
+        recallWebhookEnabled: true,
+      }),
       isRecallWebhookEnabled: () => true,
     };
     const tx = {
