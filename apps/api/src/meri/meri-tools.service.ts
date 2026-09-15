@@ -1002,7 +1002,9 @@ export class MeriToolsService {
           clientId: str(
             'Destination client UUID. Use the selected conversation client when present; it is already resolved and does not need to be asked for again. Otherwise resolve the intended client.',
           ),
-          conversationId: str('Current Meri conversation UUID containing the user attachments.'),
+          conversationId: str(
+            'Current Meri conversation UUID containing the user attachments. Use the current conversation id already given to you in context; it is already resolved and does not need to be asked for again.',
+          ),
           attachmentIds: {
             type: 'array',
             minItems: 1,
