@@ -3,10 +3,21 @@ import {
   fetchAllPages,
   resolveSyncStates,
   parseRetryAfterMs,
+  classifyOpenstatesRateLimitDetail,
   aggregateStateOutcomes,
+  runOpenstatesSync,
   type OpenstatesCommittee,
   type OpenstatesStateOutcome,
 } from './sync-openstates';
+
+// Request pacing under test: sync-openstates spaces EVERY request by
+// REQUEST_SPACING_MS (6500ms — published default tier is 10/min, so ~9.2
+// req/min sustained), and a 429 with no usable Retry-After waits
+// NO_HINT_429_WAIT_MS (60000) + jitter (NO_HINT_429_JITTER_MS, <1000) so
+// the retry lands in a NEW fixed supplier minute window. random: () => 0
+// pins the jitter to zero in every test below.
+const SPACING = 6500;
+const NO_HINT_WAIT = 60000;
 
 // Fixtures mirror the live OpenStates v3 `/committees?include=memberships`
 // shape (verified 2026-07-11 against openapi.json: Committee has no `chamber`
@@ -145,6 +156,18 @@ function mockOsResponse(status: number, body: unknown, headers: Record<string, s
   } as unknown as Response;
 }
 
+/** A 429 whose body is unreadable/non-JSON (e.g. an HTML proxy error page). */
+function mockOs429WithBrokenBody(headers: Record<string, string> = {}) {
+  return {
+    status: 429,
+    ok: false,
+    json: async () => {
+      throw new SyntaxError('Unexpected token < in JSON');
+    },
+    headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
+  } as unknown as Response;
+}
+
 /** Deterministic sleep recorder — no real timers, no wall-clock dependence. */
 function fakeSleep() {
   const calls: number[] = [];
@@ -173,13 +196,31 @@ describe('fetchAllPages', () => {
       ) as unknown as typeof fetch;
 
     const { sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'va' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' }, 5, {
+      sleep,
+    });
     expect(result).toEqual({ rows: [{ id: 'a' }, { id: 'b' }], complete: true });
+  });
+
+  it('paces a multi-page walk under the published default 10/min window', async () => {
+    // 4 pages, all 200: every request is preceded by exactly one 6500ms
+    // spacing sleep (fetchOS owns pacing now — no separate inter-page
+    // delay), so 4 requests cost 26s of spacing < 60s and 4 <= 10: the
+    // sustained cadence fits the published default tier window.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(200, { results: [{ id: 'x' }], pagination: { max_page: 4 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+    });
+    expect(result.complete).toBe(true);
+    expect(result.rows).toHaveLength(4);
+    expect(calls).toEqual([SPACING, SPACING, SPACING, SPACING]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(4);
   });
 
   it('reports complete:false and only the successfully-fetched rows when a later page fails after retries', async () => {
@@ -195,12 +236,9 @@ describe('fetchAllPages', () => {
       .mockResolvedValue(mockOsResponse(500, {})) as unknown as typeof fetch;
 
     const { sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'va' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' }, 5, {
+      sleep,
+    });
     expect(result).toEqual({ rows: [{ id: 'a' }], complete: false });
   });
 
@@ -210,12 +248,9 @@ describe('fetchAllPages', () => {
       .mockResolvedValueOnce(mockOsResponse(200, { results: [] })) as unknown as typeof fetch;
 
     const { sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'va' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' }, 5, {
+      sleep,
+    });
     expect(result).toEqual({ rows: [], complete: true });
   });
 
@@ -230,12 +265,9 @@ describe('fetchAllPages', () => {
       ) as unknown as typeof fetch;
 
     const { sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      3,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 3, {
+      sleep,
+    });
     expect(result.complete).toBe(false);
     expect(result.rows).toHaveLength(3); // 3 pages fetched, rows preserved
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(3);
@@ -249,12 +281,9 @@ describe('fetchAllPages', () => {
       ) as unknown as typeof fetch;
 
     const { sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'va' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'va' }, 5, {
+      sleep,
+    });
     expect(result).toEqual({ rows: [{ id: 'x' }, { id: 'x' }], complete: true });
   });
 });
@@ -280,6 +309,42 @@ describe('parseRetryAfterMs', () => {
   });
 });
 
+describe('classifyOpenstatesRateLimitDetail', () => {
+  it('recognizes the supplier contract detail for minute/hour/day windows', () => {
+    // Exact strings from rate_limiter.py's RateLimitExceeded raises.
+    expect(classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 10/min: 11' })).toBe(
+      'minute',
+    );
+    expect(classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 40/min: 41' })).toBe(
+      'minute',
+    );
+    expect(classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 1000/hour: 1001' })).toBe(
+      'hour',
+    );
+    expect(classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 250/day: 251' })).toBe(
+      'day',
+    );
+  });
+
+  it('rejects malformed, non-numeric, non-string, and adversarial bodies', () => {
+    expect(classifyOpenstatesRateLimitDetail(undefined)).toBeNull();
+    expect(classifyOpenstatesRateLimitDetail(null)).toBeNull();
+    expect(classifyOpenstatesRateLimitDetail('exceeded limit of 10/min: 11')).toBeNull();
+    expect(classifyOpenstatesRateLimitDetail({ detail: 429 })).toBeNull();
+    expect(
+      classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 10/min: many' }),
+    ).toBeNull();
+    expect(
+      classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 10/week: 11' }),
+    ).toBeNull();
+    expect(classifyOpenstatesRateLimitDetail({ detail: 'Rate limit exceeded' })).toBeNull();
+    expect(
+      classifyOpenstatesRateLimitDetail({ detail: 'exceeded limit of 10/min: 11; DROP TABLE' }),
+    ).toBeNull();
+    expect(classifyOpenstatesRateLimitDetail({})).toBeNull();
+  });
+});
+
 describe('fetchAllPages 429 retry semantics', () => {
   const originalFetch = global.fetch;
 
@@ -301,15 +366,14 @@ describe('fetchAllPages 429 retry semantics', () => {
       ) as unknown as typeof fetch;
 
     const { calls, sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep, now: () => 0 },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      now: () => 0,
+      random: () => 0,
+    });
     expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
-    // inter-page DELAY_MS, then max(backoff 4000, Retry-After 120000).
-    expect(calls).toEqual([2000, 120000]);
+    // per-attempt spacing, then the full 120s hint (floored by spacing, which it exceeds).
+    expect(calls).toEqual([SPACING, 120000, SPACING]);
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
   });
 
@@ -330,15 +394,14 @@ describe('fetchAllPages 429 retry semantics', () => {
       await sleep(ms);
       clock += ms;
     };
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep: clockedSleep, now: () => clock },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep: clockedSleep,
+      now: () => clock,
+      random: () => 0,
+    });
     expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
-    // 2000 inter-page, then one full 120000 wait before the successful retry.
-    expect(calls).toEqual([2000, 120000]);
+    // spacing, one full 120000 wait, spacing — then the successful retry.
+    expect(calls).toEqual([SPACING, 120000, SPACING]);
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
     expect(clock).toBeGreaterThanOrEqual(t0 + 120000);
   });
@@ -355,56 +418,165 @@ describe('fetchAllPages 429 retry semantics', () => {
       ) as unknown as typeof fetch;
 
     const { calls, sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep, now: () => now },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      now: () => now,
+      random: () => 0,
+    });
     expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
     // 120s HTTP-date hint honored in full (was previously capped to 30000).
-    expect(calls).toEqual([2000, 120000]);
+    expect(calls).toEqual([SPACING, 120000, SPACING]);
   });
 
-  it('falls back to bounded exponential backoff when Retry-After is absent or invalid', async () => {
+  it('honors a valid 45s Retry-After as 45s — the 60s no-hint fallback must NOT stretch it', async () => {
+    // Review finding: max(60000+jitter, hint) would have turned a valid 45s
+    // provider deadline into 60s. The fallback exists only for absent/invalid
+    // hints; a valid hint is floored by the normal request spacing alone.
+    const t0 = Date.parse('Tue, 15 Sep 2026 12:00:00 GMT');
+    let clock = t0;
+    global.fetch = jest.fn().mockImplementation(async () => {
+      if (clock < t0 + 45000) return mockOsResponse(429, {}, { 'retry-after': '45' });
+      return mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } });
+    }) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const clockedSleep = async (ms: number) => {
+      await sleep(ms);
+      clock += ms;
+    };
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep: clockedSleep,
+      now: () => clock,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    // spacing, exactly 45000 (not 60000+), spacing — retry lands after the deadline.
+    expect(calls).toEqual([SPACING, 45000, SPACING]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+    expect(clock).toBeGreaterThanOrEqual(t0 + 45000);
+  });
+
+  it('waits out a full minute window (not 4/8/16s) when a 429 carries no usable hint', async () => {
+    // TD6 defect: the old 4/8/16s exponential could burn all retries inside
+    // the supplier's FIXED calendar-minute window. The no-hint fallback now
+    // waits 60s + jitter so the retry lands in a NEW window.
     global.fetch = jest
       .fn()
-      .mockResolvedValueOnce(mockOsResponse(429, {})) // no header
-      .mockResolvedValueOnce(mockOsResponse(429, {}, { 'retry-after': 'bogus' }))
+      .mockResolvedValueOnce(mockOsResponse(429, {})) // no header, no body
+      .mockResolvedValueOnce(mockOsResponse(429, {}, { 'retry-after': 'bogus' })) // invalid header
       .mockResolvedValueOnce(
         mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
       ) as unknown as typeof fetch;
 
     const { calls, sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
     expect(result.complete).toBe(true);
-    // attempt 0 -> 4000, attempt 1 -> 8000 (invalid header ignored)
-    expect(calls).toEqual([2000, 4000, 8000]);
+    // spacing, 60s fallback, spacing, 60s fallback (invalid header ignored), spacing.
+    expect(calls).toEqual([SPACING, NO_HINT_WAIT, SPACING, NO_HINT_WAIT, SPACING]);
+  });
+
+  it('classifies a supplier minute detail and waits out the minute window to success', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(mockOsResponse(429, { detail: 'exceeded limit of 10/min: 11' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    expect(calls).toEqual([SPACING, NO_HINT_WAIT, SPACING]);
+  });
+
+  it('defers immediately on a supplier hour detail without retrying the known-dead window', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(429, { detail: 'exceeded limit of 1000/hour: 1001' }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [], complete: false });
+    // one spacing sleep before the attempt; NO retry wait after the definitive 429.
+    expect(calls).toEqual([SPACING]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+  });
+
+  it('defers immediately on a supplier day detail without retrying the known-dead window', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(429, { detail: 'exceeded limit of 250/day: 251' }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [], complete: false });
+    expect(calls).toEqual([SPACING]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+  });
+
+  it('treats a malformed/unreadable 429 body as no-hint: no leak, no fabricated success', async () => {
+    // An HTML proxy error page or truncated body is NOT a fact about the
+    // rate window — the walk falls back to the 60s minute-window wait and
+    // the raw text is never logged.
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(mockOs429WithBrokenBody())
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    expect(calls).toEqual([SPACING, NO_HINT_WAIT, SPACING]);
+    for (const call of warnSpy.mock.calls) {
+      expect(String(call[0])).not.toContain('Unexpected token');
+      expect(String(call[0])).not.toContain('<');
+    }
   });
 
   it('does NOT sleep after the final exhausted 429 attempt and reports complete:false', async () => {
     // Old defect: on the 4th 429 the loop slept 30s then fell through without
     // the announced retry (logs showed "attempt 4/3"). Now the exhausted
     // attempt returns immediately — no trailing sleep, no phantom retry.
-    global.fetch = jest
-      .fn()
-      .mockResolvedValue(mockOsResponse(429, {})) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockResolvedValue(mockOsResponse(429, {})) as unknown as typeof fetch;
 
     const { calls, sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
     expect(result).toEqual({ rows: [], complete: false });
-    // 1 page-walk sleep + 3 retry waits (4000/8000/16000); NO 30s trailing sleep.
-    expect(calls).toEqual([2000, 4000, 8000, 16000]);
+    // spacing before each of 4 attempts + 3 minute-window waits; NO trailing sleep.
+    expect(calls).toEqual([
+      SPACING,
+      NO_HINT_WAIT,
+      SPACING,
+      NO_HINT_WAIT,
+      SPACING,
+      NO_HINT_WAIT,
+      SPACING,
+    ]);
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(4); // 1 initial + 3 retries
   });
 
@@ -420,16 +592,23 @@ describe('fetchAllPages 429 retry semantics', () => {
       .mockResolvedValue(mockOsResponse(429, {})) as unknown as typeof fetch;
 
     const { calls, sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
     expect(result).toEqual({ rows: [{ id: 'a' }], complete: false });
-    // inter-page sleeps + bounded local backoff 4000/8000/16000 (no hint), no
-    // trailing sleep after the final 429.
-    expect(calls).toEqual([2000, 2000, 4000, 8000, 16000]);
+    // page-1 spacing, then 4 page-2 attempts each preceded by spacing with
+    // 3 minute-window waits between them; no trailing sleep after the final 429.
+    expect(calls).toEqual([
+      SPACING,
+      SPACING,
+      NO_HINT_WAIT,
+      SPACING,
+      NO_HINT_WAIT,
+      SPACING,
+      NO_HINT_WAIT,
+      SPACING,
+    ]);
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(5); // page1 + 4 attempts on page2
   });
 
@@ -439,18 +618,244 @@ describe('fetchAllPages 429 retry semantics', () => {
     // return partial/defer immediately without sleeping.
     global.fetch = jest
       .fn()
-      .mockResolvedValue(mockOsResponse(429, {}, { 'retry-after': '2147483648' })) as unknown as typeof fetch;
+      .mockResolvedValue(
+        mockOsResponse(429, {}, { 'retry-after': '2147483648' }),
+      ) as unknown as typeof fetch;
 
     const { calls, sleep } = fakeSleep();
-    const result = await fetchAllPages<{ id: string }>(
-      '/committees',
-      { jurisdiction: 'md' },
-      5,
-      { sleep, now: () => 0 },
-    );
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'md' }, 5, {
+      sleep,
+      now: () => 0,
+      random: () => 0,
+    });
     expect(result).toEqual({ rows: [], complete: false });
-    expect(calls).toEqual([2000]); // only the inter-page delay; no retry attempted
+    expect(calls).toEqual([SPACING]); // only the pre-attempt spacing; no retry attempted
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+  });
+
+  it('logs a controlled HTTP status for non-ok responses (401/403 stay diagnosable, no leak)', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(403, { detail: 'Invalid API Key.' }),
+      ) as unknown as typeof fetch;
+
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [], complete: false });
+    expect(warnSpy).toHaveBeenCalledWith('GET /people: HTTP 403');
+    for (const call of warnSpy.mock.calls) {
+      const line = String(call[0]);
+      expect(line).not.toContain('Invalid API Key');
+      expect(line).not.toContain('apikey');
+    }
+  });
+
+  it('sanitizes network-error logs: no URL, apikey, or attacker-controlled name/message', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    global.fetch = jest.fn().mockImplementation(async () => {
+      const err = new Error(
+        'fetch failed: https://v3.openstates.org/people?apikey=SECRETKEY123&page=1',
+      );
+      err.name = 'EvilError https://v3.openstates.org/?apikey=SECRETKEY123';
+      throw err;
+    }) as unknown as typeof fetch;
+
+    const { sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'md' }, 5, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [], complete: false });
+    expect(warnSpy).toHaveBeenCalled();
+    for (const call of warnSpy.mock.calls) {
+      const line = String(call[0]);
+      expect(line).not.toContain('SECRETKEY123');
+      expect(line).not.toContain('apikey');
+      expect(line).not.toContain('v3.openstates.org');
+      expect(line).not.toContain('EvilError');
+      expect(line).not.toContain('fetch failed');
+    }
+  });
+});
+
+describe('runOpenstatesSync (runtime level, mocked fetch + prisma)', () => {
+  const originalFetch = global.fetch;
+
+  function fakePrisma() {
+    const stateLegislatorUpsert = jest.fn().mockResolvedValue({});
+    const entityCrosswalkUpsert = jest.fn().mockResolvedValue({});
+    return {
+      prisma: {
+        stateLegislator: { upsert: stateLegislatorUpsert },
+        entityCrosswalk: { upsert: entityCrosswalkUpsert },
+      },
+      stateLegislatorUpsert,
+      entityCrosswalkUpsert,
+    };
+  }
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it('treats a successful empty people response as a legitimate complete run: no writes, no partial', async () => {
+    // Review finding: committeesAttempted=false on the no-people branch used
+    // to mark even an authenticated 200 {results:[]} as incomplete, breaking
+    // the pre-existing zero-row complete=true/errors=0 contract.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(200, { results: [], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { prisma, stateLegislatorUpsert, entityCrosswalkUpsert } = fakePrisma();
+    const { sleep } = fakeSleep();
+    const counts = await runOpenstatesSync(prisma, ['md', 'va'], {
+      sleep,
+      random: () => 0,
+    });
+
+    expect(counts.complete).toBe(true);
+    expect(counts.errors).toBe(0);
+    expect(counts.inserted).toBe(0);
+    expect(stateLegislatorUpsert).not.toHaveBeenCalled();
+    expect(entityCrosswalkUpsert).not.toHaveBeenCalled();
+    // Both states actually fetched (1 request each) — no poisoning between them.
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+  });
+
+  it('halts the whole run on a definitive day-quota 429: zero later requests, authentic rows kept, truthful partial', async () => {
+    // state1 people page 1 returns real rows; page 2 gets the definitive
+    // "exceeded limit of 250/day" 429. Everything after — the rest of
+    // state1's pages, state1 committees, state2 entirely — must make ZERO
+    // further provider requests, and the run must report partial.
+    const person = {
+      id: 'ocd-person/jane',
+      name: 'Jane Doe',
+      party: 'Democratic',
+      current_role: { org_classification: 'lower', district: '1' },
+    };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [person], pagination: { max_page: 2 } }),
+      )
+      .mockResolvedValue(
+        mockOsResponse(429, { detail: 'exceeded limit of 250/day: 251' }),
+      ) as unknown as typeof fetch;
+
+    const { prisma, stateLegislatorUpsert } = fakePrisma();
+    const { calls, sleep } = fakeSleep();
+    const counts = await runOpenstatesSync(prisma, ['md', 'va'], {
+      sleep,
+      random: () => 0,
+    });
+
+    // Exactly 2 provider requests total: state1 people p1 + p2. The
+    // committees fetch and ALL of state2 were skipped via the run latch.
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+    // No trailing sleep after the definitive 429: p1 spacing + p2 spacing only.
+    expect(calls).toEqual([SPACING, SPACING]);
+
+    // The authentic partial person row was still upserted, WITHOUT touching
+    // the committees column on update (existing memberships preserved).
+    expect(stateLegislatorUpsert).toHaveBeenCalledTimes(1);
+    const upsertArg = stateLegislatorUpsert.mock.calls[0][0] as {
+      where: { id: string };
+      update: Record<string, unknown>;
+      create: Record<string, unknown>;
+    };
+    expect(upsertArg.where.id).toBe('ocd-person/jane');
+    expect(upsertArg.update).not.toHaveProperty('committees');
+    expect(upsertArg.update.name).toBe('Jane Doe');
+
+    // Truthful aggregate: state1 people-partial + committees-unattempted,
+    // state2 fully unattempted — both incomplete, inserted counts the 1 real row.
+    expect(counts.complete).toBe(false);
+    expect(counts.inserted).toBe(1);
+    expect(counts.errors).toBe(2);
+    expect(counts.incompleteReason).toContain('2 state(s) with incomplete people pages');
+    expect(counts.incompleteReason).toContain('2 state(s) with incomplete committee pages');
+  });
+
+  it('latches the halt even when the definitive hour detail first arrives on the FINAL attempt', async () => {
+    // Review finding: the old branch order checked attempt===MAX_RETRIES
+    // before reading the body, so a day/hour detail on the last retry was
+    // discarded and the run continued into the known-dead window.
+    const person = { id: 'ocd-person/john', name: 'John Smith' };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [person], pagination: { max_page: 2 } }),
+      )
+      // page 2: minute 429, unknown 429, minute 429, then the FINAL attempt
+      // carries the definitive hour detail.
+      .mockResolvedValueOnce(mockOsResponse(429, { detail: 'exceeded limit of 10/min: 11' }))
+      .mockResolvedValueOnce(mockOsResponse(429, {}))
+      .mockResolvedValueOnce(mockOsResponse(429, { detail: 'exceeded limit of 10/min: 12' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(429, { detail: 'exceeded limit of 1000/hour: 1001' }),
+      ) as unknown as typeof fetch;
+
+    const { prisma, stateLegislatorUpsert } = fakePrisma();
+    const { calls, sleep } = fakeSleep();
+    const counts = await runOpenstatesSync(prisma, ['md', 'va'], {
+      sleep,
+      random: () => 0,
+    });
+
+    // 1 (p1) + 4 (p2 attempts) requests; committees + state2 never fetched.
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(5);
+    // 3 minute-window waits between the 4 page-2 attempts; NO sleep after
+    // the final definitive 429.
+    expect(calls).toEqual([
+      SPACING, // p1
+      SPACING, // p2 attempt 0 (minute 429)
+      NO_HINT_WAIT,
+      SPACING, // p2 attempt 1 (unknown 429)
+      NO_HINT_WAIT,
+      SPACING, // p2 attempt 2 (minute 429)
+      NO_HINT_WAIT,
+      SPACING, // p2 attempt 3 (FINAL: hour detail — latch, return, no sleep)
+    ]);
+
+    // Authentic page-1 row preserved; committees column untouched on update.
+    expect(stateLegislatorUpsert).toHaveBeenCalledTimes(1);
+    const upsertArg = stateLegislatorUpsert.mock.calls[0][0] as {
+      update: Record<string, unknown>;
+    };
+    expect(upsertArg.update).not.toHaveProperty('committees');
+
+    expect(counts.complete).toBe(false);
+    expect(counts.inserted).toBe(1);
+    expect(counts.errors).toBe(2);
+  });
+
+  it('does not poison the next independent run: a fresh runOpenstatesSync call starts clean', async () => {
+    // The quota latch is run-scoped (never module-level): after a halted
+    // run, a new invocation must fetch normally again.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(mockOsResponse(429, { detail: 'exceeded limit of 250/day: 251' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { prisma } = fakePrisma();
+    const { sleep } = fakeSleep();
+    const halted = await runOpenstatesSync(prisma, ['md'], { sleep, random: () => 0 });
+    expect(halted.complete).toBe(false);
+
+    const fresh = await runOpenstatesSync(prisma, ['md'], { sleep, random: () => 0 });
+    expect(fresh.complete).toBe(true);
+    expect(fresh.errors).toBe(0);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
   });
 });
 
@@ -473,7 +878,9 @@ describe('aggregateStateOutcomes', () => {
 
   it('reports a legitimate zero-row state as complete (empty success, not a failure)', () => {
     expect(
-      aggregateStateOutcomes([{ peopleFetched: 0, peopleComplete: true, committeesComplete: true }]),
+      aggregateStateOutcomes([
+        { peopleFetched: 0, peopleComplete: true, committeesComplete: true },
+      ]),
     ).toEqual({ inserted: 0, updated: 0, skipped: 0, errors: 0, complete: true });
   });
 
