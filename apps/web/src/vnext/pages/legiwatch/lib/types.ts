@@ -24,10 +24,11 @@ export type { FeedItem, FeedResponse, FeedSourceType };
 export type PacketBand =
   | 'CRITICAL'
   | 'HEARING'
-  | 'DEADLINE'
+  | 'BILL'
   | 'BUDGET'
   | 'STATE BILL'
-  | 'REGULATION';
+  | 'REGULATION'
+  | 'UPDATE';
 
 /** §6.2 — server-authoritative per-user work state. */
 
@@ -165,7 +166,10 @@ export const lwKeys = {
 };
 
 /** Derive the packet band from the server source type + severity (§6.1).
- *  CRITICAL is severity-driven; the rest are kind-driven. */
+ *  CRITICAL is severity-driven; the rest are kind-driven. The FeedItem DTO
+ *  carries no deadline semantics, so no source maps to a deadline claim: a
+ *  federal bill change is a BILL, and an unrecognised future sourceType
+ *  degrades to the neutral UPDATE — never an invented deadline. */
 export function packetBand(item: FeedItem): { band: PacketBand; tone: Tone } {
   if (item.severity === 'critical') return { band: 'CRITICAL', tone: 'error' };
   switch (item.sourceType) {
@@ -180,8 +184,9 @@ export function packetBand(item: FeedItem): { band: PacketBand; tone: Tone } {
     case 'regulation':
       return { band: 'REGULATION', tone: 'gray' };
     case 'bill':
+      return { band: 'BILL', tone: 'gray' };
     default:
-      return { band: 'DEADLINE', tone: 'warning' };
+      return { band: 'UPDATE', tone: 'gray' };
   }
 }
 
