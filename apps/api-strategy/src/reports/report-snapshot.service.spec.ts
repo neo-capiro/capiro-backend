@@ -93,7 +93,7 @@ describe("report snapshot transaction", () => {
     );
   });
 
-  it("reports 1 of 20 client steps while preserving the full internal plan", async () => {
+  it("includes every live client step while preserving the full internal plan", async () => {
     const contextFindMany = jest.fn(async (_args: Record<string, unknown>) => [
       {
         id: "context-1",
@@ -131,15 +131,15 @@ describe("report snapshot transaction", () => {
       reportOptions("internal"),
     );
 
+    // No promotion gate: every live step is included for the client audience.
+    // Omission counting is retained for the preflight display and is now zero.
     expect(client.inclusion).toMatchObject({
       liveNodes: 20,
-      includedNodes: 1,
-      omittedNodes: 19,
-      includedByStatus: { active: 1 },
-      omittedByStatus: { suggested: 17, draft: 2 },
+      includedNodes: 20,
+      omittedNodes: 0,
       placeholderNodes: 2,
     });
-    expect(client.health.totalNodes).toBe(1);
+    expect(client.health.totalNodes).toBe(20);
     expect(client.allLiveHealth.totalNodes).toBe(20);
     expect(client.context.sections.length).toBeGreaterThan(0);
     expect(client.nodes[0]?.sources).toEqual([]);

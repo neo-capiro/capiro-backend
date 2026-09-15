@@ -44,6 +44,13 @@ const REPORT_FORMATS: Array<{
   extension: string;
 }> = [
   {
+    id: 'pdf',
+    name: 'PDF brief',
+    description:
+      'Fixed-layout client deliverable matching the strategy brief design, ready to share.',
+    extension: '.pdf',
+  },
+  {
     id: 'docx',
     name: 'Word document',
     description:
@@ -69,7 +76,7 @@ function slugify(value: string | undefined | null): string {
 
 function safeFilenameStem(value: string): string {
   return value
-    .replace(/\.(docx|pptx|md)$/i, '')
+    .replace(/\.(docx|pptx|pdf|md)$/i, '')
     .replace(/[<>:"/\\|?*]+/g, '-')
     .replace(/\s+/g, ' ')
     .replace(/[.\s-]+$/g, '')
@@ -237,7 +244,7 @@ export function ExportOverlay() {
 
   const isReport = choice !== 'markdown';
   const reportFormat: StrategyExportFormat =
-    choice === 'pptx' ? 'pptx' : 'docx';
+    choice === 'pptx' ? 'pptx' : choice === 'pdf' ? 'pdf' : 'docx';
   const reportOptions = useMemo<StrategyExportOptions>(
     () => ({
       format: reportFormat,
@@ -528,11 +535,13 @@ export function ExportOverlay() {
     ? 'Checking readiness…'
     : downloading
       ? 'Preparing download…'
-      : choice === 'docx'
-        ? 'Download Word report'
-        : choice === 'pptx'
-          ? 'Download PowerPoint'
-          : 'Download Markdown';
+      : choice === 'pdf'
+        ? 'Download PDF brief'
+        : choice === 'docx'
+          ? 'Download Word report'
+          : choice === 'pptx'
+            ? 'Download PowerPoint'
+            : 'Download Markdown';
 
   return (
     <StrategiesModalShell
@@ -892,9 +901,11 @@ export function ExportOverlay() {
                 </div>
                 <div className="st-export-cover__rule" />
                 <p className="st-export-cover__eyebrow">
-                  {reportFormat === 'docx'
-                    ? 'Executive strategy report'
-                    : 'Executive briefing'}
+                  {reportFormat === 'pdf'
+                    ? 'Client strategy brief'
+                    : reportFormat === 'docx'
+                      ? 'Executive strategy report'
+                      : 'Executive briefing'}
                 </p>
                 <h3>{reportTitle}</h3>
                 {strategy.data?.goal ? (

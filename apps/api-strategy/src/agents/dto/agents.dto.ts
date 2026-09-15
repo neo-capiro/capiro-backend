@@ -169,6 +169,18 @@ export class ApproveChangeSetDto {
   opIndexes?: number[];
 }
 
+/**
+ * Apply a change-set. `opIndexes` optionally selects a SUBSET of ops (indexes
+ * into ops) to apply directly — the per-op checkbox selection in the queue. No
+ * approval is fabricated: the selected subset is recorded as what was applied.
+ */
+export class ApplyChangeSetDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @IsInt({ each: true })
+  opIndexes?: number[];
+}
+
 /** Execution-Agent artifact kind (Stage G). */
 export const EXECUTION_KINDS = ['workspace', 'outreach'] as const;
 export type ExecutionKindValue = (typeof EXECUTION_KINDS)[number];

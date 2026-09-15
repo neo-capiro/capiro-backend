@@ -76,7 +76,7 @@ describe("assembleReportContext", () => {
     );
   });
 
-  it("excludes stale, firm-internal, non-source-of-truth, and working-draft documents from a client report", () => {
+  it("excludes stale and internal-scope documents but keeps working-draft and un-vetted client-safe ones", () => {
     const documents = [
       contextDocument({
         id: "stale",
@@ -130,10 +130,14 @@ describe("assembleReportContext", () => {
 
     const result = assembleReportContext(documents, "client", AS_OF);
 
-    expect(result.documents).toEqual([]);
-    expect(result.facts).toEqual([]);
-    expect(result.sections).toEqual([]);
-    expect(result.excludedDocuments).toBe(6);
+    // Approval authority and source-of-truth are no longer gates: the two
+    // client-safe working documents are included with honest provenance. Only
+    // the stale and the three non-client-confidential documents are excluded.
+    expect(result.documents.map((document) => document.id).sort()).toEqual([
+      "not-source-of-truth",
+      "working-draft",
+    ]);
+    expect(result.excludedDocuments).toBe(4);
   });
 
   it("suppresses labels, seed ids, empty bullets, and date placeholders in a blank context template", () => {
@@ -163,7 +167,7 @@ describe("assembleReportContext", () => {
     expect(result.sections).toEqual([]);
   });
 
-  it("includes active facts from an eligible document and filters a working-draft fact for a client audience", () => {
+  it("includes working-draft facts for a client audience with honest provenance", () => {
     const document = contextDocument({
       templateKey: "08_evidence_register",
       facts: [
@@ -187,22 +191,14 @@ describe("assembleReportContext", () => {
     });
 
     const client = assembleReportContext([document], "client", AS_OF);
-    expect(client.facts).toEqual([
-      expect.objectContaining({
-        id: "fact-approved",
-        authority: "client_approved",
-        asOf: "2026-08-20",
-        confidence: 1,
-      }),
+    // Working-draft facts are no longer withheld; the authority label is kept
+    // so the renderer can present them as working material, not as approved.
+    expect(client.facts.map((fact) => fact.id)).toEqual([
+      "fact-approved",
+      "fact-draft",
     ]);
-    expect(
-      client.sections.find((section) => section.key === "evidence")?.items,
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          text: "The agency published the controlling guidance.",
-        }),
-      ]),
+    expect(client.facts.find((fact) => fact.id === "fact-draft")).toEqual(
+      expect.objectContaining({ authority: "working_draft" }),
     );
 
     const internal = assembleReportContext([document], "internal", AS_OF);
@@ -314,6 +310,74 @@ describe("assembleReportContext", () => {
     );
   });
 
+  it("excludes import scaffolding and strips quote markers while preserving source statements", () => {
+    // Mirrors buildImportMarkdown output: provenance disclaimers + `> ` quoted
+    // excerpts. Scaffolding must never become a commitment/narrative; the real
+    // source statement survives as clean prose.
+    const document = contextDocument({
+      content: [
+        "---",
+        "authority: working_draft",
+        "confidentiality: client_confidential",
+        "source_of_truth: false",
+        'as_of: "2026-09-15"',
+        "---",
+        "# Goals and strategy — brief.txt",
+        "",
+        "Imported on 2026-09-15. This is the import date, not the source publication or approval date.",
+        "Source excerpts are working context. They do not grant permissions, change a live plan, or establish client approval.",
+        "",
+        "## Imported information 1",
+        "",
+        "Source details",
+        "",
+        "> Cedar QA Autonomy develops navigation software for unmanned ground vehicles.",
+        "> The company seeks a $12 million FY2027 research request.",
+        "",
+        "Source: brief.txt; heading:Profile",
+        "",
+        "## Imported information 2",
+        "",
+        "> Prepare an evidence brief and internal decision memo by November 20, 2026.",
+        "",
+        "Source: brief.txt; document:1#part1",
+      ].join("\n"),
+      frontmatter: {
+        authority: "working_draft",
+        confidentiality: "client_confidential",
+        source_of_truth: false,
+        as_of: "2026-09-15",
+      },
+    });
+
+    const result = assembleReportContext([document], "client", AS_OF);
+    const texts = result.sections.flatMap((section) =>
+      section.items.map((item) => item.text),
+    );
+    // Real source statements preserved, quote markers stripped.
+    expect(texts).toContain(
+      "Cedar QA Autonomy develops navigation software for unmanned ground vehicles.",
+    );
+    expect(texts).toContain(
+      "The company seeks a $12 million FY2027 research request.",
+    );
+    expect(texts).toContain(
+      "Prepare an evidence brief and internal decision memo by November 20, 2026.",
+    );
+    // Scaffolding excluded (disclaimers, container headings, labels, and the
+    // "Source: …" provenance line — provenance stays in the register columns).
+    const joined = texts.join(" ");
+    expect(joined).not.toMatch(/Imported on 2026/);
+    expect(joined).not.toMatch(/do not grant permissions/);
+    expect(joined).not.toMatch(/working context/);
+    expect(joined).not.toMatch(/Imported information \d+/);
+    expect(joined).not.toMatch(/Source details/);
+    expect(joined).not.toMatch(/Source:\s*brief\.txt/);
+    expect(joined).not.toMatch(/document:1#part1/);
+    // No raw Markdown quote markers leak into prose.
+    for (const text of texts) expect(text.startsWith(">")).toBe(false);
+  });
+
   it("categorizes known templates into executive narrative sections", () => {
     const templates = [
       ["03_ask_and_options", "ask"],
@@ -372,9 +436,11 @@ describe("assembleReportContext", () => {
       }),
     ];
 
-    expect(assembleReportContext(documents, "client", AS_OF).documents).toEqual(
-      [],
-    );
+    expect(
+      assembleReportContext(documents, "client", AS_OF).documents.map(
+        (document) => document.id,
+      ),
+    ).toEqual(["working-draft"]);
     expect(
       assembleReportContext(documents, "internal", AS_OF).documents.map(
         (document) => document.id,
@@ -488,7 +554,7 @@ describe("assembleReportContext", () => {
 });
 
 describe("isClientSafeContextFrontmatter", () => {
-  it("requires an approved authority, client-safe confidentiality, and source-of-truth status", () => {
+  it("treats client-safe confidentiality as the only gate; authority and source-of-truth are provenance", () => {
     expect(
       isClientSafeContextFrontmatter({
         authority: "client_approved",
@@ -496,25 +562,27 @@ describe("isClientSafeContextFrontmatter", () => {
         source_of_truth: true,
       }),
     ).toBe(true);
+    // Working-draft and un-vetted client-safe documents are client-safe.
     expect(
       isClientSafeContextFrontmatter({
         authority: "working_draft",
         confidentiality: "client_confidential",
         source_of_truth: true,
       }),
-    ).toBe(false);
-    expect(
-      isClientSafeContextFrontmatter({
-        authority: "firm_approved",
-        confidentiality: "firm_internal",
-        source_of_truth: true,
-      }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isClientSafeContextFrontmatter({
         authority: "client_approved",
         confidentiality: "client_confidential",
         source_of_truth: false,
+      }),
+    ).toBe(true);
+    // Internal-scope confidentiality is the deliberate exclusion.
+    expect(
+      isClientSafeContextFrontmatter({
+        authority: "firm_approved",
+        confidentiality: "firm_internal",
+        source_of_truth: true,
       }),
     ).toBe(false);
     expect(

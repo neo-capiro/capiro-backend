@@ -594,19 +594,84 @@ describe('ChangeSetsService.refreshProposedOps (F1 watcher date-staleness refres
 });
 
 describe('ChangeSetsService.apply', () => {
-  it('Conflicts on a non-approved (proposed) change-set without touching the pipeline', async () => {
+  it('applies only the opIndexes subset of a PROPOSED change-set and records it (no fabricated approval); the unselected op never replays', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
     const { svc, applyEditSet } = makeService(store);
-    const cs = (await svc.create(T, U, createDto())) as Rec;
+    const cs = (await svc.create(T, U, createDto([opA, opB]))) as Rec; // proposed
 
-    const err = await svc.apply(T, U, cs.id).catch((e: unknown) => e);
+    await svc.apply(T, U, cs.id, { opIndexes: [1] });
 
-    expect(err).toBeInstanceOf(ConflictException);
-    expect((err as Error).message).toMatch(/approve it before applying/);
+    // Only opB replayed — the unchecked opA is NOT applied.
+    expect(applyEditSet).toHaveBeenCalledTimes(1);
+    expect(applyEditSet).toHaveBeenCalledWith(expect.anything(), T, SID, U, [opB]);
+    const row = store.changeSets.get(cs.id)!;
+    expect(row.status).toBe('applied');
+    // The applied subset is persisted on the compatible approvedOps record,
+    // with NO approval actor/timestamp invented.
+    expect(row.approvedOps).toEqual([opB]);
+    expect(row.approvedByUserId).toBeNull();
+    expect(row.approvedAt).toBeNull();
+    expect(row.appliedByUserId).toBe(U);
+  });
+
+  it('rejects an empty or out-of-range apply selection without replaying anything', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc, applyEditSet } = makeService(store);
+    const cs = (await svc.create(T, U, createDto([opA, opB]))) as Rec;
+
+    const empty = await svc.apply(T, U, cs.id, { opIndexes: [] }).catch((e: unknown) => e);
+    expect(empty).toBeInstanceOf(BadRequestException);
+    const oob = await svc.apply(T, U, cs.id, { opIndexes: [7] }).catch((e: unknown) => e);
+    expect(oob).toBeInstanceOf(BadRequestException);
+    expect((oob as Error).message).toMatch(/out-of-range index: 7/);
     expect(applyEditSet).not.toHaveBeenCalled();
     expect(store.changeSets.get(cs.id)!.status).toBe('proposed');
+  });
+
+  it('still applies a PROPOSED change-set directly (no approval step), recording only real appliedBy/appliedAt and never fabricating approval', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc, applyEditSet } = makeService(store);
+    const cs = (await svc.create(T, U, createDto())) as Rec; // status 'proposed'
+    const versionsBefore = store.versions.size;
+
+    const detail = (await svc.apply(T, U, cs.id)) as Rec;
+
+    expect(applyEditSet).toHaveBeenCalledTimes(1);
+    expect(store.versions.size).toBe(versionsBefore + 1);
+    const row = store.changeSets.get(cs.id)!;
+    expect(row.status).toBe('applied');
+    // Real apply facts only — no fabricated review.
+    expect(row.appliedByUserId).toBe(U);
+    expect(row.appliedAt).toBeTruthy();
+    expect(row.approvedByUserId).toBeNull();
+    expect(row.approvedAt).toBeNull();
+    expect(detail.id).toBe(SID);
+    expect(store.activity.some((a) => a.action === 'changeset.applied')).toBe(true);
+  });
+
+  it('still applies an APPROVED change-set (compat path), keeping the recorded approval and stamping the real apply', async () => {
+    const store = makeStore();
+    seedStrategy(store);
+    seedVersion(store, 'v1', new Date('2026-01-01T00:00:00.000Z'));
+    const { svc, applyEditSet } = makeService(store);
+    const cs = (await svc.create(T, U, createDto([opA, opB]))) as Rec;
+    await svc.approve(T, 'reviewer-1', cs.id, { opIndexes: [1] } as ApproveChangeSetDto);
+
+    await svc.apply(T, U, cs.id);
+
+    expect(applyEditSet).toHaveBeenCalledWith(expect.anything(), T, SID, U, [opB]);
+    const row = store.changeSets.get(cs.id)!;
+    expect(row.status).toBe('applied');
+    // Approval was real — preserved; apply is the actual actor.
+    expect(row.approvedByUserId).toBe('reviewer-1');
+    expect(row.appliedByUserId).toBe(U);
+    expect(row.appliedAt).toBeTruthy();
   });
 
   it('marks the row stale AND Conflicts AND skips applyEditSet when the head moved since the proposal', async () => {

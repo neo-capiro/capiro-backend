@@ -841,16 +841,20 @@ export function useRejectChangeSet() {
   });
 }
 
-/** Apply replays the approved subset into ONE revision. 409 = base revision moved. */
+/** Apply replays the selected/approved subset into ONE revision. opIndexes
+ * (optional, web→server contract) narrows a direct apply-from-proposed to the
+ * checked ops; omitted = the server replays the recorded approved subset.
+ * 409 = base revision moved. */
 export function useApplyChangeSet() {
   const api = useApi();
   const qc = useQueryClient();
   const invalidate = useAgentsInvalidate();
   return useMutation({
-    mutationFn: async (vars: { id: string; strategyId: string }) =>
+    mutationFn: async (vars: { id: string; strategyId: string; opIndexes?: number[] }) =>
       (
         await api.post<StrategyDetail>(
           `${BASE}/agents/change-sets/${vars.id}/apply`,
+          vars.opIndexes ? { opIndexes: vars.opIndexes } : {},
         )
       ).data,
     onSuccess: (detail, vars) => {
@@ -1259,7 +1263,7 @@ export function useCurrentPlanExport(
 
 /* ---------------------------------------------------- executive report export */
 
-export type StrategyExportFormat = 'docx' | 'pptx';
+export type StrategyExportFormat = 'docx' | 'pptx' | 'pdf';
 export type StrategyExportAudience = 'client' | 'internal';
 
 export interface StrategyExportOptions {
@@ -1387,7 +1391,9 @@ function exportFallbackFilename(
   const audienceLabel = audience === 'internal' ? 'internal-working' : 'client';
   return format === 'pptx'
     ? `strategy-executive-briefing-${audienceLabel}.pptx`
-    : `strategy-executive-report-${audienceLabel}.docx`;
+    : format === 'pdf'
+      ? `strategy-executive-report-${audienceLabel}.pdf`
+      : `strategy-executive-report-${audienceLabel}.docx`;
 }
 
 /** Parse both quoted filename= and UTF-8 filename*= response headers. */

@@ -1,5 +1,78 @@
 /* Strategy library (§7.1). */
 
+/* ---- Parity corrections (reference `Capiro Strategies.html`, measured 2026-09-15) ----
+   The reference library is markedly more compact than the base module chrome:
+   title + header actions share ONE row (actions vertically centered with the
+   title, not dropped to the subtitle baseline); stat cards put the value and
+   its uppercase label on the SAME baseline; the "Your strategies" header +
+   filter row lives INSIDE the white table card; and the table head/rows are
+   tighter. All overrides are scoped to the library view only (`.st-library`
+   root below) so the editor/context/agents views keep the shared chrome. */
+
+/* 1. Header: eyebrow+title on the left, action cluster right-aligned on the
+   SAME top row; the purpose line spans full-width below (reference parity —
+   actions sit on the title row, header ~167px, not wrapped under the
+   subtitle). The global `.st-hero` is `display:flex; gap:24px; flex-wrap`,
+   which both shrink-wraps the header (648px instead of 1120px) and inserts a
+   24px gap before the purpose; the library hero overrides to a block layout
+   with a full-width header. */
+.capiro-vnext-root .capiro-strategies .st-library-hero {
+  display: block;
+  /* Reference gutter is 24px (the global hero uses a 32px floor). */
+  padding-left: calc(24px + max(0px, (100% - 1440px) / 2));
+  padding-right: calc(24px + max(0px, (100% - 1440px) / 2));
+}
+.capiro-vnext-root .capiro-strategies .st-library-hero .st-library-page-header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-library-hero .st-library-titleblock {
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-library-hero .st-library-page-header > .st-actions {
+  align-items: center;
+  flex: none;
+  /* Align the cluster to the TITLE row, not the eyebrow+title block center:
+     the 60px header starts at the eyebrow (y145); the title sits 22px below
+     it (18px eyebrow line + 4px margin), so flex-start + 22px lands the
+     buttons on the title's own line (y167), matching the reference. */
+  align-self: flex-start;
+  margin-top: 22px;
+}
+/* Reference subtitle is 16px/24 (the shared `.st-purpose` is 14px/20). Keep the
+   base 640px max-width so it wraps to two lines like the reference (a
+   full-width override made it one line and collapsed the header to 143px). */
+.capiro-vnext-root .capiro-strategies .st-library-hero .st-library-purpose {
+  margin-top: 6px;
+  font-size: 16px;
+  line-height: 24px;
+}
+/* Reference parity: the library content gutter is 24px (the base `.st-canvas`
+   uses 32px horizontal). Scoped to the library canvas only. */
+.capiro-vnext-root .capiro-strategies .st-canvas.st-library {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Reference firm-phase card is ~73px: the 40px icon row plus a 20px-line title
+   and a zero-top-margin purpose (the shared card title is 26px-line and the
+   purpose carries a 6px top margin, which together inflated the card to 84px). */
+.capiro-vnext-root .capiro-strategies .st-library-phases .st-card__body {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-phases .st-card__title {
+  line-height: 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-phases .st-purpose {
+  margin-top: 0;
+}
+
 .capiro-vnext-root .capiro-strategies .st-library-phases { margin: 0; }
 .capiro-vnext-root .capiro-strategies .st-library-phases__row {
   display: flex;
@@ -47,7 +120,23 @@
   flex-wrap: wrap;
   gap: 12px 16px;
   min-width: 0;
+  /* Now that the list head lives INSIDE the table card (reference parity), it
+     carries the card's own horizontal padding and a bottom rule separating it
+     from the table head below. */
+  padding: 16px 24px 14px;
+  border-bottom: 1px solid var(--st-gray-200);
 }
+/* Reference parity: "Your strategies" is a bold 18px title, not the shared
+   uppercase eyebrow label. */
+.capiro-vnext-root .capiro-strategies .st-library-listhead-title {
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+  margin: 0 0 2px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-listhead .st-section-label { margin-bottom: 2px; }
+.capiro-vnext-root .capiro-strategies .st-library-listhead .st-purpose { margin-top: 0; }
 
 /*
  * The card was `overflow: hidden`, which turned this table's overflow into an
@@ -84,20 +173,26 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--st-gray-500);
-  padding: 14px 24px;
+  /* Reference parity: compact 36px table head (was 47px at 14px vertical). */
+  padding: 9px 24px;
   background: var(--st-gray-50);
   border-top: 1px solid var(--st-gray-200);
   border-bottom: 1px solid var(--st-gray-200);
 }
 .capiro-vnext-root .capiro-strategies .st-library-table tbody td {
-  padding: 16px 24px;
+  /* Reference parity: tighter rows (~88px incl. content, was 16px vertical). */
+  padding: 14px 24px;
   border-bottom: 1px solid var(--st-gray-100);
   vertical-align: middle;
 }
 .capiro-vnext-root .capiro-strategies .st-library-table tbody tr:last-child td { border-bottom: none; }
 
 /* Column geometry (design handoff, "View: Strategy library" table spec):
-   client/strategy flexes, the rest hold fixed widths. */
+   the Client/Strategy (title) column is 42% of the table width in the
+   reference (not the ~33% the fixed-width remainder left), so a 3–4 line
+   title wrap shortens the row. The rest hold fixed widths. */
+.capiro-vnext-root .capiro-strategies .st-library-table th:first-child,
+.capiro-vnext-root .capiro-strategies .st-library-table td:first-child { width: 42%; }
 .capiro-vnext-root .capiro-strategies .st-library-table th:nth-child(2),
 .capiro-vnext-root .capiro-strategies .st-library-table td:nth-child(2) { width: 210px; }
 .capiro-vnext-root .capiro-strategies .st-library-table th:nth-child(3),
@@ -165,27 +260,40 @@
 }
 .capiro-vnext-root .capiro-strategies .st-library-owner { display: flex; align-items: center; gap: 10px; }
 .capiro-vnext-root .capiro-strategies .st-library-ownername { font-size: 14px; font-weight: 500; color: var(--st-gray-900); margin-bottom: 4px; }
-.capiro-vnext-root .capiro-strategies .st-library-updated { color: var(--st-gray-600); white-space: nowrap; }
+.capiro-vnext-root .capiro-strategies .st-library-updated { color: var(--st-gray-600); }
+.capiro-vnext-root .capiro-strategies .st-library-updated > .st-pill { margin-top: 6px; }
 .capiro-vnext-root .capiro-strategies .st-library-chev { color: var(--st-gray-400); font-size: 20px; text-align: right; }
 
 /*
- * Typography correction: .st-stat__value/.st-stat__hint (base rule in
- * strategies.css) render at 28px/34px and 13px — off-scale. The spec wants
- * the value to match .st-title's scale (strategies.css, defined a couple of
- * rules above .st-stat__value: 30px/38px/600 — weight/letter-spacing/color
- * already match, only size+leading were off) and the hint to read at 14px.
- * strategies.css is out of scope for this pass (another agent's pill-CSS
- * fix lives there), so the correction is scoped here instead: `.st-stats`
- * already wraps every `.st-stat__value`/`.st-stat__hint` in this view, and
- * one extra class of specificity beats the base rule outright — no
- * dependency on stylesheet import order.
+ * Stat cards (reference parity, measured 2026-09-15): the value and its
+ * uppercase label share ONE baseline row (display:flex, align-items:baseline,
+ * gap 10px), the hint sits below — card height ~93px, padding 18px 20px. The
+ * base `.st-stat` stacks value/label/hint as blocks at 20px padding (a 136px
+ * card); the library overrides to the reference's compact inline-row layout.
+ * `.st-stats` already wraps every `.st-stat` in this view, and one extra class
+ * of specificity beats the base rule outright — no dependency on import order.
  */
-.capiro-vnext-root .capiro-strategies .st-stats .st-stat__value {
+.capiro-vnext-root .capiro-strategies .st-library .st-stats .st-stat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 18px 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-library .st-stats .st-stat__value {
   font-size: 30px;
   line-height: 38px;
 }
-.capiro-vnext-root .capiro-strategies .st-stats .st-stat__hint {
+.capiro-vnext-root .capiro-strategies .st-library .st-stats .st-stat__label {
+  /* sits on the value's baseline, not its own line */
+  margin: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-library .st-stats .st-stat__hint {
+  /* full-width second line under the value+label row */
+  flex-basis: 100%;
   font-size: 14px;
+  margin: 2px 0 0;
 }
 
 .capiro-vnext-root .capiro-strategies .st-visually-hidden {

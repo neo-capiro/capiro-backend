@@ -336,4 +336,27 @@ describe('context import prompt boundary', () => {
     ]);
     expect(EMIT_CONTEXT_IMPORT_TOOL.strict).toBe(true);
   });
+
+  // Live regression: a SECOND upload of identical content (new attachment id,
+  // existing facts present) made the model return an empty documents array —
+  // it read existingFacts as a dedupe signal and skipped extraction. The prompt
+  // must state existing facts are comparison context only, never a reason to
+  // omit the current upload's supported content.
+  it('instructs the model to extract the current upload even when facts already exist', () => {
+    const prompt = buildContextImportSystemPrompt();
+    expect(prompt).toContain('comparison context ONLY');
+    expect(prompt).toContain('never a reason to skip');
+    expect(prompt).toContain('MUST extract every supported statement');
+    // The tool description carries the same contract so it is visible at the
+    // tool-call layer, not only in the system prompt body.
+    expect(EMIT_CONTEXT_IMPORT_TOOL.description).toContain('never a reason to omit');
+  });
+
+  // And the sanitizer must still treat an empty/unusable extraction as a
+  // FAILED import (never persisted, never fabricated) rather than a success.
+  it('treats an empty extraction as a failed import, not a completed one', () => {
+    expect(() =>
+      sanitizeContextImportResult({ documents: [], warnings: [], conflicts: [] }, INPUT),
+    ).toThrow('complete set');
+  });
 });

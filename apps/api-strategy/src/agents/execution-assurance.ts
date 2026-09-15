@@ -47,45 +47,22 @@ export function runWithExecutionAssuranceTenant<T>(tenantId: string, work: () =>
 /**
  * Legacy call shape used by ExecutionService.
  *
- * On authenticated execute/resume routes, this resolves the exact tenant and the
- * surface most recently verified by assessGeneratedDocumentForRelease. If a
- * selected tenant returns no envelope at all, it fails closed whenever either
- * artifact surface is selected so a provider outage cannot fall through to a
- * deterministic placeholder in enforce mode. Direct non-request callers retain
- * the prior all-tenant/all-surface requirement.
+ * Strategies generated-document release review is ADVISORY — never a mandatory
+ * approval hold. This helper therefore always reports "not enforced": a failed
+ * assessGeneratedDocumentForRelease records advisory findings on the staged
+ * artifact but never parks the run. The tenant/surface/env machinery below is
+ * retained for call-shape compatibility and observability, but it no longer
+ * gates. No external send capability is implied by this.
  */
 export function generationReleaseHoldEnforced(
-  globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
-  tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
-  surfacesRaw: string | undefined = process.env.MERI_RELEASE_GATE_SURFACES,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _globalModeRaw: string | undefined = process.env.MERI_RELEASE_GATE,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _tenantCanariesRaw: string | undefined = process.env.MERI_RELEASE_GATE_TENANTS,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _surfacesRaw: string | undefined = process.env.MERI_RELEASE_GATE_SURFACES,
 ): boolean {
-  const request = executionAssuranceContext.getStore();
-  if (request) {
-    if (request.assessedSurface) {
-      return (
-        generationReleaseModeForTenant(
-          request.tenantId,
-          request.assessedSurface,
-          globalModeRaw,
-          tenantCanariesRaw,
-          surfacesRaw,
-        ) === 'enforce'
-      );
-    }
-    const global = normalize(globalModeRaw);
-    const tenants = tokens(tenantCanariesRaw);
-    const surfaces = tokens(surfacesRaw);
-    const tenantSelected = tenants.includes('all') || tenants.includes(request.tenantId);
-    const artifactSurfaceSelected =
-      surfaces.includes('all') || surfaces.includes('strategy') || surfaces.includes('outreach');
-    return global === 'enforce' && tenantSelected && artifactSurfaceSelected;
-  }
-
-  return (
-    normalize(globalModeRaw) === 'enforce' &&
-    tokens(tenantCanariesRaw).includes('all') &&
-    tokens(surfacesRaw).includes('all')
-  );
+  return false;
 }
 
 export function generationReleaseModeForTenant(

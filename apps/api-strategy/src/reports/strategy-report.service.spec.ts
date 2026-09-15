@@ -126,6 +126,8 @@ describe("strategy report snapshot contract", () => {
       { read: logoRead } as never,
       { render: docxRender } as never,
       { render: pptxRender } as never,
+      { render: jest.fn(), available: true, unavailableReason: null } as never,
+      { available: true } as never,
       { withTenantUser } as never,
       { logActivity } as never,
       { resolve: memberResolve, photo: jest.fn() } as never,
@@ -162,6 +164,8 @@ function preflightService() {
     { read: jest.fn() } as never,
     { render: jest.fn() } as never,
     { render: jest.fn() } as never,
+    { render: jest.fn(), available: true, unavailableReason: null } as never,
+    { available: true } as never,
     { withTenantUser: jest.fn() } as never,
     { logActivity: jest.fn() } as never,
     { resolve: jest.fn(async () => []), photo: jest.fn(async () => null) } as never,
@@ -354,6 +358,12 @@ function makeService(
   const logos = { read: jest.fn(async () => null) };
   const docx = { render: jest.fn(async () => renderedBytes) };
   const pptx = { render: jest.fn(async () => renderedBytes) };
+  const pdf = {
+    render: jest.fn(async () => renderedBytes),
+    available: true,
+    unavailableReason: null,
+  };
+  const pdfBrowser = { available: true };
   const versioning = {
     logActivity: jest.fn(async (_tx: unknown, _opts: LogActivityOpts) => undefined),
   };
@@ -381,6 +391,8 @@ function makeService(
     logos as never,
     docx as never,
     pptx as never,
+    pdf as never,
+    pdfBrowser as never,
     prisma as never,
     versioning as never,
     memberOffices as never,
@@ -394,6 +406,7 @@ function makeService(
     logos,
     docx,
     pptx,
+    pdf,
     versioning,
     prisma,
     tx,

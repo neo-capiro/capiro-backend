@@ -9,6 +9,15 @@
    effect instead of always losing to the shell's narrower cap. */
 .capiro-vnext-root .capiro-vnext-uui .uui-content:has(.capiro-strategies) { max-width: none; padding: 0; margin: 0; }
 
+/* Reference parity (Capiro Strategies.html, 2026-09-15): the Strategies shell
+   rail is 272px, not the global 248px. Scoped to the Strategies module only via
+   :has(.capiro-strategies) so every other module keeps the 248px rail. The
+   shell grid reads --uui-rail-w-expanded; overriding it on the grid container
+   (and the rail's own width) widens just this module's rail. */
+.capiro-vnext-root .capiro-vnext-uui:has(.capiro-strategies) {
+  --uui-rail-w-expanded: 272px;
+}
+
 .capiro-strategies {
   min-height: 100%;
   display: flex;

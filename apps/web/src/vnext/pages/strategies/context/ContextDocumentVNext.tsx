@@ -329,7 +329,7 @@ export function ContextDocumentVNext() {
   const onApprove = () => approve.mutate({ id: d.id, expectedChecksum: reviewedChecksum ?? '' }, {
     onSuccess: (next) => {
       setConfirmingApproval(false);
-      toast.success('Approved for client reports. The original is retained in history. Extract facts from this approved revision when needed.');
+      toast.success('Marked as a reviewed source of truth. The original is retained in history.');
       navigate(`/strategies/context/${next.id}`);
     },
     onError: (err) => toast.error(errorMessage(err, 'Approval failed. Reload the document and try again.')),
@@ -460,14 +460,14 @@ export function ContextDocumentVNext() {
         </div>
 
         {d.state === 'active' ? <div className="st-ctxdoc__note" role="status">
-          {approved ? 'Approved source of truth for client reports.' : <>
-            <p>This document is a working source. Review its contents before approving it for client reports.</p>
-            {canApprove ? confirmingApproval ? <div role="group" aria-label="Confirm document approval">
-              <p>Confirm that this version is accurate and may be used as a firm-approved source of truth in client reports. Approval preserves the original and does not change its expiry date.</p>
-              <CapiroButton loading={approve.isPending} onClick={onApprove}>Confirm approval</CapiroButton>
+          {approved ? 'Marked as a reviewed source of truth.' : <>
+            <p>This document is a working source and already grounds agent work and reports. You can optionally mark it as a reviewed source of truth.</p>
+            {canApprove ? confirmingApproval ? <div role="group" aria-label="Confirm source-of-truth review">
+              <p>Mark this version as a reviewed source of truth. This is an optional record — the document already grounds agent work and reports either way. The original is preserved and its expiry date is unchanged.</p>
+              <CapiroButton loading={approve.isPending} onClick={onApprove}>Mark as reviewed</CapiroButton>
               <CapiroButton disabled={approve.isPending} onClick={() => setConfirmingApproval(false)}>Cancel</CapiroButton>
-            </div> : <CapiroButton onClick={() => { setReviewedChecksum(d.checksum); setConfirmingApproval(true); }}>Approve for client reports</CapiroButton>
-              : <p>{!approvalAdmin ? 'An administrator can approve this document.' : 'Only current client-confidential documents can be approved for client reports.'}</p>}
+            </div> : <CapiroButton onClick={() => { setReviewedChecksum(d.checksum); setConfirmingApproval(true); }}>Mark as reviewed source</CapiroButton>
+              : <p>{!approvalAdmin ? 'An administrator can mark this document as reviewed.' : 'Only current client-confidential documents can be marked as a reviewed source.'}</p>}
           </>}
         </div> : null}
         {docRefetchFailed ? (

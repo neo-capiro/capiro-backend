@@ -148,7 +148,7 @@ export function NewStrategyOverlay() {
       primaryBusy={busy}
       footerNote={
         startingPoint === 'draft'
-          ? 'Draft with Meri creates the strategy and a draft proposal — review is required before anything is applied.'
+          ? 'Draft with Meri creates the strategy and suggested steps you can edit and use directly.'
           : 'Required fields must be complete before a plan can be created.'
       }
     >
@@ -273,10 +273,10 @@ export function NewStrategyOverlay() {
                 {startingPoint === 'draft' ? <span aria-hidden="true">✓</span> : null}
               </span>
               <span className="st-option-card__desc">
-                Create suggested steps in the working plan from approved context. Review them before including them in client reports.
+                Create suggested steps in the working plan from available context. Use them directly.
               </span>
               <span className="st-option-card__foot">
-                <span className="st-pill st-pill--warning">Review required</span>
+                <span className="st-pill st-pill--accent">Meri-assisted</span>
               </span>
             </button>
             <p className="st-ns__note">

@@ -48,13 +48,20 @@ describe("executive report policy", () => {
     });
   });
 
-  it("includes only committed delivery states for clients", () => {
-    expect(includeNodeForAudience("suggested", "client")).toBe(false);
-    expect(includeNodeForAudience("draft", "client")).toBe(false);
-    expect(includeNodeForAudience("internal_review", "client")).toBe(false);
-    expect(includeNodeForAudience("in_progress", "client")).toBe(true);
-    expect(includeNodeForAudience("active", "client")).toBe(true);
-    expect(includeNodeForAudience("suggested", "internal")).toBe(true);
+  it("includes every live workflow status for both audiences (no promotion gate)", () => {
+    // Generated (suggested) and in-draft steps export without a human
+    // promotion step; status is a workflow signal, not a delivery gate.
+    for (const status of [
+      "suggested",
+      "draft",
+      "internal_review",
+      "in_progress",
+      "active",
+      "completed",
+    ]) {
+      expect(includeNodeForAudience(status, "client")).toBe(true);
+      expect(includeNodeForAudience(status, "internal")).toBe(true);
+    }
     expect(reportStatusForAudience("internal_review", "client")).toBe(
       "internal_review",
     );

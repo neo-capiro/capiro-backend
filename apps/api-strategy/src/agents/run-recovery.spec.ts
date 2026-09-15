@@ -212,6 +212,17 @@ describe('detectRecovery — (4) artifact created but the run never advanced', (
     expect(finding?.transition?.to).toBe('completed');
   });
 
+  it('finishes a STAGED outreach run too — send approval can never be a legitimate park (no send path)', () => {
+    const finding = detectRecovery(
+      input({
+        run: { ...input().run, state: 'staged' },
+        execution: { kind: 'outreach', nodeId: 'n1', pinnedVersionId: null },
+        artifacts: [{ artifactType: 'outreach_record', artifactRef: 'or-1', detachedAt: null }],
+      }),
+    ).find((row) => row.code === 'ARTIFACT_NOT_ADVANCED');
+    expect(finding?.transition?.to).toBe('completed');
+  });
+
   it('matches the artifact type to the run KIND, not just any artifact on the node', () => {
     // An outreach run must not be advanced by the node's Workspace draft.
     expect(
@@ -290,25 +301,21 @@ describe('detectRecovery — (7) target missing', () => {
   });
 });
 
-describe('detectRecovery — (8) version drift after approval', () => {
+describe('detectRecovery — (8) version drift (independent current-plan freshness)', () => {
   const drifted = input({
     run: { ...input().run, state: 'approved' },
-    hasApproval: true,
     execution: { kind: 'outreach', nodeId: 'n1', pinnedVersionId: 'v-old' },
     headVersionId: 'v-head',
   });
 
-  it('parks an approved run whose plan moved', () => {
+  it('parks a run whose pinned plan version drifted — regardless of any recorded approval', () => {
     const f = detectRecovery(drifted).find((x) => x.code === 'VERSION_DRIFT')!;
     expect(f.severity).toBe('auto');
-    expect(f.transition).toEqual({
-      to: 'waiting_for_input',
-      reason: expect.stringContaining('plan changed since approval'),
-    });
+    expect(f.transition!.to).toBe('waiting_for_input');
   });
 
-  it('does not fire without an approval to invalidate', () => {
-    expect(codes({ ...drifted, hasApproval: false })).not.toContain('VERSION_DRIFT');
+  it('fires even with NO approval on record — drift is plan staleness, not an approval binding', () => {
+    expect(codes({ ...drifted, hasApproval: false })).toContain('VERSION_DRIFT');
   });
 
   it('does not fire when the pinned version still matches the head', () => {

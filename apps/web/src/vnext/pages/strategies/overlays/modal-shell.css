@@ -25,7 +25,11 @@
    dropdowns top out at 60) and below the global toast pipeline
    (--capiro-z-modal + 1), so a save/upload toast still surfaces over an open
    overlay. */
-.capiro-strategies.st-overlay {
+/* The overlay frame is the portal root (`.capiro-vnext-root.capiro-vnext-uui
+   .st-overlay`); the `.capiro-strategies` scope class now lives on a NESTED
+   inner div (see StrategiesModalShell) so the shared two-class descendant
+   rules match. The frame itself is therefore selected by `.st-overlay` alone. */
+.capiro-vnext-root.st-overlay {
   position: fixed;
   inset: 0;
   z-index: 70;
@@ -54,7 +58,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .capiro-strategies.st-overlay {
+  .capiro-vnext-root.st-overlay {
     animation: none;
   }
 }

@@ -161,28 +161,28 @@ describe('Context production regressions', () => {
   });
 });
 
-it('requires explicit review confirmation and binds approval to the viewed checksum', () => {
+it('requires explicit review confirmation and binds the review to the viewed checksum', () => {
   mocks.document = success({ ...document, frontmatter: { authority: 'working_draft', source_of_truth: false, confidentiality: 'client_confidential' } });
   renderDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Approve for client reports' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mark as reviewed source' }));
   expect(mocks.approve).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm approval' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mark as reviewed' }));
   expect(mocks.approve).toHaveBeenCalledWith({ id: document.id, expectedChecksum: document.checksum }, expect.any(Object));
 });
-it('explains the approval role requirement to a member', () => {
+it('explains the review role requirement to a member', () => {
   mocks.role = 'staff';
   mocks.document = success({ ...document, frontmatter: { authority: 'working_draft', confidentiality: 'client_confidential' } });
   renderDocument();
-  expect(screen.queryByRole('button', { name: 'Approve for client reports' })).not.toBeInTheDocument();
-  expect(screen.getByText('An administrator can approve this document.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Mark as reviewed source' })).not.toBeInTheDocument();
+  expect(screen.getByText('An administrator can mark this document as reviewed.')).toBeInTheDocument();
 });
 
-it('does not silently approve a version refreshed after the review confirmation opened', () => {
+it('does not silently mark a version refreshed after the review confirmation opened', () => {
   mocks.document = success({ ...document, frontmatter: { authority: 'working_draft', source_of_truth: false, confidentiality: 'client_confidential' } });
   const view = renderDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Approve for client reports' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mark as reviewed source' }));
   mocks.document = success({ ...mocks.document.data, checksum: 'b'.repeat(64) });
   view.rerender(<MemoryRouter initialEntries={['/strategies/context/document-1']}><Routes><Route path="/strategies/context/:documentId" element={<ContextDocumentVNext />} /></Routes></MemoryRouter>);
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm approval' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Mark as reviewed' }));
   expect(mocks.approve).toHaveBeenCalledWith({ id: document.id, expectedChecksum: document.checksum }, expect.any(Object));
 });

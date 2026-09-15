@@ -57,6 +57,42 @@ describe('save-time context conflict comparison', () => {
     });
   });
 
+  it('discards blank optional warnings without failing a valid comparison', () => {
+    // Real providers can emit an empty string for an optional warning slot.
+    // A blank warning is an omitted note, not malformed output — drop it and
+    // keep the structurally valid conflicts/source references intact.
+    expect(
+      sanitizeContextCompareResult(
+        {
+          conflicts: [
+            {
+              incomingFactId: 'new-doc:0',
+              otherFactId: 'old-fact',
+              material: true,
+            },
+          ],
+          warnings: ['', '   '],
+        },
+        INPUT,
+      ),
+    ).toEqual({
+      conflicts: [{ incomingFactId: 'new-doc:0', otherFactId: 'old-fact', material: true }],
+      warnings: [],
+    });
+  });
+
+  it('still rejects over-long or NUL-containing warnings as malformed', () => {
+    expect(() =>
+      sanitizeContextCompareResult(
+        { conflicts: [], warnings: ['a'.repeat(1_001)] },
+        INPUT,
+      ),
+    ).toThrow('Comparison warning');
+    expect(() =>
+      sanitizeContextCompareResult({ conflicts: [], warnings: ['has\0nul'] }, INPUT),
+    ).toThrow('Comparison warning');
+  });
+
   it('accepts long previously imported source sections without truncation', () => {
     const existingFacts = [
       {

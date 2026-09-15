@@ -211,15 +211,15 @@ export function StrategyLibraryVNext() {
   return (
     <>
       <ScopeBar clientLabel="PORTFOLIO" status={status} />
-      <div className="st-hero">
-        <div className="st-page-header">
-          <div>
+      <div className="st-hero st-library-hero">
+        {/* Reference parity: eyebrow+title on the left and the action cluster
+            right-aligned share ONE top row; the purpose line spans full-width
+            below it. This keeps the actions on the title row (not wrapped
+            under the subtitle) and the header compact (~167px, not ~254px). */}
+        <div className="st-page-header st-library-page-header">
+          <div className="st-library-titleblock">
             <p className="st-eyebrow">Strategy operating system</p>
             <h1 className="st-title">Strategies</h1>
-            <p className="st-purpose">
-              Turn client goals into executable plans aligned to appropriations, authorization,
-              regulatory and procurement calendars.
-            </p>
           </div>
           <div className="st-actions">
             <CapiroButton leadingIcon={<AgentReviewGlyph />} onClick={() => navigate('/strategies/agents/proposals')}>
@@ -234,8 +234,12 @@ export function StrategyLibraryVNext() {
             </CapiroButton>
           </div>
         </div>
+        <p className="st-purpose st-library-purpose">
+          Turn client goals into executable plans aligned to appropriations, authorization,
+          regulatory and procurement calendars.
+        </p>
       </div>
-      <div className="st-canvas">
+      <div className="st-canvas st-library">
         {/* Firm phases banner (§7.1) — setup prompt when unconfigured, never an empty card.
             40px icon tile per the design handoff ("View: Strategy library"); the fy range
             in the configured copy is computed from the real FirmPhase rows (see
@@ -320,44 +324,13 @@ export function StrategyLibraryVNext() {
           <button type="button" className="st-stat" disabled={!summaryAvailable} onClick={() => { setOwnerFilter('all'); setPlanFilter('unassigned'); }}>
             <p className="st-stat__value">{summaryAvailable ? unassignedCount : '—'}</p>
             <p className="st-stat__label">Unassigned work</p>
-            <p className="st-stat__hint">Show plans with unfinished, unassigned steps</p>
+            {/* One line so every stat card holds the reference ~94px height. */}
+            <p className="st-stat__hint">Unfinished steps without owners</p>
           </button>
           <div className="st-stat">
             <p className="st-stat__value">{ownerCoverage}</p>
             <p className="st-stat__label">Owner coverage</p>
             <p className="st-stat__hint">{summaryAvailable ? `${assignedCount} of ${totalSteps} steps assigned` : 'Assignment data unavailable'}</p>
-          </div>
-        </div>
-
-        {/* List header: filters + sort (§7.1). Client scope comes from the context strip. */}
-        <div className="st-library-listhead">
-          <div>
-            <p className="st-section-label">Your strategies</p>
-            <p className="st-purpose">
-              {filtered.length} {filtered.length === 1 ? 'plan' : 'plans'}
-              {needsReview > 0 ? ` · ${needsReview} need attention` : ''}
-            </p>
-          </div>
-          <div className="st-actions">
-            <div className="st-segmented" role="group" aria-label="Plan filter">
-              <button aria-pressed={planFilter === 'all'} onClick={() => setPlanFilter('all')}>All plans</button>
-              <button aria-pressed={planFilter === 'unassigned'} disabled={!summaryAvailable} onClick={() => setPlanFilter('unassigned')}>Unassigned work</button>
-              <button aria-pressed={planFilter === 'empty'} onClick={() => setPlanFilter('empty')}>Empty plans</button>
-            </div>
-            <div className="st-segmented" role="group" aria-label="Owner filter">
-              <button aria-pressed={ownerFilter === 'all'} onClick={() => setOwnerFilter('all')}>All owners</button>
-              {owners.map(([id, name]) => (
-                <button key={id} aria-pressed={ownerFilter === id} onClick={() => setOwnerFilter(id)}>
-                  {name}
-                </button>
-              ))}
-            </div>
-            <span className="st-library-divider" aria-hidden="true" />
-            <span className="st-library-sortlabel">Sort</span>
-            <div className="st-segmented" role="group" aria-label="Sort">
-              <button aria-pressed={sort === 'recent'} onClick={() => setSort('recent')}>Recently updated</button>
-              <button aria-pressed={sort === 'steps'} onClick={() => setSort('steps')}>Most steps</button>
-            </div>
           </div>
         </div>
 
@@ -377,6 +350,42 @@ export function StrategyLibraryVNext() {
           />
         ) : (
           <div className="st-card st-library-tablecard">
+            {/* List header (filters + sort, §7.1) lives INSIDE the white table
+                card in the reference — the "Your strategies" title + filter
+                chips sit atop the table head in the same card, not floating on
+                the gray canvas. Client scope comes from the context strip. */}
+            <div className="st-library-listhead">
+              <div>
+                {/* Reference parity: "Your strategies" is a bold 18px title, not
+                    the shared uppercase 11px/12px eyebrow label. */}
+                <h2 className="st-library-listhead-title">Your strategies</h2>
+                <p className="st-purpose">
+                  {filtered.length} {filtered.length === 1 ? 'plan' : 'plans'}
+                  {needsReview > 0 ? ` · ${needsReview} need attention` : ''}
+                </p>
+              </div>
+              <div className="st-actions">
+                <div className="st-segmented" role="group" aria-label="Plan filter">
+                  <button aria-pressed={planFilter === 'all'} onClick={() => setPlanFilter('all')}>All plans</button>
+                  <button aria-pressed={planFilter === 'unassigned'} disabled={!summaryAvailable} onClick={() => setPlanFilter('unassigned')}>Unassigned work</button>
+                  <button aria-pressed={planFilter === 'empty'} onClick={() => setPlanFilter('empty')}>Empty plans</button>
+                </div>
+                <div className="st-segmented" role="group" aria-label="Owner filter">
+                  <button aria-pressed={ownerFilter === 'all'} onClick={() => setOwnerFilter('all')}>All owners</button>
+                  {owners.map(([id, name]) => (
+                    <button key={id} aria-pressed={ownerFilter === id} onClick={() => setOwnerFilter(id)}>
+                      {name}
+                    </button>
+                  ))}
+                </div>
+                <span className="st-library-divider" aria-hidden="true" />
+                <span className="st-library-sortlabel">Sort</span>
+                <div className="st-segmented" role="group" aria-label="Sort">
+                  <button aria-pressed={sort === 'recent'} onClick={() => setSort('recent')}>Recently updated</button>
+                  <button aria-pressed={sort === 'steps'} onClick={() => setSort('steps')}>Most steps</button>
+                </div>
+              </div>
+            </div>
             {/* A failed delete must say so — never leave the row looking deleted
                 or the failure silent. */}
             {deleteStrategy.isError ? (
@@ -515,19 +524,21 @@ function StrategyRow({
       <td>
         <div className="st-library-owner">
           <IdentityMark kind="person" name={owner} size="sm" />
-          <div>
-            <div className="st-library-ownername">{owner}</div>
-            {watchCount === null ? (
-              <span className="st-pill">Watch status unavailable</span>
-            ) : watchCount > 0 ? (
-              <span className="st-pill st-pill--warning">{watchCount} watch {watchCount === 1 ? 'note' : 'notes'}</span>
-            ) : (
-              <span className="st-pill st-pill--success">No watch notes</span>
-            )}
-          </div>
+          <div className="st-library-ownername">{owner}</div>
         </div>
       </td>
-      <td className="st-library-updated">{relativeTime(updated)}</td>
+      <td className="st-library-updated">
+        <div>{relativeTime(updated)}</div>
+        {/* Reference parity: the watch-status pill sits under UPDATED, not under
+            the owner name. */}
+        {watchCount === null ? (
+          <span className="st-pill">Watch status unavailable</span>
+        ) : watchCount > 0 ? (
+          <span className="st-pill st-pill--warning">{watchCount} watch {watchCount === 1 ? 'note' : 'notes'}</span>
+        ) : (
+          <span className="st-pill st-pill--success">No watch notes</span>
+        )}
+      </td>
       {/* Row actions. Every control stopPropagation()s — the <tr> itself is the
           open affordance, so a click that reached it would navigate instead of
           deleting. */}

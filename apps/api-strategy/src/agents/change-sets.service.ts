@@ -315,16 +315,28 @@ export class ChangeSetsService {
   }
 
   /**
-   * Apply an approved change-set: ONE withTenantUser tx replays the ops
+   * Apply a change-set directly: ONE withTenantUser tx replays the ops
    * (approvedOps subset if selective, else all) through the Meri assistant
    * pipeline, bumps lastEdited, cuts ONE meri version, stamps applied and runs
    * the assistant's A6 plan verifier (STRATEGY_VERIFY_BLOCK errors 422 and roll
    * the whole tx back; the outcome is logged as plan.verified either way).
+   *
+   * Strategies has NO mandatory business approval step: a change-set may be
+   * applied straight from 'proposed' (the operator clicking Apply is the only
+   * authorization) or from 'approved' (a compatibility review happened first).
+   * In the proposed path we do NOT fabricate approvedBy/approvedAt — approval
+   * never happened, so only the real appliedBy/appliedAt are recorded.
+   *
    * If the version head moved since the proposal was pinned, the change-set is
    * marked stale (that status write COMMITS — it happens inside the tx and the
    * 409 is thrown after) and a ConflictException tells the caller to regenerate.
    */
-  async apply(tenantId: string, userId: string, id: string) {
+  async apply(
+    tenantId: string,
+    userId: string,
+    id: string,
+    dto: { opIndexes?: number[] } = {},
+  ) {
     // A6 grounding (fiscal window + firm phases + reference calendars) for the
     // post-apply verifier — fetched BEFORE the tx opens (same as the assistant
     // path): grounding reads run their own withTenant txs, and nesting them
@@ -345,8 +357,14 @@ export class ChangeSetsService {
 
       const cs = await tx.spChangeSet.findFirst({ where: { id } });
       if (!cs) throw new NotFoundException('Change-set not found');
-      if (cs.status !== 'approved') {
-        throw new ConflictException(`Change-set is ${cs.status} — approve it before applying`);
+      // Apply accepts 'proposed' OR 'approved'. No business approval is
+      // required; the apply itself is the operator's authorization. We never
+      // backfill approvedBy/approvedAt here — that would fabricate a review
+      // that never occurred. Only appliedBy/appliedAt reflect reality.
+      if (cs.status !== 'approved' && cs.status !== 'proposed') {
+        throw new ConflictException(
+          `Change-set is ${cs.status} — only a proposed or approved change-set can be applied`,
+        );
       }
 
       // Strategy-level ordering lock BEFORE headOf. Two DIFFERENT approved
@@ -378,7 +396,31 @@ export class ChangeSetsService {
         return { stale: true as const };
       }
 
-      const edits = (cs.approvedOps ?? cs.ops) as unknown as PlanEdit[];
+      // Selective apply: the caller's opIndexes select a SUBSET of ops (the
+      // per-op checkbox selection in the queue). For a PROPOSED row this records
+      // the applied subset on approvedOps (the compatible record of what was
+      // applied — no approval is fabricated). For an APPROVED row, the already
+      // recorded approvedOps subset is authoritative and a conflicting selection
+      // is rejected — the approval covered those exact ops.
+      let selectedOps = (cs.approvedOps ?? cs.ops) as unknown as PlanEdit[];
+      let appliedSubset: Prisma.InputJsonValue | undefined;
+      if (dto.opIndexes !== undefined) {
+        if (dto.opIndexes.length === 0) {
+          throw new BadRequestException(
+            'opIndexes must select at least one op — reject the change-set instead of applying an empty subset',
+          );
+        }
+        const baseOps = (cs.approvedOps ?? cs.ops) as unknown as unknown[];
+        for (const idx of dto.opIndexes) {
+          if (!Number.isInteger(idx) || idx < 0 || idx >= baseOps.length) {
+            throw new BadRequestException(`opIndexes contains an out-of-range index: ${idx}`);
+          }
+        }
+        const unique = [...new Set(dto.opIndexes)].sort((a, b) => a - b);
+        selectedOps = unique.map((i) => baseOps[i]) as PlanEdit[];
+        appliedSubset = unique.map((i) => baseOps[i]) as Prisma.InputJsonValue;
+      }
+      const edits = selectedOps;
       // Re-validate + apply through the SAME assistant pipeline — a malformed
       // op throws and rolls the whole apply back (no partial write).
       await this.meri.applyEditSet(tx, tenantId, cs.strategyId, userId, edits);
@@ -402,6 +444,9 @@ export class ChangeSetsService {
           appliedByUserId: userId,
           appliedAt: new Date(),
           appliedVersionId,
+          // Record the applied subset (compatible record — no approval invented).
+          // On an approved row with no new selection, approvedOps already holds it.
+          ...(appliedSubset !== undefined ? { approvedOps: appliedSubset } : {}),
         },
       });
       await this.versioning.logActivity(tx, {

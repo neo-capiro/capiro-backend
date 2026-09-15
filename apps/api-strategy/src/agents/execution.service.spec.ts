@@ -730,23 +730,22 @@ describe('ExecutionService.plan — G0 pre-execution re-check', () => {
     expect(store.artifacts.size).toBe(0);
   });
 
-  it('PARKS on an unresolved material conflict without staging', async () => {
+    it('makes an open material conflict ADVISORY (not a gate): plan still reviews eligible, the conflict rides in g0.advisories', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
-    seedNode(store, { id: NID });
+    seedNode(store, { id: NID, subject: 'member' }); // eligible for outreach
     const { svc, createWorkspaceDraft } = makeService(store, {
       openMaterialConflicts: [{ id: 'cf-1', factAId: 'a', factBId: 'b', factA: 'x', factB: 'y' }],
     });
 
     const run = await svc.plan(T, U, 'bearer-x', outreachPlan({ nodeId: NID }));
 
-    // (node subject is deliverable => also ineligible for outreach, but the
-    // material-conflict reason takes precedence.)
-    expect(run.state).toBe('waiting_for_input');
-    expect(run.waitingReason).toBe('unresolved material conflict');
-    expect(createWorkspaceDraft).not.toHaveBeenCalled();
-    expect(store.artifacts.size).toBe(0);
+    // Conflicts are business-review advisories in Strategies, never a blocker.
+    expect(run.state).toBe('ready_for_review');
+    const g0 = (run.findings as { g0: Record<string, unknown> }).g0;
+    expect((g0.advisories as string[]).join(' ')).toMatch(/material conflict/);
+    expect((g0.eligibility as { eligible: boolean }).eligible).toBe(true);
   });
 
   it('fail-closed: a disabled per-kind flag throws Forbidden before any run is minted', async () => {
@@ -1342,7 +1341,7 @@ describe('ExecutionService.execute — workspace staging', () => {
 });
 
 describe('ExecutionService.execute — outreach staging (send hard-disabled)', () => {
-  it('stages an outreach record then PARKS awaiting send approval with a run-bound token — and NEVER sends', async () => {
+  it('stages an outreach record, records the (advisory) send token for audit, and COMPLETES — there is no send path, so nothing ever parks on send approval', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
@@ -1350,27 +1349,20 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     const { svc, createOutreachRecord } = makeService(store);
 
     const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
-    expect(
-      (planned.findings as { tasks: Array<{ type: string }> }).tasks.map((t) => t.type),
-    ).toEqual(['outreach_record', 'await_send_approval']);
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
 
-    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
-
-    expect(parked.state).toBe('waiting_for_input');
-    expect(parked.waitingReason).toBe('awaiting send approval');
-    // The record was staged (creation only — the client has NO send path).
+    expect(done.state).toBe('completed');
     expect(createOutreachRecord).toHaveBeenCalledTimes(1);
-    const arts = [...store.artifacts.values()];
-    expect(arts).toHaveLength(1);
-    expect(arts[0]).toMatchObject({ artifactType: 'outreach_record', artifactRef: 'or-1' });
-    // Send-approval token is computed, run-bound, and send stays disabled.
-    const sa = (parked.findings as { sendApproval: Rec }).sendApproval;
+    expect(done.waitingReason).toBeNull();
+    // The send token is still computed for audit/observability, sendEnabled false.
+    const find = done.findings as { sendApproval?: Rec; results?: Record<string, Rec> };
+    const sa = find.sendApproval!;
     expect(String(sa.token)).toMatch(/^[0-9a-f]{64}$/);
     expect(sa.tokenRunId).toBe(planned.id);
-    expect(sa.status).toBe('pending');
     expect(sa.sendEnabled).toBe(false);
-    // NOT completed — a pending send never auto-completes.
-    expect(parked.state).not.toBe('completed');
+    // The await_send_approval task resolves satisfied (advisory), not pending.
+    const approveTask = (find.results as Record<string, Rec>)[`${NID}:await_send_approval`]!;
+    expect(approveTask.status).toBe('satisfied');
   });
 
   it('stages a GROUNDED outreach body and binds the send-approval token to it (never the static shell)', async () => {
@@ -1390,23 +1382,22 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
 
     const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
-    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
 
-    expect(parked.state).toBe('waiting_for_input');
-    expect(parked.waitingReason).toBe('awaiting send approval');
+    expect(done.state).toBe('completed');
     const input = createOutreachRecord.mock.calls[0]![1] as { body?: string | null };
     expect(input.body).toContain('Opening');
     expect(input.body).toContain('Dear office,');
     expect(input.body).toContain('Please co-sign our letter.');
-    // The token hashes the ACTUAL staged (grounded) message, not the old static shell.
-    const sa = (parked.findings as { sendApproval: Rec }).sendApproval;
+    // The (advisory) token still hashes the ACTUAL staged (grounded) message.
+    const sa = (done.findings as { sendApproval?: Rec }).sendApproval!;
     const saInput = sa.input as { message: string };
     expect(saInput.message).toBe(input.body);
     expect(saInput.message).not.toContain('Outreach regarding:');
     expect(sa.sendEnabled).toBe(false);
   });
 
-  it('resume() of an already-parked send-approval run REUSES the prior grounded token — it must never overwrite it with the deterministic placeholder', async () => {
+  it('once an outreach run completes, re-execute finds the already-staged artifact (isStagingIncomplete-safe) and never re-stages or overwrites the audit token', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
@@ -1420,31 +1411,18 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
     const { svc, createOutreachRecord } = makeService(store, { draftExecutionDocument: doc });
 
     const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
-    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
-    expect(parked.waitingReason).toBe('awaiting send approval');
+    const first = await svc.execute(T, U, 'bearer-x', planned.id);
+    expect(first.state).toBe('completed');
+    const firstSa = (first.findings as { sendApproval?: Rec }).sendApproval!;
     expect(createOutreachRecord).toHaveBeenCalledTimes(1);
-    const firstSa = (parked.findings as { sendApproval: Rec }).sendApproval;
-    const firstInput = firstSa.input as { message: string };
-    expect(firstInput.message).toContain('Dear office, please co-sign our letter.');
 
-    // Resume the SAME parked run — this is exactly the path both the plain
-    // 'Resume' affordance AND (once SEND_APPROVAL_ENABLED flips) ExecutionReview's
-    // 'Approve this send' button take: they call resume() directly on a run
-    // parked 'awaiting send approval'. stageOutreach's already_staged replay
-    // finds the real artifactRef but carries NO body, so computeSendApproval must
-    // reuse the original token/message rather than recompute one over the
-    // deterministic placeholder — recomputing would silently invalidate the
-    // token a human may already be reviewing against the ACTUAL persisted
-    // OutreachRecord body.
-    const resumed = await svc.resume(T, U, 'bearer-x', planned.id);
-    expect(createOutreachRecord).toHaveBeenCalledTimes(1); // no duplicate/second staging
-    expect(resumed.waitingReason).toBe('awaiting send approval');
-    const secondSa = (resumed.findings as { sendApproval: Rec }).sendApproval;
-    expect(secondSa).toEqual(firstSa);
-    const secondInput = secondSa.input as { message: string };
-    expect(secondInput.message).toContain('Dear office, please co-sign our letter.');
-    expect(secondInput.message).not.toBe('Outreach regarding: Meet with Rep. Doe');
-    expect(secondSa.token).toBe(firstSa.token);
+    // execute() from 'executing' re-entry (or any idempotent re-entry) must find
+    // the existing artifact and never duplicate-staging — the whole point of the
+    // write-ahead reservation + already_staged replay. Here we assert the
+    // already-completed run is terminal, so no second staging ever happens.
+    const secondCall = await svc.execute(T, U, 'bearer-x', planned.id).catch((e: unknown) => e);
+    expect(secondCall).toBeInstanceOf(ConflictException);
+    expect(createOutreachRecord).toHaveBeenCalledTimes(1);
   });
 
   it('wires the refined doc.title into the staged OutreachRecord (propose_document_draft documents title as applying to "the deliverable", not workspace-only)', async () => {
@@ -1696,7 +1674,7 @@ describe('ExecutionService.execute — outreach staging (send hard-disabled)', (
 });
 
 describe('ExecutionService.execute — G0 RE-CHECK at execute time (post-review blocker)', () => {
-  it('PARKS without staging when a material conflict opens AFTER plan-review (the blocker is re-enforced at execute, not only at plan)', async () => {
+  it('a material conflict opening after review is ADVISORY at execute: the run still stages and completes (conflicts are not a hard gate)', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
@@ -1707,8 +1685,7 @@ describe('ExecutionService.execute — G0 RE-CHECK at execute time (post-review 
     const planned = await svc.plan(T, U, 'bearer-x', wsPlan());
     expect(planned.state).toBe('ready_for_review');
 
-    // The Steward opens a material conflict for the strategy BEFORE the reviewer
-    // clicks execute — the exact race the plan invariant guards against.
+    // The Steward opens a material conflict before execute — advisory only.
     health.mockResolvedValue({
       status: 'ok',
       factCounts: { active: 0, superseded: 0, stale: 0, rejected: 0 },
@@ -1718,14 +1695,12 @@ describe('ExecutionService.execute — G0 RE-CHECK at execute time (post-review 
       missingRequired: [],
     });
 
-    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
+    const done = await svc.execute(T, U, 'bearer-x', planned.id);
 
-    // The execute-time G0 re-check catches it and parks — nothing is staged.
-    expect(parked.state).toBe('waiting_for_input');
-    expect(parked.waitingReason).toBe('unresolved material conflict');
-    expect(createWorkspaceDraft).not.toHaveBeenCalled();
-    expect(store.artifacts.size).toBe(0);
-    // The gate genuinely re-ran at execute (health consulted a second time).
+    // Conflicts no longer park the run — it stages and completes.
+    expect(done.state).toBe('completed');
+    expect(createWorkspaceDraft).toHaveBeenCalledTimes(1);
+    // The gate still consults health a second time (advisory is still gathered).
     expect(health).toHaveBeenCalledTimes(2);
   });
 
@@ -1795,45 +1770,28 @@ describe('ExecutionService — lifecycle guards', () => {
     );
   });
 
-  it('a second plan() of a MID-EXECUTION parked run (staged + awaiting send approval) is REJECTED, not re-planned — resume() owns the continuation', async () => {
+  it('a second plan() of a run carrying findings is REJECTED (any re-plan in place is disallowed) — resume() owns the continuation', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
     seedNode(store, { id: NID, subject: 'member', title: 'Meet with Rep. Doe' });
     const { svc, createOutreachRecord } = makeService(store);
 
-    // Stage the outreach record and park awaiting send approval (findings now
-    // carry tasks + results + a pending sendApproval token).
     const planned = await svc.plan(T, U, 'bearer-x', outreachPlan());
-    const parked = await svc.execute(T, U, 'bearer-x', planned.id);
-    expect(parked.state).toBe('waiting_for_input');
-    expect(parked.waitingReason).toBe('awaiting send approval');
+    const first = await svc.execute(T, U, 'bearer-x', planned.id);
+    expect(first.state).toBe('completed'); // outreach now completes
     expect(createOutreachRecord).toHaveBeenCalledTimes(1);
-    expect(store.artifacts.size).toBe(1);
 
-    // A replay plan() for the SAME node+kind hits idempotency (returns the parked
-    // run) — it must NOT rewind it to planning/ready_for_review.
+    // A replay plan() for the SAME node+kind hits idempotency — the completed
+    // run must never be rewound to planning/ready_for_review.
     await expect(svc.plan(T, U, 'bearer-x', outreachPlan())).rejects.toBeInstanceOf(
       ConflictException,
     );
 
-    // The parked run is untouched: still awaiting send approval, staged results +
-    // token intact, no re-plan, no duplicate hop/artifact.
+    // The completed run is untouched.
     const after = store.runs.get(planned.id)!;
-    expect(after.state).toBe('waiting_for_input');
-    expect(after.waitingReason).toBe('awaiting send approval');
-    const findings = after.findings as { results?: Record<string, Rec>; sendApproval?: Rec };
-    expect(findings.results![`${NID}:outreach_record`]).toBeDefined();
-    expect(findings.sendApproval!.status).toBe('pending');
-    expect(createOutreachRecord).toHaveBeenCalledTimes(1);
-    expect(store.artifacts.size).toBe(1);
-
-    // The intended continuation still works: resume() drives it forward (and, with
-    // the send hard-disabled, re-parks awaiting send approval — never sends).
-    const resumed = await svc.resume(T, U, 'bearer-x', planned.id);
-    expect(resumed.state).toBe('waiting_for_input');
-    expect(resumed.waitingReason).toBe('awaiting send approval');
-    expect(createOutreachRecord).toHaveBeenCalledTimes(1); // idempotent — no second hop
+    expect(after.state).toBe('completed');
+    expect(createOutreachRecord).toHaveBeenCalledTimes(1); // no duplicate hop
     expect(store.artifacts.size).toBe(1);
   });
 
@@ -1875,11 +1833,14 @@ describe('Execution readiness before creating records', () => {
     expect(result).toMatchObject({
       headVersionId: 'v1',
       nodeUpdatedAt: revision,
+      // missing owner/date are structural blockers (workspace); outreach stays
+      // eligible here because subject/kind aren't failing and owner/date don't
+      // gate outreach. Open material conflict is ADVISORY, never in reasons.
       workspace: { enabled: true, eligible: false },
-      outreach: { enabled: true, eligible: false },
     });
-    expect(result.workspace.reasons.join(' ')).toMatch(/owner.*target date.*material conflict/);
-    expect(result.outreach.reasons.join(' ')).toContain('node subject');
+    expect(result.workspace.reasons.join(' ')).toMatch(/owner.*target date/);
+    // The conflict is reported as an advisory, never a blocking reason.
+    expect(result.workspace.advisories?.join(' ')).toMatch(/material conflict/);
     expect(store.missions.size).toBe(0);
     expect(store.runs.size).toBe(0);
     expect(store.activity).toEqual([]);
@@ -1910,8 +1871,8 @@ describe('Execution readiness before creating records', () => {
     expect(store.runs.size).toBe(0);
   });
 
-  it('blocks changed node revisions, changed plan heads, and new conflicts before creating a run', async () => {
-    for (const change of ['node', 'version', 'conflict'] as const) {
+  it('blocks changed node revisions and changed plan heads (structural staleness); a new conflict is advisory and does NOT block', async () => {
+    for (const change of ['node', 'version'] as const) {
       const store = makeStore();
       seedStrategy(store);
       seedMission(store);
@@ -1926,7 +1887,6 @@ describe('Execution readiness before creating records', () => {
         });
       if (change === 'version')
         store.versions.set('v2', { id: 'v2', strategyId: SID, createdAt: new Date() });
-      if (change === 'conflict') opts.openMaterialConflicts.push({ id: 'new-conflict' });
       await expect(
         svc.plan(
           T,
@@ -1938,6 +1898,23 @@ describe('Execution readiness before creating records', () => {
       expect(store.runs.size).toBe(0);
       expect(store.activity).toEqual([]);
     }
+
+    // A NEW open material conflict is advisory — plan() proceeds to review.
+    const store = makeStore();
+    seedStrategy(store);
+    seedMission(store);
+    const opts = { openMaterialConflicts: [] as Rec[] };
+    seedNode(store, { id: NID, updatedAt: new Date(revision) });
+    const { svc } = makeService(store, opts);
+    await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
+    opts.openMaterialConflicts.push({ id: 'new-conflict' });
+    const run = await svc.plan(
+      T,
+      U,
+      'bearer',
+      wsPlan({ expectedNodeUpdatedAt: revision, pinnedVersionId: 'v1' }),
+    );
+    expect(run.state).toBe('ready_for_review');
   });
 
   it('surfaces existing client outreach constraints before planning and rechecks newly added constraints', async () => {
@@ -2002,10 +1979,9 @@ describe('Execution readiness before creating records', () => {
     expect(createWorkspaceDraft).not.toHaveBeenCalled();
   });
 
-  // F03: missing required client context must block readiness AND park plan()
-  // BEFORE Ready for review — never invite Execute plan and only fail later in
-  // the generation verifier.
-  it('explains missing required client context in readiness and parks plan without Ready for review', async () => {
+  // F03: missing required client context is advisory-only (never a gate). It is
+  // reported as an advisory in preflight and never parks the plan.
+  it('reports missing required client context as advisory (not ineligible) and lets plan reach Ready for review', async () => {
     const store = makeStore();
     seedStrategy(store);
     seedMission(store);
@@ -2015,16 +1991,13 @@ describe('Execution readiness before creating records', () => {
     });
 
     const checked = await svc.preflight(T, U, { strategyId: SID, nodeId: NID });
-    expect(checked.workspace.eligible).toBe(false);
-    expect(checked.workspace.reasons.join(' ')).toMatch(
+    expect(checked.workspace.eligible).toBe(true);
+    expect(checked.workspace.advisories?.join(' ')).toMatch(
       /required client context is missing: strategy_brief, client_constraints/,
     );
 
-    const parked = await svc.plan(T, U, 'bearer', wsPlan());
-    expect(parked.state).toBe('waiting_for_input');
-    expect(parked.waitingReason).toBe(
-      'required client context is missing: strategy_brief, client_constraints',
-    );
+    const planned = await svc.plan(T, U, 'bearer', wsPlan());
+    expect(planned.state).toBe('ready_for_review');
     expect(createWorkspaceDraft).not.toHaveBeenCalled();
     expect(draftExecutionDocument).not.toHaveBeenCalled();
   });

@@ -3,14 +3,14 @@
  *
  * One inspector, two tabs (Step · Meri) — one selection model (§4.1 #3).
  *
- * Governance (§7.4 must-nots, §11):
- *  - Meri can apply edits to the working plan. Meri-authored additions begin as
- *    Suggested; a person reviews them here and explicitly promotes them before
- *    they can appear in a client-ready export.
- *  - "Prepare in Workspace" / "Stage outreach" create STAGED records only; neither
- *    sends anything externally (Stage H gates the send path — §7.9).
- *  - Dismiss suppresses a suggestion until the step changes.
- */
+ /* Governance (§7.4 must-nots — approval gates removed per user directive):
+  *  - Meri can apply edits to the working plan. A step's status is informational;
+  *    marking it In progress/Active is optional, never a required promotion
+  *    before it can be used or exported.
+  *  - "Prepare in Workspace" / "Stage outreach" create STAGED records only; no
+  *    external send ever happens from this surface.
+  *  - Dismiss suppresses a suggestion until the step changes.
+  */
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
@@ -299,8 +299,8 @@ export function StepInspector({
           </p>
         ) : null}
         <p className="st-meri-hint">
-          Meri can update the working plan. Review changed steps here, then mark
-          them In progress or Active when they are ready for client reports.
+          Meri can update the working plan. Review changed steps here; marking a status is
+          optional, never a required promotion.
         </p>
       </div>
     </aside>
@@ -397,24 +397,30 @@ function StepTab({
           </div>
           <span
             className={`st-pill${
-              clientExportReady ? ' st-pill--success' : ' st-pill--warning'
+              clientExportReady ? ' st-pill--success' : ''
             }`}
           >
             {STATUS_LABEL[step.status] ?? step.status}
           </span>
         </div>
+        {/*
+         * Approval gates removed: a step's status no longer BLOCKS it from a
+         * client report — the report includes working steps as authored. This
+         * panel is now informational (the current status), and the Mark
+         * active/in-progress actions below are optional, not a required
+         * promotion step. (Export inclusion semantics are coordinated with the
+         * export worker + backend per CHECKPOINT #3.)
+         */}
         <p className="st-inspector__client-review-copy">
           {clientExportReady
-            ? `This step is included in client-ready reports because it is ${
-                STATUS_LABEL[step.status] ?? step.status
-              }.`
-            : 'Client-ready reports omit Suggested, Draft and Internal review steps. Review this step, then include it by marking it In progress or Active.'}
+            ? `This step is marked ${STATUS_LABEL[step.status] ?? step.status} for client reporting.`
+            : 'This step is in a working state. Marking it In progress or Active is optional — it is not required for the step to be used.'}
         </p>
         {!clientExportReady ? (
           <div
             className="st-inspector__client-review-actions"
             role="group"
-            aria-label="Mark step ready for client reports"
+            aria-label="Optionally mark step status"
           >
             {CLIENT_EXPORT_READY_STATUSES.map((status) => (
               <CapiroButton

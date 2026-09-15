@@ -155,24 +155,30 @@ export function detectRecovery(input: RecoveryInput): RecoveryFinding[] {
   }
 
   // (4) The artifact EXISTS and is linked, but the run never advanced to say so.
-  // A staged Workspace run can also have died before its final completion
-  // transition. Human-input parks must stay parked: outreach legitimately has
-  // a linked artifact while awaiting send approval, and workspace may be held
-  // on a rejected or drifted approval. A linked artifact never overrides that.
+  // A staged run (either kind) can also have died before its final completion
+  // transition. Human-input parks must stay parked, EXCEPT the Strategies
+  // hard-boundary cases: an outreach run can NEVER legitimately park on send
+  // approval (there is no send path — the staged record is the product), and no
+  // recorded approval is a prerequisite. So a STAGED run with a linked artifact
+  // completes regardless of kind, and a non-staged run with one advances to
+  // staged. A linked artifact never overrides a genuinely live human-input park
+  // (a do-not-contact block stays parked — that is data integrity, not approval).
   if (
     hasRealArtifact &&
     !isTerminal &&
     input.nodeLive &&
     (run.state === 'executing' ||
       run.state === 'failed_recoverable' ||
-      (run.state === 'staged' && execution?.kind === 'workspace'))
+      run.state === 'staged')
   ) {
     findings.push({
       code: 'ARTIFACT_NOT_ADVANCED',
       severity: 'auto',
       detail:
         run.state === 'staged'
-          ? 'The Workspace draft is created and linked, but the run did not record its final completion. Nothing was sent.'
+          ? `The ${
+              execution?.kind === 'outreach' ? 'Outreach record' : 'Workspace draft'
+            } is created and linked, but the run did not record its final completion. Nothing was sent.`
           : `The ${
               execution?.kind === 'outreach' ? 'Outreach record' : 'Workspace draft'
             } was created and linked to the step, but the run never recorded it. Nothing was sent.`,
@@ -243,11 +249,14 @@ export function detectRecovery(input: RecoveryInput): RecoveryFinding[] {
     });
   }
 
-  // (8) The plan moved after the payload was approved. Park rather than proceed —
-  // P0-3 makes approval invalidation a first-class binding; this is the run-level
-  // safety net for a run that is already past review.
+  // (8) The plan moved after this run pinned a version. Independent current-plan
+  // freshness — NOT an approval binding: a run carrying a stale pinned version is
+  // re-checkable against the CURRENT head whether or not any approval exists.
+  // Parking here preserves the safety net for a run already past review; the
+  // G0 versionDrift gate is the authoritative freshness check at execute time.
+  // hasApproval no longer gates this — recorded approval hashes/expiry must not
+  // be a prerequisite, but version drift is real plan staleness (data integrity).
   if (
-    input.hasApproval &&
     execution?.pinnedVersionId != null &&
     input.headVersionId != null &&
     execution.pinnedVersionId !== input.headVersionId &&
@@ -257,10 +266,10 @@ export function detectRecovery(input: RecoveryInput): RecoveryFinding[] {
       code: 'VERSION_DRIFT',
       severity: 'auto',
       detail:
-        'The plan changed after this payload was approved, so the approval no longer describes the current plan.',
+        'The plan changed after this run pinned a version, so the pinned head no longer describes the current plan. Re-review against the current plan before staging.',
       transition: {
         to: 'waiting_for_input',
-        reason: 'plan changed since approval — re-review before staging',
+        reason: 'plan changed since preparation — prepare again against the current plan',
       },
     });
   }
