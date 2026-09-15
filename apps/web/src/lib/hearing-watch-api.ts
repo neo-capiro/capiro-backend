@@ -13,6 +13,11 @@ export interface LiveHearingSession {
   endedAt?: string | null;
   clientId?: string | null;
   hearingId?: string | null;
+  /** Set when this session is a canonical public review context. The server
+   *  capture FK trigger validates the hearing association; when present, the
+   *  room's primary transcript is the public capture's canonical transcript
+   *  rather than tenant-private browser segments. */
+  publicCaptureId?: string | null;
   committeeId?: string | null;
   issueIds?: string[];
   billIds?: string[];

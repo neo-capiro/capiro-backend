@@ -65,6 +65,7 @@ describe('Phase 3 calendar selection and export on PostgreSQL', () => {
         time: '10:00 AM',
         timezone: 'America/New_York',
         calendarRevision: 4,
+        sourceRevision: 1,
         timePrecision: 'instant',
       })),
     });
@@ -109,7 +110,7 @@ describe('Phase 3 calendar selection and export on PostgreSQL', () => {
     expect(exported.ics.match(/BEGIN:VEVENT/g)).toHaveLength(205);
     expect(exported.ics).not.toContain(foreign);
     expect(exported.ics).not.toContain('DTEND');
-    expect(exported.ics.match(/SEQUENCE:4/g)).toHaveLength(205);
+    expect(exported.ics.match(/SEQUENCE:5/g)).toHaveLength(205);
   });
   it('applies this user’s follows before paging without creating attendance or capture demand', async () => {
     const page = await calendar.calendar(ctx, { ...selection, following: true });

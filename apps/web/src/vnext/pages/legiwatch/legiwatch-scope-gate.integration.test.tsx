@@ -31,9 +31,15 @@ vi.mock('../../../lib/use-api.js', () => ({
 vi.mock('../../../lib/me.js', () => ({ useMe: () => ({ isLoading: false, data: undefined }) }));
 
 // tracker_v2 flag ON so the watchlist-peek runs; feature flag plumbing stubbed.
+// The reports workspace flag (legiwatch_reports_updates_v1) is ON too — the
+// report deep-link routing test below asserts the workspace mounts, which
+// requires the flag branch in DigestTab to be reachable. useReportsFlag reads
+// the same /intel-api/feature-flags response directly (not the hook), so the
+// flag travels through the API stub, not the mock.
 vi.mock('../../../lib/intel-feature-flags.js', async (original) => ({
   ...await original<typeof import('../../../lib/intel-feature-flags.js')>(),
   useIntelFeature: () => ({ ready: true, enabled: true }),
+  useIntelFeatureEnabled: () => true,
 }));
 
 import { LegiWatchModule } from './LegiWatchModule.js';
@@ -53,6 +59,11 @@ const WATCHLIST_CLIENT = {
 function wireGet(url: string): { data: unknown } | null {
   if (url === '/api/clients') {
     return { data: [NO_WATCHLIST_CLIENT, WATCHLIST_CLIENT] };
+  }
+  // Reports workspace flag ON (DigestTab's reports branch) — same response
+  // shape useReportsFlag consumes.
+  if (url === '/intel-api/feature-flags') {
+    return { data: { legiwatch_reports_updates_v1: true, tracker_v2: true } };
   }
   // Watchlist peek: Fresh Client = never-configured shape; Watched Client = real.
   if (url === '/intel-api/tracker/watchlists/c-nowl') {
@@ -186,6 +197,37 @@ describe('PR C §13 — watchlist gate scopes to dependent tabs only', () => {
     expect(await screen.findByLabelText('Watchlist setup required')).toBeTruthy();
     document.body.innerHTML = '';
     renderModule('/legiwatch?client=c-nowl&tab=analytics');
+    expect(await screen.findByLabelText('Watchlist setup required')).toBeTruthy();
+  });
+
+  it('no-watchlist client: a direct report URL mounts the report workspace, not the gate', async () => {
+    // The research-review handoff lands on tab=digest&reportView=reports&reportRun=<id>.
+    // DigestTab's effective mode resolves reportView -> bill_report, and frozen
+    // report runs are persisted documents readable without a monitoring model,
+    // so the scope gate must not block the mount. The report queries stay
+    // stubbed off here; the assertion is the routing decision.
+    renderModule(
+      '/legiwatch?client=c-nowl&tab=digest&reportView=reports&reportRun=3ebe79b6-19b8-4d63-bdd3-33b53020fbef',
+    );
+    await waitFor(() => expect(screen.queryByLabelText('Watchlist setup required')).toBeNull());
+    expect(await screen.findByLabelText('Reports and updates')).toBeTruthy();
+  });
+
+  it('no-watchlist client: explicit digestMode=bill_report mounts the report workspace', async () => {
+    renderModule('/legiwatch?client=c-nowl&tab=digest&digestMode=bill_report');
+    await waitFor(() => expect(screen.queryByLabelText('Watchlist setup required')).toBeNull());
+    expect(await screen.findByLabelText('Reports and updates')).toBeTruthy();
+  });
+
+  it('no-watchlist client: explicit digestMode=legacy keeps the gate even with reportView present', async () => {
+    renderModule('/legiwatch?client=c-nowl&tab=digest&digestMode=legacy&reportView=reports');
+    expect(await screen.findByLabelText('Watchlist setup required')).toBeTruthy();
+  });
+
+  it('no-watchlist client: reportRun alone keeps the gate (DigestTab resolves legacy)', async () => {
+    renderModule(
+      '/legiwatch?client=c-nowl&tab=digest&reportRun=3ebe79b6-19b8-4d63-bdd3-33b53020fbef',
+    );
     expect(await screen.findByLabelText('Watchlist setup required')).toBeTruthy();
   });
 

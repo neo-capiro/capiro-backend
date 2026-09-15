@@ -251,7 +251,12 @@ export function HearingsTab({ scope }: { scope: string }) {
       if (value) params.set(key, value);
       else params.delete(key);
     }
-    if (params.toString() !== searchParams.toString()) setSearchParams(params, { replace: true });
+    // Forward the incoming location state: a Back navigation from hearing
+    // detail hands the scroll offset over via legiwatchScrollY, and this
+    // normalization write runs BEFORE the calendar query resolves — dropping
+    // state here means the scroll-restore effect below never sees it.
+    if (params.toString() !== searchParams.toString())
+      setSearchParams(params, { replace: true, state: location.state });
   }, [
     anchorDay,
     view,
@@ -262,6 +267,7 @@ export function HearingsTab({ scope }: { scope: string }) {
     expandedAgenda,
     searchParams,
     setSearchParams,
+    location.state,
   ]);
   const rangeFrom = stateCalendar && rangeMode === 'day' ? anchorDay : (weekDays[0] ?? '');
   const rangeTo = stateCalendar && rangeMode === 'day' ? anchorDay : (weekDays[6] ?? '');
@@ -577,15 +583,7 @@ export function HearingsTab({ scope }: { scope: string }) {
         </>
       ) : null}
       {sub === 'schedule' ? (
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
+        <div className="lw-controls" aria-label="Calendar export options">
           {stateCalendar ? (
             <label>
               <input
@@ -597,6 +595,7 @@ export function HearingsTab({ scope }: { scope: string }) {
             </label>
           ) : null}
           <LwButton
+            className="lw-controls__export"
             disabled={
               exportWeek.isPending ||
               calendar.isError ||

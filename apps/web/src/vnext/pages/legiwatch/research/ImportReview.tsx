@@ -48,7 +48,11 @@ export function ImportReview({
       <CapiroButton disabled={(page + 1) * 10 >= rows.length} onClick={() => setPage(page + 1)}>
         More assignments
       </CapiroButton>
-      <h3>Six source alert definitions</h3>
+      <h3>
+        {rules.length === 0
+          ? 'No source alert definitions'
+          : `${rules.length} source alert ${rules.length === 1 ? 'definition' : 'definitions'}`}
+      </h3>
       {rules.map((rule) => (
         <RuleReview key={rule.id} rule={rule} scope={scope} refresh={refresh} />
       ))}

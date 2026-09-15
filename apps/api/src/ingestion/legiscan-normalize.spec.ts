@@ -6,6 +6,7 @@ import {
   normalizeLegiscanChamber,
   resolveCurrentCommittee,
   crosswalkLegiscanPerson,
+  parseSineDieDate,
 } from './legiscan-normalize.js';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
 import type { PrismaClient } from '@prisma/client';
@@ -213,6 +214,50 @@ describe('normalizeLegiscanBill', () => {
   it('has a null committee when the bill is not currently in one', () => {
     const n = normalizeLegiscanBill(fixtureBill(), 'TX');
     expect(n?.committee).toBeNull();
+  });
+});
+
+describe('parseSineDieDate (sine_die flag-vs-date, FL getSessionList)', () => {
+  it('treats the FL integer flag 1 as a flag, never a 2001 date (the S0174 regression)', () => {
+    // Real payload: legiscan-public-captures/01-getSessionList FL 2026 Regular
+    // Session carries "sine_die": 1. A naive new Date(String(1)) stored
+    // 2001-01-01T05:00:00Z, which the derived-status engine consumed as a fake
+    // deadline (provider-status-document-gap.json: S0174 -> dead_by_deadline).
+    expect(parseSineDieDate(1)).toBeNull();
+    const d = parseSineDieDate(1);
+    expect(d === null || d.getUTCFullYear() !== 2001).toBe(true); // can never be 2001
+  });
+  it('treats flag 0 and the string flag forms 0/1 as null (no deadline)', () => {
+    expect(parseSineDieDate(0)).toBeNull();
+    expect(parseSineDieDate('0')).toBeNull();
+    expect(parseSineDieDate('1')).toBeNull();
+  });
+  it('preserves a genuinely supplied ISO calendar date', () => {
+    const d = parseSineDieDate('2026-05-02');
+    expect(d).not.toBeNull();
+    expect(d!.toISOString().slice(0, 10)).toBe('2026-05-02');
+  });
+  it('rejects rollover/non-calendar date forms JS would silently shift', () => {
+    // new Date('2026-02-30') rolls to 2026-03-02; parseSineDieDate must reject it.
+    expect(parseSineDieDate('2026-02-30')).toBeNull();
+    expect(parseSineDieDate('2026-13-01')).toBeNull();
+    expect(parseSineDieDate('2026-00-01')).toBeNull();
+  });
+  it('rejects non-date scalar forms (never epoch-parse a number)', () => {
+    // A year scalar like 2026 is NOT a date — it would epoch-parse to 2001 under
+    // the old parser; must stay null.
+    expect(parseSineDieDate(2026)).toBeNull();
+    expect(parseSineDieDate('05/02/2026')).toBeNull();
+    expect(parseSineDieDate('not-a-date')).toBeNull();
+    expect(parseSineDieDate('')).toBeNull();
+    expect(parseSineDieDate(null)).toBeNull();
+    expect(parseSineDieDate(undefined)).toBeNull();
+  });
+  it('narrows an unexpected boolean provider flag to null without throwing', () => {
+    // If a provider ever sends sine_die as a JSON boolean, the parser must not
+    // throw on .trim() and must not manufacture a deadline from the flag.
+    expect(parseSineDieDate(true as unknown as string)).toBeNull();
+    expect(parseSineDieDate(false as unknown as string)).toBeNull();
   });
 });
 

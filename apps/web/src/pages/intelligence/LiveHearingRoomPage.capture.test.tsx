@@ -20,6 +20,54 @@ const mocks = vi.hoisted(() => ({
     text: string;
     speakerLabel?: string;
   }>,
+  sessionData: {} as Partial<{
+    id: string;
+    title: string;
+    status: string;
+    sourceType: string;
+    audioSource: string;
+    sourceUrl: string | null;
+    consentStatus: string;
+    recordingPolicy: string;
+    hearingId: string | null;
+    publicCaptureId: string | null;
+  }>,
+  publicTranscriptData: {
+    pages: [{ items: [], total: 0, nextCursor: null, hasMore: false }],
+    pageParams: [null],
+    resumeCursor: undefined,
+    captureId: undefined,
+    reconciledAt: 0,
+  } as {
+    pages: Array<{
+      items: Array<{
+        id: string;
+        sequence: number;
+        startMs: number;
+        endMs: number;
+        text: string;
+        speakerName?: string;
+        speakerLabel?: string;
+        confidence?: number;
+        isFinal: boolean;
+        gapBefore: boolean;
+      }>;
+      total: number;
+      nextCursor: null;
+      hasMore: false;
+    }>;
+    pageParams: Array<null>;
+    resumeCursor: string | undefined;
+    captureId: string | undefined;
+    reconciledAt: number;
+  },
+  publicTranscriptLoading: false,
+  publicTranscriptError: false,
+  publicIntelItems: [] as Array<Record<string, unknown>>,
+  publicIntelStatus: 'READY' as string,
+  publicIntelJobs: undefined as { public?: Record<string, number> } | undefined,
+  publicIntelLoading: false,
+  publicIntelError: false,
 }));
 
 vi.mock('../../lib/use-api-scope.js', () => ({ useApiScope: () => 'test-scope' }));
@@ -52,6 +100,7 @@ vi.mock('../../lib/hearing-watch-api.js', () => ({
       sourceUrl: null,
       consentStatus: 'not_required',
       recordingPolicy: mocks.recordingPolicy,
+      ...mocks.sessionData,
     },
     isLoading: false,
   }),
@@ -70,6 +119,28 @@ vi.mock('../../lib/hearing-watch-api.js', () => ({
     isFetchingNextPage: false,
     fetchNextPage: vi.fn(),
   }),
+}));
+
+vi.mock('../../pages/radar/live-hearings/live-hearings-api.js', () => ({
+  usePublicHearingTranscript: () => ({
+    data: mocks.publicTranscriptData,
+    isLoading: mocks.publicTranscriptLoading,
+    isError: mocks.publicTranscriptError,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+  }),
+  useHearingIntelligence: () => {
+    const envelope = Object.assign(mocks.publicIntelItems, {
+      status: mocks.publicIntelStatus,
+      jobs: mocks.publicIntelJobs,
+    });
+    return {
+      data: envelope,
+      isLoading: mocks.publicIntelLoading,
+      isError: mocks.publicIntelError,
+    };
+  },
 }));
 
 class FakeWebSocket {
@@ -266,6 +337,21 @@ describe('LiveHearingRoomPage browser capture', () => {
     mocks.transcriptItems = [];
     mocks.recordingPolicy = 'transcript_only';
     mocks.publicationsEnabled = false;
+    mocks.sessionData = {};
+    mocks.publicTranscriptData = {
+      pages: [{ items: [], total: 0, nextCursor: null, hasMore: false }],
+      pageParams: [null],
+      resumeCursor: undefined,
+      captureId: undefined,
+      reconciledAt: 0,
+    };
+    mocks.publicTranscriptLoading = false;
+    mocks.publicTranscriptError = false;
+    mocks.publicIntelItems = [];
+    mocks.publicIntelStatus = 'READY';
+    mocks.publicIntelJobs = undefined;
+    mocks.publicIntelLoading = false;
+    mocks.publicIntelError = false;
     mocks.mintWsTicket.mockResolvedValue({ ticket: 'ticket-1', expiresAt: '2030-01-01T00:00:00Z' });
     mocks.apiGet.mockResolvedValue({ data: [] });
     mocks.getDisplayMedia.mockResolvedValue(
@@ -694,5 +780,417 @@ describe('LiveHearingRoomPage browser capture', () => {
     ).toBeInTheDocument();
     expect(sentJson(socket).some((m) => m.type === 'capture_start')).toBe(false);
     expect(FakeMediaRecorder.instances).toHaveLength(0);
+  });
+
+  describe('public review session transcript', () => {
+    const publicItems = Array.from({ length: 37 }, (_, i) => ({
+      id: `pub-seg-${i + 1}`,
+      sequence: i + 1,
+      startMs: (i + 1) * 1000,
+      endMs: (i + 1) * 1000 + 500,
+      text: `Public canonical segment ${i + 1}`,
+      speakerName: `Speaker ${i + 1}`,
+      speakerLabel: `speaker-${i + 1}`,
+      confidence: 0.95,
+      isFinal: true,
+      gapBefore: false,
+    }));
+
+    test('renders canonical final segments for a public review session', async () => {
+      mocks.sessionData = {
+        hearingId: 'hearing-1',
+        publicCaptureId: 'capture-1',
+      };
+      mocks.publicTranscriptData = {
+        pages: [{ items: publicItems, total: 37, nextCursor: null, hasMore: false }],
+        pageParams: [null],
+        resumeCursor: undefined,
+        captureId: 'capture-1',
+        reconciledAt: 0,
+    };
+      renderRoom(true);
+      expect(
+        await screen.findByText('Public canonical segment 37'),
+      ).toBeInTheDocument();
+      expect(screen.getAllByText(/public canonical segment/i).length).toBe(37);
+    });
+
+    test('ordinary browser session keeps private transcript path unchanged', async () => {
+      mocks.sessionData = {};
+      mocks.transcriptItems = [
+        {
+          id: 'private-1',
+          startMs: 5000,
+          endMs: 7000,
+          text: 'Private browser transcript.',
+          speakerLabel: 'PrivateSpeaker',
+        },
+      ];
+      renderRoom(true);
+      expect(
+        await screen.findByText('Private browser transcript.'),
+      ).toBeInTheDocument();
+    });
+
+    test('drops public data when the session changes to a different capture', async () => {
+      mocks.sessionData = {
+        hearingId: 'hearing-1',
+        publicCaptureId: 'capture-1',
+      };
+      mocks.publicTranscriptData = {
+        pages: [{ items: publicItems, total: 37, nextCursor: null, hasMore: false }],
+        pageParams: [null],
+        resumeCursor: undefined,
+        captureId: 'capture-1',
+        reconciledAt: 0,
+    };
+      renderRoom(true);
+      expect(
+        await screen.findByText('Public canonical segment 1'),
+      ).toBeInTheDocument();
+      // Simulate the session switching to a different canonical capture. The
+      // hook must not merge segments from the old capture.
+      mocks.sessionData = {
+        hearingId: 'hearing-1',
+        publicCaptureId: 'capture-2',
+      };
+      renderRoom(true);
+      await waitFor(() =>
+        expect(screen.queryByText('Public canonical segment 1')).not.toBeInTheDocument(),
+      );
+    });
+
+    test('shows loading state while canonical transcript is loading', async () => {
+      mocks.sessionData = {
+        hearingId: 'hearing-1',
+        publicCaptureId: 'capture-1',
+      };
+      mocks.publicTranscriptLoading = true;
+      renderRoom(true);
+      expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+    });
+
+    test.each([false, true])(
+      'Play audio here drives the canonical public capture player (vNext=%s)',
+      async (vnext) => {
+        mocks.sessionData = {
+          hearingId: 'hearing-1',
+          publicCaptureId: 'capture-1',
+          status: 'ended',
+          audioSource: 'stream_url',
+        };
+        mocks.publicTranscriptData = {
+          pages: [{ items: publicItems, total: 37, nextCursor: null, hasMore: false }],
+          pageParams: [null],
+          resumeCursor: undefined,
+          captureId: 'capture-1',
+          reconciledAt: 0,
+        };
+        mocks.apiGet.mockImplementation(async (url: string) => ({
+          data: url.includes('/public-hearings/hearing-1/audio')
+            ? {
+                epochs: [
+                  {
+                    id: 'epoch-1',
+                    startMs: 0,
+                    durableEndMs: 60000,
+                    durableBytes: 320044,
+                    state: 'ready',
+                    transcriptState: 'finalized',
+                    expiresAt: '2099-01-01',
+                    reason: null,
+                  },
+                ],
+              }
+            : [],
+        }));
+        mocks.apiPost.mockImplementation(async (url: string, body: { positionMs: number }) => ({
+          data: {
+            partId: 'part-1',
+            startMs: 0,
+            endMs: 5000,
+            url: 'https://private.example/part-1',
+            expiresAt: '2099-01-01',
+            requested: body.positionMs,
+          },
+        }));
+        renderRoom(vnext);
+        // The public player mounts instead of the tenant browser recorder.
+        expect(
+          await screen.findByRole('region', { name: 'Saved unattended audio' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: 'Saved hearing audio' })).toBeNull();
+        await waitFor(() =>
+          expect(mocks.apiGet).toHaveBeenCalledWith(
+            '/intel-api/public-hearings/hearing-1/audio',
+          ),
+        );
+        // No playback request before a user gesture.
+        expect(mocks.apiPost).not.toHaveBeenCalled();
+        const playButtons = await screen.findAllByRole('button', { name: 'Play audio here' });
+        fireEvent.click(playButtons[0]!);
+        await waitFor(() =>
+          expect(mocks.apiPost).toHaveBeenCalledWith(
+            '/intel-api/public-hearings/hearing-1/audio/epochs/epoch-1/playback',
+            { positionMs: 1000 },
+          ),
+        );
+        // Exactly one player, exactly one playback request for the click.
+        expect(screen.getAllByRole('region', { name: 'Saved unattended audio' })).toHaveLength(1);
+        expect(mocks.apiPost).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    test('a capture reassignment remounts the player instead of replaying stale state', async () => {
+      mocks.sessionData = {
+        hearingId: 'hearing-1',
+        publicCaptureId: 'capture-1',
+        status: 'ended',
+        audioSource: 'stream_url',
+      };
+      mocks.publicTranscriptData = {
+        pages: [{ items: publicItems, total: 37, nextCursor: null, hasMore: false }],
+        pageParams: [null],
+        resumeCursor: undefined,
+        captureId: 'capture-1',
+        reconciledAt: 0,
+      };
+      mocks.apiGet.mockImplementation(async (url: string) => ({
+        data: url.includes('/public-hearings/hearing-1/audio')
+          ? {
+              epochs: [
+                {
+                  id: 'epoch-1',
+                  startMs: 0,
+                  durableEndMs: 60000,
+                  durableBytes: 320044,
+                  state: 'ready',
+                  transcriptState: 'finalized',
+                  expiresAt: '2099-01-01',
+                  reason: null,
+                },
+              ],
+            }
+          : [],
+      }));
+      mocks.apiPost.mockImplementation(async () => ({
+        data: {
+          partId: 'part-1',
+          startMs: 0,
+          endMs: 5000,
+          url: 'https://private.example/part-1',
+          expiresAt: '2099-01-01',
+        },
+      }));
+      const { unmount } = renderRoom(true);
+      expect(
+        await screen.findByRole('region', { name: 'Saved unattended audio' }),
+      ).toBeInTheDocument();
+      unmount();
+      // Session now points at a different canonical capture: the keyed player
+      // must remount (fresh manifest fetch), never reuse the old capture's part.
+      mocks.sessionData = {
+        hearingId: 'hearing-1',
+        publicCaptureId: 'capture-2',
+        status: 'ended',
+        audioSource: 'stream_url',
+      };
+      mocks.publicTranscriptData = {
+        pages: [{ items: [], total: 0, nextCursor: null, hasMore: false }],
+        pageParams: [null],
+        resumeCursor: undefined,
+        captureId: 'capture-2',
+        reconciledAt: 1,
+      };
+      renderRoom(true);
+      await screen.findByRole('region', { name: 'Saved unattended audio' });
+      await waitFor(() =>
+        expect(
+          mocks.apiGet.mock.calls.filter(
+            ([url]) => typeof url === 'string' && url.includes('/public-hearings/hearing-1/audio'),
+          ).length,
+        ).toBeGreaterThanOrEqual(2),
+      );
+      expect(mocks.apiPost).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// A saved session reviewing a shared PUBLIC capture carries canonical public
+// insights, not private tenant cards: the room must render those genuine rows
+// (and only those), from the same reconciled hook the hearing detail route
+// uses, in BOTH presentations.
+describe('LiveHearingRoomPage saved public review intelligence', () => {
+  const hearingId = '4c575634-5154-4052-8f46-000000338740';
+  const canonical7 = [
+    { id: 'phi_552c61cf2d2e9076a6697b1165241f1c', insightType: 'QUESTION', title: 'Question from 0', summary: 'Is a patient in those investigations?', startMs: 0 },
+    { id: 'phi_fe3993197b6cf5088ea8e3e8a0027c8c', insightType: 'QUESTION', title: 'Question from 0', summary: 'But you should be the lead on these investigations?', startMs: 8620 },
+    { id: 'phi_a0ec53e93faefac89a5f0ecd76c4428c', insightType: 'QUESTION', title: 'Question from 0', summary: 'Can you comment on the status', startMs: 29850 },
+    { id: 'phi_b5ebd50912eab13839d01e3f9462fc72', insightType: 'QUESTION', title: 'Question from 0', summary: 'Juan Sebastian Guerrero or Lorenzo Salgado Arajo or any of the 23 shootings involving ICER CBP?', startMs: 37690 },
+    { id: 'phi_bee5274f6a610c24d3bde7d690f55426', insightType: 'KEY_QUOTE', title: 'Material statement from 1', summary: "I'll have to get back to you on those because, again, I'd have to go talk to my DHS boss. I know some of these", startMs: 44230 },
+    { id: 'phi_cf9d0e94a355bf60947a8c40d63583ab', insightType: 'AGENCY_REFERENCE', title: 'Department of Homeland Security referenced', summary: "I'll have to get back to you on those because, again, I'd have to go talk to my DHS boss. I know some of these", startMs: 44230 },
+    { id: 'phi_c7aaee33ee85b3a26f3f9d44ad2b81f6', insightType: 'QUESTION', title: 'Question from 0', summary: 'So why does it take so long?', startMs: 58250 },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.sessionData = {
+      id: 'session-1',
+      title: 'An oversight hearing to examine the Federal Bureau of Investigation.',
+      status: 'ended',
+      sourceType: 'hearing',
+      audioSource: 'stream_url',
+      hearingId,
+      publicCaptureId: 'capture-1',
+    };
+    mocks.publicTranscriptData = {
+      pages: [{ items: [], total: 0, nextCursor: null, hasMore: false }],
+      pageParams: [null],
+      resumeCursor: undefined,
+      captureId: 'capture-1',
+      reconciledAt: 0,
+    };
+    mocks.publicIntelItems = canonical7;
+    mocks.publicIntelStatus = 'PROCESSING';
+    mocks.publicIntelJobs = { public: { pending: 37 } };
+    browserSetup();
+  });
+
+  test.each([false, true])(
+    'restores all 7 existing public moments with real type and timestamp (vNext=%s)',
+    async (vnext) => {
+      renderRoom(vnext);
+      await screen.findByText('An oversight hearing to examine the Federal Bureau of Investigation.');
+      for (const item of canonical7) {
+        expect(await screen.findAllByText(item.title)).not.toHaveLength(0);
+        expect(screen.getAllByText(item.summary).length).toBeGreaterThan(0);
+      }
+      if (vnext) {
+        expect(screen.getAllByText('QUESTION')).toHaveLength(5);
+        expect(screen.getByText('KEY QUOTE')).toBeInTheDocument();
+        expect(screen.getByText('AGENCY REFERENCE')).toBeInTheDocument();
+        // Source timestamps map straight through.
+        expect(screen.getAllByText('00:00:08').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('00:00:58').length).toBeGreaterThan(0);
+        expect(screen.getByText(/7 intelligence moments/)).toBeInTheDocument();
+      } else {
+        expect(screen.getAllByText('QUESTION')).toHaveLength(5);
+        expect(screen.getByText('KEY_QUOTE')).toBeInTheDocument();
+        expect(screen.getByText('AGENCY_REFERENCE')).toBeInTheDocument();
+        expect(screen.getAllByText('[8s]').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('[58s]').length).toBeGreaterThan(0);
+      }
+      // A public review must NOT hit the private tenant summary endpoint.
+      expect(
+        mocks.apiGet.mock.calls.some(
+          ([url]) => typeof url === 'string' && url.includes('/intel-api/hearings/'),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  test('vNext jump control carries the canonical timestamp of the finding', async () => {
+    renderRoom(true);
+    await screen.findByText('An oversight hearing to examine the Federal Bureau of Investigation.');
+    expect(
+      (await screen.findAllByRole('button', { name: /^Jump to 00:00:08/ })).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole('button', { name: /^Jump to 00:00:58/ }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  test('private browser-capture sessions still read the tenant summary endpoint', async () => {
+    mocks.sessionData = { id: 'session-1', title: 'Private session', status: 'ended' };
+    mocks.apiGet.mockImplementation(async (url: string) => ({
+      data: url.includes('/summary')
+        ? { cards: [{ id: 'tenant-1', cardType: 'watchlist_match', title: 'Tenant card', startMs: 1000 }] }
+        : [],
+    }));
+    renderRoom();
+    expect(await screen.findByText('Tenant card')).toBeInTheDocument();
+    expect(
+      mocks.apiGet.mock.calls.some(
+        ([url]) => typeof url === 'string' && url.includes('/intel-api/hearings/session-1/summary'),
+      ),
+    ).toBe(true);
+  });
+
+  test('no stale findings survive switching from a public review to another capture', async () => {
+    const { unmount } = renderRoom();
+    expect((await screen.findAllByText('Question from 0')).length).toBeGreaterThan(0);
+    unmount();
+    mocks.sessionData = { ...mocks.sessionData, id: 'session-2', publicCaptureId: 'capture-2' };
+    mocks.publicTranscriptData = { ...mocks.publicTranscriptData, captureId: 'capture-2' };
+    mocks.publicIntelItems = [];
+    mocks.publicIntelStatus = 'READY';
+    mocks.publicIntelJobs = undefined;
+    renderRoom();
+    await waitFor(() =>
+      expect(screen.queryByText('Question from 0')).not.toBeInTheDocument(),
+    );
+  });
+
+  test('same mounted tree swaps findings when the route moves to another public capture', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tree = (sessionId: string) => (
+      <QueryClientProvider client={client}>
+        <AntApp>
+          <MemoryRouter initialEntries={[`/intelligence/hearing-watch/${sessionId}`]}>
+            <Routes>
+              <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
+            </Routes>
+          </MemoryRouter>
+        </AntApp>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(tree('session-1'));
+    expect((await screen.findAllByText('Question from 0')).length).toBeGreaterThan(0);
+    // Route to a DIFFERENT saved session in the same mounted tree.
+    mocks.sessionData = { ...mocks.sessionData, id: 'session-2', publicCaptureId: 'capture-2' };
+    mocks.publicTranscriptData = { ...mocks.publicTranscriptData, captureId: 'capture-2' };
+    mocks.publicIntelItems = [
+      { id: 'phi_new', insightType: 'KEY_QUOTE', title: 'Second capture quote', summary: 'Different finding.', startMs: 500 },
+    ];
+    rerender(tree('session-2'));
+    expect(await screen.findByText('Second capture quote')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText('Is a patient in those investigations?')).not.toBeInTheDocument(),
+    );
+  });
+
+  test('findings without a timestamp still render, with no jump control', async () => {
+    mocks.publicIntelItems = [
+      ...canonical7,
+      { id: 'phi_no_ts', insightType: 'MENTION', title: 'Late mention', summary: 'No evidence timestamp on this one.' },
+    ];
+    renderRoom(true);
+    expect(await screen.findByText('Late mention')).toBeInTheDocument();
+    expect(screen.getByText('No evidence timestamp on this one.')).toBeInTheDocument();
+    // The untimestamped row counts toward moments but has no jump control.
+    expect(screen.getByText(/8 intelligence moments/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Late mention/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  test('extraction still pending is stated, never rendered as zero moments', async () => {
+    mocks.publicIntelItems = [];
+    renderRoom();
+    expect(
+      await screen.findByText(
+        'Public intelligence is still being extracted from the canonical transcript.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Relevant moments will appear here.')).not.toBeInTheDocument();
+  });
+
+  test('public intelligence error surfaces honestly in both presentations', async () => {
+    mocks.publicIntelError = true;
+    mocks.publicIntelItems = [];
+    renderRoom(true);
+    expect(
+      await screen.findByText('Saved intelligence could not be refreshed.'),
+    ).toBeInTheDocument();
   });
 });

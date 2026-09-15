@@ -200,14 +200,18 @@ export class CommitteeDirectoryService {
   }
 
   async committee(id: string, ctx: TenantContext): Promise<Record<string, unknown> | null> {
-    const snapshot = await this.loadDirectory();
+    // One consistent comparison instant for BOTH the aggregate counts (via
+    // loadDirectory) and the room arrays below, so they cannot disagree about a
+    // boundary event. The list read (committees()) keeps the default instant.
+    const now = new Date();
+    const snapshot = await this.loadDirectory(now);
     const committee = snapshot.byCode.get(normalizeCode(id));
     if (!committee) return null;
 
     const filter = committee.isSubcommittee
       ? { subcommittee: committee.systemCode }
       : { committee: committee.systemCode };
-    const today = startOfUtcDay(new Date());
+    const today = startOfUtcDay(now);
     const tomorrow = new Date(today.getTime() + DAY_MS);
     const future = new Date(today.getTime() + DIRECTORY_EVENT_WINDOW_DAYS * DAY_MS);
     const past = new Date(today.getTime() - DIRECTORY_EVENT_WINDOW_DAYS * DAY_MS);
@@ -239,6 +243,48 @@ export class CommitteeDirectoryService {
       return normalizeCode(event.committeeSystemCode) === normalizeCode(committee.systemCode);
     };
 
+    // Reclassify the already fetched day-bucket rows by the same instant rule
+    // the directory counts use: `startsAt` when present, otherwise the UTC
+    // date-only fallback; an instant equal to `now` remains upcoming. `date` and
+    // `startsAt` are independent fields — a row in the past day-window can still
+    // carry a future start (rescheduled) and belongs in upcoming, while a passed
+    // start today belongs in recent WITHOUT touching its source `eventStatus`/
+    // `startsAt` (a passed start is not proof of completion).
+    const upcomingInstant = (event: CalendarEvent): number => {
+      const value = event.startsAt ?? startOfUtcDay(new Date(`${event.date}T00:00:00Z`));
+      const parsed = typeof value === 'string' ? new Date(value).getTime() : value.getTime();
+      return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+    };
+    const byAscendingThenId = (a: CalendarEvent, b: CalendarEvent): number => {
+      const diff = upcomingInstant(a) - upcomingInstant(b);
+      return diff !== 0 ? diff : a.id.localeCompare(b.id);
+    };
+
+    // Deduplicate by canonical event ID across the two bounded pages ONCE (a
+    // parent room can meet the same proceeding through both day windows),
+    // preserving each event's actual source values — first occurrence wins, no
+    // reconstruction — then partition the combined set into both buckets by the
+    // single captured instant.
+    const seenIds = new Set<string>();
+    const combined: CalendarEvent[] = [];
+    for (const row of [...upcoming.rows, ...recent.rows]) {
+      if (seenIds.has(row.id)) continue;
+      seenIds.add(row.id);
+      combined.push(row);
+    }
+
+    const upcomingEvents = combined
+      .filter((event) => upcomingInstant(event) >= now.getTime())
+      .slice()
+      .sort(byAscendingThenId)
+      .slice(0, 100);
+    // Recent stays most-recent-first, then the whole bucket is capped at 100.
+    const recentEvents = combined
+      .filter((event) => upcomingInstant(event) < now.getTime())
+      .slice()
+      .sort((a, b) => byAscendingThenId(b, a))
+      .slice(0, 100);
+
     const subcommittees = snapshot.rows.filter(
       (row) => normalizeCode(row.parentSystemCode) === normalizeCode(committee.systemCode),
     );
@@ -254,8 +300,8 @@ export class CommitteeDirectoryService {
       rankingMember: memberResult.rankingMember,
       members: memberResult.rows,
       liveEvent: live.rows.find(matchesBody) ?? null,
-      upcomingEvents: upcoming.rows,
-      recentEvents: recent.rows.slice().reverse(),
+      upcomingEvents,
+      recentEvents,
       updates: updateResult.rows,
       asOf: snapshot.asOf,
       nextRefreshNotBefore: tomorrow.toISOString(),
@@ -369,8 +415,7 @@ export class CommitteeDirectoryService {
     };
   }
 
-  private async loadDirectory(): Promise<DirectorySnapshot> {
-    const now = new Date();
+  private async loadDirectory(now = new Date()): Promise<DirectorySnapshot> {
     const recentCutoff = new Date(now.getTime() - DIRECTORY_EVENT_WINDOW_DAYS * DAY_MS);
     const futureCutoff = new Date(now.getTime() + DIRECTORY_EVENT_WINDOW_DAYS * DAY_MS);
 

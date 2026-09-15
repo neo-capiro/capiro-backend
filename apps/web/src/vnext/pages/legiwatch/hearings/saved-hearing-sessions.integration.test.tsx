@@ -87,10 +87,16 @@ describe('LW-03 saved sessions in the hearing journey', () => {
     const link = await within(panel).findByRole('link', { name: /Open saved session:.*Fauci/ });
     expect(panel).toHaveTextContent('710 saved transcript segments');
     expect(panel).toHaveTextContent('19 intelligence moments');
+    // "No automatic capture requested" is inside the Live & Capture tab
+    fireEvent.click(screen.getByRole('tab', { name: 'Live & Capture' }));
     expect(screen.getByText('No automatic capture requested')).toBeInTheDocument();
     expect(screen.queryByText(/Capiro has no transcript for this proceeding/)).not.toBeInTheDocument();
-    expect(link).toHaveAttribute('href', `/intelligence/hearing-watch/${SESSION_ID}`);
-    fireEvent.click(link);
+    // Return to Overview to access the saved sessions panel
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    const panelAgain = await screen.findByRole('region', { name: 'Saved hearing sessions' });
+    const linkAgain = await within(panelAgain).findByRole('link', { name: /Open saved session:.*Fauci/ });
+    expect(linkAgain).toHaveAttribute('href', `/intelligence/hearing-watch/${SESSION_ID}`);
+    fireEvent.click(linkAgain);
     expect(await screen.findByText('Saved recording room reached')).toBeInTheDocument();
   });
 

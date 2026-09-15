@@ -22,6 +22,7 @@ import {
 import { FolderTrackerService, isFolderAdmin } from './folder-tracker.service.js';
 import {
   BulkFolderBillsDto,
+  FolderActivityQueryDto,
   FolderBoardQueryDto,
   FolderContextDto,
   FolderExportDto,
@@ -70,6 +71,12 @@ export class FolderTrackerController {
     @Query() query: FolderBoardQueryDto,
   ) {
     return this.svc.board(ctx, query, true);
+  }
+  @Get('activities') activities(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Query() query: FolderActivityQueryDto,
+  ) {
+    return this.svc.activities(ctx, query);
   }
   @Get('sessions/:jurisdiction') sessions(@Param('jurisdiction') jurisdiction: string) {
     if (!/^[A-Z]{2}$/.test(jurisdiction)) throw new NotFoundException();

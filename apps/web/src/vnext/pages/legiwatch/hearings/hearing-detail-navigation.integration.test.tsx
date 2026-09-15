@@ -28,8 +28,9 @@ vi.mock('@clerk/clerk-react', () => ({
 }));
 
 const apiGet = vi.fn<(url: string) => Promise<{ data: unknown }>>();
+const apiPost = vi.fn<(url: string, body?: unknown) => Promise<{ data: unknown }>>();
 vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: (url: string) => apiGet(url) }),
+  useApi: () => ({ get: (url: string) => apiGet(url), post: (url: string, body?: unknown) => apiPost(url, body) }),
 }));
 vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ isLoading: false, data: undefined }) }));
 
@@ -86,20 +87,16 @@ const HISTORY_SESSION = {
 /**
  * `/events/:id` returns the SAME `CalendarEvent` shape `/calendar` does
  * (LiveHearingsService.event → hydrate → the one row mapper), so the detail
- * fixture is a calendar row.
- *
- * The nested `committee` object is the one thing here the real wire does NOT
- * send: `normalizeCanonicalHearingEvent` reads the committee ref only from
- * `row.committee`, never from the flat `committeeSystemCode` the service emits,
- * so against real data the detail page's committee link has no system code
- * (LW-QA-025, reported not fixed — it lives in the shared radar normalizer,
- * outside this change's file scope). It is kept here so the existing
- * committee-link coverage keeps exercising that path.
+ * fixture is a calendar row — flat root-level `committeeName` /
+ * `committeeSystemCode` and NO nested `committee` object, which is exactly
+ * what the real wire sends. The shared normalizer now carries that root code
+ * into the event's committee ref (LW-QA-025 fixed there), so the committee-
+ * link regression below exercises the actual API shape end-to-end rather
+ * than a nested workaround the service never emits.
  */
 const DETAIL_EVENT = {
   ...calRow({}),
   capture: { id: 'cap-1', status: 'ended', failureReason: null, gapSeconds: 0 },
-  committee: { systemCode: 'hs00-lwdt', name: 'Armed Services Committee (detail test)' },
 };
 
 const TRANSCRIPT_PAGE = {
@@ -272,6 +269,22 @@ function wireGet(url: string): { data: unknown } | null {
     };
   }
   if (url.startsWith('/intel-api/clients/_all/alerts/work-state')) return { data: {} };
+  // Tab panels now stay MOUNTED (hidden) when inactive, so their queries fire
+  // even when the test never opens the tab. Give those incidental reads a
+  // benign empty payload instead of an unhandled rejection: feature flags
+  // fail closed ({}), list endpoints return empty pages.
+  if (url === '/intel-api/feature-flags') return { data: {} };
+  if (url === '/api/clients') return { data: [] };
+  if (url === '/intel-api/legiwatch/folders') return { data: [] };
+  if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/follow-config'))
+    return { data: { following: false, clients: [] } };
+  if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/attendance'))
+    return { data: { scheduled: false, canRequest: false, state: 'UNAVAILABLE', message: 'No capture mode is available.' } };
+  if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/updates'))
+    return { data: { updates: [] } };
+  if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/client-relevance'))
+    return { data: { hearingId: 'cm-119-9001', scope: 'all-clients', transcriptAvailable: true, clients: [], counts: { HIGH: 0, MEDIUM: 0, LOW: 0 } } };
+  if (url.startsWith('/intel-api/hearings/')) return { data: { items: [], records: [], runs: [] } };
   return null;
 }
 
@@ -282,28 +295,33 @@ beforeEach(() => {
     if (!hit) return Promise.reject(new Error(`unexpected GET ${url}`));
     return Promise.resolve(hit);
   });
+  apiPost.mockReset();
+  apiPost.mockRejectedValue(new Error('unexpected POST'));
 });
 
 afterEach(() => {
   cleanup();
 });
 
-function LocationProbe({ onLocation }: { onLocation: (l: { pathname: string; search: string }) => void }) {
+function LocationProbe({ onLocation }: { onLocation: (l: { pathname: string; search: string; state: unknown }) => void }) {
   const loc = useLocation();
-  onLocation({ pathname: loc.pathname, search: loc.search });
+  onLocation({ pathname: loc.pathname, search: loc.search, state: loc.state });
   return null;
 }
 
-function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initialPath: string, initialEntries?: string[]) {
+function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initialPath: string, initialEntries?: unknown[]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
   });
-  const location = { current: { pathname: '', search: '' } };
-  const routerProps = Router === MemoryRouter ? { initialEntries: initialEntries ?? [initialPath] } : {};
+  const location = { current: { pathname: '', search: '', state: null as unknown } };
+  // Every rendered location, in order — lets a test observe an intermediate
+  // history entry that a later same-tick write replaced.
+  const history: Array<{ pathname: string; search: string; state: unknown }> = [];
+  const routerProps = Router === MemoryRouter ? { initialEntries: (initialEntries ?? [initialPath]) as string[] } : {};
   render(
     <QueryClientProvider client={queryClient}>
       <Router {...routerProps}>
-        <LocationProbe onLocation={(l) => { location.current = l; }} />
+        <LocationProbe onLocation={(l) => { location.current = l; history.push(l); }} />
         <Routes>
           <Route path="/legiwatch" element={<div data-testid="module-landing">LegiWatch module landing</div>} />
           <Route path="/legiwatch/hearings" element={<HearingsTab scope="" />} />
@@ -315,7 +333,7 @@ function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initia
       </Router>
     </QueryClientProvider>,
   );
-  return { location, queryClient };
+  return { location, queryClient, history };
 }
 
 describe('PR B §6 — every entry surface reaches Hearing Detail (real navigation)', () => {
@@ -467,6 +485,22 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings'));
     window.history.replaceState(null, '', '/');
   });
+
+  // LW-QA-025 primary regression: DETAIL_EVENT is the flat wire shape (root
+  // `committeeSystemCode`, NO nested `committee` object). The shared normalizer
+  // must carry that code through so the existing detail-page committee link
+  // renders and navigates to the Committee Room. Against the old normalizer
+  // this rendered plain text with no button.
+  it('detail committee link → Committee Room, from the FLAT wire shape (no nested committee object)', async () => {
+    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    const facts = await screen.findByLabelText('Hearing facts');
+    const link = await within(facts).findByRole('button', {
+      name: /Armed Services Committee \(detail test\)/i,
+    });
+    fireEvent.click(link);
+    await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/committees/hs00-lwdt'));
+    await screen.findByLabelText('Committee room: Armed Services Committee (detail test)');
+  });
 });
 
 describe('PR B §6 — detail surface honesty (rendered component)', () => {
@@ -479,6 +513,8 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    // Click the Transcript tab to reveal the transcript panel
+    fireEvent.click(await screen.findByRole('tab', { name: 'Transcript' }));
     const transcript = await screen.findByLabelText('Transcript');
     expect(await within(transcript).findByText('The committee will come to order.')).toBeTruthy();
     expect(within(transcript).getByText(/Capture is in progress/i)).toBeTruthy();
@@ -499,6 +535,7 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001#seg-long-seg-501');
+    // The #seg- deep link auto-activates the Transcript tab
     await screen.findByText('Archive segment 501');
     await waitFor(() => expect(scroll.mock.instances).toContain(document.getElementById('lw-seg-long-seg-501')));
     expect(screen.getByText('501 segments from automatic capture')).toBeTruthy();
@@ -512,6 +549,7 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Intelligence' }));
     const intelligence = await screen.findByLabelText('Intelligence');
     await within(intelligence).findByText('Intelligence could not be loaded.');
     expect(intelligence.textContent).not.toMatch(/No intelligence was extracted/i);
@@ -526,6 +564,7 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Transcript' }));
     const transcript = await screen.findByLabelText('Transcript');
     await within(transcript).findByText('The committee will come to order.');
     expect(transcript.textContent).toMatch(/recorded before the failure remains available/i);
@@ -534,23 +573,26 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
 
   it('§9 intelligence grounding: evidence button jumps to and highlights the supporting segment', async () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Intelligence' }));
     const intel = await screen.findByLabelText('Intelligence');
     const evidenceButton = await within(intel).findByRole('button', { name: /Jump to transcript evidence/i });
     expect(within(intel).getAllByText(/Witness/).length).toBeGreaterThan(0);
     expect(evidenceButton.textContent).toContain('skilled trades');
 
-    const seg = document.getElementById('lw-seg-seg-2');
-    expect(seg).toBeTruthy();
-    const before = seg!.style.background;
     fireEvent.click(evidenceButton);
-    await waitFor(() => expect(seg!.style.background).not.toBe(before));
+    // jumpToSegment activates the Transcript tab and reveals the segment
+    await waitFor(() => expect(document.getElementById('lw-seg-seg-2')).toBeTruthy());
+    const seg = document.getElementById('lw-seg-seg-2');
+    await waitFor(() => expect(seg!.style.background).not.toBe(''));
   });
 
   it('clears a transcript search when jumping to evidence hidden by the filter', async () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Transcript' }));
     await screen.findByText('The committee will come to order.');
     fireEvent.change(screen.getByRole('textbox', { name: 'Search transcript' }), { target: { value: 'come to order' } });
     expect(document.getElementById('lw-seg-seg-2')).toBeNull();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Intelligence' }));
     fireEvent.click(await screen.findByRole('button', { name: /Jump to transcript evidence/i }));
     await waitFor(() => expect(document.getElementById('lw-seg-seg-2')).toBeTruthy());
     expect(screen.getByRole('textbox', { name: 'Search transcript' })).toHaveValue('');
@@ -570,6 +612,7 @@ describe('PR B §6 — detail surface honesty (rendered component)', () => {
       return Promise.resolve(hit);
     });
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Intelligence' }));
     const intel = await screen.findByLabelText('Intelligence');
     await waitFor(() => expect(intel.textContent).toMatch(/extraction is in progress/i));
     expect(intel.textContent).not.toMatch(/No intelligence was extracted/i);
@@ -618,7 +661,7 @@ describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
     cleanup();
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
     await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
-    const detailWhen = (document.querySelector('.lw-lrow__when')?.textContent ?? '').trim();
+    const detailWhen = (document.querySelector('.lw-detail__when')?.textContent ?? '').trim();
     const detailPills = [...document.querySelectorAll('.lw-pill')].map((p) => (p.textContent ?? '').trim());
     expect(`${detailWhen} · ${detailPills.find((p) => p === 'COMPLETED')}`).toBe(roomMeta);
   });
@@ -769,3 +812,274 @@ function historySessionUnused(): boolean {
 }
 const historyLabelUnused = historySessionUnused;
 const historyCardUnused = historySessionUnused;
+
+// ── Session 53 — tab lifecycle regressions ─────────────────────────────────
+// Root review of session 48 found the tab strip (a) cast any URL string into
+// a tab id (unknown value → every panel blank), (b) conditionally mounted
+// panels so a tab switch destroyed the audio player, the review workspace
+// draft and the transcript filter, and (c) gave `#public-audio` deep links no
+// tab activation. These tests exercise the REAL route inside the router with
+// the retained-audio feature flag served on.
+
+/** wireGet + the retained-audio flag and an audio manifest with one epoch. */
+function wireWithRetainedAudio(url: string): { data: unknown } | null {
+  if (url === '/intel-api/feature-flags') {
+    return { data: { legiwatch_hearing_recording_v1: true } };
+  }
+  if (url === '/api/clients') {
+    return { data: [{ id: 'c1', name: 'Alpha Gov Relations', status: 'active' }] };
+  }
+  if (url.startsWith('/intel-api/public-hearings/') && url.endsWith('/audio')) {
+    return {
+      data: {
+        epochs: [
+          {
+            id: 'epoch-1',
+            startMs: 0,
+            durableEndMs: 120000,
+            durableBytes: 640000,
+            state: 'ready',
+            transcriptState: 'final',
+            expiresAt: '2099-01-01',
+            reason: null,
+          },
+        ],
+      },
+    };
+  }
+  return wireGet(url);
+}
+
+describe('session 53 — tab lifecycle regressions', () => {
+  beforeEach(() => {
+    apiGet.mockImplementation((url: string) => {
+      const hit = wireWithRetainedAudio(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+  });
+
+  it('an unknown detailTab query value falls back to Overview, not a blank page', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=garbage');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    // Overview content is rendered…
+    expect(await screen.findByLabelText('Hearing facts')).toBeTruthy();
+    // …and the Overview tab is the selected one while the bogus id selects nothing.
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
+    for (const name of ['Live & Capture', 'Transcript', 'Intelligence', 'Client Relevance', 'Sources & Documents']) {
+      expect(screen.getByRole('tab', { name }).getAttribute('aria-selected')).toBe('false');
+    }
+    // Global query context survives alongside the fallback.
+    cleanup();
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=bogus&client=acme');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('every tab control exposes an accessible selected state with the real labels', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    const labels = ['Overview', 'Live & Capture', 'Transcript', 'Intelligence', 'Client Relevance', 'Sources & Documents'];
+    for (const name of labels) {
+      const tab = screen.getByRole('tab', { name });
+      expect(tab.getAttribute('aria-selected')).toBe(name === 'Overview' ? 'true' : 'false');
+    }
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Transcript' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('incoming #public-audio activates Live & Capture and scrolls to the existing player anchor — once, without trapping later tab switches', async () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001#public-audio');
+    // The player anchor exists (panel stays mounted) and the tab activates.
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Live & Capture' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    const anchor = document.getElementById('public-audio');
+    expect(anchor).toBeTruthy();
+    // The spy records the receiver (`this`) of each invocation: the effect
+    // calls `anchor.scrollIntoView(...)` on the anchor element itself.
+    await waitFor(() => expect(scroll.mock.contexts).toContain(anchor));
+
+    // A later manual tab switch must STICK — the stale hash does not pull the
+    // user back to Live & Capture.
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Transcript' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    // Give any stray effect a chance to fire, then assert we're still on Transcript.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByRole('tab', { name: 'Transcript' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'Live & Capture' }).getAttribute('aria-selected')).toBe('false');
+    scroll.mockRestore();
+  });
+
+  it('incoming #public-audio on a COLD load (deferred event response) still reveals and scrolls once the anchor renders', async () => {
+    // Hold the event response until the test releases it: the route renders
+    // its loading skeleton first, with no panels and no #public-audio anchor.
+    let releaseEvent: (() => void) | null = null;
+    const eventGate = new Promise<void>((resolve) => { releaseEvent = resolve; });
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001') {
+        return eventGate.then(() => ({ data: DETAIL_EVENT }));
+      }
+      const hit = wireWithRetainedAudio(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001#public-audio');
+    // Loading skeleton: no anchor yet, no scroll attempted.
+    expect(document.getElementById('public-audio')).toBeNull();
+
+    releaseEvent!();
+    // After the event lands the reveal completes: Live & Capture selected and
+    // the actual anchor scrolled to, exactly once.
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Live & Capture' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    const anchor = await waitFor(() => {
+      const el = document.getElementById('public-audio');
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    await waitFor(() => expect(scroll.mock.contexts).toContain(anchor));
+    expect(scroll.mock.contexts.filter((ctx) => ctx === anchor)).toHaveLength(1);
+    scroll.mockRestore();
+  });
+
+  it('transcript Play audio reveals the Live & Capture tab with the SAME player instance and seeks it', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Transcript' }));
+    const transcript = await screen.findByLabelText('Transcript');
+    const playButtons = await within(transcript).findAllByRole('button', { name: 'Play audio' });
+    const playerBefore = document.querySelector('#public-audio audio');
+    expect(playerBefore).toBeTruthy();
+
+    fireEvent.click(playButtons[1]!); // seg-2 @ 41000ms
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Live & Capture' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    // Same DOM node — no remount — and the seek posted to the playback endpoint.
+    expect(document.querySelector('#public-audio audio')).toBe(playerBefore);
+    await waitFor(() =>
+      expect(
+        apiGet.mock.calls.filter(([u]) => u.includes('/intel-api/public-hearings/')).length,
+      ).toBeGreaterThan(0),
+    );
+    // A second seek from the review panel path (same shared callback) keeps the instance.
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    const playButtonsAgain = await within(transcript).findAllByRole('button', { name: 'Play audio' });
+    fireEvent.click(playButtonsAgain[0]!); // seg-1 @ 0ms
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Live & Capture' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    expect(document.querySelector('#public-audio audio')).toBe(playerBefore);
+  });
+
+  it('player DOM identity and position survive Capture → Transcript → Capture', async () => {
+    // The player posts to the playback endpoint when loading a position.
+    apiPost.mockImplementation(async (_url: string, body: unknown) => ({
+      data: {
+        partId: 'part-0',
+        startMs: 0,
+        endMs: 120000,
+        url: 'https://private.example/part-0',
+        expiresAt: '2099-01-01',
+      },
+    }));
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=live-capture');
+    const audio = (await waitFor(() => {
+      const el = document.querySelector('#public-audio audio');
+      expect(el).toBeTruthy();
+      return el as HTMLAudioElement;
+    })) as HTMLAudioElement;
+    // Drive a real load so the player has a part, then simulate playback progress.
+    fireEvent.click(await screen.findByRole('button', { name: 'Play from position' }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalled());
+    fireEvent.timeUpdate(audio, { target: { currentTime: 12.5 } });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Transcript' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    // Still the SAME node, now behind the hidden panel.
+    expect(document.querySelector('#public-audio audio')).toBe(audio);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Live & Capture' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Live & Capture' }).getAttribute('aria-selected')).toBe('true'),
+    );
+    expect(document.querySelector('#public-audio audio')).toBe(audio);
+    // The position slider kept its value (12500ms) across the round trip.
+    const slider = screen.getByRole('slider', { name: 'Seek saved server audio' }) as HTMLInputElement;
+    expect(slider.value).toBe('12500');
+  });
+
+  it('transcript search filter survives a tab switch and back (panels stay mounted)', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Transcript' }));
+    await screen.findByText('The committee will come to order.');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search transcript' }), { target: { value: 'come to order' } });
+    expect(document.getElementById('lw-seg-seg-2')).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Intelligence' }));
+    await screen.findByLabelText('Intelligence');
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    // The filter text is still there after the round trip — not reset.
+    expect(screen.getByRole('textbox', { name: 'Search transcript' })).toHaveValue('come to order');
+  });
+
+  it('inactive panels are actually display:none even with the author flex/grid panel CSS', async () => {
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    const panel = (id: string) => document.getElementById(`lw-detail-panel-${id}`)!;
+    // Overview active: every other panel computes to display:none…
+    expect(window.getComputedStyle(panel('overview')).display).not.toBe('none');
+    for (const id of ['live-capture', 'transcript', 'intelligence', 'client-relevance', 'sources-documents']) {
+      expect(window.getComputedStyle(panel(id)).display).toBe('none');
+    }
+    // …and the hidden panel carries the hidden attribute as well.
+    expect(panel('transcript').hasAttribute('hidden')).toBe(true);
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    await waitFor(() => expect(window.getComputedStyle(panel('transcript')).display).not.toBe('none'));
+    expect(window.getComputedStyle(panel('overview')).display).toBe('none');
+  });
+
+  it('tab and client-lens changes preserve the incoming Back location state (return URL + scroll)', async () => {
+    const returnTo = '/legiwatch/hearings?calendarDate=2026-02-24&calendarQ=Shipbuilding';
+    const { location } = renderRoutes(MemoryRouter, '', [
+      { pathname: '/legiwatch/hearings/cm-119-9001', state: { legiwatchReturnTo: returnTo, legiwatchScrollY: 432 } },
+    ]);
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+
+    // Switch tabs — the search param write must carry the location state along.
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    await waitFor(() => expect(new URLSearchParams(location.current.search).get('detailTab')).toBe('transcript'));
+    expect((location.current.state as { legiwatchReturnTo?: string })?.legiwatchReturnTo).toBe(returnTo);
+    expect((location.current.state as { legiwatchScrollY?: number })?.legiwatchScrollY).toBe(432);
+
+    // Change the client lens — same contract.
+    fireEvent.change(screen.getByLabelText('Client lens'), { target: { value: 'c1' } });
+    await waitFor(() => expect(new URLSearchParams(location.current.search).get('client')).toBe('c1'));
+    expect((location.current.state as { legiwatchReturnTo?: string })?.legiwatchReturnTo).toBe(returnTo);
+
+    // Back navigates to the ORIGINAL calendar-filter URL, and the navigate
+    // carries the scroll offset in location state. HearingsTab's
+    // calendar-param normalization write (its effect runs BEFORE the calendar
+    // query resolves) must forward that state, and once the calendar loads
+    // the scroll-restore effect fires window.scrollTo with the offset.
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    fireEvent.click(screen.getByText('← Back to LegiWatch'));
+    await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings'));
+    const backParams = new URLSearchParams(location.current.search);
+    expect(backParams.get('calendarDate')).toBe('2026-02-24');
+    expect(backParams.get('calendarQ')).toBe('Shipbuilding');
+    // The state survived HearingsTab's normalization write…
+    expect((location.current.state as { legiwatchScrollY?: number } | null)?.legiwatchScrollY).toBe(432);
+    // …and the REAL scroll restore fired once the calendar rendered.
+    await waitFor(() => expect(scrollToSpy).toHaveBeenCalledWith(0, 432));
+    scrollToSpy.mockRestore();
+  });
+});

@@ -79,8 +79,17 @@ function Player({
     };
   }, []);
 
-  async function load(positionMs: number, play: boolean, reissue = false) {
+  async function load(rawPositionMs: number, play: boolean, reissue = false) {
     opening.current = true;
+    // Integer-millisecond boundary: the backend validates
+    // Number.isSafeInteger(positionMs) and rejects fractional input (400
+    // "Valid audio position required"). HTMLMediaElement.currentTime is a
+    // fractional number of seconds, so a naive `currentTime * 1000` (e.g.
+    // 344.33599999999996 ms) would otherwise be posted verbatim. Round once at
+    // this single API entry point so every caller (seek slider, epoch buttons,
+    // Play-from-position, ended-chaining, external seek) sends a valid integer.
+    // Sub-millisecond rounding preserves accuracy and the range clamp below.
+    const positionMs = Math.round(rawPositionMs);
     const epoch = usable.find(
       (item) => positionMs >= item.startMs && positionMs < item.durableEndMs,
     );
@@ -235,7 +244,11 @@ function Player({
                   .catch(() => setStatus('Press Play to start saved audio.'));
             }}
             onTimeUpdate={(event) => {
-              if (part) setPosition(part.startMs + event.currentTarget.currentTime * 1000);
+              // Keep the position state in integer milliseconds: currentTime is
+              // fractional seconds, and this value feeds both the slider and
+              // Play-from-position, which must post an integer positionMs.
+              if (part)
+                setPosition(Math.round(part.startMs + event.currentTarget.currentTime * 1000));
             }}
             onEnded={() => {
               if (part) void load(part.endMs, true);

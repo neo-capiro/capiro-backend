@@ -232,4 +232,27 @@ describe('LegiWatchPhase9PreflightService', () => {
     expect(result.capturesCreated).toBe(1);
     expect(result.checkpointsInserted).toBe(4);
   });
+
+  it('counts demand with the same automatic + explicit-origin predicate as the capture worker', async () => {
+    const { service, query } = harness({ rows: [plannerRow({ demandCount: 0 })] });
+    await service.plan({ now });
+    const scanSql = query.mock.calls.find(([sql]) =>
+      String(sql).includes('FROM federal_committee_hearing h'),
+    )?.[0] as string;
+    // REGRESSION (hearing-demand-08): previously COUNT(DISTINCT s.id) counted
+    // every hearing_subscription — browser-only attendance and notification-only
+    // rows made the planner create server capture/preflight work for hearings
+    // with zero automatic demand. The planner must filter with the same
+    // predicate as public-capture-permission.ts / the Intel capture store:
+    // automatic attendance AND (user-scheduled OR rule-scheduled). A surviving
+    // rule still counts after cancelSchedule clears scheduled_by_user.
+    expect(scanSql).toContain(
+      "s.attendance_mode='automatic' AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)",
+    );
+    expect(scanSql).toContain('COUNT(DISTINCT s.id) FILTER');
+    // A zero-demand row must be skipped (this is the browser-only case when the
+    // predicate is applied by the real database).
+    const result = await service.plan({ now });
+    expect(result.skippedNoDemand).toBeGreaterThan(0);
+  });
 });

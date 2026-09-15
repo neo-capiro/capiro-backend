@@ -186,4 +186,72 @@ describe('Live Hearings API normalization', () => {
 
     expect(normalizeCommitteeSourceCoverage({ id: 'src-3' })).toBeNull();
   });
+
+  // ── LW-QA-025: official root-level committee codes ────────────────────────
+  // The real LiveHearingsService CalendarEvent carries `committeeSystemCode` /
+  // `subcommitteeSystemCode` at the ROOT of the flat row and sends NO nested
+  // `committee` object. The normalizer used to read codes only from the nested
+  // value, so every real event's committee ref lost its official code and the
+  // detail route could not render the existing Committee Room link.
+
+  test('preserves the root committeeSystemCode from the real flat Judiciary response', () => {
+    // Field-for-field the actual canonical GET for the retained Judiciary
+    // event 4c575634-5154-4052-8f46-000000338740 (see
+    // committee-normalization-current.json): root code, no nested committee.
+    const event = normalizeCanonicalHearingEvent({
+      id: '4c575634-5154-4052-8f46-000000338740',
+      title: 'Nominations',
+      chamber: 'senate',
+      committeeName: 'Senate Committee on Judiciary',
+      committeeSystemCode: 'ssju00',
+      subcommitteeSystemCode: null,
+    });
+    expect(event.committee.systemCode).toBe('ssju00');
+    expect(event.committee.name).toBe('Senate Committee on Judiciary');
+    // The code — not the name — is what the existing detail route turns into
+    // the Committee Room href `/legiwatch/committees/:systemCode`.
+    expect(event.subcommittee).toBeUndefined();
+  });
+
+  test('keeps nested committee/subcommittee codes ahead of the root-level fallback', () => {
+    const event = normalizeCanonicalHearingEvent({
+      id: 'h-nested',
+      title: 'Oversight hearing',
+      committeeName: 'Root Name',
+      committeeSystemCode: 'root00',
+      subcommitteeSystemCode: 'root01',
+      committee: { systemCode: 'hsju00', name: 'Judiciary' },
+      subcommittee: { systemCode: 'hsju10', name: 'Courts Subcommittee' },
+    });
+    expect(event.committee.systemCode).toBe('hsju00');
+    expect(event.subcommittee?.systemCode).toBe('hsju10');
+  });
+
+  test('retains a code-only root subcommittee with the honest unknown name, never a fabricated one', () => {
+    const event = normalizeCanonicalHearingEvent({
+      id: 'h-sub',
+      title: 'Hearing',
+      committeeName: 'Senate Committee on Judiciary',
+      committeeSystemCode: 'ssju00',
+      subcommitteeSystemCode: 'ssju22',
+    });
+    expect(event.subcommittee?.systemCode).toBe('ssju22');
+    // No child name was supplied: the ref must NOT invent one from the parent
+    // name, the title, or the code itself.
+    expect(event.subcommittee?.name).toBe('Committee not identified');
+    // The parent code must never be copied onto the child or vice versa.
+    expect(event.committee.systemCode).toBe('ssju00');
+  });
+
+  test('leaves codes undefined when neither nested nor root values exist (no name-derived guessing)', () => {
+    const event = normalizeCanonicalHearingEvent({
+      id: 'h-unknown',
+      title: 'Senate Judiciary markup',
+      committeeName: 'Senate Judiciary',
+      stateCommitteeId: 'state-123',
+    });
+    expect(event.committee.systemCode).toBeUndefined();
+    expect(event.committee.name).toBe('Senate Judiciary');
+    expect(event.subcommittee).toBeUndefined();
+  });
 });

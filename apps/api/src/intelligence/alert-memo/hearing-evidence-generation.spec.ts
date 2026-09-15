@@ -42,7 +42,7 @@ describe('Meri hearing evidence contract', () => {
   it('preserves qualified context and returns an evidence-linked unofficial draft', async () => {
     const completeWithSchema = jest.fn(async () => ({
       input: {
-        claims: [{ id: 'claim-1', kind: 'quote', evidenceIds: ['final-a'] }],
+        claims: [{ id: 'claim-1', kind: 'quote', evidenceIndexes: [0] }],
       },
       usage: { inputTokens: 1, outputTokens: 1 },
     }));
@@ -54,6 +54,9 @@ describe('Meri hearing evidence contract', () => {
       claims: [{ text: evidence[0]!.text, evidenceIds: ['final-a'] }],
       clientContext: 'none',
     });
+    // The external claim carries the exact prior keys only — the internal
+    // sourceIndex protocol never leaks into the public result.
+    expect(Object.keys(result.claims![0]!).sort()).toEqual(['evidenceIds', 'id', 'kind', 'text']);
     const request = (
       completeWithSchema.mock.calls as unknown as [[{ system: string; prompt: string }]]
     )[0][0];
@@ -62,7 +65,7 @@ describe('Meri hearing evidence contract', () => {
       legislativeSession: '2026',
       folderContext: input.folderContext,
     });
-    expect(request.system).toContain('not verified identities');
+    expect(request.system).toContain('never verified identities');
     expect(request.system).toContain('cannot support an otherwise absent hearing fact');
   });
   it.each([
@@ -70,10 +73,13 @@ describe('Meri hearing evidence contract', () => {
       id: 'claim-1',
       kind: 'observation',
       text: 'An uncited assertion',
-      evidenceIds: ['interim-or-other-session'],
+      // A selected index outside the supplied source range.
+      evidenceIndexes: [7],
     },
-    { id: 'claim-1', kind: 'quote', text: 'The bill passed.', evidenceIds: ['final-a'] },
-    { id: 'claim-1', kind: 'analysis', text: 'An unsupported recommendation', evidenceIds: [] },
+    // A quote claim must never carry authored text.
+    { id: 'claim-1', kind: 'quote', text: 'The bill passed.', evidenceIndexes: [0] },
+    // An authored claim cites at least one supplied segment.
+    { id: 'claim-1', kind: 'analysis', text: 'An unsupported recommendation', evidenceIndexes: [] },
   ])('rejects invalid evidence or an altered quote: $text', async (claim) => {
     const tool = createGeneratePostHearingSummaryTool({
       completeWithSchema: async () => ({

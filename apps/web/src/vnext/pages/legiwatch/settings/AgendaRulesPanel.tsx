@@ -67,7 +67,7 @@ export function AgendaRulesPanel() {
   return (
     <section className="lw-card" style={{ padding: 18 }} aria-label="Tagged bill agenda alerts">
       <h2 className="lw-card__title">Tagged bill agenda alerts</h2>
-      <p>
+      <p className="lw-agenda-intro">
         Review agenda rules, current folder targets, staff channels, and delivery cadence.
         Activation starts from the reviewed baseline.
       </p>
@@ -90,15 +90,18 @@ export function AgendaRulesPanel() {
       ) : null}
       {rules.isPending ? (
         <p role="status">Loading agenda rules…</p>
-      ) : (
-        <div className="lw-controls">
+      ) : rules.data && rules.data.length > 0 ? (
+        /* No card box around the chips — the parent section is already the
+           white card; a nested lw-controls renders an empty bordered strip
+           when there are no rules. Reference settings.png shows plain chips. */
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           {(rules.data ?? []).map((r) => (
             <CapiroButton key={r.id} size="compact" onClick={() => setSelected(r.id)}>
               {r.name} · {r.state}
             </CapiroButton>
           ))}
         </div>
-      )}
+      ) : null}
       {rules.isSuccess && rules.data.length === 0 ? (
         <p>No agenda rules have been created yet.</p>
       ) : null}
@@ -131,8 +134,10 @@ export function AgendaRulesPanel() {
         <p>Captured definitions can be reconciled by a tenant administrator.</p>
       ) : null}
       {capabilities.data?.canPromote ? (
-        <details>
-          <summary>Captured definitions awaiting reconciliation</summary>
+        <details className="lw-settings__disclosure">
+          <summary className="lw-settings__disclosure-summary">
+            Captured definitions awaiting reconciliation
+          </summary>
           <p>
             Creating a review draft preserves the capture and leaves delivery inactive. Current
             staff mappings and channels must be reviewed in the draft.

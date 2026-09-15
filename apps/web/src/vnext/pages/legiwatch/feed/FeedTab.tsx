@@ -22,6 +22,7 @@ import {
   useLwFeed,
   useLwFeedItems,
   useLwWorkState,
+  useLwAssignSelf,
   defaultBucketCount,
 } from '../lib/api.js';
 import {
@@ -61,7 +62,7 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
   return <ScopedFeedTab key={scope} scope={scope} clients={clients} suppressAlert={scopeChanged} />;
 }
 
-function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Client[]; suppressAlert: boolean }) {
+function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clients: Client[]; suppressAlert: boolean }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // These exact URL fields are persisted by Saved Views. Derive them on every
@@ -81,6 +82,7 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
   const workState = useLwWorkState(scope);
+  const self = useLwAssignSelf();
 
   const work = bucket === 'default' ? undefined : bucket;
   const feed = useLwFeed(scope, source, order, work);
@@ -144,12 +146,16 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
   const bulk = (state: WorkState) => {
     const ids = [...selected];
     if (!ids.length) return;
+    if (state === 'assigned' && !self.userId) {
+      showToast('Assignee could not be resolved — state not changed');
+      return;
+    }
     // The rollback lives in useLwWorkState's onMutate/onError snapshot. This
     // used to read and write the bare ['intel-feed'] prefix, which addresses no
     // cache entry (the real keys carry clientId/source/order/bucket), so the
     // "rollback" was a no-op that also wiped nothing.
     workState.mutate(
-      { alertIds: ids, state },
+      { alertIds: ids, state, ...(state === 'assigned' ? { assignedTo: self.userId } : {}) },
       {
         onSuccess: () => {
           setSelected(new Set());
@@ -235,8 +241,8 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
             <span className="lw-prow__src">
               {src} · {ageLabel(it.createdAt)}
             </span>
-            <span className="lw-prow__src">{clientAttribution(it)}</span>
           </div>
+          <span className="lw-prow__client">{clientAttribution(it)}</span>
           <div className="lw-prow__title">{it.title}</div>
           {it.whyItMatters ? (
             <div className="lw-prow__block">
@@ -256,14 +262,23 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
         <div className="lw-prow__side">
           <RowStatePill
             state={ws}
+            selfAvailable={self.userId != null}
             // LW-QA-019: a single-row failure used to be completely silent — no
             // onError, no pending state — so a 404 left the old value on screen
             // with nothing to tell the user the triage never happened.
             pending={workState.isPending && pendingIds.has(it.id)}
             onChange={(next) => {
+              if (next === 'assigned' && !self.userId) {
+                showToast('Assignee could not be resolved — state not changed');
+                return;
+              }
               setPendingIds((prev) => new Set(prev).add(it.id));
               workState.mutate(
-                { alertIds: [it.id], state: next },
+                {
+                  alertIds: [it.id],
+                  state: next,
+                  ...(next === 'assigned' ? { assignedTo: self.userId } : {}),
+                },
                 {
                   onSuccess: () => showToast(`Marked ${WORK_STATE_LABEL[next].toLowerCase()}`),
                   onError: () => showToast('Could not update — change reverted'),
@@ -284,11 +299,16 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
 
   return (
     <div className="lw-body">
-      {/* worklist header */}
+      {/* worklist header — title names the actual scope (LW-QA-022): a scoped
+          feed reads the client name, never the all-clients banner. */}
       <div className="lw-card" style={{ padding: '14px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h2 className="lw-card__title" style={{ fontSize: 16 }}>
-            {arrange === 'byClient' ? 'What changed grouped by client' : 'What changed across all clients'}
+            {arrange === 'byClient'
+              ? 'What changed grouped by client'
+              : scope
+                ? `What changed for ${clients.find((c) => c.id === scope)?.name ?? 'this client'}`
+                : 'What changed across all clients'}
           </h2>
           <span className="lw-card__meta" style={{ marginLeft: 0 }}>
             {filtered.length} {order === 'date' ? '· NEWEST' : '· PRIORITY'}
@@ -317,10 +337,10 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
       ) : null}
 
       <div className="lw-feed-cols">
-        <div className="lw-card" style={{ overflow: 'hidden' }}>
+        <div className="lw-feed-list">
           {filtered.length === 0 ? (
             search || source !== 'all' || bucket !== 'default' ? (
-              <div style={{ padding: 18 }}>
+              <div className="lw-card" style={{ padding: 18 }}>
                 <LwStateEmpty
                   onReset={() => {
                     updateView({ q: null, filter: null, work: null });
@@ -328,15 +348,15 @@ function ScopedFeedTab({ scope, suppressAlert }: { scope: string; clients: Clien
                 />
               </div>
             ) : (
-              <div style={{ padding: 18 }}>
+              <div className="lw-card" style={{ padding: 18 }}>
                 <LwStateAllClear lastScan={feed.dataUpdatedAt ? new Date(feed.dataUpdatedAt).toLocaleTimeString() : undefined} />
               </div>
             )
           ) : arrange === 'byClient' && grouped ? (
             grouped.map(([client, list]) => (
-              <div key={client}>
-                <div className="lw-history__label" style={{ padding: '12px 18px 6px' }}>{client}</div>
-                {list.map(row)}
+              <div key={client} className="lw-feed-list__group">
+                <div className="lw-history__label" style={{ padding: '0 0 6px' }}>{client}</div>
+                <div className="lw-feed-list">{list.map(row)}</div>
               </div>
             ))
           ) : (
@@ -492,11 +512,14 @@ function RowStatePill({
   state,
   onChange,
   pending,
+  selfAvailable,
 }: {
   state: WorkState;
   onChange: (next: WorkState) => void;
   /** This row's own mutation is in flight — the control is not interactive. */
   pending: boolean;
+  /** LW-QA-021: 'Assign to me' needs the actor's resolved tenant-member id. */
+  selfAvailable: boolean;
 }) {
   return (
     <span onClick={(e) => e.stopPropagation()}>
@@ -522,7 +545,9 @@ function RowStatePill({
           }}
         >
           {(Object.keys(WORK_STATE_LABEL) as WorkState[]).map((s) => (
-            <option key={s} value={s}>{WORK_STATE_LABEL[s]}</option>
+            <option key={s} value={s}>
+              {s === 'assigned' ? (selfAvailable ? 'Assign to me' : 'Assigned (unavailable)') : WORK_STATE_LABEL[s]}
+            </option>
           ))}
         </select>
       </span>

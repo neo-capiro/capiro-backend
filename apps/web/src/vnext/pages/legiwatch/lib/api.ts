@@ -27,6 +27,24 @@ import { lwKeys, type WorkState } from './types.js';
 
 const enc = encodeURIComponent;
 
+/** Assign-self (LW-QA-021). Backend requires `assignedTo` on state='assigned';
+   * the row pill and packet drawer previously sent the bare state → real API
+   * 400. The id must be a DB `users.id` for a member of this tenant (same
+   * contract as the old app's `/api/tenant-admin/team` picker). Resolved from
+   * the current actor's `/api/me` so no id is hardcoded. */
+export function useLwAssignSelf(): { userId: string | null; ready: boolean } {
+  const api = useApi();
+  const me = useQuery({
+    queryKey: ['lw-self-member'],
+    queryFn: async () => {
+      const body = (await api.get<{ user: { id: string; clerkUserId: string } }>('/api/me')).data;
+      return { userId: body?.user?.id ?? null };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  return { userId: me.data?.userId ?? null, ready: me.isSuccess };
+}
+
 /** The module's scope: '' = all clients (tenant feed), else one client. */
 export type Scope = string;
 

@@ -176,7 +176,13 @@ export class BillDossierService {
           : null,
       availability: page.total ? 'available' : 'unavailable',
       reason: page.total ? null : 'No records have been ingested for this section',
-      coverage: 'Provider metadata and original source links; document full text is not indexed',
+      // Metadata rail: the prior clause "document full text is not indexed" was a
+      // universal false claim — retained provider document text IS indexed and
+      // searchable through Research (17 documents extracted; S0032 versions
+      // compared there). This endpoint only serves metadata + original source
+      // links; point at Research for retained text without claiming absence.
+      // Source incompleteness is still surfaced per-section via `reason`.
+      coverage: 'Provider metadata and original source links; retained document text is available through Research',
     };
   }
 

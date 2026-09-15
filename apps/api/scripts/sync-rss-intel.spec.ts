@@ -8,7 +8,7 @@
  * the strip regex, and numeric/named entities in <title> passed through
  * untouched. Fixtures below are shaped like real feed items (2026-08-18).
  */
-import { decodeEntities, extractText, extractCategories } from './sync-rss-intel';
+import { decodeEntities, extractText, extractCategories, validateFeedXml } from './sync-rss-intel';
 
 describe('decodeEntities', () => {
   it('decodes named XML/HTML entities', () => {
@@ -61,5 +61,129 @@ describe('extractCategories', () => {
   it('decodes entities inside category names', () => {
     const item = `<category>Foreign Affairs &amp; Trade</category><category>Defense</category>`;
     expect(extractCategories(item)).toEqual(['Foreign Affairs & Trade', 'Defense']);
+  });
+});
+
+/**
+ * Feed-root validation: an HTTP 200 body must actually BE an RSS/Atom/RDF
+ * document before the item-splitter may claim source health. The DOJ /news
+ * HTML capture (2026-09-15, official-rss-captures/doj_page.txt) proved the
+ * old path accepted a 200 HTML press page as "success, 0 items".
+ */
+describe('validateFeedXml', () => {
+  it('accepts a populated RSS 2.0 feed', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>HHS News</title>
+<item><title>Press release</title><link>https://www.hhs.gov/about/news/2026/09/01/x.html</link></item>
+</channel></rss>`;
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts a genuinely empty RSS feed (success with 0 items stays valid)', () => {
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Empty</title></channel></rss>`;
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts a populated Atom feed (root <feed>, namespaced)', () => {
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>VA News</title>
+<entry><title>Release</title><link href="https://news.va.gov/123/"/></entry>
+</feed>`;
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts an empty Atom feed', () => {
+    expect(validateFeedXml(`<feed xmlns="http://www.w3.org/2005/Atom"><title>E</title></feed>`)).toBeNull();
+  });
+
+  it('accepts an RSS 1.0 RDF feed', () => {
+    const xml = `<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/">
+<channel rdf:about="https://example.com/"><title>RDF feed</title></channel>
+<item rdf:about="https://example.com/1"><title>One</title><link>https://example.com/1</link></item>
+</rdf:RDF>`;
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts a feed with XML prolog, comments and a BOM before the root', () => {
+    const xml = `﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- generator: agency cms -->
+<?xml-stylesheet type="text/xsl" href="feed.xsl"?>
+<rss version="2.0"><channel><title>C</title></channel></rss>`;
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts a valid RSS feed larger than the old 256KB validation prefix', () => {
+    // Defect #1 probe: a fully valid 280161-byte RSS body was rejected as
+    // "unclosed" because validation ran only on a 256KB prefix and treated
+    // the truncated prefix as the whole document. Validation now covers the
+    // complete body, so size alone must not fail a well-formed feed.
+    const item =
+      '<item><title>Press release</title><link>https://www.hhs.gov/about/news/2026/09/01/x.html</link>' +
+      `<description>${'x'.repeat(4096)}</description></item>`;
+    let body = '';
+    while (Buffer.byteLength(body) + Buffer.byteLength(item) < 270 * 1024) body += item;
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>HHS News</title>${body}</channel></rss>`;
+    expect(Buffer.byteLength(xml)).toBeGreaterThan(256 * 1024);
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts a valid Atom feed larger than the old 256KB validation prefix', () => {
+    const entry =
+      '<entry><title>Release</title><link href="https://news.va.gov/123/"/>' +
+      `<summary>${'y'.repeat(4096)}</summary></entry>`;
+    let body = '';
+    while (Buffer.byteLength(body) + Buffer.byteLength(entry) < 270 * 1024) body += entry;
+    const xml =
+      `<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>VA News</title>${body}</feed>`;
+    expect(Buffer.byteLength(xml)).toBeGreaterThan(256 * 1024);
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('accepts an RSS 1.0 RDF feed with a default (unprefixed) RDF namespace', () => {
+    const xml = `<?xml version="1.0"?>
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<channel about="https://example.com/"><title>RDF feed</title></channel>
+<item about="https://example.com/1"><title>One</title><link>https://example.com/1</link></item>
+</RDF>`;
+    expect(validateFeedXml(xml)).toBeNull();
+  });
+
+  it('rejects a >256KB document whose tail is malformed (not just a bad prefix)', () => {
+    // Whole-document validation must keep reading past the old 256KB mark: a
+    // body that is well-formed in its first 256KB but broken near the end is
+    // still invalid — truncation would have silently accepted it.
+    const filler = `<item><title>t</title><link>https://e.com/1</link><description>${'z'.repeat(4096)}</description></item>`;
+    let body = '';
+    while (Buffer.byteLength(body) + Buffer.byteLength(filler) < 270 * 1024) body += filler;
+    const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>T</title>${body}<item><title>broken</title>`;
+    expect(Buffer.byteLength(xml)).toBeGreaterThan(256 * 1024);
+    expect(validateFeedXml(xml)).not.toBeNull();
+  });
+
+  it('rejects an HTTP 200 HTML page (the DOJ /news false-health case)', () => {
+    const html = `<!DOCTYPE html><html lang="en"><head><title>News | DOJ</title></head>
+<body><h1>Press releases</h1><script>var feed='<rss>not a feed</rss>';</script></body></html>`;
+    const err = validateFeedXml(html);
+    expect(err).not.toBeNull();
+    expect(err).toMatch(/not an RSS\/Atom\/RDF feed/);
+  });
+
+  it('does not false-accept HTML that merely contains the substring "<rss"', () => {
+    const html = `<html><body><p>Subscribe via &lt;rss&gt; or our newsletter.</p></body></html>`;
+    expect(validateFeedXml(html)).not.toBeNull();
+  });
+
+  it('rejects a JSON body', () => {
+    expect(validateFeedXml('{"items":[]}')).not.toBeNull();
+  });
+
+  it('rejects a truncated/invalid XML document', () => {
+    expect(validateFeedXml('<?xml version="1.0"?><rss version="2.0"><channel><title>oops')).not.toBeNull();
+  });
+
+  it('rejects a valid XML document whose root is not a feed', () => {
+    expect(validateFeedXml('<?xml version="1.0"?><html><body>hi</body></html>')).not.toBeNull();
   });
 });

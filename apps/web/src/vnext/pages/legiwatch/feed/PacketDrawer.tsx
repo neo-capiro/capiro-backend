@@ -12,7 +12,7 @@
  * browser back restores the underlying worklist state.
  */
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { useLwAlert, useLwPacket, useLwWorkState } from '../lib/api.js';
+import { useLwAlert, useLwPacket, useLwWorkState, useLwAssignSelf } from '../lib/api.js';
 import {
   WORK_STATE_LABEL,
   WORK_STATE_TONE,
@@ -46,6 +46,7 @@ function PacketDrawerContent({
   const alert = useLwAlert(scope, alertId);
   const packet = useLwPacket(scope, alertId);
   const workState = useLwWorkState(scope);
+  const self = useLwAssignSelf();
   /** Result of the last Change-menu action — the drawer's only feedback path. */
   const [notice, setNotice] = useState<string | null>(null);
   const [memoOpen, setMemoOpen] = useState(false);
@@ -122,8 +123,18 @@ function PacketDrawerContent({
                     onChange={(e) => {
                       const next = e.target.value as WorkState;
                       setNotice(null);
+                      // LW-QA-021: 'assigned' without the actor's id 400s at
+                      // the real API. Block honestly instead.
+                      if (next === 'assigned' && !self.userId) {
+                        setNotice('Assignee could not be resolved — state not changed');
+                        return;
+                      }
                       workState.mutate(
-                        { alertIds: [it.id], state: next },
+                        {
+                          alertIds: [it.id],
+                          state: next,
+                          ...(next === 'assigned' ? { assignedTo: self.userId } : {}),
+                        },
                         {
                           onSuccess: () =>
                             setNotice(`Marked ${WORK_STATE_LABEL[next].toLowerCase()}`),
@@ -141,7 +152,9 @@ function PacketDrawerContent({
                     }}
                   >
                     {(Object.keys(WORK_STATE_LABEL) as WorkState[]).map((s) => (
-                      <option key={s} value={s}>{WORK_STATE_LABEL[s]}</option>
+                      <option key={s} value={s}>
+                        {s === 'assigned' ? (self.userId ? 'Assign to me' : 'Assigned (unavailable)') : WORK_STATE_LABEL[s]}
+                      </option>
                     ))}
                   </select>
                 </div>

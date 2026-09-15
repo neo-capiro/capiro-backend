@@ -7,10 +7,17 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { NewsEvidenceService, newsHash } from '../src/intelligence/news/news-evidence.service.js';
 import { createHash } from 'node:crypto';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { checkPhase8Sources } from './check-legiwatch-phase8-sources.js';
 dotenvConfig();
 
 const DELAY_MS = 300;
+// Honest, identifying RSS client header. Probe 2026-09-15 18:06 UTC: this
+// exact bare token returned 200/10 items from both HHS and USDA in the same
+// minute the longer "Capiro-RSS/1.0 (neo@capiro.ai)" form was 403-blocked —
+// the parenthesized contact tail is what their WAF pattern-rejects, so the
+// identifier stays bare. No browser impersonation, no IP rotation, no auth.
+const RSS_USER_AGENT = 'Capiro-RSS/1.0';
 
 const FEEDS = [
   // Qualified current Florida publisher feeds; each keeps its actual feed limit.
@@ -37,9 +44,12 @@ const FEEDS = [
     source: 'dod',
     url: 'https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?max=20&ContentType=1',
   },
-  { source: 'hhs', url: 'https://www.hhs.gov/rss/news-releases.xml' },
+  { source: 'hhs', url: 'https://www.hhs.gov/rss/news.xml' },
   { source: 'usda', url: 'https://www.usda.gov/rss/latest-releases.xml' },
-  { source: 'doj', url: 'https://www.justice.gov/feeds/opa/justice-news.xml' },
+  {
+    source: 'doj',
+    url: 'https://www.justice.gov/feeds/justice-news.xml?type=All&component%5B436%5D=436&organization=All',
+  },
   { source: 'state_dept', url: 'https://www.state.gov/rss-feed/press-releases/feed/' },
   { source: 'commerce', url: 'https://www.commerce.gov/feeds/news' },
   { source: 'va', url: 'https://news.va.gov/feed/' },
@@ -115,6 +125,36 @@ function safeDate(v: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Structural gate: the response body must actually BE an RSS/Atom/RDF feed,
+ * not just an HTTP 200 — a 200 HTML challenge/soft-404 page was previously
+ * accepted as "success, 0 items", reporting false source health. The body is
+ * validated as one complete XML document: the previous 256KB prefix-trim
+ * rejected any valid feed larger than 256KB as "unclosed" (a real 280161-byte
+ * RSS body failed exactly that way), so validation now runs on the full body
+ * with no size cap. Requires the document root to be a recognized feed root
+ * (<rss>, <feed>, or RDF in either spelling — prefixed <rdf:RDF> or
+ * default-namespace <RDF>); Content-Type is deliberately not checked (valid
+ * feeds are served text/plain). The feed bodies handled here are far smaller
+ * than memory, so whole-document validation costs nothing extra in practice.
+ */
+const FEED_ROOT_TAGS = new Set(['rss', 'feed', 'rdf:RDF', 'RDF']);
+
+export function validateFeedXml(xml: string): string | null {
+  const valid = XMLValidator.validate(xml);
+  if (valid !== true) return valid.err.msg;
+  const parsed = new XMLParser({
+    ignoreAttributes: false,
+    processEntities: false,
+    ignoreDeclaration: true,
+  }).parse(xml);
+  const root = Object.keys(parsed).find((k) => !k.startsWith('?') && !k.startsWith('!'));
+  if (!root || !FEED_ROOT_TAGS.has(root)) {
+    return `unrecognized document root <${root ?? 'none'}> — not an RSS/Atom/RDF feed`;
+  }
+  return null;
+}
+
 async function main() {
   const prisma = new PrismaClient();
   const t0 = Date.now();
@@ -128,11 +168,18 @@ async function main() {
     await new Promise((r) => setTimeout(r, DELAY_MS));
     try {
       const resp = await fetch(feed.url, {
-        headers: { 'User-Agent': 'Capiro/1.0 (neo@capiro.ai)' },
+        headers: { 'User-Agent': RSS_USER_AGENT },
         signal: AbortSignal.timeout(20000),
       });
       if (!resp.ok) throw new Error(`rss_http_${resp.status}`);
       const xml = await resp.text();
+
+      // HTTP 200 is not feed health — the body must parse as an actual
+      // RSS/Atom/RDF document. A 200 HTML challenge/soft-404 page fails
+      // here into the existing failed-source path instead of being
+      // recorded as success-with-0-items.
+      const feedError = validateFeedXml(xml);
+      if (feedError) throw new Error(`rss_invalid_feed: ${feedError}`);
 
       // Parse RSS items (works for both RSS 2.0 and Atom with fallback)
       const items = xml.split(/<item[ >]/).slice(1);

@@ -266,7 +266,16 @@ export class OrchestratorClient {
     }
     const aiProvider = await this.aiCredentials.resolve(params.tenantId);
     const controller = new AbortController();
-    const budgetMs = this.timeoutMs * 3;
+    // summarizeHearing's outer deadline must cover the provider's own structured-
+    // generation window: timeoutMs*3 (24s at the 8s default) aborted valid
+    // generations with only ~1.7s of margin. The EVIDENCE branch additionally
+    // runs a bounded manual-thinking step on a 60s inner budget, so only that
+    // branch widens to 65s; the legacy (non-evidence) recap keeps the 35s floor
+    // and extraction keeps the single-timeout behavior. Upstream budgets already
+    // contain this: the UI Generate action allows 175s and the ALB idle timeout
+    // is 300s, so the 60s inner / 65s outer pair introduces no upstream collision
+    // and this remains the only orchestrator-side deadline on the request chain.
+    const budgetMs = params.evidence ? 65000 : Math.max(this.timeoutMs * 3, 35000);
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       const res = await fetch(

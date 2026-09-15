@@ -76,6 +76,21 @@ describe('canonical server private playback', () => {
       { positionMs: 5000 },
     );
   });
+  it('posts an integer positionMs after a fractional currentTime time update', async () => {
+    const { container } = mount();
+    fireEvent.click(await screen.findByRole('button', { name: '0:00:00–0:00:10' }));
+    const audio = container.querySelector('audio')!;
+    await waitFor(() => expect(audio.src).toContain('part-0'));
+    // A real HTMLMediaElement reports currentTime in fractional seconds
+    // (e.g. 344.336s). A naive `* 1000` produces 344.33599999999996 ms, which
+    // the backend rejects (400 "Valid audio position required").
+    fireEvent.timeUpdate(audio, { target: { currentTime: 0.344336 } });
+    fireEvent.click(screen.getByRole('button', { name: 'Play from position' }));
+    await waitFor(() => expect(mocks.post).toHaveBeenCalledTimes(2));
+    const body = mocks.post.mock.calls.at(-1)?.[1] as { positionMs: number };
+    expect(Number.isSafeInteger(body.positionMs)).toBe(true);
+    expect(body.positionMs).toBe(344);
+  });
   it('stops at a coverage gap and does not request or play another interval automatically', async () => {
     const { container } = mount();
     await screen.findByLabelText('Seek saved server audio');

@@ -35,7 +35,110 @@ export interface LlmClient {
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
     timeoutMs?: number;
+    /**
+     * Optional per-call reasoning request (default ABSENT — every existing
+     * caller keeps today's wire shape byte-for-byte). When an implementation
+     * supports it (Anthropic on a thinking-capable model), the completion runs
+     * with a bounded manual-thinking step before the final tool call; otherwise
+     * the option is ignored and the request is unchanged. Never persisted or
+     * returned — only metrics/usage reflect it.
+     */
+    reasoning?: { effort: 'low' | 'medium' | 'high' };
+    /**
+     * Optional strict-schema opt-in — ABSENT by default so every existing
+     * caller keeps today's wire byte-for-byte. When true and the resolved model
+     * is EXACTLY the qualified Sonnet 4.5 alias or pinned revision (the same
+     * anchored allowlist as manual thinking), the tool is emitted with
+     * `strict: true` and a projected input schema that drops the keywords
+     * Anthropic's strict tool-use subset rejects (minLength/maxLength/maxItems)
+     * while preserving every type, required order, additionalProperties, anyOf
+     * branch, enum value and minItems constraint. The original schema object is
+     * never mutated. Unsupported models/providers keep the previous request
+     * unchanged; local Zod/reference validation stays authoritative either way.
+     */
+    strict?: boolean;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }>;
+}
+
+/** Manual-thinking budget per requested effort (Anthropic minimum is 1024). */
+const REASONING_BUDGET_TOKENS = { low: 1024, medium: 2048, high: 4096 } as const;
+
+/**
+ * Narrow capability match for manual extended thinking: EXACTLY the qualified
+ * Sonnet 4.5 alias and its current pinned revision. Anchored exact-match only —
+ * a lookalike/prefix/suffix model string (e.g. claude-sonnet-4-5-x, or a future
+ * sonnet-4-5-something) does NOT opt in; it keeps the prior forced-tool request
+ * unchanged. The caller's selected model is never switched.
+ */
+const ANTHROPIC_MANUAL_THINKING_MODELS = new Set([
+  'claude-sonnet-4-5',
+  'claude-sonnet-4-5-20250929',
+]);
+export function modelSupportsManualThinking(model: string): boolean {
+  return ANTHROPIC_MANUAL_THINKING_MODELS.has(model);
+}
+
+/**
+ * Strict tool-use schema projection. Anthropic's strict tool-use subset
+ * accepts string enums, anyOf, required properties, closed objects and
+ * minItems, but rejects minLength, maxLength and maxItems. Recursively strip
+ * exactly those three keywords from a schema for the strict wire, preserving
+ * every other keyword (type, properties order, required order, enum values,
+ * additionalProperties, anyOf branches, minItems, descriptions). Returns a
+ * deep projection — the caller's original schema object is never mutated.
+ */
+export function strictToolInputSchema<T>(schema: T): T {
+  if (Array.isArray(schema)) {
+    return schema.map((item) => strictToolInputSchema(item)) as unknown as T;
+  }
+  if (!schema || typeof schema !== 'object') return schema;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
+    if (key === 'minLength' || key === 'maxLength' || key === 'maxItems') continue;
+    out[key] = strictToolInputSchema(value);
+  }
+  return out as T;
+}
+
+/**
+ * Whether a strict-schema completion applies on this model: the same anchored
+ * exact-match allowlist as manual thinking (qualified Sonnet 4.5 alias and its
+ * pinned revision only). Lookalikes never opt in.
+ */
+export function modelSupportsStrictToolUse(model: string): boolean {
+  return ANTHROPIC_MANUAL_THINKING_MODELS.has(model);
+}
+
+/**
+ * Resolve the wire shape for a schema completion: the default forced-tool
+ * request, or — only when reasoning was requested, the model is exactly
+ * thinking-capable, and the output ceiling leaves real room above the thinking
+ * budget — a bounded manual-thinking step with auto tool choice. Any invalid
+ * or insufficient configuration (non-finite/fractional budget or ceiling,
+ * budget >= max_tokens) silently keeps the prior forced-tool behavior: never a
+ * model replacement and never a new request.
+ */
+export function schemaCompletionWire(params: {
+  model: string;
+  toolName: string;
+  maxTokens: number | undefined;
+  reasoning: { effort: 'low' | 'medium' | 'high' } | undefined;
+}): Record<string, unknown> {
+  const maxTokens = params.maxTokens ?? 1024;
+  const effort = params.reasoning?.effort;
+  const budget = effort ? REASONING_BUDGET_TOKENS[effort] : undefined;
+  if (
+    budget !== undefined &&
+    modelSupportsManualThinking(params.model) &&
+    Number.isInteger(maxTokens) &&
+    maxTokens > budget
+  ) {
+    return {
+      thinking: { type: 'enabled', budget_tokens: budget },
+      tool_choice: { type: 'auto' },
+    };
+  }
+  return { tool_choice: { type: 'tool', name: params.toolName } };
 }
 
 export interface AnthropicLlmOptions {
@@ -99,6 +202,8 @@ export class AnthropicLlmClient implements LlmClient {
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
     timeoutMs?: number;
+    reasoning?: { effort: 'low' | 'medium' | 'high' };
+    strict?: boolean;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
     const controller = new AbortController();
     const budget =
@@ -106,6 +211,26 @@ export class AnthropicLlmClient implements LlmClient {
         ? this.timeoutMs
         : Math.min(120000, Math.max(1000, params.timeoutMs));
     const timer = setTimeout(() => controller.abort(), budget);
+    // Optional bounded manual thinking (Anthropic extended-thinking manual
+    // mode): only when the caller opts in, the resolved model is exactly
+    // thinking-capable, and the token ceiling leaves room above the budget
+    // (schemaCompletionWire). Manual thinking is incompatible with a forced
+    // tool_choice (the forced choice prefills the tool response), so the tool
+    // choice relaxes to auto — the single provided tool is still the only
+    // structured exit, and a missing final tool keeps the existing error path.
+    // Every other case keeps the prior forced-tool request byte-for-byte.
+    const thinking = schemaCompletionWire({
+      model: this.model,
+      toolName: params.toolName,
+      maxTokens: params.maxTokens,
+      reasoning: params.reasoning,
+    });
+    // Strict tool-use is opt-in and anchored to the same exact Sonnet 4.5
+    // allowlist. On the qualified model the wire gets strict:true plus a
+    // projected input_schema with the unsupported length/max keywords removed;
+    // the caller's schema object is never mutated. Any other model (or a
+    // missing opt-in) keeps the previous tool definition byte-for-byte.
+    const applyStrict = params.strict === true && modelSupportsStrictToolUse(this.model);
     try {
       const res = await this.fetchImpl('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -122,10 +247,13 @@ export class AnthropicLlmClient implements LlmClient {
             {
               name: params.toolName,
               description: params.toolDescription,
-              input_schema: params.inputSchema,
+              input_schema: applyStrict
+                ? strictToolInputSchema(params.inputSchema)
+                : params.inputSchema,
+              ...(applyStrict ? { strict: true } : {}),
             },
           ],
-          tool_choice: { type: 'tool', name: params.toolName },
+          ...thinking,
           messages: [{ role: 'user', content: params.prompt }],
         }),
         signal: controller.signal,
@@ -232,7 +360,14 @@ export class OpenAiLlmClient implements LlmClient {
     inputSchema: Record<string, unknown>;
     maxTokens?: number;
     timeoutMs?: number;
+    reasoning?: { effort: 'low' | 'medium' | 'high' };
+    strict?: boolean;
   }): Promise<{ input: unknown; usage: { inputTokens: number; outputTokens: number } }> {
+    // The reasoning and strict options are not enabled or qualified for this
+    // OpenAI implementation: they are deliberately NOT sent — the request keeps
+    // the existing forced-function shape and the tenant's selected model.
+    void params.reasoning;
+    void params.strict;
     const controller = new AbortController();
     const budget =
       params.timeoutMs === undefined

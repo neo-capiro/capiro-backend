@@ -16,6 +16,19 @@ import {
   MinLength,
 } from 'class-validator';
 
+export class FolderActivityQueryDto {
+  @IsString() @Matches(/^[A-Z]{2}$/) jurisdiction!: string;
+  @IsString() @Matches(/^\d{3,4}(x\d+)?$/) sessionKey!: string;
+  @IsOptional() @IsUUID() folderId?: string;
+  @IsOptional() @IsUUID() clientId?: string;
+  @IsIn(['action', 'text', 'amendment']) kind!: 'action' | 'text' | 'amendment';
+  @IsOptional() @IsIn(['true']) onlyTracked?: string;
+  @IsOptional() @IsIn(['upper', 'lower']) chamber?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
+  @IsOptional() @IsString() @MaxLength(600) cursor?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(50) limit?: number;
+}
 export const IMPORTANCE = ['normal', 'low', 'medium', 'high'] as const;
 export const POSITION = ['none', 'support', 'oppose', 'monitor', 'neutral'] as const;
 export class FolderFieldsDto {
@@ -48,6 +61,20 @@ export class FolderBoardQueryDto {
   @IsOptional() @IsIn(['asc', 'desc']) direction?: string;
   @IsOptional() @IsString() @MaxLength(300) cursor?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+  /** Additive parity: provider bill-type code (e.g. 'bill'|'resolution'). */
+  @IsOptional() @IsString() @MaxLength(40) classification?: string;
+  /** Provider category/subject tag (ILIKE ANY). */
+  @IsOptional() @IsString() @MaxLength(100) subject?: string;
+  /** Current committee referral exact label. */
+  @IsOptional() @IsString() @MaxLength(160) committee?: string;
+  /** Explicit summary-text predicate (state_bill.description ILIKE). */
+  @IsOptional() @IsString() @MaxLength(200) summary?: string;
+  /** Explicit latest-action-text predicate. */
+  @IsOptional() @IsString() @MaxLength(200) actionText?: string;
+  /** Display flag: project summary/committee/classification into rows. */
+  @IsOptional()
+  @IsIn(['true'])
+  summaryIncluded?: string;
 }
 export class FolderContextDto {
   @IsInt() @Min(0) expectedVersion!: number;

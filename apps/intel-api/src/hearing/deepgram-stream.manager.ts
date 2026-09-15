@@ -1,6 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { createClient, type ListenLiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import type { FinalSegment, InterimSegment } from './hearing.types.js';
+import {
+  finalizeDeepgramAlternative,
+  interimSpeakerLabel,
+  type DeepgramAlternative,
+} from './deepgram-word-segments.js';
 
 // Deepgram closes an otherwise healthy stream after ten seconds without audio
 // or KeepAlive. Recesses and browser scheduling gaps must not end a hearing.
@@ -205,19 +210,21 @@ export class DeepgramStreamManager {
       if (!alt || !alt.transcript) return;
       const startMs = Math.round((data.start ?? 0) * 1000);
       const endMs = Math.round(((data.start ?? 0) + (data.duration ?? 0)) * 1000);
-      const speakerLabel =
-        alt.words?.[0]?.speaker != null ? String(alt.words[0].speaker) : undefined;
 
       if (data.is_final) {
-        this.callbacks.onFinal({
+        // Split mixed-speaker frames into contiguous word-derived runs; the
+        // gateway applies the persisted timeline offset, so no base is added
+        // here. Lossless-only: an unsplittable frame stays whole + unknown.
+        for (const segment of finalizeDeepgramAlternative(alt, { startMs, endMs })) {
+          this.callbacks.onFinal(segment);
+        }
+      } else {
+        this.callbacks.onInterim({
           startMs,
           endMs,
           text: alt.transcript,
-          speakerLabel,
-          confidence: alt.confidence,
+          speakerLabel: interimSpeakerLabel(alt),
         });
-      } else {
-        this.callbacks.onInterim({ startMs, endMs, text: alt.transcript, speakerLabel });
       }
     });
 
@@ -269,10 +276,6 @@ interface DeepgramTranscript {
   start?: number;
   duration?: number;
   channel?: {
-    alternatives?: Array<{
-      transcript: string;
-      confidence?: number;
-      words?: Array<{ speaker?: number }>;
-    }>;
+    alternatives?: DeepgramAlternative[];
   };
 }

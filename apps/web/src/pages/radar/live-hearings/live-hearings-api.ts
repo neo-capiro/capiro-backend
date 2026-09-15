@@ -121,11 +121,17 @@ function isoValue(...values: unknown[]): string | undefined {
   return Number.isFinite(date.getTime()) ? date.toISOString() : value;
 }
 
-function normalizeCommittee(value: unknown, fallbackName?: unknown): HearingCommitteeRef {
+function normalizeCommittee(
+  value: unknown,
+  fallbackName?: unknown,
+  fallbackCode?: unknown,
+): HearingCommitteeRef {
   const row = record(value);
   return {
     id: stringValue(row.id, row.committeeId),
-    systemCode: stringValue(row.systemCode, row.committeeSystemCode, row.code),
+    // Nested aliases keep precedence; the explicit root-level official code is
+    // only the fallback when no nested object supplied one (LW-QA-025).
+    systemCode: stringValue(row.systemCode, row.committeeSystemCode, row.code, fallbackCode),
     name: stringValue(row.name, row.committeeName, fallbackName) ?? 'Committee not identified',
     chamber: stringValue(row.chamber),
     parentId: stringValue(row.parentId, row.parentCommitteeId),
@@ -232,11 +238,21 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
   const row = record(value);
   const capture = record(row.capture);
   const subscription = record(row.subscription);
-  const committee = normalizeCommittee(row.committee, row.committeeName ?? row.committee);
+  const committee = normalizeCommittee(
+    row.committee,
+    row.committeeName ?? row.committee,
+    row.committeeSystemCode,
+  );
   const subcommitteeRaw = row.subcommittee;
+  // LW-QA-025: a root-level official `subcommitteeSystemCode` is sufficient to
+  // retain the child reference even when no child name or nested object was
+  // supplied. The code is passed through verbatim — never derived from names,
+  // titles, chamber or `stateCommitteeId` — and the name stays the honest
+  // 'Committee not identified' fallback rather than a fabricated label.
+  const subcommitteeCode = stringValue(row.subcommitteeSystemCode);
   const subcommittee =
-    subcommitteeRaw || row.subcommitteeName
-      ? normalizeCommittee(subcommitteeRaw, row.subcommitteeName)
+    subcommitteeRaw || row.subcommitteeName || subcommitteeCode
+      ? normalizeCommittee(subcommitteeRaw, row.subcommitteeName, subcommitteeCode)
       : undefined;
   return {
     id:

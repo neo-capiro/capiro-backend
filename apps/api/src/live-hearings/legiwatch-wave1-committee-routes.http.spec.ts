@@ -5,6 +5,7 @@ import request from 'supertest';
 import type { TenantContext } from '@capiro/shared';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { configureApiHttpApp } from '../bootstrap/configure-api-http-app.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 
@@ -52,6 +53,14 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
           },
         },
         { provide: ConfigService, useValue: { get: () => undefined } },
+        {
+          provide: PrismaService,
+          useValue: {
+            committeeHearing: {
+              findUnique: async () => null,
+            },
+          },
+        },
       ],
     })
       .overrideGuard(RolesGuard)
@@ -80,7 +89,8 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
   });
 
   afterAll(async () => {
-    await app.close();
+    // Tolerate a failed beforeAll: at runtime app may never have been assigned.
+    await app?.close();
   });
 
   beforeEach(() => {

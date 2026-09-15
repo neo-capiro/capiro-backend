@@ -213,7 +213,7 @@ function LegiWatchPreferences() {
   }
 
   return (
-    <div className="lw-body" aria-label="LegiWatch settings">
+    <div className="lw-body lw-settings" aria-label="LegiWatch settings">
       <AgendaRulesPanel />
       {reportFlag.enabled && (
         <section className="lw-card" style={{ padding: 18 }}>
@@ -235,7 +235,7 @@ function LegiWatchPreferences() {
         </section>
       )}
       <section className="lw-card" aria-label="Display preferences" style={{ padding: 18 }}>
-        <div className="lw-card__head">
+        <div className="lw-card__head lw-settings__display-head">
           <h2 className="lw-card__title">Display</h2>
           {save.isSuccess && savedFlash ? (
             <LwPill tone="success" size="22">
@@ -249,15 +249,7 @@ function LegiWatchPreferences() {
           ) : null}
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '180px 1fr',
-            rowGap: 14,
-            fontSize: 13,
-            maxWidth: 640,
-          }}
-        >
+        <div className="lw-settings__display-grid">
           <span style={{ color: 'var(--lw-meta)' }}>Preferred timezone</span>
           <div>
             <LwSeg
@@ -266,7 +258,10 @@ function LegiWatchPreferences() {
               value={prefs.timezone}
               onChange={(v) => setPref('timezone', v)}
             />
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}>
+            <p
+              className="lw-settings__display-help"
+              style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}
+            >
               Changes how times are listed for you. Each hearing still shows its OFFICIAL time and
               zone — this preference never edits the canonical record.
             </p>
@@ -283,7 +278,10 @@ function LegiWatchPreferences() {
               value={prefs.defaultView}
               onChange={(v) => setPref('defaultView', v as 'calendar' | 'list')}
             />
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}>
+            <p
+              className="lw-settings__display-help"
+              style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}
+            >
               On narrow screens the schedule switches to agenda layout for readability; your choice
               here always applies again on a full-size display.
             </p>

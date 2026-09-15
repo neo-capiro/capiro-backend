@@ -124,9 +124,12 @@
   /* A.3 shadows — the warm-palette pass converted the 1px INSET hairline rings
      to real borders at every consumer in this file; the ring tokens below stay
      defined (outer-ring form, warm colors) for box-shadow consumers outside
-     this file (e.g. overlays/CreateWatchOverlay.tsx). */
-  --lw-shadow-card: 0 0 0 1px #EAECF0, 0px 1px 3px rgba(16, 24, 40, .1);
-  --lw-ring-hairline: 0 0 0 1px #EAECF0;
+     this file (e.g. overlays/CreateWatchOverlay.tsx).
+     v4 parity: the card hairline/elevation ring is the reference-measured
+     #E4E7EC (computed-tokens.json folderRail/newFolder), one step cooler than
+     the #EAECF0 row rule. */
+  --lw-shadow-card: 0 0 0 1px #E4E7EC, 0px 1px 3px rgba(16, 24, 40, .1);
+  --lw-ring-hairline: 0 0 0 1px #E4E7EC;
   --lw-ring-control: 0 0 0 1px #D0D5DD;
   --lw-ring-selected: inset 0 0 0 2px #101828;
   --lw-ring-active: 0 0 0 1px #101828;
@@ -358,6 +361,16 @@
   flex-wrap: wrap;
   min-width: 0;
 }
+/* v4 header composition: the title/description block is capped to the
+   reference ~430-480px measure and yields its spare width, while the actions
+   claim the remaining row width and wrap INSIDE their own right block. Before
+   this, the unconstrained title (~658px) + actions (~849px) forced every
+   action under the heading at 1440px. */
+.capiro-vnext-root .lw .lw-pagehead > div:first-child {
+  flex: 0 1 auto;
+  max-width: 480px;
+  min-width: 0;
+}
 .capiro-vnext-root .lw .lw-eyebrow {
   font-family: var(--lw-mono);
   font-size: 11px;
@@ -386,8 +399,14 @@
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+  /* Flexible right block: takes the width the title block leaves free so
+     wrapping happens inside this block, not between header blocks. On narrow
+     viewports it drops below the title naturally (flex-wrap on the head). */
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* Client lens — the one shaded control in the header set (brand-tinted
@@ -497,7 +516,8 @@
   overscroll-behavior-x: contain;
 }
 .capiro-vnext-root .lw .lw-tab {
-  height: 46px;
+  /* v4 reference primary tabs are 42px tall (was 46/47). */
+  height: 42px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -605,6 +625,121 @@
 
 /* Full-width schedule column */
 .capiro-vnext-root .lw .lw-schedule { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Archive sub-view: results column + right filter rail (reference archiveCols
+   minmax(0,1fr) 300px on desktop; single-column stack when narrow). The rail
+   holds every filter control the inline flex bar carried — same controls,
+   re-homed into the "Narrow the corpus" card. */
+.capiro-vnext-root .lw .lw-archive__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(min(272px, 100%), 272px);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-archive__results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-archive__list {
+  list-style: none;
+  margin: 0 0 2px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-archive__empty { padding: 18px; }
+.capiro-vnext-root .lw .lw-archive__pages {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-archive__rail {
+  background: var(--lw-surface);
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-card);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-archive__rail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root .lw .lw-archive__rail-head .lw-eyebrow { flex: 1; }
+.capiro-vnext-root .lw .lw-archive__rail-reset {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lw-link);
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-archive__rail-reset:hover { color: var(--lw-link-hover); text-decoration: underline; }
+.capiro-vnext-root .lw .lw-archive__rail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-archive__rail-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+/* Reference archive rail: labels are normal 13px body text, not uppercase
+   micro-labels; controls are rounded 36px fields, not raw browser squares. */
+.capiro-vnext-root .lw .lw-archive__rail-fields label .lw-eyebrow {
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--lw-body);
+}
+.capiro-vnext-root .lw .lw-archive__rail-fields select,
+.capiro-vnext-root .lw .lw-archive__rail-fields input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--lw-control);
+  background: var(--lw-surface);
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  color: var(--lw-ink);
+}
+/* Reference archive search: a 44px field inside the white results card, not a
+   bare 28px input. */
+.capiro-vnext-root .lw .lw-archive__results > .lw-search {
+  /* Native final-51 found this box rendered 26px: the base `.lw-search` is a
+     flex item with `flex: 1 1 0%`-equivalent shrinking inside the results
+     card, which collapses the declared height. Pin it out of the flex shrink
+     and floor the height so the reference 44px survives. */
+  flex: none;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-card);
+  border: 0;
+}
+@media (max-width: 1179px) {
+  .capiro-vnext-root .lw .lw-archive__cols { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .lw .lw-archive__rail { order: -1; }
+}
 
 /* Sessions sub-view still uses the two-column layout */
 .capiro-vnext-root .lw .lw-hearings-cols {
@@ -983,17 +1118,25 @@
 .capiro-vnext-root .lw .lw-rail { position: sticky; top: 96px; }
 @media (max-width: 1179px) { .capiro-vnext-root .lw .lw-rail { position: static; } }
 
-/* packet rows */
+/* packet rows — each alert is its own rounded white card with vertical gaps
+   (reference feed.png), not a divider-separated list in one clipped wrapper. */
+.capiro-vnext-root .lw .lw-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-feed-list__group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .capiro-vnext-root .lw .lw-prow {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--lw-hover);
-  border-left: 2px solid transparent;
-  cursor: pointer;
+  padding: 16px;
+  border-radius: 12px;
   background: var(--lw-surface);
+  box-shadow: var(--lw-shadow-card);
+  cursor: pointer;
 }
 .capiro-vnext-root .lw .lw-prow:hover { background: var(--lw-page); }
 .capiro-vnext-root .lw .lw-prow.is-selected { background: var(--lw-selected); }
@@ -1015,7 +1158,24 @@
 .capiro-vnext-root .lw .lw-prow__main { flex: 1 1 200px; min-width: 0; }
 .capiro-vnext-root .lw .lw-prow__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-prow__src { font-family: var(--lw-mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--lw-meta); text-transform: uppercase; }
-.capiro-vnext-root .lw .lw-prow__title { margin-top: 6px; font-size: 14px; line-height: 21px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
+/* client attribution is its own compact brand tag above the headline, not a
+   third entry in the uppercase source-meta row (reference feed.png). */
+.capiro-vnext-root .lw .lw-prow__client {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: var(--lw-brand-bg);
+  border: 1px solid var(--lw-brand-ring);
+  color: var(--lw-brand-fg);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.capiro-vnext-root .lw .lw-prow__title { margin-top: 6px; font-size: 16px; line-height: 24px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
 .capiro-vnext-root .lw .lw-prow__block { margin-top: 6px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
 .capiro-vnext-root .lw .lw-prow__prefix { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--lw-meta); text-transform: uppercase; }
 .capiro-vnext-root .lw .lw-prow__side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
@@ -1050,8 +1210,8 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 7px 9px;
-  border-radius: 7px;
+  padding: 7px 10px;
+  border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   font-size: 13px;
@@ -1061,7 +1221,8 @@
   text-align: left;
 }
 .capiro-vnext-root .lw .lw-rail__opt:hover { background: var(--lw-page); }
-.capiro-vnext-root .lw .lw-rail__opt.is-active { background: var(--lw-page); color: var(--lw-ink); font-weight: 600; border-color: var(--lw-ink); }
+/* reference feed.png rail: active row is a page-tinted pill, no outline ring */
+.capiro-vnext-root .lw .lw-rail__opt.is-active { background: var(--lw-page); color: var(--lw-ink); font-weight: 600; border-color: transparent; }
 .capiro-vnext-root .lw .lw-rail__count { font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
 
 /* packet drawer (desktop right drawer / mobile bottom sheet — same tree) */
@@ -1110,6 +1271,137 @@
   min-width: 0;
 }
 .capiro-vnext-root .lw .lw-sect__title { font-size: 15px; line-height: 22px; font-weight: 600; color: var(--lw-ink); margin: 0 0 8px; }
+/* Analytics panels read as primary sections at the reference 18px, not the
+   compact 15px label the shared selector uses inside drawers/overlays. */
+.capiro-vnext-root .lw .lw-analytics .lw-sect__title { font-size: 18px; line-height: 25px; }
+
+/* Settings runs as a single content column (reference settings.png): a 900px
+   body with 24px horizontal padding yields ~852px cards, not the full 1144px
+   stretch. The wrapper is LEFT-aligned inside the module body (margin-right
+   auto), not centered. Segmented groups fit their choices instead of
+   stretching. */
+.capiro-vnext-root .lw .lw-settings { max-width: 900px; margin-left: 0; margin-right: auto; }
+.capiro-vnext-root .lw .lw-settings .lw-seg { width: fit-content; }
+/* Reference settings body copy is 13px, not the inherited 16px module base.
+   Scope to actual explanatory/body paragraphs inside settings cards, never
+   headings or the existing 12px help text. */
+.capiro-vnext-root .lw .lw-settings .lw-card > p,
+.capiro-vnext-root .lw .lw-settings .lw-card__body > p { font-size: 13px; line-height: 20px; color: var(--lw-body); }
+/* Display-preferences grid: 180px label + 1fr control on desktop; below 780px
+   stack label above control so the segmented groups never clip. The seg itself
+   wraps its items instead of forcing a single nowrap row.
+
+   final-51 regression history: the stack override used to be UNCONDITIONAL
+   (attribute selector + !important over an inline style), so desktop 1440
+   rendered the rows stacked too. The whole presentation now lives HERE on the
+   semantic class — the JSX carries no inline grid styles at all, so the
+   mobile override inside the 779px media query wins by plain cascade order,
+   no !important anywhere. Desktop is the reference: 180px label column, 16px
+   column/row gap, controls capped at 640px. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__display-grid {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 16px;
+  font-size: 13px;
+  max-width: 640px;
+}
+.capiro-vnext-root .lw .lw-settings .lw-settings__display-grid > span { padding-top: 2px; }
+/* Reference settings.png: the Display card head is a plain 18px title — no
+   padded/bordered band — sitting at the same indent as the card body (cf.
+   "Published bill records", a bare h2 in padded flow). The SAVED/SAVING pill
+   keeps its 12px gap to the title. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__display-head {
+  padding: 0 0 14px;
+  border-bottom: 0;
+  background: transparent;
+}
+/* Settings card titles: 17px/20px, weight stays the base rule's 600. Scoped to
+   titles directly inside Settings cards only. */
+.capiro-vnext-root .lw .lw-settings .lw-card > .lw-card__title,
+.capiro-vnext-root
+  .lw
+  .lw-settings
+  .lw-card
+  > .lw-card__head
+  > .lw-card__title {
+  font-size: 17px;
+  line-height: 20px;
+}
+/* Agenda intro: bounded measure and reference margin; dedicated class so
+   status/error paragraphs stay untouched. */
+.capiro-vnext-root .lw .lw-settings .lw-agenda-intro {
+  max-width: 620px;
+  margin: 8px 0 0;
+  text-wrap: pretty;
+}
+/* Display field help: fixed 18px line-height, bounded measure, balanced wrap.
+   12px/meta color stay on the element's existing inline styles. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__display-help {
+  line-height: 18px;
+  max-width: 420px;
+  text-wrap: pretty;
+}
+/* Captured-definitions disclosure: divider, mono label, discernible open
+   marker. The base toggle-label styles derive from semantic tokens below. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f2f4f7;
+}
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure-summary {
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure-summary::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s ease;
+}
+.capiro-vnext-root
+  .lw
+  .lw-settings
+  .lw-settings__disclosure[open]
+  > .lw-settings__disclosure-summary::before {
+  transform: rotate(90deg);
+}
+/* Nested paragraphs: explicit body sizing because `.lw-card > p` does not
+   reach inside <details>. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure p {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--lw-body);
+}
+.capiro-vnext-root .lw .lw-settings .lw-seg { flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-settings .lw-seg__item { flex: 0 0 auto; }
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-settings .lw-settings__display-grid {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+  .capiro-vnext-root .lw .lw-settings .lw-seg { width: 100%; }
+  .capiro-vnext-root .lw .lw-settings .lw-seg__item { flex: 1 1 auto; min-width: 0; }
+  /* Mobile summary hit area >=44px. */
+  .capiro-vnext-root .lw .lw-settings .lw-settings__disclosure-summary {
+    min-height: 44px;
+    padding: 8px 0;
+  }
+}
 
 /* ============================================================================
    A.8 — Live hearing room
@@ -1137,20 +1429,37 @@
  * placement now lives here, where a media query can actually reset it. */
 .capiro-vnext-root .lw .lw-live {
   display: grid;
-  gap: 16px;
+  gap: 14px;
+  /* Reference rmCols: 340px | minmax(0,1.3fr) | 340px, gap 14. All three tracks
+     carry a min() floor so the room never forces a desktop min-width that would
+     overflow the available app content width (global sidebar preserved). The
+     1.3fr middle weight keeps the transcript the widest column at every width
+     in the desktop band, as drawn. */
   grid-template-columns:
-    minmax(min(200px, 100%), 0.9fr)
-    minmax(min(280px, 100%), 1.5fr)
-    minmax(min(220px, 100%), 1fr);
+    minmax(min(220px, 100%), 340px)
+    minmax(min(280px, 100%), 1.3fr)
+    minmax(min(220px, 100%), 340px);
   align-items: start;
   min-width: 0;
 }
 .capiro-vnext-root .lw .lw-live__source { grid-column: 1; grid-row: 2; }
 .capiro-vnext-root .lw .lw-live__transcript { grid-column: 2; grid-row: 2; }
 .capiro-vnext-root .lw .lw-live__intel { grid-column: 3; grid-row: 1 / span 2; }
+/* Left column stack: video (row 1) then this wrapper (row 2) holding the dark
+   capture-health card above the white Source & capture panel. */
+.capiro-vnext-root .lw .lw-live__left {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-live__left .lw-live__source { grid-column: auto; grid-row: auto; }
 
 @media (max-width: 1179px) {
   .capiro-vnext-root .lw .lw-live { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .lw .lw-live__left,
   .capiro-vnext-root .lw .lw-live__source,
   .capiro-vnext-root .lw .lw-live__transcript,
   .capiro-vnext-root .lw .lw-live__intel {
@@ -1254,6 +1563,18 @@
   flex-wrap: wrap;
   align-items: center;
 }
+.capiro-vnext-root .lw .lw-status--card {
+  padding: 14px 16px;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 9px;
+  align-items: stretch;
+}
+.capiro-vnext-root .lw .lw-status--card .lw-status__heading { margin: 0 0 1px; font: 600 10px/15px var(--lw-mono); letter-spacing: .06em; text-transform: uppercase; color: #98A2B3; }
+.capiro-vnext-root .lw .lw-status--card .lw-status__pair { flex-direction: row; align-items: center; gap: 10px; }
+.capiro-vnext-root .lw .lw-status--card .lw-status__label { flex: 0 0 84px; font-size: 10px; color: #98A2B3; }
+.capiro-vnext-root .lw .lw-status--card .lw-status__value { flex: 1; min-width: 0; font: 400 13px/20px var(--lw-sans); letter-spacing: normal; overflow-wrap: anywhere; }
+.capiro-vnext-root .lw .lw-status--card > .lw-pill { align-self: flex-start; }
 .capiro-vnext-root .lw .lw-status__pair { display: flex; flex-direction: column; gap: 3px; }
 .capiro-vnext-root .lw .lw-status__label { font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--lw-faint); text-transform: uppercase; }
 .capiro-vnext-root .lw .lw-status__value { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #fff; }
@@ -1517,16 +1838,98 @@
 .capiro-vnext-root .lw .lw-cold__p { margin: 10px 0 0; font-size: 13px; line-height: 20px; color: var(--lw-faint); max-width: 640px; text-wrap: pretty; }
 .capiro-vnext-root .lw .lw-cold__routes { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* analytics */
+/* analytics — reference (feed.png/analytics.png): white cards, mono 11px
+   uppercase eyebrow label on top, large dark value, gray denom line. The dark
+   ink treatment is reserved for the source-coverage panel below, not tiles. */
 .capiro-vnext-root .lw .lw-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 12px;
   min-width: 0;
 }
-.capiro-vnext-root .lw .lw-tile { background: var(--lw-ink); border-radius: 12px; padding: 16px; color: #fff; }
-.capiro-vnext-root .lw .lw-tile__value { font-size: 26px; line-height: 34px; letter-spacing: -.02em; font-weight: 600; font-family: var(--lw-mono); }
-.capiro-vnext-root .lw .lw-tile__label { margin-top: 4px; font-family: var(--lw-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-tile {
+  background: var(--lw-surface);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--lw-shadow-card);
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-tile__value {
+  margin-top: 8px;
+  font-size: 30px;
+  line-height: 38px;
+  letter-spacing: -.02em;
+  font-weight: 600;
+  font-family: var(--lw-sans);
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-tile__label {
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-tile__denom {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--lw-meta);
+}
+/* signal-volume histogram: chunky rounded-top bars with mono date labels */
+.capiro-vnext-root .lw .lw-volbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-volbars__col {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 64px; /* a sparse window renders bars, not a full-width slab */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.capiro-vnext-root .lw .lw-volbars__bar {
+  background: #294E68;
+  border-radius: 5px 5px 0 0;
+}
+.capiro-vnext-root .lw .lw-volbars__date {
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--lw-faint);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* issue momentum rows with a thin progress track (reference analytics.png) */
+.capiro-vnext-root .lw .lw-momentum {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-momentum__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+}
+.capiro-vnext-root .lw .lw-momentum__label { font-size: 13px; font-weight: 600; color: var(--lw-ink); min-width: 0; overflow-wrap: anywhere; }
+.capiro-vnext-root .lw .lw-momentum__value { font-family: var(--lw-mono); font-size: 12px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-momentum__track {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--lw-page);
+  box-shadow: inset 0 0 0 1px var(--lw-line);
+  overflow: hidden;
+}
+.capiro-vnext-root .lw .lw-momentum__fill { height: 100%; border-radius: 999px; background: var(--lw-ink); }
 
 /* toast */
 .capiro-vnext-root .lw .lw-toast {
@@ -1549,7 +1952,28 @@
 
 /* live room replaces module chrome — full width route */
 .capiro-vnext-root .lw .lw-liveroom { padding: 16px var(--lw-gutter) 28px; display: flex; flex-direction: column; gap: 16px; max-width: 1560px; width: 100%; margin: 0 auto; min-width: 0; }
-.capiro-vnext-root .lw .lw-liveroom__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+/* Reference atRoom bar: white sticky bar with a soft card shadow, padded. The
+   back control is the existing 36px .lw-navbtn already rendered first inside
+   the bar by the room view — this rule only supplies the bar itself (surface,
+   stick, rhythm); it does not add or remove any control. */
+.capiro-vnext-root .lw .lw-liveroom__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+  background: var(--lw-surface);
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-card);
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+/* Reference room bar back control is a 36px square; the shared .lw-navbtn is
+   32px. Size only the room bar's own back button up to the drawn 36px — the
+   shared class keeps its size everywhere else. */
+.capiro-vnext-root .lw .lw-liveroom__bar .lw-navbtn { width: 36px; height: 36px; border-radius: 8px; }
 
 /* Native live room. Placement stays in the existing responsive lw-live grid. */
 .capiro-vnext-root .lw .lw-room__link { border: 0; padding: 0; background: none; color: var(--lw-link); font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
@@ -1747,9 +2171,9 @@
 
 /* ── banner (§3.1) ── */
 .capiro-vnext-root .lw .lwcr-banner {
-  background: var(--lw-metal-100);
-  border-bottom: 1px solid var(--lw-control);
-  padding: 20px 26px 22px;
+  background: #fff;
+  border-bottom: 1px solid var(--lw-line);
+  padding: 24px 26px 28px;
 }
 .capiro-vnext-root .lw .lwcr-banner__inner { max-width: 1560px; margin: 0 auto; }
 .capiro-vnext-root .lw .lwcr-crumbs {
@@ -1763,7 +2187,7 @@
 }
 .capiro-vnext-root .lw .lwcr-crumbs__parent:hover { color: var(--lw-ink); }
 .capiro-vnext-root .lw .lwcr-banner__row {
-  display: flex; align-items: flex-start; gap: 26px; flex-wrap: wrap; margin-top: 16px;
+  display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; margin-top: 14px;
 }
 .capiro-vnext-root .lw .lwcr-seal {
   flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
@@ -1785,8 +2209,8 @@
   font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .09em; color: var(--lw-meta);
 }
 .capiro-vnext-root .lw .lwcr-title {
-  margin: 9px 0 0; max-width: 760px; font-size: 30px; line-height: 37px;
-  letter-spacing: -.022em; font-weight: 600; color: var(--lw-ink); text-wrap: pretty;
+  margin: 9px 0 0; max-width: 760px; font-size: 26px; line-height: 34px;
+  letter-spacing: -.01em; font-weight: 600; color: var(--lw-ink); text-wrap: pretty;
 }
 .capiro-vnext-root .lw .lwcr-parentline {
   display: inline-flex; align-items: center; gap: 7px; margin-top: 10px;
@@ -1846,11 +2270,11 @@
 }
 .capiro-vnext-root .lw .lwcr-tabs::-webkit-scrollbar { display: none; }
 .capiro-vnext-root .lw .lwcr-tab {
-  display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 12px;
+  display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 12px;
   border: 0; background: transparent; border-bottom: 2px solid transparent;
   font-size: 14px; font-weight: 600; color: var(--lw-body); cursor: pointer; white-space: nowrap;
 }
-.capiro-vnext-root .lw .lwcr-tab.is-active { border-bottom-color: var(--lw-link); color: var(--lw-link); }
+.capiro-vnext-root .lw .lwcr-tab.is-active { border-bottom-color: var(--lw-ink); color: var(--lw-ink); }
 .capiro-vnext-root .lw .lwcr-tab__count {
   font-family: var(--lw-mono); font-size: 11px; font-weight: 600; color: var(--lw-faint);
 }
@@ -1865,7 +2289,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 15px 20px; border-bottom: 1px solid var(--lw-line); flex-wrap: wrap;
 }
-.capiro-vnext-root .lw .lwcr-card__title { margin: 0; font-size: 17px; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lwcr-card__title { margin: 0; font-size: 18px; font-weight: 600; color: var(--lw-ink); }
 .capiro-vnext-root .lw .lwcr-card__meta {
   font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--lw-faint);
 }
@@ -1940,10 +2364,10 @@
 
 /* ── leadership (§3.5) ── */
 .capiro-vnext-root .lw .lwcr-leaders {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 12px; margin-top: 14px;
+  display: flex; flex-direction: column; gap: 8px; margin-top: 14px;
 }
 .capiro-vnext-root .lw .lwcr-leader {
-  display: flex; align-items: center; gap: 14px; padding: 15px; border-radius: 11px;
+  display: flex; align-items: center; gap: 12px; padding: 7px 15px; border-radius: 8px;
   background: #FCFCFD; box-shadow: inset 0 0 0 1px var(--lw-line);
   border: 0; border-left: 2px solid var(--lwcr-party, var(--lw-control));
   cursor: pointer; text-align: left;
@@ -1951,20 +2375,22 @@
 .capiro-vnext-root .lw .lwcr-leader:hover { background: var(--lw-selected); }
 .capiro-vnext-root .lw .lwcr-mono44 {
   flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px; border-radius: 9999px;
+  width: 28px; height: 28px; border-radius: 9999px;
   background: var(--lwcr-tint, var(--lw-selected)); box-shadow: inset 0 0 0 1px var(--lwcr-ring, var(--lw-line));
   color: var(--lwcr-party, var(--lw-meta));
-  font-family: var(--lw-mono); font-size: 14px; font-weight: 600;
+  font-family: var(--lw-mono); font-size: 11px; font-weight: 600;
 }
-.capiro-vnext-root .lw .lwcr-leader__body { flex: 1; min-width: 0; }
+.capiro-vnext-root .lw .lwcr-leader__body {
+  flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+}
 .capiro-vnext-root .lw .lwcr-leader__role {
-  display: block; font-family: var(--lw-mono); font-size: 10px; font-weight: 600;
+  flex: 0 0 auto; font-family: var(--lw-mono); font-size: 10px; font-weight: 600;
   letter-spacing: .08em; text-transform: uppercase; color: var(--lwcr-party, var(--lw-meta));
 }
 .capiro-vnext-root .lw .lwcr-leader__name {
-  display: block; margin-top: 5px; font-size: 16px; line-height: 22px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty;
+  flex: 0 1 auto; font-size: 15px; line-height: 21px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty;
 }
-.capiro-vnext-root .lw .lwcr-leader__sub { display: block; margin-top: 3px; font-size: 13px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lwcr-leader__sub { flex: 0 0 auto; font-size: 13px; color: var(--lw-meta); }
 .capiro-vnext-root .lw .lwcr-leader__absent { margin: 12px 0 0; font-size: 13px; color: var(--lw-meta); }
 
 /* roster sub-header */
@@ -2135,3 +2561,202 @@
 .capiro-vnext-root .lw .lwcr-404 { max-width: 560px; margin: 80px auto; padding: 0 26px; text-align: center; }
 .capiro-vnext-root .lw .lwcr-404__title { margin: 0; font-size: 19px; font-weight: 600; color: var(--lw-ink); }
 .capiro-vnext-root .lw .lwcr-404__body { margin: 10px 0 18px; font-size: 14px; line-height: 22px; color: var(--lw-body); }
+
+/* ============================================================================
+   Hearing detail — v4 parity (reference hearing-overview.png)
+   White title band, 42px tab strip, two-column overview, 18px section heads.
+   ========================================================================== */
+
+.capiro-vnext-root .lw .lw-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 1144px;
+  margin: 0 auto;
+  padding: 0 24px 32px;
+}
+
+.capiro-vnext-root .lw .lw-detail__head {
+  background: var(--lw-surface);
+  border-bottom: 1px solid var(--lw-line);
+  padding: 26px 0 0;
+  margin: 0 -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.capiro-vnext-root .lw .lw-detail__pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.capiro-vnext-root .lw .lw-detail__title {
+  margin: 0 0 4px;
+  font-size: 26px;
+  line-height: 34px;
+  font-weight: 600;
+  color: var(--lw-ink);
+  letter-spacing: -0.02em;
+}
+
+.capiro-vnext-root .lw .lw-detail__when {
+  font-size: 13px;
+  color: var(--lw-meta);
+  margin-bottom: 20px;
+}
+
+.capiro-vnext-root .lw .lw-detail__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 42px;
+  background: var(--lw-surface);
+  border-bottom: 1px solid var(--lw-line);
+  margin: 0 -24px 24px;
+  padding: 0 24px;
+  overflow-x: auto;
+}
+
+.capiro-vnext-root .lw .lw-detail__tab {
+  height: 42px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  font-family: var(--lw-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--lw-body);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.capiro-vnext-root .lw .lw-detail__tab:hover {
+  color: var(--lw-ink);
+}
+
+.capiro-vnext-root .lw .lw-detail__tab.is-active {
+  color: var(--lw-ink);
+  font-weight: 600;
+  border-bottom-color: var(--lw-ink);
+}
+
+.capiro-vnext-root .lw .lw-detail__overview {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+  .capiro-vnext-root .lw .lw-detail__overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+.capiro-vnext-root .lw .lw-detail__main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .lw .lw-detail__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .lw .lw-detail__tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.capiro-vnext-root .lw .lw-detail__card {
+  padding: 18px;
+}
+
+.capiro-vnext-root .lw .lw-detail__section-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--lw-ink);
+}
+
+.capiro-vnext-root .lw .lw-detail__facts {
+  margin: 14px 0 0;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  row-gap: 8px;
+  font-size: 13px;
+}
+
+.capiro-vnext-root .lw .lw-detail__facts dt {
+  color: var(--lw-meta);
+}
+
+.capiro-vnext-root .lw .lw-detail__facts dd {
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Detail-scoped panel copy + control normalization (native final-53).
+
+   The Overview side panels (Saved hearing sessions, Agenda & preparation)
+   reuse the global `.lw-card__meta` recipe — mono/11px/uppercase, designed
+   for STATUS METADATA — for long explanatory sentences. The reference
+   mockup renders that copy as normal 13px sans body text, and the folder
+   multi-select as a rounded bordered control matching the other inputs.
+
+   Scope: ONLY inside `.lw-detail`. The global `.lw-card__meta` keeps its
+   mono/uppercase form everywhere else (list rows, rail cards, status lines
+   where the compact metadata read is intentional). No global `p` reset.
+   -------------------------------------------------------------------------- */
+
+/* Explanatory copy inside detail cards: 13px, normal case, sans. The base
+   `.lw-card__meta` also carries `margin-left: auto` (a card-head recipe);
+   zero it so these standalone paragraphs stay left-aligned. */
+.capiro-vnext-root .lw .lw-detail .lw-card > p,
+.capiro-vnext-root .lw .lw-detail .lw-card__meta {
+  margin-left: 0;
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--lw-body);
+}
+
+/* The native multi-select in the preparation panel renders square and
+   unstyled; give it the rounded control recipe (border, radius, padding,
+   13px sans) to match the mockup's other form controls. */
+.capiro-vnext-root .lw .lw-detail select[multiple] {
+  width: 100%;
+  min-height: 96px;
+  padding: 8px 12px;
+  border: 1px solid var(--lw-control);
+  border-radius: 8px;
+  background: var(--lw-surface);
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--lw-ink);
+}
+
+.capiro-vnext-root .lw .lw-detail select[multiple]:focus {
+  outline: 2px solid var(--lw-ink);
+  outline-offset: 1px;
+}
+
+.capiro-vnext-root .lw .lw-detail select[multiple] option {
+  padding: 4px 6px;
+  border-radius: 4px;
+}

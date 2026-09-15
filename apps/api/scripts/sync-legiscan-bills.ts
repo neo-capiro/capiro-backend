@@ -102,8 +102,17 @@ export async function main() {
       );
       console.log(`REPORT_SOURCE_REFRESH ${JSON.stringify(refresh)}`);
     }
-    if (process.env.LEGIWATCH_PUBLISHED_RECORD_REFRESH_ENABLED === 'true')
-      await queueEventRecordRefresh(prisma, STATES);
+    // Exact doc-only admission provenance for THIS run, returned by the
+    // refresh from inside its own cursor-lock transaction. Only ids the
+    // refresh itself appended may ever be deferred after the document cap —
+    // everything already pending (masterlist-changed spines, vote retries,
+    // ambiguous legacy entries) drains normally.
+    const admittedThisRun = new Map<string, Set<number>>();
+    if (process.env.LEGIWATCH_PUBLISHED_RECORD_REFRESH_ENABLED === 'true') {
+      const refresh = await queueEventRecordRefresh(prisma, STATES);
+      for (const [cursorId, ids] of Object.entries(refresh.admittedByCursor ?? {}))
+        admittedThisRun.set(cursorId, new Set(ids));
+    }
     const cursors = await prisma.stateSyncCursor.findMany({
       where: { state: { in: STATES }, pendingBills: { isEmpty: false } },
     });
@@ -135,6 +144,31 @@ export async function main() {
           break drainLoop;
         const billId = queue.ids.shift();
         if (billId === undefined) continue;
+        // Doc-only deferral (2026-09-15 research-queue-budget fix): once the
+        // per-run document budget is spent, an id THIS run's
+        // queueEventRecordRefresh provably appended (its only pending work is
+        // due document record checks — not a masterlist spine change and not
+        // a pre-existing/legacy queue entry) is deferred WITHOUT a getBill.
+        // It counts as local progress and is scanned past (madeProgress), and
+        // the deferral is DURABLE: the id stays OUT of pendingBills while its
+        // unfinished document rows keep their EXISTING due
+        // state_bill_record_check.next_check_at (untouched — no invented
+        // delay), so a later run re-admits it through the same bounded
+        // refresh path once document budget exists. Ids already pending
+        // before this run's refresh are NEVER deferred: they drain normally
+        // even at the one-time quota cost.
+        if (documentRequests >= documentCap && admittedThisRun.get(cursorId)?.has(billId)) {
+          madeProgress = true;
+          // Atomically un-queue ONLY this proven admission: a single
+          // parameterized UPDATE ... array_remove removes exactly billId and
+          // preserves every other id (including anything appended
+          // concurrently by sync-legiscan-masterlist), with no read/write
+          // race. Its existing due document checks are left untouched (no
+          // fake attempt, no timing change) and re-admit it through the
+          // bounded refresh path on a later run once document budget exists.
+          await prisma.$executeRaw`UPDATE state_sync_cursor SET pending_bills=array_remove(pending_bills,${billId}) WHERE id=${cursorId}`;
+          continue;
+        }
         madeProgress = true;
         drained++;
         let queriesForBill = 0;
@@ -219,7 +253,8 @@ export async function main() {
                 hash: s.supplement_hash,
               })),
             ];
-            for (const stub of documents) {
+            for (let i = 0; i < documents.length; i++) {
+              const stub = documents[i]!;
               const identity = `${stub.kind}:${stub.id}`;
               const checks = await prisma.$queryRaw<
                 Array<{ providerHash: string | null; next: Date | null }>
@@ -236,7 +271,37 @@ export async function main() {
                 documentRequests >= documentCap ||
                 usedThisMonth + requestsThisRun >= MONTHLY_BUDGET
               ) {
-                retries.set(cursorId, [...(retries.get(cursorId) ?? []), billId]);
+                // Document budget spent (2026-09-15 research-queue-budget
+                // fix): do NOT requeue the bill into ordinary pendingBills
+                // for document-only work — that is exactly the loop that made
+                // capped bills burn a getBill every hour. Instead persist
+                // every remaining un-fetched document stub as an EXISTING due
+                // state_bill_record_check row and move on; the bill's spine
+                // and votes below still update normally, and the due checks
+                // resume through the bounded refresh path once document
+                // budget exists.
+                //
+                // provider_hash on this table denotes the last COMPLETED
+                // fetched document revision — it is never written here (no
+                // success is claimed for an un-fetched stub). New rows start
+                // un-attempted (attempts=0, no attempted_at/checked_at, no
+                // hash). Existing rows keep their hash/attempt/error history
+                // and retry backoff exactly as-is; the only UPDATE is for a
+                // previously available/partial row whose completed hash
+                // differs from the current stub (the document genuinely
+                // changed upstream), which is made due. Unchanged available
+                // rows and failed rows with future retry time keep their
+                // timing.
+                for (let j = i; j < documents.length; j++) {
+                  const rest = documents[j]!;
+                  const restIdentity = `${rest.kind}:${rest.id}`;
+                  await prisma.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempts,next_check_at)
+                    VALUES(${normalized.billKey},'document',${restIdentity},'pending',0,now())
+                    ON CONFLICT(bill_key,kind,source_identity) DO UPDATE
+                    SET next_check_at=now()
+                    WHERE state_bill_record_check.state IN ('available','partial')
+                      AND state_bill_record_check.provider_hash IS DISTINCT FROM ${rest.hash ?? null}`;
+                }
                 break;
               }
               await prisma.$executeRaw`INSERT INTO state_bill_record_check(bill_key,kind,source_identity,state,attempted_at,attempts)
