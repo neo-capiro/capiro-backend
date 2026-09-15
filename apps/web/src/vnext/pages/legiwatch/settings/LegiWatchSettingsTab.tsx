@@ -258,7 +258,10 @@ function LegiWatchPreferences() {
               value={prefs.timezone}
               onChange={(v) => setPref('timezone', v)}
             />
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}>
+            <p
+              className="lw-settings__display-help"
+              style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}
+            >
               Changes how times are listed for you. Each hearing still shows its OFFICIAL time and
               zone — this preference never edits the canonical record.
             </p>
@@ -275,7 +278,10 @@ function LegiWatchPreferences() {
               value={prefs.defaultView}
               onChange={(v) => setPref('defaultView', v as 'calendar' | 'list')}
             />
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}>
+            <p
+              className="lw-settings__display-help"
+              style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--lw-meta)' }}
+            >
               On narrow screens the schedule switches to agenda layout for readability; your choice
               here always applies again on a full-size display.
             </p>

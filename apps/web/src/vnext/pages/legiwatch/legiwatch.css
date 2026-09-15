@@ -1316,6 +1316,77 @@
   border-bottom: 0;
   background: transparent;
 }
+/* Settings card titles: 17px/20px, weight stays the base rule's 600. Scoped to
+   titles directly inside Settings cards only. */
+.capiro-vnext-root .lw .lw-settings .lw-card > .lw-card__title,
+.capiro-vnext-root
+  .lw
+  .lw-settings
+  .lw-card
+  > .lw-card__head
+  > .lw-card__title {
+  font-size: 17px;
+  line-height: 20px;
+}
+/* Agenda intro: bounded measure and reference margin; dedicated class so
+   status/error paragraphs stay untouched. */
+.capiro-vnext-root .lw .lw-settings .lw-agenda-intro {
+  max-width: 620px;
+  margin: 8px 0 0;
+  text-wrap: pretty;
+}
+/* Display field help: fixed 18px line-height, bounded measure, balanced wrap.
+   12px/meta color stay on the element's existing inline styles. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__display-help {
+  line-height: 18px;
+  max-width: 420px;
+  text-wrap: pretty;
+}
+/* Captured-definitions disclosure: divider, mono label, discernible open
+   marker. The base toggle-label styles derive from semantic tokens below. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f2f4f7;
+}
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure-summary {
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure-summary::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s ease;
+}
+.capiro-vnext-root
+  .lw
+  .lw-settings
+  .lw-settings__disclosure[open]
+  > .lw-settings__disclosure-summary::before {
+  transform: rotate(90deg);
+}
+/* Nested paragraphs: explicit body sizing because `.lw-card > p` does not
+   reach inside <details>. */
+.capiro-vnext-root .lw .lw-settings .lw-settings__disclosure p {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--lw-body);
+}
 .capiro-vnext-root .lw .lw-settings .lw-seg { flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-settings .lw-seg__item { flex: 0 0 auto; }
 @media (max-width: 779px) {
@@ -1325,6 +1396,11 @@
   }
   .capiro-vnext-root .lw .lw-settings .lw-seg { width: 100%; }
   .capiro-vnext-root .lw .lw-settings .lw-seg__item { flex: 1 1 auto; min-width: 0; }
+  /* Mobile summary hit area >=44px. */
+  .capiro-vnext-root .lw .lw-settings .lw-settings__disclosure-summary {
+    min-height: 44px;
+    padding: 8px 0;
+  }
 }
 
 /* ============================================================================

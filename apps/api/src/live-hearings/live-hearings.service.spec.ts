@@ -46,6 +46,7 @@ function hearing(overrides: Row = {}): Row {
     id: 'cm-119-119504',
     congress: 119,
     geographicJurisdiction: 'US',
+    canonicalHearingId: null,
     chamber: 'House',
     committeeName: 'House Committee on Energy and Commerce',
     committeeCode: 'hsif00',
@@ -538,6 +539,17 @@ describe('buildWhere', () => {
   it('maps the stream and capture state filters onto the denormalized rollups', () => {
     expect(buildWhere({ streamState: 'live_only' }).streamAvailability).toBe('live_only');
     expect(buildWhere({ captureState: 'capturing' }).coverageStatus).toBe('capturing');
+  });
+
+  it('excludes canonical-alias children from every calendar selection', () => {
+    // The production buildWhere starts from { canonicalHearingId: null } so a
+    // child hearing that was merged into a canonical parent never appears as a
+    // separate calendar row. The fake evaluator must model the real nullable
+    // column, not treat an absent key as a match.
+    const where = buildWhere({}) as Row;
+    expect(where.canonicalHearingId).toBeNull();
+    expect(matches(hearing(), where)).toBe(true);
+    expect(matches(hearing({ canonicalHearingId: 'cm-119-parent' }), where)).toBe(false);
   });
 });
 

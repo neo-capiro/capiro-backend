@@ -67,7 +67,7 @@ export function AgendaRulesPanel() {
   return (
     <section className="lw-card" style={{ padding: 18 }} aria-label="Tagged bill agenda alerts">
       <h2 className="lw-card__title">Tagged bill agenda alerts</h2>
-      <p>
+      <p className="lw-agenda-intro">
         Review agenda rules, current folder targets, staff channels, and delivery cadence.
         Activation starts from the reviewed baseline.
       </p>
@@ -134,8 +134,10 @@ export function AgendaRulesPanel() {
         <p>Captured definitions can be reconciled by a tenant administrator.</p>
       ) : null}
       {capabilities.data?.canPromote ? (
-        <details>
-          <summary>Captured definitions awaiting reconciliation</summary>
+        <details className="lw-settings__disclosure">
+          <summary className="lw-settings__disclosure-summary">
+            Captured definitions awaiting reconciliation
+          </summary>
           <p>
             Creating a review draft preserves the capture and leaves delivery inactive. Current
             staff mappings and channels must be reviewed in the draft.

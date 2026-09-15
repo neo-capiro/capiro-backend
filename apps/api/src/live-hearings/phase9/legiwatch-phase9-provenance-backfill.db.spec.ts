@@ -35,7 +35,25 @@ const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 const ADAPTER_KEY = 'congress-gov';
 const SOURCE_URL = 'https://api.congress.gov/v3/committee-meeting/119';
 
+/**
+ * The provenance backfill selects hearings whose effective start falls inside
+ * `now() - lookbackDays .. now() + 30 days` (PostgreSQL NOW). Hard-coded dates
+ * rot as the calendar advances; derive one recent date from the test's own
+ * clock so the fixture stays inside the 60-day window without ever touching
+ * the production query. Captured once so SourceEvent and seeded hearing can
+ * never straddle midnight during a run.
+ */
+const RECENT_HEARING_DATE = (() => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7));
+})();
+
+function recentHearingDate(): Date {
+  return new Date(RECENT_HEARING_DATE.getTime());
+}
+
 function event(overrides: Partial<SourceEvent> = {}): SourceEvent {
+  const recent = recentHearingDate();
   return {
     externalEventId: '338649',
     congress: 119,
@@ -45,8 +63,8 @@ function event(overrides: Partial<SourceEvent> = {}): SourceEvent {
     eventType: 'Hearing',
     eventStatus: 'scheduled',
     visibility: 'public',
-    startsAt: new Date('2026-07-15T13:00:00.000Z'),
-    calendarDate: new Date('2026-07-15'),
+    startsAt: new Date(recent.getTime() + 13 * 3_600_000),
+    calendarDate: recent,
     displayTime: '9:00 AM',
     location: 'SD-226',
     officialPageUrl: 'https://www.congress.gov/event/119th-Congress/senate-event/338649',
@@ -116,9 +134,12 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
       title: string;
     }> = {},
   ): Promise<void> {
-    const date = overrides.date ?? new Date('2026-07-15');
+    const recent = recentHearingDate();
+    const date = overrides.date ?? recent;
     const startsAt =
-      overrides.startsAt === undefined ? new Date('2026-07-15T13:00:00.000Z') : overrides.startsAt;
+      overrides.startsAt === undefined
+        ? new Date(recent.getTime() + 13 * 3_600_000)
+        : overrides.startsAt;
     await prisma.$executeRawUnsafe(
       `INSERT INTO committee_hearing
          (id, congress, chamber, committee_system_code, committee_name, title,
@@ -260,13 +281,15 @@ describeDb('LegiWatch Phase 9 provenance backfill (disposable PG)', () => {
       reconcilerFactory: reconciler,
       // a payload whose identity the ladder resolves as `new` (different id,
       // different day, different title) — must NOT be reconciled
-      observeEvent: async () =>
-        event({
+      observeEvent: async () => {
+        const nextDay = new Date(recentHearingDate().getTime() + 86_400_000);
+        return event({
           externalEventId: '338650',
           title: 'An Entirely Different Proceeding About Something Else',
-          calendarDate: new Date('2026-07-16'),
-          startsAt: new Date('2026-07-16T14:00:00.000Z'),
-        }),
+          calendarDate: nextDay,
+          startsAt: new Date(nextDay.getTime() + 14 * 3_600_000),
+        });
+      },
     });
     expect(result.identityConflicts).toBe(1);
     expect(result.observed).toBe(0);
