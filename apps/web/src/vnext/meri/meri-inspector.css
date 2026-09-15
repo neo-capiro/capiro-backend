@@ -1,0 +1,52 @@
+/*
+ * Meri v6 right-rail inspector / panel-tool styling.
+ *
+ * The reference default right rail is the turn inspector (Thinking / Evidence
+ * / Approvals). Its header is a two-row flex-wrap block: title + scope
+ * eyebrow on the first row, the tab strip full-width below. The capabilities
+ * that used to occupy body rows above the tab content ("Open this turn's
+ * context packet", the BACK / Context-Memory navigation) live here as compact
+ * icon buttons in the header's top row, so the tab body starts at the
+ * reference position directly under the tab strip.
+ *
+ * Imported by VNextMeriShell after vnext-meri.css.
+ */
+
+/* Cluster of compact header controls, right-aligned on the header's first row
+   (the tab strip takes the full second row via `order:3; flex:0 0 100%`). */
+.capiro-vnext-root .vnext-meri__rail-panel-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Compact icon button for header tools. Matches the collapse button's 28px
+   footprint and quiet styling so the cluster reads as one control group. */
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--m-gray-700, #344054);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-tool-btn:hover:not(:disabled) {
+  background: var(--meri-surface-2, #F9FAFB);
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-tool-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The collapse control already carries margin-left:auto; inside the tools
+   cluster it must not double-push, so it sits flush with its siblings. */
+.capiro-vnext-root .vnext-meri__rail-panel-tools .vnext-meri__rail-panel-collapse {
+  margin-left: 0;
+}

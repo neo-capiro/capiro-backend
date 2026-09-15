@@ -133,7 +133,7 @@ describe('MeriApprovalsTab', () => {
       />,
     );
 
-    expect(screen.getByText('PROPOSED · SEND FOLLOW-UP EMAIL')).toBeTruthy();
+    expect(screen.getByText('AWAITING YOUR APPROVAL')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     // MeriActionConfirm's own informed-consent gate: the confirm button stays
     // disabled until the acknowledgement checkbox is checked.

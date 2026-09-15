@@ -167,6 +167,14 @@ describe('Meri race guards — controller-level', () => {
         approveFetchCalled = true;
         return Promise.resolve({ ok: true, json: async () => ({ ...heldProposal, status: 'succeeded' }) });
       }
+      if (url.includes('/action-proposals')) {
+        // Post-stream recovery GET: the server holds the streamed proposal
+        // against thread-a; keyed by conversation id so a post-navigation
+        // GET for thread-b honestly returns nothing.
+        const match = /[?&]conversationId=([^&]+)/.exec(url);
+        const list = match?.[1] === 'thread-a' ? [heldProposal] : [];
+        return Promise.resolve({ ok: true, json: async () => list });
+      }
       return Promise.resolve({ ok: true, json: async () => [], text: async () => '' });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -270,6 +278,15 @@ describe('Meri race guards — controller-level', () => {
           ok: true,
           json: async () => ({ ...proposals.find((p) => p.proposalId === proposalId)!, status: 'succeeded', resultSummary: 'done' }),
         });
+      }
+      if (url.includes('/action-proposals')) {
+        // The real server holds the proposals it streamed against thread-a;
+        // the post-stream recovery GET for that conversation returns them.
+        // Keyed by conversation id so a post-navigation GET (thread-b) sees
+        // nothing — same contract as the route-isolation suite's mock.
+        const match = /[?&]conversationId=([^&]+)/.exec(url);
+        const list = match?.[1] === 'thread-a' ? proposals : [];
+        return Promise.resolve({ ok: true, json: async () => list });
       }
       return Promise.resolve({ ok: true, json: async () => [], text: async () => '' });
     });

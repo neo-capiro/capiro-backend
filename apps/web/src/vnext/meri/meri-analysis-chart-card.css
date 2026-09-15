@@ -11,82 +11,53 @@
 .capiro-vnext-root .meri-acc-card {
   display: block;
   margin: 0;
-  border-radius: 10px;
-  /* Raised data card: stays white on the warmer assistant surface. */
+  border-radius: 12px;
+  /* Reference compact card: white with a hairline ring and a faint lift. */
   background: var(--m-white, #ffffff);
-  border: 1px solid var(--meri-border, #EAECF0);
+  box-shadow:
+    0 0 0 1px #eaecf0,
+    0 1px 2px rgba(16, 24, 40, 0.04);
   overflow: hidden;
 }
 
+/* Compact header: chart icon + title + kind tag on one line. */
 .capiro-vnext-root .meri-acc-header {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding: 14px 16px 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 15px 16px 0;
 }
 
-.capiro-vnext-root .meri-acc-heading {
+.capiro-vnext-root .meri-acc-header-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.capiro-vnext-root .meri-acc-title {
   flex: 1;
-  min-width: 200px;
-}
-
-.capiro-vnext-root .meri-acc-eyebrow {
-  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  color: var(--meri-text-muted, #667085);
-}
-
-.capiro-vnext-root .meri-acc-heading h3 {
-  margin: 6px 0 0;
-  font-size: 15px;
-  line-height: 22px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--meri-ink, #101828);
 }
 
-.capiro-vnext-root .meri-acc-heading p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 19px;
-  color: var(--meri-text-muted, #667085);
-}
-
-.capiro-vnext-root .meri-acc-actions {
+.capiro-vnext-root .meri-acc-kind {
   flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.capiro-vnext-root .meri-acc-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--meri-border, #EAECF0);
-  border-radius: 7px;
-  background: var(--meri-surface, #ffffff);
-  font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--meri-text-secondary, #344054);
-  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-faint, #98a2b3);
 }
 
-.capiro-vnext-root .meri-acc-actions button:hover {
-  background: var(--meri-surface-2, #F9FAFB);
-}
-
-.capiro-vnext-root .meri-acc-actions button.is-active {
-  background: var(--meri-accent-soft, #F2F4F7);
-  border-color: var(--meri-border-strong, #D0D5DD);
-  color: var(--meri-ink, #101828);
+.capiro-vnext-root .meri-acc-description {
+  margin: 6px 0 0;
+  padding: 0 16px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--meri-text-muted, #667085);
 }
 
 .capiro-vnext-root .meri-acc-insight {
@@ -153,6 +124,61 @@
 
 .capiro-vnext-root .meri-acc-body {
   padding: 12px 16px 0;
+}
+
+/* Reference compact bar plot: proportional columns, value on top, category
+   below, no axes or grid. The plot slot is a fixed pixel height so bars of
+   different values keep distinct rendered heights on a shared zero baseline;
+   flex never shrinks them to fit. */
+.capiro-vnext-root .meri-acc-bars {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 0 4px;
+}
+
+.capiro-vnext-root .meri-acc-bar-col {
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .meri-acc-bar-value {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--meri-ink, #101828);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Fixed-height slot: the bar is anchored to its bottom edge (the zero
+   baseline) and sized as a non-shrinking proportion of this slot. */
+.capiro-vnext-root .meri-acc-bar-plot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 88px;
+}
+
+.capiro-vnext-root .meri-acc-bar {
+  flex: 0 0 auto;
+  display: block;
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+}
+
+.capiro-vnext-root .meri-acc-bar-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--meri-text-muted, #667085);
+  text-align: center;
 }
 
 .capiro-vnext-root .meri-acc-loading,
@@ -369,16 +395,59 @@
   color: var(--meri-ink, #101828);
 }
 
+/* Compact footer: control row (view modes + downloads + expand) over a
+   divider, then the provenance line. Mirrors the reference card footer. */
+.capiro-vnext-root .meri-acc-footer {
+  margin-top: 12px;
+  padding: 11px 16px 13px;
+  border-top: 1px solid #f2f4f7;
+}
+
+.capiro-vnext-root .meri-acc-footer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.capiro-vnext-root .meri-acc-footer-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--meri-surface, #ffffff);
+  box-shadow: inset 0 0 0 1px #e4e7ec;
+  font-family: var(--meri-font-sans, Inter, sans-serif);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--meri-text-secondary, #344054);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .meri-acc-footer-controls button:hover {
+  background: var(--meri-surface-2, #f9fafb);
+}
+
+.capiro-vnext-root .meri-acc-footer-controls button.is-active {
+  background: var(--meri-accent-soft, #f2f4f7);
+  box-shadow: inset 0 0 0 1px var(--meri-border-strong, #d0d5dd);
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-footer-meta {
+  margin-top: 10px;
+}
+
 /* Provenance footer */
 .capiro-vnext-root .meri-acc-provenance {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 14px;
-  margin-top: 14px;
-  padding: 11px 16px;
-  border-top: 1px solid var(--meri-border, #EAECF0);
-  background: var(--meri-surface-2, #F9FAFB);
   font-family: var(--meri-font-mono, Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif);
   font-size: 9px;
   font-weight: 500;
@@ -394,14 +463,10 @@
 }
 
 .capiro-vnext-root .meri-acc-card figcaption {
-  padding: 0 16px 12px;
+  margin-top: 8px;
   font-size: 12px;
   line-height: 18px;
   color: var(--meri-text-muted, #667085);
-}
-
-.capiro-vnext-root .meri-acc-card .meri-acc-provenance + figcaption {
-  padding-top: 10px;
 }
 
 /* Expanded overlay */

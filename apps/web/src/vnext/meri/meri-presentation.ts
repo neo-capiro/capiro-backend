@@ -63,14 +63,16 @@ export function threadScopeLabel(
   }
   switch (retrieval.subjectScope) {
     case 'client': {
+      // Recorded names keep their own casing — never title-cased (an acronym
+      // like "AI" or an all-caps register entry must survive verbatim).
       const name = clientName?.trim() || retrieval.targetHint?.trim() || 'Unknown client';
-      return `CLIENT · ${titleCaseWords(name)}`;
+      return `CLIENT · ${name}`;
     }
     case 'portfolio':
       return 'PORTFOLIO · ALL CLIENTS';
     case 'external_entity': {
       const hint = retrieval.targetHint?.trim() || 'External source';
-      return `EXTERNAL RESEARCH · ${titleCaseWords(hint)}`;
+      return `EXTERNAL RESEARCH · ${hint}`;
     }
     case 'general':
       // No misleading client-scope badge for a general-knowledge turn.
@@ -83,17 +85,19 @@ export function threadScopeLabel(
 }
 
 /**
- * Legacy sub-line kept for backward compatibility. New callers should prefer
+ * Sub-line under the thread title. New callers should prefer
  * {@link threadScopeLabel}, which delegates here when no retrieval metadata
  * is available.
  *
- * The wording is "Client context · <name>" (not "Scoped · <name>") so the
- * label describes what the client selector represents — the conversation's
- * client context — without implying the backend retrieval plan was
- * client-scoped when it may not have been.
+ * v6 wording: "<recorded client name> · scoped conversation" — the recorded
+ * name is printed verbatim (never title-cased), so acronyms and register
+ * casing survive.
  */
 export function threadScopeSubline(clientName: string | null | undefined): string {
-  if (clientName?.trim()) return `Client context · ${titleCaseWords(clientName)}`;
+  // v6 reference: "<recorded client name> · scoped conversation", preserving
+  // the name's own casing ("Overland AI" — never a title-cased rewrite that
+  // breaks acronyms).
+  if (clientName?.trim()) return `${clientName.trim()} · scoped conversation`;
   return 'Portfolio · All clients';
 }
 
@@ -169,3 +173,31 @@ export function dayDividerLabel(value: Date | string | undefined, now = new Date
 }
 
 export const MERI_LOGO_SRC = '/assets/meri-logo.png';
+
+/**
+ * v6 rail relative time: "12m" / "2h" / "Yesterday" / "Tue" / "Aug 18".
+ * Matches the reference row's first-line trailing stamp. Not uppercased —
+ * it sits in prose-sized text, not an eyebrow.
+ */
+export function railRelativeTime(value: string | Date, now = new Date()): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs < 0) return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24 && sameLocalDay(date, now)) return `${hours}h`;
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysAgo = Math.round((today - target) / 86_400_000);
+  if (daysAgo <= 0) return `${hours}h`;
+  if (daysAgo === 1) return 'Yesterday';
+  if (daysAgo < 7) return date.toLocaleDateString([], { weekday: 'short' });
+  return date.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  });
+}

@@ -341,61 +341,15 @@ function VNextMeriAssistantMessage({
         <MeriIcon name="Stars02" size={14} color="#FFFFFF" />
       </span>
       <div className="vnext-meri__assistant-card">
-        <div className="vnext-meri__assistant-body" data-meri-answer-body>
-          <AttachmentList attachments={message.attachments} />
-          {markdownSource ? (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeMeriArtifactDownloadUrls, rehypeSanitize]}
-              components={markdownComponents}
-            >
-              {markdownSource}
-            </ReactMarkdown>
-          ) : null}
-          {/* One cursor, whether or not any prose has arrived yet (handoff §4g). */}
-          {messageIsStreaming ? <ComposingCursor /> : null}
-        </div>
-
-        {runtimeStatusText && !messageIsStreaming ? <p role="status">{runtimeStatusText}</p> : null}
-
-        {messageIsStreaming && !controller.isResearchStreaming && controller.turnProgress ? (
-          <p role="status" aria-live="polite">
-            {controller.turnProgress.note} · {Math.floor(controller.turnProgress.elapsedMs / 1000)}s
-            elapsed
-          </p>
-        ) : null}
-
-        {showResearchProgress ? (
-          <MeriResearchProgress
-            isStreaming={controller.isResearchStreaming}
-            progress={controller.researchProgress}
-            steps={controller.trustSteps}
-          />
-        ) : null}
-
-        {isLastAssistant && !controller.isResearchStreaming ? (
-          <MeriResearchRecovery
-            research={controller.researchRecovery}
-            error={controller.researchRecoveryError}
-            busy={isStreaming}
-            onResume={() => void controller.resumeResearch()}
-            onStop={controller.handleStop}
-          />
-        ) : null}
-
         {/*
-          v6: the ordinary tool loop renders as quiet trace lines under the
-          answer (12px icon + 11.5px muted text per line) instead of the dark
-          metal work-performed hero — the transcript keeps the prototype's
-          calm surface and the full plan/step detail stays one "Show work"
-          click away in the turn inspector. MeriWorkPerformed remains the
-          renderer for the pinned contract test; the hero only mounts when
-          nothing else can express the run (never in the v6 transcript).
-
-          Below the trace lines, a SHOW/HIDE REASONING disclosure (prototype
-          pattern) reveals the same bounded plan text already surfaced in the
-          turn inspector's Thinking tab — never raw model chain-of-thought,
-          which this app deliberately never retains in browser state.
+          v6 reference order for a completed assistant turn:
+            1. work trace (quiet check lines) + SHOW REASONING disclosure
+            2. answer prose
+            3. analysis chart / saved-document artifact cards
+            4. suggested follow-ups
+            5. feedback row (copy / thumbs / regenerate / Show work)
+          Streaming turns keep prose first so the user reads text as it
+          arrives; the trace streams below it.
         */}
         {showExecutionEvidence && workTrustSteps.length > 0 ? (
           <>
@@ -466,6 +420,48 @@ function VNextMeriAssistantMessage({
           />
         ) : null}
 
+        <div className="vnext-meri__assistant-body" data-meri-answer-body>
+          <AttachmentList attachments={message.attachments} />
+          {markdownSource ? (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeMeriArtifactDownloadUrls, rehypeSanitize]}
+              components={markdownComponents}
+            >
+              {markdownSource}
+            </ReactMarkdown>
+          ) : null}
+          {/* One cursor, whether or not any prose has arrived yet (handoff §4g). */}
+          {messageIsStreaming ? <ComposingCursor /> : null}
+        </div>
+
+        {runtimeStatusText && !messageIsStreaming ? <p role="status">{runtimeStatusText}</p> : null}
+
+        {messageIsStreaming && !controller.isResearchStreaming && controller.turnProgress ? (
+          <p role="status" aria-live="polite">
+            {controller.turnProgress.note} · {Math.floor(controller.turnProgress.elapsedMs / 1000)}s
+            elapsed
+          </p>
+        ) : null}
+
+        {showResearchProgress ? (
+          <MeriResearchProgress
+            isStreaming={controller.isResearchStreaming}
+            progress={controller.researchProgress}
+            steps={controller.trustSteps}
+          />
+        ) : null}
+
+        {isLastAssistant && !controller.isResearchStreaming ? (
+          <MeriResearchRecovery
+            research={controller.researchRecovery}
+            error={controller.researchRecoveryError}
+            busy={isStreaming}
+            onResume={() => void controller.resumeResearch()}
+            onStop={controller.handleStop}
+          />
+        ) : null}
+
         {/*
           v6: the grounding-caveat and coverage-warning cards that used to
           mount separately here are now folded into the turn inspector's
@@ -531,6 +527,58 @@ function VNextMeriAssistantMessage({
           </div>
         ) : null}
 
+        {/* 3. artifact cards (chart, then saved documents) — directly after
+               the prose they illustrate, before suggested follow-ups. */}
+        {message.chartArtifacts?.length ? (
+          <div className="vnext-meri__analysis-slot" aria-label="Analysis charts">
+            {message.chartArtifacts.map((chart) => (
+              <MeriAnalysisChartCard key={chart.id} artifactId={chart.id} title={chart.title} />
+            ))}
+          </div>
+        ) : null}
+        {message.documentArtifacts?.length ? (
+          <div aria-label="Saved documents" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            {message.documentArtifacts.map((artifact) => (
+              <div key={artifact.id} role="group" aria-label={`${artifact.title} exports`}>
+                {/* v6 reference: the saved-document entry is a full-width
+                    card — file icon, title, kind meta, and an "Open in
+                    canvas" affordance — not a bare text button. */}
+                <button
+                  type="button"
+                  className="vnext-meri__doc-card"
+                  aria-label={`Open ${artifact.title}`}
+                  onClick={() => controller.setActiveArtifact(artifact)}
+                >
+                  <span className="vnext-meri__doc-card-icon" aria-hidden="true">
+                    <MeriIcon name="File04" size={20} />
+                  </span>
+                  <span className="vnext-meri__doc-card-body">
+                    <span className="vnext-meri__doc-card-title">{artifact.title}</span>
+                    <span className="vnext-meri__doc-card-meta">
+                      {artifact.kind === 'word_document'
+                        ? 'DOCX'
+                        : artifact.kind === 'pdf_document'
+                          ? 'PDF'
+                          : 'DOCUMENT'}
+                    </span>
+                  </span>
+                  <span className="vnext-meri__doc-card-open">
+                    Open in canvas
+                    <MeriIcon name="ArrowNarrowRight" size={14} color="#363F72" />
+                  </span>
+                </button>
+                {artifact.kind === 'word_document' || artifact.kind === 'pdf_document' ? (
+                  <span className="vnext-meri__doc-card-downloads">
+                    <MeriArtifactDownloadLink href={`/api/clio/artifacts/${artifact.id}/download?format=docx`} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={controller.authHeaders}>Download Word</MeriArtifactDownloadLink>
+                    <MeriArtifactDownloadLink href={`/api/clio/artifacts/${artifact.id}/download?format=pdf`} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={controller.authHeaders}>Download PDF</MeriArtifactDownloadLink>
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {/* 4. suggested follow-ups */}
         {message.suggestions?.length && !messageIsStreaming ? (
           <div className="vnext-meri__followups" data-meri-followups>
             {/* handoff §11c — "Clicking fills the composer", it does not send.
@@ -606,6 +654,7 @@ function VNextMeriAssistantMessage({
           </div>
         ) : null}
 
+        {/* 5. feedback row */}
         {!messageIsStreaming && message.content ? (
           <div className="vnext-meri__message-actions" data-meri-message-actions>
             {/* v6 feedback row — 26×26 icon buttons: copy, thumbs (MeriMessageFeedback
@@ -679,32 +728,6 @@ function VNextMeriAssistantMessage({
             Show work
             <MeriIcon name="LayersThree01" size={13} />
           </button>
-        ) : null}
-        {message.chartArtifacts?.length ? (
-          <div className="vnext-meri__analysis-slot" aria-label="Analysis charts">
-            {message.chartArtifacts.map((chart) => (
-              <MeriAnalysisChartCard key={chart.id} artifactId={chart.id} title={chart.title} />
-            ))}
-          </div>
-        ) : null}
-        {message.documentArtifacts?.length ? (
-          <div aria-label="Saved documents" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-            {message.documentArtifacts.map((artifact) => (
-              <div key={artifact.id} role="group" aria-label={`${artifact.title} exports`}
-                style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingRight: 10 }}>
-                <button type="button" className="vnext-meri__inline-action-btn"
-                  onClick={() => controller.setActiveArtifact(artifact)}
-                  style={{ width: 'auto', height: 'auto', padding: '9px 12px', gap: 8, textAlign: 'left' }}>
-                  <MeriIcon name="File04" size={15} />
-                  <span>Open {artifact.title}</span>
-                </button>
-                {artifact.kind === 'word_document' || artifact.kind === 'pdf_document' ? <>
-                  <MeriArtifactDownloadLink href={`/api/clio/artifacts/${artifact.id}/download?format=docx`} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={controller.authHeaders}>Download Word</MeriArtifactDownloadLink>
-                  <MeriArtifactDownloadLink href={`/api/clio/artifacts/${artifact.id}/download?format=pdf`} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={controller.authHeaders}>Download PDF</MeriArtifactDownloadLink>
-                </> : null}
-              </div>
-            ))}
-          </div>
         ) : null}
       </div>
     </div>

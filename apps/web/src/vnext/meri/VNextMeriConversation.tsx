@@ -385,7 +385,7 @@ export function VNextMeriConversation({
           role="log"
           aria-live="polite"
         >
-          <div className="vnext-meri__conversation-column" data-meri-column>
+          <div className={`vnext-meri__conversation-column${!hasThread ? ' is-landing' : ''}`} data-meri-column>
             {controller.metaError ? (
               <div className="vnext-meri__error" role="alert">
                 {controller.metaError}
@@ -427,8 +427,13 @@ export function VNextMeriConversation({
                   Meri cites what it used and asks before it writes anywhere.
                 </p>
                 <span className="vnext-meri__landing-sub">
-                  {tenantName.toUpperCase()} · {clients.length} CLIENT
-                  {clients.length === 1 ? '' : 'S'} IN SCOPE
+                  {/* Reference: recorded tenant name verbatim, then the actual
+                      selection — the selected client's name, or the real
+                      client count when nothing is selected. */}
+                  {tenantName} ·{' '}
+                  {selectedClient
+                    ? `${selectedClient.name.toUpperCase()} IN SCOPE`
+                    : `${clients.length} CLIENT${clients.length === 1 ? '' : 'S'} IN SCOPE`}
                 </span>
 
                 <div className="vnext-meri__landing-mode-row">
@@ -457,7 +462,10 @@ export function VNextMeriConversation({
                     message.role === 'assistant' && index === messages.length - 1;
                   const previous = messages[index - 1];
                   const showDivider =
-                    index === 0 ||
+                    // v6 reference: no leading date divider above the first
+                    // turn — dividers only appear at day boundaries deeper in
+                    // the transcript.
+                    index > 0 &&
                     localDayKey(previous?.createdAt) !== localDayKey(message.createdAt);
                   return (
                     <div

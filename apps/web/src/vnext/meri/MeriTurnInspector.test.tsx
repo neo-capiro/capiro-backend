@@ -109,7 +109,7 @@ describe('MeriTurnInspector', () => {
         onDismiss={vi.fn()}
       />,
     );
-    expect(screen.getByText('PROPOSED · SEND FOLLOW-UP EMAIL')).toBeTruthy();
+    expect(screen.getByText('AWAITING YOUR APPROVAL')).toBeTruthy();
   });
 
   test('the back control calls onClose', () => {

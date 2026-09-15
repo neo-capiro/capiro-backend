@@ -73,6 +73,12 @@ interface VNextMeriContextRailProps {
   activeTurnInspector?: ActiveTurnInspector | null;
   onChangeTurnInspectorTab?: (tab: MeriTurnInspectorTab) => void;
   onCloseTurnInspector?: () => void;
+  /**
+   * Returns the rail from the Context/Memory surface to the default turn
+   * inspector. Provided whenever the inspector is available; renders the
+   * compact "Back to the answer" header control on the Context/Memory panel.
+   */
+  onShowInspector?: () => void;
 }
 
 export function normalizeMeriQuickActionCatalog(value: unknown): MeriQuickAction[] {
@@ -157,6 +163,7 @@ export function VNextMeriContextRail({
   activeTurnInspector,
   onChangeTurnInspectorTab,
   onCloseTurnInspector,
+  onShowInspector,
 }: VNextMeriContextRailProps) {
   const api = useApi();
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
@@ -350,24 +357,42 @@ export function VNextMeriContextRail({
                 );
               })}
             </div>
-            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
-              <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
-            </button>
+            <span className="vnext-meri__rail-panel-tools">
+              {/* Existing capability, moved into a compact header control so the
+                  tab body starts at the reference position. Keeps its accessible
+                  label so test-detail-interactions.cjs still finds it. */}
+              <button
+                type="button"
+                className="vnext-meri__rail-tool-btn"
+                title="Open this turn’s context packet"
+                aria-label="Open this turn’s context packet"
+                disabled={!inspectorPacketId || turnPacketLoading}
+                onClick={() => onOpenContext(turnPacket, turnPacketLoading, turnPacketError)}
+              >
+                <MeriIcon name="Sliders02" size={14} color="#344054" />
+              </button>
+              {/* Existing Context/Memory surface stays reachable from the
+                  inspector — a compact header control, not a hidden route. */}
+              <button
+                type="button"
+                className="vnext-meri__rail-tool-btn"
+                title="Open Context and Memory"
+                aria-label="Open Context and Memory"
+                onClick={() => onExpandSection(openSection ?? 'context')}
+              >
+                <MeriIcon name="Database01" size={14} color="#344054" />
+              </button>
+              <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
+                <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
+              </button>
+            </span>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            <button
-              type="button"
-              className="vnext-meri__rail-action-btn"
-              disabled={!inspectorPacketId || turnPacketLoading}
-              title={!inspectorPacketId ? 'No context packet was recorded for this turn.' : undefined}
-              onClick={() => onOpenContext(turnPacket, turnPacketLoading, turnPacketError)}
-            >
-              {turnPacketLoading ? 'Loading turn context…' : 'Open this turn’s context packet'}
-            </button>
             <MeriTurnInspector
               data={activeTurnInspector.data}
               activeTab={turnActiveTab}
               onClose={() => onCloseTurnInspector?.()}
+              suppressBack
               approvingProposalId={activeTurnInspector.approvingProposalId}
               onApprove={activeTurnInspector.onApprove}
               onApproveAll={activeTurnInspector.onApproveAll}
@@ -399,9 +424,25 @@ export function VNextMeriContextRail({
               );
             })}
           </div>
-          <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
-            <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
-          </button>
+          <span className="vnext-meri__rail-panel-tools">
+            {/* Return to the default turn inspector (Thinking/Evidence/
+                Approvals). Only offered when the inspector is available; keeps
+                Context/Memory a reversible detour, not a dead end. */}
+            {onShowInspector ? (
+              <button
+                type="button"
+                className="vnext-meri__rail-tool-btn"
+                title="Back to the answer"
+                aria-label="Back to the answer"
+                onClick={onShowInspector}
+              >
+                <MeriIcon name="CpuChip01" size={14} color="#344054" />
+              </button>
+            ) : null}
+            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
+              <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
+            </button>
+          </span>
         </div>
 
         {isMemoryPanel ? (

@@ -28,7 +28,7 @@ import {
 } from './meri-vnext-api.js';
 import {
   displayThreadTitle,
-  sameLocalDay,
+  railRelativeTime,
 } from './meri-presentation.js';
 
 interface HistorySearchResult {
@@ -51,14 +51,10 @@ const SKELETON_ROW_WIDTHS: ReadonlyArray<readonly [string, string]> = [
   ['64%', '58%'],
 ];
 
-function threadMeta(conversation: MeriConversation): string {
-  const date = new Date(conversation.updatedAt);
-  const scope = (conversation.client?.name || 'General').toUpperCase();
-  if (!Number.isFinite(date.getTime())) return `${scope} · DATE UNKNOWN`;
-  const when = sameLocalDay(conversation.updatedAt)
-    ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
-    : date.toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase();
-  return `${scope} · ${when}`;
+function threadRowScope(conversation: MeriConversation): string {
+  // v6 second line, leading segment: the recorded client name verbatim, or
+  // "All clients" for portfolio threads.
+  return conversation.client?.name?.trim() || 'All clients';
 }
 
 function workspaceError(reason: unknown): string {
@@ -193,7 +189,6 @@ export function VNextMeriThreadRail({
       [
         displayThreadTitle(conversation.title, conversation.latestMessage?.body),
         conversation.client?.name ?? '',
-        threadMeta(conversation),
         conversation.latestMessage?.body ?? '',
       ].some((value) => value.toLowerCase().includes(query)),
     );
@@ -226,18 +221,19 @@ export function VNextMeriThreadRail({
   }, [conversations, localFiltered, search.data, searchActive]);
 
   /**
-   * Search snippets (handoff §2e: "shown only while the rail search has a
-   * query"). Server hits carry their own matched excerpt; for rows matched
-   * only by the local filter we fall back to the conversation's latest message
-   * body, which is the same text the local filter matched against. No query,
-   * no snippet — the resting row stays title + meta.
+   * v6 RECENT rows always carry the latest-message excerpt as the second
+   * line's trailing segment. While a search query is active, server hits
+   * carry their own matched excerpt; rows matched only locally fall back to
+   * the conversation's latest message body, which is the same text the local
+   * filter matched against.
    */
   const snippets = useMemo(() => {
-    const query = searchQuery.trim();
-    if (!query) return new Map<string, string>();
     const map = new Map<string, string>();
-    for (const hit of search.data ?? []) {
-      if (hit.snippet?.trim()) map.set(hit.conversationId, hit.snippet.trim());
+    const query = searchQuery.trim();
+    if (query) {
+      for (const hit of search.data ?? []) {
+        if (hit.snippet?.trim()) map.set(hit.conversationId, hit.snippet.trim());
+      }
     }
     for (const conversation of conversations) {
       if (map.has(conversation.id)) continue;
@@ -247,13 +243,15 @@ export function VNextMeriThreadRail({
     return map;
   }, [conversations, search.data, searchQuery]);
 
+  /**
+   * v6 RECENT is one continuous, recency-sorted list (no TODAY/EARLIER
+   * group headers). Active search keeps its RESULTS group. Workspace
+   * filtering still applies on top.
+   */
   const groups = useMemo(() => {
     const scoped = selectedWorkspaceId ? visible.filter((item) => item.workspaceId === selectedWorkspaceId) : visible;
     if (searchQuery.trim()) return [{ label: 'RESULTS', items: scoped }];
-    return [
-      { label: 'TODAY', items: scoped.filter((item) => sameLocalDay(item.updatedAt)) },
-      { label: 'EARLIER', items: scoped.filter((item) => !sameLocalDay(item.updatedAt)) },
-    ].filter((group) => group.items.length > 0);
+    return [{ label: 'RECENT', items: scoped }];
   }, [searchQuery, visible, selectedWorkspaceId]);
   const visibleCount = groups.reduce((sum, group) => sum + group.items.length, 0);
   const selectedWorkspace = workspaces.data?.find((item) => item.id === selectedWorkspaceId);
@@ -406,34 +404,36 @@ export function VNextMeriThreadRail({
 
   return (
     <aside className="vnext-meri__rail-left" data-meri-thread-rail aria-label="Meri conversations">
-      {/* v6 prototype has no in-rail "New thread" button — that action lives on
-          the top bar's + control. The only top-row control left is the rail
-          collapse toggle (handoff §"Three-column collapse rules" #2). */}
-      <div className="vnext-meri__rail-left-top">
-        <button
-          type="button"
-          className="vnext-meri__rail-collapse"
-          aria-label="Hide thread rail"
-          onClick={onCollapse}
-        >
-          <MeriIcon name="Menu02" size={16} color="#98A2B3" />
-        </button>
-      </div>
-
+      {/* v6 prototype: no reserved top row — the rail starts directly with
+          WORKSPACES. The collapse control lives inside the section label row
+          (handoff §"Three-column collapse rules" #2 still requires it to be
+          reachable; the conversation header shows the expand toggle while
+          collapsed). */}
       <div className="vnext-meri__rail-left-scroll">
         <section data-meri-rail-section="workspaces">
           <div className="vnext-meri__section-label-row">
             <span className="vnext-meri__section-label">WORKSPACES</span>
-            <button
-              type="button"
-              className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny"
-              aria-label="Add workspace"
-              title="Add workspace"
-              disabled={workspaceSaving}
-              onClick={() => { setWorkspaceFailure(null); setNewWorkspaceClient(controller.selectedClientValue || ''); setWorkspaceDialogOpen(true); }}
-            >
-              <MeriIcon name="Plus" size={13} color="#98A2B3" />
-            </button>
+            <span className="vnext-meri__section-label-actions">
+              <button
+                type="button"
+                className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny"
+                aria-label="Add workspace"
+                title="Add workspace"
+                disabled={workspaceSaving}
+                onClick={() => { setWorkspaceFailure(null); setNewWorkspaceClient(controller.selectedClientValue || ''); setWorkspaceDialogOpen(true); }}
+              >
+                <MeriIcon name="Plus" size={13} color="#98A2B3" />
+              </button>
+              <button
+                type="button"
+                className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny vnext-meri__rail-collapse-inline"
+                aria-label="Hide thread rail"
+                title="Hide thread rail"
+                onClick={onCollapse}
+              >
+                <MeriIcon name="Menu02" size={13} color="#98A2B3" />
+              </button>
+            </span>
           </div>
           {workspaces.isLoading ? (
             <div className="vnext-meri__section-empty-body">Loading workspaces…</div>
@@ -486,20 +486,37 @@ export function VNextMeriThreadRail({
                     </button>
                   </div>
                 );
-              })}
-            </div>
-          ) : (
-            <div className="vnext-meri__section-empty">
-              <div className="vnext-meri__section-empty-label">NO WORKSPACES YET</div>
-              <div className="vnext-meri__section-empty-body">
+                })}
+                {/* v6 reference: "No workspace" row beneath the workspace
+                    list — moves the ACTIVE thread out of its workspace using
+                    the existing unassign path (assignWorkspace(conversation,
+                    null)), the same action the overflow dialog already
+                    exposes. Disabled when there is no active thread, the
+                    thread has no workspace, or a mutation is in flight. */}
+                {!workspaces.isLoading && !workspaces.isError ? (
+                  <NoWorkspaceRow
+                    disabled={
+                      workspaceSaving ||
+                      !activeConversationId ||
+                      !conversations.find((item) => item.id === activeConversationId)?.workspaceId
+                    }
+                    onClear={() => {
+                      const active = conversations.find((item) => item.id === activeConversationId);
+                      if (active) void assignWorkspace(active, null);
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : (
+                <div className="vnext-meri__section-empty">
+                <div className="vnext-meri__section-empty-label">NO WORKSPACES YET</div>
+                <div className="vnext-meri__section-empty-body">
                 Create a workspace, then organize chats through their overflow menu.
               </div>
             </div>
           )}
           {workspaceFailure && !workspaceDialogOpen && !assigning ? <p role="alert" className="vnext-meri__section-empty-body">{workspaceFailure}</p> : null}
         </section>
-
-        <div className="vnext-meri__divider" />
 
         <section data-meri-rail-section="recent">
           <div className="vnext-meri__section-label-row">
@@ -567,13 +584,16 @@ export function VNextMeriThreadRail({
             <div className="vnext-meri__thread-list">
               {groups.map((group, groupIndex) => (
                 <div key={group.label}>
-                  <div className={`vnext-meri__thread-group-label${groupIndex === 0 ? ' is-first' : ''}`}>
-                    {group.label}
-                  </div>
+                  {group.label !== 'RECENT' ? (
+                    <div className={`vnext-meri__thread-group-label${groupIndex === 0 ? ' is-first' : ''}`}>
+                      {group.label}
+                    </div>
+                  ) : null}
                   {group.items.map((conversation) => {
                     const active = conversation.id === activeConversationId;
                     const title = displayThreadTitle(conversation.title, conversation.latestMessage?.body);
                     const snippet = snippets.get(conversation.id);
+                    const stamp = railRelativeTime(conversation.updatedAt);
                     return (
                       <div
                         key={conversation.id}
@@ -612,11 +632,20 @@ export function VNextMeriThreadRail({
                             aria-current={active ? 'page' : undefined}
                           >
                             <span className="vnext-meri__thread-item-body">
-                              <span className="vnext-meri__thread-item-title">{title}</span>
-                              <span className="vnext-meri__thread-item-meta">{threadMeta(conversation)}</span>
-                              {snippet ? (
-                                <span className="vnext-meri__thread-item-snippet">{snippet}</span>
-                              ) : null}
+                              <span className="vnext-meri__thread-item-line">
+                                <span className="vnext-meri__thread-item-title">{title}</span>
+                                {stamp ? (
+                                  <span className="vnext-meri__thread-item-time">{stamp}</span>
+                                ) : null}
+                              </span>
+                              <span className="vnext-meri__thread-item-sub">
+                                <span className="vnext-meri__thread-item-scope">
+                                  {threadRowScope(conversation)}
+                                </span>
+                                {snippet ? (
+                                  <span className="vnext-meri__thread-item-snippet">{snippet}</span>
+                                ) : null}
+                              </span>
                             </span>
                           </button>
                         )}
@@ -709,6 +738,20 @@ export function VNextMeriThreadRail({
         </div>
       ) : null}
 
+      {/* v6 reference rail footer: opens the same command palette as the top
+          bar's search button (onOpenPalette) — no new behavior. */}
+      <div className="vnext-meri__rail-foot">
+        <button
+          type="button"
+          className="vnext-meri__rail-foot-palette"
+          onClick={onOpenPalette}
+        >
+          <MeriIcon name="Command" size={14} color="#667085" />
+          Command palette
+        </button>
+        <span className="vnext-meri__rail-foot-hint">⌘K</span>
+      </div>
+
       <CapiroModal
         open={workspaceDialogOpen}
         title="Create workspace"
@@ -771,5 +814,27 @@ export function VNextMeriThreadRail({
         </div>
       ) : null}
     </aside>
+  );
+}
+
+/**
+ * The reference's "No workspace" row under the workspace list: unassigns the
+ * active thread from its workspace via the existing assignWorkspace(id, null)
+ * path. Presentation only — all state, error, and toast behavior stays in the
+ * rail's existing mutation handler.
+ */
+function NoWorkspaceRow({ disabled, onClear }: { disabled: boolean; onClear: () => void }) {
+  return (
+    <button
+      type="button"
+      className="vnext-meri__workspace-none"
+      aria-label="Remove this thread from its workspace"
+      title="Remove this thread from its workspace"
+      disabled={disabled}
+      onClick={onClear}
+    >
+      <MeriIcon name="SlashCircle01" size={15} color="#98A2B3" />
+      <span>No workspace</span>
+    </button>
   );
 }

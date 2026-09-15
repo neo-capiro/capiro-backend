@@ -58,53 +58,56 @@ describe('meri presentation helpers', () => {
     expect(displayThreadTitle('Chat session', 'x'.repeat(60))).toBe(`${'x'.repeat(48)}…`);
   });
 
-  test('renders the thread sub-line in Inter sentence case', () => {
-    expect(threadScopeSubline('LEGISTORM')).toBe('Client context · Legistorm');
+  test('renders the thread sub-line with the recorded client name verbatim', () => {
+    // v6: the name keeps its own casing — no title-casing ("Overland AI"
+    // stays "Overland AI"; an all-caps acronym is not rewritten).
+    expect(threadScopeSubline('Overland AI')).toBe('Overland AI · scoped conversation');
+    expect(threadScopeSubline('LEGISTORM')).toBe('LEGISTORM · scoped conversation');
     expect(threadScopeSubline(null)).toBe('Portfolio · All clients');
   });
 
   test('threadScopeLabel reflects the backend retrieval subjectScope', () => {
-    // client → CLIENT · <name>, using the client name from the selector
-    expect(threadScopeLabel('Legistorm', { subjectScope: 'client' })).toBe('CLIENT · Legistorm');
+    // client → CLIENT · <name>, verbatim from the selector (no recasing)
+    expect(threadScopeLabel('Overland AI', { subjectScope: 'client' })).toBe('CLIENT · Overland AI');
     // Falls back to targetHint when no client name is available
-    expect(threadScopeLabel(null, { subjectScope: 'client', targetHint: 'Legistorm' })).toBe(
-      'CLIENT · Legistorm',
+    expect(threadScopeLabel(null, { subjectScope: 'client', targetHint: 'LEGISTORM' })).toBe(
+      'CLIENT · LEGISTORM',
     );
     // Falls back to a placeholder when neither is available
-    expect(threadScopeLabel(null, { subjectScope: 'client' })).toBe('CLIENT · Unknown Client');
+    expect(threadScopeLabel(null, { subjectScope: 'client' })).toBe('CLIENT · Unknown client');
 
     // portfolio → PORTFOLIO · ALL CLIENTS (ignores client name)
-    expect(threadScopeLabel('Legistorm', { subjectScope: 'portfolio' })).toBe(
+    expect(threadScopeLabel('Overland AI', { subjectScope: 'portfolio' })).toBe(
       'PORTFOLIO · ALL CLIENTS',
     );
     expect(threadScopeLabel(null, { subjectScope: 'portfolio' })).toBe('PORTFOLIO · ALL CLIENTS');
 
-    // external_entity → EXTERNAL RESEARCH · <targetHint or entity>
+    // external_entity → EXTERNAL RESEARCH · <targetHint or entity>, verbatim
     expect(
       threadScopeLabel(null, { subjectScope: 'external_entity', targetHint: 'CRS REPORT R45678' }),
-    ).toBe('EXTERNAL RESEARCH · Crs Report R45678');
+    ).toBe('EXTERNAL RESEARCH · CRS REPORT R45678');
     // No targetHint → generic external-source label
     expect(threadScopeLabel(null, { subjectScope: 'external_entity' })).toBe(
-      'EXTERNAL RESEARCH · External Source',
+      'EXTERNAL RESEARCH · External source',
     );
     // Client name is ignored for external research scope
     expect(
-      threadScopeLabel('Legistorm', { subjectScope: 'external_entity', targetHint: 'CRS' }),
-    ).toBe('EXTERNAL RESEARCH · Crs');
+      threadScopeLabel('Overland AI', { subjectScope: 'external_entity', targetHint: 'CRS' }),
+    ).toBe('EXTERNAL RESEARCH · CRS');
 
     // general → null (no misleading client-scope badge)
-    expect(threadScopeLabel('Legistorm', { subjectScope: 'general' })).toBeNull();
+    expect(threadScopeLabel('Overland AI', { subjectScope: 'general' })).toBeNull();
     expect(threadScopeLabel(null, { subjectScope: 'general' })).toBeNull();
   });
 
   test('threadScopeLabel falls back to the legacy sub-line when no retrieval metadata is sent', () => {
-    // No retrieval at all — backward-compat path
-    expect(threadScopeLabel('LEGISTORM', undefined)).toBe('Client context · Legistorm');
-    expect(threadScopeLabel('LEGISTORM', null)).toBe('Client context · Legistorm');
+    // No retrieval at all — backward-compat path (v6 sub-line wording)
+    expect(threadScopeLabel('Overland AI', undefined)).toBe('Overland AI · scoped conversation');
+    expect(threadScopeLabel('Overland AI', null)).toBe('Overland AI · scoped conversation');
     expect(threadScopeLabel(null, undefined)).toBe('Portfolio · All clients');
     // Unknown subjectScope value — defensive fall-back, not a wrong badge
-    expect(threadScopeLabel('Legistorm', { subjectScope: 'mystery_scope' })).toBe(
-      'Client context · Legistorm',
+    expect(threadScopeLabel('Overland AI', { subjectScope: 'mystery_scope' })).toBe(
+      'Overland AI · scoped conversation',
     );
   });
 

@@ -207,9 +207,12 @@
   box-sizing: border-box;
 }
 
-.capiro-vnext-root .vnext-meri button,
-.capiro-vnext-root .vnext-meri input,
-.capiro-vnext-root .vnext-meri textarea {
+/* Form-element font reset. Wrapped in :where() so it carries ZERO added
+   specificity: without that, `.capiro-vnext-root .vnext-meri button` (0-2-1)
+   outranked single-class component rules (0-2-0) imported earlier in the
+   bundle and silently clamped declared control typography (composer textarea
+   computed 16px instead of its declared 14.5px, oversized action labels). */
+.capiro-vnext-root :where(.vnext-meri button, .vnext-meri input, .vnext-meri textarea) {
   font: inherit;
 }
 
@@ -612,43 +615,49 @@ flex: 0 0 auto;
   overflow: hidden;
 }
 
-/* v6 prototype: no in-rail New thread button (top bar's + owns it), so the
-   top row only carries the collapse toggle, pushed right. */
-.capiro-vnext-root .vnext-meri__rail-left-top {
+/* v6 reference rail footer: command-palette entry pinned to the rail bottom. */
+.capiro-vnext-root .vnext-meri__rail-foot {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 12px 14px 6px;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #EAECF0;
 }
 
-/* Thread-rail collapse / expand — handoff §"Three-column collapse rules" #2
-   and §3 (rail toggle, 32px, hairline ring, Menu02 16px). The collapse button
-   sits beside New thread; the expand button is rendered by the conversation
-   header (and by the home greeting row, which has no header). */
-.capiro-vnext-root .vnext-meri__rail-collapse {
-  flex: 0 0 auto;
-  display: flex;
+.capiro-vnext-root .vnext-meri__rail-foot-palette {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-left: auto;
-  border: 1px solid var(--meri-border);
-  border-radius: var(--meri-radius-sm);
+  gap: 7px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
-  color: var(--meri-text-faint);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #667085;
   cursor: pointer;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
-    color var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
-.capiro-vnext-root .vnext-meri__rail-collapse:hover {
-  background: var(--meri-surface-2);
-  color: var(--meri-text-secondary);
+.capiro-vnext-root .vnext-meri__rail-foot-palette:hover {
+  background: #F2F4F7;
 }
 
+.capiro-vnext-root .vnext-meri__rail-foot-hint {
+  flex: 1;
+  text-align: right;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #98A2B3;
+}
+
+/* Thread-rail expand toggle — handoff §"Three-column collapse rules" #2 and
+   §3 (rail toggle, 32px, hairline ring, Menu02 16px). Rendered by the
+   conversation header (and by the home greeting row, which has no header)
+   while the rail is hidden; the in-rail collapse control is the inline
+   button inside the WORKSPACES label row. */
 .capiro-vnext-root .vnext-meri__rail-toggle {
   flex: 0 0 auto;
   display: flex;
@@ -668,21 +677,60 @@ flex: 0 0 auto;
   background: var(--meri-surface-2);
 }
 
-/* Search snippet — handoff §2e, only present while the rail search has a
-   query. Two-line clamp keeps a long excerpt from reflowing the row list. */
-.capiro-vnext-root .vnext-meri__thread-item-snippet {
-  margin-top: 2px;
-  font-size: 12px;
-  line-height: 17px;
+/* v6 RECENT row: line 1 = title + trailing relative stamp; line 2 = recorded
+   client name + latest-message excerpt. */
+.capiro-vnext-root .vnext-meri__thread-item-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
   color: var(--meri-text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-scope {
+  flex: 0 0 auto;
+  max-width: 45%;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--meri-text-secondary);
+}
+
+/* The excerpt sits inline after the scope on line 2, one line, ellipsized. */
+.capiro-vnext-root .vnext-meri__thread-item-snippet {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__thread-item-snippet::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--meri-text-faint);
 }
 
 .capiro-vnext-root .vnext-meri__rail-left-scroll {
-flex: 1;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -702,6 +750,23 @@ flex: 1;
   align-items: center;
   justify-content: space-between;
   padding: 0 6px 8px;
+}
+
+.capiro-vnext-root .vnext-meri__section-label-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Inline rail-collapse button inside the WORKSPACES label row — replaces the
+   old reserved 48px top row so the rail starts at the reference's y offset. */
+.capiro-vnext-root .vnext-meri__rail-collapse-inline {
+  opacity: 0.55;
+}
+
+.capiro-vnext-root .vnext-meri__rail-collapse-inline:hover,
+.capiro-vnext-root .vnext-meri__rail-collapse-inline:focus-visible {
+  opacity: 1;
 }
 
 .capiro-vnext-root .vnext-meri__section-label-link {
@@ -734,7 +799,7 @@ flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .capiro-vnext-root .vnext-meri__thread-item-title {
@@ -751,13 +816,6 @@ flex: 1;
   font-weight: 600;
 }
 
-.capiro-vnext-root .vnext-meri__thread-item-meta {
-  font-family: var(--meri-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: var(--meri-text-muted);
-}
-
 .capiro-vnext-root .vnext-meri__thread-empty {
   padding: 20px 14px;
   border-radius: 10px;
@@ -765,17 +823,17 @@ flex: 1;
   box-shadow: var(--meri-shadow-card);
 }
 
-.capiro-vnext-root .vnext-meri__divider {
-  height: 1px;
-  background: var(--meri-border);
-  margin: 18px 0;
-}
-
-.capiro-vnext-root .vnext-meri__saved-prompt-list,
-.capiro-vnext-root .vnext-meri__workspace-list {
+.capiro-vnext-root .vnext-meri__saved-prompt-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 18px;
 }
 
 .capiro-vnext-root .vnext-meri__saved-prompt-row,
@@ -915,6 +973,33 @@ flex: 1;
   gap: 2px;
 }
 
+/* Reference: a flat "No workspace" row under the workspace list — unassigns
+   the active thread via the existing assignWorkspace(id, null) path. */
+.capiro-vnext-root .vnext-meri__workspace-none {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  color: #667085;
+  cursor: pointer;
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-none:hover:not(:disabled) {
+  background: #F2F4F7;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__workspace-none:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .capiro-vnext-root .vnext-meri__workspace-name {
   font-size: 13px;
   font-weight: 500;
@@ -961,8 +1046,11 @@ flex: 1;
 /* ── Main conversation column ────────────────────────────────────────── */
 
 .capiro-vnext-root .vnext-meri__main {
-flex: 1;
-  min-width: var(--meri-conversation-min);
+  flex: 1;
+  /* 1280px window: 282 left + 382 right + main must fit — a 620px floor
+     clipped the right rail (Collapse button offscreen). The column's own
+     max-width keeps line length; the tablet threshold handles small widths. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--meri-surface);
@@ -975,7 +1063,9 @@ flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 18px 12px;
+  /* v6 reference: 60px total height (60 = 10+32+10+1 border). */
+  height: 60px;
+  padding: 9px 18px;
   border-bottom: 1px solid #F2F4F7;
   z-index: 20;
 }
@@ -1273,13 +1363,29 @@ flex: 1;
 }
 
 .capiro-vnext-root .vnext-meri__conversation-column {
-max-width: 720px;
+  /* 732px outer column = 720 content token + 12px of the 18px horizontal
+     inset, so the 696px inner content width and the reference's x322 avatar
+     position hold at 1440/1920 (and at 1280 the smaller main fills). */
+  max-width: calc(var(--meri-conversation-max) + 12px);
   min-width: 0;
   margin: 0 auto;
   padding: 24px 18px 6px;
   display: flex;
   flex-direction: column;
   gap: 26px;
+}
+
+/* v6 reference landing canvas: max-width 720 CONTENT inside 36px horizontal
+   padding, so the column box is 792 wide; the thread column above is
+   untouched. */
+.capiro-vnext-root .vnext-meri__conversation-column.is-landing {
+  max-width: 792px;
+  padding: 48px 36px 8px;
+}
+
+.capiro-vnext-root .vnext-meri__conversation-column.is-landing .vnext-meri__landing {
+  padding: 0;
+  animation: vnext-meri-rise 220ms ease;
 }
 
 /* Day divider */
@@ -1311,7 +1417,9 @@ max-width: 720px;
 .capiro-vnext-root .vnext-meri__landing {
   display: flex;
   flex-direction: column;
-  padding: 48px 0 8px;
+  /* v6 reference: 36px horizontal inset on the landing canvas (the
+     conversation column already contributes 12px). */
+  padding: 30px 24px 8px;
   animation: vnext-meri-rise 220ms ease;
 }
 
@@ -1336,24 +1444,24 @@ max-width: 720px;
 }
 
 .capiro-vnext-root .vnext-meri__landing-greeting {
-margin-top: 14px;
+  margin: 20px 0 0;
   font-size: 31px;
   font-weight: 600;
-  line-height: 34px;
+  line-height: 38px;
   letter-spacing: -0.02em;
   color: var(--meri-ink);
 }
 
 .capiro-vnext-root .vnext-meri__landing-homesub {
-margin-top: 8px;
+  margin: 12px 0 0;
   max-width: 600px;
   font-size: 15px;
-  line-height: 22px;
+  line-height: 24px;
   color: var(--meri-text-secondary);
 }
 
 .capiro-vnext-root .vnext-meri__landing-sub {
-  margin-top: 9px;
+  margin-top: 14px;
   font-family: var(--meri-font-sans);
   font-size: 11px;
   font-weight: 600;
@@ -1622,18 +1730,20 @@ margin-top: 8px;
 .capiro-vnext-root .vnext-meri__reasoning-disclosure-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  /* v6 reference: compact ~150px chip, never full-width. */
+  align-self: flex-start;
+  gap: 7px;
   margin-top: 8px;
   height: 26px;
-  padding: 0 10px;
+  padding: 0 9px;
   border: 0;
   border-radius: 7px;
   background: #F9FAFB;
   font-family: var(--meri-font-sans);
   font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #475467;
+  letter-spacing: 0.03em;
+  color: #667085;
   cursor: pointer;
 }
 
@@ -2837,9 +2947,12 @@ position: relative;
   cursor: pointer;
 }
 
-.capiro-vnext-root .vnext-meri__rail-panel-tab:hover,
-.capiro-vnext-root .vnext-meri__rail-panel-tab.is-active {
-background: #FFFFFF;
+/* State selectors must outrank the base `button.vnext-meri__rail-panel-tab`
+   rule above (element-qualified, 0-3-1) or the active tab never gets its
+   white background/ink text. */
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab:hover,
+.capiro-vnext-root .vnext-meri button.vnext-meri__rail-panel-tab.is-active {
+  background: #FFFFFF;
   color: #101828;
   box-shadow: 0 0 0 1px #E4E7EC;
 }
@@ -4752,9 +4865,11 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__thread-item.is-active {
-  background: #ffffff;
-  border-color: #EAECF0;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  /* v6 reference: gray row with a dark 2px left inset edge — not an elevated
+     white card. */
+  background: #F2F4F7;
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 #1B2430;
 }
 
 .capiro-vnext-root .vnext-meri__thread-item-main {
@@ -5645,12 +5760,11 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-standard,
-.capiro-vnext-root .vnext-meri__conversation-scroll.is-empty {
-  background: var(--m-canvas-standard);
-}
-
+.capiro-vnext-root .vnext-meri__conversation-scroll.is-empty,
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-busy {
-  background: var(--m-canvas-busy);
+  /* v6 reference: the transcript canvas stays white in every state — a busy
+     or awaiting-approval conversation does not dim the reading surface. */
+  background: var(--m-canvas-standard);
 }
 
 .capiro-vnext-root .vnext-meri__assistant-mark img {
@@ -5663,7 +5777,77 @@ width: 30px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 0 18px 16px;
+  /* v6 reference: the chart spans the full assistant-card width — the card
+     itself owns the horizontal inset, so this slot must not add another. */
+  margin: 0 0 16px;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #FCFCFD;
+  box-shadow: 0 0 0 1px #EAECF0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card:hover {
+  background: #F9FAFB;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 40px;
+  border-radius: 6px;
+  background: #EFF4FF;
+  color: #3538CD;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #101828;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card-meta {
+  font-size: 11.5px;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card-open {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #363F72;
+}
+
+.capiro-vnext-root .vnext-meri__doc-card-downloads {
+  display: flex;
+  gap: 14px;
+  padding: 8px 2px 0;
 }
 
 .capiro-vnext-root .vnext-meri__composer-send-btn {
@@ -5717,9 +5901,12 @@ width: 30px;
 
 .capiro-vnext-root .vnext-meri-md__p {
   margin: 0;
-  font-size: 14px;
-  line-height: 22px;
-  color: #344054;
+  /* v6 reference: assistant prose is 14.5px/23 #1D2939 — the same metrics
+     the assistant-body wrapper declares; these element rules must not
+     override it downward. */
+  font-size: 14.5px;
+  line-height: 23px;
+  color: #1D2939;
   text-wrap: pretty;
 }
 
@@ -5761,7 +5948,9 @@ width: 30px;
 }
 
 .capiro-vnext-root .vnext-meri-md__list {
-  margin: 10px 0 0;
+  /* v6 reference: exactly one 10px gap between the paragraph above and the
+     first bullet — the assistant-body's column gap already provides it. */
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -5769,21 +5958,26 @@ width: 30px;
 .capiro-vnext-root .vnext-meri-md__li {
   position: relative;
   padding-left: 15px;
-  margin-top: 7px;
-  font-size: 13px;
-  line-height: 20px;
-  color: #344054;
+  margin-top: 10px;
+  font-size: 14.5px;
+  line-height: 23px;
+  color: #1D2939;
+}
+
+.capiro-vnext-root .vnext-meri-md__li:first-child {
+  margin-top: 0;
 }
 
 .capiro-vnext-root .vnext-meri-md__list:not(.is-ordered) .vnext-meri-md__li::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 7px;
+  top: 9px;
   width: 5px;
   height: 5px;
   border-radius: 9999px;
-  background: #101828;
+  /* v6 reference: bullets are the light gray marker, not ink. */
+  background: #D0D5DD;
 }
 
 .capiro-vnext-root .vnext-meri-md__list.is-ordered {
