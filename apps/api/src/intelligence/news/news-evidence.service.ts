@@ -10,6 +10,14 @@ export type NewsObservationInput = {
   providerId?: string;
   url: string;
   publisher: string;
+  /**
+   * Canonical `intel_article.source` slug for the shared news corpus (e.g.
+   * `the_hill`, `politico_congress`, `dod`) — the vocabulary the Dashboard
+   * Wire / Data Explorer source facets, saved user filters and outlet marks
+   * are keyed on. `publisher` stays the article hostname for the LegiWatch
+   * observation ledger. When omitted, `publisher` is used as before.
+   */
+  source?: string;
   title: string;
   summary?: string | null;
   body?: string | null;
@@ -58,7 +66,10 @@ export class NewsEvidenceService {
         where: { url: canonical },
         create: {
           url: canonical,
-          source: input.publisher,
+          // Shared-corpus slug first. Writing the raw hostname here (2026-09-04
+          // → 2026-09-16) silently orphaned every saved Dashboard source
+          // filter, which is keyed on the feed slug — see sync-rss-intel.ts.
+          source: input.source?.trim() || input.publisher,
           title: input.title,
           summary,
           publishedAt: publishedAt ?? new Date(),

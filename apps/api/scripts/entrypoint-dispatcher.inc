@@ -307,6 +307,14 @@ case "${1:-serve}" in
     shift
     exec ./node_modules/.bin/tsx scripts/backfill-intel-article-encoding.ts "$@"
     ;;
+  # Relabel intel_article.source rows that the LegiWatch retain() path stored
+  # as publisher hostnames (2026-09-04 → 2026-09-16) back to their feed slug
+  # via feed_url, and clamp future-dated published_at. Dry run by default;
+  # pass --commit. Idempotent.
+  backfill-intel-article-sources)
+    shift
+    exec ./node_modules/.bin/tsx scripts/backfill-intel-article-sources.ts "$@"
+    ;;
   generate-briefings)
     echo "Running generate-briefings"
     exec ./node_modules/.bin/tsx scripts/generate-briefings.ts

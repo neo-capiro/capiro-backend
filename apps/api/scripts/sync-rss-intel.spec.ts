@@ -8,7 +8,16 @@
  * the strip regex, and numeric/named entities in <title> passed through
  * untouched. Fixtures below are shaped like real feed items (2026-08-18).
  */
-import { decodeEntities, extractText, extractCategories, validateFeedXml } from './sync-rss-intel';
+import {
+  ALL_FEEDS,
+  FUTURE_PUBLISHED_TOLERANCE_MS,
+  decodeEntities,
+  extractText,
+  extractCategories,
+  publishedAtFor,
+  retainInputFor,
+  validateFeedXml,
+} from './sync-rss-intel';
 
 describe('decodeEntities', () => {
   it('decodes named XML/HTML entities', () => {
@@ -185,5 +194,72 @@ describe('validateFeedXml', () => {
 
   it('rejects a valid XML document whose root is not a feed', () => {
     expect(validateFeedXml('<?xml version="1.0"?><html><body>hi</body></html>')).not.toBeNull();
+  });
+});
+
+/**
+ * Regression (os.capiro.ai Dashboard Wire, 2026-09-16): with
+ * LEGIWATCH_NEWS_INGEST_ENABLED=true the retain() call passed only
+ * `publisher: hostname`, and NewsEvidenceService wrote that hostname into
+ * intel_article.source. Every saved source filter (the_hill, politico, dod…)
+ * is keyed on the feed slug, so the shared news feed matched nothing and the
+ * Wire showed "No stories match these subscriptions" for ten days.
+ */
+describe('retainInputFor', () => {
+  const feed = ALL_FEEDS.find((entry) => entry.source === 'the_hill')!;
+  const now = new Date('2026-09-16T15:00:00.000Z');
+  const item = {
+    url: 'https://thehill.com/policy/defense/12345-example/',
+    title: 'Example',
+    description: 'Summary',
+    pubDate: 'Tue, 15 Sep 2026 23:28:55 +0000',
+    author: null,
+    categories: ['Defense'],
+  };
+
+  it('labels the shared-corpus row with the feed slug and keeps the hostname as publisher', () => {
+    const input = retainInputFor(feed, item, now);
+    expect(input.source).toBe('the_hill');
+    expect(input.publisher).toBe('thehill.com');
+    expect(input.feedUrl).toBe('https://thehill.com/feed/');
+    expect(input.provider).toBe('rss');
+    expect(input.rights).toBe('excerpt');
+    expect(input.publishedAt).toBe('2026-09-15T23:28:55.000Z');
+  });
+
+  it('never lets a slug drift from the configured feed, whatever host the link points at', () => {
+    const dod = ALL_FEEDS.find((entry) => entry.source === 'dod')!;
+    // The DoD feed links out to 19 different .mil/.gov hosts in production.
+    const input = retainInputFor(dod, { ...item, url: 'https://ndupress.ndu.edu/Media/News/x/' }, now);
+    expect(input.source).toBe('dod');
+    expect(input.publisher).toBe('ndupress.ndu.edu');
+  });
+});
+
+describe('publishedAtFor', () => {
+  const now = new Date('2026-09-16T15:00:00.000Z');
+
+  it('keeps a past or slightly-ahead publication instant', () => {
+    expect(publishedAtFor('2026-09-15T23:28:55Z', now)?.toISOString()).toBe('2026-09-15T23:28:55.000Z');
+    const skew = new Date(now.getTime() + FUTURE_PUBLISHED_TOLERANCE_MS - 1000);
+    expect(publishedAtFor(skew.toISOString(), now)?.getTime()).toBe(skew.getTime());
+  });
+
+  it('drops a future-dated pubDate so the sync instant is used instead', () => {
+    // Observed live: a DOJ "FY26 Q4 Data Due" item stamped 2026-10-30 sat at
+    // the top of every published_at-desc news list for six weeks.
+    expect(publishedAtFor('2026-10-30T12:00:00Z', now)).toBeNull();
+    const feed = ALL_FEEDS.find((entry) => entry.source === 'doj')!;
+    const input = retainInputFor(
+      feed,
+      { url: 'https://www.justice.gov/x', title: 'FY26 Q4 Data Due', description: null, pubDate: '2026-10-30T12:00:00Z', author: null, categories: [] },
+      now,
+    );
+    expect(input.publishedAt).toBeUndefined();
+  });
+
+  it('drops missing or unparseable dates', () => {
+    expect(publishedAtFor(null, now)).toBeNull();
+    expect(publishedAtFor('not a date', now)).toBeNull();
   });
 });

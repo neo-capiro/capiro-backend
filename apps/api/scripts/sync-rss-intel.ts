@@ -19,16 +19,22 @@ const DELAY_MS = 300;
 // identifier stays bare. No browser impersonation, no IP rotation, no auth.
 const RSS_USER_AGENT = 'Capiro-RSS/1.0';
 
-const FEEDS = [
-  // Qualified current Florida publisher feeds; each keeps its actual feed limit.
-  ...(process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true'
-    ? [
-        { source: 'florida_phoenix', url: 'https://floridaphoenix.com/feed/' },
-        { source: 'wusf', url: 'https://www.wusf.org/news.rss' },
-        { source: 'florida_daily', url: 'https://floridadaily.com/feed/' },
-        { source: 'cbs_miami', url: 'https://www.cbsnews.com/miami/latest/rss/main' },
-      ]
-    : []),
+export interface RssFeed {
+  /** Canonical `intel_article.source` slug — the shared-corpus vocabulary. */
+  source: string;
+  url: string;
+}
+
+/** Qualified current Florida publisher feeds; each keeps its actual feed limit.
+ * Only ingested when LEGIWATCH_NEWS_INGEST_ENABLED=true. */
+export const FLORIDA_FEEDS: readonly RssFeed[] = [
+  { source: 'florida_phoenix', url: 'https://floridaphoenix.com/feed/' },
+  { source: 'wusf', url: 'https://www.wusf.org/news.rss' },
+  { source: 'florida_daily', url: 'https://floridadaily.com/feed/' },
+  { source: 'cbs_miami', url: 'https://www.cbsnews.com/miami/latest/rss/main' },
+];
+
+export const CORE_FEEDS: readonly RssFeed[] = [
   // News outlets
   { source: 'roll_call', url: 'https://rollcall.com/feed/' },
   { source: 'the_hill', url: 'https://thehill.com/feed/' },
@@ -66,6 +72,13 @@ const FEEDS = [
   // Removed (dead/404/WAF-blocked, no working alternative found):
   // whitehouse.gov, treasury, epa, sba, dot, cap, rand, cfr, third_way
 ];
+
+/** Every feed this script has ever been configured to write, regardless of
+ * env gating — the complete feed_url → source slug map used by backfills. */
+export const ALL_FEEDS: readonly RssFeed[] = [...FLORIDA_FEEDS, ...CORE_FEEDS];
+
+const FEEDS: readonly RssFeed[] =
+  process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true' ? ALL_FEEDS : CORE_FEEDS;
 
 // RSS/Atom fields commonly arrive HTML-entity-escaped (named entities like
 // &amp;/&lt;/&gt;, and numeric character references like &#8216; or &#x2019;
@@ -123,6 +136,59 @@ function safeDate(v: string | null | undefined): Date | null {
   if (!v) return null;
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/** Clock-skew allowance before a feed's pubDate is treated as bogus. */
+export const FUTURE_PUBLISHED_TOLERANCE_MS = 60 * 60 * 1000;
+
+/**
+ * Feed publication instant, or null when the feed gave none, an unparseable
+ * one, or one in the future. The shared corpus sorts by published_at desc, so
+ * a future-dated item (observed live 2026-09-16: a DOJ release stamped six
+ * weeks ahead) pins itself to the top of every Dashboard Wire and Explorer
+ * News list until that date passes. Null lets the caller fall back to the
+ * sync instant, which is the honest "first seen" time.
+ */
+export function publishedAtFor(
+  pubDate: string | null | undefined,
+  now: Date = new Date(),
+): Date | null {
+  const parsed = safeDate(pubDate);
+  if (!parsed) return null;
+  return parsed.getTime() > now.getTime() + FUTURE_PUBLISHED_TOLERANCE_MS ? null : parsed;
+}
+
+export interface ParsedFeedItem {
+  url: string;
+  title: string;
+  description: string | null;
+  pubDate: string | null;
+  author: string | null;
+  categories: string[];
+}
+
+/**
+ * NewsEvidenceService.retain() input for one feed item. `source` is the feed's
+ * canonical slug (what Dashboard/Explorer source filters, saved preferences and
+ * outlet marks are keyed on); `publisher` is the article hostname kept for the
+ * LegiWatch observation ledger. Passing only `publisher` made retain() store
+ * hostnames in intel_article.source and emptied every saved source filter.
+ */
+export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = new Date()) {
+  return {
+    provider: 'rss' as const,
+    providerId: item.url,
+    url: item.url,
+    source: feed.source,
+    publisher: new URL(item.url).hostname,
+    title: item.title,
+    summary: item.description,
+    publishedAt: publishedAtFor(item.pubDate, now)?.toISOString(),
+    author: item.author,
+    feedUrl: feed.url,
+    categories: item.categories,
+    rights: 'excerpt' as const,
+  };
 }
 
 /**
@@ -206,19 +272,16 @@ async function main() {
 
         try {
           if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true') {
-            await new NewsEvidenceService(prisma as never).retain({
-              provider: 'rss',
-              providerId: url,
-              url,
-              publisher: new URL(url).hostname,
-              title,
-              summary: description,
-              publishedAt: safeDate(pubDate)?.toISOString(),
-              author,
-              feedUrl: feed.url,
-              categories: extractCategories(item),
-              rights: 'excerpt',
-            });
+            await new NewsEvidenceService(prisma as never).retain(
+              retainInputFor(feed, {
+                url,
+                title,
+                description,
+                pubDate,
+                author,
+                categories: extractCategories(item),
+              }),
+            );
           } else
             await (prisma as any).intelArticle.upsert({
               where: { url },
@@ -229,7 +292,7 @@ async function main() {
                 title,
                 url,
                 author: author?.slice(0, 200) || null,
-                publishedAt: safeDate(pubDate) || new Date(),
+                publishedAt: publishedAtFor(pubDate) || new Date(),
                 summary: description?.slice(0, 5000) || null,
                 categories: extractCategories(item),
               },
