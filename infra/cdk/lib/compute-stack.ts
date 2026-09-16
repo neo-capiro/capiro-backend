@@ -1138,7 +1138,7 @@ export class ComputeStack extends cdk.Stack {
       NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
       LOG_LEVEL: 'info',
       WORKSPACE_PORT: '4200',
-      WORKSPACE_MODEL: 'claude-sonnet-4-6',
+      WORKSPACE_MODEL: 'claude-sonnet-5',
       DB_NAME: databaseName,
       ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
       WEB_ORIGIN: `https://${cfg.appHost}`,
@@ -1292,7 +1292,7 @@ export class ComputeStack extends cdk.Stack {
       WEB_ORIGIN: `https://${cfg.appHost}`,
       // Phase-0 client-context delegation target (api /api/engagement/context/:id).
       MERIV2_API_BASE_URL: `https://${cfg.appHost}`,
-      ANTHROPIC_MODEL: 'claude-sonnet-4-5',
+      ANTHROPIC_MODEL: 'claude-sonnet-5',
       // Post-hoc grounding auditor. Matches the LIVE prod posture (both api and
       // orchestrator run 'enforce' as of 2026-07-14) so a cdk deploy does not
       // regress it — the code default is 'off', so OMITTING this here would

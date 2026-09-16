@@ -372,7 +372,7 @@ describe('evidence hearing strict wire (H57 mocked-fetch)', () => {
   const quoteBranch = (schema: any) => schema.properties.claims.items.anyOf[1];
   const obsBranch = (schema: any) => schema.properties.claims.items.anyOf[0];
 
-  it('opted-in qualified Sonnet 4.5: strict:true + projected schema, thinking1024/auto, unchanged 6000/model, constant-size evidenceIndexes schema (no enum), original schema intact', async () => {
+  it('upgrades legacy Sonnet to Sonnet 5 with strict projected schema, adaptive thinking and constant-size evidenceIndexes', async () => {
     const captured: { body?: Record<string, unknown> } = {};
     const llm = new AnthropicLlmClient({
       apiKey: 'sk-test',
@@ -386,10 +386,10 @@ describe('evidence hearing strict wire (H57 mocked-fetch)', () => {
     const body = captured.body!;
     const tool = (body.tools as any[])[0];
     expect(tool.strict).toBe(true);
-    expect(body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 });
+    expect(body.thinking).toEqual({ type: 'adaptive' });
     expect(body.tool_choice).toEqual({ type: 'auto' });
-    expect(body.max_tokens).toBe(6000);
-    expect(body.model).toBe('claude-sonnet-4-5');
+    expect(body.max_tokens).toBe(16384);
+    expect(body.model).toBe('claude-sonnet-5');
     const schema = tool.input_schema;
     // Unsupported keywords removed from the projected wire schema...
     const wireText = JSON.stringify(schema);
@@ -522,7 +522,7 @@ describe('evidence hearing strict wire (H57 mocked-fetch)', () => {
     expect(payload.evidenceTurns[0].segments[0].endMs).toBe(2000);
   });
 
-  it('unsupported provider (OpenAI) opt-in is not sent: no strict, original schema keywords, same key/model', async () => {
+  it('custom OpenAI deployment retains its original schema keywords, key and model', async () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: string, init?: RequestInit) => {
       body = JSON.parse(String(init?.body));
@@ -547,14 +547,18 @@ describe('evidence hearing strict wire (H57 mocked-fetch)', () => {
         }),
       } as Response;
     }) as typeof fetch;
-    const llm = new OpenAiLlmClient({ apiKey: 'owned-openai-key', model: 'gpt-5', fetchImpl });
+    const llm = new OpenAiLlmClient({
+      apiKey: 'owned-openai-key',
+      model: 'custom-openai',
+      fetchImpl,
+    });
     const result = await createGeneratePostHearingSummaryTool(llm).handler(input, ctx);
     expect(result.claims).toEqual(okResultClaims.claims);
     expect(Object.keys(result.claims![0]!).sort()).toEqual(['evidenceIds', 'id', 'kind', 'text']);
     const fn = (body.tools as any[])[0].function;
     expect(fn.strict).toBeUndefined();
     expect((body.tools as any[])[0].strict).toBeUndefined();
-    expect(body.model).toBe('gpt-5');
+    expect(body.model).toBe('custom-openai');
     const schema = fn.parameters;
     expect(schema.properties.claims.maxItems).toBe(40);
     expect(obsBranch(schema).properties.text.maxLength).toBe(2500);

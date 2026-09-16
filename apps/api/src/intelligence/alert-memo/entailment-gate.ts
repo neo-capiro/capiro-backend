@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * §4.7 — the second grounding gate.
  *
@@ -203,14 +204,14 @@ async function callJudge(
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareAnthropicRequest({
         model: process.env.MERI_ENTAILMENT_MODEL || cred.model,
         max_tokens: MAX_TOKENS,
         // A judge must be deterministic.
         temperature: 0,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
-      }),
+      })),
       signal: controller.signal,
     });
     const json = (await res.json()) as Record<string, unknown>;

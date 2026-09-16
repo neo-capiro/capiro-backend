@@ -62,18 +62,13 @@ const PROVIDER_OPTIONS = [
 // an unsupported model is rejected by the save-time validation call.)
 const MODELS_BY_PROVIDER: Record<'openai' | 'anthropic', { value: string; label: string }[]> = {
   openai: [
-    { value: 'gpt-4.1', label: 'GPT-4.1' },
-    { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini (default)' },
-    { value: 'gpt-4.1-nano', label: 'GPT-4.1 nano' },
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+    { value: 'gpt-6-astra', label: 'GPT-6 Astra (default)' },
     { value: 'o3', label: 'o3' },
     { value: 'o4-mini', label: 'o4-mini' },
   ],
   anthropic: [
+    { value: 'claude-sonnet-5', label: 'Claude Sonnet 5 (default)' },
     { value: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
-    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
   ],
 };
 

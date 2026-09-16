@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest } from '@capiro/shared/ai-model-policy';
 interface SummaryCredential {
   apiKey: string;
   model: string;
@@ -20,20 +21,20 @@ export async function completeMeriSummary(args: {
   const model =
     credential.usedTenantKey && credential.modelOverridden
       ? credential.model
-      : process.env.MERIV3_FAST_MODEL?.trim() || 'gpt-5.6-luna';
+      : process.env.MERIV3_FAST_MODEL?.trim() || 'gpt-6-astra';
   const response = await (args.fetchImpl ?? fetch)('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${credential.apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
+    body: JSON.stringify(prepareOpenAiResponsesRequest({
       model,
       store: false,
       instructions: args.system,
       input: [{ role: 'user', content: args.user }],
       max_output_tokens: 4096,
-    }),
+    })),
     signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`MeriV3 summary unavailable: OpenAI HTTP ${response.status}`);

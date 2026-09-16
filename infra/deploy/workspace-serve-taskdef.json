@@ -18,7 +18,7 @@
         { "name": "DB_NAME", "value": "capiro" },
         { "name": "NODE_ENV", "value": "production" },
         { "name": "WORKSPACE_PORT", "value": "4200" },
-        { "name": "WORKSPACE_MODEL", "value": "claude-sonnet-4-6" },
+        { "name": "WORKSPACE_MODEL", "value": "claude-sonnet-5" },
         { "name": "WORKSPACE_LOG_LEVEL", "value": "debug" },
         { "name": "CLERK_JWT_ISSUER", "value": "https://clerk.app.capiro.ai" },
         { "name": "WEB_ORIGIN", "value": "https://app.capiro.ai" }

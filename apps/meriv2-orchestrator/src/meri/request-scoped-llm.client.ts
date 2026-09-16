@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Logger } from '@nestjs/common';
 import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
@@ -190,7 +191,7 @@ export class RequestScopedLlmClient implements LlmClient {
         'No LLM credential available: no tenant credential on the request and no global key configured',
       );
     }
-    const model = cred?.modelOverridden ? cred.model : this.defaultModel;
+    const model = upgradeTextModel(cred?.modelOverridden ? cred.model : this.defaultModel);
     const usedTenantKey = Boolean(cred?.usedTenantKey && cred.apiKey);
     // Phase 4 LLM-gateway convergence: honor the provider the credential
     // resolver already forwarded. The global fallback key is Anthropic, so a
@@ -466,20 +467,22 @@ export class RequestScopedLlmClient implements LlmClient {
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: params.maxTokens,
-          system,
-          tools,
-          // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
-          ...(params.toolChoice === 'none'
-            ? { tool_choice: { type: 'none' } }
-            : params.toolChoice && typeof params.toolChoice === 'object'
-              ? { tool_choice: params.toolChoice }
-              : {}),
-          ...(params.onTextDelta ? { stream: true } : {}),
-          messages: params.messages,
-        }),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model,
+            max_tokens: params.maxTokens,
+            system,
+            tools,
+            // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
+            ...(params.toolChoice === 'none'
+              ? { tool_choice: { type: 'none' } }
+              : params.toolChoice && typeof params.toolChoice === 'object'
+                ? { tool_choice: params.toolChoice }
+                : {}),
+            ...(params.onTextDelta ? { stream: true } : {}),
+            messages: params.messages,
+          }),
+        ),
         signal: controller.signal,
       });
       if (!res.ok) {
@@ -551,7 +554,14 @@ export async function parseAnthropicToolStream(
   if (!body) throw new Error('Anthropic stream response had no body');
   const blocks = new Map<
     number,
-    { type: string; text: string; id?: string; name?: string; json: string }
+    {
+      type: string;
+      text: string;
+      id?: string;
+      name?: string;
+      json: string;
+      original: Record<string, unknown>;
+    }
   >();
   let stopReason: string | null = null;
   let stopDetails: { category: string | null; explanation: string | null } | null = null;
@@ -595,6 +605,7 @@ export async function parseAnthropicToolStream(
           ...(typeof cb.id === 'string' ? { id: cb.id } : {}),
           ...(typeof cb.name === 'string' ? { name: cb.name } : {}),
           json: '',
+          original: { ...cb },
         });
         break;
       }
@@ -607,6 +618,10 @@ export async function parseAnthropicToolStream(
           onTextDelta(d.text);
         } else if (d.type === 'input_json_delta' && typeof d.partial_json === 'string') {
           b.json += d.partial_json;
+        } else if (d.type === 'thinking_delta' && typeof d.thinking === 'string') {
+          b.original.thinking = String(b.original.thinking ?? '') + d.thinking;
+        } else if (d.type === 'signature_delta' && typeof d.signature === 'string') {
+          b.original.signature = String(b.original.signature ?? '') + d.signature;
         }
         break;
       }
@@ -648,6 +663,9 @@ export async function parseAnthropicToolStream(
   const content: AnthropicContentBlock[] = [...blocks.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([, b]) => {
+      if (b.type === 'thinking' || b.type === 'redacted_thinking') {
+        return b.original as AnthropicContentBlock;
+      }
       if (b.type === 'tool_use') {
         let input: Record<string, unknown> = {};
         if (b.json.trim()) {

@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -211,8 +212,9 @@ export class OpenAiResponsesClient {
       );
     }
     const usedTenantKey = Boolean(requestOpenAi?.usedTenantKey && requestOpenAi.apiKey);
-    const model =
-      usedTenantKey && requestOpenAi?.modelOverridden ? requestOpenAi.model : params.profile.model;
+    const model = upgradeTextModel(
+      usedTenantKey && requestOpenAi?.modelOverridden ? requestOpenAi.model : params.profile.model,
+    );
 
     const forcedTool = params.tools.length
       ? MeriV3ResearchRuntimeStore.consumeForcedFirstTool()
@@ -279,26 +281,31 @@ export class OpenAiResponsesClient {
             'content-type': 'application/json',
             accept: 'application/json',
           },
-          body: JSON.stringify({
-            model,
-            instructions: params.instructions,
-            input: params.input,
-            ...toolFields,
-            ...(reasoningUnsupported
-              ? {}
-              : {
-                  reasoning: {
-                    effort: activeReasoningEffort,
-                    // Request a provider-authored bounded summary for continuity
-                    // in the current turn, but never emit or persist reasoning
-                    // items.
-                    summary: 'auto',
-                  },
-                }),
-            max_output_tokens: params.profile.maxOutputTokens,
-            store: false,
-            ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
-          }),
+          body: JSON.stringify(
+            prepareOpenAiResponsesRequest(
+              {
+                model,
+                instructions: params.instructions,
+                input: params.input,
+                ...toolFields,
+                ...(reasoningUnsupported
+                  ? {}
+                  : {
+                      reasoning: {
+                        effort: activeReasoningEffort,
+                        // Request a provider-authored bounded summary for continuity
+                        // in the current turn, but never emit or persist reasoning
+                        // items.
+                        summary: 'auto',
+                      },
+                    }),
+                max_output_tokens: params.profile.maxOutputTokens,
+                store: false,
+                ...(params.safetyIdentifier ? { safety_identifier: params.safetyIdentifier } : {}),
+              },
+              { defaultReasoning: !reasoningUnsupported },
+            ),
+          ),
           signal: controller.signal,
         });
         status = response.status;

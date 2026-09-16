@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -1777,11 +1778,11 @@ export class GenerationService {
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model,
           max_tokens: MAX_TOKENS,
           messages: [{ role: 'user', content: prompt }],
-        }),
+        })),
         signal: controller.signal,
       });
       if (!res.ok) {

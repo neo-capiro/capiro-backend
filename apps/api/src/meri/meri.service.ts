@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { assertAttachmentConversation, authorizedAttachmentSources, compactedAttachmentContext } from './meri-attachment-continuity.js';
 import { randomUUID } from 'node:crypto';
 import {
@@ -1304,7 +1305,7 @@ export class MeriService implements MeriTurnMaintenance {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepareAnthropicRequest({
               model,
               max_tokens: thinking.maxTokens,
               ...(thinking.thinking ? { thinking: thinking.thinking } : {}),
@@ -1312,7 +1313,7 @@ export class MeriService implements MeriTurnMaintenance {
               system: systemBlocks,
               tools: toolSchemas,
               messages,
-            }),
+            })),
             signal: controller.signal,
           });
 
@@ -2837,12 +2838,12 @@ export class MeriService implements MeriTurnMaintenance {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
           max_tokens: maxTokens,
           system,
           messages: [{ role: 'user', content: user }],
-        }),
+        })),
       });
       if (!res.ok) return null;
       const json = (await res.json()) as { content?: Array<{ type?: string; text?: string }> };
@@ -3402,7 +3403,7 @@ export class MeriService implements MeriTurnMaintenance {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
           max_tokens: 50,
           system:
@@ -3410,13 +3411,11 @@ export class MeriService implements MeriTurnMaintenance {
             'Valid: query_intelligence, query_clients, query_engagement, query_workflow, edit_draft, edit_workflow_field, generate_draft, generate_briefing, analyze_bill, prep_hearing, draft_coalition_letter, track_amendment, navigate, general_question. ' +
             'Use analyze_bill for section-by-section bill analysis, prep_hearing for hearing preparation, draft_coalition_letter for sign-on/coalition letters, track_amendment for amendment status/whip questions.',
           messages: [{ role: 'user', content: message }],
-        }),
+        })),
       });
       if (res.ok) {
         const json = (await res.json()) as Record<string, unknown>;
-        const text = Array.isArray(json.content)
-          ? (json.content[0] as Record<string, unknown>)?.text
-          : '';
+        const text = anthropicResponseText(json);
         if (typeof text === 'string') {
           const match = text.match(/"intent"\s*:\s*"([^"]+)"/);
           if (match?.[1]) return match[1];
@@ -3456,7 +3455,7 @@ export class MeriService implements MeriTurnMaintenance {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
           max_tokens: 1500,
           system:
@@ -3467,13 +3466,11 @@ export class MeriService implements MeriTurnMaintenance {
               content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${output.slice(0, 12_000)}`,
             },
           ],
-        }),
+        })),
       });
       if (!res.ok) return null;
       const json = (await res.json()) as Record<string, unknown>;
-      const text = Array.isArray(json.content)
-        ? (json.content[0] as Record<string, unknown>)?.text
-        : '';
+      const text = anthropicResponseText(json);
       if (typeof text !== 'string') return null;
       const claims = parseVerifierClaims(text);
       if (!claims.length) return null;
@@ -3735,7 +3732,7 @@ export class MeriService implements MeriTurnMaintenance {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
           max_tokens: 200,
           system:
@@ -3747,7 +3744,7 @@ export class MeriService implements MeriTurnMaintenance {
               content: `User asked:\n${userMessage}\n\nAssistant answered:\n${answer.slice(0, 4000)}\n\nReturn a JSON array of 2-3 next prompts.`,
             },
           ],
-        }),
+        })),
       });
       if (!res.ok) return [];
       const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
@@ -4463,7 +4460,7 @@ export class MeriService implements MeriTurnMaintenance {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
           max_tokens: 700,
           system:
@@ -4478,16 +4475,14 @@ export class MeriService implements MeriTurnMaintenance {
               content: `USER-AUTHORED STATEMENT (only factual source):\n${args.userMessage}`,
             },
           ],
-        }),
+        })),
       });
       if (!res.ok) {
         this.memoryAutolearnMetric('failed', 'extractor_http');
         return;
       }
       const json = (await res.json()) as Record<string, unknown>;
-      const text = Array.isArray(json.content)
-        ? (json.content[0] as Record<string, unknown>)?.text
-        : '';
+      const text = anthropicResponseText(json);
       if (typeof text !== 'string') {
         this.memoryAutolearnMetric('failed', 'extractor_shape');
         return;

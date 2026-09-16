@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest, prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { parseProviderUsage, type ProviderUsage, type TenantContext } from '@capiro/shared';
@@ -1054,11 +1055,11 @@ export class EngagementAiService {
             Authorization: `Bearer ${cred.apiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepareOpenAiResponsesRequest({
             model: cred.model,
             input: prompt,
             text: { format: { type: 'json_schema', name: 'talking_points', strict: true, schema } },
-          }),
+          })),
         });
         raw = (await res.json()) as Record<string, unknown>;
         if (!res.ok)
@@ -1081,7 +1082,7 @@ export class EngagementAiService {
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepareAnthropicRequest({
             model: cred.model,
             max_tokens: 800,
             system:
@@ -1089,7 +1090,7 @@ export class EngagementAiService {
             messages: [
               { role: 'user', content: `${prompt}\n\nJSON schema:\n${JSON.stringify(schema)}` },
             ],
-          }),
+          })),
         });
         raw = (await res.json()) as Record<string, unknown>;
         if (!res.ok)
@@ -1420,7 +1421,7 @@ export class EngagementAiService {
         Authorization: `Bearer ${cred.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareOpenAiResponsesRequest({
         model,
         instructions: MEETING_DEBRIEF_SYSTEM_PROMPT,
         input: this.buildDebriefPrompt(input),
@@ -1435,7 +1436,7 @@ export class EngagementAiService {
             schema: meetingDebriefJsonSchema,
           },
         },
-      }),
+      })),
     });
 
     const json = (await response.json()) as Record<string, unknown>;
@@ -1470,7 +1471,7 @@ export class EngagementAiService {
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareAnthropicRequest({
         // NOTE: no `thinking` field is sent, so on adaptive-capable Claude models
         // (Sonnet 4.6 etc.) thinking stays OFF and the full max_tokens budget goes
         // to the JSON output.
@@ -1490,7 +1491,7 @@ export class EngagementAiService {
             )}`,
           },
         ],
-      }),
+      })),
     });
 
     const json = (await response.json()) as Record<string, unknown>;
@@ -1523,7 +1524,7 @@ export class EngagementAiService {
         Authorization: `Bearer ${cred.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareOpenAiResponsesRequest({
         model: cred.model,
         input: this.buildCampaignPrompt(input),
         text: {
@@ -1534,7 +1535,7 @@ export class EngagementAiService {
             schema: campaignEmailJsonSchema,
           },
         },
-      }),
+      })),
     });
 
     const json = (await response.json()) as Record<string, unknown>;
@@ -1567,7 +1568,7 @@ export class EngagementAiService {
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareAnthropicRequest({
         model: cred.model,
         max_tokens: 2400,
         system:
@@ -1580,7 +1581,7 @@ export class EngagementAiService {
             )}`,
           },
         ],
-      }),
+      })),
     });
 
     const json = (await response.json()) as Record<string, unknown>;

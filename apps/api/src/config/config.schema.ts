@@ -1,3 +1,4 @@
+import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { z } from 'zod';
 import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/engagement-runtime-env.js';
 
@@ -109,9 +110,9 @@ export const configSchema = z.object({
   // one provider key is configured; they never return canned prep.
   AI_PROVIDER: z.enum(['openai', 'anthropic']).optional(),
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
+  OPENAI_MODEL: z.string().default('gpt-6-astra').transform(upgradeTextModel),
   ANTHROPIC_API_KEY: z.string().optional(),
-  ANTHROPIC_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+  ANTHROPIC_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
 
   // Meeting-debrief model overrides (scoped to generateMeetingDebrief ONLY — the
   // notetaker summary + the manual "Generate Debrief" flow — so bumping the debrief
@@ -122,8 +123,8 @@ export const configSchema = z.object({
   // claude-haiku. Both ids are already in AI_PRICING so COGS stays correct. A
   // tenant's explicit BYOK modelOverride still wins over these (see
   // generateMeetingDebrief). Set to '' to fall back to the global model.
-  DEBRIEF_OPENAI_MODEL: z.string().default('gpt-4.1'),
-  DEBRIEF_ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
+  DEBRIEF_OPENAI_MODEL: z.string().default('gpt-6-astra').transform(upgradeTextModel),
+  DEBRIEF_ANTHROPIC_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
 
   // Comprehensive meeting-prep model overrides (scoped to the durable briefing
   // job ONLY; the interactive prep, talking points and outreach keep reading
@@ -131,8 +132,8 @@ export const configSchema = z.object({
   // hundreds of quoted facts needs a reasoning-capable model — gpt-4.1-mini and
   // haiku exhaust the bounded repair loop and fail the job. A tenant's explicit
   // BYOK modelOverride still wins. Set to '' to fall back to the global model.
-  MEETING_PREP_OPENAI_MODEL: z.string().default('gpt-5.6-sol'),
-  MEETING_PREP_ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
+  MEETING_PREP_OPENAI_MODEL: z.string().default('gpt-6-astra').transform(upgradeTextModel),
+  MEETING_PREP_ANTHROPIC_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
 
   // Phase 1 SSOT-consolidation recall source (docs/plans/…phase-1-ssot-cutover-plan.md).
   // Governs where Meri's learned-fact recall (loadRelevantMemories) reads from:
@@ -269,8 +270,8 @@ export const configSchema = z.object({
   // Ninja's COGS sign-off. Empty OUTREACH_DRAFT_MODEL = no override. FAST_MODEL
   // is reserved for cheaper sub-tasks as they migrate onto the tiered client.
   OUTREACH_PROVIDER: z.enum(['openai', 'anthropic']).optional(),
-  OUTREACH_DRAFT_MODEL: z.string().default(''),
-  OUTREACH_FAST_MODEL: z.string().default(''),
+  OUTREACH_DRAFT_MODEL: z.string().default('').transform(upgradeTextModel),
+  OUTREACH_FAST_MODEL: z.string().default('').transform(upgradeTextModel),
 
   // Reasoning depth for governed Outreach V3 generation (planning + drafting).
   //
@@ -290,7 +291,7 @@ export const configSchema = z.object({
   // credential's model, so a deploy never changes the drafting model or COGS on
   // its own — the same discipline OUTREACH_DRAFT_MODEL follows. Set this to a
   // reasoning model for OUTREACH_V3_GENERATION_EFFORT to have any effect.
-  OUTREACH_V3_GENERATION_MODEL: z.string().default(''),
+  OUTREACH_V3_GENERATION_MODEL: z.string().default('').transform(upgradeTextModel),
 
   // How many recipients the full-generation worker drafts CONCURRENTLY within a
   // claimed batch.
@@ -487,9 +488,9 @@ export const configSchema = z.object({
 
   // Meri chat brain (single Anthropic-native model + budgets). Env-driven so
   // the model and token ceiling are not hard-coded in service code.
-  CLIO_MODEL: z.string().default('claude-sonnet-4-6'),
+  CLIO_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
   CLIO_MAX_TOKENS: z.coerce.number().int().positive().default(4000),
-  CLIO_INTENT_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+  CLIO_INTENT_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
   CLIO_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
   // Max characters of prior conversation history sent to the model. Older turns
   // beyond this budget are dropped (oldest-first) to avoid silent context-limit
@@ -668,8 +669,8 @@ export const configSchema = z.object({
   // Meri Deep Research (a heavier, multi-round agentic research run that produces
   // a long, cited report artifact). Separate budgets from the chat drawer because
   // research runs longer and writes a much larger output.
-  CLIO_RESEARCH_MODEL: z.string().default('claude-sonnet-4-6'),
-  CLIO_RESEARCH_PLAN_MODEL: z.string().default('claude-haiku-4-5-20251001'),
+  CLIO_RESEARCH_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
+  CLIO_RESEARCH_PLAN_MODEL: z.string().default('claude-sonnet-5').transform(upgradeTextModel),
   CLIO_RESEARCH_MAX_TOKENS: z.coerce.number().int().positive().default(16_000),
   CLIO_RESEARCH_MAX_TOOL_ROUNDS: z.coerce.number().int().positive().default(20),
   // Per-request timeout for the deep-research model calls. A single research

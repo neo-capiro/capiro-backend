@@ -66,7 +66,7 @@ describe('AiCredentialStoreService.upsert', () => {
     expect(resolver.validateKey).toHaveBeenCalledWith(
       'openai',
       'sk-proj-supersecret-9876',
-      'gpt-4.1',
+      'gpt-6-astra',
     );
 
     const stored = rows.get(`${TENANT}:openai`)!;
@@ -86,7 +86,7 @@ describe('AiCredentialStoreService.upsert', () => {
     expect(result).toMatchObject({
       provider: 'openai',
       last4: '9876',
-      modelOverride: 'gpt-4.1',
+      modelOverride: 'gpt-6-astra',
       status: 'active',
     });
     const serialized = JSON.stringify(result);

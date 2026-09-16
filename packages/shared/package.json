@@ -4,7 +4,41 @@
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "ai-model-policy": [
+        "dist/ai-model-policy.d.ts"
+      ],
+      "client-registration-integrity": [
+        "dist/client-registration-integrity.d.ts"
+      ],
+      "money": [
+        "dist/money.d.ts"
+      ],
+      "funding-claim": [
+        "dist/funding-claim.d.ts"
+      ],
+      "defense-budget-line": [
+        "dist/defense-budget-line.d.ts"
+      ],
+      "pe-source-coverage": [
+        "dist/pe-source-coverage.d.ts"
+      ],
+      "meri-skills": [
+        "dist/meri-skills.d.ts"
+      ],
+      "market-title": [
+        "dist/market-title.d.ts"
+      ]
+    }
+  },
   "exports": {
+    "./ai-model-policy": {
+      "types": "./dist/ai-model-policy.d.ts",
+      "require": "./dist/ai-model-policy.js",
+      "import": "./dist/ai-model-policy.js",
+      "default": "./dist/ai-model-policy.js"
+    },
     "./client-registration-integrity": {
       "types": "./dist/client-registration-integrity.d.ts",
       "require": "./dist/client-registration-integrity.js",

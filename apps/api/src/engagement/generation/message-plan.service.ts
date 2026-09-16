@@ -120,7 +120,7 @@ export function sourceIdVariants(sourceType: string, sourceId: string): string[]
 const STRICT_JSON_MODEL_PATTERNS = [
   /^gpt-4\.1/i,
   /^gpt-4o/i,
-  /^gpt-5/i,
+  /^gpt-[56]/i,
   /^o[1-9]/i,
   /^claude-(haiku|sonnet|opus)-/i,
   /^claude-3/i,

@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Generate daily client briefings for all active clients with confirmed LDA mappings.
  * Stores results as IntelligenceInsight with category='briefing'.
@@ -9,7 +10,7 @@ dotenvConfig();
 
 const prisma = new PrismaClient();
 
-const MODEL = 'gpt-4o-mini';
+const MODEL = 'gpt-6-astra';
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 const DAILY_BRIEFING_SCHEMA = {
@@ -69,7 +70,7 @@ async function callOpenAi(prompt: string): Promise<string> {
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: JSON.stringify(prepareOpenAiResponsesRequest({
       model: MODEL,
       instructions: SYSTEM_PROMPT,
       input: prompt,
@@ -81,7 +82,7 @@ async function callOpenAi(prompt: string): Promise<string> {
           schema: DAILY_BRIEFING_SCHEMA,
         },
       },
-    }),
+    })),
   });
   const json = (await res.json()) as Record<string, unknown>;
   if (!res.ok) throw new Error(`OpenAI error: ${JSON.stringify(json).slice(0, 200)}`);
