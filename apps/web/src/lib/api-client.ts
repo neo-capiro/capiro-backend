@@ -71,6 +71,12 @@ const GENERATION_URL_PATTERNS: RegExp[] = [
   // plan until a full reload. Match only the long-running action routes — list
   // / policy / cancel stay on the tight default.
   /\/agents\/execution\/runs\/[^/]+\/(execute|resume)(?:\?|$)/i,
+  // Debrief generation: POST /engagement/meetings/:id/debrief-draft runs a
+  // real model call server-side (provider allows 90s) but the path contains
+  // no "generate", so the browser aborted at the 30s default and the whole
+  // draft-and-save attempt was lost. Exact route match with optional trailing
+  // slash/query/hash; adjacent debrief CRUD stays on the tight default.
+  /\/engagement\/meetings\/[^/?#]+\/debrief-draft\/?(?:[?#]|$)/i,
 ]
 
 export function isGenerationUrl(url: string | undefined): boolean {

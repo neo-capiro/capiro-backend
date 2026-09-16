@@ -325,7 +325,8 @@ export function SendMeriButton({
       style={{
         ...base,
         border: 'none',
-        background: 'var(--accent)',
+        background: 'var(--eng-primary-fill, var(--accent))',
+        boxShadow: 'var(--eng-primary-shadow, none)',
         color: '#fff',
         cursor: 'pointer',
       }}

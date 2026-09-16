@@ -1043,9 +1043,13 @@ export function NewOutreachWizard({
         // step without anyone noticing.
         return true;
       case 'pool':
-        // Same requirement the old single "Build Context" step enforced
-        // before the split — at least one context item selected.
-        return state.contextItems.length > 0;
+        // Context is OPTIONAL. A campaign whose main idea (step 4) carries it
+        // must be able to continue with zero pool items — the server's planner
+        // handles an empty evidence packet honestly ("plan an honest,
+        // non-specific message and list what is missing"). Requiring at least
+        // one ticked item here dead-ended real campaigns at step 5 and, on a
+        // resumed failed generation, blocked the only path forward.
+        return true;
       default:
         return true;
     }
@@ -2931,16 +2935,24 @@ export function NewOutreachWizard({
           )}
 
           {step.id === 'pool' && (
-            <StepContextBuilder
-              recipients={state.recipients}
-              targets={state.targets}
-              selected={state.contextItems}
-              onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
-              pool={pool}
-              discoveryBills={discoveryBills}
-              hasClient={Boolean(state.clientId)}
-              loading={poolLoading}
-            />
+            <>
+              <div
+                role="note"
+                className="mb-3 text-[13px] leading-5 text-ink-secondary"
+              >
+                Context is optional. Add supporting details, or continue with your main idea.
+              </div>
+              <StepContextBuilder
+                recipients={state.recipients}
+                targets={state.targets}
+                selected={state.contextItems}
+                onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
+                pool={pool}
+                discoveryBills={discoveryBills}
+                hasClient={Boolean(state.clientId)}
+                loading={poolLoading}
+              />
+            </>
           )}
 
           {step.id === 'generate' && jobProgress && (
