@@ -578,6 +578,15 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
       );
       // Two tenants' demand, one capture. The Wave 1 invariant.
       expect(captures[0]?.count).toBe(1);
+      // Both tenants' automatic demand rows persist against the shared capture.
+      const demand = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT count(*)::int AS count FROM hearing_subscription s
+         WHERE s.hearing_id = $1
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`,
+        H_ELIGIBLE,
+      );
+      expect(demand[0]?.count).toBe(2);
     });
 
     it('handles duplicate scheduling as a no-op rather than an error', async () => {
@@ -641,6 +650,107 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
       // Calling this COMPLETE is what makes a user open a hearing and find
       // nothing there.
       expect(state.state).toBe('PROCESSING');
+    });
+
+    // ── Hearing-capture reliability: independent browser/server demand ──────
+
+    it('entering browser AFTER automatic preserves the worker automatic demand', async () => {
+      // automatic first, then the user opens a browser: the worker's
+      // AUTOMATIC_DEMAND_SQL (attendance_mode='automatic' AND scheduled_by_user)
+      // must still match — choosing browser must not silently disable capture.
+      await wave1.requestAttendance(ctxA, H_ELIGIBLE, { mode: 'automatic' });
+      await wave1.requestAttendance(ctxA, H_ELIGIBLE, {
+        mode: 'browser',
+        consentAcknowledged: true,
+      });
+      const rows = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.hearingSubscription.findMany({ where: { hearingId: H_ELIGIBLE } }),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.scheduledByUser).toBe(true);
+      expect(rows[0]?.attendanceMode).toBe('automatic');
+      // The exact persisted predicate the capture worker uses.
+      const demand = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT count(*)::int AS count FROM hearing_subscription s
+         WHERE s.hearing_id = $1
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`,
+        H_ELIGIBLE,
+      );
+      expect(demand[0]?.count).toBe(1);
+    });
+
+    it('adding automatic AFTER browser creates real worker demand (browser -> automatic)', async () => {
+      await wave1.requestAttendance(ctxA, H_ELIGIBLE, {
+        mode: 'browser',
+        consentAcknowledged: true,
+      });
+      await wave1.requestAttendance(ctxA, H_ELIGIBLE, { mode: 'automatic' });
+      const rows = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.hearingSubscription.findMany({ where: { hearingId: H_ELIGIBLE } }),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.scheduledByUser).toBe(true);
+      expect(rows[0]?.attendanceMode).toBe('automatic');
+      const demand = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT count(*)::int AS count FROM hearing_subscription s
+         WHERE s.hearing_id = $1
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`,
+        H_ELIGIBLE,
+      );
+      expect(demand[0]?.count).toBe(1);
+    });
+
+    it('a browser-only request never matches the worker demand predicate', async () => {
+      await wave1.requestAttendance(ctxA, H_BROWSER, {
+        mode: 'browser',
+        consentAcknowledged: true,
+      });
+      const demand = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT count(*)::int AS count FROM hearing_subscription s
+         WHERE s.hearing_id = $1
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`,
+        H_BROWSER,
+      );
+      expect(demand[0]?.count).toBe(0);
+    });
+
+    it('rule-scheduled automatic demand survives a later browser request', async () => {
+      // Seed a rule-scheduled row directly (the auto-record rule path writes
+      // scheduled_by_rule_id, not scheduled_by_user).
+      await prisma.withTenant(TENANT_A, (tx) =>
+        tx.$executeRawUnsafe(
+          `INSERT INTO hearing_subscription
+             (tenant_id, user_id, hearing_id, notify_on_start, notify_on_mention,
+              scheduled_by_user, scheduled_by_rule_id, client_ids, watchlist_id,
+              attendance_mode, created_at, updated_at)
+           VALUES ($1::uuid, $2, $3, true, false, false, 'rule-1', ARRAY[]::text[], NULL,
+                   'automatic', now(), now())`,
+          TENANT_A,
+          ctxA.userId,
+          H_ELIGIBLE,
+        ),
+      );
+      await wave1.requestAttendance(ctxA, H_ELIGIBLE, {
+        mode: 'browser',
+        consentAcknowledged: true,
+      });
+      const rows = await prisma.withTenant(TENANT_A, (tx) =>
+        tx.hearingSubscription.findMany({ where: { hearingId: H_ELIGIBLE } }),
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.attendanceMode).toBe('automatic');
+      expect(rows[0]?.scheduledByRuleId).toBe('rule-1');
+      const demand = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT count(*)::int AS count FROM hearing_subscription s
+         WHERE s.hearing_id = $1
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`,
+        H_ELIGIBLE,
+      );
+      expect(demand[0]?.count).toBe(1);
     });
   });
 

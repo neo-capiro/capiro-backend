@@ -29,6 +29,7 @@ import {
   assessStrictSchedulePolicy,
   type StrictScheduleAssessment,
 } from './live-hearings-phase7-schedule.guard.js';
+import { selectBrowserSource } from './live-hearings-browser-source.js';
 
 /**
  * The user-facing attendance states, in the vocabulary the product speaks.
@@ -72,6 +73,9 @@ export interface AttendanceHearingRow {
 export interface AttendanceCandidateRow {
   capturePolicy: string;
   resolutionState: string;
+  /** Present when the caller projects it (the Wave 1 service does); used to
+   *  decide browser availability via the same source selection as join. */
+  officialPageUrl?: string | null;
 }
 
 export interface AttendanceCaptureRow {
@@ -104,6 +108,19 @@ export interface AttendanceAssessment {
   consentRequired: boolean;
   /** Present when this tenant already has a demand row. */
   scheduled: boolean;
+  /**
+   * Whether the user may open a private browser capture context for this
+   * hearing RIGHT NOW, independent of server state. True for any public,
+   * non-canceled hearing that has a usable browser source (a candidate page or
+   * the official listing url). An active/complete/failed canonical capture
+   * never locks this out.
+   */
+  browserAvailable: boolean;
+  /**
+   * Whether a FRESH automatic (server) request would be accepted RIGHT NOW,
+   * independent of whether the user currently has a browser session open.
+   */
+  automaticAvailable: boolean;
   /** The Phase 7 policy verdict this assessment is built on. */
   policy: StrictScheduleAssessment;
 }
@@ -147,6 +164,56 @@ export function isVerifiedClosed(visibility: string | null | undefined): boolean
  *   3. This tenant's own demand row.
  *   4. Finally, the Phase 7 eligibility verdict for a fresh request.
  */
+/**
+ * Independent browser/server capabilities, derived once per assessment.
+ * Browser availability rides on the public source existing at all; it is never
+ * denied by a server-side policy (including BLOCKED) or by an active/failed/
+ * complete canonical capture.
+ */
+function deriveCapabilities(input: {
+  hearing: AttendanceHearingRow;
+  candidates: AttendanceCandidateRow[];
+  capture?: AttendanceCaptureRow | null;
+  policy: StrictScheduleAssessment;
+}): { browserAvailable: boolean; automaticAvailable: boolean } {
+  const { hearing, policy } = input;
+  // Browser join requires EXACTLY public visibility — an unknown/unverified
+  // value must not advertise a browser affordance join would then refuse.
+  const isPublic = (hearing.visibility ?? '').trim().toLowerCase() === 'public';
+  const canceled = hearing.eventStatus === 'canceled' || hearing.eventStatus === 'cancelled';
+  // Reuse the same validated source selection as browserJoin so an invalid or
+  // url-less candidate set cannot advertise a source join would not produce.
+  const source = selectBrowserSource({
+    hearingUrl: hearing.url ?? null,
+    candidates: input.candidates.map((c) => ({
+      provider: (c as { provider?: string }).provider ?? 'unknown',
+      officialPageUrl: c.officialPageUrl ?? '',
+      capturePolicy: c.capturePolicy,
+    })),
+  });
+  const browserAvailable = isPublic && !canceled && source != null;
+  // automaticAvailable truthfully means "a fresh automatic request would be
+  // accepted AND acted on". Phase 7.schedule reuses the ONE existing canonical
+  // capture id rather than rejecting it, so an already-ACTIVE capture is NOT a
+  // duplicate recorder and must not veto another tenant's (or the same
+  // tenant's idempotent) demand. But a TERMINAL canonical capture (FAILED /
+  // CANCELED / BLOCKED / COMPLETE*) is different: the orchestrator returns
+  // TERMINAL immediately and Phase 7 reuses the id WITHOUT a reset, so offering
+  // automatic would claim a new capture that does nothing. No retry workflow
+  // is added here — the browser fallback stays available instead.
+  const terminalCanonical =
+    input.capture != null &&
+    ['FAILED', 'CANCELED', 'BLOCKED', 'COMPLETE', 'COMPLETE_WITH_GAPS'].includes(
+      input.capture.domainStatus.toUpperCase(),
+    );
+  const automaticAvailable =
+    isPublic &&
+    !canceled &&
+    !terminalCanonical &&
+    (policy.state === 'READY' || policy.state === 'PREFLIGHT_REQUIRED');
+  return { browserAvailable, automaticAvailable };
+}
+
 export function assessAttendance(input: {
   hearing: AttendanceHearingRow;
   candidates: AttendanceCandidateRow[];
@@ -157,6 +224,27 @@ export function assessAttendance(input: {
   /** A reviewed state adapter may narrow the modes independently. */
   statePermission?: { policy: StrictScheduleAssessment; browserAllowed: boolean };
 }): AttendanceAssessment {
+  const policy = input.statePermission?.policy ?? assessStrictSchedulePolicy(input.hearing, input.candidates);
+  const base = assessAttendanceCore({ ...input, policy });
+  const capabilities = deriveCapabilities({ ...input, policy });
+  // A reviewed state adapter narrows browser availability too; it is the only
+  // authority that can deny the browser while still public.
+  const browserAvailable =
+    input.statePermission && !input.statePermission.browserAllowed
+      ? false
+      : capabilities.browserAvailable;
+  return { ...base, browserAvailable, automaticAvailable: capabilities.automaticAvailable };
+}
+
+function assessAttendanceCore(input: {
+  hearing: AttendanceHearingRow;
+  candidates: AttendanceCandidateRow[];
+  capture?: AttendanceCaptureRow | null;
+  subscription?: AttendanceSubscriptionRow | null;
+  hasTranscript?: boolean;
+  statePermission?: { policy: StrictScheduleAssessment; browserAllowed: boolean };
+  policy: StrictScheduleAssessment;
+}): Omit<AttendanceAssessment, 'browserAvailable' | 'automaticAvailable'> {
   const { hearing, candidates, capture, subscription } = input;
   const policy = input.statePermission?.policy ?? assessStrictSchedulePolicy(hearing, candidates);
   const scheduled = Boolean(subscription?.scheduledByUser);
@@ -354,26 +442,47 @@ export function refuseAttendanceRequest(
   assessment: AttendanceAssessment,
   requestedMode: 'automatic' | 'browser',
 ): { code: string; message: string } | null {
+  // Closed proceedings are refused at the boundary regardless of any flag —
+  // a stale scheduled row or a stray candidate never unlocks them.
   if (assessment.state === 'CLOSED_SESSION') {
     return {
       code: 'CLOSED_PROCEEDING',
       message: assessment.message,
     };
   }
-  if (assessment.scheduled) {
-    // Idempotent, not an error — the caller re-applies the configuration.
+  // Canceled events are refused too: scheduling must not bypass a canceled
+  // event just because a row already exists. The assessment's own reasonCode
+  // may say ATTENDANCE_ALREADY_SCHEDULED, so check the policy verdict — it is
+  // computed from the hearing independently of the scheduled branch.
+  if (assessment.reasonCode === 'EVENT_CANCELED' || assessment.policy.reasonCode === 'EVENT_CANCELED') {
+    return { code: 'EVENT_CANCELED', message: 'This proceeding has been canceled.' };
+  }
+
+  // Per-mode INDEPENDENT decision. The request boundary uses the mode's own
+  // capability flag, not the global canRequest/availableModes (which describe
+  // only FRESH demand and would wrongly 409 a browser request after the
+  // canonical capture is already active/complete).
+  if (requestedMode === 'browser') {
+    if (!assessment.browserAvailable) {
+      return {
+        code: 'ATTENDANCE_MODE_NOT_AVAILABLE',
+        message: 'Browser attendance is not available for this proceeding.',
+      };
+    }
     return null;
   }
-  if (!assessment.canRequest) {
-    return { code: assessment.reasonCode, message: assessment.message };
+
+  // automatic
+  if (assessment.scheduled && assessment.automaticAvailable) {
+    // Same-mode re-request while policy still permits: idempotent re-apply.
+    return null;
   }
-  if (!assessment.availableModes.includes(requestedMode)) {
+  if (!assessment.automaticAvailable) {
     return {
-      code: 'ATTENDANCE_MODE_NOT_AVAILABLE',
-      message:
-        requestedMode === 'automatic'
-          ? 'Unattended server capture is not permitted for this proceeding.'
-          : 'Browser attendance is not available for this proceeding.',
+      code: assessment.canRequest ? 'ATTENDANCE_MODE_NOT_AVAILABLE' : assessment.reasonCode,
+      message: assessment.canRequest
+        ? 'Unattended server capture is not permitted for this proceeding.'
+        : assessment.message,
     };
   }
   return null;

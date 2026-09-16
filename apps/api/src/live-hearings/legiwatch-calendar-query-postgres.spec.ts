@@ -155,14 +155,55 @@ describe('Phase 3 calendar selection and export on PostgreSQL', () => {
       { id: 'missing-event', reason: 'Event unavailable in this selection' },
     ]);
   });
-  it('fails closed for direct state queries and export when the tenant capability is off', async () => {
+  it('serves the public state calendar to a tenant with NO state-calendar flag row', async () => {
+    // The public Florida read is global: the tenant used elsewhere in this
+    // suite has its flag DISABLED below, and a brand-new tenant has NO row at
+    // all. Both must read the same public rows; only the per-user overlay
+    // differs.
     await p.$executeRaw`UPDATE intel_feature_flag SET enabled=false WHERE tenant_id=${tenant}`;
-    await expect(calendar.calendar(ctx, selection)).rejects.toThrow('not enabled');
-    await expect(wave.calendarExportBulk(ctx, selection, 'https://os.capiro.ai')).rejects.toThrow(
-      'not enabled',
+    const off = await calendar.calendar(ctx, selection);
+    expect(off.total).toBe(205);
+
+    const otherTenant = randomUUID();
+    await p.tenant.create({
+      data: { id: otherTenant, slug: 'calendar-other-' + suffix, name: 'Other' },
+    });
+    try {
+      const otherCtx: TenantContext = { ...ctx, tenantId: otherTenant, userId: 'other-reader' };
+      const page = await calendar.calendar(otherCtx, selection);
+      expect(page.total).toBe(205);
+      // Global rows are identical across tenants.
+      expect(page.rows.map((r) => r.id)).toEqual(off.rows.map((r) => r.id));
+      // Isolation: the other tenant has no follow/subscription overlay.
+      expect(page.rows.every((r) => !r.following && r.subscription === null)).toBe(true);
+      // Export is not blocked by a missing flag either.
+      const exported = await wave.calendarExportBulk(otherCtx, selection, 'https://os.capiro.ai');
+      expect(exported.includedCount).toBe(205);
+    } finally {
+      await p.tenant.deleteMany({ where: { id: otherTenant } });
+    }
+  });
+  it('keeps each tenant\u2019s own follow/subscription overlay isolated', async () => {
+    // This tenant follows ids[204]; a different user in the SAME tenant and a
+    // different tenant must not see that follow.
+    const sameTenantOtherUser = await calendar.calendar(
+      { ...ctx, userId: 'different-reader' },
+      { ...selection, following: true },
     );
-    await expect(wave.calendarExport(ctx, ids[0]!, 'https://os.capiro.ai')).rejects.toThrow(
-      'not enabled',
-    );
+    expect(sameTenantOtherUser.total).toBe(0);
+    const otherTenant = randomUUID();
+    await p.tenant.create({
+      data: { id: otherTenant, slug: 'calendar-iso-' + suffix, name: 'Iso' },
+    });
+    try {
+      const otherCtx: TenantContext = { ...ctx, tenantId: otherTenant, userId: 'iso-reader' };
+      const followed = await calendar.calendar(otherCtx, { ...selection, following: true });
+      expect(followed.total).toBe(0);
+      // ...but the followed row is still visible to this tenant's follower.
+      const mine = await calendar.calendar(ctx, { ...selection, following: true });
+      expect(mine.rows.map((r) => r.id)).toEqual([ids[204]]);
+    } finally {
+      await p.tenant.deleteMany({ where: { id: otherTenant } });
+    }
   });
 });

@@ -13,6 +13,29 @@ export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-14.1';
 
+/**
+ * Acceptance test for an official Florida watch/player page. Only an http(s)
+ * URL on the exact official host or a dot-suffix subdomain of it qualifies;
+ * credentials, non-http(s) schemes, and hostile look-alikes (evilflsenate.gov,
+ * flhouse.gov.evil.example) are rejected. Returns the provider chamber for an
+ * accepted URL, null otherwise — callers must SKIP, never fall back to the row
+ * chamber, so a nonofficial page is never advertised as an official candidate.
+ */
+export function floridaOfficialWatchChamber(watchUrl: string): 'senate' | 'house' | null {
+  let u: URL;
+  try {
+    u = new URL(watchUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+  if (u.username || u.password) return null;
+  const host = u.hostname.toLowerCase();
+  if (host === 'flsenate.gov' || host.endsWith('.flsenate.gov')) return 'senate';
+  if (host === 'flhouse.gov' || host.endsWith('.flhouse.gov')) return 'house';
+  return null;
+}
+
 /** Florida LegiScan bill labels use H/S plus four digits; notices use HB/SB. */
 export function floridaBillNumberAliases(raw: string): string[] {
   const number = raw
@@ -545,10 +568,117 @@ export function houseNoticeLinks(html: string): string[] {
   return [...urls];
 }
 
+/**
+ * Pair each House committee notice with the watch URL published inside its OWN
+ * `.schedule-event` element.
+ *
+ * The House daily schedule puts the MeetingId notice link AND the
+ * WatchArchivedStream VideoPlayer link in the same schedule-event block. The
+ * bare meetingnotice.aspx page carries no video, so the watch URL must be
+ * captured HERE, at the schedule level — and it must come from the exact same
+ * event element, never a title match or a neighboring event's player (the
+ * 2-26-2026 page has State Affairs MeetingId=15193 with eventID=11179 while
+ * the next event's player is 11185).
+ *
+ * Pairing is keyed on the NORMALIZED numeric MeetingId (not the raw href
+ * string), so casing/query-order differences cannot split or mis-pair a notice.
+ * Both links are validated before adoption: http(s) only, an exact or
+ * dotted-suffix flhouse.gov host, and (for the watch URL) the VideoPlayer.aspx
+ * path with a numeric eventID. A malformed link inside one event is skipped
+ * for that event only — it never crashes the whole page parse.
+ */
+export function houseNoticeWatchPairs(
+  html: string,
+): Array<{ noticeUrl: string; watchUrl: string | null }> {
+  const $ = load(html),
+    pairs: Array<{ noticeUrl: string; watchUrl: string | null }> = [];
+
+  const isFlhouseHost = (hostname: string) =>
+    hostname === 'flhouse.gov' || hostname.endsWith('.flhouse.gov');
+
+  const parseNotice = (href: string): { noticeUrl: string; meetingId: string } | null => {
+    let u: URL;
+    try {
+      u = new URL(href, FL_HOUSE);
+    } catch {
+      return null;
+    }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (u.username || u.password) return null;
+    if (!isFlhouseHost(u.hostname.toLowerCase())) return null;
+    if (!/meetingnotice\.aspx$/i.test(u.pathname)) return null;
+    // Query keys are case-insensitive on this publisher; read MeetingId
+    // tolerantly and pair on the normalized numeric id.
+    let meetingId: string | null = null;
+    u.searchParams.forEach((value, key) => {
+      if (key.toLowerCase() === 'meetingid' && /^\d+$/.test(value)) meetingId = value;
+    });
+    if (!meetingId) return null;
+    // Canonical form: numeric id only, so later lookup by MeetingId is reliable.
+    return {
+      noticeUrl: `https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=${meetingId}`,
+      meetingId,
+    };
+  };
+
+  const parseWatch = (href: string): string | null => {
+    let u: URL;
+    try {
+      u = new URL(href, FL_HOUSE);
+    } catch {
+      return null;
+    }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (u.username || u.password) return null;
+    if (!isFlhouseHost(u.hostname.toLowerCase())) return null;
+    if (!/\/VideoPlayer\.aspx$/i.test(u.pathname)) return null;
+    let eventId: string | null = null;
+    u.searchParams.forEach((value, key) => {
+      if (key.toLowerCase() === 'eventid' && /^\d+$/.test(value)) eventId = value;
+    });
+    if (!eventId) return null;
+    return `https://www.flhouse.gov/VideoPlayer.aspx?eventID=${eventId}`;
+  };
+
+  // Bind each notice to its OWN schedule-event's watch. A duplicated notice for
+  // the same MeetingId upgrades a null watch to the later SAME event's own video
+  // (never a neighbor); a duplicate with no own video leaves the pair untouched.
+  const byMeetingId = new Map<string, { noticeUrl: string; watchUrl: string | null }>();
+  $('.schedule-list .schedule-event').each((_, el) => {
+    try {
+      const event = $(el);
+      // Every anchor href; attribute selectors match values case-sensitively
+      // while the advertised behavior is case-insensitive ASPX.
+      const hrefs = event
+        .find('a[href]')
+        .toArray()
+        .map((a) => $(a).attr('href') ?? '')
+        .filter(Boolean);
+      const notice = hrefs.map(parseNotice).find((n) => n !== null) ?? null;
+      if (!notice) return;
+      const watch = hrefs.map(parseWatch).find((w) => w !== null) ?? null;
+      const existing = byMeetingId.get(notice.meetingId);
+      if (!existing) {
+        const pair = { noticeUrl: notice.noticeUrl, watchUrl: watch };
+        byMeetingId.set(notice.meetingId, pair);
+        pairs.push(pair);
+      } else if (!existing.watchUrl && watch) {
+        existing.watchUrl = watch; // same notice's own later video, not a neighbor
+      }
+    } catch {
+      // One malformed event must not abort the whole page.
+    }
+  });
+  return pairs;
+}
+
 export function houseNoticeObservation(
   html: string,
   sourceUrl: string,
   session: string | null,
+  /** The watch URL paired with this notice at the schedule level (its OWN
+   *  schedule-event). The notice page itself carries no video. */
+  watchUrl?: string | null,
 ): LegislativeObservation {
   const $ = load(html),
     id = new URL(sourceUrl).searchParams.get('MeetingId');
@@ -660,6 +790,9 @@ export function houseNoticeObservation(
         publishedText: clean($('.cm_contents').text()),
       },
     ],
+    // The schedule-level pairing supplies the official player page; the notice
+    // page itself never publishes video.
+    watchUrl: watchUrl ?? null,
   };
   const issues =
     !agenda.length && !$('.meeting-actions-bills section, #meeting-summary').length
@@ -687,6 +820,10 @@ export function houseNoticeObservation(
       'location',
       'documents',
       ...(!issues.length ? ['agenda' as const] : []),
+      // watchUrl is complete only when the schedule-level pairing verified a
+      // real player publication for THIS event; a missing watch never erases a
+      // known archive and never marks the field complete.
+      ...(watchUrl ? (['watchUrl'] as const) : []),
     ],
     completeness: issues.length ? 'partial' : 'complete',
     issues,

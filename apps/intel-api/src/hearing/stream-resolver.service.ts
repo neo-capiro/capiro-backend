@@ -12,13 +12,24 @@ import {
   cspanManifestForId,
   extractCongressVideoUrls,
   extractCspanLdJson,
+  extractDocsHouseEventLinks,
+  extractFloridaHouseNoticeDate,
+  extractHouseCommitteeEventLinks,
+  findFloridaHouseVideoPlayerForMeeting,
+  floridaHouseDailyScheduleUrl,
+  houseDocsEventUrl,
+  houseEventIdMatches,
   extractYoutubeHlsManifest,
   findIsvpInHtml,
   findLiteralMediaInHtml,
   findYoutubeIdInHtml,
+  isRequestRejectedPage,
   parseCongressEventUrl,
   parseCspanProgramId,
   parseCspanSearchResults,
+  parseFloridaHouseNoticeUrl,
+  parseFloridaHouseVideoPlayerPageUrl,
+  parseFloridaSenateVideoPlayerUrl,
   parseGooglevideoExpiry,
   parseHearingRowId,
   parseIsvpParams,
@@ -186,7 +197,34 @@ export class StreamResolverService {
     }
     // (5) house.gov + other allowlisted committee pages → generic scan.
     if (/(^|\.)house\.gov$/i.test(host)) {
+      // A DIRECT docs.house.gov repository event link carries the exact
+      // EventID in its query — enter the same bounded fallback chain instead
+      // of a blind generic scan (the docs page itself never embeds media).
+      if (
+        host === 'docs.house.gov' &&
+        /\/Committee\/Calendar\/ByEvent\.aspx$/i.test(new URL(pageUrl).pathname)
+      ) {
+        const ev = new URL(pageUrl).searchParams.get('EventID');
+        if (ev && /^\d+$/.test(ev)) {
+          const fallback = await this.tryHouseDocsFallback(ev, depth);
+          if (fallback) return fallback;
+          return {
+            status: 'unresolvable',
+            reference: pageUrl,
+            note: `No verified committee video for House repository event ${ev} — open the docs page`,
+          };
+        }
+      }
       return this.resolveCommitteePage(pageUrl, depth);
+    }
+    // (7) Florida House notice → daily schedule VideoPlayer pairing.
+    if (/(^|\.)flhouse\.gov$/i.test(host)) {
+      return this.resolveFloridaHouseNotice(pageUrl, depth);
+    }
+    // (8) Florida Senate media player — the page itself is the stable
+    // first-party reference; no network needed and no media URL is invented.
+    if (/(^|\.)flsenate\.gov$/i.test(host)) {
+      return this.resolveFloridaSenatePlayer(pageUrl);
     }
 
     return {
@@ -441,12 +479,23 @@ export class StreamResolverService {
 
   // ── (5) committee-page generic scan ────────────────────────────────────────
 
-  private async resolveCommitteePage(pageUrl: string, depth: number): Promise<ResolveResult> {
+  private async resolveCommitteePage(
+    pageUrl: string,
+    depth: number,
+    preFetchedHtml?: string,
+  ): Promise<ResolveResult> {
     let text: string;
-    try {
-      ({ text } = await guardedFetchText(pageUrl));
-    } catch (err) {
-      return this.unresolvableFrom(err, pageUrl, 'committee-page');
+    if (preFetchedHtml !== undefined) {
+      // REUSE HTML the caller already fetched + verified (e.g. the House docs
+      // fallback's exact-id check) — refetching would spend network calls
+      // OUTSIDE that caller's deadline/page budget.
+      text = preFetchedHtml;
+    } else {
+      try {
+        ({ text } = await guardedFetchText(pageUrl));
+      } catch (err) {
+        return this.unresolvableFrom(err, pageUrl, 'committee-page');
+      }
     }
 
     // ISVP embed (a House-hosted Senate-style embed is rare, but check).
@@ -497,6 +546,12 @@ export class StreamResolverService {
     }
     if (!this.congressApiKey) {
       // No key in intel-api → we can't read videos[]; hand back the page.
+      // For House events, still run the bounded docs.house.gov fallback — the
+      // official record usually still has video even when the API is absent.
+      if (ref.chamber === 'house') {
+        const fallback = await this.tryHouseDocsFallback(ref.eventId, depth);
+        if (fallback) return fallback;
+      }
       return {
         status: 'unresolvable',
         reference: pageUrl,
@@ -504,13 +559,186 @@ export class StreamResolverService {
       };
     }
     const r = await this.tryCongressVideos(ref, depth);
-    return (
-      r ?? {
+    if (r) return r;
+    // Bounded first-party House fallback: a Congress.gov House event with an
+    // empty videos[] used to dead-end at "No video links". The official record
+    // usually still has video: docs.house.gov links the owning committee, and
+    // the committee's own event page embeds the player. Every hop is keyed on
+    // the EXACT Congress event id — never a title match, never a hardcoded id.
+    if (ref.chamber === 'house') {
+      const fallback = await this.tryHouseDocsFallback(ref.eventId, depth);
+      if (fallback) return fallback;
+    }
+    return {
+      status: 'unresolvable',
+      reference: pageUrl,
+      note: 'No video links on the congress.gov event',
+    };
+  }
+
+  /**
+   * Bounded first-party House fallback for a Congress event id with no
+   * videos[] entry. Chain: docs.house.gov event page → committee source linked
+   * there → that committee's hearing/event links → accept ONLY the event page
+   * whose outgoing official repository/Congress event id EXACTLY matches.
+   * Returns a verified committee/video reference even when YouTube server
+   * extraction is disabled, so the frontend Open Source upgrade works.
+   *
+   * Bounded by a hard deadline and a page budget: at most `maxPages` fetches
+   * and `deadlineMs` wall-clock across the whole chain.
+   */
+  private async tryHouseDocsFallback(
+    eventId: string,
+    depth: number,
+    opts: { deadlineMs?: number; maxPages?: number } = {},
+  ): Promise<ResolveResult | null> {
+    if (depth > 3) return null;
+    const deadlineMs = opts.deadlineMs ?? 20_000;
+    const maxPages = opts.maxPages ?? 8;
+    const started = Date.now();
+    let pages = 0;
+    let exhausted = false;
+
+    // Cache lookup BEFORE any discovery: a previously verified, stable
+    // first-party reference for this exact event id short-circuits the whole
+    // chain (zero network calls). Never media — only official pages and exact
+    // YouTube watch/embed references land in this cache.
+    const cached = this.cachedHouseFallbackRef(eventId);
+    if (cached) {
+      return {
         status: 'unresolvable',
-        reference: pageUrl,
-        note: 'No video links on the congress.gov event',
+        reference: cached,
+        note: `Verified House committee reference for Congress event ${eventId} (cached) — open the official player and share its tab audio`,
+      };
+    }
+
+    /**
+     * Budgeted fetch. EVERY network call this fallback makes goes through here,
+     * and every call carries the SHARED ABSOLUTE DEADLINE (deadlineAt) so the
+     * bound spans redirects and response reads — not just the first hop. Page
+     * HTML is used in place (never refetched). Once the page budget or
+     * deadline is exhausted, `exhausted` latches and the chain STOPS — no
+     * further attempts are made.
+     */
+    const deadlineAt = started + deadlineMs;
+    const fetchPage = async (url: string) => {
+      if (exhausted) throw new Error('house docs fallback budget already exhausted');
+      if (pages >= maxPages) {
+        exhausted = true;
+        throw new Error(`house docs fallback page budget exceeded (${maxPages})`);
       }
-    );
+      const remaining = deadlineAt - Date.now();
+      if (remaining <= 0) {
+        exhausted = true;
+        throw new Error(`house docs fallback deadline exceeded (${deadlineMs}ms)`);
+      }
+      pages++;
+      return guardedFetchText(url, {
+        timeoutMs: Math.min(10_000, remaining),
+        deadlineAt,
+      });
+    };
+
+    const docsUrl = houseDocsEventUrl(eventId);
+    let docsHtml: string;
+    try {
+      ({ text: docsHtml } = await fetchPage(docsUrl));
+    } catch (err) {
+      this.logger.warn(`house docs fallback fetch failed for ${docsUrl}: ${(err as Error).message}`);
+      return null;
+    }
+    const committeeLinks = extractDocsHouseEventLinks(docsHtml);
+    for (const committeeUrl of committeeLinks) {
+      if (exhausted) break;
+      let committeeHtml: string;
+      try {
+        ({ text: committeeHtml } = await fetchPage(committeeUrl));
+      } catch (err) {
+        if (exhausted) break;
+        this.logger.warn(`house docs fallback committee fetch failed for ${committeeUrl}: ${(err as Error).message}`);
+        continue;
+      }
+      // The docs page may link directly to the event page (not just the
+      // committee homepage). Accept it immediately when the exact id matches.
+      if (houseEventIdMatches(committeeHtml, eventId)) {
+        // Use the ALREADY-FETCHED, verified HTML in place — no recursion and
+        // no refetch outside the budget. The reference is the exact YouTube
+        // watch URL when the page embeds that video, else the official page.
+        const ytId = findYoutubeIdInHtml(committeeHtml);
+        const reference = ytId ? youtubeWatchUrl(ytId) : committeeUrl;
+        this.rememberHouseFallbackRef(eventId, reference);
+        return {
+          status: 'unresolvable',
+          reference,
+          note: `Verified House committee video for Congress event ${eventId} — open the official player and share its tab audio`,
+        };
+      }
+      const origin = new URL(committeeUrl).origin;
+      const eventLinks = extractHouseCommitteeEventLinks(committeeHtml, origin);
+      for (const eventUrl of eventLinks) {
+        if (exhausted) break;
+        let eventHtml: string;
+        try {
+          ({ text: eventHtml } = await fetchPage(eventUrl));
+        } catch (err) {
+          if (exhausted) break;
+          this.logger.warn(`house docs fallback event fetch failed for ${eventUrl}: ${(err as Error).message}`);
+          continue;
+        }
+        if (!houseEventIdMatches(eventHtml, eventId)) continue;
+        // Verified exact-id match. Use the SAME fetched HTML in place — no
+        // recursion, no refetch. The reference is the exact YouTube watch URL
+        // when the page embeds that video, else the official committee event
+        // page itself. The browser opens the actual official/player URL — no
+        // unprobed media is ever claimed resolved.
+        const ytId = findYoutubeIdInHtml(eventHtml);
+        const reference = ytId ? youtubeWatchUrl(ytId) : eventUrl;
+        this.rememberHouseFallbackRef(eventId, reference);
+        return {
+          status: 'unresolvable',
+          reference,
+          note: `Verified House committee video for Congress event ${eventId} — open the official player and share its tab audio`,
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Small bounded TTL cache of VERIFIED committee references keyed by the
+   * EXACT Congress event id. Only successful, exact-id-verified STABLE
+   * references are cached — official committee pages or exact YouTube
+   * watch/embed URLs — never media URLs (YouTube googlevideo manifests are
+   * IP-bound and expire; senate probes 404 until gavel; CDN/signed URLs are
+   * never cached). Bounded size, FIFO eviction.
+   */
+  private readonly houseFallbackRefCache = new Map<string, { ref: string; expiresAt: number }>();
+  private static readonly HOUSE_FALLBACK_REF_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+  private static readonly HOUSE_FALLBACK_REF_MAX = 64;
+
+  private rememberHouseFallbackRef(eventId: string, ref: string): void {
+    const cache = this.houseFallbackRefCache;
+    if (cache.has(eventId)) cache.delete(eventId);
+    while (cache.size >= StreamResolverService.HOUSE_FALLBACK_REF_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
+    }
+    cache.set(eventId, {
+      ref,
+      expiresAt: Date.now() + StreamResolverService.HOUSE_FALLBACK_REF_TTL_MS,
+    });
+  }
+
+  /** A cached verified reference for an event id, or null when absent/expired. */
+  cachedHouseFallbackRef(eventId: string): string | null {
+    const entry = this.houseFallbackRefCache.get(eventId);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.houseFallbackRefCache.delete(eventId);
+      return null;
+    }
+    return entry.ref;
   }
 
   private async tryCongressVideos(
@@ -541,6 +769,124 @@ export class StreamResolverService {
       this.logger.warn(`congress videos lookup failed: ${(err as Error).message}`);
       return null;
     }
+  }
+
+  // ── (7) Florida House notice → VideoPlayer pairing ─────────────────────────
+
+  /**
+   * The flhouse.gov WAF answers the guarded default Chrome UA with a 200 +
+   * ~244-byte "Request Rejected" page, while the same guarded fetch with a
+   * plain `node` UA returns the real notice (matching hearing discovery's
+   * native fetch). This is a NARROW, honest per-host header — not a guard
+   * bypass: host allowlist, IP deny, redirects, size and timeout all still
+   * apply unchanged.
+   */
+  private fetchFloridaGovText(url: string) {
+    return guardedFetchText(url, { headers: { 'user-agent': 'node' } });
+  }
+
+  /**
+   * Resolve a Florida House meeting notice to its official VideoPlayer page.
+   * The notice itself does not carry the player link; the daily schedule page
+   * for the same date pairs the exact MeetingId with a VideoPlayer link.
+   * Bounded: one notice fetch + one daily schedule fetch, keyed on the exact
+   * MeetingId — never a title or neighbor match.
+   */
+  private async resolveFloridaHouseNotice(pageUrl: string, depth: number): Promise<ResolveResult> {
+    if (depth > 3) return { status: 'unresolvable', note: 'Resolution recursion limit reached' };
+    // A direct VideoPlayer page URL is itself the stable first-party
+    // reference — validated structurally, no network, no invented media.
+    const directPlayer = parseFloridaHouseVideoPlayerPageUrl(pageUrl);
+    if (directPlayer) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: `Verified Florida House VideoPlayer event ${directPlayer.eventId} — open the official player and share its tab audio`,
+      };
+    }
+    const notice = parseFloridaHouseNoticeUrl(pageUrl);
+    if (!notice) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: 'Unrecognized Florida House meeting notice URL',
+      };
+    }
+    let noticeRes: { status: number; url: string; text: string };
+    try {
+      noticeRes = await this.fetchFloridaGovText(pageUrl);
+    } catch (err) {
+      return this.unresolvableFrom(err, pageUrl, 'florida-house-notice');
+    }
+    if (isRequestRejectedPage(noticeRes.text, noticeRes.status)) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: 'Florida House rejected the automated fetch (publisher bot policy) — open the notice page directly',
+      };
+    }
+    const date = extractFloridaHouseNoticeDate(noticeRes.text);
+    if (!date) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: 'Florida House notice lacks a qualified calendar date',
+      };
+    }
+    const scheduleUrl = floridaHouseDailyScheduleUrl(date);
+    let scheduleRes: { status: number; url: string; text: string };
+    try {
+      scheduleRes = await this.fetchFloridaGovText(scheduleUrl);
+    } catch (err) {
+      return this.unresolvableFrom(err, scheduleUrl, 'florida-house-schedule');
+    }
+    if (isRequestRejectedPage(scheduleRes.text, scheduleRes.status)) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: 'Florida House rejected the automated schedule fetch (publisher bot policy) — open the daily schedule directly',
+      };
+    }
+    const playerUrl = findFloridaHouseVideoPlayerForMeeting(scheduleRes.text, notice.meetingId);
+    if (!playerUrl) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: `No VideoPlayer paired with Florida House notice ${notice.meetingId} on ${date}`,
+      };
+    }
+    // The player page is a browser playback page; return it as a verified
+    // reference so the frontend can open it directly and share its tab audio
+    // (direct HLS extraction is not available from the Florida House player).
+    return {
+      status: 'unresolvable',
+      reference: playerUrl,
+      note: `Verified Florida House VideoPlayer for notice ${notice.meetingId} — open the official player and share its tab audio`,
+    };
+  }
+
+  // ── (8) Florida Senate media player ────────────────────────────────────────
+
+  /**
+   * A known Florida Senate media player URL (`/media/VideoPlayer/{id}`) is
+   * itself the stable first-party reference. The exact numeric id is validated
+   * structurally; no network is needed and no media URL is invented — the
+   * analyst opens the official player and shares its tab audio.
+   */
+  private resolveFloridaSenatePlayer(pageUrl: string): ResolveResult {
+    const player = parseFloridaSenateVideoPlayerUrl(pageUrl);
+    if (!player) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: 'Unrecognized Florida Senate media player URL',
+      };
+    }
+    return {
+      status: 'unresolvable',
+      reference: pageUrl,
+      note: `Verified Florida Senate VideoPlayer event ${player.eventId} — open the official player and share its tab audio`,
+    };
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────

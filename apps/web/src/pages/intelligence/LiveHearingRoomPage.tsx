@@ -42,10 +42,17 @@ import {
   useGenerateBrief,
   useHearingSession,
   useHearingTranscript,
+  useResolveStream,
   useSaveRecap,
   type HearingBrief,
   type HearingTranscriptItem,
+  type ResolveStreamResult,
 } from '../../lib/hearing-watch-api.js';
+import {
+  useAttendance,
+  useRequestAttendance,
+  w1Error,
+} from '../../vnext/pages/legiwatch/lib/wave1-api.js';
 import {
   useHearingIntelligence,
   usePublicHearingTranscript,
@@ -113,6 +120,10 @@ export interface HearingRoomViewModel {
   lastTranscriptAt: number | null;
   wakeLock: ReturnType<typeof useHearingWakeLock>;
   sourcePlayer: ReactNode;
+  /** The official source URL to open (resolved player page when available,
+   *  else the saved sourceUrl). Never the raw Congress listing when a resolved
+   *  official source exists. */
+  openSourceUrl?: string | null;
   connect: () => void;
   disconnect: () => void;
   startCapture: () => void;
@@ -121,6 +132,33 @@ export interface HearingRoomViewModel {
   confirmConsent: () => void;
   confirmingConsent: boolean;
   saveRecap: () => void;
+  /** Canonical hearing detail path, when this room is linked to a hearing. */
+  detailPath?: string | null;
+  /** Server-attendance panel for rooms tied to a canonical hearing. */
+  serverAttendance?: {
+    available: boolean;
+    /** This workspace has durable server demand for the proceeding. */
+    scheduled: boolean;
+    callerScheduled?: boolean;
+    /** Capture lifecycle from the server's own state — never inferred from the
+     *  durable demand flag (which stays true after complete/failed). */
+    lifecycle?: 'scheduled' | 'capturing' | 'processing' | 'complete' | 'failed';
+    stateLabel?: string;
+    message?: string;
+    pending: boolean;
+    error?: string | null;
+    confirm?: string | null;
+    onSchedule: () => void;
+  };
+  /** Official-source resolution when the saved source is a listing page. */
+  sourceResolution?: {
+    status: 'idle' | 'resolving' | 'resolved' | 'unresolvable' | 'error';
+    note?: string;
+    referenceUrl?: string;
+    candidates?: Array<{ title: string; pageUrl: string }>;
+    onRetry: () => void;
+    onSelectCandidate: (pageUrl: string) => void;
+  };
 }
 
 const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{6,}$/;
@@ -520,6 +558,156 @@ export function LiveHearingRoomPage({
   const referenceUrl = sourceUrl && !isMediaUrl(sourceUrl) ? sourceUrl : undefined;
   const embeddableUrl = sourceUrl && isMediaUrl(sourceUrl) ? sourceUrl : undefined;
   const youtubeVideoId = referenceUrl ? extractYouTubeVideoId(referenceUrl) : null;
+
+  // ── Server attendance (independent of this browser room) ────────────────
+  const canonicalHearingId = session.data?.hearingId ?? undefined;
+  const attendance = useAttendance(canonicalHearingId ?? '');
+  const requestAttendance = useRequestAttendance(canonicalHearingId ?? '');
+  const [serverConfirm, setServerConfirm] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const attendanceData = attendance.data;
+  const automaticAvailable =
+    attendanceData?.automaticAvailable ??
+    (attendanceData?.availableModes ?? []).includes('automatic') ??
+    false;
+  const serverScheduled = Boolean(
+    attendanceData &&
+      (attendanceData.scheduled ||
+        ['SCHEDULED', 'CAPTURING', 'PROCESSING'].includes(attendanceData.state)),
+  );
+  // The lifecycle label comes from the server's own capture STATE, not from the
+  // durable demand flag — scheduled_by_user stays true after COMPLETE/FAILED,
+  // so inferring "capturing/scheduled" from it misrepresents the lifecycle.
+  const serverLifecycle =
+    attendanceData?.state === 'CAPTURING'
+      ? 'capturing'
+      : attendanceData?.state === 'PROCESSING'
+        ? 'processing'
+        : attendanceData?.state === 'COMPLETE'
+          ? 'complete'
+          : attendanceData?.state === 'FAILED'
+            ? 'failed'
+            : 'scheduled';
+  const onScheduleServer = useCallback(() => {
+    if (!canonicalHearingId || requestAttendance.isPending) return;
+    setServerError(null);
+    setServerConfirm(null);
+    requestAttendance.mutate(
+      { mode: 'automatic' },
+      {
+        onSuccess: () =>
+          setServerConfirm(
+            'Server attendance scheduled. Capiro captures the official stream on the server — this browser room and its private capture are unaffected and stay available.',
+          ),
+        onError: (err) => setServerError(w1Error(err)),
+      },
+    );
+  }, [canonicalHearingId, requestAttendance]);
+
+  // ── Official-source resolution for listing-page sources ─────────────────
+  // A saved sourceUrl that is a plain event LISTING page (Congress.gov, a
+  // committee notice) carries no playable media. Restore the official player:
+  // run the same stream resolver the add-hearing flow uses so reopening this
+  // room surfaces a playable source instead of a dead link. The resolver never
+  // ingests server-side; it returns the official media/page for the browser.
+  const resolveStream = useResolveStream();
+  const [resolution, setResolution] = useState<{
+    status: 'idle' | 'resolving' | 'resolved' | 'unresolvable' | 'error';
+    note?: string;
+    referenceUrl?: string;
+    candidates?: Array<{ title: string; pageUrl: string }>;
+  }>({ status: 'idle' });
+  const needsResolution = Boolean(
+    !isPublicReview && referenceUrl && !youtubeVideoId && canonicalHearingId,
+  );
+  // Guard re-entrancy by the exact (session, source) identity — the mutation
+  // object is unstable across renders, so it must not drive the effect.
+  const resolveKeyRef = useRef<string | null>(null);
+  const attemptResolve = useCallback(
+    (pageUrl?: string) => {
+      if (!canonicalHearingId) return;
+      const key = `${id}:${pageUrl ?? referenceUrl ?? ''}`;
+      resolveKeyRef.current = key;
+      setResolution({ status: 'resolving' });
+      resolveStream.mutate(
+        { pageUrl: pageUrl ?? referenceUrl, hearingId: canonicalHearingId },
+        {
+          onSuccess: (r: ResolveStreamResult) => {
+            // Drop a stale response that arrived after the source changed.
+            if (resolveKeyRef.current !== key) return;
+            const empty = r.status === 'candidates' && !(r.candidates && r.candidates.length);
+            if (r.status === 'resolved' && r.media && !r.media.ipBound) {
+              setResolution({ status: 'resolved', note: r.note, referenceUrl: r.media.url });
+            } else if (r.status === 'resolved' && r.media?.ipBound) {
+              setResolution({
+                status: 'unresolvable',
+                note:
+                  r.note ??
+                  'The official source is short-lived and cannot be saved. Open it and share that tab’s audio.',
+                referenceUrl: r.reference,
+              });
+            } else if (r.status === 'candidates' && !empty) {
+              setResolution({
+                status: 'unresolvable',
+                note: 'Pick the matching official video below.',
+                candidates: r.candidates?.map((c) => ({ title: c.title, pageUrl: c.pageUrl })),
+                referenceUrl: r.reference,
+              });
+            } else {
+              setResolution({
+                status: 'unresolvable',
+                note:
+                  r.note ??
+                  'Could not resolve an official playable source for this hearing. Open the official page and share that tab’s audio.',
+                referenceUrl: r.reference ?? pageUrl ?? referenceUrl,
+              });
+            }
+          },
+          onError: (e: unknown) => {
+            if (resolveKeyRef.current !== key) return;
+            setResolution({
+              status: 'error',
+              note: (e as Error).message,
+              referenceUrl: pageUrl ?? referenceUrl,
+            });
+          },
+        },
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, canonicalHearingId, referenceUrl],
+  );
+  // Reset resolution whenever the session or saved source changes.
+  useEffect(() => {
+    resolveKeyRef.current = null;
+    setResolution({ status: 'idle' });
+  }, [id, referenceUrl]);
+  // Auto-resolve once per (session, source) when the saved source is a listing page.
+  useEffect(() => {
+    if (!needsResolution || !referenceUrl) return;
+    const key = `${id}:${referenceUrl}`;
+    if (resolveKeyRef.current === key) return;
+    attemptResolve(referenceUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, needsResolution, referenceUrl]);
+  // The URL the room opens/embeds. Prefer a resolved official source (media or
+  // the resolver's official reference — e.g. a committee page that embeds the
+  // YouTube player); fall back to the saved sourceUrl. Never show the original
+  // Congress listing alongside a second obscure link.
+  const resolvedMediaUrl =
+    resolution.status === 'resolved' && resolution.referenceUrl && isMediaUrl(resolution.referenceUrl)
+      ? resolution.referenceUrl
+      : undefined;
+  const resolvedPageUrl =
+    resolution.referenceUrl && !isMediaUrl(resolution.referenceUrl) ? resolution.referenceUrl : undefined;
+  const effectiveEmbeddableUrl = embeddableUrl ?? resolvedMediaUrl;
+  // A resolved official PAGE (committee/player page) becomes the reference the
+  // room opens — it may itself be a known YouTube player page.
+  const effectiveReferenceUrl = resolvedPageUrl ?? referenceUrl;
+  const effectiveYoutubeId = effectiveReferenceUrl
+    ? extractYouTubeVideoId(effectiveReferenceUrl)
+    : null;
+
   const sessionEnded =
     phase === 'ended' || session.data?.status === 'ended' || session.data?.status === 'failed';
   const captureActive = ['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phase);
@@ -904,8 +1092,9 @@ export function LiveHearingRoomPage({
     transcriptionDelayedRef.current = false;
     setTranscriptionDelayed(false);
     // The hearing plays in the embed on THIS page unless the source is
-    // reference-only, in which case the analyst opened it in another tab.
-    const capturesThisTab = Boolean(embeddableUrl || youtubeVideoId);
+    // reference-only, in which case the analyst opened it in another tab. A
+    // resolved official media URL upgrades a listing page to a this-tab source.
+    const capturesThisTab = Boolean(effectiveEmbeddableUrl || effectiveYoutubeId);
     setStatusText(
       capturesThisTab
         ? 'Choose This tab and enable Share tab audio.'
@@ -1087,11 +1276,11 @@ export function LiveHearingRoomPage({
   }, [
     cleanupCaptureTracks,
     disconnectSocket,
-    embeddableUrl,
+    effectiveEmbeddableUrl,
+    effectiveYoutubeId,
     endSession,
     session.data?.recordingPolicy,
     setPhaseNow,
-    youtubeVideoId,
   ]);
 
   useEffect(() => {
@@ -1250,11 +1439,11 @@ export function LiveHearingRoomPage({
           recordingPanel: recordingPanelNode,
           publicationsPanel,
           playEvidence: playEvidenceAt,
-          sourcePlayer: embeddableUrl ? (
-            <MediaPlayer src={embeddableUrl} />
-          ) : youtubeVideoId ? (
+          sourcePlayer: effectiveEmbeddableUrl ? (
+            <MediaPlayer src={effectiveEmbeddableUrl} />
+          ) : effectiveYoutubeId ? (
             <iframe
-              src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+              src={`https://www.youtube.com/embed/${effectiveYoutubeId}`}
               title="Hearing video"
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
@@ -1283,6 +1472,38 @@ export function LiveHearingRoomPage({
             ),
           confirmingConsent: confirmConsent.isPending,
           saveRecap: () => setRecapOpen(true),
+          detailPath: session.data?.hearingId
+            ? `/legiwatch/hearings/${encodeURIComponent(session.data.hearingId)}`
+            : null,
+          openSourceUrl: effectiveEmbeddableUrl ?? effectiveReferenceUrl ?? session.data?.sourceUrl ?? null,
+          serverAttendance: session.data?.hearingId
+            ? {
+                // This tenant may add its own server demand even while a
+                // canonical capture is active (backend joins the shared
+                // recorder) — only the caller's own existing schedule hides it.
+                available: automaticAvailable && !attendanceData?.scheduled,
+                scheduled: serverScheduled,
+                callerScheduled: Boolean(attendanceData?.scheduled),
+                lifecycle: serverLifecycle,
+                stateLabel: attendanceData?.state,
+                message: attendanceData?.message,
+                pending: requestAttendance.isPending,
+                error: serverError,
+                confirm: serverConfirm,
+                onSchedule: onScheduleServer,
+              }
+            : undefined,
+          sourceResolution:
+            needsResolution && resolution.status !== 'idle'
+              ? {
+                  status: resolution.status,
+                  note: resolution.note,
+                  referenceUrl: resolution.referenceUrl,
+                  candidates: resolution.candidates,
+                  onRetry: () => attemptResolve(),
+                  onSelectCandidate: (pageUrl: string) => attemptResolve(pageUrl),
+                }
+              : undefined,
         })}
         {recapOpen && !recapsEnabled && (
           <SaveRecapModal

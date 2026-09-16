@@ -185,7 +185,10 @@ jobs:
         if: always()
         run: |
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-private-summary.json" phase3-private 1 7
-          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-calendar-summary.json" phase3-calendar 4 17
+          # phase3-calendar floor 4 18: legiwatch-calendar-query-postgres gained
+          # the global-read + two-tenant-isolation cases for the public Florida
+          # calendar.
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-calendar-summary.json" phase3-calendar 4 18
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/phase3-web-summary.json" phase3-web 1 5
 
       - name: Assert Phase 1 PostgreSQL suites are clean
@@ -211,8 +214,8 @@ jobs:
       # `src/live-hearings/` (master-calendar reads + the cross-tenant overlay
       # boundary). `src/prisma/tenant-scope-guard.spec.ts` is enumerated
       # explicitly because the new subscription reads are exactly the class of
-      # access it guards. Floors raised 22/256 -> 31/409, measured from a real
-      # local run of exactly this list (31 suites discovered, 409 tests passing).
+      # access it guards. Floor 96/1186 measured from the final full-scope
+      # local run of exactly this list (0 failed, 0 skipped).
       #
       # Phase 1 runs the database suites against the migrated service above.
       # Keep -- before positional paths: Jest's array-valued ignore option
@@ -241,7 +244,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 80 1023
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 96 1186
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -282,6 +285,10 @@ jobs:
           src/hearing/capture/server-deepgram-stream.manager.spec.ts
           src/hearing/capture/stream-preflight-policy.spec.ts
           src/hearing/capture/stream-resolution-policy.spec.ts
+          src/hearing/stream-extractors-house-fallback.spec.ts
+          src/hearing/stream-extractors-florida-house.spec.ts
+          src/hearing/stream-resolver.service.spec.ts
+          src/hearing/net-guard-cspan-gate.spec.ts
           src/hearing/intelligence/deterministic-public-hearing-extractor.spec.ts
           src/hearing/intelligence/hearing-intelligence-job.store.spec.ts
           src/hearing/intelligence/postgres-public-hearing-insight.store.spec.ts
@@ -321,13 +328,15 @@ jobs:
           test/watchlist-matcher.spec.ts
           test/watchlist-match-promoter.spec.ts
           test/watchlist-weighting.spec.ts
+          test/stream-extractors.spec.ts
+          test/net-guard.spec.ts
           test/folder-tracker.spec.ts
           test/bill-dossier.spec.ts
           test/bill-dossier-state.spec.ts
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 71 763
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 77 965
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -359,7 +368,7 @@ jobs:
       # from this exact scope, with zero failures and zero skips required.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 249 805
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 275 970
 
       # New real-DB, media, review, consent and UI suites have their own explicit
       # floors. The earlier saved-session fixture stays on its separate DB.

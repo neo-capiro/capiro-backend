@@ -11,6 +11,11 @@ import { LiveHearingsService } from './live-hearings.service.js';
 import { assessStrictSchedulePolicy } from './live-hearings-phase7-schedule.guard.js';
 import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 
+import {
+  selectBrowserSource,
+  type BrowserSourceCandidate,
+} from './live-hearings-browser-source.js';
+
 const TRANSCRIPT_MAX_PAGE_SIZE = 500;
 const LIST_MAX_PAGE_SIZE = 100;
 const DOCUMENT_UPDATE_TYPES = new Set([
@@ -189,8 +194,15 @@ export type BrowserJoinPlan =
       audioSource: 'browser_mic';
       recordingPolicy: 'transcript_only';
       sourceUrl: string;
+      sourceKind: 'official_player_page' | 'official_listing_page';
+      sourceProvider: string | null;
+      /** True when the chosen source is a listing page and must be resolved to a playable stream at session creation/reopen. */
+      requiresStreamResolution: boolean;
       committeeId: string | null;
       reasonCode: string;
+      /** Present when a canonical server capture exists; browser entry stays independent of it. */
+      canonicalCaptureId?: string;
+      canonicalCaptureStatus?: string;
     }
   | {
       mode: 'BLOCKED';
@@ -535,8 +547,20 @@ export class LiveHearingsPhase7Service {
   async browserJoin(ctx: TenantContext, hearingId: string): Promise<BrowserJoinPlan> {
     const hearing = await this.requireHearing(hearingId);
     const permission = await stateCapturePolicy(this.prisma, ctx, hearing);
-    const capture = await this.captureDetail(hearingId);
-    const plan = browserJoinPlan(hearing, capture);
+    const [capture, candidates] = await Promise.all([
+      this.captureDetail(hearingId),
+      this.prisma.hearingStreamCandidate.findMany({
+        where: { hearingId },
+        orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
+        select: {
+          provider: true,
+          officialPageUrl: true,
+          mediaUrl: true,
+          capturePolicy: true,
+        },
+      }),
+    ]);
+    const plan = browserJoinPlan(hearing, capture, candidates);
     if (plan.mode === 'BROWSER_CAPTURE' && permission && !permission.browserAllowed) {
       return {
         mode: 'BLOCKED',
@@ -915,6 +939,7 @@ export const assessSchedulePolicy = assessStrictSchedulePolicy;
 export function browserJoinPlan(
   hearing: CanonicalHearingRow,
   capture: Phase7CaptureDetail | null,
+  candidates: BrowserSourceCandidate[] = [],
 ): BrowserJoinPlan {
   if (hearing.visibility !== 'public') {
     return {
@@ -922,17 +947,6 @@ export function browserJoinPlan(
       hearingId: hearing.id,
       reasonCode: 'NON_PUBLIC_PROCEEDING',
       message: 'Browser-assisted capture is available only for public proceedings.',
-    };
-  }
-  if (capture && ATTACHABLE_CAPTURE_STATES.has(capture.status)) {
-    return {
-      mode: 'ATTACH_CANONICAL',
-      hearingId: hearing.id,
-      captureId: capture.id,
-      captureStatus: capture.status,
-      reasonCode: ACTIVE_CAPTURE_STATES.has(capture.status)
-        ? 'CANONICAL_CAPTURE_ACTIVE'
-        : 'CANONICAL_TRANSCRIPT_AVAILABLE',
     };
   }
   if (hearing.eventStatus === 'canceled') {
@@ -943,7 +957,16 @@ export function browserJoinPlan(
       message: 'This proceeding has been canceled.',
     };
   }
-  if (!hearing.url) {
+
+  // An EXPLICIT browser join is independent of the server recorder: an active
+  // or complete canonical capture never refuses it. The capture id/status are
+  // carried on the plan so the UI can show "Capiro is capturing" alongside the
+  // user's own private browser context.
+  const source = selectBrowserSource({
+    hearingUrl: hearing.url,
+    candidates,
+  });
+  if (!source) {
     return {
       mode: 'BLOCKED',
       hearingId: hearing.id,
@@ -951,6 +974,7 @@ export function browserJoinPlan(
       message: 'No official public event page has been reconciled yet.',
     };
   }
+
   return {
     mode: 'BROWSER_CAPTURE',
     hearingId: hearing.id,
@@ -958,12 +982,18 @@ export function browserJoinPlan(
     sourceType: (hearing.type ?? 'hearing').toLowerCase().includes('markup') ? 'markup' : 'hearing',
     audioSource: 'browser_mic',
     recordingPolicy: 'transcript_only',
-    sourceUrl: hearing.url,
+    sourceUrl: source.sourceUrl,
+    sourceKind: source.sourceKind,
+    sourceProvider: source.sourceProvider,
+    requiresStreamResolution: source.sourceKind === 'official_listing_page',
     committeeId: hearing.subcommitteeSystemCode ?? hearing.committeeSystemCode,
     reasonCode:
       capture?.terminalReasonCode ??
       capture?.resolutionReasonCode ??
       'BROWSER_ASSISTED_FALLBACK_AVAILABLE',
+    ...(capture
+      ? { canonicalCaptureId: capture.id, canonicalCaptureStatus: capture.status }
+      : {}),
   };
 }
 

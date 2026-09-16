@@ -195,11 +195,19 @@ export function HearingsTab({ scope }: { scope: string }) {
   const [rangeMode, setRangeMode] = useState<'week' | 'day'>(
     searchParams.get('calendarRange') === 'day' ? 'day' : 'week',
   );
+  // Florida public hearings are visible to EVERY tenant. The stateCalendar
+  // flag still gates the folder/session/chamber/status refinement controls,
+  // but the jurisdiction filter itself is a public-feed control and must not
+  // be hidden per-tenant. Florida is the only supported state today; the
+  // default calendar is inclusive (All jurisdictions) unless the user saved a
+  // narrower filter.
   const stateCalendar = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
-  const jurisdiction: 'US' | 'FL' | 'ALL' =
-    stateCalendar && ['FL', 'ALL'].includes(searchParams.get('jurisdiction') ?? '')
-      ? (searchParams.get('jurisdiction') as 'FL' | 'ALL')
-      : 'US';
+  const savedJurisdiction = searchParams.get('jurisdiction');
+  const jurisdiction: 'US' | 'FL' | 'ALL' = ['US', 'FL', 'ALL'].includes(
+    savedJurisdiction ?? '',
+  )
+    ? (savedJurisdiction as 'US' | 'FL' | 'ALL')
+    : 'ALL';
   const selectedFolders = stateCalendar
     ? searchParams.getAll('calendarFolder').filter(Boolean)
     : [];
@@ -269,24 +277,26 @@ export function HearingsTab({ scope }: { scope: string }) {
     setSearchParams,
     location.state,
   ]);
-  const rangeFrom = stateCalendar && rangeMode === 'day' ? anchorDay : (weekDays[0] ?? '');
-  const rangeTo = stateCalendar && rangeMode === 'day' ? anchorDay : (weekDays[6] ?? '');
+  const rangeFrom = rangeMode === 'day' ? anchorDay : (weekDays[0] ?? '');
+  const rangeTo = rangeMode === 'day' ? anchorDay : (weekDays[6] ?? '');
   const sourceCoverage = useCalendarSourceCoverage(
     { from: rangeFrom, to: rangeTo, session: session || undefined },
-    stateCalendar && jurisdiction !== 'US' && sub === 'schedule',
+    jurisdiction !== 'US' && sub === 'schedule',
   );
 
   // LW-QA-005: server-side range query. The query key includes the week, so a
   // prior week's response can never overwrite a newer navigation request.
+  // Jurisdiction is ALWAYS forwarded — the public Florida feed must not depend
+  // on a tenant feature flag.
   const calendarSelection = {
     from: rangeFrom,
     to: rangeTo,
     committee: committee || undefined,
     q: search.trim() || undefined,
     eventType: kind || undefined,
+    jurisdiction,
     ...(stateCalendar
       ? {
-          jurisdiction,
           session: session || undefined,
           following: following || undefined,
           chamber: chamber || undefined,
@@ -378,12 +388,10 @@ export function HearingsTab({ scope }: { scope: string }) {
     </div>
   );
 
-  const phase3Filters = (
-    <div
-      className="lw-controls"
-      aria-label="Calendar selection"
-      style={narrow ? { display: 'grid', gap: 16 } : undefined}
-    >
+  // The jurisdiction filter is a PUBLIC-feed control: it is never hidden by a
+  // tenant feature flag. Florida is the only supported state today.
+  const jurisdictionControl = (
+    <div className="lw-controls" aria-label="Calendar jurisdiction selection">
       <label>
         Jurisdiction{' '}
         <select
@@ -395,11 +403,20 @@ export function HearingsTab({ scope }: { scope: string }) {
             setCalendarParam('jurisdiction', e.target.value);
           }}
         >
+          <option value="ALL">All jurisdictions</option>
           <option value="US">Federal</option>
           <option value="FL">Florida</option>
-          <option value="ALL">All jurisdictions</option>
         </select>
       </label>
+    </div>
+  );
+
+  const phase3Filters = (
+    <div
+      className="lw-controls"
+      aria-label="Calendar selection"
+      style={narrow ? { display: 'grid', gap: 16 } : undefined}
+    >
       <label>
         Chamber{' '}
         <select
@@ -512,7 +529,7 @@ export function HearingsTab({ scope }: { scope: string }) {
   return (
     <div className="lw-body">
       {subStrip}
-      {stateCalendar && sub === 'schedule' ? (
+      {sub === 'schedule' ? (
         <>
           {narrow ? (
             <>
@@ -522,11 +539,15 @@ export function HearingsTab({ scope }: { scope: string }) {
                 title="Calendar filters"
                 onClose={() => setFiltersOpen(false)}
               >
-                {phase3Filters}
+                {jurisdictionControl}
+                {stateCalendar ? phase3Filters : null}
               </CapiroDrawer>
             </>
           ) : (
-            phase3Filters
+            <>
+              {jurisdictionControl}
+              {stateCalendar ? phase3Filters : null}
+            </>
           )}
           <div className="lw-controls" aria-label="Calendar date and display">
             <LwButton
@@ -624,7 +645,7 @@ export function HearingsTab({ scope }: { scope: string }) {
       {exportWeek.isError ? (
         <p role="alert">Calendar export failed. Refresh the selection and try again.</p>
       ) : null}
-      {stateCalendar && jurisdiction !== 'US' && sub === 'schedule' ? (
+      {jurisdiction !== 'US' && sub === 'schedule' ? (
         <section
           className="lw-card"
           aria-label="Florida source coverage"

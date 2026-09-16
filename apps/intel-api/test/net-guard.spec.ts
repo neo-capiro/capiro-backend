@@ -1,5 +1,6 @@
 import {
   assertUrlAllowed,
+  guardedFetchText,
   guardedProbe,
   isHostAllowed,
   isPrivateIp,
@@ -13,18 +14,51 @@ import {
  * literal-IP cases).
  */
 describe('isHostAllowed', () => {
+  const ORIGINAL_CSPAN = process.env.RESOLVER_ENABLE_CSPAN;
+  afterEach(() => {
+    if (ORIGINAL_CSPAN === undefined) delete process.env.RESOLVER_ENABLE_CSPAN;
+    else process.env.RESOLVER_ENABLE_CSPAN = ORIGINAL_CSPAN;
+  });
+
   it('allows the gov/broadcast origins + their subdomains', () => {
     expect(isHostAllowed('www.senate.gov')).toBe(true);
     expect(isHostAllowed('judiciary.senate.gov')).toBe(true);
     expect(isHostAllowed('www-senate-gov-media-srs.akamaized.net')).toBe(true);
     expect(isHostAllowed('appropriations.house.gov')).toBe(true);
     expect(isHostAllowed('docs.house.gov')).toBe(true);
-    expect(isHostAllowed('www.c-span.org')).toBe(true);
-    expect(isHostAllowed('m3u8-0.c-spanvideo.org')).toBe(true);
     expect(isHostAllowed('www.youtube.com')).toBe(true);
     // googlevideo.com is NOT allowlisted by default (gated behind
     // RESOLVER_ENABLE_YOUTUBE_LIVE — covered by its own test below).
     expect(isHostAllowed('api.congress.gov')).toBe(true);
+  });
+
+  it('allows the Florida legislative hosts + their subdomains', () => {
+    expect(isHostAllowed('www.flhouse.gov')).toBe(true);
+    expect(isHostAllowed('flhouse.gov')).toBe(true);
+    expect(isHostAllowed('www.flsenate.gov')).toBe(true);
+    expect(isHostAllowed('flsenate.gov')).toBe(true);
+  });
+
+  it('denies Florida lookalike hosts (suffix-spoof must stay anchored)', () => {
+    expect(isHostAllowed('flhouse.gov.evil.com')).toBe(false);
+    expect(isHostAllowed('notflhouse.gov')).toBe(false);
+    expect(isHostAllowed('flsenate.gov.evil.com')).toBe(false);
+    expect(isHostAllowed('notflsenate.gov')).toBe(false);
+  });
+
+  it('gates C-SPAN hosts behind RESOLVER_ENABLE_CSPAN (default DENY)', () => {
+    delete process.env.RESOLVER_ENABLE_CSPAN;
+    expect(isHostAllowed('www.c-span.org')).toBe(false);
+    expect(isHostAllowed('m3u8-0.c-spanvideo.org')).toBe(false);
+    process.env.RESOLVER_ENABLE_CSPAN = 'false';
+    expect(isHostAllowed('www.c-span.org')).toBe(false);
+    expect(isHostAllowed('m3u8-0.c-spanvideo.org')).toBe(false);
+  });
+
+  it('admits C-SPAN hosts only with explicit opt-in', () => {
+    process.env.RESOLVER_ENABLE_CSPAN = 'true';
+    expect(isHostAllowed('www.c-span.org')).toBe(true);
+    expect(isHostAllowed('m3u8-0.c-spanvideo.org')).toBe(true);
   });
 
   it('is case- and trailing-dot-insensitive', () => {
@@ -103,13 +137,22 @@ describe('assertUrlAllowed', () => {
   });
 
   it('rejects the userinfo trick (host parse uses URL.hostname, not the authority)', async () => {
-    // `https://senate.gov@evil.com/…` — the AUTHORITY starts with an allowlisted
+    // `https://***@evil.com/…` — the AUTHORITY starts with an allowlisted
     // string, but URL.hostname is `evil.com`. Must be refused.
     await expect(
-      assertUrlAllowed('https://senate.gov@evil.com/x', { skipDnsCheck: true }),
+      assertUrlAllowed('https://***@evil.com/x', { skipDnsCheck: true }),
     ).rejects.toThrow(/not allowed/i);
     await expect(
-      assertUrlAllowed('https://www.senate.gov@169.254.169.254/latest', { skipDnsCheck: true }),
+      assertUrlAllowed('https://***@169.254.169.254/latest', { skipDnsCheck: true }),
+    ).rejects.toThrow(/not allowed/i);
+  });
+
+  it('rejects a credentials-bearing lookalike authority at the allowlist step', async () => {
+    // URL.hostname is flhouse.gov.evil.com (NOT allowlisted) — refused before
+    // any fetch. Credentials on a REAL allowlisted host are rejected by the
+    // resolver-side URL parsers (covered in the stream-extractors specs).
+    await expect(
+      assertUrlAllowed('https://user:pass@flhouse.gov.evil.com/x', { skipDnsCheck: true }),
     ).rejects.toThrow(/not allowed/i);
   });
 
@@ -145,8 +188,11 @@ describe('assertUrlAllowed', () => {
  */
 describe('guardedProbe — redirect handling', () => {
   const realFetch = global.fetch;
+  const ORIGINAL_CSPAN = process.env.RESOLVER_ENABLE_CSPAN;
   afterEach(() => {
     global.fetch = realFetch;
+    if (ORIGINAL_CSPAN === undefined) delete process.env.RESOLVER_ENABLE_CSPAN;
+    else process.env.RESOLVER_ENABLE_CSPAN = ORIGINAL_CSPAN;
   });
 
   function stubFetch(
@@ -170,6 +216,7 @@ describe('guardedProbe — redirect handling', () => {
   }
 
   it('follows an allowed redirect chain and returns the FINAL validated URL', async () => {
+    process.env.RESOLVER_ENABLE_CSPAN = 'true'; // C-SPAN hosts are gated — opt in for this chain
     const start =
       'https://www.c-span.org/redirect/program.m3u8';
     const final =
@@ -186,6 +233,7 @@ describe('guardedProbe — redirect handling', () => {
   });
 
   it('rejects a redirect to a DENIED host (SsrfError, not "reachable")', async () => {
+    process.env.RESOLVER_ENABLE_CSPAN = 'true'; // start host gated — opt in; target stays denied
     const start = 'https://www.c-span.org/program/x/y/123.m3u8';
     stubFetch((url) => {
       if (url === start) return { status: 302, headers: { location: 'https://evil.com/x.m3u8' } };
@@ -206,10 +254,66 @@ describe('guardedProbe — redirect handling', () => {
   });
 
   it('a non-redirect 200 returns ok + the same (validated) URL', async () => {
+    process.env.RESOLVER_ENABLE_CSPAN = 'true'; // C-SPAN hosts are gated — opt in for this probe
     const url = 'https://m3u8-0.c-spanvideo.org/program/program.5.tsc.m3u8';
     stubFetch(() => ({ status: 200, headers: { 'content-type': 'application/x-mpegURL' } }));
     const res = await guardedProbe(url, { skipDnsCheck: true });
     expect(res.ok).toBe(true);
     expect(res.url).toBe(url);
+  });
+});
+
+describe('guardedFetchText — absolute deadline', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it('an ALREADY-EXPIRED deadline never starts a fetch', async () => {
+    let called = 0;
+    global.fetch = (async () => {
+      called++;
+      return {
+        status: 200,
+        headers: { get: () => null },
+        body: null,
+        text: async () => '',
+      } as unknown as Response;
+    }) as typeof fetch;
+    await expect(
+      guardedFetchText('https://www.senate.gov/x', {
+        skipDnsCheck: true,
+        deadlineAt: Date.now() - 1,
+      }),
+    ).rejects.toBeInstanceOf(SsrfError);
+    expect(called).toBe(0);
+  });
+
+  it('a deadline expiring mid-chain stops the next redirect hop from starting', async () => {
+    const realNow = Date.now;
+    let fake = realNow();
+    try {
+      Date.now = () => fake;
+      let called = 0;
+      global.fetch = (async () => {
+        called++;
+        fake += 5_000; // each hop burns 5s of wall clock
+        return {
+          status: 302,
+          headers: { get: (n: string) => (n.toLowerCase() === 'location' ? 'https://www.senate.gov/next' : null) },
+          body: null,
+          text: async () => '',
+        } as unknown as Response;
+      }) as typeof fetch;
+      await expect(
+        guardedFetchText('https://www.senate.gov/start', {
+          skipDnsCheck: true,
+          deadlineAt: fake + 8_000, // expires after the second hop starts
+        }),
+      ).rejects.toBeInstanceOf(SsrfError);
+      expect(called).toBe(2); // the third hop never started
+    } finally {
+      Date.now = realNow;
+    }
   });
 });

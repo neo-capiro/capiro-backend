@@ -422,9 +422,14 @@ export class LegiWatchWave1Service {
       // preflight. Wave 1 adds no second scheduler.
       scheduleResult = await this.phase7.schedule(ctx, hearingId);
     } else {
-      // Browser attendance is still tenant demand (so the user's sessions and
-      // notifications work), but it must not create server-capture demand.
-      // scheduled_by_user stays false for exactly that reason.
+      // Browser attendance is tenant demand for notifications/sessions, but it
+      // must not create server-capture demand — and it must NOT erase existing
+      // automatic demand either. Choosing the browser never locks out enabling
+      // the server later: scheduled_by_user is preserved exactly as it was,
+      // and attendance_mode stays 'automatic' whenever server demand (user- or
+      // rule-scheduled) already exists — the worker's AUTOMATIC_DEMAND_SQL
+      // requires attendance_mode='automatic', so flipping it to 'browser'
+      // would silently disable capture (the actual worker failure root hit).
       await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.$executeRawUnsafe(
           `INSERT INTO hearing_subscription
@@ -434,8 +439,12 @@ export class LegiWatchWave1Service {
            VALUES ($1::uuid, $2, $3, true, false, false, NULL, ARRAY[]::text[], NULL,
                    'browser', now(), now(), now())
            ON CONFLICT (tenant_id, user_id, hearing_id)
-           DO UPDATE SET attendance_mode='browser',
-                         scheduled_by_user=false,
+           DO UPDATE SET attendance_mode = CASE
+                           WHEN hearing_subscription.scheduled_by_user
+                             OR hearing_subscription.scheduled_by_rule_id IS NOT NULL
+                           THEN 'automatic'
+                           ELSE 'browser'
+                         END,
                          consent_acknowledged_at=COALESCE(hearing_subscription.consent_acknowledged_at, now()),
                          updated_at=now()`,
           ctx.tenantId,
@@ -502,7 +511,7 @@ export class LegiWatchWave1Service {
       this.prisma.hearingStreamCandidate.findMany({
         where: { hearingId: hearing.id },
         orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
-        select: { capturePolicy: true, resolutionState: true },
+        select: { capturePolicy: true, resolutionState: true, officialPageUrl: true, provider: true },
       }),
       // domain_status / terminal_reason_code are SQL-owned columns that are not
       // declared on the Prisma model, exactly as the Phase 7 service reads

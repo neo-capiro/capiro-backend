@@ -231,7 +231,7 @@ describe('applyEntailmentGate', () => {
   });
 
   // Case 7
-  it('sends temperature 0, an AbortController signal, and the strict judge system prompt', async () => {
+  it('sends a provider-compatible request: no unsupported sampling fields, an AbortController signal, and the strict judge system prompt', async () => {
     process.env.MERI_ENTAILMENT_MODE = 'shadow';
     const fetchMock = jest.fn(async (_u: string, init: { body: string; signal?: AbortSignal }) => {
       expect(init.signal).toBeInstanceOf(AbortSignal);
@@ -242,8 +242,18 @@ describe('applyEntailmentGate', () => {
     await applyEntailmentGate({ sections: sections(), claims: CLAIMS, cred: CRED, logger });
 
     const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
-    expect(body.temperature).toBe(0);
-    expect(body.max_tokens).toBe(1500);
+    // claude-sonnet-5 rejects temperature/top_p/top_k: prepareAnthropicRequest
+    // strips them. Asserting temperature 0 here was obsolete and contradicted
+    // the shipped provider policy — the request must OMIT unsupported sampling
+    // fields, never reintroduce them.
+    expect(body.model).toBe('claude-sonnet-5');
+    expect(body).not.toHaveProperty('temperature');
+    expect(body).not.toHaveProperty('top_p');
+    expect(body).not.toHaveProperty('top_k');
+    expect(body.max_tokens).toBe(16384);
+    // Adaptive thinking + high effort for the non-forced judge call.
+    expect(body.thinking).toMatchObject({ type: 'adaptive' });
+    expect(body.output_config).toMatchObject({ effort: 'high' });
     expect(body.system).toContain('strict entailment judge');
     expect(body.system).toContain('Default to entailed=false when uncertain');
     // The prompt carries ONLY the claims each paragraph cites, as its allowed evidence.

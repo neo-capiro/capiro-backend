@@ -90,6 +90,7 @@ vi.mock('../../lib/hearing-watch-api.js', () => ({
   useConfirmConsent: () => ({ mutate: vi.fn(), isPending: false }),
   useGenerateBrief: () => ({ mutate: vi.fn(), isPending: false }),
   useSaveRecap: () => ({ mutate: vi.fn(), isPending: false }),
+  useResolveStream: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useHearingSession: () => ({
     data: {
       id: 'session-1',
