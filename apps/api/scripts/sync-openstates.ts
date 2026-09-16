@@ -60,6 +60,13 @@ const OS_KEY = process.env.OPENSTATES_API_KEY ?? '';
 const REQUEST_SPACING_MS = 6500;
 const MAX_RETRIES = 3;
 /**
+ * Bounded exponential backoff base for TRANSIENT failures (500/502/503/504
+ * and network transport rejections): doubled per retry attempt — 13000ms,
+ * 26000ms, 52000ms. Bounded to MAX_RETRIES; a valid Retry-After hint on a
+ * 503 is honored instead; never applied to the final failed attempt.
+ */
+const TRANSIENT_RETRY_EXPONENT_MS = REQUEST_SPACING_MS * 2;
+/**
  * Wait applied to a 429 that carries NO usable Retry-After hint and no
  * classifiable supplier detail. The supplier's minute counter is a FIXED
  * calendar-minute window (rate_limiter.py: key m{now.minute}, 60s expiry),
@@ -70,7 +77,7 @@ const MAX_RETRIES = 3;
 const NO_HINT_429_WAIT_MS = 60000;
 const NO_HINT_429_JITTER_MS = 1000;
 const PER_PAGE = 20; // OpenStates v3 hard max; per_page>20 -> HTTP 400 (old per_page=100/200 fetched 0 rows)
-const MAX_PAGES = 5; // default page ceiling for small resources (committees) — the walk stops early anyway once pagination.max_page is reached
+const MAX_PAGES = 5; // default page ceiling for small resources — the walk stops early anyway once pagination.max_page is reached
 // People must be fully paged, not capped: every priority state legislature has
 // MORE than PER_PAGE*MAX_PAGES=100 members (GA 236, NY 213, MA 200, TX 181, IL
 // 177, FL 160, VA 140, CA 120), so the old shared 5-page cap silently dropped
@@ -79,6 +86,13 @@ const MAX_PAGES = 5; // default page ceiling for small resources (committees) �
 // pages covers the largest single chamber (NH House, 400); the walk still
 // breaks early at pagination.max_page for smaller states.
 const PEOPLE_MAX_PAGES = 25;
+// The 2026-09-16 reset run (task 85826e58d03a42b08cfdeb09ff4ce15f) proved
+// real committee rosters exceed the old 5-page/100-row ceiling: NY stopped at
+// 100 committee rows with the supplier still advertising more pages. Same
+// bounded 25-page resource ceiling people already use; the walk still stops at
+// pagination.max_page for smaller states and marks a truncated tail
+// complete:false so old memberships are never overwritten from partial data.
+const COMMITTEE_MAX_PAGES = PEOPLE_MAX_PAGES;
 const BATCH_SIZE = 10; // process 10 states per run to avoid rate limits
 // All states + DC
 const ALL_STATES = ALL_US_STATE_CODES.map((s) => s.toLowerCase());
@@ -205,6 +219,15 @@ function describeFetchFailure(err: unknown): string {
 }
 
 /**
+ * Transient supplier/gateway statuses that are safe to retry with bounded
+ * backoff: 500 (supplier error), 502/503/504 (gateway/proxy/timeout). Every
+ * other status (401/403/404/501/…) is an immediate failure, exactly as before.
+ */
+function isTransientServerStatus(status: number): boolean {
+  return status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+/**
  * Parse a Retry-After header value into milliseconds from `nowMs`.
  * Supports both valid forms: delta-seconds and HTTP-date (RFC 9110 §10.2.3).
  * Returns null for missing/invalid/negative values — a malformed hint must
@@ -247,8 +270,58 @@ async function fetchOS<T>(
     // Space EVERY attempt (initial + retries) so sustained cadence fits the
     // published default 10/min window — including after a 429 wait.
     await sleep(REQUEST_SPACING_MS);
+    let resp: Response;
     try {
-      const resp = await fetch(url.toString());
+      // ONLY the network transport await — a rejection here is the one and
+      // only failure eligible for transport retry. Everything below
+      // (status/headers/body processing) is response handling instead.
+      resp = await fetch(url.toString());
+    } catch (err) {
+      // Sanitized: network exception messages/names can embed the request
+      // URL (and with it the ?apikey credential) — only a known-safe name
+      // is ever logged. Bounded exponential retry like transient 5xx; no
+      // sleep after the final failed attempt.
+      if (attempt === MAX_RETRIES) {
+        console.warn(`GET ${path}: request failed (${safeErrorName(err)}), retries exhausted`);
+        return null;
+      }
+      const wait = TRANSIENT_RETRY_EXPONENT_MS * 2 ** attempt;
+      console.warn(
+        `GET ${path}: request failed (${safeErrorName(err)}), retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+      );
+      await sleep(wait);
+      continue;
+    }
+    try {
+      if (isTransientServerStatus(resp.status)) {
+        // 500/502/503/504: transient supplier/gateway failures (the 2026-09-16
+        // reset run lost OR's committee walk to a single HTTP 504 — no retry
+        // existed at all). Retry the SAME request, bounded by MAX_RETRIES, with
+        // exponential backoff (13s/26s/52s) — or the full valid Retry-After
+        // hint when the supplier provides one. No sleep after the final failed
+        // attempt. Other statuses (401/403/404/501/…) stay immediate failures
+        // exactly as before.
+        if (attempt === MAX_RETRIES) {
+          console.warn(`GET ${path}: HTTP ${resp.status} transient failure, retries exhausted`);
+          return null;
+        }
+        const hint = parseRetryAfterMs(resp.headers?.get?.('retry-after') ?? null, now());
+        if (hint !== null && hint > 0x7fffffff) {
+          console.warn(
+            `GET ${path}: HTTP ${resp.status} Retry-After ${hint}ms is unschedulable — deferring`,
+          );
+          return null;
+        }
+        const wait =
+          hint !== null
+            ? Math.max(REQUEST_SPACING_MS, hint)
+            : TRANSIENT_RETRY_EXPONENT_MS * 2 ** attempt;
+        console.warn(
+          `GET ${path}: HTTP ${resp.status} transient failure, retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+        );
+        await sleep(wait);
+        continue;
+      }
       if (resp.status === 429) {
         // Classify the supplier's narrow numeric detail FIRST, on EVERY 429
         // including the final attempt: a definitive hour/day exhaustion must
@@ -315,9 +388,12 @@ async function fetchOS<T>(
       }
       return (await resp.json()) as T;
     } catch (err) {
-      // Sanitized: network exception messages/names can embed the request
-      // URL (and with it the ?apikey credential) — only the controlled
-      // HTTP status or a known-safe error name is ever logged.
+      // Response-processing failure only (the transport await has its own
+      // catch above): a thrown httpStatus carrier (401/403/404/…) or a
+      // resp.json() parse failure. NEVER retried — an immediate, sanitized
+      // failure. Network exception messages/names can embed the request URL
+      // (and with it the ?apikey credential), so only the controlled HTTP
+      // status or a known-safe error name is ever logged.
       console.warn(`GET ${path}: ${describeFetchFailure(err)}`);
       return null;
     }
@@ -567,7 +643,7 @@ export async function runOpenstatesSync(
           jurisdiction: state,
           include: 'memberships',
         },
-        MAX_PAGES,
+        COMMITTEE_MAX_PAGES,
         fetchOptions,
       );
       const committeesList = committeesPage.rows;

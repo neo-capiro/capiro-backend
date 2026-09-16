@@ -2,6 +2,9 @@
  * Disposable PostgreSQL-engine qualification, without a network database.
  * Run from the repository root with tsx and PGlite installed in the test runtime:
  *   LEGIWATCH_PGLITE_MODULE=@electric-sql/pglite node --import tsx apps/api/test/hearing-alias-pglite.ts
+ * LEGIWATCH_PGLITE_MODULE may instead point at a PGlite-compatible adapter that
+ * runs this same suite against native PostgreSQL on the dedicated local
+ * regression database; every assertion below is engine-agnostic.
  * PGlite runs PostgreSQL compiled to WASM. This does not replace native PostgreSQL
  * migration/deployment qualification or multi-connection lock testing.
  */
@@ -39,7 +42,8 @@ CREATE TABLE hearing_source_observation (
 );
 CREATE TABLE committee_hearing_bill (
   id text PRIMARY KEY, hearing_id text NOT NULL REFERENCES committee_hearing(id),
-  bill_id text NOT NULL, UNIQUE(hearing_id,bill_id)
+  bill_id text NOT NULL, congress integer NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now(), UNIQUE(hearing_id,bill_id)
 );
 CREATE TABLE downstream_soft_reference (id text PRIMARY KEY, "canonicalHearingId" varchar NOT NULL);
 `;
@@ -145,11 +149,10 @@ async function main() {
       'senate',
       JSON.stringify({ sourceId: item.aliasId, immutable: true }),
     ]);
-    await db.query('INSERT INTO committee_hearing_bill VALUES ($1,$2,$3)', [
-      `bill-link-${number}`,
-      item.aliasId,
-      'bill-one',
-    ]);
+    await db.query(
+      'INSERT INTO committee_hearing_bill (id, hearing_id, bill_id, congress, synced_at) VALUES ($1,$2,$3,119,$4)',
+      [`bill-link-${number}`, item.aliasId, 'bill-one', '2026-09-14T10:00:00.123456Z'],
+    );
     await db.query('INSERT INTO downstream_soft_reference VALUES ($1,$2)', [
       `soft-${number}`,
       item.aliasId,
@@ -287,6 +290,17 @@ async function main() {
       assert.equal(rows[0].id, id);
       assert.equal(rows[0].hearing_id, populated.canonicalId);
     }
+    const movedBill = (
+      await db.query(
+        `SELECT hearing_id, congress,
+          to_char(synced_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') AS synced
+        FROM committee_hearing_bill WHERE id=$1`,
+        ['bill-link-10001'],
+      )
+    ).rows[0];
+    assert.equal(movedBill.hearing_id, populated.canonicalId);
+    assert.equal(movedBill.congress, 119);
+    assert.equal(movedBill.synced, '2026-09-14T10:00:00.123456');
     assert.equal(
       (await db.query('SELECT "canonicalHearingId" FROM downstream_soft_reference')).rows[0]
         .canonicalHearingId,
@@ -474,6 +488,200 @@ async function main() {
     assert.equal(await protectedSnapshot(), beforeProtected);
     pass(
       'immutable trigger history and run/brief/queued-job event references block dry-run approval and refuse the whole apply batch without updates',
+    );
+
+    // ── Bill-link retention semantics (LW8 alias repair, duplicate agenda links) ──
+    // committee_hearing_bill is UNIQUE(hearing_id, bill_id): when both sides of
+    // a reviewed pair already link the SAME bill (the four verified same-event
+    // cm/sen pairs carry up to 24 such overlaps), a blind relocation UPDATE
+    // collides with the constraint and aborts the whole batch. The operator
+    // must instead RETAIN the alias-side duplicate untouched when the canonical
+    // side already links the same billId+congress, and relocate only genuinely
+    // non-overlapping links — preserving every row id and synced_at exactly.
+    await reset();
+    await db.exec(migration);
+    const billPair = await pair(10007);
+    // The pair fixture already links bill-one on the alias side; that row IS the
+    // duplicate. Add only a non-overlapping alias-side bill-two and the
+    // canonical side's own bill-one link (different id + synced_at).
+    await db.query(
+      'INSERT INTO committee_hearing_bill (id, hearing_id, bill_id, congress, synced_at) VALUES ($1,$2,$3,$4,$5)',
+      ['bill-alias-only', billPair.aliasId, 'bill-two', 119, '2026-09-14T11:00:00.654322Z'],
+    );
+    await db.query(
+      'INSERT INTO committee_hearing_bill (id, hearing_id, bill_id, congress, synced_at) VALUES ($1,$2,$3,$4,$5)',
+      ['bill-canonical-one', billPair.canonicalId, 'bill-one', 119, '2026-09-14T12:00:00.000001Z'],
+    );
+    const billPlan = await transaction((tx) =>
+      reconcileReviewedAliases(tx, [billPair], { apply: false }),
+    );
+    // The plan must inventory exact bill rows so content changes with stable
+    // counts still invalidate the reviewed hash.
+    const billPlanLink = ((billPlan.plans as any[])[0].references as any[]).find(
+      (r) => r.tableName === 'committee_hearing_bill',
+    );
+    assert.ok(billPlanLink, 'Bill links must appear in the plan reference inventory');
+    assert.ok(billPlanLink.rows, 'Bill-link inventory must include exact rows, not just counts');
+    const dupRow = billPlanLink.rows.find((r: { id: string }) => r.id === 'bill-link-10007');
+    assert.ok(dupRow && dupRow.rowText && dupRow.rowText.includes('bill-one'));
+    // Dry run must not touch any row.
+    assert.equal(
+      (
+        await db.query('SELECT count(*) AS n FROM committee_hearing_bill WHERE hearing_id=$1', [
+          billPair.aliasId,
+        ])
+      ).rows[0].n,
+      2,
+    );
+    pass('bill-link plan inventories exact duplicate rows for the reviewed hash');
+
+    await transaction((tx) =>
+      reconcileReviewedAliases(tx, [billPair], {
+        apply: true,
+        expectedPlanHash: String(billPlan.planHash),
+      }),
+    );
+    // Duplicate link retained on the alias side, byte-for-byte. Assert by id,
+    // never by result order.
+    const rowsById = new Map<string, any>(
+      (
+        await db.query(
+          `SELECT id, hearing_id, bill_id, congress,
+            to_char(synced_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US') AS synced
+          FROM committee_hearing_bill ORDER BY id`,
+        )
+      ).rows.map((row: any) => [row.id as string, row]),
+    );
+    assert.equal(rowsById.size, 3);
+    // The pair's alias-side duplicate of canonical bill-one is untouched.
+    const retainedDup = rowsById.get('bill-link-10007')!;
+    assert.equal(retainedDup.hearing_id, billPair.aliasId);
+    assert.equal(retainedDup.bill_id, 'bill-one');
+    assert.equal(retainedDup.congress, 119);
+    assert.equal(retainedDup.synced, '2026-09-14T10:00:00.123456'); // exact original timestamp
+    // The canonical side's own bill-one link is untouched too.
+    const canonicalOne = rowsById.get('bill-canonical-one')!;
+    assert.equal(canonicalOne.hearing_id, billPair.canonicalId);
+    assert.equal(canonicalOne.bill_id, 'bill-one');
+    assert.equal(canonicalOne.synced, '2026-09-14T12:00:00.000001');
+    // The non-overlapping alias-side bill-two moved normally.
+    const movedOnly = rowsById.get('bill-alias-only')!;
+    assert.equal(movedOnly.hearing_id, billPair.canonicalId);
+    assert.equal(movedOnly.bill_id, 'bill-two');
+    assert.equal(movedOnly.synced, '2026-09-14T11:00:00.654322');
+    // Stored alias evidence must distinguish retained vs moved links.
+    const billAlias = (
+      await db.query('SELECT alias_evidence FROM committee_hearing WHERE id=$1', [billPair.aliasId])
+    ).rows[0].alias_evidence;
+    const billEvidence = billAlias.references.find(
+      (r: { tableName: string }) => r.tableName === 'committee_hearing_bill',
+    );
+    assert.ok(billEvidence, 'aliasEvidence must carry the bill-link disposition');
+    assert.deepEqual(billEvidence.retained, ['bill-link-10007']);
+    assert.deepEqual(billEvidence.moved, ['bill-alias-only']);
+    assert.equal(billEvidence.retained.length + billEvidence.moved.length, 2);
+    pass(
+      'apply retains the duplicate alias-side bill link byte-for-byte, moves only the non-overlap, and records the split disposition',
+    );
+
+    // Stable-count content change must invalidate the hash (synced_at nudge).
+    await reset();
+    await db.exec(migration);
+    const hashPair = await pair(10008);
+    // The pair's own alias-side bill-one row is the duplicate; add only the
+    // canonical-side equivalent.
+    await db.query(
+      'INSERT INTO committee_hearing_bill (id, hearing_id, bill_id, congress, synced_at) VALUES ($1,$2,$3,$4,$5)',
+      ['bill-hash-canonical', hashPair.canonicalId, 'bill-one', 119, '2026-09-14T12:00:00.000001Z'],
+    );
+    const stalePlan = await transaction((tx) =>
+      reconcileReviewedAliases(tx, [hashPair], { apply: false }),
+    );
+    await db.query(
+      "UPDATE committee_hearing_bill SET synced_at='2026-09-14T11:00:00.654999Z' WHERE id='bill-link-10008'",
+    );
+    const beforeHashRefusal = await snapshot();
+    await assert.rejects(
+      transaction((tx) =>
+        reconcileReviewedAliases(tx, [hashPair], {
+          apply: true,
+          expectedPlanHash: String(stalePlan.planHash),
+        }),
+      ),
+      /changed since review/,
+    );
+    assert.equal(await snapshot(), beforeHashRefusal);
+    pass('a stable-count bill-row content change invalidates the reviewed plan hash');
+
+    // Conflicting Congress on the same billId must abort the whole batch.
+    await reset();
+    await db.exec(migration);
+    const conflictPair = await pair(10009);
+    // Conflicting Congress on the SAME billId: the pair's alias-side bill-one
+    // row (congress 119) vs a canonical-side bill-one row with congress 118.
+    await db.query(
+      'INSERT INTO committee_hearing_bill (id, hearing_id, bill_id, congress, synced_at) VALUES ($1,$2,$3,$4,$5)',
+      [
+        'bill-conflict-canonical',
+        conflictPair.canonicalId,
+        'bill-one',
+        118,
+        '2026-09-14T12:00:00.000001Z',
+      ],
+    );
+    const beforeCongressRefusal = await snapshot();
+    await assert.rejects(
+      transaction((tx) => reconcileReviewedAliases(tx, [conflictPair], { apply: false })),
+      /conflicting Congress/,
+    );
+    assert.equal(await snapshot(), beforeCongressRefusal);
+    pass('a duplicate bill link with a conflicting Congress is refused before any update');
+
+    // An unrelated mid-batch uniqueness collision still rolls back everything,
+    // including already-applied pairs and retained bill links.
+    await reset();
+    await db.exec(migration);
+    const earlyPair = await pair(10010),
+      latePair = await pair(10011);
+    // earlyPair: the pair fixtures already link bill-one on BOTH sides
+    // (alias: bill-link-10010, canonical: inserted below) with the same
+    // congress → that link is RETAINED, and the late pair's follow collision
+    // must still roll the whole batch back, retention included.
+    await db.query(
+      'INSERT INTO committee_hearing_bill (id, hearing_id, bill_id, congress, synced_at) VALUES ($1,$2,$3,$4,$5)',
+      [
+        'bill-early-canonical',
+        earlyPair.canonicalId,
+        'bill-one',
+        119,
+        '2026-09-14T12:00:00.000001Z',
+      ],
+    );
+    // latePair: an existing canonical-side hearing_follow for the SAME
+    // (tenant,user) collides with the moved alias-side follow (23505) — an
+    // unrelated-table collision after retention has run for the early pair.
+    await db.query('INSERT INTO hearing_follow VALUES ($1,$2,$3,$4)', [
+      'existing-late-canonical-follow',
+      'tenant-one',
+      'user-one',
+      latePair.canonicalId,
+    ]);
+    const latePlan = await transaction((tx) =>
+      reconcileReviewedAliases(tx, [earlyPair, latePair], { apply: false }),
+    );
+    const beforeRollback = await snapshot();
+    await assert.rejects(
+      transaction((tx) =>
+        reconcileReviewedAliases(tx, [earlyPair, latePair], {
+          apply: true,
+          expectedPlanHash: String(latePlan.planHash),
+        }),
+      ),
+      (e: any) => e.code === '23505',
+    );
+    assert.equal(await snapshot(), beforeRollback);
+    pass(
+      'a mid-batch follow collision rolls back the entire batch, including a prior pair’s retained bill links',
     );
 
     console.log(
