@@ -46,6 +46,10 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { EngagementService } from './engagement.service.js';
+import {
+  OUTREACH_AUDIENCE_TYPES,
+  type OutreachAudienceType,
+} from './outreach-audience-types.js';
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
 import { MEETING_PREP_DEPTHS, meetingPrepEnabled, type MeetingPrepDepth } from './meeting-prep-policy.js';
 import { OutreachJobService, outreachRecipientKey } from './outreach-job.service.js';
@@ -1120,6 +1124,13 @@ class OutreachRecipientDto {
   @ClampTo(240)
   @Length(1, 240)
   relevanceReason?: string;
+
+  // Manual recipient's audience, chosen by the user in the wizard's audience
+  // picker. Optional: existing directory recipients omit it. Only supported
+  // choices pass; unknown values reject via @IsIn.
+  @IsOptional()
+  @IsIn(OUTREACH_AUDIENCE_TYPES)
+  audienceType?: OutreachAudienceType;
 
   // The wizard tags each recipient with its provenance (e.g. "District nexus",
   // "Directory"). Display-only, but it IS sent in the generate/send payload, so

@@ -162,6 +162,11 @@ export interface DraftPatchEntry {
   subject: string;
   body: string;
   status: 'ready' | 'error' | 'held';
+  /**
+   * The worker's persisted error string for a failed item — rendered in the
+   * draft's failure banner. Omitted when the worker stored nothing.
+   */
+  failureReason?: string;
   // Phase 0 version metadata, present for done AND held items.
   versionId?: string;
   artifactId?: string;
@@ -220,9 +225,17 @@ export function mapJobItemsToDraftPatch(
       const body = sanitizeHtml(markdownishToHtml(it.result?.body ?? ''));
       for (const genKey of genKeys) out.push({ genKey, subject, body, status: 'held', ...meta });
     } else if (it.status === 'failed') {
+      // Keep the worker's persisted error with the placeholder.
+      const failureReason = it.error?.trim() ? it.error.trim() : undefined;
       for (const genKey of genKeys) {
         const ph = placeholder(genKey);
-        out.push({ genKey, subject: ph.subject, body: ph.body, status: 'error' });
+        out.push({
+          genKey,
+          subject: ph.subject,
+          body: ph.body,
+          status: 'error',
+          ...(failureReason ? { failureReason } : {}),
+        });
       }
     }
     // skipped / pending / claimed / generating → not terminal-for-draft; skip.

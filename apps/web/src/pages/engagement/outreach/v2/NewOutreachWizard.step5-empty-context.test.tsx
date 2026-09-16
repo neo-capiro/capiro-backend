@@ -89,7 +89,7 @@ vi.mock('../../../../lib/use-api.js', () => ({
   }),
 }));
 
-function renderWizard(initialRecord: OutreachRecord | null) {
+function renderWizard(initialRecord: OutreachRecord | null, draftIdOverride?: string | null) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -106,7 +106,7 @@ function renderWizard(initialRecord: OutreachRecord | null) {
           onCancel={() => {}}
           onComplete={() => {}}
           initialRecord={initialRecord}
-          initialDraftId={initialRecord?.id ?? null}
+          initialDraftId={draftIdOverride !== undefined ? draftIdOverride : (initialRecord?.id ?? null)}
         />
       </AntApp>
     </QueryClientProvider>,
@@ -163,6 +163,53 @@ describe('Step 5 Context Builder with empty context', () => {
   beforeEach(() => {
     apiPostMock.mockClear();
     apiGetMock.mockClear();
+    // Restore the default (permissive) implementation: a previous test's
+    // mockImplementation rejection must not poison this describe's other cases.
+    apiPostMock.mockImplementation(async (url: string, _body?: unknown) => {
+      if (url === '/api/engagement/outreach/generate-batch') {
+        return { data: { results: [] } };
+      }
+      return { data: { id: 'rec-1' } };
+    });
+  });
+
+  test('a record-create failure on the sync path surfaces the wrapped reason on the draft, not a generic placeholder', async () => {
+    // draftId null so ensureDraftRecord must CREATE the record — the exact
+    // path a new campaign takes before its first generation.
+    apiPostMock.mockImplementation(async (url: string) => {
+      if (url === '/api/engagement/outreach') {
+        throw Object.assign(new Error('property audienceType should not exist'), {
+          response: {
+            status: 400,
+            data: { message: 'property audienceType should not exist' },
+          },
+        });
+      }
+      return { data: { id: 'rec-1' } };
+    });
+    renderWizard(savedRecordAtPoolStep(), null);
+    const continueBtn = await waitFor(() => {
+      const btn = screen.getByRole('button', { name: /Continue/ }) as HTMLButtonElement;
+      expect(btn).toBeTruthy();
+      return btn;
+    });
+    await waitFor(() => expect(continueBtn.disabled).toBe(false));
+    fireEvent.click(continueBtn);
+
+    // The failure banner carries the wrapped preflight reason verbatim.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Could not create the protected draft record, so generation was not started/),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.getByText(/property audienceType should not exist/),
+    ).toBeTruthy();
+
+    // No generation POST was ever made (the preflight blocked it).
+    expect(
+      apiPostMock.mock.calls.some(([url]) => url === '/api/engagement/outreach/generate-batch'),
+    ).toBe(false);
   });
 
   test('Continue is enabled with zero context, advances, and generation sends contextItems: []', async () => {

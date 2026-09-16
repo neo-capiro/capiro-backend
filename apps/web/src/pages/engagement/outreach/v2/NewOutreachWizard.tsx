@@ -1169,10 +1169,11 @@ export function NewOutreachWizard({
           // UNSAVED edits; once an edit autosaves as a version it is neither, and
           // was previously fair game for this overwrite.)
           if (p.status === 'error') {
-            generatedEmails[p.genKey] = applyGenerationFailure(prior, {
-              subject: p.subject,
-              body: p.body,
-            });
+            generatedEmails[p.genKey] = applyGenerationFailure(
+              prior,
+              { subject: p.subject, body: p.body },
+              p.failureReason,
+            );
             continue;
           }
           generatedEmails[p.genKey] = {
@@ -1227,13 +1228,53 @@ export function NewOutreachWizard({
     if (!slots.length) return;
     const base = buildBaseParams();
     const tasks = buildGenerateTasks(slots, GEN_BATCH_MAX);
+    // Versioned parity with the sync path (§3.g3): under versioned outreach
+    // generateBatchEmails requires an owned draft record and rejects the batch
+    // before any AI spend when outreachRecordId is missing — and the worker
+    // surfaces that reject only as a failed job item, so the wizard showed a
+    // generic placeholder. Create the record ONCE here (shared ref serializes
+    // concurrent callers) and attach its id + per-slot generation keys exactly
+    // like the sync mutation does.
+    let recordId: string | null = null;
+    if (versionedOutreach) {
+      try {
+        recordId = await ensureDraftRecord();
+      } catch (err) {
+        // Same contract as the sync path: keep the server's message and submit
+        // nothing — no record means no job, so no spend and no pending state.
+        const detail = apiErrorMessage(err);
+        message.error(
+          detail
+            ? `Could not create the protected draft record, so generation was not started: ${detail}`
+            : 'Could not create the protected draft record; generation was not started.',
+        );
+        return;
+      }
+    }
     jobMarkFreshRef.current = { markFresh: markFresh ?? false, sig: sig ?? null };
+    const withGenerationKeys = (
+      recipients: OutreachRecipient[],
+      chunkSlots: GenSlot[],
+    ): OutreachRecipient[] => {
+      if (!versionedOutreach) return recipients;
+      const keysByResultId = new Map<string, string[]>();
+      for (const slot of chunkSlots) {
+        const list = keysByResultId.get(slot.resultId) ?? [];
+        list.push(slot.genKey);
+        keysByResultId.set(slot.resultId, list);
+      }
+      return recipients.map((r) => {
+        const keys = keysByResultId.get(recipientKey(r)) ?? [];
+        return keys.length ? ({ ...r, generationKeys: keys } as unknown as OutreachRecipient) : r;
+      });
+    };
     try {
       const submitted = await Promise.all(
         tasks.map((t) =>
           submitOutreachGenerateJob(api, {
             ...base,
-            recipients: t.recipients,
+            ...(recordId ? { outreachRecordId: recordId } : {}),
+            recipients: withGenerationKeys(t.recipients, t.chunkSlots),
             ...(t.additionalContext ? { additionalContext: t.additionalContext } : {}),
             ...(t.audienceKind ? { audienceKind: t.audienceKind } : {}),
           }),
@@ -1724,7 +1765,13 @@ export function NewOutreachWizard({
       // with no draft yet is marked 'error' (unsendable) so nothing half-generated
       // leaks; a slot that already has one keeps its text — see
       // applyGenerationFailure.
-      const reason = apiErrorMessage(err) || undefined;
+      // apiErrorMessage only parses HTTP response bodies; a locally thrown
+      // Error (e.g. the ensureDraftRecord preflight wrap below) carries its
+      // reason on .message, which must not be discarded into a generic
+      // "generation failed".
+      const detail = apiErrorMessage(err);
+      const localReason = err instanceof Error && err.message ? err.message : null;
+      const reason = detail ?? localReason ?? undefined;
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const s of vars.slots) {
@@ -1737,9 +1784,7 @@ export function NewOutreachWizard({
         return { ...prev, generatedEmails };
       });
       setGeneratingKey(null);
-      message.error(
-        apiErrorMessage(err) || 'Generation failed. Edit or regenerate the flagged drafts.',
-      );
+      message.error(reason ?? 'Generation failed. Edit or regenerate the flagged drafts.');
     },
   });
 

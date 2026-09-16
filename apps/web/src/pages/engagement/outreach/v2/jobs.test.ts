@@ -89,6 +89,30 @@ describe('mapJobItemsToDraftPatch', () => {
     });
   });
 
+  it("'failed' carries the worker's persisted error as failureReason — never a reasonless placeholder", () => {
+    const patch = mapJobItemsToDraftPatch(
+      [item({ recipientKey: 'b', status: 'failed', error: 'outreachRecordId is required: a draft must be saved before it can be generated.' })],
+      map,
+      ph,
+    );
+    expect(patch).toHaveLength(1);
+    expect(patch[0]!.failureReason).toBe(
+      'outreachRecordId is required: a draft must be saved before it can be generated.',
+    );
+  });
+
+  it("'failed' omits failureReason when the worker stored no error (blank/whitespace)", () => {
+    for (const error of [null, '', '   ']) {
+      const patch = mapJobItemsToDraftPatch(
+        [item({ recipientKey: 'b', status: 'failed', error })],
+        map,
+        ph,
+      );
+      expect(patch).toHaveLength(1);
+      expect(patch[0]).not.toHaveProperty('failureReason');
+    }
+  });
+
   it('skipped / non-terminal items are omitted (left for a later poll)', () => {
     const patch = mapJobItemsToDraftPatch(
       [
