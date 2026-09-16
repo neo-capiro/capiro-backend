@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Step 34B — extract DoD personnel named in recent GAO reports.
  *
@@ -32,7 +33,7 @@ import { MatchScorerService } from '../src/acquisition-personnel/matching/match-
 dotenvConfig();
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5';
 
 // DoD-topic / agency keywords used to scope which GAO reports we process.
 const DOD_KEYWORDS = [
@@ -70,12 +71,12 @@ async function llmExtract(report: GaoReportInput): Promise<GaoLlmPerson[]> {
       'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
+    body: JSON.stringify(prepareAnthropicRequest({
       model: ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: GAO_NER_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: GaoPersonnelExtractorService.buildUserPrompt(report) }],
-    }),
+    })),
   });
   const raw = (await res.json()) as { content?: Array<{ text?: string }>; error?: { message?: string } };
   if (!res.ok) throw new Error(`Anthropic ${res.status}: ${raw.error?.message ?? 'error'}`);

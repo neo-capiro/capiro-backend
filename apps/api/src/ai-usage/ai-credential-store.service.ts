@@ -10,6 +10,7 @@
  * matching GUC either way.
  */
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { encryptSecret } from '../common/secret-crypto.js';
 import {
@@ -59,7 +60,7 @@ export class AiCredentialStoreService {
       );
     }
 
-    const modelOverride = input.modelOverride?.trim() || null;
+    const modelOverride = input.modelOverride?.trim() ? upgradeTextModel(input.modelOverride) : null;
     const validation = await this.resolver.validateKey(input.provider, input.apiKey, modelOverride);
     if (!validation.ok) {
       throw new BadRequestException(
@@ -117,7 +118,7 @@ function masked(row: {
   return {
     provider: row.provider,
     last4: row.keyLast4,
-    modelOverride: row.modelOverride,
+    modelOverride: row.modelOverride ? upgradeTextModel(row.modelOverride) : null,
     status: row.status,
     lastValidatedAt: row.lastValidatedAt ?? null,
     updatedAt: row.updatedAt ?? null,

@@ -90,14 +90,15 @@ describe('LlmCompletionService request shaping', () => {
     jsonSchema: { type: 'object' } as Record<string, unknown>,
   };
 
-  it('omits `reasoning` for a non-reasoning OpenAI model even when effort is set', async () => {
+  it('upgrades legacy OpenAI selections and preserves requested max effort', async () => {
     const body = await capture({
       ...base,
       provider: 'openai',
       model: 'gpt-4.1-mini',
       reasoningEffort: 'max',
     });
-    expect(body.reasoning).toBeUndefined();
+    expect(body.model).toBe('gpt-6-astra');
+    expect(body.reasoning).toEqual({ effort: 'max' });
   });
 
   it('sends `reasoning.effort` for an OpenAI reasoning model', async () => {
@@ -107,19 +108,19 @@ describe('LlmCompletionService request shaping', () => {
       model: 'gpt-5',
       reasoningEffort: 'max',
     });
-    expect(body.reasoning).toEqual({ effort: 'high' });
+    expect(body.reasoning).toEqual({ effort: 'max' });
   });
 
-  it('omits thinking for claude-haiku-4-5 and keeps the legacy 2400 ceiling', async () => {
+  it('upgrades Haiku to Sonnet 5 with adaptive thinking and output headroom', async () => {
     const body = await capture({
       ...base,
       provider: 'anthropic',
       model: 'claude-haiku-4-5-20251001',
       reasoningEffort: 'max',
     });
-    expect(body.thinking).toBeUndefined();
-    expect(body.output_config).toBeUndefined();
-    expect(body.max_tokens).toBe(2400);
+    expect(body.thinking).toEqual({ type: 'adaptive' });
+    expect(body.output_config).toEqual({ effort: 'max' });
+    expect(body.max_tokens).toBeGreaterThanOrEqual(16_000);
   });
 
   it('sends adaptive thinking + output_config.effort, and never budget_tokens', async () => {
@@ -148,7 +149,7 @@ describe('LlmCompletionService request shaping', () => {
     expect(Number(body.max_tokens)).toBeGreaterThanOrEqual(16_000);
   });
 
-  it('drops temperature while thinking is on, but keeps it otherwise', async () => {
+  it('drops unsupported sampling parameters with or without explicit thinking', async () => {
     const thinking = await capture({
       ...base,
       provider: 'anthropic',
@@ -164,7 +165,7 @@ describe('LlmCompletionService request shaping', () => {
       model: 'claude-haiku-4-5',
       temperature: 0.2,
     });
-    expect(plain.temperature).toBe(0.2);
+    expect(plain.temperature).toBeUndefined();
   });
 
   it('leaves a request without reasoningEffort byte-identical to before', async () => {

@@ -475,7 +475,7 @@ describe('AnthropicLlmClient.completeWithSchema — reasoning mode wire (mocked 
       }),
     }) as Response;
 
-  it('Sonnet 4.5 + reasoning opt-in sends thinking:1024, tool_choice auto, unchanged model/schema/max_tokens', async () => {
+  it('upgrades Sonnet 4.5 to Sonnet 5 with adaptive reasoning and preserved tool schema', async () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: string, init?: RequestInit) => {
       body = JSON.parse(String(init?.body));
@@ -490,9 +490,10 @@ describe('AnthropicLlmClient.completeWithSchema — reasoning mode wire (mocked 
       maxTokens: 6000,
       reasoning: { effort: 'low' },
     });
-    expect(body.model).toBe('claude-sonnet-4-5');
-    expect(body.max_tokens).toBe(6000);
-    expect(body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 });
+    expect(body.model).toBe('claude-sonnet-5');
+    expect(body.max_tokens).toBe(16384);
+    expect(body.thinking).toEqual({ type: 'adaptive' });
+    expect(body.output_config).toEqual({ effort: 'low' });
     expect(body.tool_choice).toEqual({ type: 'auto' });
     expect((body.tools as Array<{ name: string }>)[0]!.name).toBe('submit_hearing_claims');
   });
@@ -516,7 +517,7 @@ describe('AnthropicLlmClient.completeWithSchema — reasoning mode wire (mocked 
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
   });
 
-  it('reasoning absent → byte-identical prior wire (forced tool, no thinking field)', async () => {
+  it('reasoning absent preserves forced schema output with thinking explicitly disabled', async () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: string, init?: RequestInit) => {
       body = JSON.parse(String(init?.body));
@@ -530,7 +531,7 @@ describe('AnthropicLlmClient.completeWithSchema — reasoning mode wire (mocked 
       inputSchema: { type: 'object' },
       maxTokens: 6000,
     });
-    expect(body.thinking).toBeUndefined();
+    expect(body.thinking).toEqual({ type: 'disabled' });
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
     expect(body.max_tokens).toBe(6000);
   });
@@ -604,7 +605,7 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
         }),
       } as Response;
     }) as typeof fetch;
-    await new OpenAiLlmClient({ apiKey: 'sk-test', model: 'gpt-5', fetchImpl }).completeWithSchema({
+    await new OpenAiLlmClient({ apiKey: 'sk-test', model: 'custom-chat-deployment', fetchImpl }).completeWithSchema({
       system: 'sys',
       prompt: 'p',
       toolName: 'submit',
@@ -614,7 +615,7 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
     });
     expect(body.thinking).toBeUndefined();
     expect(body.tool_choice).toEqual({ type: 'function', function: { name: 'submit' } });
-    expect(body.model).toBe('gpt-5');
+    expect(body.model).toBe('custom-chat-deployment');
   });
 
   it('strict opt-in is a no-op on OpenAI: original schema + keywords, no strict field, same model', async () => {
@@ -635,7 +636,7 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
       type: 'object',
       properties: { id: { type: 'string', minLength: 1, maxLength: 100 } },
     };
-    await new OpenAiLlmClient({ apiKey: 'sk-test', model: 'gpt-5', fetchImpl }).completeWithSchema({
+    await new OpenAiLlmClient({ apiKey: 'sk-test', model: 'custom-chat-deployment', fetchImpl }).completeWithSchema({
       system: 'sys',
       prompt: 'p',
       toolName: 'submit',
@@ -647,7 +648,7 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
     expect(tool.strict).toBeUndefined();
     expect((tool.function as Record<string, unknown>).strict).toBeUndefined();
     expect((tool.function as { parameters: unknown }).parameters).toEqual(inputSchema);
-    expect(body.model).toBe('gpt-5');
+    expect(body.model).toBe('custom-chat-deployment');
   });
 });
 
@@ -805,7 +806,7 @@ describe('AnthropicLlmClient.completeWithSchema — strict wire (H57 mocked fetc
     });
     // No reasoning opt-in → the prior forced tool choice is unchanged.
     expect(body.tool_choice).toEqual({ type: 'tool', name: 'submit' });
-    expect(body.thinking).toBeUndefined();
+    expect(body.thinking).toEqual({ type: 'disabled' });
     expect(body.max_tokens).toBe(6000);
   });
 

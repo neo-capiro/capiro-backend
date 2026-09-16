@@ -43,7 +43,7 @@
         },
         {
           "name": "ANTHROPIC_MODEL",
-          "value": "claude-sonnet-4-5"
+          "value": "claude-sonnet-5"
         }
       ],
       "mountPoints": [],

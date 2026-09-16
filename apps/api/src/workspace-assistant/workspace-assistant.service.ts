@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -370,13 +371,13 @@ export class WorkspaceAssistantService {
             'anthropic-version': '2023-06-01',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepareAnthropicRequest({
             model,
             max_tokens: MAX_TOKENS,
             system,
             tools: toolSchemas,
             messages,
-          }),
+          })),
           signal: controller.signal,
         }).finally(() => clearTimeout(timer));
         if (!res.ok) {
@@ -704,7 +705,7 @@ export class WorkspaceAssistantService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepareAnthropicRequest({
               model: this.config.get('CLIO_INTENT_MODEL', { infer: true }),
               max_tokens: 1500,
               system:
@@ -715,13 +716,11 @@ export class WorkspaceAssistantService {
                   content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}`,
                 },
               ],
-            }),
+            })),
           });
           if (res.ok) {
             const json = (await res.json()) as Record<string, unknown>;
-            const text = Array.isArray(json.content)
-              ? (json.content[0] as Record<string, unknown>)?.text
-              : '';
+            const text = anthropicResponseText(json);
             if (typeof text === 'string') {
               const claims = parseVerifierClaims(text);
               if (claims.length) {

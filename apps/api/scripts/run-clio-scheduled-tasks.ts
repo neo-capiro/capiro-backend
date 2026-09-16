@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Meri scheduled-task runner (W3 → W4: real read-only research).
  *
@@ -130,13 +131,13 @@ async function runResearch(
           'x-api-key': apiKey,
           'anthropic-version': ANTHROPIC_VERSION,
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model,
           max_tokens: MAX_TOKENS,
           system: SYSTEM_PROMPT,
           tools: toolSchemas,
           messages,
-        }),
+        })),
       });
       if (!res.ok) {
         logger.warn(

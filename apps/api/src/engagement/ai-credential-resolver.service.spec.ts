@@ -89,7 +89,7 @@ describe('AiCredentialResolverService.resolveOrder', () => {
     expect(order[0]).toEqual({
       provider: 'openai',
       apiKey: 'sk-tenant-own-key',
-      model: 'gpt-4.1',
+      model: 'gpt-6-astra',
       usedTenantKey: true,
       modelOverridden: true,
     });
@@ -102,7 +102,7 @@ describe('AiCredentialResolverService.resolveOrder', () => {
       {
         provider: 'openai',
         apiKey: 'sk-global',
-        model: 'gpt-4.1-mini',
+        model: 'gpt-6-astra',
         usedTenantKey: false,
         modelOverridden: false,
       },
@@ -210,7 +210,7 @@ describe('AiCredentialResolverService.resolveProvider (Meri single-provider path
     const { svc } = makeService({ anthropicKey: 'sk-global-a', encryptionKey: AES_KEY_B64 });
     const cred = await svc.resolveProvider(ctx, 'anthropic');
     expect(cred).toMatchObject({ apiKey: 'sk-global-a', usedTenantKey: false });
-    expect(cred?.model).toBe('claude-haiku-4-5-20251001');
+    expect(cred?.model).toBe('claude-sonnet-5');
   });
 
   it('returns null when neither a tenant nor a global Anthropic key exists', async () => {

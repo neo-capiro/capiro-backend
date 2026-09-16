@@ -18,9 +18,8 @@
  *     `output_config.effort` is the current shape, and `output_config.effort`
  *     ERRORS on Sonnet 4.5 / Haiku 4.5 — which is exactly what ANTHROPIC_MODEL
  *     still defaults to in this repo.
- *   - OpenAI `reasoning.effort` is accepted only by the reasoning families
- *     (o-series, gpt-5). The model live on engagement-api today is
- *     `gpt-4.1-mini`, which is not one of them.
+ *   - OpenAI `reasoning.effort` is accepted by o-series, GPT-5 and GPT-6.
+ *     Legacy application selections are upgraded before this capability check.
  *
  * So the contract here is: send a reasoning parameter ONLY to a model this file
  * positively knows accepts that exact shape, and otherwise send nothing at all
@@ -68,7 +67,7 @@ const ANTHROPIC_ADAPTIVE_THINKING_PATTERNS = [
 const NO_XHIGH_PATTERNS = [/^claude-opus-4-6/i, /^claude-sonnet-4-6/i];
 
 /** OpenAI families that accept `reasoning.effort` on the Responses API. */
-const OPENAI_REASONING_PATTERNS = [/^gpt-5/i, /^o[1-9]/i];
+const OPENAI_REASONING_PATTERNS = [/^gpt-[56]/i, /^o[1-9]/i];
 
 function matches(model: string, patterns: readonly RegExp[]): boolean {
   const trimmed = model.trim();
@@ -100,11 +99,10 @@ export function anthropicEffort(model: string, effort: ReasoningEffort): Reasoni
 /**
  * Collapse the Capiro ladder onto OpenAI's.
  *
- * OpenAI's Responses API has no `xhigh` or `max` rung, so both map to `high` —
- * its top setting. This is a real ceiling, not a fudge: asking for `max` on an
- * o-series model genuinely gets OpenAI's deepest reasoning setting, and the
- * manifest records the effort we asked for so the difference is auditable.
+ * GPT-6 supports the complete ladder. Older supported reasoning families retain
+ * the existing high-effort ceiling when their capability set is narrower.
  */
-export function openAiReasoningEffort(effort: ReasoningEffort): 'low' | 'medium' | 'high' {
+export function openAiReasoningEffort(effort: ReasoningEffort, model?: string): ReasoningEffort {
+  if (model && /^gpt-6-astra/.test(model)) return effort;
   return effort === 'low' ? 'low' : effort === 'medium' ? 'medium' : 'high';
 }
