@@ -8,7 +8,7 @@ export const ANTHROPIC_TEXT_MODEL = 'claude-sonnet-5';
 export function upgradeTextModel(model: string): string {
   const value = model.trim();
   if (
-    /^gpt-(?:4(?:\.1|o)(?:-(?:mini|nano))?|5(?:\.\d+)?(?:-(?:mini|nano|pro|sol|terra|luna))?)(?:-\d{4}-\d{2}-\d{2})?$/i.test(
+    /^(?:gpt-(?:4(?:\.1|o)(?:-(?:mini|nano))?|5(?:\.\d+)?(?:-(?:mini|nano|pro|sol|terra|luna))?)|o3|o4-mini)(?:-\d{4}-\d{2}-\d{2})?$/i.test(
       value,
     )
   ) {

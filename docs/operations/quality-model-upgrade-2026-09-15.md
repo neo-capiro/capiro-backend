@@ -1,7 +1,7 @@
 # Text model upgrade — September 15, 2026
 
 The application now uses **GPT-6 Astra (`gpt-6-astra`)** for previous GPT-4.1,
-GPT-4o, GPT-mini and GPT-5 text workloads, and **Claude Sonnet 5
+GPT-4o, GPT-mini, GPT-5, o3 and o4-mini text workloads, and **Claude Sonnet 5
 (`claude-sonnet-5`)** for previous Claude Sonnet and Haiku workloads.
 
 ## Behavior
