@@ -4,6 +4,7 @@
  * ones (§3.3) so mutations here invalidate the old app and vice-versa.
  */
 import { useMemo } from 'react';
+import axios from 'axios';
 import {
   useInfiniteQuery,
   useMutation,
@@ -28,10 +29,10 @@ import { lwKeys, type WorkState } from './types.js';
 const enc = encodeURIComponent;
 
 /** Assign-self (LW-QA-021). Backend requires `assignedTo` on state='assigned';
-   * the row pill and packet drawer previously sent the bare state → real API
-   * 400. The id must be a DB `users.id` for a member of this tenant (same
-   * contract as the old app's `/api/tenant-admin/team` picker). Resolved from
-   * the current actor's `/api/me` so no id is hardcoded. */
+ * the row pill and packet drawer previously sent the bare state → real API
+ * 400. The id must be a DB `users.id` for a member of this tenant (same
+ * contract as the old app's `/api/tenant-admin/team` picker). Resolved from
+ * the current actor's `/api/me` so no id is hardcoded. */
 export function useLwAssignSelf(): { userId: string | null; ready: boolean } {
   const api = useApi();
   const me = useQuery({
@@ -89,28 +90,64 @@ export function defaultBucketCount(workStateCounts: FeedWorkStateCounts | null):
   );
 }
 
-/** The full GA packet for the drawer (§7.4). */
-export function useLwPacket(scope: Scope, alertId: string | null) {
+/** A real 404 is `absent` (no packet exists for this alert); any other
+ *  failure is `request_failed` — never rendered as absence-of-evidence. */
+export type LwPacketErrorKind = 'absent' | 'request_failed';
+
+export interface LwPacketState {
+  data: GovernmentAffairsAlertPacket | null;
+  /** null while pending/never issued; 'absent' for a real 404;
+   *  'request_failed' for any other failure. */
+  errorKind: LwPacketErrorKind | null;
+  /** True until the packet read settles for the current owner/alert pair. */
+  isPending: boolean;
+}
+
+/**
+ * The full GA packet for the drawer (§7.4), keyed to the OWNING client — never
+ * the raw scope (there is no `_all` packet route). The key `[ownerClientId,
+ * alertId]` moves atomically on alert/scope switch, so a late response for a
+ * previous pair can never satisfy the current one. `data` is held back while
+ * the current read is in flight or has failed: React Query retains the last
+ * successful packet in cache, which must never be presented as current.
+ */
+export function useLwPacket(ownerClientId: string | null, alertId: string | null): LwPacketState {
   const api = useApi();
-  const clientId = scope || '_all';
-  return useQuery<GovernmentAffairsAlertPacket | null>({
-    queryKey: lwKeys.packet(clientId, alertId ?? ''),
+  const query = useQuery<GovernmentAffairsAlertPacket>({
+    queryKey: lwKeys.packet(ownerClientId ?? 'unresolved', alertId ?? ''),
     queryFn: async () => {
-      if (!alertId) return null;
-      try {
-        return (
-          await api.get<GovernmentAffairsAlertPacket>(
-            `/intel-api/clients/${enc(clientId)}/alerts/${enc(alertId)}/packet`,
-          )
-        ).data;
-      } catch {
-        return null; // packet is additive; the drawer degrades to feed-item evidence
-      }
+      if (!ownerClientId || !alertId)
+        throw new Error('packet read requires a resolved owner client');
+      const response = await api.get<GovernmentAffairsAlertPacket>(
+        `/intel-api/clients/${enc(ownerClientId)}/alerts/${enc(alertId)}/packet`,
+      );
+      return response.data;
     },
-    enabled: Boolean(alertId),
+    enabled: Boolean(ownerClientId && alertId),
     retry: false,
     staleTime: 60_000,
   });
+
+  const errorKind: LwPacketErrorKind | null = query.error
+    ? axios.isAxiosError(query.error) && query.error.response?.status === 404
+      ? 'absent'
+      : 'request_failed'
+    : null;
+  // While the owner is unresolved the read is NOT settled — hold loading,
+  // never leak a cached packet from a different owner/alert pair.
+  const isPending = Boolean(ownerClientId && alertId)
+    ? query.isFetching || query.isPending
+    : Boolean(alertId);
+
+  return {
+    // Suppress the retained packet whenever the current read has not
+    // succeeded: in flight or failed (404/transport) — stale official
+    // evidence, procedural meaning, and confidence must never present as
+    // current.
+    data: errorKind || isPending ? null : (query.data ?? null),
+    errorKind,
+    isPending,
+  };
 }
 
 /** Single-alert read (drawer header evidence when the packet is absent). */

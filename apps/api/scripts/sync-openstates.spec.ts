@@ -18,6 +18,9 @@ import {
 // pins the jitter to zero in every test below.
 const SPACING = 6500;
 const NO_HINT_WAIT = 60000;
+// TRANSIENT_RETRY_EXPONENT_MS: bounded exponential backoff per retry —
+// 13000/26000/52000ms for 500/502/503/504 and network transport rejections.
+const TRANSIENT_BASE = 13000;
 
 // Fixtures mirror the live OpenStates v3 `/committees?include=memberships`
 // shape (verified 2026-07-11 against openapi.json: Committee has no `chamber`
@@ -175,6 +178,21 @@ function fakeSleep() {
     calls.push(ms);
   };
   return { calls, sleep };
+}
+
+/** Mocked Prisma client recording stateLegislator upserts (shared by the
+ * runtime-level describes — no real DB is ever touched). */
+function fakePrisma() {
+  const stateLegislatorUpsert = jest.fn().mockResolvedValue({});
+  const entityCrosswalkUpsert = jest.fn().mockResolvedValue({});
+  return {
+    prisma: {
+      stateLegislator: { upsert: stateLegislatorUpsert },
+      entityCrosswalk: { upsert: entityCrosswalkUpsert },
+    },
+    stateLegislatorUpsert,
+    entityCrosswalkUpsert,
+  };
 }
 
 describe('fetchAllPages', () => {
@@ -683,21 +701,217 @@ describe('fetchAllPages 429 retry semantics', () => {
   });
 });
 
-describe('runOpenstatesSync (runtime level, mocked fetch + prisma)', () => {
+describe('fetchAllPages transient server + network retry semantics', () => {
   const originalFetch = global.fetch;
 
-  function fakePrisma() {
-    const stateLegislatorUpsert = jest.fn().mockResolvedValue({});
-    const entityCrosswalkUpsert = jest.fn().mockResolvedValue({});
-    return {
-      prisma: {
-        stateLegislator: { upsert: stateLegislatorUpsert },
-        entityCrosswalk: { upsert: entityCrosswalkUpsert },
-      },
-      stateLegislatorUpsert,
-      entityCrosswalkUpsert,
-    };
-  }
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it('retries a single 504 on the same page and completes the walk', async () => {
+    // OR 2026-09-16 reset run: one HTTP 504 killed the committee walk after
+    // page 1 — no retry existed at all. Now one 504 retries the SAME page and
+    // the walk finishes complete.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 2 } }),
+      )
+      .mockResolvedValueOnce(mockOsResponse(504, { detail: 'gateway timeout' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'b' }], pagination: { max_page: 2 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'or' }, 25, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [{ id: 'a' }, { id: 'b' }], complete: true });
+    // page1 spacing, page2 spacing, 13s backoff, retry spacing.
+    expect(calls).toEqual([SPACING, SPACING, TRANSIENT_BASE, SPACING]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(3);
+    // Same page retried: pages 1, 2, 2.
+    const pages = (global.fetch as jest.Mock).mock.calls.map((c) =>
+      new URL(c[0]).searchParams.get('page'),
+    );
+    expect(pages).toEqual(['1', '2', '2']);
+  });
+
+  it.each([502, 503, 504])(
+    'retries a single HTTP %s with exponential backoff and completes',
+    async (status) => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(mockOsResponse(status, {}))
+        .mockResolvedValueOnce(
+          mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+        ) as unknown as typeof fetch;
+
+      const { calls, sleep } = fakeSleep();
+      const result = await fetchAllPages<{ id: string }>(
+        '/committees',
+        { jurisdiction: 'or' },
+        25,
+        {
+          sleep,
+          random: () => 0,
+        },
+      );
+      expect(result.complete).toBe(true);
+      expect(calls).toEqual([SPACING, TRANSIENT_BASE, SPACING]);
+    },
+  );
+
+  it('bounds persistent 504 to four attempts, keeps prior rows, and does not sleep after the final failure', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 2 } }),
+      )
+      .mockResolvedValue(mockOsResponse(504, {})) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/committees', { jurisdiction: 'or' }, 25, {
+      sleep,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: false });
+    // page1 spacing; then 4 page2 attempts each spaced, with 13/26/52s
+    // backoffs between; NO sleep after the final 504.
+    expect(calls).toEqual([
+      SPACING,
+      SPACING,
+      TRANSIENT_BASE,
+      SPACING,
+      TRANSIENT_BASE * 2,
+      SPACING,
+      TRANSIENT_BASE * 4,
+      SPACING,
+    ]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(5); // page1 + 4 page2 attempts
+  });
+
+  it('keeps assignments and prior rows on a bounded persistent-504 walk: existing memberships never overwritten', async () => {
+    // The committee walk fails partway (fetchOS exhausted) — runOpenstatesSync
+    // must leave existing state_legislator.committees untouched and the run
+    // must report truthfully partial.
+    const person = { id: 'ocd-person/jane', name: 'Jane Doe' };
+    global.fetch = jest
+      .fn()
+      .mockImplementationOnce(async () =>
+        mockOsResponse(200, { results: [person], pagination: { max_page: 1 } }),
+      )
+      .mockImplementation(async () => mockOsResponse(504, {})) as unknown as typeof fetch;
+
+    const { prisma, stateLegislatorUpsert } = fakePrisma();
+    const { sleep } = fakeSleep();
+    const counts = await runOpenstatesSync(prisma, ['or'], { sleep, random: () => 0 });
+
+    expect(counts.complete).toBe(false);
+    expect(counts.errors).toBe(1);
+    expect(stateLegislatorUpsert).toHaveBeenCalledTimes(1);
+    const upsertArg = stateLegislatorUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+    expect(upsertArg.update).not.toHaveProperty('committees');
+  });
+
+  it('retries a network transport failure and recovers; a 200 with malformed JSON is NOT retried as transport', async () => {
+    // Network rejection (fetch throws TypeError) recovers on retry with the
+    // same bounded backoff. A SUCCESSFUL response whose body fails to parse
+    // is not a transport failure — one call, immediate failure, no retry.
+    global.fetch = jest
+      .fn()
+      .mockImplementationOnce(async () => {
+        throw new TypeError('fetch failed: connection reset');
+      })
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const recovered = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'or' }, 25, {
+      sleep,
+      random: () => 0,
+    });
+    expect(recovered).toEqual({ rows: [{ id: 'a' }], complete: true });
+    expect(calls).toEqual([SPACING, TRANSIENT_BASE, SPACING]);
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+
+    // Malformed JSON on a 200: exactly one call, no retry, complete:false.
+    global.fetch = jest.fn().mockImplementation(async () => {
+      return {
+        status: 200,
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('Unexpected token < in JSON');
+        },
+        headers: { get: () => null },
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    const malformed = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'or' }, 25, {
+      sleep,
+      random: () => 0,
+    });
+    expect(malformed).toEqual({ rows: [], complete: false });
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+  });
+
+  it('does not retry nontransient 401/403/404/501 — immediate failures', async () => {
+    for (const status of [401, 403, 404, 501]) {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(mockOsResponse(status, {})) as unknown as typeof fetch;
+      const { calls, sleep } = fakeSleep();
+      const result = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'or' }, 25, {
+        sleep,
+        random: () => 0,
+      });
+      expect(result).toEqual({ rows: [], complete: false });
+      expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+      expect(calls).toEqual([SPACING]); // only pre-attempt spacing, no backoff
+    }
+  });
+
+  it('honors a valid 503 Retry-After in full instead of the exponential backoff', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(mockOsResponse(503, {}, { 'retry-after': '45' }))
+      .mockResolvedValueOnce(
+        mockOsResponse(200, { results: [{ id: 'a' }], pagination: { max_page: 1 } }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'or' }, 25, {
+      sleep,
+      now: () => 0,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [{ id: 'a' }], complete: true });
+    expect(calls).toEqual([SPACING, 45000, SPACING]);
+  });
+
+  it('defers an unschedulable 503 Retry-After without a timer-overflow retry', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        mockOsResponse(503, {}, { 'retry-after': '2147484' }),
+      ) as unknown as typeof fetch;
+
+    const { calls, sleep } = fakeSleep();
+    const result = await fetchAllPages<{ id: string }>('/people', { jurisdiction: 'or' }, 25, {
+      sleep,
+      now: () => 0,
+      random: () => 0,
+    });
+    expect(result).toEqual({ rows: [], complete: false });
+    expect(calls).toEqual([SPACING]); // pre-attempt spacing only; no retry
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
+  });
+});
+
+describe('runOpenstatesSync (runtime level, mocked fetch + prisma)', () => {
+  const originalFetch = global.fetch;
 
   afterEach(() => {
     global.fetch = originalFetch;
@@ -856,6 +1070,79 @@ describe('runOpenstatesSync (runtime level, mocked fetch + prisma)', () => {
     expect(fresh.complete).toBe(true);
     expect(fresh.errors).toBe(0);
     expect((global.fetch as jest.Mock).mock.calls).toHaveLength(2);
+  });
+
+  it('fetches six committee pages beyond the old 5-page ceiling and writes every membership', async () => {
+    // NY reset run shape: the supplier advertises max_page 6 (120 committees
+    // at per_page 20) — the old 5-page ceiling truncated the walk at 100 and
+    // still claimed complete. The committee walk must now page to 6 and write
+    // all 120 assignments for the member.
+    const person = { id: 'ocd-person/jane', name: 'Jane Doe' };
+    global.fetch = jest.fn().mockImplementation(async (raw: any) => {
+      const url = new URL(raw);
+      if (url.pathname.endsWith('/people')) {
+        return mockOsResponse(200, { results: [person], pagination: { max_page: 1 } });
+      }
+      const page = Number(url.searchParams.get('page'));
+      expect(url.searchParams.get('per_page')).toBe('20');
+      return mockOsResponse(200, {
+        results: Array.from({ length: 20 }, (_, i) => ({
+          id: `committee-${page}-${i}`,
+          name: `Committee ${page}/${i}`,
+          memberships: [
+            { person_name: 'Jane Doe', person: { id: 'ocd-person/jane' }, role: 'member' },
+          ],
+        })),
+        pagination: { max_page: 6 },
+      });
+    }) as unknown as typeof fetch;
+
+    const { prisma, stateLegislatorUpsert } = fakePrisma();
+    const { sleep } = fakeSleep();
+    const counts = await runOpenstatesSync(prisma, ['ny'], { sleep, random: () => 0 });
+
+    expect(counts.complete).toBe(true);
+    expect(counts.errors).toBe(0);
+    const committeeCalls = (global.fetch as jest.Mock).mock.calls.filter((c) =>
+      new URL(c[0]).pathname.endsWith('/committees'),
+    );
+    expect(committeeCalls).toHaveLength(6); // pages 1..6
+    const upsertArg = stateLegislatorUpsert.mock.calls[0][0] as {
+      update: { committees: { name: string; role: string | null }[] };
+    };
+    expect(upsertArg.update.committees).toHaveLength(120);
+  });
+
+  it('marks the committee walk incomplete when the 25-page ceiling truncates a longer supplier tail', async () => {
+    // A supplier advertising max_page 26 must stop at 25 pages with
+    // complete:false — never faking complete, never overwriting existing
+    // memberships from the partial fetch.
+    const person = { id: 'ocd-person/jane', name: 'Jane Doe' };
+    global.fetch = jest.fn().mockImplementation(async (raw: any) => {
+      const url = new URL(raw);
+      if (url.pathname.endsWith('/people')) {
+        return mockOsResponse(200, { results: [person], pagination: { max_page: 1 } });
+      }
+      const page = Number(url.searchParams.get('page'));
+      return mockOsResponse(200, {
+        results: [{ id: `committee-${page}`, name: `Committee ${page}`, memberships: [] }],
+        pagination: { max_page: 26 },
+      });
+    }) as unknown as typeof fetch;
+
+    const { prisma, stateLegislatorUpsert } = fakePrisma();
+    const { sleep } = fakeSleep();
+    const counts = await runOpenstatesSync(prisma, ['ny'], { sleep, random: () => 0 });
+
+    expect(counts.complete).toBe(false);
+    expect(counts.errors).toBe(1);
+    expect(counts.incompleteReason).toContain('1 state(s) with incomplete committee pages');
+    const committeeCalls = (global.fetch as jest.Mock).mock.calls.filter((c) =>
+      new URL(c[0]).pathname.endsWith('/committees'),
+    );
+    expect(committeeCalls).toHaveLength(25); // ceiling reached, page 26 never attempted
+    const upsertArg = stateLegislatorUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+    expect(upsertArg.update).not.toHaveProperty('committees'); // old memberships preserved
   });
 });
 
