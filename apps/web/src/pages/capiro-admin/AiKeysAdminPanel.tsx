@@ -65,8 +65,6 @@ const PROVIDER_OPTIONS = [
 const MODELS_BY_PROVIDER: Record<'openai' | 'anthropic', { value: string; label: string }[]> = {
   openai: [
     { value: 'gpt-6-astra', label: 'GPT-6 Astra (default)' },
-    { value: 'o3', label: 'o3' },
-    { value: 'o4-mini', label: 'o4-mini' },
   ],
   anthropic: [
     { value: 'claude-sonnet-5', label: 'Claude Sonnet 5 (default)' },

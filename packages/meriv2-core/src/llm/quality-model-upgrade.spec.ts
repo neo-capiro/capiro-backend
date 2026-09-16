@@ -21,6 +21,9 @@ describe('quality model migration', () => {
     'gpt-5.6-luna',
     'gpt-5.6-terra',
     'gpt-5.6-sol',
+    'o3',
+    'o4-mini',
+    'o4-mini-2025-04-16',
   ])('upgrades saved OpenAI selection %s', (model) => {
     expect(upgradeTextModel(model)).toBe('gpt-6-astra');
   });
