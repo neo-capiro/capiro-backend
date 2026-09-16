@@ -1,5 +1,5 @@
 import { fetchOpenAiCompletion } from './openai-responses-adapter.js';
-import { prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import { isGpt6, prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { z } from 'zod';
 
 /**
@@ -520,6 +520,11 @@ export function toOpenAiToolLoopBody(params: {
     }
     const blocks = m.content as Array<Record<string, unknown>>;
     if (m.role === 'assistant') {
+      const state = blocks.find((b) => b.type === 'openai_response_state');
+      if (isGpt6(params.model) && Array.isArray(state?.items)) {
+        out.push({ role: 'assistant', openai_response_items: state.items });
+        continue;
+      }
       const text = blocks
         .filter((b) => b?.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text as string)
@@ -590,6 +595,9 @@ export function fromOpenAiToolLoopResponse(raw: Record<string, unknown>): {
   stopReason: string | null;
 } {
   const content: Array<Record<string, unknown>> = [];
+  if (Array.isArray(raw.openai_response_items)) {
+    content.push({ type: 'openai_response_state', items: raw.openai_response_items });
+  }
   const choices = raw.choices;
   const choice =
     Array.isArray(choices) && choices[0] && typeof choices[0] === 'object'

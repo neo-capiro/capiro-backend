@@ -75,6 +75,20 @@ export function prepareAnthropicRequest(input: Record<string, unknown>): Record<
     ...input,
     model: upgradeTextModel(String(input.model ?? '')),
   };
+  // Opaque OpenAI continuation state belongs only on OpenAI requests; visible
+  // text and tool blocks remain available during a configured provider failover.
+  if (Array.isArray(body.messages)) {
+    body.messages = body.messages.map((message) => ({
+      ...message,
+      ...(Array.isArray(message.content)
+        ? {
+            content: message.content.filter(
+              (block: Record<string, unknown>) => block.type !== 'openai_response_state',
+            ),
+          }
+        : {}),
+    }));
+  }
   if (body.model !== ANTHROPIC_TEXT_MODEL) return body;
   for (const key of ['temperature', 'top_p', 'top_k']) delete body[key];
   const thinking = record(body.thinking);

@@ -23,7 +23,9 @@ GPT-4o, GPT-mini and GPT-5 text workloads, and **Claude Sonnet 5
   `none` or `minimal` effort becomes `low`; explicit supported effort is retained.
   Existing output ceilings receive reasoning headroom. The shared OpenAI tool
   adapter sends GPT-6 requests through Responses and preserves tool call IDs,
-  arguments, results and usage in the existing application contract.
+  arguments, results and usage in the existing application contract. Stateless
+  tool rounds replay encrypted provider state and assistant phase unchanged;
+  that opaque state is excluded from Anthropic failover requests and visible text.
 - Sonnet 5 requests omit sampling controls and replace manual thinking with
   adaptive thinking. Output budgets allow for thinking plus visible text.
   Forced schema/tool responses explicitly disable incompatible implicit thinking.

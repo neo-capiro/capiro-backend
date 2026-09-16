@@ -29,6 +29,10 @@ export async function fetchOpenAiCompletion(
 export function toResponsesBody(chat: Record<string, unknown>): Record<string, unknown> {
   const input: Array<Record<string, unknown>> = [];
   for (const message of (chat.messages ?? []) as Array<Record<string, unknown>>) {
+    if (message.role === 'assistant' && Array.isArray(message.openai_response_items)) {
+      input.push(...message.openai_response_items);
+      continue;
+    }
     if (message.role === 'tool') {
       input.push({
         type: 'function_call_output',
@@ -56,6 +60,7 @@ export function toResponsesBody(chat: Record<string, unknown>): Record<string, u
   return prepareOpenAiResponsesRequest({
     model: chat.model,
     store: false,
+    include: ['reasoning.encrypted_content'],
     input,
     max_output_tokens: chat.max_tokens ?? 8192,
     ...(chat.reasoning_effort ? { reasoning: { effort: chat.reasoning_effort } } : {}),
@@ -94,6 +99,7 @@ export function toChatResponse(raw: Record<string, unknown>): Record<string, unk
   if (raw.status === 'failed' || raw.error) throw new Error('OpenAI Responses completion failed');
   return {
     model: raw.model,
+    ...(calls.length ? { openai_response_items: output } : {}),
     choices: [
       {
         message: { content: text, ...(calls.length ? { tool_calls: calls } : {}) },
