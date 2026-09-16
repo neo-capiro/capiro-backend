@@ -88,6 +88,9 @@ function makeService(
   const service = Object.create(OutreachJobService.prototype) as OutreachJobService;
   const patch = service as unknown as Record<string, unknown>;
   patch.versionedOutreach = false;
+  // submit() asserts the external action on the runtime policy (Phase 1
+  // external-action guards) before creating a job.
+  patch.runtimePolicy = { assertExternalAction: () => {} };
   // Phase 1 §3.k1: submit() resolves the provider/model identity ONCE through
   // the gateway before the transaction. With the gateway off it is never called.
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
@@ -595,7 +598,7 @@ describe('async provider/model pinning (Phase 1 §3.k)', () => {
     });
   });
 
-  test('with the gateway OFF, no identity is pinned (flag-off path unchanged)', async () => {
+  test('a generate job is always pinned — pinning is no longer flag-gated (Phase 26 cutover)', async () => {
     const { service, created } = makeService(null, { gatewayEnabled: false });
     await service.submit(ctx, {
       requestKey: 'rk-nopin',
@@ -603,7 +606,10 @@ describe('async provider/model pinning (Phase 1 §3.k)', () => {
       params: { templateId: 'meeting_request' },
       recipients,
     });
-    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toBeUndefined();
+    expect((created.job?.params as Record<string, unknown>).pinnedIdentity).toMatchObject({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+    });
   });
 
   test('a SEND job is never pinned — it drafts nothing', async () => {

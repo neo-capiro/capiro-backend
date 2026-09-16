@@ -17,7 +17,12 @@ if (url) {
 }
 const integration = url ? describe : describe.skip;
 integration('client notetaker PostgreSQL integration', () => {
-  const prisma = new PrismaService({ datasources: { db: { url } } });
+  // jest evaluates this describe body even when the suite is skipped, and the
+  // PrismaClient constructor validates its datasource URL — so the client and
+  // service are built in beforeAll, after the gate above confirmed a local
+  // disposable database. Otherwise the suite crashes instead of skipping.
+  let prisma: PrismaService;
+  let service: NotetakerService;
   const bot = {
     dispatchBot: jest.fn(async (_input: unknown): Promise<{ externalBotId: string; raw: object }> => ({ externalBotId: randomUUID(), raw: {} })),
     leaveCall: jest.fn(async (_id: string) => undefined),
@@ -25,13 +30,14 @@ integration('client notetaker PostgreSQL integration', () => {
   // Use the real client association logic, with the rest of Engagement unused.
   const engagement = Object.create(EngagementService.prototype) as EngagementService;
   const policy = { assertExternalAction() {}, assertBackgroundOwner() {} };
-  const service = new NotetakerService(prisma, bot as never, engagement,
-    { get: () => 'https://us-west-2.recall.ai' } as never, policy as never);
   let ctx: TenantContext;
   let clientId: string;
   let otherUserId: string;
 
   beforeAll(async () => {
+    prisma = new PrismaService({ datasources: { db: { url } } });
+    service = new NotetakerService(prisma, bot as never, engagement,
+      { get: () => 'https://us-west-2.recall.ai' } as never, policy as never);
     await prisma.$connect(); process.env.NOTETAKER_ENABLED = 'true';
     // api-strategy owns this table; it is absent from the API Prisma schema.
     await prisma.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS sp_strategy (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL, archived_at timestamptz)');

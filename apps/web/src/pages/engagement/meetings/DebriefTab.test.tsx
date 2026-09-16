@@ -12,7 +12,15 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntApp } from 'antd';
 import { DebriefTab } from './DebriefTab.js';
-import type { Meeting, MeetingDebrief } from './meetings-types.js';
+import {
+  MeetingPanelChromeProvider,
+  type MeetingPanelChrome,
+} from './meeting-panel-chrome.js';
+import type {
+  Meeting,
+  MeetingDebrief,
+  MeetingDebriefDraft,
+} from './meetings-types.js';
 
 const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
@@ -90,11 +98,53 @@ function makeMeeting(overrides: Partial<Meeting> = {}): Meeting {
   } as Meeting;
 }
 
+/** A generated draft exactly as useGenerateDebriefDraft's POST returns. */
+function makeDraft(overrides: Partial<MeetingDebriefDraft> = {}): MeetingDebriefDraft {
+  return {
+    recap: 'The chairman agreed to move NDAA markup to the first week of October.',
+    actionItems: ['Circulate the revised authorization text', 'Confirm the floor vote window'],
+    notes: 'Committee staff flagged the sequencing risk with the CR.',
+    provider: 'openai',
+    model: 'gpt-4.1',
+    ...overrides,
+  };
+}
+
+/** chrome spy the new draft-and-save tests can assert toasts on (the real
+ *  FALLBACK_CHROME silently drops them, which would make "toast shown"
+ *  assertions impossible). */
+function chromeSpy(): MeetingPanelChrome & { calls: Array<[kind: string, text: string]> } {
+  const calls: Array<[kind: string, text: string]> = [];
+  return {
+    calls,
+    confirm: () => {},
+    success: (text) => calls.push(['success', text]),
+    error: (text) => calls.push(['error', text]),
+    warning: (text) => calls.push(['warning', text]),
+  };
+}
+
 function buildTree(qc: QueryClient, props: Parameters<typeof DebriefTab>[0]): ReactElement {
   return (
     <QueryClientProvider client={qc}>
       <AntApp>
         <DebriefTab {...props} />
+      </AntApp>
+    </QueryClientProvider>
+  );
+}
+
+function buildTreeWithChrome(
+  qc: QueryClient,
+  chrome: MeetingPanelChrome,
+  props: Parameters<typeof DebriefTab>[0],
+): ReactElement {
+  return (
+    <QueryClientProvider client={qc}>
+      <AntApp>
+        <MeetingPanelChromeProvider chrome={chrome}>
+          <DebriefTab {...props} />
+        </MeetingPanelChromeProvider>
       </AntApp>
     </QueryClientProvider>
   );
@@ -229,6 +279,170 @@ describe('DebriefTab', () => {
         '/api/engagement/meetings/m99/debriefs/d77/approve',
       ),
     );
+  });
+
+  describe('draft-and-save — one-click "Generate Debrief"', () => {
+    /** Stateful GET/POST pair that models the honest server round-trip: the
+     *  save POST persists the exact body it was given and the debriefs GET
+     *  returns that same persisted artifact back — the tab then has to make
+     *  it visible through the real invalidation/refetch path, not through any
+     *  test-side cache seeding. */
+    function wireRoundTrip(meetingId: string) {
+      let saved: MeetingDebrief | null = null;
+      apiGetMock.mockImplementation((url: string) => {
+        if (url.includes('/debriefs')) return Promise.resolve({ data: saved ? [saved] : [] });
+        if (url.includes('/notes')) return Promise.resolve({ data: [] });
+        return Promise.resolve({ data: [] });
+      });
+      apiPostMock.mockImplementation((url: string, body?: unknown) => {
+        if (url === `/api/engagement/meetings/${meetingId}/debrief-draft`) {
+          return Promise.resolve({ data: makeDraft() });
+        }
+        if (url === `/api/engagement/meetings/${meetingId}/debriefs`) {
+          saved = makeDebrief({ id: 'd-saved', status: 'generated', body: (body as { body: string }).body });
+          return Promise.resolve({ data: saved });
+        }
+        return Promise.resolve({ data: {} });
+      });
+      return () => saved;
+    }
+
+    async function pickManualSourceAndClickGenerate(sourceText: string) {
+      // SourcePicker defaults to 'upload' when there are no Meri notes; pick
+      // the manual card, type real source text, then click the real button.
+      fireEvent.click(screen.getByRole('button', { name: /type notes manually/i }));
+      fireEvent.change(screen.getByPlaceholderText(/capture outcomes/i), {
+        target: { value: sourceText },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /generate debrief/i }));
+    }
+
+    test('generates via the debrief-draft endpoint, saves the formatted artifact, and renders the SAVED debrief visibly', async () => {
+      const sourceText = 'Chairman wants markup moved to the first week of October. Staff flagged CR sequencing risk.';
+      const meeting = makeMeeting({ id: 'm7' });
+      const getSaved = wireRoundTrip('m7');
+      const chrome = chromeSpy();
+      render(buildTreeWithChrome(new QueryClient(), chrome, { meeting }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /generate debrief/i })).toBeInTheDocument(),
+      );
+      await pickManualSourceAndClickGenerate(sourceText);
+
+      // 1. Generation POST: the exact endpoint + payload, carrying the
+      //    90s-capable server route this whole fix exists to protect.
+      await waitFor(() =>
+        expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meetings/m7/debrief-draft', {
+          method: 'manual',
+          sourceText,
+        }),
+      );
+      // 2. Save POST: the formatted draft body from formatDebriefBody — the
+      //    draft's recap and action items are persisted verbatim.
+      await waitFor(() =>
+        expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meetings/m7/debriefs', {
+          body: expect.stringContaining('The chairman agreed to move NDAA markup to the first week of October.'),
+        }),
+      );
+      const saveCall = apiPostMock.mock.calls.find(
+        (c) => c[0] === '/api/engagement/meetings/m7/debriefs',
+      )!;
+      expect(saveCall[1]).toMatchObject({
+        body: expect.stringContaining('- Circulate the revised authorization text'),
+      });
+      // 3. Order: generate FIRST, then save — never the reverse.
+      const genIdx = apiPostMock.mock.calls.findIndex(
+        (c) => c[0] === '/api/engagement/meetings/m7/debrief-draft',
+      );
+      expect(genIdx).toBeLessThan(apiPostMock.mock.calls.indexOf(saveCall));
+      // 4. The honest artifact: what the save POST persisted is exactly what
+      //    the GET served back and what is now visibly rendered.
+      const persisted = getSaved();
+      expect(persisted?.body).toBe(saveCall[1]!.body);
+      expect(
+        await screen.findByText('The chairman agreed to move NDAA markup to the first week of October.'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Circulate the revised authorization text')).toBeInTheDocument();
+      expect(screen.getByText('Committee staff flagged the sequencing risk with the CR.')).toBeInTheDocument();
+      expect(screen.getByText('Draft')).toBeInTheDocument();
+      // 5. The success toast fired and the picker is gone.
+      expect(chrome.calls).toContainEqual(['success', 'Debrief drafted.']);
+      expect(screen.queryByRole('button', { name: /generate debrief/i })).not.toBeInTheDocument();
+    });
+
+    test('a failed generation shows the real error and never fires the save POST', async () => {
+      mockGetResponses({ debriefs: [], notes: [] });
+      apiPostMock.mockRejectedValueOnce(new Error('timeout of 30000ms exceeded'));
+      const chrome = chromeSpy();
+      render(buildTreeWithChrome(new QueryClient(), chrome, { meeting: makeMeeting({ id: 'm8' }) }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /generate debrief/i })).toBeInTheDocument(),
+      );
+      await pickManualSourceAndClickGenerate('Markup slips to October; confirm the floor vote window.');
+
+      // The exact generation route was hit once, the save route never.
+      await waitFor(() =>
+        expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meetings/m8/debrief-draft', {
+          method: 'manual',
+          sourceText: 'Markup slips to October; confirm the floor vote window.',
+        }),
+      );
+      expect(apiPostMock).toHaveBeenCalledTimes(1);
+      expect(apiPostMock).not.toHaveBeenCalledWith('/api/engagement/meetings/m8/debriefs', expect.anything());
+      // The failure surfaced through the panel chrome (toast), matching the
+      // catch that prevents the fire-and-forget caller swallowing it silently.
+      await waitFor(() => expect(chrome.calls).toContainEqual(['error', 'timeout of 30000ms exceeded']));
+      // The picker returns so the user can retry — no stuck busy state.
+      expect(await screen.findByRole('button', { name: /generate debrief/i })).toBeInTheDocument();
+      expect(screen.queryByText(/Meri is drafting the debrief/i)).not.toBeInTheDocument();
+    });
+
+    test('while generation is in flight the pending state takes over and blocks a second attempt', async () => {
+      let resolveGeneration: (value: { data: MeetingDebriefDraft }) => void = () => {};
+      mockGetResponses({ debriefs: [], notes: [] });
+      apiPostMock.mockImplementation(
+        (url: string) =>
+          url.includes('/debrief-draft')
+            ? new Promise<{ data: MeetingDebriefDraft }>((resolve) => {
+                resolveGeneration = resolve;
+              })
+            : Promise.resolve({ data: {} }),
+      );
+      render(buildTree(new QueryClient(), { meeting: makeMeeting({ id: 'm9' }) }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /generate debrief/i })).toBeInTheDocument(),
+      );
+      await pickManualSourceAndClickGenerate('Source text for a hanging generation.');
+
+      // The pending control state replaces the picker entirely: the
+      // GeneratingState copy shows and there is no second clickable
+      // "Generate Debrief" while the POST is in flight.
+      expect(await screen.findByText(/Meri is drafting the debrief/i)).toBeInTheDocument();
+      expect(screen.getByText('Generating')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /generate debrief/i })).not.toBeInTheDocument();
+      // Exactly one POST so far — the hanging generation itself. No save,
+      // no second attempt while the picker is replaced by the pending state.
+      expect(apiPostMock).toHaveBeenCalledTimes(1);
+      expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meetings/m9/debrief-draft', {
+        method: 'manual',
+        sourceText: 'Source text for a hanging generation.',
+      });
+
+      // Un-hang and let the whole chain settle: the save POST fires and the
+      // (still-open) debriefs query refetches, so no pending mutation or
+      // dangling React update is left behind after the test.
+      resolveGeneration({ data: makeDraft() });
+      await waitFor(() =>
+        expect(apiPostMock).toHaveBeenCalledWith('/api/engagement/meetings/m9/debriefs', {
+          body: expect.stringContaining('The chairman agreed to move NDAA markup to the first week of October.'),
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByText(/Meri is drafting the debrief/i)).not.toBeInTheDocument(),
+      );
+    });
   });
 
   describe('EM-09 — attachment approval (Transcript & attachments)', () => {

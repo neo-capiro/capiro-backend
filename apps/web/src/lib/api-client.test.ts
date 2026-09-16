@@ -147,6 +147,74 @@ describe('isGenerationUrl', () => {
   });
 });
 
+describe('debrief draft generation timeout', () => {
+  // The real call site is useGenerateDebriefDraft (meetings-api.ts):
+  // POST /api/engagement/meetings/:id/debrief-draft. The path contains no
+  // "generate", so it previously fell through to the 30s default while the
+  // debrief provider allows 90s server-side — the browser aborted first and
+  // the whole draft-and-save attempt was lost. This describe pins the exact
+  // route (and its slash/query/hash variants) against both the pure matcher
+  // and the REAL request interceptor.
+  test.each([
+    '/api/engagement/meetings/m1/debrief-draft',
+    '/api/engagement/meetings/m1/debrief-draft/',
+    '/api/engagement/meetings/m1/debrief-draft?source=manual',
+    '/api/engagement/meetings/m1/debrief-draft#anchor',
+    'https://api.capiro.ai/api/engagement/meetings/mtg-42/debrief-draft',
+  ])('recognizes the exact generation route: %s', (url) => {
+    expect(isGenerationUrl(url)).toBe(true);
+  });
+
+  test.each([
+    // Adjacent debrief CRUD stays on the tight 30s default.
+    '/api/engagement/meetings/m1/debriefs',
+    '/api/engagement/meetings/m1/debriefs/d1',
+    '/api/engagement/meetings/m1/debriefs/d1/approve',
+    // Lookalikes that are NOT the exact route.
+    '/api/engagement/meetings/m1/debrief-draft-preview',
+    '/api/engagement/meetings/m1/debrief-draft/jobs',
+    undefined,
+  ])('does not extend adjacent debrief CRUD or lookalikes: %s', (url) => {
+    expect(isGenerationUrl(url)).toBe(false);
+  });
+
+  test('interceptor escalates POST debrief-draft to GENERATION_TIMEOUT_MS while debrief CRUD and explicit timeouts stay exact', async () => {
+    const client = buildApiClient(async () => 'test-token');
+    let captured: AxiosRequestConfig | undefined;
+    client.defaults.adapter = async (config) => {
+      captured = config;
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+    };
+
+    // The generation POST gets the long ceiling (175s mirrors the outreach
+    // wizard's proven ceiling; the debrief provider allows 90s server-side).
+    await client.post('/api/engagement/meetings/m1/debrief-draft', {
+      method: 'manual',
+      sourceText: 'Chairman wants the markup schedule locked early.',
+    });
+    expect(captured?.timeout).toBe(GENERATION_TIMEOUT_MS);
+    expect(GENERATION_TIMEOUT_MS).toBe(175_000);
+
+    // Adjacent debrief CRUD keeps the tight default.
+    await client.post('/api/engagement/meetings/m1/debriefs', { body: 'Recap\n…' });
+    expect(captured?.timeout).toBe(DEFAULT_TIMEOUT_MS);
+    await client.patch('/api/engagement/meetings/m1/debriefs/d1', { body: 'Recap\n…' });
+    expect(captured?.timeout).toBe(DEFAULT_TIMEOUT_MS);
+    await client.post('/api/engagement/meetings/m1/debriefs/d1/approve');
+    expect(captured?.timeout).toBe(DEFAULT_TIMEOUT_MS);
+
+    // An explicit per-request timeout still wins over the escalation.
+    await client.post(
+      '/api/engagement/meetings/m1/debrief-draft',
+      { method: 'manual', sourceText: '…' },
+      { timeout: 5_000 },
+    );
+    expect(captured?.timeout).toBe(5_000);
+    await client.post('/api/engagement/meetings/m1/debrief-draft', { method: 'upload', sourceText: '…' }, { timeout: 0 });
+    expect(captured?.timeout).toBe(0);
+  });
+});
+
 describe('isMailThreadUrl', () => {
   test('matches full mail-thread reads (get the longer timeout)', () => {
     const mailUrls = [

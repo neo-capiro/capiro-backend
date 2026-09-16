@@ -120,41 +120,100 @@ export const MESSAGE_PLAN_JSON_SCHEMA = {
       description:
         'A short, snake_case category for the message\'s purpose (e.g. "meeting_request", "information_share", "status_update", "thank_you", "follow_up") — NOT a sentence. Max 80 characters.',
     },
-    clientRepresented: { type: ['string', 'null'] },
-    desiredOutcome: { type: 'string' },
-    whyRecipient: { type: 'array', items: { type: 'string' } },
-    whyNow: { type: 'array', items: { type: 'string' } },
-    clientAsk: { type: 'array', items: { type: 'string' } },
+    clientRepresented: {
+      type: ['string', 'null'],
+      description: 'The client being represented, or null for an internal message. Max 200 characters.',
+    },
+    desiredOutcome: {
+      type: 'string',
+      description: 'The concrete outcome this message is trying to produce. One or two sentences, max 600 characters.',
+    },
+    whyRecipient: {
+      type: 'array',
+      description: 'Why THIS recipient — their role, jurisdiction, committee, relationship. Max 6 entries.',
+      items: {
+        type: 'string',
+        description: 'One distinct reason, stated concisely. Max 400 characters.',
+      },
+    },
+    whyNow: {
+      type: 'array',
+      description: 'Why now — the timely hook. Max 6 entries.',
+      items: {
+        type: 'string',
+        description: 'One distinct timely reason, stated concisely. Max 400 characters.',
+      },
+    },
+    clientAsk: {
+      type: 'array',
+      description: 'What we are asking for on the client\'s behalf. Max 6 entries.',
+      items: {
+        type: 'string',
+        description: 'One distinct ask, stated concisely. Max 400 characters.',
+      },
+    },
     supportedClaims: {
       type: 'array',
+      description: 'Claims the draft intends to make, each citing packet evidence. Max 30 entries.',
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['claim', 'sourceIds', 'asOf', 'claimType'],
         properties: {
-          claim: { type: 'string' },
-          sourceIds: { type: 'array', items: { type: 'string' } },
-          asOf: { type: ['string', 'null'] },
+          claim: {
+            type: 'string',
+            description: 'The claim in one sentence, as it will be asserted. Max 600 characters.',
+          },
+          sourceIds: {
+            type: 'array',
+            description: 'Packet evidence source ids supporting the claim. At least 1, at most 20 entries.',
+            items: {
+              type: 'string',
+              description: 'A source id exactly as it appears in the evidence blocks. Min 1 character.',
+            },
+          },
+          asOf: {
+            type: ['string', 'null'],
+            description:
+              'The as-of date (ISO date) of the supporting fact, or null if none. Max 40 characters.',
+          },
           claimType: { type: 'string', enum: CLAIM_TYPES },
         },
       },
     },
     unsupportedOrRiskyClaims: {
       type: 'array',
+      description: 'Claims considered but not supportable from the evidence, kept so they can be excluded. Max 30 entries.',
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['claim', 'reason', 'claimType'],
         properties: {
-          claim: { type: 'string' },
-          reason: { type: 'string' },
+          claim: {
+            type: 'string',
+            description: 'The unsupported claim, in one sentence. Max 600 characters.',
+          },
+          reason: {
+            type: 'string',
+            description: 'Why it is unsupported or risky, stated concisely. Max 400 characters.',
+          },
           claimType: { type: 'string', enum: CLAIM_TYPES },
         },
       },
     },
     tone: { type: 'string', enum: ['professional', 'friendly', 'formal', 'concise'] },
-    callToAction: { type: 'string' },
-    missingCriticalContext: { type: 'array', items: { type: 'string' } },
+    callToAction: {
+      type: 'string',
+      description: 'The single concrete next action for the recipient. Stated concisely, max 400 characters.',
+    },
+    missingCriticalContext: {
+      type: 'array',
+      description: 'Context the plan needed and did not have. Max 10 entries.',
+      items: {
+        type: 'string',
+        description: 'One distinct missing piece of context. Max 400 characters.',
+      },
+    },
   },
 } as const;
 

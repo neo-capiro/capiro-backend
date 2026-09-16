@@ -252,7 +252,9 @@ describe('short-circuits BEFORE any drafting call', () => {
       }),
     });
     const result = await svc.generate(CTX, request(), enrichment(), [CRED]);
-    expect(result.outcome).toBe('blocked');
+    // EM-04 (#1558): these pre-draft failures are 'error' outcomes that seed
+    // an empty artifact for hand-authored recovery, not 'blocked'.
+    expect(result.outcome).toBe('error');
     expect(result.error).toBe('CRITICAL_SOURCE_FAILURE');
     expect(result.sendable).toBe(false);
     // Neither the planner nor the drafter ran.
@@ -269,7 +271,9 @@ describe('short-circuits BEFORE any drafting call', () => {
       ]),
     });
     const result = await svc.generate(CTX, request(), enrichment(), [CRED]);
-    expect(result.outcome).toBe('blocked');
+    // EM-04 (#1558): plan rejection is an 'error' outcome with a seeded
+    // empty artifact; the issues ride for the reviewable failure copy.
+    expect(result.outcome).toBe('error');
     expect(result.error).toBe('MESSAGE_PLAN_INVALID');
     expect(result.planIssues?.[0]?.code).toBe('CLAIM_CITES_UNKNOWN_SOURCE');
     expect(complete).not.toHaveBeenCalled();

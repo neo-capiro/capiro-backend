@@ -1,12 +1,17 @@
-// generateBatchEmails per-recipient error status (W0.2). A recipient whose draft
-// generation throws inside an otherwise-successful batch must come back tagged
+// generateBatchEmails per-recipient error status (W0.2). A recipient whose
+// generation fails inside an otherwise-successful batch must come back tagged
 // `status:'error'` (with empty subject/body), NOT a blank `status:'ready'` draft
 // that the wizard would show as a false "ready" checkmark and silently drop at
-// send. This locks the additive status contract the frontend gates sendability on.
+// send. This locks the additive status contract the frontend gates sendability
+// on.
 //
-// Prototype-stub pattern (mirrors engagement-batch-group.spec.ts): a real
-// EngagementService prototype over stubbed deps; ai.generateOutreachDraft throws
-// for exactly one recipient so we can assert the split.
+// The Phase 26 cutover moved per-recipient failure isolation INTO
+// GenerationGatewayService (a drafting failure returns outcome:'error' with
+// error GENERATION_FAILED rather than throwing), so the batch-level contract
+// proven here is: a gateway 'error' result maps to status:'error' with the
+// error code, while the successful recipients stay 'ready'.
+//
+// Prototype-stub pattern (mirrors engagement-batch-group.spec.ts).
 
 import { describe, expect, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
@@ -23,39 +28,48 @@ const ctx: TenantContext = {
 const RECIPIENT_OK = { email: 'ok@mail.house.gov', name: 'Okay Recipient' };
 const RECIPIENT_FAIL = { email: 'fail@mail.house.gov', name: 'Fail Recipient' };
 
-/** A service whose AI draft call throws for RECIPIENT_FAIL's email, succeeds otherwise. */
+/** A gateway whose generate() fails for RECIPIENT_FAIL's email, succeeds otherwise. */
 function serviceWithOneFailingRecipient(): EngagementService {
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
-  // Phase 1: generateBatchEmails branches on this.gateway.enabled before doing
-  // anything else. These specs build the service with Object.create (no
-  // constructor), so the injected dependency has to be supplied here. OFF selects
-  // the legacy path, which is what these specs exercise.
-  patch.gateway = { enabled: false };
-  // The failure path logs a warning before returning the error result — stub the
-  // logger so the catch block doesn't itself throw on `this.logger` being unset.
-  patch.logger = { warn: () => {} };
-  patch.ai = {
-    resolveOutreachCredentials: async () => [
-      {
+  // Phase 26 cutover: batch generation runs through the governed gateway
+  // unconditionally; stub its two entry points the batch path uses.
+  patch.gateway = {
+    resolvePinnedIdentity: async () => ({
+      creds: [{ provider: 'anthropic', apiKey: 'test-key', model: 'm' }],
+      pinned: {
         provider: 'anthropic',
-        apiKey: 'k',
-        model: 'm',
-        usedTenantKey: false,
-        modelOverridden: false,
+        model: 'claude-sonnet-4-6',
+        planModel: 'claude-haiku-4-5-20251001',
+        promptSpecVersion: 'v2.2-gateway',
       },
-    ],
-    generateOutreachDraft: async (input: { recipients: Array<Record<string, unknown>> }) => {
-      const email = input.recipients[0]?.email?.toString() ?? '';
-      if (email === RECIPIENT_FAIL.email) {
-        throw new Error('simulated provider failure for this recipient');
+    }),
+    generate: async (
+      _ctx: unknown,
+      request: { recipient: { email: string | null } },
+    ) => {
+      if (request.recipient.email === RECIPIENT_FAIL.email) {
+        return {
+          outcome: 'error',
+          generationKey: 'individual:fail',
+          recipientKey: 'fail',
+          subject: '',
+          body: '',
+          manifest: {},
+          sendable: false,
+          error: 'GENERATION_FAILED',
+          pinned: { provider: 'anthropic', model: 'm', planModel: null, promptSpecVersion: 'v2.2-gateway' },
+        };
       }
       return {
+        outcome: 'ready',
+        generationKey: 'individual:ok',
+        recipientKey: 'ok',
         subject: 'Real subject',
         body: 'Real body',
-        provider: 'anthropic',
-        model: 'm',
-        raw: {},
+        manifest: {},
+        sendable: true,
+        pinned: { provider: 'anthropic', model: 'm', planModel: null, promptSpecVersion: 'v2.2-gateway' },
       };
     },
   };
@@ -70,8 +84,12 @@ function serviceWithOneFailingRecipient(): EngagementService {
             email: 'uma@firm.com',
           }),
         },
+        aiUsageEvent: {
+          aggregate: async () => ({ _sum: { inputTokens: 0, outputTokens: 0 } }),
+        },
       }),
   };
+  patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
   patch.directory = { findContactsByEmails: async () => [] };
   patch.loadUserVoiceBlock = async () => null;
   patch.batchRecipientCorrespondence = async () => ({
@@ -90,19 +108,17 @@ describe('generateBatchEmails — per-recipient error status (W0.2)', () => {
       templateId: 'system-outreach-message',
       recipients: [RECIPIENT_OK, RECIPIENT_FAIL],
     });
-
     expect(results).toHaveLength(2);
-
-    const ok = results.find((r) => r.recipientId === RECIPIENT_OK.email)!;
+    const ok = results.find((r) => r.recipientId === 'ok@mail.house.gov')!;
+    const failed = results.find((r) => r.recipientId === 'fail@mail.house.gov')!;
     expect(ok.status).toBe('ready');
     expect(ok.subject).toBe('Real subject');
     expect(ok.body).toBe('Real body');
-
-    const failed = results.find((r) => r.recipientId === RECIPIENT_FAIL.email)!;
+    // The failed slot is tagged, empty, and carries the machine error code.
     expect(failed.status).toBe('error');
     expect(failed.subject).toBe('');
     expect(failed.body).toBe('');
-    expect(failed.error).toContain('simulated provider failure');
+    expect(failed.error).toBe('GENERATION_FAILED');
   });
 
   test('every result carries an explicit status — no branch can omit it', async () => {
@@ -111,6 +127,8 @@ describe('generateBatchEmails — per-recipient error status (W0.2)', () => {
       templateId: 'system-outreach-message',
       recipients: [RECIPIENT_OK, RECIPIENT_FAIL],
     });
+    // Every slot is explicitly 'ready' or 'error' — the wizard can never see a
+    // blank status it would have to guess.
     expect(results.every((r) => r.status === 'ready' || r.status === 'error')).toBe(true);
   });
 });
