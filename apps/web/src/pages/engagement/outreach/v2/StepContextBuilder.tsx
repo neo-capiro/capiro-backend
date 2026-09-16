@@ -12,7 +12,7 @@
 // recipients/targets/selected/onChange the wizard already passes them, so
 // ticking an item here is immediately visible on step 4 and vice versa.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import type { ProgramElementListItem } from '../../../program-element/types.js';
@@ -107,6 +107,9 @@ export function StepContextBuilder({
 
   const [tab, setTab] = useState<ContextKind>('bill');
   const [search, setSearch] = useState('');
+  // Id of the note most recently added from this tab, so its editor can be
+  // focused immediately on the same surface.
+  const [lastAddedNoteId, setLastAddedNoteId] = useState<string | null>(null);
 
   // Debounce the search box so bill lookups don't fire on every keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -246,6 +249,12 @@ export function StepContextBuilder({
     (billSearchActive && billSearch.isLoading) ||
     (stateBillSearchActive && stateBillSearch.isLoading) ||
     (peSearchActive && peSearch.isLoading);
+
+  // Custom notes (kind 'note') in the wizard's `selected` state, newest last
+  // (the same order the Context Plan step shows them in).
+  const noteItems = useMemo(() => selected.filter((c) => c.kind === 'note'), [
+    selected,
+  ]);
 
   const searchPlaceholder =
     tab === 'bill'
@@ -416,15 +425,39 @@ export function StepContextBuilder({
         )}
 
         {tab === 'note' && (
-          <div className="flex flex-col items-center p-6 text-center">
+          <div className="flex flex-col p-6">
             <p className="mb-4 max-w-md text-[13px] leading-[1.6] text-ink-secondary">
               Add a free-form note Meri should treat as context. Notes can be shared across all
               recipients, or scoped to a single recipient, list, or group — you choose after
               adding.
             </p>
-            <Button variant="secondary" onPress={() => addNoteForScope('all')}>
-              <Icon.Plus size={14} /> Add shared note
-            </Button>
+            {/* The note's editor lives here: the add-click appends a card to
+                the wizard's shared state, so the user sees and can type in it
+                on the surface where they clicked. */}
+            {noteItems.map((item) => (
+              <BuilderNoteEditor
+                key={item.id}
+                item={item}
+                autoFocus={item.id === lastAddedNoteId}
+                onNote={(text) =>
+                  onChange(
+                    selected.map((c) => (c.id === item.id ? { ...c, note: text } : c)),
+                  )
+                }
+                onRemove={() => onChange(selected.filter((c) => c.id !== item.id))}
+              />
+            ))}
+            <div>
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  const id = addNoteForScope('all');
+                  setLastAddedNoteId(id);
+                }}
+              >
+                <Icon.Plus size={14} /> Add shared note
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -433,6 +466,66 @@ export function StepContextBuilder({
 }
 
 // ---------------- Pool browse row ----------------
+
+/**
+ * One editable custom note on the Builder's "Custom note" tab — the same
+ * wizard state (`selected`, kind 'note') as the Context Plan's note cards.
+ * The just-added note gets focus so the add-click visibly lands in the
+ * editor.
+ */
+function BuilderNoteEditor({
+  item,
+  autoFocus,
+  onNote,
+  onRemove,
+}: {
+  item: SelectedContextItem;
+  autoFocus: boolean;
+  onNote: (text: string) => void;
+  onRemove: () => void;
+}) {
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const noteIsEmpty = !(item.note ?? '').trim();
+  useEffect(() => {
+    if (autoFocus) textRef.current?.focus();
+  }, [autoFocus]);
+  return (
+    <div className="mb-3 rounded-md border border-line-hairline bg-surface p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="rounded-[5px] bg-neutral-bg px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.04em] text-neutral-ink">
+          {item.scope === 'all' ? 'Shared note' : 'Personalized note'}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink-primary">
+          {item.title}
+        </span>
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove note"
+          aria-label={`Remove ${item.title}`}
+          className="flex-none text-ink-tertiary hover:text-warning"
+        >
+          <Icon.XClose size={12} />
+        </button>
+      </div>
+      <textarea
+        ref={textRef}
+        rows={3}
+        value={item.note ?? ''}
+        onChange={(e) => onNote(e.target.value)}
+        aria-label={`${item.title} text`}
+        placeholder="Write your note here…"
+        className="w-full resize-y rounded-md border border-line-control bg-surface p-3 text-[13.5px] leading-[21px] text-ink-primary placeholder:text-ink-tertiary focus:border-accent focus:outline-none"
+      />
+      {noteIsEmpty && (
+        <p className="mt-1.5 text-[12px] text-ink-tertiary" role="status">
+          Empty note — write it here, or it will be ignored when generating drafts. You can also
+          re-scope it to one recipient on the previous step&apos;s context plan.
+        </p>
+      )}
+    </div>
+  );
+}
 
 /** One clickable row in the pool browser (shared by the main list and the
  *  Phase 2 §3.i "Suggested public developments" section). */

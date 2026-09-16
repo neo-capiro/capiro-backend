@@ -738,5 +738,43 @@ describe('VNextMeetingsWorkspace', () => {
         );
       },
     );
+
+    test(
+      'end-before-start: Save is disabled and the rule is explained inline, mirroring the API ' +
+        'createMeeting rejection (engagement.service.ts endsAt < startsAt) — no generic post-submit banner',
+      async () => {
+        apiPost.mockClear();
+        renderWorkspace();
+        fireEvent.click(screen.getAllByRole('button', { name: /new meeting/i })[0]!);
+
+        const dialog = await screen.findByRole('dialog');
+        fireEvent.change(within(dialog).getByPlaceholderText(/weekly check-in/i), {
+          target: { value: 'Inverted sync' },
+        });
+        // Defaults are 09:00 → 09:30 (valid); invert the end time.
+        fireEvent.change(within(dialog).getByLabelText(/^end time/i), {
+          target: { value: '08:30' },
+        });
+
+        // The dialog explains the rule inline at the field…
+        expect(
+          within(dialog).getByText(/end time must be after the start time/i),
+        ).toBeInTheDocument();
+        // …blocks the submit at the same place the API would reject it…
+        const saveButton = within(dialog).getByRole('button', { name: /save meeting/i });
+        expect(saveButton).toBeDisabled();
+        // …and never reaches the API.
+        fireEvent.click(saveButton);
+        expect(within(dialog).getByText(/end time must be after the start time/i)).toBeInTheDocument();
+        expect(apiPost).not.toHaveBeenCalledWith('/api/engagement/meetings', expect.anything());
+
+        // Fixing the end time clears the error and re-enables Save.
+        fireEvent.change(within(dialog).getByLabelText(/^end time/i), {
+          target: { value: '10:00' },
+        });
+        expect(within(dialog).queryByText(/end time must be after the start time/i)).toBeNull();
+        expect(within(dialog).getByRole('button', { name: /save meeting/i })).toBeEnabled();
+      },
+    );
   });
 });

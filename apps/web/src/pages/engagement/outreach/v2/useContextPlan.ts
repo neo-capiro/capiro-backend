@@ -204,6 +204,9 @@ export function useContextPlan(
         scope,
       },
     ]);
+    // Callers (the Builder's Custom note tab) need the id to focus the new
+    // note's editor immediately on the same surface.
+    return id;
   };
 
   const sharedItems = selected.filter((c) => c.scope === 'all');

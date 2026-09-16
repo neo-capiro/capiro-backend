@@ -267,7 +267,8 @@ describe('findings under NON-blocking modes', () => {
     const h = makeHarness({ mode: 'annotate' });
     const out = await h.service.runForVersion(ctx, 'v-1');
     expect(out.auditStatus).toBe('warning');
-    expect(out.contextNote).toMatch(/Unverified/i);
+    // #1554 rewrote the banner to lead with the plain-English reason.
+    expect(out.contextNote).toMatch(/Held for review/i);
     // The note is metadata on the outcome; no write touches subject or body.
     for (const u of h.versionUpdates) {
       expect(u).not.toHaveProperty('subject');

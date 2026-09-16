@@ -11,6 +11,7 @@ import {
   type NewsPreferences,
 } from '../../../pages/dashboard/news-preferences.js';
 import type {
+  ComingUpItem,
   ComingUpResult,
   IntelligenceChange,
   PortfolioAlertItem,
@@ -728,44 +729,8 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     // Ordering must use the real instant, not the rendered time string: the
     // week query returns every day's meetings, so sorting by "10:00 AM" alone
     // interleaves each day's recurring standup into one indistinguishable list.
-    const dated: Array<TodayEvent & { at: number }> = [];
-
-    for (const meeting of meetings.data ?? []) {
-      const joinUrl = readJoinUrl(meeting);
-      const at = new Date(meeting.startsAt).getTime();
-      dated.push({
-        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
-        id: `meeting-${meeting.id}`,
-        startsAt: meeting.startsAt,
-        time: formatTime(meeting.startsAt),
-        title: meeting.subject,
-        meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
-          .filter(Boolean)
-          .join(' · '),
-        href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
-        action: joinUrl ? 'join' : meeting.preps.length > 0 ? 'brief' : 'prepare',
-        joinUrl,
-        isMeeting: true,
-        isVirtual: meeting.isVirtual,
-        meri: meeting.meri,
-      });
-    }
-
-    // Hearings, comment deadlines, floor activity and other tracked events.
-    for (const item of comingUp.data?.items ?? []) {
-      const at = new Date(item.time ? `${item.date}T${item.time}` : item.date).getTime();
-      dated.push({
-        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
-        id: `coming-${item.id}`,
-        startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
-        time: item.time ?? formatDayShort(item.date),
-        title: item.title,
-        meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
-        href: item.href,
-        action: 'open',
-        isMeeting: false,
-      });
-    }
+    // See mergeTodayEvents for the meeting/coming-up pairing rules.
+    const dated = mergeTodayEvents(meetings.data ?? [], comingUp.data?.items ?? []);
 
     // Past events are not "today and coming up".
     const startOfToday = new Date();
@@ -1600,6 +1565,91 @@ function dayLabel(iso: string): string | null {
   const today = new Date();
   if (date.toDateString() === today.toDateString()) return null;
   return date.toLocaleDateString(undefined, { weekday: 'short' });
+}
+
+/**
+ * Maps the two Today & Coming Up sources into a single event-list skeleton
+ * with a numeric `at` instant for ordering.
+ *
+ * Meetings come from /api/engagement/meetings with the real startsAt instant,
+ * join/prepare/brief actions and Meri state. comingUp's kind==='meeting' items
+ * are the SAME meetings re-projected (id `meeting-${id}`, date = startsAt), so
+ * they are deduped by meeting identity and the rich primary mapping wins.
+ * They are NOT all dropped: comingUp spans tomorrow→+7d, which reaches past the
+ * Monday-first calendar week the primary query loads, and its meetings are
+ * already user-owned (ownMeetingWhere). A unique one is kept as a fallback
+ * meeting row — real ISO instant, original href/title/detail, plain Open
+ * action, and no invented join URL / isVirtual / prep / Meri state. Tracked
+ * hearings/markups/deadlines have no other representation and are preserved.
+ */
+export function mergeTodayEvents(
+  meetings: DashMeeting[],
+  comingUpItems: ComingUpItem[],
+): Array<TodayEvent & { at: number }> {
+  const dated: Array<TodayEvent & { at: number }> = [];
+
+  for (const meeting of meetings) {
+    const joinUrl = readJoinUrl(meeting);
+    const at = new Date(meeting.startsAt).getTime();
+    dated.push({
+      at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
+      id: `meeting-${meeting.id}`,
+      startsAt: meeting.startsAt,
+      time: formatTime(meeting.startsAt),
+      title: meeting.subject,
+      meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
+        .filter(Boolean)
+        .join(' · '),
+      href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
+      action: joinUrl ? 'join' : meeting.preps.length > 0 ? 'brief' : 'prepare',
+      joinUrl,
+      isMeeting: true,
+      isVirtual: meeting.isVirtual,
+      meri: meeting.meri,
+    });
+  }
+
+  const primaryMeetingIds = new Set(meetings.map((meeting) => meeting.id));
+
+  // Hearings, comment deadlines, floor activity and other tracked events.
+  for (const item of comingUpItems) {
+    if (item.kind === 'meeting') {
+      // Same meeting as a primary row → the primary mapping already covers it.
+      const rawMeetingId = item.id.replace(/^meeting-/, '');
+      if (primaryMeetingIds.has(rawMeetingId)) continue;
+      // The ISO date IS the real instant; the localized `time` label must
+      // never be combined with it (that misparse built phantom NaN rows).
+      const at = new Date(item.date).getTime();
+      dated.push({
+        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
+        // Canonical meeting event id (Send Meri strips this prefix), never a
+        // `coming-` one.
+        id: `meeting-${rawMeetingId}`,
+        startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
+        time: item.time ?? formatDayShort(item.date),
+        title: item.title,
+        meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
+        href: item.href,
+        action: 'open',
+        isMeeting: true,
+      });
+      continue;
+    }
+    const at = new Date(item.time ? `${item.date}T${item.time}` : item.date).getTime();
+    dated.push({
+      at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
+      id: `coming-${item.id}`,
+      startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
+      time: item.time ?? formatDayShort(item.date),
+      title: item.title,
+      meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
+      href: item.href,
+      action: 'open',
+      isMeeting: false,
+    });
+  }
+
+  return dated;
 }
 
 /**

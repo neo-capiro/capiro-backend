@@ -5,6 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { EngagementTaskStatus, Prisma } from '@prisma/client';
 import { fetchDeniedClientIds, toUuidArrayLiteral } from '../memory/memory-wall.helpers.js';
@@ -7006,8 +7007,14 @@ export class IntelligenceService {
    * Aggregates hearings + comment-period closes opening tomorrow through +7d,
    * picks the 3 highest-leverage items. Sorted by date ascending.
    * Tomorrow is computed in ET to match the dashboard's "all times ET" framing.
+   *
+   * Meetings are scoped to the current user's own calendar (ownMeetingWhere,
+   * the same ownership as GET /api/engagement/meetings), not tenant-wide.
    */
-  async getComingUp(tenantId: string) {
+  async getComingUp(tenantId: string, userId: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Current user is required');
+    }
     const now = new Date();
     // Both `hearing.date` and `comment_end_date` come back at UTC midnight;
     // bounds must also be UTC midnight to include rows on the boundary day.
@@ -7036,8 +7043,9 @@ export class IntelligenceService {
       this.prisma.withTenant(tenantId, (tx) =>
         tx.meeting.findMany({
           where: {
+            ...ownMeetingWhere(userId),
             startsAt: { gte: tomorrowStart, lte: sevenDaysOut },
-            status: { not: 'cancelled' },
+            status: { notIn: ['cancelled', 'canceled', 'deleted'] },
           },
           orderBy: { startsAt: 'asc' },
           take: 30,

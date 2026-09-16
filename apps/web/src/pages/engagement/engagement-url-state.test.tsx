@@ -158,7 +158,11 @@ function routeGet(url: string): Promise<{ data: unknown }> {
   if (url === '/api/engagement/reports/overview') {
     return Promise.resolve({
       data: {
-        cycle: { period: 'current', label: 'Current Cycle', from: null, to: null },
+        // reportYear is part of the real API shape (see VNextReportsTracker's
+        // own fixtures) and what un-disables ReportsView's Add target office
+        // controls: readOnly = !Number.isInteger(cycle.reportYear). Without it
+        // the buttons render disabled and the modal can never open.
+        cycle: { period: 'current', reportYear: 2026, label: 'Current Cycle (2026)', from: null, to: null },
         summary: {
           targetOffices: 0,
           meetingsHeld: 0,
@@ -289,6 +293,10 @@ describe('EngagementPage — Meetings v2 URL state', () => {
     expect(addButtons.length).toBeGreaterThanOrEqual(2);
     const [headerAddButton] = addButtons;
     if (!headerAddButton) throw new Error('expected at least one Add target office button');
+    // With a real-shaped cycle fixture (reportYear present), readOnly is
+    // false — the controls must actually be enabled before clicking, else the
+    // modal cannot open and the lookup below would mask the real state.
+    expect(headerAddButton).toBeEnabled();
 
     fireEvent.click(headerAddButton);
     expect(await screen.findByRole('dialog', { name: /add target office/i })).toBeInTheDocument();

@@ -361,7 +361,7 @@ export class IntelligenceController {
 
   @Get('coming-up')
   getComingUp(@CurrentTenant() ctx: TenantContext) {
-    return this.service.getComingUp(ctx.tenantId);
+    return this.service.getComingUp(ctx.tenantId, ctx.userId);
   }
 
   @Get('portfolio-summary')

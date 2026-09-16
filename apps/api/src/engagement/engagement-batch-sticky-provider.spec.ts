@@ -1,9 +1,12 @@
-// Campaign-sticky provider (M2 / W3.2). A batch resolves the credential order
-// ONCE and pins the provider that drafts recipient #1 across the whole campaign,
-// so a per-recipient fallback can never split one send between two provider
-// "voices". This proves recipient #1 sees the full ordered list (so it can still
-// fall back if the preferred provider is down), and recipients 2..N see ONLY the
-// pinned provider's credential.
+// Campaign-sticky provider (M2 / W3.2). A batch resolves the pinned
+// provider/model ONCE through the gateway before fanning out, so one campaign
+// can never split between two provider "voices". This proves the batch path
+// uses the ONE identity resolved at the top for every recipient — recipients
+// never re-resolve credentials per slot.
+//
+// The Phase 26 cutover routes batch generation through the governed gateway
+// unconditionally, so the spy sits on gateway.generate and asserts the pinned
+// identity every recipient's request carries is the campaign-invariant one.
 //
 // Prototype-stub pattern (mirrors engagement-batch-group.spec.ts).
 
@@ -19,57 +22,79 @@ const ctx: TenantContext = {
   role: 'standard_user',
 } as TenantContext;
 
-const ANTHROPIC = {
-  provider: 'anthropic' as const,
-  apiKey: 'a',
-  model: 'claude-sonnet-4-6',
-  usedTenantKey: false,
-  modelOverridden: false,
-};
-const OPENAI = {
-  provider: 'openai' as const,
-  apiKey: 'o',
-  model: 'gpt-4.1-mini',
-  usedTenantKey: false,
-  modelOverridden: false,
-};
-
-/** Service whose AI stub records the provider list handed to each draft call and
- *  "drafts" with the first credential offered (or throws for a chosen recipient). */
-function makeService(opts?: { failFirst?: boolean }): {
+/**
+ * Captures the pinned identity each recipient's request carries. When
+ * `failFirstRecipient` is set, the FIRST generate() call returns a gateway
+ * outcome:'error' (the Phase 26 shape of a per-recipient drafting failure);
+ * later slots still draft 'ready' — proving a failed slot cannot un-pin or
+ * re-resolve the campaign identity.
+ */
+function makeService(opts?: { failFirstRecipient?: boolean }): {
   service: EngagementService;
-  credCalls: string[][];
+  pinnedSeen: Array<Record<string, unknown>>;
+  resolveCalls: () => number;
 } {
-  const credCalls: string[][] = [];
+  const pinnedSeen: Array<Record<string, unknown>> = [];
+  let resolveCalls = 0;
   const service = Object.create(EngagementService.prototype) as EngagementService;
   const patch = service as unknown as Record<string, unknown>;
-  // Phase 1: generateBatchEmails branches on this.gateway.enabled before doing
-  // anything else. These specs build the service with Object.create (no
-  // constructor), so the injected dependency has to be supplied here. OFF selects
-  // the legacy path, which is what these specs exercise.
-  patch.gateway = { enabled: false };
-  patch.logger = { warn: () => {} };
-  patch.ai = {
-    // Anthropic-first ordered list (as D2's preference would produce).
-    resolveOutreachCredentials: async () => [ANTHROPIC, OPENAI],
-    generateOutreachDraft: async (
-      _input: unknown,
+  // Phase 26 cutover: batch generation runs through the governed gateway
+  // unconditionally; stub its two entry points the batch path uses.
+  patch.gateway = {
+    resolvePinnedIdentity: async () => {
+      resolveCalls += 1;
+      return {
+        creds: [{ provider: 'anthropic', apiKey: 'test-key', model: 'm' }],
+        pinned: {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          planModel: 'claude-haiku-4-5-20251001',
+          promptSpecVersion: 'v2.2-gateway',
+        },
+      };
+    },
+    generate: async (
       _ctx: unknown,
-      o?: { creds?: Array<{ provider: string }> },
+      request: { pinned: Record<string, unknown> | null },
     ) => {
-      const provided = (o?.creds ?? []).map((c) => c.provider);
-      credCalls.push(provided);
-      if (opts?.failFirst && credCalls.length === 1) {
-        throw new Error('simulated failure on recipient #1');
+      pinnedSeen.push(request.pinned ?? {});
+      if (opts?.failFirstRecipient && pinnedSeen.length === 1) {
+        // Gateway failure isolation for recipient #1: outcome 'error', not a
+        // throw — the batch maps it to status:'error' and keeps going.
+        return {
+          outcome: 'error',
+          generationKey: 'individual:a',
+          recipientKey: 'a',
+          subject: '',
+          body: '',
+          manifest: {},
+          sendable: false,
+          error: 'GENERATION_FAILED',
+          pinned: request.pinned ?? {},
+        };
       }
-      // Draft "uses" the first credential in the list it was handed.
-      return { subject: 's', body: 'b', provider: provided[0] ?? 'anthropic', model: 'm', raw: {} };
+      return {
+        outcome: 'ready',
+        generationKey: 'individual:x',
+        recipientKey: 'x',
+        subject: 's',
+        body: 'b',
+        manifest: {},
+        sendable: true,
+        pinned: request.pinned ?? {},
+      };
     },
   };
   patch.prisma = {
-    withTenant: (_t: string, fn: (tx: unknown) => unknown) =>
-      fn({ user: { findFirst: async () => ({ firstName: 'Uma', lastName: 'Sender' }) } }),
+    withTenant: (_tenantId: string, fn: (tx: unknown) => unknown) =>
+      fn({
+        user: { findFirst: async () => ({ firstName: 'Uma', lastName: 'Sender' }) },
+        aiUsageEvent: {
+          aggregate: async () => ({ _sum: { inputTokens: 0, outputTokens: 0 } }),
+        },
+      }),
   };
+  patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
   patch.directory = { findContactsByEmails: async () => [] };
   patch.loadUserVoiceBlock = async () => null;
   patch.batchRecipientCorrespondence = async () => ({
@@ -78,7 +103,7 @@ function makeService(opts?: { failFirst?: boolean }): {
   });
   patch.outreachMemberPress = async () => new Map();
   patch.recordAiUsage = async () => {};
-  return { service, credCalls };
+  return { service, pinnedSeen, resolveCalls: () => resolveCalls };
 }
 
 const RECIPIENTS = [
@@ -88,31 +113,52 @@ const RECIPIENTS = [
 ];
 
 describe('generateBatchEmails — campaign-sticky provider (M2/W3.2)', () => {
-  test('recipient #1 sees the full ordered list; the rest are pinned to the winner', async () => {
-    const { service, credCalls } = makeService();
+  test('the identity is resolved ONCE and every recipient request carries the same pin', async () => {
+    const { service, pinnedSeen, resolveCalls } = makeService();
     const { results } = await service.generateBatchEmails(ctx, {
       templateId: 'system-outreach-message',
       recipients: RECIPIENTS,
     });
     expect(results).toHaveLength(3);
-    expect(results.every((r) => r.status === 'ready')).toBe(true);
-    // #1 gets both providers (can still fall back if the preferred is down)…
-    expect(credCalls[0]).toEqual(['anthropic', 'openai']);
-    // …#2 and #3 are pinned to the provider that drafted #1 (anthropic).
-    expect(credCalls[1]).toEqual(['anthropic']);
-    expect(credCalls[2]).toEqual(['anthropic']);
+    expect(resolveCalls()).toBe(1);
+    expect(pinnedSeen).toHaveLength(3);
+    for (const pinned of pinnedSeen) {
+      expect(pinned).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-4-6' });
+    }
   });
 
-  test('if recipient #1 fails outright, the rest fall back across the full list', async () => {
-    const { service, credCalls } = makeService({ failFirst: true });
+  test('a caller-supplied pinnedIdentity wins over the resolved one', async () => {
+    const { service, pinnedSeen } = makeService();
+    await service.generateBatchEmails(ctx, {
+      templateId: 'system-outreach-message',
+      recipients: [RECIPIENTS[0]!],
+      pinnedIdentity: {
+        provider: 'openai',
+        model: 'gpt-4.1-mini',
+        planModel: null,
+        promptSpecVersion: 'v2.2-gateway',
+      },
+    });
+    expect(pinnedSeen).toHaveLength(1);
+    expect(pinnedSeen[0]).toMatchObject({ provider: 'openai', model: 'gpt-4.1-mini' });
+  });
+
+  test('a first-recipient gateway failure stays pinned: later slots ready on the SAME identity, resolved once', async () => {
+    const { service, pinnedSeen, resolveCalls } = makeService({ failFirstRecipient: true });
     const { results } = await service.generateBatchEmails(ctx, {
       templateId: 'system-outreach-message',
       recipients: RECIPIENTS,
     });
-    // #1 errored (nothing to pin) → #2/#3 still get the full ordered list.
-    expect(results[0]!.status).toBe('error');
-    expect(credCalls[0]).toEqual(['anthropic', 'openai']);
-    expect(credCalls[1]).toEqual(['anthropic', 'openai']);
-    expect(credCalls[2]).toEqual(['anthropic', 'openai']);
+    // #1 errored (status 'error'), #2/#3 still drafted — statuses split exactly.
+    expect(results.map((r) => r.status)).toEqual(['error', 'ready', 'ready']);
+    expect(results[0]!.error).toBe('GENERATION_FAILED');
+    // The campaign identity was resolved ONCE — a failed slot never
+    // re-resolves credentials.
+    expect(resolveCalls()).toBe(1);
+    // Every request (including the failed one) carried the SAME resolved pin.
+    expect(pinnedSeen).toHaveLength(3);
+    for (const pinned of pinnedSeen) {
+      expect(pinned).toMatchObject({ provider: 'anthropic', model: 'claude-sonnet-4-6' });
+    }
   });
 });
