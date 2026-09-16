@@ -185,12 +185,14 @@ export class AnthropicLlmClient implements LlmClient {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model: this.model,
-          max_tokens: params.maxTokens ?? 1024,
-          system: params.system,
-          messages: [{ role: 'user', content: params.prompt }],
-        })),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model: this.model,
+            max_tokens: params.maxTokens ?? 1024,
+            system: params.system,
+            messages: [{ role: 'user', content: params.prompt }],
+          }),
+        ),
         signal: controller.signal,
       });
       const raw = (await res.json()) as Record<string, unknown>;
@@ -248,23 +250,25 @@ export class AnthropicLlmClient implements LlmClient {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model: this.model,
-          max_tokens: params.maxTokens ?? 1024,
-          system: params.system,
-          tools: [
-            {
-              name: params.toolName,
-              description: params.toolDescription,
-              input_schema: applyStrict
-                ? strictToolInputSchema(params.inputSchema)
-                : params.inputSchema,
-              ...(applyStrict ? { strict: true } : {}),
-            },
-          ],
-          ...thinking,
-          messages: [{ role: 'user', content: params.prompt }],
-        })),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model: this.model,
+            max_tokens: params.maxTokens ?? 1024,
+            system: params.system,
+            tools: [
+              {
+                name: params.toolName,
+                description: params.toolDescription,
+                input_schema: applyStrict
+                  ? strictToolInputSchema(params.inputSchema)
+                  : params.inputSchema,
+                ...(applyStrict ? { strict: true } : {}),
+              },
+            ],
+            ...thinking,
+            messages: [{ role: 'user', content: params.prompt }],
+          }),
+        ),
         signal: controller.signal,
       });
       const raw = (await res.json()) as Record<string, unknown>;

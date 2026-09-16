@@ -467,20 +467,22 @@ export class RequestScopedLlmClient implements LlmClient {
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
-        body: JSON.stringify(prepareAnthropicRequest({
-          model,
-          max_tokens: params.maxTokens,
-          system,
-          tools,
-          // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
-          ...(params.toolChoice === 'none'
-            ? { tool_choice: { type: 'none' } }
-            : params.toolChoice && typeof params.toolChoice === 'object'
-              ? { tool_choice: params.toolChoice }
-              : {}),
-          ...(params.onTextDelta ? { stream: true } : {}),
-          messages: params.messages,
-        })),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model,
+            max_tokens: params.maxTokens,
+            system,
+            tools,
+            // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
+            ...(params.toolChoice === 'none'
+              ? { tool_choice: { type: 'none' } }
+              : params.toolChoice && typeof params.toolChoice === 'object'
+                ? { tool_choice: params.toolChoice }
+                : {}),
+            ...(params.onTextDelta ? { stream: true } : {}),
+            messages: params.messages,
+          }),
+        ),
         signal: controller.signal,
       });
       if (!res.ok) {
@@ -552,7 +554,14 @@ export async function parseAnthropicToolStream(
   if (!body) throw new Error('Anthropic stream response had no body');
   const blocks = new Map<
     number,
-    { type: string; text: string; id?: string; name?: string; json: string; original: Record<string, unknown> }
+    {
+      type: string;
+      text: string;
+      id?: string;
+      name?: string;
+      json: string;
+      original: Record<string, unknown>;
+    }
   >();
   let stopReason: string | null = null;
   let stopDetails: { category: string | null; explanation: string | null } | null = null;

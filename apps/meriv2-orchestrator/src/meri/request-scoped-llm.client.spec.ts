@@ -42,19 +42,49 @@ function mockFetch() {
 const originalFetch = global.fetch;
 it('preserves Sonnet 5 thinking signatures and redacted blocks across streamed tool rounds', async () => {
   const events = [
-    { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '', signature: '' } },
-    { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'private' } },
-    { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'opaque-signature' } },
-    { type: 'content_block_start', index: 1, content_block: { type: 'redacted_thinking', data: 'opaque-data' } },
+    {
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'thinking', thinking: '', signature: '' },
+    },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: 'private' },
+    },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'signature_delta', signature: 'opaque-signature' },
+    },
+    {
+      type: 'content_block_start',
+      index: 1,
+      content_block: { type: 'redacted_thinking', data: 'opaque-data' },
+    },
     { type: 'content_block_start', index: 2, content_block: { type: 'text', text: '' } },
-    { type: 'content_block_delta', index: 2, delta: { type: 'text_delta', text: 'Visible answer' } },
-    { type: 'content_block_start', index: 3, content_block: { type: 'tool_use', id: 'call_1', name: 'lookup', input: {} } },
-    { type: 'content_block_delta', index: 3, delta: { type: 'input_json_delta', partial_json: '{"id":7}' } },
+    {
+      type: 'content_block_delta',
+      index: 2,
+      delta: { type: 'text_delta', text: 'Visible answer' },
+    },
+    {
+      type: 'content_block_start',
+      index: 3,
+      content_block: { type: 'tool_use', id: 'call_1', name: 'lookup', input: {} },
+    },
+    {
+      type: 'content_block_delta',
+      index: 3,
+      delta: { type: 'input_json_delta', partial_json: '{"id":7}' },
+    },
     { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
   ];
   const deltas: string[] = [];
-  const response = new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''));
-  const result = await parseAnthropicToolStream(response, delta => deltas.push(delta));
+  const response = new Response(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''),
+  );
+  const result = await parseAnthropicToolStream(response, (delta) => deltas.push(delta));
   expect(result.content).toEqual([
     { type: 'thinking', thinking: 'private', signature: 'opaque-signature' },
     { type: 'redacted_thinking', data: 'opaque-data' },

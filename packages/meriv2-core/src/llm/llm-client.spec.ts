@@ -605,7 +605,11 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
         }),
       } as Response;
     }) as typeof fetch;
-    await new OpenAiLlmClient({ apiKey: 'sk-test', model: 'custom-chat-deployment', fetchImpl }).completeWithSchema({
+    await new OpenAiLlmClient({
+      apiKey: 'sk-test',
+      model: 'custom-chat-deployment',
+      fetchImpl,
+    }).completeWithSchema({
       system: 'sys',
       prompt: 'p',
       toolName: 'submit',
@@ -636,7 +640,11 @@ describe('OpenAiLlmClient.completeWithSchema — reasoning option is a no-op', (
       type: 'object',
       properties: { id: { type: 'string', minLength: 1, maxLength: 100 } },
     };
-    await new OpenAiLlmClient({ apiKey: 'sk-test', model: 'custom-chat-deployment', fetchImpl }).completeWithSchema({
+    await new OpenAiLlmClient({
+      apiKey: 'sk-test',
+      model: 'custom-chat-deployment',
+      fetchImpl,
+    }).completeWithSchema({
       system: 'sys',
       prompt: 'p',
       toolName: 'submit',
