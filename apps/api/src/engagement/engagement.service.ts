@@ -45,6 +45,7 @@ import {
   ownOutreachRecordWhere,
 } from './engagement-access.helpers.js';
 import { activeMailMessageWhere } from './mail-message-state.js';
+import { readOutreachAudienceType, type OutreachAudienceType } from './outreach-audience-types.js';
 import { queryMailMessages } from './mail-query.js';
 // ── Phase 1 — governed generation gateway ───────────────────────────────────
 import {
@@ -319,6 +320,13 @@ export interface OutreachRecipientInput {
   party?: string;
   directoryContactId?: string;
   directoryContactName?: string;
+  /**
+   * The audience the user chose in the wizard's manual-add audience picker.
+   * Present only on manually-added recipients; directory-origin recipients
+   * omit it. Validated against OUTREACH_AUDIENCE_TYPES and preserved verbatim
+   * through normalizeOutreachRecipients.
+   */
+  audienceType?: OutreachAudienceType;
   committee?: string;
   address?: string;
   relevanceReason?: string;
@@ -10912,7 +10920,7 @@ function normalizeOutreachStatus(value?: string | null): OutreachStatus {
   throw new BadRequestException('status must be draft, sent, opened_in_email, or failed');
 }
 
-function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] {
+export function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((entry) => {
@@ -10934,6 +10942,7 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
       const party = readString(record.party);
       const directoryContactId = readString(record.directoryContactId);
       const directoryContactName = readString(record.directoryContactName);
+      const audienceType = readOutreachAudienceType(record.audienceType);
       const committee = readString(record.committee);
       const address = readString(record.address);
       const relevanceReason = readString(record.relevanceReason);
@@ -10963,6 +10972,7 @@ function normalizeOutreachRecipients(value?: unknown): OutreachRecipientInput[] 
         ...(directoryContactName
           ? { directoryContactName: directoryContactName.slice(0, 240) }
           : {}),
+        ...(audienceType ? { audienceType } : {}),
         ...(committee ? { committee: committee.slice(0, 160) } : {}),
         ...(address ? { address: address.slice(0, 500) } : {}),
         ...(relevanceReason ? { relevanceReason: relevanceReason.slice(0, 240) } : {}),
