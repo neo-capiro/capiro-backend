@@ -167,6 +167,16 @@ interface R2DetectedTable {
 }
 
 const NUMBER_RE = /^-?[\d,]+(?:\.\d+)?$/;
+/**
+ * "Continuing" is a standard, legitimate Army R-2 printing convention for a
+ * cost-to-complete/total-cost cell on a program with no defined completion
+ * date -- funding continues indefinitely, so no discrete figure exists to
+ * print. It is real government-document text, not corrupted OCR output.
+ * Recognized ONLY where it is legitimate (see the cost_to_complete/
+ * total_cost guard at the call site) so a genuinely invalid "Continuing" in
+ * an annual (FY-bearing) column still raises `invalid_number`.
+ */
+const NON_NUMERIC_NON_ANNUAL_MARKER_RE = /^continuing$/i;
 const PE_TOTAL_RE = /^\s*total\s+program\s+element\b/i;
 const BASE_ROW_RE = /^\s*(?:base|base\s+budget|base\s+request)\s*$/i;
 const OCO_ROW_RE = /^\s*(?:oco|overseas\s+contingency|overseas\s+contingency\s+operations)\s*$/i;
@@ -523,6 +533,22 @@ export function extractR2PeFunding(input: {
             continue;
           }
 
+          /* "Continuing" on a cost-to-complete/total-cost cell is a real,
+           * intentional Army R-2 convention (no discrete figure exists for a
+           * program with no defined completion date) -- not an extraction
+           * defect. Preserved as neither a value nor an omission, the same
+           * way a bare "-"/em-dash placeholder is already handled above.
+           * Deliberately scoped to these two non-annual roles only: the
+           * identical text in an FY-bearing (annual) column is still a
+           * genuine `invalid_number` -- a real appropriation figure is never
+           * legitimately "Continuing". */
+          if (
+            NON_NUMERIC_NON_ANNUAL_MARKER_RE.test(text) &&
+            (classification.role === 'cost_to_complete' || classification.role === 'total_cost')
+          ) {
+            continue;
+          }
+
           if (!NUMBER_RE.test(text)) {
             omissions.push({
               peCode: peContext.peCode,
@@ -564,8 +590,17 @@ export function extractR2PeFunding(input: {
           }
 
           const fiscalYear = classification.fiscalYear;
+          /* A `prior_actual_context` classification with no fiscal year can
+           * only come from the "Prior Years" cumulative-column label (see
+           * rdte-column-classifier.ts) -- every OTHER path to this role
+           * (PY_RE, or a bare year relative to the cycle FY) always carries
+           * an explicit fiscalYear, so this narrow exemption can never mask
+           * a genuine missing-fiscal-year defect on a real single-year
+           * "actual" column. */
           const isNonAnnual =
-            classification.role === 'cost_to_complete' || classification.role === 'total_cost';
+            classification.role === 'cost_to_complete' ||
+            classification.role === 'total_cost' ||
+            (classification.role === 'prior_actual_context' && fiscalYear == null);
           if (fiscalYear == null && !isNonAnnual) {
             omissions.push({
               peCode: peContext.peCode,
