@@ -700,17 +700,86 @@ describe('MeriService.assistant', () => {
     expect(body.ownerNames).toEqual({ user_neo: 'Neo Martinez' });
   });
 
-  it('never queries the member directory for a plan with no assigned owners (empty ids short-circuit)', async () => {
+  it('loads available owners even when no steps have an owner yet', async () => {
     const store = makeStore();
     seedStrategy(store); // every seeded node has ownerUserId: null
+    store.members = [{ clerkUserId: 'user_neo', firstName: 'Neo', lastName: 'Martinez' }];
     const orchestrator = { assistant: jest.fn(async () => ({ reply: 'ok', edits: [] })) };
     const { svc, withSystem } = makeService(orchestrator, store);
 
     await svc.assistant(T, U, 'bearer', 'S1', dto);
 
-    expect(withSystem).not.toHaveBeenCalled();
+    expect(withSystem).toHaveBeenCalledTimes(1);
     const body = (orchestrator.assistant as jest.Mock).mock.calls[0]![0] as { ownerNames: Record<string, string> };
-    expect(body.ownerNames).toEqual({});
+    expect(body.ownerNames).toEqual({ user_neo: 'Neo Martinez' });
+  });
+
+  it('assigns Neo Martinez to every step as one version without changing other step fields', async () => {
+    const store = makeStore();
+    const { sid, n1, n2, n3 } = seedStrategy(store);
+    store.members = [{ clerkUserId: 'user_neo', firstName: 'Neo', lastName: 'Martinez' }];
+    const before = [...store.nodes.values()].map((node) => ({ ...node }));
+    const orchestrator = {
+      assistant: jest.fn(async () => ({
+        reply: 'Assigned Neo Martinez to all 3 steps.',
+        edits: [n1, n2, n3].map((nodeId) => ({ op: 'update', nodeId, ownerUserId: 'user_neo' })),
+      })),
+    };
+    const { svc, versioning } = makeService(orchestrator, store);
+    await svc.assistant(T, U, 'bearer', sid, {
+      ...dto, instruction: 'add neo martinez as the owner for all steps',
+    });
+    expect([...store.nodes.values()]).toEqual(before.map((node) => ({ ...node, ownerUserId: 'user_neo' })));
+    expect(versioning.cutVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['user_other_tenant', '', 42])('rejects invalid owner %p before applying any edits', async (owner) => {
+    const store = makeStore();
+    const { sid, n1, n2 } = seedStrategy(store);
+    store.members = [{ clerkUserId: 'user_neo', firstName: 'Neo', lastName: 'Martinez' }];
+    const before = [...store.nodes.values()].map((node) => ({ ...node }));
+    const orchestrator = { assistant: jest.fn(async () => ({
+      reply: 'Assigned.',
+      edits: [
+        { op: 'update', nodeId: n1, ownerUserId: 'user_neo' },
+        { op: 'update', nodeId: n2, ownerUserId: owner },
+      ],
+    })) };
+    const { svc, versioning } = makeService(orchestrator, store);
+    await expect(svc.assistant(T, U, 'bearer', sid, dto)).rejects.toThrow('not an active team member');
+    expect([...store.nodes.values()]).toEqual(before);
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
+  });
+
+  it('allows explicit unassignment while preserving omitted owners', async () => {
+    const store = makeStore();
+    const { sid, n1, n2 } = seedStrategy(store);
+    store.nodes.get(n1)!.ownerUserId = 'user_neo';
+    store.nodes.get(n2)!.ownerUserId = 'user_neo';
+    const orchestrator = { assistant: jest.fn(async () => ({
+      reply: 'Cleared the first owner.',
+      edits: [
+        { op: 'update', nodeId: n1, ownerUserId: null },
+        { op: 'update', nodeId: n2, note: 'Keep the owner' },
+      ],
+    })) };
+    const { svc } = makeService(orchestrator, store);
+    await svc.assistant(T, U, 'bearer', sid, dto);
+    expect(store.nodes.get(n1)!.ownerUserId).toBeNull();
+    expect(store.nodes.get(n2)!.ownerUserId).toBe('user_neo');
+  });
+
+  it('rejects new ownership when the member directory is unavailable', async () => {
+    const store = makeStore();
+    const { sid, n1 } = seedStrategy(store);
+    const orchestrator = { assistant: jest.fn(async () => ({
+      reply: 'Assigned.', edits: [{ op: 'update', nodeId: n1, ownerUserId: 'user_neo' }],
+    })) };
+    const { svc, withSystem, versioning } = makeService(orchestrator, store);
+    withSystem.mockRejectedValueOnce(new Error('directory unavailable'));
+    await expect(svc.assistant(T, U, 'bearer', sid, dto)).rejects.toThrow('not an active team member');
+    expect(store.nodes.get(n1)!.ownerUserId).toBeNull();
+    expect(versioning.cutVersion).not.toHaveBeenCalled();
   });
 
   it('applies an add/update/remove/retime edit-set as one version', async () => {
