@@ -6,7 +6,30 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "ai-model-policy": ["dist/ai-model-policy.d.ts"]
+      "ai-model-policy": [
+        "dist/ai-model-policy.d.ts"
+      ],
+      "client-registration-integrity": [
+        "dist/client-registration-integrity.d.ts"
+      ],
+      "money": [
+        "dist/money.d.ts"
+      ],
+      "funding-claim": [
+        "dist/funding-claim.d.ts"
+      ],
+      "defense-budget-line": [
+        "dist/defense-budget-line.d.ts"
+      ],
+      "pe-source-coverage": [
+        "dist/pe-source-coverage.d.ts"
+      ],
+      "meri-skills": [
+        "dist/meri-skills.d.ts"
+      ],
+      "market-title": [
+        "dist/market-title.d.ts"
+      ]
     }
   },
   "exports": {
