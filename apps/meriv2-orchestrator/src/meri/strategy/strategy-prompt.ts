@@ -141,11 +141,8 @@ export interface StrategyAssistantInput {
   attachments?: StrategyAttachment[];
   clientId: string;
   strategy: StrategyState;
-  /** F02 fix: clerkUserId -> display name, resolved by api-strategy
-   *  (mirrors the web editor's memberName). Keyed the same as
-   *  StrategyStateNode.ownerUserId so renderPlan can show the SAME
-   *  owner the editor/inspector/plan-health surfaces show, instead of
-   *  omitting ownership from the plan text entirely. */
+  /** Active tenant members, keyed by clerkUserId. Used both to render existing
+   *  owners and to resolve a requested new owner without inventing an id. */
   ownerNames?: Record<string, string>;
   fiscal?: FiscalGrounding;
   firmPhases?: FirmPhaseRow[];
@@ -267,8 +264,11 @@ export const PROPOSE_PLAN_EDITS_TOOL = {
   name: 'propose_plan_edits',
   description:
     'Return your reply and any edits to the existing plan. op is add|update|remove|retime. add needs kind/subject/title/startsOn; update/remove/retime need the target nodeId. dependsOn lists the node ids this step is blocked by (existing nodes only). For a question needing no change, pass an empty edits array.',
-  // A7: constrained decoding on models that support it (see PROPOSE_STRATEGY_DRAFT_TOOL).
-  strict: true,
+  // Patch fields must remain optional: omission means "leave unchanged".
+  // Sonnet 5 rejects this nested optional-field grammar as "Schema is too
+  // complex". Use ordinary tool use; sanitization and the transactional API
+  // validator remain authoritative. Do not make absent fields null/defaults.
+  strict: false,
   input_schema: {
     type: 'object',
     additionalProperties: false,
@@ -284,6 +284,11 @@ export const PROPOSE_PLAN_EDITS_TOOL = {
             op: { type: 'string', enum: ['add', 'update', 'remove', 'retime'] },
             nodeId: { type: 'string', description: 'Target node id for update/remove/retime.' },
             ...NODE_PROPS,
+            ownerUserId: {
+              type: ['string', 'null'],
+              description:
+                'Exact user id from Available owners. Omit to keep the current owner; null only to explicitly unassign.',
+            },
             dependsOn: {
               type: 'array',
               items: { type: 'string' },
@@ -452,6 +457,8 @@ export function sanitizePlanEdits(raw: unknown): Array<Record<string, unknown>> 
           if (v !== undefined) out[k] = v;
         }
         if (typeof e.note === 'string') out.note = e.note;
+        if (e.ownerUserId === null) out.ownerUserId = null;
+        else if (str(e.ownerUserId)) out.ownerUserId = str(e.ownerUserId);
         if (typeof e.openEnded === 'boolean') out.openEnded = e.openEnded;
         // A3: node-id edges (existing nodes only; api-strategy validates existence).
         if (Array.isArray(e.dependsOn)) {
@@ -765,6 +772,7 @@ export function composeAssistantSystemPrompt(
     }),
     `# Current strategy\n${input.strategy.title} (${input.strategy.type})${input.strategy.goal ? `\nGoal: ${input.strategy.goal}` : ''}`,
     `# Current plan\n${renderPlan(input.strategy, input.ownerNames)}`,
+    `# Available owners\n${JSON.stringify(input.ownerNames ?? {})}\nFor ownership changes, use only these exact user ids. Ask for clarification if the requested person is missing or ambiguous. Set ownerUserId on each requested step; omit unrelated fields. Null explicitly unassigns.`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
