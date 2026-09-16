@@ -414,7 +414,7 @@ export function engagementApiTaskEnvironment(
     // OpenAI's ladder tops out at reasoning.effort='high', which is where 'max'
     // lands via openAiReasoningEffort().
     OUTREACH_V3_GENERATION_EFFORT: 'max',
-    OUTREACH_V3_GENERATION_MODEL: 'gpt-5',
+    OUTREACH_V3_GENERATION_MODEL: 'gpt-6-astra',
 
     AWS_REGION_DEFAULT: cfg.region,
 

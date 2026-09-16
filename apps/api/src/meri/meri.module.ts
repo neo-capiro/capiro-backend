@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { Module } from '@nestjs/common';
 import { ManagedMcpModule } from './managed-mcp.module.js';
 import { ConfigService } from '@nestjs/config';
@@ -204,12 +205,12 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
                   'anthropic-version': '2023-06-01',
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
+                body: JSON.stringify(prepareAnthropicRequest({
                   model: config.get('CLIO_RESEARCH_PLAN_MODEL'),
                   max_tokens: 4000,
                   system,
                   messages: [{ role: 'user', content: user }],
-                }),
+                })),
                 signal: controller.signal,
               });
               if (!response.ok) {

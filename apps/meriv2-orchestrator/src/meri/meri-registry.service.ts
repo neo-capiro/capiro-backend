@@ -1,3 +1,4 @@
+import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { assertMeriCapabilityHandlers } from '@capiro/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -127,19 +128,16 @@ export class MeriRegistryService {
     // serve them; with neither key the call throws and intel-api's extraction
     // degrades gracefully.
     const apiKey = config.get<string>('ANTHROPIC_API_KEY');
-    // X1 fix: the reasoning tools (post-hearing summaries, live policy-mention
-    // extraction) intentionally default to a STRONGER tier than the outreach-draft
-    // default — this is the single documented fallback. It was a stale
-    // `claude-sonnet-4-5`; bumped to the current sonnet the rest of the app uses
-    // (CLIO_MODEL) so an unset ANTHROPIC_MODEL no longer resolves a retired id.
-    const model = config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-6';
+    // Shared reasoning tools use the same quality floor as the API. Normalize
+    // older deployment values as well as supplying the current default.
+    const model = upgradeTextModel(config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-5');
     // LLM resilience: when a GLOBAL OpenAI key is wired, it is the BYOK-safe
     // failover for global-key traffic if Anthropic is credit-exhausted/overloaded
     // (the 2026-07-15 fleet-wide Meri outage). Inert until OPENAI_API_KEY is set
     // on the orchestrator — so this is dark on merge and activates on the key
     // wire. A tenant's own BYOK key is never failed over to this global account.
     const openaiKey = config.get<string>('OPENAI_API_KEY');
-    const openaiModel = config.get<string>('OPENAI_MODEL') ?? 'gpt-4.1';
+    const openaiModel = upgradeTextModel(config.get<string>('OPENAI_MODEL') ?? 'gpt-6-astra');
     const globalFallback = openaiKey
       ? { apiKey: openaiKey, model: openaiModel, provider: 'openai' as const }
       : undefined;

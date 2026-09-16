@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   answersToSections,
@@ -23,7 +24,7 @@ import type { MemorySection } from './memory.types.js';
 export class MemoryInterviewService {
   private readonly logger = new Logger(MemoryInterviewService.name);
   private readonly anthropicKey = process.env.ANTHROPIC_API_KEY;
-  private readonly model = process.env.CHAT_SONNET_MODEL || 'claude-3-5-sonnet-20241022';
+  private readonly model = process.env.CHAT_SONNET_MODEL || 'claude-sonnet-5';
 
   async draftSections(type: string, answers: InterviewAnswer[]): Promise<MemorySection[]> {
     const baseline = answersToSections(type, answers);
@@ -61,7 +62,7 @@ export class MemoryInterviewService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: this.model,
           max_tokens: 600,
           system,
@@ -75,7 +76,7 @@ export class MemoryInterviewService {
                 `User's answer:\n${rawAnswer}`,
             },
           ],
-        }),
+        })),
       });
       if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
       const json = (await res.json()) as { content?: Array<{ text?: string }> };

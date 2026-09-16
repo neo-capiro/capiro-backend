@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
@@ -509,7 +510,7 @@ export class DistrictBriefService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model,
           max_tokens: 2000,
           // Zero-trust Wave 1 (RC8): district briefs restate districts/figures —
@@ -517,7 +518,7 @@ export class DistrictBriefService {
           temperature: 0.2,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: prompt }],
-        }),
+        })),
         signal: controller.signal,
       });
       const json = (await res.json()) as Record<string, unknown>;

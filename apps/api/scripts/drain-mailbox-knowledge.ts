@@ -30,8 +30,8 @@ import type { PrismaService } from '../src/prisma/prisma.service.js';
 
 function workerConfigDefaults() {
   return {
-    OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
-    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001',
+    OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-6-astra',
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5',
     CLIO_WEB_SEARCH_PROVIDER: process.env.CLIO_WEB_SEARCH_PROVIDER ?? 'duckduckgo',
   };
 }

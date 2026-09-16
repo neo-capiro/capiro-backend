@@ -1,3 +1,5 @@
+import { fetchOpenAiCompletion } from './openai-responses-adapter.js';
+import { isGpt6, prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { z } from 'zod';
 
 /**
@@ -106,7 +108,7 @@ export function strictToolInputSchema<T>(schema: T): T {
  * pinned revision only). Lookalikes never opt in.
  */
 export function modelSupportsStrictToolUse(model: string): boolean {
-  return ANTHROPIC_MANUAL_THINKING_MODELS.has(model);
+  return model === 'claude-sonnet-5' || ANTHROPIC_MANUAL_THINKING_MODELS.has(model);
 }
 
 /**
@@ -126,6 +128,13 @@ export function schemaCompletionWire(params: {
 }): Record<string, unknown> {
   const maxTokens = params.maxTokens ?? 1024;
   const effort = params.reasoning?.effort;
+  if (params.model === 'claude-sonnet-5' && effort) {
+    return {
+      thinking: { type: 'adaptive' },
+      output_config: { effort },
+      tool_choice: { type: 'auto' },
+    };
+  }
   const budget = effort ? REASONING_BUDGET_TOKENS[effort] : undefined;
   if (
     budget !== undefined &&
@@ -156,7 +165,7 @@ export class AnthropicLlmClient implements LlmClient {
 
   constructor(opts: AnthropicLlmOptions) {
     this.apiKey = opts.apiKey;
-    this.model = opts.model;
+    this.model = upgradeTextModel(opts.model);
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.timeoutMs = opts.timeoutMs ?? 30000;
   }
@@ -176,12 +185,14 @@ export class AnthropicLlmClient implements LlmClient {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: params.maxTokens ?? 1024,
-          system: params.system,
-          messages: [{ role: 'user', content: params.prompt }],
-        }),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model: this.model,
+            max_tokens: params.maxTokens ?? 1024,
+            system: params.system,
+            messages: [{ role: 'user', content: params.prompt }],
+          }),
+        ),
         signal: controller.signal,
       });
       const raw = (await res.json()) as Record<string, unknown>;
@@ -239,23 +250,25 @@ export class AnthropicLlmClient implements LlmClient {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: params.maxTokens ?? 1024,
-          system: params.system,
-          tools: [
-            {
-              name: params.toolName,
-              description: params.toolDescription,
-              input_schema: applyStrict
-                ? strictToolInputSchema(params.inputSchema)
-                : params.inputSchema,
-              ...(applyStrict ? { strict: true } : {}),
-            },
-          ],
-          ...thinking,
-          messages: [{ role: 'user', content: params.prompt }],
-        }),
+        body: JSON.stringify(
+          prepareAnthropicRequest({
+            model: this.model,
+            max_tokens: params.maxTokens ?? 1024,
+            system: params.system,
+            tools: [
+              {
+                name: params.toolName,
+                description: params.toolDescription,
+                input_schema: applyStrict
+                  ? strictToolInputSchema(params.inputSchema)
+                  : params.inputSchema,
+                ...(applyStrict ? { strict: true } : {}),
+              },
+            ],
+            ...thinking,
+            messages: [{ role: 'user', content: params.prompt }],
+          }),
+        ),
         signal: controller.signal,
       });
       const raw = (await res.json()) as Record<string, unknown>;
@@ -311,7 +324,7 @@ export class OpenAiLlmClient implements LlmClient {
 
   constructor(opts: OpenAiLlmOptions) {
     this.apiKey = opts.apiKey;
-    this.model = opts.model;
+    this.model = upgradeTextModel(opts.model);
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.timeoutMs = opts.timeoutMs ?? 30000;
   }
@@ -324,7 +337,7 @@ export class OpenAiLlmClient implements LlmClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const res = await this.fetchImpl('https://api.openai.com/v1/chat/completions', {
+      const res = await fetchOpenAiCompletion(this.fetchImpl, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -375,7 +388,7 @@ export class OpenAiLlmClient implements LlmClient {
         : Math.min(120000, Math.max(1000, params.timeoutMs));
     const timer = setTimeout(() => controller.abort(), budget);
     try {
-      const res = await this.fetchImpl('https://api.openai.com/v1/chat/completions', {
+      const res = await fetchOpenAiCompletion(this.fetchImpl, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -446,7 +459,7 @@ export class OpenAiLlmClient implements LlmClient {
       else params.signal.addEventListener('abort', onExternalAbort, { once: true });
     }
     try {
-      const res = await this.fetchImpl('https://api.openai.com/v1/chat/completions', {
+      const res = await fetchOpenAiCompletion(this.fetchImpl, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -507,6 +520,11 @@ export function toOpenAiToolLoopBody(params: {
     }
     const blocks = m.content as Array<Record<string, unknown>>;
     if (m.role === 'assistant') {
+      const state = blocks.find((b) => b.type === 'openai_response_state');
+      if (isGpt6(params.model) && Array.isArray(state?.items)) {
+        out.push({ role: 'assistant', openai_response_items: state.items });
+        continue;
+      }
       const text = blocks
         .filter((b) => b?.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text as string)
@@ -577,6 +595,9 @@ export function fromOpenAiToolLoopResponse(raw: Record<string, unknown>): {
   stopReason: string | null;
 } {
   const content: Array<Record<string, unknown>> = [];
+  if (Array.isArray(raw.openai_response_items)) {
+    content.push({ type: 'openai_response_state', items: raw.openai_response_items });
+  }
   const choices = raw.choices;
   const choice =
     Array.isArray(choices) && choices[0] && typeof choices[0] === 'object'

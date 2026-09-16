@@ -40,6 +40,61 @@ function mockFetch() {
 }
 
 const originalFetch = global.fetch;
+it('preserves Sonnet 5 thinking signatures and redacted blocks across streamed tool rounds', async () => {
+  const events = [
+    {
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'thinking', thinking: '', signature: '' },
+    },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: 'private' },
+    },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'signature_delta', signature: 'opaque-signature' },
+    },
+    {
+      type: 'content_block_start',
+      index: 1,
+      content_block: { type: 'redacted_thinking', data: 'opaque-data' },
+    },
+    { type: 'content_block_start', index: 2, content_block: { type: 'text', text: '' } },
+    {
+      type: 'content_block_delta',
+      index: 2,
+      delta: { type: 'text_delta', text: 'Visible answer' },
+    },
+    {
+      type: 'content_block_start',
+      index: 3,
+      content_block: { type: 'tool_use', id: 'call_1', name: 'lookup', input: {} },
+    },
+    {
+      type: 'content_block_delta',
+      index: 3,
+      delta: { type: 'input_json_delta', partial_json: '{"id":7}' },
+    },
+    { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+  ];
+  const deltas: string[] = [];
+  const response = new Response(
+    events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''),
+  );
+  const result = await parseAnthropicToolStream(response, (delta) => deltas.push(delta));
+  expect(result.content).toEqual([
+    { type: 'thinking', thinking: 'private', signature: 'opaque-signature' },
+    { type: 'redacted_thinking', data: 'opaque-data' },
+    { type: 'text', text: 'Visible answer' },
+    { type: 'tool_use', id: 'call_1', name: 'lookup', input: { id: 7 } },
+  ]);
+  expect(deltas).toEqual(['Visible answer']);
+  expect(result.stopReason).toBe('tool_use');
+});
+
 afterEach(() => {
   (global as unknown as { fetch: unknown }).fetch = originalFetch;
   jest.restoreAllMocks();
@@ -351,16 +406,17 @@ describe('RequestScopedLlmClient.completeWithSchema — H57 strict forwarding', 
     );
     // Same BYOK key and tenant-qualified model reach the wire.
     expect(calls[0]?.headers['x-api-key']).toBe('«redacted:sk-…»');
-    expect(calls[0]?.body.model).toBe('claude-sonnet-4-5');
+    expect(calls[0]?.body.model).toBe('claude-sonnet-5');
     const tool = (calls[0]?.body.tools as Array<Record<string, unknown>>)[0]!;
     expect(tool.strict).toBe(true);
     expect(tool.input_schema).toEqual({
       type: 'object',
       properties: { id: { type: 'string' } },
     });
-    expect(calls[0]?.body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 });
+    expect(calls[0]?.body.thinking).toEqual({ type: 'adaptive' });
+    expect(calls[0]?.body.output_config).toEqual({ effort: 'low' });
     expect(calls[0]?.body.tool_choice).toEqual({ type: 'auto' });
-    expect(calls[0]?.body.max_tokens).toBe(6000);
+    expect(calls[0]?.body.max_tokens).toBe(16384);
   });
 
   it('tenant on an UNQUALIFIED model + strict:true keeps the prior wire (no strict, original schema, same key/model)', async () => {
@@ -777,7 +833,7 @@ describe('RequestScopedLlmClient prompt caching (P0-1 orchestrator parity)', () 
     const calls = mockToolFetch();
     const client = new RequestScopedLlmClient(
       'sk-global',
-      'claude-sonnet-4-6', // does NOT support strict → tools get stripped to name/description/input_schema
+      'claude-custom-deployment', // does NOT support strict → tools get stripped to name/description/input_schema
       undefined,
       undefined,
       true,
@@ -1010,9 +1066,9 @@ describe('RequestScopedLlmClient.completeWithTools (A7 strict tool-schema wire h
 
   it('strips the strict field (and any field beyond name/description/input_schema) when the resolved model does NOT support strict', async () => {
     const calls = mockToolFetch();
-    const client = new RequestScopedLlmClient('sk-global', 'claude-sonnet-4-6');
+    const client = new RequestScopedLlmClient('sk-global', 'claude-custom-deployment');
     await client.completeWithTools({ system: 's', messages: [], tools: strictTool, maxTokens: 10 });
-    expect(calls[0]?.body.model).toBe('claude-sonnet-4-6');
+    expect(calls[0]?.body.model).toBe('claude-custom-deployment');
     expect(calls[0]?.body.tools).toEqual([
       {
         name: 'search_congress_bills',
@@ -1186,11 +1242,12 @@ describe('RequestScopedLlmClient.completeWithSchema — reasoning option forward
     // Same resolved tenant credential + overridden model reach the wire (BYOK
     // isolation preserved — no model switch, no credential change).
     expect(calls[0]?.headers['x-api-key']).toBe(tenantCred.apiKey);
-    expect(calls[0]?.body.model).toBe('claude-sonnet-4-5');
+    expect(calls[0]?.body.model).toBe('claude-sonnet-5');
     // The reasoning option produced the manual-thinking wire on the qualified model.
-    expect(calls[0]?.body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 });
+    expect(calls[0]?.body.thinking).toEqual({ type: 'adaptive' });
+    expect(calls[0]?.body.output_config).toEqual({ effort: 'low' });
     expect(calls[0]?.body.tool_choice).toEqual({ type: 'auto' });
-    expect(calls[0]?.body.max_tokens).toBe(6000);
+    expect(calls[0]?.body.max_tokens).toBe(16384);
     // Aggregate usage (incl. thinking tokens) is preserved for metering.
     expect(out.usage).toEqual({ inputTokens: 500, outputTokens: 1400 });
     expect(out.input).toEqual({ claims: [] });
@@ -1208,7 +1265,7 @@ describe('RequestScopedLlmClient.completeWithSchema — reasoning option forward
     await RequestCredentialsStore.run(
       {
         bearerToken: 't',
-        aiProvider: { ...tenantCred, model: 'claude-sonnet-4-6', modelOverridden: true },
+        aiProvider: { ...tenantCred, model: 'claude-custom-deployment', modelOverridden: true },
       },
       () =>
         client.completeWithSchema({
@@ -1221,7 +1278,7 @@ describe('RequestScopedLlmClient.completeWithSchema — reasoning option forward
           reasoning: { effort: 'low' },
         }),
     );
-    expect(calls[0]?.body.model).toBe('claude-sonnet-4-6'); // tenant's model kept
+    expect(calls[0]?.body.model).toBe('claude-custom-deployment'); // tenant's model kept
     expect(calls[0]?.body.thinking).toBeUndefined(); // no incompatible field sent
     expect(calls[0]?.body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
   });
@@ -1250,7 +1307,7 @@ describe('RequestScopedLlmClient.completeWithSchema — reasoning option forward
           maxTokens: 6000,
         }),
     );
-    expect(calls[0]?.body.thinking).toBeUndefined();
+    expect(calls[0]?.body.thinking).toEqual({ type: 'disabled' });
     expect(calls[0]?.body.tool_choice).toEqual({ type: 'tool', name: 'submit_hearing_claims' });
   });
 });

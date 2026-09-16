@@ -88,6 +88,13 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
   const feed = useLwFeed(scope, source, order, work);
   const { items, counts, workStateCounts } = useLwFeedItems(feed);
 
+  // Selected scope-lens client (null on All clients); ID-matched display
+  // fallback only — the client-scoped feed omits clientName by design.
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.id === scope) ?? null,
+    [clients, scope],
+  );
+
   const openAlertId = suppressAlert ? null : searchParams.get('alert');
 
   const updateView = (
@@ -118,12 +125,14 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
     if (arrange !== 'byClient') return null;
     const map = new Map<string, FeedItem[]>();
     for (const it of filtered) {
-      const key = it.clientName ?? it.clientId;
+      // Same ID-matched rule as the row label.
+      const key = it.clientName
+        ?? (selectedClient && it.clientId === selectedClient.id ? selectedClient.name : it.clientId);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(it);
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [filtered, arrange]);
+  }, [filtered, arrange, selectedClient]);
 
   const setAlert = (id: string | null) => {
     setSearchParams(
@@ -242,7 +251,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
               {src} · {ageLabel(it.createdAt)}
             </span>
           </div>
-          <span className="lw-prow__client">{clientAttribution(it)}</span>
+          <span className="lw-prow__client">{clientAttribution(it, selectedClient)}</span>
           <div className="lw-prow__title">{it.title}</div>
           {it.whyItMatters ? (
             <div className="lw-prow__block">

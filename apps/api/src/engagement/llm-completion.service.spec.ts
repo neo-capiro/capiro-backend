@@ -222,10 +222,10 @@ describe('LlmCompletionService — request shaping', () => {
 
   // Zero-trust Wave 1 (RC8): temperature reaches the Anthropic wire; omitted
   // when unset; NEVER sent to OpenAI (reasoning models 400 on it).
-  test('temperature passes through on Anthropic, omitted when unset, never sent to OpenAI', async () => {
+  test('temperature is omitted on upgraded Sonnet and OpenAI requests', async () => {
     const a = makeService([okAnthropic]);
     await a.svc.complete({ ...anthReq, temperature: 0.2 });
-    expect(a.calls[0]!.body.temperature).toBe(0.2);
+    expect(a.calls[0]!.body.temperature).toBeUndefined();
 
     const b = makeService([okAnthropic]);
     await b.svc.complete(anthReq);

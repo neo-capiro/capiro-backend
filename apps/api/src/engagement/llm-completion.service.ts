@@ -1,3 +1,4 @@
+import { upgradeTextModel, prepareOpenAiResponsesRequest, prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * LlmCompletionService — the D1 hardened completion client (plan §3.1, Wave 3).
  *
@@ -173,7 +174,7 @@ export class LlmCompletionService {
     // counter distinguishes one slow call from several fast ones. Outside an
     // active Context Plane scope this is a no-op, so non-governed callers and
     // unit tests are unaffected.
-    return contextStageTimer.time('provider', () => this.completeInner(req));
+    return contextStageTimer.time('provider', () => this.completeInner({ ...req, model: upgradeTextModel(req.model) }));
   }
 
   /**
@@ -199,7 +200,7 @@ export class LlmCompletionService {
     req: LlmCompletionRequest,
     onProgress: (rawTextSoFar: string) => void,
   ): Promise<LlmCompletionResult> {
-    return contextStageTimer.time('provider', () => this.completeStreamingInner(req, onProgress));
+    return contextStageTimer.time('provider', () => this.completeStreamingInner({ ...req, model: upgradeTextModel(req.model) }, onProgress));
   }
 
   private async completeStreamingInner(
@@ -532,7 +533,7 @@ export class LlmCompletionService {
       // unconditional field would 400 the model this service runs on today.
       const openAiReasoning =
         req.reasoningEffort && openAiSupportsReasoningEffort(req.model)
-          ? { reasoning: { effort: openAiReasoningEffort(req.reasoningEffort) } }
+          ? { reasoning: { effort: openAiReasoningEffort(req.reasoningEffort, req.model) } }
           : {};
       return {
         url: 'https://api.openai.com/v1/responses',
@@ -540,7 +541,7 @@ export class LlmCompletionService {
           Authorization: `Bearer ${req.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: {
+        body: prepareOpenAiResponsesRequest({
           model: req.model,
           ...(req.pdfInput ? { store: false } : {}),
           // Omit `instructions` when there is no system prompt (legacy v1 path).
@@ -557,7 +558,7 @@ export class LlmCompletionService {
               schema: req.jsonSchema,
             },
           },
-        },
+        }),
       };
     }
     // Anthropic Messages. Structured output is requested by appending the schema
@@ -596,7 +597,7 @@ export class LlmCompletionService {
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: {
+      body: prepareAnthropicRequest({
         model: req.model,
         // Thinking spends from max_tokens, so a caller's small explicit cap
         // (message-plan passes 2000) would otherwise be consumed by reasoning and
@@ -614,7 +615,7 @@ export class LlmCompletionService {
           : {}),
         system,
         messages: [{ role: 'user', content }],
-      },
+      }),
     };
   }
 

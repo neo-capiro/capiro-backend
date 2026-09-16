@@ -209,7 +209,7 @@ describe('InsightGeneratorService.generateClientBriefing PE section', () => {
     expect(mockCallAi).toHaveBeenCalledTimes(1);
     const callArgs = mockCallAi.mock.calls[0] as unknown[];
     expect(callArgs[3]).toBe('openai');
-    expect(callArgs[4]).toBe('gpt-4o-mini');
+    expect(callArgs[4]).toBe('gpt-6-astra');
   });
 });
 

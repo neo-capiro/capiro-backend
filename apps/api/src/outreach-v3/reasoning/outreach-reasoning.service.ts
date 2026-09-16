@@ -1,3 +1,4 @@
+import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { createHash, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -90,7 +91,7 @@ export class OutreachReasoningService {
     }
     if (!credential) throw providerUnavailable();
 
-    const model = process.env.OUTREACH_V3_REASONING_MODEL?.trim() || credential.model;
+    const model = upgradeTextModel(process.env.OUTREACH_V3_REASONING_MODEL?.trim() || credential.model);
     if (!model || model.length > 160) {
       throw new OutreachReasoningError(
         'OUTREACH_REASONING_PROVIDER_UNAVAILABLE',

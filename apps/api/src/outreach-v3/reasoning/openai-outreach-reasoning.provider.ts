@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Injectable } from '@nestjs/common';
 import { AiCredentialResolverService } from '../../ai-credentials/ai-credential-resolver.service.js';
 import {
@@ -125,7 +126,7 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
       );
     }
 
-    const model = input.model.trim() || credential.model;
+    const model = upgradeTextModel(input.model.trim() || credential.model);
     const referencedToolResults: ReasoningToolResultRef[] = [];
     let totalToolCalls = 0;
     let previousResponseId = input.previousResponseId;
@@ -290,7 +291,7 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(prepareOpenAiResponsesRequest(body)),
         signal: controller.signal,
       });
 
@@ -332,7 +333,7 @@ export class OpenAiOutreachReasoningProvider implements OutreachReasoningProvide
 }
 
 function supportsReasoningEffort(model: string): boolean {
-  return /^(gpt-5|o[1-9])/i.test(model);
+  return /^(gpt-[56]|o[1-9])/i.test(model);
 }
 
 function extractOutputText(response: OpenAiResponse): string {

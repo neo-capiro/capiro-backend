@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest, prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { promises as dns } from 'node:dns';
 import {
   BadRequestException,
@@ -1738,13 +1739,13 @@ export class ClientProfileFillService {
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareOpenAiResponsesRequest({
           model,
           instructions: system,
           input: prompt,
           max_output_tokens: 3000,
           text: { format: { type: 'json_schema', name: 'client_profile_enrichment', strict: true, schema } },
-        }),
+        })),
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`OpenAI extraction HTTP ${response.status}`);
@@ -1782,14 +1783,14 @@ export class ClientProfileFillService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model,
           max_tokens: 3000,
           system,
           messages: [
             { role: 'user', content: `${prompt}\n\nReturn JSON matching this schema exactly:\n${JSON.stringify(schema)}` },
           ],
-        }),
+        })),
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`Anthropic extraction HTTP ${response.status}`);

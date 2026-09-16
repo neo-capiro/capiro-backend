@@ -16,6 +16,7 @@ import type {
   FeedResponse,
   FeedSourceType,
 } from '../../../../pages/clients/tracker/intel-feed-api.js';
+import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 export type { FeedItem, FeedResponse, FeedSourceType };
 
@@ -205,12 +206,17 @@ export function ageLabel(iso: string | null | undefined, now = Date.now()): stri
 }
 
 /** §8.8 — client attribution is exact: one client named, several counted. */
-export function clientAttribution(item: FeedItem): string {
-  // The feed row carries one owning client; combined/client-count display comes
-  // from the server when a packet spans clients (a count, never a truncated list).
-  // PR C §16: a null clientName means the row's clientId is not in the CURRENT
-  // tenant directory (archived-then-excluded, renamed-away, or deleted client —
-  // historical feed rows legitimately outlive the client). Label it honestly as
-  // a historical reference; never fabricate a name.
-  return item.clientName ?? 'Historical client';
+export function clientAttribution(
+  item: FeedItem,
+  /** The selected scope-lens client; used only as an ID-matched display
+   *  fallback — the backend resolves clientName on the tenant roll-up only,
+   *  so a client-scoped feed's own rows take their name from here. */
+  selectedClient?: Client | null,
+): string {
+  // A null clientName whose owner id is NOT the selected client means the id
+  // is not in the current tenant directory (archived/renamed/deleted client —
+  // PR C §16): keep the honest "Historical client" label; never fabricate.
+  if (item.clientName) return item.clientName;
+  if (selectedClient && item.clientId === selectedClient.id) return selectedClient.name;
+  return 'Historical client';
 }

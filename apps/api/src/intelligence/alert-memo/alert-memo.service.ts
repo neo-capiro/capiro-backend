@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import {
   ForbiddenException,
   Injectable,
@@ -890,7 +891,7 @@ export class AlertMemoService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model,
           max_tokens: 2000,
           // Zero-trust Wave 1 (RC8): memos restate bill numbers/vote counts —
@@ -899,7 +900,7 @@ export class AlertMemoService {
           temperature: 0.2,
           system,
           messages: [{ role: 'user', content: prompt }],
-        }),
+        })),
         signal: controller.signal,
       });
       const json = (await res.json()) as Record<string, unknown>;

@@ -9,6 +9,79 @@ const quote = (identifier: string): string => `"${identifier.replace(/"/g, '""')
 type Reference = { tableName: string; columnName: string; immutableGuards?: string[] };
 type Tx = Prisma.TransactionClient;
 
+/** Public hearing→bill agenda links. UNIQUE(hearing_id, bill_id): both sides of
+ * a reviewed pair can legitimately link the same bill, so this table is never
+ * blindly relocated like scalar reference columns. */
+const BILL_LINK_TABLE = 'committee_hearing_bill';
+const BILL_LINK_COLUMN = 'hearing_id';
+
+type BillLinkRow = {
+  id: string;
+  hearingId: string;
+  billId: string;
+  congress: number;
+  /** Microsecond-precise UTC text. A JS Date would truncate to milliseconds
+   * and hide sub-ms evidence changes from the reviewed plan hash. */
+  syncedText: string;
+  /** Canonical engine-rendered row text (id|hearing_id|bill_id|congress|synced). */
+  rowText: string;
+  side: 'alias' | 'canonical';
+  disposition: 'retained' | 'moved' | null;
+};
+type BillLinkDisposition = { rows: BillLinkRow[]; retained: string[]; moved: string[] };
+type CountedReference = Reference & {
+  source: number;
+  target: number;
+  /** Exact bill-link rows (only on the bill-link reference): retained vs moved
+   * dispositions plus per-row content so a stable-count change still
+   * invalidates the reviewed hash. */
+  rows?: BillLinkRow[];
+  retained?: string[];
+  moved?: string[];
+};
+
+/** Inventory the exact bill-link rows of a reviewed pair and classify each
+ * alias-side link: RETAINED when the canonical side already links the same
+ * billId with the same Congress (the canonical link serves the same mapping),
+ * MOVED when it does not. A duplicate linking the same billId under a
+ * different Congress is never silently merged — the whole batch aborts. */
+async function billLinkInventory(
+  tx: Tx,
+  aliasId: string,
+  canonicalId: string,
+): Promise<BillLinkDisposition> {
+  const synced = `to_char(synced_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US')`;
+  const rows = await tx.$queryRawUnsafe<Array<Omit<BillLinkRow, 'side' | 'disposition'>>>(
+    `SELECT id, hearing_id AS "hearingId", bill_id AS "billId", congress,
+       ${synced} AS "syncedText",
+       id || '|' || hearing_id || '|' || bill_id || '|' || congress || '|' || ${synced} AS "rowText"
+     FROM ${quote(BILL_LINK_TABLE)} WHERE ${BILL_LINK_COLUMN} IN ($1, $2) ORDER BY id`,
+    aliasId,
+    canonicalId,
+  );
+  const canonicalBills = new Map(
+    rows.filter((row) => row.hearingId === canonicalId).map((row) => [row.billId, row]),
+  );
+  const retained: string[] = [];
+  const moved: string[] = [];
+  const classified = rows.map<BillLinkRow>((row) => {
+    const side: BillLinkRow['side'] = row.hearingId === aliasId ? 'alias' : 'canonical';
+    if (side === 'canonical') return { ...row, side, disposition: null };
+    const equivalent = canonicalBills.get(row.billId);
+    if (!equivalent) {
+      moved.push(row.id);
+      return { ...row, side, disposition: 'moved' };
+    }
+    if (equivalent.congress !== row.congress)
+      throw new Error(
+        `conflicting Congress on committee_hearing_bill link for bill ${row.billId} (${row.congress} vs ${equivalent.congress})`,
+      );
+    retained.push(row.id);
+    return { ...row, side, disposition: 'retained' };
+  });
+  return { rows: classified, retained, moved };
+}
+
 async function referenceColumns(tx: Tx): Promise<Reference[]> {
   // Soft references are deliberate in this schema. Discover every text hearing
   // ID column in the connected schema instead of maintaining an incomplete
@@ -68,7 +141,7 @@ export async function reconcileReviewedAliases(
     const children = await tx.committeeHearing.count({ where: { canonicalHearingId: alias.id } });
     if (children)
       throw new Error('Alias source already has aliases; review the entire group separately');
-    const counts = [];
+    const counts: CountedReference[] = [];
     for (const ref of references) {
       const [count] = await tx.$queryRawUnsafe<Array<{ source: bigint; target: bigint }>>(
         `SELECT count(*) FILTER (WHERE ${quote(ref.columnName)} = $1) AS source,
@@ -77,8 +150,22 @@ export async function reconcileReviewedAliases(
         alias.id,
         canonical.id,
       );
-      if (count && (count.source > 0n || count.target > 0n))
-        counts.push({ ...ref, source: Number(count.source), target: Number(count.target) });
+      if (count && (count.source > 0n || count.target > 0n)) {
+        const counted: CountedReference = {
+          ...ref,
+          source: Number(count.source),
+          target: Number(count.target),
+        };
+        // Exact bill-link rows (with microsecond synced_at) feed the plan so a
+        // stable-count content change still invalidates the reviewed hash.
+        if (ref.tableName === BILL_LINK_TABLE && ref.columnName === BILL_LINK_COLUMN) {
+          const inventory = await billLinkInventory(tx, alias.id, canonical.id);
+          counted.rows = inventory.rows;
+          counted.retained = inventory.retained;
+          counted.moved = inventory.moved;
+        }
+        counts.push(counted);
+      }
     }
     plans.push({ review, alias, canonical, references: counts });
   }
@@ -116,6 +203,27 @@ export async function reconcileReviewedAliases(
   if (options.apply) {
     for (const plan of plans) {
       for (const ref of plan.references.filter((r) => r.source > 0)) {
+        // The bill-link table is UNIQUE(hearing_id, bill_id): both sides of the
+        // pair legitimately link the same bill. Relocate ONLY the non-overlapping
+        // rows, by exact id — never the blind per-column UPDATE, which would
+        // collide with the canonical side's equivalent link (23505) and abort
+        // the whole batch. Retained duplicates keep their id and synced_at.
+        if (ref.tableName === BILL_LINK_TABLE && ref.columnName === BILL_LINK_COLUMN) {
+          for (const id of ref.moved ?? []) {
+            const affected = await tx.$executeRawUnsafe(
+              `UPDATE ${quote(ref.tableName)} SET ${quote(ref.columnName)} = $2
+               WHERE ${quote(ref.columnName)} = $1 AND id = $3`,
+              plan.review.aliasId,
+              plan.review.canonicalId,
+              id,
+            );
+            if (affected !== 1)
+              throw new Error(
+                `committee_hearing_bill row ${id} moved or vanished since the plan was built`,
+              );
+          }
+          continue;
+        }
         await tx.$executeRawUnsafe(
           `UPDATE ${quote(ref.tableName)} SET ${quote(ref.columnName)} = $2 WHERE ${quote(ref.columnName)} = $1`,
           plan.review.aliasId,
@@ -138,6 +246,6 @@ export async function reconcileReviewedAliases(
     plans,
     readyToApply: blockedOperations.length === 0,
     blockedOperations,
-    note: 'Both hearing rows retained. Same-schema references move atomically; a uniqueness/FK conflict aborts the whole batch. Embedded JSON and other-database links retain legacy IDs resolved by the API.',
+    note: 'Both hearing rows retained. Same-schema references move atomically; a uniqueness/FK conflict aborts the whole batch. Duplicate public bill links already present on the canonical side are retained in place on the alias side (same row id, billId, Congress and synced_at — the canonical link serves the same mapping); only non-overlapping bill links move. Embedded JSON and other-database links retain legacy IDs resolved by the API.',
   };
 }

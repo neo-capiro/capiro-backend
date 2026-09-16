@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import {
   BadRequestException,
   ConflictException,
@@ -1145,7 +1146,7 @@ export class MeriResearchService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepareAnthropicRequest({
               model,
               max_tokens: thinking.maxTokens,
               // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
@@ -1156,7 +1157,7 @@ export class MeriResearchService {
               system,
               tools: toolSchemas,
               messages,
-            }),
+            })),
             signal: auth.signal
               ? AbortSignal.any([controller.signal, auth.signal])
               : controller.signal,
@@ -1421,7 +1422,7 @@ export class MeriResearchService {
               'anthropic-version': '2023-06-01',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
+            body: JSON.stringify(prepareAnthropicRequest({
               model,
               max_tokens: thinking.maxTokens,
               // Zero-trust Wave 1 (RC8): temperature 0.2 on the figure-heavy
@@ -1432,7 +1433,7 @@ export class MeriResearchService {
               system,
               // No `tools` key → the model cannot call tools and must answer.
               messages,
-            }),
+            })),
             signal: auth.signal
               ? AbortSignal.any([controller.signal, auth.signal])
               : controller.signal,
@@ -1961,12 +1962,12 @@ export class MeriResearchService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model,
           max_tokens: 1500,
           system,
           messages: [{ role: 'user', content: user }],
-        }),
+        })),
         signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
       });
       if (!response.ok) {

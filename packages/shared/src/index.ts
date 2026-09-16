@@ -3514,6 +3514,10 @@ export interface ModelPrice {
  * Update when provider pricing changes or a new model is adopted.
  */
 export const AI_PRICING: Record<string, ModelPrice> = {
+  // Public base rates verified 2026-09-15. Existing estimates do not apply
+  // cache discounts or long-context surcharges; old rows remain interpretable.
+  'gpt-6-astra': { inputPerM: 10.0, outputPerM: 50.0 },
+  'claude-sonnet-5': { inputPerM: 2.0, outputPerM: 10.0 },
   // OpenAI
   'gpt-5': { inputPerM: 1.25, outputPerM: 10.0 },
   'gpt-4.1': { inputPerM: 2.0, outputPerM: 8.0 },

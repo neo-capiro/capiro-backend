@@ -99,7 +99,7 @@ describe('OpenAiResponsesClient', () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const sent = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(sent).toMatchObject({
-      model: 'gpt-5.6',
+      model: 'gpt-6-astra',
       store: false,
       parallel_tool_calls: true,
       max_output_tokens: 24576,

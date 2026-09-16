@@ -462,7 +462,9 @@ export function HearingDetailRoute() {
           </div>
 
           <div className="lw-detail__sidebar">
-            <SavedHearingSessions hearingId={hearingId} />
+            {/* Use the resolved event ID so the saved-session response matches
+                the hook's identity check when this URL contains an alias. */}
+            <SavedHearingSessions hearingId={e.id} />
           </div>
       </div>
 

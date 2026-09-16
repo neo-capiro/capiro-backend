@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import {
   BadRequestException,
   ConflictException,
@@ -587,12 +588,12 @@ export class HillDayGenerationService {
             'anthropic-version': '2023-06-01',
             'content-type': 'application/json',
           },
-          body: JSON.stringify({
+          body: JSON.stringify(prepareAnthropicRequest({
             model: cred.model,
             max_tokens: UNIT_MAX_TOKENS,
             system,
             messages: [{ role: 'user', content: user }],
-          }),
+          })),
           signal: controller.signal,
         });
         if (!res.ok) {
