@@ -89,4 +89,3 @@ See `docs/handoff/pe-vnext-module-map.md` for the canonical PE surface.
 - Hearing capability as a stored field on the schedule row (resolved ad hoc via `resolve-stream`).
 - Hearing schedule date-range window param.
 - Per-worklist-bucket count endpoint.
-- Watch presets + 30-day backtest preview.

@@ -40,7 +40,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
-import type { SignalFamily } from './legiwatch-wave2-watch-backtest-matcher.js';
+
+/**
+ * The Feed's own source-family vocabulary (bill | hearing | regulation |
+ * program_element | state_bill — the web client's `FeedSourceType` minus its
+ * `combined` aggregate). This was previously imported from the W2-4 backtest
+ * matcher; that feature (watch presets + backtest) was removed, and the union
+ * is declared here directly as a TYPE only — the coverage service never needs
+ * a runtime array of the families.
+ */
+export type SignalFamily = 'bill' | 'hearing' | 'regulation' | 'program_element' | 'state_bill';
 
 export type ConceptStatus = 'COVERED' | 'PARTIAL' | 'UNSUPPORTED' | 'STALE' | 'UNAVAILABLE';
 export type OverallStatus = ConceptStatus | 'NOT_CONFIGURED';

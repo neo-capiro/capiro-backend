@@ -364,7 +364,7 @@ export function VNextPersonalPage() {
 
       <SvCard
         title="Watchlist / monitoring setup"
-        description="Manage LegiWatch watch presets — pause, resume, or archive the watches that drive your clients' legislative intelligence."
+        description="Manage the client watchlists and monitoring settings used by LegiWatch."
       >
         <div className="stv-row">
           <CapiroButton

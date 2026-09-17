@@ -1,4 +1,4 @@
-/** Canonical client targeting is distinct from the additive watch presets. */
+/** Canonical client targeting surface. */
 export function watchlistSetupPath(clientId?: string): string {
   return `/legiwatch?tab=settings&sub=watchlist${clientId ? `&client=${encodeURIComponent(clientId)}` : ''}`;
 }
