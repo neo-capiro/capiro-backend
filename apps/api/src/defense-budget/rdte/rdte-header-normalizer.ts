@@ -58,6 +58,12 @@ export const HEADER_FISCAL_LABEL_KIND_V1_VALUES = [
   'cost_to_complete',
   'total_cost',
   'quantity',
+  /** "Prior\nYears" -- the cumulative total of all funding before the
+   * earliest year shown on the exhibit. Deliberately distinct from
+   * `prior_year_relative` (PY, a single specific year): this column names
+   * no single fiscal year at all, by design (RDT&E budget exhibits print
+   * it as one lump sum spanning an unspecified number of prior years). */
+  'prior_years_cumulative',
   'unlabeled',
 ] as const;
 export const headerFiscalLabelKindV1Schema = z.enum(HEADER_FISCAL_LABEL_KIND_V1_VALUES);
@@ -124,6 +130,15 @@ const PROJECTION_RE = /\bproj(?:ection)?\b|\boutyear\b/i;
 const CTC_RE = /\bcost\s*to\s*complete\b/i;
 const TOTAL_COST_RE = /\btotal\s*cost\b/i;
 const QUANTITY_RE = /\bqty\b|\bquantity\b/i;
+/** Matches the literal phrase "Prior Year(s)" (e.g. the real printed header
+ * "Prior\nYears", normalized to "Prior Years"). Deliberately NOT the bare
+ * `\bPY\b` token `PY_RE` already matches -- "Prior Years" contains no
+ * isolated "PY" substring, so it silently fell all the way through to
+ * `unlabeled` before this was added, which meant a genuinely populated cell
+ * in that column (rather than the far more common blank/"-" cell) tripped
+ * the per-cell `unresolved_column_role` omission with no header-level
+ * signal at all. */
+const PRIOR_YEARS_CUMULATIVE_RE = /\bprior\s+years?\b/i;
 
 /**
  * Normalize a block of raw header rows into one canonical header.
@@ -235,6 +250,17 @@ function classifyHeaderText(
       fiscalLabelKind: 'quantity',
       componentLabel: 'none',
       stageLabel: 'none',
+    };
+  }
+  if (
+    PRIOR_YEARS_CUMULATIVE_RE.test(text) &&
+    !FY_EXPLICIT_RE.test(text) &&
+    !YEAR_BARE_RE.test(text)
+  ) {
+    return {
+      fiscalLabelKind: 'prior_years_cumulative',
+      componentLabel: 'none',
+      stageLabel: 'actual',
     };
   }
 
