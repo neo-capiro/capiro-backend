@@ -56,26 +56,7 @@ import {
   extractR2aStructuralHeaderV1,
   groupR2aPagesByStructuralIdentityV1,
 } from './r2a-structural-project-header-parser-v1.js';
-
-function makeBlock(blockIndex: number, blockType: LayoutBlockV1['blockType'], text: string): LayoutBlockV1 {
-  return { blockIndex, blockType, text };
-}
-
-const COST_HEADER = [
-  'COST ($ in Millions)',
-  'Prior\nYears',
-  'FY 2022',
-  'FY 2023',
-  'FY 2024\nBase',
-  'FY 2024\nOCO',
-  'FY 2024\nTotal',
-  'FY 2025',
-  'FY 2026',
-  'FY 2027',
-  'FY 2028',
-  'Cost To\nComplete',
-  'Total\nCost',
-];
+import { COST_HEADER, makeBlock } from './r2a-test-fixtures.js';
 
 function costTable(
   peCell: string,
@@ -128,13 +109,21 @@ function r2PeSummaryPageWithFootnote(withSuppressionFootnote: boolean): ParserPa
 
 /** A genuine R-2A project page (the shape that must keep matching after the
  * fix) -- real print: "Exhibit R-2A, RDT&E Project Justification: PB 2024
- * Army", with both a PE cell and a Project cell. */
-function genuineR2aProjectPage(page: number): ParserPageResultV1 {
+ * Army", with both a PE cell and a Project cell. `withSuppressionFootnote`
+ * appends the same real footnote text used above (it can legitimately
+ * appear on a genuine R-2A project page too, e.g. printed for a SIBLING
+ * project's own suppressed exhibit note) so the "footnote or not" claim in
+ * the test name is actually exercised in both directions, not just assumed. */
+function genuineR2aProjectPage(page: number, withSuppressionFootnote = false): ParserPageResultV1 {
   const marker = 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army';
+  const footnote =
+    "*This project's R-2a exhibit has been suppressed due to funding not beginning until after FY 2024";
+  const blocks: LayoutBlockV1[] = [makeBlock(0, 'header', marker)];
+  if (withSuppressionFootnote) blocks.push(makeBlock(1, 'paragraph', footnote));
   return {
     page,
-    text: `${marker}\nPE ${PE.peCode}: ${PE.peTitle}\nCOST ($ in Millions)`,
-    blocks: [makeBlock(0, 'header', marker)],
+    text: [marker, `PE ${PE.peCode}: ${PE.peTitle}`, 'COST ($ in Millions)', ...(withSuppressionFootnote ? [footnote] : [])].join('\n'),
+    blocks,
     tables: [
       costTable(`PE ${PE.peCode} / ${PE.peTitle}`, 'CM7 / Collaborative Convergence Applied Research', [ROW_CM7]),
     ],
@@ -192,11 +181,13 @@ describe('R2A_MARKER_RE self-match on the real suppressed-project footnote (PE 0
   });
 
   it('NEGATIVE CONTROL A: a genuine R-2A project page (with its own project cell) must still resolve ok, footnote or not', () => {
-    const result = extractR2aStructuralHeaderV1(genuineR2aProjectPage(430));
-    expect(result.status).toBe('ok');
-    if (result.status === 'ok') {
-      expect(result.header.parentPeCode).toBe(PE.peCode);
-      expect(result.header.projectCode).toBe('CM7');
+    for (const withSuppressionFootnote of [false, true]) {
+      const result = extractR2aStructuralHeaderV1(genuineR2aProjectPage(430, withSuppressionFootnote));
+      expect(result.status).toBe('ok');
+      if (result.status === 'ok') {
+        expect(result.header.parentPeCode).toBe(PE.peCode);
+        expect(result.header.projectCode).toBe('CM7');
+      }
     }
   });
 
