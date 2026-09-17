@@ -35,7 +35,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from '@jest/globals';
 import type {
-  LayoutBlockV1,
   ParsedTableV1,
   ParserPageResultV1,
 } from '../../parser-router/parser-runtime-contract-v1.js';
@@ -46,6 +45,7 @@ import {
   extractR2aStructuralHeaderV1,
   groupR2aPagesByStructuralIdentityV1,
 } from './r2a-structural-project-header-parser-v1.js';
+import { COST_HEADER, makeBlock } from './r2a-test-fixtures.js';
 
 /** Structural (not imported) so this spec also compiles against the pre-fix
  * module and fails on BEHAVIOUR there -- that is the RED half of the proof. */
@@ -96,32 +96,12 @@ const REAL_R2_PAGES = [43, 44, 45, 126, 127, 132, 133, 134, 161, 164, 165];
 /* Synthetic fixtures (generic identifiers, not the real document)     */
 /* ------------------------------------------------------------------ */
 
-function makeBlock(blockIndex: number, blockType: LayoutBlockV1['blockType'], text: string): LayoutBlockV1 {
-  return { blockIndex, blockType, text };
-}
-
 function identityRow(peValue: string | null, projectValue: string | null): Array<{ rowIndex: number; columnIndex: number; text: string }> {
   const cells: Array<{ rowIndex: number; columnIndex: number; text: string }> = [];
   if (peValue != null) cells.push({ rowIndex: 0, columnIndex: 0, text: `R-1 Program Element (Number/Name)\n${peValue}` });
   if (projectValue != null) cells.push({ rowIndex: 0, columnIndex: 1, text: `Project (Number/Name)\n${projectValue}` });
   return cells;
 }
-
-const COST_HEADER = [
-  'COST ($ in Millions)',
-  'Prior\nYears',
-  'FY 2022',
-  'FY 2023',
-  'FY 2024\nBase',
-  'FY 2024\nOCO',
-  'FY 2024\nTotal',
-  'FY 2025',
-  'FY 2026',
-  'FY 2027',
-  'FY 2028',
-  'Cost To\nComplete',
-  'Total\nCost',
-];
 
 function costTable(
   tableIndex: number,
