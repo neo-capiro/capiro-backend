@@ -7,7 +7,7 @@ import {
 import type { Request } from 'express';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
+import { readVisibleClientIds } from './funding-opportunity-access.js';
 import { isStorableSource } from './funding-opportunity-identity.js';
 import { requireFundingSourceAccess } from './funding-opportunity-source-access.js';
 

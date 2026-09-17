@@ -15,9 +15,15 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
  */
 
 const getMock = vi.hoisted(() => vi.fn());
+let fundingEnabled = true;
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock }),
 }));
+vi.mock('../../../lib/intel-feature-flags.js', () => ({
+  useIntelFeature: (feature: string) => ({ enabled: feature === 'funding_opportunities' ? fundingEnabled : feature !== 'funding_opportunities_pipeline', ready: true }),
+}));
+
+let opportunityResponse: Record<string, unknown> = { total: 0, counts: { grants: 0, contracts: 0, active: 0, closed: 0 }, opportunities: [], freshness: [], provenance: [], profileGaps: null };
 
 const client: Client = {
   id: 'client-1',
@@ -37,10 +43,11 @@ const client: Client = {
   updatedAt: '2026-01-15T00:00:00.000Z',
 };
 
-function Harness() {
-  const model = useClientCrmOverviewModel(client);
+function Harness({ clientOverride = client }: { clientOverride?: Client } = {}) {
+  const model = useClientCrmOverviewModel(clientOverride);
   return (
     <div>
+      <div data-testid="funding-total">{model.intelligence.opportunities.kind === 'value' ? model.intelligence.opportunities.value : 'unavailable'}</div>
       <div data-testid="districts">
         {model.intelligence.districts.kind === 'value' ? model.intelligence.districts.value : 'unavailable'}
       </div>
@@ -63,15 +70,18 @@ function Harness() {
   );
 }
 
-function renderModel() {
+function renderModel(clientOverride = client) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <Harness />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return {
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Harness clientOverride={clientOverride} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    ),
+    queryClient,
+  };
 }
 
 const NOW = Date.now();
@@ -121,8 +131,11 @@ function mockEndpoints(overrides: {
     if (url === '/api/intelligence/clients/client-1/tracker/summary') {
       return Promise.resolve({ data: { boardCount: 0, unread: 0 } });
     }
-    if (url === '/api/intelligence/clients/client-1/opportunities/summary') {
-      return Promise.resolve({ data: { total: 0 } });
+    if (url.startsWith('/api/intelligence/opportunities/v2/search?')) {
+      return Promise.resolve({ data: opportunityResponse });
+    }
+    if (url === '/api/intelligence/clients/client-1/pipeline') {
+      return Promise.resolve({ data: { clientId: 'client-1', counts: { stages: [] }, cards: [], cardsTruncated: false } });
     }
     if (url === '/api/clients/client-1/facilities') return Promise.resolve({ data: facilities });
     if (url === '/api/intelligence/comment-alerts') return Promise.resolve({ data: { alerts: [] } });
@@ -133,6 +146,8 @@ function mockEndpoints(overrides: {
 
 beforeEach(() => {
   getMock.mockReset();
+  fundingEnabled = true;
+  opportunityResponse = { total: 0, counts: { grants: 0, contracts: 0, active: 0, closed: 0 }, opportunities: [], freshness: [], provenance: [], profileGaps: null };
 });
 
 describe('useClientCrmOverviewModel — Intel pulse districts (item 9)', () => {
@@ -148,6 +163,31 @@ describe('useClientCrmOverviewModel — Intel pulse districts (item 9)', () => {
 
     // 3 facilities, but only 2 distinct districts (WA-07 shared by two facilities).
     await waitFor(() => expect(screen.getByTestId('districts')).toHaveTextContent('2'));
+  });
+});
+
+describe('useClientCrmOverviewModel — canonical funding aggregate', () => {
+  it('shows canonical zero after the V2 search resolves, not a transient unavailable state', async () => {
+    opportunityResponse = { total: 0, counts: { grants: 0, contracts: 0, active: 0, closed: 0 }, opportunities: [], freshness: [], provenance: [], profileGaps: null };
+    mockEndpoints();
+    renderModel();
+    await waitFor(() => expect(screen.getByTestId('funding-total')).toHaveTextContent('0'));
+  });
+  it('shows an unknown aggregate as unavailable after the V2 search resolves', async () => {
+    opportunityResponse = { total: null, counts: { grants: null, contracts: null, active: null, closed: null }, opportunities: [], freshness: [], provenance: [], profileGaps: null };
+    mockEndpoints();
+    renderModel();
+    await waitFor(() => expect(getMock.mock.calls.some(([url]) => String(url).startsWith('/api/intelligence/opportunities/v2/search?'))).toBe(true));
+    await waitFor(() => expect(screen.getByTestId('funding-total')).toHaveTextContent('unavailable'));
+  });
+  it('does not expose a cached total after the master funding flag turns off', async () => {
+    opportunityResponse = { total: 13, counts: { grants: 8, contracts: 5, active: 13, closed: 0 }, opportunities: [{}], freshness: [], provenance: [], profileGaps: null };
+    mockEndpoints();
+    const rendered = renderModel();
+    await waitFor(() => expect(screen.getByTestId('funding-total')).toHaveTextContent('13'));
+    fundingEnabled = false;
+    rendered.rerender(<QueryClientProvider client={rendered.queryClient}><MemoryRouter><Harness /></MemoryRouter></QueryClientProvider>);
+    expect(screen.getByTestId('funding-total')).toHaveTextContent('unavailable');
   });
 });
 

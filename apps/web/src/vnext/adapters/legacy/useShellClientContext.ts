@@ -49,17 +49,31 @@ export function useShellClientContext(): ShellClientContextViewModel {
   const { selectedClientId, setSelectedClientId } = useClientFilter();
 
   const enabled = isClientContextEnabledForPath(location.pathname);
-  const linkedClientId = new URLSearchParams(location.search).get('clientId');
+  const isFundingRoute = location.pathname === '/intelligence/opportunities' || location.pathname.startsWith('/intelligence/opportunities/');
+  // Funding v2 stores its typed scope in the canonical `client` query
+  // field. On that route only, absence is meaningful: never leak the legacy
+  // persisted global selection into the shell header.
+  const params = new URLSearchParams(location.search);
+  const linkedClientId = params.get(isFundingRoute ? 'client' : 'clientId');
+  const fundingClientId = isFundingRoute ? linkedClientId : null;
   const selectClient = useCallback((clientId: string | null) => {
     setSelectedClientId(clientId);
     // A linked scope wins over the shared filter below. Change both on an
     // explicit selection so arriving from a client record does not lock it.
+    if (isFundingRoute) {
+      const next = new URLSearchParams(location.search);
+      if (clientId) next.set('client', clientId); else next.delete('client');
+      next.delete('clientId');
+      next.delete('page');
+      if (!clientId) next.set('mode', 'all');
+      navigate({ pathname: location.pathname, search: next.toString(), hash: location.hash });
+      return;
+    }
     if (linkedClientId === null || linkedClientId === clientId) return;
-    const params = new URLSearchParams(location.search);
-    if (clientId) params.set('clientId', clientId);
-    else params.delete('clientId');
-    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash });
-  }, [linkedClientId, location.pathname, location.search, location.hash, navigate, setSelectedClientId]);
+    const next = new URLSearchParams(location.search);
+    if (clientId) next.set('clientId', clientId); else next.delete('clientId');
+    navigate({ pathname: location.pathname, search: next.toString(), hash: location.hash });
+  }, [isFundingRoute, linkedClientId, location.pathname, location.search, location.hash, navigate, setSelectedClientId]);
 
   const clients = useQuery<Client[]>({
     queryKey: ['clients'],
@@ -81,9 +95,9 @@ export function useShellClientContext(): ShellClientContextViewModel {
     // The Dashboard rule is scope, not just presentation: report all-client
     // regardless of any persisted selection so the surface cannot narrow.
     // A client-record route is already unambiguously scoped by its canonical
-    // `clientId` query parameter. Prefer it over a stale global filter so the
+    // `client` query parameter on Funding routes. Prefer it over a stale global filter so the
     // top-bar scope badge agrees with the record on screen.
-    const effectiveClientId = enabled ? linkedClientId ?? selectedClientId : null;
+    const effectiveClientId = enabled ? (isFundingRoute ? fundingClientId : linkedClientId ?? selectedClientId) : null;
     const selected = options.find((option) => option.id === effectiveClientId) ?? null;
 
     return {
@@ -100,5 +114,5 @@ export function useShellClientContext(): ShellClientContextViewModel {
         : 'All clients',
       setSelectedClientId: selectClient,
     };
-  }, [clients.data, clients.isError, clients.isLoading, enabled, linkedClientId, selectedClientId, selectClient]);
+  }, [clients.data, clients.isError, clients.isLoading, enabled, fundingClientId, isFundingRoute, linkedClientId, selectedClientId, selectClient]);
 }

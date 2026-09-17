@@ -3,26 +3,17 @@ import { resolve } from 'node:path';
 import { INGESTION_JOBS } from '../lib/ingestion-schedule';
 
 describe('forecast ingestion registration', () => {
-  test('source and candidate jobs have separate commands, ordered schedules, and gated activation', () => {
+  test('source sync remains enabled and registered with the dispatcher', () => {
     const source = INGESTION_JOBS.find((job) => job.id === 'SyncTangoForecasts')!;
-    const candidates = INGESTION_JOBS.find(
-      (job) => job.id === 'GenerateForecastOpportunityCandidates',
-    )!;
     expect(source.command).toEqual(['sync-tango-forecasts', '--commit']);
-    expect(candidates.command).toEqual(['generate-forecast-opportunity-candidates', '--commit']);
-    expect(Number(candidates.cron.hour) * 60 + Number(candidates.cron.minute)).toBeGreaterThan(
-      Number(source.cron.hour) * 60 + Number(source.cron.minute),
-    );
     expect(source.enabled).toBe(true);
-    expect(candidates.enabled).toBe(true);
     const dispatcher = readFileSync(
       resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'),
       'utf8',
     );
-    for (const job of [source, candidates])
-      expect(dispatcher).toContain(
-        `${job.command[0]}) shift; exec ./node_modules/.bin/tsx scripts/${job.command[0]}.ts`,
-      );
+    expect(dispatcher).toContain(
+      'sync-tango-forecasts) shift; exec ./node_modules/.bin/tsx scripts/sync-tango-forecasts.ts',
+    );
   });
 });
 
@@ -90,5 +81,37 @@ describe('District Nexus R4 operational hardening: schedule registration without
 
   test('no GSA full-ingest job was added — the existing bounded-manual-entrypoint, no-recurring-schedule posture for sync-gsa-frpp is preserved', () => {
     expect(INGESTION_JOBS.find((j) => j.command[0] === 'sync-gsa-frpp')).toBeUndefined();
+  });
+});
+
+describe('Funding machine-suggestion producer retirement', () => {
+  test('removes obsolete producer jobs while retaining source sync and lifecycle', () => {
+    const retired = [
+      'GenerateFundingGrantCandidates',
+      'GenerateSamOpportunityCandidates',
+      'GenerateDibbsOpportunityCandidates',
+      'GenerateSbirOpportunityCandidates',
+      'GenerateForecastOpportunityCandidates',
+    ];
+    for (const id of retired) expect(INGESTION_JOBS.some((job) => job.id === id)).toBe(false);
+    expect(INGESTION_JOBS.find((job) => job.id === 'GenerateGrantOpportunityCandidates')?.command).toEqual([
+      'generate-grant-opportunity-candidates', '--commit',
+    ]);
+    expect(INGESTION_JOBS.find((job) => job.id === 'SyncTangoForecasts')?.command).toEqual([
+      'sync-tango-forecasts', '--commit',
+    ]);
+    expect(INGESTION_JOBS.find((job) => job.id === 'ProcessFundingOpportunityLifecycle')?.command).toEqual([
+      'process-funding-opportunity-lifecycle', '--commit',
+    ]);
+    const dispatcher = readFileSync(
+      resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'), 'utf8',
+    );
+    expect(dispatcher).toContain('generate-grant-opportunity-candidates)');
+    expect(dispatcher).toContain('sync-sam-opportunities)');
+    expect(dispatcher).toContain('process-funding-opportunity-lifecycle)');
+    for (const id of retired) {
+      const verb = id.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()).replace(/^-/, '');
+      expect(dispatcher).not.toContain(verb + ')');
+    }
   });
 });

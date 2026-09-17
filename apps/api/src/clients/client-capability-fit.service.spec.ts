@@ -5,7 +5,7 @@ import { capabilityFitFingerprint } from './client-capability-fit.fingerprint.js
 import type { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import type { TrackerService } from '../tracker/tracker.service.js';
 import type { RecommendationBill, RecommendationsResponse } from '../tracker/tracker.types.js';
-import type { FundingOpportunitiesService } from '../funding-opportunities/funding-opportunities.service.js';
+import type { FundingOpportunityV2SearchService } from '../funding-opportunities/funding-opportunity-v2-search.service.js';
 import type { FundingOpportunityListResponse } from '../funding-opportunities/funding-opportunities.types.js';
 import type { FoCapabilityFitInput } from './client-capability-fit.normalize.js';
 
@@ -166,15 +166,15 @@ describe('ClientCapabilityFitService', () => {
       foPayload = opts.fos ?? emptyFoList();
     }
 
-    const foList = jest.fn<() => Promise<FundingOpportunityListResponse>>();
+    const foList = jest.fn<() => Promise<any>>();
     if (opts.fos instanceof Error) {
       foList.mockRejectedValue(opts.fos);
     } else {
-      foList.mockResolvedValue(foPayload);
+      foList.mockResolvedValue({ opportunities: foPayload.opportunities, criteria: {} as any, page: 1, pageSize: foPayload.pageSize, total: foPayload.total, totalIsCapped: false, catalogComplete: true, counts: { grants: foPayload.counts.activeGrants, contracts: foPayload.counts.activeContracts, active: foPayload.counts.activeGrants + foPayload.counts.activeContracts, closed: 0 }, mode: 'matched', clientId, freshness: [], provenance: [], emptyReason: null, profileGaps: null, generatedAt: new Date().toISOString() });
     }
     const fundingOpportunities = {
-      listClientOpportunities: foList,
-    } as unknown as FundingOpportunitiesService;
+      search: foList,
+    } as unknown as FundingOpportunityV2SearchService;
 
     const service = new ClientCapabilityFitService(
       prisma as any,
@@ -288,7 +288,7 @@ describe('ClientCapabilityFitService', () => {
 
     expect(peRelevance.getRelevantPesForClient).not.toHaveBeenCalled();
     expect(tracker.getRecommendations).not.toHaveBeenCalled();
-    expect(fundingOpportunities.listClientOpportunities).not.toHaveBeenCalled();
+    expect(fundingOpportunities.search).not.toHaveBeenCalled();
     expect(result.matches).toHaveLength(1);
     expect(result.computedAt).toBe('2026-08-20T10:00:00.000Z');
     expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
@@ -304,7 +304,7 @@ describe('ClientCapabilityFitService', () => {
 
     expect(peRelevance.getRelevantPesForClient).not.toHaveBeenCalled();
     expect(tracker.getRecommendations).not.toHaveBeenCalled();
-    expect(fundingOpportunities.listClientOpportunities).not.toHaveBeenCalled();
+    expect(fundingOpportunities.search).not.toHaveBeenCalled();
     expect(tx.clientCapabilityFitRecommendation.upsert).not.toHaveBeenCalled();
     expect(result).toMatchObject({ matches: [], computedAt: null, status: 'empty' });
     expect(result.emptyReason).toMatch(/not computed/i);
@@ -327,7 +327,7 @@ describe('ClientCapabilityFitService', () => {
     expect(result.matches).toHaveLength(1);
     expect(peRelevance.getRelevantPesForClient).not.toHaveBeenCalled();
     expect(tracker.getRecommendations).not.toHaveBeenCalled();
-    expect(fundingOpportunities.listClientOpportunities).not.toHaveBeenCalled();
+    expect(fundingOpportunities.search).not.toHaveBeenCalled();
   });
 
   test('a refresh recomputes and upserts the cache with a fingerprint', async () => {
@@ -354,10 +354,9 @@ describe('ClientCapabilityFitService', () => {
 
     expect(peRelevance.getRelevantPesForClient).toHaveBeenCalledTimes(1);
     expect(tracker.getRecommendations).toHaveBeenCalledWith(clientId, ctx.tenantId);
-    expect(fundingOpportunities.listClientOpportunities).toHaveBeenCalledWith(
-      ctx.tenantId,
-      clientId,
-      expect.objectContaining({ activeState: 'active', page: 1, pageSize: 50 }),
+    expect(fundingOpportunities.search).toHaveBeenCalledWith(
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      expect.objectContaining({ mode: 'matched', clientId, lifecycle: ['active'], page: 1, pageSize: 50 }),
     );
     expect(tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
     const upsertArgs = (tx.clientCapabilityFitRecommendation.upsert as any).mock.calls[0][0];
@@ -481,10 +480,9 @@ describe('ClientCapabilityFitService', () => {
 
     const result = await service.getFit(ctx, clientId, { refresh: true });
 
-    expect(fundingOpportunities.listClientOpportunities).toHaveBeenCalledWith(
-      ctx.tenantId,
-      clientId,
-      expect.objectContaining({ activeState: 'active' }),
+    expect(fundingOpportunities.search).toHaveBeenCalledWith(
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      expect.objectContaining({ mode: 'matched', clientId, lifecycle: ['active'] }),
     );
     expect(result.sources).toEqual({ pe: true, bill: true, fo: true });
     // FO 88 > PE 70; below-floor FO dropped.
@@ -527,7 +525,7 @@ describe('ClientCapabilityFitService', () => {
 
     const result = await service.getFit(ctx, clientId, { refresh: true });
 
-    expect(fundingOpportunities.listClientOpportunities).toHaveBeenCalledTimes(1);
+    expect(fundingOpportunities.search).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('ready');
     expect(result.matches.some((m: { kind: string }) => m.kind === 'fo')).toBe(false);
     expect(result.matches.some((m: { kind: string }) => m.kind === 'pe')).toBe(true);
@@ -545,7 +543,7 @@ describe('ClientCapabilityFitService', () => {
     expect(result.status).toBe('profile_too_thin');
     expect(peRelevance.getRelevantPesForClient).not.toHaveBeenCalled();
     expect(tracker.getRecommendations).not.toHaveBeenCalled();
-    expect(fundingOpportunities.listClientOpportunities).not.toHaveBeenCalled();
+    expect(fundingOpportunities.search).not.toHaveBeenCalled();
     expect(tx.clientCapabilityFitRecommendation.upsert).toHaveBeenCalledTimes(1);
   });
 });

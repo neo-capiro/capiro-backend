@@ -174,7 +174,7 @@ export function billToMatch(
 
 /**
  * The FO list path attaches the scorer floor as `_meetsFloor` (see
- * `FundingOpportunitiesService.shapeScored`). Some callers / future public
+ * the canonical V2 search projection). Some callers / future public
  * shapes may use `meetsSuggestionFloor`. Accept either; invent no numeric
  * threshold here.
  */
@@ -185,7 +185,7 @@ export interface FoCapabilityFitInput {
   title: string;
   /** Already 0..100 from the FO scorer — never run through {@link pct01}. */
   relevanceScore: number;
-  matchedSignals: OpportunityMatchedSignal[];
+  matchedSignals: Array<Omit<OpportunityMatchedSignal, 'weight'> & { weight?: number }>;
   eligibility: { state: string; reason: string };
   _meetsFloor?: boolean;
   meetsSuggestionFloor?: boolean;
@@ -216,7 +216,7 @@ export function score01FromFoRelevance(relevanceScore: number): number {
  * generic capability line. No LLM, no re-phrasing beyond the shared map.
  */
 export function whyFromFo(row: {
-  matchedSignals: OpportunityMatchedSignal[];
+  matchedSignals: Array<Omit<OpportunityMatchedSignal, 'weight'> & { weight?: number }>;
   eligibility?: { reason?: string } | null;
 }): string {
   const explained = explainOpportunity(row.matchedSignals ?? []);

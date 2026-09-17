@@ -45,7 +45,7 @@
  * FORECASTS NEVER ROUTE THROUGH `recommendOpportunity` ITSELF (P25)
  * --------------------------------------------------------------------
  * A forecast has no response window and cannot be pursued or passed on in
- * the same sense an active solicitation can — `forecast-relevance.ts`'s
+ * the same sense an active solicitation can — the forecast rail's
  * `scoreForecastRelevance` is a SEPARATE function with its own four-value
  * vocabulary (`shape_now`/`monitor`/`pass`/`needs_review`) and its own rule
  * order, never this one. What THIS file exports for that function to use is
@@ -113,7 +113,7 @@ export type RecommendationConfidence = (typeof RECOMMENDATION_CONFIDENCES)[numbe
  *      briefing, program-office research, a teaming conversation) are
  *      exactly that, just with more urgency than an ordinary `monitor`. The
  *      forecast-specific `forecastRecommendation` field (see
- *      forecast-relevance.ts) is where that extra urgency stays visible;
+ *      forecast recommendation contract) is where that extra urgency stays visible;
  *      the common field stays honest instead.
  */
 export const FORECAST_RECOMMENDATIONS = ['shape_now', 'monitor', 'pass', 'needs_review'] as const;

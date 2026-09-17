@@ -28,7 +28,7 @@ import { formatCompact } from '../mappers.js';
 import {
   isFitSignal,
   signalLabel,
-} from '../../../intelligence/opportunities/opportunity-explanations.js';
+} from '../../../../vnext/pages/funding-opportunities/funding-opportunities-domain.js';
 import {
   getClientDistrictNexus,
   getClientDistrictNexusV2,

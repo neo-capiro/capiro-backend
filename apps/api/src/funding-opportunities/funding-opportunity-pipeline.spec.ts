@@ -12,6 +12,7 @@ import {
   TERMINAL_STAGES,
   UNSTAGED,
   effectiveStage,
+  currentStageReason,
   foldBoardCounts,
   isPipelineStage,
   refuseTransition,
@@ -67,11 +68,15 @@ function makeService(over: Partial<PipelinePort> = {}) {
     visibleClientIds: async () => [CLIENT],
     readRow: async () => row(),
     countByStage: async () => [{ pipelineStage: 'reviewing', workflowStatus: 'saved', count: 1 }],
-    commitTransition: async (_tenantId, input) => {
-      commits.push(input);
-      return true;
-    },
+    commitTransition: async () => true,
     listForBoard: async () => [row()],
+    summary: async () => ({
+      inPipeline: 1,
+      deadlinesInside30Days: 0,
+      unassigned: 1,
+      awaitingAward: 0,
+      lastStageChange: AS_OF,
+    }),
   };
   const merged = { ...base, ...over };
   // The commit recorder wraps the MERGED port so an override still gets counted —
@@ -191,14 +196,57 @@ describe('THE RULE: an old pod writes only the legacy column, and reads stay hon
 
 // ── 2 ─ Invalid transitions fail ─────────────────────────────────────────────
 
+describe('THE RULE: stage reasons are latest, row-scoped transition facts', () => {
+  it('returns only a latest transition compatible with the recorded stage and stage time', () => {
+    const reason = currentStageReason(row({
+      pipelineStage: 'lost',
+      workflowStatus: 'lost',
+      pipelineStageAt: new Date('2026-08-09T12:00:00.000Z'),
+      stageTransitions: [
+        { id: 'new', toStage: 'lost', reason: 'Current loss', occurredAt: new Date('2026-08-09T12:00:00.000Z') },
+      ],
+    }));
+    expect(reason).toBe('Current loss');
+  });
+
+  it('does not resurrect an older reason after a newer incompatible or blank transition', () => {
+    expect(currentStageReason(row({
+      pipelineStage: 'submitted',
+      workflowStatus: 'pursuing',
+      pipelineStageAt: new Date('2026-08-10T12:00:00.000Z'),
+      stageTransitions: [
+        { id: 'new', toStage: 'submitted', reason: null, occurredAt: new Date('2026-08-10T12:00:00.000Z') },
+        { id: 'old', toStage: 'lost', reason: 'Do not leak this', occurredAt: new Date('2026-08-09T12:00:00.000Z') },
+      ],
+    }))).toBeNull();
+    expect(currentStageReason(row({
+      pipelineStage: 'lost', workflowStatus: 'lost', pipelineStageAt: AS_OF,
+      stageTransitions: [{ id: 'stale', toStage: 'lost', reason: 'Stale', occurredAt: new Date('2026-08-06T12:00:00.000Z') }],
+    }))).toBeNull();
+  });
+
+  it('does not expose a reason for legacy-derived or stale effective stages', () => {
+    expect(currentStageReason(row({
+      pipelineStage: null, workflowStatus: 'lost', stageTransitions: [
+        { id: 'legacy', toStage: 'lost', reason: 'Legacy history', occurredAt: AS_OF },
+      ],
+    }))).toBeNull();
+    expect(currentStageReason(row({
+      pipelineStage: 'pursuing', workflowStatus: 'won', stageTransitions: [
+        { id: 'stale', toStage: 'pursuing', reason: 'Stale history', occurredAt: AS_OF },
+      ],
+    }))).toBeNull();
+  });
+});
+
 describe('THE RULE: the transition graph is the only authority', () => {
   it('allows only the declared moves out of each stage', () => {
     expect(ALLOWED_TRANSITIONS[UNSTAGED]).toEqual(['reviewing']);
     expect(ALLOWED_TRANSITIONS.reviewing).toEqual(['qualified', 'passed']);
     expect(ALLOWED_TRANSITIONS.qualified).toEqual(['pursuing', 'passed']);
-    expect(ALLOWED_TRANSITIONS.pursuing).toEqual(['submitted', 'passed']);
+    expect(ALLOWED_TRANSITIONS.pursuing).toEqual(['submitted', 'lost']);
     expect(ALLOWED_TRANSITIONS.submitted).toEqual(['won', 'lost']);
-    expect(ALLOWED_TRANSITIONS.passed).toEqual(['reviewing']);
+    expect(ALLOWED_TRANSITIONS.passed).toEqual([]);
   });
 
   it('declares an entry for every stage plus the unstaged key', () => {
@@ -206,12 +254,13 @@ describe('THE RULE: the transition graph is the only authority', () => {
     expect(ALLOWED_TRANSITIONS).toHaveProperty(UNSTAGED);
   });
 
-  it('reaches won and lost ONLY from submitted', () => {
-    // A bid cannot be won if it was never submitted, and a board that allowed the
-    // jump would report conversion numbers describing nothing that happened.
+  it('reaches won only from submitted, while lost records a terminal result from pursuing or submitted', () => {
+    // A bid cannot be won if it was never submitted. A pursuit may be recorded
+    // as lost before submission when the team stops responding; both are final.
     const sources = PIPELINE_STAGES.filter((s) => (ALLOWED_TRANSITIONS[s] ?? []).includes('won'));
     expect(sources).toEqual(['submitted']);
     expect(PIPELINE_STAGES.filter((s) => (ALLOWED_TRANSITIONS[s] ?? []).includes('lost'))).toEqual([
+      'pursuing',
       'submitted',
     ]);
   });
@@ -254,15 +303,15 @@ describe('THE RULE: the transition graph is the only authority', () => {
   });
 
   it('requires a stated reason for every outcome stage', () => {
-    expect(HUMAN_ONLY_STAGES).toEqual(new Set(['submitted', 'won', 'lost', 'passed']));
+    expect(HUMAN_ONLY_STAGES).toEqual(new Set(['lost', 'passed']));
     expect(
-      refuseTransition({ from: 'pursuing', to: 'submitted', source: 'sam_gov', reason: null }),
+      refuseTransition({ from: 'pursuing', to: 'lost', source: 'sam_gov', reason: null }),
     ).toMatch(/needs a stated reason/);
     expect(
       refuseTransition({ from: 'pursuing', to: 'submitted', source: 'sam_gov', reason: '   ' }),
-    ).toMatch(/needs a stated reason/);
+    ).toBeNull();
     expect(
-      refuseTransition({ from: 'pursuing', to: 'submitted', source: 'sam_gov', reason: 'Proposal uploaded.' }),
+      refuseTransition({ from: 'pursuing', to: 'lost', source: 'sam_gov', reason: 'No bid.' }),
     ).toBeNull();
   });
 
@@ -521,6 +570,50 @@ describe('THE RULE: a forecast never reaches a pursuit or an outcome stage', () 
     expect(commits).toEqual([]);
   });
 
+  it('refuses a pursuit when canonical current source facts are unavailable, without writing', async () => {
+    const { service, commits } = makeService({
+      readRow: async () => row({ pipelineStage: 'qualified', workflowStatus: 'pursuing', currentSourceAvailable: false, currentLifecycle: null, currentCapability: null }),
+    });
+    await expect(
+      service.transition(TENANT, USER, CLIENT, ROW, { toStage: 'pursuing', expectedVersion: 3 }, AS_OF),
+    ).rejects.toThrow(/source facts are unavailable/);
+    expect(commits).toEqual([]);
+  });
+
+  it('keeps historical pursuing to submitted available when current source facts close', async () => {
+    const { service, commits } = makeService({
+      readRow: async () => row({ pipelineStage: 'pursuing', workflowStatus: 'pursuing', currentSourceAvailable: true, currentLifecycle: 'closed' }),
+    });
+    await expect(
+      service.transition(TENANT, USER, CLIENT, ROW, { toStage: 'submitted', expectedVersion: 3 }, AS_OF),
+    ).resolves.toMatchObject({ from: 'pursuing', to: 'submitted', version: 4 });
+    expect(commits).toHaveLength(1);
+    expect(commits[0]).toMatchObject({ fromStage: 'pursuing', toStage: 'submitted' });
+  });
+
+  it('does not present disabled current facts or count their deadline', async () => {
+    const { service } = makeService({
+      listForBoard: async () => [row({ currentSourceAvailable: false, currentLifecycle: null, title: null, responseDeadline: null, sourceReference: null, currentEvidence: null })],
+      summary: async () => ({ inPipeline: 1, deadlinesInside30Days: 0, unassigned: 1, awaitingAward: 0, lastStageChange: AS_OF }),
+    });
+    const board = await service.board(TENANT, USER, CLIENT);
+    expect(board.cards[0]).toMatchObject({ title: null, responseDeadline: null, lifecycle: null, sourceReference: null, currentEvidence: null, capability: { canPursue: false } });
+    expect(board.cards[0]!.allowedTransitions).not.toContain('pursuing');
+    expect(board.summary?.deadlinesInside30Days).toBe(0);
+  });
+
+  it('refuses closed and ineligible pursuits before writing', async () => {
+    for (const overrides of [{ sourceActiveSnapshot: false }, { eligibilityState: 'ineligible' }]) {
+      const { service, commits } = makeService({
+        readRow: async () => row({ pipelineStage: 'qualified', workflowStatus: 'pursuing', ...overrides }),
+      });
+      await expect(
+        service.transition(TENANT, USER, CLIENT, ROW, { toStage: 'pursuing', expectedVersion: 3 }, AS_OF),
+      ).rejects.toThrow(/closed|eligible/);
+      expect(commits).toEqual([]);
+    }
+  });
+
   it('omits the forbidden stages from a forecast card’s allowed moves', async () => {
     const { service } = makeService({
       listForBoard: async () => [
@@ -537,8 +630,6 @@ describe('THE RULE: a forecast never reaches a pursuit or an outcome stage', () 
 
 describe('THE RULE: producers cannot move a stage', () => {
   const producers = [
-    '../../scripts/generate-sam-opportunity-candidates.ts',
-    '../../scripts/generate-funding-grant-candidates.ts',
     '../../scripts/process-funding-opportunity-lifecycle.ts',
   ];
 

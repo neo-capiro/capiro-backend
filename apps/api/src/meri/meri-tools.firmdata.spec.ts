@@ -375,13 +375,10 @@ describe('query_regulatory_dockets', () => {
 describe('search_sam_opportunities', () => {
   const freshSam = {
     source: 'sam_gov',
-    verb: 'sync-sam-opportunities-all-federal',
-    lastSyncedAt: '2026-09-09T07:55:00.000Z',
-    lastRunStatus: 'success',
-    hoursSinceLastSuccess: 5,
-    neverSynced: false,
-    lastRunDegraded: false,
-    countsUnavailable: false,
+    state: 'current',
+    recordCount: 100,
+    activeRecordCount: 90,
+    lastSyncedAt: new Date(Date.now() - 5 * 3600000).toISOString(),
   };
   it('passes filters and summarizes long descriptions', async () => {
     const m = makeMocks();
@@ -404,34 +401,34 @@ describe('search_sam_opportunities', () => {
 
   it.each([
     ['clean recent source', freshSam, 'healthy', null],
-    ['stale source', { ...freshSam, hoursSinceLastSuccess: 48 }, 'degraded', 'source_sync_stale'],
+    ['stale source', { ...freshSam, lastSyncedAt: new Date(Date.now() - 48 * 3600000).toISOString() }, 'degraded', 'source_sync_stale'],
     [
       'failed attempt',
-      { ...freshSam, lastRunStatus: 'error', lastRunDegraded: true },
+      { ...freshSam, state: 'error_cached' },
       'degraded',
       'latest_source_sync_incomplete',
     ],
     [
       'partial attempt',
-      { ...freshSam, lastRunStatus: 'partial' },
+      { ...freshSam, state: 'initial_partial' },
       'degraded',
       'latest_source_sync_incomplete',
     ],
     [
       'running attempt',
-      { ...freshSam, lastRunStatus: 'running' },
+      { ...freshSam, state: 'degraded' },
       'degraded',
       'latest_source_sync_incomplete',
     ],
     [
       'never synchronized',
-      { ...freshSam, neverSynced: true, lastSyncedAt: null },
+      { ...freshSam, state: 'never_synced', lastSyncedAt: null },
       'degraded',
       'all_federal_source_never_synced',
     ],
     [
       'unreadable health',
-      { ...freshSam, countsUnavailable: true },
+      { ...freshSam, state: 'unknown', recordCount: null },
       'unknown',
       'source_freshness_unavailable',
     ],

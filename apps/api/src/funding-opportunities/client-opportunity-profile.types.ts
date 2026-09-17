@@ -34,7 +34,7 @@
 
 import type { AwardMatchBasis } from './award-history-identity.js';
 import type { ClientRelevanceProfile } from '../district-nexus/grant-opportunity-relevance.js';
-import type { SamClientProfile } from './sam-opportunity-relevance.js';
+import type { SamClientProfile } from './opportunity-profile.types.js';
 import type { ProfileCompleteness } from './missing-profile-fields.js';
 
 export const CLIENT_OPPORTUNITY_PROFILE_VERSION = 'v2' as const;

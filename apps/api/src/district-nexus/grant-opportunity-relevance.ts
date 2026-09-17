@@ -41,7 +41,7 @@ export type SignalStrength = 'strong' | 'moderate' | 'weak';
  * them separate is what stops "nudge the weight up" from quietly promoting a
  * topical guess into a sufficient reason to surface something. The Funding
  * Opportunities read path reports the band to the UI so a weak match can say why
- * it is weak, and the SAM engine (sam-opportunity-relevance.ts) uses the same
+ * it is weak, and the canonical Funding profile contracts use the same
  * three-band vocabulary so both rails explain themselves the same way.
  */
 export const SIGNAL_STRENGTH: Readonly<Record<RelevanceSignalKey, SignalStrength>> = Object.freeze({

@@ -24,12 +24,8 @@
   },
   "include": [
     "src/types/word-extractor.d.ts",
-    "scripts/generate-sam-opportunity-candidates.ts",
-    "scripts/generate-funding-grant-candidates.ts",
-    "scripts/generate-funding-grant-candidates.spec.ts",
     "scripts/process-funding-opportunity-lifecycle.ts",
     "scripts/process-funding-opportunity-lifecycle.spec.ts",
-    "scripts/generate-sam-opportunity-candidates.spec.ts",
     "scripts/match-contractor-identifiers.ts",
     "scripts/backfill-sam-opportunity-fields.ts",
     "scripts/backfill-sam-opportunity-fields.spec.ts",
@@ -79,8 +75,6 @@
     // P24: agency forecast incremental sync.
     "scripts/sync-tango-forecasts.ts",
     "scripts/sync-tango-forecasts.spec.ts",
-    "scripts/generate-forecast-opportunity-candidates.ts",
-    "scripts/generate-forecast-opportunity-candidates.spec.ts",
     // P27: Tango<->SAM shadow sync and the read-only parity report.
     "scripts/sync-tango-opportunity-shadow.ts",
     "scripts/sync-tango-opportunity-shadow.spec.ts",
@@ -126,14 +120,6 @@
     "scripts/sync-tango-dibbs.spec.ts",
     "scripts/sync-tango-sbir.ts",
     "scripts/sync-tango-sbir.spec.ts",
-    // Matching producers: DIBBS/SBIR relevance scoring shipped dark (built,
-    // tested, never called) until these — the only path to visibility, since
-    // neither source has a live read-time scoring path. Dry-run by default.
-    "scripts/generate-dibbs-opportunity-candidates.ts",
-    "scripts/generate-dibbs-opportunity-candidates.spec.ts",
-    "scripts/generate-sbir-opportunity-candidates.ts",
-    "scripts/generate-sbir-opportunity-candidates.spec.ts",
-    "scripts/test-funding-opportunity-action-concurrency.ts",
     "src/types/word-extractor.d.ts"
   ],
   "exclude": ["node_modules", "dist"]

@@ -16,7 +16,6 @@ jest.mock('../memory/memory-recall-suppression.helpers.js', () => ({ governedRec
 jest.mock('../memory/memory-wall.helpers.js', () => ({ clientMemoryAllowed: jest.fn() }));
 jest.mock('../directory/directory.service.js', () => ({ DirectoryService: class {} }));
 jest.mock('../federal-spending/federal-market.service.js', () => ({ FederalMarketService: class {} }));
-jest.mock('../funding-opportunities/funding-opportunities.service.js', () => ({ FundingOpportunitiesService: class {} }));
 jest.mock('../program-element/program-element-read.service.js', () => ({ ProgramElementReadService: class {} }));
 jest.mock('../district-nexus/district-nexus.service.js', () => ({ DistrictNexusService: class {} }));
 jest.mock('../district-nexus/district-nexus-strategic.service.js', () => ({ DistrictNexusStrategicService: class {} }));

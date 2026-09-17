@@ -8,8 +8,11 @@ import {
   isLabelledSignal,
   labelledSignalKeys,
 } from './opportunity-explanation.js';
-import { SAM_RELEVANCE_SIGNALS, SAM_SIGNAL_STRENGTH } from './sam-opportunity-relevance.js';
-import { RELEVANCE_SIGNALS, SIGNAL_STRENGTH } from '../district-nexus/grant-opportunity-relevance.js';
+import { SAM_RELEVANCE_SIGNALS, SAM_SIGNAL_STRENGTH } from './opportunity-profile.types.js';
+import {
+  RELEVANCE_SIGNALS,
+  SIGNAL_STRENGTH,
+} from '../district-nexus/grant-opportunity-relevance.js';
 
 /**
  * P09 — the explanation vocabulary.
@@ -167,10 +170,13 @@ describe('the explanation does not depend on input order', () => {
 
 describe('thin and conflicting profiles stay honest', () => {
   test('grant explanations use the grant floor for a priority with independent sector evidence', () => {
-    const result = explainOpportunity([
-      { ...sig('capabilityKeyword', 'moderate', 'rural broadband'), source: 'funding_priority' },
-      sig('sector', 'weak', 'education'),
-    ], 'grants_gov');
+    const result = explainOpportunity(
+      [
+        { ...sig('capabilityKeyword', 'moderate', 'rural broadband'), source: 'funding_priority' },
+        sig('sector', 'weak', 'education'),
+      ],
+      'grants_gov',
+    );
     expect(result.weakOnly).toBe(false);
   });
   test('eligibility context never becomes fit evidence, even with old strong metadata', () => {
@@ -243,31 +249,28 @@ describe('thin and conflicting profiles stay honest', () => {
   });
 });
 
-// ── The card leads with the recommendation, not a number ───────────────────
-
-describe('the card no longer leads with a machine key or a bare score', () => {
+describe('the surviving v2 card leads with evidence, not a bare score', () => {
   const card = readFileSync(
-    join(__dirname, '../../../web/src/pages/intelligence/opportunities/OpportunityCard.tsx'),
+    join(
+      __dirname,
+      '../../../web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx',
+    ),
     'utf8',
   );
-  const mirror = readFileSync(
-    join(__dirname, '../../../web/src/pages/intelligence/opportunities/opportunity-explanations.ts'),
+  const domain = readFileSync(
+    join(
+      __dirname,
+      '../../../web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts',
+    ),
     'utf8',
   );
 
-  test('the web mirror labels every signal the API labels', () => {
-    for (const key of labelledSignalKeys()) {
-      expect(mirror).toContain(`${key}:`);
-    }
+  test('the v2 domain mirrors every API-labelled signal key', () => {
+    for (const key of labelledSignalKeys()) expect(domain).toContain(`${key}:`);
   });
 
-  test('the card renders a fit band', () => {
-    expect(card).toMatch(/Strong fit|fitLabel|FIT_BAND_LABELS/);
-  });
-
-  test('the numeric relevance sits behind a disclosure, not in the headline', () => {
-    // Kept, not deleted: an operator auditing a match needs the number. It just
-    // must not be the first thing the card says.
-    expect(card).toMatch(/Collapse|Panel|evidence/i);
+  test('the card renders match presentation and keeps numeric relevance behind evidence disclosure', () => {
+    expect(card).toMatch(/getFundingOpportunityMatchPresentation|matchedSignals/);
+    expect(card).toMatch(/evidenceOpen|Evidence|evidence/i);
   });
 });

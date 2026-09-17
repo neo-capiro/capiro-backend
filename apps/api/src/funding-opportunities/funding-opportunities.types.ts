@@ -3,7 +3,7 @@
  * truth for it.
  *
  * The web app mirrors this file in
- * `apps/web/src/pages/intelligence/opportunities/funding-opportunities-api.ts`
+ * `apps/web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts`
  * with a "Mirrors …" docblock, per the repo's dominant convention (see
  * district-nexus.types.ts's note): `packages/shared` is reserved for constants
  * both sides genuinely need at RUNTIME, not for type mirroring.

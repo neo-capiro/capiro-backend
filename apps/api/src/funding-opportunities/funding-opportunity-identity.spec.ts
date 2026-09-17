@@ -38,6 +38,7 @@ describe('the two vocabularies are deliberately different sizes', () => {
       'agency_forecast',
       'dibbs',
       'sbir_sttr',
+      'ca_portal',
     ]);
   });
 
@@ -162,10 +163,7 @@ describe('malformed combinations fail closed', () => {
     expect(() => assertRequestSourceRecordId('grants_gov', 'DE-FOA-0001')).not.toThrow();
   });
 
-  test('the request-path check is wired into the service and the path parser', () => {
-    const service = readFileSync(join(__dirname, 'funding-opportunities.service.ts'), 'utf8');
-    // Every workflow write and read reaches the database through findWorkflowRow.
-    expect(service).toMatch(/assertRequestSourceRecordId\(source, sourceRecordId\);/);
+  test('the path parser still enforces request source-id validation', () => {
     const identity = readFileSync(join(__dirname, 'funding-opportunity-identity.ts'), 'utf8');
     const parser = identity.slice(identity.indexOf('export function parseSourceRecordPath'));
     expect(parser).toContain('assertRequestSourceRecordId(');
@@ -367,11 +365,17 @@ describe('the migration expands and never narrows', () => {
     }
   });
 
-  test('the source vocabulary is widened, never narrowed', () => {
+  test('the historical migration widens to the five sources known at that milestone', () => {
     const chk = sql.match(/"client_funding_opportunity_source_chk"\s*\n?\s*CHECK[^;]*;/)?.[0] ?? '';
-    for (const source of STORABLE_OPPORTUNITY_SOURCES) {
+    for (const source of ['grants_gov', 'sam_gov', 'agency_forecast', 'dibbs', 'sbir_sttr']) {
       expect(chk).toContain(`'${source}'`);
     }
+    expect(chk).not.toContain("'ca_portal'");
+  });
+
+  test('the later California migration admits the current sixth source', () => {
+    const current = readFileSync(join(__dirname, '../../prisma/migrations/20260916170000_california_workflow_identity/migration.sql'), 'utf8');
+    expect(current).toContain("'ca_portal'");
   });
 
   test('the exclusivity CHECK still REQUIRES the legacy pointer for a legacy source', () => {
@@ -461,151 +465,4 @@ describe('schema.prisma agrees with the migration', () => {
   });
 });
 
-// ── Nothing WRITES a planned source yet, and nothing widens the API vocabulary ──
-
-describe('no new source is enabled by this phase', () => {
-  const dir = join(__dirname);
-  const files = [
-    'funding-opportunities.service.ts',
-    'funding-opportunities.controller.ts',
-    'funding-opportunity-actions.service.ts',
-  ];
-
-  test.each(files)('%s never names a planned source', (file) => {
-    const source = readFileSync(join(dir, file), 'utf8');
-    for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
-      expect(source).not.toContain(`'${planned}'`);
-    }
-  });
-
-  test('the producers only ever build a legacy identity', () => {
-    for (const script of [
-      '../../scripts/generate-funding-grant-candidates.ts',
-      '../../scripts/generate-sam-opportunity-candidates.ts',
-    ]) {
-      const source = readFileSync(join(dir, script), 'utf8');
-      for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
-        expect(source).not.toContain(`'${planned}'`);
-      }
-    }
-  });
-});
-
-/**
- * The forecast READ surface (P25's title lookup, widened by P26) — and the
- * catalog vocabulary it still may not touch.
- *
- * `funding-opportunity-inbox.service.ts` names `'agency_forecast'` in three
- * places now: P25's `titlesFor` title/agency lookup, and P26's `INBOX_SOURCES`
- * plus the forecast-facts block on an inbox row. `forecast-opportunity-read
- * .service.ts` (P26, NEW) names it as its own record's `source`.
- *
- * All of that is deliberately NARROWER than "enabling the source" in the sense
- * the guard above protects. The line that has to hold is:
- *
- *   the inbox and the forecast read may SERVE a forecast row;
- *   `OPPORTUNITY_SOURCES` — the catalog/detail/write vocabulary — may not admit
- *   one, because a `FundingOpportunity` carries a response deadline, an
- *   eligibility determination and money, and a forecast has none of the three.
- *
- * The tests below pin that line on both sides.
- */
-describe('the forecast read surface stays a READ, and the CATALOG vocabulary stays unwidened', () => {
-  const inboxSource = readFileSync(join(__dirname, 'funding-opportunity-inbox.service.ts'), 'utf8');
-  const forecastReadSource = readFileSync(
-    join(__dirname, 'forecast-opportunity-read.service.ts'),
-    'utf8',
-  );
-
-  test('the inbox never WRITES a client_funding_opportunity row at all — the exception is read-only by construction', () => {
-    // Same proof `funding-opportunity-inbox.service.ts`'s own class doc
-    // makes in prose ("purely a read-time filter"), pinned here as a
-    // structural check: no create/update/upsert call on the model this
-    // whole guard file is about.
-    expect(inboxSource).not.toMatch(/clientFundingOpportunity\.(create|update|upsert)\(/);
-  });
-
-  test('the forecast read never writes anything either — no producer exists yet', () => {
-    // P26 serves forecasts; it does not PROPOSE them. Nothing in this program
-    // writes a forecast `client_funding_opportunity` row: a workflow row for a
-    // forecast can only come from a human using the existing decision/action
-    // routes. A producer is a separate, later decision.
-    expect(forecastReadSource).not.toMatch(/\.(create|update|upsert|createMany|updateMany)\(/);
-  });
-
-  test('the CATALOG source vocabulary is still exactly the two legacy sources', () => {
-    expect([...OPPORTUNITY_SOURCES]).toEqual(['grants_gov', 'sam_gov']);
-    for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
-      expect(OPPORTUNITY_SOURCES as readonly string[]).not.toContain(planned);
-    }
-  });
-
-  test('the inbox ?source= filter admits its extra rails ONLY through its own vocabulary', () => {
-    // P26 widened the inbox's NARROWING filter to a third value; P41 part 2
-    // added a fourth ('dibbs'); P43 part 3 adds the fifth and LAST planned one
-    // ('sbir_sttr'). A narrowing predicate can only ever remove rows, so none of
-    // them can widen what the inbox returns — and all are expressed through the
-    // inbox's own constant (`INBOX_SOURCES`) rather than by touching
-    // `OPPORTUNITY_SOURCES`, which is what keeps the catalog closed.
-    expect(inboxSource).toMatch(/source must be one of: \$\{INBOX_SOURCES\.join/);
-
-    // The SPREAD is the load-bearing part of this assertion, not the list of
-    // names: `[...OPPORTUNITY_SOURCES, ...]` is what guarantees the inbox
-    // vocabulary is a strict superset of the catalog's rather than a hand-kept
-    // copy that could drift from it. Extra rails must be literal strings
-    // appended after the spread, so adding one is a visible edit here.
-    //
-    // This assertion has now failed-on-purpose three times, once per rail. That
-    // is the design working: a new rail cannot reach the inbox without someone
-    // editing the file that guards the catalog boundary.
-    expect(inboxSource).toMatch(
-      /export const INBOX_SOURCES = \[\s*\.\.\.OPPORTUNITY_SOURCES,\s*'agency_forecast',\s*'dibbs',\s*'sbir_sttr',?\s*\]\s*as const;/,
-    );
-
-    // With `sbir_sttr` live, EVERY planned source is now an inbox rail. The
-    // catalog is still exactly two entries wide, which is the invariant that
-    // was never supposed to move — and now it is the only thing separating the
-    // two vocabularies.
-    expect([...OPPORTUNITY_SOURCES]).toEqual(['grants_gov', 'sam_gov']);
-  });
-
-  test('the two remaining catalog/write files still name no planned source', () => {
-    // funding-opportunities.controller.ts is deliberately NOT in this list any
-    // more: P26 adds the `opportunities/forecasts/:forecastId` route to it, and
-    // that route's DTO-free path param plus its own flag guard is the whole
-    // reason the forecast never reaches `SourceParamDto`. The narrower thing
-    // that stayed true for the controller is asserted separately below.
-    for (const file of ['funding-opportunities.service.ts', 'funding-opportunity-actions.service.ts']) {
-      const source = readFileSync(join(__dirname, file), 'utf8');
-      for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
-        expect(source).not.toContain(`'${planned}'`);
-      }
-    }
-  });
-
-  test('every :source path param in the controller still validates against the CATALOG vocabulary', () => {
-    // `SourceParamDto` is what every catalog read and every write route binds
-    // its `:source` segment to, and it must stay `@IsIn(OPPORTUNITY_SOURCES)`.
-    // The forecast route takes a bare `:forecastId` instead — it never names a
-    // source in its path at all, which is why no DTO of it can be widened.
-    const controller = readFileSync(join(__dirname, 'funding-opportunities.controller.ts'), 'utf8');
-    const dto = controller.match(/class SourceParamDto \{[^}]*\}/)?.[0] ?? '';
-    expect(dto).toContain('@IsIn(OPPORTUNITY_SOURCES)');
-    for (const planned of PLANNED_OPPORTUNITY_SOURCES) {
-      expect(dto).not.toContain(planned);
-    }
-    // And the forecast route carries its own flag guard, so "off" is a 404.
-    expect(controller).toMatch(
-      /@Get\('opportunities\/forecasts\/:forecastId'\)\s*\n\s*@UseGuards\(FundingOpportunitiesForecastFlagGuard\)/,
-    );
-  });
-
-  test('no forecast is ever servable through the FundingOpportunity shape', () => {
-    // The structural half of "a forecast is not a FundingOpportunity": the
-    // catalog service does not import the forecast read, and the forecast read
-    // never constructs a `FundingOpportunity`.
-    const service = readFileSync(join(__dirname, 'funding-opportunities.service.ts'), 'utf8');
-    expect(service).not.toMatch(/forecast-opportunity-read/);
-    expect(forecastReadSource).not.toMatch(/:\s*FundingOpportunity\b/);
-  });
-});
+// ── Source vocabulary remains closed for legacy API routes ──────────────────

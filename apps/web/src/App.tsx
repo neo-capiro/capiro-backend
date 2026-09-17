@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
 import { TicketSignUpPage } from './pages/auth/TicketSignUpPage.js';
@@ -140,23 +140,11 @@ const FederalSpendingPage = lazy(async () =>
   })),
 );
 
-// Funding Opportunities. Lazy for the same chunk-splitting reason as the routes
-// above — it is a large page with its own card/CSS surface that nothing else
-// needs, and it must never reach the initial bundle. Gated IN-PAGE by
-// `funding_opportunities` (HearingWatchPage / DistrictNexusPage precedent); the
-// route itself registers unconditionally so a deep link resolves and the page
-// decides what to show.
+// Funding Opportunities has one implementation in both canonical entry modes.
+// Keep the module lazy so ordinary app entry does not pay for this surface.
 const FundingOpportunitiesPage = lazy(async () =>
-  import('./pages/intelligence/opportunities/FundingOpportunitiesPage.js').then((m) => ({
+  import('./vnext/pages/funding-opportunities/FundingOpportunitiesPage.js').then((m) => ({
     default: m.FundingOpportunitiesPage,
-  })),
-);
-// The deep-linkable opportunity detail. A SEPARATE lazy chunk from the list page:
-// the two are reached independently (a detail link pasted into a ticket does not
-// go via the inbox), and bundling them would make either one pay for the other.
-const FundingOpportunityDetailPage = lazy(async () =>
-  import('./pages/intelligence/opportunities/FundingOpportunityDetail.js').then((m) => ({
-    default: m.FundingOpportunityDetailPage,
   })),
 );
 
@@ -164,6 +152,12 @@ const FundingOpportunityDetailPage = lazy(async () =>
 // guarantee: canonical app.capiro.ai does not eagerly load vNext CSS/components.
 const VNextApp = lazy(async () =>
   import('./vnext/app/VNextApp.js').then((m) => ({ default: m.VNextApp })),
+);
+
+const FundingOpportunitiesClassicShell = lazy(async () =>
+  import('./vnext/pages/funding-opportunities/FundingOpportunitiesClassicShell.js').then((m) => ({
+    default: m.FundingOpportunitiesClassicShell,
+  })),
 );
 
 export function App() {
@@ -365,43 +359,22 @@ export function App() {
             </Suspense>
           }
         />
-        {/* Funding Opportunities — Grants.gov + SAM.gov contract opportunities.
-            Registered BEFORE the catch-all `/intelligence/*` redirect below,
-            which would otherwise swallow it and bounce the user to /explorer. */}
+        {/* Funding Opportunities — both canonical URLs resolve to the one v2
+            implementation. The vNext entry mode claims these paths through
+            VNextRouter; classic mode reaches this child through AppShellUui. */}
         <Route
           path="/intelligence/opportunities"
           element={
-            <Suspense
-              fallback={
-                <PlaceholderPage
-                  title="Loading Funding Opportunities"
-                  description="Loading grant and contract opportunities..."
-                />
-              }
-            >
+            <Suspense fallback={<PlaceholderPage title="Loading Funding Opportunities" description="Loading grant and contract opportunities..." />}>
               <FundingOpportunitiesPage />
             </Suspense>
           }
         />
-        {/* One opportunity, for one client. Registered AFTER the list route (which
-            is a literal, so order between the two is not actually load-bearing) and
-            BEFORE the `/intelligence/*` catch-all, which would otherwise swallow it
-            and bounce every pasted detail link to /explorer.
-
-            `:sourceRecordId` is a single segment: Grants.gov opportunity numbers and
-            SAM notice ids are both opaque strings the page encodes on the way in. */}
         <Route
           path="/intelligence/opportunities/:source/:sourceRecordId"
           element={
-            <Suspense
-              fallback={
-                <PlaceholderPage
-                  title="Loading opportunity"
-                  description="Loading the opportunity detail..."
-                />
-              }
-            >
-              <FundingOpportunityDetailPage />
+            <Suspense fallback={<PlaceholderPage title="Loading opportunity" description="Loading the opportunity detail..." />}>
+              <FundingOpportunitiesPage />
             </Suspense>
           }
         />
@@ -508,6 +481,7 @@ function ProgramElementWatchGate() {
 
 function BillingGate() {
   const billing = useBillingState();
+  const location = useLocation();
   if (billing.isLoading) {
     return <PlaceholderPage title="Loading" description="Please wait..." />;
   }
@@ -526,6 +500,19 @@ function BillingGate() {
     return (
       <Suspense fallback={<PlaceholderPage title="Loading Capiro vNext" description="Preparing the vNext surface..." />}>
         <VNextApp />
+      </Suspense>
+    );
+  }
+  // Classic auth/billing remains unchanged everywhere else. Funding routes are
+  // the one canonical surface whose renderer is v2 in both entry modes; placing
+  // UUI here (rather than inside the page) avoids a nested shell and keeps the
+  // route child shared with VNextRouter.
+  if (location.pathname === '/intelligence/opportunities' || location.pathname.startsWith('/intelligence/opportunities/')) {
+    return (
+      <Suspense fallback={<PlaceholderPage title="Loading Funding Opportunities" description="Loading grant and contract opportunities..." />}>
+        <FundingOpportunitiesClassicShell>
+          <Outlet />
+        </FundingOpportunitiesClassicShell>
       </Suspense>
     );
   }
