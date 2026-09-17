@@ -330,9 +330,18 @@ export function buildR2aProjectArtifact(input: {
         page: value.page,
         kind: 'r2a_project_funding_fact',
       });
+      /* Distinguishes "no single fiscal year because this is a
+       * cost-to-complete/total-cost aggregate spanning the program's life"
+       * (`non_annual`) from "no single fiscal year because this is a
+       * discrete Prior-Years cumulative lump sum" (`prior_years_cumulative`)
+       * in this human-oriented sourcePath -- see the identical fix in
+       * r2-pe-funding-builder.ts for the full rationale. */
+      const fiscalYearTag =
+        value.fiscalYear ??
+        (value.columnRole === 'prior_actual_context' ? 'prior_years_cumulative' : 'non_annual');
       builder.addSourceFact({
         factId,
-        sourcePath: `pe:${value.parentPeCode}/project:${value.projectCode}/fy:${value.fiscalYear ?? 'non_annual'}/page:${value.page}/table:${value.tableIndex}/row:${value.rowIndex}/col:${value.columnIndex}`,
+        sourcePath: `pe:${value.parentPeCode}/project:${value.projectCode}/fy:${fiscalYearTag}/page:${value.page}/table:${value.tableIndex}/row:${value.rowIndex}/col:${value.columnIndex}`,
         category: 'money',
         requiredForCompleteness: true,
         rawValue: value.originalValue,
