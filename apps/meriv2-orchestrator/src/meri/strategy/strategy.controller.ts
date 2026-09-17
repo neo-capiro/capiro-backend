@@ -5,9 +5,10 @@ import {
   ForbiddenException,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import {
   runWithAssuranceRequestScope,
   type AssuranceSurface,
@@ -83,6 +84,84 @@ export class StrategyController {
     return this.scoped(req, () =>
       runWithGovernedMeriContext(governed, () => this.assistant.draft(ctx, dto)),
     );
+  }
+
+  /**
+   * Streaming sibling of `strategy-draft` for api-strategy's async draft
+   * worker (job-based drafting, so a single request/response no longer has to
+   * fit inside the caller's own HTTP timeout). Same governed-context
+   * contract and identical `draft()` call underneath — this route never
+   * changes `strategy-draft`'s request/response shape, it only adds a second
+   * way to invoke the SAME assistant call with progress streamed out.
+   *
+   * Wire format: newline-delimited JSON (`application/x-ndjson`), one object
+   * per line —
+   *   {"type":"progress","stage":"drafting","attempt":n,"round":n,"delta":"..."}
+   *   {"type":"result", ...same shape strategy-draft returns on success}
+   *   {"type":"error","message":"..."}
+   * followed by `res.end()`. This is an internal server-to-server contract
+   * (api-strategy's worker), not a browser EventSource, so no
+   * `text/event-stream` framing is used.
+   */
+  @Post('strategy-draft-stream')
+  async draftStream(
+    @Body() dto: GovernedInput<StrategyDraftInput>,
+    @CurrentTenant() tc: OrchestratorTenantContext,
+    @Req() req: Request,
+    @Res({ passthrough: false }) res: Response,
+  ): Promise<void> {
+    requireInternalContextProxy(req);
+    const governed = requireGovernedContext(dto, 'strategies.generate', 'strategy');
+
+    // Registered before any `await` so a disconnect during identity resolution
+    // (not just during the LLM call itself) is caught too. No global
+    // request-timeout middleware exists in main.ts to exclude this route from,
+    // and this app has no compression() middleware either — both confirmed by
+    // inspection, so nothing else needs excluding for chunked flushing to work.
+    const abort = new AbortController();
+    req.on('close', () => abort.abort());
+    res.on('error', () => {
+      /* socket errors on disconnect are expected */
+    });
+
+    const ctx = await this.resolver.resolveIdentity(tc);
+    ctx.contextPacket = governed.contextPacket;
+
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Cache-Control', 'no-cache');
+    // Match the chat stream route's convention — prevents a proxy/load
+    // balancer from buffering the whole (potentially multi-minute) body.
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    const write = (obj: Record<string, unknown>) => {
+      if (!res.writableEnded) {
+        try {
+          res.write(`${JSON.stringify(obj)}\n`);
+        } catch {
+          /* client gone mid-write */
+        }
+      }
+    };
+
+    await this.scoped(req, async () => {
+      try {
+        const result = await runWithGovernedMeriContext(governed, () =>
+          this.assistant.draft(ctx, dto, {
+            onProgress: (event) => write({ type: 'progress', ...event }),
+            signal: abort.signal,
+          }),
+        );
+        write({ type: 'result', ...result });
+      } catch (error) {
+        write({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Strategy draft failed',
+        });
+      } finally {
+        if (!res.writableEnded) res.end();
+      }
+    });
   }
 
   @Post('strategy-assistant')

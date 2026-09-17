@@ -48,6 +48,26 @@ export interface StrategyDraftResponse {
   groundingHealth?: GroundingHealth;
 }
 
+/**
+ * One `{type:'progress'}` line of the draft-from-goal streaming wire contract
+ * (NDJSON over a chunked response, `POST /meri-api/strategy-draft-stream`) —
+ * the async draft-job worker's transport (strategy generation timeout fix).
+ * The stream's terminal line is either `{type:'result', ...StrategyDraftResponse}`
+ * (same shape as the synchronous draft() response above) or
+ * `{type:'error', message}`; StrategyOrchestratorClient.draftStreaming()
+ * resolves/rejects on those and only forwards `progress` lines to the caller.
+ */
+export interface StrategyDraftStreamProgress {
+  type: 'progress';
+  /** The orchestrator's own internal repair-loop stage (its terms, not
+   *  api-strategy's job.stage state machine). */
+  stage?: string;
+  attempt?: number;
+  round?: number;
+  /** Incremental text chunk; may be empty (a round with no visible text yet). */
+  delta?: string;
+}
+
 export type PlanEditOp = 'add' | 'update' | 'remove' | 'retime';
 
 /** One edit the assistant proposes against an existing strategy (NOD-4 / MRI-3). */

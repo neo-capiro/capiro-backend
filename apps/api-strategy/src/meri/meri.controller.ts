@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -17,6 +18,7 @@ import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { StrategyPlannerGuard } from '../flags/strategy-planner.guard.js';
 import { StrategyMeriGuard } from '../flags/strategy-meri.guard.js';
 import { MeriService } from './meri.service.js';
+import { DraftJobService } from './draft-job.service.js';
 import { StrategyConversationService } from './strategy-conversation.service.js';
 import { DraftStrategyDto, AssistantDto, ReferenceAssistDto } from './dto/meri.dto.js';
 
@@ -41,6 +43,7 @@ function bearerFrom(req: Request): string | undefined {
 export class MeriController {
   constructor(
     private readonly meri: MeriService,
+    private readonly draftJobs: DraftJobService,
     private readonly conversations: StrategyConversationService,
   ) {}
 
@@ -72,9 +75,25 @@ export class MeriController {
     return this.conversations.dismissContextGap(ctx.tenantId, id, messageId);
   }
 
+  /**
+   * Strategy generation timeout fix: this used to run the ENTIRE orchestrator
+   * draft synchronously on the request (context compile, grounding fan-out,
+   * the model's own repair/retry loop, verify, persist) — a shape with no
+   * fixed timeout that is both safe and a good client experience (the
+   * orchestrator's loop can legitimately take many minutes). It now only
+   * validates and enqueues an SpDraftJob; DraftJobWorkerService's claim-sweep
+   * runs the actual generation off the request path. Poll
+   * GET strategies/draft-jobs/:jobId for status.
+   */
   @Post('strategies/draft')
-  draft(@CurrentTenant() ctx: AuthTenantContext, @Req() req: Request, @Body() dto: DraftStrategyDto) {
-    return this.meri.draft(ctx.tenantId, ctx.clerkUserId, bearerFrom(req), dto);
+  @HttpCode(202)
+  draftAsync(@CurrentTenant() ctx: AuthTenantContext, @Req() req: Request, @Body() dto: DraftStrategyDto) {
+    return this.draftJobs.submit(ctx, bearerFrom(req), dto);
+  }
+
+  @Get('strategies/draft-jobs/:jobId')
+  draftJob(@CurrentTenant() ctx: AuthTenantContext, @Param('jobId', new ParseUUIDPipe()) jobId: string) {
+    return this.draftJobs.get(ctx, jobId);
   }
 
   @Post('strategies/:id/assistant')

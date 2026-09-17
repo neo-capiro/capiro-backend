@@ -30,7 +30,7 @@ import { ReferenceService, type ReferenceRow } from '../reference/reference.serv
 import { StewardService } from '../context/steward.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
-import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
+import { StrategyOrchestratorClient, type ServiceDelegation } from './strategy-orchestrator.client.js';
 import {
   StrategyConversationService,
   type ChatAttachmentSnapshot,
@@ -42,11 +42,14 @@ import type {
   NodeDocumentDraftResponse,
   PlanEdit,
   PublicContextGap,
+  ResolvedAiProvider,
   StewardFactLine,
   StewardHealth,
   StrategyDraftErrorBody,
+  StrategyDraftResponse,
 } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
+import { DRAFT_JOB_STAGE_TEXT, type DraftJobRuntime } from './draft-job.types.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -217,7 +220,20 @@ export class MeriService {
     };
   }
 
-  async draft(tenantId: string, clerkUserId: string, bearer: string | undefined, dto: DraftStrategyDto) {
+  async draft(
+    tenantId: string,
+    clerkUserId: string,
+    bearer: string | undefined,
+    dto: DraftStrategyDto,
+    // Strategy generation timeout fix: undefined (the legacy synchronous HTTP
+    // path, if anything still calls it that way) preserves the exact original
+    // behavior — a single non-streaming orchestrator.draft() call. Provided
+    // (the async draft-job worker) switches the orchestrator hop to the
+    // streaming client and reports stage/progress through the given hooks.
+    // draft()'s own logic — validation, verify/repair, persistence — is
+    // otherwise UNCHANGED either way.
+    jobRuntime?: DraftJobRuntime,
+  ) {
     // capiro_app is NOT RLS-bypass on `clients`; read inside withTenant (sets
     // app.current_tenant) so the clients RLS exposes this tenant's rows — a bare
     // raw read returns 0 and false-negatives every valid client. Phase 5 §3.2:
@@ -239,7 +255,8 @@ export class MeriService {
       this.attachments.resolve(bearer, dto.attachmentIds),
       this.stewardContext(tenantId, dto.clientId),
     ]);
-    const resp = await this.orchestrator.draft(
+    jobRuntime?.onStage('drafting', DRAFT_JOB_STAGE_TEXT.drafting);
+    const resp = await this.callOrchestratorDraft(
       {
         clientId: dto.clientId,
         type: dto.type,
@@ -254,6 +271,7 @@ export class MeriService {
       bearer,
       aiProvider,
       { tenantId, clerkUserId },
+      jobRuntime,
     );
 
     // A7.5 / Phase 5 §4.3: never silently persist an empty draft — typed 422
@@ -298,9 +316,11 @@ export class MeriService {
     // repair the orchestrator already ran index-side, against the REAL uuid
     // graph — a second, independent pass that never depends on the
     // orchestrator having run it (or having run it correctly).
+    jobRuntime?.onStage('verifying', DRAFT_JOB_STAGE_TEXT.verifying);
     let violations = this.verify(dto.type, nodeData, ground, dto.goal ?? '');
     let errs = violations.filter((v) => v.severity === 'error');
     if (errs.length > 0) {
+      jobRuntime?.onStage('repairing', DRAFT_JOB_STAGE_TEXT.repairing);
       const repair = repairDependencyOrder(toVerifierNodes(nodeData));
       if (!repair.refused && repair.changedIds.length > 0) {
         applyRepairedNodeDates(nodeData, repair.nodes);
@@ -329,6 +349,7 @@ export class MeriService {
       }
     }
 
+    jobRuntime?.onStage('persisting', DRAFT_JOB_STAGE_TEXT.persisting);
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       const strategy = await tx.spStrategy.create({
         data: {
@@ -815,6 +836,39 @@ export class MeriService {
     }
     await this.logVerification(tx, tenantId, actorUserId, strategyId, violations);
     return { detail, violations };
+  }
+
+  /**
+   * Strategy generation timeout fix: the ONE place draft() decides which
+   * orchestrator transport to use. `jobRuntime` undefined => the original
+   * single-shot orchestrator.draft() call (unchanged behavior — the
+   * synchronous HTTP path, and every existing test that calls draft() without
+   * a 5th argument). `jobRuntime` provided => the async draft-job worker,
+   * which streams via orchestrator.draftStreaming() so it can report
+   * stage/progress and run past what a client-facing request could ever wait
+   * for, bounded only by the job's own deadline (jobRuntime.timeoutMs), not
+   * STRATEGY_MERI_TIMEOUT_MS.
+   */
+  private async callOrchestratorDraft(
+    body: unknown,
+    bearer: string | undefined,
+    aiProvider: ResolvedAiProvider | undefined,
+    delegation: ServiceDelegation,
+    jobRuntime: DraftJobRuntime | undefined,
+  ): Promise<StrategyDraftResponse> {
+    if (!jobRuntime) {
+      return this.orchestrator.draft(body, bearer, aiProvider, delegation);
+    }
+    return this.orchestrator.draftStreaming(
+      body,
+      bearer,
+      aiProvider,
+      delegation,
+      (evt) => {
+        if (evt.delta) jobRuntime.onStreamDelta(evt.delta);
+      },
+      jobRuntime.timeoutMs,
+    );
   }
 
   // ---- apply helpers ----

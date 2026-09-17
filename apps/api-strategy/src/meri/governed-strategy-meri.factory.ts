@@ -5,6 +5,7 @@ import type { AssistantDto, DraftStrategyDto } from './dto/meri.dto.js';
 import type { NodeDocumentDraftResponse } from './meri.types.js';
 import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
 import { runWithStrategyGovernedContext } from './strategy-governed-context.runtime.js';
+import { DRAFT_JOB_STAGE_TEXT, type DraftJobRuntime } from './draft-job.types.js';
 
 export const RAW_STRATEGY_MERI_SERVICE = Symbol('RAW_STRATEGY_MERI_SERVICE');
 
@@ -56,7 +57,13 @@ export function createGovernedStrategyMeriService(
     clerkUserId: string,
     bearer: string | undefined,
     dto: DraftStrategyDto,
+    jobRuntime?: DraftJobRuntime,
   ) => {
+    // Strategy generation timeout fix: this Context Plane compile is itself
+    // part of "compiling context" (draft()'s own Promise.all of
+    // resolver/grounding/attachments/steward reads immediately follows it) —
+    // the async draft-job worker reports it as one stage rather than two.
+    jobRuntime?.onStage('compiling_context', DRAFT_JOB_STAGE_TEXT.compiling_context);
     const governed = await contextPlane.compile({
       tenantId,
       clerkUserId,
@@ -66,7 +73,7 @@ export function createGovernedStrategyMeriService(
       traceId: dto.clientId,
     });
     return runWithStrategyGovernedContext(governed, () =>
-      originalDraft(tenantId, clerkUserId, bearer, dto),
+      originalDraft(tenantId, clerkUserId, bearer, dto, jobRuntime),
     );
   }) as MeriService['draft'];
 

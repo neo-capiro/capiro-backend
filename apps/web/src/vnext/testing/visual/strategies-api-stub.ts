@@ -274,7 +274,11 @@ export function useDismissWatchProposal(..._args: unknown[]) {
   return NOOP_RESULT;
 }
 
-export function useDraftStrategy(..._args: unknown[]) {
+export function useDraftJobStatus(..._args: unknown[]) {
+  return NOOP_RESULT;
+}
+
+export function useSubmitDraftStrategy(..._args: unknown[]) {
   return NOOP_RESULT;
 }
 

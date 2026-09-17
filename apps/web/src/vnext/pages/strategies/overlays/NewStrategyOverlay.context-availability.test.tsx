@@ -33,6 +33,12 @@ const state = vi.hoisted(() => ({
   availabilityError: false,
   shellClient: null as string | null,
   navigate: [] as string[],
+  // Timeout-and-progress remediation (2026-09-17): "Draft with Meri" now
+  // submits a job and polls it. `draftJob` stands in for the polled
+  // GET .../strategies/draft-jobs/:jobId response; tests mutate it and
+  // `rerender()` (react-query itself is bypassed — the hooks below are
+  // mocked, same as every other hook in this suite).
+  draftJob: null as Record<string, unknown> | null,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -65,7 +71,20 @@ vi.mock('../strategies-api.js', async () => {
     },
     useContextHealth: () => ({ data: undefined, isLoading: false, isError: false }),
     useCreateStrategy: () => ({ mutate: vi.fn(), isPending: false, error: null }),
-    useDraftStrategy: () => ({ mutate: vi.fn(), isPending: false, error: null }),
+    useSubmitDraftStrategy: () => ({
+      mutate: (
+        _body: unknown,
+        opts?: { onSuccess?: (res: { jobId: string; status: 'queued' }) => void },
+      ) => opts?.onSuccess?.({ jobId: 'job-1', status: 'queued' }),
+      isPending: false,
+      error: null,
+    }),
+    useDraftJobStatus: (jobId: string | null) => ({
+      data: jobId ? (state.draftJob ?? undefined) : undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+    }),
   };
 });
 
@@ -108,7 +127,21 @@ beforeEach(() => {
   state.availabilityError = false;
   state.shellClient = null;
   state.navigate = [];
+  state.draftJob = null;
 });
+
+/** Fills every required field and picks "Draft with Meri" as the starting point. */
+function fillRequiredFieldsForDraft() {
+  fireEvent.change(screen.getByLabelText(/Client · Required/), { target: { value: 'client-a' } });
+  fireEvent.change(screen.getByLabelText(/Objective type · Required/), {
+    target: { value: 'appropriations' },
+  });
+  fireEvent.change(screen.getByLabelText(/Goal statement · Required/), {
+    target: { value: 'Protect the FY27 line item.' },
+  });
+  fireEvent.change(screen.getByLabelText(/Owner · Required/), { target: { value: 'user-1' } });
+  fireEvent.click(screen.getByRole('button', { name: /draft with meri/i }));
+}
 
 describe('New strategy overlay — context availability (F06)', () => {
   it('asks for a client before showing any availability', () => {
@@ -285,5 +318,106 @@ describe('New strategy overlay — context availability (F06)', () => {
     );
     select = screen.getByLabelText(/Client · Required/) as HTMLSelectElement;
     expect(select.value).toBe('client-b');
+  });
+});
+
+/**
+ * Timeout-and-progress remediation (2026-09-17) — "Draft with Meri" no longer
+ * blocks on one 90s HTTP call. `useSubmitDraftStrategy` now only enqueues a
+ * job; `useDraftJobStatus` polls it. This suite pins:
+ *   - submitting switches the overlay into a generating view showing the
+ *     job's live stage/progress text and stream preview, not the form;
+ *   - `completed` navigates using the job's strategyId (not a direct mutation
+ *     response — there isn't one anymore);
+ *   - `failed` renders the same alert copy pattern as the old synchronous
+ *     failure, with a Try again that returns to a fresh, resubmittable form.
+ */
+describe('New strategy overlay — draft-with-Meri async job', () => {
+  it('shows the job’s live stage and streamed preview while it runs, then navigates on completion', async () => {
+    const { rerender } = renderOverlay();
+    fillRequiredFieldsForDraft();
+    fireEvent.click(screen.getByRole('button', { name: /create strategy & draft/i }));
+
+    // Submitted, worker has not claimed the job yet.
+    expect(screen.getByText(/starting…/i)).toBeTruthy();
+    expect(screen.getByText(/meri is getting started…/i)).toBeTruthy();
+
+    state.draftJob = {
+      jobId: 'job-1',
+      status: 'running',
+      stage: 'drafting',
+      progressText: 'Drafting the plan (attempt 1)…',
+      streamPreview: 'Reviewing the FY27 appropriations posture for Client A…',
+      strategyId: null,
+      errorMessage: null,
+      createdAt: '2026-09-17T00:00:00.000Z',
+      updatedAt: '2026-09-17T00:00:05.000Z',
+    };
+    rerender(
+      <QueryClientProvider client={queryClientRef.current!}>
+        <MemoryRouter initialEntries={['/strategies/new']}>
+          <Routes>
+            <Route path="/strategies/new" element={<NewStrategyOverlay />} />
+            <Route path="/strategies/context" element={<p>Context library</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText(/drafting the plan \(attempt 1\)…/i)).toBeTruthy();
+    expect(
+      screen.getByText(/reviewing the fy27 appropriations posture for client a…/i),
+    ).toBeTruthy();
+    // The form itself is gone while the job runs.
+    expect(screen.queryByLabelText(/Client · Required/)).toBeNull();
+
+    state.draftJob = { ...state.draftJob, status: 'completed', strategyId: 'strategy-new-1' };
+    rerender(
+      <QueryClientProvider client={queryClientRef.current!}>
+        <MemoryRouter initialEntries={['/strategies/new']}>
+          <Routes>
+            <Route path="/strategies/new" element={<NewStrategyOverlay />} />
+            <Route path="/strategies/context" element={<p>Context library</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(state.navigate).toContainEqual('/strategies/strategy-new-1'));
+  });
+
+  it('renders the failure in the same alert copy pattern and lets the user try again', async () => {
+    const { rerender } = renderOverlay();
+    fillRequiredFieldsForDraft();
+    fireEvent.click(screen.getByRole('button', { name: /create strategy & draft/i }));
+
+    state.draftJob = {
+      jobId: 'job-1',
+      status: 'failed',
+      stage: 'drafting',
+      progressText: null,
+      streamPreview: null,
+      strategyId: null,
+      errorMessage: 'The model produced an unsafe plan.',
+      createdAt: '2026-09-17T00:00:00.000Z',
+      updatedAt: '2026-09-17T00:00:05.000Z',
+    };
+    rerender(
+      <QueryClientProvider client={queryClientRef.current!}>
+        <MemoryRouter initialEntries={['/strategies/new']}>
+          <Routes>
+            <Route path="/strategies/new" element={<NewStrategyOverlay />} />
+            <Route path="/strategies/context" element={<p>Context library</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByText(/the strategy could not be created\. the model produced an unsafe plan\./i),
+    ).toBeTruthy();
+    expect(state.navigate).toEqual([]);
+
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    // Back to a fresh, resubmittable form — not stuck on the dead job.
+    expect(screen.getByLabelText(/Client · Required/)).toBeTruthy();
   });
 });
