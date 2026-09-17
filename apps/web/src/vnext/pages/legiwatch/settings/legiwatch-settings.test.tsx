@@ -42,31 +42,14 @@ const ME: { user: { id: string; legiwatchPrefs: Record<string, unknown> } } = {
 /** Callers get their own copy — React Query must never be handed the mutable row. */
 const meDoc = () => ({ user: { ...ME.user, legiwatchPrefs: { ...ME.user.legiwatchPrefs } } });
 
-const WATCH_PRESETS = [
-  {
-    id: 'preset-1',
-    name: 'Autonomy funding movement',
-    clientIds: [],
-    signalFamilies: ['program_element'],
-    conditions: [{ type: 'FUNDING_MOVEMENT', minMaterialityScore: 0.5 }],
-    status: 'active',
-    createdAt: '2026-08-01T00:00:00.000Z',
-    updatedAt: '2026-08-01T00:00:00.000Z',
-  },
-];
-
 beforeEach(() => {
   apiGet.mockReset();
   apiPatch.mockReset();
   apiPut.mockReset();
   apiPut.mockImplementation((url: string) => Promise.reject(new Error(`unexpected PUT ${url}`)));
-  WATCH_PRESETS[0]!.status = 'active';
   ME.user.legiwatchPrefs = { ...STORED_PREFS };
   apiGet.mockImplementation((url: string) => {
     if (url.startsWith('/api/me')) return Promise.resolve({ data: meDoc() });
-    // W2-4: the settings tab's Watch presets card reads the real endpoint now
-    // rather than there being no management surface at all.
-    if (url.includes('/legiwatch/live-hearings/watch-presets')) return Promise.resolve({ data: { rows: WATCH_PRESETS } });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
   apiPatch.mockImplementation(((url: string, body?: unknown) => {
@@ -217,40 +200,11 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
 
   it('the Saved Views feature is gone from settings (W2-2 removed)', async () => {
     renderSettings();
-    await screen.findByLabelText('Watch presets');
+    await screen.findByLabelText('LegiWatch settings');
     expect(screen.queryByLabelText('Saved views')).toBeNull();
     expect(screen.queryByRole('button', { name: /Manage saved views/i })).toBeNull();
   });
 
-  it('Watch presets has a real backend now (W2-4) — lists presets with lifecycle controls', async () => {
-    renderSettings();
-    await screen.findByLabelText('LegiWatch settings');
-    const watchPresets = await screen.findByLabelText('Watch presets');
-    expect(within(watchPresets).getByText('Autonomy funding movement')).toBeTruthy();
-    expect(within(watchPresets).getByText('ACTIVE')).toBeTruthy();
-    // An active preset offers Pause (not Resume) and Archive, plus Edit.
-    expect(within(watchPresets).getByRole('button', { name: 'Pause' })).toBeTruthy();
-    expect(within(watchPresets).getByRole('button', { name: 'Archive' })).toBeTruthy();
-    expect(within(watchPresets).getByRole('button', { name: 'Edit' })).toBeTruthy();
-    expect(within(watchPresets).queryByRole('button', { name: 'Resume' })).toBeNull();
-  });
-
-  it('pausing a watch preset calls the status endpoint and flips the control to Resume', async () => {
-    apiPut.mockImplementation(((url: string, body?: unknown) => {
-      if (url === '/api/legiwatch/live-hearings/watch-presets/preset-1/status') {
-        WATCH_PRESETS[0]!.status = (body as { status: string }).status as typeof WATCH_PRESETS[0]['status'];
-        return Promise.resolve({ data: WATCH_PRESETS[0] });
-      }
-      return Promise.reject(new Error(`unexpected PUT ${url}`));
-    }) as typeof apiPut);
-
-    renderSettings();
-    const watchPresets = await screen.findByLabelText('Watch presets');
-    fireEvent.click(await within(watchPresets).findByRole('button', { name: 'Pause' }));
-    await waitFor(() =>
-      expect(within(watchPresets).getByRole('button', { name: 'Resume' })).toBeTruthy(),
-    );
-  });
 });
 
 import { within } from '@testing-library/react';

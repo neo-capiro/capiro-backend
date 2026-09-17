@@ -144,13 +144,11 @@ export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
  * through the canonical client targeting subview under Settings. */
 export const REMOVED_TABS = new Set(['overview']);
 
-/** Settings dispatches watchlist/watchlists to canonical client targeting;
- * watches/presets open the separate additive preset list. */
+/** Settings dispatches watchlist/watchlists to canonical client targeting.
+ * The watches/presets aliases went away with the W2-4 watch-presets feature. */
 export const TAB_ALIASES: Record<string, LegiWatchTab> = {
   watchlist: 'settings',
   watchlists: 'settings',
-  watches: 'settings',
-  presets: 'settings',
 };
 
 /** react-query key namespace for this module. Shared records (alerts, bills,

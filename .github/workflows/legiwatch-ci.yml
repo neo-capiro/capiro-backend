@@ -215,8 +215,8 @@ jobs:
       # `src/live-hearings/` (master-calendar reads + the cross-tenant overlay
       # boundary). `src/prisma/tenant-scope-guard.spec.ts` is enumerated
       # explicitly because the new subscription reads are exactly the class of
-      # access it guards. Baseline scope: 99 suites / 1215 tests; the final
-      # archive/capture regressions add five tests within these same files.
+      # access it guards. Scope: 99 suites / 1206 tests after removing the
+      # retired watch-preset/backtest tests; coverage and calendar suites remain.
       #
       # Phase 1 runs the database suites against the migrated service above.
       # Keep -- before positional paths: Jest's array-valued ignore option
@@ -245,7 +245,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 99 1220
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 99 1206
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -370,9 +370,10 @@ jobs:
 
       # Vitest counts describe blocks; Jest counts files. Floors are measured
       # from this exact scope, with zero failures and zero skips required.
+      # Create Watch removal retires one describe block and six feature tests.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 281 990
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 280 984
 
       # New real-DB, media, review, consent and UI suites have their own explicit
       # floors. The earlier saved-session fixture stays on its separate DB.

@@ -27,7 +27,7 @@ export function LwModal({
   children,
   width,
 }: {
-  kind: 'views' | 'watch' | 'transcription' | 'states' | 'search' | 'export';
+  kind: 'transcription' | 'follow' | 'states' | 'search' | 'export';
   eyebrow: string;
   title: string;
   subtitle: string;

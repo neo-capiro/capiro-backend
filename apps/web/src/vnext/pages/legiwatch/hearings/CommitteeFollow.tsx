@@ -138,7 +138,7 @@ export function CommitteeFollowDialog({
 
   return (
     <LwModal
-      kind="watch"
+      kind="follow"
       eyebrow="Follow committee"
       title={following ? 'Edit committee follow' : 'Follow this committee'}
       subtitle={committeeName}

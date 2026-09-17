@@ -43,13 +43,12 @@ import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
 import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
 import { LegiWatchSettingsTab } from './settings/LegiWatchSettingsTab.js';
-import { CreateWatchOverlay } from './overlays/CreateWatchOverlay.js';
 import { SystemStatesOverlay } from './overlays/SystemStatesOverlay.js';
 import { LegiWatchSearchOverlay } from './overlays/LegiWatchSearchOverlay.js';
 import { ExportCalendarOverlay } from './overlays/ExportCalendarOverlay.js';
 import './legiwatch.css';
 
-type Overlay = 'watch' | 'states' | 'search' | 'export' | null;
+type Overlay = 'states' | 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
   news: {
@@ -183,8 +182,7 @@ export function LegiWatchModule() {
   const [lensOpen, setLensOpen] = useState(false);
 
   // §7.2/§7.9 — removed tabs redirect to hearings; unknown tabs land on hearings.
-  // Settings dispatches legacy watchlist links to canonical client targeting;
-  // watches/presets open its separate additive preset management card.
+  // Settings dispatches legacy watchlist links to canonical client targeting.
   const rawTab = searchParams.get('tab');
   const tab: LegiWatchTab = useMemo(() => {
     if (rawTab && Object.prototype.hasOwnProperty.call(TAB_ALIASES, rawTab))
@@ -418,9 +416,6 @@ export function LegiWatchModule() {
           >
             Search LegiWatch
           </LwButton>
-          <LwButton size="42" variant="primary" onClick={() => setOverlay('watch')}>
-            Create watch
-          </LwButton>
           <LwButton
             size="42"
             onClick={() => setOverlay('export')}
@@ -548,16 +543,7 @@ export function LegiWatchModule() {
         <LegiWatchSettingsTab />
       ) : null}
 
-      {overlay === 'watch' ? (
-        <CreateWatchOverlay
-          onClose={() => setOverlay(null)}
-          defaultClientId={scope || undefined}
-          onConfigure={(clientId) => {
-            setOverlay(null);
-            navigate(watchlistSetupPath(clientId));
-          }}
-        />
-      ) : overlay === 'states' ? (
+      {overlay === 'states' ? (
         <SystemStatesOverlay onClose={() => setOverlay(null)} />
       ) : overlay === 'search' ? (
         <LegiWatchSearchOverlay

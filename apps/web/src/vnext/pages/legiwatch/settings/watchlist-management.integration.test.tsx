@@ -27,14 +27,10 @@ const clients = [
 ];
 let watchlists: Record<string, { issueAreas: string[]; topics: unknown[] }>;
 let failWatchlist = false;
-let presetStatus = 'active';
-let failStatus = false;
 
 beforeEach(() => {
   vi.clearAllMocks();
   failWatchlist = false;
-  failStatus = false;
-  presetStatus = 'active';
   watchlists = {
     'client-A': { issueAreas: [], topics: [] },
     'client-B': { issueAreas: [], topics: [] },
@@ -42,23 +38,6 @@ beforeEach(() => {
   api.get.mockImplementation(async (url: string) => {
     if (url === '/api/clients') return { data: clients };
     if (url.startsWith('/api/me')) return { data: { user: { legiwatchPrefs: {} } } };
-    if (url.includes('/watch-presets'))
-      return {
-        data: {
-          rows: [
-            {
-              id: 'preset-1',
-              name: 'Alpha funding',
-              clientIds: ['client-A'],
-              signalFamilies: ['program_element'],
-              conditions: [{ type: 'FUNDING_MOVEMENT' }],
-              status: presetStatus,
-              createdAt: '2026-09-01T00:00:00Z',
-              updatedAt: '2026-09-01T00:00:00Z',
-            },
-          ],
-        },
-      };
     if (url.endsWith('/alert-prefs')) return { data: { triggers: [], materiality: 'medium' } };
     if (url.endsWith('/compiled')) return { data: { termSurfaces: {} } };
     if (url.endsWith('/seed-suggestions')) return { data: { tags: [], issueAreas: [] } };
@@ -84,11 +63,6 @@ beforeEach(() => {
     if (match) {
       watchlists[match[1]!] = structuredClone(body as (typeof watchlists)[string]);
       return { data: structuredClone(body) };
-    }
-    if (url.endsWith('/preset-1/status')) {
-      if (failStatus) throw new Error('Status save unavailable');
-      presetStatus = (body as { status: string }).status;
-      return { data: { status: presetStatus } };
     }
     throw new Error(`Unexpected PUT ${url}`);
   });
@@ -215,42 +189,4 @@ describe('LW-07 real watchlist management routes', () => {
     },
   );
 
-  it('preset editing opens the full watchlist for the current draft client, with browser back working', async () => {
-    mount('/legiwatch?tab=presets&client=client-A');
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(await within(dialog).findByRole('checkbox', { name: 'Alpha' }));
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Beta' }));
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: "Open the client's full watchlist →" }),
-    );
-    expect(await screen.findByLabelText('Client for watchlist setup')).toHaveValue('client-B');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
-    expect(await screen.findByLabelText('Watch presets')).toBeInTheDocument();
-  });
-
-  it('preset lifecycle persists Pause, Resume and Archive, clearing a recovered error', async () => {
-    mount('/legiwatch?tab=watches');
-    const card = await screen.findByLabelText('Watch presets');
-    failStatus = true;
-    fireEvent.click(await within(card).findByRole('button', { name: 'Pause' }));
-    expect(await within(card).findByRole('alert')).toBeInTheDocument();
-    expect(within(card).getByText('ACTIVE')).toBeInTheDocument();
-    failStatus = false;
-    fireEvent.click(within(card).getByRole('button', { name: 'Pause' }));
-    fireEvent.click(await within(card).findByRole('button', { name: 'Resume' }));
-    await within(card).findByRole('button', { name: 'Pause' });
-    expect(within(card).queryByRole('alert')).not.toBeInTheDocument();
-    fireEvent.click(within(card).getByRole('button', { name: 'Archive' }));
-    expect(await within(card).findByText('ARCHIVED')).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'Edit' })).toBeDisabled();
-    expect(within(card).queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
-    expect(api.put.mock.calls.map(([, body]) => body)).toEqual([
-      { status: 'paused' },
-      { status: 'paused' },
-      { status: 'active' },
-      { status: 'archived' },
-    ]);
-  });
 });
