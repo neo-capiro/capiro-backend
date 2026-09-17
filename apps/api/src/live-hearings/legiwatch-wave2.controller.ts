@@ -1,6 +1,6 @@
 /**
- * LegiWatch V2 Wave 2 — HTTP surface for Saved Views (W2-2), Watch Presets +
- * backtest (W2-4), and watchlist coverage (W2-5).
+ * LegiWatch V2 Wave 2 — HTTP surface for Watch Presets + backtest (W2-4) and
+ * watchlist coverage (W2-5).
  *
  * Mounted on the SAME `legiwatch/live-hearings` prefix Wave 1 uses, so the
  * module keeps speaking one base path. W2-1 (Committee Intelligence History)
@@ -8,21 +8,13 @@
  * see legiwatch-wave1.controller.ts and apps/intel-api's feed.controller.ts —
  * there is no separate Wave 2 route for either.
  */
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
-import { LegiWatchWave2SavedViewsService } from './legiwatch-wave2-saved-views.service.js';
 import { LegiWatchWave2WatchPresetsService } from './legiwatch-wave2-watch-presets.service.js';
 import { LegiWatchWave2CoverageService } from './legiwatch-wave2-coverage.service.js';
-import {
-  DuplicateViewDto,
-  ListViewsQueryDto,
-  SaveViewDto,
-  SetDefaultViewDto,
-  UpdateViewDto,
-} from './legiwatch-wave2-saved-views.dto.js';
 import {
   CreateWatchPresetDto,
   SetWatchPresetStatusDto,
@@ -35,59 +27,9 @@ import {
 @Roles('standard_user')
 export class LegiWatchWave2Controller {
   constructor(
-    private readonly savedViews: LegiWatchWave2SavedViewsService,
     private readonly watchPresets: LegiWatchWave2WatchPresetsService,
     private readonly coverage: LegiWatchWave2CoverageService,
   ) {}
-
-  // ── W2-2 · Saved Views ───────────────────────────────────────────────────
-
-  @Get('saved-views')
-  listViews(@CurrentTenant() ctx: TenantContext, @Query() query: ListViewsQueryDto) {
-    return this.savedViews.list(ctx, query);
-  }
-
-  @Post('saved-views')
-  createView(@CurrentTenant() ctx: TenantContext, @Body() body: SaveViewDto) {
-    return this.savedViews.create(ctx, body);
-  }
-
-  @Put('saved-views/:id')
-  updateView(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Body() body: UpdateViewDto,
-  ) {
-    return this.savedViews.update(ctx, id, body);
-  }
-
-  @Post('saved-views/:id/duplicate')
-  duplicateView(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Body() body: DuplicateViewDto,
-  ) {
-    return this.savedViews.duplicate(ctx, id, body.name);
-  }
-
-  @Put('saved-views/:id/default')
-  setDefaultView(
-    @CurrentTenant() ctx: TenantContext,
-    @Param('id') id: string,
-    @Body() body: SetDefaultViewDto,
-  ) {
-    return this.savedViews.setDefault(ctx, id, body.isDefault);
-  }
-
-  @Post('saved-views/:id/apply')
-  applyView(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.savedViews.apply(ctx, id);
-  }
-
-  @Delete('saved-views/:id')
-  deleteView(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.savedViews.delete(ctx, id);
-  }
 
   // ── W2-4 · Watch Presets ─────────────────────────────────────────────────
 

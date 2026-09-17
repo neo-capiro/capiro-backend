@@ -40,6 +40,7 @@ import { LwPill, LwSeg, LwButton, LwSkeleton } from '../lib/primitives.js';
 import { LwStateEmpty, LwStateUnavailable } from '../states/SystemStates.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { useCalendarExportBulk, downloadIcs } from '../lib/wave1-api.js';
+import { useLatestFloridaHearing } from '../lib/use-latest-florida-hearing.js';
 import {
   useIntelFeatureEnabled,
   STATE_CALENDAR_FEATURE,
@@ -309,6 +310,48 @@ export function HearingsTab({ scope }: { scope: string }) {
     calendarSelection,
     !privateSelection || folderSelection.isSuccess,
   );
+
+  /**
+   * Explicit, user-initiated lookup for the most recent canonical Florida
+   * proceeding that MATCHES the active calendar selection (minus date bounds).
+   * Only enabled when the Florida range is EMPTY and fully loaded — the
+   * calendar never changes the date window in response to a filter, so the
+   * only way the date moves here is the deliberate click below. Bounded
+   * (pageSize 1, latest-first) and global-public (every tenant; no media
+   * feature flag required to VIEW public FL rows). Because the lookup honors
+   * the active filters, the row it finds renders in the calendar it jumps to.
+   */
+  const floridaRangeEmpty =
+    jurisdiction === 'FL' && calendar.isSuccess && (calendar.data?.total ?? 0) === 0;
+  const latestFloridaSelection = {
+    committee: committee || undefined,
+    q: search.trim() || undefined,
+    eventType: kind || undefined,
+    ...(stateCalendar ? {
+        session: session || undefined,
+        following: following || undefined,
+        chamber: chamber || undefined,
+        eventStatus: eventStatus || undefined,
+        ...(privateSelection ? { billIds: folderSelection.data?.billIds ?? [] } : {}),
+      } : {}),
+  };
+  const latestFlorida = useLatestFloridaHearing(
+    latestFloridaSelection,
+    sub === 'schedule' && floridaRangeEmpty,
+  );
+  const jumpToLatestFlorida = (calendarDay: string) => {
+    // Require a real canonical date — never fabricate one. The button is
+    // disabled unless the returned event carries calendarDate, so this
+    // always receives a valid day.
+    const anchor = new Date(`${calendarDay}T12:00:00Z`);
+    if (rangeMode === 'week') {
+      // Rewind to the Monday of the event's week (Eastern week starts Monday).
+      const dow = anchor.getUTCDay(); // 0=Sun … 6=Sat
+      const daysSinceMonday = (dow + 6) % 7;
+      anchor.setUTCDate(anchor.getUTCDate() - daysSinceMonday);
+    }
+    setWeekAnchor(anchor);
+  };
 
   const rows = useMemo(() => calendar.data?.items ?? [], [calendar.data]);
   useEffect(() => {
@@ -685,6 +728,43 @@ export function HearingsTab({ scope }: { scope: string }) {
             ? ` ${exportWeek.data.skipped.length} events were skipped: ${exportWeek.data.skipped.map((s) => s.reason).join('; ')}`
             : ''}
         </p>
+      ) : null}
+      {/* Latest-Florida action: shown ONLY when the Florida range is empty
+          and fully loaded. This is an explicit user action — the calendar
+          never changes the date window in response to a filter, and no date
+          moves until the user clicks. Honest states: a source error is
+          reported, a null hearing means no matching FL rows exist, and the
+          button is disabled until the lookup returns a real canonical date. */}
+      {sub === 'schedule' && floridaRangeEmpty ? (
+        <div className="lw-controls" aria-label="Latest Florida hearings">
+          {latestFlorida.isError ? (
+            <span role="alert" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+              The latest Florida hearings could not be checked.{' '}
+              <button onClick={() => void latestFlorida.refetch()}>Retry</button>
+            </span>
+          ) : latestFlorida.isPending ? (
+            <span role="status" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+              Checking for the latest Florida hearings…
+            </span>
+          ) : latestFlorida.data?.hearing && latestFlorida.data.hearing.calendarDate ? (
+            (() => {
+              // Narrow once for the callback — the guard above proves the
+              // hearing and its canonical date exist, but TS can't carry that
+              // into the onClick closure.
+              const hearing = latestFlorida.data.hearing;
+              const day = hearing.calendarDate!;
+              return (
+                <LwButton onClick={() => jumpToLatestFlorida(day)}>
+                  View latest Florida hearings
+                </LwButton>
+              );
+            })()
+          ) : latestFlorida.data?.answered ? (
+            <span style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+              No Florida hearings match this selection.
+            </span>
+          ) : null}
+        </div>
       ) : null}
       <div
         className={sub === 'sessions' ? 'lw-hearings-cols lw-hearings-cols--single' : 'lw-schedule'}

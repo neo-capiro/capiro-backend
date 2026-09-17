@@ -27,11 +27,9 @@ import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import {
-  useSavedViews,
   useWatchPresets,
   useSetWatchPresetStatus,
   w2Error,
-  SAVED_VIEW_SURFACE_LABEL,
   SIGNAL_FAMILY_LABEL,
   type WatchPreset,
 } from '../lib/wave2-api.js';
@@ -348,7 +346,6 @@ function LegiWatchPreferences() {
         </div>
       </section>
 
-      <SavedViewsSummaryCard />
       <WatchPresetsCard />
     </div>
   );
@@ -504,61 +501,6 @@ function WatchPresetsCard() {
           }}
         />
       ) : null}
-    </section>
-  );
-}
-
-/**
- * A real summary — replacing the "no persistence backend" placeholder
- * (GAPS LW-G8). Full management (apply/rename/duplicate/share/default/delete)
- * lives in the header's "Saved views" overlay; this card is a lightweight
- * count-by-surface plus a way in, not a second full editor.
- */
-function SavedViewsSummaryCard() {
-  const navigate = useNavigate();
-  const personal = useSavedViews({ scope: 'personal' });
-  const shared = useSavedViews({ scope: 'tenant' });
-
-  const bySurface = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const row of [...(personal.data?.rows ?? []), ...(shared.data?.rows ?? [])]) {
-      counts.set(row.surface, (counts.get(row.surface) ?? 0) + 1);
-    }
-    return counts;
-  }, [personal.data, shared.data]);
-
-  return (
-    <section className="lw-card" aria-label="Saved views" style={{ padding: 18 }}>
-      <div className="lw-card__head">
-        <h2 className="lw-card__title">Saved views</h2>
-      </div>
-      {personal.isLoading || shared.isLoading ? (
-        <p className="lw-card__meta" style={{ fontSize: 13 }}>
-          Loading saved views…
-        </p>
-      ) : personal.isError || shared.isError ? (
-        <p role="alert" className="lw-card__meta" style={{ fontSize: 13 }}>
-          Saved views could not be loaded. {w2Error(personal.error ?? shared.error)}
-        </p>
-      ) : bySurface.size === 0 ? (
-        <p className="lw-card__meta" style={{ fontSize: 13 }}>
-          No saved views yet. Save a hearings, feed, bills, or committee view from its own "Saved
-          views" control to see it here.
-        </p>
-      ) : (
-        <ul style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 13 }}>
-          {[...bySurface.entries()].map(([surface, count]) => (
-            <li key={surface}>
-              {SAVED_VIEW_SURFACE_LABEL[surface as keyof typeof SAVED_VIEW_SURFACE_LABEL] ??
-                surface}
-              : {count} view{count === 1 ? '' : 's'}
-            </li>
-          ))}
-        </ul>
-      )}
-      <LwButton size="36" onClick={() => navigate('/legiwatch?tab=hearings')}>
-        Manage saved views
-      </LwButton>
     </section>
   );
 }

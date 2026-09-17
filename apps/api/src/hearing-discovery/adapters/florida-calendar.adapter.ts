@@ -11,7 +11,9 @@ import type {
 
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
+export const FL_CHANNEL = 'https://thefloridachannel.org';
 export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-14.1';
+export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
  * Acceptance test for an official Florida watch/player page. Only an http(s)
@@ -831,6 +833,47 @@ export function houseNoticeObservation(
   });
 }
 
+/**
+ * Source reads against the Florida Channel WP API. Restricted to
+ * thefloridachannel.org https, bounded, redirect-checked — same contract as
+ * {@link fetchFloridaSource} for the chamber hosts. Only JSON API routes are
+ * fetched here; the archive video PAGE html (for player verification) is read
+ * by the browser or by the same guard below when it is the record's own link.
+ */
+export async function fetchFloridaChannelSource(
+  url: string,
+): Promise<{ bytes: Uint8Array; totalPages: number | null }> {
+  const allowed = (u: string) => {
+    const p = new URL(u);
+    return p.protocol === 'https:' && p.hostname.toLowerCase() === 'thefloridachannel.org';
+  };
+  if (!allowed(url)) throw new Error('Unsupported Florida Channel source URL');
+  let current = url;
+  for (let redirects = 0; redirects < 4; redirects++) {
+    const response = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      current = new URL(response.headers.get('location') ?? '', current).href;
+      if (!allowed(current)) throw new Error('Florida Channel source redirected off-host');
+      continue;
+    }
+    // The WP archive answers a `page` past its range with HTTP 400 and the
+    // `rest_post_invalid_page_number` code — that is the documented
+    // end-of-pagination signal. Any OTHER 400 is a real source failure.
+    if (response.status === 400 && new URL(current).searchParams.has('page')) {
+      const body = new TextDecoder().decode(await response.arrayBuffer());
+      if (body.includes('rest_post_invalid_page_number'))
+        return { bytes: new Uint8Array(), totalPages: null };
+      throw new Error(`Florida Channel source HTTP 400: ${body.slice(0, 200)}`);
+    }
+    if (!response.ok) throw new Error(`Florida Channel source HTTP ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > 20_000_000) throw new Error('Florida Channel source too large');
+    const total = Number(response.headers.get('x-wp-totalpages'));
+    return { bytes, totalPages: Number.isInteger(total) && total > 0 ? total : null };
+  }
+  throw new Error('Florida Channel source redirect limit exceeded');
+}
+
 /** Source reads are restricted to the two qualified first-party hosts, bounded
  * and checked after redirects. No provider secret appears in the URL. */
 export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
@@ -913,4 +956,259 @@ export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
     return bytes;
   }
   throw new Error('Florida source redirect limit exceeded');
+}
+
+// ---------------------------------------------------------------------------
+// Florida video ARCHIVE contract (2026-09-16)
+//
+// Two official archives backfill the noticed calendar. Both are exact per-event
+// pages (never a directory), and a row is accepted only when it carries a
+// playable player or an official stable video id:
+//
+//  * The Florida Channel WP archive — PRIMARY historical inventory. A complete
+//    TFC legislative record in the session taxonomy (video_programs = the
+//    "YYYY Legislative Session" term) is authoritative evidence the event
+//    occurred. The meeting date comes from the M/D/YY prefix in the TITLE
+//    (never the WP post timestamp, which is the publication time).
+//  * The Senate media catalog (/Media/Videos/Committees/N) — OFFICIAL
+//    ALTERNATIVE + CROSSWALK evidence only. It must never create a second
+//    canonical row: its rows either carry the same Kaltura entry id as a TFC
+//    record (strong proof, crosswalk/attach) or match a noticed meeting, or
+//    they are reported, never merged by title/date alone.
+// ---------------------------------------------------------------------------
+
+/** A row of the Senate first-party media catalog. */
+export type SenateMediaArchiveRow = {
+  date: string;
+  title: string;
+  kind: string | null;
+  rawTime: string | null;
+  watchUrl: string;
+  durationText: string | null;
+};
+
+/**
+ * Parse one page of `/Media/Videos/Committees/N`. The page is a plain
+ * server-rendered table (Date | Thumbnail | Title/Description | Duration) with
+ * exact `/media/VideoPlayer/{id}` links; the description line names the event
+ * kind and start ("Senate Committee Meeting held at 11:00 AM on 9/11/2026").
+ * A page with no rows is a source failure (never assert empty coverage); the
+ * caller stops paginating when the publisher's pager ends.
+ */
+export function senateMediaArchive(html: string): {
+  rows: SenateMediaArchiveRow[];
+  maxPage: number;
+  issues: string[];
+} {
+  const $ = load(html);
+  const issues: string[] = [];
+  let maxPage = 1;
+  $('.ListPagination a[href*="/Media/Videos/Committees/"]').each((_, a) => {
+    const n = Number(/\/Media\/Videos\/Committees\/(\d+)/.exec($(a).attr('href') ?? '')?.[1]);
+    if (Number.isInteger(n) && n > maxPage) maxPage = n;
+  });
+  const rows: SenateMediaArchiveRow[] = [];
+  $('table.clickableRows tbody tr').each((_, tr) => {
+    const tds = $(tr).find('td');
+    const date = floridaDate(clean(tds.eq(0).text()));
+    // The thumbnail anchor and the title anchor share the href; the title
+    // anchor is the one with text. Never read the empty thumbnail link.
+    const link = $(tr)
+      .find('a[href*="/media/VideoPlayer/"]')
+      .toArray()
+      .map((a) => $(a))
+      .find((a) => clean(a.text())) ?? $(tr).find('a[href*="/media/VideoPlayer/"]').first();
+    const href = link.attr('href') ?? '';
+    const videoId = /^\/media\/VideoPlayer\/(\d+)$/i.exec(href)?.[1];
+    const title = clean(link.text());
+    // The description text lives in the <th> AFTER the title anchor; strip the
+    // title itself so "Kind … held at …" is measured from the tail only.
+    const description = clean($(tr).find('th').text());
+    const tail = title && description.startsWith(title) ? description.slice(title.length) : description;
+    const held =
+      /(.*?)\s+held at\s+(\d{1,2}:\d{2}\s*(?:a\.?m\.?|p\.?m\.?|noon)?)\s+on\s+\d{1,2}\/\d{1,2}\/\d{4}/i.exec(
+        tail,
+      );
+    if (!date || !videoId || !title) {
+      issues.push(`Unresolved Senate media archive row: ${clean(tds.eq(0).text())}`);
+      return;
+    }
+    rows.push({
+      date,
+      title,
+      kind: held?.[1] ? clean(held[1]) : null,
+      rawTime: held?.[2] ? clean(held[2]) : null,
+      watchUrl: `${FL_SENATE}/media/VideoPlayer/${videoId}`,
+      durationText: clean(tds.eq(2).text()) || null,
+    });
+  });
+  if (!rows.length && !issues.length && !$('.ListPagination').length)
+    throw new Error('Senate media archive layout unavailable');
+  return { rows, maxPage, issues };
+}
+
+/**
+ * Acceptance test for a Florida Channel EXACT per-event video page:
+ * https://thefloridachannel.org/videos/<slug>/ only. The /videos/ archive
+ * index and every other path on the host are listings, never a player.
+ */
+export function isFloridaChannelVideoPage(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.username || u.password) return false;
+  if (u.hostname.toLowerCase() !== 'thefloridachannel.org') return false;
+  return /^\/videos\/[a-z0-9][a-z0-9-]*\/?$/i.test(u.pathname);
+}
+
+/** The Kaltura entry a publisher player page actually embeds, or null. */
+export function floridaKalturaEntryId(html: string): string | null {
+  return (
+    /\bentry[_-]?id=([0-9]+_[a-z0-9]+)/i.exec(html)?.[1] ??
+    /\bentryId\/([0-9]+_[a-z0-9]+)/i.exec(html)?.[1] ??
+    null
+  );
+}
+
+export type FloridaChannelClassification =
+  | { legislative: true; chamber: 'house' | 'senate' | 'joint'; body: string }
+  | { legislative: false; reason: string };
+
+const TFC_DATE_PREFIX = /^(\d{1,2})\/(\d{1,2})\/(\d{2})\s+/;
+/** Non-legislative TFC programs: news clips, pressers, executive/judicial. */
+const TFC_REJECT =
+  /\b(press (availability|conference)|capitol update|news brief|interview|address to the state|state of the state|inaugurat|supreme court|oral argument|board of (trustees|education|governors)|commission on ethics|citrus commission|public service commission|biscayne bay|historical markers?|tribute|memorial|documen?tary|crossroads|face to face|perspectives|running start|explore florida|explores|profile)\b/i;
+const TFC_COUNTY_DELEGATION = /county\s+delegation/i;
+/** "House Session" / "Senate in Special Session F" — the chamber's floor sitting. */
+const FLORIDA_FLOOR_TITLE = /^(house|senate)(\s+in\s+special\s+session\b.*|\s+session\b.*)$/i;
+
+/**
+ * Classify a TFC archive title. Only a title that explicitly names a Florida
+ * legislative chamber/body qualifies as a legislative proceeding; county
+ * delegations, press availabilities, news segments and executive/judicial
+ * events are rejected, never guessed. The chamber is what the title says —
+ * "Joint …" and conference committees are `joint`, never relabeled.
+ */
+export function classifyFloridaChannelTitle(title: string): FloridaChannelClassification {
+  const body = clean(title.replace(TFC_DATE_PREFIX, ''));
+  if (!body) return { legislative: false, reason: 'title carries no event name' };
+  if (TFC_COUNTY_DELEGATION.test(body))
+    return { legislative: false, reason: 'county delegation is not a chamber proceeding' };
+  if (TFC_REJECT.test(body)) return { legislative: false, reason: 'non-legislative program' };
+  if (/^joint\b/i.test(body)) return { legislative: true, chamber: 'joint', body };
+  if (/\bbudget conference\b|\bconference committee\b/i.test(body))
+    return { legislative: true, chamber: 'joint', body };
+  if (/^senate\b/i.test(body)) return { legislative: true, chamber: 'senate', body };
+  if (/^house\b/i.test(body)) return { legislative: true, chamber: 'house', body };
+  return { legislative: false, reason: 'no explicit legislative chamber/body' };
+}
+
+/** The meeting date printed in a TFC archive TITLE (`M/D/YY …`), or null. */
+export function floridaChannelTitleDate(title: string): string | null {
+  const m = TFC_DATE_PREFIX.exec(title.trim());
+  if (!m) return null;
+  const year = 2000 + Number(m[3]);
+  return floridaDate(`${year}-${String(Number(m[1])).padStart(2, '0')}-${String(Number(m[2])).padStart(2, '0')}`);
+}
+
+/** The TFC "YYYY Legislative Session" taxonomy term id, or null when absent. */
+export function floridaChannelSessionProgramId(
+  programs: Array<{ id: number; name: string }>,
+  session: string,
+): number | null {
+  const want = `${session} legislative session`;
+  return programs.find((p) => clean(p.name).toLowerCase() === want)?.id ?? null;
+}
+
+/**
+ * Build the canonical observation for one TFC archive record. The record must
+ * be in the session's Legislative Session taxonomy AND classify as a
+ * legislative proceeding with an in-title date AND embed a playable player;
+ * anything less is rejected so the caller reports it instead of inventing an
+ * event. Time stays date-precision (the WP timestamp is the publication time,
+ * not the gavel). No agenda/location is fabricated.
+ */
+export function floridaChannelObservation(record: {
+  id: number;
+  link: string;
+  title: string;
+  contentHtml: string;
+  /** The rendered video PAGE html, fetched only when the WP content carries no
+   *  player — the publisher sometimes renders the player outside the WP
+   *  content block (TFC record 78898). Never fetched speculatively. */
+  pageHtml?: string | null;
+  programIds: number[];
+  sessionProgramId: number;
+  session: string;
+}): { observation: LegislativeObservation; kalturaEntryId: string } | { rejected: string } {
+  if (!record.programIds.includes(record.sessionProgramId))
+    return { rejected: `video ${record.id} is not in the ${record.session} Legislative Session program` };
+  const date = floridaChannelTitleDate(record.title);
+  if (!date) return { rejected: `video ${record.id} title carries no M/D/YY event date` };
+  const cls = classifyFloridaChannelTitle(record.title);
+  if (!cls.legislative) return { rejected: `video ${record.id}: ${cls.reason}` };
+  const kalturaEntryId =
+    floridaKalturaEntryId(record.contentHtml) ??
+    (record.pageHtml ? floridaKalturaEntryId(record.pageHtml) : null);
+  if (!kalturaEntryId)
+    return { rejected: `video ${record.id} page embeds no playable player` };
+  let link: URL;
+  try {
+    link = new URL(record.link);
+  } catch {
+    return { rejected: `video ${record.id} link is not a URL` };
+  }
+  if (!isFloridaChannelVideoPage(link.href))
+    return { rejected: `video ${record.id} link is not an exact /videos/<slug>/ page` };
+  // A complete archived proceeding is a past event; if the title date is in the
+  // future the row is a listing quirk, not evidence of a scheduled hearing.
+  const today = new Date().toISOString().slice(0, 10);
+  if (date > today) return { rejected: `video ${record.id} title date is in the future` };
+  // "House Session"/"Senate Session" (incl. "… in Special Session F") are floor
+  // sittings; everything else legislative is a committee/joint meeting.
+  const floor = cls.chamber !== 'joint' && FLORIDA_FLOOR_TITLE.test(cls.body);
+  const bodySlug = contentHash(cls.body.toLowerCase()).slice(0, 16);
+  const observation: LegislativeObservation = {
+    jurisdiction: 'FL',
+    session: record.session,
+    chamber: cls.chamber,
+    officialIdentity: `fl:tfc:video:${record.id}`,
+    bodySourceKey: `fl:${cls.chamber}:tfc:${bodySlug}`,
+    bodyName: cls.body,
+    stateCommitteeId: null,
+    eventType: cls.chamber === 'joint' ? 'joint' : floor ? 'floor' : 'committee',
+    sourceUrl: link.href,
+    publishedAt: null,
+    fields: {
+      title: cls.body,
+      status: 'completed',
+      time: {
+        date,
+        rawTime: null,
+        timezone: 'America/New_York',
+        precision: 'date',
+        startsAt: null,
+        endsAt: null,
+      },
+      documents: [
+        {
+          key: link.href,
+          title: `The Florida Channel archive: ${clean(record.title)}`,
+          url: link.href,
+          kind: 'archive',
+          publishedAt: null,
+        },
+      ],
+      watchUrl: link.href,
+    },
+    completeFields: ['title', 'status', 'time', 'documents', 'watchUrl'],
+    completeness: 'partial',
+    issues: [
+      'Archive-only record: no published meeting notice was matched; time is date-precision and no agenda/location is published by this source.',
+    ],
+  };
+  return { observation, kalturaEntryId };
 }

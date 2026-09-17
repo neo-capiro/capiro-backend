@@ -79,6 +79,7 @@ jobs:
       DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
       LEGIWATCH_PHASE5_TEST_DATABASE: disposable
+      CAPIRO_DISPOSABLE_PG: '1'
     services:
       folder-postgres:
         image: pgvector/pgvector:pg16
@@ -153,7 +154,7 @@ jobs:
         run: |
           pnpm --filter @capiro/api exec prisma migrate deploy
           pnpm --filter @capiro/intel-api exec prisma migrate deploy
-          pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/folder-pg-summary.json test/folder-tracker-postgres.spec.ts test/folder-import-postgres.spec.ts
+          pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/folder-pg-summary.json test/folder-tracker-postgres.spec.ts test/folder-import-postgres.spec.ts test/folder-corpus-search-postgres.spec.ts
           pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/source-pg-summary.json src/ingestion/legiscan-documents-postgres.spec.ts
           node --test apps/intel-api/scripts/legiwatch-import-apply.spec.mjs
           node --test apps/intel-api/scripts/entrypoint-migrate.spec.mjs
@@ -194,7 +195,7 @@ jobs:
       - name: Assert Phase 1 PostgreSQL suites are clean
         if: always()
         run: |
-          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/folder-pg-summary.json" phase1-folders 2 17
+          node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/folder-pg-summary.json" phase1-folders 3 34
           node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/source-pg-summary.json" phase1-source 1 2
 
       - name: Assert saved hearing association SQL is clean
@@ -214,8 +215,8 @@ jobs:
       # `src/live-hearings/` (master-calendar reads + the cross-tenant overlay
       # boundary). `src/prisma/tenant-scope-guard.spec.ts` is enumerated
       # explicitly because the new subscription reads are exactly the class of
-      # access it guards. Floor 96/1186 measured from the final full-scope
-      # local run of exactly this list (0 failed, 0 skipped).
+      # access it guards. Baseline scope: 99 suites / 1215 tests; the final
+      # archive/capture regressions add five tests within these same files.
       #
       # Phase 1 runs the database suites against the migrated service above.
       # Keep -- before positional paths: Jest's array-valued ignore option
@@ -244,7 +245,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 96 1186
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 99 1220
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -262,6 +263,7 @@ jobs:
           src/hearing/deepgram-stream.manager.spec.ts
           src/hearing/hearing-ai-credential-resolver.client.spec.ts
           src/hearing/hearing-capture-hardening.spec.ts
+          src/hearing/hearing-florida-public-capture.spec.ts
           src/hearing/hearing-gateway.capture.spec.ts
           src/hearing/hearing-tenant-scoping.spec.ts
           src/hearing/hearing-ws-ticket.service.spec.ts
@@ -331,12 +333,14 @@ jobs:
           test/stream-extractors.spec.ts
           test/net-guard.spec.ts
           test/folder-tracker.spec.ts
+          test/bill-search.spec.ts
+          test/bill-search-jurisdictions.spec.ts
           test/bill-dossier.spec.ts
           test/bill-dossier-state.spec.ts
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 77 965
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 80 1008
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -368,7 +372,7 @@ jobs:
       # from this exact scope, with zero failures and zero skips required.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 275 970
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 281 990
 
       # New real-DB, media, review, consent and UI suites have their own explicit
       # floors. The earlier saved-session fixture stays on its separate DB.

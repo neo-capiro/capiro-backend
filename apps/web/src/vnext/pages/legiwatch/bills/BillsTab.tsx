@@ -33,6 +33,7 @@ import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import { Bill360Drawer } from './Bill360Drawer.js';
 import { useFolderTrackerFlag } from './folder-api.js';
 import { FolderBillsTab } from './FolderBillsTab.js';
+import type { FolderPage } from './folder-api.js';
 
 type ViewMode = 'cards' | 'table';
 type SortKey = 'passage' | 'relevance';
@@ -63,6 +64,48 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
       return next;
     });
   const [openBill, setOpenBill] = useState<string | null>(null);
+
+  // Global public corpus search — available even when the folder-tracker flag
+  // is off, so a tenant can find any ingested federal/state bill by number or
+  // title. Entering a query switches the table from the tracked board to the
+  // full corpus; clearing it returns to the board.
+  const corpusQ = params.get('corpusQ') ?? '';
+  const corpusJurisdiction = params.get('corpusJurisdiction') ?? '';
+  const corpusSearch = corpusQ.trim().length >= 2;
+  // Cursor-paged like the backend: every page is a real server window, never
+  // a truncated first-50 client-side list.
+  const corpus = useInfiniteQuery<FolderPage>({
+    queryKey: ['bill-corpus-search', corpusQ, corpusJurisdiction],
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<FolderPage>('/intel-api/legiwatch/bills/search', {
+          params: {
+            q: corpusQ,
+            ...(corpusJurisdiction ? { jurisdiction: corpusJurisdiction } : {}),
+            limit: 50,
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+        })
+      ).data,
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: corpusSearch,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const corpusRows = (corpus.data?.pages ?? []).flatMap((page) => page.rows);
+  const corpusTotal = corpus.data?.pages?.[0]?.total ?? 0;
+  const corpusMeta = useQuery<{ jurisdictions: Array<{ key: string; count: number }> }>({
+    queryKey: ['bill-corpus-metadata'],
+    queryFn: async () =>
+      (
+        await api.get<{ jurisdictions: Array<{ key: string; count: number }> }>(
+          '/intel-api/legiwatch/bills/corpus-metadata',
+        )
+      ).data,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   // Bills board + recommendations are client-scoped surfaces. PR C / LW-QA-012:
   // "All clients" (empty scope) must NOT silently read the first client. The
@@ -175,27 +218,22 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
           : (b.matchedHighPriorityTopics?.length ?? 0) - (a.matchedHighPriorityTopics?.length ?? 0),
       );
 
-  if (board.isLoading) {
-    return (
-      <div className="lw-body">
-        <div className="lw-card" style={{ padding: 18 }}>
-          <LwStateLoading rows={4} />
-        </div>
-      </div>
-    );
-  }
-
-  if (board.isError && !board.data) {
-    return (
-      <div className="lw-body">
-        <LwStateUnavailable
-          source="Bills board"
-          reason="The tracked-bill service could not be loaded. Recommendations may still be available."
-          onRetry={() => void board.refetch()}
-        />
-      </div>
-    );
-  }
+  // The public corpus search below must render even when the private tracked
+  // board is unavailable (e.g. tenant without tracker flags gets a 403 board
+  // response): it is a separate public endpoint, not part of the board. Board
+  // errors are shown inline where the board would be instead of replacing the
+  // whole page.
+  const boardSection = board.isLoading ? (
+    <div className="lw-card" style={{ padding: 18 }}>
+      <LwStateLoading rows={4} />
+    </div>
+  ) : board.isError && !board.data ? (
+    <LwStateUnavailable
+      source="Bills board"
+      reason="The tracked-bill service could not be loaded. Recommendations may still be available."
+      onRetry={() => void board.refetch()}
+    />
+  ) : null;
 
   return (
     <div className="lw-body">
@@ -260,7 +298,10 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
         </section>
       ) : null}
 
-      {/* board toolbar */}
+      {/* board toolbar — board-only filters; hidden while the global corpus
+          search is active so private board controls never appear to act on
+          public corpus results. */}
+      {!corpusSearch ? (
       <div className="lw-controls">
         <LwSeg
           ariaLabel="Board view"
@@ -325,9 +366,110 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
           {board.hasNextPage ? 'Export loaded bills' : 'Export'}
         </LwButton>
       </div>
+      ) : null}
 
-      {/* stage board */}
-      {view === 'cards' ? (
+      {/* Global corpus search — every ingested bill, flag-independent. Renders
+          regardless of the private tracked board's loading/error state. */}
+      <div className="lw-card" style={{ padding: '10px 18px' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label style={{ flex: 1, minWidth: 220, fontSize: 13 }}>
+            <span style={{ display: 'block', marginBottom: 4, color: 'var(--lw-meta)' }}>
+              Search all ingested bills
+            </span>
+            <input
+              type="search"
+              value={corpusQ}
+              onChange={(e) => setFilter('corpusQ', e.target.value)}
+              placeholder="Bill number or title — e.g. H.R. 177, HB 27, data center"
+              aria-label="Search all ingested bills"
+              className="lw-btn"
+              style={{ width: '100%', textAlign: 'left' }}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            <span style={{ display: 'block', marginBottom: 4, color: 'var(--lw-meta)' }}>
+              Jurisdiction
+            </span>
+            <select
+              aria-label="Corpus jurisdiction"
+              className="lw-btn"
+              value={corpusJurisdiction}
+              onChange={(e) => setFilter('corpusJurisdiction', e.target.value)}
+            >
+              <option value="">All ingested jurisdictions</option>
+              {(corpusMeta.data?.jurisdictions ?? []).map((j) => (
+                <option key={j.key} value={j.key}>
+                  {j.key === 'US' ? 'Federal' : j.key} ({j.count})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {corpusSearch ? (
+          <div style={{ marginTop: 10 }}>
+            {corpus.isPending ? (
+              <p role="status">Searching the ingested corpus…</p>
+            ) : corpus.isError ? (
+              <p role="alert">Corpus search is unavailable right now. Try again in a moment.</p>
+            ) : (
+              <>
+                <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--lw-meta)' }}>
+                  {corpusTotal} matching bills
+                </p>
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+                  {corpusRows.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        className="lw-bcard"
+                        style={{ width: '100%' }}
+                        onClick={() => setOpenBill(r.id)}
+                      >
+                        <div className="lw-bcard__id">
+                          {r.number}
+                          <span style={{ marginLeft: 8, fontWeight: 400 }}>
+                            {r.jurisdiction === 'US' ? 'Federal' : r.jurisdiction} · {r.sessionKey}
+                          </span>
+                        </div>
+                        <div className="lw-bcard__title">{r.title}</div>
+                      </button>
+                    </li>
+                  ))}
+                  {!corpusRows.length ? (
+                    <li style={{ fontSize: 13, color: 'var(--lw-meta)' }}>
+                      No ingested bills match “{corpusQ}”.
+                    </li>
+                  ) : null}
+                </ul>
+                {corpus.hasNextPage ? (
+                  <LwButton
+                    onClick={() => void corpus.fetchNextPage()}
+                    disabled={corpus.isFetchingNextPage}
+                  >
+                    {corpus.isFetchingNextPage ? 'Loading…' : 'Load more bills'}
+                  </LwButton>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      {/* stage board — its rows are hidden while corpus searching so the
+          board's pagination controls never duplicate the corpus "Load more
+          bills", but a board load/error notice must stay visible: it is the
+          only place a 403/500 on the private tracked board is surfaced now
+          that the early returns are gone. */}
+      {corpusSearch && board.isError && !board.data ? (
+        <LwStateUnavailable
+          source="Bills board"
+          reason="The tracked-bill service could not be loaded. Recommendations may still be available."
+          onRetry={() => void board.refetch()}
+        />
+      ) : null}
+      {corpusSearch ? null : boardSection ? (
+        boardSection
+      ) : view === 'cards' ? (
         <>
           <div className="lw-board">
             {columns.map((col) => {
@@ -475,10 +617,10 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
         </section>
       )}
 
-      {board.isFetchNextPageError ? (
+      {!corpusSearch && board.isFetchNextPageError ? (
         <p role="alert">More bills could not be loaded. Your loaded bills are still shown.</p>
       ) : null}
-      {board.hasNextPage ? (
+      {!corpusSearch && board.hasNextPage ? (
         <LwButton onClick={() => void board.fetchNextPage()} disabled={board.isFetchingNextPage}>
           {board.isFetchingNextPage
             ? 'Loading…'

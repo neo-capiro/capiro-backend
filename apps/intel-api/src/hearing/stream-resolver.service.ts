@@ -226,6 +226,12 @@ export class StreamResolverService {
     if (/(^|\.)flsenate\.gov$/i.test(host)) {
       return this.resolveFloridaSenatePlayer(pageUrl);
     }
+    // (9) The Florida Channel per-event page — same browser-capture posture:
+    // the exact /videos/<slug>/ page is the stable publisher reference. TFC is
+    // never server-captured and no media URL is extracted here.
+    if (host === 'thefloridachannel.org') {
+      return this.resolveFloridaChannelVideo(pageUrl);
+    }
 
     return {
       status: 'unresolvable',
@@ -886,6 +892,52 @@ export class StreamResolverService {
       status: 'unresolvable',
       reference: pageUrl,
       note: `Verified Florida Senate VideoPlayer event ${player.eventId} — open the official player and share its tab audio`,
+    };
+  }
+
+  // ── (9) The Florida Channel per-event page ─────────────────────────────────
+
+  /**
+   * An exact The Florida Channel per-event page (`/videos/<slug>/`) is itself
+   * the stable publisher reference — the same posture as the Florida Senate
+   * player: validated structurally, no network, no invented media, no
+   * server-side capture. The analyst opens the publisher player in a browser
+   * tab and records that tab's audio; Deepgram only ever transcribes the
+   * browser capture.
+   *
+   * Strictly scoped: HTTPS only, exact host, no credentials, no non-standard
+   * port, and a slug matching the capture guard's policy
+   * (`/^[a-z0-9][a-z0-9-]*$/`) so the resolver and the guard accept exactly
+   * the same pages. The /videos/ index, other TFC paths, and other
+   * hosts/subdomains are NOT accepted — they fall through to the generic
+   * no-adapter outcome.
+   */
+  private resolveFloridaChannelVideo(pageUrl: string): ResolveResult {
+    let url: URL;
+    try {
+      url = new URL(pageUrl);
+    } catch {
+      return { status: 'unresolvable', note: 'Invalid page URL' };
+    }
+    const slugMatch = /^\/videos\/([a-z0-9][a-z0-9-]*)\/?$/i.exec(url.pathname);
+    const isExactEventPage =
+      url.protocol === 'https:' &&
+      url.hostname.toLowerCase() === 'thefloridachannel.org' &&
+      !url.username &&
+      !url.password &&
+      (url.port === '' || url.port === '443') &&
+      Boolean(slugMatch);
+    if (!isExactEventPage) {
+      return {
+        status: 'unresolvable',
+        reference: pageUrl,
+        note: 'Not an exact The Florida Channel event page — open the event’s /videos/<slug>/ page in a browser tab and record that tab’s audio',
+      };
+    }
+    return {
+      status: 'unresolvable',
+      reference: pageUrl,
+      note: 'The Florida Channel event page — open the publisher player in a browser tab and record that tab’s audio (browser capture only; no server capture)',
     };
   }
 

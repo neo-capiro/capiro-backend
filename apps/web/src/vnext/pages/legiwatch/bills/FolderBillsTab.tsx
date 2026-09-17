@@ -156,22 +156,52 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
       : undefined) ??
     sessions.data?.find((s) => /^\d+$/.test(s.key))?.key ??
     '';
-  const search = params.get('folderSearch') === '1';
+  // Global corpus search is the default whenever a query or an explicit
+  // search-scope filter is present — there is no hidden mode to discover.
+  // `folderSearch=1` keeps the corpus table visible after the query clears.
+  const search =
+    params.get('folderSearch') === '1' ||
+    Boolean(params.get('folderQ')?.trim()) ||
+    params.get('folderJurisdiction') === 'all' ||
+    Boolean(params.get('folderSessionSearch'));
+  const corpus = useQuery<{
+    jurisdictions: Array<{ key: string; count: number }>;
+    sessions: Array<{ jurisdiction: string; key: string; label: string; count: number }>;
+  }>({
+    queryKey: [...folderKey(identity), 'corpus-metadata'],
+    queryFn: async () =>
+      (await api.get('/intel-api/legiwatch/bills/corpus-metadata')).data,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
   const activity = params.get('folderActivity') === '1';
   const summaryIncluded = params.get('folderSummaryView') === '1';
+  // In search mode the corpus defaults to ALL ingested jurisdictions/sessions;
+  // an explicit dropdown choice narrows it. The folder board keeps its
+  // jurisdiction/session-scoped contract untouched.
+  const effectiveJurisdiction = search
+    ? params.get('folderJurisdiction') === 'all'
+      ? undefined
+      : params.get('folderJurisdiction') || undefined
+    : jurisdiction;
+  const effectiveSession = search
+    ? params.get('folderSessionSearch') || undefined
+    : session;
+  const rawSort = params.get('folderSort') ?? 'bill';
   const query = {
-    ...(folderId ? { folderId } : {}),
+    // Public corpus search: no folderId/clientId/private-context fields.
+    ...(!search && folderId ? { folderId } : {}),
     ...(!search && scope ? { clientId: scope } : {}),
-    jurisdiction,
-    sessionKey: session,
+    ...(effectiveJurisdiction ? { jurisdiction: effectiveJurisdiction } : {}),
+    ...(effectiveSession ? { sessionKey: effectiveSession } : {}),
     q: params.get('folderQ') ?? '',
     sponsor: params.get('folderSponsor') ?? '',
     status: params.get('folderStatus') ?? '',
     ...(params.get('folderChamber') ? { chamber: params.get('folderChamber') } : {}),
-    ...(params.get('folderComments') ? { comments: params.get('folderComments') } : {}),
-    ...(params.get('folderPriority') ? { topPriority: params.get('folderPriority') } : {}),
-    ...(params.get('folderImportance') ? { importance: params.get('folderImportance') } : {}),
-    ...(params.get('folderPosition') ? { position: params.get('folderPosition') } : {}),
+    ...(!search && params.get('folderComments') ? { comments: params.get('folderComments') } : {}),
+    ...(!search && params.get('folderPriority') ? { topPriority: params.get('folderPriority') } : {}),
+    ...(!search && params.get('folderImportance') ? { importance: params.get('folderImportance') } : {}),
+    ...(!search && params.get('folderPosition') ? { position: params.get('folderPosition') } : {}),
     ...(params.get('folderSummary') ? { summary: params.get('folderSummary') } : {}),
     ...(params.get('folderActionText') ? { actionText: params.get('folderActionText') } : {}),
     ...(params.get('folderClassification')
@@ -180,7 +210,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
     ...(params.get('folderSubject') ? { subject: params.get('folderSubject') } : {}),
     ...(params.get('folderCommittee') ? { committee: params.get('folderCommittee') } : {}),
     ...(summaryIncluded ? { summaryIncluded: 'true' } : {}),
-    sort: params.get('folderSort') ?? 'bill',
+    sort: search && rawSort === 'added' ? 'bill' : rawSort,
     direction: params.get('folderDirection') ?? 'asc',
   };
   const queryId = JSON.stringify(query) + search;
@@ -220,12 +250,13 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
     queryKey: [...folderKey(identity), 'board', query, search, cursor],
     queryFn: async () =>
       (
-        await api.get<FolderPage>(`${FOLDER_BASE}/${search ? 'search' : 'board'}`, {
-          params: { ...query, cursor, limit: 50 },
-        })
+        await api.get<FolderPage>(
+          search ? '/intel-api/legiwatch/bills/search' : `${FOLDER_BASE}/board`,
+          { params: { ...query, cursor, limit: 50 } },
+        )
       ).data,
     // The daily-activity view owns its own query — never fetch a hidden board.
-    enabled: Boolean(session) && (!folderId || Boolean(active)) && !activity,
+    enabled: (search || Boolean(session)) && (search || !folderId || Boolean(active)) && !activity,
     retry: false,
   });
   const rows = board.data?.rows ?? [];
@@ -275,7 +306,15 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
       setRemoveOpen(false);
     });
   const pick = (id: string) => {
-    setFilters({ folder: id, folderAll: '', folderSearch: '', session: '' });
+    setFilters({
+      folder: id,
+      folderAll: '',
+      folderSearch: '',
+      folderQ: '',
+      folderJurisdiction: '',
+      folderSessionSearch: '',
+      session: '',
+    });
     setRailOpen(false);
   };
   const rail = (
@@ -295,7 +334,14 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
         className="lw-folder-choice"
         aria-current={allFolders ? 'page' : undefined}
         onClick={() => {
-          setFilters({ folder: '', folderAll: '1', folderSearch: '' });
+          setFilters({
+            folder: '',
+            folderAll: '1',
+            folderSearch: '',
+            folderQ: '',
+            folderJurisdiction: '',
+            folderSessionSearch: '',
+          });
           setRailOpen(false);
         }}
       >
@@ -395,20 +441,25 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             </CapiroButton>
             <h2>
               {search
-                ? 'Find bills'
+                ? 'All ingested bills'
                 : (active?.name ?? (allFolders ? 'All folder assignments' : 'Bill folders'))}
             </h2>
             <p>
               {activity ? (
                 <>
                   Daily original-record activity ·{' '}
-                  {search
-                    ? 'Whole session'
-                    : folderId
-                      ? (active?.name ?? 'Selected folder')
-                      : allFolders
-                        ? 'All tracked assignments'
-                        : 'Selected client'}
+                  {folderId
+                    ? (active?.name ?? 'Selected folder')
+                    : allFolders
+                      ? 'All tracked assignments'
+                      : 'Selected client'}
+                </>
+              ) : search ? (
+                <>
+                  {effectiveJurisdiction || effectiveSession
+                    ? 'Filtered corpus'
+                    : 'Every ingested federal and state bill'}{' '}
+                  · {board.data?.total ?? 0} bills
                 </>
               ) : (
                 <>
@@ -419,7 +470,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                       : scope
                         ? 'Selected client lens'
                         : 'All clients'}{' '}
-                  · {board.data?.total ?? 0} {search ? 'bills' : 'assignments'}
+                  · {board.data?.total ?? 0} assignments
                 </>
               )}
             </p>
@@ -478,9 +529,15 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             )}
             <CapiroButton
               size="compact"
-              onClick={() => setFilters({ folderSearch: search ? '' : '1', folderActivity: '' })}
+              onClick={() =>
+                setFilters({
+                  folderSearch: search ? '' : '1',
+                  folderActivity: '',
+                  ...(search ? { folderJurisdiction: '', folderSessionSearch: '', folderQ: '' } : {}),
+                })
+              }
             >
-              {search ? 'Back to folder' : 'Find bills'}
+              {search ? 'Back to folder' : 'Search all bills'}
             </CapiroButton>
             {!activity && (
               <CapiroButton
@@ -529,31 +586,74 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             because the heading/actionbar/table cards are sibling divs. */}
         <div className="lw-folder-filtercard">
         <div className="lw-folder-filters">
-          <CapiroSelect
-            label="Jurisdiction"
-            value={jurisdiction}
-            options={[
-              option('FL', 'Florida'),
-              option('US', 'Federal'),
-              option('CA', 'California'),
-              option('TX', 'Texas'),
-              option('NY', 'New York'),
-              option('VA', 'Virginia'),
-            ]}
-            onChange={(e) => {
-              setFilters({ jurisdiction: e.target.value, session: '' });
-            }}
-          />
-          <CapiroSelect
-            label="Session"
-            value={session}
-            options={
-              sessions.data?.length
-                ? sessions.data.map((s) => option(s.key, s.label))
-                : [option('', 'No sessions available')]
-            }
-            onChange={(e) => setFilter('session', e.target.value)}
-          />
+          {search ? (
+            <>
+              <CapiroSelect
+                label="Jurisdiction"
+                value={params.get('folderJurisdiction') ?? 'all'}
+                options={[
+                  option('all', 'All ingested jurisdictions'),
+                  ...(corpus.data?.jurisdictions ?? []).map((j) =>
+                    option(j.key, j.key === 'US' ? `Federal (${j.count})` : `${j.key} (${j.count})`),
+                  ),
+                ]}
+                onChange={(e) => {
+                  setFilters({ folderJurisdiction: e.target.value === 'all' ? '' : e.target.value, folderSessionSearch: '' });
+                }}
+              />
+              {(() => {
+                const juri = params.get('folderJurisdiction');
+                const narrowed = juri && juri !== 'all' ? juri : '';
+                return (
+                  <CapiroSelect
+                    label="Session"
+                    value={narrowed ? (params.get('folderSessionSearch') ?? '') : ''}
+                    disabled={!narrowed}
+                    options={
+                      narrowed
+                        ? [
+                            option('', 'All sessions'),
+                            ...(
+                              corpus.data?.sessions.filter((s) => s.jurisdiction === narrowed) ??
+                                []
+                            ).map((s) => option(s.key, `${s.label} (${s.count})`)),
+                          ]
+                        : [option('', 'All sessions (pick a jurisdiction to narrow)')]
+                    }
+                    onChange={(e) => setFilter('folderSessionSearch', e.target.value)}
+                  />
+                );
+              })()}
+            </>
+          ) : (
+            <>
+              <CapiroSelect
+                label="Jurisdiction"
+                value={jurisdiction}
+                options={[
+                  option('FL', 'Florida'),
+                  option('US', 'Federal'),
+                  option('CA', 'California'),
+                  option('TX', 'Texas'),
+                  option('NY', 'New York'),
+                  option('VA', 'Virginia'),
+                ]}
+                onChange={(e) => {
+                  setFilters({ jurisdiction: e.target.value, session: '' });
+                }}
+              />
+              <CapiroSelect
+                label="Session"
+                value={session}
+                options={
+                  sessions.data?.length
+                    ? sessions.data.map((s) => option(s.key, s.label))
+                    : [option('', 'No sessions available')]
+                }
+                onChange={(e) => setFilter('session', e.target.value)}
+              />
+            </>
+          )}
           {!activity && (
             <>
               <CapiroInput
@@ -577,7 +677,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                   option('title', 'Title'),
                   option('sponsor', 'Sponsor'),
                   option('lastAction', 'Last action'),
-                  option('added', 'Date foldered'),
+                  ...(!search ? [option('added', 'Date foldered')] : []),
                 ]}
                 onChange={(e) => setFilter('folderSort', e.target.value)}
               />
@@ -603,7 +703,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
             ]}
             onChange={(e) => setFilter('folderChamber', e.target.value)}
           />
-          {!activity && (
+          {!activity && !search && (
             <>
               <CapiroSelect
                 label="Comments"
@@ -670,6 +770,30 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                 Reset
               </CapiroButton>
             </>
+          )}
+          {!activity && search && (
+            <CapiroButton
+              size="compact"
+              onClick={() =>
+                setFilters({
+                  folderQ: '',
+                  folderSponsor: '',
+                  folderStatus: '',
+                  folderChamber: '',
+                  folderSummary: '',
+                  folderActionText: '',
+                  folderClassification: '',
+                  folderSubject: '',
+                  folderCommittee: '',
+                  folderSort: '',
+                  folderDirection: '',
+                  folderJurisdiction: '',
+                  folderSessionSearch: '',
+                })
+              }
+            >
+              Reset
+            </CapiroButton>
           )}
         </div>
         {!activity && (
@@ -856,6 +980,8 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                     >
                       Title
                     </TH>
+                    {search ? <TH>Jurisdiction</TH> : null}
+                    {search ? <TH>Session</TH> : null}
                     <TH
                       hidden={!visibleColumns.has('sponsor')}
                       aria-sort={
@@ -881,9 +1007,9 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                     >
                       Last action
                     </TH>
-                    <TH hidden={!visibleColumns.has('priority')}>Priority / importance</TH>
-                    <TH hidden={!visibleColumns.has('position')}>Position</TH>
-                    <TH hidden={!visibleColumns.has('added')}>Date foldered</TH>
+                    <TH hidden={search || !visibleColumns.has('priority')}>Priority / importance</TH>
+                    <TH hidden={search || !visibleColumns.has('position')}>Position</TH>
+                    <TH hidden={search || !visibleColumns.has('added')}>Date foldered</TH>
                     {calendarEnabled ? <TH>Upcoming agenda</TH> : null}
                     <TH>Context</TH>
                   </tr>
@@ -942,6 +1068,10 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                             </p>
                           )}
                       </TD>
+                      {search ? (
+                        <TD>{r.jurisdiction === 'US' ? 'Federal' : r.jurisdiction}</TD>
+                      ) : null}
+                      {search ? <TD>{r.sessionKey}</TD> : null}
                       <TD hidden={!visibleColumns.has('sponsor')}>{r.sponsor ?? 'Unresolved'}</TD>
                       <TD hidden={!visibleColumns.has('status')}>
                         {r.status?.replaceAll('_', ' ') ?? 'Unavailable'}
@@ -952,7 +1082,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                         </span>
                         <small>{r.latestActionAt?.slice(0, 10) ?? 'Date unavailable'}</small>
                       </TD>
-                      <TD hidden={!visibleColumns.has('priority')}>
+                      <TD hidden={search || !visibleColumns.has('priority')}>
                         {r.assignmentId ? (
                           <>
                             {r.topPriority && <strong>Top priority · </strong>}
@@ -962,8 +1092,8 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                           '—'
                         )}
                       </TD>
-                      <TD hidden={!visibleColumns.has('position')}>{r.position ?? '—'}</TD>
-                      <TD hidden={!visibleColumns.has('added')}>
+                      <TD hidden={search || !visibleColumns.has('position')}>{r.position ?? '—'}</TD>
+                      <TD hidden={search || !visibleColumns.has('added')}>
                         <span
                           title={r.addedDateRaw ? 'Source local time; timezone unknown' : undefined}
                         >
@@ -1783,7 +1913,7 @@ function FolderActivityView({
 }) {
   const api = useApi(),
     identity = useApiScope();
-  // Kind/day live in the URL so Saved Views (which capture pathname+query)
+  // Kind/day live in the URL so deep links (pathname+query)
   // restore them on apply. `folderActivityDate=all` is the explicit all-dates
   // state; an absent date param means the dynamic local-today default.
   const [params, setParams] = useSearchParams();

@@ -577,3 +577,63 @@ describe('florida Senate media player (event 6382)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+// ── The Florida Channel per-event page ──────────────────────────────────────
+
+describe('the Florida Channel per-event page', () => {
+  const TFC_EVENT =
+    'https://thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission/';
+
+  it('returns the exact /videos/<slug>/ page as the stable publisher reference with NO network call', async () => {
+    const svc = makeService();
+    const r = await svc.resolve({ pageUrl: TFC_EVENT });
+    expect(r.status).toBe('unresolvable');
+    expect(r.reference).toBe(TFC_EVENT);
+    expect(r.note).toContain('publisher player');
+    expect(r.note).toContain('record that tab’s audio');
+    expect(r.note).toContain('browser capture');
+    // Structural validation only — no existence/playability claim.
+    expect(r.note).not.toContain('Verified');
+    // Never the old dead-end.
+    expect(r.note).not.toContain('No resolver adapter');
+    // Structural validation only — no fetch, no probe, no extraction.
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(probeMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts the same page without the trailing slash', async () => {
+    const svc = makeService();
+    const r = await svc.resolve({
+      pageUrl: 'https://thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission',
+    });
+    expect(r.status).toBe('unresolvable');
+    expect(r.note).toContain('publisher player');
+    expect(r.note).not.toContain('No resolver adapter');
+  });
+
+  it.each([
+    ['http scheme', 'http://thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission/'],
+    ['credentials', 'https://user:pw@thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission/'],
+    ['non-standard port', 'https://thefloridachannel.org:8443/videos/9-11-26-joint-legislative-budget-commission/'],
+    ['videos index', 'https://thefloridachannel.org/videos/'],
+    ['other TFC path', 'https://thefloridachannel.org/about/'],
+    ['subdomain', 'https://www.thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission/'],
+    ['other host', 'https://thefloridachannel.com/videos/9-11-26-joint-legislative-budget-commission/'],
+    ['slug with underscore', 'https://thefloridachannel.org/videos/joint_budget/'],
+    ['slug with empty segment', 'https://thefloridachannel.org/videos//'],
+  ])('rejects a non-exact page (%s) truthfully, with no network', async (_label, url) => {
+    const svc = makeService();
+    const r = await svc.resolve({ pageUrl: url });
+    expect(r.status).toBe('unresolvable');
+    expect(r.note).not.toContain('publisher player');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(probeMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the generic no-adapter outcome for a non-exact TFC host variant', async () => {
+    const svc = makeService();
+    const r = await svc.resolve({ pageUrl: 'https://www.thefloridachannel.org/videos/x/' });
+    expect(r.status).toBe('unresolvable');
+    expect(r.note).toContain('No resolver adapter for host www.thefloridachannel.org');
+  });
+});

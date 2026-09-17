@@ -2,8 +2,9 @@
  * LegiWatch V2 Wave 2 — contract + tenant-isolation proof against a REAL
  * Postgres with the full apps/api AND apps/intel-api migration chains
  * applied (both services share one physical database — see
- * reference_capirov2_db_backed_testing). Covers W2-1's extension, W2-2, W2-4,
- * and W2-5 end to end.
+ * reference_capirov2_db_backed_testing). Covers W2-1's extension, W2-4, and
+ * W2-5 end to end. (W2-2 Saved Views was removed; the table is dropped by
+ * migration 20280916010000_drop_legiwatch_saved_view.)
  *
  * Gate: DATABASE_URL must point at the disposable PG. Skipped cleanly
  * otherwise, matching the posture of every sibling integration suite.
@@ -15,7 +16,6 @@ import { LiveHearingsService } from './live-hearings.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
-import { LegiWatchWave2SavedViewsService } from './legiwatch-wave2-saved-views.service.js';
 import { LegiWatchWave2WatchPresetsService } from './legiwatch-wave2-watch-presets.service.js';
 import { LegiWatchWave2CoverageService } from './legiwatch-wave2-coverage.service.js';
 
@@ -63,7 +63,6 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
   const phase7 = new LiveHearingsPhase7Service(prisma, hearings, committees);
   const notifications = new LegiWatchLifecycleNotificationService(prisma);
   const wave1 = new LegiWatchWave1Service(prisma, phase7, committees, notifications);
-  const savedViews = new LegiWatchWave2SavedViewsService(prisma);
   const watchPresets = new LegiWatchWave2WatchPresetsService(prisma);
   const coverage = new LegiWatchWave2CoverageService(prisma, hearings);
 
@@ -72,7 +71,7 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
-      `TRUNCATE legiwatch_saved_view, legiwatch_watch_backtest_job, legiwatch_watch_preset,
+      `TRUNCATE legiwatch_watch_backtest_job, legiwatch_watch_preset,
                 tenant_hearing_relevance, public_hearing_intelligence_job,
                 public_hearing_insight, public_hearing_transcript_segment,
                 public_hearing_capture, committee_hearing,
@@ -298,132 +297,6 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
         corpus: { pendingExtractionJobs: number };
       };
       expect(result.corpus.pendingExtractionJobs).toBeGreaterThan(0);
-    });
-  });
-
-  // ── W2-2 · Saved Views ────────────────────────────────────────────────────
-
-  describe('W2-2 saved views', () => {
-    it('creates, saves real config, and applies it back', async () => {
-      const created = await savedViews.create(ctxA1, {
-        surface: 'feed',
-        name: 'My hot feed',
-        config: { filters: { severity: ['critical'] }, sort: 'date' },
-      });
-      expect(created.config).toEqual({ filters: { severity: ['critical'] }, sort: 'date' });
-
-      const applied = await savedViews.apply(ctxA1, created.id);
-      expect(applied.config).toEqual(created.config);
-      expect(applied.clientWarning).toBeNull();
-    });
-
-    it('rehydrates on rename without losing config', async () => {
-      const created = await savedViews.create(ctxA1, {
-        surface: 'feed',
-        name: 'Original',
-        config: { search: 'appropriations' },
-      });
-      const renamed = await savedViews.rename(ctxA1, created.id, 'Renamed');
-      expect(renamed.name).toBe('Renamed');
-      expect(renamed.config).toEqual({ search: 'appropriations' });
-    });
-
-    it('duplicates into a personal copy the caller owns, even from a shared source', async () => {
-      const shared = await savedViews.create(ctxA1, {
-        surface: 'bills',
-        name: 'Team bills view',
-        scope: 'tenant',
-        config: { sort: 'score' },
-      });
-      const dup = await savedViews.duplicate(ctxA2, shared.id, 'My copy');
-      expect(dup.scope).toBe('personal');
-      expect(dup.isOwnedByCaller).toBe(true);
-      expect(dup.config).toEqual({ sort: 'score' });
-    });
-
-    it('enforces one default per (tenant, owner, surface)', async () => {
-      const a = await savedViews.create(ctxA1, { surface: 'feed', name: 'A' });
-      const b = await savedViews.create(ctxA1, { surface: 'feed', name: 'B' });
-      await savedViews.setDefault(ctxA1, a.id, true);
-      await savedViews.setDefault(ctxA1, b.id, true);
-      const list = await savedViews.list(ctxA1, {});
-      const defaults = list.rows.filter((r) => r.isDefault);
-      expect(defaults).toHaveLength(1);
-      expect(defaults[0]!.id).toBe(b.id);
-    });
-
-    it('lists personal and shared views separately', async () => {
-      await savedViews.create(ctxA1, { surface: 'feed', name: 'Personal', scope: 'personal' });
-      await savedViews.create(ctxA1, { surface: 'feed', name: 'Shared', scope: 'tenant' });
-      const personalOnly = await savedViews.list(ctxA2, { scope: 'personal' });
-      expect(personalOnly.rows).toHaveLength(0); // A2 has none of their own
-      const sharedOnly = await savedViews.list(ctxA2, { scope: 'tenant' });
-      expect(sharedOnly.rows.map((r) => r.name)).toEqual(['Shared']);
-    });
-
-    it('A2 can read an A1 tenant-shared view but cannot mutate it', async () => {
-      const shared = await savedViews.create(ctxA1, {
-        surface: 'feed',
-        name: 'Shared',
-        scope: 'tenant',
-      });
-      const applied = await savedViews.apply(ctxA2, shared.id);
-      expect(applied.id).toBe(shared.id);
-
-      await expect(savedViews.rename(ctxA2, shared.id, 'Hijacked')).rejects.toThrow(/not found/);
-      // delete() is intentionally idempotent-soft rather than throwing (see
-      // its own doc comment) — "not yours" and "already gone" are the same
-      // observable outcome from the caller's side.
-      await expect(savedViews.delete(ctxA2, shared.id)).resolves.toEqual({ deleted: false });
-    });
-
-    it('A2 cannot mutate an A1 PERSONAL view at all', async () => {
-      const personal = await savedViews.create(ctxA1, { surface: 'feed', name: 'Private' });
-      await expect(savedViews.rename(ctxA2, personal.id, 'x')).rejects.toThrow(/not found/);
-      // Not even visible to apply/list.
-      await expect(savedViews.apply(ctxA2, personal.id)).rejects.toThrow(/not found/);
-    });
-
-    it('B1 cannot read a Tenant A shared view — and gets a plain 404, not evidence it exists', async () => {
-      const shared = await savedViews.create(ctxA1, {
-        surface: 'feed',
-        name: 'Shared',
-        scope: 'tenant',
-      });
-      await expect(savedViews.apply(ctxB1, shared.id)).rejects.toThrow(/not found/);
-    });
-
-    it('rejects a client id from another tenant', async () => {
-      await expect(
-        savedViews.create(ctxA1, { surface: 'feed', name: 'x', clientId: CLIENT_B1 }),
-      ).rejects.toThrow(/Client not found/);
-    });
-
-    it('warns on apply when the referenced client is archived, never substitutes silently', async () => {
-      const view = await savedViews.create(ctxA1, {
-        surface: 'feed',
-        name: 'Scoped',
-        clientId: CLIENT_A1,
-      });
-      await prisma.$executeRawUnsafe(
-        `UPDATE clients SET status = 'archived' WHERE id = $1::uuid`,
-        CLIENT_A1,
-      );
-      const applied = await savedViews.apply(ctxA1, view.id);
-      expect(applied.clientId).toBe(CLIENT_A1);
-      expect(applied.clientWarning).toMatch(/archived/);
-    });
-
-    it('refuses a config version newer than this server understands', async () => {
-      await expect(
-        savedViews.create(ctxA1, { surface: 'feed', name: 'x', configVersion: 999 }),
-      ).rejects.toThrow(/Unsupported saved-view config version/);
-    });
-
-    it('deletes cleanly and idempotently', async () => {
-      const view = await savedViews.create(ctxA1, { surface: 'feed', name: 'x' });
-      expect(await savedViews.delete(ctxA1, view.id)).toEqual({ deleted: true });
-      expect(await savedViews.delete(ctxA1, view.id)).toEqual({ deleted: false });
     });
   });
 

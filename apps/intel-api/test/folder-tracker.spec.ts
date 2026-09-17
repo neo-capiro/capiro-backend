@@ -56,6 +56,10 @@ describe('folder tracker contracts', () => {
     expect(normalizeBillNumber('H0027', 'FL')).toBe('HB27');
     expect(normalizeBillNumber('S0028', 'FL')).toBe('SB28');
     expect(normalizeBillNumber('H0027', 'GA')).toBe('H27');
+    expect(normalizeBillNumber('H.R. 177')).toBe('HR177');
+    expect(normalizeBillNumber('H R 177')).toBe('HR177');
+    expect(normalizeBillNumber('H B 2', 'FL')).toBe('HB2');
+    expect(normalizeBillNumber('s. 1932')).toBe('S1932');
     for (const proposal of ['HCB27', 'SAB28', 'GOS27', 'BUC27', 'WMC27'])
       expect(normalizeBillNumber(proposal, 'FL')).toBe(proposal);
   });
@@ -75,10 +79,13 @@ describe('folder tracker contracts', () => {
     });
     expect(await validate(input, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
   });
-  it('rejects incomplete scope and injected ownership fields', async () => {
+  it('accepts a scope-free global search query and rejects injected ownership fields', async () => {
+    // jurisdiction/session are optional on the board DTO (the service enforces
+    // them on the non-search path) so the global corpus search can omit both.
     expect(
       (await validate(plainToInstance(FolderBoardQueryDto, { jurisdiction: 'FL' }))).length,
-    ).toBeGreaterThan(0);
+    ).toBe(0);
+    expect((await validate(plainToInstance(FolderBoardQueryDto, {}))).length).toBe(0);
     expect(
       (
         await validate(

@@ -45,6 +45,7 @@ import { SmsVerificationService } from './sms/sms-verification.service.js';
 import { HearingSmsController } from '../hearing/hearing-sms.controller.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
 import {
+  BillCorpusController,
   FolderTrackerController,
   FolderTrackerGuard,
 } from './folders/folder-tracker.controller.js';
@@ -101,6 +102,7 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     CalendarPreparationController,
     AgendaRuleController,
     ReportController,
+    BillCorpusController,
     FolderTrackerController,
     FolderImportController,
     TrackerWatchlistController,

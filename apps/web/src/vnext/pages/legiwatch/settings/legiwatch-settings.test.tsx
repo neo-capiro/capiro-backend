@@ -64,10 +64,6 @@ beforeEach(() => {
   ME.user.legiwatchPrefs = { ...STORED_PREFS };
   apiGet.mockImplementation((url: string) => {
     if (url.startsWith('/api/me')) return Promise.resolve({ data: meDoc() });
-    // W2-2: the settings tab's Saved Views summary card reads the real
-    // endpoint now (personal + shared scopes) rather than rendering a
-    // permanent placeholder.
-    if (url.includes('/legiwatch/live-hearings/saved-views')) return Promise.resolve({ data: { rows: [] } });
     // W2-4: the settings tab's Watch presets card reads the real endpoint now
     // rather than there being no management surface at all.
     if (url.includes('/legiwatch/live-hearings/watch-presets')) return Promise.resolve({ data: { rows: WATCH_PRESETS } });
@@ -212,18 +208,18 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
     expect(within(notifications).queryAllByRole('checkbox').length).toBe(0);
   });
 
-  it('Saved Views has a real backend now (W2-2) — no more permanent placeholder', async () => {
-    renderSettings();
-    await screen.findByLabelText('LegiWatch settings');
-    const savedViews = await screen.findByLabelText('Saved views');
-    expect(savedViews.textContent).not.toMatch(/no persistence backend/i);
-    expect(within(savedViews).getByRole('button', { name: /Manage saved views/ })).toBeTruthy();
-  });
 
   it('the official-timezone caveat is stated (preference never edits canonical truth)', async () => {
     renderSettings();
     await screen.findByLabelText('LegiWatch settings');
     expect(screen.getByText(/OFFICIAL time and zone/i)).toBeTruthy();
+  });
+
+  it('the Saved Views feature is gone from settings (W2-2 removed)', async () => {
+    renderSettings();
+    await screen.findByLabelText('Watch presets');
+    expect(screen.queryByLabelText('Saved views')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Manage saved views/i })).toBeNull();
   });
 
   it('Watch presets has a real backend now (W2-4) — lists presets with lifecycle controls', async () => {

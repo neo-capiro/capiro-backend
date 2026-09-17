@@ -50,7 +50,6 @@ vi.mock('../../../../lib/use-api.js', () => ({
   }),
 }));
 
-import { SavedViewsOverlay } from './SavedViewsOverlay.js';
 import { CreateWatchOverlay } from './CreateWatchOverlay.js';
 import { ColdStart } from '../coldstart/ColdStart.js';
 
@@ -78,85 +77,6 @@ beforeEach(() => {
 });
 
 afterEach(() => cleanup());
-
-describe('W2-2 — Saved Views overlay (real persistence)', () => {
-  it('saves the current view and lists it back under personal scope', async () => {
-    let saved: unknown = null;
-    handlers.get.mockImplementation((url: string) => {
-      if (url.includes('/saved-views')) return { rows: saved ? [saved] : [] };
-      throw new Error(`unexpected GET ${url}`);
-    });
-    handlers.post.mockImplementation((url: string, body?: unknown) => {
-      if (url === '/api/legiwatch/live-hearings/saved-views') {
-        saved = {
-          id: 'view-1',
-          surface: 'hearings_schedule',
-          name: (body as { name: string }).name,
-          scope: (body as { scope: string }).scope,
-          isDefault: false,
-          clientId: null,
-          configVersion: 1,
-          config: (body as { config: unknown }).config,
-          ownerUserId: 'u-1',
-          isOwnedByCaller: true,
-          createdAt: '2026-09-01T00:00:00.000Z',
-          updatedAt: '2026-09-01T00:00:00.000Z',
-        };
-        return saved;
-      }
-      throw new Error(`unexpected POST ${url}`);
-    });
-
-    renderWithProviders(<SavedViewsOverlay onClose={() => {}} />, '/legiwatch?tab=hearings');
-    await screen.findByText('No saved views yet for hearings — schedule.');
-
-    fireEvent.change(screen.getByLabelText('New view name'), {
-      target: { value: 'My weekly view' },
-    });
-    fireEvent.click(screen.getByText('Save current view'));
-
-    await waitFor(() => expect(screen.getByText('My weekly view')).toBeTruthy());
-    const createCall = calls.find(
-      (c) => c.method === 'post' && c.url === '/api/legiwatch/live-hearings/saved-views',
-    );
-    expect((createCall?.body as { scope: string }).scope).toBe('personal');
-    expect(screen.getByText('Personal')).toBeTruthy();
-  });
-
-  it('deletes a view via the real DELETE endpoint and removes it from the list', async () => {
-    let exists = true;
-    handlers.get.mockImplementation((url: string) => ({
-      rows: exists
-        ? [
-            {
-              id: 'view-2',
-              surface: 'hearings_schedule',
-              name: 'Old view',
-              scope: 'personal',
-              isDefault: false,
-              clientId: null,
-              configVersion: 1,
-              config: {},
-              ownerUserId: 'u-1',
-              isOwnedByCaller: true,
-              createdAt: '2026-09-01T00:00:00.000Z',
-              updatedAt: '2026-09-01T00:00:00.000Z',
-            },
-          ]
-        : [],
-    }));
-    handlers.delete.mockImplementation(() => {
-      exists = false;
-      return { deleted: true };
-    });
-
-    renderWithProviders(<SavedViewsOverlay onClose={() => {}} />, '/legiwatch?tab=hearings');
-    await screen.findByText('Old view');
-    fireEvent.click(screen.getByText('Delete'));
-    await waitFor(() => expect(screen.queryByText('Old view')).toBeNull());
-    expect(handlers.delete).toHaveBeenCalledWith('/api/legiwatch/live-hearings/saved-views/view-2');
-  });
-});
 
 describe('W2-4 — Create Watch wizard (real 5-step flow)', () => {
   beforeEach(() => {

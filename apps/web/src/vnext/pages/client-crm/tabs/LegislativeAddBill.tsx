@@ -97,8 +97,28 @@ function AddBillBody({
     () => (prefs.data?.jurisdictions ?? []).filter((j) => j && j !== 'US'),
     [prefs.data],
   );
+  // Jurisdiction chips derive from the ACTUALLY ingested corpus, not a static
+  // list — a newly ingested state appears without a code change.
+  const corpus = useQuery<{ jurisdictions: Array<{ key: string; count: number }> }>({
+    queryKey: ['bill-corpus-metadata'],
+    queryFn: async () =>
+      (
+        await api.get<{ jurisdictions: Array<{ key: string; count: number }> }>(
+          '/intel-api/legiwatch/bills/corpus-metadata',
+        )
+      ).data,
+    enabled: trackerV2 && flagsReady,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const availableJuris = useMemo(
+    () => (corpus.data?.jurisdictions ?? []).map((j) => j.key),
+    [corpus.data],
+  );
   const [selectedJuris, setSelectedJuris] = useState<string[] | null>(null);
-  const jurisdictions = selectedJuris ?? ['US', ...clientStates];
+  // Default: everything ingested (federal + all states) — any matching bill is
+  // eligible. Untouched by client watchlist scope; the user can narrow.
+  const jurisdictions = selectedJuris ?? availableJuris;
 
   const results = useQuery<BillSearchResult[]>({
     queryKey: ['tracker-bill-search', clientId, q, jurisdictions.join(',')],
@@ -138,8 +158,8 @@ function AddBillBody({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
-        {trackerV2 && clientStates.length
-          ? 'Search Congress and the state legislatures this client tracks, by number or title.'
+        {trackerV2
+          ? 'Search every ingested federal and state bill by number or title — any Congress or session.'
           : 'Search Congress by number or title.'}
       </p>
 
@@ -175,9 +195,9 @@ function AddBillBody({
         />
       </div>
 
-      {trackerV2 && clientStates.length > 0 ? (
+      {trackerV2 && availableJuris.length > 0 ? (
         <div role="group" aria-label="Jurisdictions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {['US', ...clientStates].map((j) => {
+          {availableJuris.map((j) => {
             const on = jurisdictions.includes(j);
             return (
               <button

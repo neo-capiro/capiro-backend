@@ -1,5 +1,4 @@
 import { TrackerBoardService, billSearchPatterns } from '../src/tracker/tracker-board.service.js';
-import { currentCongress } from '../src/tracker/bill-stage.util.js';
 
 /**
  * P1.1 — Add-bill-modal search, ported from apps/api tracker.service.searchBills.
@@ -23,16 +22,26 @@ describe('billSearchPatterns', () => {
 });
 
 describe('TrackerBoardService.searchBills', () => {
-  function svcWith(rows: any[]) {
+  // The real 4-arg constructor: (prisma, sourceDataRepo, watchlists,
+  // stateSourceDataRepo). Both repos are stubbed with the actual contract
+  // methods searchBills calls (searchBillRows / searchStateBillRows).
+  function svcWith(rows: any[], stateRows: any[] = []) {
     let calledWith: any[] | null = null;
+    let stateCalledWith: any[] | null = null;
     const repo = {
       searchBillRows: async (...args: any[]) => {
         calledWith = args;
         return rows;
       },
     } as any;
-    const svc = new TrackerBoardService({} as any, repo, {} as any);
-    return { svc, getArgs: () => calledWith };
+    const stateRepo = {
+      searchStateBillRows: async (...args: any[]) => {
+        stateCalledWith = args;
+        return stateRows;
+      },
+    } as any;
+    const svc = new TrackerBoardService({} as any, repo, {} as any, stateRepo);
+    return { svc, getArgs: () => calledWith, getStateArgs: () => stateCalledWith };
   }
 
   it('returns [] for <2 chars without hitting the repo', async () => {
@@ -44,7 +53,8 @@ describe('TrackerBoardService.searchBills', () => {
   it('passes bound patterns + the current Congress to the repo', async () => {
     const { svc, getArgs } = svcWith([]);
     await svc.searchBills('H.R. 4455');
-    expect(getArgs()).toEqual(['%h.r. 4455%', '%hr-4455%', currentCongress()]);
+    // null = every ingested Congress (no current-Congress gate).
+    expect(getArgs()).toEqual(['%h.r. 4455%', '%hr-4455%', null]);
   });
 
   it('maps rows to the legacy BillSearchResult shape', async () => {

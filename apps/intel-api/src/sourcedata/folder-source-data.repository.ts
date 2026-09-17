@@ -10,11 +10,13 @@ import {
 
 /** Florida's canonical provider uses H/S; the legislature also displays HB/SB.
  * This is a lookup alias only: never rename canonical IDs or coerce proposals.
+ * Punctuation and whitespace inside the prefix are ignored ("H.R. 177",
+ * "H B 2", "s. 1932" all normalize), matching how users type bill numbers.
  */
 export function normalizeBillNumber(value: string, jurisdiction?: string): string | null {
-  const match = /^([A-Z][A-Z.]*)\s*0*(\d+)$/i.exec(value.trim());
+  const match = /^([A-Z][A-Z.\s]*)0*(\d+)$/i.exec(value.trim());
   if (!match) return null;
-  let prefix = match[1]!.replaceAll('.', '').toUpperCase();
+  let prefix = match[1]!.replaceAll(/[.\s]/g, '').toUpperCase();
   if (jurisdiction === 'FL' && (prefix === 'H' || prefix === 'S')) prefix += 'B';
   return `${prefix}${BigInt(match[2]!).toString()}`;
 }
@@ -288,6 +290,43 @@ export class FolderSourceDataRepository {
        FROM state_bill WHERE upper(state) = $1 GROUP BY session_key ORDER BY key DESC`,
       jurisdiction,
     );
+  }
+  /**
+   * Jurisdictions + sessions derived from what is actually ingested — never a
+   * static UI allowlist — so a newly ingested state or special session becomes
+   * searchable without a code change. Global public corpus only.
+   */
+  async corpusMetadata(): Promise<{
+    jurisdictions: Array<{ key: string; count: number }>;
+    sessions: Array<{ jurisdiction: string; key: string; label: string; count: number }>;
+  }> {
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{ jurisdiction: string; sessionKey: string; label: string; count: number }>
+    >(
+      `SELECT * FROM (
+         SELECT upper(state) AS jurisdiction, session_key AS "sessionKey",
+           coalesce(max(nullif(session,session_key)),session_key) AS label,
+           count(*)::int AS count
+         FROM state_bill GROUP BY 1, 2
+         UNION ALL
+         SELECT 'US', congress::text, congress::text || 'th Congress', count(*)::int
+         FROM congress_bill GROUP BY congress
+       ) s ORDER BY jurisdiction, "sessionKey" DESC`,
+    );
+    const jurisdictions = new Map<string, number>();
+    for (const row of rows)
+      jurisdictions.set(row.jurisdiction, (jurisdictions.get(row.jurisdiction) ?? 0) + row.count);
+    return {
+      jurisdictions: [...jurisdictions.entries()]
+        .sort(([a], [b]) => (a === 'US' ? -1 : b === 'US' ? 1 : a.localeCompare(b)))
+        .map(([key, count]) => ({ key, count })),
+      sessions: rows.map((r) => ({
+        jurisdiction: r.jurisdiction,
+        key: r.sessionKey,
+        label: r.label,
+        count: r.count,
+      })),
+    };
   }
   async resolve(
     jurisdiction: string,

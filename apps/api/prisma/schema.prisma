@@ -7195,42 +7195,13 @@ model LegiWatchNotificationEvent {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// LegiWatch V2 Wave 2 — Saved Views (W2-2) and Watch Presets + backtest job
-// queue (W2-4). See migration 20280213010000_legiwatch_v2_wave2 for the SQL
-// source of truth (CHECK constraints, the partial one-default-per-owner
-// index, the conditions-type validator function, and the RLS policies are
-// SQL-owned and intentionally not re-expressed here).
+// LegiWatch V2 Wave 2 — Watch Presets + backtest job queue (W2-4). See
+// migration 20280213010000_legiwatch_v2_wave2 for the SQL source of truth
+// (CHECK constraints, the conditions-type validator function, and the RLS
+// policies are SQL-owned and intentionally not re-expressed here). The W2-2
+// Saved Views feature was removed; its table is dropped by migration
+// 20280916010000_drop_legiwatch_saved_view.
 // ─────────────────────────────────────────────────────────────────────────
-
-// A tenant user's saved filter/search/sort/layout state for one LegiWatch
-// surface. `config` is a bounded, key-allowlisted JSON blob validated at the
-// DTO layer (LegiWatchSaveViewDto); `configVersion` is the shape version of
-// that payload, so a future config-shape change can be detected and refused
-// rather than silently misapplied. `clientId` is a real column (not buried in
-// `config`) specifically so its tenant ownership and liveness can be checked
-// without parsing arbitrary JSON — an archived/deleted referenced client
-// produces an explicit warning on apply, never a silent substitution.
-model LegiWatchSavedView {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  ownerUserId   String   @map("owner_user_id") // clerk user id
-  /// 'hearings_schedule' | 'hearings_archive' | 'committees' |
-  /// 'committee_intelligence' | 'feed' | 'bills'
-  surface       String
-  name          String
-  /// 'personal' (default) | 'tenant'. Sharing widens READ only — a shared
-  /// view stays mutable by ownerUserId alone.
-  scope         String   @default("personal")
-  isDefault     Boolean  @default(false) @map("is_default")
-  clientId      String?  @map("client_id") @db.Uuid
-  configVersion Int      @default(1) @map("config_version")
-  config        Json     @default("{}")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  @@index([tenantId, ownerUserId, surface, updatedAt(sort: Desc)], map: "legiwatch_saved_view_tenant_owner_surface_idx")
-  @@map("legiwatch_saved_view")
-}
 
 // A fast, enumerated-condition alert-preview definition that SUPPLEMENTS the
 // canonical client watchlist (intel-api's Watchlist/WatchlistTerm/

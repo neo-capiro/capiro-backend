@@ -93,6 +93,21 @@ describe('scoped state attendance policy', () => {
     });
     expect(permission?.browserAllowed).toBe(false);
   });
+  it('refuses plain-http, credentialed, and non-standard-port official URLs for browser', async () => {
+    // Aligned with the final Intel public-capture guard/stream resolver: the
+    // UI must never offer a source the capture path would reject.
+    for (const url of [
+      'http://www.flsenate.gov/Committees/Show/AP/MeetingNotice/7001',
+      'https://user:pw@www.flsenate.gov/Committees/Show/AP/MeetingNotice/7001',
+      'https://www.flsenate.gov:8443/Committees/Show/AP/MeetingNotice/7001',
+      'http://thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission/',
+      'https://user:pw@thefloridachannel.org/videos/9-11-26-joint-legislative-budget-commission/',
+      'https://thefloridachannel.org:8443/videos/9-11-26-joint-legislative-budget-commission/',
+    ]) {
+      const permission = await stateCapturePolicy(prisma, ctx, { ...hearing, url });
+      expect(permission?.browserAllowed).toBe(false);
+    }
+  });
   it('requires both runtime gates and does not turn a server grant into browser permission', async () => {
     modes = ['server'];
     expect((await stateCapturePolicy(prisma, ctx, hearing))?.policy.allowed).toBe(false);

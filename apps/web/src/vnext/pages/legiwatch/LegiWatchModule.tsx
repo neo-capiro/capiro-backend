@@ -43,14 +43,13 @@ import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
 import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
 import { LegiWatchSettingsTab } from './settings/LegiWatchSettingsTab.js';
-import { SavedViewsOverlay } from './overlays/SavedViewsOverlay.js';
 import { CreateWatchOverlay } from './overlays/CreateWatchOverlay.js';
 import { SystemStatesOverlay } from './overlays/SystemStatesOverlay.js';
 import { LegiWatchSearchOverlay } from './overlays/LegiWatchSearchOverlay.js';
 import { ExportCalendarOverlay } from './overlays/ExportCalendarOverlay.js';
 import './legiwatch.css';
 
-type Overlay = 'views' | 'watch' | 'states' | 'search' | 'export' | null;
+type Overlay = 'watch' | 'states' | 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
   news: {
@@ -108,7 +107,7 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
     eyebrow: 'Preferences',
     title: 'Settings',
     description:
-      'Manage agenda alerts, report settings, saved views, monitoring and display preferences.',
+      'Manage agenda alerts, report settings, monitoring and display preferences.',
   },
 };
 
@@ -419,9 +418,6 @@ export function LegiWatchModule() {
           >
             Search LegiWatch
           </LwButton>
-          <LwButton size="42" onClick={() => setOverlay('views')}>
-            Saved views
-          </LwButton>
           <LwButton size="42" variant="primary" onClick={() => setOverlay('watch')}>
             Create watch
           </LwButton>
@@ -552,9 +548,7 @@ export function LegiWatchModule() {
         <LegiWatchSettingsTab />
       ) : null}
 
-      {overlay === 'views' ? (
-        <SavedViewsOverlay onClose={() => setOverlay(null)} />
-      ) : overlay === 'watch' ? (
+      {overlay === 'watch' ? (
         <CreateWatchOverlay
           onClose={() => setOverlay(null)}
           defaultClientId={scope || undefined}

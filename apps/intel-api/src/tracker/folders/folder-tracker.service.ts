@@ -19,6 +19,7 @@ import {
   type FolderSourceBill,
 } from '../../sourcedata/folder-source-data.repository.js';
 import {
+  type BillCorpusQueryDto,
   type BulkFolderBillsDto,
   type FolderActivityQueryDto,
   type FolderBoardQueryDto,
@@ -307,6 +308,13 @@ export class FolderTrackerService {
     search = false,
     selectedIds?: string[],
   ) {
+    // jurisdiction/sessionKey are DTO-optional only so the global search path
+    // can omit them; a folder board (or any folderId-scoped read) still
+    // requires both. Enforced here because one DTO serves both routes.
+    if (!search || input.folderId) {
+      if (!input.jurisdiction || !input.sessionKey)
+        throw new BadRequestException('JURISDICTION_AND_SESSION_REQUIRED');
+    }
     const { cursor, limit = 50, ...filters } = input;
     const scope = hash({ tenantId: ctx.tenantId, filters, search, selectedIds });
     let offset = 0;
@@ -337,12 +345,17 @@ export class FolderTrackerService {
     }
     return this.withActor(ctx, async (tx) => {
       if (input.folderId) await this.folder(tx, ctx, input.folderId);
-      const values: unknown[] = [ctx.tenantId, input.jurisdiction, input.sessionKey];
+      const values: unknown[] = [ctx.tenantId];
       const bind = (value: unknown) => {
         values.push(value);
         return `$${values.length}`;
       };
-      const where = ['b.jurisdiction = $2', 'b."sessionKey" = $3'];
+      // An omitted jurisdiction or sessionKey searches the entire ingested
+      // corpus (all states, all Congresses, special sessions). Explicit values
+      // keep exact predicates.
+      const where: string[] = [];
+      if (input.jurisdiction) where.push(`b.jurisdiction = ${bind(input.jurisdiction)}`);
+      if (input.sessionKey) where.push(`b."sessionKey" = ${bind(input.sessionKey)}`);
       // Search can show unassigned canonical bills. A board always shows assignments.
       const join = search ? 'LEFT JOIN' : 'JOIN';
       let assignmentScope = 'a.tenant_id = $1 AND a.bill_id = b.id';
@@ -350,9 +363,22 @@ export class FolderTrackerService {
       else if (search) assignmentScope += ' AND false';
       if (input.clientId) where.push(`f.client_id = ${bind(input.clientId)}`);
       if (input.q) {
+        const escaped = '%' + input.q.replace(/[\\%_]/g, '\\$&') + '%';
         const billNumber = normalizeBillNumber(input.q, input.jurisdiction);
+        // FL H/S aliases are row-local: only FL rows read H as HB. When no
+        // jurisdiction is selected, also match the un-aliased token so a
+        // Florida H0027 and a Massachusetts H 27 both answer "H 27".
+        const flAlias = !input.jurisdiction ? normalizeBillNumber(input.q, 'FL') : null;
+        const numberMatch = [
+          billNumber ? `${FOLDER_NUMBER_SQL} = ${bind(billNumber)}` : null,
+          flAlias && flAlias !== billNumber
+            ? `(b.jurisdiction = 'FL' AND ${FOLDER_NUMBER_SQL} = ${bind(flAlias)})`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' OR ');
         where.push(
-          `(b.title ILIKE ${bind('%' + input.q.replace(/[\\%_]/g, '\\$&') + '%')} OR b.number ILIKE ${bind('%' + input.q.replace(/[\\%_]/g, '\\$&') + '%')}${billNumber ? ` OR ${FOLDER_NUMBER_SQL} = ${bind(billNumber)}` : ''})`,
+          `(b.title ILIKE ${bind(escaped)} OR b.number ILIKE ${bind(escaped)}${numberMatch ? ` OR ${numberMatch}` : ''})`,
         );
       }
       if (input.sponsor) {
@@ -388,8 +414,9 @@ export class FolderTrackerService {
         where.push(
           `b."latestAction" ILIKE ${bind('%' + input.actionText.replace(/[\\%_]/g, '\\$&') + '%')}`,
         );
+      const predicates = where.length ? `WHERE ${where.join(' AND ')}` : '';
       const from = `FROM (${FOLDER_SOURCE_SQL}) b ${join} intel_legiwatch_folder_bill a ON ${assignmentScope}
-        LEFT JOIN intel_legiwatch_folder f ON f.tenant_id = $1 AND f.id = a.folder_id WHERE ${where.join(' AND ')}`;
+        LEFT JOIN intel_legiwatch_folder f ON f.tenant_id = $1 AND f.id = a.folder_id ${predicates}`;
       const direction = input.direction === 'desc' ? 'DESC' : 'ASC';
       const sortSql: Record<string, string> = {
         bill: `regexp_replace(b.number, '[^A-Za-z]', '', 'g') ${direction}, coalesce(nullif(regexp_replace(b.number, '[^0-9]', '', 'g'), ''), '0')::numeric ${direction}`,
@@ -424,6 +451,36 @@ export class FolderTrackerService {
             : null,
       };
     });
+  }
+  /**
+   * Global corpus search for the public route. BillCorpusQueryDto carries no
+   * folder/client/private fields by construction; this wrapper additionally
+   * strips any stray value so the search can never join tenant-private tables.
+   */
+  async searchCorpus(ctx: WorkspaceTenantContext, input: BillCorpusQueryDto) {
+    const { jurisdiction, sessionKey, q, sponsor, status, chamber, sort, direction, cursor, limit, classification, subject, committee, summary, actionText, summaryIncluded } = input;
+    return this.board(
+      ctx,
+      {
+        jurisdiction,
+        sessionKey,
+        q,
+        sponsor,
+        status,
+        chamber,
+        sort,
+        direction,
+        cursor,
+        limit,
+        classification,
+        subject,
+        committee,
+        summary,
+        actionText,
+        summaryIncluded,
+      },
+      true,
+    );
   }
   async export(ctx: WorkspaceTenantContext, input: FolderExportDto) {
     if (input.scope === 'selected' && !input.selectedIds?.length)

@@ -154,8 +154,8 @@ export class StateSourceDataRepository {
    *
    * Matches on `identifier` rather than `id`: a state bill's DD1 key is
    * `<state>-<session>-<identifier>`, so a user typing "HB 1234" means the
-   * identifier, not the composite key. Restricted to the passed states so a
-   * two-character query cannot scan all 50 legislatures.
+   * identifier, not the composite key. An EMPTY `states` list searches every
+   * ingested state (the corpus is a handful of legislatures, not 50).
    */
   async searchStateBillRows(
     titleLike: string,
@@ -163,7 +163,6 @@ export class StateSourceDataRepository {
     states: string[],
     limit = 20,
   ): Promise<SourceStateBill[]> {
-    if (!states.length) return [];
     return this.prisma.$queryRawUnsafe<SourceStateBill[]>(
       `SELECT id,
               state,
@@ -182,7 +181,7 @@ export class StateSourceDataRepository {
               url,
               subjects
          FROM state_bill
-        WHERE state = ANY($3::text[])
+        WHERE (cardinality($3::text[]) = 0 OR state = ANY($3::text[]))
           AND (LOWER(title) LIKE $1 OR LOWER(REPLACE(identifier, ' ', '')) LIKE $2)
         ORDER BY latest_action_date DESC NULLS LAST
         LIMIT $4`,

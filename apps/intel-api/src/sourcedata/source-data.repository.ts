@@ -1160,13 +1160,14 @@ export class SourceDataRepository {
    * Add-bill-modal text search over the GLOBAL `congress_bill` corpus (P1.1 port
    * of apps/api tracker.service.searchBills). `titleLike`/`idLike` are caller-
    * built LIKE patterns (lowercased title substring + the "hr-4455" id token) —
-   * bound, never interpolated, same as `keywordCandidateIds`. Current-Congress
-   * only; newest action first.
+   * bound, never interpolated, same as `keywordCandidateIds`. A null
+   * `congress` searches every ingested Congress so the bounded suggestion
+   * list never hides an older-session bill. Newest action first.
    */
   async searchBillRows(
     titleLike: string,
     idLike: string,
-    congress: number,
+    congress: number | null,
   ): Promise<BillSearchRow[]> {
     return this.prisma.$queryRawUnsafe<BillSearchRow[]>(
       `SELECT cb.id,
@@ -1175,7 +1176,7 @@ export class SourceDataRepository {
               cb.latest_action_text AS "latestActionText",
               cb.latest_action_date AS "latestActionDate"
          FROM congress_bill cb
-        WHERE cb.congress = $3 AND (LOWER(cb.title) LIKE $1 OR LOWER(cb.id) LIKE $2)
+        WHERE ($3::int IS NULL OR cb.congress = $3) AND (LOWER(cb.title) LIKE $1 OR LOWER(cb.id) LIKE $2)
         ORDER BY cb.latest_action_date DESC NULLS LAST
         LIMIT 20`,
       titleLike,
