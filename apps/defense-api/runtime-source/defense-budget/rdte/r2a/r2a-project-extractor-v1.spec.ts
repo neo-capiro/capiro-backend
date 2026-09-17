@@ -83,9 +83,14 @@ function makeR2aPage(input: {
 }): ParserPageResultV1 {
   return {
     page: input.page,
-    text: 'R-2A',
+    // Fix-followup (R2A_MARKER_RE self-match investigation): the literal
+    // real print, not the bare 'R-2A' shorthand this fixture used to use --
+    // R2A_MARKER_RE now requires the "Exhibit R-2A" word order so it stops
+    // self-matching the real "...R-2a exhibit has been suppressed..."
+    // footnote prose (see r2a-suppressed-project-footnote-self-match.spec.ts).
+    text: 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army',
     blocks: [
-      makeBlock(0, 'header', 'R-2A'),
+      makeBlock(0, 'header', 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army'),
       ...(input.printedTitle != null
         ? [makeBlock(90, 'text', `Project Title: ${input.printedTitle}`)]
         : []),
@@ -108,8 +113,11 @@ function makeR2aPagePartial(input: {
 }): ParserPageResultV1 {
   return {
     page: input.page,
-    text: 'R-2A',
-    blocks: [makeBlock(0, 'header', 'R-2A'), ...(input.extraBlocks ?? [])],
+    text: 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army',
+    blocks: [
+      makeBlock(0, 'header', 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army'),
+      ...(input.extraBlocks ?? []),
+    ],
     tables: [identityTable(input.peValue, input.projectValue)],
     images: [],
     evidencePrecision: 'page_only',
@@ -121,8 +129,8 @@ function makeR2aPagePartial(input: {
 function makeR2aPageConflicting(page: number): ParserPageResultV1 {
   return {
     page,
-    text: 'R-2A',
-    blocks: [makeBlock(0, 'header', 'R-2A')],
+    text: 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army',
+    blocks: [makeBlock(0, 'header', 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army')],
     tables: [
       {
         tableIndex: 0,

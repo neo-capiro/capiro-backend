@@ -85,8 +85,23 @@ import { isValidR2aProjectCode } from './r2a-project-section-extractor.js';
 
 /** Shared R-2A exhibit marker -- also used by callers that need to know
  * whether a page belongs to the R-2A exhibit at all (e.g. to gate other,
- * unrelated per-page logic) without re-deriving their own copy. */
-export const R2A_MARKER_RE = /\bR-2A\b|RDT&E\s+Project\s+Justification/i;
+ * unrelated per-page logic) without re-deriving their own copy.
+ *
+ * Deliberately anchored to the literal exhibit-title phrase "Exhibit R-2A"
+ * (word order: "Exhibit" then "R-2A"), NOT a bare `\bR-2A\b` anywhere in the
+ * page. A bare token match self-matches the real Army R-2 PE-summary /
+ * R-2A-continuation footnote printed whenever a project has no FY2024
+ * funding: "*This project's R-2a exhibit has been suppressed due to funding
+ * not beginning until after FY 2024" -- ordinary prose that names "R-2a"
+ * (case-insensitively) but never in the "Exhibit R-2A" title word order.
+ * Confirmed against the real FY2024 Army RDT&E Vol 1 BA2 document: PE
+ * 0602181A page 429 and PE 0602146A page 262 both print this exact footnote
+ * and both are genuine Exhibit R-2 pages (PE-summary / continuation) with no
+ * project identity cell -- neither is ever a real R-2A project page. The
+ * second alternative, "RDT&E Project Justification", is the exhibit's other
+ * always-present title fragment and is unaffected (it never appears in the
+ * suppression footnote's prose). */
+export const R2A_MARKER_RE = /\bExhibit\s+R-2A\b|RDT&E\s+Project\s+Justification/i;
 
 /**
  * PE-level (Exhibit R-2) marker. `\bR-2\b` deliberately does NOT match inside

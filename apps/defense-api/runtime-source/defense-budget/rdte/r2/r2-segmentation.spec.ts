@@ -901,3 +901,101 @@ describe('Phase 10B-16 Part D -- structured-evidence-first, body-text fallback',
     });
   });
 });
+
+/**
+ * Regression: `R2A_HEADER_RE`'s bare `\bR-2A\b` self-matched the real Army
+ * "*This project's R-2a exhibit has been suppressed due to funding not
+ * beginning until after FY 2024" footnote via this module's OWN body-text
+ * fallback (Phase 10B-16 Part D, above) -- the same root cause fixed in
+ * `R2A_MARKER_RE` (r2a-structural-project-header-parser-v1.ts) by the
+ * investigation into production candidate 9def0a42-79cb-5df5-8764-
+ * 7b0f1d3de009 (FY2024 Army RDT&E Vol 1 BA2), but NOT fixed here in the
+ * page-classification segmenter, which is on the production critical path
+ * (rdte-cycle-pipeline-v1.ts / rdte-phase3-semantic-artifact-factory-v1.ts
+ * both call `segmentR2ExhibitPages`).
+ *
+ * Confirmed reproducible (not merely theoretical) by tracing this module's
+ * own logic against the real document: the real Exhibit R-2/R-2A title
+ * lines print as plain body/'text' blocks, not 'header'/'heading' (see
+ * `bodyOnlyR2Page` above), so `hasStructuredExhibitSignal` is false and
+ * `isR2A` resolves via `R2A_HEADER_RE.test(bodyOnlyText)` -- which the
+ * footnote's bare "R-2a" satisfied pre-fix, alongside the page's genuine
+ * `isR2 = true`. Because the classification switch checks `isR2A` before
+ * `isR2`, this misclassified the real PE 0602181A page 429 (and PE
+ * 0602146A page 262) as `r2a_project` instead of `r2_pe_summary`.
+ */
+describe('R2A_HEADER_RE self-match on the real suppressed-project footnote (page-classification level)', () => {
+  /** The real page shape: body-only Exhibit R-2 title/PE identity/cost
+   * table text (Phase 10B-16 Part D convention), with the real Army
+   * suppressed-project footnote appended as its own body/text block --
+   * exactly as printed on the real pages 429 and 262. */
+  function bodyOnlyR2PeSummaryPageWithFootnote(peCode: string, title: string, page: number): ParserPageResultV1 {
+    return makePage({
+      page,
+      blocks: [
+        makeBlock(0, 'text', 'UNCLASSIFIED'),
+        makeBlock(1, 'text', 'Exhibit R-2, RDT&E Budget Item Justification: PB 2024 Army'),
+        makeBlock(
+          2,
+          'text',
+          `Appropriation/Budget Activity R-1 Program Element (Number/Name) ` +
+            `2040: Research, Development, Test & Evaluation, Army BA 2: Applied Research PE ${peCode} ${title}`,
+        ),
+        makeBlock(3, 'text', 'Total Program Element - 25.019 27.360 14.297 - 14.297 137.160'),
+        makeBlock(
+          4,
+          'text',
+          "*This project's R-2a exhibit has been suppressed due to funding not beginning until after FY 2024",
+        ),
+      ],
+    });
+  }
+
+  it('DEFECT: a real R-2 PE-summary page with the suppression footnote is still r2_pe_summary, never r2a_project (PE 0602181A page 429 shape)', () => {
+    const page = bodyOnlyR2PeSummaryPageWithFootnote('0602181A', 'All Domain Convergence Applied Research', 429);
+    const result = segmentR2ExhibitPages([page]);
+    const classification = result.classifications[0]!;
+    // Pre-fix this resolved to 'r2a_project' because the footnote's bare
+    // "R-2a" self-matched `R2A_HEADER_RE` via the body-text fallback.
+    expect(classification.kind).toBe('r2_pe_summary');
+    expect(classification.headerPeCodes).toEqual(['0602181A']);
+  });
+
+  it('DEFECT: the identical footnote on a DIFFERENT, already-approved PE page is also unaffected (PE 0602146A page 262 shape)', () => {
+    const page = bodyOnlyR2PeSummaryPageWithFootnote('0602146A', 'Network C3I Technology', 262);
+    const result = segmentR2ExhibitPages([page]);
+    const classification = result.classifications[0]!;
+    expect(classification.kind).toBe('r2_pe_summary');
+    expect(classification.headerPeCodes).toEqual(['0602146A']);
+  });
+
+  it('NEGATIVE CONTROL: a genuine R-2A project page (real "Exhibit R-2A" title) still classifies as r2a_project, footnote or not', () => {
+    const withFootnote = makePage({
+      page: 430,
+      blocks: [
+        makeBlock(0, 'text', 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army'),
+        makeBlock(
+          1,
+          'text',
+          'R-1 Program Element (Number/Name) PE 0602181A All Domain Convergence Applied Research ' +
+            'Project (Number/Name) CM7 Collaborative Convergence Applied Research',
+        ),
+        makeBlock(
+          2,
+          'text',
+          "*This project's R-2a exhibit has been suppressed due to funding not beginning until after FY 2024",
+        ),
+      ],
+    });
+    const withoutFootnote = makePage({
+      page: 431,
+      blocks: withFootnote.blocks!.slice(0, 2),
+    });
+    for (const page of [withFootnote, withoutFootnote]) {
+      const result = segmentR2ExhibitPages([page]);
+      const classification = result.classifications[0]!;
+      expect(classification.kind).toBe('r2a_project');
+      expect(classification.headerPeCodes).toEqual(['0602181A']);
+    }
+  });
+});
