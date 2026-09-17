@@ -65,35 +65,17 @@
  *     carries an explicit fiscal year by construction, so this cannot mask
  *     a genuine defect on that path.
  */
-import type { ParserPageResultV1, ParsedTableV1 } from '../../parser-router/parser-runtime-contract-v1.js';
 import { extractR2PeFunding, type R2PeContextV1 } from './r2-cost-table-extractor-v1.js';
+import { makePage, makeTable, type Cell } from './r2-cost-table-test-fixtures.js';
 
 const CYCLE_FY = 2024;
 
-type Cell = { rowIndex: number; columnIndex: number; text: string };
-
-function makeTable(cells: Cell[], tableIndex = 0): ParsedTableV1 {
-  return {
-    tableIndex,
-    rowCount: Math.max(...cells.map((c) => c.rowIndex)) + 1,
-    columnCount: Math.max(...cells.map((c) => c.columnIndex)) + 1,
-    cells,
-    warnings: [],
-  };
-}
-
-function makePage(tables: ParsedTableV1[], page: number): ParserPageResultV1 {
-  return {
-    page,
-    text: '$ in Millions',
-    blocks: [],
-    tables,
-    images: [],
-    evidencePrecision: 'page_only',
-    warnings: [],
-  };
-}
-
+/** Not merged into the shared `peContext` in r2-cost-table-extractor-v1.spec.ts:
+ * that helper takes a fixed module-scoped PE code and an (pageStart, pageEnd)
+ * range, while every case here needs its own PE code/title on a single page.
+ * Genuinely different shapes, not a copy-paste duplicate -- kept local
+ * rather than forcing one signature onto both files' many existing call
+ * sites for cosmetic benefit only. */
 function peContext(peCode: string, page: number, title: string): R2PeContextV1 {
   return { peCode, pageStart: page, pageEnd: page, title };
 }
@@ -139,7 +121,7 @@ describe('R-2 real production convention: "Continuing" cost-to-complete/total-co
       { rowIndex: 3, columnIndex: 11, text: 'Continuing' },
       { rowIndex: 3, columnIndex: 12, text: 'Continuing' },
     ];
-    const page = makePage([makeTable(cells)], 57);
+    const page = makePage([makeTable(cells)], 57, '$ in Millions');
     const result = extractR2PeFunding({
       pages: [page],
       peContext: peContext('0602141A', 57, 'Lethality Technology'),
@@ -179,7 +161,7 @@ describe('R-2 real production convention: "Continuing" cost-to-complete/total-co
       { rowIndex: 3, columnIndex: 11, text: 'Continuing' },
       { rowIndex: 3, columnIndex: 12, text: 'Continuing' },
     ];
-    const page = makePage([makeTable(cells)], 528);
+    const page = makePage([makeTable(cells)], 528, '$ in Millions');
     const result = extractR2PeFunding({
       pages: [page],
       peContext: peContext('0602386A', 528, 'Biotechnology for Materials - Applied Research'),
@@ -210,7 +192,7 @@ describe('R-2 real production convention: "Continuing" cost-to-complete/total-co
       { rowIndex: 3, columnIndex: 11, text: '5.000' },
       { rowIndex: 3, columnIndex: 12, text: '10.000' },
     ];
-    const page = makePage([makeTable(cells)], 900);
+    const page = makePage([makeTable(cells)], 900, '$ in Millions');
     const result = extractR2PeFunding({
       pages: [page],
       peContext: peContext('0699999A', 900, 'Negative Control PE'),
@@ -244,7 +226,7 @@ describe('R-2 real production convention: "Prior Years" cumulative column (no si
       { rowIndex: 3, columnIndex: 11, text: '0.000' },
       { rowIndex: 3, columnIndex: 12, text: '11.489' },
     ];
-    const page = makePage([makeTable(cells)], 51);
+    const page = makePage([makeTable(cells)], 51, '$ in Millions');
     const result = extractR2PeFunding({
       pages: [page],
       peContext: peContext('0602115A', 51, 'Biomedical Technology'),
@@ -279,7 +261,7 @@ describe('R-2 real production convention: "Prior Years" cumulative column (no si
       { rowIndex: 3, columnIndex: 1, text: '3.500' },
       { rowIndex: 3, columnIndex: 2, text: '4.000' },
     ];
-    const page = makePage([makeTable(cells)], 901);
+    const page = makePage([makeTable(cells)], 901, '$ in Millions');
     const result = extractR2PeFunding({
       pages: [page],
       peContext: peContext('0699998A', 901, 'Negative Control PE 2'),
@@ -304,7 +286,7 @@ describe('R-2 real production convention: "Prior Years" cumulative column (no si
       { rowIndex: 3, columnIndex: 1, text: '2.500' },
       { rowIndex: 3, columnIndex: 2, text: '3.000' },
     ];
-    const page = makePage([makeTable(cells)], 902);
+    const page = makePage([makeTable(cells)], 902, '$ in Millions');
     const result = extractR2PeFunding({
       pages: [page],
       peContext: peContext('0699997A', 902, 'Negative Control PE 3'),

@@ -14,10 +14,6 @@
  *   - negative reprogramming context;
  *   - R-1/R-2 agreement and disagreement comparison requests.
  */
-import type {
-  ParserPageResultV1,
-  ParsedTableV1,
-} from '../../parser-router/parser-runtime-contract-v1.js';
 import {
   buildR2R1ComparisonRequests,
   extractR2PeFunding,
@@ -25,36 +21,11 @@ import {
 } from './r2-cost-table-extractor-v1.js';
 import { buildR2PeFundingArtifact } from './r2-pe-funding-builder.js';
 import type { ExtractionSourceV1 } from '../../contracts/extraction-artifact-v1.js';
+import { makePage, makeTable, type Cell } from './r2-cost-table-test-fixtures.js';
 
 const CYCLE_FY = 2027;
 const SHA = 'e'.repeat(64);
 const PE = '0601101A';
-
-type Cell = { rowIndex: number; columnIndex: number; text: string };
-
-function makeTable(cells: Cell[], tableIndex = 0): ParsedTableV1 {
-  const rowCount = Math.max(...cells.map((c) => c.rowIndex)) + 1;
-  const columnCount = Math.max(...cells.map((c) => c.columnIndex)) + 1;
-  return { tableIndex, rowCount, columnCount, cells, warnings: [] };
-}
-
-function makePage(
-  tables: ParsedTableV1[],
-  page: number,
-  text?: string,
-  printedPage?: string,
-): ParserPageResultV1 {
-  return {
-    page,
-    ...(text != null ? { text } : {}),
-    ...(printedPage != null ? { printedPage } : {}),
-    blocks: [],
-    tables,
-    images: [],
-    evidencePrecision: 'page_only',
-    warnings: [],
-  };
-}
 
 function peContext(pageStart: number, pageEnd: number): R2PeContextV1 {
   return { peCode: PE, pageStart, pageEnd, title: 'Research Project' };

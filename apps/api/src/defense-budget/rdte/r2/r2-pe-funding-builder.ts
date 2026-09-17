@@ -162,9 +162,22 @@ export function buildR2PeFundingArtifact(input: {
         page: value.page,
         kind: 'r2_funding_fact',
       });
+      /* `fy:non_annual` means "cost-to-complete/total-cost, spans the whole
+       * program life"; `fy:prior_years_cumulative` means "a discrete lump
+       * sum of unspecified prior years, not any single year" -- a different
+       * shape of "no single fiscal year" that the generic `non_annual` tag
+       * would otherwise conflate for anyone reading this human-oriented
+       * sourcePath directly. No code parses this tag's value today (only
+       * the later page:/row:/col: segments are machine-read, by
+       * rdte-artifact-reconciliation-input-v1.ts and
+       * scoped-fact-review-policy-v1.ts), so this is a debug-clarity fix,
+       * not a behavior change. */
+      const fiscalYearTag =
+        value.fiscalYear ??
+        (value.columnRole === 'prior_actual_context' ? 'prior_years_cumulative' : 'non_annual');
       builder.addSourceFact({
         factId,
-        sourcePath: `pe:${value.peCode}/fy:${value.fiscalYear ?? 'non_annual'}/page:${value.page}/row:${value.rowIndex}/col:${value.columnIndex}`,
+        sourcePath: `pe:${value.peCode}/fy:${fiscalYearTag}/page:${value.page}/row:${value.rowIndex}/col:${value.columnIndex}`,
         category: 'money',
         requiredForCompleteness: true,
         rawValue: value.originalValue,
