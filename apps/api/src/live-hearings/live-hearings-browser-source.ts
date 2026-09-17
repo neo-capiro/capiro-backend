@@ -53,6 +53,10 @@ const PLAYER_PROVIDERS = new Set([
   'committee-headless',
   'florida-senate',
   'florida-house',
+  // The Florida Channel's exact per-event video page (…/videos/<slug>/) is a
+  // real browser player. The /videos/ archive INDEX is a listing and is never
+  // recorded as a candidate, so membership here is safe.
+  'florida-channel',
 ]);
 
 /** Hosts that are central event LISTINGS, never a playable player page. */

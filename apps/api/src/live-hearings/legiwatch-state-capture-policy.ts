@@ -19,18 +19,31 @@ export interface StateCaptureHearing {
  * eligibility, which stays fail-closed behind a reviewed media permission.
  */
 const FLORIDA_FIRST_PARTY_HOSTS = /(^|\.)(flsenate\.gov|flhouse\.gov)$/i;
+/** The Florida Channel's EXACT per-event video page is a first-party browser
+ *  player for a published proceeding. The /videos/ archive index and every
+ *  other path on the host are listings and are never browser-offered. */
+const FLORIDA_CHANNEL_VIDEO_PAGE = /^\/videos\/[a-z0-9][a-z0-9-]*\/?$/i;
 
-function hostOf(url: string | null | undefined): string | null {
-  if (!url) return null;
+/** Public browser-safe Florida source: an official chamber page, or the exact
+ *  Florida Channel per-event video page (never the archive index). Aligned
+ *  with the final Intel public-capture guard and stream resolver so the UI
+ *  never offers a source the capture path would reject: HTTPS only, no
+ *  credentials in the URL, no non-standard port. */
+function floridaPublicBrowserPage(url: string | null | undefined): boolean {
+  if (!url) return false;
+  let u: URL;
   try {
-    const u = new URL(url);
-    // Only a real http(s) page is a usable browser source; never an api:// or
-    // other scheme.
-    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
-    return u.hostname;
+    u = new URL(url);
   } catch {
-    return null;
+    return false;
   }
+  // https only — never credentials in the URL, never a non-standard port.
+  if (u.protocol !== 'https:') return false;
+  if (u.username || u.password) return false;
+  if (u.port && u.port !== '443') return false;
+  const host = u.hostname;
+  if (FLORIDA_FIRST_PARTY_HOSTS.test(host)) return true;
+  return host.toLowerCase() === 'thefloridachannel.org' && FLORIDA_CHANNEL_VIDEO_PAGE.test(u.pathname);
 }
 
 /**
@@ -67,13 +80,11 @@ export async function stateCapturePolicy(
   // a public event (including a completed one with a published replay) on an
   // official first-party Florida page is browser-attendable.
   const status = (hearing.eventStatus ?? '').toLowerCase();
-  const host = hostOf(hearing.url);
   const publicBrowser =
     hearing.visibility === 'public' &&
     status !== 'canceled' &&
     status !== 'cancelled' &&
-    host !== null &&
-    FLORIDA_FIRST_PARTY_HOSTS.test(host);
+    floridaPublicBrowserPage(hearing.url);
 
   // Closed/private proceedings are terminal for every mode.
   if (hearing.visibility !== 'public') {

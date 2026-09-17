@@ -3,11 +3,10 @@
  * rows, and the view-control rail (Order · Worklist buckets · Source-type
  * chips · Arrange · the standing priority explanation).
  *
- * Saved views now have a real backend (W2-2, closing GAPS LW-G8) and 'feed' is
- * one of the surfaces they cover — reachable from the header's "Saved views"
- * control, which detects the current surface from the URL. This tab has no
- * SEPARATE inline saved-view strip of its own; `Reset` still clears filters,
- * not a view.
+ * All view controls are URL-driven: every filter/order/arrangement choice
+ * lives in the query string, so refresh, back/forward, and shared deep links
+ * restore the visible feed exactly. `Reset` clears filters back to the
+ * default URL state.
  *
  * Work states are server-authoritative (§1.8): one mutation, available in
  * three places (§4.1 #9) — the drawer's Change menu, the bulk bar, and the
@@ -65,8 +64,8 @@ export function FeedTab({ scope, clients }: { scope: string; clients: Client[] }
 function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clients: Client[]; suppressAlert: boolean }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  // These exact URL fields are persisted by Saved Views. Derive them on every
-  // navigation so applying a preset or going Back restores the visible feed.
+  // View controls derive from the URL on every navigation so Back/Forward and
+  // deep links restore the visible feed exactly.
   const order: FeedOrder = searchParams.get('order') === 'score' ? 'score' : 'date';
   const bucket = WORKLIST_BUCKETS.find((item) => item.id === searchParams.get('work'))?.id ?? 'default';
   const source: FeedFilter = SOURCE_FAMILIES.find((item) => item.id === searchParams.get('filter'))?.id ?? 'all';

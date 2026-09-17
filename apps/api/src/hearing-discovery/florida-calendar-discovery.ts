@@ -7,6 +7,7 @@ import { runWithSyncRun } from '../ingestion/sync-run.helper.js';
 import type { LegislativeObservation } from './legislative-calendar.js';
 import { contentHash } from './hearing-identity.js';
 import { floridaSourceOutcome } from './florida-source-outcome.js';
+import { findFloridaCanonicalBySharedEntry } from './florida-crosswalk.js';
 import {
   FL_CALENDAR_PARSER,
   FL_HOUSE,
@@ -63,6 +64,12 @@ export type FloridaDiscoveryOptions = {
   delayMs?: number;
   log?: (message: string) => void;
   fetchSource?: typeof fetchFloridaSource;
+  /** Optional channel-host fetcher for crosswalk probes of TFC pages. When
+   *  omitted, the real guarded TFC fetcher is used; tests inject fixtures so
+   *  the notice path never touches the live publisher. */
+  fetchChannel?: (url: string) => Promise<{ bytes: Uint8Array; totalPages: number | null }>;
+  /** Per-run page→publisher-entry cache shared with the archive crosswalk. */
+  probeCache?: Map<string, string | null>;
 };
 
 export async function discoverFloridaCalendar(
@@ -97,6 +104,7 @@ export async function discoverFloridaCalendar(
     skippedOutsideWindow: number;
     events: string[];
   }> = [];
+  const crosswalkCache = options.probeCache ?? new Map<string, string | null>();
   for (const chamber of ['senate', 'house'] as const) {
     const now = new Date(),
       issues: string[] = [],
@@ -325,12 +333,40 @@ export async function discoverFloridaCalendar(
         if (prisma && source && reconciler) {
           try {
             await resolveFloridaAgenda(prisma, observation);
+            // Strong-proof archive crosswalk BEFORE reconcile: only a shared
+            // publisher media entry (this notice's official watch page vs an
+            // archive observation's stored pages) attaches the row. Ambiguous
+            // proof is reported and the event is SKIPPED — never null→dup.
+            let canonicalHearingId: string | null = null;
+            if (observation.fields.watchUrl) {
+              const crosswalk = await findFloridaCanonicalBySharedEntry(
+                prisma,
+                observation.fields.watchUrl,
+                crosswalkCache,
+                {
+                  observation: {
+                    chamber: observation.chamber,
+                    date: observation.fields.time?.date ?? null,
+                  },
+                  fetchChamber: fetchSource,
+                  fetchChannel: options.fetchChannel,
+                },
+              );
+              if (crosswalk.ambiguous) {
+                issues.push(
+                  `${observation.officialIdentity}: shared publisher entry is ambiguous; skipped`,
+                );
+                continue;
+              }
+              canonicalHearingId = crosswalk.hearingId;
+            }
             const outcome = await reconciler.reconcileEvent(
               source,
               {
                 externalEventId: observation.officialIdentity,
                 chamber: observation.chamber,
                 legislative: observation,
+                canonicalHearingId,
               },
               new Date(),
             );
@@ -497,11 +533,45 @@ export async function runFloridaCalendarDiscovery(args: string[]) {
         dryRun,
         log: console.log,
       });
+      // Recurring TFC archive sweep: same window as the chamber pass, bounded,
+      // idempotent — new archive recordings surface as calendar rows and exact
+      // watch candidates without waiting for a noticed meeting. Never crawls
+      // history here; the one-shot florida-archive backfill owns that.
+      let archive = {
+        inserted: 0,
+        updated: 0,
+        unchanged: 0,
+        errors: 0,
+        issues: 0,
+        ambiguous: [] as string[],
+      };
+      if (prisma) {
+        const { backfillFloridaArchive } = await import('./florida-archive-discovery.js');
+        const res = await backfillFloridaArchive(prisma, {
+          session,
+          from,
+          to,
+          delayMs: 400,
+          log: console.log,
+        });
+        archive = {
+          inserted: res.archive.inserted,
+          updated: res.archive.updated,
+          unchanged: res.archive.unchanged,
+          errors: res.archive.errors,
+          issues: res.archive.issues.length,
+          ambiguous: res.archive.ambiguous,
+        };
+      }
       return {
-        inserted: results.reduce((n, r) => n + r.inserted, 0),
-        updated: results.reduce((n, r) => n + r.updated, 0),
-        skipped: results.reduce((n, r) => n + r.unchanged, 0),
-        errors: results.reduce((n, r) => n + r.issues.length, 0),
+        inserted: results.reduce((n, r) => n + r.inserted, 0) + archive.inserted,
+        updated: results.reduce((n, r) => n + r.updated, 0) + archive.updated,
+        skipped: results.reduce((n, r) => n + r.unchanged, 0) + archive.unchanged,
+        errors:
+          results.reduce((n, r) => n + r.issues.length, 0) +
+          archive.errors +
+          archive.issues +
+          archive.ambiguous.length,
       };
     };
     if (prisma)

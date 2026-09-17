@@ -112,7 +112,7 @@ export function LwStateEmpty({ onReset, title = 'No alerts matched these filters
       <LwPill tone="gray">EMPTY</LwPill>
       <h3 className="lw-state__title">{title}</h3>
       <p className="lw-state__body">
-        No available records matched the current filters. Loosen a filter or reset to the saved view.
+        No available records matched the current filters. Loosen a filter or reset the filters.
       </p>
       {onReset ? <LwButton onClick={onReset}>Reset filters</LwButton> : null}
     </div>

@@ -53,15 +53,19 @@ describe('searchBills — jurisdictions (P1-17)', () => {
     expect(searchStateBillRows).not.toHaveBeenCalled();
   });
 
-  /** Back-compat: an existing caller sends only `q`. */
-  it('with NO jurisdictions searches federal only — unchanged for existing callers', async () => {
+  /** Full corpus: an existing caller sending only `q` now searches both rails. */
+  it('with NO jurisdictions searches federal AND every ingested state', async () => {
     const { svc, searchBillRows, searchStateBillRows } = makeSvc();
     const out = await svc.searchBills('housing');
     expect(searchBillRows).toHaveBeenCalled();
-    // Never scans all 50 legislatures on an unqualified query.
-    expect(searchStateBillRows).not.toHaveBeenCalled();
-    expect(out).toHaveLength(1);
-    expect(out[0]!.jurisdiction).toBe('US');
+    // The ingested state corpus is a handful of legislatures — scanned by default.
+    expect(searchStateBillRows).toHaveBeenCalledWith(
+      '%housing%',
+      expect.any(String),
+      [],
+      expect.any(Number),
+    );
+    expect(out.map((r) => r.jurisdiction).sort()).toEqual(['CA', 'US']);
   });
 
   /** f-6 case 4. */

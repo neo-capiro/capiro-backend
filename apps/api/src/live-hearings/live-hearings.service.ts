@@ -119,6 +119,12 @@ export interface CalendarQuery {
   captureState?: string;
   /** 'scheduled' = only this user's subscriptions; 'unscheduled' = only others. */
   followState?: 'scheduled' | 'unscheduled';
+  /**
+   * Whitelisted sort direction on the canonical date/startsAt key. Default
+   * `asc`; `desc` is for explicit "latest first" lookups and is bounded by the
+   * same pageSize cap — it never widens the selection.
+   */
+  sort?: 'asc' | 'desc';
   q?: string;
   page?: number;
   pageSize?: number;
@@ -426,7 +432,13 @@ export class LiveHearingsService {
     const [rows, total] = await Promise.all([
       this.prisma.committeeHearing.findMany({
         where,
-        orderBy: [{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }],
+        // Deterministic tie order: date → startsAt → id, flipped as a unit for
+        // an explicit "latest first" lookup. Default asc is the calendar's
+        // long-standing contract (and the export's chronological semantics).
+        orderBy:
+          query.sort === 'desc'
+            ? [{ date: 'desc' }, { startsAt: 'desc' }, { id: 'desc' }]
+            : [{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }],
         take: pageSize,
         skip: (page - 1) * pageSize,
       }),

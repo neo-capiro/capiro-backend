@@ -61,7 +61,6 @@ export const CAPIRO_FIGMA = {
     watchlists: '869:3923',
     digest: '869:4126',
     analytics: '869:4329',
-    savedViews: '869:4532',
     watchPreset: '869:4735',
     coldStart: '869:4938',
     tabletFeed: '888:2593',

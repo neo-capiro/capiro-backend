@@ -44,11 +44,44 @@ export class FolderFieldsDto {
 export class UpdateFolderDto extends FolderFieldsDto {
   @IsInt() @Min(0) expectedVersion!: number;
 }
+/**
+ * Global corpus search query. Deliberately separate from FolderBoardQueryDto:
+ * it has NO folderId/clientId/comments/priority/importance/position fields, so
+ * the public route can never express a tenant-private filter.
+ */
+export class BillCorpusQueryDto {
+  /** Omit to search every ingested jurisdiction (all states + US). */
+  @IsOptional() @IsString() @Matches(/^[A-Z]{2}$/) jurisdiction?: string;
+  /** Omit to search every ingested session (regular + special + all Congresses). */
+  @IsOptional() @IsString() @Matches(/^\d{3,4}(x\d+)?$/) sessionKey?: string;
+  @IsOptional() @IsString() @MaxLength(200) q?: string;
+  @IsOptional() @IsString() @MaxLength(100) sponsor?: string;
+  @IsOptional() @IsString() @MaxLength(100) status?: string;
+  @IsOptional() @IsIn(['upper', 'lower']) chamber?: string;
+  @IsOptional() @IsIn(['bill', 'title', 'sponsor', 'lastAction']) sort?: string;
+  @IsOptional() @IsIn(['asc', 'desc']) direction?: string;
+  @IsOptional() @IsString() @MaxLength(300) cursor?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+  /** Additive parity: provider bill-type code (e.g. 'bill'|'resolution'). */
+  @IsOptional() @IsString() @MaxLength(40) classification?: string;
+  /** Provider category/subject tag (ILIKE ANY). */
+  @IsOptional() @IsString() @MaxLength(100) subject?: string;
+  /** Current committee referral exact label. */
+  @IsOptional() @IsString() @MaxLength(160) committee?: string;
+  /** Explicit summary-text predicate (state_bill.description ILIKE). */
+  @IsOptional() @IsString() @MaxLength(200) summary?: string;
+  /** Explicit latest-action-text predicate. */
+  @IsOptional() @IsString() @MaxLength(200) actionText?: string;
+  /** Display flag: project summary/committee/classification into rows. */
+  @IsOptional() @IsIn(['true']) summaryIncluded?: string;
+}
 export class FolderBoardQueryDto {
   @IsOptional() @IsUUID() folderId?: string;
   @IsOptional() @IsUUID() clientId?: string;
-  @IsString() @Matches(/^[A-Z]{2}$/) jurisdiction!: string;
-  @IsString() @Matches(/^\d{3,4}(x\d+)?$/) sessionKey!: string;
+  /** Optional on the global-search path; the board path enforces presence in the service. */
+  @IsOptional() @IsString() @Matches(/^[A-Z]{2}$/) jurisdiction?: string;
+  /** Optional on the global-search path; the board path enforces presence in the service. */
+  @IsOptional() @IsString() @Matches(/^\d{3,4}(x\d+)?$/) sessionKey?: string;
   @IsOptional() @IsString() @MaxLength(200) q?: string;
   @IsOptional() @IsString() @MaxLength(100) sponsor?: string;
   @IsOptional() @IsString() @MaxLength(100) status?: string;

@@ -42,7 +42,6 @@ beforeEach(() => {
   api.get.mockImplementation(async (url: string) => {
     if (url === '/api/clients') return { data: clients };
     if (url.startsWith('/api/me')) return { data: { user: { legiwatchPrefs: {} } } };
-    if (url.includes('/saved-views')) return { data: { rows: [] } };
     if (url.includes('/watch-presets'))
       return {
         data: {
