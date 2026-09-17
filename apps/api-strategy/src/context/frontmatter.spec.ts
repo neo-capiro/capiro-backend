@@ -15,7 +15,7 @@ import {
 } from './frontmatter.js';
 
 /*
- * Acceptance-driven parser/validator tests against THE CONTRACT: the 14 real
+ * Acceptance-driven parser/validator tests against THE CONTRACT: the 17 real
  * template files vendored under src/context/templates/. Every template must
  * parse structurally, and must fail validation ONLY on its placeholders — the
  * literal 'YYYY-MM-DD' dates AND the literal shipped ids ('client_123',
@@ -57,14 +57,14 @@ function validFm(overrides: Partial<Frontmatter> = {}): Frontmatter {
   };
 }
 
-describe('the 14 vendored templates (the contract)', () => {
-  it('there are exactly 14 template files and every document_type maps to one', () => {
+describe('the 17 vendored templates (the contract)', () => {
+  it('there are exactly 17 template files and every document_type maps to one', () => {
     const files = templateFiles();
-    expect(files).toHaveLength(14);
+    expect(files).toHaveLength(17);
     expect(Object.values(TEMPLATE_KEY_BY_TYPE).sort()).toEqual(
       files.map((f) => f.replace(/\.md$/, '')).sort(),
     );
-    expect(DOCUMENT_TYPES).toHaveLength(14);
+    expect(DOCUMENT_TYPES).toHaveLength(17);
   });
 
   it.each(templateFiles())('%s parses structurally with zero errors', (file) => {

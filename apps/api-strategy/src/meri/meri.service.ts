@@ -101,6 +101,9 @@ const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export const CONTEXT_GAP_LABELS: Record<string, string> = {
   strategy_brief: 'the strategy brief',
   client_constraints: "this client's constraints",
+  target_budget_line: 'the target budget line baseline',
+  vendor_reference_pull: 'the performing-company reference pull',
+  route_and_vehicle_status: 'the legislative vehicle status',
 };
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
@@ -110,6 +113,7 @@ const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   coalition: 'Coalition / positioning',
   procurement: 'Contract / procurement',
   earmark: 'Grant / earmark',
+  amendment: 'Amendment ask',
 };
 
 /**

@@ -1,6 +1,6 @@
 import { IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
 
-/** The 6 objective types (plan §4 SpStrategyType / prototype OBJECTIVE_TYPES). */
+/** The 7 objective types (plan §4 SpStrategyType / prototype OBJECTIVE_TYPES). */
 export const STRATEGY_TYPES = [
   'appropriations',
   'authorization',
@@ -8,6 +8,7 @@ export const STRATEGY_TYPES = [
   'coalition',
   'procurement',
   'earmark',
+  'amendment',
 ] as const;
 export type StrategyTypeValue = (typeof STRATEGY_TYPES)[number];
 

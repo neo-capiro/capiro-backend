@@ -42,3 +42,6 @@ When the conflict remains material, Meri stops the affected recommendation or ex
 | `11_agent_mission.md` | Mission validation | Triggers/cadence/stops | Bounded mission context |
 | `12_execution_playbook.md` | Input validation | Ready-step checks | Tools, outputs, approvals |
 | `13_agent_permissions.md` | Policy scope | Auto-apply rules | External-action boundaries |
+| `14_target_budget_line.md` | Line identity, FY baseline, exhibit citations (amendment strategies) | Baseline/mark changes | Funding-table and justification figures |
+| `15_vendor_reference_pull.md` | Performing-company reference data with per-row verification status | Representation/credential changes | Technical-annex facts only, never the ask text |
+| `16_route_and_vehicle_status.md` | Capiro-generated vehicle stage/vote/rule status | Stage and vote changes | Route selection and timing |

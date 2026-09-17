@@ -340,6 +340,75 @@ function checkFocalFy(input: VerifyPlanInput): Violation[] {
   ];
 }
 
+/** Matches a node title that names a legislative vehicle for an amendment ask. */
+const AMENDMENT_VEHICLE_RE = /amendment|markup|report[- ]language|explanatory[- ]statement|managers.? package|conference/i;
+/** A dollar figure or increase language anywhere in the plan/objective marks a funding ask. */
+const AMENDMENT_FUNDING_RE = /\$\s?\d|plus-?up|\bincrease\b|program increase|additional funding/i;
+/** Matches the filing/submission action of an amendment plan. */
+const AMENDMENT_FILING_RE = /\b(file|filed|filing|submit|submitted|submission)\b/i;
+const OFFSET_RE = /offset/i;
+
+/**
+ * An amendment plan must resolve to a NAMED vehicle: a submission node whose
+ * title names the amendment, markup, report language, or conference ask
+ * (soft). Guard-clause pattern — no-op for every other strategy type.
+ */
+function checkAmendmentHasVehicle(input: VerifyPlanInput): Violation[] {
+  if (input.strategyType !== 'amendment') return [];
+  if (input.nodes.length === 0) return [];
+  const hit = input.nodes.some(
+    (n) => n.subject === 'submission' && AMENDMENT_VEHICLE_RE.test(n.title ?? ''),
+  );
+  if (hit) return [];
+  return [
+    {
+      code: 'amendment-no-vehicle',
+      severity: 'warning',
+      nodeIds: [],
+      message:
+        'This amendment plan has no submission step naming a legislative vehicle (floor amendment, markup insert, report language, or conference ask).',
+      suggestion:
+        'Add a submission step that names the vehicle — e.g. "File floor amendment to the FY27 Defense Appropriations Act".',
+    },
+  ];
+}
+
+/**
+ * A funding amendment cannot be filed without an offset: when the plan or
+ * objective carries a dollar figure / increase language, every vehicle-named
+ * filing action must depend on a gate whose title mentions the offset (soft).
+ * Guard-clause pattern — no-op for every other strategy type.
+ */
+function checkAmendmentOffsetBeforeFiling(input: VerifyPlanInput): Violation[] {
+  if (input.strategyType !== 'amendment') return [];
+  const fundingAsk = AMENDMENT_FUNDING_RE.test(
+    [input.objective ?? '', ...input.nodes.map((n) => n.title ?? '')].join(' '),
+  );
+  if (!fundingAsk) return []; // report-language-only asks carry no dollars and need no offset
+  const byId = new Map(input.nodes.map((n) => [n.id, n]));
+  const hasOffsetGate = input.nodes.some((n) => n.kind === 'gate' && OFFSET_RE.test(n.title ?? ''));
+  const out: Violation[] = [];
+  for (const n of input.nodes) {
+    if (n.subject !== 'submission' || !AMENDMENT_FILING_RE.test(n.title ?? '')) continue;
+    if (!AMENDMENT_VEHICLE_RE.test(n.title ?? '')) continue;
+    const gated = (n.dependsOnIds ?? []).some((id) => {
+      const dep = byId.get(id);
+      return !!dep && dep.kind === 'gate' && OFFSET_RE.test(dep.title ?? '');
+    });
+    if (gated) continue;
+    out.push({
+      code: 'amendment-offset-not-gated',
+      severity: 'warning',
+      nodeIds: [n.id],
+      message: `"${n.title}" is not gated on an offset decision${hasOffsetGate ? ' (an offset gate exists but this step does not depend on it)' : ''}.`,
+      suggestion: hasOffsetGate
+        ? "Add the offset gate to this step's dependsOn."
+        : 'Add a gate step titled "Offset identified and screened" and make this filing step depend on it.',
+    });
+  }
+  return out;
+}
+
 /**
  * Run every realism check over a proposed/persisted plan and return the
  * violations, errors first. Pure — safe to call pre-persist (drafts) or
@@ -362,6 +431,8 @@ export function verifyPlan(input: VerifyPlanInput): VerifyPlanResult {
     ...checkRecess(nodes, congress),
     ...checkWindow(nodes, fiscal),
     ...checkFocalFy({ ...input, fiscal }),
+    ...checkAmendmentHasVehicle({ ...input, fiscal }),
+    ...checkAmendmentOffsetBeforeFiling({ ...input, fiscal }),
   ];
   violations.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
   const errorCount = violations.filter((v) => v.severity === 'error').length;

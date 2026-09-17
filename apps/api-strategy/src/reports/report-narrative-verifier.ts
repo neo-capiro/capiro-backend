@@ -257,6 +257,13 @@ const NAME_STOPWORDS = new Set<string>([
   "procurement",
   "grant",
   "earmark",
+  // Amendment-type vocabulary: the type label and generic legislative nouns.
+  "amendment",
+  "markup",
+  "conference",
+  "offset",
+  "vendor",
+  "vehicle",
   "confidential",
   "internal",
   "draft",

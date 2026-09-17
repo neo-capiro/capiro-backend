@@ -19,7 +19,8 @@ export type GoldenStrategyType =
   | 'regulatory'
   | 'coalition'
   | 'procurement'
-  | 'earmark';
+  | 'earmark'
+  | 'amendment';
 
 /** Stands in for the Client Context Pack a real draft call would receive:
  *  enough fiscal/reference grounding for `verifyPlan`'s self-test (B2) and a

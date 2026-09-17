@@ -1,0 +1,168 @@
+{
+  "goal": "Secure a $3.0M FY27 program increase to an aggregated Procurement, Defense-Wide soldier-systems line (P-1 Line 68) for visual augmentation optics through a sponsored House floor amendment to the FY27 Defense Appropriations Act, with Senate entry and conference in parallel and the FY28 programmatic request window as the backstop.",
+  "clientContextFixture": {
+    "clientName": "Riverbend Defense Systems",
+    "profileSummary": "Small electro-optics manufacturer with a fielded SOF optic on an existing USSOCOM IDIQ; a member office has agreed to carry the request; the House Appropriations Committee reported the FY27 defense bill on July 10, 2026 and the floor schedule is not yet announced; the FY27 NDAA has already passed the House, closing that amendment window.",
+    "fiscal": {
+      "today": "2026-09-08",
+      "fys": [2026, 2027, 2028],
+      "fyLabels": ["FY26", "FY27", "FY28"],
+      "focalFy": "FY27"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "risk",
+        "subject": "optics",
+        "title": "Request reads as a directed buy rather than a capability quantity",
+        "startsOn": "2026-09-08",
+        "endsOn": null,
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Confirm the Line 68 and P-40a sub-line baseline from the FY27 procurement justification book",
+        "startsOn": "2026-09-08",
+        "endsOn": "2026-09-12",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n3",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Client input required: performing company, optic configuration, quantity, and unit cost",
+        "startsOn": "2026-09-09",
+        "endsOn": "2026-09-19",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft the requirement statement and quantity-and-cost sheet for the $3.0M increase",
+        "startsOn": "2026-09-21",
+        "endsOn": "2026-09-26",
+        "dependsOnIds": ["n2", "n3"]
+      },
+      {
+        "id": "n5",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Offset analysis: screen candidate Procurement and RDT&E Defense-Wide lines with two alternatives",
+        "startsOn": "2026-09-15",
+        "endsOn": "2026-09-24",
+        "dependsOnIds": ["n2"]
+      },
+      {
+        "id": "n6",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Offset identified and screened with the sponsor office",
+        "startsOn": "2026-09-25",
+        "endsOn": null,
+        "dependsOnIds": ["n5"]
+      },
+      {
+        "id": "n7",
+        "kind": "action",
+        "subject": "member",
+        "title": "Sponsor office initiates the House Legislative Counsel amendment draft",
+        "startsOn": "2026-09-26",
+        "endsOn": "2026-09-30",
+        "dependsOnIds": ["n6", "n4"]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "deliverable",
+        "title": "Amendment text, offset, and one-page justification are filing-ready",
+        "startsOn": "2026-09-30",
+        "endsOn": null,
+        "dependsOnIds": ["n7"]
+      },
+      {
+        "id": "n9",
+        "kind": "action",
+        "subject": "agency",
+        "title": "Validate the requirement and executability with the program office",
+        "startsOn": "2026-10-01",
+        "endsOn": "2026-10-16",
+        "dependsOnIds": ["n4"]
+      },
+      {
+        "id": "n10",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Preview the amendment and offset with HAC-D majority and minority staff",
+        "startsOn": "2026-10-06",
+        "endsOn": "2026-10-23",
+        "dependsOnIds": ["n8"]
+      },
+      {
+        "id": "n11",
+        "kind": "action",
+        "subject": "submission",
+        "title": "File the floor amendment to the FY27 Defense Appropriations Act when the Rules Committee window opens",
+        "startsOn": "2026-10-26",
+        "endsOn": "2026-11-20",
+        "dependsOnIds": ["n8", "n6", "n10"]
+      },
+      {
+        "id": "n12",
+        "kind": "decision",
+        "subject": "committee",
+        "title": "Rules Committee makes the amendment in order, or pivot to the Senate and conference track",
+        "startsOn": "2026-11-23",
+        "endsOn": null,
+        "dependsOnIds": ["n11"]
+      },
+      {
+        "id": "n13",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Conference advocacy memo to HAC-D, SAC-D, HASC, and SASC staff",
+        "startsOn": "2026-11-24",
+        "endsOn": "2026-12-11",
+        "dependsOnIds": ["n12"]
+      },
+      {
+        "id": "n14",
+        "kind": "gate",
+        "subject": "outcome",
+        "title": "FY27 inclusion in the year-end agreement, or a written FY28 submission commitment",
+        "startsOn": "2026-12-18",
+        "endsOn": null,
+        "dependsOnIds": ["n13"]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [14, 14],
+    "requiredKinds": ["action", "decision", "gate", "milestone", "risk"],
+    "requiredSubjects": ["optics", "deliverable", "ask", "member", "agency", "committee", "submission", "outcome"],
+    "orderingAssertions": [
+      {
+        "description": "the offset is identified before the amendment is filed",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n11"
+      },
+      {
+        "description": "the package is filing-ready before staff preview begins",
+        "beforeNodeId": "n8",
+        "afterNodeId": "n10"
+      },
+      {
+        "description": "program-office validation starts before the filing window",
+        "beforeNodeId": "n9",
+        "afterNodeId": "n11"
+      }
+    ]
+  },
+  "notes": "Procurement plus-up via floor amendment: exercises the amendment-specific verifier checks (a vehicle-named submission n11 gated on the offset gate n6), a client-input decision node (n3), an unscheduled Rules Committee window modelled as a decision (n12), and the conference/FY28 backstop (n13, n14). congress is [] because the committee markup already happened before the plan starts and the floor window is not scheduled."
+}

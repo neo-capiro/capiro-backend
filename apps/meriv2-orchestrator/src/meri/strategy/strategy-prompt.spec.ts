@@ -4,7 +4,9 @@ import {
   PROPOSE_STRATEGY_DRAFT_TOOL,
   buildAssistantSystemPrompt,
   buildDocumentDraftSystemPrompt,
+  AMENDMENT_TYPE_ADDENDUM,
   buildDraftSystemPrompt,
+  typeDisciplineSection,
   renderStewardFacts,
   sanitizeDocumentSections,
   sanitizeDraftNodes,
@@ -607,5 +609,40 @@ describe('strategy-prompt — Phase 4 assurance', () => {
     expect(PROPOSE_DOCUMENT_DRAFT_TOOL.input_schema.properties.sections.items.required).toContain(
       'sources',
     );
+  });
+});
+
+/*
+ * Amendment objective type: the discipline block (named vehicle, offset gate,
+ * vendor-neutral framing, status ladder, required client inputs) rides in the
+ * dynamic tail ONLY for type === 'amendment'; every other type's prompt is
+ * byte-identical to before.
+ */
+describe('strategy-prompt — amendment type discipline', () => {
+  it('renders the addendum in the draft prompt only for type=amendment', () => {
+    const amendment = { clientId: 'c1', type: 'amendment', goal: 'File the plus-up amendment' } as StrategyDraftInput;
+    const appropriations = { ...amendment, type: 'appropriations' } as StrategyDraftInput;
+    expect(buildDraftSystemPrompt(amendment, '(pack)')).toContain('# Amendment strategy discipline');
+    expect(buildDraftSystemPrompt(amendment, '(pack)')).toContain('Client input required:');
+    expect(buildDraftSystemPrompt(appropriations, '(pack)')).not.toContain('# Amendment strategy discipline');
+  });
+
+  it('renders the addendum in the assistant prompt for an amendment strategy', () => {
+    const input = {
+      scope: 'strategy',
+      instruction: 'add the offset gate',
+      clientId: 'c1',
+      strategy: { id: 's1', title: 'Plan', type: 'amendment', nodes: [] },
+    } as StrategyAssistantInput;
+    const sys = buildAssistantSystemPrompt(input, '(pack)');
+    expect(sys).toContain('# Amendment strategy discipline');
+    expect(sys).toContain('offset');
+  });
+
+  it('typeDisciplineSection is empty for every other type and for a missing type', () => {
+    for (const type of ['appropriations', 'authorization', 'regulatory', 'coalition', 'procurement', 'earmark', null, undefined]) {
+      expect(typeDisciplineSection(type)).toBe('');
+    }
+    expect(typeDisciplineSection('amendment')).toBe(AMENDMENT_TYPE_ADDENDUM);
   });
 });
