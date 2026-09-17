@@ -1,5 +1,8 @@
 import type { CSSProperties, SVGProps } from 'react';
-import { DashboardIcon, type DashboardIconName } from '../../components/untitledui/dashboard-icons.js';
+import {
+  DashboardIcon,
+  type DashboardIconName,
+} from '../../components/untitledui/dashboard-icons.js';
 
 const ICON_MAP = {
   home: 'HomeLine',
@@ -10,9 +13,11 @@ const ICON_MAP = {
   users: 'Users01',
   search: 'SearchLg',
   'search-refraction': 'SearchLg',
+  stars: 'Stars02',
   dots: 'DotsHorizontal',
   chevronDown: 'ChevronRight',
   chevronRight: 'ChevronRight',
+  chevronLeft: 'ChevronRight',
   x: 'XClose',
   bell: 'Bell01',
   settings: 'Settings01',
@@ -31,13 +36,15 @@ export function Icon({
   const transform =
     name === 'chevronDown'
       ? 'rotate(90deg)'
-      : name === 'expand'
+      : name === 'expand' || name === 'chevronLeft'
         ? 'scaleX(-1)'
         : undefined;
   const mergedStyle: CSSProperties | undefined = transform
     ? { ...(style as CSSProperties | undefined), transform }
     : (style as CSSProperties | undefined);
-  return <DashboardIcon name={ICON_MAP[name]} size={size} className={className} style={mergedStyle} />;
+  return (
+    <DashboardIcon name={ICON_MAP[name]} size={size} className={className} style={mergedStyle} />
+  );
 }
 
 export const NAV_ICON_BY_ROUTE_ID: Readonly<Record<string, IconName>> = {
@@ -47,5 +54,5 @@ export const NAV_ICON_BY_ROUTE_ID: Readonly<Record<string, IconName>> = {
   workspace: 'grid',
   strategies: 'target',
   directory: 'users',
-  intelligence: 'search-refraction',
+  intelligence: 'stars',
 };

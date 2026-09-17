@@ -2,15 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { hasAtLeast, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
-  FundingOpportunitiesService,
-  type OpportunityQuery,
-} from './funding-opportunities.service.js';
+  FundingOpportunityV2SearchService,
+  type OpportunitySearchContext,
+} from './funding-opportunity-v2-search.service.js';
+import { FundingOpportunityV2DetailService } from './funding-opportunity-v2-detail.service.js';
+import { normalizeOpportunitySearchQuery } from './funding-opportunity-v2-search.service.js';
+import { v2RecordToFundingOpportunity, type LegacyDecisionProjection, type LegacyOpportunityProjection } from './funding-opportunity-v2-legacy-adapter.js';
 import {
   OpportunityRequirementService,
   type RequirementsResponse,
 } from './requirements/opportunity-requirement.service.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
-import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
+import { readVisibleClientIds } from './funding-opportunity-access.js';
 import {
   FUNDING_OPPORTUNITIES_FEATURE,
   FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
@@ -24,6 +27,7 @@ import {
   type FundingOpportunityListResponse,
   type OpportunitySource,
 } from './funding-opportunities.types.js';
+import type { OpportunityProfileGapV2, OpportunitySourceFreshnessV2 } from '@capiro/shared';
 
 /**
  * Typed, local, read-only Meri tools for Funding Opportunities (P37).
@@ -174,20 +178,31 @@ export interface OpportunityRef {
   sourceRecordId: string;
 }
 
-@Injectable()
+export type MeriSamSourceFreshness = OpportunitySourceFreshnessV2 & { countsUnavailable: boolean; neverSynced: boolean; lastRunStatus: OpportunitySourceFreshnessV2['state']; lastRunDegraded: boolean; hoursSinceLastSuccess: number | null };
+
 export class MeriOpportunityToolsAdapter {
   private readonly logger = new Logger(MeriOpportunityToolsAdapter.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly opportunities: FundingOpportunitiesService,
+    private readonly opportunities: FundingOpportunityV2SearchService,
     private readonly landscape: GovernmentLandscapeService,
     private readonly requirements: OpportunityRequirementService,
+    private readonly opportunityDetails: FundingOpportunityV2DetailService,
   ) {}
 
   /** Global source health for the existing public-catalog SAM reader; no client records. */
-  async readSamSourceFreshness() {
-    return (await this.opportunities.readFreshness()).filter((row) => row.source === 'sam_gov');
+  async readSamSourceFreshness(context: OpportunitySearchContext = { tenantId: '', userId: '' }): Promise<MeriSamSourceFreshness[]> {
+    return (await this.opportunities.readSourceHealth(context)).sources
+      .filter((row) => row.source === 'sam_gov')
+      .map((row) => ({
+        ...row,
+        countsUnavailable: row.recordCount == null,
+        neverSynced: row.state === 'never_synced',
+        lastRunStatus: row.state,
+        lastRunDegraded: row.state !== 'current',
+        hoursSinceLastSuccess: row.lastSyncedAt ? Math.max(0, (Date.now() - Date.parse(row.lastSyncedAt)) / 3600000) : null,
+      }));
   }
 
   // ── Gates, shared by every tool ───────────────────────────────────────────
@@ -305,19 +320,16 @@ export class MeriOpportunityToolsAdapter {
         'Use page >= 1, pageSize 1–5, a query up to 500 characters, and activeState active, closed or all.',
       );
     }
-    const query: OpportunityQuery = {
-      source,
-      q: input.query,
-      page: input.page ?? 1,
-      pageSize: input.pageSize ?? 5,
-      activeState: (input.activeState ?? 'active') as OpportunityQuery['activeState'],
-    };
-    const result = await this.opportunities.listClientOpportunities(
-      actor.tenantId,
-      input.clientId,
-      query,
+    const result = await this.opportunities.search(
+      { tenantId: actor.tenantId, userId: actor.userId } satisfies OpportunitySearchContext,
+      normalizeOpportunitySearchQuery({
+        mode: 'matched', clientId: input.clientId, sources: source ? [source] : ['grants_gov', 'sam_gov'], q: input.query,
+        lifecycle: input.activeState === 'closed' ? ['closed'] : input.activeState === 'all' ? ['active', 'closed', 'post_award'] : ['active'],
+        page: input.page ?? 1, pageSize: input.pageSize ?? 5,
+      }),
     );
-    const hasMore = result.page * result.pageSize < result.total;
+    const hasMore = result.total == null ? result.opportunities.length === result.pageSize : result.page * result.pageSize < result.total;
+    const opportunities = result.opportunities.map(v2RecordToFundingOpportunity);
     return cap(
       envelope(
         tool,
@@ -325,16 +337,28 @@ export class MeriOpportunityToolsAdapter {
         asOf,
         'Canonical Funding Opportunities matching and eligibility. Relevance is not eligibility; confidence describes evidence quality, not likelihood of award. A forecast or advance notice is not an open solicitation.',
         {
-          ...result,
-          opportunities: result.opportunities.map((row) => toFacts(row)),
+          criteria: result.criteria,
+          total: result.total,
+          totalIsCapped: result.totalIsCapped,
+          page: result.page,
+          pageSize: result.pageSize,
+          counts: { activeGrants: result.counts.grants, activeContracts: result.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: null },
+          freshness: result.freshness,
+          emptyReason: result.emptyReason === 'no_matches' ? 'no_results_for_filters' : result.emptyReason as OpportunitySearch['emptyReason'],
+          emptyExplanation: result.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
+          missingProfileFields: result.profileGaps?.items ?? null,
+          generatedAt: result.generatedAt,
+          opportunities: opportunities.map((row) => toFacts(row)),
           clientId: input.clientId,
           hasMore,
           nextPage: hasMore ? result.page + 1 : null,
           coverage: {
-            sources: source ? [source] : [...OPPORTUNITY_SOURCES],
-            pageCoversMatchedResults: !hasMore && result.page === 1 && !result.totalIsCapped,
+            sources: source ? [source] : ['grants_gov', 'sam_gov'],
+            pageCoversMatchedResults: result.catalogComplete === true && !result.totalIsCapped && !hasMore && result.page === 1 && result.total != null,
             totalIsCapped: result.totalIsCapped,
-            explanation: result.totalIsCapped
+            explanation: !result.catalogComplete
+              ? 'The canonical catalog is incomplete or unavailable. A page is not proof that no other matching opportunities exist; no matching result does not prove no opportunity exists.'
+              : result.total == null
               ? 'The canonical source scan reached its bound. Page through these results and narrow the search; this is not the complete opportunity universe.'
               : 'Pagination covers the canonical matched results. Source freshness and profile gaps limit conclusions; no matching result does not prove no opportunity exists.',
             procurementForecasts: { state: 'separate_tool', tool: 'search_procurement_forecasts' },
@@ -492,7 +516,7 @@ export class MeriOpportunityToolsAdapter {
       fitLabel: explained.fitLabel,
       weakEvidenceOnly: explained.weakOnly,
       eligibility: row.eligibility,
-      recommendation: row.recommendation,
+      recommendation: row.recommendation ?? null,
       humanDecision: row.decision,
       acquisitionPosition: row.acquisitionPosition,
       signals: signals.map((s) => ({
@@ -528,7 +552,16 @@ export class MeriOpportunityToolsAdapter {
     const refusal = await this.gate<ClientContext>(tool, actor, input.clientId, asOf);
     if (refusal) return refusal;
 
-    const summary = await this.opportunities.getClientSummary(actor.tenantId, input.clientId);
+    const summarySearch = await this.opportunities.search(
+      { tenantId: actor.tenantId, userId: actor.userId },
+      normalizeOpportunitySearchQuery({ mode: 'matched', clientId: input.clientId, sources: ['grants_gov', 'sam_gov'], lifecycle: ['active'], page: 1, pageSize: MERI_TOOL_CAPS.topOpportunities }),
+    );
+    const summaryRows = summarySearch.opportunities.map(v2RecordToFundingOpportunity);
+    const summary = {
+      clientId: input.clientId, counts: { activeGrants: summarySearch.counts.grants, activeContracts: summarySearch.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: null },
+      nextDeadline: null, missingProfileFields: summarySearch.profileGaps?.items ?? null, freshness: summarySearch.freshness, emptyReason: summarySearch.emptyReason, emptyExplanation: summarySearch.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
+      topGrants: summaryRows.filter((row) => row.source === 'grants_gov'), topContracts: summaryRows.filter((row) => row.source === 'sam_gov'),
+    };
 
     const data: ClientContext = {
       clientId: summary.clientId,
@@ -787,14 +820,12 @@ export class MeriOpportunityToolsAdapter {
     source: OpportunitySource,
     sourceRecordId: string,
     clientId: string,
-  ): Promise<FundingOpportunity | null> {
+  ): Promise<LegacyOpportunityProjection | null> {
     try {
-      return await this.opportunities.getOpportunity(
-        actor.tenantId,
-        source,
-        sourceRecordId,
-        clientId,
+      const detail = await this.opportunityDetails.readDetail(
+        { tenantId: actor.tenantId, userId: actor.userId, role: actor.role }, source, sourceRecordId, clientId, 'matched',
       );
+      return v2RecordToFundingOpportunity(detail.opportunity);
     } catch (error) {
       if (isNotFound(error)) return null;
       throw error;
@@ -813,10 +844,10 @@ export interface OpportunityBrief {
   isPursuable: boolean;
   responseDeadline: string | null;
   responseDeadlineNote: string | null;
-  relevanceScore: number;
+  relevanceScore: number | null;
   eligibility: FundingOpportunity['eligibility'];
   recommendation: FundingOpportunity['recommendation'];
-  humanDecision: FundingOpportunity['decision'];
+  humanDecision: FundingOpportunity['decision'] | LegacyDecisionProjection;
   workflowStatus: string | null;
   sourceUrl: string | null;
   sourceUpdatedAt: string | null;
@@ -851,8 +882,8 @@ export interface OpportunityFacts extends OpportunityBrief {
   contractValue: FundingOpportunity['contractValue'];
   placeOfPerformance: FundingOpportunity['placeOfPerformance'];
   acquisitionPosition: FundingOpportunity['acquisitionPosition'];
-  missingProfileFields: FundingOpportunity['missingProfileFields'];
-  matchedSignals: FundingOpportunity['matchedSignals'];
+  missingProfileFields: FundingOpportunity['missingProfileFields'] | null;
+  matchedSignals: Array<Omit<FundingOpportunity['matchedSignals'][number], 'weight'> & { weight?: number }>;
   districtKey: FundingOpportunity['districtKey'];
   districtBasis: FundingOpportunity['districtBasis'];
   evidence: {
@@ -876,8 +907,12 @@ export interface OpportunityFacts extends OpportunityBrief {
   };
 }
 
-export interface OpportunitySearch extends Omit<FundingOpportunityListResponse, 'opportunities'> {
+export interface OpportunitySearch extends Omit<FundingOpportunityListResponse, 'opportunities' | 'freshness' | 'counts' | 'total' | 'missingProfileFields'> {
   clientId: string;
+  total: number | null;
+  counts: { activeGrants: number | null; activeContracts: number | null; saved: number | null; pursuing: number | null; dismissed: number | null; deadlinesIn30Days: number | null };
+  freshness: OpportunitySourceFreshnessV2[];
+  missingProfileFields: OpportunityProfileGapV2[] | null;
   opportunities: OpportunityFacts[];
   hasMore: boolean;
   nextPage: number | null;
@@ -894,13 +929,13 @@ export interface MatchExplanation {
   facts: OpportunityFacts;
   ref: OpportunityRef;
   title: string;
-  relevanceScore: number;
+  relevanceScore: number | null;
   fitBand: string;
   fitLabel: string;
   weakEvidenceOnly: boolean;
   eligibility: FundingOpportunity['eligibility'];
   recommendation: FundingOpportunity['recommendation'];
-  humanDecision: FundingOpportunity['decision'];
+  humanDecision: FundingOpportunity['decision'] | LegacyDecisionProjection;
   acquisitionPosition: FundingOpportunity['acquisitionPosition'];
   signals: Array<{
     signal: string;
@@ -909,7 +944,7 @@ export interface MatchExplanation {
     strength: string;
     matchedOn: string;
   }>;
-  missingProfileFields: FundingOpportunity['missingProfileFields'];
+  missingProfileFields: FundingOpportunity['missingProfileFields'] | null;
 }
 
 export interface ClientContext {
@@ -1049,7 +1084,7 @@ function refusalMessage(error: unknown): string {
   return 'Capiro refused this request. Check the source and record id.';
 }
 
-export function toBrief(row: FundingOpportunity): OpportunityBrief {
+export function toBrief(row: FundingOpportunity | LegacyOpportunityProjection): OpportunityBrief {
   return {
     ref: { source: row.source, sourceRecordId: row.sourceRecordId },
     title: row.title,
@@ -1061,7 +1096,7 @@ export function toBrief(row: FundingOpportunity): OpportunityBrief {
     responseDeadlineNote: row.responseDeadlineNote,
     relevanceScore: row.relevanceScore,
     eligibility: row.eligibility,
-    recommendation: row.recommendation,
+    recommendation: row.recommendation ?? null,
     humanDecision: row.decision,
     workflowStatus: row.workflow?.status ?? null,
     sourceUrl: row.sourceUrl,
@@ -1070,7 +1105,7 @@ export function toBrief(row: FundingOpportunity): OpportunityBrief {
 }
 
 export function toFacts(
-  row: FundingOpportunity,
+  row: FundingOpportunity | LegacyOpportunityProjection,
   page: { offset?: number; limit?: number } = {},
 ): OpportunityFacts {
   const text = row.summary ?? '';
@@ -1128,7 +1163,7 @@ export function toFacts(
         ...(!row.sourceUpdatedAt ? ['sourceUpdatedAt'] : []),
         ...(!row.responseDeadline && !row.responseDeadlineNote ? ['responseDeadline'] : []),
         ...(!row.placeOfPerformance ? ['placeOfPerformance'] : []),
-        ...(row.source === 'grants_gov' && !row.eligibleApplicantTypes.length
+        ...(row.source === 'grants_gov' && !(row.eligibleApplicantTypes ?? []).length
           ? ['eligibleApplicantTypes']
           : []),
         ...(!text || row.summaryIsLink ? ['noticeText'] : []),

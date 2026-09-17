@@ -1,18 +1,12 @@
 /**
- * Expire machine suggestions and emit deterministic internal alerts for saved or
- * pursuing funding opportunities. Dry-run by default; --commit writes.
+ * Emit deterministic internal alerts for tracked funding opportunities. Dry-run by
+ * default; --commit writes.
  *
  * ── What this pass may and may not alert about ───────────────────────────────
  *
  * Alerts go ONLY to rows a human is tracking (`saved`, `pursuing`). That is not a
  * throttle, it is the difference between a notification and noise:
  *
- *   * `suggested` is the producer's own output that nobody has looked at. A
- *     machine guess whose source closed should vanish, not announce itself — so
- *     those rows expire SILENTLY.
- *   * `dismissed`, `won` and `lost` are finished decisions. "The deadline moved"
- *     on an opportunity somebody dismissed three months ago is not information.
- *   * `expired` has already been reported once by definition.
  *
  * The previous implementation gated only `closing_soon` on human tracking, so
  * `deadline_changed`, `amended` and `cancelled_or_closed` fired for every status
@@ -49,7 +43,7 @@ import {
   FUNDING_OPPORTUNITIES_FEATURE,
   FUNDING_OPPORTUNITIES_FORECASTS_FEATURE,
 } from '../src/funding-opportunities/funding-opportunities-flag.guard.js';
-import { isTopicClosed } from '../src/funding-opportunities/sbir-relevance.js';
+import { isTopicClosed } from '../src/funding-opportunities/source-lifecycle.js';
 import {
   grantSourceFingerprint,
   isGrantActive,
@@ -505,7 +499,6 @@ function snapshotRevisionReasons(input: {
 export interface LifecycleResult extends RunCounts {
   evaluated: number;
   alerts: number;
-  expired: number;
   /** Rows that received a silent first-observation baseline this run. */
   baselined: number;
 }
@@ -518,7 +511,6 @@ export async function processLifecycle(
   const now = options.now ?? new Date();
   let evaluated = 0;
   let alerts = 0;
-  let expired = 0;
   let baselined = 0;
 
   for (const tenantId of options.tenantIds) {
@@ -708,17 +700,6 @@ export async function processLifecycle(
           });
           if (decision.baseline) baselined += 1;
 
-          // Machine suggestions retire silently. `userCreated === false` AND
-          // status 'suggested' together mean "the producer put this here and no
-          // human has touched it" — a human-created row is never expired by a
-          // machine, whatever its status.
-          const shouldExpire =
-            current.active === false &&
-            row.workflowStatus === 'suggested' &&
-            row.userCreated === false &&
-            row.humanDecision == null;
-          let didExpire = shouldExpire;
-
           const snapshotData = {
             sourceStatusSnapshot: current.status,
             responseDeadlineSnapshot: current.deadline,
@@ -785,52 +766,10 @@ export async function processLifecycle(
                 });
               }
 
-              if (shouldExpire) {
-                // The user may save/watch/pursue after our page read. Only a
-                // still-undecided suggestion may transition to expired.
-                const result = await tx.clientFundingOpportunity.updateMany({
-                  where: {
-                    id: row.id,
-                    tenantId,
-                    clientId: row.clientId,
-                    workflowStatus: 'suggested',
-                    userCreated: false,
-                    humanDecision: null,
-                  },
-                  data: { workflowStatus: 'expired', ...snapshotData },
-                });
-                didExpire = result.count > 0;
-              } else {
-                await tx.clientFundingOpportunity.update({
-                  where: { id: row.id, tenantId, clientId: row.clientId },
-                  data: snapshotData,
-                });
-              }
-
-              if (didExpire) {
-                // Expiry is silent to the USER but never silent to the audit log:
-                // a suggestion disappearing without a trace is indistinguishable
-                // from a bug.
-                await tx.auditLog.create({
-                  data: {
-                    tenantId,
-                    actorUserId: null,
-                    actorRole: 'system',
-                    action: 'funding_opportunity.lifecycle.expired',
-                    entityType: 'client_funding_opportunity',
-                    entityId: row.id,
-                    before: {
-                      workflowStatus: row.workflowStatus,
-                    } as Prisma.InputJsonValue,
-                    after: {
-                      workflowStatus: 'expired',
-                      reason: 'source_no_longer_active',
-                      status: current.status,
-                    } as Prisma.InputJsonValue,
-                    requestId: SOURCE,
-                  },
-                });
-              }
+              await tx.clientFundingOpportunity.update({
+                where: { id: row.id, tenantId, clientId: row.clientId },
+                data: snapshotData,
+              });
             });
           } else {
             // Dry run still consults the alert table, so the reported count is
@@ -852,7 +791,6 @@ export async function processLifecycle(
             }
           }
 
-          if (didExpire) expired += 1;
           counts.updated += 1;
         } catch (error) {
           counts.errors += 1;
@@ -864,7 +802,7 @@ export async function processLifecycle(
     }
   }
 
-  return { ...counts, evaluated, alerts, expired, baselined };
+  return { ...counts, evaluated, alerts, baselined };
 }
 
 async function main(): Promise<void> {
@@ -873,15 +811,15 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   try {
     const ids = await tenantIds(prisma, explicitTenant);
-    // Report inside the closure: evaluated/alerts/expired/baselined belong to
+    // Report inside the closure: evaluated/alerts/baselined belong to
     // this script's result type, not to the bare RunCounts that runWithSyncRun
     // resolves to, and on the skipIfRunning path the helper never runs this
-    // body at all. See generate-funding-grant-candidates.ts for the same shape.
+    // body at all.
     const execute = async (): Promise<RunCounts> => {
       const result = await processLifecycle(prisma, { tenantIds: ids, commit });
       console.log(
         `[${SOURCE}] ${commit ? 'COMMITTED' : 'DRY RUN'} tenants=${ids.length} evaluated=${result.evaluated} ` +
-          `alerts=${commit ? result.alerts : `${result.alerts} would create`} expired=${result.expired} ` +
+          `alerts=${commit ? result.alerts : `${result.alerts} would create`} ` +
           `baselined=${result.baselined} errors=${result.errors}`,
       );
       if (result.baselined > 0) {

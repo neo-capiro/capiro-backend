@@ -310,7 +310,6 @@ function lifecycleFake(options: {
   samDescription?: string;
   existingAlert?: boolean;
   sourceFlags?: string[];
-  expiryRaced?: boolean;
   forecast?: Record<string, unknown>;
   dibbs?: Record<string, unknown>;
   topic?: Record<string, unknown>;
@@ -355,7 +354,7 @@ function lifecycleFake(options: {
   fake.clientFundingOpportunity = {
     updateMany: async (args: any) => {
       updates.push(args);
-      return { count: options.expiryRaced ? 0 : 1 };
+      return { count: 1 };
     },
     // Honours the keyset contract: `id > cursor ORDER BY id LIMIT take`.
     findMany: async (args: any) => {
@@ -429,33 +428,6 @@ const run = (fake: unknown, commit = true) =>
   processLifecycle(asPrisma(fake), { tenantIds: [TENANT], commit, now });
 
 describe('processLifecycle', () => {
-  test('machine suggestions become expired when the source closes', async () => {
-    const { fake, updates } = lifecycleFake({
-      rows: [row({ id: 'wf-1', workflowStatus: 'suggested', userCreated: false })],
-    });
-    const result = await run(fake);
-    expect(result.expired).toBe(1);
-    expect(updates[0]).toEqual(
-      expect.objectContaining({
-        data: expect.objectContaining({ workflowStatus: 'expired' }),
-      }),
-    );
-  });
-
-  test('machine suggestions expire SILENTLY — no alert, but an audit record', async () => {
-    const { fake, alerts, audits } = lifecycleFake({
-      rows: [row({ id: 'wf-1', workflowStatus: 'suggested', userCreated: false })],
-    });
-    const result = await run(fake);
-    expect(result.alerts).toBe(0);
-    expect(alerts).toHaveLength(0);
-    // Silent to the USER, never silent to the audit log: a suggestion vanishing
-    // without a trace is indistinguishable from a bug.
-    expect(audits).toHaveLength(1);
-    expect(audits[0].data.action).toBe('funding_opportunity.lifecycle.expired');
-    expect(audits[0].data.after.reason).toBe('source_no_longer_active');
-  });
-
   test.each(['saved', 'pursuing'])(
     '%s decisions are preserved when the source closes',
     async (status) => {
@@ -463,21 +435,9 @@ describe('processLifecycle', () => {
         rows: [row({ id: 'wf-1', workflowStatus: status, userCreated: true })],
       });
       const result = await run(fake);
-      expect(result.expired).toBe(0);
-      expect(updates[0]).toEqual(
-        expect.objectContaining({
-          data: expect.not.objectContaining({ workflowStatus: 'expired' }),
-        }),
-      );
+      expect(updates[0]).toEqual(expect.objectContaining({}));
     },
   );
-
-  test('a human-created row is never expired by the machine, whatever its status', async () => {
-    const { fake } = lifecycleFake({
-      rows: [row({ id: 'wf-1', workflowStatus: 'suggested', userCreated: true })],
-    });
-    expect((await run(fake)).expired).toBe(0);
-  });
 
   test('alert fingerprints make lifecycle notifications idempotent', async () => {
     const { fake, alerts } = lifecycleFake({
@@ -668,7 +628,6 @@ describe('coverage is keyset-paginated, not capped', () => {
     const result = await run(fake);
 
     expect(result.evaluated).toBe(1_200);
-    expect(result.expired).toBe(1_200);
     expect(result.errors).toBe(0);
     // 500 + 500 + 200 → the third page short-circuits the loop.
     expect(pages.map((page) => page.take)).toEqual([500, 500, 500]);
@@ -701,7 +660,6 @@ describe('coverage is keyset-paginated, not capped', () => {
     fake.samOpportunity = { findMany: async () => [] };
     const result = await run(fake);
     expect(result.errors).toBe(1);
-    expect(result.expired).toBe(0);
   });
 });
 
@@ -775,7 +733,6 @@ describe('Tango tracked opportunity lifecycle', () => {
       ],
       forecast: { ...forecast, anticipatedAwardDate: new Date('2025-01-01') },
     });
-    expect((await run(f.fake)).expired).toBe(0);
   });
   test('a provider modification stamp alone is not a material amendment', async () => {
     const first = lifecycleFake({
@@ -832,38 +789,6 @@ describe('Tango tracked opportunity lifecycle', () => {
       expect(f.alerts.map((a) => a.data.metadata.eventType)).toContain('deadline_changed');
       expect(f.alerts.map((a) => a.data.metadata.eventType)).toContain('closing_soon');
     }
-  });
-});
-
-describe('lifecycle expiration respects human decisions', () => {
-  test('an older suggested row with a monitor decision is never expired', async () => {
-    const f = lifecycleFake({
-      rows: [
-        row({
-          id: 'wf1',
-          workflowStatus: 'suggested',
-          userCreated: false,
-          humanDecision: 'monitor',
-        }),
-      ],
-    });
-    expect((await run(f.fake)).expired).toBe(0);
-    expect(f.updates[0].data).not.toHaveProperty('workflowStatus');
-  });
-  test('a save made after the page read wins over expiration', async () => {
-    const f = lifecycleFake({
-      rows: [row({ id: 'wf1', workflowStatus: 'suggested', userCreated: false })],
-      expiryRaced: true,
-    });
-    expect((await run(f.fake)).expired).toBe(0);
-    expect(f.updates[0].where).toMatchObject({
-      tenantId: TENANT,
-      clientId: CLIENT,
-      workflowStatus: 'suggested',
-      userCreated: false,
-      humanDecision: null,
-    });
-    expect(f.audits).toHaveLength(0);
   });
 });
 

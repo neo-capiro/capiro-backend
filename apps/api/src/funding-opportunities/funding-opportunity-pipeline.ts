@@ -1,7 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import type { OpportunityCurrentEvidenceV2 } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { FORECAST_INBOX_SOURCE } from './funding-opportunity-inbox.service.js';
+import { FORECAST_INBOX_SOURCE } from './funding-opportunity-access.js';
 import type { OpportunityWorkflowStatus } from './funding-opportunities.types.js';
+import { enrichPipelineCatalogRows } from './funding-opportunity-pipeline-source-enrichment.js';
 
 /**
  * The pursuit pipeline (Funding Opportunities P35).
@@ -74,8 +77,12 @@ export const PIPELINE_STAGES = [
 ] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
-/** Stages nothing moves out of. A won bid is not re-opened; it is a new pursuit. */
-export const TERMINAL_STAGES: ReadonlySet<PipelineStage> = new Set<PipelineStage>(['won', 'lost']);
+/** Stages nothing moves out of. Passed is terminal by product design. */
+export const TERMINAL_STAGES: ReadonlySet<PipelineStage> = new Set<PipelineStage>([
+  'won',
+  'lost',
+  'passed',
+]);
 
 /**
  * Stages that may only ever be reached by an explicit human action, and that
@@ -87,8 +94,6 @@ export const TERMINAL_STAGES: ReadonlySet<PipelineStage> = new Set<PipelineStage
  * a caller that bypasses this service.
  */
 export const HUMAN_ONLY_STAGES: ReadonlySet<PipelineStage> = new Set<PipelineStage>([
-  'submitted',
-  'won',
   'lost',
   'passed',
 ]);
@@ -111,13 +116,12 @@ export const FORECAST_FORBIDDEN_STAGES: ReadonlySet<PipelineStage> = new Set<Pip
 /**
  * The allowed moves. `null` is the key for a row not yet in the pipeline.
  *
- * `won` and `lost` are reachable ONLY from `submitted`, deliberately: a bid
- * cannot be won or lost if it was never submitted, and letting a user jump
- * straight to `won` from `reviewing` produces a pipeline whose conversion numbers
- * describe nothing that happened.
+ * `won` is reachable only from `submitted`; a loss records a terminal result
+ * from either `pursuing` or `submitted`. Passed is also terminal: recording a
+ * historical outcome is not the same thing as reopening this workflow row.
  *
- * `passed` re-opens to `reviewing`, because agencies repost and a team that
- * passed in March may want it in September. Nothing else re-opens.
+ * Nothing re-opens from a terminal stage. A repost is a new source/workflow
+ * identity, not a mutation of the old terminal history.
  */
 export const ALLOWED_TRANSITIONS: Readonly<Record<string, readonly PipelineStage[]>> = Object.freeze(
   {
@@ -127,11 +131,11 @@ export const ALLOWED_TRANSITIONS: Readonly<Record<string, readonly PipelineStage
     unstaged: ['reviewing'],
     reviewing: ['qualified', 'passed'],
     qualified: ['pursuing', 'passed'],
-    pursuing: ['submitted', 'passed'],
+    pursuing: ['submitted', 'lost'],
     submitted: ['won', 'lost'],
     won: [],
     lost: [],
-    passed: ['reviewing'],
+    passed: [],
   },
 );
 
@@ -257,6 +261,8 @@ export function refuseTransition(input: {
   to: PipelineStage;
   source: string;
   reason: string | null;
+  sourceActive?: boolean | null;
+  eligibilityState?: string | null;
 }): string | null {
   if (!isPipelineStage(input.to)) return `“${String(input.to)}” is not a pipeline stage.`;
   if (input.from === input.to) {
@@ -275,6 +281,13 @@ export function refuseTransition(input: {
 
   if (input.source === FORECAST_INBOX_SOURCE && FORECAST_FORBIDDEN_STAGES.has(input.to)) {
     return `A forecast is a pre-solicitation signal, so it cannot be moved to ${input.to}. There is nothing to respond to yet.`;
+  }
+
+  if (input.to === 'pursuing' && input.sourceActive === false) {
+    return 'This opportunity is closed, so it cannot be pursued.';
+  }
+  if (input.to === 'pursuing' && input.eligibilityState === 'ineligible') {
+    return 'This client is not eligible to pursue the opportunity as lead applicant.';
   }
 
   if (HUMAN_ONLY_STAGES.has(input.to) && (input.reason == null || input.reason.trim() === '')) {
@@ -358,6 +371,44 @@ export interface PipelineRow {
   pipelineStageByUserId: string | null;
   title: string | null;
   responseDeadline: Date | null;
+  ownerUserId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  nextAction?: string | null;
+  nextActionDueAt?: Date | null;
+  notes?: string | null;
+  sourceActiveSnapshot?: boolean | null;
+  eligibilityState?: string | null;
+  /** Current source/profile capability, not the historical snapshot. */
+  currentCapability?: { allowed: boolean; reason: string } | null;
+  /** Current source lifecycle, read from the canonical v2 identity reader. */
+  currentLifecycle?: 'active' | 'forecast' | 'closed' | 'post_award' | null;
+  /** False means canonical current-source access was denied or identity was not uniquely resolved. */
+  currentSourceAvailable?: boolean;
+  currentEvidence?: OpportunityCurrentEvidenceV2 | null;
+  /** Provider-facing reference, distinct from the internal workflow UUID. */
+  sourceReference?: string | null;
+  sourceRecordType?: string | null;
+  keyDate?: { kind: 'response' | 'quote' | 'anticipated_award' | 'award' | 'closed'; date: string | null; displayLabel?: string } | null;
+  value?: { display: string; basis: string } | null;
+  flag?: { label: string; tone: string } | null;
+  /** Actual reason on the latest row-scoped transition to the effective stage. */
+  stageTransitions?: Array<{ id: string; toStage: string; reason: string | null; occurredAt: Date }>;
+}
+
+export function currentStageReason(row: PipelineRow, resolved: EffectiveStage = effectiveStage(row)): string | null {
+  // A legacy-derived or stale override stage has no compatible recorded move.
+  // Do not search older transitions: the newest authoritative transition decides
+  // whether a reason still belongs to this card.
+  if (!resolved.stage || resolved.basis !== 'recorded' || !row.stageTransitions?.length) return null;
+  const latest = [...row.stageTransitions].sort((a, b) => {
+    const occurred = b.occurredAt.getTime() - a.occurredAt.getTime();
+    return occurred || b.id.localeCompare(a.id);
+  })[0];
+  if (!latest || latest.toStage !== resolved.stage) return null;
+  if (row.pipelineStageAt == null || latest.occurredAt.getTime() !== row.pipelineStageAt.getTime()) return null;
+  const reason = latest.reason?.trim();
+  return reason || null;
 }
 
 export interface PipelinePort {
@@ -386,6 +437,13 @@ export interface PipelinePort {
     },
   ): Promise<boolean>;
   listForBoard(tenantId: string, clientId: string, limit: number): Promise<PipelineRow[]>;
+  summary?(tenantId: string, clientId: string, asOf: Date): Promise<{
+    inPipeline: number;
+    deadlinesInside30Days: number;
+    unassigned: number;
+    awaitingAward: number;
+    lastStageChange: Date | null;
+  }>;
 }
 
 export interface TransitionResult {
@@ -454,7 +512,18 @@ export class FundingOpportunityPipelineService {
       to: input.toStage,
       source: row.source,
       reason,
+      sourceActive: row.currentSourceAvailable === false ? false : row.currentLifecycle != null ? row.currentLifecycle === 'active' : row.sourceActiveSnapshot,
+      eligibilityState: row.currentCapability?.allowed === false ? 'ineligible' : row.eligibilityState,
     });
+    if (input.toStage === 'pursuing' && row.currentSourceAvailable === false) {
+      throw new BadRequestException('Current source facts are unavailable, so this opportunity cannot be pursued.');
+    }
+    if (input.toStage === 'pursuing' && row.currentLifecycle != null && row.currentLifecycle !== 'active') {
+      throw new BadRequestException('This source record is not currently active, so it cannot be pursued.');
+    }
+    if (input.toStage === 'pursuing' && row.currentCapability != null && !row.currentCapability.allowed) {
+      throw new BadRequestException(row.currentCapability.reason || 'Current client capability does not permit pursuit.');
+    }
     if (refusal) throw new BadRequestException(refusal);
 
     const committed = await this.port.commitTransition(tenantId, {
@@ -490,6 +559,7 @@ export class FundingOpportunityPipelineService {
     actorUserId: string,
     clientId: string,
     limit = 200,
+    asOf: Date = new Date(),
   ): Promise<{
     clientId: string;
     counts: BoardCounts;
@@ -501,12 +571,33 @@ export class FundingOpportunityPipelineService {
       stage: PipelineStage | null;
       stageBasis: StageBasis;
       stageExplanation: string;
+      stageReason: string | null;
       version: number;
       allowedTransitions: PipelineStage[];
       responseDeadline: string | null;
+      owner: { userId: string; name: string | null; email: string | null } | null;
+      nextAction: string | null;
+      nextActionDueAt: string | null;
+      notes: string | null;
+      stageUpdatedAt: string | null;
+      lifecycle: 'active' | 'forecast' | 'closed' | 'post_award' | null;
+      capability: { canPursue: boolean; reason: string | null };
+      sourceReference: string | null;
+      currentEvidence: PipelineRow['currentEvidence'];
+      sourceRecordType: string | null;
+      keyDate: PipelineRow['keyDate'];
+      value: PipelineRow['value'];
+      flag: PipelineRow['flag'];
     }>;
     /** True when `cards` is a truncated view. The COUNTS are never truncated. */
     cardsTruncated: boolean;
+    summary: {
+      inPipeline: number;
+      deadlinesInside30Days: number;
+      unassigned: number;
+      awaitingAward: number;
+      lastStageChange: string | null;
+    } | null;
   }> {
     const visible = await this.port.visibleClientIds(tenantId, actorUserId);
     if (!visible.includes(clientId)) {
@@ -517,12 +608,14 @@ export class FundingOpportunityPipelineService {
         counts: foldBoardCounts([]),
         cards: [],
         cardsTruncated: false,
+        summary: null,
       };
     }
 
-    const [groups, rows] = await Promise.all([
+    const [groups, rows, summary] = await Promise.all([
       this.port.countByStage(tenantId, clientId),
       this.port.listForBoard(tenantId, clientId, limit + 1),
+      this.port.summary?.(tenantId, clientId, asOf) ?? Promise.resolve(null),
     ]);
 
     const visibleRows = rows.slice(0, limit);
@@ -539,68 +632,96 @@ export class FundingOpportunityPipelineService {
           stage: resolved.stage,
           stageBasis: resolved.basis,
           stageExplanation: resolved.explanation,
+          stageReason: currentStageReason(row, resolved),
           version: row.pipelineStageVersion,
           // Computed server-side so a client cannot offer a move the server would
           // refuse — the same reason a drag has to be validated rather than
           // trusted.
-          allowedTransitions: (ALLOWED_TRANSITIONS[resolved.stage ?? UNSTAGED] ?? []).filter(
-            (stage) =>
-              !(row.source === FORECAST_INBOX_SOURCE && FORECAST_FORBIDDEN_STAGES.has(stage)),
-          ),
+          allowedTransitions: (ALLOWED_TRANSITIONS[resolved.stage ?? UNSTAGED] ?? []).filter((stage) => {
+            if (row.source === FORECAST_INBOX_SOURCE && FORECAST_FORBIDDEN_STAGES.has(stage)) return false;
+            if (stage === 'pursuing' && (row.currentSourceAvailable === false || row.currentLifecycle != null && row.currentLifecycle !== 'active' || row.currentCapability?.allowed === false)) return false;
+            return true;
+          }),
           responseDeadline: row.responseDeadline?.toISOString() ?? null,
+          owner: row.ownerUserId
+            ? { userId: row.ownerUserId, name: row.ownerName ?? null, email: row.ownerEmail ?? null }
+            : null,
+          nextAction: row.nextAction ?? null,
+          nextActionDueAt: row.nextActionDueAt?.toISOString() ?? null,
+          notes: row.notes ?? null,
+          stageUpdatedAt: row.pipelineStageAt?.toISOString() ?? null,
+          lifecycle: row.currentSourceAvailable === false ? null : row.currentLifecycle ?? (row.source === FORECAST_INBOX_SOURCE ? 'forecast' : row.sourceActiveSnapshot === false ? 'closed' : 'active'),
+          capability: {
+            canPursue: resolved.stage && TERMINAL_STAGES.has(resolved.stage) ? false : row.currentSourceAvailable === false ? false : row.currentCapability?.allowed ?? (row.source !== FORECAST_INBOX_SOURCE && row.sourceActiveSnapshot !== false && row.eligibilityState !== 'ineligible'),
+            reason: resolved.stage && TERMINAL_STAGES.has(resolved.stage) ? 'This workflow is final; record a new pursuit instead of reopening it.' : row.currentSourceAvailable === false ? 'Current source facts are unavailable; pursuit is not authorized.' : row.currentCapability?.reason ?? (row.source === FORECAST_INBOX_SOURCE ? 'A forecast has no response path.' : row.sourceActiveSnapshot === false ? 'This notice is closed.' : row.eligibilityState === 'ineligible' ? 'The client is not eligible to respond as lead applicant.' : null),
+          },
+          sourceReference: row.sourceReference ?? null,
+          currentEvidence: row.currentEvidence ?? null,
+          sourceRecordType: row.sourceRecordType ?? null,
+          keyDate: row.keyDate ?? null,
+          value: row.value ?? null,
+          flag: row.flag ?? null,
         };
       }),
       cardsTruncated: rows.length > limit,
+      summary: summary
+        ? {
+            inPipeline: summary.inPipeline,
+            deadlinesInside30Days: summary.deadlinesInside30Days,
+            unassigned: summary.unassigned,
+            awaitingAward: summary.awaitingAward,
+            lastStageChange: summary.lastStageChange?.toISOString() ?? null,
+          }
+        : null,
     };
   }
 
   private buildPort(): PipelinePort {
     return {
       visibleClientIds: async (tenantId, actorUserId) => {
-        const { readVisibleClientIds } = await import('./funding-opportunity-inbox.service.js');
+        const { readVisibleClientIds } = await import('./funding-opportunity-access.js');
         return this.prisma.withTenant(tenantId, (tx) =>
           readVisibleClientIds(tx, tenantId, actorUserId),
         );
       },
 
-      readRow: (tenantId, clientId, rowId) =>
-        this.prisma.withTenant(tenantId, async (tx) => {
-          const row = await tx.clientFundingOpportunity.findFirst({
-            where: { id: rowId, tenantId, clientId },
-            select: {
-              id: true,
-              clientId: true,
-              source: true,
-              samOpportunityId: true,
-              grantOpportunityId: true,
-              sourceRecordKey: true,
-              workflowStatus: true,
-              pipelineStage: true,
-              pipelineStageVersion: true,
-              pipelineStageAt: true,
-              pipelineStageByUserId: true,
-              responseDeadlineSnapshot: true,
+      readRow: async (tenantId, clientId, rowId) => {
+        const row = await this.prisma.withTenant(tenantId, (tx) => tx.clientFundingOpportunity.findFirst({
+          where: { id: rowId, tenantId, clientId },
+          select: {
+            id: true, clientId: true, source: true, samOpportunityId: true, grantOpportunityId: true,
+            sourceRecordKey: true, sourceRecordType: true, workflowStatus: true, pipelineStage: true,
+            pipelineStageVersion: true, pipelineStageAt: true, pipelineStageByUserId: true,
+            responseDeadlineSnapshot: true,
+            stageTransitions: {
+              where: { tenantId },
+              select: { id: true, toStage: true, reason: true, occurredAt: true },
+              orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+              take: 1,
             },
-          });
-          if (row == null) return null;
-          return {
-            id: row.id,
-            clientId: row.clientId,
-            source: row.source,
-            sourceRecordId:
-              row.samOpportunityId ?? row.grantOpportunityId ?? row.sourceRecordKey ?? null,
-            workflowStatus: row.workflowStatus,
-            pipelineStage: row.pipelineStage,
-            pipelineStageVersion: row.pipelineStageVersion,
-            pipelineStageAt: row.pipelineStageAt,
-            pipelineStageByUserId: row.pipelineStageByUserId,
-            // The board card shows the source title, which lives on the catalog
-            // row. Left null here rather than joined: the board is a stage view,
-            // and the inbox already owns titling.
-            title: null,
-            responseDeadline: row.responseDeadlineSnapshot,
-          };
-        }),
+          },
+        }));
+        if (row == null) return null;
+        const sourceRecordId = row.sourceRecordKey ?? row.samOpportunityId ?? row.grantOpportunityId ?? null;
+        const [current] = await enrichPipelineCatalogRows(this.prisma, tenantId, clientId, [{
+          rowId: row.id, source: row.source, sourceRecordId, sourceRecordType: row.sourceRecordType,
+        }]);
+        return {
+          id: row.id, clientId: row.clientId, source: row.source, sourceRecordId,
+          sourceRecordType: row.sourceRecordType, workflowStatus: row.workflowStatus,
+          pipelineStage: row.pipelineStage, pipelineStageVersion: row.pipelineStageVersion,
+          pipelineStageAt: row.pipelineStageAt, pipelineStageByUserId: row.pipelineStageByUserId,
+          stageTransitions: row.stageTransitions,
+          title: current?.title ?? null,
+          responseDeadline: current?.deadline ? new Date(current.deadline) : null,
+          sourceReference: current?.sourceReference ?? null, keyDate: current?.keyDate ?? null,
+          value: current?.value ?? null, flag: current?.flag ?? null,
+          currentLifecycle: current?.lifecycle ?? null,
+          currentSourceAvailable: current?.currentSourceAvailable ?? false,
+          currentEvidence: current?.currentEvidence ?? null,
+          currentCapability: current?.capability ?? null,
+        };
+      },
 
       countByStage: async (tenantId, clientId) => {
         // ONE grouped aggregate over every workflow row. Not a page.
@@ -663,41 +784,99 @@ export class FundingOpportunityPipelineService {
       },
 
       listForBoard: async (tenantId, clientId, limit) => {
-        const rows = await this.prisma.withTenant(tenantId, (tx) =>
-          tx.clientFundingOpportunity.findMany({
-            where: { tenantId, clientId },
-            orderBy: [{ responseDeadlineSnapshot: 'asc' }, { id: 'asc' }],
-            take: limit,
+        const { rows, owners } = await this.prisma.withTenant(tenantId, async (tx) => {
+          const rows = await tx.clientFundingOpportunity.findMany({
+            // The source deadline is enriched from current catalog state below;
+            // snapshots are not a truthful sort key. Use a stable identity window
+            // and expose cardsTruncated so the UI never implies completeness.
+            where: { tenantId, clientId }, orderBy: [{ id: 'asc' }], take: limit,
             select: {
-              id: true,
-              clientId: true,
-              source: true,
-              samOpportunityId: true,
-              grantOpportunityId: true,
-              sourceRecordKey: true,
-              workflowStatus: true,
-              pipelineStage: true,
-              pipelineStageVersion: true,
-              pipelineStageAt: true,
-              pipelineStageByUserId: true,
-              responseDeadlineSnapshot: true,
+              id: true, clientId: true, source: true, samOpportunityId: true, grantOpportunityId: true,
+              sourceRecordKey: true, sourceRecordType: true, workflowStatus: true, pipelineStage: true,
+              pipelineStageVersion: true, pipelineStageAt: true, pipelineStageByUserId: true,
+              stageTransitions: {
+                where: { tenantId },
+              select: { id: true, toStage: true, reason: true, occurredAt: true },
+                orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+              take: 1,
+              },
+              ownerUserId: true, nextAction: true, nextActionDueAt: true, notes: true,
+              sourceActiveSnapshot: true, eligibilityState: true, responseDeadlineSnapshot: true,
             },
-          }),
-        );
-        return rows.map((row) => ({
-          id: row.id,
-          clientId: row.clientId,
-          source: row.source,
-          sourceRecordId:
-            row.samOpportunityId ?? row.grantOpportunityId ?? row.sourceRecordKey ?? null,
-          workflowStatus: row.workflowStatus,
-          pipelineStage: row.pipelineStage,
-          pipelineStageVersion: row.pipelineStageVersion,
-          pipelineStageAt: row.pipelineStageAt,
-          pipelineStageByUserId: row.pipelineStageByUserId,
-          title: null,
-          responseDeadline: row.responseDeadlineSnapshot,
+          });
+          const ownerIds = rows.map((row) => row.ownerUserId).filter((value): value is string => value != null);
+          const owners = ownerIds.length
+            ? await tx.user.findMany({ where: { id: { in: [...new Set(ownerIds)] } }, select: { id: true, firstName: true, lastName: true, email: true } })
+            : [];
+          return { rows, owners };
+        });
+        const catalog = await enrichPipelineCatalogRows(this.prisma, tenantId, clientId, rows.map((row) => ({
+          rowId: row.id, source: row.source,
+          sourceRecordId: row.sourceRecordKey ?? row.samOpportunityId ?? row.grantOpportunityId ?? null,
+          sourceRecordType: row.sourceRecordType,
+        })));
+        const catalogById = new Map(catalog.map((item) => [item.rowId, item]));
+        const ownerById = new Map(owners.map((owner) => [owner.id, owner]));
+        return rows.map((row) => {
+          const sourceRecordId = row.sourceRecordKey ?? row.samOpportunityId ?? row.grantOpportunityId ?? null;
+          const current = catalogById.get(row.id);
+          const owner = row.ownerUserId ? ownerById.get(row.ownerUserId) : null;
+          return {
+            id: row.id, clientId: row.clientId, source: row.source, sourceRecordId,
+            sourceRecordType: row.sourceRecordType, workflowStatus: row.workflowStatus,
+            pipelineStage: row.pipelineStage, pipelineStageVersion: row.pipelineStageVersion,
+            pipelineStageAt: row.pipelineStageAt, pipelineStageByUserId: row.pipelineStageByUserId,
+            stageTransitions: row.stageTransitions,
+            title: current?.title ?? null, responseDeadline: current?.deadline ? new Date(current.deadline) : null,
+            ownerUserId: row.ownerUserId, ownerName: owner ? [owner.firstName, owner.lastName].filter(Boolean).join(' ') || null : null,
+            ownerEmail: owner?.email ?? null, nextAction: row.nextAction, nextActionDueAt: row.nextActionDueAt,
+            notes: row.notes, sourceActiveSnapshot: row.sourceActiveSnapshot, eligibilityState: row.eligibilityState,
+            sourceReference: current?.sourceReference ?? null, keyDate: current?.keyDate ?? null,
+            value: current?.value ?? null, flag: current?.flag ?? null,
+            currentLifecycle: current?.lifecycle ?? null, currentSourceAvailable: current?.currentSourceAvailable ?? false,
+            currentEvidence: current?.currentEvidence ?? null, currentCapability: current?.capability ?? null,
+          };
+        });
+      },
+      summary: async (tenantId, clientId, asOf) => {
+        const rows = await this.prisma.withTenant(tenantId, (tx) => tx.clientFundingOpportunity.findMany({
+          where: { tenantId, clientId },
+          select: {
+            id: true, source: true, samOpportunityId: true, grantOpportunityId: true, sourceRecordKey: true,
+            sourceRecordType: true, workflowStatus: true, pipelineStage: true, pipelineStageAt: true,
+            ownerUserId: true,
+          },
         }));
+        const enriched = await enrichPipelineCatalogRows(this.prisma, tenantId, clientId, rows.map((row) => ({
+          rowId: row.id, source: row.source,
+          sourceRecordId: row.sourceRecordKey ?? row.samOpportunityId ?? row.grantOpportunityId ?? null,
+          sourceRecordType: row.sourceRecordType,
+        })));
+        const byId = new Map(enriched.map((item) => [item.rowId, item]));
+        const groups = new Map<string, { pipelineStage: string | null; workflowStatus: string; count: number }>();
+        for (const row of rows) {
+          const key = `${row.pipelineStage ?? ''}|${row.workflowStatus}`;
+          const group = groups.get(key) ?? { pipelineStage: row.pipelineStage, workflowStatus: row.workflowStatus, count: 0 };
+          group.count += 1; groups.set(key, group);
+        }
+        const counts = foldBoardCounts([...groups.values()]);
+        const inPipeline = counts.stages.reduce((sum, item) => sum + item.count, 0);
+        const until = new Date(asOf.getTime() + 30 * 86_400_000);
+        const dayStart = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate());
+        const dayEnd = Date.UTC(until.getUTCFullYear(), until.getUTCMonth(), until.getUTCDate(), 23, 59, 59, 999);
+        let deadlinesInside30Days = 0; let awaitingAward = 0; let unassigned = 0; let lastStageChange: Date | null = null;
+        for (const row of rows) {
+          if (!row.ownerUserId) unassigned += 1;
+          const stage = effectiveStage(row).stage;
+          if (stage === 'submitted') awaitingAward += 1;
+          if (row.pipelineStageAt && (!lastStageChange || row.pipelineStageAt > lastStageChange)) lastStageChange = row.pipelineStageAt;
+          const current = byId.get(row.id);
+          if (stage && !TERMINAL_STAGES.has(stage) && current?.currentSourceAvailable && current.lifecycle === 'active' && current.deadline) {
+            const time = Date.parse(current.deadline);
+            if (Number.isFinite(time) && time >= dayStart && time <= dayEnd) deadlinesInside30Days += 1;
+          }
+        }
+        return { inPipeline, deadlinesInside30Days, unassigned, awaitingAward, lastStageChange };
       },
     };
   }

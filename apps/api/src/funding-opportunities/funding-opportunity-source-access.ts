@@ -30,6 +30,7 @@ export async function readEnabledFundingSources(
       'grants_gov',
       'sam_gov',
       'dibbs',
+      'ca_portal',
       ...(forecasts ? ['agency_forecast' as const] : []),
       ...(sbir ? ['sbir_sttr' as const] : []),
     ];

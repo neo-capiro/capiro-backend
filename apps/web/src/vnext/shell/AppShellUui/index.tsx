@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
+import { useQuery } from '@tanstack/react-query';
 import {
   useShellNavigation,
   type ShellNavigationViewModel,
@@ -14,6 +15,11 @@ import {
   type ShellNotificationsViewModel,
 } from '../../adapters/legacy/useShellNotifications.js';
 import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
+import { useApi } from '../../../lib/use-api.js';
+import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
+import { FUNDING_OPPORTUNITIES_FEATURE } from '../../pages/funding-opportunities/funding-opportunities-domain.js';
+import { opportunityQueryKeys } from '../../pages/funding-opportunities/opportunity-query-cache.js';
+import type { OpportunitySourceHealthResponseV2 } from '@capiro/shared';
 import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
 import { MeriLauncher } from '../MeriLauncher/index.js';
 import { QuickNote } from '../QuickNote/index.js';
@@ -27,6 +33,7 @@ import {
 import { ShellOverlayProvider, useShellOverlay } from '../overlay-manager.js';
 import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { Icon, NAV_ICON_BY_ROUTE_ID } from './icons.js';
+import { requestFundingClientPicker } from '../../pages/funding-opportunities/funding-client-picker-seam.js';
 import './shell-uui.css';
 
 const COLLAPSE_KEY = 'capiro.vnext.shell-uui.collapsed';
@@ -74,7 +81,13 @@ function readCollapsed(): boolean {
  * global chrome and must look identical on every vNext page.
  * ============================================================================
  */
-function NavFlyout({ route }: { route: VNextRouteDefinition }) {
+function NavFlyout({
+  route,
+  fundingRoute = false,
+}: {
+  route: VNextRouteDefinition;
+  fundingRoute?: boolean;
+}) {
   const { isOpen, containerRef, toggle, close } = useShellOverlay(
     route.id as 'directory' | 'intelligence' | 'engagement-manager',
   );
@@ -100,7 +113,9 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
       // it would stay lit as "current" while actually on Context library or
       // Agent review. `end` scopes it to an exact match instead.
       const end = child.path
-        ? children.some((sibling) => sibling !== child && sibling.path?.startsWith(`${child.path}/`))
+        ? children.some(
+            (sibling) => sibling !== child && sibling.path?.startsWith(`${child.path}/`),
+          )
         : false;
       return child.path ? (
         <NavLink
@@ -131,7 +146,9 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
         ref={triggerRef}
         type="button"
         className={`uui-nav-item uui-nav-item--trigger${
-          hasCurrentChild ? ' uui-nav-item--current' : ''
+          hasCurrentChild || (fundingRoute && route.id === 'intelligence')
+            ? ' uui-nav-item--current'
+            : ''
         }`}
         aria-expanded={expanded}
         aria-haspopup="menu"
@@ -142,7 +159,9 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
           size={20}
           className="uui-nav-item__icon"
         />
-        <span className="uui-nav-item__label">{route.label}</span>
+        <span className="uui-nav-item__label">
+          {fundingRoute && route.id === 'portfolio' ? 'Clients' : route.label}
+        </span>
         {/* chevronRight rotates 90deg (points down) when the family is open —
             the CSS transition on .uui-nav-item__chevron animates it. */}
         <Icon
@@ -162,8 +181,16 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
   );
 }
 
-function NavRow({ route, dataTour }: { route: VNextRouteDefinition; dataTour?: string }) {
-  if (route.children?.length) return <NavFlyout route={route} />;
+function NavRow({
+  route,
+  dataTour,
+  fundingRoute = false,
+}: {
+  route: VNextRouteDefinition;
+  dataTour?: string;
+  fundingRoute?: boolean;
+}) {
+  if (route.children?.length) return <NavFlyout route={route} fundingRoute={fundingRoute} />;
   if (!route.path) return null;
   return (
     <NavLink
@@ -177,7 +204,9 @@ function NavRow({ route, dataTour }: { route: VNextRouteDefinition; dataTour?: s
         size={20}
         className="uui-nav-item__icon"
       />
-      <span className="uui-nav-item__label">{route.label}</span>
+      <span className="uui-nav-item__label">
+        {fundingRoute && route.id === 'portfolio' ? 'Clients' : route.label}
+      </span>
     </NavLink>
   );
 }
@@ -210,6 +239,12 @@ export interface AppShellUuiViewProps {
   onNavigate: (path: string) => void;
   onSignOut: () => void;
   onOpenProfile: () => void;
+  /** Funding route keeps source health in the rail, independent of mailbox sync. */
+  fundingSourceHealth?: { degradedCount: number; label: string; detail: string };
+  /** Global search copy can be feature-scoped without changing other routes. */
+  globalSearchPlaceholder?: string;
+  /** Opens Funding Opportunities' canonical client picker without a second selector. */
+  onOpenClientPicker?: () => void;
   /** Overrides the persisted collapse state — the vnext-visual-capture
    * script's only way to force the collapsed screenshot variant (it has no
    * localStorage to seed). Real usage omits this and reads localStorage. */
@@ -238,12 +273,16 @@ export function AppShellUuiView({
   onSignOut,
   onOpenProfile,
   initialCollapsed,
+  fundingSourceHealth,
+  globalSearchPlaceholder,
+  onOpenClientPicker,
   children,
 }: AppShellUuiViewProps) {
   const [collapsed, setCollapsed] = useState(() => initialCollapsed ?? readCollapsed());
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const sectionLabel = topbarSectionLabel(location.pathname, navigation.primary);
+  const isFundingOpportunitiesRoute = location.pathname.startsWith('/intelligence/opportunities');
 
   // Same MERI contract VNextShellChrome enforces (730:2574): Ctrl+J opens the
   // separate workspace window on the canonical /meri launcher.
@@ -289,19 +328,47 @@ export function AppShellUuiView({
 
   return (
     <ShellOverlayProvider>
-      <div className="capiro-vnext-uui" data-collapsed={collapsed || undefined}>
+      <div
+        className={`capiro-vnext-uui${isFundingOpportunitiesRoute ? ' capiro-vnext-uui--funding-opportunities' : ''}`}
+        data-collapsed={collapsed || undefined}
+      >
         <header className="uui-topbar">
           <span className="uui-topbar__brand">
-            <img src="/logo.png" alt="Capiro" className="uui-topbar__wordmark" />
+            <img
+              src={isFundingOpportunitiesRoute ? '/assets/capiro-reference-logo.png' : '/logo.png'}
+              alt="Capiro"
+              className="uui-topbar__wordmark"
+            />
             <span className="uui-topbar__divider" aria-hidden="true" />
-            <span className="uui-topbar__section">{sectionLabel}</span>
-            <span className="uui-topbar__scope">{scopeLabel}</span>
+            <span className="uui-topbar__section">
+              <span>{isFundingOpportunitiesRoute ? 'Funding Opportunities' : sectionLabel}</span>
+              {isFundingOpportunitiesRoute ? (
+                <button
+                  type="button"
+                  className="uui-topbar__scope"
+                  onClick={onOpenClientPicker}
+                  aria-label={`Choose client: ${scopeLabel}`}
+                >
+                  {scopeLabel}
+                  <Icon name="chevronDown" size={14} aria-hidden="true" />
+                </button>
+              ) : (
+                <span className="uui-topbar__scope">{scopeLabel}</span>
+              )}
+            </span>
           </span>
           <div className="uui-topbar__search">
-            <GlobalSearch scopeLabel={scopeLabel} />
+            <GlobalSearch
+              scopeLabel={scopeLabel}
+              placeholder={
+                isFundingOpportunitiesRoute
+                  ? (globalSearchPlaceholder ?? 'Search opportunities, agencies, references…')
+                  : undefined
+              }
+            />
           </div>
           <div className="uui-topbar__actions">
-            <QuickNote />
+            {isFundingOpportunitiesRoute ? null : <QuickNote />}
             <span data-tour="nav-meri" style={{ display: 'contents' }}>
               <MeriLauncher />
             </span>
@@ -320,23 +387,39 @@ export function AppShellUuiView({
           data-collapsed={collapsed || undefined}
           aria-label="Primary navigation"
         >
-          {!collapsed ? <div className="uui-rail__eyebrow">NAVIGATION</div> : null}
+          {!collapsed && !isFundingOpportunitiesRoute ? (
+            <div className="uui-rail__eyebrow">NAVIGATION</div>
+          ) : null}
           <nav className="uui-rail__nav">
             {navigation.primary.map((route) => (
               <NavRow
                 key={route.id}
                 route={route}
                 dataTour={NAV_DATA_TOUR[route.id]}
+                fundingRoute={isFundingOpportunitiesRoute}
               />
             ))}
           </nav>
           <div className="uui-rail__footer">
-            <MailboxSyncStatusView
-              status={mailboxStatus}
-              onClick={() => onNavigate('/settings/integrations')}
-            />
+            {isFundingOpportunitiesRoute && fundingSourceHealth ? (
+              <div className="uui-funding-source-health">
+                <span className="uui-funding-source-health__headline">
+                  <i />
+                  {fundingSourceHealth.label}
+                </span>
+                <span>{fundingSourceHealth.detail}</span>
+              </div>
+            ) : (
+              <MailboxSyncStatusView
+                status={mailboxStatus}
+                onClick={() => onNavigate('/settings/integrations')}
+              />
+            )}
             {navigation.settings?.path ? (
-              <NavLink to={navigation.settings.path} className="uui-nav-item">
+              <NavLink
+                to={navigation.settings.path}
+                className={`uui-nav-item${isFundingOpportunitiesRoute ? ' uui-funding-settings-hidden' : ''}`}
+              >
                 <Icon name="settings" size={20} className="uui-nav-item__icon" />
                 <span className="uui-nav-item__label">{navigation.settings.label}</span>
               </NavLink>
@@ -347,8 +430,8 @@ export function AppShellUuiView({
               onClick={toggleCollapsed}
               aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
-              <Icon name={collapsed ? 'expand' : 'collapse'} size={20} />
               {!collapsed ? <span className="uui-collapse-btn__label">Collapse</span> : null}
+              <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={16} />
             </button>
           </div>
         </aside>
@@ -454,12 +537,85 @@ export function AppShellUuiView({
  * hooks live here in the container so AppShellUuiView stays renderable in the
  * Clerk-free vnext-shell.html harness with fixture props.
  */
+function relativeShellSourceTime(value: string): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`;
+}
+
+const FUNDING_SOURCE_LABELS: Record<string, string> = {
+  grants_gov: 'Grants.gov',
+  sam_gov: 'SAM.gov',
+  agency_forecast: 'Agency forecasts',
+  dibbs: 'DLA BID BOARD',
+  sbir_sttr: 'SBIR / STTR',
+  ca_portal: 'California Grants Portal',
+};
+
+export function fundingSourceDisplayLabel(source: string): string {
+  return FUNDING_SOURCE_LABELS[source] ?? source.replaceAll('_', ' ');
+}
+
 export function AppShellUui({ children }: { children: ReactNode }) {
   const navigation = useShellNavigation();
   const identity = useShellIdentity();
   const notifications = useShellNotifications();
   const mailboxStatus = useMailboxSyncStatus();
   const clientContext = useShellClientContext();
+  const api = useApi();
+  const location = useLocation();
+  const fundingRoute = location.pathname.startsWith('/intelligence/opportunities');
+  const fundingFlag = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
+  const fundingHealth = useQuery<OpportunitySourceHealthResponseV2>({
+    queryKey: opportunityQueryKeys.sourceHealth,
+    queryFn: async () =>
+      (
+        await api.get<OpportunitySourceHealthResponseV2>(
+          '/api/intelligence/opportunities/v2/sources',
+        )
+      ).data,
+    staleTime: 60_000,
+    enabled: fundingRoute && fundingFlag.ready && fundingFlag.enabled,
+  });
+  const fundingSourceHealth = useMemo(() => {
+    if (!fundingRoute) return undefined;
+    if (!fundingFlag.ready || !fundingFlag.enabled || fundingHealth.isLoading)
+      return {
+        degradedCount: 0,
+        label: 'Source health loading',
+        detail: 'SOURCE HEALTH · LOADING',
+      };
+    if (fundingHealth.isError || !fundingHealth.data)
+      return {
+        degradedCount: 0,
+        label: 'Source health unavailable',
+        detail: 'SOURCE HEALTH · UNAVAILABLE',
+      };
+    const enabled = fundingHealth.data.sources.filter((source) => source.state !== 'not_enabled');
+    if (!enabled.length)
+      return { degradedCount: 0, label: 'Source health unavailable', detail: 'NO ENABLED SOURCES' };
+    const attention = enabled.filter((source) => source.state !== 'current');
+    const label =
+      attention.length === 0
+        ? 'All sources current'
+        : `${attention.length} source${attention.length === 1 ? '' : 's'} need${attention.length === 1 ? 's' : ''} attention`;
+    const detail =
+      attention.length === 0
+        ? 'SOURCE HEALTH · CURRENT'
+        : attention
+            .map(
+              (source) =>
+                `${fundingSourceDisplayLabel(source.source)} · ${source.lastSyncedAt ? relativeShellSourceTime(source.lastSyncedAt) : 'TIME UNAVAILABLE'}`,
+            )
+            .join(' · ');
+    return { degradedCount: attention.length, label, detail };
+  }, [
+    fundingFlag.enabled,
+    fundingFlag.ready,
+    fundingHealth.data,
+    fundingHealth.isError,
+    fundingHealth.isLoading,
+    fundingRoute,
+  ]);
   const navigate = useNavigate();
   const { signOut, openUserProfile } = useClerk();
 
@@ -469,10 +625,12 @@ export function AppShellUui({ children }: { children: ReactNode }) {
       identity={identity}
       notifications={notifications}
       mailboxStatus={mailboxStatus}
+      fundingSourceHealth={fundingSourceHealth}
       scopeLabel={clientContext.scopeLabel}
       onNavigate={navigate}
       onSignOut={() => void signOut()}
       onOpenProfile={() => openUserProfile()}
+      onOpenClientPicker={fundingRoute ? requestFundingClientPicker : undefined}
     >
       {children}
     </AppShellUuiView>

@@ -1,11 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FundingOpportunitiesController } from './funding-opportunities.controller.js';
-import { FundingOpportunitiesService } from './funding-opportunities.service.js';
-import { FundingOpportunityActionsService } from './funding-opportunity-actions.service.js';
-import { FundingOpportunityInboxService } from './funding-opportunity-inbox.service.js';
+import { FundingOpportunityAcquisitionPositionService } from './funding-opportunity-acquisition-position.service.js';
 import { FundingOpportunityClientAccessGuard } from './funding-opportunity-client-access.guard.js';
-import { FundingOpportunityFeedService } from './funding-opportunity-feed.service.js';
-import { ForecastOpportunityReadService } from './forecast-opportunity-read.service.js';
 import { OpportunityTimelineService } from './opportunity-timeline.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
@@ -17,11 +13,26 @@ import { MeriOpportunityAssessmentService } from './meri-opportunity-assessment.
 import { OpportunityBudgetContextService } from './opportunity-budget-context.service.js';
 import { OpportunityRiskService } from './opportunity-risk.service.js';
 import { FundingOpportunityOutcomeService } from './funding-opportunity-outcome.service.js';
+import { FundingOpportunityV2SearchController } from './funding-opportunity-v2-search.controller.js';
+import {
+  createOpportunityClientProfileReader,
+  createPrismaOpportunityCatalogAdapters,
+  FUNDING_OPPORTUNITY_V2_CATALOG_ADAPTERS,
+  FUNDING_OPPORTUNITY_V2_CLIENT_PROFILE_READER,
+  FundingOpportunityV2SearchService,
+} from './funding-opportunity-v2-search.service.js';
+import { CaliforniaGrantSourceReader } from './california-grant-source-reader.js';
+import { FundingOpportunitySavedSearchController } from './funding-opportunity-saved-search.controller.js';
+import { FundingOpportunitySavedSearchService, SAVED_SEARCH_APPLY_EXECUTOR } from './funding-opportunity-saved-search.service.js';
+import { FundingOpportunityV2DetailController } from './funding-opportunity-v2-detail.controller.js';
+import { FundingOpportunityV2DetailService } from './funding-opportunity-v2-detail.service.js';
+import { FundingOpportunityV2WorkflowController } from './funding-opportunity-v2-workflow.controller.js';
+import { FundingOpportunityV2WorkflowService } from './funding-opportunity-v2-workflow.service.js';
+import { FundingOpportunityV2DecoratorService } from './funding-opportunity-v2-decorator.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryModule } from '../memory/memory.module.js';
 import {
   FundingOpportunitiesFlagGuard,
-  FundingOpportunitiesForecastFlagGuard,
-  FundingOpportunitiesInboxFlagGuard,
   FundingOpportunitiesDocumentsFlagGuard,
   FundingOpportunitiesLandscapeFlagGuard,
   FundingOpportunitiesNoticeHistoryFlagGuard,
@@ -68,23 +79,11 @@ import {
  */
 @Module({
   imports: [MemoryModule],
-  controllers: [FundingOpportunitiesController],
+  // Keep static v2 routes ahead of the legacy `opportunities/:source/:id`
+  // route so `/opportunities/v2/search` cannot be treated as a detail lookup.
+  controllers: [FundingOpportunityV2SearchController, FundingOpportunityV2DetailController, FundingOpportunityV2WorkflowController, FundingOpportunitySavedSearchController, FundingOpportunitiesController],
   providers: [
-    FundingOpportunitiesService,
-    // P08. Depends only on PrismaService and FundingOpportunitiesService, so it
-    // adds no import to this module and cannot introduce a bootstrap cycle —
-    // deliberately, per the note above. It creates the Engagement task row
-    // directly rather than calling EngagementService, because that service opens
-    // its own transaction and the whole point of P08 is one transaction.
-    FundingOpportunityActionsService,
-    FundingOpportunityInboxService,
-    FundingOpportunityFeedService,
-    // P26. Depends on PrismaService and FundingOpportunitiesService — both
-    // already resolvable here, the second a SIBLING provider in this module, so
-    // no new import and no cycle. The dependency runs one way only:
-    // FundingOpportunitiesService knows nothing about forecasts, which is what
-    // keeps a forecast from ever being served as a `FundingOpportunity`.
-    ForecastOpportunityReadService,
+    FundingOpportunityAcquisitionPositionService,
     // P28. Depends only on PrismaService. Reads the global
     // tango_opportunity_notice table and derives the timeline; it holds no
     // dependency through which an alert could be sent, which is how "P28 emits
@@ -136,10 +135,31 @@ import {
     // fail-open audit surface: a proposal failure never loses the outcome
     // record already committed ahead of it.
     FundingOpportunityOutcomeService,
+    FundingOpportunityV2SearchService,
+    FundingOpportunityV2DetailService,
+    FundingOpportunityV2WorkflowService,
+    FundingOpportunityV2DecoratorService,
+    CaliforniaGrantSourceReader,
+    FundingOpportunitySavedSearchService,
+    {
+      provide: FUNDING_OPPORTUNITY_V2_CATALOG_ADAPTERS,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => createPrismaOpportunityCatalogAdapters(prisma),
+    },
+    {
+      provide: FUNDING_OPPORTUNITY_V2_CLIENT_PROFILE_READER,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => createOpportunityClientProfileReader(prisma),
+    },
+    {
+      provide: SAVED_SEARCH_APPLY_EXECUTOR,
+      inject: [FundingOpportunityV2SearchService],
+      useFactory: (search: FundingOpportunityV2SearchService) =>
+        (ctx: { tenantId: string; userId: string }, criteria: Parameters<FundingOpportunityV2SearchService['search']>[1]) =>
+          search.search(ctx, criteria),
+    },
     FundingOpportunitiesFlagGuard,
     FundingOpportunityClientAccessGuard,
-    FundingOpportunitiesInboxFlagGuard,
-    FundingOpportunitiesForecastFlagGuard,
     FundingOpportunitiesNoticeHistoryFlagGuard,
     FundingOpportunitiesDocumentsFlagGuard,
     FundingOpportunitiesLandscapeFlagGuard,
@@ -149,7 +169,9 @@ import {
     FundingOpportunitiesRiskFlagGuard,
   ],
   exports: [
-    FundingOpportunitiesService,
+    FundingOpportunityAcquisitionPositionService,
+    FundingOpportunityV2SearchService,
+    FundingOpportunityV2DetailService,
     ClientProfileEnrichmentService,
     FederalBusinessProfileService,
     MeriOpportunityToolsAdapter,

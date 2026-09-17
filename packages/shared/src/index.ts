@@ -8,6 +8,10 @@
 // Roles
 // ---------------------------------------------------------------------------
 
+export * from './funding-opportunities-v2.js';
+export * from './funding-opportunities-v2-detail.js';
+export * from './funding-opportunities-v2-workflow.js';
+
 export const TENANT_ROLES = [
   'capiro_admin',
   'user_admin',

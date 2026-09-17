@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardHead, Pill, type PillTone } from '../portfolio-primitives.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
 import { useApi } from '../../../../lib/use-api.js';
+import { refreshOpportunityQueries } from '../../../pages/funding-opportunities/opportunity-query-cache.js';
 import { decodeHtmlEntities } from '../../../../lib/html-entities.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
@@ -14,17 +15,17 @@ import {
 } from '../../../../pages/clients/relevance-api.js';
 import {
   FUNDING_OPPORTUNITIES_FEATURE,
-  ELIGIBILITY_LABELS,
-  KIND_LABELS,
-  SOURCE_LABELS,
-  formatDeadline,
-  moneyLine,
-  opportunityDetailPath,
-  type ClientFundingOpportunitySummary,
-  type FundingOpportunity,
-  type OpportunityWorkflowStatus,
-} from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
-import { explainSignals } from '../../../../pages/intelligence/opportunities/opportunity-explanations.js';
+  deadlineLabel,
+  opportunityDeadline,
+  emptyExplanation,
+  opportunityTypeLabel,
+  opportunityValueLabel,
+  sourceLabel,
+  useClientFundingOpportunitiesV2,
+  clientOpportunityDetailPath,
+  pursuingCount,
+} from '../../../adapters/legacy/useClientFundingOpportunitiesV2.js';
+import type { OpportunitySearchRecordV2 } from '@capiro/shared';
 import { LinkBtn, SecondaryBtn, CouldNotLoad, DomainStatsStrip } from './IntelligenceTab.js';
 import './intelligence-tab.css';
 import './opportunities-tab.css';
@@ -43,18 +44,7 @@ import './opportunities-tab.css';
 function useOpportunitiesStats(client: Client): Array<[string, string]> | undefined {
   const api = useApi();
   const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
-  const oppsQ = useQuery<ClientFundingOpportunitySummary>({
-    queryKey: ['client-funding-opportunities', client.id],
-    queryFn: async () =>
-      (
-        await api.get<ClientFundingOpportunitySummary>(
-          `/api/intelligence/clients/${client.id}/opportunities/summary`,
-        )
-      ).data,
-    enabled: Boolean(client.id) && foReady && foEnabled,
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
+  const { search: oppsQ, pipeline, pipelineFeature } = useClientFundingOpportunitiesV2(client.id);
   const pesQ = useQuery({
     queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
     queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
@@ -69,16 +59,15 @@ function useOpportunitiesStats(client: Client): Array<[string, string]> | undefi
     const relevantPrograms = pesQ.isSuccess ? String(pesQ.data.data.length) : '—';
     if (foReady && foEnabled && oppsQ.isSuccess) {
       const c = oppsQ.data.counts;
-      const pursuing = c.pursuing;
+      const pursuing = pipelineFeature.ready && pipelineFeature.enabled ? pursuingCount(pipeline.data) : null;
+      const active = c.grants == null || c.contracts == null ? '—' : String(c.grants + c.contracts);
       return [
-        [String(c.activeGrants + c.activeContracts), 'Active grants & contracts'],
-        [String(pursuing), 'Pursuing'],
-        [String(c.saved), 'Saved'],
+        [active, 'Active grants & contracts'],
+        [pursuing == null ? '—' : String(pursuing), 'Pursuing'],
+        ['Unavailable', 'Saved'],
         [relevantPrograms, 'Programs shown'],
         [
-          oppsQ.data.nextDeadline
-            ? formatDeadline(oppsQ.data.nextDeadline.responseDeadline, null).text
-            : 'None stated',
+          deadlineLabel((oppsQ.data.opportunities ?? []).find((row) => row.deadline)?.deadline ?? null),
           'Next deadline',
         ],
       ];
@@ -118,10 +107,7 @@ export function ClientCrmOpportunitiesProto({ client }: { client: Client }) {
     setRefreshing(true);
     try {
       await Promise.all([
-        qc.invalidateQueries(
-          { queryKey: ['client-funding-opportunities', client.id] },
-          { throwOnError: true },
-        ),
+        refreshOpportunityQueries(qc, client.id),
         qc.invalidateQueries(
           { queryKey: ['client-pe-relevance', client.id] },
           { throwOnError: true },
@@ -148,9 +134,6 @@ export function ClientCrmOpportunitiesProto({ client }: { client: Client }) {
           stack; standing alone it distinguishes nothing. The surface header
           already names and describes this tab, so only the action remains. */}
       <div className="capiro-intel-actions-row">
-        {/* There is no dedicated funding-sync API — this invalidates the SAME
-            query keys FundingPanel's own opportunities/PE-relevance queries
-            use, so a click forces a real re-read rather than a fabricated delay. */}
         <SecondaryBtn onClick={() => void refresh()} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh'}
         </SecondaryBtn>
@@ -163,59 +146,18 @@ export function ClientCrmOpportunitiesProto({ client }: { client: Client }) {
 
 /** Workflow status → pill presentation. Reads the real `OpportunityWorkflow.status`
  * enum directly; `null` means no workflow row exists yet (nothing decided either way). */
-function workflowStatusPill(status: OpportunityWorkflowStatus | null): {
-  label: string;
-  tone: PillTone;
-  dotless: boolean;
-} {
-  switch (status) {
-    case 'pursuing':
-      return { label: 'Pursuing', tone: 'brand', dotless: false };
-    case 'won':
-      return { label: 'Won', tone: 'success', dotless: false };
-    case 'saved':
-      return { label: 'Saved', tone: 'gray', dotless: true };
-    case 'dismissed':
-      return { label: 'Dismissed', tone: 'gray', dotless: true };
-    case 'lost':
-      return { label: 'Lost', tone: 'gray', dotless: true };
-    case 'expired':
-      return { label: 'Expired', tone: 'gray', dotless: true };
-    case 'suggested':
-      return { label: 'Suggested', tone: 'gray', dotless: true };
-    default:
-      return { label: 'Match', tone: 'gray', dotless: true };
-  }
-}
-
 function FundingPanel({ client }: { client: Client }) {
   const api = useApi();
   const navigate = useNavigate();
 
   // Loading, errors, and unavailable features have distinct states.
   const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
-  const opportunitiesQ = useQuery<ClientFundingOpportunitySummary>({
-    queryKey: ['client-funding-opportunities', client.id],
-    queryFn: async () =>
-      (
-        await api.get<ClientFundingOpportunitySummary>(
-          `/api/intelligence/clients/${client.id}/opportunities/summary`,
-        )
-      ).data,
-    enabled: Boolean(client.id) && foReady && foEnabled,
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
-  const realOpportunities =
-    foReady && foEnabled && opportunitiesQ.isSuccess ? opportunitiesQ.data : null;
-  const opportunityRows = realOpportunities
-    ? [...realOpportunities.topGrants, ...realOpportunities.topContracts].slice(0, 6)
-    : [];
+  const { search: opportunitiesQ } = useClientFundingOpportunitiesV2(client.id);
+  const realOpportunities = foReady && foEnabled && opportunitiesQ.isSuccess ? opportunitiesQ.data : null;
+  const opportunityRows = realOpportunities?.opportunities.slice(0, 6) ?? [];
   const opportunitiesFailed = foReady && foEnabled && opportunitiesQ.isError;
   const opportunitiesDisabled = foReady && !foEnabled;
 
-  // Item 4: Open budget / Open PE. Real PE ids + titles from the relevance
-  // engine (minScore 0.5).
   const pesQ = useQuery({
     queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
     queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
@@ -226,9 +168,6 @@ function FundingPanel({ client }: { client: Client }) {
 
   return (
     <div className="capiro-intel-stack-24">
-      {/* The nested Overview/Opportunities/Programs/Pursuits bar is gone: its
-          state was never read — all four options rendered these same two
-          cards. Dead chrome that promises filtering is worse than none. */}
       <div className="cap-pf-grid-intel capiro-client-opportunities__grid">
         {/* Opportunities */}
         <Card>
@@ -246,7 +185,7 @@ function FundingPanel({ client }: { client: Client }) {
               <LinkBtn
                 onClick={() =>
                   navigate(
-                    `/intelligence/opportunities?view=inbox&clientId=${encodeURIComponent(client.id)}`,
+                    `/intelligence/opportunities?client=${encodeURIComponent(client.id)}&tab=opportunities`,
                   )
                 }
               >
@@ -269,8 +208,7 @@ function FundingPanel({ client }: { client: Client }) {
                   opportunityRows.map((o) => <RealOppRow key={o.id} o={o} clientId={client.id} />)
                 ) : (
                   <p className="capiro-intel-note capiro-intel-note-inset">
-                    {realOpportunities.emptyExplanation ??
-                      'No opportunity currently clears the relevance threshold for this client.'}
+                    {emptyExplanation(realOpportunities)}
                   </p>
                 )
               ) : (
@@ -319,52 +257,46 @@ function FundingPanel({ client }: { client: Client }) {
   );
 }
 
-function RealOppRow({ o, clientId }: { o: FundingOpportunity; clientId: string }) {
-  const money = moneyLine(o);
-  const strongest = explainSignals(o.matchedSignals).strongest;
-  const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
-  const soon =
-    deadline.daysRemaining != null && deadline.daysRemaining >= 0 && deadline.daysRemaining <= 14;
-  const {
-    label: statusLabel,
-    tone: statusTone,
-    dotless,
-  } = workflowStatusPill(o.workflow?.status ?? null);
+function RealOppRow({ o, clientId }: { o: OpportunitySearchRecordV2; clientId: string }) {
+  const stage = o.decoration?.workflow.stage ?? null;
+  const workflowStatus = o.decoration?.workflow.status ?? null;
+  const deadlinePresentation = opportunityDeadline(o.deadline, workflowStatus ?? stage, o.lifecycle);
+  const deadline = deadlinePresentation.value;
+  const soon = deadlinePresentation.daysRemaining != null && deadlinePresentation.daysRemaining >= 0 && deadlinePresentation.daysRemaining <= 14;
+  const statusLabel = stage ? stage.replaceAll('_', ' ') : workflowStatus ?? 'Match';
+  const statusTone: PillTone = stage === 'pursuing' ? 'brand' : 'gray';
+  const dotless = stage !== 'pursuing';
   return (
     <div className="capiro-intel-opp-row">
       <span className="capiro-intel-opp-main">
         <span className="capiro-intel-opp-title">
           <Link
-            to={opportunityDetailPath({
-              source: o.source,
-              sourceRecordId: o.sourceRecordId,
-              clientId,
-            })}
+            to={clientOpportunityDetailPath(clientId, o.source, o.sourceRecordId)}
             style={{ color: 'inherit' }}
           >
             {decodeHtmlEntities(o.title)}
           </Link>
         </span>
-        <span className="capiro-intel-opp-agency">{o.agency ?? SOURCE_LABELS[o.source]}</span>
-        {strongest ? (
+        <span className="capiro-intel-opp-agency">{o.agency ?? sourceLabel(o.source)}</span>
+        {o.matchedSignals[0] ? (
           <span className="capiro-intel-opp-agency">
-            {strongest.label}: {strongest.matchedOn}
+            {o.matchedSignals[0].matchedOn}
           </span>
         ) : null}
-        <span className="capiro-intel-opp-agency" title={o.eligibility.reason}>
-          Eligibility: {ELIGIBILITY_LABELS[o.eligibility.state]}
+        <span className="capiro-intel-opp-agency" title={o.eligibility?.reason ?? 'Eligibility was not stated by the source.'}>
+          Eligibility: {o.eligibility?.state?.replaceAll('_', ' ') ?? 'unknown'}
         </span>
       </span>
       <div className="capiro-client-opportunities__metadata">
-        <span className="capiro-intel-opp-kind">{KIND_LABELS[o.kind]}</span>
+        <span className="capiro-intel-opp-kind">{opportunityTypeLabel(o.type)}</span>
         <span className="capiro-intel-opp-money">
-          <span className="capiro-intel-opp-amount">{money.value}</span>
+          <span className="capiro-intel-opp-amount">{opportunityValueLabel(o.value, o.valueBasis)}</span>
           <span
             className={
               soon ? 'capiro-intel-opp-due capiro-intel-opp-due--soon' : 'capiro-intel-opp-due'
             }
           >
-            {deadline.daysRemaining != null ? `Due ${deadline.text}` : deadline.text}
+            {o.deadline ? `Due ${deadline}` : deadline}
           </span>
         </span>
         <span className="capiro-intel-opp-pills">

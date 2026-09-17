@@ -1,28 +1,39 @@
+import type { OpportunitySourceFreshnessV2 } from '@capiro/shared';
 import { MeriOpportunityToolsAdapter } from './meri-opportunity-tools.adapter.js';
+const AS_OF = new Date('2026-09-17T00:00:00.000Z');
+const CONTEXT = { tenantId: 'tenant-1', userId: 'user-1' };
 
 describe('Meri SAM source freshness', () => {
-  it('reuses the canonical source reader and keeps the all-federal failure distinct from grants', async () => {
-    const sam = {
-      source: 'sam_gov', verb: 'sync-sam-opportunities-all-federal',
-      lastSyncedAt: '2026-07-29T07:55:00.000Z',
-      lastAttemptAt: '2026-09-08T07:55:00.000Z',
-      lastRunStatus: 'error', lastRunDegraded: true,
+  it('maps canonical source state without converting a stale/error run into a healthy catalog', async () => {
+    const sam: OpportunitySourceFreshnessV2 = {
+      source: 'sam_gov', state: 'error_cached', recordCount: null, activeRecordCount: null,
+      lastSyncedAt: '2026-07-29T07:55:00.000Z', latestAttemptAt: '2026-09-08T07:55:00.000Z',
+      lastSuccessAt: '2026-07-29T07:55:00.000Z',
     };
-    const readFreshness = jest.fn().mockResolvedValue([
-      { source: 'grants_gov', lastRunStatus: 'success' }, sam,
-    ]);
+    const readSourceHealth = jest.fn().mockResolvedValue({ sources: [sam], generatedAt: AS_OF.toISOString() });
     const adapter = new MeriOpportunityToolsAdapter(
-      {} as never, { readFreshness } as never, {} as never, {} as never,
+      {} as never, { readSourceHealth } as never, {} as never, {} as never, {} as never,
     );
-    await expect(adapter.readSamSourceFreshness()).resolves.toEqual([sam]);
-    expect(readFreshness).toHaveBeenCalledTimes(1);
+    await expect(adapter.readSamSourceFreshness(CONTEXT)).resolves.toMatchObject([{
+      source: 'sam_gov', state: 'error_cached', recordCount: null, countsUnavailable: true,
+      neverSynced: false, lastRunStatus: 'error_cached', lastRunDegraded: true,
+    }]);
+    expect(readSourceHealth).toHaveBeenCalledWith(CONTEXT);
   });
 
-  it('retains unknown source health instead of inventing an empty healthy catalog', async () => {
-    const unknown = { source: 'sam_gov', countsUnavailable: true, recordCount: null, lastSyncedAt: null };
-    const adapter = new MeriOpportunityToolsAdapter(
-      {} as never, { readFreshness: async () => [unknown] } as never, {} as never, {} as never,
-    );
-    await expect(adapter.readSamSourceFreshness()).resolves.toEqual([unknown]);
+  it('keeps confirmed never-synced distinct from unknown/unavailable coverage', async () => {
+    const states: OpportunitySourceFreshnessV2[] = [
+      { source: 'sam_gov', state: 'never_synced', recordCount: null, activeRecordCount: null, lastSyncedAt: null },
+      { source: 'sam_gov', state: 'unknown', recordCount: null, activeRecordCount: null, lastSyncedAt: null },
+      { source: 'sam_gov', state: 'unavailable', recordCount: null, activeRecordCount: null, lastSyncedAt: null },
+    ];
+    for (const sam of states) {
+      const adapter = new MeriOpportunityToolsAdapter(
+        {} as never, { readSourceHealth: async () => ({ sources: [sam], generatedAt: AS_OF.toISOString() }) } as never, {} as never, {} as never, {} as never,
+      );
+      const result = (await adapter.readSamSourceFreshness(CONTEXT))[0]!;
+      expect(result.neverSynced).toBe(sam.state === 'never_synced');
+      expect(result.countsUnavailable).toBe(true);
+    }
   });
 });

@@ -380,7 +380,7 @@ describe('real capture — every mapper against records the provider actually se
   /**
    * THE FINDING WORTH KEEPING. `solicitation_status` is NOT one vocabulary
    * shared across both endpoints — topics say "Open" (title case); cycles say
-   * "active" / "archived" (lower case). `isTopicClosed` in sbir-relevance.ts
+   * "active" / "archived" (lower case). `isTopicClosed` in source-lifecycle.ts
    * already lowercases before comparing against `{closed, archived, expired}`,
    * so it is robust to either spelling — but a future reader comparing a
    * cycle's own status against a hardcoded "Closed" would silently never match.

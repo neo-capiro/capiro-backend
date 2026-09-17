@@ -54,6 +54,7 @@ export type PlannedOpportunitySource = (typeof PLANNED_OPPORTUNITY_SOURCES)[numb
 export const STORABLE_OPPORTUNITY_SOURCES = [
   ...OPPORTUNITY_SOURCES,
   ...PLANNED_OPPORTUNITY_SOURCES,
+  'ca_portal',
 ] as const;
 export type StorableOpportunitySource = (typeof STORABLE_OPPORTUNITY_SOURCES)[number];
 
@@ -74,7 +75,32 @@ export const SOURCE_RECORD_TYPES: Readonly<Record<StorableOpportunitySource, str
     agency_forecast: 'tango_procurement_forecast',
     dibbs: 'dibbs_solicitation',
     sbir_sttr: 'sbir_topic',
+    ca_portal: 'ca_grant_opportunity',
   });
+
+/** SBIR/STTR has two cached record kinds under one product source. */
+export function sourceRecordTypeFor(
+  source: string,
+  sourceFacts?: Record<string, unknown> | null,
+): string {
+  if (source === 'sbir_sttr') {
+    const provenance = typeof sourceFacts?.provenance === 'string' ? sourceFacts.provenance : '';
+    if (provenance === 'tango_sbir_solicitation') return 'sbir_solicitation';
+    if (provenance === 'tango_sbir_topic') return 'sbir_topic';
+  }
+  return SOURCE_RECORD_TYPES[source as StorableOpportunitySource] ?? `${source}_record`;
+}
+
+/** Storage key remains the provider's opaque raw key; record type is separate. */
+export function sourceRecordKeyFor(
+  source: string,
+  sourceRecordId: string,
+  sourceRecordType?: string,
+): string {
+  void source;
+  void sourceRecordType;
+  return sourceRecordId;
+}
 
 /** The two sources whose identity still lives in a dedicated legacy column. */
 export const LEGACY_POINTER_SOURCES = OPPORTUNITY_SOURCES;
@@ -245,7 +271,7 @@ export function sourceRecordWhere(
  * strings: `DE-FOA-0001` is typical, but nothing in the source contract forbids a
  * slash, and one unencoded slash turns a two-segment route into a three-segment
  * 404 for exactly the records that contain it. Mirrors
- * `opportunityDetailPath` in apps/web's funding-opportunities-api.ts.
+ * `opportunityDetailPath` in apps/web's funding-opportunities-domain.ts.
  */
 export function encodeSourceRecordPath(source: string, sourceRecordId: string): string {
   return `${encodeURIComponent(source)}/${encodeURIComponent(sourceRecordId)}`;

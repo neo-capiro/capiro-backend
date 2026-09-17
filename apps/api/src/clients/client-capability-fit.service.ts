@@ -3,7 +3,11 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { TrackerService } from '../tracker/tracker.service.js';
-import { FundingOpportunitiesService } from '../funding-opportunities/funding-opportunities.service.js';
+import {
+  FundingOpportunityV2SearchService,
+  type OpportunitySearchContext,
+} from '../funding-opportunities/funding-opportunity-v2-search.service.js';
+import { normalizeOpportunitySearchQuery } from '../funding-opportunities/funding-opportunity-v2-search.service.js';
 import {
   billToMatch,
   capsForMatchedTags,
@@ -98,7 +102,7 @@ export class ClientCapabilityFitService {
     private readonly prisma: PrismaService,
     private readonly peRelevance: ClientPeRelevanceService,
     private readonly tracker: TrackerService,
-    private readonly fundingOpportunities: FundingOpportunitiesService,
+    private readonly fundingOpportunities: FundingOpportunityV2SearchService,
   ) {}
 
   private async assertClient(ctx: TenantContext, clientId: string): Promise<void> {
@@ -203,11 +207,16 @@ export class ClientCapabilityFitService {
       // NOTE arg order: (clientId, tenantId) — bare strings, no TenantContext.
       this.tracker.getRecommendations(clientId, ctx.tenantId),
       // Narrowest useful query: active client-scoped scored rows, first page.
-      this.fundingOpportunities.listClientOpportunities(ctx.tenantId, clientId, {
-        activeState: 'active',
-        page: 1,
-        pageSize: FO_FETCH_PAGE_SIZE,
-      }),
+      this.fundingOpportunities.search(
+        { tenantId: ctx.tenantId, userId: ctx.userId } satisfies OpportunitySearchContext,
+        normalizeOpportunitySearchQuery({
+          mode: 'matched',
+          clientId,
+          lifecycle: ['active'],
+          page: 1,
+          pageSize: FO_FETCH_PAGE_SIZE,
+        }),
+      ),
     ]);
 
     const peMatches: CapabilityFitMatch[] =
@@ -234,7 +243,17 @@ export class ClientCapabilityFitService {
       foSettled.status === 'fulfilled'
         ? foSettled.value.opportunities
             .map((row) => {
-              const input = row as FoCapabilityFitInput;
+              if (row.relevanceScore == null) return null;
+              const input: FoCapabilityFitInput = {
+                id: row.id,
+                source: row.source,
+                sourceRecordId: row.sourceRecordId,
+                title: row.title,
+                relevanceScore: row.relevanceScore,
+                matchedSignals: row.matchedSignals,
+                eligibility: row.eligibility ?? { state: 'unknown', reason: 'Eligibility was not stated by the source.' },
+                meetsSuggestionFloor: row.relevanceScore >= 50,
+              };
               return foToMatch(input, {
                 capabilityIds: capsForMatchedTags(
                   capabilities,

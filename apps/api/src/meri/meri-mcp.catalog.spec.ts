@@ -144,8 +144,6 @@ describe('P39 — the amended scope note, and the boundary it claims', () => {
     const foDir = join(__dirname, '..', 'funding-opportunities');
     const files = [
       'opportunity-recommendation.ts',
-      'funding-opportunities.service.ts',
-      'funding-opportunity-inbox.service.ts',
       'government-landscape.service.ts',
       'opportunity-action-plan.ts',
       'meri-opportunity-tools.adapter.ts',

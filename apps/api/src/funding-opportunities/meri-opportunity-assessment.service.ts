@@ -4,7 +4,8 @@ import type { TenantContext } from '@capiro/shared';
 import type { CompiledContextPacket } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AppConfig } from '../config/config.schema.js';
-import { FundingOpportunitiesService } from './funding-opportunities.service.js';
+import { FundingOpportunityV2DetailService } from './funding-opportunity-v2-detail.service.js';
+import { v2RecordToFundingOpportunity } from './funding-opportunity-v2-legacy-adapter.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import {
   MeriOpportunityToolsAdapter,
@@ -101,7 +102,7 @@ export class MeriOpportunityAssessmentService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly tools: MeriOpportunityToolsAdapter,
-    private readonly opportunities: FundingOpportunitiesService,
+    private readonly opportunities: FundingOpportunityV2DetailService,
     private readonly landscape: GovernmentLandscapeService,
   ) {}
 
@@ -223,12 +224,10 @@ export class MeriOpportunityAssessmentService {
     input: AssessInput,
     asOf: Date,
   ): Promise<DeterministicPacket> {
-    const row = await this.opportunities.getOpportunity(
-      actor.tenantId,
-      source,
-      input.sourceRecordId,
-      input.clientId,
+    const detail = await this.opportunities.readDetail(
+      { tenantId: actor.tenantId, userId: actor.userId, role: actor.role }, source, input.sourceRecordId, input.clientId, 'matched',
     );
+    const row = v2RecordToFundingOpportunity(detail.opportunity);
     const explained = explainOpportunity(row.matchedSignals, row.source);
 
     // P33 and P34 are SAM-only and may legitimately refuse. A refusal lowers
@@ -282,7 +281,7 @@ export class MeriOpportunityAssessmentService {
       planStage: plan?.plan?.stage ?? null,
       planActions: (plan?.plan?.actions ?? []).map((a) => ({ title: a.title, intent: a.intent })),
       evidence,
-      missingProfileFields: row.missingProfileFields.map((f) => f.label),
+      missingProfileFields: row.missingProfileFields == null ? ['Profile gap details are unavailable.'] : row.missingProfileFields.map((f) => f.label),
       // The notice's own synopsis is third-party text. Fenced even though it is
       // Capiro's own stored copy: the bytes came from an agency, and where they
       // are stored does not make them trusted.
