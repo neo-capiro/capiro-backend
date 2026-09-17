@@ -221,6 +221,10 @@ function wireGet(url: string): { data: unknown } | null {
   if (url.startsWith('/intel-api/hearings/history?')) {
     return { data: { items: [HISTORY_SESSION], total: 1, nextCursor: null, hasMore: false } };
   }
+  // Durable server captures rail — empty by default; individual tests override.
+  if (url.startsWith('/api/legiwatch/live-hearings/server-sessions')) {
+    return { data: { rows: [], total: 0, page: 1, pageSize: 50 } };
+  }
   if (url === '/api/legiwatch/live-hearings/events/cm-119-9001') return { data: DETAIL_EVENT };
   if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/transcript')) return { data: TRANSCRIPT_PAGE };
   if (url.startsWith('/api/legiwatch/live-hearings/events/cm-119-9001/intelligence')) return { data: INTEL_READY };
@@ -369,20 +373,42 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
     expect(screen.getByTestId('browser-hearing-room')).toBeTruthy();
   });
 
-  it('shows a real scheduled subscription in the selected week recording rail', async () => {
+  it('shows a real scheduled subscription in the durable server captures rail', async () => {
     apiGet.mockImplementation((url: string) => {
-      const hit = wireGet(url);
-      if (hit && url.startsWith('/api/legiwatch/live-hearings/calendar?')) {
-        const page = hit.data as { items: Record<string, unknown>[] };
-        return Promise.resolve({ data: { ...page, items: page.items.map((row, index) => index === 0 ? { ...row, eventStatus: 'scheduled', subscription: { scheduled: true }, capture: { status: 'scheduled' } } : row) } });
+      if (url.startsWith('/api/legiwatch/live-hearings/server-sessions')) {
+        return Promise.resolve({
+          data: {
+            rows: [{
+              id: 'cm-119-9001',
+              title: 'Shipbuilding industrial base oversight',
+              committeeName: 'Armed Services',
+              chamber: 'House',
+              eventStatus: 'scheduled',
+              visibility: 'public',
+              date: '2026-02-24',
+              startsAt: '2026-02-24T15:00:00Z',
+              time: null,
+              timeZone: 'America/New_York',
+              location: null,
+              officialPageUrl: null,
+              capture: null,
+              capturePending: true,
+              scheduleSource: { byUser: true, byRule: false, ruleId: null },
+            }],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+          },
+        });
       }
+      const hit = wireGet(url);
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
-    const rail = await screen.findByLabelText('Scheduled recordings');
+    const rail = await screen.findByLabelText('Server captures');
     const scheduled = await within(rail).findByText('Shipbuilding industrial base oversight');
     expect(rail.textContent).not.toMatch(/isn't available on this backend/i);
-    fireEvent.click(scheduled.closest('button')!);
+    fireEvent.click(scheduled.closest('[role="button"]')!);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
   });
 

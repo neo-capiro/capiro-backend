@@ -648,6 +648,95 @@ export class LiveHearingsPhase7Service {
     };
   }
 
+  /**
+   * Durable all-lifecycle SERVER capture attendance for exactly this
+   * tenant+user. Source of truth is the durable `hearing_subscription` demand
+   * row using the SAME predicate the recorder worker uses
+   * (`attendance_mode='automatic'` AND user-or-rule demand), so a scheduled
+   * row appears immediately (capture may still be null) and stays visible
+   * through started/processing/completed/failed. No event_status filter, no
+   * synthetic rows, no browser-only/notify-only rows, no cross-tenant leakage.
+   * Reads the canonical `committee_hearing` table (federal + state), not the
+   * legacy federal-only view. Cancellation removes the demand row, so the
+   * listing never resurrects canceled/no-demand entries.
+   */
+  async serverSessions(
+    ctx: TenantContext,
+    input: { page?: number; pageSize?: number },
+  ): Promise<Record<string, unknown>> {
+    const page = Math.max(1, input.page ?? 1);
+    const pageSize = clamp(input.pageSize ?? 50, 1, LIST_MAX_PAGE_SIZE);
+    const offset = (page - 1) * pageSize;
+
+    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.$queryRawUnsafe<ListRow[]>(
+        `SELECT h.id,
+                h.congress,
+                h.chamber,
+                h.committee_name AS "committeeName",
+                h.committee_system_code AS "committeeSystemCode",
+                h.subcommittee_system_code AS "subcommitteeSystemCode",
+                h.title,
+                h.type AS "eventType",
+                h.event_status AS "eventStatus",
+                h.visibility,
+                h.date,
+                h.starts_at AS "startsAt",
+                h.time,
+                h.timezone,
+                h.location,
+                h.url AS "officialPageUrl",
+                h.stream_availability AS "streamAvailability",
+                h.coverage_status AS "coverageStatus",
+                c.id AS "captureId",
+                c.domain_status AS "captureStatus",
+                c.scheduled_start AS "captureScheduledStart",
+                c.actual_start AS "captureActualStart",
+                c.actual_end AS "captureActualEnd",
+                c.captured_seconds AS "capturedSeconds",
+                c.transcript_gap_seconds AS "transcriptGapSeconds",
+                c.reconnect_count AS "reconnectCount",
+                c.failure_code AS "failureCode",
+                c.terminal_reason_code AS "terminalReasonCode",
+                c.resolution_reason_code AS "resolutionReasonCode",
+                s.scheduled_by_user AS "scheduledByUser",
+                s.scheduled_by_rule_id AS "scheduledByRuleId"
+         FROM hearing_subscription s
+         JOIN committee_hearing h ON h.id=s.hearing_id
+         LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
+         WHERE s.tenant_id=$1::uuid
+           AND s.user_id=$2
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user=true OR s.scheduled_by_rule_id IS NOT NULL)
+         ORDER BY COALESCE(h.starts_at, h.date::timestamp) DESC, h.id ASC
+         LIMIT $3 OFFSET $4`,
+        ctx.tenantId,
+        ctx.userId,
+        pageSize,
+        offset,
+      );
+      const counts = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT COUNT(*)::int AS count
+         FROM hearing_subscription s
+         JOIN committee_hearing h ON h.id=s.hearing_id
+         WHERE s.tenant_id=$1::uuid
+           AND s.user_id=$2
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user=true OR s.scheduled_by_rule_id IS NOT NULL)`,
+        ctx.tenantId,
+        ctx.userId,
+      );
+      return { rows, total: counts[0]?.count ?? 0 };
+    });
+
+    return {
+      rows: result.rows.map(mapListRow),
+      total: result.total,
+      page,
+      pageSize,
+    };
+  }
+
   async archive(
     ctx: TenantContext,
     input: { page?: number; pageSize?: number; q?: string },
@@ -1056,6 +1145,10 @@ function mapListRow(row: ListRow): Record<string, unknown> {
           resolutionReasonCode: row.resolutionReasonCode,
         }
       : null,
+    // Honest "no capture yet" state: durable demand exists but the canonical
+    // capture row has not been acquired/created. Distinct from a real capture
+    // status so the UI never fabricates a recording that does not exist.
+    capturePending: !row.captureId,
     scheduleSource:
       row.scheduledByUser || row.scheduledByRuleId
         ? {

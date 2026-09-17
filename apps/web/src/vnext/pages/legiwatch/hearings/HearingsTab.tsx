@@ -25,6 +25,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Search, DownloadCloud } from 'lucide-react';
 import { ArchiveSubTab } from './ArchiveSubTab.js';
+import { ServerCaptureSessions } from './ServerCaptureSessions.js';
 import { CapiroDrawer } from '../../../components/overlays/index.js';
 import { useHearingSessionHistory } from '../../../../lib/hearing-watch-api.js';
 import { useLiveHearingsCoverage } from '../../../../pages/radar/live-hearings/live-hearings-api.js';
@@ -171,10 +172,9 @@ export function HearingsTab({ scope }: { scope: string }) {
   const exportWeek = useCalendarExportBulk();
   const sessions = history.data?.pages.flatMap((page) => page.items) ?? [];
   const interrupted = sessions.filter((session) => captureNeedsAttention(session.status));
-  // Do not hide an interrupted capture just because three newer sessions exist.
-  const visibleSessions = sessions.filter(
-    (session, index) => index < 3 || captureNeedsAttention(session.status),
-  );
+  // Show ALL loaded browser sessions — never hide a loaded row behind an
+  // arbitrary "first 3" cut. Older sessions stay reachable via load-more.
+  const visibleSessions = sessions;
 
   // The user's saved desktop preference (LegiWatch Settings → default view).
   const [view, setView] = useState<ViewMode>(
@@ -319,7 +319,6 @@ export function HearingsTab({ scope }: { scope: string }) {
     }
   }, [calendar.isSuccess, location.key]);
   const serverTotal = calendar.data?.total ?? 0;
-  const scheduledAttendance = rows.filter((event) => event.subscription?.scheduled);
 
   const filtered = rows;
 
@@ -1098,8 +1097,28 @@ export function HearingsTab({ scope }: { scope: string }) {
           </div>
         )}
 
-        {/* RIGHT — My Sessions + Scheduled recordings */}
+        {/* RIGHT — Server captures first (durable booking immediately visible),
+            then My Sessions browser/live history, source health last. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <section className="lw-card" aria-label="Server captures">
+            <div className="lw-card__head">
+              <h2 className="lw-card__title">Server captures</h2>
+              <span className="lw-card__meta">All dates</span>
+            </div>
+            {/* Durable all-lifecycle server attendance for exactly this
+                tenant+user — independent of the selected week and filters. A
+                scheduled row appears immediately and stays through completion. */}
+            <ServerCaptureSessions />
+            <div className="lw-note">
+              <div className="lw-note__label">How unattended capture works</div>
+              <div className="lw-note__body">
+                Automatic attendance records the official stream on the server and continues when
+                you leave the site. Open a hearing to check its capture status, transcript and
+                intelligence. Browser attendance requires an open tab and an awake device.
+              </div>
+            </div>
+          </section>
+
           <section className="lw-card" aria-label="My Sessions">
             <div className="lw-card__head">
               <h2 className="lw-card__title">My Sessions</h2>
@@ -1240,64 +1259,6 @@ export function HearingsTab({ scope }: { scope: string }) {
           </section>
 
           <CommitteeSourceStatus />
-
-          <section className="lw-card" aria-label="Scheduled recordings">
-            <div className="lw-card__head">
-              <h2 className="lw-card__title">Scheduled recordings</h2>
-              <span className="lw-card__meta">Selected week</span>
-            </div>
-            <div className="lw-recs__rows">
-              {calendar.isLoading ? (
-                <div className="lw-recs__empty" role="status">
-                  Loading scheduled attendance…
-                </div>
-              ) : calendar.isError ? (
-                <LwStateUnavailable
-                  source="Scheduled attendance"
-                  reason="The selected week's calendar could not be refreshed. Scheduled attendance is unverified."
-                  onRetry={() => void calendar.refetch()}
-                />
-              ) : scheduledAttendance.length === 0 ? (
-                <div className="lw-recs__empty">
-                  No attendance is scheduled for the selected week. Open a hearing to check
-                  automatic or browser attendance.
-                </div>
-              ) : (
-                scheduledAttendance.map((event) => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    className="lw-hrow"
-                    onClick={() => openHearing(event)}
-                    style={{
-                      width: '100%',
-                      border: 0,
-                      background: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div>
-                      <div className="lw-hrow__title">{event.title}</div>
-                      <div className="lw-hrow__sub">
-                        {formatHearingDay(momentOfCanonicalEvent(event))} ·{' '}
-                        {formatHearingTime(momentOfCanonicalEvent(event))}
-                      </div>
-                    </div>
-                    <LwPill tone="brand">{event.capture?.status ?? 'SCHEDULED'}</LwPill>
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="lw-note">
-              <div className="lw-note__label">How unattended capture works</div>
-              <div className="lw-note__body">
-                Automatic attendance records the official stream on the server and continues when
-                you leave the site. Open a hearing to check its capture status, transcript and
-                intelligence. Browser attendance requires an open tab and an awake device.
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </div>

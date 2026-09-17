@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { HearingCryptoService } from './hearing-crypto.service.js';
 import { OrchestratorClient } from './orchestrator.client.js';
@@ -12,15 +12,11 @@ import {
 /**
  * H4 — Post-Hearing Brief generator (the MVP deliverable).
  *
- * Assembles a client-ready brief from persisted session data: exec summary,
- * key moments, relevant quotes (with timestamps), supporters & opponents, tone,
- * client-specific risks/opportunities, recommended next steps, and a draft
- * client-update email. EVERY claim/quote is sourced to a transcript segment id +
- * timestamp (claim map) — no unsourced assertions (SC4.2).
- *
- * The narrative synthesis (summary/tone/risks/email) is delegated to the MeriV2
- * orchestrator when configured; if it is not reachable, the brief degrades to a
- * deterministic, data-only assembly (still fully sourced) rather than failing.
+ * Generates an authored summary and thematic developments from the available
+ * FINAL transcript. Development references are validated against the supplied
+ * source and mapped to transcript timestamps. Conditional client advice remains
+ * distinct from recorded statements. Unavailable synthesis returns a retryable
+ * error; it never substitutes a deterministic report.
  *
  * CLIENT-AWARE (2026-09): when the caller names a client, the brief is written
  * FOR that client. apps/api supplies the client's name and its stored relevance
@@ -65,9 +61,31 @@ export interface HearingBrief {
   opportunities: string[];
   recommendedNextSteps: string[];
   draftClientEmail: { subject: string; body: string };
-  claimMap: Array<{ claimId: string; segmentId: string; timestampMs: number }>;
+  claimMap: Array<{ claimId: string; segmentId: string; timestampMs: number; endMs?: number }>;
   synthesisSource: 'orchestrator' | 'deterministic';
   clientContext: HearingBriefClientContext;
+  /** Model-authored concise report title; absent when synthesis unavailable. */
+  summaryTitle?: string;
+  /** Thematic authored developments; machine IDs in evidenceIds are trace-only. */
+  keyDevelopments?: Array<{ title: string; text: string; evidenceIds: string[] }>;
+  /**
+   * Honest coverage disclosure. availableSegments counts ALL stored FINAL
+   * transcript rows (including ones that could not be decrypted/read), so a
+   * fully-readable capture is not falsely reported as complete when encrypted
+   * rows were excluded; includedSegments is what was actually fed to the model.
+   */
+  sourceCoverage?: {
+    availableSegments: number;
+    includedSegments: number;
+    startMs: number;
+    endMs: number;
+    /** True when coverage is partial: omitted rows OR any truncated segment. */
+    limited: boolean;
+    /** Segments omitted by the coverage bound (disclosed, never silent). */
+    omittedSegments?: number;
+    /** Included segments truncated to the per-segment wire cap (disclosed). */
+    truncatedSegments?: number;
+  };
 }
 
 /** Bands that carry a real matched signal; NONE/INSUFFICIENT are honest absences. */
@@ -108,20 +126,28 @@ export class HearingBriefService {
         })
       : Promise.resolve(null);
 
-    const [[quotes, actionItems, mentions, cards], clientCtx] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        Promise.all([
-          tx.keyQuote.findMany({ where: { tenantId, sessionId }, orderBy: { startMs: 'asc' } }),
-          tx.liveActionItem.findMany({ where: { tenantId, sessionId } }),
-          tx.entityMention.findMany({ where: { tenantId, sessionId } }),
-          tx.liveSummaryCard.findMany({
-            where: { tenantId, sessionId },
-            orderBy: { startMs: 'asc' },
-          }),
-        ]),
-      ),
-      clientContextPromise,
-    ]);
+    const [[quotes, actionItems, mentions, cards, transcriptSegments], clientCtx] =
+      await Promise.all([
+        this.prisma.withTenant(tenantId, (tx) =>
+          Promise.all([
+            tx.keyQuote.findMany({ where: { tenantId, sessionId }, orderBy: { startMs: 'asc' } }),
+            tx.liveActionItem.findMany({ where: { tenantId, sessionId } }),
+            tx.entityMention.findMany({ where: { tenantId, sessionId } }),
+            tx.liveSummaryCard.findMany({
+              where: { tenantId, sessionId },
+              orderBy: { startMs: 'asc' },
+            }),
+            // FINAL transcript segments only, chronological across the WHOLE
+            // recording — the raw material for an authored recap (late material
+            // and adjacent context included, never only the earliest quotes).
+            tx.transcriptSegment.findMany({
+              where: { tenantId, sessionId, isFinal: true },
+              orderBy: { startMs: 'asc' },
+            }),
+          ]),
+        ),
+        clientContextPromise,
+      ]);
 
     const revealedQuotes = quotes.map((q) => ({
       segmentId: q.segmentId,
@@ -129,29 +155,6 @@ export class HearingBriefService {
       speakerName: q.speakerName ?? undefined,
       text: this.reveal(q),
       issueTags: q.issueTags,
-    }));
-
-    // Derived prose is ENCRYPTED for a sensitive session, so it must be revealed
-    // BEFORE anything matches on it or hands it to synthesis. Matching a regex
-    // against a base64 ciphertext does not error — it just quietly never matches,
-    // which would turn the stance split into a permanently empty list.
-    const revealedCards = cards.map((c) => ({
-      cardType: c.cardType,
-      title: this.reveal({
-        textCiphertext: c.titleCiphertext,
-        iv: c.titleIv,
-        authTag: c.titleAuthTag,
-        textPlain: c.title,
-      }),
-      body:
-        c.body != null || c.bodyCiphertext
-          ? this.reveal({
-              textCiphertext: c.bodyCiphertext,
-              iv: c.bodyIv,
-              authTag: c.bodyAuthTag,
-              textPlain: c.body,
-            })
-          : null,
     }));
 
     const revealedMentions = mentions.map((m) => ({
@@ -174,21 +177,12 @@ export class HearingBriefService {
       }),
     );
 
-    // Supporters / opponents from position-signal cards (stance lives on cards
-    // until the H3 classifier persists structured stance). Unrevealable rows are
-    // dropped rather than listed — "[encrypted]" is not the name of a supporter.
-    const supporters = uniq(
-      revealedCards
-        .filter((c) => isRevealed(c.title))
-        .filter((c) => /support|favorable|champion/i.test(c.cardType + ' ' + c.title))
-        .map((c) => c.title),
-    );
-    const opponents = uniq(
-      revealedCards
-        .filter((c) => isRevealed(c.title))
-        .filter((c) => /oppos|unfavorable|concern|block/i.test(c.cardType + ' ' + c.title))
-        .map((c) => c.title),
-    );
+    // Supporters/opponents are NOT derived from summary-card titles (card titles
+    // are not a verified stance/identity — the old regex promoted card titles like
+    // "Manatee Population Concern" to opponents). Left empty until a real stance
+    // classifier persists structured stance.
+    const supporters: string[] = [];
+    const opponents: string[] = [];
 
     const client: PostHearingClientInput | null = clientId
       ? {
@@ -205,27 +199,94 @@ export class HearingBriefService {
         }
       : null;
 
-    // Try orchestrator synthesis; fall back to deterministic assembly.
+    // Decrypt FINAL transcript segments into a usable narrative source.
+    // availableSegments counts EVERY stored FINAL row (including ones we could
+    // not reveal) so a capture with unreadable rows is never reported as fully
+    // covered; includedSegments counts only what actually went to the model.
+    const availableSegments = transcriptSegments.length;
+    const usable = transcriptSegments
+      .map((s) => ({
+        segmentId: s.id,
+        startMs: s.startMs,
+        endMs: s.endMs,
+        speakerLabel: s.speakerLabel ?? null,
+        text: this.reveal({
+          textCiphertext: s.textCiphertext,
+          iv: s.iv,
+          authTag: s.authTag,
+          textPlain: s.textPlain,
+        }),
+      }))
+      .filter((s) => isRevealed(s.text) && s.text.trim().length > 0);
+    // Bounded chronological coverage across the WHOLE recording, preserving
+    // adjacent context and LATE material: take a head/middle/tail spread when
+    // the source exceeds the bound rather than only the earliest X. Bounded by
+    // BOTH segment count and total characters so long hearings fit the model.
+    const narrativeSource = boundNarrativeSource(
+      usable,
+      MAX_NARRATIVE_SEGMENTS,
+      MAX_NARRATIVE_CHARS,
+    );
+
+    // No usable transcript => no recap. Decided BEFORE any model call, even if
+    // legacy quote/action tables still hold rows (a recap cannot be authored
+    // from flagged quotes alone).
+    if (narrativeSource.length === 0) return null;
+
+    const sourceCoverage = {
+      availableSegments,
+      includedSegments: narrativeSource.included.length,
+      startMs: narrativeSource.included[0]!.startMs,
+      endMs: narrativeSource.included[narrativeSource.included.length - 1]!.endMs,
+      // Partial coverage = omitted rows OR any truncated segment (a fully-listed
+      // but truncated capture is still not the complete verbatim source).
+      limited: narrativeSource.included.length < availableSegments || narrativeSource.truncated > 0,
+      // Truthful disclosure: every stored FINAL row not fed to the model,
+      // INCLUDING unreadable/encrypted rows (available - included).
+      omittedSegments: availableSegments - narrativeSource.included.length,
+      truncatedSegments: narrativeSource.truncated,
+    };
+
+    // Require an authored recap from the orchestrator.
     const synth = await this.synthesize(tenantId, sessionId, clerkUserId, {
       title: session.title,
       quotes: revealedQuotes,
       mentions: revealedMentions.filter((m) => isRevealed(m.label)),
       actionItems: revealedActionItems.filter(isRevealed),
       client,
+      narrativeSource: narrativeSource.included,
     });
 
-    const claimMap = quotes.map((q) => ({
-      claimId: q.id,
-      segmentId: q.segmentId,
-      timestampMs: q.startMs,
+    // No usable LLM synthesis for a transcript-backed recap is a hard
+    // unavailable — never sell a stitched deterministic assembly as a
+    // generated recap. (Zero usable transcript already returned null above, so
+    // reaching here always means a transcript existed but synthesis failed.)
+    if (synth.source !== 'orchestrator') {
+      throw new ServiceUnavailableException({
+        code: 'HEARING_RECAP_SYNTHESIS_UNAVAILABLE',
+        message:
+          'A transcript is available but the recap synthesis service was unreachable or returned ' +
+          'unusable output. Retry to regenerate the recap.',
+      });
+    }
+
+    // claimMap is the machine-readable source map the UI uses to translate a
+    // keyDevelopments evidenceId to a timestamp/range. It must cover EVERY
+    // segment the model could cite (the whole narrative source), not just the
+    // legacy flagged quotes — otherwise new claims have unresolvable refs.
+    // `endMs` lets the UI compact contiguous cited microsegments into exact
+    // readable time ranges (no invented end times). claimId is stable.
+    const claimMap = narrativeSource.included.map((s, i) => ({
+      claimId: `narr-${i}`,
+      segmentId: s.segmentId,
+      timestampMs: s.startMs,
+      endMs: s.endMs,
     }));
 
     // Authoritative here, not in the tool: an older orchestrator that predates
-    // `clientContext` (or the deterministic path) must still yield an honest
+    // `clientContext` must still yield an honest
     // status, and matched relevance is client context whether or not the model ran.
-    const relevanceMatched = Boolean(
-      client?.relevance && MATCHED_BANDS.has(client.relevance.band),
-    );
+    const relevanceMatched = Boolean(client?.relevance && MATCHED_BANDS.has(client.relevance.band));
     const status: HearingBriefClientContextStatus = !clientId
       ? 'none'
       : synth.clientContext === 'applied' || relevanceMatched
@@ -237,7 +298,10 @@ export class HearingBriefService {
       title: session.title,
       generatedAt: new Date().toISOString(),
       executiveSummary: synth.executiveSummary,
-      keyMoments: revealedQuotes.slice(0, 10),
+      // Legacy field retained for type compatibility, but the authored recap no
+      // longer surfaces clipped quote fragments as "key moments" — that was the
+      // poor-recap failure mode. The synthesized body lives in keyDevelopments.
+      keyMoments: [],
       relevantQuotes: revealedQuotes.map(({ segmentId, timestampMs, speakerName, text }) => ({
         segmentId,
         timestampMs,
@@ -249,14 +313,15 @@ export class HearingBriefService {
       tone: synth.tone,
       risks: synth.risks,
       opportunities: synth.opportunities,
-      recommendedNextSteps: synth.recommendedNextSteps.length
-        ? synth.recommendedNextSteps
-        : // Revealed, and placeholders dropped: `description` is nullable now that
-          // a sensitive session stores the text encrypted instead.
-          revealedActionItems.filter(isRevealed),
+      // Validated model output stays as-is; an empty list stays empty (no
+      // fallback to raw action items — recommendations must be model-authored).
+      recommendedNextSteps: synth.recommendedNextSteps,
       draftClientEmail: synth.draftClientEmail,
       claimMap,
       synthesisSource: synth.source,
+      summaryTitle: synth.summaryTitle,
+      keyDevelopments: synth.keyDevelopments,
+      sourceCoverage,
       clientContext: {
         clientId,
         clientName: clientCtx?.clientName ?? null,
@@ -276,17 +341,29 @@ export class HearingBriefService {
       mentions: Array<{ type: string; label: string; ref: string | null }>;
       actionItems: string[];
       client: PostHearingClientInput | null;
+      narrativeSource: Array<{
+        segmentId: string;
+        text: string;
+        startMs: number;
+        endMs: number;
+        speakerLabel: string | null;
+      }>;
     },
-  ): Promise<{
-    executiveSummary: string;
-    tone: string;
-    risks: string[];
-    opportunities: string[];
-    recommendedNextSteps: string[];
-    draftClientEmail: { subject: string; body: string };
-    source: 'orchestrator' | 'deterministic';
-    clientContext: HearingBriefClientContextStatus | null;
-  }> {
+  ): Promise<
+    | {
+        executiveSummary: string;
+        tone: string;
+        risks: string[];
+        opportunities: string[];
+        recommendedNextSteps: string[];
+        draftClientEmail: { subject: string; body: string };
+        source: 'orchestrator';
+        clientContext: HearingBriefClientContextStatus | null;
+        summaryTitle?: string;
+        keyDevelopments?: Array<{ title: string; text: string; evidenceIds: string[] }>;
+      }
+    | { source: 'unavailable' }
+  > {
     // Log the INPUT VOLUME unconditionally. A recap can be poor for two entirely
     // different reasons — synthesis unavailable, or synthesis starved of source
     // material — and they are indistinguishable in the output. On 2026-07-29 both
@@ -296,6 +373,7 @@ export class HearingBriefService {
     this.logger.log(
       `brief inputs session=${sessionId} quotes=${data.quotes.length} ` +
         `mentions=${data.mentions.length} actionItems=${data.actionItems.length} ` +
+        `narrative=${data.narrativeSource.length} ` +
         `client=${data.client?.clientId ?? '-'} relevance=${data.client?.relevance?.band ?? '-'}`,
     );
     if (this.orchestrator.configured) {
@@ -309,67 +387,71 @@ export class HearingBriefService {
           mentions: data.mentions,
           actionItems: data.actionItems,
           client: data.client,
+          narrativeSource: data.narrativeSource.length ? data.narrativeSource : undefined,
         });
-        if (out) {
-          return { ...out, source: 'orchestrator', clientContext: out.clientContext ?? null };
+        // Validate the authored recap before treating it as a success: a partial
+        // or rolling-deploy response (missing/empty summary, no developments, or
+        // references outside the supplied narrative source) is NOT a valid recap
+        // and must fall through to unavailable rather than surface as fake success.
+        if (out && this.isValidNarrativeRecap(out, data.narrativeSource)) {
+          return {
+            ...out,
+            source: 'orchestrator',
+            clientContext: out.clientContext ?? null,
+            summaryTitle: out.summaryTitle,
+            keyDevelopments: out.keyDevelopments,
+          };
         }
-        // summarizeHearing returns null on failure and logs its own reason. Record
-        // the DECISION here too, so the degradation is visible from this service's
-        // logs alone rather than only from the client's.
-        this.logger.warn(
-          `brief synthesis unavailable session=${sessionId}; using deterministic assembly`,
-        );
+        if (out) {
+          this.logger.warn(
+            `brief synthesis returned an invalid narrative recap session=${sessionId} ` +
+              `(summary=${out.executiveSummary ? 'ok' : 'empty'} developments=${out.keyDevelopments?.length ?? 0}); ` +
+              `treating as unavailable`,
+          );
+        } else {
+          this.logger.warn(
+            `brief synthesis unavailable session=${sessionId}; orchestrator returned no result`,
+          );
+        }
       } catch (err) {
         this.logger.warn(
-          `brief synthesis via orchestrator failed: ${(err as Error).message}; using deterministic`,
+          `brief synthesis via orchestrator failed: ${(err as Error).message}; treating as unavailable`,
         );
       }
     } else {
-      this.logger.warn(
-        `brief synthesis skipped session=${sessionId}: orchestrator not configured; ` +
-          `using deterministic assembly`,
-      );
+      this.logger.warn(`brief synthesis skipped session=${sessionId}: orchestrator not configured`);
     }
-    // Deterministic fallback — fully sourced, no fabricated narrative. The one
-    // client-specific sentence it may carry is the firm's STORED relevance
-    // rationale for this hearing, verbatim — a fact on record, not a synthesis.
-    const topMentions = uniq(data.mentions.map((m) => m.label)).slice(0, 8);
-    const rel = data.client?.relevance;
-    const relevanceLine =
-      rel && rel.whyItMatters.trim() && MATCHED_BANDS.has(rel.band)
-        ? ` Relevance to ${data.client?.name ?? 'the client'} (${rel.band}, from the firm's stored ` +
-          `relevance analysis): ${rel.whyItMatters.trim()}`
-        : '';
-    return {
-      executiveSummary:
-        `Hearing "${data.title}" produced ${data.quotes.length} flagged moment(s)` +
-        (topMentions.length ? ` touching: ${topMentions.join(', ')}.` : '.') +
-        relevanceLine +
-        ' This recap is a source-verified assembly, not a narrative synthesis:' +
-        ' the summariser was unavailable when it ran, so every line below is' +
-        ' verbatim from the transcript rather than analysed. Regenerating the' +
-        ' recap retries the synthesis.',
-      // Phrasing matters: the previous strings ("pending orchestrator
-      // availability", "awaiting stance classifier") read as features that had not
-      // shipped yet, so a transient failure looked like a permanent product gap.
-      // Both are retryable failures and should say so.
-      tone: 'not assessed — no synthesis was available for this recap',
-      risks: [],
-      opportunities: [],
-      recommendedNextSteps: data.actionItems,
-      draftClientEmail: {
-        subject: `Hearing recap: ${data.title}`,
-        body:
-          `Hi,\n\nHere is a quick recap of "${data.title}".\n\n` +
-          data.quotes
-            .slice(0, 5)
-            .map((q) => `• ${q.speakerName ? q.speakerName + ': ' : ''}"${q.text}"`)
-            .join('\n') +
-          `\n\nWe will follow up with a fuller analysis.\n\nBest,\nCapiro`,
-      },
-      source: 'deterministic',
-      clientContext: null,
-    };
+    // No usable LLM synthesis — signal unavailable to the caller (503). The
+    // service NEVER stitches a deterministic recap from flagged quotes and sells
+    // it as a generated brief; that is exactly the poor-recap failure mode.
+    return { source: 'unavailable' };
+  }
+
+  /**
+   * A narrative recap is valid only when the model actually authored it and every
+   * development reference resolves into the supplied narrative source. Rejects
+   * empty/missing prose, empty developments, and foreign references.
+   */
+  private isValidNarrativeRecap(
+    out: {
+      executiveSummary?: string;
+      keyDevelopments?: Array<{ title: string; text: string; evidenceIds: string[] }>;
+    },
+    narrativeSource: Array<{ segmentId: string }>,
+  ): boolean {
+    if (!out.executiveSummary || !out.executiveSummary.trim()) return false;
+    const devs = out.keyDevelopments;
+    if (!Array.isArray(devs) || devs.length === 0) return false;
+    const validIds = new Set(narrativeSource.map((s) => s.segmentId));
+    for (const d of devs) {
+      if (!d || typeof d.title !== 'string' || !d.title.trim()) return false;
+      if (typeof d.text !== 'string' || !d.text.trim()) return false;
+      if (!Array.isArray(d.evidenceIds) || d.evidenceIds.length === 0) return false;
+      for (const id of d.evidenceIds) {
+        if (!validIds.has(id)) return false;
+      }
+    }
+    return true;
   }
 
   private reveal(q: {
@@ -394,10 +476,6 @@ export class HearingBriefService {
   }
 }
 
-function uniq(arr: string[]): string[] {
-  return Array.from(new Set(arr.filter(Boolean)));
-}
-
 /**
  * Placeholders `reveal()` returns when text cannot be recovered (no key, or a
  * failed decrypt). They are honest to show inline next to a quote, but must never
@@ -408,4 +486,92 @@ const UNREVEALED = new Set(['[encrypted]', '[decryption unavailable]']);
 
 function isRevealed(text: string): boolean {
   return Boolean(text) && !UNREVEALED.has(text);
+}
+
+/**
+ * Bounded chronological narrative coverage across the WHOLE recording.
+ *
+ * The old recap silently fed only the earliest flagged quotes; this instead
+ * selects a head / middle / tail spread of the available FINAL segments so
+ * LATE material and adjacent context survive the bound. Bounded by BOTH a
+ * segment ceiling and a total-character ceiling so a long hearing fits the
+ * model. Selection is evenly spaced (never clustered at the start) and stays
+ * in original chronological order. Returns `{ included }` so the caller can
+ * report honest coverage (`included.length < availableSegments` ⇒ limited).
+ */
+const MAX_NARRATIVE_SEGMENTS = 500;
+const MAX_NARRATIVE_CHARS = 120000; // ~30k tokens of transcript, leaves room for output
+
+interface NarrativeSegment {
+  segmentId: string;
+  text: string;
+  startMs: number;
+  endMs: number;
+  speakerLabel: string | null;
+}
+
+/** Per-segment wire cap (mirrors the tool's narrativeSource.text max 20000). */
+const MAX_SEGMENT_TEXT = 20000;
+
+/**
+ * Bounded chronological narrative coverage across the WHOLE recording.
+ *
+ * Selection is a set of CONTIGUOUS windows spread head/middle/tail across the
+ * recording (not isolated every-Nth fragments), so adjacent speaker context
+ * and LATE material survive the bound. The FIRST and LAST segments of the
+ * recording are always retained. Bounded by a segment ceiling, a total-char
+ * ceiling and a per-segment char cap. Returns `{ included, omitted, truncated }`
+ * so the caller can disclose coverage truthfully.
+ */
+function boundNarrativeSource(
+  usable: NarrativeSegment[],
+  maxSegments: number,
+  maxChars: number,
+): { included: NarrativeSegment[]; omitted: number; truncated: number; length: number } {
+  const total = usable.length;
+  if (total === 0) return { included: [], omitted: 0, truncated: 0, length: 0 };
+
+  const totalChars = usable.reduce((n, s) => n + s.text.length, 0);
+  let selected = usable;
+  if (total > maxSegments || totalChars > maxChars) {
+    // Contiguous windows: split the recording into `windows` equal contiguous
+    // blocks and keep a slice from each, preserving order and adjacency. First
+    // and last segments are force-retained afterwards.
+    const target = Math.min(maxSegments, total);
+    const windows = Math.max(2, Math.min(6, Math.floor(target / 20) || 2));
+    const perWindow = Math.max(1, Math.floor(target / windows));
+    const picked = new Set<number>();
+    for (let w = 0; w < windows; w++) {
+      const blockStart = Math.floor((w * total) / windows);
+      for (let i = 0; i < perWindow && blockStart + i < total; i++) picked.add(blockStart + i);
+    }
+    // Always keep the first and last segments of the recording.
+    picked.add(0);
+    picked.add(total - 1);
+    selected = usable.filter((_, i) => picked.has(i));
+
+    // Char bound: drop from the MIDDLE outward (never the first or last
+    // segment) until the total fits.
+    const overBy = () => selected.reduce((n, s) => n + s.text.length, 0) - maxChars;
+    while (selected.length > 2 && overBy() > 0) {
+      const mid = Math.floor(selected.length / 2);
+      selected = selected.filter((_, i) => i !== mid);
+    }
+  }
+
+  // Per-segment cap applied ONLY to included segments (truncated counts what
+  // actually went to the model, not capped-then-omitted rows).
+  let truncated = 0;
+  const included = selected.map((s) => {
+    if (s.text.length <= MAX_SEGMENT_TEXT) return s;
+    truncated++;
+    return { ...s, text: s.text.slice(0, MAX_SEGMENT_TEXT) };
+  });
+
+  return {
+    included,
+    omitted: total - included.length,
+    truncated,
+    length: included.length,
+  };
 }

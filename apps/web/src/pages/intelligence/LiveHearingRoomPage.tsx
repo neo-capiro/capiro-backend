@@ -24,6 +24,7 @@ import { useApi } from '../../lib/use-api.js';
 import { useHearingWakeLock } from '../../lib/use-hearing-wake-lock.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import { useApiScope } from '../../lib/use-api-scope.js';
+import { useCapiroToast } from '../../vnext/components/feedback/toast.js';
 import {
   HearingRecordingTransport,
   type AudioSaved,
@@ -39,6 +40,7 @@ import {
   mediaKindOf,
   mintWsTicket,
   useConfirmConsent,
+  useCurrentHearingRecap,
   useGenerateBrief,
   useHearingSession,
   useHearingTranscript,
@@ -48,6 +50,7 @@ import {
   type HearingTranscriptItem,
   type ResolveStreamResult,
 } from '../../lib/hearing-watch-api.js';
+import { HearingRecapPreview } from './HearingRecapPreview.js';
 import {
   useAttendance,
   useRequestAttendance,
@@ -1812,9 +1815,32 @@ export function SaveRecapModal({
   const { message } = AntApp.useApp();
   const gen = useGenerateBrief();
   const save = useSaveRecap();
+  // vNext mounts NO antd App provider, so AntApp.useApp().message is `{}` there;
+  // calling message.success would throw and prevent the dialog from closing.
+  // Use the native vNext toast when antd message is absent; antd where present.
+  const capiroToast = useCapiroToast();
+  const notify = useMemo(() => {
+    const antdUsable =
+      message && typeof (message as { success?: unknown }).success === 'function';
+    return {
+      success: (text: string) =>
+        antdUsable ? message.success(text) : capiroToast.success(text),
+      error: (text: string) => (antdUsable ? message.error(text) : capiroToast.error(text)),
+    };
+  }, [message, capiroToast]);
   const [brief, setBrief] = useState<HearingBrief | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Why there is no preview: nothing transcribed yet (null from the API) vs
+  // Meri's synthesis being unavailable / failing (request error). They are
+  // different problems with different next steps, so they are not merged.
+  const [failure, setFailure] = useState<'none' | 'no-transcript' | 'generation'>('none');
+  // A reused/kept-existing outcome surfaces inline (honest) instead of a green
+  // success — the vNext toast has no warning variant and a "saved" toast would lie.
+  const [keptExisting, setKeptExisting] = useState(false);
   const [clientId, setClientId] = useState(defaultClientId ?? '');
+  // The recap this client already filed for THIS session, if any — drives the
+  // explicit "Update existing recap" affordance (the save endpoint otherwise
+  // silently reuses the old document).
+  const existingRecap = useCurrentHearingRecap(clientId, sessionId);
 
   // Generation is async and the client can change mid-flight. Only the LATEST
   // request may populate the preview: a stale success would label a recap that
@@ -1828,18 +1854,24 @@ export function SaveRecapModal({
     (forClientId: string) => {
       const requestId = ++requestRef.current;
       setBrief(null);
-      setFailed(false);
+      setFailure('none');
+      setKeptExisting(false);
       mutateRef.current(
         { sessionId, clientId: forClientId },
         {
           onSuccess: (value) => {
             if (requestRef.current !== requestId) return;
-            if (value) setBrief(value);
-            else setFailed(true);
+            if (value) {
+              setBrief(value);
+              setFailure('none');
+            } else {
+              // API returned null: no transcribed content to summarize.
+              setFailure('no-transcript');
+            }
           },
           onError: () => {
             if (requestRef.current !== requestId) return;
-            setFailed(true);
+            setFailure('generation');
           },
         },
       );
@@ -1852,41 +1884,74 @@ export function SaveRecapModal({
       // No client, no recap — and any in-flight request is now stale.
       requestRef.current += 1;
       setBrief(null);
-      setFailed(false);
+      setFailure('none');
       return;
     }
     generate(clientId);
   }, [sessionId, clientId, generate]);
 
   const clientName = clients.find((c) => c.id === clientId)?.name ?? '';
-  const generating = Boolean(clientId) && !brief && !failed;
+  const generating = Boolean(clientId) && !brief && failure === 'none';
   const synthesized = brief?.synthesisSource === 'orchestrator';
   const clientContext = brief?.clientContext;
   const matchedBand =
     clientContext?.relevanceBand && ['HIGH', 'MEDIUM', 'LOW'].includes(clientContext.relevanceBand)
       ? clientContext.relevanceBand
       : null;
+  // Replacement is exact-id only. Until we KNOW whether this client already has
+  // a recap for THIS session, Save stays gated: saving blind could either
+  // silently reuse a stale document (no replaceAttachmentId) or 404 on a
+  // guessed id. Loading OR lookup-error both keep it gated.
+  const recapLookupBusy = Boolean(clientId) && (existingRecap.isLoading || existingRecap.isError);
+  const currentRecap = existingRecap.data ?? null;
   const onSave = () => {
-    if (!brief || !clientId) return;
+    // Never file a deterministic (Meri-unavailable) assembly as if it were a
+    // synthesized recap — the Save control is hidden in that case, this is the
+    // belt-and-suspenders guard. And never save while the current-recap lookup
+    // is unresolved (would risk a silent stale-reuse).
+    if (!brief || !clientId || brief.synthesisSource !== 'orchestrator' || recapLookupBusy) return;
+    // Prefer the model's concise report title for the filed document; fall back
+    // to the session title. (The full formal title is kept inside the document
+    // as provenance, not duplicated as the file name.)
+    const docTitle = brief.summaryTitle?.trim() || `Hearing recap — ${sessionTitle}`;
     save.mutate(
       {
         sessionId,
         clientId,
-        title: `Hearing recap — ${sessionTitle}`,
+        title: docTitle,
         markdown: briefToMarkdown(brief),
+        // Explicitly name the exact current recap to replace it; omitting it
+        // makes the server silently reuse the old document.
+        ...(currentRecap ? { replaceAttachmentId: currentRecap.id } : {}),
       },
       {
-        onSuccess: () => {
-          message.success(`Recap saved to ${clientName}'s Documents and added to Meri's knowledge`);
+        onSuccess: (result) => {
+          // Trust the server's own account of what it did, not our expectation.
+          // `reused` means the existing document was KEPT (nothing new written).
+          // That is NOT a success — surface it inline (honest) and stay open so
+          // the analyst can choose Update; a green "saved" toast would lie.
+          if (result?.reused) {
+            setKeptExisting(true);
+            return;
+          }
+          notify.success(
+            currentRecap
+              ? `Recap updated — saved to ${clientName}'s Documents and available to Meri`
+              : `Recap saved to ${clientName}'s Documents and available to Meri`,
+          );
           onClose();
         },
         onError: (e: unknown) => {
           const detail = (e as { response?: { data?: { message?: string | string[] } } })?.response
             ?.data?.message;
-          message.error(
-            `Could not save recap: ${
-              Array.isArray(detail) ? detail.join('; ') : (detail ?? (e as Error).message)
-            }`,
+          const text = Array.isArray(detail) ? detail.join('; ') : (detail ?? (e as Error).message);
+          // The current recap changed between lookup and save (concurrent edit):
+          // surface it plainly rather than a bare 404.
+          const changed = /current hearing recap not found/i.test(String(text));
+          notify.error(
+            changed
+              ? 'The existing recap changed while you were reviewing. Reopen Save Recap to see the current version.'
+              : `Could not save recap: ${text}`,
           );
         },
       },
@@ -1905,16 +1970,22 @@ export function SaveRecapModal({
         <Button key="cancel" onClick={onClose}>
           Cancel
         </Button>,
-        <Button
-          key="save"
-          type="primary"
-          icon={<SaveOutlined />}
-          loading={save.isPending}
-          disabled={!brief || !clientId}
-          onClick={onSave}
-        >
-          Save to Client Profile
-        </Button>,
+        // No Save affordance for a deterministic (Meri-unavailable) assembly:
+        // it is not a synthesized recap and must not be filed as one.
+        ...(synthesized
+          ? [
+              <Button
+                key="save"
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={save.isPending}
+                disabled={!brief || !clientId || recapLookupBusy}
+                onClick={onSave}
+              >
+                {currentRecap ? 'Update existing recap' : 'Save to Client Profile'}
+              </Button>,
+            ]
+          : []),
       ]}
     >
       <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>
@@ -1931,6 +2002,20 @@ export function SaveRecapModal({
         optionFilterProp="label"
       />
       <Divider style={{ margin: '12px 0' }} />
+      {clientId && existingRecap.isError ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Could not check for an existing recap"
+          description="Saving is paused until we know whether this client already has a recap for this session — otherwise we could overwrite or keep the wrong document."
+          action={
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => existingRecap.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      ) : null}
       {!clientId ? (
         <Alert
           type="info"
@@ -1945,13 +2030,25 @@ export function SaveRecapModal({
             Meri is writing the recap for {clientName || 'this client'}…
           </div>
         </div>
-      ) : failed ? (
+      ) : failure === 'no-transcript' ? (
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Alert
+            type="info"
+            showIcon
+            message="No transcript yet"
+            description="This session has no transcribed content to summarize. Capture or import the hearing transcript, then generate the recap."
+          />
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => generate(clientId)}>
+            Try again
+          </Button>
+        </Space>
+      ) : failure === 'generation' ? (
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
           <Alert
             type="warning"
             showIcon
-            message="No recap available yet"
-            description="This session has no transcribed content to summarize."
+            message="Recap generation failed"
+            description="Meri's synthesis was unavailable or returned something unusable. Nothing was assembled from the transcript as a substitute. You can retry."
           />
           <Button size="small" icon={<ReloadOutlined />} onClick={() => generate(clientId)}>
             Try again
@@ -1959,6 +2056,15 @@ export function SaveRecapModal({
         </Space>
       ) : (
         <div>
+          {keptExisting && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 8 }}
+              message="The existing recap for this session was kept"
+              description="No new document was written. Use Update existing recap to replace it with this version, or Cancel to leave it as is."
+            />
+          )}
           <Space wrap size={6} style={{ marginBottom: 8 }}>
             {synthesized ? (
               <Tag color="green">Meri synthesis</Tag>
@@ -1988,21 +2094,15 @@ export function SaveRecapModal({
               type="warning"
               showIcon
               style={{ marginBottom: 8 }}
-              message="This recap was assembled from the transcript, not analysed"
-              description="Meri's synthesis was unavailable when it ran. It is fully sourced, so you can still save it — or regenerate to retry."
+              message="Transcript-based recap — Meri synthesis unavailable"
+              description="Assembled from the transcript, not analysed. It cannot be saved as a synthesized recap — regenerate to retry Meri."
             />
           )}
-          <Paragraph strong style={{ marginBottom: 6 }}>
-            {brief!.title}
-          </Paragraph>
-          <Paragraph
-            type="secondary"
-            style={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', fontSize: 12.5 }}
-          >
-            {briefToMarkdown(brief!)}
-          </Paragraph>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Saving files this recap into the client’s Documents and indexes it for Meri.
+          <HearingRecapPreview markdown={briefToMarkdown(brief!)} />
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            {currentRecap
+              ? `Updating replaces ${clientName || "this client"}'s existing recap for this session — saved to the client's Documents and available to Meri.`
+              : `Saved to ${clientName || "this client"}'s Documents and available to Meri.`}
           </Text>
         </div>
       )}

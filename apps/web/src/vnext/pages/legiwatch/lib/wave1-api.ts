@@ -300,6 +300,8 @@ export const w1Keys = {
   calendar: (hearingId: string) => ['lw-w1', 'calendar', hearingId] as const,
   notifications: (unreadOnly: boolean) => ['lw-w1', 'notifications', unreadOnly] as const,
   savedItems: (hearingId: string) => ['lw-w1', 'saved-items', hearingId] as const,
+  serverSessions: (page: number, pageSize: number) =>
+    ['lw-w1', 'server-sessions', page, pageSize] as const,
 };
 
 /**
@@ -419,6 +421,9 @@ export function useRequestAttendance(hearingId: string) {
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
       void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
+      // A request adds durable server-capture demand: refresh the My Sessions
+      // server-captures list so the new Scheduled row appears immediately.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'server-sessions'] });
     },
   });
 }
@@ -439,6 +444,8 @@ export function useCancelAttendance(hearingId: string) {
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
       void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
+      // A cancel removes durable demand: drop the row from the server list.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'server-sessions'] });
     },
   });
 }
@@ -513,6 +520,88 @@ export function useOpenBrowserRoom(hearingId: string) {
   };
 
   return { open, pending, error, clearError: () => setError(null) };
+}
+
+// ── W1-2c · durable server capture sessions (My Sessions) ─────────────────
+
+export interface ServerCaptureSession {
+  id: string;
+  title: string;
+  committeeName: string | null;
+  chamber: string | null;
+  /** Verbatim proceeding status — canceled/postponed stay honest. */
+  eventStatus: string;
+  /** Verbatim visibility — a proceeding later closed to public stays honest. */
+  visibility: string;
+  date: string | null;
+  startsAt: string | null;
+  time: string | null;
+  timeZone: string | null;
+  location: string | null;
+  officialPageUrl: string | null;
+  capture: {
+    id: string;
+    status: string;
+    actualStart: string | null;
+    actualEnd: string | null;
+  } | null;
+  /** True when durable demand exists but no canonical capture is acquired yet. */
+  capturePending: boolean;
+  scheduleSource: { byUser: boolean; byRule: boolean; ruleId: string | null } | null;
+}
+
+export interface ServerCaptureSessionsPage {
+  rows: ServerCaptureSession[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Durable all-lifecycle SERVER capture attendance for exactly this tenant+user,
+ * sourced from the durable subscription demand rows (the recorder's own
+ * predicate). Independent of the selected calendar week and of any
+ * client/jurisdiction filter: a scheduled row appears immediately and stays
+ * visible through started/processing/completed/failed. Browser-only and
+ * notify-only demand are excluded server-side.
+ */
+export function useServerCaptureSessions(
+  page = 1,
+  pageSize = 50,
+): UseQueryResult<ServerCaptureSessionsPage, Error> {
+  const api = useApi();
+  // Private per-user attendance: the cache key MUST carry the caller identity
+  // so a tenant/user switch never shows the previous user's saved demand.
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<ServerCaptureSessionsPage, Error>({
+    queryKey: [...w1Keys.serverSessions(page, pageSize), identity],
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to check server capture sessions.');
+      return (
+        await api.get<ServerCaptureSessionsPage>(
+          `${BASE}/server-sessions?page=${page}&pageSize=${pageSize}`,
+          { signal },
+        )
+      ).data;
+    },
+    enabled: ready,
+    staleTime: 15_000,
+    retry: false,
+    // Advance nonterminal/pending captures without a manual reload; stop
+    // polling once every row on the page is terminal.
+    refetchInterval: (query) => {
+      const rows = query.state.data?.rows ?? [];
+      const active = rows.some((row) => {
+        if (row.capturePending) return true;
+        const s = row.capture?.status?.toUpperCase();
+        return Boolean(
+          s && !['COMPLETE', 'COMPLETE_WITH_GAPS', 'FAILED', 'BLOCKED', 'CANCELED'].includes(s),
+        );
+      });
+      return active ? 15_000 : false;
+    },
+    refetchIntervalInBackground: true,
+  });
 }
 
 // ── W1-3 · archive search ──────────────────────────────────────────────────

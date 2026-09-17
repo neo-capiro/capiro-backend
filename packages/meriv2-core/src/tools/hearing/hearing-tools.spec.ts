@@ -876,6 +876,279 @@ describe('tag_live_policy_mentions tool', () => {
   });
 });
 
+describe('legacy narrativeSource branch (post-hearing recap)', () => {
+  const baseInput = {
+    sessionId: 's1',
+    title: 'Clipped official title',
+    quotes: [],
+    mentions: [],
+    actionItems: [],
+  };
+  const narrativeSource = [
+    {
+      segmentId: 'seg-a',
+      text: 'Opening statement on the water settlement.',
+      startMs: 0,
+      endMs: 9000,
+      speakerLabel: '0',
+    },
+    {
+      segmentId: 'seg-b',
+      text: 'Late material: questions about the Gila River adjudication.',
+      startMs: 9000,
+      endMs: 18000,
+      speakerLabel: '1',
+    },
+  ];
+  const okResponse = {
+    summaryTitle: 'Water settlement hearing',
+    executiveSummary: 'The committee heard opening statements on the water settlement.',
+    tone: 'measured',
+    risks: [],
+    opportunities: [],
+    recommendedNextSteps: [],
+    keyDevelopments: [
+      {
+        title: 'Opening statements',
+        text: 'Members delivered opening statements on the settlement.',
+        evidenceIndexes: [0, 1],
+      },
+    ],
+  };
+  function narrativeLlm(
+    captured: { args?: Parameters<LlmClient['completeWithSchema']>[0] },
+    response: unknown = okResponse,
+  ): LlmClient {
+    return {
+      completeJson: async () => {
+        throw Error('narrativeSource branch must use the schema contract');
+      },
+      completeWithSchema: async (args) => {
+        captured.args = args;
+        return { input: response, usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+    };
+  }
+
+  it('invokes completeWithSchema with strict, 120s timeout and 6000 maxTokens', async () => {
+    const captured: { args?: Parameters<LlmClient['completeWithSchema']>[0] } = {};
+    await createGeneratePostHearingSummaryTool(narrativeLlm(captured)).handler(
+      { ...baseInput, narrativeSource },
+      ctx,
+    );
+    expect(captured.args?.strict).toBe(true);
+    expect(captured.args?.timeoutMs).toBe(120000);
+    expect(captured.args?.maxTokens).toBe(6000);
+    expect(captured.args?.toolName).toBe('submit_hearing_recap');
+  });
+
+  it('sends the full chronological source text, including late segments, not merely flagged quotes', async () => {
+    const captured: { args?: Parameters<LlmClient['completeWithSchema']>[0] } = {};
+    await createGeneratePostHearingSummaryTool(narrativeLlm(captured)).handler(
+      { ...baseInput, narrativeSource },
+      ctx,
+    );
+    const payload = JSON.parse(captured.args?.prompt ?? '{}');
+    const flat = payload.narrativeTurns.flatMap((t: any) => t.segments);
+    expect(flat).toHaveLength(2);
+    expect(flat[0].text).toBe(narrativeSource[0]!.text);
+    expect(flat[1].text).toBe(narrativeSource[1]!.text);
+    expect(flat[1].text).toContain('Late material');
+    // Zero-based sourceIndex rides beside the unchanged full IDs.
+    expect(flat.map((s: any) => [s.sourceIndex, s.segmentId])).toEqual([
+      [0, 'seg-a'],
+      [1, 'seg-b'],
+    ]);
+    // The instructions tell the model to author, not assemble quote fragments.
+    expect(payload.instructions).toMatch(/Author a coherent hearing recap/);
+    expect(payload.instructions).toMatch(/do not return chronological quote fragments/);
+  });
+
+  it('states the NONE/missing-priorities policy in the system prompt instead of declaring the hearing irrelevant', async () => {
+    const captured: { args?: Parameters<LlmClient['completeWithSchema']>[0] } = {};
+    await createGeneratePostHearingSummaryTool(narrativeLlm(captured)).handler(
+      {
+        ...baseInput,
+        narrativeSource,
+        client: {
+          clientId: 'c1',
+          name: 'Anduril',
+          relevance: {
+            band: 'NONE',
+            whyItMatters: 'No watchlist match.',
+            matchedPriorities: [],
+            implications: [],
+          },
+        },
+      },
+      ctx,
+    );
+    expect(captured.args?.system).toMatch(
+      /A NONE watchlist match or missing client priorities is NOT proof of no bearing, no risk or no action/,
+    );
+    expect(captured.args?.system).toMatch(
+      /say so explicitly instead of declaring the hearing irrelevant/,
+    );
+    const payload = JSON.parse(captured.args?.prompt ?? '{}');
+    expect(payload.client).toContain('Client: Anduril');
+    expect(payload.client).toContain('band NONE');
+  });
+
+  it('maps sourceIndex values into the original full segment IDs in the result', async () => {
+    const captured: { args?: Parameters<LlmClient['completeWithSchema']>[0] } = {};
+    const result = await createGeneratePostHearingSummaryTool(narrativeLlm(captured)).handler(
+      { ...baseInput, narrativeSource },
+      ctx,
+    );
+    expect(result.summaryTitle).toBe('Water settlement hearing');
+    expect(result.keyDevelopments).toEqual([
+      {
+        title: 'Opening statements',
+        text: 'Members delivered opening statements on the settlement.',
+        evidenceIds: ['seg-a', 'seg-b'],
+      },
+    ]);
+    // The internal index protocol never leaks into the public result.
+    expect(Object.keys(result.keyDevelopments![0]!).sort()).toEqual([
+      'evidenceIds',
+      'text',
+      'title',
+    ]);
+    // The legacy branch leaves the deterministic email assembly to the caller.
+    expect(result.draftClientEmail).toEqual({ subject: '', body: '' });
+    expect(result.promptVersion).toBeUndefined();
+  });
+
+  it('accepts a theme spanning many tiny ASR chunks (up to 500 unique refs)', async () => {
+    const source = Array.from({ length: 60 }, (_, i) => ({
+      segmentId: `chunk-${i}`,
+      text: `ASR chunk ${i}.`,
+      startMs: i * 100,
+      endMs: i * 100 + 50,
+    }));
+    const response = {
+      ...okResponse,
+      keyDevelopments: [
+        {
+          title: 'Long theme',
+          text: 'A theme synthesized across many short chunks.',
+          evidenceIndexes: Array.from({ length: 60 }, (_, i) => i),
+        },
+      ],
+    };
+    const result = await createGeneratePostHearingSummaryTool(narrativeLlm({}, response)).handler(
+      { ...baseInput, narrativeSource: source },
+      ctx,
+    );
+    expect(result.keyDevelopments![0]!.evidenceIds).toHaveLength(60);
+    expect(result.keyDevelopments![0]!.evidenceIds[59]).toBe('chunk-59');
+  });
+
+  it.each([
+    // Duplicate index inside one development.
+    {
+      ...okResponse,
+      keyDevelopments: [{ title: 'T', text: 'x', evidenceIndexes: [0, 0] }],
+    },
+    // Out-of-range index (2 supplied segments, index 2).
+    {
+      ...okResponse,
+      keyDevelopments: [{ title: 'T', text: 'x', evidenceIndexes: [2] }],
+    },
+    // Negative index.
+    {
+      ...okResponse,
+      keyDevelopments: [{ title: 'T', text: 'x', evidenceIndexes: [-1] }],
+    },
+    // String indices are malformed, never coerced.
+    {
+      ...okResponse,
+      keyDevelopments: [{ title: 'T', text: 'x', evidenceIndexes: ['0'] }],
+    },
+    // Legacy full-ID output is malformed under the sourceIndex protocol.
+    {
+      ...okResponse,
+      keyDevelopments: [{ title: 'T', text: 'x', evidenceIds: ['seg-a'] }],
+    },
+    // A development must cite at least one segment.
+    {
+      ...okResponse,
+      keyDevelopments: [{ title: 'T', text: 'x', evidenceIndexes: [] }],
+    },
+    // No developments at all violates the minItems:1 contract.
+    { ...okResponse, keyDevelopments: [] },
+    // A development without a prose body is malformed.
+    { ...okResponse, keyDevelopments: [{ title: 'T', evidenceIndexes: [0] }] },
+  ])('rejects malformed or unsupported model output: %j', async (response) => {
+    await expect(
+      createGeneratePostHearingSummaryTool(narrativeLlm({}, response)).handler(
+        { ...baseInput, narrativeSource },
+        ctx,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('rejects ambiguous duplicate narrative source IDs before any completion is attempted', async () => {
+    let called = false;
+    const llm: LlmClient = {
+      completeJson: async () => {
+        throw Error('narrativeSource branch must use the schema contract');
+      },
+      completeWithSchema: async () => {
+        called = true;
+        return { input: okResponse, usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+    };
+    await expect(
+      createGeneratePostHearingSummaryTool(llm).handler(
+        {
+          ...baseInput,
+          narrativeSource: [
+            { segmentId: 'dup', text: 'one', startMs: 0, endMs: 1 },
+            { segmentId: 'dup', text: 'two', startMs: 1, endMs: 2 },
+          ],
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/Ambiguous recap narrative source IDs/);
+    expect(called).toBe(false);
+  });
+
+  it('leaves the governed evidence branch unchanged when evidence (not narrativeSource) is supplied', async () => {
+    const captured: { args?: Parameters<LlmClient['completeWithSchema']>[0] } = {};
+    const evidence = [
+      { segmentId: 'final-1', text: 'This is an owned test.', startMs: 0, endMs: 2000 },
+    ];
+    const llm: LlmClient = {
+      completeJson: async () => {
+        throw Error('Evidence requests must use the schema contract');
+      },
+      completeWithSchema: async (args) => {
+        captured.args = args;
+        return {
+          input: { claims: [{ id: 'claim-1', kind: 'quote', evidenceIndexes: [0] }] },
+          usage: { inputTokens: 1, outputTokens: 1 },
+        };
+      },
+    };
+    const result = await createGeneratePostHearingSummaryTool(llm).handler(
+      { ...baseInput, evidence },
+      ctx,
+    );
+    // Evidence branch contract: different tool, different bounds, claims shape.
+    expect(captured.args?.toolName).toBe('submit_hearing_claims');
+    expect(captured.args?.timeoutMs).toBe(60000);
+    expect(captured.args?.maxTokens).toBe(6000);
+    expect(captured.args?.system).toMatch(/SOURCE-FIRST WORKFLOW/);
+    expect(result.claims).toEqual([
+      { id: 'claim-1', kind: 'quote', text: 'This is an owned test.', evidenceIds: ['final-1'] },
+    ]);
+    expect(result.promptVersion).toBe('hearing-evidence-v1');
+    expect(result.keyDevelopments).toBeUndefined();
+    expect(result.summaryTitle).toBeUndefined();
+  });
+});
+
 describe('generate_post_hearing_summary tool', () => {
   const fakeLlm: LlmClient = {
     completeJson: async () => ({
