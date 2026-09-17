@@ -7,7 +7,7 @@ import { LEGIWATCH_TABS, REMOVED_TABS, TAB_ALIASES, packetBand } from './types.j
 
 describe('LW-07 — watch-management tab aliases', () => {
   it('maps every legacy watch-management tab name to settings', () => {
-    for (const name of ['watchlist', 'watchlists', 'watches', 'presets']) {
+    for (const name of ['watchlist', 'watchlists']) {
       expect(TAB_ALIASES[name], name).toBe('settings');
     }
   });

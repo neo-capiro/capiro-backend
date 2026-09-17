@@ -130,7 +130,7 @@ function makePrisma(seed: {
     committees: seed.committees ?? [],
     follows: seed.follows ?? [],
   };
-  const calls = { bareSubscriptionReads: 0 };
+  const calls = { bareSubscriptionReads: 0, orderBys: [] as unknown[] };
 
   const subscriptionDelegate = (tenantId: string | null) => ({
     findMany: async (args: { where?: Row } = {}) => {
@@ -146,7 +146,8 @@ function makePrisma(seed: {
   const prisma = {
     __calls: calls,
     committeeHearing: {
-      findMany: async (args: { where?: Row; take?: number; skip?: number } = {}) => {
+      findMany: async (args: { where?: Row; take?: number; skip?: number; orderBy?: unknown } = {}) => {
+        if ('orderBy' in args) calls.orderBys.push(args.orderBy);
         const hits = store.hearings.filter((h) => matches(h, args.where));
         const skip = args.skip ?? 0;
         return hits.slice(skip, skip + (args.take ?? hits.length));
@@ -550,6 +551,24 @@ describe('buildWhere', () => {
     expect(where.canonicalHearingId).toBeNull();
     expect(matches(hearing(), where)).toBe(true);
     expect(matches(hearing({ canonicalHearingId: 'cm-119-parent' }), where)).toBe(false);
+  });
+});
+
+describe('LiveHearingsService — calendar sort direction', () => {
+  const seed = { hearings: [hearing()], subscriptions: [] };
+
+  it('defaults to the chronological asc contract (date → startsAt → id)', async () => {
+    const { service, prisma } = makeService(seed);
+    await service.calendar(ctxA, { jurisdiction: 'FL' });
+    const call = prisma.__calls.orderBys.at(-1);
+    expect(call).toEqual([{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }]);
+  });
+
+  it('flips the whole deterministic tie order for an explicit latest-first lookup', async () => {
+    const { service, prisma } = makeService(seed);
+    await service.calendar(ctxA, { jurisdiction: 'FL', sort: 'desc', pageSize: 1 });
+    const call = prisma.__calls.orderBys.at(-1);
+    expect(call).toEqual([{ date: 'desc' }, { startsAt: 'desc' }, { id: 'desc' }]);
   });
 });
 

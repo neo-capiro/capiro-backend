@@ -101,6 +101,9 @@ const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export const CONTEXT_GAP_LABELS: Record<string, string> = {
   strategy_brief: 'the strategy brief',
   client_constraints: "this client's constraints",
+  target_budget_line: 'the target budget line baseline',
+  vendor_reference_pull: 'the performing-company reference pull',
+  route_and_vehicle_status: 'the legislative vehicle status',
 };
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
@@ -110,6 +113,7 @@ const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   coalition: 'Coalition / positioning',
   procurement: 'Contract / procurement',
   earmark: 'Grant / earmark',
+  amendment: 'Amendment ask',
 };
 
 /**
@@ -445,7 +449,7 @@ export class MeriService {
     let docs: Awaited<ReturnType<StrategyAttachmentResolver['resolve']>>;
     let resp: Awaited<ReturnType<StrategyOrchestratorClient['assistant']>>;
     try {
-      const [aiProvider, g, d, stewardCtx] = await Promise.all([
+      const [aiProvider, g, d, stewardCtx, ownerNames] = await Promise.all([
         this.resolver.resolve(tenantId),
         this.grounding(tenantId),
         this.attachments.resolve(bearer, dto.attachmentIds),
@@ -453,6 +457,7 @@ export class MeriService {
         // grounded for THIS strategy's assistant pack (other strategies'
         // scoped material stays excluded).
         this.stewardContext(tenantId, strategy.clientId, { strategyId }),
+        this.resolveOwnerNames(tenantId),
       ]);
       ground = g;
       docs = d;
@@ -465,19 +470,10 @@ export class MeriService {
           attachments: docs,
           clientId: strategy.clientId,
           strategy: strategySnapshot,
-          // F02 fix: the orchestrator's renderPlan() renders the text Meri
-          // actually reads for the plan — before this fix it carried NO owner
-          // information at all (only kind/subject/title/dates/status/deps),
-          // so an ownership question had nothing to answer from and guessed,
-          // contradicting the editor/inspector/plan-health surfaces that all
-          // read sp_node.owner_user_id directly. Resolved the same way the web
-          // editor's memberName() does (first+last name, 'Team member'
-          // fallback) so Meri's answer matches what the user sees on screen.
-          // Sent as a SIBLING map (clerkUserId -> display name), not merged
-          // into strategySnapshot, so assertAssistantSnapshot's optimistic-
-          // concurrency comparison (JSON.stringify(serializeStrategy(...)))
-          // is untouched by this fix.
-          ownerNames: await this.resolveOwnerNames(tenantId, strategy.nodes.map((n) => n.ownerUserId)),
+          // Include every active member, including people not yet assigned a
+          // step. Keep the directory separate from the plan snapshot used by
+          // optimistic concurrency checks.
+          ownerNames,
           ...ground,
           ...stewardCtx,
         },
@@ -485,6 +481,18 @@ export class MeriService {
         aiProvider,
         { tenantId, clerkUserId },
       );
+      // Model output is untrusted. Validate the whole ownership batch before
+      // opening the edit transaction, including when the member lookup failed.
+      for (const edit of resp.edits ?? []) {
+        if (
+          edit.ownerUserId !== undefined &&
+          edit.ownerUserId !== null &&
+          (typeof edit.ownerUserId !== 'string' ||
+            !Object.prototype.hasOwnProperty.call(ownerNames, edit.ownerUserId))
+        ) {
+          throw new BadRequestException('Meri selected an owner who is not an active team member');
+        }
+      }
     } catch (err) {
       // The user's message is already stored, so the thread must say what
       // happened to it. Plain copy only — no stack trace, no provider name.
@@ -686,22 +694,12 @@ export class MeriService {
   }
 
   /**
-   * F02 fix: resolve the same display names the web editor shows
-   * (memberName in strategies-api.ts: first+last name, 'Team member'
-   * fallback for an owner id that no longer matches an active member,
-   * 'Unassigned' for null) so Meri's rendered plan text agrees with the
-   * editor/inspector/plan-health surfaces instead of leaving the model to
-   * guess from raw Clerk ids it was never given. Read on the SYSTEM
-   * connection like context-documents.service.ts's isOrgAdmin — tenant_memberships
-   * is FORCE-RLS and owned by apps/api, so it cannot be read inside this
-   * service's tenant-scoped transaction.
+   * Resolve the active tenant directory for existing and new owners. Display
+   * names match memberName in the editor. The SYSTEM connection is required
+   * for API-owned tenant_memberships; explicitly scope this query to the tenant
+   * because it bypasses this service's tenant-scoped transaction.
    */
-  private async resolveOwnerNames(
-    tenantId: string,
-    ownerUserIds: Array<string | null>,
-  ): Promise<Record<string, string>> {
-    const ids = [...new Set(ownerUserIds.filter((id): id is string => !!id))];
-    if (!ids.length) return {};
+  private async resolveOwnerNames(tenantId: string): Promise<Record<string, string>> {
     try {
       const rows = await this.prisma.withSystem((tx) =>
         tx.$queryRaw<Array<{ clerkUserId: string; firstName: string | null; lastName: string | null }>>`
@@ -709,17 +707,16 @@ export class MeriService {
           FROM tenant_memberships tm
           JOIN users u ON u.id = tm.user_id
           WHERE tm.tenant_id = ${tenantId}::uuid
-            AND u.clerk_user_id IN (${Prisma.join(ids)})
             AND tm.status::text = 'active'
+            AND u.clerk_user_id IS NOT NULL
         `,
       );
       return Object.fromEntries(
         rows.map((r) => [r.clerkUserId, [r.firstName, r.lastName].filter(Boolean).join(' ').trim() || 'Team member']),
       );
     } catch (err) {
-      // Owner names are a Q&A grounding aid, not load-bearing state — a lookup
-      // failure must never block the assistant call. Meri falls back to
-      // rendering the raw id (still better than silence); nothing is persisted.
+      // Q&A can still use current owner ids. With an empty directory, the
+      // assistant cannot assign a new owner and validation rejects invented ids.
       this.logger.warn(`could not resolve owner names for strategy assistant: ${(err as Error).message}`);
       return {};
     }

@@ -11,7 +11,7 @@ vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => ({ get: apiGet, pos
 import { FeedTab } from './FeedTab.js';
 
 const queryClients: QueryClient[] = [];
-const SAVED_VIEW = '/legiwatch?tab=feed&client=client-A&order=score&filter=hearing&work=in_review&arrange=byClient&q=budget';
+const FEED_URL_STATE = '/legiwatch?tab=feed&client=client-A&order=score&filter=hearing&work=in_review&arrange=byClient&q=budget';
 
 function alert(id: string, clientId: string, title: string, sourceType: FeedItem['sourceType'], state: string): FeedItem {
   return {
@@ -32,7 +32,7 @@ function Harness() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   return <>
-    <button onClick={() => navigate('/legiwatch?tab=feed&client=client-A&filter=bill&q=transport')}>Apply another saved view</button>
+    <button onClick={() => navigate('/legiwatch?tab=feed&client=client-A&filter=bill&q=transport')}>Apply another feed URL state</button>
     <button onClick={() => navigate(-1)}>Go back</button>
     <button onClick={() => setParams((previous) => {
       const next = new URLSearchParams(previous);
@@ -84,9 +84,9 @@ afterEach(() => {
   for (const queryClient of queryClients.splice(0)) queryClient.clear();
 });
 
-describe('Feed saved-view restoration and client isolation', () => {
+describe('Feed URL-state restoration and client isolation', () => {
   it('restores all saved URL controls, applies another view, and restores the first with Back', async () => {
-    renderFeed(SAVED_VIEW);
+    renderFeed(FEED_URL_STATE);
     await screen.findByText('Budget oversight');
     expect(screen.queryByText('Transport authorization')).toBeNull();
     expect(screen.getByRole('tab', { name: 'Priority' })).toHaveAttribute('aria-selected', 'true');
@@ -97,7 +97,7 @@ describe('Feed saved-view restoration and client isolation', () => {
     const request = new URL(apiGet.mock.calls.find(([url]) => url.includes('/feed?'))![0], 'https://example.test');
     expect(Object.fromEntries(request.searchParams)).toMatchObject({ order: 'score', sourceType: 'hearing', workState: 'in_review' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apply another saved view' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply another feed URL state' }));
     await screen.findByText('Transport authorization');
     expect(screen.queryByText('Budget oversight')).toBeNull();
     expect(screen.getByRole('tab', { name: 'Newest' })).toHaveAttribute('aria-selected', 'true');
@@ -110,7 +110,7 @@ describe('Feed saved-view restoration and client isolation', () => {
     expect(screen.getByRole('textbox', { name: 'Search the feed' })).toHaveValue('budget');
   });
 
-  it('writes controls to the saved-view URL and resets every filter atomically without losing the client', async () => {
+  it('writes controls to the URL and resets every filter atomically without losing the client', async () => {
     renderFeed();
     fireEvent.click(await screen.findByRole('tab', { name: 'Priority' }));
     fireEvent.click(await screen.findByRole('button', { name: /^Hearings/ }));

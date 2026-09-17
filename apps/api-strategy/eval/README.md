@@ -83,7 +83,7 @@ wires the cadence.
 
 ## Golden provenance
 
-The current 12 goldens under `eval/goldens/` are synthetic (structurally valid,
+The current 14 goldens under `eval/goldens/` are synthetic (structurally valid,
 internally consistent, verified against the real `verifyPlan`) but have **not** been
 reviewed against real dogfood output or received Neo sign-off — that review is a
 manual step, not something this harness can do. Treat L1 passing as "internally

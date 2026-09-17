@@ -12,11 +12,19 @@ import type { VerifierNode } from '@capiro/strategy-verifier';
 describe('Stage B — L1 deterministic eval (goldens self-test)', () => {
   const goldens = loadGoldens();
 
-  it('finds at least 12 goldens across all 6 strategy types', () => {
-    expect(goldens.length).toBeGreaterThanOrEqual(12);
+  it('finds at least 14 goldens across all 7 strategy types', () => {
+    expect(goldens.length).toBeGreaterThanOrEqual(14);
     const types = new Set(goldens.map((g) => g.strategyType));
     expect(types).toEqual(
-      new Set(['appropriations', 'authorization', 'regulatory', 'coalition', 'procurement', 'earmark']),
+      new Set([
+        'appropriations',
+        'authorization',
+        'regulatory',
+        'coalition',
+        'procurement',
+        'earmark',
+        'amendment',
+      ]),
     );
   });
 
@@ -38,7 +46,7 @@ describe('Stage B — L1 deterministic eval (goldens self-test)', () => {
 });
 
 /*
- * All 12 real goldens are well-formed, so the 13 tests above never prove
+ * All 14 real goldens are well-formed, so the 15 tests above never prove
  * checkShape actually CATCHES a violation — only that it stays quiet on clean
  * input. These construct deliberately broken node lists to close that gap.
  */

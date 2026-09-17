@@ -9,7 +9,7 @@ import type { AxiosInstance } from 'axios';
  * Every row here is explicitly a partial-coverage, single-source reviewed
  * fact -- never a complete-family total, never summed with anything else.
  */
-const BASE = '/defense-budget/reviewed-partial-pe-totals';
+const BASE = '/api/defense-budget/reviewed-partial-pe-totals';
 
 export interface ReviewedPartialPeTotal {
   peCode: string;

@@ -19,6 +19,7 @@ import { LwStateAllClear, LwStateEmpty } from '../states/SystemStates.js';
 const COVERAGE_URL = '/api/legiwatch/live-hearings/coverage';
 const CALENDAR_PREFIX = '/api/legiwatch/live-hearings/calendar?';
 const HISTORY_PREFIX = '/intel-api/hearings/history?';
+const SERVER_SESSIONS_PREFIX = '/api/legiwatch/live-hearings/server-sessions';
 
 function session(id: string, status = 'completed') {
   return { id, title: `Hearing ${id}`, status, sourceType: 'official', audioSource: 'browser_tab', watchlistMatchCount: 0 };
@@ -42,6 +43,8 @@ function defaultResponse(url: string) {
   if (url === COVERAGE_URL) return Promise.resolve({ data: coverageData });
   if (url.startsWith(CALENDAR_PREFIX)) return Promise.resolve({ data: calendarData });
   if (url.startsWith(HISTORY_PREFIX)) return Promise.resolve({ data: historyData });
+  if (url.startsWith(SERVER_SESSIONS_PREFIX))
+    return Promise.resolve({ data: { rows: [], total: 0, page: 1, pageSize: 50 } });
   return Promise.reject(new Error(`Unexpected GET ${url}`));
 }
 
@@ -138,7 +141,12 @@ describe('LW-02 — independent capture and source status', () => {
   it('does not hide capture/source failures or navigation when the calendar fails, and supports source-status retry', async () => {
     let sourceFailed = true;
     apiGet.mockImplementation((url) => {
-      if (url.startsWith(CALENDAR_PREFIX) || (url === COVERAGE_URL && sourceFailed)) return Promise.reject(new Error('unavailable'));
+      if (
+        url.startsWith(CALENDAR_PREFIX) ||
+        url.startsWith(SERVER_SESSIONS_PREFIX) ||
+        (url === COVERAGE_URL && sourceFailed)
+      )
+        return Promise.reject(new Error('unavailable'));
       return defaultResponse(url);
     });
     openHearings('/legiwatch');
@@ -146,8 +154,8 @@ describe('LW-02 — independent capture and source status', () => {
     expect(await screen.findByText('Committee source health is unavailable')).toBeInTheDocument();
     expect(screen.getByText('CAPTURE ATTENTION')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Archive' })).toBeInTheDocument();
-    expect(screen.getByText('Scheduled attendance is unavailable')).toBeInTheDocument();
-    expect(screen.queryByText(/No attendance is scheduled|No live proceedings in the selected/)).not.toBeInTheDocument();
+    expect(screen.getByText('Server captures is unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/No server captures yet|No live proceedings in the selected/)).not.toBeInTheDocument();
     sourceFailed = false;
     fireEvent.click(screen.getByRole('button', { name: 'Refresh source status' }));
     expect(await screen.findByText(/75 of 83 registered committee sources report healthy/)).toBeInTheDocument();

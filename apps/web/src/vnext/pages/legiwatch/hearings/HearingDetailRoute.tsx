@@ -510,7 +510,15 @@ export function HearingDetailRoute() {
 
               {attendance.data?.scheduled ? (
                 <LwButton onClick={() => setDialog('attend')}>Scheduled · manage</LwButton>
-              ) : attendance.data?.canRequest ? (
+              ) : attendance.data &&
+                // Per-mode independent capability: a mode stays offerable while
+                // the OTHER is active, so the entrypoint reads the explicit
+                // flags (with the legacy aggregate as fallback), never the
+                // global canRequest veto that hides browser replay on a
+                // completed/in-progress public proceeding.
+                ((attendance.data.automaticAvailable ?? attendance.data.canRequest) ||
+                  (attendance.data.browserAvailable ??
+                    (attendance.data.availableModes ?? []).includes('browser'))) ? (
                 <LwButton variant="primary" onClick={() => setDialog('attend')}>
                   Have Capiro attend
                 </LwButton>

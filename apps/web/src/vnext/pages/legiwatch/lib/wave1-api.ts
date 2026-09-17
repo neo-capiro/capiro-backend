@@ -10,8 +10,15 @@
  * the detail route without a manual refetch.
  */
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import { useHearingQueryIdentity, type SavedHearingSession } from './saved-hearing-sessions.js';
+import { useCreateHearing } from '../../../../lib/hearing-watch-api.js';
+import {
+  usePhase7BrowserJoin,
+  type Phase7BrowserJoinPlan,
+} from '../../../../pages/radar/live-hearings/live-hearings-phase7-api.js';
 
 const BASE = '/api/legiwatch/live-hearings';
 const enc = encodeURIComponent;
@@ -62,6 +69,13 @@ export interface AttendanceAssessment {
   availableModes: Array<'automatic' | 'browser'>;
   consentRequired: boolean;
   scheduled: boolean;
+  /** True when the proceeding is public and has a usable browser source,
+   *  REGARDLESS of server-capture state — a browser fallback stays open even
+   *  while a canonical capture is scheduled/capturing/failed/complete. */
+  browserAvailable?: boolean;
+  /** True when a FRESH `automatic` request would be accepted now — independent
+   *  of any browser session the user already has open. */
+  automaticAvailable?: boolean;
 }
 
 export type RelevanceBand = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | 'INSUFFICIENT_EVIDENCE';
@@ -286,6 +300,8 @@ export const w1Keys = {
   calendar: (hearingId: string) => ['lw-w1', 'calendar', hearingId] as const,
   notifications: (unreadOnly: boolean) => ['lw-w1', 'notifications', unreadOnly] as const,
   savedItems: (hearingId: string) => ['lw-w1', 'saved-items', hearingId] as const,
+  serverSessions: (page: number, pageSize: number) =>
+    ['lw-w1', 'server-sessions', page, pageSize] as const,
 };
 
 /**
@@ -405,6 +421,9 @@ export function useRequestAttendance(hearingId: string) {
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
       void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
+      // A request adds durable server-capture demand: refresh the My Sessions
+      // server-captures list so the new Scheduled row appears immediately.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'server-sessions'] });
     },
   });
 }
@@ -425,7 +444,163 @@ export function useCancelAttendance(hearingId: string) {
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
       void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
+      // A cancel removes durable demand: drop the row from the server list.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'server-sessions'] });
     },
+  });
+}
+
+// ── W1-2b · browser fallback (independent of server attendance) ────────────
+
+export interface BrowserOpenResult {
+  outcome: 'opened' | 'attached' | 'blocked';
+  message?: string;
+}
+
+/**
+ * Open a private browser capture room for a proceeding. INDEPENDENT of server
+ * attendance: calling this never clears scheduled server demand, and an active
+ * server capture never blocks opening the browser fallback. The join plan's
+ * `sourceUrl`/`sourceKind` come from the server's official-source selection —
+ * the UI never constructs a player URL. A browser session is only created when
+ * the plan is BROWSER_CAPTURE; ATTACH_CANONICAL means a shared capture is
+ * already running and the user is attached to it instead of duplicating it.
+ */
+export function useOpenBrowserRoom(hearingId: string) {
+  const browserJoin = usePhase7BrowserJoin();
+  const createBrowserSession = useCreateHearing();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const inFlight = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const open = async (): Promise<BrowserOpenResult> => {
+    if (inFlight.current) return { outcome: 'blocked', message: 'Already opening.' };
+    inFlight.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      const plan: Phase7BrowserJoinPlan = await browserJoin.mutateAsync(hearingId);
+      if (plan.mode === 'BLOCKED') {
+        setError(plan.message);
+        return { outcome: 'blocked', message: plan.message };
+      }
+      if (plan.mode === 'ATTACH_CANONICAL') {
+        // A canonical capture is already active; attach rather than duplicate.
+        void qc.invalidateQueries({ queryKey: ['lw-w1', 'attendance', hearingId] });
+        return { outcome: 'attached' };
+      }
+      const session = await createBrowserSession.mutateAsync({
+        title: plan.title,
+        sourceType: plan.sourceType,
+        audioSource: plan.audioSource,
+        recordingPolicy: plan.recordingPolicy,
+        sourceUrl: plan.sourceUrl,
+        hearingId: plan.hearingId,
+        committeeId: plan.committeeId,
+        consentAttestation:
+          'I confirm this proceeding is public and recording it through my browser is permitted.',
+      });
+      if (!session?.id) {
+        const msg = 'The browser hearing room could not be created. Please retry.';
+        setError(msg);
+        return { outcome: 'blocked', message: msg };
+      }
+      navigate(`/intelligence/hearing-watch/${encodeURIComponent(session.id)}`);
+      return { outcome: 'opened' };
+    } catch (err) {
+      const msg = w1Error(err);
+      setError(msg);
+      return { outcome: 'blocked', message: msg };
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
+  };
+
+  return { open, pending, error, clearError: () => setError(null) };
+}
+
+// ── W1-2c · durable server capture sessions (My Sessions) ─────────────────
+
+export interface ServerCaptureSession {
+  id: string;
+  title: string;
+  committeeName: string | null;
+  chamber: string | null;
+  /** Verbatim proceeding status — canceled/postponed stay honest. */
+  eventStatus: string;
+  /** Verbatim visibility — a proceeding later closed to public stays honest. */
+  visibility: string;
+  date: string | null;
+  startsAt: string | null;
+  time: string | null;
+  timeZone: string | null;
+  location: string | null;
+  officialPageUrl: string | null;
+  capture: {
+    id: string;
+    status: string;
+    actualStart: string | null;
+    actualEnd: string | null;
+  } | null;
+  /** True when durable demand exists but no canonical capture is acquired yet. */
+  capturePending: boolean;
+  scheduleSource: { byUser: boolean; byRule: boolean; ruleId: string | null } | null;
+}
+
+export interface ServerCaptureSessionsPage {
+  rows: ServerCaptureSession[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Durable all-lifecycle SERVER capture attendance for exactly this tenant+user,
+ * sourced from the durable subscription demand rows (the recorder's own
+ * predicate). Independent of the selected calendar week and of any
+ * client/jurisdiction filter: a scheduled row appears immediately and stays
+ * visible through started/processing/completed/failed. Browser-only and
+ * notify-only demand are excluded server-side.
+ */
+export function useServerCaptureSessions(
+  page = 1,
+  pageSize = 50,
+): UseQueryResult<ServerCaptureSessionsPage, Error> {
+  const api = useApi();
+  // Private per-user attendance: the cache key MUST carry the caller identity
+  // so a tenant/user switch never shows the previous user's saved demand.
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<ServerCaptureSessionsPage, Error>({
+    queryKey: [...w1Keys.serverSessions(page, pageSize), identity],
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to check server capture sessions.');
+      return (
+        await api.get<ServerCaptureSessionsPage>(
+          `${BASE}/server-sessions?page=${page}&pageSize=${pageSize}`,
+          { signal },
+        )
+      ).data;
+    },
+    enabled: ready,
+    staleTime: 15_000,
+    retry: false,
+    // Advance nonterminal/pending captures without a manual reload; stop
+    // polling once every row on the page is terminal.
+    refetchInterval: (query) => {
+      const rows = query.state.data?.rows ?? [];
+      const active = rows.some((row) => {
+        if (row.capturePending) return true;
+        const s = row.capture?.status?.toUpperCase();
+        return Boolean(
+          s && !['COMPLETE', 'COMPLETE_WITH_GAPS', 'FAILED', 'BLOCKED', 'CANCELED'].includes(s),
+        );
+      });
+      return active ? 15_000 : false;
+    },
+    refetchIntervalInBackground: true,
   });
 }
 

@@ -120,10 +120,12 @@ export class HearingRecapController {
     @Param('clientId') clientId: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('sessionId') sessionId?: string,
   ) {
     return this.recaps.list(ctx, clientId, {
       cursor: cursor || undefined,
       limit: positiveInt(limit, 25),
+      sessionId: sessionId || undefined,
     });
   }
 

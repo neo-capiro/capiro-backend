@@ -99,7 +99,7 @@ function renderBills(scope: string, initialEntry = '/legiwatch?tab=bills') {
 }
 
 describe('PR C §15 — Bills All-clients = real tenant roll-up', () => {
-  it('restores a saved view from URL controls and passes server filters to the board', async () => {
+  it('restores URL controls (deep link) and passes server filters to the board', async () => {
     renderBills('', '/legiwatch?tab=bills&billView=table&billChanged7=1&billActive=1&billSort=relevance');
     await screen.findByText('H.R. 9001');
     expect(screen.getByRole('tab', { name: 'Table' }).getAttribute('aria-selected')).toBe('true');

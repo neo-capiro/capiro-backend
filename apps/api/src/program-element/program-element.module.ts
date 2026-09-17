@@ -28,6 +28,13 @@ import {
 } from '../defense-budget/promotion/slo-metrics-v1.js';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
+// Canonical procurement lines (P-1 BLINs with no PE parent) — read-only HTTP
+// surface + the env-gated writer. Lives beside the PE module because it is the
+// procurement analogue of ProgramElement*/ProgramElementSource; it never
+// touches a program_element table.
+import { ProcurementLineController } from '../defense-budget/procurement/procurement-line.controller.js';
+import { ProcurementLineReadService } from '../defense-budget/procurement/procurement-line-read.service.js';
+import { ProcurementLineWriterService } from '../defense-budget/procurement/procurement-line-writer.service.js';
 
 // Step 2.3 — the delta writer (DeltaEngineService) and the needs-attention read path
 // (ProgramElementReadService) inject ClientPeRelevanceService, exported by IntelligenceModule.
@@ -35,11 +42,18 @@ import type { AppConfig } from '../config/config.schema.js';
 // one-directional import — no forwardRef / circular dependency is needed.
 @Module({
   imports: [IntelligenceModule],
-  controllers: [ProgramElementController, BudgetLinesController, ProgramsController],
+  controllers: [
+    ProgramElementController,
+    BudgetLinesController,
+    ProgramsController,
+    ProcurementLineController,
+  ],
   providers: [
     BudgetLinesReadService,
     ProgramElementReadService,
     ProgramElementWriterService,
+    ProcurementLineReadService,
+    ProcurementLineWriterService,
     ConferenceProbabilityService,
     ProgramElementMetricsService,
     ReconciliationService,

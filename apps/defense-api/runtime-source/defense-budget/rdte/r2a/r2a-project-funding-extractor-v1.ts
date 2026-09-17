@@ -41,7 +41,12 @@ import type { MoneyUnitV1 } from '../../contracts/decimal-string.js';
 import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
-import type { RdteColumnRoleV1, RdteValueDispositionV1 } from '../rdte-column-role-v1.js';
+import {
+  isNonAnnualCostRole,
+  isNonNumericNonAnnualMarker,
+  type RdteColumnRoleV1,
+  type RdteValueDispositionV1,
+} from '../rdte-column-role-v1.js';
 import { isValidR2aProjectCode } from './r2a-project-section-extractor.js';
 import type { R2aProjectPageGroup } from './r2a-project-extractor-v1.js';
 
@@ -483,6 +488,22 @@ export function extractR2aProjectFunding(input: {
             continue;
           }
 
+          /* "Continuing" on a cost-to-complete/total-cost cell is a real,
+           * intentional Army R-2A convention -- not an extraction defect.
+           * Confirmed on the real FY2024 Army RDT&E Vol 1 BA2 document: PE
+           * 0602141A / Project AH7's own Exhibit R-2A page prints
+           * "Continuing" for both its Cost To Complete and Total Cost
+           * cells. Shared with r2-cost-table-extractor-v1.ts via
+           * rdte-column-role-v1.ts -- see that module for the full
+           * evidence and the exact variants tolerated. The cheap role
+           * check runs first so the regex/cleanup only ever runs on the
+           * small, highly-selective set of cost-to-complete/total-cost
+           * cells. */
+          const isNonAnnualCost = isNonAnnualCostRole(classification.role);
+          if (isNonAnnualCost && isNonNumericNonAnnualMarker(text)) {
+            continue;
+          }
+
           if (!NUMBER_RE.test(text)) {
             omissions.push({
               parentPeCode,
@@ -527,8 +548,15 @@ export function extractR2aProjectFunding(input: {
           }
 
           const fiscalYear = classification.fiscalYear;
-          const isNonAnnual =
-            classification.role === 'cost_to_complete' || classification.role === 'total_cost';
+          /* A `prior_actual_context` classification with no fiscal year can
+           * only come from the "Prior Years" cumulative-column label (see
+           * rdte-header-normalizer.ts / rdte-column-classifier.ts) -- every
+           * OTHER path to this role always carries an explicit fiscalYear.
+           * Folded into `isNonAnnualCost` (already computed above) so a
+           * real "Prior Years" column on an R-2A project page is never
+           * flagged `missing_fiscal_year` any more than it is on an R-2
+           * PE-summary page. */
+          const isNonAnnual = isNonAnnualCost || classification.role === 'prior_actual_context';
           if (fiscalYear == null && !isNonAnnual) {
             omissions.push({
               parentPeCode,

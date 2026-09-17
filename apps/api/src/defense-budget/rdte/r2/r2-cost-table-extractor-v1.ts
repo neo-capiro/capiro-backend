@@ -36,7 +36,12 @@ import type { MoneyUnitV1 } from '../../contracts/decimal-string.js';
 import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
-import type { RdteColumnRoleV1, RdteValueDispositionV1 } from '../rdte-column-role-v1.js';
+import {
+  isNonAnnualCostRole,
+  isNonNumericNonAnnualMarker,
+  type RdteColumnRoleV1,
+  type RdteValueDispositionV1,
+} from '../rdte-column-role-v1.js';
 
 /* ------------------------------------------------------------------ */
 /* Segmented PE context (owned by WS E)                                 */
@@ -167,6 +172,10 @@ interface R2DetectedTable {
 }
 
 const NUMBER_RE = /^-?[\d,]+(?:\.\d+)?$/;
+/* "Continuing" cost-to-complete/total-cost marker: see
+ * `NON_NUMERIC_NON_ANNUAL_MARKER_RE` / `isNonNumericNonAnnualMarker` in
+ * rdte-column-role-v1.ts (the shared seam every RDT&E semantic extractor
+ * uses) for the real-document evidence and the exact variants tolerated. */
 const PE_TOTAL_RE = /^\s*total\s+program\s+element\b/i;
 const BASE_ROW_RE = /^\s*(?:base|base\s+budget|base\s+request)\s*$/i;
 const OCO_ROW_RE = /^\s*(?:oco|overseas\s+contingency|overseas\s+contingency\s+operations)\s*$/i;
@@ -523,6 +532,23 @@ export function extractR2PeFunding(input: {
             continue;
           }
 
+          /* "Continuing" on a cost-to-complete/total-cost cell is a real,
+           * intentional Army R-2 convention (no discrete figure exists for a
+           * program with no defined completion date) -- not an extraction
+           * defect. Preserved as neither a value nor an omission, the same
+           * way a bare "-"/em-dash placeholder is already handled above.
+           * Deliberately scoped to these two non-annual roles only: the
+           * identical text in an FY-bearing (annual) column is still a
+           * genuine `invalid_number` -- a real appropriation figure is never
+           * legitimately "Continuing". The cheap role check is evaluated
+           * FIRST so the regex/cleanup only ever runs on the small,
+           * highly-selective set of cost-to-complete/total-cost cells,
+           * instead of against every populated classified cell on the page. */
+          const isNonAnnualCost = isNonAnnualCostRole(classification.role);
+          if (isNonAnnualCost && isNonNumericNonAnnualMarker(text)) {
+            continue;
+          }
+
           if (!NUMBER_RE.test(text)) {
             omissions.push({
               peCode: peContext.peCode,
@@ -564,8 +590,17 @@ export function extractR2PeFunding(input: {
           }
 
           const fiscalYear = classification.fiscalYear;
+          /* A `prior_actual_context` classification with no fiscal year can
+           * only come from the "Prior Years" cumulative-column label (see
+           * rdte-column-classifier.ts) -- every OTHER path to this role
+           * (PY_RE, or a bare year relative to the cycle FY) always carries
+           * an explicit fiscalYear, so this narrow exemption (folded into
+           * the shared `isNonAnnualFiscalYearRole`, reusing the
+           * `isNonAnnualCost` role check already computed above) can never
+           * mask a genuine missing-fiscal-year defect on a real single-year
+           * "actual" column. */
           const isNonAnnual =
-            classification.role === 'cost_to_complete' || classification.role === 'total_cost';
+            isNonAnnualCost || classification.role === 'prior_actual_context';
           if (fiscalYear == null && !isNonAnnual) {
             omissions.push({
               peCode: peContext.peCode,

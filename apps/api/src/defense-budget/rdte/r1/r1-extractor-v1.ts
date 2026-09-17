@@ -23,7 +23,11 @@ import type { BudgetComponentV1 } from '../../contracts/extraction-artifact-v1.j
 import { classifyRdteColumn } from '../rdte-column-classifier.js';
 import { normalizeRdteHeader, type RawHeaderRowV1 } from '../rdte-header-normalizer.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
-import { type RdteColumnRoleV1, type RdteValueDispositionV1 } from '../rdte-column-role-v1.js';
+import {
+  isNonAnnualFiscalYearRole,
+  type RdteColumnRoleV1,
+  type RdteValueDispositionV1,
+} from '../rdte-column-role-v1.js';
 import { detectR1TablesOnPage } from './r1-table-detector.js';
 import type { R1RowContextV1 } from './r1-text-row-reconstructor-v1.js';
 
@@ -113,6 +117,25 @@ export interface R1ExtractionResult {
 /* ------------------------------------------------------------------ */
 
 const NUMBER_RE = /^-?[\d,]+(?:\.\d+)?$/;
+/*
+ * Deliberately NO "Continuing" non-numeric-cell exemption here (contrast
+ * r2-cost-table-extractor-v1.ts / r2a-project-funding-extractor-v1.ts,
+ * which both recognize it via `isNonNumericNonAnnualMarker`). Checked
+ * against real evidence, not assumed: the repo's own real captured FY2024
+ * President's Budget Exhibit R-1 fixture
+ * (rdte/cycle/__fixtures__/production-fy2024-r1-lineage-only-artifact.json,
+ * ~114 real OCR page excerpts) contains zero occurrences of "Continuing",
+ * "Cost To Complete", "Total Cost", or "Prior Year(s)" anywhere -- the real
+ * Exhibit R-1 (Comptroller "Total Obligational Authority" rollup) prints
+ * only Line/PE/Title/Act columns plus plain FY actual/enacted/request
+ * columns, never a cost-to-complete/total-cost/prior-years column at all.
+ * (The real FY2024 Army BA2 source PDF used for this repair's own
+ * verification prints its own "Comptroller Exhibit R-1" as a scanned image
+ * with no extractable text layer, so it could not independently confirm
+ * this; the production fixture above is the real evidence relied on.) Do
+ * not add this exemption to R-1 without first finding a real R-1 document
+ * that actually prints it.
+ */
 
 export function extractR1FromPages(input: {
   pages: readonly ParserPageResultV1[];
@@ -309,8 +332,15 @@ export function extractR1FromPages(input: {
           }
 
           const fiscalYear = classification.fiscalYear;
-          const isNonAnnual =
-            classification.role === 'cost_to_complete' || classification.role === 'total_cost';
+          /* Uses the shared `isNonAnnualFiscalYearRole` (also covers a
+           * `prior_actual_context` "Prior Years" cumulative column with no
+           * single fiscal year) purely for cross-module consistency with
+           * R-2/R-2A -- real R-1 pages are not expected to ever reach the
+           * `prior_actual_context` branch of it (see the NUMBER_RE comment
+           * above), so this is inert on real documents today, but keeps R-1
+           * from silently drifting out of sync with the shared classifier
+           * if that ever changes. */
+          const isNonAnnual = isNonAnnualFiscalYearRole(classification.role);
           if (fiscalYear == null && !isNonAnnual) {
             omissions.push({
               peCode: peRow.peCode,

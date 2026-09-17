@@ -77,11 +77,18 @@ function mount(
   entry = '/legiwatch?tab=bills&folder=' + folder.id,
   clients: Array<{ id: string; name: string }> = [],
 ) {
+  const locationRef = { search: entry.slice(entry.indexOf('?')) };
+  const Probe = () => {
+    locationRef.search = useLocation().search;
+    return null;
+  };
   return {
     qc,
+    locationRef,
     ...render(
       <QueryClientProvider client={qc}>
         <MemoryRouter initialEntries={[entry]}>
+          <Probe />
           <FolderBillsTab scope={scope} clients={clients as Client[]} />
         </MemoryRouter>
       </QueryClientProvider>,
@@ -202,15 +209,138 @@ test('client lens selects its own folder and canonical search can discover unass
       params: expect.objectContaining({ folderId: scoped.id, clientId: 'client-b' }),
     }),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Find bills' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Search all bills' }));
   await screen.findByRole('button', { name: 'HB 2' });
   const call = mocks.get.mock.calls.find(([url]) => url.endsWith('/search'));
-  expect(call![1].params).toMatchObject({
-    folderId: scoped.id,
-    jurisdiction: 'FL',
-    sessionKey: '2099',
-  });
+  // Global corpus search is public: private folder/client context must never
+  // be sent; the jurisdiction/session that scoped the board stay as explicit
+  // corpus filters the user can widen or clear.
+  // Default global corpus search spans every ingested jurisdiction/session;
+  // the user narrows via the dynamic corpus-metadata dropdowns.
+  expect(call![1].params).not.toHaveProperty('jurisdiction');
+  expect(call![1].params).not.toHaveProperty('sessionKey');
   expect(call![1].params).not.toHaveProperty('clientId');
+  expect(call![1].params).not.toHaveProperty('folderId');
+});
+
+test('global search table aligns Jurisdiction/Session/Sponsor cells with headers', async () => {
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/sessions/FL')) return { data: [{ key: '2099', label: '2099 Regular' }] };
+    if (url.endsWith('/folders')) return { data: [folder] };
+    if (url.endsWith('/search'))
+      return {
+        data: {
+          rows: [
+            {
+              ...row,
+              assignmentId: null,
+              number: 'HB 9',
+              title: 'Corpus bill',
+              sponsor: 'Sponsor Z',
+              jurisdiction: 'GA',
+              sessionKey: '2097xA',
+            },
+          ],
+          total: 1,
+          nextCursor: null,
+        },
+      };
+    if (url.endsWith('/board')) return { data: { rows: [row], total: 1, nextCursor: null } };
+    throw new Error('Unexpected request ' + url);
+  });
+  mount(undefined, '', '/legiwatch?tab=bills&folder=' + folder.id + '&folderSearch=1&folderQ=corpus');
+  await screen.findByRole('button', { name: 'HB 9' });
+  const table = screen.getByRole('table', { name: 'Folder bill table' });
+  const headers = within(table)
+    .getAllByRole('columnheader')
+    .filter((h) => !h.closest('[hidden]') && !(h as HTMLTableCellElement).hidden)
+    .map((h) => h.textContent);
+  const dataCells = within(table)
+    .getAllByRole('cell')
+    .filter((c) => !c.closest('[hidden]') && !(c as HTMLTableCellElement).hidden);
+  const ji = headers.indexOf('Jurisdiction');
+  const si = headers.indexOf('Session');
+  const spi = headers.indexOf('Sponsor');
+  expect(ji).toBeGreaterThan(-1);
+  expect(si).toBe(ji + 1);
+  expect(spi).toBe(si + 1);
+  // The row's visible cells line up under those headers in the same order.
+  expect(dataCells[ji]!.textContent).toBe('GA');
+  expect(dataCells[si]!.textContent).toBe('2097xA');
+  expect(dataCells[spi]!.textContent).toBe('Sponsor Z');
+});
+
+test('picking a folder from the rail exits global corpus search entirely', async () => {
+  const scoped = {
+    ...folder,
+    id: '00000000-0000-4000-8000-000000000007',
+    name: 'Other folder',
+  };
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/sessions/FL')) return { data: [{ key: '2099', label: '2099 Regular' }] };
+    if (url.endsWith('/folders')) return { data: [folder, scoped] };
+    if (url.endsWith('/search')) return { data: { rows: [], total: 0, nextCursor: null } };
+    if (url.endsWith('/board')) return { data: { rows: [row], total: 1, nextCursor: null } };
+    throw new Error('Unexpected request ' + url);
+  });
+  // Mount in a live corpus-search URL state (query + scope triggers set).
+  const { locationRef } = mount(
+    undefined,
+    '',
+    '/legiwatch?tab=bills&folder=' +
+      folder.id +
+      '&folderSearch=1&folderQ=corpus&folderJurisdiction=all&folderSessionSearch=2099',
+  );
+  await screen.findByRole('heading', { name: 'All ingested bills' });
+  // The rail lists the folders that do NOT match the active scope search; the
+  // other folder is reachable via the Find folder filter.
+  fireEvent.change(screen.getByLabelText('Find folder'), { target: { value: 'Other' } });
+  fireEvent.click(await screen.findByRole('button', { name: /Other folder/ }));
+  await waitFor(() => {
+    const p = new URLSearchParams(locationRef.search);
+    expect(p.get('folder')).toBe(scoped.id);
+    // Every corpus-search trigger is cleared — the folder board returns.
+    expect(p.get('folderSearch')).toBeNull();
+    expect(p.get('folderQ')).toBeNull();
+    expect(p.get('folderJurisdiction')).toBeNull();
+    expect(p.get('folderSessionSearch')).toBeNull();
+  });
+  await waitFor(() => {
+    const call = lastCall(mocks.get.mock.calls, '/board');
+    expect(call).toBeTruthy();
+    expect(call![1].params).toMatchObject({ folderId: scoped.id });
+  });
+});
+
+test('All folder assignments exits global corpus search entirely', async () => {
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/sessions/FL')) return { data: [{ key: '2099', label: '2099 Regular' }] };
+    if (url.endsWith('/folders')) return { data: [folder] };
+    if (url.endsWith('/search')) return { data: { rows: [], total: 0, nextCursor: null } };
+    if (url.endsWith('/board')) return { data: { rows: [row], total: 1, nextCursor: null } };
+    throw new Error('Unexpected request ' + url);
+  });
+  const { locationRef } = mount(
+    undefined,
+    '',
+    '/legiwatch?tab=bills&folder=' + folder.id + '&folderSearch=1&folderQ=corpus&folderJurisdiction=all',
+  );
+  await screen.findByRole('heading', { name: 'All ingested bills' });
+  fireEvent.click(screen.getByRole('button', { name: 'All folder assignments' }));
+  await waitFor(() => {
+    const p = new URLSearchParams(locationRef.search);
+    expect(p.get('folderAll')).toBe('1');
+    expect(p.get('folder')).toBeNull();
+    expect(p.get('folderSearch')).toBeNull();
+    expect(p.get('folderQ')).toBeNull();
+    expect(p.get('folderJurisdiction')).toBeNull();
+    expect(p.get('folderSessionSearch')).toBeNull();
+  });
+  await waitFor(() => {
+    const call = lastCall(mocks.get.mock.calls, '/board');
+    expect(call).toBeTruthy();
+    expect(call![1].params).not.toHaveProperty('folderId');
+  });
 });
 
 test('copy selected posts the exact canonical bill ids to chosen targets and retains originals', async () => {
@@ -682,7 +812,7 @@ test('daily activity passes the chamber filter from the board filters', async ()
   });
 });
 
-test('daily activity restores kind and pinned date from the URL (saved-view navigation)', async () => {
+test('daily activity restores kind and pinned date from the URL (deep-link navigation)', async () => {
   const original = mocks.get.getMockImplementation()!;
   mocks.get.mockImplementation(async (url: string, ...args: unknown[]) => {
     if (url.endsWith('/activities'))
@@ -987,7 +1117,9 @@ test('search mode + daily activity means the whole-session feed, and Find bills 
     expect(call![1].params).not.toHaveProperty('onlyTracked');
     expect(call![1].params).not.toHaveProperty('clientId');
   });
-  expect(screen.getByText(/Daily original-record activity · Whole session/)).toBeTruthy();
+  // Heading shows the selected folder as the activity scope; the whole-session
+  // contract is asserted on the /activities request params above.
+  expect(screen.getByText(/Daily original-record activity · Synthetic folder/)).toBeTruthy();
   // Find bills / Back to folder exits daily mode into the real search table.
   fireEvent.click(screen.getByRole('button', { name: 'Back to folder' }));
   await waitFor(() => {

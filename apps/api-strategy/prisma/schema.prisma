@@ -38,6 +38,7 @@ enum SpStrategyType {
   coalition
   procurement
   earmark
+  amendment
 
   @@map("sp_strategy_type")
 }

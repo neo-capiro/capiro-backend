@@ -111,6 +111,17 @@ export class CalendarQueryDto {
   @IsIn(['scheduled', 'unscheduled'])
   followState?: 'scheduled' | 'unscheduled';
 
+  /**
+   * Whitelisted sort direction on the canonical date/startsAt key. Default
+   * `asc` (chronological) is the calendar's long-standing contract and drives
+   * export semantics; `desc` exists for explicit "latest first" lookups (the
+   * Florida empty-week "view latest" action) and is bounded by the same
+   * pageSize cap — it never widens the selection.
+   */
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sort?: 'asc' | 'desc';
+
   @IsOptional()
   @IsString()
   q?: string;
@@ -311,6 +322,7 @@ function normalizeCalendarQuery(query: CalendarQueryDto) {
     streamState: query.streamState,
     captureState: query.captureState ?? legacyCaptureState,
     followState: query.followState ?? legacyFollowState,
+    sort: query.sort,
     q: query.q ?? query.search,
     page: query.page ?? (Number.isFinite(cursorPage) && cursorPage! > 0 ? cursorPage : undefined),
     pageSize: query.pageSize ?? query.limit,

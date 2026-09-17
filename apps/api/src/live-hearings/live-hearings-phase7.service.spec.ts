@@ -82,7 +82,11 @@ describe('Live Hearings Phase 7 pure contracts', () => {
     expect(decodeTranscriptCursor()).toBeNull();
   });
 
-  it('attaches to an existing canonical capture rather than starting a second browser transcript', () => {
+  it('explicit browser join returns BROWSER_CAPTURE with provenance even while the canonical capture is active', () => {
+    // An explicit user request to open a private browser context is INDEPENDENT
+    // of the server recorder: an active/complete canonical capture must not
+    // refuse it. The plan still carries the canonical capture id/status so the
+    // UI can show "Capiro is capturing" alongside.
     const plan = browserJoinPlan(publicHearing as never, {
       id: 'capture-1',
       status: 'CAPTURING',
@@ -104,24 +108,66 @@ describe('Live Hearings Phase 7 pure contracts', () => {
       lastOutcomeAt: null,
     });
     expect(plan).toMatchObject({
-      mode: 'ATTACH_CANONICAL',
-      captureId: 'capture-1',
-      reasonCode: 'CANONICAL_CAPTURE_ACTIVE',
+      mode: 'BROWSER_CAPTURE',
+      canonicalCaptureId: 'capture-1',
+      canonicalCaptureStatus: 'CAPTURING',
     });
   });
 
-  it('uses only the official page for browser-assisted fallback', () => {
-    expect(browserJoinPlan(publicHearing as never, null)).toEqual(
+  it('prefers a discovered official player page over the Congress.gov listing (FBI case)', () => {
+    const fbiHearing = {
+      ...publicHearing,
+      id: 'cm-119-338740',
+      title: 'Oversight of the Federal Bureau of Investigation',
+      url: 'https://www.congress.gov/event/119th-congress/senate-event/338740',
+    };
+    const plan = browserJoinPlan(fbiHearing as never, null, [
+      {
+        provider: 'senate-isvp',
+        officialPageUrl: 'https://www.senate.gov/isvp/?comm=judiciary&filename=judiciary091526',
+        mediaUrl: null,
+        capturePolicy: 'REVIEW_REQUIRED',
+      },
+    ]);
+    expect(plan).toMatchObject({
+      mode: 'BROWSER_CAPTURE',
+      sourceUrl: 'https://www.senate.gov/isvp/?comm=judiciary&filename=judiciary091526',
+      sourceKind: 'official_player_page',
+      sourceProvider: 'senate-isvp',
+      requiresStreamResolution: false,
+    });
+  });
+
+  it('falls back to the official listing page only when no candidate page exists', () => {
+    expect(browserJoinPlan(publicHearing as never, null, [])).toEqual(
       expect.objectContaining({
         mode: 'BROWSER_CAPTURE',
         sourceUrl: 'https://armedservices.house.gov/hearings/example',
+        sourceKind: 'official_listing_page',
+        requiresStreamResolution: true,
         audioSource: 'browser_mic',
         recordingPolicy: 'transcript_only',
       }),
     );
     expect(
-      browserJoinPlan({ ...publicHearing, url: null } as never, null),
+      browserJoinPlan({ ...publicHearing, url: null } as never, null, []),
     ).toMatchObject({ mode: 'BLOCKED', reasonCode: 'OFFICIAL_PAGE_UNAVAILABLE' });
+  });
+
+  it('still offers browser replay for a public completed hearing with a source', () => {
+    const plan = browserJoinPlan(
+      { ...publicHearing, eventStatus: 'completed' } as never,
+      null,
+      [
+        {
+          provider: 'house-live',
+          officialPageUrl: 'https://armedservices.house.gov/hearings/example',
+          mediaUrl: null,
+          capturePolicy: 'SERVER_CAPTURE_ALLOWED',
+        },
+      ],
+    );
+    expect(plan).toMatchObject({ mode: 'BROWSER_CAPTURE' });
   });
 
   it('blocks a non-public hearing even when its earlier public capture still exists', () => {

@@ -237,6 +237,69 @@ describe('verifyPlan', () => {
  * above; each case re-verifies the repaired output to prove the fix actually
  * clears the violation it was repairing, not just that dates moved.
  */
+describe('verifyPlan — amendment type checks (guard-clause pattern)', () => {
+  const amendment = (nodes: VerifierNode[], extra?: Partial<VerifyPlanInput>) =>
+    input(nodes, { strategyType: 'amendment', ...extra });
+
+  const offsetGate = N({ id: 'offset', kind: 'gate', subject: 'ask', title: 'Offset identified and screened', startsOn: '2027-06-10' });
+  const filing = (deps: string[]) =>
+    N({
+      id: 'file',
+      subject: 'submission',
+      title: 'File the floor amendment to the FY27 Defense Appropriations Act for the $3.0M increase',
+      startsOn: '2027-06-20',
+      dependsOnIds: deps,
+    });
+
+  it('warns when no submission names a legislative vehicle', () => {
+    const c = codes(amendment([N({ id: 'a', subject: 'submission', title: 'Send the request letter' })]));
+    expect(c).toContain('amendment-no-vehicle');
+  });
+
+  it('passes a vehicle-named filing that is gated on an offset gate', () => {
+    const r = verifyPlan(amendment([offsetGate, filing(['offset'])]));
+    expect(r.violations.map((v) => v.code)).not.toContain('amendment-no-vehicle');
+    expect(r.violations.map((v) => v.code)).not.toContain('amendment-offset-not-gated');
+    expect(r.errorCount).toBe(0);
+  });
+
+  it('warns when a funding-ask filing is not gated on an offset gate (and names the step)', () => {
+    const r = verifyPlan(amendment([offsetGate, filing([])]));
+    const v = r.violations.find((x) => x.code === 'amendment-offset-not-gated');
+    expect(v).toBeDefined();
+    expect(v!.severity).toBe('warning');
+    expect(v!.nodeIds).toEqual(['file']);
+    expect(v!.message).toMatch(/offset gate exists/);
+  });
+
+  it('does not require an offset for a report-language-only ask (no dollars anywhere)', () => {
+    const c = codes(
+      amendment([
+        N({ id: 'a', subject: 'submission', title: 'File the report-language amendment for the managers\' package', startsOn: '2027-06-20' }),
+      ]),
+    );
+    expect(c).not.toContain('amendment-offset-not-gated');
+    expect(c).not.toContain('amendment-no-vehicle');
+  });
+
+  it('reads the funding signal from the objective when node titles carry none', () => {
+    const c = codes(
+      amendment(
+        [N({ id: 'a', subject: 'submission', title: 'File the floor amendment when the window opens', startsOn: '2027-06-20' })],
+        { objective: 'Secure a $2.5M plus-up to the line' },
+      ),
+    );
+    expect(c).toContain('amendment-offset-not-gated');
+  });
+
+  it('never emits amendment codes for other strategy types', () => {
+    for (const strategyType of ['appropriations', 'authorization', 'earmark']) {
+      const c = codes(input([N({ id: 'a', subject: 'submission', title: 'File the $1M increase request' })], { strategyType }));
+      expect(c.filter((code) => code.startsWith('amendment-'))).toEqual([]);
+    }
+  });
+});
+
 describe('repairDependencyOrder', () => {
   it('retimes a step that starts before the step it depends on starts (§9.5)', () => {
     const nodes = [

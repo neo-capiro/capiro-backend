@@ -24,12 +24,19 @@ export class LegislativeCalendarRepository {
     externalEventId: string,
     observation: LegislativeObservation,
     now: Date,
+    canonicalHearingId: string | null = null,
   ): Promise<ReconcileOutcome> {
     validateCalendarObservation(observation);
     if (!externalEventId.trim()) throw new Error('Missing upstream event identity');
     return this.prisma.$transaction(
       async (tx) => {
-        const candidateId = legislativeEventId(observation);
+        // A strong-proof canonical attachment (exact publisher page / shared
+        // media entry, resolved by the Florida adapters BEFORE reconcile) is
+        // the only override of the derived candidate id. The target row is
+        // still validated below against jurisdiction/chamber/session/body, so
+        // a wrong attachment fails loudly instead of merging two proceedings.
+        // NO network runs here: this transaction must stay bounded.
+        const candidateId = canonicalHearingId ?? legislativeEventId(observation);
         // The source's qualified notice identity survives later resolution of an
         // initially unknown session/body and is shared by providers citing it.
         const identityLock = `${observation.jurisdiction}:${observation.officialIdentity}`;
@@ -64,12 +71,39 @@ export class LegislativeCalendarRepository {
         if (linkedIds.length > 1)
           throw new Error('Official notice has conflicting canonical identities');
         const id = priorObservation?.hearingId ?? linkedIds[0] ?? candidateId;
-        if (id !== candidateId)
+        // Narrow attach-consistency guard: when the caller supplies a strong-
+        // proof canonical id but this source's OWN observation ledger (or the
+        // official-identity alias) already resolves the event to a DIFFERENT
+        // row, the mapping is conflicting — reject before any mutation rather
+        // than lock the canonical target and mutate another id.
+        if (canonicalHearingId !== null && id !== canonicalHearingId)
+          throw new Error(
+            `Conflicting canonical mapping: observation ledger resolves ${id}, proof supplied ${canonicalHearingId}`,
+          );
+        // An explicit canonical attachment (strong proof resolved BEFORE
+        // reconcile) MUST serialize against every other source attaching the
+        // same target, even when the override made id === candidateId (the
+        // identity lock above is per source identity and cannot cover it).
+        if (canonicalHearingId !== null) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${canonicalHearingId}, 0))`;
+        } else if (id !== candidateId) {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
+        }
         const existing = await tx.committeeHearing.findUnique({ where: { id } });
         const qualifiedBodyRefinement =
           existing?.bodySourceKey?.includes('unresolved-body') && observation.stateCommitteeId;
         const unresolvedBody = observation.bodySourceKey.includes('unresolved-body');
+        // Narrow FL archive bridge: a TFC archive observation (fl:{ch}:tfc:*)
+        // and a chamber notice's official roster key NEVER match, and only a
+        // proven cross-source attachment (canonicalHearingId = the proof) may
+        // span them. The mismatch is permitted ONLY when the existing or
+        // incoming body is the archive bridge — never arbitrary
+        // notice→notice. Geography, chamber and session are never relaxed.
+        const TFC_BODY = /^fl:(?:house|senate|joint):tfc:/;
+        const archiveBridge =
+          TFC_BODY.test(existing?.bodySourceKey ?? '') || TFC_BODY.test(observation.bodySourceKey);
+        const provenAttachment =
+          canonicalHearingId !== null && existing?.id === canonicalHearingId && archiveBridge;
         if (
           existing &&
           (existing.geographicJurisdiction !== observation.jurisdiction ||
@@ -79,7 +113,8 @@ export class LegislativeCalendarRepository {
               existing.legislativeSession !== observation.session) ||
             (existing.bodySourceKey !== observation.bodySourceKey &&
               !qualifiedBodyRefinement &&
-              !unresolvedBody))
+              !unresolvedBody &&
+              !provenAttachment))
         )
           throw new Error(
             'Source mapping conflicts with canonical geographic/session/body identity',
@@ -127,12 +162,30 @@ export class LegislativeCalendarRepository {
         const projectedColumns = {
           geographicJurisdiction: observation.jurisdiction,
           legislativeSession: observation.session ?? existing?.legislativeSession ?? null,
+          // Body/roster identity projection, exactly one of:
+          //  • unresolved incoming body → keep the existing (possibly refined) key.
+          //  • original qualifiedBodyRefinement (existing unresolved + incoming
+          //    mapped committee) → take the incoming roster key. Unchanged.
+          //  • proven archive bridge: archive→notice UPGRADES the TFC key to
+          //    the official roster key; notice→archive reimport PRESERVES the
+          //    qualified key and its committee name (a later archive run must
+          //    never revert qualified canonical metadata).
+          //  • everything else: keys matched above — take the incoming value.
           bodySourceKey: unresolvedBody
             ? (existing?.bodySourceKey ?? observation.bodySourceKey)
-            : observation.bodySourceKey,
+            : qualifiedBodyRefinement
+              ? observation.bodySourceKey
+              : provenAttachment
+                ? TFC_BODY.test(observation.bodySourceKey)
+                  ? (existing?.bodySourceKey ?? observation.bodySourceKey)
+                  : observation.bodySourceKey
+                : observation.bodySourceKey,
           stateCommitteeId: observation.stateCommitteeId ?? existing?.stateCommitteeId ?? null,
           chamber: displayChamber(observation.chamber),
-          committeeName: observation.bodyName,
+          committeeName:
+            provenAttachment && TFC_BODY.test(observation.bodySourceKey) && existing
+              ? existing.committeeName
+              : observation.bodyName,
           title: facts.title ?? observation.bodyName,
           type: observation.eventType,
           date: new Date(`${facts.time.date}T00:00:00Z`),

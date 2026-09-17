@@ -69,6 +69,13 @@ export type Phase7BrowserJoinPlan =
       audioSource: 'browser_mic';
       recordingPolicy: 'transcript_only';
       sourceUrl: string;
+      /** What kind of official page sourceUrl points at. `official_listing_page`
+       *  (e.g. a Congress.gov event listing) carries no playable media — the UI
+       *  shows "open the official page and start the player" guidance instead of
+       *  an embed/autoplay attempt. Never construct player URLs in the UI. */
+      sourceKind?: 'media' | 'official_player_page' | 'official_listing_page';
+      /** The discovered-source provider when a stream candidate was used. */
+      sourceProvider?: string | null;
       committeeId?: string;
       reasonCode: string;
     }
@@ -263,6 +270,7 @@ function normalizeBrowserPlan(value: unknown, hearingId: string): Phase7BrowserJ
     };
   }
   if (mode === 'BROWSER_CAPTURE') {
+    const kind = stringValue(row.sourceKind);
     return {
       mode,
       hearingId: stringValue(row.hearingId) ?? hearingId,
@@ -271,6 +279,11 @@ function normalizeBrowserPlan(value: unknown, hearingId: string): Phase7BrowserJ
       audioSource: 'browser_mic',
       recordingPolicy: 'transcript_only',
       sourceUrl: stringValue(row.sourceUrl) ?? '',
+      sourceKind:
+        kind === 'media' || kind === 'official_player_page' || kind === 'official_listing_page'
+          ? kind
+          : undefined,
+      sourceProvider: stringValue(row.sourceProvider) ?? null,
       committeeId: stringValue(row.committeeId),
       reasonCode: stringValue(row.reasonCode) ?? 'BROWSER_ASSISTED_FALLBACK_AVAILABLE',
     };

@@ -84,6 +84,8 @@ export const ALLOWED_HOST_SUFFIXES: readonly string[] = Object.freeze([
   'akamaihd.net',
   'api.congress.gov',
   'docs.house.gov',
+  'flhouse.gov',
+  'flsenate.gov',
 ]);
 
 /**
@@ -132,6 +134,14 @@ export interface NetGuardOptions {
   maxRedirects?: number;
   /** Per-request timeout in ms (default 10_000). */
   timeoutMs?: number;
+  /**
+   * Optional ABSOLUTE deadline (epoch ms) spanning the WHOLE request —
+   * redirects and the response read included. Each hop's effective timeout is
+   * `min(timeoutMs, deadline - now)`; when the deadline is reached the fetch
+   * throws instead of starting another hop. Default behavior (per-hop
+   * timeoutMs only) is unchanged when unset.
+   */
+  deadlineAt?: number;
   /** Max response bytes to buffer for text fetches (default 5 MiB). */
   maxBytes?: number;
   /**
@@ -268,9 +278,23 @@ export async function guardedFetchText(
 
   let current = rawUrl;
   for (let hop = 0; hop <= maxRedirects; hop++) {
+    // An absolute deadline (when supplied) spans every hop + the body read.
+    // Check it BEFORE any work and again AFTER the allowlist/DNS step (DNS
+    // can spend the remaining budget) so an expired deadline never starts a
+    // fetch — not even a 1ms one.
+    if (opts.deadlineAt !== undefined && Date.now() >= opts.deadlineAt) {
+      throw new SsrfError(`Deadline exceeded before fetching ${rawUrl}`);
+    }
     const validated = await assertUrlAllowed(current, opts);
+    if (opts.deadlineAt !== undefined && Date.now() >= opts.deadlineAt) {
+      throw new SsrfError(`Deadline exceeded before fetching ${rawUrl}`);
+    }
+    const hopTimeout =
+      opts.deadlineAt === undefined
+        ? timeoutMs
+        : Math.max(1, Math.min(timeoutMs, opts.deadlineAt - Date.now()));
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), hopTimeout);
     try {
       const res = await fetch(validated, {
         method: 'GET',
@@ -282,6 +306,9 @@ export async function guardedFetchText(
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get('location');
         if (!loc) return { status: res.status, url: validated.toString(), text: '' };
+        if (opts.deadlineAt !== undefined && Date.now() >= opts.deadlineAt) {
+          throw new SsrfError(`Deadline exceeded following redirect for ${rawUrl}`);
+        }
         current = new URL(loc, validated).toString();
         continue;
       }

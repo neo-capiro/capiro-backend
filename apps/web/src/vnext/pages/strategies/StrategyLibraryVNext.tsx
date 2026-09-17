@@ -47,6 +47,7 @@ export const TYPE_LABEL: Record<string, string> = {
   coalition: 'Coalition',
   procurement: 'Contract / Procurement',
   earmark: 'Earmark',
+  amendment: 'Amendment ask',
 };
 
 import { strategyRelativeTime } from './lib/date-format.js';

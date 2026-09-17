@@ -11,6 +11,11 @@ import { LiveHearingsService } from './live-hearings.service.js';
 import { assessStrictSchedulePolicy } from './live-hearings-phase7-schedule.guard.js';
 import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 
+import {
+  selectBrowserSource,
+  type BrowserSourceCandidate,
+} from './live-hearings-browser-source.js';
+
 const TRANSCRIPT_MAX_PAGE_SIZE = 500;
 const LIST_MAX_PAGE_SIZE = 100;
 const DOCUMENT_UPDATE_TYPES = new Set([
@@ -189,8 +194,15 @@ export type BrowserJoinPlan =
       audioSource: 'browser_mic';
       recordingPolicy: 'transcript_only';
       sourceUrl: string;
+      sourceKind: 'official_player_page' | 'official_listing_page';
+      sourceProvider: string | null;
+      /** True when the chosen source is a listing page and must be resolved to a playable stream at session creation/reopen. */
+      requiresStreamResolution: boolean;
       committeeId: string | null;
       reasonCode: string;
+      /** Present when a canonical server capture exists; browser entry stays independent of it. */
+      canonicalCaptureId?: string;
+      canonicalCaptureStatus?: string;
     }
   | {
       mode: 'BLOCKED';
@@ -535,8 +547,20 @@ export class LiveHearingsPhase7Service {
   async browserJoin(ctx: TenantContext, hearingId: string): Promise<BrowserJoinPlan> {
     const hearing = await this.requireHearing(hearingId);
     const permission = await stateCapturePolicy(this.prisma, ctx, hearing);
-    const capture = await this.captureDetail(hearingId);
-    const plan = browserJoinPlan(hearing, capture);
+    const [capture, candidates] = await Promise.all([
+      this.captureDetail(hearingId),
+      this.prisma.hearingStreamCandidate.findMany({
+        where: { hearingId },
+        orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
+        select: {
+          provider: true,
+          officialPageUrl: true,
+          mediaUrl: true,
+          capturePolicy: true,
+        },
+      }),
+    ]);
+    const plan = browserJoinPlan(hearing, capture, candidates);
     if (plan.mode === 'BROWSER_CAPTURE' && permission && !permission.browserAllowed) {
       return {
         mode: 'BLOCKED',
@@ -610,6 +634,95 @@ export class LiveHearingsPhase7Service {
          WHERE s.tenant_id=$1::uuid
            AND s.user_id=$2
            AND h.event_status IN ('scheduled','postponed','in_progress')`,
+        ctx.tenantId,
+        ctx.userId,
+      );
+      return { rows, total: counts[0]?.count ?? 0 };
+    });
+
+    return {
+      rows: result.rows.map(mapListRow),
+      total: result.total,
+      page,
+      pageSize,
+    };
+  }
+
+  /**
+   * Durable all-lifecycle SERVER capture attendance for exactly this
+   * tenant+user. Source of truth is the durable `hearing_subscription` demand
+   * row using the SAME predicate the recorder worker uses
+   * (`attendance_mode='automatic'` AND user-or-rule demand), so a scheduled
+   * row appears immediately (capture may still be null) and stays visible
+   * through started/processing/completed/failed. No event_status filter, no
+   * synthetic rows, no browser-only/notify-only rows, no cross-tenant leakage.
+   * Reads the canonical `committee_hearing` table (federal + state), not the
+   * legacy federal-only view. Cancellation removes the demand row, so the
+   * listing never resurrects canceled/no-demand entries.
+   */
+  async serverSessions(
+    ctx: TenantContext,
+    input: { page?: number; pageSize?: number },
+  ): Promise<Record<string, unknown>> {
+    const page = Math.max(1, input.page ?? 1);
+    const pageSize = clamp(input.pageSize ?? 50, 1, LIST_MAX_PAGE_SIZE);
+    const offset = (page - 1) * pageSize;
+
+    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.$queryRawUnsafe<ListRow[]>(
+        `SELECT h.id,
+                h.congress,
+                h.chamber,
+                h.committee_name AS "committeeName",
+                h.committee_system_code AS "committeeSystemCode",
+                h.subcommittee_system_code AS "subcommitteeSystemCode",
+                h.title,
+                h.type AS "eventType",
+                h.event_status AS "eventStatus",
+                h.visibility,
+                h.date,
+                h.starts_at AS "startsAt",
+                h.time,
+                h.timezone,
+                h.location,
+                h.url AS "officialPageUrl",
+                h.stream_availability AS "streamAvailability",
+                h.coverage_status AS "coverageStatus",
+                c.id AS "captureId",
+                c.domain_status AS "captureStatus",
+                c.scheduled_start AS "captureScheduledStart",
+                c.actual_start AS "captureActualStart",
+                c.actual_end AS "captureActualEnd",
+                c.captured_seconds AS "capturedSeconds",
+                c.transcript_gap_seconds AS "transcriptGapSeconds",
+                c.reconnect_count AS "reconnectCount",
+                c.failure_code AS "failureCode",
+                c.terminal_reason_code AS "terminalReasonCode",
+                c.resolution_reason_code AS "resolutionReasonCode",
+                s.scheduled_by_user AS "scheduledByUser",
+                s.scheduled_by_rule_id AS "scheduledByRuleId"
+         FROM hearing_subscription s
+         JOIN committee_hearing h ON h.id=s.hearing_id
+         LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
+         WHERE s.tenant_id=$1::uuid
+           AND s.user_id=$2
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user=true OR s.scheduled_by_rule_id IS NOT NULL)
+         ORDER BY COALESCE(h.starts_at, h.date::timestamp) DESC, h.id ASC
+         LIMIT $3 OFFSET $4`,
+        ctx.tenantId,
+        ctx.userId,
+        pageSize,
+        offset,
+      );
+      const counts = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT COUNT(*)::int AS count
+         FROM hearing_subscription s
+         JOIN committee_hearing h ON h.id=s.hearing_id
+         WHERE s.tenant_id=$1::uuid
+           AND s.user_id=$2
+           AND s.attendance_mode='automatic'
+           AND (s.scheduled_by_user=true OR s.scheduled_by_rule_id IS NOT NULL)`,
         ctx.tenantId,
         ctx.userId,
       );
@@ -915,6 +1028,7 @@ export const assessSchedulePolicy = assessStrictSchedulePolicy;
 export function browserJoinPlan(
   hearing: CanonicalHearingRow,
   capture: Phase7CaptureDetail | null,
+  candidates: BrowserSourceCandidate[] = [],
 ): BrowserJoinPlan {
   if (hearing.visibility !== 'public') {
     return {
@@ -922,17 +1036,6 @@ export function browserJoinPlan(
       hearingId: hearing.id,
       reasonCode: 'NON_PUBLIC_PROCEEDING',
       message: 'Browser-assisted capture is available only for public proceedings.',
-    };
-  }
-  if (capture && ATTACHABLE_CAPTURE_STATES.has(capture.status)) {
-    return {
-      mode: 'ATTACH_CANONICAL',
-      hearingId: hearing.id,
-      captureId: capture.id,
-      captureStatus: capture.status,
-      reasonCode: ACTIVE_CAPTURE_STATES.has(capture.status)
-        ? 'CANONICAL_CAPTURE_ACTIVE'
-        : 'CANONICAL_TRANSCRIPT_AVAILABLE',
     };
   }
   if (hearing.eventStatus === 'canceled') {
@@ -943,7 +1046,16 @@ export function browserJoinPlan(
       message: 'This proceeding has been canceled.',
     };
   }
-  if (!hearing.url) {
+
+  // An EXPLICIT browser join is independent of the server recorder: an active
+  // or complete canonical capture never refuses it. The capture id/status are
+  // carried on the plan so the UI can show "Capiro is capturing" alongside the
+  // user's own private browser context.
+  const source = selectBrowserSource({
+    hearingUrl: hearing.url,
+    candidates,
+  });
+  if (!source) {
     return {
       mode: 'BLOCKED',
       hearingId: hearing.id,
@@ -951,6 +1063,7 @@ export function browserJoinPlan(
       message: 'No official public event page has been reconciled yet.',
     };
   }
+
   return {
     mode: 'BROWSER_CAPTURE',
     hearingId: hearing.id,
@@ -958,12 +1071,18 @@ export function browserJoinPlan(
     sourceType: (hearing.type ?? 'hearing').toLowerCase().includes('markup') ? 'markup' : 'hearing',
     audioSource: 'browser_mic',
     recordingPolicy: 'transcript_only',
-    sourceUrl: hearing.url,
+    sourceUrl: source.sourceUrl,
+    sourceKind: source.sourceKind,
+    sourceProvider: source.sourceProvider,
+    requiresStreamResolution: source.sourceKind === 'official_listing_page',
     committeeId: hearing.subcommitteeSystemCode ?? hearing.committeeSystemCode,
     reasonCode:
       capture?.terminalReasonCode ??
       capture?.resolutionReasonCode ??
       'BROWSER_ASSISTED_FALLBACK_AVAILABLE',
+    ...(capture
+      ? { canonicalCaptureId: capture.id, canonicalCaptureStatus: capture.status }
+      : {}),
   };
 }
 
@@ -1026,6 +1145,10 @@ function mapListRow(row: ListRow): Record<string, unknown> {
           resolutionReasonCode: row.resolutionReasonCode,
         }
       : null,
+    // Honest "no capture yet" state: durable demand exists but the canonical
+    // capture row has not been acquired/created. Distinct from a real capture
+    // status so the UI never fabricates a recording that does not exist.
+    capturePending: !row.captureId,
     scheduleSource:
       row.scheduledByUser || row.scheduledByRuleId
         ? {

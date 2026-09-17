@@ -1,0 +1,22 @@
+-- Drop the LegiWatch W2-2 Saved Views feature table.
+--
+-- The Saved Views feature (UI overlay, settings summary, wave2 HTTP endpoints,
+-- service, and DTOs) has been removed from the codebase. This table held only
+-- per-user view presets (name + URL/config JSON) — no business records — so no
+-- data migration or archival is required.
+--
+-- All dependent objects created by 20280213010000_legiwatch_v2_wave2 are
+-- attached to the table and drop with it implicitly:
+--   - indexes: legiwatch_saved_view_one_default_per_owner_surface,
+--     legiwatch_saved_view_tenant_owner_surface_idx,
+--     legiwatch_saved_view_tenant_shared_idx
+--   - RLS policy: legiwatch_saved_view_isolation (POLICY objects drop with
+--     their table)
+--   - CHECK/FK constraints on the table
+-- The GRANT to capiro_app on this table likewise becomes void with the table.
+-- No other table references legiwatch_saved_view (verified by FK inspection),
+-- so plain DROP without CASCADE is correct and safe: if any unexpected
+-- dependent object exists, the migration fails loudly instead of silently
+-- dropping it.
+
+DROP TABLE IF EXISTS public.legiwatch_saved_view;

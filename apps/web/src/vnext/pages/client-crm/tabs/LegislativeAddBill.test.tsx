@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,6 +61,57 @@ describe('AddBillModal — search states', () => {
 
     expect(await screen.findByText(/No bills match/)).toBeInTheDocument();
     expect(screen.queryByText(/unavailable/)).not.toBeInTheDocument();
+  });
+});
+
+describe('AddBillModal — dynamic corpus metadata', () => {
+  it('renders jurisdiction chips from corpus metadata and searches all of them by default', async () => {
+    const calls: Array<{ url: string; params: unknown }> = [];
+    getMock.mockImplementation((url: string, opts?: { params?: unknown }) => {
+      if (url.startsWith(SEARCH_URL)) {
+        calls.push({ url, params: opts?.params });
+        return Promise.resolve({ data: [] });
+      }
+      if (url.includes('alert-prefs')) return Promise.resolve({ data: { jurisdictions: ['US'] } });
+      if (url.endsWith('/legiwatch/bills/corpus-metadata'))
+        return Promise.resolve({
+          data: {
+            jurisdictions: [
+              { key: 'US', count: 113 },
+              { key: 'FL', count: 4 },
+              { key: 'GA', count: 2 },
+              { key: 'MA', count: 1 },
+            ],
+            sessions: [],
+          },
+        });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderModal(vi.fn().mockResolvedValue({}));
+
+    // Chips come from the actual corpus metadata, not a hardcoded list.
+    const group = await screen.findByRole('group', { name: 'Jurisdictions' });
+    for (const label of ['Congress', 'FL', 'GA', 'MA'])
+      expect(within(group).getByRole('button', { name: label })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search bills'), { target: { value: 'marker' } });
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    // Default = every ingested jurisdiction (empty watchlist scope ignored).
+    expect(calls[0]!.params).toMatchObject({ jurisdictions: ['US', 'FL', 'GA', 'MA'] });
+
+    // Narrowing: deselecting every other chip leaves MA as the only search
+    // jurisdiction (jurisdictions start as the full available list).
+    for (const label of ['Congress', 'FL', 'GA'])
+      fireEvent.click(within(group).getByRole('button', { name: label }));
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (c) =>
+            JSON.stringify((c.params as { jurisdictions?: string[] }).jurisdictions) ===
+            JSON.stringify(['MA']),
+        ),
+      ).toBe(true),
+    );
   });
 });
 

@@ -131,3 +131,67 @@ export function isContextualRole(role: RdteColumnRoleV1): boolean {
 export function isNonAnnualCostRole(role: RdteColumnRoleV1): boolean {
   return role === 'cost_to_complete' || role === 'total_cost';
 }
+
+/**
+ * True when a column of this role legitimately carries NO fiscal year at
+ * all -- so a `fiscalYear == null` cell is an expected shape, not a
+ * `missing_fiscal_year` extraction defect. Covers the two non-annual cost
+ * aggregates (`isNonAnnualCostRole`: cost-to-complete/total-cost, which span
+ * the life of the program) PLUS `prior_actual_context`, because that role's
+ * "Prior Years" cumulative-column path (see `PRIOR_YEARS_CUMULATIVE_RE` in
+ * rdte-header-normalizer.ts) is a deliberate lump sum spanning an
+ * unspecified number of prior years with no single year to assign. Every
+ * OTHER path to `prior_actual_context` (a relative "PY" label, or a bare
+ * year relative to the printing cycle) always resolves an explicit
+ * fiscalYear, so folding the whole role in here can never mask a genuine
+ * missing-fiscal-year defect on a real single-year context column.
+ *
+ * Single shared seam for every RDT&E semantic extractor (R-1, R-2, R-2A) so
+ * a printed column convention is recognized identically everywhere it can
+ * appear, instead of each extractor keeping its own copy that silently
+ * drifts out of sync with the others.
+ */
+export function isNonAnnualFiscalYearRole(role: RdteColumnRoleV1): boolean {
+  return isNonAnnualCostRole(role) || role === 'prior_actual_context';
+}
+
+/* ------------------------------------------------------------------ */
+/* Non-numeric non-annual cell markers                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * "Continuing" is a standard, legitimate Army R-2/R-2A printing convention
+ * for a cost-to-complete/total-cost cell on a program with no defined
+ * completion date -- funding continues indefinitely, so no discrete figure
+ * exists to print. It is real government-document text, not corrupted OCR
+ * output. Confirmed on the real FY2024 Army RDT&E Vol 1 BA2 document in
+ * BOTH exhibits: the R-2 PE-level project-cost-breakdown table (e.g. PE
+ * 0602141A's "Total Program Element" row) and, separately, an R-2A
+ * project's own repeated cost table (PE 0602141A / Project AH7's own R-2A
+ * page prints "Continuing" for both its Cost To Complete and Total Cost
+ * cells) -- so this marker is recognized wherever `isNonAnnualCostRole`
+ * gates a cell (see call sites), never introduced independently per
+ * extractor.
+ *
+ * Deliberately an EXACT match on the cleaned token (`isNonNumericNonAnnualMarker`),
+ * never a loose substring test, so it cannot false-positive on unrelated
+ * text that merely contains "continuing".
+ */
+export const NON_NUMERIC_NON_ANNUAL_MARKER_RE = /^continuing$/i;
+
+/**
+ * Strip a line-wrap hyphenation join and a trailing footnote
+ * marker/punctuation, then test the cleaned token against
+ * `NON_NUMERIC_NON_ANNUAL_MARKER_RE`. Tolerates realistic PDF-extraction
+ * variants -- "Continuing*", "Continuing 1/", "Continuing.", and a
+ * line-wrapped "Continu-\ning" -- without weakening the match to a loose
+ * substring test (which would risk a false positive on unrelated text).
+ */
+export function isNonNumericNonAnnualMarker(text: string): boolean {
+  const cleaned = text
+    .replace(/-\s*\n\s*/g, '')
+    .replace(/[\s*.]+$/g, '')
+    .replace(/\s+\d+\/$/g, '')
+    .trim();
+  return NON_NUMERIC_NON_ANNUAL_MARKER_RE.test(cleaned);
+}

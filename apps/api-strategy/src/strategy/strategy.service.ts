@@ -280,6 +280,7 @@ function labelForType(type: StrategyTypeValue): string {
     coalition: 'Coalition / positioning',
     procurement: 'Contract / procurement',
     earmark: 'Grant / earmark',
+    amendment: 'Amendment ask',
   };
   return map[type];
 }

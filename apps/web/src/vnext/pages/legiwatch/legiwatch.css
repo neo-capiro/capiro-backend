@@ -109,7 +109,7 @@
   --lw-succ-bg: #ECFDF3;  --lw-succ-ring: #ABEFC6;  --lw-succ-fg: #027A48;  --lw-succ-dot: #12B76A;
   --lw-dark-bg: #F2F4F7;  --lw-dark-ring: #D0D5DD;  --lw-dark-fg: #101828;  --lw-dark-dot: #101828;
   /* Primary-button ink gradient + inset highlight, read off the prototype's
-     "Create watch" control — flat `--lw-ink` stays the dark-panel/masthead fill. */
+     Header control set — flat `--lw-ink` stays the dark-panel/masthead fill. */
   --lw-ink-gradient: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
   --lw-ink-gradient-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
 
@@ -124,7 +124,7 @@
   /* A.3 shadows — the warm-palette pass converted the 1px INSET hairline rings
      to real borders at every consumer in this file; the ring tokens below stay
      defined (outer-ring form, warm colors) for box-shadow consumers outside
-     this file (e.g. overlays/CreateWatchOverlay.tsx).
+     this file.
      v4 parity: the card hairline/elevation ring is the reference-measured
      #E4E7EC (computed-tokens.json folderRail/newFolder), one step cooler than
      the #EAECF0 row rule. */
@@ -1703,13 +1703,9 @@
    remaining room, so the row wraps and the note takes its own line. */
 .capiro-vnext-root .lw .lw-modal__foot { padding: 18px 26px; border-top: 1px solid var(--lw-line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-modal__note { font-size: 12px; color: var(--lw-meta); flex: 1 1 200px; min-width: 0; }
-.capiro-vnext-root .lw .lw-modal--views { width: 900px; }
-.capiro-vnext-root .lw .lw-modal--watch { width: 920px; }
 .capiro-vnext-root .lw .lw-modal--states { width: 1100px; }
 .capiro-vnext-root .lw .lw-modal--how { width: 640px; }
 @media (max-width: 1179px) {
-  .capiro-vnext-root .lw .lw-modal--views { width: 760px; }
-  .capiro-vnext-root .lw .lw-modal--watch { width: 760px; }
   .capiro-vnext-root .lw .lw-modal--states { width: 860px; }
 }
 
@@ -1727,8 +1723,6 @@
 @media (max-width: 779px) {
   .capiro-vnext-root .lw .lw-modal-scrim { padding: 0; align-items: stretch; justify-content: stretch; }
   .capiro-vnext-root .lw .lw-modal,
-  .capiro-vnext-root .lw .lw-modal--views,
-  .capiro-vnext-root .lw .lw-modal--watch,
   .capiro-vnext-root .lw .lw-modal--states,
   .capiro-vnext-root .lw .lw-modal--how {
     width: 100%;
@@ -1741,19 +1735,6 @@
   .capiro-vnext-root .lw .lw-modal__head { border-radius: 0; padding: 18px 20px; }
   .capiro-vnext-root .lw .lw-modal__body { padding: 16px 20px; }
   .capiro-vnext-root .lw .lw-modal__foot { padding: 16px 20px; }
-}
-
-/* Create watch (§7.13): definition on the left, the dark preview panel on the
-   right. Was an inline `minmax(0,1fr) 320px` — a hard 320px track inside a
-   modal body that is 322px wide on a 390px phone. */
-.capiro-vnext-root .lw .lw-watch-cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(min(300px, 100%), 320px);
-  gap: 16px;
-  min-width: 0;
-}
-@media (max-width: 779px) {
-  .capiro-vnext-root .lw .lw-watch-cols { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* System-states reference grid — the min() guard is the whole point: a bare

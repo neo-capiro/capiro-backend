@@ -197,12 +197,15 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
     );
 
   const recoverable = Boolean(room.error) || session.status === 'failed-recoverable';
+  const openSourceUrl = room.openSourceUrl ?? session.sourceUrl ?? null;
   // A session with a canonical public capture is a REVIEW of that capture: the
   // browser share-tab capture flow was never its source and cannot resume it.
   const isPublicReview = Boolean(session.publicCaptureId && session.hearingId);
   const publicDetailPath = session.hearingId
     ? `/legiwatch/hearings/${encodeURIComponent(session.hearingId)}`
     : null;
+  // Return-to-detail: rooms tied to a canonical hearing link back to it.
+  const detailPath = room.detailPath ?? publicDetailPath;
   const phaseLabel =
     room.phase === 'capturing'
       ? room.transcriptionDelayed
@@ -247,6 +250,11 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
             </span>
           </div>
           <span className="lw-room__spacer" />
+          {detailPath ? (
+            <a className="lw-btn" href={detailPath}>
+              Hearing details
+            </a>
+          ) : null}
           {room.captureActive && (
             <LwButton onClick={room.endSession} disabled={room.phase === 'stopping'}>
               {room.phase === 'stopping' ? 'Saving session…' : 'End session'}
@@ -277,12 +285,12 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                     ▶
                   </div>
                   <p>
-                    {session.sourceUrl
+                    {openSourceUrl
                       ? 'Watch the hearing in its source tab.'
                       : 'No playback source is available for this session.'}
                   </p>
-                  {session.sourceUrl && (
-                    <a className="lw-btn" href={session.sourceUrl} target="_blank" rel="noreferrer">
+                  {openSourceUrl && (
+                    <a className="lw-btn" href={openSourceUrl} target="_blank" rel="noreferrer">
                       Open hearing source ↗
                     </a>
                   )}
@@ -425,10 +433,10 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                     </LwButton>
                   </div>
                 )}
-                {session.sourceUrl && (
+                {openSourceUrl && (
                   <a
                     className="lw-room__link"
-                    href={session.sourceUrl}
+                    href={openSourceUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -466,6 +474,138 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                 )}
               </div>
             </section>
+
+            {room.serverAttendance ? (
+              <section className="lw-panel" aria-label="Server attendance">
+                <div className="lw-panel__head">
+                  <h2 className="lw-panel__title">Server capture</h2>
+                </div>
+                <div className="lw-room__panel-body">
+                  {room.serverAttendance.scheduled ? (
+                    <div className="lw-block">
+                      <LwPill
+                        tone={room.serverAttendance.lifecycle === 'failed' ? 'gray' : 'brand'}
+                        size="26"
+                      >
+                        {room.serverAttendance.lifecycle === 'capturing'
+                          ? 'SERVER CAPTURING'
+                          : room.serverAttendance.lifecycle === 'processing'
+                            ? 'SERVER PROCESSING'
+                            : room.serverAttendance.lifecycle === 'complete'
+                              ? 'SERVER CAPTURE READY'
+                              : room.serverAttendance.lifecycle === 'failed'
+                                ? 'SERVER CAPTURE FAILED'
+                                : 'SERVER SCHEDULED'}
+                      </LwPill>
+                      <p className="lw-room__copy">
+                        {room.serverAttendance.message ??
+                          (room.serverAttendance.lifecycle === 'capturing'
+                            ? 'Capiro is actively capturing the official stream on the server. This is independent of your browser room — your private capture here is unaffected.'
+                            : room.serverAttendance.lifecycle === 'processing'
+                              ? 'Capiro is processing the captured stream on the server. Your browser capture here is unaffected.'
+                              : room.serverAttendance.lifecycle === 'complete'
+                                ? 'The server capture is complete and its transcript is ready. Your browser capture here is unaffected.'
+                                : room.serverAttendance.lifecycle === 'failed'
+                                  ? 'The server capture failed and is not retryable right now. This browser room remains available as a fallback.'
+                                  : 'Server capture is scheduled but not yet capturing. This is independent of your browser room — your private capture here is unaffected.')}
+                      </p>
+                      {!room.serverAttendance.callerScheduled && room.serverAttendance.available ? (
+                        <LwButton
+                          variant="primary"
+                          onClick={room.serverAttendance.onSchedule}
+                          disabled={room.serverAttendance.pending}
+                        >
+                          {room.serverAttendance.pending
+                            ? 'Scheduling…'
+                            : 'Attend via server too'}
+                        </LwButton>
+                      ) : null}
+                    </div>
+                  ) : room.serverAttendance.available ? (
+                    <div className="lw-block">
+                      <p className="lw-room__copy">
+                        Have Capiro capture the official stream on the server too. It keeps running
+                        when you close this room and does not interrupt your browser capture.
+                      </p>
+                      <LwButton
+                        variant="primary"
+                        onClick={room.serverAttendance.onSchedule}
+                        disabled={room.serverAttendance.pending}
+                      >
+                        {room.serverAttendance.pending
+                          ? 'Scheduling…'
+                          : 'Schedule server capture'}
+                      </LwButton>
+                    </div>
+                  ) : (
+                    <p className="lw-room__meta">
+                      {room.serverAttendance.message ??
+                        'Server capture is not available for this proceeding.'}
+                    </p>
+                  )}
+                  {room.serverAttendance.confirm ? (
+                    <p role="status" className="lw-room__copy">
+                      {room.serverAttendance.confirm}
+                    </p>
+                  ) : null}
+                  {room.serverAttendance.error ? (
+                    <p role="alert" className="lw-room__copy" style={{ color: 'var(--lw-danger, #b42318)' }}>
+                      {room.serverAttendance.error}
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
+            {room.sourceResolution ? (
+              <section className="lw-panel" aria-label="Official source">
+                <div className="lw-panel__head">
+                  <h2 className="lw-panel__title">Official source</h2>
+                </div>
+                <div className="lw-room__panel-body">
+                  {room.sourceResolution.status === 'resolving' ? (
+                    <p role="status" className="lw-room__copy">
+                      Locating the official playable source…
+                    </p>
+                  ) : (
+                    <>
+                      {room.sourceResolution.note ? (
+                        <p role="status" className="lw-room__copy">
+                          {room.sourceResolution.note}
+                        </p>
+                      ) : null}
+                      {room.sourceResolution.candidates?.length ? (
+                        <div className="lw-block">
+                          {room.sourceResolution.candidates.map((c) => (
+                            <button
+                              key={c.pageUrl}
+                              type="button"
+                              className="lw-btn"
+                              onClick={() => room.sourceResolution!.onSelectCandidate(c.pageUrl)}
+                            >
+                              {c.title}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="lw-room__row">
+                        {room.sourceResolution.referenceUrl ? (
+                          <a
+                            className="lw-room__link"
+                            href={room.sourceResolution.referenceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open official source ↗
+                          </a>
+                        ) : null}
+                        <LwButton onClick={room.sourceResolution.onRetry}>Retry</LwButton>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
+            ) : null}
           </div>
 
           <section

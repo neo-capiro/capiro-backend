@@ -452,3 +452,493 @@ export function extractCongressVideoUrls(payload: unknown): string[] {
     .map((v) => v?.url?.trim())
     .filter((u): u is string => Boolean(u) && !/congress\.gov\/event/i.test(u!));
 }
+
+// ── Florida House notice → VideoPlayer pairing ──────────────────────────────
+
+/**
+ * Parse a Florida House meeting notice URL for its MeetingId.
+ * Requires http(s), an official *.flhouse.gov host, the meetingnotice path, and
+ * an exact numeric MeetingId query value (case-insensitive key). The notice page
+ * itself carries the meeting date; the daily schedule page pairs the same
+ * MeetingId with a VideoPlayer link. Pure.
+ */
+export function parseFloridaHouseNoticeUrl(rawUrl: string): { meetingId: string; date: string | null } | null {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (u.username || u.password) return null;
+  if (!/(^|\.)flhouse\.gov$/i.test(u.hostname)) return null;
+  if (!/\/Sections\/Committees\/meetingnotice\.aspx$/i.test(u.pathname)) return null;
+  const meetingId = queryValueCaseInsensitive(u, 'meetingid');
+  if (!meetingId || !/^\d+$/.test(meetingId)) return null;
+  return { meetingId, date: null };
+}
+
+/**
+ * Read a query parameter whose KEY matches case-insensitively (ASP.NET query
+ * keys are case-insensitive; URLSearchParams is not — it lowercases nothing,
+ * so `?meetingid=` and `?MeetingId=` are different keys to it). Pure.
+ */
+function queryValueCaseInsensitive(u: URL, key: string): string | null {
+  const wanted = key.toLowerCase();
+  for (const pair of u.search.replace(/^\?/, '').split('&')) {
+    if (!pair) continue;
+    const eq = pair.indexOf('=');
+    const rawKey = eq < 0 ? pair : pair.slice(0, eq);
+    let decodedKey: string;
+    try {
+      decodedKey = decodeURIComponent(rawKey.replace(/\+/g, ' '));
+    } catch {
+      continue;
+    }
+    if (decodedKey.toLowerCase() !== wanted) continue;
+    const rawVal = eq < 0 ? '' : pair.slice(eq + 1);
+    try {
+      return decodeURIComponent(rawVal.replace(/\+/g, ' '));
+    } catch {
+      return rawVal;
+    }
+  }
+  return null;
+}
+
+const FL_MONTHS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+];
+
+/** True when (y, m, d) is a REAL calendar date (rejects February 30 etc). Pure. */
+function isValidCalendarDate(y: number, m: number, d: number): boolean {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return false;
+  if (y < 1990 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/** Strip tags + decode the few entities a notice dd can carry. Pure. */
+function flText(s: string): string {
+  return s
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extract the meeting date from a Florida House notice page's HTML, from the
+ * notice's OWN "Start Date and Time" dt/dd pair (NEVER the End Date dd — a
+ * midnight-crossing meeting would otherwise resolve the wrong schedule day).
+ *
+ * The REAL notice markup nests a <time> element inside a classed dd, with
+ * whitespace/newlines between the tags:
+ *
+ *   <dt class="textBold label">Start Date and Time:</dt>
+ *   <dd class="value">
+ *       <time datetime="2026-02-26T08:00:00-05:00">
+ *       Thursday, February 26, 2026 8:00 AM</time>
+ *   </dd>
+ *
+ * Strategy, in order:
+ *   1. the nested <time datetime="YYYY-MM-DD…"> attribute (authoritative);
+ *   2. the dd's rendered text ("Thursday, February 26, 2026 8:00 AM" or a
+ *      "2/26/2026 …" slash form).
+ * The result is ALWAYS calendar-validated (February 30 is rejected). Pure.
+ */
+export function extractFloridaHouseNoticeDate(html: string): string | null {
+  // Isolate the dd that FOLLOWS the Start Date and Time dt. [\s\S]*? tolerates
+  // the newline + nested <time> tag the old `([^<]+)` capture choked on.
+  const m = html.match(
+    /<dt[^>]*>\s*Start Date and Time:?\s*<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/i,
+  );
+  if (!m) return null;
+  const dd = m[1]!;
+
+  // (1) Nested <time datetime="2026-02-26T08:00:00-05:00"> — authoritative.
+  const dt = dd.match(/<time[^>]+datetime=["'](\d{4})-(\d{1,2})-(\d{1,2})/i);
+  if (dt) {
+    const y = Number(dt[1]);
+    const mo = Number(dt[2]);
+    const d = Number(dt[3]);
+    if (isValidCalendarDate(y, mo, d)) {
+      return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    // An invalid datetime attribute falls through to the rendered text.
+  }
+
+  // (2) Rendered text fallback ("Thursday, February 26, 2026 8:00 AM").
+  const raw = flText(dd);
+  const named = new RegExp(
+    `\\b(${FL_MONTHS.join('|')})\\s+(\\d{1,2}),?\\s+(\\d{4})\\b`,
+    'i',
+  ).exec(raw);
+  if (named) {
+    const month = FL_MONTHS.indexOf(named[1]!.toLowerCase()) + 1;
+    const d = Number(named[2]);
+    const y = Number(named[3]);
+    if (isValidCalendarDate(y, month, d)) {
+      return `${y}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    return null;
+  }
+  const slash = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(raw);
+  if (slash) {
+    const mo = Number(slash[1]);
+    const d = Number(slash[2]);
+    const y = Number(slash[3]);
+    if (isValidCalendarDate(y, mo, d)) {
+      return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * The Florida House daily schedule URL for a given ISO date. Pure.
+ */
+export function floridaHouseDailyScheduleUrl(date: string): string {
+  const [y, m, d] = date.split('-');
+  return `https://www.flhouse.gov/Sections/HouseSchedule/houseschedule.aspx?date=${Number(m)}-${Number(d)}-${y}`;
+}
+
+/**
+ * Slice every top-level `<div …schedule-event…>` block out of a Florida House
+ * daily schedule page using a BALANCED div scan (the page has no declared HTML
+ * parser dependency, so we scan tags and count depth). Each returned block ends
+ * at the div that closes the schedule-event element itself — nested inner divs
+ * (col-12, meeting-info, …) can no longer truncate the block early, and the
+ * scan never crosses into a preceding or following neighbor event. Pure.
+ */
+function extractScheduleEventBlocks(html: string): string[] {
+  const blocks: string[] = [];
+  const tagRe = /<\/?div\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  let openIdx = -1;
+  let depth = 0;
+  while ((m = tagRe.exec(html))) {
+    const tag = m[0];
+    const isClose = /^<\//.test(tag);
+    const isSelfClose = /\/>$/.test(tag);
+    if (openIdx < 0) {
+      if (!isClose && /class\s*=\s*["'][^"']*\bschedule-event\b/i.test(tag)) {
+        openIdx = m.index;
+        depth = 1;
+      }
+      continue;
+    }
+    if (isClose) depth--;
+    else if (!isSelfClose) depth++;
+    if (depth === 0) {
+      blocks.push(html.slice(openIdx, m.index + tag.length));
+      openIdx = -1;
+    }
+  }
+  return blocks;
+}
+
+/** The official first-party Florida House VideoPlayer URL for an event id, or null. */
+function parseFloridaHouseVideoPlayerUrl(rawUrl: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (u.username || u.password) return null;
+  if (!/(^|\.)flhouse\.gov$/i.test(u.hostname)) return null;
+  if (!/\/VideoPlayer\.aspx$/i.test(u.pathname)) return null;
+  const eventId = u.searchParams.get('eventID');
+  if (!eventId || !/^\d+$/.test(eventId)) return null;
+  return u.toString();
+}
+
+/**
+ * Validate a direct Florida House VideoPlayer page URL and return its exact
+ * numeric event id. Same structural rules as the schedule-pairing path:
+ * http(s), official *.flhouse.gov host, VideoPlayer path, exact numeric
+ * eventID, no credentials. Pure.
+ */
+export function parseFloridaHouseVideoPlayerPageUrl(rawUrl: string): { eventId: string } | null {
+  const normalized = parseFloridaHouseVideoPlayerUrl(rawUrl);
+  if (!normalized) return null;
+  return { eventId: new URL(normalized).searchParams.get('eventID')! };
+}
+
+/**
+ * Find the VideoPlayer URL paired with a specific MeetingId on a Florida House
+ * daily schedule page. The schedule-event block that carries the notice link
+ * also carries the player link — and ONLY that block is searched, so a player
+ * from a preceding or following neighbor event is never returned.
+ *
+ * Both links are URL-VALIDATED, not substring-matched:
+ *  - the notice anchor must be http(s) on an official *.flhouse.gov host, on
+ *    the meetingnotice path, with an EXACT numeric MeetingId (case-insensitive
+ *    key) — so `MeetingId=151930` never satisfies a lookup for `15193`;
+ *  - the player anchor must be http(s) on the same official host, on the
+ *    VideoPlayer path, with a numeric eventID and no credentials.
+ * Pure.
+ */
+export function findFloridaHouseVideoPlayerForMeeting(html: string, meetingId: string): string | null {
+  const id = meetingId.trim();
+  if (!id || !/^\d+$/.test(id)) return null;
+  for (const block of extractScheduleEventBlocks(html)) {
+    let ownsNotice = false;
+    let playerUrl: string | null = null;
+    const anchorRe = /<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>/gi;
+    let a: RegExpExecArray | null;
+    while ((a = anchorRe.exec(block))) {
+      const href = a[1] ?? a[2] ?? '';
+      if (!href) continue;
+      let abs: URL;
+      try {
+        abs = new URL(href, 'https://www.flhouse.gov');
+      } catch {
+        continue;
+      }
+      if (/\/Sections\/Committees\/meetingnotice\.aspx$/i.test(abs.pathname)) {
+        const mid = queryValueCaseInsensitive(abs, 'meetingid');
+        if (
+          (abs.protocol === 'http:' || abs.protocol === 'https:') &&
+          !abs.username &&
+          !abs.password &&
+          /(^|\.)flhouse\.gov$/i.test(abs.hostname) &&
+          mid !== null &&
+          /^\d+$/.test(mid) &&
+          mid.toLowerCase() === id.toLowerCase()
+        ) {
+          ownsNotice = true;
+        }
+        continue;
+      }
+      if (playerUrl === null && /\/VideoPlayer\.aspx$/i.test(abs.pathname)) {
+        playerUrl = parseFloridaHouseVideoPlayerUrl(abs.toString());
+      }
+    }
+    // Only accept the player when THIS block owns the exact notice link.
+    if (ownsNotice) return playerUrl;
+  }
+  return null;
+}
+
+/**
+ * True when a fetched page is the publisher's own bot/WAF rejection rather
+ * than real content. The Florida House site answers the guarded default
+ * browser UA with `HTTP 200` + a ~244-byte "Request Rejected" page — treating
+ * that as content would misreport a rejected fetch as a missing date. Pure.
+ */
+export function isRequestRejectedPage(html: string, status?: number): boolean {
+  if (status !== undefined && (status === 401 || status === 403 || status === 429)) return true;
+  if (html.length > 4096) return false; // a real notice/schedule page is far larger
+  return /request rejected/i.test(html);
+}
+
+// ── Florida Senate media player ─────────────────────────────────────────────
+
+/**
+ * Parse a Florida Senate media player URL
+ * (`https://www.flsenate.gov/media/VideoPlayer/6382`) into its exact numeric
+ * event id. Requires http(s), an official *.flsenate.gov host, the
+ * /media/VideoPlayer/ path, an exact numeric final segment (so 63820 never
+ * satisfies a lookup for 6382), and no credentials. Pure.
+ */
+export function parseFloridaSenateVideoPlayerUrl(rawUrl: string): { eventId: string } | null {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (u.username || u.password) return null;
+  if (!/(^|\.)flsenate\.gov$/i.test(u.hostname)) return null;
+  const m = u.pathname.match(/^\/media\/VideoPlayer\/(\d+)\/?$/i);
+  if (!m) return null;
+  return { eventId: m[1]! };
+}
+
+// ── Bounded first-party House fallback (event119529 regression) ─────────────
+//
+// A Congress.gov House event with an empty videos[] used to dead-end at
+// "No video links". The official record usually still has video: the House
+// repository (docs.house.gov) event page links the owning committee, and the
+// committee's own event page embeds the player. Every hop below is keyed on
+// the EXACT Congress event id — never a title match, never a hardcoded id.
+
+/** The docs.house.gov repository event page for a Congress event id. Pure. */
+export function houseDocsEventUrl(eventId: string): string {
+  return `https://docs.house.gov/Committee/Calendar/ByEvent.aspx?EventID=${encodeURIComponent(
+    eventId,
+  )}`;
+}
+
+/**
+ * Pull committee links off a docs.house.gov event page. Every anchor href is
+ * entity-decoded, then PARSED AS A URL (never a raw regex capture): only
+ * http(s) links on a real *.house.gov host with no credentials survive. An
+ * official HTTP link is normalized to HTTPS (same host + exact path/query
+ * identity preserved — the live docs page links
+ * `http://naturalresources.house.gov/` and the redirect to https is safe to
+ * pre-empt). Pure.
+ *
+ * Priority order:
+ *   1. The validated "Visit Committee Site" anchor
+ *      (`MainContent_HyperLinKCommittee`) — the repository's OWN pointer to
+ *      the owning committee, honored FIRST for ANY official house.gov target,
+ *      including a Rules Committee owner and even a bare-origin homepage
+ *      (`http://naturalresources.house.gov/` — no character after the final
+ *      slash, which the old `house\.gov/[^"']+` regex could never capture);
+ *   2. Any other first-party *.house.gov anchor that is NOT generic chrome:
+ *      www.house.gov / clerk.house.gov / rules.house.gov / docs.house.gov
+ *      links are navigation UNLESS carried by the authoritative anchor above
+ *      (Rules is a real owning committee — only its generic NAV is dropped).
+ */
+export function extractDocsHouseEventLinks(html: string): string[] {
+  const committeeSite: string[] = [];
+  const other: string[] = [];
+  const seen = new Set<string>();
+  const anchorRe = /<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = anchorRe.exec(html))) {
+    const raw = m[1] ?? m[2] ?? '';
+    if (!raw) continue;
+    // Decode HTML entities so `?EventID=119529&amp;foo=bar` keeps its exact
+    // query identity when parsed.
+    const href = raw
+      .replace(/&amp;/gi, '&')
+      .replace(/&#0*38;/g, '&')
+      .replace(/&#x0*26;/gi, '&');
+    let u: URL;
+    try {
+      u = new URL(href);
+    } catch {
+      continue; // relative or malformed — cannot prove first-party identity
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
+    if (u.username || u.password) continue;
+    const host = u.hostname.toLowerCase();
+    if (!/(^|\.)house\.gov$/i.test(host)) continue;
+    const authoritative = /\bMainContent_HyperLinKCommittee\b/.test(m[0]);
+    if (!authoritative) {
+      // Generic chrome: the House portal, Clerk, Rules, and the repository's
+      // own links (event PDFs, floor docs) are never the owning committee's
+      // page — unless the repository's own committee anchor (handled above)
+      // carries them.
+      if (host === 'house.gov' || host === 'www.house.gov') continue;
+      if (host === 'clerk.house.gov' || host === 'rules.house.gov') continue;
+      if (host === 'docs.house.gov') continue;
+    }
+    // HTTP on an official host normalizes to HTTPS; host + exact path + query
+    // identity are preserved byte-for-byte.
+    const normalized = `https://${host}${u.pathname}${u.search}`;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    if (authoritative) committeeSite.push(normalized);
+    else other.push(normalized);
+  }
+  return [...committeeSite, ...other];
+}
+
+/**
+ * Pull candidate hearing/event page links off a committee site's page,
+ * resolving relative hrefs against the site origin. Bounded to the same
+ * *.house.gov origin. Pure.
+ */
+export function extractHouseCommitteeEventLinks(html: string, origin: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const base = new URL(origin);
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const href = m[1]!;
+    if (/^(javascript:|data:|mailto:|#)/i.test(href)) continue;
+    let abs: URL;
+    try {
+      abs = new URL(href, base);
+    } catch {
+      continue;
+    }
+    // Only http(s) links on the SAME committee origin are candidates — never
+    // a neighbor committee, never an external host, never a non-http scheme.
+    if (abs.protocol !== 'http:' && abs.protocol !== 'https:') continue;
+    if (abs.username || abs.password) continue;
+    // Same-origin traversal: an official http page linking its own https
+    // path (or vice versa) is still the same committee site — scheme is the
+    // ONLY component allowed to differ.
+    if (abs.hostname.toLowerCase() !== base.hostname.toLowerCase()) continue;
+    // Only event/hearing-shaped pages are candidates.
+    if (!/event|hearing|calendar/i.test(abs.pathname)) continue;
+    // Normalize the scheme to https (official-host upgrade) so the same page
+    // linked over both schemes de-duplicates to one candidate.
+    const url = `https://${abs.hostname.toLowerCase()}${abs.pathname}${abs.search}`;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out;
+}
+
+/**
+ * True when a committee event page links back to the EXACT Congress event id.
+ * This is the ONLY acceptance signal: a page that merely shares a title is NOT
+ * accepted.
+ *
+ * Every anchor href is PARSED AS A URL (entities decoded first, so
+ * `?EventID=119529&amp;foo=bar` still works) and matched on structure, never as
+ * a raw substring against arbitrary text:
+ *
+ *   1. host EXACTLY `docs.house.gov` (not fake-docs.house.gov, not
+ *      docs.house.gov.evil.example), path EXACTLY
+ *      `/Committee/Calendar/ByEvent.aspx`, and an exact numeric `EventID`
+ *      query value — so `EventID=119529x` or `EventID=1195290` never match
+ *      `119529`; query order and key casing are irrelevant;
+ *   2. host `congress.gov` (or a subdomain) with a
+ *      `/event/{N}th-congress/house-event/{id}` path whose final segment is
+ *      EXACTLY the id.
+ *
+ * Credentials-bearing and non-http(s) hrefs are ignored. Pure.
+ */
+export function houseEventIdMatches(html: string, eventId: string): boolean {
+  const id = eventId.trim();
+  if (!id || !/^\d+$/.test(id)) return false;
+  // Decode HTML entities so hrefs like ?EventID=119529&amp;foo=bar parse.
+  const decoded = html
+    .replace(/&amp;/gi, '&')
+    .replace(/&#0*38;/g, '&')
+    .replace(/&#x0*26;/gi, '&');
+  const anchorRe = /<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = anchorRe.exec(decoded))) {
+    const href = m[1] ?? m[2] ?? '';
+    if (!href) continue;
+    let u: URL;
+    try {
+      u = new URL(href);
+    } catch {
+      continue; // relative or malformed href — cannot prove the id
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
+    if (u.username || u.password) continue;
+    const host = u.hostname.toLowerCase();
+    // (1) docs.house.gov repository link with exact EventID query value.
+    if (
+      host === 'docs.house.gov' &&
+      u.pathname.replace(/\/+$/, '').toLowerCase() === '/committee/calendar/byevent.aspx'
+    ) {
+      const ev = queryValueCaseInsensitive(u, 'eventid');
+      if (ev !== null && /^\d+$/.test(ev) && ev === id) return true;
+      continue;
+    }
+    // (2) congress.gov event URL with exact numeric event id path segment.
+    if (/(^|\.)congress\.gov$/.test(host)) {
+      const ev = u.pathname.match(/\/event\/\d+th-congress\/house-event\/(\d+)\/?$/i);
+      if (ev && ev[1] === id) return true;
+    }
+  }
+  return false;
+}

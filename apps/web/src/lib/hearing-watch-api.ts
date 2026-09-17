@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { GENERATION_TIMEOUT_MS } from './api-client.js';
 import { useApi } from './use-api.js';
 import { useApiScope } from './use-api-scope.js';
 
@@ -339,11 +340,39 @@ export function useBrowseHearings(params: {
   });
 }
 
+export interface HearingBriefSourceCoverage {
+  /** Transcript segments available to the synthesizer. */
+  availableSegments: number;
+  /** Segments actually included in the synthesis context. */
+  includedSegments: number;
+  startMs: number;
+  endMs: number;
+  /** True when coverage was bounded: omitted segments OR truncated text. */
+  limited: boolean;
+  /** Segments whose text was shortened before being sent (partial text). */
+  truncatedSegments?: number;
+  /** Available segments not sent at all. */
+  omittedSegments?: number;
+}
+
 export interface HearingBrief {
   sessionId: string;
   title: string;
   generatedAt: string;
+  /** Concise model-authored report title. Preferred over the (often enormous,
+   *  clipped) formal hearing `title` for display; the formal title is retained
+   *  as provenance. Optional — older briefs won't have it. */
+  summaryTitle?: string;
   executiveSummary: string;
+  /** Model-authored thematic developments. `evidenceIds` reference transcript
+   *  segments/claims in `claimMap` — machine provenance only, never printed. */
+  keyDevelopments?: Array<{
+    title: string;
+    text: string;
+    evidenceIds?: string[];
+  }>;
+  /** Truthful account of how much of the recording the synthesis covered. */
+  sourceCoverage?: HearingBriefSourceCoverage;
   keyMoments: Array<{
     segmentId: string;
     timestampMs: number;
@@ -364,7 +393,9 @@ export interface HearingBrief {
   opportunities: string[];
   recommendedNextSteps: string[];
   draftClientEmail: { subject: string; body: string };
-  claimMap?: Array<{ claimId: string; segmentId: string; timestampMs: number }>;
+  /** Machine provenance (never printed). `endMs` is the segment's real end when
+   *  known; older briefs omit it and only carry the start timestamp. */
+  claimMap?: Array<{ claimId: string; segmentId: string; timestampMs: number; endMs?: number }>;
   synthesisSource: 'orchestrator' | 'deterministic';
   /**
    * Whether the recap was written FOR a client and actually shaped by that
@@ -387,15 +418,100 @@ const fmtBriefTs = (ms: number): string => {
 };
 
 /**
- * How many claim anchors to list inline before summarising the remainder. The full
- * map always stays on the recap record; this only bounds the human-readable render.
+ * Escape a plain-text (model- or user-supplied) value so it can be interpolated
+ * into Markdown we generate WITHOUT being reinterpreted as Markdown. The model
+ * recap is DATA, not markup: any `*`, `_`, `#`, `[`, `<`, backslash etc. it
+ * emits must render literally, not become structure or a raw-HTML injection.
+ * The only Markdown structure in the output is what briefToMarkdown itself adds.
  */
-const CLAIM_ANCHOR_PREVIEW = 10;
+export function mdEscape(value: string | null | undefined): string {
+  return (value ?? '').replace(/[\\`*_{}\[\]()#+\-.!|>~<]/g, (ch) => `\\${ch}`);
+}
 
-/** Render the server brief while preserving segment/timestamp evidence anchors. */
+/** The concise title a reader should see: the model's `summaryTitle` when it
+ *  wrote one, else the formal hearing title. The formal title always stays on
+ *  the document as provenance regardless. */
+export function briefDisplayTitle(brief: HearingBrief): string {
+  const t = brief.summaryTitle?.trim();
+  return t || brief.title;
+}
+
+/** A cited time range: a point (start only) or a real start–end span. */
+export interface CitedRange {
+  startMs: number;
+  /** Real segment end; present only when the claimMap carried it. */
+  endMs?: number;
+}
+
+/**
+ * Resolve a development's evidence ids to readable, de-duplicated, MERGED time
+ * ranges via the claimMap's segment→{start,end} provenance. Model developments
+ * cite many tiny ASR segments; contiguous/overlapping ones are merged into a
+ * single concise range so the citation isn't a 25-timestamp wall.
+ *
+ * Merge rule (conservative): two cited segments merge only when BOTH have real
+ * end times and the gap between them is <= MERGE_GAP_MS (overlap counts as 0).
+ * A segment WITHOUT a real end is never merged and never has an end inferred —
+ * it stays a point timestamp (legacy behaviour). Distinct ranges are all kept,
+ * in order. Ids themselves are machine-only and never shown; foreign ids drop.
+ */
+export function developmentCitations(brief: HearingBrief, evidenceIds?: string[]): CitedRange[] {
+  if (!evidenceIds?.length || !brief.claimMap?.length) return [];
+  const bySegment = new Map<string, { startMs: number; endMs?: number }>();
+  for (const c of brief.claimMap) {
+    if (!bySegment.has(c.segmentId))
+      bySegment.set(c.segmentId, { startMs: c.timestampMs, endMs: c.endMs });
+  }
+  // De-dupe by segment, keep only ids present in the claimMap, sort by start.
+  const segs = new Map<string, { startMs: number; endMs?: number }>();
+  for (const id of evidenceIds) {
+    const s = bySegment.get(id);
+    if (s) segs.set(id, s);
+  }
+  const sorted = [...segs.values()].sort(
+    (a, b) => a.startMs - b.startMs || (a.endMs ?? a.startMs) - (b.endMs ?? b.startMs),
+  );
+
+  const MERGE_GAP_MS = 1000;
+  const out: CitedRange[] = [];
+  for (const s of sorted) {
+    const last = out[out.length - 1];
+    // Merge only into a range that already has a real end, with a segment that
+    // also has a real end, and only when the gap is small (contiguous/overlap).
+    if (
+      last &&
+      last.endMs != null &&
+      s.endMs != null &&
+      s.startMs - last.endMs <= MERGE_GAP_MS
+    ) {
+      last.endMs = Math.max(last.endMs, s.endMs);
+      continue;
+    }
+    out.push({ startMs: s.startMs, endMs: s.endMs });
+  }
+  return out;
+}
+
+/** Format one cited range: a real span as `m:ss–m:ss`, else a bare `m:ss`. */
+function fmtCitedRange(r: CitedRange): string {
+  return r.endMs != null && r.endMs !== r.startMs
+    ? `${fmtBriefTs(r.startMs)}–${fmtBriefTs(r.endMs)}`
+    : fmtBriefTs(r.startMs);
+}
+
+/**
+ * Render the server brief as a clean, coherent Markdown report — the exact
+ * content that is previewed, saved and exported. Every interpolated value is
+ * mdEscape'd (model output treated as plain-text data), so the only Markdown
+ * structure present is the structure this function deliberately emits. Opaque
+ * machine ids are never printed; each thematic development carries its readable
+ * de-duplicated timestamp citations. No unverifiable "record metadata" or
+ * "every claim cited" claims are made — the saved artifact IS this Markdown.
+ */
 export function briefToMarkdown(brief: HearingBrief): string {
   const L: string[] = [];
-  L.push(`# Hearing recap — ${brief.title}`, '');
+  const displayTitle = briefDisplayTitle(brief);
+  L.push(`# ${mdEscape(displayTitle)}`, '');
   L.push(
     `_Generated ${new Date(brief.generatedAt).toLocaleString()} · ${
       brief.synthesisSource === 'orchestrator' ? 'Meri synthesis' : 'source-verified assembly'
@@ -412,57 +528,78 @@ export function briefToMarkdown(brief: HearingBrief): string {
       cc.status === 'applied'
         ? 'client priorities applied'
         : 'no client-specific context was available — read as a general recap';
-    L.push(`_Prepared for ${forWhom} · ${how}_`, '');
+    L.push(`_Prepared for ${mdEscape(forWhom)} · ${how}_`, '');
   }
-  L.push('## Executive summary', brief.executiveSummary || '_(pending)_', '');
-  if (brief.supporters.length) L.push(`**Supporters:** ${brief.supporters.join(', ')}`, '');
-  if (brief.opponents.length) L.push(`**Opponents:** ${brief.opponents.join(', ')}`, '');
-  if (brief.tone) L.push(`**Tone:** ${brief.tone}`, '');
-  if (brief.keyMoments.length) {
+  // Link back to the actual room for this session so the reader can retrieve
+  // the transcript. This is the real route; there is no per-segment jump.
+  L.push(`[Open the hearing room & transcript](/intelligence/hearing-watch/${brief.sessionId})`, '');
+  L.push('## Executive summary', mdEscape(brief.executiveSummary) || '_(pending)_', '');
+
+  // Thematic developments are the model's structured narrative. Prefer them;
+  // fall back to the legacy keyMoments only for older briefs.
+  if (brief.keyDevelopments?.length) {
+    L.push('## Key developments');
+    for (const d of brief.keyDevelopments) {
+      L.push(`### ${mdEscape(d.title)}`, mdEscape(d.text));
+      const cites = developmentCitations(brief, d.evidenceIds);
+      if (cites.length) {
+        L.push('', `_Cited at ${cites.map(fmtCitedRange).join(' · ')}_`);
+      }
+      L.push('');
+    }
+  } else if (brief.keyMoments.length) {
     L.push('## Key moments');
     for (const m of brief.keyMoments) {
       L.push(
-        `- **${fmtBriefTs(m.timestampMs)}** ${m.speakerName ? `${m.speakerName}: ` : ''}${m.text} ` +
-          `[segment:${m.segmentId}]`,
+        `- **${fmtBriefTs(m.timestampMs)}** ${m.speakerName ? `${mdEscape(m.speakerName)}: ` : ''}${mdEscape(m.text)}`,
       );
     }
     L.push('');
   }
+
+  if (brief.supporters.length)
+    L.push(`**Supporters:** ${brief.supporters.map(mdEscape).join(', ')}`, '');
+  if (brief.opponents.length)
+    L.push(`**Opponents:** ${brief.opponents.map(mdEscape).join(', ')}`, '');
+  if (brief.tone) L.push(`**Tone:** ${mdEscape(brief.tone)}`, '');
   if (brief.risks.length) {
-    L.push('## Risks', ...brief.risks.map((r) => `- ${r}`), '');
+    L.push('## Risks', ...brief.risks.map((r) => `- ${mdEscape(r)}`), '');
   }
   if (brief.opportunities.length) {
-    L.push('## Opportunities', ...brief.opportunities.map((o) => `- ${o}`), '');
+    L.push('## Opportunities', ...brief.opportunities.map((o) => `- ${mdEscape(o)}`), '');
   }
   if (brief.recommendedNextSteps.length) {
-    L.push('## Recommended next steps', ...brief.recommendedNextSteps.map((n) => `- ${n}`), '');
+    L.push('## Recommended next steps', ...brief.recommendedNextSteps.map((n) => `- ${mdEscape(n)}`), '');
   }
-  if (brief.claimMap?.length) {
-    // The claim map is PROVENANCE, not prose. Rendering every entry inline turned a
-    // real 2026-07-29 recap into a 111-line wall of opaque ids that was longer than
-    // the recap itself and told a human reader nothing — every key moment above
-    // already carries its own [segment:…] anchor. So: state the total, show a
-    // bounded preview, and say explicitly how many were omitted. Never truncate
-    // silently; a cap that hides its own existence reads as "that was all of it".
-    const total = brief.claimMap.length;
-    const shown = brief.claimMap.slice(0, CLAIM_ANCHOR_PREVIEW);
-    L.push('## Source anchors');
-    L.push(
-      `_${total} claim${total === 1 ? '' : 's'} in this recap ` +
-        `${total === 1 ? 'traces' : 'trace'} to a transcript segment. ` +
-        `Each quote above carries its own inline anchor._`,
-      '',
-    );
-    for (const c of shown) {
-      L.push(`- [${c.claimId}] segment ${c.segmentId} at ${fmtBriefTs(c.timestampMs)}`);
+
+  // Source & coverage at the BOTTOM of the document: provenance (the formal
+  // hearing title, kept when a shorter model title replaced it) plus a concise,
+  // truthful coverage note. Keeping the huge formal title here — not under the
+  // headline — means the executive summary is the first thing a reader sees.
+  const cov = brief.sourceCoverage;
+  const provenance = displayTitle !== brief.title ? `_Hearing: ${mdEscape(brief.title)}_` : null;
+  if (provenance || cov) {
+    L.push('## Sources & coverage');
+    if (provenance) L.push(provenance, '');
+    if (cov) {
+      const span = `${fmtBriefTs(cov.startMs)}–${fmtBriefTs(cov.endMs)} of the available recording`;
+      const omitted =
+        cov.omittedSegments ?? Math.max(0, cov.availableSegments - cov.includedSegments);
+      const truncated = cov.truncatedSegments ?? 0;
+      // "all N captured segments" is only truthful when NOTHING was omitted or
+      // shortened — otherwise say exactly what was included.
+      const full = omitted === 0 && truncated === 0;
+      const segCount = full
+        ? `all ${cov.includedSegments} captured transcript segments (${span})`
+        : `${cov.includedSegments} of ${cov.availableSegments} captured transcript segments (${span})`;
+      const qualifiers: string[] = [];
+      if (omitted > 0)
+        qualifiers.push(`${omitted} segment${omitted === 1 ? '' : 's'} not included`);
+      if (truncated > 0)
+        qualifiers.push(`${truncated} segment${truncated === 1 ? '' : 's'} shortened for length`);
+      const basis = qualifiers.length ? `${segCount}; ${qualifiers.join('; ')}` : segCount;
+      L.push(`_Synthesis based on ${basis}._`, '');
     }
-    if (total > shown.length) {
-      L.push(
-        `- _…and ${total - shown.length} further anchor${total - shown.length === 1 ? '' : 's'}, ` +
-          `omitted here for length. The complete map is on the recap record._`,
-      );
-    }
-    L.push('');
   }
   return L.join('\n').trim();
 }
@@ -472,6 +609,13 @@ export function briefToMarkdown(brief: HearingBrief): string {
  * intel-api grounds risks/opportunities in that client's stored relevance and
  * the orchestrator compiles its steering. Without it the brief is client-agnostic,
  * which the Save Recap modal no longer does: it picks the client first.
+ *
+ * The brief URL does NOT match api-client's GENERATION_URL_PATTERNS, so it would
+ * otherwise ride the tight 30s default — but a real model synthesis has been
+ * measured at 34–69s, so the browser aborted first and showed a spurious
+ * "timeout of 30000ms exceeded" while the server completed. Pass the explicit
+ * GENERATION_TIMEOUT_MS; the api-client interceptor never overrides an explicit
+ * per-request timeout, so this wins.
  */
 export function useGenerateBrief() {
   const api = useApi();
@@ -481,6 +625,7 @@ export function useGenerateBrief() {
       return (
         await api.get<HearingBrief | null>(
           `/intel-api/hearings/${encodeURIComponent(input.sessionId)}/brief${q}`,
+          { timeout: GENERATION_TIMEOUT_MS },
         )
       ).data;
     },
@@ -536,6 +681,35 @@ export function useSavedHearingRecaps(clientId: string) {
   });
 }
 
+/**
+ * The CURRENT (non-superseded) recap a client already has for one session, if
+ * any. Drives the explicit "Update existing recap" affordance: the save
+ * endpoint silently REUSES the existing document unless the request names it
+ * via replaceAttachmentId, and replace only succeeds when it names the exact
+ * current attachment — so the modal has to discover it first. Uses the list
+ * endpoint's exact sessionId filter (single bounded query) rather than scanning
+ * pages, so a recap older than any client-side scan window is never missed.
+ */
+export function useCurrentHearingRecap(clientId: string, sessionId: string) {
+  const api = useApi();
+  const scope = useApiScope();
+  return useQuery<SavedHearingRecap | null>({
+    queryKey: ['intel', 'hearing-recap-current', clientId, sessionId, scope],
+    queryFn: async () => {
+      const q = new URLSearchParams({ limit: '1', sessionId });
+      const res = (
+        await api.get<SavedHearingRecapPage>(
+          `/api/intelligence/clients/${encodeURIComponent(clientId)}/hearing-recaps?${q.toString()}`,
+        )
+      ).data;
+      return res.items.find((r) => r.sessionId === sessionId) ?? null;
+    },
+    enabled: Boolean(clientId) && Boolean(sessionId),
+    retry: false,
+    staleTime: 15_000,
+  });
+}
+
 export function useSaveRecap() {
   const api = useApi();
   const qc = useQueryClient();
@@ -562,6 +736,7 @@ export function useSaveRecap() {
       ).data,
     onSuccess: (_result, input) => {
       void qc.invalidateQueries({ queryKey: ['intel', 'hearing-recaps', input.clientId] });
+      void qc.invalidateQueries({ queryKey: ['intel', 'hearing-recap-current', input.clientId] });
       void qc.invalidateQueries({ queryKey: ['intel', 'hearings', 'history'] });
       void qc.invalidateQueries({ queryKey: ['intel', 'upcoming-hearings'] });
       void qc.invalidateQueries({ queryKey: ['intel', 'browse-hearings'] });

@@ -20,7 +20,9 @@ import {
   FOLDER_TRACKER_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
 import { FolderTrackerService, isFolderAdmin } from './folder-tracker.service.js';
+import { FolderSourceDataRepository } from '../../sourcedata/folder-source-data.repository.js';
 import {
+  BillCorpusQueryDto,
   BulkFolderBillsDto,
   FolderActivityQueryDto,
   FolderBoardQueryDto,
@@ -41,6 +43,29 @@ export class FolderTrackerGuard implements CanActivate {
     if (!ctx || !(await this.flags.isEnabled(FOLDER_TRACKER_FEATURE, ctx.tenantId)))
       throw new NotFoundException();
     return true;
+  }
+}
+/**
+ * Global public bill corpus — every ingested federal and state bill
+ * (state_bill + congress_bill), all sessions, tenant-independent. TenantGuard
+ * only: the dedicated BillCorpusQueryDto carries no folder/client/private
+ * fields, so these routes can never join tenant-private tables.
+ */
+@Controller('legiwatch/bills')
+@UseGuards(TenantGuard)
+export class BillCorpusController {
+  constructor(
+    private readonly svc: FolderTrackerService,
+    private readonly source: FolderSourceDataRepository,
+  ) {}
+  @Get('search') search(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Query() query: BillCorpusQueryDto,
+  ) {
+    return this.svc.searchCorpus(ctx, query);
+  }
+  @Get('corpus-metadata') corpusMetadata() {
+    return this.source.corpusMetadata();
   }
 }
 @Controller('legiwatch/folders')

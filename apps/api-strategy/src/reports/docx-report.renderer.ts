@@ -20,6 +20,10 @@ import {
   convertInchesToTwip,
 } from "docx";
 import {
+  AMENDMENT_STATUS_LADDER,
+  amendmentMessageDiscipline,
+  classifyValidationResult,
+  clientInputsRequired,
   clip,
   contextItems,
   criticalNodes,
@@ -29,12 +33,17 @@ import {
   executiveSummary,
   focusAreas,
   formatDate,
+  isAmendmentStrategy,
   kindLabel,
   leadershipAgenda,
   nodeDetail,
   roadmap,
+  routeAndVehicleItems,
   statusLabel,
   strategyTypeLabel,
+  targetBudgetLineItems,
+  validationSummary,
+  vendorReferenceItems,
 } from "./report-content.js";
 import { containSize, readRasterSize } from "./report-image.js";
 import {
@@ -51,6 +60,7 @@ import {
 import type {
   ClientLogoAsset,
   ExecutiveReportSnapshot,
+  ReportContextFact,
   ReportMemberDetail,
   ReportNarrativeItem,
   ReportNode,
@@ -221,6 +231,11 @@ export class DocxReportRenderer {
       );
     }
 
+    // Amendment-type strategies carry extra sections; every other type's
+    // document is unchanged (see report-content.ts amendment helpers).
+    const isAmendment = isAmendmentStrategy(snapshot);
+    if (isAmendment) appendAmendmentTargetAndRoutes(children, snapshot);
+
     const situationItems = contextItems(snapshot, ["situation", "timing"]);
     const constraintItems = contextItems(snapshot, ["constraints"]);
     const stakeholderItems = contextItems(snapshot, ["stakeholders"]);
@@ -389,6 +404,8 @@ export class DocxReportRenderer {
       }
     }
 
+    if (isAmendment) appendAmendmentMessageAndInputs(children, snapshot);
+
     if (snapshot.options.includeRoadmap) {
       children.push(sectionHeading("Delivery roadmap"));
       const roadmapProse = prose("roadmap_outlook");
@@ -485,6 +502,7 @@ export class DocxReportRenderer {
         grounded.length > 0 ||
         snapshot.artifacts.length > 0 ||
         snapshot.context.documents.length > 0);
+    if (isAmendment) appendAmendmentValidationSummary(children, snapshot);
     if (hasEvidenceAppendix) {
       // No forced PageBreak here: an unconditional break right after a table
       // that already lands near a page boundary (e.g. a large working-plan
@@ -554,6 +572,8 @@ export class DocxReportRenderer {
         }
       }
     }
+
+    if (isAmendment) appendVendorReferenceAppendix(children, snapshot);
 
     if (snapshot.options.audience === "internal") {
       children.push(...internalAppendix(snapshot, narrative));
@@ -1165,6 +1185,227 @@ function evidenceTable(items: ReturnType<typeof evidenceItems>): Table {
                 item.confidence === null
                   ? "Not stated"
                   : `${Math.round(item.confidence * 100)}%`,
+              ),
+            ],
+          }),
+      ),
+    ],
+  });
+}
+
+/*
+ * Amendment-type sections. Each renders from the audience-filtered snapshot
+ * only; the standing notes are fixed text. Empty states name the Steward
+ * template that populates the section so the gap is actionable.
+ */
+
+function appendAmendmentTargetAndRoutes(
+  children: Array<Paragraph | Table>,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const targetFacts = targetBudgetLineItems(snapshot);
+  children.push(sectionHeading("Target budget line"));
+  children.push(
+    focusAreaDescription(
+      "Line identity, fiscal-year baseline and the requested increase, each figure carried with the exhibit and page it was read from.",
+    ),
+  );
+  if (targetFacts.length > 0) {
+    children.push(factTable(targetFacts, "Line item, baseline or request"));
+  } else {
+    children.push(
+      mutedParagraph(
+        "No target budget line facts recorded yet — upload 14_target_budget_line.md.",
+      ),
+    );
+  }
+
+  const routeFacts = routeAndVehicleItems(snapshot);
+  children.push(sectionHeading("Routes and vehicle status"));
+  children.push(
+    focusAreaDescription(
+      `Vehicles, entry points and the backstop in priority order. Status ladder: ${AMENDMENT_STATUS_LADDER.map((stage) => stage.toLowerCase()).join(" → ")}; a stage is advanced only when the rule report, roll call or enrolled text shows it.`,
+    ),
+  );
+  if (routeFacts.length > 0) {
+    children.push(factTable(routeFacts, "Vehicle, route or hurdle"));
+  } else {
+    children.push(
+      mutedParagraph(
+        "No route or vehicle status facts recorded yet — upload 16_route_and_vehicle_status.md.",
+      ),
+    );
+  }
+}
+
+function appendAmendmentMessageAndInputs(
+  children: Array<Paragraph | Table>,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const discipline = amendmentMessageDiscipline();
+  children.push(sectionHeading("Core message discipline"));
+  children.push(
+    focusAreaDescription(
+      "Fixed framing for every conversation about the ask. These lines carry no figures; the figures live in the target budget line above.",
+    ),
+  );
+  children.push(subheading("What to say"));
+  for (const line of discipline.say) children.push(bulletParagraph(line));
+  children.push(subheading("What not to say"));
+  for (const line of discipline.avoid) children.push(bulletParagraph(line));
+
+  const inputs = clientInputsRequired(snapshot);
+  children.push(sectionHeading("Information required from the client"));
+  if (inputs.length > 0) {
+    children.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          headerRow(["Input", "Status", "Needed by"]),
+          ...inputs.map(
+            (requirement) =>
+              new TableRow({
+                cantSplit: true,
+                children: [
+                  richCell(
+                    requirement.input,
+                    snapshot.options.includeInternalNotes
+                      ? requirement.node.note
+                      : null,
+                  ),
+                  cell(requirement.status),
+                  cell(requirement.neededBy),
+                ],
+              }),
+          ),
+        ],
+      }),
+    );
+  } else {
+    children.push(
+      mutedParagraph(
+        "No client inputs are recorded. Track them as decision steps titled “Client input required: …”.",
+      ),
+    );
+  }
+}
+
+function appendAmendmentValidationSummary(
+  children: Array<Paragraph | Table>,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const rows = validationSummary(snapshot);
+  children.push(sectionHeading("Validation summary and open gaps"));
+  children.push(
+    focusAreaDescription(
+      "Each claim is Confirmed only when its source authority or recorded confidence supports it; open gaps must close before the figures travel externally.",
+    ),
+  );
+  if (rows.length === 0) {
+    children.push(
+      mutedParagraph(
+        "No validation rows are available yet; evidence-register and target-budget-line facts populate this summary.",
+      ),
+    );
+    return;
+  }
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        headerRow(["Claim or item", "Result", "Note"]),
+        ...rows.map(
+          (row) =>
+            new TableRow({
+              cantSplit: true,
+              children: [
+                richCell(row.claim, null),
+                cell(
+                  row.result,
+                  true,
+                  COLORS.white,
+                  row.result === "Confirmed"
+                    ? COLORS.teal
+                    : row.result === "Open gap"
+                      ? COLORS.red
+                      : COLORS.gold,
+                ),
+                cell(row.note),
+              ],
+            }),
+        ),
+      ],
+    }),
+  );
+}
+
+function appendVendorReferenceAppendix(
+  children: Array<Paragraph | Table>,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const facts = vendorReferenceItems(snapshot);
+  children.push(sectionHeading("Appendix: Vendor reference data"));
+  children.push(
+    mutedParagraph(
+      "Rows marked Unverified must be confirmed against the named source before external use.",
+    ),
+  );
+  if (facts.length === 0) {
+    children.push(
+      mutedParagraph(
+        "No vendor reference facts recorded yet — upload 15_vendor_reference_pull.md.",
+      ),
+    );
+    return;
+  }
+  children.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        headerRow(["Reference item", "Source", "As of", "Verification"]),
+        ...facts.map((fact) => {
+          const verification = classifyValidationResult(fact);
+          return new TableRow({
+            cantSplit: true,
+            children: [
+              richCell(fact.text, null),
+              cell(fact.documentTitle),
+              cell(formatDate(fact.asOf)),
+              cell(
+                verification,
+                true,
+                COLORS.white,
+                verification === "Confirmed" ? COLORS.teal : COLORS.gold,
+              ),
+            ],
+          });
+        }),
+      ],
+    }),
+  );
+}
+
+/** Steward facts in the evidence-table style: item / source / as of / confidence. */
+function factTable(
+  facts: readonly ReportContextFact[],
+  itemLabel: string,
+): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      headerRow([itemLabel, "Source", "As of", "Confidence"]),
+      ...facts.map(
+        (fact) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              richCell(fact.text, null),
+              cell(fact.documentTitle),
+              cell(formatDate(fact.asOf)),
+              cell(
+                fact.confidence === null
+                  ? "Not stated"
+                  : `${Math.round(fact.confidence * 100)}%`,
               ),
             ],
           }),

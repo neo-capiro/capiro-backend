@@ -77,7 +77,13 @@ export class HearingReconcilerService {
     now: Date,
   ): Promise<ReconcileOutcome> {
     if (event.legislative)
-      return this.legislative.reconcile(source, event.externalEventId, event.legislative, now);
+      return this.legislative.reconcile(
+        source,
+        event.externalEventId,
+        event.legislative,
+        now,
+        event.canonicalHearingId ?? null,
+      );
     const observation = await this.observations.recordObservation(source, event, now);
 
     // STRONGEST identity rung, ahead of the whole match ladder: if THIS source

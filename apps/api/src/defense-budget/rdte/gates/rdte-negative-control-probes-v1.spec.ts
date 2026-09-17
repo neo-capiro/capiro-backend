@@ -285,11 +285,17 @@ describe('Phase 4 negative-control probes', () => {
 
   it('NC19: a source-faithful project code is never truncated', () => {
     const projectCode = 'AB-12.34';
+    // Fix-followup (R2A_MARKER_RE self-match investigation): the literal
+    // real print, not the bare 'R-2A' shorthand this fixture used to use --
+    // R2A_MARKER_RE now requires the "Exhibit R-2A" word order (see
+    // r2a-structural-project-header-parser-v1.ts), matching the same
+    // fixture update already applied to r2a-project-extractor-v1.spec.ts.
+    const marker = 'Exhibit R-2A, RDT&E Project Justification: PB 2024 Army';
     const page: ParserPageResultV1 = {
       page: 1,
-      text: 'R-2A',
+      text: marker,
       blocks: [
-        { blockIndex: 0, blockType: 'header', text: 'R-2A' },
+        { blockIndex: 0, blockType: 'header', text: marker },
         { blockIndex: 1, blockType: 'text', text: 'Long Code Project' },
       ],
       tables: [

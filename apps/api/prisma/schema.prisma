@@ -4487,6 +4487,126 @@ model ProgramElementYear {
   @@map("program_element_year")
 }
 
+// ── Canonical PROCUREMENT budget line items (P-1 lines / BLINs) ──────────────
+//
+// A procurement line item (e.g. Procurement, Defense-Wide 0300D / P-1 Line 68 /
+// 0204WARSYS "Warrior Systems <$5M") is NEVER a Program Element (extractors/types.ts
+// identity guardrail), so it cannot live in program_element*. These three tables are
+// the procurement analogue of ProgramElement / ProgramElementYear /
+// ProgramElementSource, written ONLY by ProcurementLineWriterService
+// (src/defense-budget/procurement/) from composer output whose verification
+// decision is PASS, and ONLY when DEFENSE_BUDGET_PROCUREMENT_CANONICAL_WRITES=1.
+// Global tables (no tenant_id / RLS): public-domain J-book data, read-only via API.
+//
+// Identity: (appropriation_code, line_item_number). The appropriation account code
+// (0300D, 2031A, ...) already encodes the component, and BLINs are unique within an
+// account. P-1 line NUMBERS shift from cycle to cycle, so p1_line_number on the line
+// is "as of the latest written cycle" and the per-FY value is on the year row.
+model ProcurementLine {
+  id                 String   @id @default(uuid()) @db.Uuid
+  // Appropriation account code as printed on the P-1 (e.g. "0300D", "2031A").
+  appropriationCode  String   @map("appropriation_code") @db.VarChar(16)
+  appropriationTitle String?  @map("appropriation_title")
+  // Component/service owning the line (SOCOM, DW, ARMY, NAVY, AF, ...).
+  component          String?
+  budgetActivity     String?  @map("budget_activity")
+  budgetSubActivity  String?  @map("budget_sub_activity")
+  p1LineNumber       Int?     @map("p1_line_number")
+  // Budget Line Item Number as printed, normalized upper-case (e.g. "0204WARSYS").
+  lineItemNumber     String   @map("line_item_number") @db.VarChar(32)
+  title              String
+  // "Other Related Program Elements" cross-reference from the P-40 header. A REFERENCE
+  // only — deliberately no FK to program_element, and never used to create a PE.
+  relatedPeCode      String?  @map("related_pe_code") @db.VarChar(16)
+  raw                Json     @default("{}") @map("raw_jsonb")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  years   ProcurementLineYear[]
+  sources ProcurementLineSource[]
+
+  @@unique([appropriationCode, lineItemNumber], map: "procurement_line_appropriation_line_item_key")
+  @@index([lineItemNumber], map: "procurement_line_line_item_number_idx")
+  @@index([component], map: "procurement_line_component_idx")
+  @@index([relatedPeCode], map: "procurement_line_related_pe_code_idx")
+  @@map("procurement_line")
+}
+
+// One row per (line, FY, subline). subline_key is '' for the line-level (P-1 total)
+// row and the P-40a program/category key (e.g. "P7") for a subline. It is NOT NULL
+// with a '' sentinel rather than nullable because Postgres treats NULLs as distinct
+// in UNIQUE constraints and Prisma cannot address a compound unique containing NULL
+// — either would let a re-run insert a duplicate line-level row and break the
+// writer's idempotency guarantee.
+//
+// Money columns are $ MILLIONS. Decimal(18,6) rather than ProgramElementYear's
+// Decimal(14,2): P-1 values are printed in $K, so an exact $M representation needs
+// three decimals (FY2027 0204WARSYS request = 511,016 $K = 511.016 $M). This is the
+// precision ProgramElementYearSourceValue.canonical_value_m already uses.
+model ProcurementLineYear {
+  id           String   @id @default(uuid()) @db.Uuid
+  lineId       String   @map("line_id") @db.Uuid
+  fy           Int
+  sublineKey   String   @default("") @map("subline_key") @db.VarChar(32)
+  sublineTitle String?  @map("subline_title")
+  p1LineNumber Int?     @map("p1_line_number")
+  request      Decimal? @db.Decimal(18, 6)
+  hascMark     Decimal? @map("hasc_mark") @db.Decimal(18, 6)
+  sascMark     Decimal? @map("sasc_mark") @db.Decimal(18, 6)
+  hacDMark     Decimal? @map("hac_d_mark") @db.Decimal(18, 6)
+  sacDMark     Decimal? @map("sac_d_mark") @db.Decimal(18, 6)
+  conference   Decimal? @db.Decimal(18, 6)
+  enacted      Decimal? @db.Decimal(18, 6)
+  actuals      Decimal? @db.Decimal(18, 6)
+  quantity     Int?
+  raw          Json     @default("{}") @map("raw_jsonb")
+  lastSyncedAt DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  line    ProcurementLine         @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  sources ProcurementLineSource[]
+
+  @@unique([lineId, fy, sublineKey], map: "procurement_line_year_line_fy_subline_key")
+  @@index([fy], map: "procurement_line_year_fy_idx")
+  @@map("procurement_line_year")
+}
+
+// Page-level provenance for a procurement line. Mirrors ProgramElementSource; every
+// canonical year value written by the writer carries at least one of these (a value
+// with no citation is not written). source_span_hash is the dedupe key on re-runs.
+model ProcurementLineSource {
+  id               String   @id @default(uuid()) @db.Uuid
+  lineId           String   @map("line_id") @db.Uuid
+  yearId           String?  @map("year_id") @db.Uuid
+  docType          String   @map("doc_type") @db.VarChar(8) // P
+  exhibitType      String?  @map("exhibit_type") @db.VarChar(16) // P-1 | P-40 | P-40A | P-5 | ...
+  fy               Int?
+  sourceUrl        String   @map("source_url")
+  pageNumber       Int?     @map("page_number")
+  pageEnd          Int?     @map("page_end")
+  snippet          String?  @db.Text
+  publisher        String?  @db.VarChar(64) // e.g. "DoD Comptroller"
+  confidence       Float    @default(0.9)
+  extractorVersion String?  @map("extractor_version")
+  sourceSpanHash   String   @map("source_span_hash") @db.Char(64)
+  metadata         Json     @default("{}") @map("metadata_jsonb")
+  observedAt       DateTime @default(now()) @map("observed_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  // Registry link: the fingerprinted source file this citation came from.
+  sourceDocumentId String?  @map("source_document_id") @db.Uuid
+
+  line           ProcurementLine      @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  year           ProcurementLineYear? @relation(fields: [yearId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sourceDocument SourceDocument?      @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([lineId, sourceSpanHash], map: "procurement_line_source_line_span_hash_key")
+  @@index([lineId], map: "procurement_line_source_line_idx")
+  @@index([lineId, fy], map: "procurement_line_source_line_fy_idx")
+  @@index([yearId], map: "procurement_line_source_year_idx")
+  @@index([sourceDocumentId], map: "procurement_line_source_source_document_idx")
+  @@map("procurement_line_source")
+}
+
 // Budget-cycle (PB position) dimension + FYDP outyears (Step 1.3, plan §5/§6).
 // ONE row per (PE, budget cycle, asserted FY, value kind): every fiscal year a
 // budget book *asserts* a value FOR, tagged with the book/stage that asserts it.
@@ -4863,6 +4983,8 @@ model SourceDocument {
   // Phase 10B-18 — source-bundle member bindings (Army R-2 multi-volume corpus).
   bundleMemberBindings             DefenseBudgetSourceBundleMember[]
   reextractionOperations           BudgetReextractionOperationV1[]
+  // Canonical procurement line citations (procurement_line_source).
+  procurementLineSources           ProcurementLineSource[]
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -7303,110 +7425,6 @@ model LegiWatchNotificationEvent {
   @@index([tenantId, userId, createdAt(sort: Desc)], map: "legiwatch_notification_event_inbox_idx")
   @@index([tenantId, hearingId], map: "legiwatch_notification_event_hearing_idx")
   @@map("legiwatch_notification_event")
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// LegiWatch V2 Wave 2 — Saved Views (W2-2) and Watch Presets + backtest job
-// queue (W2-4). See migration 20280213010000_legiwatch_v2_wave2 for the SQL
-// source of truth (CHECK constraints, the partial one-default-per-owner
-// index, the conditions-type validator function, and the RLS policies are
-// SQL-owned and intentionally not re-expressed here).
-// ─────────────────────────────────────────────────────────────────────────
-
-// A tenant user's saved filter/search/sort/layout state for one LegiWatch
-// surface. `config` is a bounded, key-allowlisted JSON blob validated at the
-// DTO layer (LegiWatchSaveViewDto); `configVersion` is the shape version of
-// that payload, so a future config-shape change can be detected and refused
-// rather than silently misapplied. `clientId` is a real column (not buried in
-// `config`) specifically so its tenant ownership and liveness can be checked
-// without parsing arbitrary JSON — an archived/deleted referenced client
-// produces an explicit warning on apply, never a silent substitution.
-model LegiWatchSavedView {
-  id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
-  ownerUserId   String   @map("owner_user_id") // clerk user id
-  /// 'hearings_schedule' | 'hearings_archive' | 'committees' |
-  /// 'committee_intelligence' | 'feed' | 'bills'
-  surface       String
-  name          String
-  /// 'personal' (default) | 'tenant'. Sharing widens READ only — a shared
-  /// view stays mutable by ownerUserId alone.
-  scope         String   @default("personal")
-  isDefault     Boolean  @default(false) @map("is_default")
-  clientId      String?  @map("client_id") @db.Uuid
-  configVersion Int      @default(1) @map("config_version")
-  config        Json     @default("{}")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  @@index([tenantId, ownerUserId, surface, updatedAt(sort: Desc)], map: "legiwatch_saved_view_tenant_owner_surface_idx")
-  @@map("legiwatch_saved_view")
-}
-
-// A fast, enumerated-condition alert-preview definition that SUPPLEMENTS the
-// canonical client watchlist (intel-api's Watchlist/WatchlistTerm/
-// WatchlistTopic) — it does not generate live alerts itself and is not a
-// second targeting/matching store. `signalFamilies` reuses the Feed's own
-// `FeedSourceType` vocabulary (bill/hearing/regulation/program_element/
-// state_bill); there is deliberately no standalone "funding" family — funding
-// movement is a real TRIGGER on program_element data (see `conditions`
-// below), not a distinct source, confirmed against the shipped alert/detector
-// model. `conditions` is a closed, enumerated array (KEYWORD_MATCH |
-// STATUS_CHANGE | FUNDING_MOVEMENT | HEARING_SCHEDULED |
-// CLIENT_RELEVANCE_HIGH) — never a free-form expression language.
-model LegiWatchWatchPreset {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  ownerUserId    String   @map("owner_user_id") // clerk user id
-  name           String
-  clientIds      String[] @default([]) @map("client_ids") @db.Uuid
-  signalFamilies String[] @default([]) @map("signal_families")
-  conditions     Json     @default("[]")
-  /// 'active' | 'paused' | 'archived'
-  status         String   @default("active")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  backtestJobs LegiWatchWatchBacktestJob[]
-
-  @@index([tenantId, ownerUserId, updatedAt(sort: Desc)], map: "legiwatch_watch_preset_tenant_owner_idx")
-  @@index([tenantId, status], map: "legiwatch_watch_preset_tenant_status_idx")
-  @@map("legiwatch_watch_preset")
-}
-
-// The async backtest job queue. Copies the shape of the shipped
-// PublicHearingIntelligenceJob/TenantHearingRelevanceJob lease tables
-// verbatim (status/attempts/dueAt/leaseOwner/leaseExpiresAt/lastError/
-// completedAt + a FOR UPDATE SKIP LOCKED claim, SQL-owned) rather than a new
-// queueing architecture. `request` is the EXACT request evaluated — bound to
-// this row rather than only referencing a preset that could change
-// independently — so the same snapshot/queryVersion pair is always
-// deterministic. A backtest is READ-ONLY by construction: it only ever
-// produces `result`; nothing in this table's write path touches any other
-// table (proved by a dedicated no-side-effect test).
-model LegiWatchWatchBacktestJob {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenantId       String    @map("tenant_id") @db.Uuid
-  ownerUserId    String    @map("owner_user_id") // clerk user id
-  presetId       String?   @map("preset_id") @db.Uuid
-  request        Json
-  queryVersion   String    @map("query_version")
-  /// 'pending' | 'leased' | 'completed' | 'failed'
-  status         String    @default("pending")
-  attempts       Int       @default(0)
-  dueAt          DateTime  @default(now()) @map("due_at") @db.Timestamptz(6)
-  leaseOwner     String?   @map("lease_owner")
-  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
-  lastError      String?   @map("last_error")
-  result         Json?
-  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  preset LegiWatchWatchPreset? @relation(fields: [presetId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId, ownerUserId, createdAt(sort: Desc)], map: "legiwatch_watch_backtest_job_tenant_owner_idx")
-  @@map("legiwatch_watch_backtest_job")
 }
 
 // Tenant-defined rule for auto-subscribing to / auto-recording future

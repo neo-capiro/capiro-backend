@@ -141,11 +141,8 @@ export interface StrategyAssistantInput {
   attachments?: StrategyAttachment[];
   clientId: string;
   strategy: StrategyState;
-  /** F02 fix: clerkUserId -> display name, resolved by api-strategy
-   *  (mirrors the web editor's memberName). Keyed the same as
-   *  StrategyStateNode.ownerUserId so renderPlan can show the SAME
-   *  owner the editor/inspector/plan-health surfaces show, instead of
-   *  omitting ownership from the plan text entirely. */
+  /** Active tenant members, keyed by clerkUserId. Used both to render existing
+   *  owners and to resolve a requested new owner without inventing an id. */
   ownerNames?: Record<string, string>;
   fiscal?: FiscalGrounding;
   firmPhases?: FirmPhaseRow[];
@@ -267,8 +264,11 @@ export const PROPOSE_PLAN_EDITS_TOOL = {
   name: 'propose_plan_edits',
   description:
     'Return your reply and any edits to the existing plan. op is add|update|remove|retime. add needs kind/subject/title/startsOn; update/remove/retime need the target nodeId. dependsOn lists the node ids this step is blocked by (existing nodes only). For a question needing no change, pass an empty edits array.',
-  // A7: constrained decoding on models that support it (see PROPOSE_STRATEGY_DRAFT_TOOL).
-  strict: true,
+  // Patch fields must remain optional: omission means "leave unchanged".
+  // Sonnet 5 rejects this nested optional-field grammar as "Schema is too
+  // complex". Use ordinary tool use; sanitization and the transactional API
+  // validator remain authoritative. Do not make absent fields null/defaults.
+  strict: false,
   input_schema: {
     type: 'object',
     additionalProperties: false,
@@ -284,6 +284,11 @@ export const PROPOSE_PLAN_EDITS_TOOL = {
             op: { type: 'string', enum: ['add', 'update', 'remove', 'retime'] },
             nodeId: { type: 'string', description: 'Target node id for update/remove/retime.' },
             ...NODE_PROPS,
+            ownerUserId: {
+              type: ['string', 'null'],
+              description:
+                'Exact user id from Available owners. Omit to keep the current owner; null only to explicitly unassign.',
+            },
             dependsOn: {
               type: 'array',
               items: { type: 'string' },
@@ -452,6 +457,8 @@ export function sanitizePlanEdits(raw: unknown): Array<Record<string, unknown>> 
           if (v !== undefined) out[k] = v;
         }
         if (typeof e.note === 'string') out.note = e.note;
+        if (e.ownerUserId === null) out.ownerUserId = null;
+        else if (str(e.ownerUserId)) out.ownerUserId = str(e.ownerUserId);
         if (typeof e.openEnded === 'boolean') out.openEnded = e.openEnded;
         // A3: node-id edges (existing nodes only; api-strategy validates existence).
         if (Array.isArray(e.dependsOn)) {
@@ -672,6 +679,29 @@ const PERSONA =
  */
 const STRATEGY_BASE = [PERSONA, MERI_GROUNDING_INVARIANT].join('\n\n');
 
+/**
+ * Type-specific planning discipline. Rendered into the dynamic tail (never the
+ * cached base) ONLY for the objective types that carry extra rules; every
+ * other type gets an empty string so existing prompts are byte-identical.
+ * Follows the strategy-verifier's guard-clause pattern (checkFocalFy): opt-in
+ * per type, no switch over the whole enum.
+ */
+export const AMENDMENT_TYPE_ADDENDUM = [
+  '# Amendment strategy discipline',
+  '- Every plan must resolve to a NAMED legislative vehicle: a floor amendment to a specific bill, a committee markup insert, report/explanatory-statement language, or a conference ask — each with a real chamber and committee and, when known, a filing or markup deadline. A plan with no named vehicle is incomplete: raise a decision node instead of inventing one.',
+  '- Distinguish the account type explicitly (procurement vs RDT&E vs O&M vs MILCON) and cite the matching exhibit (P-1/P-40 vs R-1/R-2). Never reuse RDT&E figures as the baseline for a procurement ask or vice versa.',
+  '- A funding increase needs an offset before it can be filed. Add a gate node whose title contains the word "offset" (e.g. "Offset identified and screened") and make the filing/submission action depend on it via dependsOn. Report-language-only asks carry no dollars and need no offset.',
+  "- Frame the ask as a capability-and-quantity outcome, never a named vendor. The performing company's identity, qualifications, contract vehicles, and past performance belong in the technical annex / vendor reference appendix — never in the funding-table or report-language text.",
+  '- State status precisely and only from evidence: filed, made in order, adopted, conferenced, and enacted are five distinct, independently-evidenced states. Never describe a request as secured, appropriated, or enacted unless the grounding shows the corresponding event.',
+  "- Route timing (floor schedules, Rules Committee windows) is frequently outside the client's or the firm's control. Model an unscheduled window as a decision or gate node rather than a fixed date, and always carry a parallel backstop path (the other chamber, conference, or the next fiscal year's programmatic request window).",
+  '- Required client inputs for a procurement or RDT&E add: performing company; configuration and quantity the dollars buy (with unit cost); the requirement or fielding gap it closes; qualification status (NSN, test history, prior fielding); execution vehicle (contract, IDIQ, or competitive process); delivery schedule; verified domestic footprint; federal-market credentials (UEI, CAGE, SAM status). For each input NOT present in the client context or Steward facts, add a decision node titled "Client input required: <input>" — do not assume a value.',
+].join('\n');
+
+/** The discipline block for a given objective type ('' when the type has none). */
+export function typeDisciplineSection(type: string | null | undefined): string {
+  return type === 'amendment' ? AMENDMENT_TYPE_ADDENDUM : '';
+}
+
 function strategyAssuranceBlock(input: {
   request: string;
   clientId?: string;
@@ -710,6 +740,7 @@ export function composeDraftSystemPrompt(
       surface: 'strategy',
     }),
     `# Objective type\n${input.type}`,
+    typeDisciplineSection(input.type),
     input.goal
       ? `# Goal\n${input.goal}`
       : '# Goal\n(none stated — do not invent one; propose a discovery step or generic options and identify the required client decision)',
@@ -764,7 +795,9 @@ export function composeAssistantSystemPrompt(
       surface: 'strategy',
     }),
     `# Current strategy\n${input.strategy.title} (${input.strategy.type})${input.strategy.goal ? `\nGoal: ${input.strategy.goal}` : ''}`,
+    typeDisciplineSection(input.strategy.type),
     `# Current plan\n${renderPlan(input.strategy, input.ownerNames)}`,
+    `# Available owners\n${JSON.stringify(input.ownerNames ?? {})}\nFor ownership changes, use only these exact user ids. Ask for clarification if the requested person is missing or ambiguous. Set ownerUserId on each requested step; omit unrelated fields. Null explicitly unassigns.`,
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,
@@ -854,6 +887,7 @@ export function composeDocumentDraftSystemPrompt(
     }),
     `# Deliverable\n${deliverableNote}`,
     `# Objective type\n${input.type}`,
+    typeDisciplineSection(input.type),
     input.goal
       ? `# Strategy goal\n${input.goal}`
       : '# Strategy goal\n(none stated — do not manufacture an objective or ask; hold client-specific recommendations until direction is supplied)',

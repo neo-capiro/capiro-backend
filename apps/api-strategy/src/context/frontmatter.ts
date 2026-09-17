@@ -3,7 +3,7 @@
  * Strategy Context Pack (src/context/templates/ is the in-repo contract).
  *
  * PURE module — no Nest, no Prisma, no I/O. The grammar is deliberately the
- * flat subset the 14 templates actually use: a leading `---` fence, flat
+ * flat subset the 17 templates actually use: a leading `---` fence, flat
  * `key: value` scalar lines (bare scalar | double-quoted string | true/false |
  * null), and a closing `---`. Nested keys, arrays, and block scalars are
  * STRUCTURAL errors — the contract is flat by design, and a tiny exact parser
@@ -33,7 +33,7 @@ export interface ParseResult {
 // Vocabularies (the template contract). Stage E imports these — keep exported.
 // ---------------------------------------------------------------------------
 
-/** The 14 known document types, in template-pack order (00..13). */
+/** The 17 known document types, in template-pack order (00..16). */
 export const DOCUMENT_TYPES = [
   'context_manifest',
   'strategy_brief',
@@ -49,6 +49,9 @@ export const DOCUMENT_TYPES = [
   'agent_mission',
   'execution_playbook',
   'agent_permissions',
+  'target_budget_line',
+  'vendor_reference_pull',
+  'route_and_vehicle_status',
 ] as const;
 export type DocumentTypeValue = (typeof DOCUMENT_TYPES)[number];
 
@@ -68,6 +71,9 @@ export const TEMPLATE_KEY_BY_TYPE: Readonly<Record<DocumentTypeValue, string>> =
   agent_mission: '11_agent_mission',
   execution_playbook: '12_execution_playbook',
   agent_permissions: '13_agent_permissions',
+  target_budget_line: '14_target_budget_line',
+  vendor_reference_pull: '15_vendor_reference_pull',
+  route_and_vehicle_status: '16_route_and_vehicle_status',
 };
 
 /** SpContextDocState mirror. */
@@ -257,7 +263,7 @@ function checkVocab(
 function checkDateOrNull(errors: FieldError[], fm: Frontmatter, field: string): void {
   const v = fm[field];
   if (v === null || v === undefined) {
-    // as_of is required by all 14 templates and drives Stage E conflict
+    // as_of is required by all 17 templates and drives Stage E conflict
     // resolution (README rule 5: 'newer as_of date') — null is NOT allowed.
     if (field === 'as_of') {
       errors.push({ field, message: 'as_of is required (a real YYYY-MM-DD date, not null)' });

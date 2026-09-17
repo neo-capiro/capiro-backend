@@ -32,6 +32,11 @@ export const OBJECTIVE_TYPES: Array<{ id: StrategyType; label: string; desc: str
     label: 'Grant / earmark (CDS)',
     desc: 'Pursue community project funding or a federal grant.',
   },
+  {
+    id: 'amendment',
+    label: 'Amendment ask',
+    desc: 'Pursue a budget line or authorizing provision through a named vehicle — floor amendment, markup insert, or report language — with an offset and a backstop.',
+  },
 ];
 
 export const STRATEGY_TYPE_LABEL: Record<StrategyType, string> = OBJECTIVE_TYPES.reduce(

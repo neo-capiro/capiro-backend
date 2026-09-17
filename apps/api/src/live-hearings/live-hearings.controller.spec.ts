@@ -77,4 +77,26 @@ describe('LiveHearingsController contract', () => {
     expect(committees.committees).toHaveBeenCalledWith(ctx);
     expect(result.rows).toEqual([{ systemCode: 'hsag00' }]);
   });
+
+  it('forwards the whitelisted sort direction to the calendar service', async () => {
+    const { controller, service } = fixture();
+
+    await controller.calendar(ctx, { sort: 'desc', jurisdiction: 'FL', pageSize: 1 } as never);
+
+    expect(service.calendar).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ sort: 'desc', jurisdiction: 'FL', pageSize: 1 }),
+    );
+  });
+
+  it('leaves the sort direction undefined by default (asc contract preserved)', async () => {
+    const { controller, service } = fixture();
+
+    await controller.calendar(ctx, { jurisdiction: 'FL' } as never);
+
+    expect(service.calendar).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ sort: undefined }),
+    );
+  });
 });

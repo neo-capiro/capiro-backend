@@ -120,7 +120,9 @@ export interface ReportSectionReadiness {
     | "decisions_risks"
     | "roadmap"
     | "accountability"
-    | "evidence";
+    | "evidence"
+    /** Amendment-type strategies only: target line, routes, vendor data, client inputs. */
+    | "amendment_package";
   label: string;
   state: "ready" | "thin" | "empty" | "excluded";
   availableCount: number;

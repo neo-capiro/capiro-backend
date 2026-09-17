@@ -87,6 +87,23 @@ describe('OrchestratorClient.summarizeHearing — per-branch timeout budget', ()
     await assertion;
   });
 
+  it('narrativeSource (legacy authored recap) widens to 130000ms, not the 35s floor', async () => {
+    const { fetchImpl, seen } = hangingFetch();
+    jest.spyOn(global, 'fetch').mockImplementation(fetchImpl);
+    const narrativeSource = [
+      { segmentId: 's1', text: 'opening statement', startMs: 0, endMs: 1000, speakerLabel: '0' },
+    ];
+    const p = client.summarizeHearing({ ...summarizeParams, narrativeSource });
+    const assertion = expect(p).resolves.toBeNull();
+    await jest.advanceTimersByTimeAsync(65000); // governed evidence budget passed, still alive
+    expect(seen[0]!.signal.aborted).toBe(false);
+    await jest.advanceTimersByTimeAsync(64999); // 129999
+    expect(seen[0]!.signal.aborted).toBe(false);
+    await jest.advanceTimersByTimeAsync(1); // 130000 — narrative deadline fires
+    expect(seen[0]!.signal.aborted).toBe(true);
+    await assertion;
+  });
+
   it('extract() keeps its single default 8000ms timeout (no reasoning headroom there)', async () => {
     const { fetchImpl, seen } = hangingFetch();
     jest.spyOn(global, 'fetch').mockImplementation(fetchImpl);

@@ -1469,19 +1469,16 @@ export class TrackerBoardService {
 
   /**
    * Add-bill-modal text search (P1.1, ported from apps/api
-   * tracker.service.searchBills). Current Congress only; <2 chars → []. Tenant-
-   * independent by design (GLOBAL `congress_bill`; auth is the route guards).
+   * tracker.service.searchBills). <2 chars → []. Tenant-independent by design
+   * (GLOBAL `congress_bill`/`state_bill`; auth is the route guards).
    *
-   * P1-17: this searched the federal corpus ONLY, while the modal's copy claimed
-   * it searched the congressional record — so a client could enable state
-   * jurisdictions, receive state recommendations, and still be unable to add a
-   * state bill it had missed. It now searches both rails.
-   *
-   * `jurisdictions` semantics, matching the rest of LegiWatch: an EMPTY/absent
-   * list means BOTH (federal + every state the caller passes nothing about),
-   * `['US']` means federal only, and a list of state codes searches those states
-   * (plus federal when 'US' is among them). Never "fix" an empty array to a
-   * default list — MASTER §4.5.
+   * The default searches the entire ingested corpus: every Congress and every
+   * ingested state — a bounded suggestion list must not hide an older-session
+   * or differently-jurisdiction bill. `jurisdictions` semantics, matching the
+   * rest of LegiWatch: an EMPTY/absent list means everything, `['US']` means
+   * federal only, and a list of state codes searches those states (plus
+   * federal when 'US' is among them). Never "fix" an empty array to a default
+   * list — MASTER §4.5.
    */
   async searchBills(
     q: string,
@@ -1498,12 +1495,10 @@ export class TrackerBoardService {
     const states = juris.filter((j) => j !== 'US');
 
     const [federal, stateRows] = await Promise.all([
-      wantsFederal
-        ? this.repo.searchBillRows(titleLike, idLike, currentCongress())
-        : Promise.resolve([]),
-      // With no jurisdictions named we cannot scan all 50 legislatures on a
-      // 2-character query, so the state rail runs only when states are named.
-      states.length
+      wantsFederal ? this.repo.searchBillRows(titleLike, idLike, null) : Promise.resolve([]),
+      // The ingested state corpus is a handful of legislatures, so the state
+      // rail searches them all unless the caller names a subset.
+      wantsAll || states.length
         ? this.stateRepo.searchStateBillRows(titleLike, idLike, states, limit)
         : Promise.resolve([]),
     ]);
