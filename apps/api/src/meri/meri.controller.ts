@@ -294,13 +294,15 @@ export class MeriController {
     // (delegated tool execution + action-proposal creation re-authenticate
     // with it); the legacy in-process path ignores it.
     //
-    // IMPERSONATED turns (x-capiro-impersonate-tenant) now route to MeriV2 too
-    // (Wave 2.5 gate-flip): the impersonated tenant is forwarded to the proxy →
-    // orchestrator, which re-sends the header on every delegated apps/api call so
-    // apps/api (the impersonation-authz owner) re-validates capiro_admin + an
-    // active session and scopes the tool execution to the impersonated tenant.
-    // The reply persists + the BYOK key bills under the impersonated tenant via
-    // the middleware-swapped ctx, so the earlier split-tenant hazard is closed.
+    // IMPERSONATED turns (x-capiro-impersonate-tenant) route to the contained
+    // legacy in-process path, NOT MeriV2: Phase 0 containment (264b351af,
+    // 2026-07-28, pinned by meriv2-routing.helpers.spec.ts) keeps them out of
+    // the orchestrator until one unified effective actor/tenant/impersonation
+    // context is carried end-to-end. The earlier Wave 2.5 gate-flip comment
+    // claimed impersonated turns route to MeriV2 — that was reverted by the
+    // containment fix; the spec is the contract. The impersonated tenant id is
+    // still extracted below because the legacy path scopes persistence/billing
+    // through the middleware-swapped ctx.
     const impersonateHeader = req.headers['x-capiro-impersonate-tenant'];
     const impersonateTenantId =
       typeof impersonateHeader === 'string' && impersonateHeader.trim().length > 0

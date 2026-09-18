@@ -974,13 +974,15 @@ export class MeriService implements MeriTurnMaintenance {
     // Branch point is deliberate: the user turn is already persisted, the
     // regenerate/resend rerun is already planned, and replayHistory already
     // inlines document-attachment text — so those all work on the MeriV2 path.
-    // Wave 2 gate-flip (2026-07-15, after a green parity run): page-write, vision
-    // (images), and impersonated turns now ALSO route here — the orchestrator
-    // emits page_write output, carries native vision blocks, and propagates the
-    // impersonation header (apps/api re-validates the impersonation authz on
-    // every delegated call). A MISSING bearer still routes legacy: the
-    // orchestrator's delegated tool execution + action-proposal creation
-    // re-authenticate with it.
+    // Wave 2 gate-flip (2026-07-15, after a green parity run): page-write and
+    // vision (images) now ALSO route here — the orchestrator emits page_write
+    // output and carries native vision blocks. IMPERSONATED turns do NOT:
+    // Phase 0 containment (264b351af, 2026-07-28) keeps them on the legacy
+    // in-process path until one unified effective actor/tenant/impersonation
+    // context is carried end-to-end (see meriv2-routing.helpers.ts + its
+    // spec). A MISSING bearer still routes legacy: the orchestrator's
+    // delegated tool execution + action-proposal creation re-authenticate
+    // with it.
     const meriV2FullChatEnabled =
       bearerToken && this.meriV2Chat.configured
         ? await this.meriFlags.isMeriV2SurfaceEnabled(ctx.tenantId, MERIV2_FLAGS.fullChat)
