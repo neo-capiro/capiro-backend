@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
@@ -239,8 +239,12 @@ export interface AppShellUuiViewProps {
   onNavigate: (path: string) => void;
   onSignOut: () => void;
   onOpenProfile: () => void;
-  /** Funding route keeps source health in the rail, independent of mailbox sync. */
-  fundingSourceHealth?: { degradedCount: number; label: string; detail: string };
+  /** Funding route keeps source health in the rail, independent of mailbox sync.
+   * `details` is one line per attention-needing source — never join these into
+   * a single string, or a multi-source state reads as one run-on fragment
+   * (e.g. "DLA BID BOARD · 236h ago · Agency forecasts · TIME UNAVAILABLE"
+   * looks like one source's own garbled time). */
+  fundingSourceHealth?: { degradedCount: number; label: string; details: string[] };
   /** Global search copy can be feature-scoped without changing other routes. */
   globalSearchPlaceholder?: string;
   /** Opens Funding Opportunities' canonical client picker without a second selector. */
@@ -407,7 +411,14 @@ export function AppShellUuiView({
                   <i />
                   {fundingSourceHealth.label}
                 </span>
-                <span>{fundingSourceHealth.detail}</span>
+                <span>
+                  {fundingSourceHealth.details.map((line, index) => (
+                    <Fragment key={line}>
+                      {index > 0 ? <br /> : null}
+                      {line}
+                    </Fragment>
+                  ))}
+                </span>
               </div>
             ) : (
               <MailboxSyncStatusView
@@ -582,32 +593,34 @@ export function AppShellUui({ children }: { children: ReactNode }) {
       return {
         degradedCount: 0,
         label: 'Source health loading',
-        detail: 'SOURCE HEALTH · LOADING',
+        details: ['SOURCE HEALTH · LOADING'],
       };
     if (fundingHealth.isError || !fundingHealth.data)
       return {
         degradedCount: 0,
         label: 'Source health unavailable',
-        detail: 'SOURCE HEALTH · UNAVAILABLE',
+        details: ['SOURCE HEALTH · UNAVAILABLE'],
       };
     const enabled = fundingHealth.data.sources.filter((source) => source.state !== 'not_enabled');
     if (!enabled.length)
-      return { degradedCount: 0, label: 'Source health unavailable', detail: 'NO ENABLED SOURCES' };
+      return {
+        degradedCount: 0,
+        label: 'Source health unavailable',
+        details: ['NO ENABLED SOURCES'],
+      };
     const attention = enabled.filter((source) => source.state !== 'current');
     const label =
       attention.length === 0
         ? 'All sources current'
         : `${attention.length} source${attention.length === 1 ? '' : 's'} need${attention.length === 1 ? 's' : ''} attention`;
-    const detail =
+    const details =
       attention.length === 0
-        ? 'SOURCE HEALTH · CURRENT'
-        : attention
-            .map(
-              (source) =>
-                `${fundingSourceDisplayLabel(source.source)} · ${source.lastSyncedAt ? relativeShellSourceTime(source.lastSyncedAt) : 'TIME UNAVAILABLE'}`,
-            )
-            .join(' · ');
-    return { degradedCount: attention.length, label, detail };
+        ? ['SOURCE HEALTH · CURRENT']
+        : attention.map(
+            (source) =>
+              `${fundingSourceDisplayLabel(source.source)} · ${source.lastSyncedAt ? relativeShellSourceTime(source.lastSyncedAt) : 'TIME UNAVAILABLE'}`,
+          );
+    return { degradedCount: attention.length, label, details };
   }, [
     fundingFlag.enabled,
     fundingFlag.ready,
