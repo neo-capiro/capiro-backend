@@ -237,8 +237,8 @@ jobs:
       # `src/live-hearings/` (master-calendar reads + the cross-tenant overlay
       # boundary). `src/prisma/tenant-scope-guard.spec.ts` is enumerated
       # explicitly because the new subscription reads are exactly the class of
-      # access it guards. Scope: 99 suites / 1206 tests after removing the
-      # retired watch-preset/backtest tests; coverage and calendar suites remain.
+      # access it guards. Scope: 102 suites / 1222 tests, including committee
+      # alert delivery; coverage and calendar suites remain.
       #
       # Phase 1 runs the database suites against the migrated service above.
       # Keep -- before positional paths: Jest's array-valued ignore option
@@ -267,7 +267,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 99 1206
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 102 1222
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
