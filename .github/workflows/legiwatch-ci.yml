@@ -14,8 +14,8 @@
 # WHY IT IS NOT PATH-FILTERED
 # ---------------------------
 # A required check that is `paths:`-filtered never reports on a PR that misses
-# the filter, and GitHub blocks that PR forever waiting for it. The whole
-# in-scope run is ~90s, so it runs on every PR instead. Do not add `paths:`
+# the filter, and GitHub blocks that PR forever waiting for it. The in-scope
+# run executes on every PR. Do not add `paths:`
 # without also adding a skip-job that reports the same check name.
 #
 # SCOPE IS ENUMERATED, NOT GLOBBED (c-2)
@@ -70,13 +70,14 @@ permissions:
 jobs:
   legiwatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     # The enumerated apps/api Jest run repeatedly exceeded Node's default
     # ~2 GiB heap before it could write its JSON summary. Keep one worker
     # and a bounded larger heap so the absolute-zero gate is deterministic.
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+      LEGIWATCH_COMMITTEE_TEST_DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro_committee_alerts_ci
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
       LEGIWATCH_PHASE5_TEST_DATABASE: disposable
       CAPIRO_DISPOSABLE_PG: '1'
@@ -158,6 +159,27 @@ jobs:
           pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/source-pg-summary.json src/ingestion/legiscan-documents-postgres.spec.ts
           node --test apps/intel-api/scripts/legiwatch-import-apply.spec.mjs
           node --test apps/intel-api/scripts/entrypoint-migrate.spec.mjs
+
+      # This suite deliberately refuses to use DATABASE_URL: it exercises real
+      # notification persistence and needs its own disposable, migrated DB.
+      - name: Prepare isolated committee alert test database
+        run: |
+          pnpm --filter @capiro/api exec node - <<'NODE'
+          const { Client } = require('pg');
+          const adminUrl = new URL(process.env.DATABASE_URL);
+          adminUrl.pathname = '/postgres';
+          (async () => {
+            const client = new Client({ connectionString: adminUrl.toString() });
+            try {
+              await client.connect();
+              await client.query('CREATE DATABASE capiro_committee_alerts_ci');
+            } finally {
+              await client.end().catch(() => {});
+            }
+          })().catch((error) => { console.error(error); process.exitCode = 1; });
+          NODE
+          DATABASE_URL="$LEGIWATCH_COMMITTEE_TEST_DATABASE_URL" pnpm --filter @capiro/api exec prisma migrate deploy
+          DATABASE_URL="$LEGIWATCH_COMMITTEE_TEST_DATABASE_URL" pnpm --filter @capiro/intel-api exec prisma migrate deploy
 
       - name: Phase 2 report, source and delivery qualification
         env:

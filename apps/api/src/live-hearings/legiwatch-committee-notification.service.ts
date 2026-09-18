@@ -7,7 +7,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { TrackerEmailService } from '../tracker/notifications/tracker-email.service.js';
 
 const MAX_ATTEMPTS = 6;
-const LEASE_MS = 300_000;
 const PAGE_SIZE = 100;
 const CATCHUP_SIZE = 20;
 
@@ -38,6 +37,7 @@ interface Claim {
   dedupKey: string;
   attempts: number;
   leaseId: string;
+  claimedAt: Date;
 }
 
 // These are the same observations shown in a committee's publications feed.
@@ -207,9 +207,9 @@ export class LegiWatchCommitteeNotificationService {
     // Claim one message immediately before sending it, so an earlier slow send
     // cannot consume the lease of messages waiting later in a serial batch.
     for (let i = 0; i < 100; i++) {
-      const at = now ?? new Date();
-      const row = await this.claim(at);
+      const row = await this.claim(now);
       if (!row) break;
+      const at = row.claimedAt;
       result.scanned++;
       if (row.attempts > MAX_ATTEMPTS) {
         await this.finish(row, 'failed_final', 'Delivery attempt limit reached', at);
@@ -255,23 +255,25 @@ export class LegiWatchCommitteeNotificationService {
     return result;
   }
 
-  private async claim(now: Date): Promise<Claim | undefined> {
+  private async claim(now?: Date): Promise<Claim | undefined> {
     const leaseId = randomUUID();
     const rows = await this.prisma.withSystem(
       (tx) => tx.$queryRaw<Claim[]>`
       WITH candidate AS (
         SELECT id FROM legiwatch_notification_event
         WHERE email_delivery_status IN ('queued','retry_wait','sending')
-          AND (email_delivery_next_attempt_at IS NULL OR email_delivery_next_attempt_at<=${now})
-          AND (email_delivery_lease_until IS NULL OR email_delivery_lease_until<=${now})
+          AND (email_delivery_next_attempt_at IS NULL OR email_delivery_next_attempt_at<=COALESCE(${now ?? null}::timestamptz,now()))
+          AND (email_delivery_lease_until IS NULL OR email_delivery_lease_until<=COALESCE(${now ?? null}::timestamptz,now()))
         ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED
       ) UPDATE legiwatch_notification_event n
       SET email_delivery_status='sending',email_delivery_attempts=email_delivery_attempts+1,
-        email_delivery_lease_id=${leaseId},email_delivery_lease_until=${new Date(now.getTime() + LEASE_MS)}
+        email_delivery_lease_id=${leaseId},
+        email_delivery_lease_until=COALESCE(${now ?? null}::timestamptz,now())+interval '5 minutes'
       FROM candidate WHERE n.id=candidate.id
       RETURNING n.id::text,n.tenant_id::text AS "tenantId",n.user_id AS "userId",n.title,n.body,
         n.deep_link AS "deepLink",n.dedup_key AS "dedupKey",
-        n.email_delivery_attempts AS attempts,n.email_delivery_lease_id AS "leaseId"`,
+        n.email_delivery_attempts AS attempts,n.email_delivery_lease_id AS "leaseId",
+        COALESCE(${now ?? null}::timestamptz,now()) AS "claimedAt"`,
     );
     return rows[0];
   }
