@@ -3,6 +3,7 @@ import {
   OPPORTUNITY_LIFECYCLES_V2,
   OPPORTUNITY_SEARCH_MODES,
   type OpportunitySearchCriteriaV2,
+  type OpportunityQueryMatchV2,
   type OpportunitySortDirectionV2,
   type OpportunitySortV2,
   type OpportunityTypeV2,
@@ -337,11 +338,15 @@ export function criteriaFromSearchParams(params: URLSearchParams): OpportunitySe
   const clientId = (params.get('client') ?? params.get('clientId'))?.trim() || null;
   const requestedMode = params.get('mode');
   const mode = clientId && requestedMode ? requestedMode : clientId ? DEFAULT_V2_CRITERIA.mode : 'all';
+  const queryMatch = params.get('queryMatch');
   const raw: Record<string, unknown> = {
     schemaVersion: 2,
     mode,
     clientId,
     query: params.get('query') ?? params.get('q') ?? '',
+    ...(queryMatch === 'keywords' || queryMatch === 'phrase'
+      ? { queryMatch: queryMatch as OpportunityQueryMatchV2 }
+      : {}),
     lifecycle: params.has('lifecycle')
       ? list(params.get('lifecycle'))
       : DEFAULT_V2_CRITERIA.lifecycle,
@@ -364,6 +369,7 @@ export function criteriaToSearchParams(criteria: OpportunitySearchCriteriaV2): U
   params.set('mode', criteria.mode);
   if (criteria.clientId) params.set('client', criteria.clientId);
   if (criteria.query) params.set('query', criteria.query);
+  if (criteria.queryMatch) params.set('queryMatch', criteria.queryMatch);
   for (const [parameter, key] of Object.entries(PARAM_TO_KEY)) {
     const value = csv(criteria[key as keyof OpportunitySearchCriteriaV2] as string[]);
     if (value) params.set(parameter, value);
@@ -393,71 +399,6 @@ export function updateCriteria(
   return normalizeOpportunitySearchCriteria({ ...current, ...patch, schemaVersion: 2 }).criteria;
 }
 
-export function sentenceLabel(
-  criteria: OpportunitySearchCriteriaV2,
-  group: 'lifecycle' | 'types' | 'client' | 'sector' | 'agency' | 'deadline' | 'eligibility',
-  clientName?: string,
-): string {
-  if (group === 'lifecycle')
-    return criteria.lifecycle.length === 1
-      ? (criteria.lifecycle[0] ?? 'active')
-      : criteria.lifecycle.length
-        ? `${criteria.lifecycle[0]} +${criteria.lifecycle.length - 1}`
-        : 'any lifecycle';
-  if (group === 'types') {
-    const labels = criteria.types.map((type) =>
-      type === 'solicitation'
-        ? 'contracts'
-        : (TYPE_OPTIONS.find((item) => item.value === type)?.label.toLowerCase() ?? type),
-    );
-    return labels.length === 0
-      ? 'anything'
-      : labels.length === 2
-        ? `${labels[0]} and ${labels[1]}`
-        : labels.length > 2
-          ? `${labels[0]} +${labels.length - 1}`
-          : labels[0]!;
-  }
-  if (group === 'client') return clientName ?? (criteria.clientId ? 'this client' : 'any client');
-  if (group === 'sector')
-    return criteria.sectors.length === 0
-      ? 'any sector'
-      : criteria.sectors.length === 1
-        ? criteria.sectors[0]!
-        : `${criteria.sectors[0]} +${criteria.sectors.length - 1}`;
-  if (group === 'agency')
-    return criteria.agencies.length === 0
-      ? 'any agency'
-      : criteria.agencies.length === 1
-        ? criteria.agencies[0]!
-        : `${criteria.agencies[0]} +${criteria.agencies.length - 1}`;
-  if (group === 'deadline') {
-    const labels: Record<string, string> = {
-      '14d': 'within 14 days',
-      '30d': 'within 30 days',
-      '90d': 'within 90 days',
-      '180d': 'within 180 days',
-    };
-    return criteria.deadlineWindow !== 'any'
-      ? (labels[criteria.deadlineWindow] ?? criteria.deadlineWindow)
-      : criteria.deadlineFrom || criteria.deadlineTo
-        ? `${criteria.deadlineFrom ? 'from ' + criteria.deadlineFrom.slice(0, 10) : ''}${criteria.deadlineTo ? ' to ' + criteria.deadlineTo.slice(0, 10) : ''}`.trim()
-        : 'at any time';
-  }
-  if (criteria.eligibility.length === 0 || criteria.eligibility.includes('eligible'))
-    return 'the client meets stated eligibility';
-  const labels: Record<string, string> = {
-    needs_review: 'the client needs eligibility review',
-    ineligible: 'the client does not meet stated eligibility',
-    unknown: 'eligibility is not stated',
-  };
-  return criteria.eligibility
-    .map((value) => labels[value] ?? value.replaceAll('_', ' '))
-    .join(' or ');
-}
-export function fullSentence(criteria: OpportunitySearchCriteriaV2, clientName?: string): string {
-  return `Show me ${sentenceLabel(criteria, 'lifecycle')} ${sentenceLabel(criteria, 'types')} for ${sentenceLabel(criteria, 'client', clientName)} in ${sentenceLabel(criteria, 'sector')}, from ${sentenceLabel(criteria, 'agency')}, with deadlines ${sentenceLabel(criteria, 'deadline')}, where ${sentenceLabel(criteria, 'eligibility')}.`;
-}
 export function sortDirectionLabel(direction: OpportunitySortDirectionV2): string {
   return direction === 'asc' ? 'Ascending' : 'Descending';
 }

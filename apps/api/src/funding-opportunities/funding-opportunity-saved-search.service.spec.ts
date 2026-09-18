@@ -202,6 +202,22 @@ describe('FundingOpportunitySavedSearchService', () => {
     expect(rows[0]!.migrationWarnings).toEqual([{ key: 'retiredFilter', reason: 'unsupported' }]);
   });
 
+  it('persists explicit queryMatch while leaving legacy criteria omitted', async () => {
+    const { service, rows } = makeHarness();
+    const saved = await service.create(ctx(OWNER), {
+      name: 'Keyword search', visibility: 'private', clientId: CLIENT_A,
+      criteria: { ...criteria, query: 'aircraft propulsion', queryMatch: 'keywords' },
+    });
+    expect(saved.criteria.queryMatch).toBe('keywords');
+    expect(rows[0]!.criteriaJson).toMatchObject({ queryMatch: 'keywords' });
+
+    const legacy = await service.create(ctx(OWNER), {
+      name: 'Legacy phrase search', visibility: 'private', clientId: CLIENT_A,
+      criteria: { ...criteria, query: 'aircraft propulsion' },
+    });
+    expect(legacy.criteria).not.toHaveProperty('queryMatch');
+  });
+
   it('keeps tenant-wide searches explicitly identifiable and retains empty query', async () => {
     const { service, rows } = makeHarness();
     await service.create(ctx(OWNER), {

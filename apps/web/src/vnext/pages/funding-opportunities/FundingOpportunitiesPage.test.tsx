@@ -112,22 +112,39 @@ describe('mounted Funding Opportunities v2 integration', () => {
     expect(screen.queryByText('Opportunities could not be loaded')).not.toBeInTheDocument();
   });
 
-  test('renders a typed fixture row, cancels a pending keyword debounce on client change, and does not replay it', async () => {
+  test('keeps typed keywords draft-only until Search or Enter commits them', async () => {
     mount('/intelligence/opportunities?client=overland&mode=matched');
     expect(await screen.findByText(referenceOpportunityRows[0]!.title)).toBeInTheDocument();
     const keyword = screen.getByRole('textbox', { name: 'Keyword search' });
-    fireEvent.change(keyword, { target: { value: 'stale keyword' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Overland AI' })[0]!);
-    const client = await screen.findByRole('button', { name: /Aperture/ });
-    fireEvent.click(client);
-    await new Promise((resolve) => window.setTimeout(resolve, 350));
-    expect(screen.getByTestId('location')).toHaveTextContent('client=aperture');
-    await new Promise((resolve) => window.setTimeout(resolve, 350));
-    const afterClientChange = new URL(
-      screen.getByTestId('location').textContent!,
-      'https://test.invalid',
-    );
-    expect(afterClientChange.searchParams.get('query')).not.toBe('stale keyword');
+    fireEvent.change(keyword, { target: { value: 'new keyword' } });
+    expect(screen.getByTestId('location')).not.toHaveTextContent('query=new+keyword');
+    fireEvent.keyDown(keyword, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('query=new+keyword'));
+    expect(screen.getByTestId('location')).toHaveTextContent('queryMatch=keywords');
+  });
+
+  test('keeps draft text when switching to exact phrase and commits once at page one', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched&page=2');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    const keyword = screen.getByRole('textbox', { name: 'Keyword search' });
+    fireEvent.change(keyword, { target: { value: 'autonomous ground vehicle' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search mode' }), { target: { value: 'phrase' } });
+    expect(keyword).toHaveValue('autonomous ground vehicle');
+    expect(screen.getByTestId('location')).toHaveTextContent('page=2');
+    fireEvent.click(screen.getByRole('button', { name: 'Search', exact: true }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('query=autonomous+ground+vehicle'));
+    expect(screen.getByTestId('location')).toHaveTextContent('queryMatch=phrase');
+    expect(screen.getByTestId('location')).toHaveTextContent('page=1');
+  });
+
+  test('Save search commits the visible draft query and mode before opening the dialog', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Keyword search' }), { target: { value: 'quoted phrase' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search mode' }), { target: { value: 'phrase' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save search', exact: true }));
+    const dialog = await screen.findByRole('dialog', { name: 'Save search' });
+    expect(dialog).toHaveTextContent('quoted phrase');
   });
 
   test('shows a matched count only for the same client and criteria, not an all-mode catalog total', async () => {
@@ -180,19 +197,9 @@ describe('mounted Funding Opportunities v2 integration', () => {
     expect(sort).toHaveFocus();
   });
 
-  test('keeps builder eligibility single-valued and filter close/Any agency changes immediately', async () => {
+  test('keeps filters usable and Any agency changes immediately', async () => {
     mount('/intelligence/opportunities?client=overland&mode=matched');
     await screen.findByText(referenceOpportunityRows[0]!.title);
-    fireEvent.click(screen.getByRole('button', { name: 'the client meets stated eligibility' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Needs review' }));
-    expect(screen.getByLabelText(/Show me/i)).toHaveTextContent(
-      /where the client needs eligibility review/,
-    );
-    const eligibility = new URLSearchParams(
-      screen.getByTestId('location').textContent!.split('?')[1],
-    );
-    expect(eligibility.getAll('eligibility')).toEqual(['needs_review']);
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
     const filters = await screen.findByRole('dialog', { name: 'Filters' });
     fireEvent.click(within(filters).getByRole('button', { name: 'Required' }));

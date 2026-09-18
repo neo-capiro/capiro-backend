@@ -40,6 +40,8 @@ export const OPPORTUNITY_SORTS_V2 = [
 ] as const;
 export type OpportunitySortV2 = (typeof OPPORTUNITY_SORTS_V2)[number];
 export type OpportunitySortDirectionV2 = 'asc' | 'desc';
+export const OPPORTUNITY_QUERY_MATCHES_V2 = ['keywords', 'phrase'] as const;
+export type OpportunityQueryMatchV2 = (typeof OPPORTUNITY_QUERY_MATCHES_V2)[number];
 export type SearchVisibilityV2 = 'private' | 'tenant';
 export type OpportunityEligibilityV2 = 'eligible' | 'ineligible' | 'needs_review' | 'unknown';
 export interface OpportunityClientCapabilityV2 {
@@ -66,6 +68,8 @@ export interface OpportunitySearchCriteriaV2 {
   mode: OpportunitySearchMode;
   clientId: string | null;
   query: string;
+  /** Explicit new-search semantics. Omitted preserves legacy literal phrase matching. */
+  queryMatch?: OpportunityQueryMatchV2;
   sources: OpportunitySourceV2[];
   types: OpportunityTypeV2[];
   lifecycle: OpportunityLifecycleV2[];
@@ -195,7 +199,7 @@ const DEFAULT_CRITERIA: OpportunitySearchCriteriaV2 = {
 };
 
 const SUPPORTED_KEYS = new Set([
-  'schemaVersion', 'mode', 'clientId', 'query', 'sources', 'types', 'lifecycle', 'agencies', 'sectors',
+  'schemaVersion', 'mode', 'clientId', 'query', 'queryMatch', 'sources', 'types', 'lifecycle', 'agencies', 'sectors',
   'naicsCodes', 'pscCodes', 'setAsideCodes', 'eligibility', 'posted', 'geography', 'applicantTypes',
   'funding', 'costShare', 'methods', 'disbursement', 'grantPrerequisites', 'codes', 'deadlineFrom',
   'deadlineWindow', 'deadlineTo', 'sort', 'direction', 'page', 'pageSize',
@@ -250,6 +254,9 @@ export function normalizeOpportunitySearchCriteria(input: unknown): NormalizedOp
     }
   }
   const mode = OPPORTUNITY_SEARCH_MODES.includes(raw.mode as OpportunitySearchMode) ? raw.mode as OpportunitySearchMode : DEFAULT_CRITERIA.mode;
+  const queryMatch = OPPORTUNITY_QUERY_MATCHES_V2.includes(raw.queryMatch as OpportunityQueryMatchV2)
+    ? raw.queryMatch as OpportunityQueryMatchV2
+    : undefined;
   const lifecycleProvided = raw.lifecycle !== undefined;
   const lifecycle = enumListWithWarnings(raw.lifecycle, OPPORTUNITY_LIFECYCLES_V2, 'lifecycle', warnings);
   const sort = OPPORTUNITY_SORTS_V2.includes(raw.sort as OpportunitySortV2) ? raw.sort as OpportunitySortV2 : DEFAULT_CRITERIA.sort;
@@ -262,6 +269,7 @@ export function normalizeOpportunitySearchCriteria(input: unknown): NormalizedOp
   const client = text(raw.clientId);
   const criteria: OpportunitySearchCriteriaV2 = {
     schemaVersion: 2, mode, clientId: client || null, query: text(raw.query),
+    ...(queryMatch ? { queryMatch } : {}),
     sources: enumListWithWarnings(raw.sources, OPPORTUNITY_SOURCES_V2, 'sources', warnings),
     types: enumListWithWarnings(raw.types, OPPORTUNITY_TYPES_V2, 'types', warnings),
     lifecycle: lifecycleProvided ? lifecycle : DEFAULT_CRITERIA.lifecycle, agencies: list(raw.agencies), sectors: list(raw.sectors),
@@ -273,6 +281,9 @@ export function normalizeOpportunitySearchCriteria(input: unknown): NormalizedOp
     deadlineWindow, deadlineFrom: isoOrNull(raw.deadlineFrom), deadlineTo: isoOrNull(raw.deadlineTo), sort, direction, page, pageSize,
   };
   if (raw.mode !== undefined && mode !== raw.mode) warnings.push({ key: 'mode', reason: 'invalid' });
+  if (raw.queryMatch !== undefined && queryMatch === undefined) warnings.push({ key: 'queryMatch', reason: 'invalid' });
+  if (queryMatch && criteria.query.length > 512) warnings.push({ key: 'query', reason: 'invalid' });
+  if (queryMatch === 'keywords' && new Set((criteria.query.match(/"([^"]*)"|(\S+)/g) ?? []).map((term) => term.replace(/^"|"$/g, '').trim().toLowerCase()).filter(Boolean)).size > 20) warnings.push({ key: 'query', reason: 'invalid' });
   if (lifecycleProvided && lifecycle.length === 0 && Array.isArray(raw.lifecycle) && raw.lifecycle.length > 0) warnings.push({ key: 'lifecycle', reason: 'invalid' });
   if (raw.sort !== undefined && sort !== raw.sort) warnings.push({ key: 'sort', reason: 'invalid' });
   if (raw.deadlineWindow !== undefined && deadlineWindow !== raw.deadlineWindow) warnings.push({ key: 'deadlineWindow', reason: 'invalid' });

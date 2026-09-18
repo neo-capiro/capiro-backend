@@ -87,6 +87,38 @@ function escapeLike(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
 }
 
+/** Explicit query modes augment, but do not alter, legacy omitted-mode searches. */
+function queryTerms(query: string, queryMatch: OpportunitySearchCriteriaV2['queryMatch']): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  if (queryMatch === 'phrase') {
+    const phrase = trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')
+      ? trimmed.slice(1, -1).trim()
+      : trimmed;
+    return phrase ? [phrase] : [];
+  }
+  if (queryMatch !== 'keywords') return [trimmed];
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  const matcher = /"([^"]*)"|(\S+)/g;
+  for (const match of trimmed.matchAll(matcher)) {
+    const term = (match[1] ?? match[2] ?? '').trim();
+    const key = term.toLocaleLowerCase();
+    if (term && !seen.has(key)) {
+      seen.add(key);
+      terms.push(term);
+    }
+  }
+  return terms;
+}
+function queryFilter(criteria: OpportunitySearchCriteriaV2): Prisma.Sql | null {
+  if (!criteria.query) return null;
+  const searchable = Prisma.sql`lower(concat_ws(' ', id, source_record_id, title, agency, summary, array_to_string(geography, ' '), array_to_string(codes, ' '), array_to_string(applicant_types, ' '), array_to_string(naics_codes, ' '), array_to_string(psc_codes, ' '), array_to_string(sectors, ' '), array_to_string(funding, ' '), array_to_string(methods, ' ')))`;
+  const terms = queryTerms(criteria.query, criteria.queryMatch);
+  if (!terms.length) return Prisma.sql`FALSE`;
+  return Prisma.sql`(${Prisma.join(terms.map((term) => Prisma.sql`${searchable} LIKE ${`%${escapeLike(term.toLowerCase())}%`} ESCAPE chr(92)`), ' AND ')})`;
+}
+
 function anyValue(column: string, values: string[]): Prisma.Sql {
   return Prisma.sql`EXISTS (SELECT 1 FROM unnest(${Prisma.raw(column)}) AS v(value) WHERE lower(v.value) = ANY (SELECT lower(x) FROM unnest(${list(values)}) AS x))`;
 }
@@ -499,7 +531,8 @@ function commonWhere(source: OpportunitySourceV2, criteria: OpportunitySearchCri
   const conditions: Prisma.Sql[] = [];
   if (typeof exactSourceRecordId === 'string' && exactSourceRecordId) conditions.push(Prisma.sql`source_record_id = ${exactSourceRecordId}`);
   if (Array.isArray(exactSourceRecordId) && exactSourceRecordId.length) conditions.push(Prisma.sql`source_record_id IN (${Prisma.join(exactSourceRecordId)})`);
-  if (criteria.query) conditions.push(Prisma.sql`lower(concat_ws(' ', id, source_record_id, title, agency, summary, array_to_string(geography, ' '), array_to_string(codes, ' '), array_to_string(applicant_types, ' '), array_to_string(naics_codes, ' '), array_to_string(psc_codes, ' '), array_to_string(sectors, ' '), array_to_string(funding, ' '), array_to_string(methods, ' '))) LIKE ${`%${escapeLike(criteria.query.toLowerCase())}%`} ESCAPE chr(92)`);
+  const queryCondition = queryFilter(criteria);
+  if (queryCondition) conditions.push(queryCondition);
   if (criteria.types.length) {
     const types = criteria.types.flatMap((type) => type === 'contract' ? CONTRACT_TYPES : [type]);
     conditions.push(Prisma.sql`((source <> 'ca_portal' AND type = ANY(${list([...new Set(types)])})) OR (source = 'ca_portal' AND (type = ANY(${list([...new Set(types)])}) OR ('loan_assistance' = ANY(${list(criteria.types)}) AND lower(coalesce((source_facts::jsonb)->>'typeRaw','')) LIKE '%loan%'))))`);

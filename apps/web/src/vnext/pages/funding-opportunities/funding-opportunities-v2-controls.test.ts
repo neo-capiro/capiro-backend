@@ -48,4 +48,16 @@ describe('funding opportunities v2 main control semantics', () => {
     const cleared = updateCriteria(matched, { clientId: null, mode: 'all' });
     expect(cleared).toMatchObject({ mode: 'all', clientId: null });
   });
+  test('round-trips explicit keyword and phrase modes while legacy URLs stay mode-less', () => {
+    const legacy = criteriaFromSearchParams(new URLSearchParams('query=autonomous%20vehicle'));
+    expect(legacy.queryMatch).toBeUndefined();
+    const explicit = criteriaFromSearchParams(new URLSearchParams('query=autonomous%20vehicle&queryMatch=keywords'));
+    expect(explicit.queryMatch).toBe('keywords');
+    const serialized = new URLSearchParams();
+    serialized.set('query', explicit.query);
+    serialized.set('queryMatch', explicit.queryMatch!);
+    expect(criteriaFromSearchParams(serialized).queryMatch).toBe('keywords');
+    expect(criteriaFromSearchParams(new URLSearchParams('query=autonomous%20vehicle&queryMatch=phrase')).queryMatch).toBe('phrase');
+  });
+
 });

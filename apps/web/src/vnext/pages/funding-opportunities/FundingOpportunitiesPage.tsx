@@ -7,6 +7,7 @@ import type {
   OpportunitySearchResponseV2,
   OpportunitySourceV2,
   OpportunitySourceFreshnessV2,
+  OpportunityQueryMatchV2,
 } from '@capiro/shared';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { CapiroButton } from '../../components/actions/index.js';
@@ -58,8 +59,6 @@ import {
   type V2FilterGroup,
   criteriaFromSearchParams,
   criteriaToSearchParams,
-  fullSentence,
-  sentenceLabel,
   updateCriteria,
 } from './funding-opportunities-v2-state.js';
 import './funding-opportunities-v2.css';
@@ -133,8 +132,11 @@ export function FundingOpportunitiesPage() {
 
   const isDetailRoute = Boolean(routeParams.source && routeParams.sourceRecordId);
   const routeSyncRef = useRef<string | null>(null);
-  const [criteria, setCriteria] = useState(routeCriteria);
+  const [criteria, setCriteria] = useState<OpportunitySearchCriteriaV2>(routeCriteria);
   const [queryInput, setQueryInput] = useState(criteria.query);
+  const [queryMatch, setQueryMatch] = useState<OpportunityQueryMatchV2>(
+    routeCriteria.queryMatch ?? (routeCriteria.query ? 'phrase' : 'keywords'),
+  );
   const [tab, setTab] = useState<'opportunities' | 'pursuit'>(routeTab);
   const [boardView, setBoardView] = useState<'board' | 'list'>(routeBoard);
   const [savedSearchId, setSavedSearchId] = useState<string | null>(routeSavedSearchId);
@@ -172,24 +174,16 @@ export function FundingOpportunitiesPage() {
     isError: tenantMembersError,
     refetch: refetchTenantMembers,
   } = useTenantMembers();
-  const debounce = useRef<number>();
-  const debounceGeneration = useRef(0);
 
   useEffect(() => {
-    cancelKeywordDebounce();
     setCriteria(routeCriteria);
     setQueryInput(routeCriteria.query);
+    setQueryMatch(routeCriteria.queryMatch ?? (routeCriteria.query ? 'phrase' : 'keywords'));
     setTab(routeTab);
     setBoardView(routeBoard);
     setSavedSearchId(routeSavedSearchId);
     routeSyncRef.current = location.search;
   }, [location.search, routeCriteria, routeTab, routeBoard, routeSavedSearchId]);
-  useEffect(
-    () => () => {
-      if (debounce.current) window.clearTimeout(debounce.current);
-    },
-    [],
-  );
   useEffect(() => {
     const onOpenClientPicker = () => openClientPicker();
     window.addEventListener(FUNDING_CLIENT_PICKER_EVENT, onOpenClientPicker);
@@ -352,24 +346,14 @@ export function FundingOpportunitiesPage() {
   }
   function updateKeyword(value: string) {
     setQueryInput(value);
-    cancelKeywordDebounce();
-    const generation = debounceGeneration.current;
-    debounce.current = window.setTimeout(() => {
-      if (generation === debounceGeneration.current) patch({ query: value });
-    }, 300);
   }
   function commitKeyword() {
-    if (debounce.current) window.clearTimeout(debounce.current);
-    debounce.current = undefined;
-    patch({ query: queryInput });
+    patch({ query: queryInput, queryMatch });
   }
-  function cancelKeywordDebounce() {
-    debounceGeneration.current += 1;
-    if (debounce.current) window.clearTimeout(debounce.current);
-    debounce.current = undefined;
+  function changeQueryMatch(next: OpportunityQueryMatchV2) {
+    setQueryMatch(next);
   }
   function clearAll() {
-    cancelKeywordDebounce();
     patch({
       query: '',
       sources: [],
@@ -406,7 +390,6 @@ export function FundingOpportunitiesPage() {
     setOverlay(null);
   }
   function openClientPicker() {
-    cancelKeywordDebounce();
     setPreviousFocus(document.activeElement as HTMLElement);
     workflowTriggerRef.current =
       document.activeElement instanceof HTMLElement
@@ -417,7 +400,6 @@ export function FundingOpportunitiesPage() {
     setClientModal(true);
   }
   function switchMode(mode: 'matched' | 'all') {
-    cancelKeywordDebounce();
     if (mode === 'matched' && !criteria.clientId) {
       setClientModal(true);
       setPreviousFocus(document.activeElement as HTMLElement);
@@ -426,12 +408,11 @@ export function FundingOpportunitiesPage() {
     patch({ mode });
   }
   function applySavedCriteria(next: OpportunitySearchCriteriaV2) {
-    cancelKeywordDebounce();
     setCriteria(next);
     setQueryInput(next.query);
+    setQueryMatch(next.queryMatch ?? (next.query ? 'phrase' : 'keywords'));
   }
   function openDetail(row: OpportunityRecord) {
-    cancelKeywordDebounce();
     const originState = {
       ...(location.state && typeof location.state === 'object' ? location.state : {}),
       fundingOpportunitiesOrigin: true,
@@ -488,7 +469,6 @@ export function FundingOpportunitiesPage() {
     }
   }
   function openNotFit(row: OpportunityRecord, trigger?: HTMLElement) {
-    cancelKeywordDebounce();
     workflowTriggerRef.current =
       trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     setSelectedRow(row);
@@ -646,7 +626,6 @@ export function FundingOpportunitiesPage() {
           onSaveSearch={() => setOverlay('save')}
           sourceHealth={sourceHealth.isSuccess ? (sourceHealth.data?.sources ?? []) : []}
           onSimilar={(row) => {
-            cancelKeywordDebounce();
             navigate(
               `/intelligence/opportunities/${row.source}/${encodeURIComponent(row.sourceRecordId)}${location.search}`,
               { state: location.state },
@@ -706,7 +685,6 @@ export function FundingOpportunitiesPage() {
             returnFocusRef={workflowTriggerRef}
             onClose={() => setClientModal(false)}
             onChoose={(clientId) => {
-              cancelKeywordDebounce();
               setQueryInput('');
               patch({ clientId, query: '', mode: clientId ? criteria.mode : 'all' });
               setClientModal(false);
@@ -832,7 +810,6 @@ export function FundingOpportunitiesPage() {
           role="tab"
           aria-selected={tab === 'opportunities'}
           onClick={() => {
-            if (debounce.current) window.clearTimeout(debounce.current);
             setTab('opportunities');
           }}
         >
@@ -842,7 +819,6 @@ export function FundingOpportunitiesPage() {
           role="tab"
           aria-selected={tab === 'pursuit'}
           onClick={() => {
-            cancelKeywordDebounce();
             setTab('pursuit');
           }}
         >
@@ -904,39 +880,6 @@ export function FundingOpportunitiesPage() {
                 </button>
               </div>
             </div>
-            <p className="fo-v2-sentence" aria-label={fullSentence(criteria, clientName)}>
-              Show me{' '}
-              <button onClick={() => openEditor('lifecycle')}>
-                {sentenceLabel(criteria, 'lifecycle')}
-              </button>{' '}
-              <button onClick={() => openEditor('types')}>
-                {sentenceLabel(criteria, 'types')}
-              </button>{' '}
-              for{' '}
-              <button onClick={() => openEditor('client')}>
-                {sentenceLabel(criteria, 'client', clientName)}
-              </button>{' '}
-              in{' '}
-              <button onClick={() => openEditor('sector')}>
-                {sentenceLabel(criteria, 'sector')}
-              </button>
-              , from{' '}
-              <button onClick={() => openEditor('agency')}>
-                {sentenceLabel(criteria, 'agency')}
-              </button>
-              , with deadlines{' '}
-              <button onClick={() => openEditor('deadline')}>
-                {sentenceLabel(criteria, 'deadline')}
-              </button>
-              , where{' '}
-              <button onClick={() => openEditor('eligibility')}>
-                {sentenceLabel(criteria, 'eligibility')}
-              </button>
-              .
-            </p>
-            <div className="fo-sr-only" aria-live="polite">
-              {fullSentence(criteria, clientName)}
-            </div>
             {editor ? (
               <Editor
                 group={editor}
@@ -948,47 +891,78 @@ export function FundingOpportunitiesPage() {
                 onClose={() => setEditor(null)}
               />
             ) : null}
-            <div className="fo-v2-keyword">
-              <div className="fo-v2-input">
-                <Icon name="SearchLg" size={20} />
-                <input
-                  value={queryInput}
-                  onChange={(event) => updateKeyword(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      commitKeyword();
-                    }
-                  }}
-                  placeholder="Keywords — try “autonomous ground vehicle sustainment” or a solicitation number"
-                  aria-label="Keyword search"
-                />
-                {queryInput ? (
-                  <button
-                    aria-label="Clear keyword"
-                    onClick={() => {
-                      if (debounce.current) window.clearTimeout(debounce.current);
-                      setQueryInput('');
-                      patch({ query: '' });
-                    }}
-                  >
-                    <Icon name="XClose" size={16} />
-                  </button>
-                ) : null}
+            <section
+              className="fo-v2-traditional-search"
+              aria-labelledby="traditional-search-heading"
+            >
+              <div className="fo-v2-traditional-search-heading">
+                <div>
+                  <span className="fo-module-eyebrow">TRADITIONAL SEARCH</span>
+                  <h2 id="traditional-search-heading">Search opportunities</h2>
+                </div>
               </div>
-              <CapiroButton variant="primary" onClick={commitKeyword}>
-                Search
-              </CapiroButton>
-              <CapiroButton variant="secondary" onClick={() => openOverlay('save')}>
-                <Icon name="Bookmark" size={18} />
-                Save search
-              </CapiroButton>
-            </div>
-            <p className="fo-v2-note">
-              Searches title, synopsis, description, eligibility, agency, place of performance and
-              NAICS / PSC / assistance codes. The sentence and the filter controls below edit the
-              same criteria — neither hides the other.
-            </p>
+              <div className="fo-v2-keyword">
+                <div className="fo-v2-input">
+                  <Icon name="SearchLg" size={20} />
+                  <input
+                    value={queryInput}
+                    onChange={(event) => updateKeyword(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        commitKeyword();
+                      }
+                    }}
+                    placeholder={
+                      queryMatch === 'phrase'
+                        ? 'Exact phrase, for example “autonomous vehicle”'
+                        : 'Keywords, for example autonomous vehicle'
+                    }
+                    aria-label="Keyword search"
+                    maxLength={512}
+                  />
+                  {queryInput ? (
+                    <button
+                      type="button"
+                      aria-label="Clear keyword"
+                      onClick={() => {
+                        setQueryInput('');
+                        patch({ query: '' });
+                      }}
+                    >
+                      <Icon name="XClose" size={16} />
+                    </button>
+                  ) : null}
+                </div>
+                <select
+                  aria-label="Search mode"
+                  value={queryMatch}
+                  onChange={(event) =>
+                    changeQueryMatch(event.target.value as OpportunityQueryMatchV2)
+                  }
+                >
+                  <option value="keywords">Keywords</option>
+                  <option value="phrase">Exact phrase</option>
+                </select>
+                <CapiroButton variant="primary" onClick={commitKeyword}>
+                  Search
+                </CapiroButton>
+                <CapiroButton
+                  variant="secondary"
+                  onClick={() => {
+                    commitKeyword();
+                    openOverlay('save');
+                  }}
+                >
+                  <Icon name="Bookmark" size={18} />
+                  Save search
+                </CapiroButton>
+              </div>
+              <p className="fo-v2-note">
+                Keywords find all words in any order. Use quotes to keep words together; Exact phrase
+                finds the full phrase. Press Enter or Search to apply.
+              </p>
+            </section>
           </section>
           <Toolbar
             criteria={criteria}
@@ -1035,8 +1009,11 @@ export function FundingOpportunitiesPage() {
                     openOverlay('quick');
                   }}
                   onExternal={() => {
-                    cancelKeywordDebounce();
-                    setExternalDestination({ row, url: row.sourceUrl ?? '', kind: 'source_page' });
+                    setExternalDestination({
+                      row,
+                      url: row.sourceUrl ?? '',
+                      kind: 'source_page',
+                    });
                   }}
                   onClient={openClientPicker}
                   onNotFit={(trigger) => openNotFit(row, trigger)}
@@ -1081,7 +1058,6 @@ export function FundingOpportunitiesPage() {
             setPendingClientAction(null);
           }}
           onChoose={(clientId) => {
-            cancelKeywordDebounce();
             patch({ clientId, mode: clientId ? criteria.mode : 'all' });
             const pending = pendingClientAction;
             if (selectedRow && clientId) setSelectedRow({ ...selectedRow, clientId });
@@ -1166,7 +1142,6 @@ export function FundingOpportunitiesPage() {
               return workflow(selectedRow, intent, intent === 'saved' ? false : true);
           }}
           onApplyCriteria={(next) => {
-            cancelKeywordDebounce();
             patch(next);
           }}
           onOpenDetail={() => selectedRow && openDetail(selectedRow)}
@@ -1973,7 +1948,7 @@ export function filterChips(
       label: `to ${criteria.deadlineTo.slice(0, 10)}`,
     });
   const eligibilityLabels: Record<string, string> = {
-    eligible: 'the client meets stated eligibility',
+    eligible: 'eligible',
     needs_review: 'the client needs eligibility review',
     ineligible: 'the client does not meet stated eligibility',
     unknown: 'eligibility is not stated',
