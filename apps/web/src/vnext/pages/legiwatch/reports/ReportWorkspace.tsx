@@ -218,30 +218,34 @@ function Workspace({
       settings: { ...defaultSettings },
     });
   };
+  const mainViews: Array<[string, string]> = [
+    ['reports', 'Report library'],
+    ['briefings', 'Client briefings'],
+    ['history', 'Run history'],
+  ];
+  const moreViews: Array<[string, string]> = [
+    ['updates', 'Daily updates'],
+    ['alerts', 'Published-record alerts'],
+    ['contacts', 'Contacts & lists'],
+    ['imports', 'Import review'],
+    ...(keywordsEnabled ? [['keywords', 'Keyword rules'] as [string, string]] : []),
+    ...(workflowsEnabled ? [['workflows', 'Follow-up workflows'] as [string, string]] : []),
+  ];
+  const activeMoreView = moreViews.find(([id]) => id === tab);
   return (
     <section className="lw-reports" aria-label="Reports and updates">
       <header className="lw-reports-heading">
         <div>
           <p className="lw-reports-eyebrow">LEGIWATCH / CLIENT COMMUNICATIONS</p>
-          <h2>Reports &amp; updates</h2>
-          <p>Published legislative records, organized by your live folders.</p>
+          <h2>Your reports</h2>
+          <p>Create briefings from saved legislative records and review previous runs.</p>
         </div>
         <CapiroButton variant="primary" size="compact" onClick={newReport}>
           Create report
         </CapiroButton>
       </header>
       <nav className="lw-reports-tabs" role="tablist" aria-label="Report views">
-        {[
-          ['reports', 'Report library'],
-          ['briefings', 'Client briefings'],
-          ['history', 'Run history'],
-          ['updates', 'Daily updates'],
-          ['alerts', 'Published-record alerts'],
-          ['contacts', 'Contacts & lists'],
-          ['imports', 'Import review'],
-          ...(keywordsEnabled ? [['keywords', 'Keyword rules'] as const] : []),
-          ...(workflowsEnabled ? [['workflows', 'Follow-up workflows'] as const] : []),
-        ].map(([id, label]) => (
+        {mainViews.map(([id, label]) => (
           <button
             key={id}
             type="button"
@@ -254,6 +258,23 @@ function Workspace({
           </button>
         ))}
       </nav>
+      <details className="lw-reports-more" open={Boolean(activeMoreView)}>
+        <summary>{activeMoreView ? `Settings and tools · ${activeMoreView[1]}` : 'Settings and tools'}</summary>
+        <nav className="lw-reports-tabs" role="tablist" aria-label="Report settings and tools">
+          {moreViews.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              aria-current={tab === id ? 'page' : undefined}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      </details>
       {error && (
         <p role="alert" className="lw-reports-warning">
           {error}
@@ -287,7 +308,7 @@ function Workspace({
       {tab === 'reports' && (
         <>
           <p>
-            Need the intelligence brief?{' '}
+            For a summary of current updates,{' '}
             <CapiroButton size="compact" onClick={() => {
               const next = new URLSearchParams(params);
               next.set('digestMode', 'legacy');

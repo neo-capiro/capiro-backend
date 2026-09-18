@@ -100,6 +100,8 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     expect(screen.getByRole('button', { name: /search legiwatch/i })).toBeTruthy();
     // Client control is the shaded dropdown (not a native <select>).
     expect(screen.getByRole('button', { name: /client/i })).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(await screen.findByRole('dialog', { name: 'Search LegiWatch' })).toBeTruthy();
   });
 
   it('renders the Schedule/Recordings/Past hearings sub-tabs and the legend chip', async () => {

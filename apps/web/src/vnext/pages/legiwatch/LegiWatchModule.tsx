@@ -16,10 +16,10 @@
  * GAPS.md); missing data never renders as zero; tracked/work state is
  * server-authoritative; no external send path exists anywhere.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, ChevronDown, Crosshair, Search } from 'lucide-react';
+import { ChevronDown, Crosshair, Search } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -45,10 +45,9 @@ import { AnalyticsTab } from './analytics/AnalyticsTab.js';
 import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
 import { LegiWatchSettingsTab } from './settings/LegiWatchSettingsTab.js';
 import { LegiWatchSearchOverlay } from './overlays/LegiWatchSearchOverlay.js';
-import { ExportCalendarOverlay } from './overlays/ExportCalendarOverlay.js';
 import './legiwatch.css';
 
-type Overlay = 'search' | 'export' | null;
+type Overlay = 'search' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
   news: {
@@ -94,7 +93,7 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
     eyebrow: 'Portfolio briefing',
     title: 'Reports',
     description:
-      'A compact briefing of the highest-priority movement in the current LegiWatch feed.',
+      'Create and manage bill reports, client briefings, and intelligence briefs.',
   },
   analytics: {
     eyebrow: 'Coverage and movement',
@@ -116,6 +115,17 @@ export function LegiWatchModule() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [lensOpen, setLensOpen] = useState(false);
+
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setOverlay('search');
+      }
+    };
+    window.addEventListener('keydown', openSearch);
+    return () => window.removeEventListener('keydown', openSearch);
+  }, []);
 
   // §7.2/§7.9 — removed tabs redirect to hearings; unknown tabs land on hearings.
   // Settings dispatches legacy watchlist links to canonical client targeting.
@@ -351,16 +361,6 @@ export function LegiWatchModule() {
             <Search size={16} aria-hidden="true" />
             <span>Search LegiWatch</span>
           </LwButton>
-          <LwButton
-            size="42"
-            className="lw-header-action lw-header-action--export"
-            onClick={() => setOverlay('export')}
-            aria-label="Export calendar"
-            title="Export calendar"
-          >
-            <CalendarDays size={16} aria-hidden="true" />
-            <span>Export calendar</span>
-          </LwButton>
           <button
             type="button"
             className="lw-iconbtn lw-header-action--settings"
@@ -520,8 +520,6 @@ export function LegiWatchModule() {
             navigate(`/legiwatch/committees/${encodeURIComponent(systemCode)}`);
           }}
         />
-      ) : overlay === 'export' ? (
-        <ExportCalendarOverlay scope={scope} onClose={() => setOverlay(null)} />
       ) : null}
     </div>
   );

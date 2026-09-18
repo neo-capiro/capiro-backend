@@ -554,7 +554,7 @@ test('copy selected prefill keeps ordinary FastTagger resolve behavior separate'
   });
   mount();
   await screen.findByRole('button', { name: 'HB 1' });
-  fireEvent.click(screen.getByRole('button', { name: 'FastTagger' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add bills by number' }));
   const modal = screen.getByRole('dialog');
   fireEvent.change(within(modal).getByLabelText(/Bill numbers/), { target: { value: 'HB 9' } });
   fireEvent.click(within(modal).getByRole('button', { name: 'Resolve bills' }));
@@ -790,7 +790,7 @@ test('daily activity in All assignments sends onlyTracked and the client lens, n
   });
   // Board-only actions are hidden while the daily view is active.
   expect(screen.queryByRole('button', { name: 'Export' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'FastTagger' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Add bills by number' })).toBeNull();
 });
 
 test('daily activity passes the chamber filter from the board filters', async () => {

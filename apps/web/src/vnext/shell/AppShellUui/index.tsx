@@ -287,6 +287,7 @@ export function AppShellUuiView({
   const location = useLocation();
   const sectionLabel = topbarSectionLabel(location.pathname, navigation.primary);
   const isFundingOpportunitiesRoute = location.pathname.startsWith('/intelligence/opportunities');
+  const isLegiWatchRoute = location.pathname === '/legiwatch';
 
   // Same MERI contract VNextShellChrome enforces (730:2574): Ctrl+J opens the
   // separate workspace window on the canonical /meri launcher.
@@ -361,16 +362,18 @@ export function AppShellUuiView({
               )}
             </span>
           </span>
-          <div className="uui-topbar__search">
-            <GlobalSearch
-              scopeLabel={scopeLabel}
-              placeholder={
-                isFundingOpportunitiesRoute
-                  ? (globalSearchPlaceholder ?? 'Search opportunities, agencies, references…')
-                  : undefined
-              }
-            />
-          </div>
+          {isLegiWatchRoute ? null : (
+            <div className="uui-topbar__search">
+              <GlobalSearch
+                scopeLabel={scopeLabel}
+                placeholder={
+                  isFundingOpportunitiesRoute
+                    ? (globalSearchPlaceholder ?? 'Search opportunities, agencies, references…')
+                    : undefined
+                }
+              />
+            </div>
+          )}
           <div className="uui-topbar__actions">
             {isFundingOpportunitiesRoute ? null : <QuickNote />}
             <span data-tour="nav-meri" style={{ display: 'contents' }}>

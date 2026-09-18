@@ -549,7 +549,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                   disabled={!active?.canEdit}
                   onClick={() => setFastOpen(true)}
                 >
-                  FastTagger
+                  Add bills by number
                 </CapiroButton>
               )}
               {!activity && (
@@ -1219,7 +1219,9 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                       ? 'No bills match this jurisdiction, session and filters.'
                       : active?.count
                         ? 'No assignments match these filters.'
-                        : 'This folder has no bills yet. Use Find bills or FastTagger to add bills.'}
+                        : active
+                          ? 'This folder has no bills yet. Search all bills or add bills by number.'
+                          : 'No bills are in your folders yet. Create or select a folder, then search all bills.'}
                   </p>
                 )}
                 <div className="lw-folder-pagination">
@@ -1662,7 +1664,7 @@ function FastTagger({
     [result, setResult] = useState('');
   const title = copying
     ? `Copy ${dedupedCopy.length} selected bill${dedupedCopy.length === 1 ? '' : 's'}`
-    : `FastTagger · ${folder?.name ?? ''}`;
+    : `Add bills by number · ${folder?.name ?? ''}`;
   return (
     <CapiroModal open title={title} onClose={onClose} width={680}>
       <p>

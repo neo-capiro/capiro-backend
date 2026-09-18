@@ -83,7 +83,7 @@ test('a disabled workspace exposes no report controls or private directory reque
   api.enabled = false;
   mount();
   await waitFor(() => expect(api.get).toHaveBeenCalled());
-  expect(screen.queryByRole('heading', { name: 'Reports & updates' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Your reports' })).toBeNull();
   expect(api.get.mock.calls.every(([url]) => url.endsWith('/feature-flags'))).toBe(true);
 });
 test('the single create report action opens the editor', async () => {
@@ -91,12 +91,18 @@ test('the single create report action opens the editor', async () => {
   await screen.findByText(report.name);
 
   fireEvent.click(screen.getByRole('button', { name: 'Create report' }));
-  expect(screen.getByRole('dialog', { name: 'New report' })).toBeTruthy();
+  const dialog = screen.getByRole('dialog', { name: 'New report' });
+  expect(dialog).toBeTruthy();
+  expect(within(dialog).getByRole('combobox', { name: 'Session' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
   expect(screen.queryByRole('button', { name: 'Bill report' })).toBeNull();
   expect(screen.getByRole('tab', { name: 'Client briefings' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Open intelligence brief' })).toBeTruthy();
+  const more = screen.getByText('Settings and tools');
+  expect(more.closest('details')?.open).toBe(false);
+  fireEvent.click(more);
+  expect(screen.getByRole('tab', { name: 'Contacts & lists' })).toBeTruthy();
 });
 
 test('an edit preserves a conflict draft and keeps display windows separate from selection filters', async () => {
