@@ -25,7 +25,7 @@ vi.mock('../../../../lib/use-api.js', () => ({
   }),
 }));
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: async () => 't', orgId: null, userId: 'u-1' }),
+  useAuth: () => ({ getToken: async () => 't', orgId: null, userId: 'u-1', isLoaded: true }),
   useUser: () => ({ user: { id: 'u-1' } }),
 }));
 
@@ -41,6 +41,7 @@ const ME: { user: { id: string; legiwatchPrefs: Record<string, unknown> } } = {
 
 /** Callers get their own copy — React Query must never be handed the mutable row. */
 const meDoc = () => ({ user: { ...ME.user, legiwatchPrefs: { ...ME.user.legiwatchPrefs } } });
+const queryClients: QueryClient[] = [];
 
 beforeEach(() => {
   apiGet.mockReset();
@@ -50,6 +51,7 @@ beforeEach(() => {
   ME.user.legiwatchPrefs = { ...STORED_PREFS };
   apiGet.mockImplementation((url: string) => {
     if (url.startsWith('/api/me')) return Promise.resolve({ data: meDoc() });
+    if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
     // Committee email opt-in (committee-follow-alerts) — disabled preference.
     if (url === '/api/legiwatch/live-hearings/notification-preferences') {
       return Promise.resolve({
@@ -74,6 +76,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  for (const client of queryClients.splice(0)) client.clear();
 });
 
 function SettingsLocation() {
@@ -83,6 +86,7 @@ function SettingsLocation() {
 
 function renderSettings(initial = '/legiwatch?tab=settings') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  queryClients.push(queryClient);
   render(
     createElement(
       QueryClientProvider,
