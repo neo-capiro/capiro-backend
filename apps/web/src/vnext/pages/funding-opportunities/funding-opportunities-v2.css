@@ -425,26 +425,24 @@
     0 0 0 1px var(--fo-border),
     0 1px 2px rgba(16, 24, 40, 0.06);
 }
-.fo-v2-sentence {
-  margin-top: 14px;
-  font-size: 22px;
-  line-height: 36px;
-  font-weight: 500;
-  text-wrap: pretty;
+.fo-v2-traditional-search {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #fff;
 }
-.fo-v2-sentence button {
-  padding: 0 3px;
-  border: 0;
-  border-bottom: 1px dashed #a9c2d3;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--fo-blue);
-  font-size: 22px;
-  font-weight: 600;
+.fo-v2-traditional-search-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
-.fo-v2-sentence button:hover,
-.fo-v2-sentence button:focus-visible {
-  background: #edf3f7;
+.fo-v2-traditional-search-heading h2 {
+  margin: 4px 0 0;
+  color: var(--fo-ink);
+  font-size: 17px;
+  line-height: 24px;
 }
 .fo-v2-keyword {
   display: flex;
@@ -462,6 +460,16 @@
   border-radius: 8px;
   background: #fff;
   color: var(--fo-muted);
+}
+.fo-v2-keyword > select {
+  height: 48px;
+  min-width: 132px;
+  padding: 0 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--fo-ink);
+  font: inherit;
 }
 .fo-v2-input input {
   width: 100%;
@@ -1734,10 +1742,8 @@
   .fo-v2-actions {
     grid-column: 1/-1;
   }
-  .fo-v2-sentence,
-  .fo-v2-sentence button {
-    font-size: 20px;
-    line-height: 32px;
+  .fo-v2-traditional-search {
+    padding: 14px;
   }
   .fo-v2-toolbar-bottom {
     justify-content: flex-start;
@@ -1781,8 +1787,19 @@
   }
 }
 @media (max-width: 600px) {
-  .fo-v2-header-actions {
+  .fo-module--v2 .fo-v2-header {
+    flex-wrap: wrap;
+  }
+  .fo-module--v2 .fo-v2-title {
+    flex: 0 0 100%;
+    width: auto;
+    max-width: none;
+  }
+  .fo-module--v2 .fo-v2-header .fo-v2-header-actions {
+    flex: 0 0 100%;
     width: 100%;
+    margin-left: 0;
+    align-items: flex-start;
     justify-content: flex-start;
   }
   .fo-v2-header-button {
@@ -1938,9 +1955,6 @@
 .fo-module--v2 .fo-v2-builder {
   margin-bottom: 0;
 }
-.fo-module--v2 .fo-v2-sentence {
-  margin-top: 14px;
-}
 .fo-module--v2 .fo-v2-note {
   margin-top: 10px;
 }
@@ -2051,17 +2065,9 @@
   padding: 10px;
   background: #fff;
 }
-.fo-module--v2 .fo-v2-sentence button {
-  background: transparent;
-}
 @media (max-width: 899px) {
   .fo-module--v2 .fo-v2-content {
     padding: 20px 24px 48px;
-  }
-  .fo-module--v2 .fo-v2-sentence,
-  .fo-module--v2 .fo-v2-sentence button {
-    font-size: 22px;
-    line-height: 36px;
   }
   .fo-module--v2 .fo-v2-toolbar-bottom > span {
     width: 100%;

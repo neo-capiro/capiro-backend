@@ -212,6 +212,9 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
       eligibility: [TYPES[13]], cfdaNumbers: ['99.999'], status: 'posted', openDate: posted, closeDate: future,
       costSharing: true, estimatedFunding: 500000, description: 'hydrogen propulsion research', raw: { synopsis: { fundingActivityCategories: [{ description: 'Energy' }] } },
     })) });
+    const literalId = `${randomUUID()}-%_` + String.fromCharCode(92) + 'literal';
+    grantIds.push(literalId);
+    await db!.federalGrant.create({ data: { id: literalId, title: 'literal %_' + String.fromCharCode(92) + ' marker', agency: 'Department of Energy', fundingInstrument: 'Grant', eligibility: [TYPES[13]], status: 'posted', closeDate: future } });
     const agencyRows: Array<[string, string | null]> = [
       ['army-full', 'Department of the Army'], ['army-acronym', 'Army'],
       ['disa-full', 'Defense Information Systems Agency'], ['disa-acronym', 'DISA'],
@@ -363,6 +366,21 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
     }
     const andAcross = await searchSourceSql(adapter, 'ca_portal', criteria({ query: sourcePrefix, funding: ['u1'], methods: ['agency'], grantPrerequisites: ['loi', 'match'], deadlineWindow: '45d' }), null);
     expect(andAcross.records.map((row) => row.sourceRecordId)).toEqual([sourceIds.ca]);
+  });
+
+  test('supports explicit keyword AND matching, quoted spans, phrase mode, and legacy literal matching', async () => {
+    const nonAdjacent = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'hydrogen research', queryMatch: 'keywords' }), null);
+    expect(nonAdjacent.count).toBe(205);
+    expect(nonAdjacent.records.length).toBeGreaterThan(0);
+    const phrase = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'hydrogen research', queryMatch: 'phrase' }), null);
+    expect(phrase.count).toBe(0);
+    const quoted = await searchSourceSql(adapter, 'grants_gov', criteria({ query: '"hydrogen propulsion" research', queryMatch: 'keywords' }), null);
+    expect(quoted.count).toBe(205);
+    const legacy = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'hydrogen research' }), null);
+    expect(legacy.count).toBe(0);
+    const literal = await searchSourceSql(adapter, 'grants_gov', criteria({ query: '%_' + String.fromCharCode(92), queryMatch: 'phrase', pageSize: 1 }), null);
+    expect(literal.count).toBe(1);
+    expect(literal.records).toHaveLength(1);
   });
 
   test('counts are computed before limits and forecast dates are not response deadlines', async () => {
