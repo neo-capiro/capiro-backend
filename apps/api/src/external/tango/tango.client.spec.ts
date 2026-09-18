@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { TangoGatewayService } from './tango.client.js';
+import { TangoGatewayService, normalizeForecastModifiedAfter } from './tango.client.js';
 import {
   TANGO_ERROR_KINDS,
   TangoError,
@@ -254,6 +254,39 @@ describe('every call requests only the fields it uses', () => {
     const { service, calls } = gateway([{ body: FORECAST_PAGE }]);
     await service.listForecasts();
     expect(new URL(calls[0]!.url).searchParams.get('shape')).toBe(TANGO_SHAPES.forecast);
+  });
+
+  test.each([
+    ['an ISO UTC timestamp', '2026-08-07T23:30:00.000Z', '2026-08-07'],
+    ['an offset timestamp crossing UTC midnight', '2026-08-07T23:30:00-05:00', '2026-08-08'],
+    ['a valid date-only value', '2026-08-07', '2026-08-07'],
+  ])('normalizes %s to the provider calendar date', async (_label, changedSince, expected) => {
+    const { service, calls } = gateway([{ body: FORECAST_PAGE }]);
+    await service.listForecasts({ changedSince });
+    expect(new URL(calls[0]!.url).searchParams.get('modified_after')).toBe(expected);
+  });
+
+  test('omits modified_after when no forecast date filter is supplied', async () => {
+    const { service, calls } = gateway([{ body: FORECAST_PAGE }]);
+    await service.listForecasts();
+    expect(new URL(calls[0]!.url).searchParams.has('modified_after')).toBe(false);
+  });
+
+  test.each(['2026-02-30', '2026-08-07T23:30:00', 'not-a-date'])(
+    'rejects invalid or timezone-less forecast date input: %s',
+    (changedSince) => {
+      expect(() => normalizeForecastModifiedAfter(changedSince)).toThrow(
+        'changedSince must be a valid ISO date or timestamp',
+      );
+    },
+  );
+
+  test.each(['', '   '])('rejects an empty forecast date without making a request: %j', async (changedSince) => {
+    const { service, calls } = gateway([{ body: FORECAST_PAGE }]);
+    await expect(service.listForecasts({ changedSince })).rejects.toThrow(
+      'changedSince must be a valid ISO date or timestamp',
+    );
+    expect(calls).toHaveLength(0);
   });
 
   test('the key travels as a header, never in the query string', async () => {

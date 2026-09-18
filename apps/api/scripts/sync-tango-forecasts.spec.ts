@@ -126,34 +126,40 @@ function fakeGateway(pages: Array<{ items: TangoForecast[]; nextCursor: string |
   } as any;
 }
 
+type FakeCheckpoint = {
+  cursor: string | null;
+  windowStart: Date | null;
+  windowEnd: Date | null;
+};
+
 function fakeStore(
-  initialCheckpoint: {
-    cursor: string | null;
-    windowStart: Date | null;
-    windowEnd: Date | null;
-  } | null = null,
+  initialCheckpoint: FakeCheckpoint | null = null,
+  initialByFingerprint: Record<string, FakeCheckpoint> = {},
 ) {
   const checkpoints: unknown[] = [];
-  let storedCheckpoint = initialCheckpoint;
+  const storedByFingerprint = new Map<string, FakeCheckpoint>(Object.entries(initialByFingerprint));
   const store = {
-    readCheckpoint: jest.fn(async () => storedCheckpoint),
+    readCheckpoint: jest.fn(async (_verb: string, _resource: string, fingerprint: string) =>
+      storedByFingerprint.get(fingerprint) ?? initialCheckpoint,
+    ),
     writeCheckpoint: jest.fn(async (input: any) => {
       checkpoints.push(input);
-      storedCheckpoint = {
-        cursor: input.cursor === undefined ? (storedCheckpoint?.cursor ?? null) : input.cursor,
+      const previous = storedByFingerprint.get(input.filterFingerprint) ?? initialCheckpoint;
+      storedByFingerprint.set(input.filterFingerprint, {
+        cursor: input.cursor === undefined ? (previous?.cursor ?? null) : input.cursor,
         windowStart:
           input.windowStart !== undefined
             ? input.windowStart
               ? new Date(input.windowStart)
               : null
-            : (storedCheckpoint?.windowStart ?? null),
+            : (previous?.windowStart ?? null),
         windowEnd:
           input.windowEnd !== undefined
             ? input.windowEnd
               ? new Date(input.windowEnd)
               : null
-            : (storedCheckpoint?.windowEnd ?? null),
-      };
+            : (previous?.windowEnd ?? null),
+      });
       return {};
     }),
   };
@@ -325,7 +331,7 @@ describe('runForecastSync — mapping and writes', () => {
     expect(upsertForecast).toHaveBeenCalledTimes(2);
   });
 
-  test('the checkpoint uses this sync verb, resourceType forecast, and the v2 cursor-window fingerprint', async () => {
+  test('the checkpoint uses this sync verb, resourceType forecast, and the v3 cursor-window fingerprint', async () => {
     const gateway = fakeGateway([{ items: [forecast('F1')], nextCursor: null }]);
     const { store } = fakeStore(null);
     await runForecastSync(
@@ -340,8 +346,47 @@ describe('runForecastSync — mapping and writes', () => {
     expect(store.readCheckpoint).toHaveBeenCalledWith(
       'sync-tango-forecasts',
       'forecast',
-      computeFilterFingerprint({ cursorWindowVersion: 2 }),
+      computeFilterFingerprint({ cursorWindowVersion: 3 }),
     );
+  });
+
+  test('v2 partial cursors are ignored, while a written v3 cursor resumes its original window', async () => {
+    const legacyFingerprint = computeFilterFingerprint({ cursorWindowVersion: 2 });
+    const firstStart = new Date('2026-08-01T12:00:00Z');
+    const gateway = fakeGateway([
+      { items: [forecast('page-1')], nextCursor: 'page-2' },
+      { items: [forecast('page-2')], nextCursor: null },
+    ]);
+    const { store, checkpoints } = fakeStore(null, {
+      [legacyFingerprint]: {
+        cursor: 'legacy-page-2',
+        windowStart: new Date('2026-07-31T00:00:00Z'),
+        windowEnd: new Date('2026-07-31T12:00:00Z'),
+      },
+    });
+
+    const partial = await runForecastSync(
+      { gateway, store, upsertForecast: jest.fn(async () => {}), now: () => firstStart },
+      { commit: true, limit: 1 },
+    );
+    expect(partial.completeness).toBe('in_progress');
+    expect(gateway.listForecasts).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ cursor: null }),
+    );
+    expect((checkpoints[0] as any).filterFingerprint).toBe(
+      computeFilterFingerprint({ cursorWindowVersion: 3 }),
+    );
+
+    const resumed = await runForecastSync(
+      { gateway, store, upsertForecast: jest.fn(async () => {}), now: () => NOW },
+      { commit: true },
+    );
+    expect(resumed.completeness).toBe('complete');
+    const resumedCall = (gateway.listForecasts as jest.Mock).mock.calls[1]![0];
+    expect(resumedCall).toEqual(expect.objectContaining({ cursor: 'page-2' }));
+    expect(resumedCall).not.toHaveProperty('changedSince');
+    expect((checkpoints[1] as any).windowEnd).toBe(firstStart.toISOString());
   });
 });
 
