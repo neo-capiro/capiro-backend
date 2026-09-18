@@ -550,16 +550,17 @@ export async function collectSamWindowRecords(
     }
 
     const batches: SamOpportunityRecord[][] = [firstBatch];
-    let offset = pageLimit;
     let lastBatchLength = firstBatch.length;
-    for (let page = 1; page < maxPages; page += 1) {
+    for (let pageIndex = 1; pageIndex < maxPages; pageIndex += 1) {
       if (lastBatchLength < pageLimit) break;
-      if (total !== undefined && offset >= total) break;
-      const response = await fetchPageFn(apiKey, postedFrom, postedTo, offset, pageLimit);
+      // SAM's offset is a zero-based page index, while totalRecords is a row
+      // count. Convert the page index to its first row before deciding that
+      // all reported records have already been fetched.
+      if (total !== undefined && pageIndex * pageLimit >= total) break;
+      const response = await fetchPageFn(apiKey, postedFrom, postedTo, pageIndex, pageLimit);
       const batch = response.opportunitiesData ?? [];
       batches.push(batch);
       lastBatchLength = batch.length;
-      offset += pageLimit;
       if (batch.length === 0) break;
     }
 
