@@ -131,7 +131,7 @@ describe('mounted Funding Opportunities v2 integration', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Search mode' }), { target: { value: 'phrase' } });
     expect(keyword).toHaveValue('autonomous ground vehicle');
     expect(screen.getByTestId('location')).toHaveTextContent('page=2');
-    fireEvent.click(screen.getByRole('button', { name: 'Search', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('query=autonomous+ground+vehicle'));
     expect(screen.getByTestId('location')).toHaveTextContent('queryMatch=phrase');
     expect(screen.getByTestId('location')).toHaveTextContent('page=1');
@@ -142,7 +142,7 @@ describe('mounted Funding Opportunities v2 integration', () => {
     await screen.findByText(referenceOpportunityRows[0]!.title);
     fireEvent.change(screen.getByRole('textbox', { name: 'Keyword search' }), { target: { value: 'quoted phrase' } });
     fireEvent.change(screen.getByRole('combobox', { name: 'Search mode' }), { target: { value: 'phrase' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save search', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save search' }));
     const dialog = await screen.findByRole('dialog', { name: 'Save search' });
     expect(dialog).toHaveTextContent('quoted phrase');
   });
