@@ -7344,13 +7344,17 @@ model HearingFollow {
 model LegiWatchCommitteeFollow {
   id                        String   @id @default(uuid()) @db.Uuid
   tenantId                  String   @map("tenant_id") @db.Uuid
-  userId                    String   @map("user_id") // clerk user id
+  userId                    String   @map("user_id") // internal users.id — never a Clerk user id
   committeeSystemCode       String   @map("committee_system_code") // soft ref → congress_committee.system_code
   clientIds                 String[] @default([]) @map("client_ids") @db.Uuid
   notifyOnNewHearing        Boolean  @default(true) @map("notify_on_new_hearing")
   notifyOnScheduleChange    Boolean  @default(true) @map("notify_on_schedule_change")
   notifyOnTranscriptReady   Boolean  @default(false) @map("notify_on_transcript_ready")
   notifyOnHighPriorityMatch Boolean  @default(true) @map("notify_on_high_priority_match")
+  notifyOnPublication       Boolean  @default(true) @map("notify_on_publication")
+  /// Durable intake boundary — once the follow's catch-up has been applied
+  /// the drain repeatedly fills the gap from this watermark(not mere firstSeens).
+  alertStartedAt            DateTime? @map("alert_started_at") @db.Timestamptz(6)
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -7394,19 +7398,16 @@ model LegiWatchSavedItem {
 // A LegiWatch lifecycle notification: the in-app inbox row plus the durable
 // record of which state transition produced it.
 //
-// This is NOT a parallel notification system. Channel delivery and its
-// idempotency continue to run through NotificationLog (unique on
-// alertId+userId+channel) exactly as tracker alerts do. This table exists
-// because NotificationLog cannot represent a LegiWatch lifecycle event:
-// its clientId is NOT NULL (so it cannot carry a hearing-level event that
-// belongs to no single client), and it has no deep-link target or read state.
+// Committee-follow email delivery uses the durable queue fields on this inbox
+// row because tracker NotificationLog requires a clientId and cannot represent
+// committee publications without a client. Read state is shared by all UI surfaces.
 //
 // dedupKey encodes the STATE TRANSITION, not the observation, so repeatedly
 // observing the same schedule cannot produce a second notification.
 model LegiWatchNotificationEvent {
   id                  String    @id @default(uuid()) @db.Uuid
   tenantId            String    @map("tenant_id") @db.Uuid
-  userId              String    @map("user_id") // clerk user id
+  userId              String    @map("user_id") // internal users.id — never a Clerk user id
   /// Allowed values enforced by legiwatch_notification_event_type_check.
   eventType           String    @map("event_type")
   hearingId           String?   @map("hearing_id") // soft ref → committee_hearing.id
@@ -7421,10 +7422,41 @@ model LegiWatchNotificationEvent {
   readAt              DateTime? @map("read_at") @db.Timestamptz(6)
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  /// Committee-follow email delivery drain fields. NULL status = never
+  /// email-eligible (catch-up imported rows, preference off, no account email).
+  /// The drain worker transitions queued → sending → sent / retry_wait /
+  /// failed_final / suppressed, bounded at 6 attempts, with lease dedup so a
+  /// concurrent worker or a stale claim finishes rather than double-sending.
+  /// Exactly-once is not promised vs an external SES ack / DB crash boundary.
+  emailDeliveryStatus          String?   @map("email_delivery_status") // queued|sending|sent|retry_wait|failed_final|suppressed|suppressed
+  emailDeliveryAttempts        Int       @default(0) @map("email_delivery_attempts")
+  emailDeliveryNextAttemptAt   DateTime? @map("email_delivery_next_attempt_at") @db.Timestamptz(6)
+  emailDeliveryLeaseUntil      DateTime? @map("email_delivery_lease_until") @db.Timestamptz(6)
+  emailDeliveryLeaseId         String?   @map("email_delivery_lease_id")
+  emailDeliveryLastError       String?   @map("email_delivery_last_error")
+  emailDeliverySentAt          DateTime? @map("email_delivery_sent_at") @db.Timestamptz(6)
+
   @@unique([tenantId, userId, dedupKey], map: "legiwatch_notification_event_dedup_key")
   @@index([tenantId, userId, createdAt(sort: Desc)], map: "legiwatch_notification_event_inbox_idx")
   @@index([tenantId, hearingId], map: "legiwatch_notification_event_hearing_idx")
+  @@index([emailDeliveryStatus, emailDeliveryNextAttemptAt], map: "legiwatch_notification_event_email_drain_idx")
   @@map("legiwatch_notification_event")
+}
+
+// Tenant preference row for committee email delivery. DefaultOFF so the web
+// toggle only flips intentionally. server-side email resolution on PUT; cached
+// snapshot retained here for audit.
+model LegiWatchCommitteeEmailPreference {
+  id                      String    @id @default(uuid()) @db.Uuid
+  tenantId                String    @map("tenant_id") @db.Uuid
+  userId                  String    @map("user_id") // internal users.id
+  committeeEmailEnabled   Boolean   @default(false) @map("committee_email_enabled")
+  emailAddress            String?   @map("email_address")
+  updatedAt               DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId], map: "legiwatch_committee_email_preference_user_key")
+  @@index([tenantId, userId], map: "legiwatch_committee_email_preference_tenant_user_idx")
+  @@map("legiwatch_committee_email_preference")
 }
 
 // Tenant-defined rule for auto-subscribing to / auto-recording future

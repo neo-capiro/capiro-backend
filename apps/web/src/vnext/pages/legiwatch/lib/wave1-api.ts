@@ -213,6 +213,8 @@ export interface CommitteeFollowConfig {
   notifyOnScheduleChange: boolean;
   notifyOnTranscriptReady: boolean;
   notifyOnHighPriorityMatch: boolean;
+  /** Committee publications ("What has been published") — default true. */
+  notifyOnPublication: boolean;
 }
 
 export interface CommitteeIntelligenceEntity {
@@ -274,13 +276,35 @@ export interface CalendarExport {
 export interface LwNotification {
   id: string;
   eventType: string;
-  hearingId: string;
+  /** Null for committee-level rows (e.g. a committee publication with no
+   *  hearing) — the destination is always `deepLink`, never this id. */
+  hearingId: string | null;
+  committeeSystemCode: string | null;
   clientId: string | null;
   title: string;
   body: string | null;
   deepLink: string;
   read: boolean;
   createdAt: string;
+}
+
+/** Paginated notifications response. `unread` is the SERVER-side unread count
+ *  for the caller (not derivable from the current page's rows). */
+export interface LwNotificationsPage {
+  rows: LwNotification[];
+  total: number;
+  unread: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+/** Per-user committee alert email preference (committee-follow-alerts). */
+export interface LwNotificationPreferences {
+  committeeEmailEnabled: boolean;
+  /** The signed-in account address delivery targets; null when the account
+   *  has no usable email (backend explains and refuses enabling). */
+  emailAddress: string | null;
 }
 
 // ── query keys ─────────────────────────────────────────────────────────────
@@ -298,7 +322,13 @@ export const w1Keys = {
   committeeIntel: (systemCode: string, params: unknown) =>
     ['lw-w1', 'committee-intel', systemCode, params] as const,
   calendar: (hearingId: string) => ['lw-w1', 'calendar', hearingId] as const,
-  notifications: (unreadOnly: boolean) => ['lw-w1', 'notifications', unreadOnly] as const,
+  /** All committee/hearing notification queries share this prefix so a single
+   *  prefix invalidation refreshes inbox, bell and dashboard together. The
+   *  caller identity is INSIDE the key (never cross-user bleed). */
+  notifications: (unreadOnly: boolean, pageSize: number, identity: string | null) =>
+    ['lw-w1', 'notifications', unreadOnly, pageSize, identity] as const,
+  notificationPreferences: (identity: string | null) =>
+    ['lw-w1', 'notification-preferences', identity] as const,
   savedItems: (hearingId: string) => ['lw-w1', 'saved-items', hearingId] as const,
   serverSessions: (page: number, pageSize: number) =>
     ['lw-w1', 'server-sessions', page, pageSize] as const,
@@ -705,6 +735,7 @@ export interface CommitteeFollowInput {
   notifyOnScheduleChange?: boolean;
   notifyOnTranscriptReady?: boolean;
   notifyOnHighPriorityMatch?: boolean;
+  notifyOnPublication?: boolean;
 }
 
 export function useSaveCommitteeFollow(systemCode: string) {
@@ -714,7 +745,12 @@ export function useSaveCommitteeFollow(systemCode: string) {
     mutationFn: async (input) =>
       (await api.put<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`, input))
         .data,
-    onSuccess: (data) => qc.setQueryData(w1Keys.committeeFollow(systemCode), data),
+    onSuccess: (data) => {
+      qc.setQueryData(w1Keys.committeeFollow(systemCode), data);
+      // A follow lets the server generate catch-up notifications for recent
+      // publications — refresh the shared inbox/bell/dashboard feed now.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
   });
 }
 
@@ -725,7 +761,10 @@ export function useUnfollowCommittee(systemCode: string) {
     mutationFn: async () =>
       (await api.delete<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`))
         .data,
-    onSuccess: (data) => qc.setQueryData(w1Keys.committeeFollow(systemCode), data),
+    onSuccess: (data) => {
+      qc.setQueryData(w1Keys.committeeFollow(systemCode), data);
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
   });
 }
 
@@ -1041,18 +1080,101 @@ export function downloadIcs(exportResult: Pick<CalendarExport, 'ics' | 'filename
 
 // ── W1-5 · notification inbox ──────────────────────────────────────────────
 
-export function useLwNotifications(unreadOnly = false) {
+/**
+ * The durable committee/hearing notification feed (dashboard Needs Attention,
+ * top-nav bell). Caller identity is part of the cache key — a tenant/user
+ * switch can never show the previous caller's inbox — and the feed polls so
+ * newly-followed committees surface without a manual reload.
+ */
+export function useLwNotifications(
+  unreadOnly = false,
+  pageSize = 100,
+): UseQueryResult<LwNotificationsPage, Error> {
   const api = useApi();
-  return useQuery<{ rows: LwNotification[]; total: number; unread: number }, Error>({
-    queryKey: w1Keys.notifications(unreadOnly),
-    queryFn: async () =>
-      (
-        await api.get<{ rows: LwNotification[]; total: number; unread: number }>(
-          `${BASE}/notifications?unreadOnly=${unreadOnly ? 'true' : 'false'}`,
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<LwNotificationsPage, Error>({
+    queryKey: w1Keys.notifications(unreadOnly, pageSize, identity),
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to check committee notifications.');
+      return (
+        await api.get<LwNotificationsPage>(
+          `${BASE}/notifications?unreadOnly=${unreadOnly ? 'true' : 'false'}&page=1&pageSize=${pageSize}`,
+          { signal },
         )
-      ).data,
+      ).data;
+    },
+    enabled: ready,
+    staleTime: 30_000,
+    retry: false,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkLwNotificationRead() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation<{ read: boolean }, Error, string>({
+    mutationFn: async (id) => {
+      const data = (await api.post<{ read: boolean }>(`${BASE}/notifications/${enc(id)}/read`, {}))
+        .data;
+      // HTTP 200 with read:false is NOT success — the backend returns false
+      // for a nonexistent or ineligible id. Treat it as the failure it is so
+      // callers never navigate/clear as if the row had been marked read.
+      if (data?.read !== true) {
+        throw new Error('This alert could not be marked read. It may no longer be available.');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
+  });
+}
+
+/** Marks EVERY caller unread row read server-side (not just the loaded page). */
+export function useMarkAllLwNotificationsRead() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation<{ read: number }, Error, void>({
+    mutationFn: async () =>
+      (await api.post<{ read: number }>(`${BASE}/notifications/read-all`, {})).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
+  });
+}
+
+/** Per-user committee email opt-in. Default OFF; delivery goes to the signed-in
+ *  account address only, and the backend may refuse enabling with an
+ *  explanatory message (rendered verbatim by the caller). */
+export function useLwNotificationPreferences(): UseQueryResult<LwNotificationPreferences, Error> {
+  const api = useApi();
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<LwNotificationPreferences, Error>({
+    queryKey: w1Keys.notificationPreferences(identity),
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to manage committee email alerts.');
+      return (
+        await api.get<LwNotificationPreferences>(`${BASE}/notification-preferences`, { signal })
+      ).data;
+    },
+    enabled: ready,
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+export function useSaveLwNotificationPreferences() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { identity } = useHearingQueryIdentity();
+  return useMutation<LwNotificationPreferences, Error, { committeeEmailEnabled: boolean }>({
+    mutationFn: async (input) =>
+      (await api.put<LwNotificationPreferences>(`${BASE}/notification-preferences`, input)).data,
+    onSuccess: (data) => {
+      // Seed from the server's own persisted state (never the requested value).
+      qc.setQueryData(w1Keys.notificationPreferences(identity), data);
+    },
   });
 }
 

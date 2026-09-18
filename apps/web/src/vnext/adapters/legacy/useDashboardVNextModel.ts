@@ -18,6 +18,10 @@ import type {
   PortfolioAlertsResponse,
 } from '../../../pages/intelligence/types.js';
 import type { MeriState } from '../../../pages/engagement/meetings/meetings-types.js';
+import {
+  useLwNotifications,
+  type LwNotification,
+} from '../../pages/legiwatch/lib/wave1-api.js';
 import type { DefaultXFeedAccount } from '../../pages/dashboard/x-feed-defaults.js';
 
 /**
@@ -82,6 +86,13 @@ export interface AttentionItem {
   actionLabel: string;
   /** Count of near-duplicate rows collapsed into this one (renders "+N similar"). */
   similarCount: number;
+  /**
+   * 'lw-notification' marks rows sourced from the durable committee/hearing
+   * notification feed: the dashboard marks them read (via the lw read API)
+   * before navigating, so the badge count and this module stay in sync across
+   * a reload. Absent for every existing source (portfolio alerts, changes).
+   */
+  attentionSource?: 'lw-notification';
 }
 
 export interface NewsItem {
@@ -303,6 +314,10 @@ const DASHBOARD_QUERY_KEYS = [
   'x-feed-subscriptions',
 ] as const;
 
+/** The committee/hearing notification feed lives under the shared w1 prefix;
+ *  retry invalidates the whole prefix so bell + dashboard recover together. */
+const DASHBOARD_QUERY_PREFIXES = [['lw-w1', 'notifications'] as const] as const;
+
 export function useDashboardVNextModel(): DashboardVNextModel {
   const api = useApi();
   const { user } = useUser();
@@ -312,6 +327,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   const retry = useCallback(() => {
     for (const key of DASHBOARD_QUERY_KEYS) {
       void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+    for (const prefix of DASHBOARD_QUERY_PREFIXES) {
+      void queryClient.invalidateQueries({ queryKey: [...prefix] });
     }
   }, [queryClient]);
 
@@ -410,6 +428,10 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     staleTime: 2 * 60 * 1000,
   });
 
+  // Durable committee/hearing notifications for followed committees. UNREAD
+  // only — Needs Attention is a triage surface, not the read-history inbox.
+  const lwNotifications = useLwNotifications(true);
+
   const recentChanges = useQuery<IntelligenceChange[]>({
     queryKey: ['intel-changes-tracked'],
     queryFn: async () => {
@@ -499,6 +521,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       changes: recentChanges.data ?? [],
       failedSourceReason:
         visibility.news && news.data && !news.data.available ? (news.data.reason ?? null) : null,
+      lwNotifications: lwNotifications.data?.rows ?? [],
     });
 
     const status = buildStatus({
@@ -514,6 +537,12 @@ export function useDashboardVNextModel(): DashboardVNextModel {
           isLoading: recentChanges.isLoading,
           isError: recentChanges.isError,
           updatedAt: recentChanges.dataUpdatedAt,
+        },
+        {
+          name: 'Committee notifications',
+          isLoading: lwNotifications.isLoading,
+          isError: lwNotifications.isError,
+          updatedAt: lwNotifications.dataUpdatedAt,
         },
       ],
       hidden: false,
@@ -538,6 +567,10 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     recentChanges.dataUpdatedAt,
     recentChanges.isError,
     recentChanges.isLoading,
+    lwNotifications.data,
+    lwNotifications.dataUpdatedAt,
+    lwNotifications.isError,
+    lwNotifications.isLoading,
     news.data,
     visibility.news,
     limits.attention,
@@ -1310,10 +1343,14 @@ export function selectAttentionItems({
   alerts,
   changes,
   failedSourceReason,
+  lwNotifications,
 }: {
   alerts: readonly PortfolioAlertItem[];
   changes: readonly IntelligenceChange[];
   failedSourceReason: 'not_configured' | 'no_clients' | 'provider_unavailable' | 'no_articles' | null;
+  /** Unread committee/hearing notifications (followed committees). Unread
+   *  only — read history belongs to the inbox, never to Needs Attention. */
+  lwNotifications?: readonly LwNotification[];
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
 
@@ -1353,6 +1390,33 @@ export function selectAttentionItems({
     } as AttentionItem & { _group: string });
   }
 
+  // Followed-committee alerts: new hearings and committee publications
+  // ("What has been published"). These are ROUTINE signals — severity normal —
+  // so they never outrank legitimate critical/high portfolio work. UNREAD rows
+  // only (the feed is asked for unreadOnly, but a defensive filter keeps a
+  // cached full-history response from leaking read rows in). Stable identity
+  // is the server's durable notification id; destination is always the
+  // server-provided deepLink.
+  for (const n of lwNotifications ?? []) {
+    if (n.read) continue;
+    items.push({
+      id: `lw-notif-${n.id}`,
+      kind: n.eventType === 'committee_publication' ? 'Publication' : 'Hearing',
+      severity: 'normal',
+      eyebrow: n.eventType === 'committee_publication' ? 'Committee publication' : 'Committee alert',
+      title: n.title,
+      context: n.body || null,
+      due: relativeDay(n.createdAt),
+      href: n.deepLink || null,
+      actionLabel: 'Open',
+      similarCount: 0,
+      attentionSource: 'lw-notification',
+      // Carried to the final sort: newest unread committee item first among
+      // normal-severity rows.
+      _sortAt: Date.parse(n.createdAt) || 0,
+    } as AttentionItem & { _sortAt: number });
+  }
+
   // A failed source is itself actionable and must never be silently hidden.
   // `no_clients` is a configuration state, not a failure, so it is not raised.
   if (failedSourceReason === 'provider_unavailable' || failedSourceReason === 'not_configured') {
@@ -1374,7 +1438,15 @@ export function selectAttentionItems({
   }
 
   return collapseSimilarAttentionItems(
-    items.sort((a, b) => severityRank(a.severity) - severityRank(b.severity)),
+    items.sort((a, b) => {
+      const rank = severityRank(a.severity) - severityRank(b.severity);
+      if (rank !== 0) return rank;
+      // Within a severity band, newest first — a freshly-arrived committee
+      // alert must never sit below an older same-severity row.
+      const aAt = (a as AttentionItem & { _sortAt?: number })._sortAt ?? 0;
+      const bAt = (b as AttentionItem & { _sortAt?: number })._sortAt ?? 0;
+      return bAt - aAt;
+    }),
   );
 }
 
@@ -1396,7 +1468,8 @@ function collapseSimilarAttentionItems(items: AttentionItem[]): AttentionItem[] 
   for (const item of items) {
     const group = (item as AttentionItem & { _group?: string })._group;
     if (!group) {
-      out.push(item);
+      const { _sortAt: _omitAt, ...clean } = item as AttentionItem & { _sortAt?: number };
+      out.push(clean);
       continue;
     }
     const existing = groupIndex.get(group);
@@ -1404,7 +1477,10 @@ function collapseSimilarAttentionItems(items: AttentionItem[]): AttentionItem[] 
       existing.similarCount += 1;
       continue;
     }
-    const { _group: _omit, ...clean } = item as AttentionItem & { _group?: string };
+    const { _group: _omit, _sortAt: _omitAt, ...clean } = item as AttentionItem & {
+      _group?: string;
+      _sortAt?: number;
+    };
     const row: AttentionItem = { ...clean, similarCount: 0 };
     groupIndex.set(group, row);
     out.push(row);

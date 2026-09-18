@@ -27,6 +27,11 @@ import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import { isWatchlistSetup, watchlistSetupPath } from '../lib/watchlist-navigation.js';
+import {
+  useLwNotificationPreferences,
+  useSaveLwNotificationPreferences,
+  w1Error,
+} from '../lib/wave1-api.js';
 import { ReportWorkspace } from '../reports/ReportWorkspace.js';
 import { useReportsFlag } from '../reports/report-api.js';
 import { AgendaRulesPanel } from './AgendaRulesPanel.js';
@@ -90,6 +95,84 @@ function normalize(raw: unknown): ResolvedPrefs {
         ? p.defaultChamber
         : '',
   };
+}
+
+/**
+ * Committee email alerts — REAL per-user opt-in over
+ * GET/PUT /api/legiwatch/live-hearings/notification-preferences.
+ * Default OFF; delivery targets the signed-in account address only. A backend
+ * refusal (e.g. no usable account email) renders its message verbatim.
+ */
+function CommitteeEmailOptIn() {
+  const prefs = useLwNotificationPreferences();
+  const save = useSaveLwNotificationPreferences();
+  const [error, setError] = useState<string | null>(null);
+
+  const enabled = prefs.data?.committeeEmailEnabled ?? false;
+  const email = prefs.data?.emailAddress ?? null;
+
+  return (
+    <div
+      aria-label="Committee email alerts"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        rowGap: 6,
+        fontSize: 13,
+        maxWidth: 640,
+        alignItems: 'center',
+        marginBottom: 14,
+        paddingBottom: 14,
+        borderBottom: '1px solid var(--lw-border, #e5e5e5)',
+      }}
+    >
+      <span>
+        Email me about followed committees
+        <span style={{ display: 'block', fontSize: 12, color: 'var(--lw-meta)' }}>
+          {prefs.isLoading
+            ? 'Loading your email preference…'
+            : prefs.isError
+              ? 'Your current preference could not be read — no change has been made.'
+              : enabled && email
+                ? `On — alerts go to ${email}`
+                : email
+                  ? `Off — alerts would go to ${email}`
+                  : 'Off — your account has no usable email address'}
+        </span>
+        {error ? (
+          <span role="alert" style={{ display: 'block', fontSize: 12, color: 'var(--lw-danger, #b42318)' }}>
+            {error}
+          </span>
+        ) : null}
+        {save.isSuccess && !error ? (
+          <span style={{ display: 'block', fontSize: 12, color: 'var(--lw-success, #067647)' }}>
+            Saved
+          </span>
+        ) : null}
+      </span>
+      <LwButton
+        size="36"
+        disabled={prefs.isLoading || save.isPending || prefs.isError}
+        onClick={() => {
+          setError(null);
+          save.mutate(
+            { committeeEmailEnabled: !enabled },
+            { onError: (err) => setError(w1Error(err)) },
+          );
+        }}
+      >
+        {save.isPending ? 'Saving…' : enabled ? 'Turn off' : 'Turn on'}
+      </LwButton>
+      {prefs.isError ? (
+        <span role="alert" style={{ gridColumn: '1 / -1', fontSize: 12, color: 'var(--lw-danger, #b42318)' }}>
+          Your committee email preference could not be loaded. {w1Error(prefs.error)}{' '}
+          <button type="button" className="lw-backlink" onClick={() => void prefs.refetch()}>
+            Retry
+          </button>
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export function LegiWatchSettingsTab() {
@@ -299,6 +382,7 @@ function LegiWatchPreferences() {
           <h2 className="lw-card__title">Notifications</h2>
           <span className="lw-card__meta">Per client, on each client's tracking configuration</span>
         </div>
+        <CommitteeEmailOptIn />
         <p style={{ fontSize: 13, margin: '0 0 10px', color: 'var(--lw-body)' }}>
           Alert triggers, materiality, email/SMS channels and quiet hours are configured per client
           with your client's monitoring model — open the client's tracking settings to change them.

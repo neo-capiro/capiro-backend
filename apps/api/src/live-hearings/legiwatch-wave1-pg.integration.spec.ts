@@ -16,6 +16,7 @@ import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+import { LegiWatchCommitteeNotificationService } from './legiwatch-committee-notification.service.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
@@ -75,7 +76,17 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
   const committees = new CommitteeDirectoryService(prisma, hearings);
   const phase7 = new LiveHearingsPhase7Service(prisma, hearings, committees);
   const notifications = new LegiWatchLifecycleNotificationService(prisma);
-  const wave1 = new LegiWatchWave1Service(prisma, phase7, committees, notifications);
+  const wave1 = new LegiWatchWave1Service(
+    prisma,
+    phase7,
+    committees,
+    notifications,
+    new LegiWatchCommitteeNotificationService(
+      prisma,
+      { send: jest.fn() } as never,
+      { get: () => 'https://os.capiro.ai' } as never,
+    ),
+  );
 
   beforeAll(async () => {
     await prisma.$connect();
@@ -955,9 +966,7 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
 
     it('survives punctuation that would break to_tsquery', async () => {
       // websearch_to_tsquery accepts real user input; to_tsquery would throw.
-      await expect(
-        wave1.searchArchive(ctxA, { q: 'shipbuilding & !! ()' }),
-      ).resolves.toBeDefined();
+      await expect(wave1.searchArchive(ctxA, { q: 'shipbuilding & !! ()' })).resolves.toBeDefined();
     });
 
     it('emits a calendar day string, never an instant', async () => {
@@ -1171,9 +1180,9 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
     });
 
     it('404s an unknown committee rather than creating a follow for nothing', async () => {
-      await expect(
-        wave1.upsertCommitteeFollow(ctxA, 'not-a-committee', {}),
-      ).rejects.toThrow(/not found/);
+      await expect(wave1.upsertCommitteeFollow(ctxA, 'not-a-committee', {})).rejects.toThrow(
+        /not found/,
+      );
     });
 
     it('supports a subcommittee as a first-class follow target', async () => {
@@ -1280,9 +1289,9 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
     });
 
     it('still 404s an unknown committee — casing tolerance is not fabrication', async () => {
-      await expect(
-        wave1.committeeIntelligenceHistory(ctxA, 'NOT-A-COMMITTEE', {}),
-      ).rejects.toThrow(/not found/);
+      await expect(wave1.committeeIntelligenceHistory(ctxA, 'NOT-A-COMMITTEE', {})).rejects.toThrow(
+        /not found/,
+      );
       await expect(wave1.committeeFollowState(ctxA, 'NOT-A-COMMITTEE')).rejects.toThrow(
         /not found/,
       );
@@ -1297,9 +1306,7 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
       expect(result.band).toBe('HIGH');
       expect(result.score).toBeCloseTo(0.92, 5);
       expect(result.whyItMatters).toContain('Aperture supplies the submarine industrial base');
-      expect(result.matchedPriorities.map((p) => p.label)).toContain(
-        'submarine industrial base',
-      );
+      expect(result.matchedPriorities.map((p) => p.label)).toContain('submarine industrial base');
       expect(result.evidence).toHaveLength(1);
       expect(result.evidence[0]?.insightId).toBe(INSIGHT_1);
       expect(result.evidence[0]?.segmentId).toBe(SEG_1);
