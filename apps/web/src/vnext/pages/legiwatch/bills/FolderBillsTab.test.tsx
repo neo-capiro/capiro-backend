@@ -607,7 +607,7 @@ test('new folders default to the active client and explicitly independent folder
   fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'Independent new' } });
   fireEvent.change(screen.getByLabelText('Client link'), { target: { value: '' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save folder' }));
-  await screen.findByText(/Folder created outside this client lens/);
+  await screen.findByText(/Folder created outside the selected client/);
   expect(screen.getByRole('heading', { name: created.name })).toBeTruthy();
 });
 

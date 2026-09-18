@@ -469,7 +469,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                       : active && !active.ownerClerkId
                         ? 'Owner mapping pending'
                         : scope
-                          ? 'Selected client lens'
+                          ? 'Selected client'
                           : 'All clients'}{' '}
                     · {board.data?.total ?? 0} assignments
                   </>
@@ -1331,7 +1331,7 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                 if (!scope || created.clientId === scope) pick(created.id);
                 else
                   setNotice(
-                    'Folder created outside this client lens. Choose All clients to open it.',
+                    'Folder created outside the selected client. Choose All clients to open it.',
                   );
               }
               await refresh();

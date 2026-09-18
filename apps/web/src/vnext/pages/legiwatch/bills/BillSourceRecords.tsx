@@ -173,7 +173,7 @@ export function BillSourceRecords({
               ))}
             </ul>
           ) : (
-            <p>No member detail has been ingested.</p>
+            <p>Member details are not available for this vote.</p>
           )}
           <CapiroButton onClick={() => setVoteId(null)}>Close member detail</CapiroButton>
         </div>
