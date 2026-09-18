@@ -975,11 +975,11 @@ describe('W1-6 Client relevance', () => {
         onAction={vi.fn()}
       />,
     );
-    await screen.findByLabelText('Client lens');
+    await screen.findByLabelText('Client');
     // The options come from the client list query; changing to a value that has
     // no <option> yet is silently ignored by the DOM.
     await screen.findByRole('option', { name: 'Aperture Defense' });
-    fireEvent.change(screen.getByLabelText('Client lens'), { target: { value: CLIENT_A } });
+    fireEvent.change(screen.getByLabelText('Client'), { target: { value: CLIENT_A } });
     // The panel asks its parent to change the lens; it never mutates the record.
     expect(onSelectClient).toHaveBeenCalledWith(CLIENT_A);
   });

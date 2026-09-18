@@ -1094,7 +1094,7 @@ describe('session 53 — tab lifecycle regressions', () => {
     expect((location.current.state as { legiwatchScrollY?: number })?.legiwatchScrollY).toBe(432);
 
     // Change the client lens — same contract.
-    fireEvent.change(screen.getByLabelText('Client lens'), { target: { value: 'c1' } });
+    fireEvent.change(screen.getByLabelText('Client'), { target: { value: 'c1' } });
     await waitFor(() => expect(new URLSearchParams(location.current.search).get('client')).toBe('c1'));
     expect((location.current.state as { legiwatchReturnTo?: string })?.legiwatchReturnTo).toBe(returnTo);
 
