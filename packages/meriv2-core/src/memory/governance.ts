@@ -243,10 +243,6 @@ export function assertMemoryTransition(from: GovernedMemoryStatus, to: GovernedM
   }
 }
 
-export function classRequiresApproval(memoryClass: MemoryClass): boolean {
-  return MEMORY_CLASS_POLICIES[memoryClass].requiresHumanApproval;
-}
-
 /**
  * Governed statuses that must never reach recall, a prompt, a graph node or an
  * export.
@@ -581,13 +577,6 @@ export function scoreGovernedMemory(input: RecallScoreInput): RecallScoreExplana
     conflictPenalty,
     reason: recallReason(record),
   };
-}
-
-export function compareGovernedRecall(
-  left: RecallScoreExplanation,
-  right: RecallScoreExplanation,
-): number {
-  return right.total - left.total;
 }
 
 function recallReason(record: GovernedMemoryRecord): string {

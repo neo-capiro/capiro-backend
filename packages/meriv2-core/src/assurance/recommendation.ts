@@ -112,21 +112,6 @@ export function genericRecommendationOption(input: {
   };
 }
 
-export function recommendationPromptRequirements(frame: GovernmentAffairsOperatingFrame): string {
-  const approved = Boolean(frame.clientObjective || frame.authorizedAsk);
-  return [
-    'For each recommendation, state the objective advanced, evidence basis, target, requested action, timing, dependencies, risks, confidence, uncertainty, and next verification step.',
-    approved
-      ? `Approved client direction is available${frame.clientObjective ? `: objective="${bounded(frame.clientObjective)}"` : ''}${frame.authorizedAsk ? `; ask="${bounded(frame.authorizedAsk)}"` : ''}. Do not exceed it.`
-      : 'No approved client objective or authorized ask is available. Do not invent one; provide generic options or ask for direction.',
-    'Keep political inference separate from factual procedural status.',
-  ].join('\n');
-}
-
 function normalize(value: string): string {
   return value.toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-function bounded(value: string): string {
-  return value.replace(/\s+/g, ' ').trim().slice(0, 500);
 }

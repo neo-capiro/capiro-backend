@@ -580,24 +580,6 @@ export function meriDatasetsForTool(tool: string): MeriDatasetDefinition[] {
   return [...(DATASETS_BY_TOOL.get(tool) ?? [])];
 }
 
-export function meriToolCatalogEntry(tool: string): MeriToolCatalogEntry {
-  const recipe = MERI_RECIPE_CATALOG[tool as MeriRetrievalRecipeTool];
-  if (recipe) {
-    return {
-      domains: [...recipe.requiredDomains],
-      exhaustive: true,
-      datasetIds: [],
-    };
-  }
-  const datasets = meriDatasetsForTool(tool);
-  return {
-    domains: [...new Set(datasets.flatMap((dataset) => dataset.domains))],
-    exhaustive:
-      datasets.length > 0 && datasets.every((dataset) => dataset.capabilities.exhaustiveScan),
-    datasetIds: datasets.map((dataset) => dataset.id),
-  };
-}
-
 export function meriRecipeCatalogEntry(tool: MeriRetrievalRecipeTool): MeriRecipeCatalogEntry {
   return MERI_RECIPE_CATALOG[tool];
 }

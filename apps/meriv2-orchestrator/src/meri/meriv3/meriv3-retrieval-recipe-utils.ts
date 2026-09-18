@@ -351,20 +351,6 @@ function resolvedEntityOf(value: unknown): Record<string, unknown> | null {
   return isRecord(value) && isRecord(value.resolvedEntity) ? value.resolvedEntity : null;
 }
 
-export function resolutionTerms(target: string, resolution: unknown): string[] {
-  const entity = resolvedEntityOf(resolution);
-  const candidates = [target, stringValue(entity?.canonicalName)];
-  if (Array.isArray(entity?.domains)) {
-    for (const domain of entity.domains) candidates.push(stringValue(domain));
-  }
-  if (isRecord(resolution) && Array.isArray(resolution.candidates)) {
-    for (const candidate of resolution.candidates.slice(0, 2)) {
-      if (isRecord(candidate)) candidates.push(stringValue(candidate.canonicalName));
-    }
-  }
-  return [...new Set(candidates.filter((value): value is string => Boolean(value)))].slice(0, 5);
-}
-
 export function resolvedClientId(resolution: unknown): string | null {
   const entity = resolvedEntityOf(resolution);
   return stringValue(entity?.clientId);

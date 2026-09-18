@@ -844,12 +844,6 @@ export function composeReferenceSystemPrompt(
   return { base: STRATEGY_BASE, dynamic };
 }
 
-/** Legacy joined-string form — see buildDraftSystemPrompt's comment. */
-export function buildReferenceSystemPrompt(input: StrategyReferenceAssistInput): string {
-  const { base, dynamic } = composeReferenceSystemPrompt(input);
-  return `${base}\n\n${dynamic}`;
-}
-
 function renderDocumentNode(n: DocumentDraftNode): string {
   const dates = n.startsOn ? `${n.startsOn}${n.endsOn ? `–${n.endsOn}` : ''}` : '(no date set)';
   return [
