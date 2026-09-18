@@ -27,7 +27,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <CapiroToastProvider>
         <div className="capiro-vnext-root">
-          <AppShellUuiView navigation={navigation} identity={identity} notifications={notifications} mailboxStatus={FOUNDATION_MAILBOX_STATES[0]} scopeLabel="Overland AI" globalSearchPlaceholder="Search opportunities, agencies, references…" fundingSourceHealth={{ degradedCount: 1, label: '1 source degraded', detail: 'DLA BID BOARD · 6H AGO' }} onNavigate={() => undefined} onSignOut={() => undefined} onOpenProfile={() => undefined}>
+          <AppShellUuiView navigation={navigation} identity={identity} notifications={notifications} mailboxStatus={FOUNDATION_MAILBOX_STATES[0]} scopeLabel="Overland AI" globalSearchPlaceholder="Search opportunities, agencies, references…" fundingSourceHealth={{ degradedCount: 1, label: '1 source degraded', details: ['DLA BID BOARD · 6H AGO'] }} onNavigate={() => undefined} onSignOut={() => undefined} onOpenProfile={() => undefined}>
             <Routes>
               <Route path="/intelligence/opportunities" element={<FundingOpportunitiesPage />} />
               <Route path="/intelligence/opportunities/:source/:sourceRecordId" element={<FundingOpportunitiesPage />} />

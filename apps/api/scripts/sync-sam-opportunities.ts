@@ -535,7 +535,29 @@ export async function collectSamWindowRecords(
   const processWindow = async (window: SamDateWindow): Promise<void> => {
     const postedFrom = samDate(window.postedFrom);
     const postedTo = samDate(window.postedTo);
-    const first = await fetchPageFn(apiKey, postedFrom, postedTo, 0, pageLimit);
+    let first: SamSearchResponse;
+    try {
+      first = await fetchPageFn(apiKey, postedFrom, postedTo, 0, pageLimit);
+    } catch (error) {
+      // A window that has grown large (e.g. because the sync hasn't had a
+      // clean success in a while) can time out on its very first request,
+      // before `total` is ever known — the `total > capacity` split below
+      // never gets a chance to run. Splitting on a transient abort/timeout
+      // and retrying each half converges toward a size that actually
+      // completes, rather than failing the whole run on the same oversized
+      // window every single day. A non-transient failure (auth, 4xx from the
+      // provider) still propagates immediately — splitting would only repeat
+      // the same error on smaller windows.
+      const message = error instanceof Error ? error.message : String(error);
+      const isTransient = /aborted|timed?\s*out|ETIMEDOUT|ECONNRESET|network/i.test(message);
+      if (isTransient && utcDayCount(window) > 1) {
+        const [left, right] = splitSamWindow(window);
+        await processWindow(left);
+        await processWindow(right);
+        return;
+      }
+      throw error;
+    }
     const firstBatch = first.opportunitiesData ?? [];
     const total =
       typeof first.totalRecords === 'number' && Number.isFinite(first.totalRecords)

@@ -419,6 +419,69 @@ describe('SAM date-window completeness', () => {
     expect(result.records.map((row) => row.noticeId)).toEqual(['LEFT', 'DUP', 'RIGHT']);
     expect(result.duplicateNoticeCount).toBe(1);
   });
+
+  // A window that has grown large because the sync hasn't had a clean success
+  // in a while can time out on its very first request, before `total` is
+  // ever known — the "total > capacity" split above never gets a chance to
+  // run. Live 2026-09 operation found the DoD-scope job failing this way on
+  // a ~51-day window every single day. These tests exist because that was
+  // found in production, not in review.
+  test('an abort on the first request splits the window and retries instead of failing the whole run', async () => {
+    const attemptedWindows: string[] = [];
+    const fetcher: SamFetchPage = jest.fn(
+      async (_key: string, from: string, to: string, _offset: number, _limit: number) => {
+        attemptedWindows.push(`${from}..${to}`);
+        if (from !== to) {
+          throw new Error('SAM.gov request failed: [REDACTED] This operation was aborted');
+        }
+        return { totalRecords: 1, opportunitiesData: [record(`D-${from}`)] };
+      },
+    );
+
+    const result = await collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-04'), {
+      fetchPage: fetcher,
+    });
+
+    expect(result.complete).toBe(true);
+    expect(result.records.map((row) => row.noticeId).sort()).toEqual([
+      'D-07/01/2026',
+      'D-07/02/2026',
+      'D-07/03/2026',
+      'D-07/04/2026',
+    ]);
+    // The oversized window was attempted and abandoned — proof the split
+    // happened because of the abort, not because it was never tried.
+    expect(attemptedWindows).toContain('07/01/2026..07/04/2026');
+  });
+
+  test('a single-day window that aborts has nothing left to split into, and throws', async () => {
+    const fetcher: SamFetchPage = jest.fn(async () => {
+      throw new Error('SAM.gov request failed: [REDACTED] This operation was aborted');
+    });
+
+    await expect(
+      collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-01'), {
+        fetchPage: fetcher,
+      }),
+    ).rejects.toThrow(/aborted/);
+  });
+
+  test('a non-transient error on a large window propagates immediately, never multiplied across splits', async () => {
+    const fetcher: SamFetchPage = jest.fn(async () => {
+      throw new Error(
+        'SAM.gov request failed: SAM.gov 401: unauthorized. Check SAM_GOV_API_KEY is present, active, and entitled.',
+      );
+    });
+
+    await expect(
+      collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-04'), {
+        fetchPage: fetcher,
+      }),
+    ).rejects.toThrow(/401/);
+    // A real auth failure must not be retried across shrinking windows — it
+    // would just repeat the identical error more slowly.
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('SAM description resolution', () => {
