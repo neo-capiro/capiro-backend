@@ -175,7 +175,7 @@ try {
   record('desktop day/week range updates URL', new URL(page.url()).searchParams.get('calendarRange') === 'day');
 
   await page.goto(new URL('/legiwatch?tab=digest', baseURL).toString(), { waitUntil: 'domcontentloaded' });
-  await page.getByRole('heading', { name: 'Reports & updates' }).waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByRole('heading', { name: 'Your reports' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.getByRole('button', { name: 'Open intelligence brief' }).click();
   record('legacy intelligence brief remains reachable', new URL(page.url()).searchParams.get('digestMode') === 'legacy');
   await page.goto(new URL('/legiwatch?tab=digest', baseURL).toString(), { waitUntil: 'domcontentloaded' });
