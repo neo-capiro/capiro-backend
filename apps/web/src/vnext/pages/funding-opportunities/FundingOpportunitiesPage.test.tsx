@@ -94,6 +94,21 @@ beforeEach(() => {
 });
 
 describe('mounted Funding Opportunities v2 integration', () => {
+  test('queryless route requests the all-opportunities catalog contract', async () => {
+    const api = createReferenceFixtureApi();
+    const get = vi.spyOn(api, 'get');
+    mount('/intelligence/opportunities', api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+
+    const searchUrl = get.mock.calls
+      .map(([url]) => String(url))
+      .find((url) => url.startsWith('/api/intelligence/opportunities/v2/search?'));
+    expect(searchUrl).toBeDefined();
+    const params = new URLSearchParams(searchUrl!.split('?')[1]);
+    expect(params.get('mode')).toBe('all');
+    expect(params.get('clientId')).toBe('');
+  });
+
   test('renders a typed fixture row, cancels a pending keyword debounce on client change, and does not replay it', async () => {
     mount('/intelligence/opportunities?client=overland&mode=matched');
     expect(await screen.findByText(referenceOpportunityRows[0]!.title)).toBeInTheDocument();
