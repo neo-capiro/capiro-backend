@@ -81,7 +81,7 @@ export interface SenateCommitteeEventRow {
 
 export class SenateCommitteeCalendarAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'senate-committee-calendar';
-  readonly parserVersion = 'senate-committee-calendar/2026-09-01';
+  readonly parserVersion = 'senate-committee-calendar/2026-09-18';
 
   constructor(private readonly options: SenateCommitteeCalendarAdapterOptions) {}
 
@@ -98,12 +98,16 @@ export class SenateCommitteeCalendarAdapter implements CommitteeSourceAdapter {
   async healthCheck(source: SourceDescriptor): Promise<SourceHealth> {
     const url = this.options.url ?? source.sourceUrl;
     const res = await fetchText(url, { accept: 'text/html', timeoutMs: 15_000 });
+    const rows = res.body ? parseSenateCommitteePage(res.body, url) : [];
+    const parserError = res.ok && rows.length === 0
+      ? 'HTTP reachable, but no verifiable dated committee entries were parsed'
+      : null;
     return {
-      ok: res.ok,
+      ok: res.ok && !parserError,
       status: res.status,
       durationMs: res.durationMs,
-      error: res.error,
-      observedEvents: res.body ? parseSenateCommitteePage(res.body, url).length : null,
+      error: res.error ?? parserError,
+      observedEvents: res.body ? rows.length : null,
     };
   }
 
@@ -162,6 +166,9 @@ export function normalizePageStatus(prefix: string | null): SourceEvent['eventSt
  */
 export function parseSenateCommitteePage(html: string, baseUrl: string): SenateCommitteeEventRow[] {
   const rows: SenateCommitteeEventRow[] = [];
+  if (/intelligence\.senate\.gov/i.test(baseUrl)) {
+    rows.push(...parseIntelligenceCommitteePage(html, baseUrl));
+  }
   const seen = new Set<string>();
   // Two structural item shapes observed on official committee pages. Parsing
   // per-ITEM (not per-<time> element) keeps every field of one entry together —
@@ -181,6 +188,45 @@ export function parseSenateCommitteePage(html: string, baseUrl: string): SenateC
       seen.add(parsed.slug);
       rows.push(parsed);
     }
+  }
+  return rows;
+}
+
+
+function intelligenceDisplayDate(match: RegExpExecArray): string | null {
+  const months: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+  const [, rawMonth, day, year, rawHour, minute, meridiem] = match;
+  if (!rawMonth || !day || !year || !rawHour || !minute || !meridiem) return null;
+  const month = months[rawMonth.toLowerCase()];
+  if (!month) return null;
+  let hour = Number(rawHour);
+  if (meridiem.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+  if (meridiem.toLowerCase() === 'am' && hour === 12) hour = 0;
+  return `${year}-${month}-${day.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${minute}`;
+}
+
+/** Parse the Intelligence Committee's dated hearing teaser markup only when all facts are present. */
+function parseIntelligenceCommitteePage(html: string, baseUrl: string): SenateCommitteeEventRow[] {
+  const rows: SenateCommitteeEventRow[] = [];
+  for (const match of html.matchAll(/<(?:article|li|div)[^>]*>([\s\S]*?)<\/(?:article|li|div)>/gi)) {
+    const block = match[1] ?? '';
+    if (!/briefing|hearing|meeting/i.test(block)) continue;
+    const machineDate = /(?:datetime|data-date)=[\"'](\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})[\"']/i.exec(block);
+    const displayDate = /class=[\"'][^\"']*date-display[^\"']*[\"'][^>]*>\s*([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})\s+(\d{1,2}):(\d{2})(am|pm)\s*<\/[^>]+>/i.exec(block);
+    const href = /<a[^>]+href=[\"']([^\"']+)[\"'][^>]*>([\s\S]*?)<\/a>/i.exec(block);
+    if (!href?.[1] || !href[2]) continue;
+    const rawDate = machineDate
+      ? `${machineDate[1]}T${machineDate[2]}:${machineDate[3]}`
+      : displayDate ? intelligenceDisplayDate(displayDate) : null;
+    if (!rawDate) continue;
+    const instant = parsePageDatetime(rawDate);
+    if (!instant) continue;
+    const title = cleanText(href[2]);
+    if (!title) continue;
+    const url = new URL(href[1], baseUrl).toString();
+    rows.push({ slug: url, title, statusPrefix: null, eventType: null, location: null,
+      datetimeRaw: rawDate, startsAt: instant,
+      calendarDate: new Date(Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate())), officialPageUrl: url });
   }
   return rows;
 }

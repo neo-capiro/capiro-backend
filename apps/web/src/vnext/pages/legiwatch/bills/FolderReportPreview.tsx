@@ -96,7 +96,7 @@ export function FolderReportPreview({
               URL.revokeObjectURL(url);
             }}
           >
-            Download preview
+            Download JSON preview
           </CapiroButton>
           {preview.data.exceptions.map((e) => (
             <p role="alert" key={e.sourceId}>

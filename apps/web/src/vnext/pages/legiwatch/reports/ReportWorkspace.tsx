@@ -83,7 +83,7 @@ function Download({ run }: { run: Run }) {
         URL.revokeObjectURL(url);
       }}
     >
-      Download report
+      Download HTML report
     </CapiroButton>
   );
 }
@@ -227,10 +227,10 @@ function Workspace({
           <p>Published legislative records, organized by your live folders.</p>
         </div>
         <CapiroButton variant="primary" size="compact" onClick={newReport}>
-          New report
+          Create report
         </CapiroButton>
       </header>
-      <nav className="lw-reports-tabs" aria-label="Report views">
+      <nav className="lw-reports-tabs" role="tablist" aria-label="Report views">
         {[
           ['reports', 'Report library'],
           ['briefings', 'Client briefings'],
@@ -286,6 +286,16 @@ function Workspace({
       )}
       {tab === 'reports' && (
         <>
+          <p>
+            Need the intelligence brief?{' '}
+            <CapiroButton size="compact" onClick={() => {
+              const next = new URLSearchParams(params);
+              next.set('digestMode', 'legacy');
+              next.delete('reportView');
+              next.delete('reportRun');
+              setParams(next);
+            }}>Open intelligence brief</CapiroButton>
+          </p>
           <div className="lw-reports-controls">
             <CapiroInput
               type="date"
@@ -458,8 +468,11 @@ function Workspace({
                     {s.mode === 'send' ? 'Automatic send' : 'Draft for review'} ·{' '}
                     {formatTime(s.localMinutes)} {s.timezone}
                   </p>
+                  {s.enabled && s.mode === 'send' && !deliveryEnabled && (
+                    <p role="status">Delivery disabled for this workspace</p>
+                  )}
                   <small>
-                    {s.enabled ? 'Next: ' : 'No updates while paused'}
+                    {s.enabled ? (s.mode === 'send' && !deliveryEnabled ? 'Next scheduled run: ' : 'Next: ') : 'No updates while paused'}
                     {s.enabled &&
                       (s.nextDueAt
                         ? new Date(s.nextDueAt).toLocaleString(undefined, {

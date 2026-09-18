@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   put: vi.fn(),
   scope: 'workspace-a',
   enabled: true,
+  deliveryEnabled: true,
 }));
 vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => api }));
 vi.mock('../../../../lib/use-api-scope.js', () => ({ useApiScope: () => api.scope }));
@@ -50,10 +51,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   api.scope = 'workspace-a';
   api.enabled = true;
+  api.deliveryEnabled = true;
   api.get.mockImplementation(async (url: string) => {
     if (url.endsWith('/feature-flags'))
       return {
-        data: { legiwatch_reports_updates_v1: api.enabled, legiwatch_report_delivery_v1: true },
+        data: { legiwatch_reports_updates_v1: api.enabled, legiwatch_report_delivery_v1: api.deliveryEnabled },
       };
     if (url.endsWith('/recipients'))
       return { data: { contacts: [], lists: [], senderEmail: 'operator@example.invalid' } };
@@ -84,6 +86,19 @@ test('a disabled workspace exposes no report controls or private directory reque
   expect(screen.queryByRole('heading', { name: 'Reports & updates' })).toBeNull();
   expect(api.get.mock.calls.every(([url]) => url.endsWith('/feature-flags'))).toBe(true);
 });
+test('the single create report action opens the editor', async () => {
+  mount();
+  await screen.findByText(report.name);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Create report' }));
+  expect(screen.getByRole('dialog', { name: 'New report' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+  expect(screen.queryByRole('button', { name: 'Bill report' })).toBeNull();
+  expect(screen.getByRole('tab', { name: 'Client briefings' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Open intelligence brief' })).toBeTruthy();
+});
+
 test('an edit preserves a conflict draft and keeps display windows separate from selection filters', async () => {
   api.put.mockRejectedValue({ response: { status: 409 } });
   mount();
@@ -174,6 +189,34 @@ test('tenant switching discards an in-flight report result and private recipient
   expect(screen.queryByRole('dialog', { name: 'Report preview' })).toBeNull();
   expect(screen.queryByText(report.name)).toBeNull();
 });
+test('shows delivery disabled without disguising an enabled send schedule as outgoing mail', async () => {
+  api.deliveryEnabled = false;
+  api.get.mockImplementation(async (url: string) => {
+    if (url.endsWith('/feature-flags'))
+      return {
+        data: { legiwatch_reports_updates_v1: true, legiwatch_report_delivery_v1: false },
+      };
+    if (url.endsWith('/subscriptions'))
+      return {
+        data: [
+          {
+            id: 'sub-send', reportId: report.id, mode: 'send', enabled: true,
+            version: 1, timezone: 'America/New_York', localMinutes: 480,
+            nextDueAt: '2026-09-20T12:00:00Z', baselineAt: null,
+            subject: 'Updates', introduction: '', recipients: [], sendNoChange: false,
+          },
+        ],
+      };
+    if (url.endsWith('/folders')) return { data: [folder] };
+    if (url.endsWith('/reports')) return { data: [report] };
+    return { data: [] };
+  });
+  mount('updates');
+  expect(await screen.findByRole('status')).toHaveTextContent('Delivery disabled for this workspace');
+  expect(screen.getByText(/Next scheduled run:/)).toBeTruthy();
+  expect(screen.queryByText(/^Next:/)).toBeNull();
+});
+
 test('daily schedules default to a draft and never activate as a side effect of saving', async () => {
   api.post.mockResolvedValue({
     data: {

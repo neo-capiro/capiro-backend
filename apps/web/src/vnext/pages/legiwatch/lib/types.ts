@@ -126,17 +126,20 @@ export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
   'settings',
 ];
 
-/** The six primary destinations rendered in the tab strip (LEGIWATCH-V2-HANDOFF
- *  §1.1/§2) — Committees is first-class, equal to Hearings and Bills. */
+/** The five primary task destinations rendered in the LegiWatch navigation. */
 export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
+  'feed',
   'bills',
   'research',
+  'hearings',
+  'digest',
+];
+
+/** Secondary links preserve direct access without competing with primary groups. */
+export const LEGIWATCH_SECONDARY_TABS: readonly LegiWatchTab[] = [
   'news',
   'budget',
-  'hearings',
   'committees',
-  'feed',
-  'digest',
   'analytics',
 ];
 

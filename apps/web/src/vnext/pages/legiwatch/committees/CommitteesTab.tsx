@@ -1,17 +1,17 @@
 /**
  * Committees — primary destination (LEGIWATCH-V2-HANDOFF §5.6). A browsable
- * directory of every current committee and subcommittee, including
- * zero-hearing bodies — never a coverage gap. The whole ≤230-row catalog is
+ * directory of federal committees and subcommittees, including zero-hearing
+ * bodies. The whole ≤230-row catalog is
  * fetched once and filtered client-side (search + six pills); this is the
  * same directory read the Committee Room and calendar links already use, so
  * there is no second endpoint and no per-card request.
  */
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { LwPill, LwSkeleton } from '../lib/primitives.js';
-import { LwStateUnavailable } from '../states/SystemStates.js';
+import { LwStateEmpty, LwStateUnavailable } from '../states/SystemStates.js';
 import {
   SOURCE_HEALTH_LABEL,
   SOURCE_HEALTH_TONE,
@@ -43,6 +43,14 @@ interface DirectoryResponse {
 
 type FilterKey = 'house' | 'senate' | 'joint' | 'full' | 'sub' | 'following';
 
+function StateCommitteesLink() {
+  return (
+    <Link to="/directory/state-committees" style={{ fontWeight: 700 }}>
+      Browse State committees →
+    </Link>
+  );
+}
+
 function ageLabel(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const hrs = Math.round(ms / 3_600_000);
@@ -71,6 +79,12 @@ export function CommitteesTab() {
       return next;
     });
 
+  const clearFilters = () => {
+    setQ('');
+    setActive(new Set());
+  };
+  const filtersOn = q.trim() !== '' || active.size > 0;
+
   const rows = useMemo(() => {
     const all = directory.data?.rows ?? [];
     const needle = q.trim().toLowerCase();
@@ -96,7 +110,12 @@ export function CommitteesTab() {
   if (directory.isLoading) {
     return (
       <div className="lw-body">
-        <div className="lw-card" style={{ padding: 18 }}><LwSkeleton height={320} /></div>
+        <div className="lw-card" style={{ padding: 18 }} role="status" aria-label="Loading the committee directory">
+          <p className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)', marginBottom: 8 }}>
+            LOADING COMMITTEE DIRECTORY…
+          </p>
+          <LwSkeleton height={320} />
+        </div>
       </div>
     );
   }
@@ -104,10 +123,11 @@ export function CommitteesTab() {
     return (
       <div className="lw-body">
         <LwStateUnavailable
-          source="The committee directory"
-          reason="Congress.gov and committee-page sources did not respond. This is not zero committees."
+          source="The federal committee directory"
+          reason="The federal committee directory did not respond. This is not zero committees."
           onRetry={() => directory.refetch()}
         />
+        <StateCommitteesLink />
       </div>
     );
   }
@@ -127,6 +147,10 @@ export function CommitteesTab() {
 
   return (
     <div className="lw-body">
+      <div style={{ marginBottom: 12 }}>
+        <p style={{ margin: '0 0 4px', fontWeight: 700 }}>Federal committees</p>
+        <StateCommitteesLink />
+      </div>
       <div className="lw-search" style={{ marginBottom: 12 }}>
         <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>⌕</span>
         <input
@@ -150,18 +174,33 @@ export function CommitteesTab() {
             {f.label}
           </button>
         ))}
+        {filtersOn ? (
+          <button type="button" className="lw-btn" onClick={clearFilters}>
+            Clear filters
+          </button>
+        ) : null}
       </div>
 
       <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)', marginBottom: 12 }}>
-        {total} CURRENT BODIES · {parentCount} FULL COMMITTEES · {subCount} SUBCOMMITTEES
+        {filtersOn
+          ? `SHOWING ${rows.length} OF ${total} FEDERAL COMMITTEES`
+          : `${total} FEDERAL COMMITTEES`}{' '}
+        · {parentCount} FULL COMMITTEES · {subCount} SUBCOMMITTEES
+        {directory.data?.asOf ? ` · DIRECTORY UPDATED ${ageLabel(directory.data.asOf).toUpperCase()}` : ''}
       </div>
 
       {rows.length === 0 ? (
-        <div className="lw-card" style={{ padding: 24, textAlign: 'center' }}>
-          <p className="lw-state__body" style={{ maxWidth: 'none' }}>
-            No committees match these filters. Source health is unchanged.
+        <>
+          <LwStateEmpty
+            title="No committees match these filters"
+            onReset={filtersOn ? clearFilters : undefined}
+          />
+          <p className="lw-state__body" style={{ marginTop: -4 }}>
+            {active.has('following') && rows.length === 0
+              ? 'Nothing here means no followed committee matches the other filters — follow state is managed inside each Committee Room.'
+              : 'This empty result reflects the filters only. Source health is unchanged for the federal directory.'}
           </p>
-        </div>
+        </>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {rows.map((c) => {
@@ -193,6 +232,9 @@ export function CommitteesTab() {
                 </div>
                 <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-faint)' }}>
                   Last official {ageLabel(c.lastSyncedAt)}
+                  {normalizeSourceHealth(c.sourceHealth) === 'unknown'
+                    ? ' · official-source status unknown — not zero activity'
+                    : ''}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <LwPill tone={SOURCE_HEALTH_TONE[health]} size="22">{SOURCE_HEALTH_LABEL[health]}</LwPill>
@@ -210,6 +252,10 @@ export function CommitteesTab() {
                 >
                   Enter Committee Room →
                 </button>
+                <p className="lw-mono" style={{ fontSize: 10, color: '#5B6678' }}>
+                  ROOM: FULL ROSTER · MEETING HISTORY · UPCOMING · FOLLOW OPTIONS
+                  {c.isSubcommittee ? ' · SEPARATE FROM ITS PARENT COMMITTEE' : ''}
+                </p>
               </div>
             );
           })}

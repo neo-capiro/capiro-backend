@@ -353,7 +353,8 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
     const control = entry === 'calendar chip'
       ? await within(await screen.findByLabelText('Week calendar')).findByRole('button', { name: /Shipbuilding industrial base oversight/i })
-      : await screen.findByRole('button', { name: /Open live room/i });
+      : (fireEvent.click(await screen.findByRole('tab', { name: 'Recordings' })),
+        await screen.findByRole('button', { name: /Open live room/i }));
     fireEvent.click(control);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
     await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
@@ -368,6 +369,7 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Recordings' }));
     fireEvent.click(await screen.findByRole('button', { name: /Open Shipbuilding industrial base oversight/i }));
     await waitFor(() => expect(location.current.pathname).toBe('/intelligence/hearing-watch/sess-1'));
     expect(screen.getByTestId('browser-hearing-room')).toBeTruthy();
@@ -405,10 +407,11 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
       return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
     });
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
-    const rail = await screen.findByLabelText('Server captures');
-    const scheduled = await within(rail).findByText('Shipbuilding industrial base oversight');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Recordings' }));
+    const rail = await screen.findByLabelText('Recordings');
+    await within(rail).findByText('Shipbuilding industrial base oversight');
     expect(rail.textContent).not.toMatch(/isn't available on this backend/i);
-    fireEvent.click(scheduled.closest('[role="button"]')!);
+    fireEvent.click(within(rail).getByRole('button', { name: /Shipbuilding industrial base oversight/i }));
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
   });
 
@@ -431,7 +434,8 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
 
   it('My Sessions history row → detail via mouse AND keyboard Enter', async () => {
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
-    // The history panel renders after the schedule loads; scope to its label.
+    fireEvent.click(await screen.findByRole('tab', { name: 'Recordings' }));
+    // The history panel renders after the recordings tab loads; scope to its label.
     await screen.findByText('Recent session history');
     const hrow = await screen.findByRole('button', { name: /Open Shipbuilding industrial base oversight/i });
     expect(hrow).toBeTruthy();
@@ -445,6 +449,7 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
 
   it('My Sessions history row → detail via mouse click', async () => {
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Recordings' }));
     const hrow = await screen.findByRole('button', { name: /Open Shipbuilding industrial base oversight/i });
     fireEvent.click(hrow);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
@@ -456,7 +461,7 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
   it('feed hearing row with hearingId → detail route', async () => {
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/feed');
     const linked = await screen.findByText(/Hearing alert: shipbuilding oversight/i);
-    const linkedRow = linked.closest('[role="button"]');
+    const linkedRow = linked.closest('.lw-prow')?.querySelector<HTMLButtonElement>('.lw-prow__title--action');
     expect(linkedRow).toBeTruthy();
     fireEvent.click(linkedRow!);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
@@ -476,8 +481,8 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
       return Promise.resolve(hit);
     });
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/feed');
-    const legacy = await screen.findByText(/Hearing alert: legacy row without anchors/i);
-    const legacyRow = legacy.closest('[role="button"]');
+    const legacy = await screen.findByText(/A title that must never resolve/i);
+    const legacyRow = legacy.closest('.lw-prow')?.querySelector<HTMLButtonElement>('.lw-prow__title--action');
     expect(legacyRow).toBeTruthy();
     fireEvent.click(legacyRow!);
     // Stays on the feed (packet drawer opens in place) — never navigates to detail.
@@ -904,6 +909,8 @@ describe('session 53 — tab lifecycle regressions', () => {
   it('every tab control exposes an accessible selected state with the real labels', async () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
     await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    expect(screen.getByText(/Follow sends updates about this hearing/i)).toBeTruthy();
+    expect(screen.getByText(/Record hearing asks Capiro to capture and transcribe it/i)).toBeTruthy();
     const labels = ['Overview', 'Live & Capture', 'Transcript', 'Intelligence', 'Client Relevance', 'Sources & Documents'];
     for (const name of labels) {
       const tab = screen.getByRole('tab', { name });

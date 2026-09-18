@@ -160,6 +160,12 @@
   border-radius: 0;
   margin-bottom: 0;
 }
+.lw-folder-filter-summary {
+  align-self: center;
+  color: var(--lw-meta, #667085);
+  font-size: 12px;
+  white-space: nowrap;
+}
 .lw-folder-filters .capiro-field {
   flex: 0 1 auto;
   min-width: 0;
@@ -471,5 +477,50 @@
   }
   .lw-folder-table-wrap {
     max-height: 60vh;
+    overflow: visible;
+  }
+  .lw-folder-tablecard {
+    box-shadow: none;
+    background: transparent;
+  }
+  .lw-folder-table {
+    min-width: 0;
+    display: block;
+  }
+  .lw-folder-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .lw-folder-table tbody,
+  .lw-folder-table tr,
+  .lw-folder-table td {
+    display: block;
+    width: 100%;
+  }
+  .lw-folder-table tr {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--lw-line, #EAECF0);
+    border-radius: 10px;
+    background: var(--lw-surface, #fff);
+  }
+  .lw-folder-table td {
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto;
+    padding: 3px 0;
+    white-space: normal !important;
+  }
+  .lw-folder-table td:first-child {
+    width: auto;
+    padding-bottom: 6px;
+  }
+  .lw-folder-filter-summary {
+    width: 100%;
+    white-space: normal;
   }
 }

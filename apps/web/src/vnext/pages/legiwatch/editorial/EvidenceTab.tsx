@@ -249,6 +249,10 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
             ]}
             onChange={(e) => set('folder', e.target.value)}
           />
+          <span className="lw-evidence-scope" role="status">
+            Scope: {client ? 'selected client' : 'all accessible clients'}
+            {folder ? ' · selected folder' : ''}
+          </span>
           <Link to={reportLink}>Create a briefing in Reports →</Link>
         </div>
       </div>
@@ -319,7 +323,22 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                 value={params.publisher}
                 onChange={(e) => set('publisher', e.target.value)}
               />
+              {(params.q || params.monitorId || params.publisher || params.days !== '7') && (
+                <CapiroButton
+                  size="compact"
+                  onClick={() => {
+                    for (const key of ['q', 'monitor', 'publisher', 'days', 'offset']) set(key, '');
+                  }}
+                >
+                  Clear filters
+                </CapiroButton>
+              )}
             </div>
+            <p className="lw-evidence-filter-summary">
+              {params.q || params.monitorId || params.publisher || params.days !== '7'
+                ? `Showing retained news for ${client ? 'the selected client' : 'all accessible clients'}.`
+                : 'Showing all retained news in the last 7 days.'}
+            </p>
           </div>
           <p className="lw-evidence-notice">
             {news.data?.coverageMessage ?? 'Loading source coverage…'} Sorted by publication date;
@@ -613,7 +632,20 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                 value={params.q}
                 onChange={(e) => set('q', e.target.value)}
               />
+              {(params.q || params.sessionKey || params.fiscalYear !== '2026-27' || params.projectId) && (
+                <CapiroButton
+                  size="compact"
+                  onClick={() => {
+                    for (const key of ['q', 'budgetSession', 'fiscalYear', 'project', 'offset']) set(key, '');
+                  }}
+                >
+                  Clear filters
+                </CapiroButton>
+              )}
             </div>
+            <p className="lw-evidence-filter-summary">
+              Budget figures are shown for the selected fiscal year and session. Requests are not awards.
+            </p>
           </div>
           <p className="lw-evidence-notice">{budget.data?.notice}</p>
           {view === 'calendar' ? (

@@ -175,6 +175,19 @@ describe('Feed rows — federal bill changes are labelled BILL, never DEADLINE',
     expect(screen.queryByText('DEADLINE')).toBeNull();
   });
 
+  it('leads rows with the item title, observed change, age, and client', async () => {
+    renderFeed([billItem('a-clear', {
+      title: 'H.R.2102: Existing item title',
+      clientName: 'Client A',
+      evidence: { bill: { billId: 'hr2102-119', displayNum: 'H.R.2102', title: 'Existing item title', url: null, stage: 'introduced', actionText: 'Official text updated', actionDate: null, jurisdiction: 'US' } },
+    })]);
+    const title = await screen.findByText('Existing item title');
+    const row = title.closest('.lw-prow') as HTMLElement;
+    expect(within(row).getByText('Official text updated')).toBeInTheDocument();
+    expect(within(row).getByText('Client A')).toBeInTheDocument();
+    expect(within(row).getByText(/^(?:NOW|\d+ (?:MIN|HR|D))$/)).toBeInTheDocument();
+  });
+
   it('keeps a critical-severity bill alert as CRITICAL with the error tone', async () => {
     renderFeed([
       billItem('a-crit', { title: 'H.R.8800: Bill text updated', severity: 'critical' }),

@@ -81,8 +81,8 @@
   --lw-ink: #101828;
   --lw-label: #344054;
   --lw-body: #475467;
-  --lw-meta: #667085;
-  --lw-faint: #98A2B3;
+  --lw-meta: #4D596B;
+  --lw-faint: #5B6678;
   /* A.2 neutrals — LEGIWATCH-V2-HANDOFF Appendix A cool surface scale
      (Untitled UI gray), read live off `Capiro LegiWatch v2 - Untitled UI.dc.html`
      computed styles 2026-09-05. Supersedes the warm-palette values this module
@@ -285,7 +285,7 @@
   font-weight: 600;
   border: 0;
   background: transparent;
-  color: var(--lw-meta);
+  color: #5B6678;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -296,51 +296,6 @@
   background: #fff;
   box-shadow: var(--lw-shadow-seg-on);
   color: var(--lw-ink);
-}
-
-/* ---- module chrome (§7.1) -------------------------------------------------- */
-.capiro-vnext-root .lw .lw-subnav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  /* Full-bleed background/border, centered content: same calc-padding trick as
-     .lw-pagehead and .lw-tabs below, so all three stacked chrome rows line up
-     on the same left edge once the module escapes the shell's 1280px cap. */
-  padding: 0 calc(var(--lw-gutter) + max(0px, (100% - 1560px) / 2));
-  height: 44px;
-  border-bottom: 1px solid var(--lw-line);
-  background: var(--lw-surface);
-  /* Five destinations plus the health chip need ~560px and never wrapped. The
-     row scrolls instead of widening the page; the 44px rail is preserved. */
-  min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-}
-.capiro-vnext-root .lw .lw-subnav__item {
-  height: 44px;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--lw-body);
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-}
-.capiro-vnext-root .lw .lw-subnav__item.is-active { color: var(--lw-ink); font-weight: 600; border-bottom-color: var(--lw-ink); }
-.capiro-vnext-root .lw .lw-subnav__health {
-  margin-left: auto;
-  flex: 0 0 auto;
-  white-space: nowrap;
-  font-family: var(--lw-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: .03em;
-  color: var(--lw-meta);
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
 }
 
 .capiro-vnext-root .lw .lw-pagehead {
@@ -436,7 +391,7 @@
   font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: #5C82A0;
+  color: #365B76;
 }
 .capiro-vnext-root .lw .lw-lens__value { font-size: 13px; font-weight: 600; color: var(--lw-brand-fg); }
 .capiro-vnext-root .lw .lw-lens__menu {
@@ -502,12 +457,14 @@
 }
 .capiro-vnext-root .lw .lw-iconbtn:hover { background: var(--lw-page); color: var(--lw-label); }
 
+.capiro-vnext-root .lw .lw-mobile-nav { display: none; }
+
 /* tab strip — roving tablist; active tab 2px ink bottom rule (A.6) */
 .capiro-vnext-root .lw .lw-tabs {
   display: flex;
   align-items: center;
   gap: 2px;
-  /* Same calc-padding centering as .lw-subnav/.lw-pagehead above. */
+  /* Keep the section controls aligned with the page header. */
   padding: 0 calc(var(--lw-gutter) + max(0px, (100% - 1560px) / 2));
   border-bottom: 1px solid var(--lw-line);
   background: var(--lw-surface);
@@ -540,6 +497,17 @@
   color: var(--lw-meta);
 }
 .capiro-vnext-root .lw .lw-tab.is-active .lw-tab__count { color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-tabs__primary,
+.capiro-vnext-root .lw .lw-tabs__secondary {
+  display: flex;
+  align-items: center;
+  /* Keep tab groups at their content width. The strip can scroll when text is
+     enlarged; shrinking either group makes the labels paint over each other. */
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+.capiro-vnext-root .lw .lw-tabs__secondary { margin-left: auto; gap: 2px; }
+.capiro-vnext-root .lw .lw-tab--secondary { font-size: 12px; color: var(--lw-meta); }
 
 /* page body */
 .capiro-vnext-root .lw .lw-body {
@@ -556,7 +524,39 @@
 /* The shell already pads .capiro-vnext-uui by the 64px bottom-nav height below
    780, so this only needs the module's own trailing rhythm — the old 72px sat
    on top of the shell's 64 and left 136px of dead space on every phone. */
-@media (max-width: 779px) { .capiro-vnext-root .lw .lw-body { padding-bottom: 24px; } }
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-body { padding-bottom: 24px; }
+  .capiro-vnext-root .lw .lw-pagehead { align-items: stretch; padding-top: 14px; }
+  .capiro-vnext-root .lw .lw-desc { display: none; }
+  .capiro-vnext-root .lw .lw-pagehead__actions {
+    flex: 0 0 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px 42px 42px;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-lens { grid-column: 1 / -1; min-width: 0; width: 100%; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action span { display: none; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--search { grid-column: 2; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--export { grid-column: 3; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--settings { grid-column: 4; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-lens__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .capiro-vnext-root .lw .lw-mobile-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 10px var(--lw-gutter); border-bottom: 1px solid var(--lw-line); background: var(--lw-surface); }
+  .capiro-vnext-root .lw .lw-mobile-nav__field { display: grid; gap: 4px; min-width: 0; }
+  .capiro-vnext-root .lw .lw-mobile-nav__field > span { color: var(--lw-faint); font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .capiro-vnext-root .lw .lw-mobile-nav select { width: 100%; min-width: 0; height: 38px; padding: 0 8px; border: 1px solid var(--lw-control); border-radius: 6px; background: var(--lw-surface); color: var(--lw-ink); font: inherit; }
+  .capiro-vnext-root .lw .lw-tabs { display: none; }
+}
 
 /* generic white card */
 .capiro-vnext-root .lw .lw-card {
@@ -877,7 +877,7 @@
   font-size: 10px;
   font-weight: 500;
   letter-spacing: .05em;
-  color: var(--lw-control);
+  color: var(--lw-faint);
   text-transform: uppercase;
 }
 
@@ -1156,6 +1156,16 @@
 }
 .capiro-vnext-root .lw .lw-prow__check.is-on { background: var(--lw-ink); border-color: var(--lw-ink); color: #fff; }
 .capiro-vnext-root .lw .lw-prow__main { flex: 1 1 200px; min-width: 0; }
+.capiro-vnext-root .lw .lw-prow__title--action {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lw-ink);
+  text-align: left;
+  cursor: pointer;
+}
 .capiro-vnext-root .lw .lw-prow__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-prow__src { font-family: var(--lw-mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--lw-meta); text-transform: uppercase; }
 /* client attribution is its own compact brand tag above the headline, not a
@@ -1703,10 +1713,8 @@
    remaining room, so the row wraps and the note takes its own line. */
 .capiro-vnext-root .lw .lw-modal__foot { padding: 18px 26px; border-top: 1px solid var(--lw-line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-modal__note { font-size: 12px; color: var(--lw-meta); flex: 1 1 200px; min-width: 0; }
-.capiro-vnext-root .lw .lw-modal--states { width: 1100px; }
 .capiro-vnext-root .lw .lw-modal--how { width: 640px; }
 @media (max-width: 1179px) {
-  .capiro-vnext-root .lw .lw-modal--states { width: 860px; }
 }
 
 /*
@@ -1723,7 +1731,6 @@
 @media (max-width: 779px) {
   .capiro-vnext-root .lw .lw-modal-scrim { padding: 0; align-items: stretch; justify-content: stretch; }
   .capiro-vnext-root .lw .lw-modal,
-  .capiro-vnext-root .lw .lw-modal--states,
   .capiro-vnext-root .lw .lw-modal--how {
     width: 100%;
     max-width: none;
@@ -1735,16 +1742,6 @@
   .capiro-vnext-root .lw .lw-modal__head { border-radius: 0; padding: 18px 20px; }
   .capiro-vnext-root .lw .lw-modal__body { padding: 16px 20px; }
   .capiro-vnext-root .lw .lw-modal__foot { padding: 16px 20px; }
-}
-
-/* System-states reference grid — the min() guard is the whole point: a bare
-   minmax(300px, 1fr) floors the single-column case at 300px and overflows
-   any container narrower than that (a 360px phone gives this 296px). */
-.capiro-vnext-root .lw .lw-states-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
-  gap: 12px;
-  min-width: 0;
 }
 
 /* transcription setup blocks (A.10) */

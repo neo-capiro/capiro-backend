@@ -82,12 +82,15 @@ export function useLwFeed(scope: Scope, source: FeedFilter, order: FeedOrder, wo
  */
 export function defaultBucketCount(workStateCounts: FeedWorkStateCounts | null): number | null {
   if (!workStateCounts) return null;
-  return (
-    workStateCounts.new +
-    workStateCounts.in_review +
-    workStateCounts.assigned +
-    workStateCounts.actioned
-  );
+  const active = [
+    workStateCounts.new,
+    workStateCounts.in_review,
+    workStateCounts.assigned,
+    workStateCounts.actioned,
+  ];
+  return active.every((count) => Number.isFinite(count))
+    ? active.reduce((total, count) => total + count, 0)
+    : null;
 }
 
 /** A real 404 is `absent` (no packet exists for this alert); any other

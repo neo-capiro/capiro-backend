@@ -50,6 +50,7 @@ import {
   useCalendarSourceCoverage,
 } from '../lib/calendar-preparation-api.js';
 import { easternDayOf } from '../lib/hearing-datetime.js';
+import './hearings.css';
 import type { HearingCapability, Tone } from '../lib/types.js';
 import {
   calendarBucketIndex,
@@ -149,8 +150,8 @@ function useMediaBelow900(): boolean {
  */
 const HEARING_SUBS = [
   { id: 'schedule' as const, label: 'Schedule' },
-  { id: 'sessions' as const, label: 'My Sessions' },
-  { id: 'archive' as const, label: 'Archive' },
+  { id: 'sessions' as const, label: 'Recordings' },
+  { id: 'archive' as const, label: 'Past hearings' },
 ];
 type HearingSub = (typeof HEARING_SUBS)[number]['id'];
 
@@ -214,6 +215,7 @@ export function HearingsTab({ scope }: { scope: string }) {
     : [];
   const session = stateCalendar ? (searchParams.get('session') ?? '') : '';
   const following = stateCalendar && searchParams.get('following') === 'true';
+  const liveOnly = searchParams.get('live') === 'true';
   const chamber = stateCalendar ? (searchParams.get('chamber') ?? '') : '';
   const eventStatus = stateCalendar ? (searchParams.get('eventStatus') ?? '') : '';
   const clientId = scope && scope !== 'all' ? scope : undefined;
@@ -363,14 +365,14 @@ export function HearingsTab({ scope }: { scope: string }) {
   }, [calendar.isSuccess, location.key]);
   const serverTotal = calendar.data?.total ?? 0;
 
-  const filtered = rows;
+  const filtered = liveOnly ? rows.filter((event) => isLiveEvent(event)) : rows;
 
   const committees = useMemo(
     () => Array.from(new Set(rows.map((e) => e.committee?.name ?? '').filter(Boolean))).sort(),
     [rows],
   );
 
-  const visibleCount = Math.min(serverTotal, rows.length);
+  const visibleCount = liveOnly ? filtered.length : Math.min(serverTotal, rows.length);
 
   // Live rows come from the canonical live endpoint's shape via the calendar
   // rows themselves; the room route is handled in the live tab.
@@ -410,10 +412,10 @@ export function HearingsTab({ scope }: { scope: string }) {
     );
   };
 
-  // Sub-view strip (segmented control, v2 prototype) + public/private legend
+  // Sub-view strip keeps the three durable hearing destinations explicit: schedule, recordings, and the public archive.
   // chip. Rendered for every sub-view so navigation is always reachable.
   const subStrip = (
-    <div className="lw-subtabs" role="tablist" aria-label="Hearings sub-views">
+    <div className="lw-subtabs" aria-label="Hearings sub-views">
       <LwSeg
         ariaLabel="Hearing views"
         options={HEARING_SUBS.map((s) => ({ id: s.id, label: s.label }))}
@@ -454,8 +456,10 @@ export function HearingsTab({ scope }: { scope: string }) {
   );
 
   const phase3Filters = (
-    <div
-      className="lw-controls"
+    <details className="lw-hearings-filter-details">
+      <summary className="lw-btn">More filters</summary>
+      <div
+        className="lw-controls lw-hearings-filter-details__body"
       aria-label="Calendar selection"
       style={narrow ? { display: 'grid', gap: 16 } : undefined}
     >
@@ -556,8 +560,48 @@ export function HearingsTab({ scope }: { scope: string }) {
           </button>
         </span>
       ) : null}
-    </div>
+      </div>
+    </details>
   );
+  const scheduleToolbar = (
+    <>
+      <div className="lw-selectwrap">
+        <select
+          aria-label="Committee"
+          className="lw-btn lw-select"
+          value={committee}
+          onChange={(e) => setCommittee(e.target.value)}
+        >
+          <option value="">All committees</option>
+          {committees.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+        <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
+      </div>
+      <div className="lw-selectwrap">
+        <select
+          aria-label="Proceeding type"
+          className="lw-btn lw-select"
+          value={kind.toLowerCase()}
+          onChange={(e) => setKind(e.target.value)}
+        >
+          <option value="">All proceedings</option>
+          <option value="committee">Committee meetings</option>
+          <option value="hearing">Hearings</option>
+          <option value="markup">Markups</option>
+          {stateCalendar ? <>
+            <option value="floor">Floor sessions</option>
+            <option value="joint">Joint meetings</option>
+          </> : null}
+        </select>
+        <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
+      </div>
+      <div className="lw-search">
+        <Search size={16} className="lw-search__icon" aria-hidden="true" />
+        <input aria-label="Search proceedings" placeholder="Filter this week by title, committee or witness" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+    </>
+  );
+
   if (sub === 'archive') {
     return (
       <div className="lw-body">
@@ -569,7 +613,7 @@ export function HearingsTab({ scope }: { scope: string }) {
   }
 
   return (
-    <div className="lw-body">
+    <div className="lw-body lw-hearings-body">
       {subStrip}
       {sub === 'schedule' ? (
         <>
@@ -581,27 +625,58 @@ export function HearingsTab({ scope }: { scope: string }) {
                 title="Calendar filters"
                 onClose={() => setFiltersOpen(false)}
               >
+                <div className="lw-hearings-quick-filters" aria-label="Quick hearing filters">
+                  <label><input type="checkbox" checked={liveOnly} onChange={(e) => setCalendarParam('live', e.target.checked ? 'true' : '')} /> Live</label>
+                  <label><input type="checkbox" checked={following} onChange={(e) => setCalendarParam('following', e.target.checked ? 'true' : '')} /> Following</label>
+                </div>
                 {jurisdictionControl}
                 {stateCalendar ? phase3Filters : null}
+                <LwSeg ariaLabel="Schedule view" options={[{ id: 'calendar' as ViewMode, label: 'Calendar' }, { id: 'list' as ViewMode, label: 'Agenda' }]} value={effectiveView} onChange={setView} />
+                <LwSeg ariaLabel="Calendar range" options={[{ id: 'day', label: 'Day' }, { id: 'week', label: 'Week' }]} value={rangeMode} onChange={(next) => setRangeMode(next as 'day' | 'week')} />
+                <div className="lw-hearings-mobile-toolbar">{scheduleToolbar}</div>
+                {stateCalendar ? (
+                  <label className="lw-hearings-date-controls__reminder">
+                    <input type="checkbox" checked={dateOnlyReminder} onChange={(e) => setDateOnlyReminder(e.target.checked)} />{' '}
+                    Include date-only reminders
+                  </label>
+                ) : null}
+                <LwButton className="lw-hearings-date-controls__export" disabled={exportWeek.isPending || calendar.isError || (privateSelection && !folderSelection.isSuccess)} onClick={() => exportWeek.mutate({ ...calendarSelection, dateOnlyReminder }, { onSuccess: downloadIcs })}>
+                  {exportWeek.isPending ? 'Preparing…' : 'Export calendar'}
+                </LwButton>
+                <label className="lw-hearings-expand--drawer">
+                  <input
+                    type="checkbox"
+                    checked={expandedAgenda}
+                    onChange={(e) => {
+                      setExpandedAgenda(e.target.checked);
+                      if (e.target.checked) setView('list');
+                    }}
+                  />{' '}
+                  Expand published agendas
+                </label>
               </CapiroDrawer>
             </>
           ) : (
             <>
-              {jurisdictionControl}
+              <div className="lw-hearings-quick-filters" aria-label="Quick hearing filters">
+                <label><input type="checkbox" checked={liveOnly} onChange={(e) => setCalendarParam('live', e.target.checked ? 'true' : '')} /> Live</label>
+                <label><input type="checkbox" checked={following} onChange={(e) => setCalendarParam('following', e.target.checked ? 'true' : '')} /> Following</label>
+              </div>
               {stateCalendar ? phase3Filters : null}
             </>
           )}
-          <div className="lw-controls" aria-label="Calendar date and display">
+          <div className="lw-controls lw-hearings-date-controls" aria-label="Calendar date and display">
+            {!narrow ? jurisdictionControl : null}
             <LwButton
               onClick={() => {
                 const date = new Date(weekAnchor);
                 date.setDate(date.getDate() - (rangeMode === 'day' ? 1 : 7));
                 setWeekAnchor(date);
               }}
-            >
+             aria-label="Previous period" className="lw-hearings-date-prev">
               Previous
             </LwButton>
-            <LwButton onClick={() => setWeekAnchor(new Date())}>Today</LwButton>
+            <LwButton className="lw-hearings-date-today" onClick={() => setWeekAnchor(new Date())}>Today</LwButton>
             <label>
               Date{' '}
               <input
@@ -619,7 +694,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                 date.setDate(date.getDate() + (rangeMode === 'day' ? 1 : 7));
                 setWeekAnchor(date);
               }}
-            >
+             aria-label="Next period" className="lw-hearings-date-next">
               Next
             </LwButton>
             <LwSeg
@@ -631,7 +706,7 @@ export function HearingsTab({ scope }: { scope: string }) {
               value={rangeMode}
               onChange={(next) => setRangeMode(next as 'day' | 'week')}
             />
-            <label>
+            <label className="lw-hearings-expand">
               <input
                 type="checkbox"
                 checked={expandedAgenda}
@@ -642,40 +717,35 @@ export function HearingsTab({ scope }: { scope: string }) {
               />{' '}
               Expand published agendas
             </label>
+            {stateCalendar ? (
+              <label className="lw-hearings-date-controls__reminder">
+                <input
+                  type="checkbox"
+                  checked={dateOnlyReminder}
+                  onChange={(e) => setDateOnlyReminder(e.target.checked)}
+                />{' '}
+                Include date-only reminders
+              </label>
+            ) : null}
+            <LwButton
+              className="lw-hearings-date-controls__export"
+              disabled={
+                exportWeek.isPending ||
+                calendar.isError ||
+                (privateSelection && !folderSelection.isSuccess)
+              }
+              onClick={() =>
+                exportWeek.mutate(
+                  { ...calendarSelection, dateOnlyReminder },
+                  { onSuccess: downloadIcs },
+                )
+              }
+            >
+              {exportWeek.isPending ? 'Preparing…' : 'Export calendar'}
+            </LwButton>
           </div>
         </>
       ) : null}
-      {sub === 'schedule' ? (
-        <div className="lw-controls" aria-label="Calendar export options">
-          {stateCalendar ? (
-            <label>
-              <input
-                type="checkbox"
-                checked={dateOnlyReminder}
-                onChange={(e) => setDateOnlyReminder(e.target.checked)}
-              />{' '}
-              Include date-only reminders for uncertain start times
-            </label>
-          ) : null}
-          <LwButton
-            className="lw-controls__export"
-            disabled={
-              exportWeek.isPending ||
-              calendar.isError ||
-              (privateSelection && !folderSelection.isSuccess)
-            }
-            onClick={() =>
-              exportWeek.mutate(
-                { ...calendarSelection, dateOnlyReminder },
-                { onSuccess: downloadIcs },
-              )
-            }
-          >
-            {exportWeek.isPending ? 'Preparing…' : 'Export calendar'}
-          </LwButton>
-        </div>
-      ) : null}
-
       {sub === 'schedule' && jurisdiction === 'FL' ? (
         <LegalDeadlineOverlay
           from={rangeFrom}
@@ -686,40 +756,6 @@ export function HearingsTab({ scope }: { scope: string }) {
       ) : null}
       {exportWeek.isError ? (
         <p role="alert">Calendar export failed. Refresh the selection and try again.</p>
-      ) : null}
-      {jurisdiction !== 'US' && sub === 'schedule' ? (
-        <section
-          className="lw-card"
-          aria-label="Florida source coverage"
-          style={{ padding: 16, marginBottom: 12 }}
-        >
-          <h2 className="lw-card__title">Florida committee source coverage</h2>
-          {sourceCoverage.isError ? (
-            <p role="alert">
-              Source coverage could not be checked.{' '}
-              <button onClick={() => void sourceCoverage.refetch()}>Retry</button>
-            </p>
-          ) : sourceCoverage.isPending ? (
-            <p role="status">Checking source coverage…</p>
-          ) : (
-            ['house', 'senate'].map((chamber) => {
-              const source = sourceCoverage.data?.rows.find((row) => row.chamber === chamber);
-              const fresh = source && Date.now() - Date.parse(source.checkedAt) < 86400000;
-              return (
-                <p key={chamber} className="lw-card__meta">
-                  {chamber === 'house' ? 'House' : 'Senate'} ·{' '}
-                  {source
-                    ? `${source.status === 'complete' && fresh ? 'Source checked' : 'Source check incomplete or stale'} · ${source.details?.found ?? source.items} of ${source.details?.expected ?? 'unknown'} notices found · ${new Date(source.checkedAt).toLocaleString()}`
-                    : 'No source check covers this full date selection.'}
-                </p>
-              );
-            })
-          )}
-          <p className="lw-card__meta">
-            Published notices can change. Missing coverage does not establish that no proceeding is
-            scheduled.
-          </p>
-        </section>
       ) : null}
       {exportWeek.data ? (
         <p role="status">
@@ -789,68 +825,20 @@ export function HearingsTab({ scope }: { scope: string }) {
           />
         ) : (
           <div className="lw-schedule">
-            <div className="lw-controls">
-              <LwSeg
-                ariaLabel="Schedule view"
-                options={[
-                  { id: 'calendar' as ViewMode, label: 'Calendar' },
-                  { id: 'list' as ViewMode, label: 'Agenda' },
-                ]}
-                value={effectiveView}
-                onChange={setView}
-                disabled={narrow}
-              />
-              {narrow ? (
-                <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
-                  Agenda layout at this width — Calendar returns on a wider display
-                </span>
-              ) : null}
-              <div className="lw-selectwrap">
-                <select
-                  aria-label="Committee"
-                  className="lw-btn lw-select"
-                  value={committee}
-                  onChange={(e) => setCommittee(e.target.value)}
-                >
-                  <option value="">All committees</option>
-                  {committees.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
-              </div>
-              <div className="lw-selectwrap">
-                <select
-                  aria-label="Proceeding kind"
-                  className="lw-btn lw-select"
-                  value={kind}
-                  onChange={(e) => setKind(e.target.value)}
-                >
-                  <option value="">All proceedings</option>
-                  <option value="HEARING">Hearings</option>
-                  <option value="MARKUP">Markups</option>
-                  {stateCalendar ? (
-                    <>
-                      <option value="committee">Committee meetings</option>
-                      <option value="floor">Floor sessions</option>
-                      <option value="joint">Joint meetings</option>
-                    </>
-                  ) : null}
-                </select>
-                <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
-              </div>
-              <div className="lw-search">
-                <Search size={16} className="lw-search__icon" aria-hidden="true" />
-                <input
-                  aria-label="Search proceedings"
-                  placeholder="Filter this week by title, committee or witness"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+            {!narrow ? (
+              <div className="lw-controls">
+                <LwSeg
+                  ariaLabel="Schedule view"
+                  options={[
+                    { id: 'calendar' as ViewMode, label: 'Calendar' },
+                    { id: 'list' as ViewMode, label: 'Agenda' },
+                  ]}
+                  value={effectiveView}
+                  onChange={setView}
                 />
+                {scheduleToolbar}
               </div>
-            </div>
+            ) : null}
 
             {effectiveView === 'calendar' && !(stateCalendar && rangeMode === 'day') ? (
               <section className="lw-card lw-cal" aria-label="Week calendar">
@@ -887,9 +875,9 @@ export function HearingsTab({ scope }: { scope: string }) {
                       page), and the secondary count is subscriptions scheduled
                       by the user — never implied to be "matches". */}
                     {visibleCount} proceedings ·{' '}
-                    {serverTotal > rows.length
+                    {!liveOnly && serverTotal > rows.length
                       ? `showing first ${rows.length}`
-                      : `${totalMatches0(rows)} scheduled by you`}
+                      : `${totalMatches0(filtered)} scheduled by you`}
                   </span>
                 </div>
 
@@ -1004,11 +992,12 @@ export function HearingsTab({ scope }: { scope: string }) {
                 {filtered.length === 0 ? (
                   <div style={{ padding: 18 }}>
                     <LwStateEmpty
-                      title="No proceedings matched these filters"
+                      title={liveOnly ? 'No proceedings are live in this range' : 'No proceedings matched these filters'}
                       onReset={() => {
                         setCommittee('');
                         setKind('');
                         setSearch('');
+                        setCalendarParam('live', '');
                       }}
                     />
                   </div>
@@ -1177,12 +1166,12 @@ export function HearingsTab({ scope }: { scope: string }) {
           </div>
         )}
 
-        {/* RIGHT — Server captures first (durable booking immediately visible),
-            then My Sessions browser/live history, source health last. */}
+        {/* Recording and saved-session panels belong to the Recordings tab. */}
+        {sub === 'sessions' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          <section className="lw-card" aria-label="Server captures">
+          <section className="lw-card" aria-label="Recordings">
             <div className="lw-card__head">
-              <h2 className="lw-card__title">Server captures</h2>
+              <h2 className="lw-card__title">Recordings</h2>
               <span className="lw-card__meta">All dates</span>
             </div>
             {/* Durable all-lifecycle server attendance for exactly this
@@ -1199,14 +1188,10 @@ export function HearingsTab({ scope }: { scope: string }) {
             </div>
           </section>
 
-          <section className="lw-card" aria-label="My Sessions">
+          <section className="lw-card" aria-label="Saved browser sessions">
             <div className="lw-card__head">
-              <h2 className="lw-card__title">My Sessions</h2>
-              <span className="lw-card__meta">
-                {history.data
-                  ? `${history.data.pages[0]?.total ?? 0} saved sessions`
-                  : 'Saved capture sessions'}
-              </span>
+              <h2 className="lw-card__title">Saved browser sessions</h2>
+              <span className="lw-card__meta">Browser sessions · separate capture attempts</span>
             </div>
 
             {!calendar.isError && live ? (
@@ -1338,8 +1323,68 @@ export function HearingsTab({ scope }: { scope: string }) {
             </div>
           </section>
 
-          <CommitteeSourceStatus />
         </div>
+        ) : null}
+        {sub === 'schedule' ? <CommitteeSourceStatus /> : null}
+        {jurisdiction !== 'US' && sub === 'schedule' ? (
+        <section
+          className="lw-card"
+          aria-label="Florida source coverage"
+          style={{ padding: 16, marginBottom: 12 }}
+        >
+          <details className="lw-hearings-source-health" open={sourceCoverage.isError}>
+            <summary className="lw-card__title">
+              Florida calendar checks
+              {!sourceCoverage.isError && !sourceCoverage.isPending && sourceCoverage.data?.rows
+                ? ` · ${sourceCoverage.data.rows.some((row) => Date.now() - Date.parse(row.checkedAt) >= 86400000) ? 'Stale check' : sourceCoverage.data.rows.some((row) => row.status === 'partial') ? 'Partial check' : 'Healthy'}`
+                : ''}{' '}
+              <span>View details</span>
+            </summary>
+            <div className="lw-hearings-source-health__body">
+              <h2 className="sr-only">Florida committee source coverage details</h2>
+          {sourceCoverage.isError ? (
+            <p role="alert">
+              Source coverage could not be checked.{' '}
+              <button onClick={() => void sourceCoverage.refetch()}>Retry</button>
+            </p>
+          ) : sourceCoverage.isPending ? (
+            <p role="status">Checking source coverage…</p>
+          ) : (
+            ['house', 'senate'].map((chamber) => {
+              const source = sourceCoverage.data?.rows.find((row) => row.chamber === chamber);
+              const fresh = source && Date.now() - Date.parse(source.checkedAt) < 86400000;
+              const sessionIssue = source?.details?.issues?.some((issue) => /session/i.test(issue));
+              const status = source
+                ? source.status === 'partial' && fresh
+                  ? sessionIssue
+                    ? 'Notice found, session unresolved'
+                    : 'Partial check'
+                  : source.status === 'complete' && fresh
+                    ? 'Source checked'
+                    : 'Stale check'
+                : 'No source check covers this full date selection.';
+              return (
+                <div key={chamber}>
+                  <p className="lw-card__meta">
+                    {chamber === 'house' ? 'House' : 'Senate'} · {status}
+                    {source ? ` · ${source.details?.found ?? source.items} of ${source.details?.expected ?? 'unknown'} notices found` : ''}
+                  </p>
+                  {source ? <p className="lw-card__meta">Last check: {new Date(source.checkedAt).toLocaleString()}</p> : null}
+                  {source?.details?.issues?.length ? (
+                    <p className="lw-card__meta">Technical issue: {source.details.issues.join('; ')}</p>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+              <p className="lw-card__meta">
+                Published notices can change. Missing coverage does not establish that no proceeding is
+                scheduled.
+              </p>
+            </div>
+          </details>
+        </section>
+      ) : null}
       </div>
     </div>
   );

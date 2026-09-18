@@ -203,7 +203,7 @@ function PacketDrawerContent({
                 <section>
                   <h3 className="lw-sect__title">Procedural meaning</h3>
                   <p className="lw-state__body" style={{ maxWidth: 'none' }}>
-                    Now at <strong>{pk.proceduralMeaning.currentStage}</strong>
+                    Now at <strong>{readableStage(pk.proceduralMeaning.currentStage)}</strong>
                     {pk.proceduralMeaning.priorStage ? ` (was ${pk.proceduralMeaning.priorStage})` : ''}.
                     {pk.proceduralMeaning.nextPossibleSteps.length
                       ? ` Next: ${pk.proceduralMeaning.nextPossibleSteps.join(', ')}.`
@@ -228,11 +228,11 @@ function PacketDrawerContent({
                     <div key={ev.claimId} className="lw-block" style={{ marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <LwPill tone={ev.verification === 'official' ? 'success' : ev.verification === 'extracted' ? 'brand' : 'gray'} size="22">
-                          {(ev.verification ?? 'OFFICIAL').toUpperCase()}
+                          {evidenceStatus(ev.verification)}
                         </LwPill>
                         {ev.retrievedAt ? (
                           <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
-                            Verified {ageLabel(ev.retrievedAt)} ago
+                            Source checked {ageLabel(ev.retrievedAt)} ago
                           </span>
                         ) : null}
                       </div>
@@ -280,7 +280,7 @@ function PacketDrawerContent({
               {/* Confidence + Unknowns side by side */}
               <section className="lw-two-up">
                 <div className="lw-block">
-                  <div className="lw-block__label">Confidence</div>
+                  <div className="lw-block__label">Analysis confidence</div>
                   {packetUnavailableReason ? (
                     <div className="lw-block__body">Not loaded.</div>
                   ) : packet.isPending ? (
@@ -306,9 +306,9 @@ function PacketDrawerContent({
                       : packet.isPending
                         ? 'Loading…'
                         : pk?.confidence?.missingFields?.length
-                          ? pk.confidence.missingFields.join(', ')
+                          ? pk.confidence.missingFields.map(readableField).join(', ')
                           : pk?.proceduralMeaning?.uncertainty?.length
-                            ? pk.proceduralMeaning.uncertainty.join(', ')
+                            ? pk.proceduralMeaning.uncertainty.map(readableField).join(', ')
                             : 'No explicit unknowns were recorded for this packet.'}
                   </div>
                 </div>
@@ -339,6 +339,22 @@ function PacketDrawerContent({
       ) : null}
     </>
   );
+}
+
+function readableStage(stage: string | null | undefined): string {
+  if (!stage || /^(unknown|undefined|null|unavailable)$/i.test(stage)) return 'Unavailable from source';
+  return stage.replaceAll('_', ' ');
+}
+
+function readableField(value: string): string {
+  const label = value.split('.').at(-1) ?? value;
+  return label.replaceAll('_', ' ');
+}
+
+function evidenceStatus(value: string | null | undefined): string {
+  if (value === 'official') return 'SOURCE OFFICIAL';
+  if (value === 'extracted') return 'SOURCE EXTRACTED';
+  return 'SOURCE STATUS UNAVAILABLE';
 }
 
 function confidenceLabel(v: number): string {

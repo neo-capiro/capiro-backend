@@ -42,6 +42,9 @@ export function LwModal({
   width?: number;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
 
   // Escape closes (with dirty guard); focus trapped inside the panel.
   useEffect(() => {
@@ -70,6 +73,12 @@ export function LwModal({
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose, dirty]);
+
+  useEffect(() => {
+    return () => {
+      if (openerRef.current?.isConnected) openerRef.current.focus();
+    };
+  }, []);
 
   useEffect(() => {
     panelRef.current?.querySelector<HTMLElement>('button, [href], input, select')?.focus();

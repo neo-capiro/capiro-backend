@@ -147,7 +147,7 @@ describe('LW-07 real watchlist management routes', () => {
         issueAreas: ['Defense'],
       }),
     );
-    fireEvent.click(screen.getByRole('tab', { name: /^Feed/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Updates/ }));
     expect(screen.queryByLabelText('Watchlist setup required')).not.toBeInTheDocument();
     cleanup();
     mount('/legiwatch?tab=settings&sub=watchlist&client=client-A');

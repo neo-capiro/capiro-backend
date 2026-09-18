@@ -88,5 +88,5 @@ test('an incomplete preview shows captured exceptions and blocks download', asyn
   mount();
   await screen.findByText(/Incomplete preview/);
   await screen.findByText('folder-9: Captured 12 assignments; import contains 9');
-  expect(screen.getByRole('button', { name: 'Download preview' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Download JSON preview' })).toBeDisabled();
 });

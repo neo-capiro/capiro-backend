@@ -17,15 +17,16 @@
  * server-authoritative; no external send path exists anywhere.
  */
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Crosshair } from 'lucide-react';
+import { CalendarDays, ChevronDown, Crosshair, Search } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import {
   LEGIWATCH_TABS,
   LEGIWATCH_PRIMARY_TABS,
+  LEGIWATCH_SECONDARY_TABS,
   REMOVED_TABS,
   TAB_ALIASES,
   type LegiWatchTab,
@@ -43,12 +44,11 @@ import { DigestTab } from './digest/DigestTab.js';
 import { AnalyticsTab } from './analytics/AnalyticsTab.js';
 import { WatchlistGatePanel } from './coldstart/WatchlistGatePanel.js';
 import { LegiWatchSettingsTab } from './settings/LegiWatchSettingsTab.js';
-import { SystemStatesOverlay } from './overlays/SystemStatesOverlay.js';
 import { LegiWatchSearchOverlay } from './overlays/LegiWatchSearchOverlay.js';
 import { ExportCalendarOverlay } from './overlays/ExportCalendarOverlay.js';
 import './legiwatch.css';
 
-type Overlay = 'states' | 'search' | 'export' | null;
+type Overlay = 'search' | 'export' | null;
 
 const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; description: string }> = {
   news: {
@@ -58,7 +58,7 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
   },
   budget: {
     eyebrow: 'Florida appropriations',
-    title: 'Budget',
+    title: 'Florida Budget',
     description: 'Fiscal documents, project identities and supported stage comparisons.',
   },
   research: {
@@ -80,13 +80,13 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
   },
   feed: {
     eyebrow: 'Alert worklist',
-    title: 'Feed',
+    title: 'Updates',
     description:
       'Prioritized policy and funding movement, with the client impact and next action kept in view.',
   },
   bills: {
     eyebrow: 'Legislative portfolio',
-    title: 'Bills',
+    title: 'Watchlists',
     description:
       'Track the federal and state measures that matter, their posture, movement, ownership, and client exposure.',
   },
@@ -98,7 +98,7 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
   },
   analytics: {
     eyebrow: 'Coverage and movement',
-    title: 'Analytics',
+    title: 'Trends / Analytics',
     description:
       'See where alert volume, severity, and source movement are concentrating across the current scope.',
   },
@@ -109,70 +109,6 @@ const TAB_HEAD: Record<LegiWatchTab, { eyebrow: string; title: string; descripti
       'Manage agenda alerts, report settings, monitoring and display preferences.',
   },
 };
-
-/** Intelligence sub-nav (§7.1 row 1) — static destinations; the status chip
- *  is live data. There is no source-health endpoint (GAPS LW-G5), so the chip
- *  reports ONLY the feed query's fetch state — explicitly labelled as feed
- *  refresh, never as ingestion/source health, and never a fabricated
- *  "5 sources healthy". */
-function IntelligenceSubNav({
-  feedState,
-  onOpenStates,
-}: {
-  feedState: { isFetching: boolean; isError: boolean; dataUpdatedAt: number };
-  onOpenStates: () => void;
-}) {
-  const items: Array<{ id: string; label: string; path: string }> = [
-    { id: 'explorer', label: 'Data Explorer', path: '/explorer' },
-    { id: 'legiwatch', label: 'LegiWatch', path: '/legiwatch' },
-    { id: 'pe', label: 'Program Elements', path: '/program-elements' },
-    { id: 'fo', label: 'Funding Opportunities', path: '/intelligence/opportunities' },
-    { id: 'nexus', label: 'District Nexus', path: '/intelligence/district-nexus' },
-  ];
-  const status = feedState.isError
-    ? 'Feed refresh failed'
-    : feedState.isFetching
-      ? 'Refreshing feed…'
-      : feedState.dataUpdatedAt
-        ? `Feed refreshed ${Math.max(0, Math.round((Date.now() - feedState.dataUpdatedAt) / 60000))} min ago`
-        : 'Feed status unavailable';
-  const tip = feedState.isError
-    ? 'The LegiWatch feed query failed. This reflects the feed fetch only — not source ingestion or capture health.'
-    : 'Last feed-list fetch time. Source ingestion and capture health are reported separately, not here.';
-  return (
-    <nav className="lw-subnav" aria-label="Intelligence">
-      {items.map((item) => (
-        <Link
-          key={item.id}
-          to={item.path}
-          className={`lw-subnav__item${item.id === 'legiwatch' ? ' is-active' : ''}`}
-          aria-current={item.id === 'legiwatch' ? 'page' : undefined}
-        >
-          {item.label}
-        </Link>
-      ))}
-      <button
-        type="button"
-        className="lw-subnav__health"
-        style={{ background: 'none', border: 0, cursor: 'pointer' }}
-        onClick={onOpenStates}
-        title={`${tip} Open system states reference.`}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: feedState.isError ? 'var(--lw-error-dot)' : 'var(--lw-succ-dot)',
-            display: 'inline-block',
-          }}
-        />
-        {status}
-      </button>
-    </nav>
-  );
-}
 
 export function LegiWatchModule() {
   const api = useApi();
@@ -187,7 +123,7 @@ export function LegiWatchModule() {
   const tab: LegiWatchTab = useMemo(() => {
     if (rawTab && Object.prototype.hasOwnProperty.call(TAB_ALIASES, rawTab))
       return TAB_ALIASES[rawTab] ?? 'hearings';
-    if (!rawTab) return 'bills';
+    if (!rawTab) return 'feed';
     if (REMOVED_TABS.has(rawTab)) return 'hearings';
     return (LEGIWATCH_TABS as readonly string[]).includes(rawTab)
       ? (rawTab as LegiWatchTab)
@@ -332,18 +268,15 @@ export function LegiWatchModule() {
   // below shows NO badge rather than a fabricated 0.
   const tabCount: Partial<Record<LegiWatchTab, number>> =
     activeCount != null ? { feed: activeCount } : {};
+  const primaryTab =
+    tab === 'news' || tab === 'budget' || tab === 'committees'
+      ? 'research'
+      : tab === 'analytics'
+        ? 'feed'
+        : tab;
 
   return (
     <div className="lw" data-module="legiwatch">
-      <IntelligenceSubNav
-        feedState={{
-          isFetching: moduleFeed.isFetching,
-          isError: moduleFeed.isError,
-          dataUpdatedAt: moduleFeed.dataUpdatedAt,
-        }}
-        onOpenStates={() => setOverlay('states')}
-      />
-
       <header className="lw-pagehead">
         <div>
           <div className="lw-eyebrow">{head.eyebrow}</div>
@@ -363,14 +296,14 @@ export function LegiWatchModule() {
           >
             <Crosshair size={16} color="#294E68" aria-hidden="true" />
             <span className="lw-lens__stack">
-              <span className="lw-lens__eyebrow">Client lens</span>
+              <span className="lw-lens__eyebrow">Client</span>
               <span className="lw-lens__value">{scopeLabel}</span>
             </span>
             <ChevronDown size={15} color="#294E68" aria-hidden="true" />
           </button>
           {lensOpen ? (
-            <div className="lw-lens__menu" role="listbox" aria-label="Client lens">
-              <div className="lw-lens__menuhead">Client lens</div>
+            <div className="lw-lens__menu" role="listbox" aria-label="Client">
+              <div className="lw-lens__menuhead">Client</div>
               <button
                 type="button"
                 role="option"
@@ -410,23 +343,27 @@ export function LegiWatchModule() {
           {scope && !selectedClient ? <LwPill tone="warning">ARCHIVED CLIENT SCOPE</LwPill> : null}
           <LwButton
             size="42"
+            className="lw-header-action lw-header-action--search"
             onClick={() => setOverlay('search')}
             aria-label="Search LegiWatch"
             title="Search LegiWatch"
           >
-            Search LegiWatch
+            <Search size={16} aria-hidden="true" />
+            <span>Search LegiWatch</span>
           </LwButton>
           <LwButton
             size="42"
+            className="lw-header-action lw-header-action--export"
             onClick={() => setOverlay('export')}
             aria-label="Export calendar"
             title="Export calendar"
           >
-            Export calendar
+            <CalendarDays size={16} aria-hidden="true" />
+            <span>Export calendar</span>
           </LwButton>
           <button
             type="button"
-            className="lw-iconbtn"
+            className="lw-iconbtn lw-header-action--settings"
             aria-label="LegiWatch settings"
             title="LegiWatch settings"
             onClick={() => setTab('settings')}
@@ -448,33 +385,61 @@ export function LegiWatchModule() {
               />
             </svg>
           </button>
-          <LwPill tone={moduleFeed.isError ? 'error' : 'brand'}>
-            {moduleFeed.isError
-              ? 'SOURCE ISSUE'
-              : activeCount != null
-                ? `LIVE · ${activeCount} ACTIVE`
-                : 'LIVE'}
-          </LwPill>
         </div>
       </header>
 
-      <div className="lw-tabs" role="tablist" aria-label="LegiWatch sections">
-        {LEGIWATCH_PRIMARY_TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            className={`lw-tab${tab === t ? ' is-active' : ''}`}
-            onClick={() => setTab(t)}
+      <div className="lw-mobile-nav" aria-label="Mobile LegiWatch navigation">
+        <label className="lw-mobile-nav__field">
+          <span>Section</span>
+          <select
+            aria-label="LegiWatch section"
+            value={primaryTab}
+            onChange={(event) => setTab(event.target.value as LegiWatchTab)}
           >
-            <span>{TAB_HEAD[t].title}</span>
-            {tabCount[t] != null && tabCount[t]! > 0 ? (
-              <span className="lw-tab__count">{tabCount[t]! > 999 ? '999+' : tabCount[t]}</span>
-            ) : null}
-          </button>
-        ))}
+            {LEGIWATCH_PRIMARY_TABS.map((t) => (
+              <option key={t} value={t}>
+                {TAB_HEAD[t].title}
+              </option>
+            ))}
+            <option value="settings">Settings</option>
+          </select>
+        </label>
+        <label className="lw-mobile-nav__field">
+          <span>More</span>
+          <select
+            aria-label="More LegiWatch sections"
+            value={LEGIWATCH_SECONDARY_TABS.includes(tab) ? tab : ''}
+            onChange={(event) => {
+              if (event.target.value) setTab(event.target.value as LegiWatchTab);
+            }}
+          >
+            <option value="">More sections</option>
+            {LEGIWATCH_SECONDARY_TABS.map((t) => (
+              <option key={t} value={t}>
+                {TAB_HEAD[t].title}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+
+      <nav className="lw-tabs" aria-label="LegiWatch sections">
+        <div className="lw-tabs__primary" role="tablist" aria-label="Primary sections">
+          {LEGIWATCH_PRIMARY_TABS.map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={primaryTab === t} className={`lw-tab${primaryTab === t ? ' is-active' : ''}`} onClick={() => setTab(t)}>
+              <span>{TAB_HEAD[t].title}</span>
+              {tabCount[t] != null && tabCount[t]! > 0 ? <span className="lw-tab__count">{tabCount[t]! > 999 ? '999+' : tabCount[t]}</span> : null}
+            </button>
+          ))}
+        </div>
+        <div className="lw-tabs__secondary" aria-label="More LegiWatch sections">
+          {LEGIWATCH_SECONDARY_TABS.map((t) => (
+            <button key={t} type="button" className={`lw-tab lw-tab--secondary${tab === t ? ' is-active' : ''}`} onClick={() => setTab(t)}>
+              {TAB_HEAD[t].title}
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {coldStart ? (
         // §13: scoped + no approved watchlist + a watchlist-dependent tab.
@@ -543,9 +508,7 @@ export function LegiWatchModule() {
         <LegiWatchSettingsTab />
       ) : null}
 
-      {overlay === 'states' ? (
-        <SystemStatesOverlay onClose={() => setOverlay(null)} />
-      ) : overlay === 'search' ? (
+      {overlay === 'search' ? (
         <LegiWatchSearchOverlay
           onClose={() => setOverlay(null)}
           onOpenHearing={(id) => {

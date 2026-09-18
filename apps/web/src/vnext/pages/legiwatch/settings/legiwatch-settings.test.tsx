@@ -104,6 +104,21 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
     expect(screen.getByTestId('settings-location')).toHaveTextContent('/legiwatch?tab=settings&sub=watchlist&client=client-A');
   });
 
+  it('shows honest monitoring categories and routes hearing recording to its category', async () => {
+    renderSettings('/legiwatch?tab=settings&client=client-A');
+    await screen.findByLabelText('LegiWatch settings');
+    expect(screen.getByText('News and statute monitors')).toBeTruthy();
+    expect(screen.getByText(/Status is not loaded here/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Record a hearing' })).toHaveAttribute(
+      'href',
+      '#monitoring-record-hearing',
+    );
+    expect(screen.getByRole('link', { name: 'Inspect saved watchlists' })).toHaveAttribute(
+      'href',
+      '/legiwatch?tab=settings&sub=watchlist&client=client-A',
+    );
+  });
+
   it('renders the display preferences from the stored prefs doc', async () => {
     renderSettings();
     await screen.findByLabelText('LegiWatch settings');

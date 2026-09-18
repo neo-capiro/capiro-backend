@@ -95,6 +95,14 @@ function mount(
     ),
   };
 }
+test('folderQ keeps the folder board request out of public search', async () => {
+  mount(undefined, '', '/legiwatch?tab=bills&folder=' + folder.id + '&folderQ=committee');
+  await screen.findByRole('button', { name: 'HB 1' });
+  expect(mocks.get.mock.calls.some(([url]) => url.endsWith('/search'))).toBe(false);
+  const call = lastCall(mocks.get.mock.calls, '/board');
+  expect(call).toBeTruthy();
+  expect(call![1].params).toMatchObject({ folderId: folder.id, q: 'committee' });
+});
 test('view controls hide columns and reveal only explicitly selected comment visibility', async () => {
   mount();
   await screen.findByRole('button', { name: 'HB 1' });
@@ -291,7 +299,7 @@ test('picking a folder from the rail exits global corpus search entirely', async
       folder.id +
       '&folderSearch=1&folderQ=corpus&folderJurisdiction=all&folderSessionSearch=2099',
   );
-  await screen.findByRole('heading', { name: 'All ingested bills' });
+  await screen.findByRole('heading', { name: 'All available bills' });
   // The rail lists the folders that do NOT match the active scope search; the
   // other folder is reachable via the Find folder filter.
   fireEvent.change(screen.getByLabelText('Find folder'), { target: { value: 'Other' } });
@@ -325,7 +333,7 @@ test('All folder assignments exits global corpus search entirely', async () => {
     '',
     '/legiwatch?tab=bills&folder=' + folder.id + '&folderSearch=1&folderQ=corpus&folderJurisdiction=all',
   );
-  await screen.findByRole('heading', { name: 'All ingested bills' });
+  await screen.findByRole('heading', { name: 'All available bills' });
   fireEvent.click(screen.getByRole('button', { name: 'All folder assignments' }));
   await waitFor(() => {
     const p = new URLSearchParams(locationRef.search);
@@ -606,6 +614,7 @@ test('new folders default to the active client and explicitly independent folder
 test('advanced filters are sent to the board request and reset pagination state', async () => {
   mount();
   await screen.findByRole('button', { name: 'HB 1' });
+  fireEvent.click(screen.getByRole('button', { name: 'More filters/details' }));
   // Wrapper labels include help text — match by prefix.
   fireEvent.change(screen.getByLabelText(/^Summary text/), { target: { value: 'insurance' } });
   fireEvent.change(screen.getByLabelText(/^Latest action text/), { target: { value: 'referred' } });
@@ -651,6 +660,7 @@ test('show summaries requests the projection and renders summary, committee and 
   mount();
   await screen.findByRole('button', { name: 'HB 1' });
   expect(screen.queryByText('Revises health care coverage requirements.')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'More filters/details' }));
   fireEvent.click(screen.getByRole('button', { name: 'Show summaries' }));
   await screen.findByText('Revises health care coverage requirements.');
   expect(screen.getByText(/Committee: Fiscal Policy/)).toBeTruthy();
@@ -1079,6 +1089,7 @@ test('daily mode hides board-only filters and the stale board count, keeping jur
   // Daily-relevant controls remain.
   expect(screen.getByLabelText('Jurisdiction')).toBeTruthy();
   expect(screen.getByLabelText('Session')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'More filters/details' }));
   expect(screen.getByLabelText('Chamber')).toBeTruthy();
   expect(screen.getByLabelText('Record type')).toBeTruthy();
   expect(screen.getByLabelText(/^Selected date/)).toBeTruthy();

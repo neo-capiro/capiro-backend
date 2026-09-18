@@ -307,6 +307,17 @@ describe('Florida first-party calendar contract', () => {
     expect(o.session).toBeNull();
     expect(senate.session).toBeNull();
     expect(legislativeEventId(senate)).toBe(legislativeEventId(o));
+    expect(o.fields.documents?.map((document) => document.url)).toEqual(
+      expect.arrayContaining([
+        'https://www.flsenate.gov/Committees/Show/JLBC/MeetingNotice/6914',
+        'https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15223',
+      ]),
+    );
+    expect(o.completeness).toBe('partial');
+    expect(o.issues).toContain(
+      'Joint notice publisher session conflict: House 2026, Senate 2027. Canonical session remains unknown.',
+    );
+    expect(o.fields.time?.date).toBe('2026-09-11');
     expect(o.fields.documents).toHaveLength(2);
   });
   it('reports missing in-window notice identities but excludes out-of-window rows from the coverage denominator', () => {

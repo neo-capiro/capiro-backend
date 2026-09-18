@@ -11,7 +11,7 @@
  * the test double was permissive.
  */
 import type { TenantContext } from '@capiro/shared';
-import { LiveHearingsService, buildWhere } from './live-hearings.service.js';
+import { LiveHearingsService, buildWhere, filterVerifiedDirectoryAliases, relatedLegacyBodiesForOfficial } from './live-hearings.service.js';
 
 const TENANT_A = '00000000-0000-0000-0000-00000000000a';
 const TENANT_B = '00000000-0000-0000-0000-00000000000b';
@@ -650,5 +650,54 @@ describe('LiveHearingsService#coverage', () => {
     // unavailable (null), never a fabricated "supported" or "unavailable" pill.
     expect(bySystemCode.get('src-2')?.recentCapturePolicy).toBeNull();
     expect(bySystemCode.get('src-2')?.recentResolutionState).toBeNull();
+  });
+});
+
+
+describe('state committee directory aliases', () => {
+  test('filters only verified aliases and preserves unmatched rows', () => {
+    const official = {
+      id: 'official-ap', officialSourceKey: 'FL:2026:fl:senate:AP',
+      sourceEvidence: { directory: { aliasIds: ['FL-upper-appropriations'] } },
+    };
+    const alias = { id: 'FL-upper-appropriations', officialSourceKey: null, sourceEvidence: null };
+    const unmatched = { id: 'FL-special-order-calendar', officialSourceKey: null, sourceEvidence: null };
+    expect(filterVerifiedDirectoryAliases([official, alias, unmatched]).map((row) => row.id)).toEqual([
+      'official-ap', 'FL-special-order-calendar',
+    ]);
+  });
+
+  test('returns only existing Florida chamber rows named by verified joint aliases', () => {
+    const body = {
+      chamber: 'joint',
+      officialSourceKey: 'FL:2026:fl:joint:JAPC',
+      sourceEvidence: { directory: { aliasIds: ['FL-lower-administrative-procedures', 'FL-upper-administrative-procedures'] } },
+    };
+    expect(relatedLegacyBodiesForOfficial(body, [
+      { id: 'FL-lower-administrative-procedures', name: 'Administrative Procedures', chamber: 'lower' },
+      { id: 'FL-upper-administrative-procedures', name: 'Administrative Procedures', chamber: 'upper' },
+      { id: 'other-state-row', name: 'Other', chamber: 'lower' },
+    ])).toEqual([
+      { id: 'FL-lower-administrative-procedures', name: 'Administrative Procedures', chamber: 'lower' },
+      { id: 'FL-upper-administrative-procedures', name: 'Administrative Procedures', chamber: 'upper' },
+    ]);
+  });
+
+  test('does not hide an unverified same-name or same-chamber row', () => {
+    const rows = [
+      { id: 'legacy', officialSourceKey: null, sourceEvidence: null, name: 'Budget Committee' },
+      { id: 'official', officialSourceKey: 'FL:2026:fl:house:committee:3276', sourceEvidence: { directory: { aliasIds: [] } }, name: 'Budget Committee' },
+    ];
+    expect(filterVerifiedDirectoryAliases(rows).map((row) => row.id)).toEqual(['legacy', 'official']);
+  });
+
+  test('preserves a Senate legacy record through the official detail link', () => {
+    const official = {
+      chamber: 'upper', officialSourceKey: 'FL:2026:fl:senate:AP',
+      sourceEvidence: { directory: { aliasIds: ['FL-upper-appropriations'] } },
+    };
+    expect(relatedLegacyBodiesForOfficial(official, [
+      { id: 'FL-upper-appropriations', name: 'Appropriations', chamber: 'upper' },
+    ])).toEqual([{ id: 'FL-upper-appropriations', name: 'Appropriations', chamber: 'upper' }]);
   });
 });

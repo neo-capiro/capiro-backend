@@ -1,8 +1,8 @@
 /**
  * Digest tab (LEGIWATCH-V2-HANDOFF §5.8) — the persistent morning-brief
  * product, with real generation, persistence and history (Wave 3;
- * legiwatch-digest.service.ts). `Send now` stays disabled — §1.5, no
- * external send until the Stage H security review — and `Export PDF` is the
+ * legiwatch-digest.service.ts). Email delivery is not available yet, and
+ * `Export PDF` is the
  * browser's own print-to-PDF (a real PDF, no server-side rendering
  * dependency introduced for one feature).
  */
@@ -218,38 +218,13 @@ function Brief({ content }: { content: DigestContent }) {
 
 export function DigestTab({ scope }: { scope: string }) {
   const reports = useReportsFlag();
-  const [params, setParams] = useSearchParams();
-  const mode = params.get('digestMode') ?? (params.get('reportView') ? 'bill_report' : 'legacy');
-  const setMode = (value: string) => {
-    const next = new URLSearchParams(params);
-    next.set('digestMode', value);
-    setParams(next);
-  };
-  return (
-    <>
-      {reports.enabled && (
-        <div className="lw-reports-controls" style={{ padding: '16px 24px' }}>
-          <LwButton
-            variant={mode === 'legacy' ? 'primary' : 'secondary'}
-            onClick={() => setMode('legacy')}
-          >
-            Intelligence brief
-          </LwButton>
-          <LwButton
-            variant={mode === 'bill_report' ? 'primary' : 'secondary'}
-            onClick={() => setMode('bill_report')}
-          >
-            Daily bill reports
-          </LwButton>
-        </div>
-      )}
-      {reports.enabled && mode === 'bill_report' ? (
-        <ReportWorkspace initialTab="updates" />
-      ) : (
-        <LegacyDigestTab scope={scope} />
-      )}
-    </>
-  );
+  const [params] = useSearchParams();
+  const mode = params.get('digestMode') ?? (params.get('reportView') ? 'bill_report' : 'library');
+
+  // Reports is one library. Keep explicit legacy URLs and the brief workflow
+  // intact while making an unqualified Reports visit land on the library.
+  if (reports.enabled && mode !== 'legacy') return <ReportWorkspace initialTab="reports" />;
+  return <LegacyDigestTab scope={scope} />;
 }
 function LegacyDigestTab({ scope }: { scope: string }) {
   // A client change must discard selection and mutation state, including a
@@ -331,12 +306,7 @@ function ScopedDigestTab({ scope }: { scope: string }) {
               <LwButton onClick={() => window.print()} disabled={!content}>
                 Export PDF
               </LwButton>
-              <LwButton
-                disabled
-                title="Send now is disabled until the Stage H security review ships. The digest produces an internal artefact pending human action."
-              >
-                Send now
-              </LwButton>
+              <p style={{ margin: 0, color: 'var(--lw-body)' }}>Email delivery is unavailable.</p>
             </div>
             {generate.isError && content ? (
               <p role="alert" className="lw-state__body" style={{ padding: '0 16px 16px' }}>
@@ -345,7 +315,7 @@ function ScopedDigestTab({ scope }: { scope: string }) {
             ) : null}
 
             <div className="lw-rail__sect">
-              <div className="lw-rail__label">Saved delivery preference</div>
+              <div className="lw-rail__label">Legacy delivery preference</div>
               {schedule.isLoading ? (
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--lw-body)' }}>Loading…</p>
               ) : schedule.isError ? (

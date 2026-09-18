@@ -8,6 +8,8 @@ import { useApi } from '../../../../lib/use-api.js';
 import { LwModal } from './LwModal.js';
 import { LwSkeleton } from '../lib/primitives.js';
 import { useArchiveSearch } from '../lib/wave1-api.js';
+import type { FolderPage } from '../bills/folder-api.js';
+import { useFolderTrackerFlag } from '../bills/folder-api.js';
 
 interface CommitteeRow {
   systemCode: string;
@@ -29,6 +31,14 @@ interface BillSearchResult {
   cursor?: string | null;
 }
 
+interface CorpusBill {
+  id: string;
+  number: string;
+  title: string;
+  jurisdiction: string;
+  sessionKey: string;
+}
+
 export function LegiWatchSearchOverlay({
   onClose,
   onOpenHearing,
@@ -41,15 +51,19 @@ export function LegiWatchSearchOverlay({
   const api = useApi();
   const scope = useApiScope();
   const researchEnabled = useIntelFeatureEnabled('legiwatch_research_v1');
+  const folderTracker = useFolderTrackerFlag();
   const [params] = useSearchParams();
   const billScope = {
     clientId: params.get('client') || null,
     folderId: params.get('folder') || null,
-    jurisdiction: params.get('jurisdiction') || 'FL',
-    sessionKey: params.get('session') || String(new Date().getFullYear()),
+    jurisdiction: params.get('jurisdiction') || '',
+    sessionKey: params.get('session') || '',
   };
   const [raw, setRaw] = useState('');
   const [q, setQ] = useState('');
+  const [billSearchMode, setBillSearchMode] = useState<'information' | 'documents'>('information');
+  const [textJurisdiction, setTextJurisdiction] = useState(billScope.jurisdiction);
+  const [textSession, setTextSession] = useState(billScope.sessionKey);
 
   useEffect(() => {
     const t = window.setTimeout(() => setQ(raw.trim()), 250);
@@ -64,41 +78,65 @@ export function LegiWatchSearchOverlay({
       (await api.get<{ rows: CommitteeRow[] }>('/api/legiwatch/live-hearings/committees')).data,
     staleTime: 5 * 60_000,
   });
-  const bills = useInfiniteQuery({
-    queryKey: ['lw-vnext', 'search-bills', scope, billScope, q],
-    enabled: researchEnabled && q.length >= 2,
+  const hasBillScope = Boolean(textJurisdiction && textSession);
+  const billSearchAvailable = billSearchMode === 'information' || researchEnabled;
+  const bills = useInfiniteQuery<BillSearchResult | FolderPage<CorpusBill>>({
+    queryKey: ['lw-vnext', 'search-bills', scope, billScope, billSearchMode, q, textJurisdiction, textSession],
+    enabled: billSearchAvailable && q.length >= 2 && (billSearchMode === 'information' || hasBillScope),
     initialPageParam: null as string | null,
-    queryFn: async ({ pageParam }) =>
-      (
+    queryFn: async ({ pageParam }) => {
+      if (billSearchMode === 'information') {
+        return (
+          await api.get<FolderPage<CorpusBill>>('/intel-api/legiwatch/bills/search', {
+            params: { q, limit: 6, ...(pageParam ? { cursor: pageParam } : {}) },
+          })
+        ).data;
+      }
+      return (
         await api.post<BillSearchResult>('/intel-api/legiwatch/research/search', {
-          ...billScope,
+          clientId: billScope.clientId,
+          folderId: billScope.folderId,
+          jurisdiction: textJurisdiction,
+          sessionKey: textSession,
           query: q,
           kind: 'all',
           versionPolicy: 'current_extractions',
           cursor: pageParam,
         })
-      ).data,
-    getNextPageParam: (page) => page.cursor ?? undefined,
+      ).data;
+    },
+    getNextPageParam: (page) => ('nextCursor' in page ? page.nextCursor ?? undefined : page.cursor ?? undefined),
     retry: false,
   });
-  const billPages = researchEnabled ? (bills.data?.pages ?? []) : [];
-  const hasMoreBillDocuments = researchEnabled && bills.hasNextPage;
+  const billPages = billSearchAvailable ? (bills.data?.pages ?? []) : [];
+  const hasMoreBillDocuments = billSearchAvailable && bills.hasNextPage;
   // One result per bill; the full research view retains the individual document hits.
+  const billHits: BillSearchResult['items'] = billPages.flatMap((page) =>
+    'rows' in page
+      ? page.rows.map((row) => ({
+          id: row.id,
+          billId: row.id,
+          billIdentifier: row.number,
+          billTitle: row.title,
+          title: row.title,
+        }))
+      : page.items,
+  );
   const matchedBills = Array.from(
-    new Map(billPages.flatMap((page) => page.items).map((row) => [row.billId, row])).values(),
+    new Map(billHits.map((row) => [row.billId, row])).values(),
   ).slice(0, 6);
   const researchLink = (billId?: string) => {
-    const next = new URLSearchParams({
-      tab: 'research',
-      researchView: 'bills',
-      researchQuery: q,
-      versionPolicy: 'current_extractions',
-      jurisdiction: billScope.jurisdiction,
-      session: billScope.sessionKey,
-    });
-    if (billScope.clientId) next.set('client', billScope.clientId);
-    if (billScope.folderId) next.set('folder', billScope.folderId);
-    if (billId) next.set('researchBill', billId);
+    if (billSearchMode === 'information' && billId) return `/bills/${encodeURIComponent(billId)}`;
+    const next = new URLSearchParams(
+      billSearchMode === 'information'
+        ? folderTracker.enabled
+          ? { tab: 'bills', folderSearch: '1', folderQ: q }
+          : { tab: 'bills', corpusQ: q }
+        : { tab: 'research', researchView: 'bills', researchQuery: q, versionPolicy: 'current_extractions', jurisdiction: textJurisdiction, session: textSession },
+    );
+    if (billSearchMode === 'documents' && billScope.clientId) next.set('client', billScope.clientId);
+    if (billSearchMode === 'documents' && billScope.folderId) next.set('folder', billScope.folderId);
+    if (billSearchMode === 'documents' && billId) next.set('researchBill', billId);
     return '/legiwatch?' + next;
   };
   const matchedCommittees = useMemo(() => {
@@ -124,7 +162,7 @@ export function LegiWatchSearchOverlay({
     (hearings.data?.rows.length ?? 0) > 0 ||
     matchedCommittees.length > 0 ||
     matchedBills.length > 0;
-  const hasErrors = hearings.isError || committees.isError || (researchEnabled && bills.isError);
+  const hasErrors = hearings.isError || committees.isError || (billSearchAvailable && (billSearchMode === 'information' || hasBillScope) && bills.isError);
 
   return (
     <LwModal
@@ -133,15 +171,31 @@ export function LegiWatchSearchOverlay({
       title="Search LegiWatch"
       subtitle="Bills, hearings, transcripts, witnesses, intelligence, and committees."
       note={
-        researchEnabled
-          ? `Bill documents: ${billScope.jurisdiction} · ${billScope.sessionKey}, using the selected client and folder. Hearing archive and committee results cover the public federal sources.`
-          : 'Bill research is not enabled for this workspace. Hearing and committee search remains available.'
+        billSearchMode === 'information'
+          ? 'Bill information searches the full available corpus across all jurisdictions and sessions.'
+          : researchEnabled
+            ? `Bill-document text scope: ${textJurisdiction || 'not selected'} · ${textSession || 'not selected'}.`
+            : 'Bill-document search is not enabled for this workspace.'
       }
       primaryLabel="Close"
       onPrimary={onClose}
       onClose={onClose}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="lw-sect__title">Search</legend>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <button type="button" aria-pressed={billSearchMode === 'information'} onClick={() => setBillSearchMode('information')}>Bill information</button>
+            <button type="button" aria-pressed={billSearchMode === 'documents'} disabled={!researchEnabled} onClick={() => setBillSearchMode('documents')}>Bill-document text</button>
+          </div>
+          {researchEnabled && billSearchMode === 'documents' ? (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <label>Jurisdiction <input aria-label="Bill text jurisdiction" value={textJurisdiction} onChange={(e) => setTextJurisdiction(e.target.value)} /></label>
+              <label>Session <input aria-label="Bill text session" value={textSession} onChange={(e) => setTextSession(e.target.value)} /></label>
+              <span role="status">Effective scope: {textJurisdiction || 'no jurisdiction'} · {textSession || 'no session'}</span>
+            </div>
+          ) : null}
+        </fieldset>
         <div className="lw-search">
           <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>
             ⌕
@@ -149,26 +203,30 @@ export function LegiWatchSearchOverlay({
           <input
             autoFocus
             type="search"
-            placeholder="Search bill text, hearings, witnesses, committees…"
+            placeholder="Search bills, bill documents, hearings, witnesses, committees…"
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             aria-label="Search LegiWatch"
           />
         </div>
 
+        {researchEnabled && billSearchMode === 'documents' && q.length >= 2 && !hasBillScope ? (
+          <p role="status">Choose a jurisdiction and session for bill-document text search.</p>
+        ) : null}
+
         {q.length >= 2 && !isTyping && hasErrors ? (
           <p role="alert">
             Search is incomplete. {hearings.isError ? 'Hearing search could not load. ' : ''}
             {committees.isError ? 'Committee search could not load. ' : ''}
-            {researchEnabled && bills.isError
-              ? 'Bill research could not load for the selected scope. '
+            {billSearchAvailable && bills.isError
+              ? 'Bill search could not load. '
               : ''}
             <button
               type="button"
               onClick={() => {
                 if (hearings.isError) void hearings.refetch();
                 if (committees.isError) void committees.refetch();
-                if (researchEnabled && bills.isError) {
+                if (billSearchAvailable && bills.isError) {
                   if (bills.isFetchNextPageError) void bills.fetchNextPage();
                   else void bills.refetch();
                 }
@@ -196,9 +254,10 @@ export function LegiWatchSearchOverlay({
           </p>
         ) : (
           <>
-            {researchEnabled && matchedBills.length ? (
+            {matchedBills.length ? (
               <section>
-                <h3 className="lw-sect__title">Bills &amp; retained documents</h3>
+                <h3 className="lw-sect__title">{billSearchMode === 'information' ? 'Bill information' : 'Bill-document text'}</h3>
+                {billSearchMode === 'information' ? <p role="status">Scope: all available jurisdictions and sessions</p> : null}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {matchedBills.map((bill) => (
                     <Link
@@ -210,7 +269,7 @@ export function LegiWatchSearchOverlay({
                       <div style={{ fontSize: 13, fontWeight: 600 }}>
                         {bill.billIdentifier ?? bill.billId} · {bill.billTitle ?? bill.title}
                       </div>
-                      {bill.excerpt?.quote ? (
+                      {'excerpt' in bill && bill.excerpt?.quote ? (
                         <p className="lw-state__body">{bill.excerpt.quote}</p>
                       ) : null}
                     </Link>
@@ -273,9 +332,9 @@ export function LegiWatchSearchOverlay({
             ) : null}
           </>
         )}
-        {researchEnabled && q.length >= 2 && !isTyping ? (
+        {billSearchAvailable && q.length >= 2 && !isTyping ? (
           <div>
-            {billPages.some((page) => page.coverage?.complete === false) ? (
+            {billPages.some((page) => 'coverage' in page && page.coverage?.complete === false) ? (
               <p role="status">
                 Bill search covers retained documents; source coverage is incomplete.
               </p>
@@ -299,7 +358,7 @@ export function LegiWatchSearchOverlay({
               </div>
             ) : null}
             <Link to={researchLink()} onClick={onClose}>
-              Open all bill research results
+              {billSearchMode === 'information' ? 'Open all bill information results' : 'Open all bill-document results'}
             </Link>
           </div>
         ) : null}

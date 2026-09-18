@@ -111,6 +111,20 @@ describe('status semantics', () => {
   });
 });
 
+describe('parseSenateCommitteePage (Intelligence WordPress shape)', () => {
+  it('parses the published date/time and keeps closed briefings private', () => {
+    const rows = parseSenateCommitteePage(fixture('intelligence-hearings.sample.html'), 'https://www.intelligence.senate.gov/hearings-meetings/');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.title).toBe('Closed Briefing: Intelligence Matters');
+    expect(rows[0]?.startsAt.toISOString()).toBe('2026-09-23T19:00:00.000Z');
+    expect(rows[0]?.officialPageUrl).toBe('https://www.intelligence.senate.gov/2026/09/16/closed-briefing-intelligence-matters-84/');
+  });
+
+  it('does not fabricate an event when the page has no trustworthy date', () => {
+    expect(parseSenateCommitteePage('<article><a href="/closed">Closed Briefing</a></article>', 'https://www.intelligence.senate.gov/hearings-meetings/')).toHaveLength(0);
+  });
+});
+
 describe('SenateCommitteeCalendarAdapter.discoverEvents', () => {
   it('emits SourceEvents with committee code from the source row and slug as external id', async () => {
     const adapter = new SenateCommitteeCalendarAdapter({ congress: 119 });
@@ -124,6 +138,23 @@ describe('SenateCommitteeCalendarAdapter.discoverEvents', () => {
     expect(sunshine?.chamber).toBe('senate');
     expect(sunshine?.eventStatus).toBe('postponed');
     expect(sunshine?.visibility).toBe('public');
+  });
+
+  it('marks a closed Intelligence briefing private', async () => {
+    const adapter = new SenateCommitteeCalendarAdapter({ congress: 119, url: 'https://www.intelligence.senate.gov/hearings-meetings/' });
+    const events = await adapter.discoverEvents(source({ committeeSystemCode: 'slin00' }), ctx);
+    expect(events[0]?.visibility).toBe('private');
+    expect(events[0]?.eventStatus).toBeNull();
+  });
+
+  it('reports HTTP success with zero parsed rows as unhealthy', async () => {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html><body><h1>Hearings</h1></body></html>', { status: 200 }));
+    const health = await new SenateCommitteeCalendarAdapter({ congress: 119 }).healthCheck(source());
+    expect(health.ok).toBe(false);
+    expect(health.status).toBe(200);
+    expect(health.observedEvents).toBe(0);
+    expect(health.error).toMatch(/no verifiable dated/);
+    fetchMock.mockRestore();
   });
 
   it('throws on fetch failure so source health records it', async () => {
