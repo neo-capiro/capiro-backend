@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { filterChips } from './FundingOpportunitiesPage.js';
-import { DEFAULT_V2_CRITERIA, updateCriteria } from './funding-opportunities-v2-state.js';
+import { criteriaFromSearchParams, DEFAULT_V2_CRITERIA, updateCriteria } from './funding-opportunities-v2-state.js';
 
 describe('funding opportunities v2 main control semantics', () => {
   test('Any agency clears the agency restriction and does not create a chip', () => {
@@ -26,5 +26,26 @@ describe('funding opportunities v2 main control semantics', () => {
     expect(chips.filter((chip) => chip.key === 'agencies')).toHaveLength(1);
     const after = updateCriteria(criteria, { costShare: [] });
     expect(filterChips(after).some((chip) => chip.key === 'costShare')).toBe(false);
+  });
+
+  test('an unscoped route starts in valid all-opportunities mode', () => {
+    const criteria = criteriaFromSearchParams(new URLSearchParams());
+    expect(criteria.mode).toBe('all');
+    expect(criteria.clientId).toBeNull();
+  });
+
+  test('preserves explicit matched mode only for a nonempty client and normalizes orphaned routes', () => {
+    const matched = criteriaFromSearchParams(new URLSearchParams('mode=matched&client=client-1'));
+    expect(matched).toMatchObject({ mode: 'matched', clientId: 'client-1' });
+
+    for (const search of ['mode=matched', 'mode=matched&client=', 'mode=matched&client=%20']) {
+      expect(criteriaFromSearchParams(new URLSearchParams(search))).toMatchObject({ mode: 'all', clientId: null });
+    }
+  });
+
+  test('clearing a matched client transitions back to an all-opportunities catalog search', () => {
+    const matched = criteriaFromSearchParams(new URLSearchParams('mode=matched&client=client-1'));
+    const cleared = updateCriteria(matched, { clientId: null, mode: 'all' });
+    expect(cleared).toMatchObject({ mode: 'all', clientId: null });
   });
 });
