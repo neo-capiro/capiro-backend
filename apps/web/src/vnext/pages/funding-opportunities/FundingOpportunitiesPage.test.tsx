@@ -94,19 +94,22 @@ beforeEach(() => {
 });
 
 describe('mounted Funding Opportunities v2 integration', () => {
-  test('queryless route requests the all-opportunities catalog contract', async () => {
+  test.each(['/intelligence/opportunities', '/intelligence/opportunities?mode=matched', '/intelligence/opportunities?mode=matched&client=%20'])('normalizes unscoped routes to the all-opportunities catalog contract: %s', async (route) => {
     const api = createReferenceFixtureApi();
     const get = vi.spyOn(api, 'get');
-    mount('/intelligence/opportunities', api);
+    mount(route, api);
     await screen.findByText(referenceOpportunityRows[0]!.title);
 
-    const searchUrl = get.mock.calls
+    const searchCalls = get.mock.calls
       .map(([url]) => String(url))
-      .find((url) => url.startsWith('/api/intelligence/opportunities/v2/search?'));
-    expect(searchUrl).toBeDefined();
-    const params = new URLSearchParams(searchUrl!.split('?')[1]);
-    expect(params.get('mode')).toBe('all');
-    expect(params.get('clientId')).toBe('');
+      .filter((url) => url.startsWith('/api/intelligence/opportunities/v2/search?'));
+    expect(searchCalls.length).toBeGreaterThan(0);
+    for (const searchUrl of searchCalls) {
+      const params = new URLSearchParams(searchUrl.split('?')[1]);
+      expect(params.get('mode')).toBe('all');
+      expect(params.get('clientId')).toBe('');
+    }
+    expect(screen.queryByText('Opportunities could not be loaded')).not.toBeInTheDocument();
   });
 
   test('renders a typed fixture row, cancels a pending keyword debounce on client change, and does not replay it', async () => {

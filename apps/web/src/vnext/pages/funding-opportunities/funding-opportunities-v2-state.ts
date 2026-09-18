@@ -334,8 +334,9 @@ function csv(values: readonly string[]): string | null {
 }
 
 export function criteriaFromSearchParams(params: URLSearchParams): OpportunitySearchCriteriaV2 {
-  const clientId = params.get('client') ?? params.get('clientId');
-  const mode = params.get('mode') ?? (clientId ? DEFAULT_V2_CRITERIA.mode : 'all');
+  const clientId = (params.get('client') ?? params.get('clientId'))?.trim() || null;
+  const requestedMode = params.get('mode');
+  const mode = clientId && requestedMode ? requestedMode : clientId ? DEFAULT_V2_CRITERIA.mode : 'all';
   const raw: Record<string, unknown> = {
     schemaVersion: 2,
     mode,

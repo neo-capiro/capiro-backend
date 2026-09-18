@@ -34,17 +34,18 @@ describe('funding opportunities v2 main control semantics', () => {
     expect(criteria.clientId).toBeNull();
   });
 
-  test('preserves explicit matched mode only when the route explicitly asks for it', () => {
+  test('preserves explicit matched mode only for a nonempty client and normalizes orphaned routes', () => {
     const matched = criteriaFromSearchParams(new URLSearchParams('mode=matched&client=client-1'));
     expect(matched).toMatchObject({ mode: 'matched', clientId: 'client-1' });
 
-    const explicitWithoutClient = criteriaFromSearchParams(new URLSearchParams('mode=matched'));
-    expect(explicitWithoutClient).toMatchObject({ mode: 'matched', clientId: null });
+    for (const search of ['mode=matched', 'mode=matched&client=', 'mode=matched&client=%20']) {
+      expect(criteriaFromSearchParams(new URLSearchParams(search))).toMatchObject({ mode: 'all', clientId: null });
+    }
   });
 
   test('clearing a matched client transitions back to an all-opportunities catalog search', () => {
-    const matched = updateCriteria(DEFAULT_V2_CRITERIA, { mode: 'matched', clientId: 'client-1' });
-    const cleared = updateCriteria(matched, { mode: 'all', clientId: null });
+    const matched = criteriaFromSearchParams(new URLSearchParams('mode=matched&client=client-1'));
+    const cleared = updateCriteria(matched, { clientId: null, mode: 'all' });
     expect(cleared).toMatchObject({ mode: 'all', clientId: null });
   });
 });

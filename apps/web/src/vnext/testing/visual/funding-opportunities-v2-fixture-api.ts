@@ -566,6 +566,8 @@ function response(
   criteria: OpportunitySearchCriteriaV2,
   state: MutableState,
 ): OpportunitySearchResponseV2 {
+  if (criteria.mode === 'matched' && !criteria.clientId)
+    reject(400, 'Matched search requires clientId.');
   const includeMatch = criteria.mode === 'matched' && criteria.clientId != null;
   const opportunities = referenceOpportunityRows.map((row) =>
     referenceRecord(row, state.bookmarks, state.workflowOverrides, criteria.clientId, includeMatch),
