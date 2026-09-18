@@ -327,9 +327,10 @@ function Workspace({
             />
             <CapiroSelect
               label="Audience"
+              helpText={audience === 'external' ? 'Private notes are excluded.' : undefined}
               value={audience}
               options={[
-                option('external', 'External — private notes excluded'),
+                option('external', 'External'),
                 option('internal', 'Internal review'),
               ]}
               onChange={(e) => setAudience(e.target.value)}

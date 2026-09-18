@@ -413,7 +413,7 @@ export function LegiWatchModule() {
               if (event.target.value) setTab(event.target.value as LegiWatchTab);
             }}
           >
-            <option value="">More sections</option>
+            <option value="">More</option>
             {LEGIWATCH_SECONDARY_TABS.map((t) => (
               <option key={t} value={t}>
                 {TAB_HEAD[t].title}
