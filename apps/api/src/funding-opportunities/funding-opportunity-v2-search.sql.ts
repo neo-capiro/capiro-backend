@@ -655,12 +655,14 @@ export async function healthSql(
 ): Promise<OpportunityCatalogHealth> {
   const verb = SOURCE_VERBS[source];
   const rows = await prisma.withSystem((tx) => tx.$queryRaw<Array<{ record_count: bigint; active_count: bigint; status: string | null; error_count: number; latest_attempt_at: Date | null; last_success_at: Date | null }>>(Prisma.sql`
-    WITH catalog AS (${sourceBase(source)}), latest AS (SELECT status, error_count FROM sync_run WHERE source = ${verb} ORDER BY started_at DESC LIMIT 1), successful AS
+    WITH catalog AS (${sourceBase(source)}), counts AS (
+      SELECT count(*) record_count, count(*) FILTER (WHERE lifecycle = 'active') active_count FROM catalog
+    ), latest AS (SELECT status, error_count FROM sync_run WHERE source = ${verb} ORDER BY started_at DESC LIMIT 1), successful AS
       (SELECT max(finished_at) last_success_at FROM sync_run WHERE source = ${verb} AND status = 'success' AND error_count = 0)
-    SELECT (SELECT count(*) FROM catalog) record_count, (SELECT count(*) FROM catalog WHERE lifecycle = 'active') active_count,
+    SELECT counts.record_count, counts.active_count,
       (SELECT status FROM latest) status, (SELECT error_count FROM latest) error_count,
       (SELECT coalesce(finished_at, started_at) FROM sync_run WHERE source = ${verb} ORDER BY started_at DESC LIMIT 1) latest_attempt_at,
-      successful.last_success_at FROM successful`), { timeoutMs: 10_000 });
+      successful.last_success_at FROM counts CROSS JOIN successful`), { timeoutMs: 10_000 });
   const row = rows[0];
   if (!row) return { state: 'never_synced', recordCount: 0, activeRecordCount: 0, lastSyncedAt: null };
   const state = !row.status

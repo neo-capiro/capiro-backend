@@ -6,7 +6,7 @@ import {
   normalizeOpportunitySearchCriteria,
   type OpportunitySourceV2,
 } from '@capiro/shared';
-import { readExactSourceSql, searchSourceSql } from './funding-opportunity-v2-search.sql.js';
+import { healthSql, readExactSourceSql, searchSourceSql } from './funding-opportunity-v2-search.sql.js';
 
 const TEST_DATABASE_URL = process.env.FUNDING_OPPORTUNITIES_TEST_DATABASE_URL;
 const parsedUrl = TEST_DATABASE_URL ? new URL(TEST_DATABASE_URL) : null;
@@ -378,5 +378,64 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
     const forecast = await searchSourceSql(adapter, 'agency_forecast', criteria({ query: sourcePrefix }), null);
     expect(forecast.records[0]).toMatchObject({ deadline: null, closeOrArchiveDate: null });
     expect(forecast.records[0]?.sourceFacts).toMatchObject({ anticipatedAwardDate: expect.anything() });
+  });
+});
+
+describe('funding opportunity source health SQL shape and semantics', () => {
+  test('aggregates lifecycle counts in one catalog scan for every source', async () => {
+    const queries: unknown[] = [];
+    const adapter = {
+      withSystem: async <T>(fn: (tx: { $queryRaw: <R>(query: unknown) => Promise<R> }) => Promise<T>) => fn({
+        $queryRaw: async <R>(query: unknown) => {
+          queries.push(query);
+          return [{
+            record_count: 12n,
+            active_count: 5n,
+            status: 'success',
+            error_count: 0,
+            latest_attempt_at: new Date(),
+            last_success_at: new Date(),
+          }] as R;
+        },
+      }),
+    };
+
+    for (const source of ['grants_gov', 'sam_gov', 'agency_forecast', 'dibbs', 'sbir_sttr', 'ca_portal'] as OpportunitySourceV2[]) {
+      await expect(healthSql(adapter, source)).resolves.toMatchObject({
+        state: 'current', recordCount: 12, activeRecordCount: 5,
+        lastSyncedAt: expect.any(String), latestAttemptAt: expect.any(String), lastSuccessAt: expect.any(String),
+      });
+    }
+
+    expect(queries).toHaveLength(6);
+    for (const query of queries) {
+      const sql = ((query as { strings?: string[] }).strings ?? []).join('?');
+      expect(sql).toContain('counts AS');
+      expect(sql).toContain("count(*) FILTER (WHERE lifecycle = 'active') active_count FROM catalog");
+      expect(sql).not.toContain('(SELECT count(*) FROM catalog)');
+      expect(sql).not.toContain("(SELECT count(*) FROM catalog WHERE lifecycle = 'active')");
+    }
+  });
+
+  test('preserves cached-error and initial-partial state semantics and timestamps', async () => {
+    const rows = [
+      { record_count: 8n, active_count: 2n, status: 'error', error_count: 1, latest_attempt_at: new Date('2026-09-17T12:00:00.000Z'), last_success_at: new Date('2026-07-29T12:53:27.551Z') },
+      { record_count: 8n, active_count: 2n, status: 'running', error_count: 0, latest_attempt_at: new Date('2026-09-17T12:00:00.000Z'), last_success_at: null },
+    ];
+    const adapter = {
+      withSystem: async <T>(fn: (tx: { $queryRaw: <R>(query: unknown) => Promise<R> }) => Promise<T>) => fn({
+        $queryRaw: async <R>(_query: unknown) => [rows.shift()!] as R,
+      }),
+    };
+
+    await expect(healthSql(adapter, 'sam_gov')).resolves.toMatchObject({
+      state: 'error_cached', recordCount: 8, activeRecordCount: 2,
+      lastSyncedAt: '2026-07-29T12:53:27.551Z', latestAttemptAt: '2026-09-17T12:00:00.000Z',
+      lastSuccessAt: '2026-07-29T12:53:27.551Z',
+    });
+    await expect(healthSql(adapter, 'dibbs')).resolves.toMatchObject({
+      state: 'initial_partial', recordCount: 8, activeRecordCount: 2,
+      lastSyncedAt: null, latestAttemptAt: '2026-09-17T12:00:00.000Z', lastSuccessAt: null,
+    });
   });
 });
