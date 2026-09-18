@@ -274,7 +274,9 @@ export class TangoGatewayService implements TangoGateway {
         rawForecastsGet(c, {
           ...base,
           shape: TANGO_SHAPES.forecast,
-          ...(options.changedSince ? { modified_after: options.changedSince } : {}),
+          ...(options.changedSince !== undefined
+            ? { modified_after: normalizeForecastModifiedAfter(options.changedSince) }
+            : {}),
           ...(options.fiscalYear ? { fiscal_year: options.fiscalYear } : {}),
           ...(options.naics ? { naics_code: options.naics } : {}),
           ...(options.agency ? { agency: options.agency } : {}),
@@ -651,6 +653,42 @@ export class TangoGatewayService implements TangoGateway {
       cause: error,
     });
   }
+}
+
+const ISO_CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ISO_TIMESTAMP_WITH_ZONE =
+  /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Forecast modified_after is a provider calendar-date filter, not an instant
+ * filter. Keep the internal checkpoint instant's UTC semantics while sending
+ * the UTC calendar day that contains it. This is forecast-only because the
+ * other Tango endpoints have different date contracts.
+ */
+export function normalizeForecastModifiedAfter(value: string): string {
+  const calendarDate = value.match(ISO_CALENDAR_DATE);
+  if (calendarDate) {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    if (!Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value) {
+      return value;
+    }
+  }
+
+  const timestamp = value.match(ISO_TIMESTAMP_WITH_ZONE);
+  if (timestamp) {
+    const datePart = `${timestamp[1]}-${timestamp[2]}-${timestamp[3]}`;
+    const date = new Date(`${datePart}T00:00:00.000Z`);
+    const parsed = new Date(value);
+    if (
+      !Number.isNaN(date.getTime()) &&
+      date.toISOString().slice(0, 10) === datePart &&
+      !Number.isNaN(parsed.getTime())
+    ) {
+      return parsed.toISOString().slice(0, 10);
+    }
+  }
+
+  throw new Error('changedSince must be a valid ISO date or timestamp');
 }
 
 /**
