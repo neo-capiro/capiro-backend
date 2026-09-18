@@ -296,13 +296,16 @@ export class LegiWatchLifecycleNotificationService {
       //
       // The flag column is interpolated from the closed HEARING_FOLLOW_FLAG
       // map above, never from caller input, so this is not an injection point.
+      // Raw SQL bypasses the Prisma tenant predicate hook. Both follow
+      // lookups explicitly constrain the tenant even under an owner DB role.
       const hearingFollows = await tx.$queryRawUnsafe<
         Array<{ userId: string; clientIds: string[]; enabled: boolean }>
       >(
         `SELECT user_id AS "userId", client_ids AS "clientIds", ${flag} AS enabled
          FROM hearing_follow
-         WHERE hearing_id = $1`,
+         WHERE hearing_id = $1 AND tenant_id = $2::uuid`,
         input.hearingId,
+        input.tenantId,
       );
 
       // ── recipients from committee follows ──
@@ -313,8 +316,9 @@ export class LegiWatchLifecycleNotificationService {
             >(
               `SELECT user_id AS "userId", client_ids AS "clientIds", ${committeeFlag} AS enabled
                FROM legiwatch_committee_follow
-               WHERE committee_system_code = $1`,
+               WHERE committee_system_code = $1 AND tenant_id = $2::uuid`,
               input.committeeSystemCode,
+              input.tenantId,
             )
           : [];
 
@@ -491,6 +495,17 @@ export class LegiWatchLifecycleNotificationService {
       }),
     );
     return { read: result.count > 0 };
+  }
+
+  /** Mark all caller unread rows, including rows beyond the current inbox page. */
+  async markAllRead(ctx: TenantContext): Promise<{ read: number }> {
+    const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.legiWatchNotificationEvent.updateMany({
+        where: { userId: ctx.userId, readAt: null },
+        data: { readAt: new Date() },
+      }),
+    );
+    return { read: result.count };
   }
 
   // ── transition-keyed emit helpers ────────────────────────────────────────

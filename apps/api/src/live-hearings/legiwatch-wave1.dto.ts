@@ -181,6 +181,11 @@ export class CommitteeFollowDto {
   @Transform(toBoolean)
   @IsBoolean()
   notifyOnHighPriorityMatch?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  notifyOnPublication?: boolean;
 }
 
 export class CommitteeIntelligenceQueryDto {
@@ -377,6 +382,16 @@ export class NotificationInboxQueryDto {
   @Min(1)
   @Max(100)
   pageSize?: number;
+}
+
+// ── Committee email preferences (PUT whitelist: committeeEmailEnabled only) ──
+export class CommitteeEmailPreferenceDto {
+  /**
+   * Server-side flag toggle. PUT must declare the explicit boolean — a
+   * request that passes nothing does not silently disable; it 400s.
+   */
+  @IsBoolean()
+  committeeEmailEnabled!: boolean;
 }
 
 // ── Hearing Detail V2 ──────────────────────────────────────────────────────

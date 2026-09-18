@@ -43,6 +43,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     null as never,
     null as never,
     null as never,
+    null as never,
   );
 
   beforeAll(async () => {
@@ -401,7 +402,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('public review session counts canonical final segments and never borrows another capture', async () => {
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
     for (let i = 1; i <= 37; i++) {
       await client.query(
         `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
@@ -431,7 +434,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('public review session counts distinct insight source segments and ignores private decoys', async () => {
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
     // Two segments back the moments; one carries two insight rows that must
     // dedup to one moment, mirroring the 7-rows-over-6-segments public shape.
     await client.query(
@@ -467,7 +472,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('misassociated public capture never borrows public insights and keeps the private count', async () => {
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-other','other')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-other','other')`,
+    );
     await client.query(
       `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
        VALUES ('other-seg', 'cap-other', 1000, 1, true, 'other hearing transcript')`,
@@ -491,7 +498,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('ordinary private session keeps tenant private intelligence count; public capture does not merge', async () => {
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
     await client.query(
       `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
        VALUES ('pub-1', 'cap-fauci', 1000, 1, true, 'public canonical')`,
@@ -519,7 +528,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('ordinary private session keeps tenant private count; public capture does not merge', async () => {
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
     await client.query(
       `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
        VALUES ('pub-1', 'cap-fauci', 1000, 1, true, 'public canonical')`,
@@ -547,7 +558,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
   });
 
   it('misassociated public capture falls back to private count and never merges another hearing', async () => {
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-other','other')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-other','other')`,
+    );
     await client.query(
       `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
        VALUES ('other-seg', 'cap-other', 1000, 1, true, 'other hearing transcript')`,
@@ -566,7 +579,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
 
   it('closed hearing with public capture remains discoverable and counts canonical segments', async () => {
     await client.query(`UPDATE committee_hearing SET visibility='private' WHERE id='fauci'`);
-    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
     for (let i = 1; i <= 5; i++) {
       await client.query(
         `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)

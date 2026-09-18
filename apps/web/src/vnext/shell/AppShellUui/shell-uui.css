@@ -508,6 +508,33 @@
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item[data-unread] {
   background: var(--uui-brand-tint);
 }
+/* Committee/hearing rows: a real <button> fills the li so keyboard users get
+   a focusable control (the li itself is not a button). Reuses the item's own
+   spacing so the two sources' rows are visually identical. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item:has(.capiro-vnext-notif__open) {
+  padding: 0;
+  cursor: default;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__open {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__open:disabled {
+  cursor: wait;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__source {
+  display: block;
+  font-size: 11px;
+  font-weight: var(--uui-weight-semibold);
+  color: var(--uui-brand-hover);
+  margin-bottom: 2px;
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__message {
   display: block;
   font-size: 13px;

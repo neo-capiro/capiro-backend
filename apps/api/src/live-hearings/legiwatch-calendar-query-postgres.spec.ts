@@ -9,7 +9,13 @@ describe('Phase 3 calendar selection and export on PostgreSQL', () => {
   jest.setTimeout(60000);
   const p = new PrismaService(),
     calendar = new LiveHearingsService(p);
-  const wave = new LegiWatchWave1Service(p, null as never, null as never, null as never);
+  const wave = new LegiWatchWave1Service(
+    p,
+    null as never,
+    null as never,
+    null as never,
+    null as never,
+  );
   const tenant = randomUUID(),
     suffix = randomUUID(),
     bill = 'fl-2097-' + suffix;

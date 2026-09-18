@@ -16,6 +16,7 @@ import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+import { LegiWatchCommitteeNotificationService } from './legiwatch-committee-notification.service.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import { LegiWatchWave2CoverageService } from './legiwatch-wave2-coverage.service.js';
 
@@ -60,7 +61,17 @@ describeDb('LegiWatch Wave 2 (real Postgres)', () => {
   const committees = new CommitteeDirectoryService(prisma, hearings);
   const phase7 = new LiveHearingsPhase7Service(prisma, hearings, committees);
   const notifications = new LegiWatchLifecycleNotificationService(prisma);
-  const wave1 = new LegiWatchWave1Service(prisma, phase7, committees, notifications);
+  const wave1 = new LegiWatchWave1Service(
+    prisma,
+    phase7,
+    committees,
+    notifications,
+    new LegiWatchCommitteeNotificationService(
+      prisma,
+      { send: jest.fn() } as never,
+      { get: () => 'https://os.capiro.ai' } as never,
+    ),
+  );
   const coverage = new LegiWatchWave2CoverageService(prisma, hearings);
 
   beforeAll(() => prisma.$connect());

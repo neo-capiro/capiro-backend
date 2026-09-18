@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardIcon, type DashboardIconName } from '../../components/untitledui/dashboard-icons.js';
 import type { ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
@@ -10,6 +10,13 @@ import {
   useRespondToInvite,
 } from '../../../pages/workspace/api.js';
 import type { WsNotification } from '../../../pages/workspace/types.js';
+import {
+  useLwNotifications,
+  useMarkAllLwNotificationsRead,
+  useMarkLwNotificationRead,
+  w1Error,
+  type LwNotification,
+} from '../../pages/legiwatch/lib/wave1-api.js';
 import { useShellOverlay } from '../overlay-manager.js';
 
 export function CapiroTopBar({
@@ -71,17 +78,41 @@ export function NotificationBell({
   const { isOpen, containerRef, toggle, close } = useShellOverlay('notifications');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const list = useNotifications();
-  const markRead = useMarkNotificationRead();
-  const markAll = useMarkAllNotificationsRead();
+  // Two real feeds, one bell. IDs are namespaced at the boundary so a
+  // workspace id and a durable lw notification id can never collide.
+  const wsList = useNotifications();
+  // Unread-only: the bell is an actionable surface. Read history stays in the
+  // inbox; `unread` is the server-side count, never row math.
+  const lwList = useLwNotifications(true);
+  const wsMarkRead = useMarkNotificationRead();
+  const wsMarkAll = useMarkAllNotificationsRead();
+  const lwMarkRead = useMarkLwNotificationRead();
+  const lwMarkAll = useMarkAllLwNotificationsRead();
   const respond = useRespondToInvite();
 
-  const items: WsNotification[] = list.data?.items ?? [];
-  const unavailable = notifications.unavailable || list.isError;
+  const wsItems = wsList.data?.items ?? [];
+  const lwItems = lwList.data?.rows ?? [];
+  const wsFailed = wsList.isError;
+  const lwFailed = lwList.isError;
+  const unavailable = notifications.unavailable || (wsFailed && lwFailed);
 
   const label = unavailable
     ? 'Notifications unavailable'
     : `Notifications${notifications.unread > 0 ? `, ${notifications.unread} unread` : ''}`;
+
+  const merged = useMemo<Array<
+    | { source: 'workspace'; at: number; n: WsNotification }
+    | { source: 'committee'; at: number; n: LwNotification }
+  >>(() => {
+    const out: Array<
+      | { source: 'workspace'; at: number; n: WsNotification }
+      | { source: 'committee'; at: number; n: LwNotification }
+    > = [];
+    for (const n of wsItems) out.push({ source: 'workspace', at: Date.parse(n.createdAt) || 0, n });
+    for (const n of lwItems) out.push({ source: 'committee', at: Date.parse(n.createdAt) || 0, n });
+    // Newest first; a committee alert must never be buried under older items.
+    return out.sort((a, b) => b.at - a.at);
+  }, [wsItems, lwItems]);
 
   const onRespond = (draftId: string, collaboratorId: string, action: 'accept' | 'decline') => {
     respond.mutate(
@@ -95,6 +126,42 @@ export function NotificationBell({
         },
       },
     );
+  };
+
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  /** Committee/hearing row: mark read, then follow the server deep link.
+   *  Navigation happens ONLY after the read persists — a failed read leaves
+   *  the row unread and shows an inline error with the bell still open. */
+  const openCommittee = (n: LwNotification) => {
+    setActionError(null);
+    if (n.read) {
+      if (n.deepLink) {
+        close();
+        navigate(n.deepLink);
+      }
+      return;
+    }
+    lwMarkRead.mutate(n.id, {
+      onSuccess: () => {
+        if (n.deepLink) {
+          close();
+          navigate(n.deepLink);
+        }
+      },
+      onError: (err) => setActionError(w1Error(err) || 'Could not mark this alert read.'),
+    });
+  };
+
+  const markAllPending = wsMarkAll.isPending || lwMarkAll.isPending;
+  const markAll = () => {
+    // Both sources, both caches — the dashboard Needs Attention module reads
+    // the same lw key, so it clears together with the bell.
+    setActionError(null);
+    const onError = (err: unknown) =>
+      setActionError(w1Error(err) || 'Some notifications could not be marked read.');
+    if (!wsFailed) wsMarkAll.mutate(undefined, { onError });
+    if (!lwFailed) lwMarkAll.mutate(undefined, { onError });
   };
 
   return (
@@ -122,29 +189,80 @@ export function NotificationBell({
           <div className="capiro-vnext-notif__head">
             <span className="capiro-vnext-notif__title">Notifications</span>
             {notifications.unread > 0 ? (
-              <button type="button" className="capiro-vnext-notif__markall" onClick={() => markAll.mutate()}>
-                Mark all read
+              <button
+                type="button"
+                className="capiro-vnext-notif__markall"
+                onClick={markAll}
+                disabled={markAllPending}
+              >
+                {markAllPending ? 'Marking…' : 'Mark all read'}
               </button>
             ) : null}
           </div>
 
-          {list.isLoading ? (
+          {wsFailed && !lwFailed ? (
+            <p className="capiro-vnext-notif__empty" role="alert">
+              Workspace notifications are unavailable right now — committee alerts are unaffected.
+            </p>
+          ) : null}
+          {lwFailed && !wsFailed ? (
+            <p className="capiro-vnext-notif__empty" role="alert">
+              Committee alerts are unavailable right now — workspace notifications are unaffected.
+            </p>
+          ) : null}
+          {actionError ? (
+            <p className="capiro-vnext-notif__empty" role="alert">
+              {actionError}
+            </p>
+          ) : null}
+
+          {wsList.isLoading || lwList.isLoading ? (
             <p className="capiro-vnext-notif__empty">Loading…</p>
           ) : unavailable ? (
             <p className="capiro-vnext-notif__empty">Notifications are unavailable right now.</p>
-          ) : items.length === 0 ? (
-            <p className="capiro-vnext-notif__empty">No notifications</p>
+          ) : merged.length === 0 ? (
+            <p className="capiro-vnext-notif__empty">
+              {notifications.unread > 0
+                ? 'Unread notifications exist but could not be loaded — try Mark all read or reload.'
+                : 'No notifications'}
+            </p>
           ) : (
             <ul className="capiro-vnext-notif__list">
-              {items.map((n) => {
+              {merged.map((entry) => {
+                if (entry.source === 'committee') {
+                  const n = entry.n;
+                  return (
+                    <li
+                      key={`lw-${n.id}`}
+                      className="capiro-vnext-notif__item"
+                      data-unread={!n.read || undefined}
+                    >
+                      <button
+                        type="button"
+                        className="capiro-vnext-notif__open"
+                        disabled={lwMarkRead.isPending}
+                        onClick={() => openCommittee(n)}
+                      >
+                        <span className="capiro-vnext-notif__message">
+                          <span className="capiro-vnext-notif__source">
+                            {n.eventType === 'committee_publication' ? 'Committee publication' : 'Committee'}
+                          </span>
+                          {n.title}
+                        </span>
+                        <span className="capiro-vnext-notif__time">{relativeTime(n.createdAt)}</span>
+                      </button>
+                    </li>
+                  );
+                }
+                const n = entry.n;
                 const isInvite = n.kind === 'collab_invite' && n.actionable && n.draftId && n.collaboratorId;
                 return (
                   <li
-                    key={n.id}
+                    key={`ws-${n.id}`}
                     className="capiro-vnext-notif__item"
                     data-unread={!n.read || undefined}
                     onClick={() => {
-                      if (!n.read) markRead.mutate(n.id);
+                      if (!n.read) wsMarkRead.mutate(n.id);
                     }}
                   >
                     <span className="capiro-vnext-notif__message">{n.message}</span>

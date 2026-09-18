@@ -49,6 +49,7 @@ import {
   AttendanceRequestDto,
   BriefPrefillDto,
   ClientRelevanceQueryDto,
+  CommitteeEmailPreferenceDto,
   CommitteeFollowDto,
   CommitteeIntelligenceQueryDto,
   DetailV2QueryDto,
@@ -254,6 +255,29 @@ export class LegiWatchWave1Controller {
     @Param('notificationId') notificationId: string,
   ) {
     return this.wave1.markNotificationRead(ctx, notificationId);
+  }
+
+  /** Mark the caller's full notification inbox read. */
+  @Post('notifications/read-all')
+  @Header('Cache-Control', 'no-store')
+  markAllRead(@CurrentTenant() ctx: TenantContext) {
+    return this.wave1.markAllNotificationsRead(ctx);
+  }
+
+  /** Current account email and the caller's opt-in preference. */
+  @Get('notification-preferences')
+  @Header('Cache-Control', 'no-store')
+  getNotificationPreferences(@CurrentTenant() ctx: TenantContext) {
+    return this.wave1.getNotificationPreferences(ctx);
+  }
+
+  @Put('notification-preferences')
+  @Header('Cache-Control', 'no-store')
+  putNotificationPreferences(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() body: CommitteeEmailPreferenceDto,
+  ) {
+    return this.wave1.putNotificationPreferences(ctx, body);
   }
 
   // ── W1-8 · calendar export ───────────────────────────────────────────────

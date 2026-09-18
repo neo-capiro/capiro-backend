@@ -50,6 +50,12 @@ beforeEach(() => {
   ME.user.legiwatchPrefs = { ...STORED_PREFS };
   apiGet.mockImplementation((url: string) => {
     if (url.startsWith('/api/me')) return Promise.resolve({ data: meDoc() });
+    // Committee email opt-in (committee-follow-alerts) — disabled preference.
+    if (url === '/api/legiwatch/live-hearings/notification-preferences') {
+      return Promise.resolve({
+        data: { committeeEmailEnabled: false, emailAddress: 'u1@example.com' },
+      });
+    }
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
   apiPatch.mockImplementation(((url: string, body?: unknown) => {
