@@ -26,22 +26,19 @@
  * operation (exactly one named old/new pair per call).
  *
  * Idempotency / concurrency, precisely:
- *   - Same (old, new) pair replayed (e.g. a CLI retry) -> the second
- *     attempt's transaction loses the unique-index race to the first, rolls
- *     back entirely (nothing re-superseded, no second row), reads back the
- *     existing link, finds `newCandidateId` matches what was just
- *     requested, and returns `mode: 'already_recorded'` with the ORIGINAL
- *     persisted result.
- *   - A DIFFERENT new (or old) candidate collision (two genuinely concurrent
- *     correction attempts, or an operator error) -> the losing attempt's
- *     transaction rolls back entirely -- its own supersession attempt is
- *     undone along with the failed insert -- reads back the existing link,
- *     finds it does not match, and throws
- *     `already_corrected_by_different_candidate` naming the winning link --
- *     an explicit, auditable resolution with no side effect left behind.
- *     The loser's own new candidate row is NOT deleted or hidden; it simply
- *     is not registered as THE correction, and can itself be linked to a
- *     further correction attempt by an operator who reviews the conflict.
+ *   - Same (old, new) pair replayed -> the graph-serialized transaction
+ *     returns the authoritative existing link and this service reports
+ *     `mode: 'already_recorded'` with its ORIGINAL persisted result.
+ *   - A different old/new collision returns which uniqueness rail owns the
+ *     conflict. Old-candidate and new-candidate claims have distinct typed
+ *     errors; neither is mislabeled as a winner on a different rail.
+ *   - Eligibility drift and reverse/cycle state are rechecked under the graph
+ *     and candidate locks and returned as named, zero-write refusals.
+ *   Every refused transaction leaves existing approvals and links unchanged.
+ *
+ *   The loser's own new candidate row is NOT deleted or hidden; it simply
+ *   is not registered as THE correction, and can itself be linked to a
+ *   further correction attempt by an operator who reviews the conflict.
  */
 import type { ReadCandidateV1, BudgetVerificationRepositoryV1 } from '../../verification/persistence/verification-repository.js';
 import {
@@ -49,8 +46,13 @@ import {
   type CandidateCorrectionEligibilityResultV1,
 } from './candidate-correction-policy-v1.js';
 import type {
+  CandidateCorrectionReviewedScopeV1,
   CandidateCorrectionRepositoryV1,
   CandidateCorrectionRowV1,
+} from './candidate-correction-repository-v1.js';
+import {
+  buildCandidateCorrectionReviewedIntentV1,
+  computeCandidateCorrectionReviewedIntentCanonicalSha256V1,
 } from './candidate-correction-repository-v1.js';
 
 export type CandidateCorrectionErrorCodeV1 =
@@ -59,7 +61,11 @@ export type CandidateCorrectionErrorCodeV1 =
   | 'blank_reason'
   | 'blank_actor'
   | 'ineligible'
-  | 'already_corrected_by_different_candidate';
+  | 'already_corrected_by_different_candidate'
+  | 'new_candidate_already_claimed'
+  | 'reverse_or_cycle_conflict'
+  | 'correction_intent_mismatch'
+  | 'stale_eligibility';
 
 export class CandidateCorrectionError extends Error {
   constructor(
@@ -78,6 +84,55 @@ export interface CandidateCorrectionInputV1 {
   newCandidateId: string;
   actor: string;
   reason: string;
+  /** Operator-reviewed immutable intent. When supplied, both the preview and
+   * the transactional repository boundary must still match these exact
+   * run/source/artifact/manifest identities. */
+  expectedOldCandidateIdentity?: CandidateCorrectionExpectedCandidateIdentityV1;
+  expectedNewCandidateIdentity?: CandidateCorrectionExpectedCandidateIdentityV1;
+  /** Exact manifest scopes reviewed as part of this operation. Persisted on
+   * the append-only correction link; an empty list means this correction was
+   * not coupled to a scoped-approval replacement batch. */
+  selectedScopes?: CandidateCorrectionReviewedScopeV1[];
+}
+
+export interface CandidateCorrectionExpectedCandidateIdentityV1 {
+  currentRunId: string | null;
+  sourceDocumentId: string;
+  sourceSha256: string;
+  extractionArtifactId: string;
+  extractionArtifactSha256: string;
+  manifestContentSha256: string;
+}
+
+function candidateIdentitySnapshotV1(candidate: ReadCandidateV1): CandidateCorrectionExpectedCandidateIdentityV1 {
+  return {
+    currentRunId: candidate.currentRunId,
+    sourceDocumentId: candidate.sourceDocumentId,
+    sourceSha256: candidate.sourceSha256,
+    extractionArtifactId: candidate.extractionArtifactId,
+    extractionArtifactSha256: candidate.extractionArtifactSha256,
+    manifestContentSha256: candidate.manifestContentSha256,
+  };
+}
+
+function candidateIdentityDifferencesV1(
+  label: 'old' | 'new',
+  expected: CandidateCorrectionExpectedCandidateIdentityV1,
+  observed: ReadCandidateV1,
+): string[] {
+  const differences: string[] = [];
+  const compare = (field: keyof CandidateCorrectionExpectedCandidateIdentityV1): void => {
+    if (observed[field] !== expected[field]) {
+      differences.push(`${label}.${field}=${String(observed[field])} expected ${String(expected[field])}`);
+    }
+  };
+  compare('currentRunId');
+  compare('sourceDocumentId');
+  compare('sourceSha256');
+  compare('extractionArtifactId');
+  compare('extractionArtifactSha256');
+  compare('manifestContentSha256');
+  return differences;
 }
 
 export interface CandidateCorrectionPreviewV1 {
@@ -116,6 +171,25 @@ export class CandidateCorrectionV1Service {
     if (newCandidate == null) {
       throw new CandidateCorrectionError('new_candidate_not_found', `candidate ${input.newCandidateId} not found`);
     }
+
+    const expectedOldCandidateIdentity = input.expectedOldCandidateIdentity ?? candidateIdentitySnapshotV1(oldCandidate);
+    const expectedNewCandidateIdentity = input.expectedNewCandidateIdentity ?? candidateIdentitySnapshotV1(newCandidate);
+    const reviewedIdentityDifferences = [
+      ...candidateIdentityDifferencesV1('old', expectedOldCandidateIdentity, oldCandidate),
+      ...candidateIdentityDifferencesV1('new', expectedNewCandidateIdentity, newCandidate),
+    ];
+    if (reviewedIdentityDifferences.length > 0) {
+      throw new CandidateCorrectionError(
+        'stale_eligibility',
+        `correction refused because reviewed candidate intent is stale: ${reviewedIdentityDifferences.join(', ')}`,
+      );
+    }
+
+    // Reverse-correction guard (fires BEFORE any write, including for a
+    // dry-run preview): read whether the NEW candidate already stands as the
+    // OLD side of some other existing link. Pure I/O read, no mutation --
+    // the actual refusal is decided by the pure policy function below.
+    const newCandidateExistingOldLink = await this.corrections.readByOldCandidateId(newCandidate.id);
 
     const eligibility = evaluateCandidateCorrectionEligibilityV1({
       oldCandidate: {
@@ -170,10 +244,19 @@ export class CandidateCorrectionV1Service {
       oldCandidateId: oldCandidate.id,
       newCandidateId: newCandidate.id,
       oldCandidateStatusAtCorrection: oldCandidate.status,
-      oldCandidateSourceDocumentId: oldCandidate.sourceDocumentId,
-      oldCandidateSourceSha256: oldCandidate.sourceSha256,
-      newCandidateSourceDocumentId: newCandidate.sourceDocumentId,
-      newCandidateSourceSha256: newCandidate.sourceSha256,
+      oldCandidateCurrentRunId: expectedOldCandidateIdentity.currentRunId,
+      oldCandidateSourceDocumentId: expectedOldCandidateIdentity.sourceDocumentId,
+      oldCandidateSourceSha256: expectedOldCandidateIdentity.sourceSha256,
+      oldCandidateExtractionArtifactId: expectedOldCandidateIdentity.extractionArtifactId,
+      oldCandidateExtractionArtifactSha256: expectedOldCandidateIdentity.extractionArtifactSha256,
+      oldCandidateManifestContentSha256: expectedOldCandidateIdentity.manifestContentSha256,
+      newCandidateCurrentRunId: expectedNewCandidateIdentity.currentRunId,
+      newCandidateSourceDocumentId: expectedNewCandidateIdentity.sourceDocumentId,
+      newCandidateSourceSha256: expectedNewCandidateIdentity.sourceSha256,
+      newCandidateExtractionArtifactId: expectedNewCandidateIdentity.extractionArtifactId,
+      newCandidateExtractionArtifactSha256: expectedNewCandidateIdentity.extractionArtifactSha256,
+      newCandidateManifestContentSha256: expectedNewCandidateIdentity.manifestContentSha256,
+      selectedScopes: input.selectedScopes ?? [],
       actor: input.actor,
       reason: input.reason,
       supersessionReason: reasonForSupersession,
@@ -189,19 +272,79 @@ export class CandidateCorrectionV1Service {
       };
     }
 
-    // Lost the race (or this is a literal retry of an already-completed
-    // correction) -- the transaction rolled back, so THIS attempt superseded
-    // nothing and inserted nothing. Read back whichever row actually won and decide.
-    const winner = await this.corrections.readByOldCandidateId(oldCandidate.id);
-    if (winner == null) {
-      // Should be unreachable (a unique-violation on insert implies a row
-      // exists), but never silently succeed on an assumption.
+    if (commitResult.outcome === 'stale_eligibility') {
       throw new CandidateCorrectionError(
-        'already_corrected_by_different_candidate',
-        `correction insert for old candidate ${oldCandidate.id} conflicted, but no existing link could be read back`,
+        'stale_eligibility',
+        `correction refused at the transactional write boundary for old candidate ${oldCandidate.id} -> ` +
+          `new candidate ${newCandidate.id}: ${commitResult.detail}. Re-run the preview against current candidate state.`,
+        eligibility,
       );
     }
-    if (winner.newCandidateId === newCandidate.id) {
+
+    if (commitResult.outcome === 'reverse_or_cycle_conflict') {
+      const authoritativeEligibility = evaluateCandidateCorrectionEligibilityV1({
+        oldCandidate: {
+          id: oldCandidate.id,
+          status: oldCandidate.status,
+          sourceDocumentId: oldCandidate.sourceDocumentId,
+          sourceSha256: oldCandidate.sourceSha256,
+        },
+        newCandidate: {
+          id: newCandidate.id,
+          status: newCandidate.status,
+          sourceDocumentId: newCandidate.sourceDocumentId,
+          sourceSha256: newCandidate.sourceSha256,
+        },
+        newCandidateAlreadyCorrectedIntoAnotherCandidate: true,
+      });
+      throw new CandidateCorrectionError(
+        'reverse_or_cycle_conflict',
+        `correction refused at the transactional write boundary: new candidate ${newCandidate.id} already stands ` +
+          `on the corrected-away side of the correction graph${commitResult.existingLink == null ? '' : ` (link ${commitResult.existingLink.id})`}. ` +
+          'Continue forward from the latest candidate; do not reverse an append-only correction.',
+        authoritativeEligibility,
+        commitResult.existingLink ?? undefined,
+      );
+    }
+
+    const winner = commitResult.existingLink;
+    if (commitResult.conflictOn === 'old_candidate' && winner.newCandidateId === newCandidate.id) {
+      const requestedIntent = buildCandidateCorrectionReviewedIntentV1({
+        oldCandidateId: oldCandidate.id,
+        newCandidateId: newCandidate.id,
+        oldCandidateCurrentRunId: expectedOldCandidateIdentity.currentRunId,
+        oldCandidateSourceDocumentId: expectedOldCandidateIdentity.sourceDocumentId,
+        oldCandidateSourceSha256: expectedOldCandidateIdentity.sourceSha256,
+        oldCandidateExtractionArtifactId: expectedOldCandidateIdentity.extractionArtifactId,
+        oldCandidateExtractionArtifactSha256: expectedOldCandidateIdentity.extractionArtifactSha256,
+        oldCandidateManifestContentSha256: expectedOldCandidateIdentity.manifestContentSha256,
+        newCandidateCurrentRunId: expectedNewCandidateIdentity.currentRunId,
+        newCandidateSourceDocumentId: expectedNewCandidateIdentity.sourceDocumentId,
+        newCandidateSourceSha256: expectedNewCandidateIdentity.sourceSha256,
+        newCandidateExtractionArtifactId: expectedNewCandidateIdentity.extractionArtifactId,
+        newCandidateExtractionArtifactSha256: expectedNewCandidateIdentity.extractionArtifactSha256,
+        newCandidateManifestContentSha256: expectedNewCandidateIdentity.manifestContentSha256,
+        selectedScopes: input.selectedScopes ?? [],
+      });
+      const requestedIntentSha256 = computeCandidateCorrectionReviewedIntentCanonicalSha256V1(requestedIntent);
+      const persistedIntentSha256 =
+        winner.reviewedIntent == null
+          ? null
+          : computeCandidateCorrectionReviewedIntentCanonicalSha256V1(winner.reviewedIntent);
+      if (
+        winner.reviewedIntentVersion !== 1 ||
+        winner.reviewedIntent == null ||
+        persistedIntentSha256 !== requestedIntentSha256
+      ) {
+        throw new CandidateCorrectionError(
+          'correction_intent_mismatch',
+          `same-pair correction link ${winner.id} exists, but its immutable reviewed operation intent ` +
+            `${persistedIntentSha256 ?? 'legacy/unbound'} does not match requested intent ${requestedIntentSha256}; ` +
+            'the existing link was preserved and this attempt made zero writes',
+          eligibility,
+          winner,
+        );
+      }
       // Same pair, replayed. Idempotent success -- return the ORIGINAL
       // persisted result, not a new row.
       return {
@@ -211,6 +354,18 @@ export class CandidateCorrectionV1Service {
         persisted: winner,
       };
     }
+
+    if (commitResult.conflictOn === 'new_candidate') {
+      throw new CandidateCorrectionError(
+        'new_candidate_already_claimed',
+        `new candidate ${newCandidate.id} already corrects old candidate ${winner.oldCandidateId} ` +
+          `(link ${winner.id}, recorded ${winner.createdAt}); requested old candidate ${oldCandidate.id} was refused. ` +
+          'The existing append-only link was preserved and this attempt made zero writes.',
+        eligibility,
+        winner,
+      );
+    }
+
     throw new CandidateCorrectionError(
       'already_corrected_by_different_candidate',
       `old candidate ${oldCandidate.id} was already corrected by candidate ${winner.newCandidateId} (link ${winner.id}, recorded ${winner.createdAt}); ` +

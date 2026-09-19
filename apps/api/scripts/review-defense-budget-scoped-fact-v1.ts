@@ -12,6 +12,7 @@
  *     --expected-source-sha256 <sha> \
  *     --expected-artifact-sha256 <sha> \
  *     --expected-manifest-sha256 <sha> \
+ *     [--acknowledge-revoked-review-id <exact-review-uuid>] \
  *     [--commit]
  *
  * Behavior:
@@ -58,6 +59,7 @@ const KNOWN_FLAGS = new Set([
   '--expected-source-sha256',
   '--expected-artifact-sha256',
   '--expected-manifest-sha256',
+  '--acknowledge-revoked-review-id',
   '--commit',
 ]);
 
@@ -73,6 +75,7 @@ interface Args {
   expectedSourceSha256: string;
   expectedArtifactSha256: string;
   expectedManifestSha256: string;
+  acknowledgedRevokedReviewId: string | null;
   commit: boolean;
 }
 
@@ -123,6 +126,10 @@ function parseArgs(argv: string[]): Args {
     expectedSourceSha256: need('--expected-source-sha256'),
     expectedArtifactSha256: need('--expected-artifact-sha256'),
     expectedManifestSha256: need('--expected-manifest-sha256'),
+    acknowledgedRevokedReviewId:
+      typeof raw['--acknowledge-revoked-review-id'] === 'string'
+        ? raw['--acknowledge-revoked-review-id']
+        : null,
     commit: raw['--commit'] === true,
   };
 }
@@ -182,6 +189,7 @@ async function main(): Promise<void> {
         expectedSourceSha256: args.expectedSourceSha256,
         expectedExtractionArtifactSha256: args.expectedArtifactSha256,
         expectedManifestContentSha256: args.expectedManifestSha256,
+        acknowledgedRevokedReviewId: args.acknowledgedRevokedReviewId,
       },
       { commit: args.commit },
     );

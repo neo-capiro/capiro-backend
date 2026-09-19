@@ -15,6 +15,9 @@ PG_NAME="capiro-phase10b35c-e2e-pg-$SUFFIX"
 MINIO_NAME="capiro-phase10b35c-e2e-minio-$SUFFIX"
 PG_PORT="${PHASE10B35C_PG_PORT:-0}"
 MINIO_PORT="${PHASE10B35C_MINIO_PORT:-0}"
+# Immutable multi-architecture digest resolved from the official Quay image.
+# Override only for an explicitly reviewed mirror/version.
+MINIO_IMAGE="${PHASE10B35C_MINIO_IMAGE:-quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e}"
 PASSWORD="phase10b35c-rehearsal"
 MINIO_USER="phase10b35c"
 MINIO_PASSWORD="phase10b35c-isolated-archive"
@@ -35,10 +38,10 @@ fi
 
 echo "Starting disposable versioned MinIO ($MINIO_NAME)..." >&2
 if [[ "$MINIO_PORT" == "0" ]]; then
-  docker run -d --name "$MINIO_NAME" -e MINIO_ROOT_USER="$MINIO_USER" -e MINIO_ROOT_PASSWORD="$MINIO_PASSWORD" -p 0:9000 minio/minio:latest server /data >/dev/null
+  docker run -d --name "$MINIO_NAME" -e MINIO_ROOT_USER="$MINIO_USER" -e MINIO_ROOT_PASSWORD="$MINIO_PASSWORD" -p 0:9000 "$MINIO_IMAGE" server /data >/dev/null
   MINIO_PORT="$(docker port "$MINIO_NAME" 9000/tcp | head -1 | cut -d: -f2)"
 else
-  docker run -d --name "$MINIO_NAME" -e MINIO_ROOT_USER="$MINIO_USER" -e MINIO_ROOT_PASSWORD="$MINIO_PASSWORD" -p "$MINIO_PORT:9000" minio/minio:latest server /data >/dev/null
+  docker run -d --name "$MINIO_NAME" -e MINIO_ROOT_USER="$MINIO_USER" -e MINIO_ROOT_PASSWORD="$MINIO_PASSWORD" -p "$MINIO_PORT:9000" "$MINIO_IMAGE" server /data >/dev/null
 fi
 
 pg_ok=0
@@ -67,8 +70,20 @@ export AWS_ACCESS_KEY_ID="$MINIO_USER"
 export AWS_SECRET_ACCESS_KEY="$MINIO_PASSWORD"
 export AWS_REGION="${AWS_REGION:-us-east-1}"
 unset AWS_PROFILE AWS_SESSION_TOKEN BUDGET_VERIFICATION_EXTRACTION_ARTIFACT_BUCKET
-echo "Postgres ready at localhost:${PG_PORT}; MinIO ready at localhost:${MINIO_PORT}. Applying migrations..." >&2
+echo "Postgres ready at localhost:${PG_PORT}; MinIO ready at localhost:${MINIO_PORT}. Building workspace dependency and generating Prisma Client..." >&2
 
+pnpm --filter @capiro/defense-domain build >/dev/null
+parser_sync_args=(--frozen --project "$ROOT/../defense-budget-parser" --extra camelot)
+# Camelot's stream path used by this fixture does not need pdftopng. That
+# transitive package publishes no Windows wheel/source archive, so exclude it
+# only on Git Bash/Windows; Linux rehearsals retain the complete locked extra.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) parser_sync_args+=(--no-install-package pdftopng) ;;
+esac
+uv sync "${parser_sync_args[@]}" >/dev/null
+npx prisma validate >/dev/null
+npx prisma generate >/dev/null
+echo "Workspace dependency/client ready. Applying migrations..." >&2
 npx prisma migrate deploy >/dev/null
 echo "Migrations applied. Running the Phase 10B-35c candidate-correction end-to-end spec..." >&2
 

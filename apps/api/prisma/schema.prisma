@@ -12285,11 +12285,22 @@ model BudgetScopedFactReviewV1 {
   reviewerId               String    @map("reviewer_id")
   rationale                String
   decisionHash             String    @map("decision_hash") @db.Char(64)
+  /// Database-owned monotonic review generation. Unlike revokedAt, this is
+  /// not supplied by a caller clock and therefore orders revocation history.
+  reviewGeneration         BigInt    @default(autoincrement()) @unique(map: "budget_scoped_fact_review_v1_review_generation_unique") @map("review_generation")
+  /// Canonical run/check/discrepancy/proof state evaluated for this decision.
+  /// NULL only for legacy rows created before Package C sealed eligibility.
+  eligibilityStateVersion  String?   @map("eligibility_state_version")
+  eligibilityStateSha256   String?   @map("eligibility_state_sha256") @db.Char(64)
   status                   String    @default("active") @db.VarChar(16)
   revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(6)
   revokedBy                String?   @map("revoked_by")
   revocationReason         String?   @map("revocation_reason")
   supersededById           String?   @map("superseded_by_id") @db.Uuid
+  /// Exact revoked decision explicitly reviewed before an intentional
+  /// reapproval. NULL for an initial decision. Append-only audit evidence;
+  /// never a blanket acknowledgement of "some revocation on this scope".
+  acknowledgedRevokedReviewId String? @map("acknowledged_revoked_review_id") @db.Uuid
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -12297,9 +12308,12 @@ model BudgetScopedFactReviewV1 {
   run          BudgetVerificationRunV1     @relation(fields: [runId], references: [id], onDelete: Restrict)
   supersededBy BudgetScopedFactReviewV1?   @relation("ScopedFactReviewSupersession", fields: [supersededById], references: [id], onDelete: Restrict)
   supersedes   BudgetScopedFactReviewV1[]  @relation("ScopedFactReviewSupersession")
+  acknowledgedRevokedReview BudgetScopedFactReviewV1?  @relation("ScopedFactReviewRevocationAcknowledgement", fields: [acknowledgedRevokedReviewId], references: [id], onDelete: Restrict)
+  acknowledgedByReapprovals BudgetScopedFactReviewV1[] @relation("ScopedFactReviewRevocationAcknowledgement")
 
   @@index([candidateId, createdAt], map: "budget_scoped_fact_review_v1_candidate_idx")
   @@index([scopeKind, scopeKey, status], map: "budget_scoped_fact_review_v1_scope_idx")
+  @@index([acknowledgedRevokedReviewId], map: "budget_scoped_fact_review_v1_ack_revoked_idx")
   @@map("budget_scoped_fact_review_v1")
 }
 
@@ -12310,18 +12324,28 @@ model BudgetScopedFactReviewV1 {
 /// invariant, enforced by a unique index, not just application code) and at
 /// most one row per `newCandidateId`.
 model BudgetCandidateCorrectionV1 {
-  id                             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  oldCandidateId                 String   @unique(map: "budget_candidate_correction_v1_one_per_old_candidate") @map("old_candidate_id") @db.Uuid
-  newCandidateId                 String   @unique(map: "budget_candidate_correction_v1_one_per_new_candidate") @map("new_candidate_id") @db.Uuid
-  oldCandidateStatusAtCorrection String   @map("old_candidate_status_at_correction")
-  oldCandidateSourceDocumentId   String   @map("old_candidate_source_document_id") @db.Uuid
-  oldCandidateSourceSha256       String   @map("old_candidate_source_sha256") @db.Char(64)
-  newCandidateSourceDocumentId   String   @map("new_candidate_source_document_id") @db.Uuid
-  newCandidateSourceSha256       String   @map("new_candidate_source_sha256") @db.Char(64)
-  supersededScopedFactReviewIds  Json     @default("[]") @map("superseded_scoped_fact_review_ids_jsonb")
-  actor                          String
-  reason                         String
-  createdAt                      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  oldCandidateId                    String   @unique(map: "budget_candidate_correction_v1_one_per_old_candidate") @map("old_candidate_id") @db.Uuid
+  newCandidateId                    String   @unique(map: "budget_candidate_correction_v1_one_per_new_candidate") @map("new_candidate_id") @db.Uuid
+  oldCandidateStatusAtCorrection    String   @map("old_candidate_status_at_correction")
+  oldCandidateSourceDocumentId      String   @map("old_candidate_source_document_id") @db.Uuid
+  oldCandidateSourceSha256          String   @map("old_candidate_source_sha256") @db.Char(64)
+  newCandidateSourceDocumentId      String   @map("new_candidate_source_document_id") @db.Uuid
+  newCandidateSourceSha256          String   @map("new_candidate_source_sha256") @db.Char(64)
+  /// Versioned, immutable operator-reviewed operation intent. Version 1
+  /// contains exact old/new candidate+run+source/artifact/manifest identity
+  /// and every selected scope. Nullable only for rows written before Package
+  /// C added durable intent binding.
+  reviewedIntentVersion             Int?     @map("reviewed_intent_version")
+  reviewedIntent                    Json?    @map("reviewed_intent_jsonb")
+  /// Database-owned SHA-256 of PostgreSQL's stored `reviewed_intent_jsonb::text`.
+  /// The insert trigger overwrites caller input; application canonical hashes
+  /// are used only for semantic replay comparison and are not persisted here.
+  reviewedIntentSha256              String?  @map("reviewed_intent_sha256") @db.Char(64)
+  supersededScopedFactReviewIds     Json     @default("[]") @map("superseded_scoped_fact_review_ids_jsonb")
+  actor                             String
+  reason                            String
+  createdAt                         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   oldCandidate BudgetExtractionCandidateV1 @relation("CandidateCorrectionOld", fields: [oldCandidateId], references: [id], onDelete: Restrict)
   newCandidate BudgetExtractionCandidateV1 @relation("CandidateCorrectionNew", fields: [newCandidateId], references: [id], onDelete: Restrict)

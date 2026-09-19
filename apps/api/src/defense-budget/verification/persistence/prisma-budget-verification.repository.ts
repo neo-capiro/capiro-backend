@@ -420,7 +420,7 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
             resultSnapshot: result,
           },
         };
-      });
+      }, { isolationLevel: 'ReadCommitted' });
     } catch (err) {
       // R8.1 §5.4: translate the Prisma unique-conflict into a controlled
       // concurrency signal; on conflict, reload and return the persisted

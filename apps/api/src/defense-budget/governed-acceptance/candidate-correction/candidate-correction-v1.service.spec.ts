@@ -21,6 +21,9 @@ import type {
   InsertCandidateCorrectionInputV1,
   InsertCandidateCorrectionResultV1,
 } from './candidate-correction-repository-v1.js';
+import {
+  buildCandidateCorrectionReviewedIntentV1,
+} from './candidate-correction-repository-v1.js';
 import type { BudgetVerificationRepositoryV1, ReadCandidateV1 } from '../../verification/persistence/verification-repository.js';
 
 function fakeCandidate(overrides: Partial<ReadCandidateV1> = {}): ReadCandidateV1 {
@@ -41,6 +44,17 @@ function fakeCandidate(overrides: Partial<ReadCandidateV1> = {}): ReadCandidateV
     createdAt: '2026-09-08T00:00:00.000Z',
     updatedAt: '2026-09-08T00:00:00.000Z',
     ...overrides,
+  };
+}
+
+function expectedIdentity(candidate: ReadCandidateV1) {
+  return {
+    currentRunId: candidate.currentRunId,
+    sourceDocumentId: candidate.sourceDocumentId,
+    sourceSha256: candidate.sourceSha256,
+    extractionArtifactId: candidate.extractionArtifactId,
+    extractionArtifactSha256: candidate.extractionArtifactSha256,
+    manifestContentSha256: candidate.manifestContentSha256,
   };
 }
 
@@ -84,6 +98,7 @@ class FakeCorrections implements CandidateCorrectionRepositoryV1 {
     const queued = this.nextCommitResults.shift();
     if (queued) return queued;
     const supersededScopedFactReviewIds = this.supersededIdsToReturn;
+    const reviewedIntent = buildCandidateCorrectionReviewedIntentV1(input);
     const row: CandidateCorrectionRowV1 = {
       id: `link-${++this.seq}`,
       createdAt: '2026-09-09T00:00:00.000Z',
@@ -94,6 +109,11 @@ class FakeCorrections implements CandidateCorrectionRepositoryV1 {
       oldCandidateSourceSha256: input.oldCandidateSourceSha256,
       newCandidateSourceDocumentId: input.newCandidateSourceDocumentId,
       newCandidateSourceSha256: input.newCandidateSourceSha256,
+      reviewedIntentVersion: 1,
+      reviewedIntent,
+      // The real database trigger owns this digest; the service compares the
+      // canonical JSON intent itself rather than trusting this field.
+      reviewedIntentSha256: 'f'.repeat(64),
       supersededScopedFactReviewIds,
       actor: input.actor,
       reason: input.reason,
@@ -158,6 +178,31 @@ describe('CandidateCorrectionV1Service.correct', () => {
     await expect(service.correct({ oldCandidateId: 'missing', newCandidateId: 'candidate-old', actor: 'a', reason: 'r' }, { commit: false })).rejects.toMatchObject({ code: 'old_candidate_not_found' });
   });
 
+  it('refuses stale operator-reviewed run/source/artifact/manifest identity before any correction write', async () => {
+    const oldCandidate = fakeCandidate({ id: 'candidate-old' });
+    const newCandidate = fakeCandidate({ id: 'candidate-new' });
+    const { service, corrections } = buildService({
+      candidates: { 'candidate-old': oldCandidate, 'candidate-new': newCandidate },
+    });
+    await expect(
+      service.correct(
+        {
+          oldCandidateId: oldCandidate.id,
+          newCandidateId: newCandidate.id,
+          actor: 'operator',
+          reason: 'reviewed replacement',
+          expectedOldCandidateIdentity: expectedIdentity(oldCandidate),
+          expectedNewCandidateIdentity: {
+            ...expectedIdentity(newCandidate),
+            manifestContentSha256: 'f'.repeat(64),
+          },
+        },
+        { commit: true },
+      ),
+    ).rejects.toMatchObject({ code: 'stale_eligibility' });
+    expect(corrections.commitCalls).toHaveLength(0);
+  });
+
   it('refuses to commit when ineligible, without calling commitCorrection at all', async () => {
     const { service, corrections } = buildService({
       candidates: { 'candidate-old': fakeCandidate({ id: 'candidate-old', status: 'REVIEW_ACCEPTED' }), 'candidate-new': fakeCandidate({ id: 'candidate-new' }) },
@@ -172,6 +217,16 @@ describe('CandidateCorrectionV1Service.correct', () => {
     expect(result.mode).toBe('committed');
     expect(corrections.commitCalls).toHaveLength(1);
     expect(corrections.commitCalls[0]!.oldCandidateId).toBe('candidate-old');
+    expect(corrections.commitCalls[0]).toMatchObject({
+      oldCandidateCurrentRunId: 'run-1',
+      oldCandidateExtractionArtifactId: 'artifact-1',
+      oldCandidateExtractionArtifactSha256: 'b'.repeat(64),
+      oldCandidateManifestContentSha256: 'a'.repeat(64),
+      newCandidateCurrentRunId: 'run-1',
+      newCandidateExtractionArtifactId: 'artifact-1',
+      newCandidateExtractionArtifactSha256: 'b'.repeat(64),
+      newCandidateManifestContentSha256: 'a'.repeat(64),
+    });
     expect(result.supersededScopedFactReviewIds).toEqual([]);
     expect(result.persisted!.supersededScopedFactReviewIds).toEqual([]);
   });
@@ -188,32 +243,23 @@ describe('CandidateCorrectionV1Service.correct', () => {
 
   it('same (old, new) pair replayed after a conflict is treated as idempotent success, returning the ORIGINAL persisted row', async () => {
     const corrections = new FakeCorrections();
-    corrections.seed({
-      id: 'link-original',
-      oldCandidateId: 'candidate-old',
-      newCandidateId: 'candidate-new',
-      oldCandidateStatusAtCorrection: 'NEEDS_REVIEW',
-      oldCandidateSourceDocumentId: 'doc-1',
-      oldCandidateSourceSha256: 'c'.repeat(64),
-      newCandidateSourceDocumentId: 'doc-1',
-      newCandidateSourceSha256: 'c'.repeat(64),
-      supersededScopedFactReviewIds: [],
-      actor: 'someone-else',
-      reason: 'original correction',
-      createdAt: '2026-09-08T12:00:00.000Z',
-    });
-    corrections.queueCommitResult({ outcome: 'conflict' });
     const { service } = buildService({ corrections });
+    const original = await service.correct(
+      { oldCandidateId: 'candidate-old', newCandidateId: 'candidate-new', actor: 'someone-else', reason: 'original correction' },
+      { commit: true },
+    );
+    const existing = original.persisted!;
+    corrections.queueCommitResult({ outcome: 'conflict', conflictOn: 'old_candidate', existingLink: existing });
 
     const replay = await service.correct({ oldCandidateId: 'candidate-old', newCandidateId: 'candidate-new', actor: 'neo@capiro.ai', reason: 'retry' }, { commit: true });
     expect(replay.mode).toBe('already_recorded');
-    expect(replay.persisted!.id).toBe('link-original');
+    expect(replay.persisted!.id).toBe(existing.id);
     expect(replay.persisted!.actor).toBe('someone-else'); // the ORIGINAL row, not a new one
   });
 
   it('a DIFFERENT new candidate for an already-corrected old candidate is refused with an explicit conflict naming the winner', async () => {
     const corrections = new FakeCorrections();
-    corrections.seed({
+    const existing: CandidateCorrectionRowV1 = {
       id: 'link-original',
       oldCandidateId: 'candidate-old',
       newCandidateId: 'candidate-winner',
@@ -222,12 +268,16 @@ describe('CandidateCorrectionV1Service.correct', () => {
       oldCandidateSourceSha256: 'c'.repeat(64),
       newCandidateSourceDocumentId: 'doc-1',
       newCandidateSourceSha256: 'c'.repeat(64),
+      reviewedIntentVersion: null,
+      reviewedIntent: null,
+      reviewedIntentSha256: null,
       supersededScopedFactReviewIds: [],
       actor: 'operator-a',
       reason: 'original correction',
       createdAt: '2026-09-08T12:00:00.000Z',
-    });
-    corrections.queueCommitResult({ outcome: 'conflict' });
+    };
+    corrections.seed(existing);
+    corrections.queueCommitResult({ outcome: 'conflict', conflictOn: 'old_candidate', existingLink: existing });
     const { service } = buildService({
       candidates: {
         'candidate-old': fakeCandidate({ id: 'candidate-old' }),
@@ -242,6 +292,65 @@ describe('CandidateCorrectionV1Service.correct', () => {
     });
   });
 
+  it('names a new-candidate uniqueness collision without claiming that the requested old candidate already has a winner', async () => {
+    const corrections = new FakeCorrections();
+    const existing: CandidateCorrectionRowV1 = {
+      id: 'link-claims-new',
+      oldCandidateId: 'candidate-other-old',
+      newCandidateId: 'candidate-new',
+      oldCandidateStatusAtCorrection: 'NEEDS_REVIEW',
+      oldCandidateSourceDocumentId: 'doc-1',
+      oldCandidateSourceSha256: 'c'.repeat(64),
+      newCandidateSourceDocumentId: 'doc-1',
+      newCandidateSourceSha256: 'c'.repeat(64),
+      reviewedIntentVersion: null,
+      reviewedIntent: null,
+      reviewedIntentSha256: null,
+      supersededScopedFactReviewIds: [],
+      actor: 'operator-a',
+      reason: 'existing forward correction',
+      createdAt: '2026-09-08T12:00:00.000Z',
+    };
+    corrections.seed(existing);
+    corrections.queueCommitResult({ outcome: 'conflict', conflictOn: 'new_candidate', existingLink: existing });
+    const { service } = buildService({ corrections });
+
+    await expect(
+      service.correct(
+        { oldCandidateId: 'candidate-old', newCandidateId: 'candidate-new', actor: 'operator-b', reason: 'collision' },
+        { commit: true },
+      ),
+    ).rejects.toMatchObject({
+      code: 'new_candidate_already_claimed',
+      existingLink: { oldCandidateId: 'candidate-other-old', newCandidateId: 'candidate-new' },
+    });
+  });
+
+  it('surfaces live write-boundary eligibility drift and reverse/cycle refusals as distinct typed outcomes', async () => {
+    const staleCorrections = new FakeCorrections();
+    staleCorrections.queueCommitResult({ outcome: 'stale_eligibility', detail: 'old status changed to REVIEW_ACCEPTED' });
+    const staleService = buildService({ corrections: staleCorrections }).service;
+    await expect(
+      staleService.correct(
+        { oldCandidateId: 'candidate-old', newCandidateId: 'candidate-new', actor: 'operator', reason: 'stale' },
+        { commit: true },
+      ),
+    ).rejects.toMatchObject({ code: 'stale_eligibility' });
+
+    const reverseCorrections = new FakeCorrections();
+    reverseCorrections.queueCommitResult({ outcome: 'reverse_or_cycle_conflict', existingLink: null });
+    const reverseService = buildService({ corrections: reverseCorrections }).service;
+    await expect(
+      reverseService.correct(
+        { oldCandidateId: 'candidate-old', newCandidateId: 'candidate-new', actor: 'operator', reason: 'reverse' },
+        { commit: true },
+      ),
+    ).rejects.toMatchObject({
+      code: 'reverse_or_cycle_conflict',
+      eligibility: { eligible: false, refusalReasons: [{ code: 'reverse_correction_of_already_corrected_candidate' }] },
+    });
+  });
+
   it('readByOldCandidateId / readByNewCandidateId delegate to the repository', async () => {
     const corrections = new FakeCorrections();
     corrections.seed({
@@ -253,6 +362,9 @@ describe('CandidateCorrectionV1Service.correct', () => {
       oldCandidateSourceSha256: 'c'.repeat(64),
       newCandidateSourceDocumentId: 'doc-1',
       newCandidateSourceSha256: 'c'.repeat(64),
+      reviewedIntentVersion: null,
+      reviewedIntent: null,
+      reviewedIntentSha256: null,
       supersededScopedFactReviewIds: [],
       actor: 'neo@capiro.ai',
       reason: 'x',
