@@ -1,0 +1,34 @@
+✔ rejects a non-digest image reference (2181.1258ms)
+✔ task definition is ARM64/Linux, 1 vCPU / 2 GiB, with no EFS volume baked in (7924.8558ms)
+✔ static env/secrets are on the container; no per-scope value is baked in (81.4658ms)
+✔ worker task role has EFS client access only — no S3/DynamoDB/wildcard AWS access (57.9969ms)
+✔ security group has no unrestricted inbound and only HTTPS/DNS/NFS egress (52.0686ms)
+✔ EFS file system is encrypted (45.8858ms)
+✔ grantLifecycleAccess restricts iam:PassRole to exactly the two worker roles (47.52ms)
+✔ with an apiLogGroup prop, adds a provisioning-failure alarm scoped to it (49.916ms)
+✔ without an apiLogGroup prop, still synthesizes (no provisioning alarm) (40.3214ms)
+FAIL test/meri-hermes-worker-fleet.spec.ts
+  ● Test suite failed to run
+
+    Your test suite must contain at least one test.
+
+      at onResult (../../node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/TestScheduler.js:133:18)
+      at ../../node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/TestScheduler.js:254:19
+      at ../../node_modules/.pnpm/emittery@0.13.1/node_modules/emittery/index.js:363:13
+          at Array.map (<anonymous>)
+      at Emittery.emit (../../node_modules/.pnpm/emittery@0.13.1/node_modules/emittery/index.js:361:23)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        16.74 s
+Ran all test suites matching /test\\meri-hermes-worker-fleet.spec.ts/i.
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10502.9184
+cdk jest exit=1

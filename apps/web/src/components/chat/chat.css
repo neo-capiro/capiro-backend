@@ -2516,3 +2516,6 @@
 .hermes-run-status--running .hermes-run-status__dot, .hermes-run-status--waiting_for_approval .hermes-run-status__dot, .hermes-run-status--waiting_for_clarification .hermes-run-status__dot { background: #d8a31a; }
 .hermes-run-status--failed .hermes-run-status__dot, .hermes-run-status--interrupted .hermes-run-status__dot, .hermes-run-status--expired .hermes-run-status__dot { background: var(--danger, #b3261e); }
 .hermes-run-status--completed .hermes-run-status__dot { background: var(--success, #14633a); }
+/* Capability statement, not a control: steering exists server-side but has no
+   UI yet (contracts.md §6 "Steer", MW-09), so it reads as permanently disabled. */
+.hermes-run-status__steer { margin-left: auto; border: 1px dashed var(--border-1); border-radius: 999px; background: transparent; padding: 2px 9px; font-size: 11px; color: var(--ink-3); cursor: not-allowed; }

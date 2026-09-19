@@ -1,24 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clearHermesRunPointer,
+  hermesActiveConversationUrl,
+  hermesApprovalBlockedReason,
   hermesApprovalCardFromFrame,
   hermesApprovalUrl,
   hermesClarifyCardFromFrame,
   hermesClarificationUrl,
+  hermesInteractionCardFromActive,
   hermesInteractionCardFromProjection,
   hermesRunEventsUrl,
+  hermesRunIsGenerating,
   hermesRunStatusLabel,
   hermesRunUrl,
   hermesStopUrl,
   isHermesInteractionExpired,
   isHermesRunTerminal,
+  markHermesRunTerminal,
+  mergeHermesInteractionsFromActive,
   mergeHermesInteractionsFromProjection,
   outstandingHermesInteractions,
-  readHermesRunPointer,
+  readHermesActiveConversation,
   readHermesRunProjection,
   resolveHermesInteraction,
   upsertHermesInteraction,
-  writeHermesRunPointer,
   type MeriHermesApprovalCard,
   type MeriHermesInteractionCard,
   type RawHermesProjectedInteraction,
@@ -168,6 +172,23 @@ describe('upsertHermesInteraction / resolveHermesInteraction / outstandingHermes
     expect((first[0] as MeriHermesApprovalCard)?.label).toBe('Guarded command');
   });
 
+  it('never un-resolves a card a later still-pending copy arrives for (no double-apply)', () => {
+    // A duplicate frame, or a discovery read taken before the server saw the
+    // answer, must not offer the user a second decision on a spent request.
+    const answered = upsertHermesInteraction([], {
+      ...approval,
+      resolution: { decision: 'deny', at: '2026-09-19T00:01:00.000Z' },
+    });
+    const restated = upsertHermesInteraction(answered, approval);
+    expect(restated[0]?.resolution).toEqual({ decision: 'deny', at: '2026-09-19T00:01:00.000Z' });
+    expect(outstandingHermesInteractions(restated)).toEqual([]);
+  });
+
+  it('never un-marks a run that has ended', () => {
+    const ended = upsertHermesInteraction([], { ...approval, runTerminal: true });
+    expect(upsertHermesInteraction(ended, approval)[0]?.runTerminal).toBe(true);
+  });
+
   it('resolves a card by requestId without touching others', () => {
     const other: MeriHermesInteractionCard = { ...approval, requestId: 'req-2' };
     const list = [approval, other];
@@ -251,6 +272,26 @@ describe('readHermesRunProjection / hermesInteractionCardFromProjection / mergeH
     expect(projection?.pendingInteractions).toEqual([rawInteraction]);
   });
 
+  it('carries the output snapshot and its seq — the cursor reconnect resumes from', () => {
+    const projection = readHermesRunProjection({
+      runId: 'run-1',
+      status: 'running',
+      lastSeq: 1240,
+      outputSnapshot: 'assistant text so far',
+      outputSeq: 1234,
+      pendingInteractions: [],
+    });
+    expect(projection?.outputSnapshot).toBe('assistant text so far');
+    expect(projection?.outputSeq).toBe(1234);
+  });
+
+  it('defaults a missing/invalid snapshot cursor to empty text at seq 0', () => {
+    const projection = readHermesRunProjection({ runId: 'run-1', status: 'running' });
+    expect(projection?.outputSnapshot).toBe('');
+    expect(projection?.outputSeq).toBe(0);
+    expect(readHermesRunProjection({ runId: 'r', status: 'running', outputSeq: -4 })?.outputSeq).toBe(0);
+  });
+
   it('returns null for a malformed or unrecognized-status projection', () => {
     expect(readHermesRunProjection(null)).toBeNull();
     expect(readHermesRunProjection({ runId: 'run-1', status: 'not-a-status' })).toBeNull();
@@ -295,44 +336,187 @@ describe('readHermesRunProjection / hermesInteractionCardFromProjection / mergeH
   });
 });
 
-describe('sessionStorage-backed run pointer', () => {
-  function memoryStorage() {
-    const map = new Map<string, string>();
-    return {
-      getItem: (key: string) => map.get(key) ?? null,
-      setItem: (key: string, value: string) => void map.set(key, value),
-      removeItem: (key: string) => void map.delete(key),
-    };
-  }
+describe('readHermesActiveConversation (discovery)', () => {
+  const payload = {
+    run: {
+      runId: 'run-9',
+      status: 'running',
+      finishReason: null,
+      partial: false,
+      detached: false,
+      outputSnapshot: 'assistant text so far',
+      outputSeq: 1234,
+      lastSeq: 1240,
+      hermesRunId: 'hermes-run-9',
+      hermesSessionId: 'hermes-session-9',
+      createdAt: '2026-09-19T00:00:00.000Z',
+      updatedAt: '2026-09-19T00:01:00.000Z',
+      finishedAt: null,
+    },
+    pendingInteractions: [
+      {
+        runId: 'run-9',
+        requestId: 'clar_1',
+        kind: 'clarification',
+        continuation: 'durable_continuation',
+        prompt: 'Which client?',
+        choices: ['Acme', 'Globex'],
+        multiSelect: false,
+        createdAt: '2026-09-19T00:00:30.000Z',
+        expiresAt: null,
+      },
+    ],
+  };
 
-  it('round-trips a pointer for a conversation', () => {
-    const storage = memoryStorage();
-    expect(readHermesRunPointer(storage, 'conv-1')).toBeNull();
-    writeHermesRunPointer(storage, 'conv-1', { runId: 'run-1' });
-    expect(readHermesRunPointer(storage, 'conv-1')).toEqual({ runId: 'run-1' });
-    clearHermesRunPointer(storage, 'conv-1');
-    expect(readHermesRunPointer(storage, 'conv-1')).toBeNull();
+  it('parses the active run and its pending interactions', () => {
+    const active = readHermesActiveConversation(payload);
+    expect(active?.run).toMatchObject({
+      runId: 'run-9',
+      status: 'running',
+      outputSnapshot: 'assistant text so far',
+      outputSeq: 1234,
+      lastSeq: 1240,
+    });
+    expect(active?.pendingInteractions).toHaveLength(1);
+    expect(active?.pendingInteractions[0]).toMatchObject({ requestId: 'clar_1', runId: 'run-9' });
   });
 
-  it('keeps pointers for different conversations independent', () => {
-    const storage = memoryStorage();
-    writeHermesRunPointer(storage, 'conv-1', { runId: 'run-1' });
-    writeHermesRunPointer(storage, 'conv-2', { runId: 'run-2' });
-    expect(readHermesRunPointer(storage, 'conv-1')?.runId).toBe('run-1');
-    expect(readHermesRunPointer(storage, 'conv-2')?.runId).toBe('run-2');
+  it('parses "no active run, but a question still outstanding" — the case a per-tab pointer could never represent', () => {
+    const active = readHermesActiveConversation({
+      run: null,
+      pendingInteractions: [{ ...payload.pendingInteractions[0], runId: 'run-finished' }],
+    });
+    expect(active?.run).toBeNull();
+    expect(active?.pendingInteractions).toHaveLength(1);
   });
 
-  it('is inert without a conversation id or storage (never throws)', () => {
-    expect(readHermesRunPointer(null, 'conv-1')).toBeNull();
-    expect(readHermesRunPointer({} as never, '')).toBeNull();
-    expect(() => writeHermesRunPointer(null, 'conv-1', { runId: 'run-1' })).not.toThrow();
-    expect(() => clearHermesRunPointer(null, 'conv-1')).not.toThrow();
+  it('drops malformed rows instead of rejecting the whole payload', () => {
+    const active = readHermesActiveConversation({
+      run: { runId: 'run-9', status: 'not-a-status' },
+      pendingInteractions: [{ requestId: 'x' }, { runId: 'r', requestId: 'y', kind: 'nope' }, payload.pendingInteractions[0]],
+    });
+    expect(active?.run).toBeNull();
+    expect(active?.pendingInteractions.map((i) => i.requestId)).toEqual(['clar_1']);
   });
 
-  it('never throws on malformed stored JSON', () => {
-    const storage = memoryStorage();
-    storage.setItem('meri-hermes-run:conv-1', '{not json');
-    expect(readHermesRunPointer(storage, 'conv-1')).toBeNull();
+  it('returns null only for a non-object payload', () => {
+    expect(readHermesActiveConversation(null)).toBeNull();
+    expect(readHermesActiveConversation('nope')).toBeNull();
+    expect(readHermesActiveConversation({})).toEqual({ run: null, pendingInteractions: [] });
+  });
+});
+
+describe('hermesInteractionCardFromActive / mergeHermesInteractionsFromActive', () => {
+  const clarification = {
+    runId: 'run-finished',
+    requestId: 'clar_1',
+    kind: 'clarification' as const,
+    continuation: 'durable_continuation' as const,
+    prompt: 'Which client?',
+    choices: ['Acme'],
+    multiSelect: false,
+    createdAt: '2026-09-19T00:00:30.000Z',
+    expiresAt: null,
+  };
+
+  it('marks an interaction whose run is no longer the active one as run-terminal', () => {
+    const card = hermesInteractionCardFromActive(clarification, 'run-live');
+    expect(card).toMatchObject({ kind: 'clarification', runId: 'run-finished', runTerminal: true });
+    // …and it is still unresolved, i.e. still answerable.
+    expect(card.resolution).toBeNull();
+  });
+
+  it('leaves an interaction belonging to the active run actionable', () => {
+    const card = hermesInteractionCardFromActive({ ...clarification, runId: 'run-live' }, 'run-live');
+    expect(card.runTerminal).toBe(false);
+  });
+
+  it('treats every interaction as run-terminal when there is no active run at all', () => {
+    const merged = mergeHermesInteractionsFromActive([], {
+      run: null,
+      pendingInteractions: [clarification, { ...clarification, requestId: 'req_2', kind: 'approval' as const }],
+    });
+    expect(merged).toHaveLength(2);
+    expect(merged.every((c) => c.runTerminal)).toBe(true);
+  });
+});
+
+describe('markHermesRunTerminal', () => {
+  const clarify: MeriHermesInteractionCard = {
+    kind: 'clarification',
+    runId: 'run-1',
+    requestId: 'clar-1',
+    question: 'Which client?',
+    choices: [],
+    multiSelect: false,
+    createdAt: '2026-09-19T00:00:00.000Z',
+    resolution: null,
+  };
+
+  it('marks only the named run and leaves the card answerable', () => {
+    const other: MeriHermesInteractionCard = { ...clarify, runId: 'run-2', requestId: 'clar-2' };
+    const marked = markHermesRunTerminal([clarify, other], 'run-1');
+    expect(marked[0]?.runTerminal).toBe(true);
+    expect(marked[0]?.resolution).toBeNull();
+    expect(marked[1]?.runTerminal).toBeUndefined();
+  });
+
+  it('returns the same array when nothing changes (stable identity for React)', () => {
+    const list = [clarify];
+    expect(markHermesRunTerminal(list, 'run-404')).toBe(list);
+  });
+});
+
+describe('hermesApprovalBlockedReason', () => {
+  const approval: MeriHermesApprovalCard = {
+    kind: 'approval',
+    runId: 'run-1',
+    requestId: 'req-1',
+    proposalId: 'hermes:run-1:req-1',
+    label: 'Guarded command',
+    command: null,
+    choices: ['once', 'deny'],
+    createdAt: '2026-09-19T00:00:00.000Z',
+    expiresAt: '2026-09-19T00:05:00.000Z',
+    resolution: null,
+  };
+  const before = Date.parse('2026-09-19T00:01:00.000Z');
+
+  it('is unblocked while live, unexpired and unanswered', () => {
+    expect(hermesApprovalBlockedReason(approval, before)).toBeNull();
+  });
+
+  it('blocks a duplicate response on an already-answered request', () => {
+    const resolved = { ...approval, resolution: { decision: 'deny' as const, at: '2026-09-19T00:02:00.000Z' } };
+    expect(hermesApprovalBlockedReason(resolved, before)).toBe('resolved');
+  });
+
+  it('blocks a native approval whose run has ended — the backend refuses it', () => {
+    expect(hermesApprovalBlockedReason({ ...approval, runTerminal: true }, before)).toBe('run_ended');
+  });
+
+  it('blocks an expired approval', () => {
+    expect(hermesApprovalBlockedReason(approval, Date.parse('2026-09-19T00:06:00.000Z'))).toBe('expired');
+  });
+});
+
+describe('hermesRunIsGenerating', () => {
+  it('is true only while the run is actually producing output', () => {
+    for (const status of ['queued', 'provisioning', 'running', 'waiting_for_approval', 'cancelling']) {
+      expect(hermesRunIsGenerating(status)).toBe(true);
+    }
+  });
+
+  it('is false for a run that ended its turn awaiting a durable clarification', () => {
+    // Otherwise the composer stays disabled and the question cannot be answered.
+    expect(hermesRunIsGenerating('waiting_for_clarification')).toBe(false);
+  });
+
+  it('is false for every terminal status and for nonsense', () => {
+    for (const status of ['completed', 'cancelled', 'failed', 'interrupted', 'expired']) {
+      expect(hermesRunIsGenerating(status)).toBe(false);
+    }
+    expect(hermesRunIsGenerating(null)).toBe(false);
   });
 });
 
@@ -348,6 +532,9 @@ describe('control-surface URL builders', () => {
     );
     expect(hermesRunEventsUrl(base, 'run-1', -5)).toBe(
       'https://api.test/api/clio/hermes/runs/run-1/events?after=0',
+    );
+    expect(hermesActiveConversationUrl(base, 'conv 1')).toBe(
+      'https://api.test/api/clio/hermes/conversations/conv%201/active',
     );
     expect(hermesStopUrl(base, 'run-1')).toBe('https://api.test/api/clio/hermes/runs/run-1/stop');
     expect(hermesApprovalUrl(base, 'run-1')).toBe('https://api.test/api/clio/hermes/runs/run-1/approval');

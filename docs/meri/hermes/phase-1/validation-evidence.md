@@ -77,3 +77,43 @@ Fixed (`meri-hermes-runtime.adapter.ts:334`, `run = await this.runs.update(…)`
 5. Idempotency uses generations: the key is `meri:<sha256(actorId, conversationId, normalized body, sorted attachment ids, mode)>[0:32]`, but a bare fingerprint would permanently dedupe a legitimately repeated identical message (saying "ok" twice). A non-terminal holder means reattach (a true retry); a terminal holder advances to `…:r1`, `…:r2`, capped at 16.
 
 New env knobs, all defaulted: `MERI_HERMES_WATCH_INTERVAL_MS` (300), `MERI_HERMES_DISPATCH_STUCK_MS` (120000), `MERI_HERMES_CONSUMER_STALE_MS` (60000), `MERI_HERMES_CONSUMER_HEARTBEAT_MS` (10000).
+
+### 4.4 Frontend recovery without browser storage [UNIT]
+
+| Check | Command | Exit | Result |
+|---|---|---|---|
+| Chat suite | `pnpm --filter @capiro/web exec vitest run src/components/chat` | **0** | **37 files / 359 tests passed** (baseline 37 / 327; +32 added), independently re-run by the orchestrator |
+| Web typecheck | `pnpm --filter @capiro/web run typecheck` | **2** | 7 errors, the **identical** pre-existing baseline set (`@capiro/strategy-verifier` resolution + implicit-`any` in `StrategyEditorVNext.tsx`); zero new errors introduced |
+
+Note the exit-code conventions differ by package and both are recorded as measured: `apps/api` `tsc --noEmit` exits **1**, `apps/web`'s typecheck script exits **2**. Neither is "passing"; both are preserved baselines.
+
+Delivered: the `sessionStorage` run pointer is **deleted, not merely demoted** — no Hermes path reads browser storage at all, so fresh-tab/device recovery goes through `GET …/conversations/:id/active`. `attachHermesRun` seeds from `outputSnapshot` and subscribes at `after=outputSeq`; `after=0` is gone, and each retry re-reads a *fresh* snapshot rather than resuming a stale cursor. Unresolved clarifications on terminal runs stay rendered and answerable against the original `requestId`; a native approval on a terminal run renders an explicit "run has ended, it was never run" state instead of a button that would fail. Approval invariants re-verified: Run once / Deny only, expiry visible, and two new hardenings — interaction resolution and terminal state are now **monotonic** (a duplicate frame or stale discovery read cannot flip an answered card back to actionable) and a blocked decision is rejected before the POST.
+
+One real UX defect found and fixed in passing: attaching to a `waiting_for_clarification` run set `isStreaming`, which disabled the very composer the answer had to be typed into.
+
+**Steering (phase assignment resolved, not dropped):** no steering UX was built. A permanently disabled control reading *"Add guidance — not available for this runtime yet"* is rendered while a Hermes run is generating, with `POST …/runs/:id/steer` left unwired. The runtime capability **does** exist (`run_steer: true`, §2), so this is purely a UI gap. **MW-09 remains an open UI ticket**; it is explicitly not claimed as delivered.
+
+### 4.5 Worker lifecycle service and Fargate construct [UNIT] [MOCK] — no platform evidence
+
+| Check | Command | Exit | Result |
+|---|---|---|---|
+| CDK typecheck | `npx tsc --noEmit` in `infra/cdk` | **0** | Clean |
+| CDK construct test | `npx ts-node --prefer-ts-exts test/meri-hermes-worker-fleet.spec.ts` | **0** | 9/9 assertions pass |
+| CDK construct test **under the package's own runner** | `npx jest test/meri-hermes-worker-fleet.spec.ts` | **1** | **Fails to collect** — "Your test suite must contain at least one test" |
+| Lifecycle service | included in the `src/meri/hermes` jest run above | 0 | AWS SDK mocked at the client boundary |
+
+**Correction to the implementing agent's report:** it stated the construct test passes "9/9 under jest". It does not — jest exits **1**. The assertions do pass, but only because jest's import of the file causes `node:test` to execute; jest itself collects zero tests. Verified by the orchestrator.
+
+**This is pre-existing convention, not a defect introduced here:** **15 of 21** specs under `infra/cdk/test/` are `node:test`-style, and the cited precedent (`one-shot-defense-budget-ingestion-drain-worker.spec.ts`) fails under jest in exactly the same way. Consequence to record honestly: because `infra/cdk`'s own `test` script is `jest`, **CDK construct tests are effectively not gated** by the package's default test command. Fixing that convention is repo-wide debt outside this closeout's scope.
+
+**Design finding that invalidated the naive approach.** ECS `RunTask`'s `TaskOverride`/`ContainerOverride` has **no `volumes` field** — an `efsVolumeConfiguration.authorizationConfig.accessPointId` is fixed at task-definition **registration**, not overridable per call (verified against the installed `@aws-sdk/client-ecs` type definitions rather than assumed). A single shared task definition therefore cannot serve per-scope EFS access points. Implemented alternative: **one task-definition family per execution scope**, registered dynamically by the lifecycle service and cached on `workerState.taskDefinitionArn`.
+
+`cdk synth` was run locally against an imported-VPC harness (no AWS credentials, no context lookups): **exit 0**, full template produced. It caught a real bug during development — `props.vpc.vpcCidrBlock` throws for a VPC imported via `Vpc.fromVpcAttributes` without a CIDR, which is the pattern `meriv2-control-stack.ts` uses.
+
+**No `[PLATFORM]` evidence exists.** Every ECS/EFS call is mocked; nothing ran against AWS. The real arm64 digest, VPC/subnet/SG/cluster/file-system ids and Secrets Manager ARNs are all still unprovisioned. This is explicitly **not** deployment-ready.
+
+Deferred by this workstream and tracked: no scheduler calls `sweepIdleWorkers()`/`teardownIfIdle()`; no advisory-lock fencing around concurrent `resolveWorker()` for a brand-new scope; `MERI_SOUL_B64` is process-wide rather than rendered per tenant.
+
+### 4.6 Closed-gate routing and no-fallback regression [UNIT]
+
+`npx jest --forceExit --runInBand src/meri/meriv3-runtime.proxy.spec.ts src/common/meri-hermes-flags.spec.ts` → **exit 0**, 2 suites / 15 tests. Confirms non-pilot routing is unchanged and an admitted Hermes failure is surfaced rather than silently re-run through V3/legacy. Evidence: `evidence/closeout-routing/jest-routing-gate.txt`.

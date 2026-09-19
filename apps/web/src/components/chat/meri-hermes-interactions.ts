@@ -23,10 +23,14 @@
  *    choices,multiSelect}], continuation:'durable_continuation'}` — durable
  *    continuation; the pinned broker tool sends exactly one question per call.
  *
- * A third source is the reconnect projection `GET .../runs/:runId`
- * (MeriHermesController.projectRun), whose `pendingInteractions[]` covers
- * both kinds in one shape — used to rebuild cards that must "reappear after
- * reload" (Phase 1 backlog ticket 4 acceptance criterion).
+ * A third source is discovery: `GET .../conversations/:conversationId/active`
+ * returns the conversation's most recent NON-TERMINAL run (or null) plus every
+ * unresolved interaction — including ones whose producing run has already
+ * finished. That endpoint, not any browser-local pointer, is what makes a run
+ * or an unanswered question discoverable from a fresh tab, another browser or
+ * another device (Phase 1 backlog ticket 4 acceptance criterion). The
+ * per-run projection `GET .../runs/:runId` returns the same interaction shape
+ * plus the output snapshot used to reseed the assistant message on reattach.
  */
 
 export const MERI_HERMES_RUN_STATUSES = [
@@ -61,6 +65,20 @@ function isKnownHermesStatus(value: unknown): value is MeriHermesRunStatus {
 
 export function isHermesRunTerminal(status: string | null | undefined): boolean {
   return isKnownHermesStatus(status) && MERI_HERMES_TERMINAL_STATUSES.has(status);
+}
+
+/**
+ * Is the run actively producing output (so the composer should hold its
+ * streaming state)? `waiting_for_clarification` is non-terminal but has ENDED
+ * its turn: the answer travels as the next chat message, so the composer must
+ * stay usable or the question cannot be answered at all.
+ */
+export function hermesRunIsGenerating(status: string | null | undefined): boolean {
+  return (
+    isKnownHermesStatus(status) &&
+    !MERI_HERMES_TERMINAL_STATUSES.has(status) &&
+    status !== 'waiting_for_clarification'
+  );
 }
 
 const STATUS_LABELS: Record<MeriHermesRunStatus, string> = {
@@ -104,6 +122,14 @@ export interface MeriHermesApprovalCard {
   createdAt: string;
   expiresAt: string | null;
   resolution: null | { decision: 'approve_once' | 'deny'; at: string };
+  /**
+   * The producing run is no longer live. A native approval is a `live_process`
+   * continuation — the worker is blocked waiting on it — so once the run is
+   * terminal the backend refuses the decision and there is nothing left to
+   * approve. Optional so live frames (always produced by a running run) need
+   * not set it.
+   */
+  runTerminal?: boolean;
 }
 
 export interface MeriHermesClarifyCard {
@@ -115,6 +141,13 @@ export interface MeriHermesClarifyCard {
   multiSelect: boolean;
   createdAt: string;
   resolution: null | { answer: string | string[]; at: string };
+  /**
+   * The producing run is terminal. Unlike an approval this is NOT fatal: a
+   * clarification is a `durable_continuation`, so the answer travels as the
+   * next chat message carrying the original requestId, and the card stays
+   * answerable after its run has ended (contracts.md §6).
+   */
+  runTerminal?: boolean;
 }
 
 export type MeriHermesInteractionCard = MeriHermesApprovalCard | MeriHermesClarifyCard;
@@ -130,16 +163,32 @@ export function isHermesInteractionExpired(
   return Number.isFinite(expiry) && expiry <= nowMs;
 }
 
-/** Insert-or-replace by requestId — same contract as meri-pending-approvals'
- * upsertProposal: identity is the opaque request id, never re-derived. */
+/**
+ * Insert-or-replace by requestId — same contract as meri-pending-approvals'
+ * upsertProposal: identity is the opaque request id, never re-derived.
+ *
+ * Resolution is monotonic: once this client has recorded an answer for a
+ * request id, a later re-delivery of the same (still-pending) card — a
+ * duplicate SSE frame, or a discovery read taken before the server saw the
+ * answer — must not flip it back to actionable. Otherwise the user is offered
+ * a second decision on a request that is already spent, and the second POST
+ * is exactly the double-apply the backend then has to reject.
+ * `runTerminal` is one-way for the same reason: a run that has ended cannot
+ * un-end.
+ */
 export function upsertHermesInteraction(
   prev: MeriHermesInteractionCard[],
   next: MeriHermesInteractionCard,
 ): MeriHermesInteractionCard[] {
   const index = prev.findIndex((c) => c.requestId === next.requestId);
   if (index === -1) return [...prev, next];
+  const existing = prev[index]!;
   const copy = [...prev];
-  copy[index] = next;
+  copy[index] = {
+    ...next,
+    resolution: next.resolution ?? existing.resolution,
+    runTerminal: next.runTerminal || existing.runTerminal,
+  } as MeriHermesInteractionCard;
   return copy;
 }
 
@@ -159,6 +208,57 @@ export function outstandingHermesInteractions(
 ): MeriHermesInteractionCard[] {
   return cards.filter((c) => !c.resolution);
 }
+
+/**
+ * Mark every card belonging to `runId` as produced by a run that has ended.
+ * Resolved cards are left alone (their outcome is already final), and a
+ * clarification stays answerable — only its "the run that asked is gone"
+ * provenance changes.
+ */
+export function markHermesRunTerminal(
+  prev: MeriHermesInteractionCard[],
+  runId: string,
+): MeriHermesInteractionCard[] {
+  let changed = false;
+  const next = prev.map((card) => {
+    if (card.runId !== runId || card.runTerminal === true) return card;
+    changed = true;
+    return { ...card, runTerminal: true } as MeriHermesInteractionCard;
+  });
+  return changed ? next : prev;
+}
+
+/**
+ * Why a native approval cannot be acted on — the single source of truth for
+ * both the card's rendering and the controller's POST guard, so a stale or
+ * duplicate decision is rejected in one place instead of relying on a hidden
+ * button.
+ *
+ * `run_ended` exists because a native approval is a `live_process`
+ * continuation (contracts.md §6): once the run is terminal the worker that
+ * was blocked on it is gone and the backend refuses the decision outright, so
+ * offering a button that would 409 is dishonest.
+ */
+export type MeriHermesApprovalBlock = 'resolved' | 'expired' | 'run_ended' | null;
+
+export function hermesApprovalBlockedReason(
+  card: MeriHermesApprovalCard,
+  nowMs: number = Date.now(),
+): MeriHermesApprovalBlock {
+  if (card.resolution) return 'resolved';
+  if (card.runTerminal) return 'run_ended';
+  if (isHermesInteractionExpired(card, nowMs)) return 'expired';
+  return null;
+}
+
+export const HERMES_APPROVAL_BLOCK_MESSAGES: Record<
+  Exclude<MeriHermesApprovalBlock, null>,
+  string
+> = {
+  resolved: 'That approval was already answered.',
+  expired: 'That approval expired before it was answered.',
+  run_ended: 'That run has ended, so Hermes can no longer act on this approval.',
+};
 
 // ---------------------------------------------------------------------------
 // Live-frame parsing
@@ -280,7 +380,22 @@ export interface MeriHermesRunProjection {
   partial: boolean;
   error: string | null;
   lastSeq: number;
+  /**
+   * The assistant text the server has durably accumulated for this run, and
+   * the seq it is current as of. Reattach seeds the message with the snapshot
+   * and subscribes at `after=outputSeq` — replaying from seq 0 is NOT
+   * equivalent, because the event log is capped at 5 000 events per run and
+   * prunes the oldest, so a long run's replay silently loses its beginning
+   * (contracts.md §4.2).
+   */
+  outputSnapshot: string;
+  outputSeq: number;
   pendingInteractions: RawHermesProjectedInteraction[];
+}
+
+/** A non-negative integer seq cursor; anything else means "no cursor" (0). */
+function readSeq(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
 }
 
 function readProjectedInteraction(value: unknown): RawHermesProjectedInteraction | null {
@@ -315,6 +430,8 @@ export function readHermesRunProjection(value: unknown): MeriHermesRunProjection
     partial: row.partial === true,
     error: typeof row.error === 'string' ? row.error : null,
     lastSeq: typeof row.lastSeq === 'number' && Number.isFinite(row.lastSeq) ? row.lastSeq : 0,
+    outputSnapshot: typeof row.outputSnapshot === 'string' ? row.outputSnapshot : '',
+    outputSeq: readSeq(row.outputSeq),
     pendingInteractions: pending
       .map(readProjectedInteraction)
       .filter((x): x is RawHermesProjectedInteraction => x !== null),
@@ -324,6 +441,7 @@ export function readHermesRunProjection(value: unknown): MeriHermesRunProjection
 export function hermesInteractionCardFromProjection(
   interaction: RawHermesProjectedInteraction,
   runId: string,
+  runTerminal = false,
 ): MeriHermesInteractionCard {
   if (interaction.kind === 'approval') {
     const resolution: MeriHermesApprovalCard['resolution'] =
@@ -344,6 +462,7 @@ export function hermesInteractionCardFromProjection(
       createdAt: interaction.createdAt,
       expiresAt: interaction.expiresAt,
       resolution,
+      runTerminal,
     };
   }
   const resolution: MeriHermesClarifyCard['resolution'] =
@@ -357,6 +476,7 @@ export function hermesInteractionCardFromProjection(
     multiSelect: interaction.multiSelect,
     createdAt: interaction.createdAt,
     resolution,
+    runTerminal,
   };
 }
 
@@ -370,85 +490,163 @@ export function mergeHermesInteractionsFromProjection(
   prev: MeriHermesInteractionCard[],
   projected: RawHermesProjectedInteraction[],
   runId: string,
+  runTerminal = false,
 ): MeriHermesInteractionCard[] {
   return projected.reduce(
-    (acc, row) => upsertHermesInteraction(acc, hermesInteractionCardFromProjection(row, runId)),
+    (acc, row) => upsertHermesInteraction(acc, hermesInteractionCardFromProjection(row, runId, runTerminal)),
     prev,
   );
 }
 
 // ---------------------------------------------------------------------------
-// sessionStorage run pointer — lets THIS TAB find an in-flight run again
-// after a reload. Scoped to sessionStorage (not localStorage) deliberately:
-// it is a per-tab convenience, not shared state, and a stale pointer from a
-// closed tab should not resurrect a long-finished run in a new one. There is
-// currently no backend "list active runs for a conversation" route (only
-// by-runId lookups exist — contracts.md §5), so cross-device / cross-tab
-// reconnect discovery is a known gap; see useMeriChatController.ts's
-// reconnect effect for how this is used and its documented limitation.
+// Discovery: GET /api/clio/hermes/conversations/:conversationId/active
+//
+// This replaces the old per-tab `sessionStorage` run pointer outright. A
+// pointer written by one tab is invisible to a fresh tab, another browser or
+// another device, so a run left in flight (or, worse, a question waiting for
+// an answer) became undiscoverable the moment that tab went away. Discovery is
+// server-side and owner-scoped, so any session of the same user recovers the
+// same state. Nothing in the reconnect path reads browser storage any more.
 // ---------------------------------------------------------------------------
 
-export interface MeriHermesRunPointer {
+/** The conversation's most recent NON-TERMINAL run, if any. */
+export interface MeriHermesActiveRun {
   runId: string;
+  status: MeriHermesRunStatus;
+  finishReason: string | null;
+  partial: boolean;
+  detached: boolean;
+  /** Assistant text accumulated so far, current as of `outputSeq`. */
+  outputSnapshot: string;
+  outputSeq: number;
+  lastSeq: number;
+  hermesRunId: string | null;
+  hermesSessionId: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  finishedAt: string | null;
 }
 
-const POINTER_PREFIX = 'meri-hermes-run:';
-
-export interface MeriHermesStorageLike {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
+/**
+ * An unresolved interaction. `runId` is the run that ASKED — which may already
+ * be terminal, so this is not necessarily the active run's id (that is exactly
+ * the case a durable clarification outliving its run produces).
+ */
+export interface MeriHermesPendingInteraction {
+  runId: string;
+  requestId: string;
+  kind: 'approval' | 'clarification';
+  continuation: 'live_process' | 'durable_continuation';
+  prompt: string;
+  choices: string[];
+  multiSelect: boolean;
+  createdAt: string;
+  expiresAt: string | null;
 }
 
-function pointerKey(conversationId: string): string {
-  return `${POINTER_PREFIX}${conversationId}`;
+export interface MeriHermesActiveConversation {
+  run: MeriHermesActiveRun | null;
+  pendingInteractions: MeriHermesPendingInteraction[];
 }
 
-export function readHermesRunPointer(
-  storage: MeriHermesStorageLike | null | undefined,
-  conversationId: string | null | undefined,
-): MeriHermesRunPointer | null {
-  if (!storage || !conversationId) return null;
-  try {
-    const raw = storage.getItem(pointerKey(conversationId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { runId?: unknown };
-    return typeof parsed.runId === 'string' && parsed.runId ? { runId: parsed.runId } : null;
-  } catch {
-    return null;
-  }
+function readActiveRun(value: unknown): MeriHermesActiveRun | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.runId !== 'string' || !row.runId || !isKnownHermesStatus(row.status)) return null;
+  return {
+    runId: row.runId,
+    status: row.status,
+    finishReason: typeof row.finishReason === 'string' ? row.finishReason : null,
+    partial: row.partial === true,
+    detached: row.detached === true,
+    outputSnapshot: typeof row.outputSnapshot === 'string' ? row.outputSnapshot : '',
+    outputSeq: readSeq(row.outputSeq),
+    lastSeq: readSeq(row.lastSeq),
+    hermesRunId: typeof row.hermesRunId === 'string' ? row.hermesRunId : null,
+    hermesSessionId: typeof row.hermesSessionId === 'string' ? row.hermesSessionId : null,
+    createdAt: typeof row.createdAt === 'string' ? row.createdAt : null,
+    updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : null,
+    finishedAt: typeof row.finishedAt === 'string' ? row.finishedAt : null,
+  };
 }
 
-export function writeHermesRunPointer(
-  storage: MeriHermesStorageLike | null | undefined,
-  conversationId: string | null | undefined,
-  pointer: MeriHermesRunPointer,
-): void {
-  if (!storage || !conversationId) return;
-  try {
-    storage.setItem(pointerKey(conversationId), JSON.stringify(pointer));
-  } catch {
-    // Best-effort: a private window or a full quota just disables
-    // cross-reload resume, never breaks the live turn itself.
-  }
+function readPendingInteraction(value: unknown): MeriHermesPendingInteraction | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.requestId !== 'string' || !row.requestId) return null;
+  if (typeof row.runId !== 'string' || !row.runId) return null;
+  if (row.kind !== 'approval' && row.kind !== 'clarification') return null;
+  return {
+    runId: row.runId,
+    requestId: row.requestId,
+    kind: row.kind,
+    continuation: row.continuation === 'live_process' ? 'live_process' : 'durable_continuation',
+    prompt: typeof row.prompt === 'string' ? row.prompt : '',
+    choices: Array.isArray(row.choices) ? row.choices.map(String) : [],
+    multiSelect: row.multiSelect === true,
+    createdAt: typeof row.createdAt === 'string' ? row.createdAt : new Date().toISOString(),
+    expiresAt: typeof row.expiresAt === 'string' ? row.expiresAt : null,
+  };
 }
 
-export function clearHermesRunPointer(
-  storage: MeriHermesStorageLike | null | undefined,
-  conversationId: string | null | undefined,
-): void {
-  if (!storage || !conversationId) return;
-  try {
-    storage.removeItem(pointerKey(conversationId));
-  } catch {
-    // ignore
-  }
+export function readHermesActiveConversation(value: unknown): MeriHermesActiveConversation | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  const pending = Array.isArray(row.pendingInteractions) ? row.pendingInteractions : [];
+  return {
+    run: readActiveRun(row.run),
+    pendingInteractions: pending
+      .map(readPendingInteraction)
+      .filter((x): x is MeriHermesPendingInteraction => x !== null),
+  };
+}
+
+/**
+ * Build a card from a discovered interaction. `activeRunId` is the id of the
+ * conversation's live run (or null): anything asked by a DIFFERENT run has
+ * outlived its producer, which is what `runTerminal` records — an approval
+ * then renders as no-longer-actionable, while a clarification stays
+ * answerable.
+ */
+export function hermesInteractionCardFromActive(
+  interaction: MeriHermesPendingInteraction,
+  activeRunId: string | null,
+): MeriHermesInteractionCard {
+  return hermesInteractionCardFromProjection(
+    {
+      requestId: interaction.requestId,
+      kind: interaction.kind,
+      prompt: interaction.prompt,
+      choices: interaction.choices,
+      multiSelect: interaction.multiSelect,
+      continuation: interaction.continuation,
+      createdAt: interaction.createdAt,
+      expiresAt: interaction.expiresAt,
+      resolved: false,
+      decision: null,
+    },
+    interaction.runId,
+    interaction.runId !== activeRunId,
+  );
+}
+
+export function mergeHermesInteractionsFromActive(
+  prev: MeriHermesInteractionCard[],
+  active: MeriHermesActiveConversation,
+): MeriHermesInteractionCard[] {
+  return active.pendingInteractions.reduce(
+    (acc, row) => upsertHermesInteraction(acc, hermesInteractionCardFromActive(row, active.run?.runId ?? null)),
+    prev,
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Control-surface URLs (contracts.md §5)
 // ---------------------------------------------------------------------------
 
+export function hermesActiveConversationUrl(apiBaseUrl: string, conversationId: string): string {
+  return `${apiBaseUrl}/api/clio/hermes/conversations/${encodeURIComponent(conversationId)}/active`;
+}
 export function hermesRunUrl(apiBaseUrl: string, runId: string): string {
   return `${apiBaseUrl}/api/clio/hermes/runs/${encodeURIComponent(runId)}`;
 }

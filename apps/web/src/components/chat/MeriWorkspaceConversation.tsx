@@ -23,6 +23,7 @@ import { HermesApprovalCard } from './HermesApprovalCard.js';
 import { ResearchClarifyForm } from './ResearchClarifyForm.js';
 import { WorkPerformed } from './WorkPerformed.js';
 import {
+  hermesRunIsGenerating,
   hermesRunStatusLabel,
   type MeriHermesApprovalCard as MeriHermesApprovalCardData,
   type MeriHermesClarifyCard,
@@ -546,12 +547,20 @@ export function MeriWorkspaceConversation({
 
           {/* Hermes control surface (Phase 1 backlog tickets 4/5): durable
               clarification and native command-approval cards. Rendered
-              regardless of isStreaming — unlike the business pendingApprovals
-              below, these belong to a turn that is still live (running,
-              waiting_for_approval, waiting_for_clarification). Both survive
-              reconnect: they are rebuilt from the run projection the same way
-              on mount as they are from a live SSE frame — see
-              useMeriChatController.ts's attachHermesRun. */}
+              regardless of isStreaming and regardless of whether the run that
+              asked is still alive — unlike the business pendingApprovals
+              below, which is gated on `!isStreaming`.
+
+              A durable clarification routinely OUTLIVES its run (the broker
+              asks, the turn ends, the answer arrives as the next chat
+              message), so gating these on a live run is what made such a
+              question unanswerable. Both kinds survive a reload in any tab:
+              they are rebuilt from the server's discovery endpoint on mount
+              exactly as they are from a live SSE frame — see
+              useMeriChatController.ts's discoverHermesActive. A native
+              approval whose run HAS ended still renders, but as a
+              no-longer-actionable card (the backend refuses it), not as a
+              button that would silently fail. */}
           {hermesClarifyCards.map((card) => (
             <ResearchClarifyForm
               key={card.requestId}
@@ -575,6 +584,23 @@ export function MeriWorkspaceConversation({
             <div className={`hermes-run-status hermes-run-status--${hermesRunStatus}`} role="status">
               <span className="hermes-run-status__dot" aria-hidden="true" />
               {hermesRunStatusLabel(hermesRunStatus)}
+              {/* Steering capability statement (contracts.md §6 "Steer", MW-09).
+                  The server route POST …/runs/:id/steer exists, but no steering
+                  UX is built, so the honest thing is to say so where the user
+                  would look for it rather than leave the capability implied.
+                  This is a statement, not a control: it is permanently disabled
+                  until the steer UX ships. */}
+              {hermesRunIsGenerating(hermesRunStatus) ? (
+                <button
+                  type="button"
+                  className="hermes-run-status__steer"
+                  disabled
+                  aria-disabled="true"
+                  title="Stop the run and send a new message to change direction."
+                >
+                  Add guidance — not available for this runtime yet
+                </button>
+              ) : null}
             </div>
           ) : null}
 

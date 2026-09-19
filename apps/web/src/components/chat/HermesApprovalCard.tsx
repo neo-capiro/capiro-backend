@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { MeriHermesApprovalCard as MeriHermesApprovalCardData } from './meri-hermes-interactions.js';
+import type {
+  MeriHermesApprovalBlock,
+  MeriHermesApprovalCard as MeriHermesApprovalCardData,
+} from './meri-hermes-interactions.js';
 import { isHermesInteractionExpired } from './meri-hermes-interactions.js';
 
 export interface HermesApprovalCardProps {
@@ -23,7 +26,13 @@ export interface HermesApprovalCardProps {
  *    happened next (the command's tool_call/sources frames, or the run
  *    simply continuing without it);
  *  - approvals expire (default 300s, contracts.md §6) and must show a stale
- *    state instead of silently offering a decision that Hermes will 403.
+ *    state instead of silently offering a decision that Hermes will 403;
+ *  - a native approval is a `live_process` continuation: the worker is blocked
+ *    waiting on it, so once the run is terminal (stopped, failed, expired,
+ *    finished) there is no longer anything to approve and the backend refuses
+ *    the decision. That is shown as its own no-longer-actionable state — the
+ *    one thing this card must never do is keep offering a button that the
+ *    server will reject.
  */
 export function HermesApprovalCard({ card, busy = false, now = Date.now, onDecide }: HermesApprovalCardProps) {
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +57,22 @@ export function HermesApprovalCard({ card, busy = false, now = Date.now, onDecid
   };
 
   const resolved = card.resolution;
-  const tone = resolved ? (resolved.decision === 'deny' ? 'neutral' : 'success') : expired ? 'danger' : 'warning';
+  // Resolution wins over everything: a decision the user actually made is the
+  // honest outcome even if the run has since ended or the clock has passed.
+  const blocked: MeriHermesApprovalBlock = resolved
+    ? 'resolved'
+    : card.runTerminal
+      ? 'run_ended'
+      : expired
+        ? 'expired'
+        : null;
+  const tone = resolved
+    ? resolved.decision === 'deny'
+      ? 'neutral'
+      : 'success'
+    : blocked
+      ? 'danger'
+      : 'warning';
 
   return (
     <article
@@ -73,7 +97,11 @@ export function HermesApprovalCard({ card, busy = false, now = Date.now, onDecid
             ? 'Approved — Hermes will run this once.'
             : 'Denied — the run continues without it.'}
         </div>
-      ) : expired ? (
+      ) : blocked === 'run_ended' ? (
+        <div className="hermes-approval__outcome hermes-approval__outcome--expired" role="status">
+          This run has ended, so Hermes can no longer act on this approval. It was never run.
+        </div>
+      ) : blocked === 'expired' ? (
         <div className="hermes-approval__outcome hermes-approval__outcome--expired" role="status">
           Expired before you responded. Hermes treated this as denied.
         </div>

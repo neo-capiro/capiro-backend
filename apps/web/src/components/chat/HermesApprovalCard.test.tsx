@@ -51,6 +51,35 @@ describe('HermesApprovalCard', () => {
     expect(screen.queryByRole('button', { name: 'Deny' })).not.toBeInTheDocument();
   });
 
+  it('shows a no-longer-actionable state instead of buttons when the run that asked has ended', () => {
+    // A native approval is a live_process continuation: the worker blocked on
+    // it is gone, so the backend refuses the decision. Leaving Run once/Deny
+    // on screen would be a button that silently fails.
+    render(
+      <HermesApprovalCard
+        card={card({ runTerminal: true, expiresAt: null })}
+        onDecide={vi.fn()}
+        now={nowAt('2026-09-19T00:01:00.000Z')}
+      />,
+    );
+    expect(screen.getByText(/run has ended/i)).toBeInTheDocument();
+    expect(screen.getByText(/never run/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Run once' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny' })).not.toBeInTheDocument();
+  });
+
+  it('still shows a real decision the user made, even after the run ended', () => {
+    render(
+      <HermesApprovalCard
+        card={card({ runTerminal: true, resolution: { decision: 'approve_once', at: '2026-09-19T00:02:00.000Z' } })}
+        onDecide={vi.fn()}
+        now={nowAt('2026-09-19T00:03:00.000Z')}
+      />,
+    );
+    expect(screen.getByText(/run this once/i)).toBeInTheDocument();
+    expect(screen.queryByText(/run has ended/i)).not.toBeInTheDocument();
+  });
+
   it('shows the resolved outcome instead of decision buttons once a decision was made', () => {
     render(
       <HermesApprovalCard
