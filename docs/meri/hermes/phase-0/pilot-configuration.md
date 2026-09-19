@@ -22,7 +22,9 @@ pnpm --filter @capiro/api set:tenant-flag -- --slug capiro-internal --flag meri.
 
 ### Test identities
 
-Phase 0 used **fixture identities only** (`scripts/meri-hermes/phase0-fixtures.json`: Alice and Bob in the fixture pilot tenant, Carol in an outside tenant). Two approved internal production identities with separate private scopes must be designated by the user before a deployed pilot; this session deliberately did not select real user ids.
+Phase 0 used **fixture identities only** (`scripts/meri-hermes/phase0-fixtures.json`: Alice and Bob in the fixture pilot tenant, Carol in an outside tenant). Local Phase 1 implementation work (this document's own tickets #1/#6/#7/#11/#19) continues on fixtures for the same reason Phase 0 did — no deployed environment change is needed to write and test code locally.
+
+**Designated for the deployed pilot (decision recorded 2026-09-19, product owner):** Neo Martinez (`neo@capiro.ai`) and Jordan Clayton (`jordan@capiro.ai`). Their Capiro user ids under tenant `capiro-internal` (`17b63099-bc0f-4ac5-b596-496161e9481e`) have **not** been resolved — that requires the same authorized read-only lookup pattern used for the tenant id itself (§1: `diag-tenant-config.ts`-style query against the deployed database), which this session has not run and will not run without a separate explicit step, consistent with "did not re-query the deployed database... did not guess user ids." Resolve both to real user ids as part of the P1-08 deployment-validation step, not before — this is not a blocker for any of the local ticket work in this branch.
 
 ## 2. The three-key gate (server side, default closed)
 
