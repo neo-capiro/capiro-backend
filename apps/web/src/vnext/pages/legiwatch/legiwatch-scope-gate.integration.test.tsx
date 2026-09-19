@@ -175,7 +175,7 @@ describe('PR C §13 — watchlist gate scopes to dependent tabs only', () => {
     expect(within(gate).getAllByText(/no approved watchlist|monitoring model/i).length).toBeGreaterThan(0);
     // Module chrome survives — the tab strip and Client lens selector are present.
     expect(screen.getByRole('tablist')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /client lens/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Client/ })).toBeTruthy();
   });
 
   it.each([

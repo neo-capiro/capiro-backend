@@ -167,6 +167,7 @@
   --uui-chrome-bg: #12161f;
   --uui-chrome-item-active-bg: rgba(255, 255, 255, 0.1);
   --uui-chrome-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --uui-chrome-item-subtle-bg: rgba(255, 255, 255, 0.05);
   --uui-chrome-label-active: #ffffff;
   --uui-chrome-label-idle: #98a2b3;
   --uui-chrome-icon-idle: #7c8698;

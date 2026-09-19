@@ -1,4 +1,4 @@
-/* LegiWatch v4 parity — Reports & updates workspace.
+/* LegiWatch report workspace.
    Tokens: white 12px-radius cards, ring 0 0 0 1px #E4E7EC + 0 1px 3px rgba(16,24,40,.1),
    Inter prose, IBM Plex Mono for metadata, steel gradient primary, #EFF1F5 canvas.
    The module-level tokens live in legiwatch.css (--lw-*); this file scopes to .lw-reports. */
@@ -111,6 +111,20 @@
   box-shadow:
     0 0 0 1px #e4e7ec,
     0 1px 3px rgba(16, 24, 40, 0.1);
+}
+
+.capiro-vnext-uui .lw-reports-more {
+  margin: -8px 0 16px;
+}
+.capiro-vnext-uui .lw-reports-more summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--lw-body, var(--capiro-color-text-secondary));
+  font-size: 12px;
+  font-weight: 600;
+}
+.capiro-vnext-uui .lw-reports-more .lw-reports-tabs {
+  margin: 8px 0 0;
 }
 
 /* ── controls / actions ──────────────────────────────────────────────── */
@@ -371,7 +385,7 @@
    row (the dialog's accessible name); the rules below are scoped to this
    mount only and compose the dialog into the reference reports modal:
    26px inset, light #F8FAFC header band spanning the full dialog width
-   (heading block + wrapped 9-tab nav), white body with a rule below the
+   (heading block + report views and extra tools), white body with a rule below the
    band, flat row table, 26px actions, footer Close bottom-right.
 
    The generic header row (17px title + X) is visually hidden via the

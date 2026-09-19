@@ -82,8 +82,9 @@ export function FolderContextEditor({
             checked={draft.topPriority}
             onChange={(e) => change('topPriority', e.target.checked)}
           />{' '}
-          Top priority
+          Mark as top priority
         </label>
+        <p>Additional to the Low/Normal/Medium/High Importance field.</p>
         <CapiroSelect
           label="Importance"
           value={draft.importance}

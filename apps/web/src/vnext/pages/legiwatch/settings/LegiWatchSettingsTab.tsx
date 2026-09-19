@@ -287,11 +287,52 @@ function LegiWatchPreferences() {
 
   return (
     <div className="lw-body lw-settings" aria-label="LegiWatch settings">
-      <AgendaRulesPanel />
+      <section className="lw-card" aria-label="Monitoring overview" style={{ padding: 18 }}>
+        <h1 className="lw-card__title">Monitoring</h1>
+        <p style={{ margin: '6px 0 14px', maxWidth: 720 }}>
+          Review the monitoring categories available for this client. This overview does not infer
+          active coverage or delivery from data that has not been loaded.
+        </p>
+        <div aria-label="Monitoring categories" style={{ display: 'grid', gap: 10 }}>
+          <div id="monitoring-watchlists">
+            <strong>Saved watchlists</strong>
+            <p style={{ margin: '3px 0' }}>Topics, terms, and jurisdictions are managed in the client watchlist editor.</p>
+            <a href={watchlistSetupPath(scope)}>Inspect saved watchlists</a>
+          </div>
+          <div id="monitoring-news-statutes">
+            <strong>News and statute monitors</strong>
+            <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Status is not loaded here; inspect the client watchlist to see configured targets.</p>
+            <a href={watchlistSetupPath(scope)}>Inspect news and statute targets</a>
+          </div>
+          <div id="monitoring-follows">
+            <strong>Hearing and committee follows</strong>
+            <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Follow configuration is shown in the existing hearing and committee surfaces, not estimated here.</p>
+            <a href="/legiwatch?tab=hearings">Inspect hearings</a>{' · '}
+            <a href="/legiwatch?tab=committees">Inspect committees</a>{' · '}
+            <a href="#monitoring-record-hearing">Record a hearing</a>
+          </div>
+          <div id="monitoring-agenda">
+            <strong>Agenda and published-record rules</strong>
+            <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Open the controls below to see whether rules are configured for this session.</p>
+            <a href="#monitoring-agenda-rules">Inspect agenda rules</a>{' · '}
+            {reportFlag.enabled ? <a href="#monitoring-published-records">Inspect published-record rules</a> : <span style={{ color: 'var(--lw-meta)' }}>Published-record rules are not available in this workspace</span>}
+          </div>
+          {reportFlag.enabled ? (
+            <div id="monitoring-keyword-workflow">
+              <strong>Keyword and workflow rules</strong>
+              <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Inspect the enabled reports workspace for configured rules; no counts are shown here.</p>
+              <a href="#monitoring-published-records">Open keyword and workflow controls</a>
+            </div>
+          ) : null}
+        </div>
+      </section>
+      <section id="monitoring-agenda-rules" aria-label="Agenda rules">
+        <AgendaRulesPanel />
+      </section>
       {reportFlag.enabled && (
-        <section className="lw-card" style={{ padding: 18 }}>
-          <h2 className="lw-card__title">Published bill records</h2>
-          <p>Review folder targets and staff channels for action and amendment alerts.</p>
+        <section id="monitoring-published-records" className="lw-card" style={{ padding: 18 }}>
+          <h2 className="lw-card__title">Published-record and workflow rules</h2>
+          <p>Review folder targets and staff channels for action, amendment, keyword, and workflow alerts.</p>
           <LwButton onClick={() => setRecordRulesOpen(true)}>
             Manage published-record alerts
           </LwButton>
@@ -377,7 +418,7 @@ function LegiWatchPreferences() {
         </div>
       </section>
 
-      <section className="lw-card" aria-label="Notifications" style={{ padding: 18 }}>
+      <section id="monitoring-record-hearing" className="lw-card" aria-label="Notifications" style={{ padding: 18 }}>
         <div className="lw-card__head">
           <h2 className="lw-card__title">Notifications</h2>
           <span className="lw-card__meta">Per client, on each client's tracking configuration</span>

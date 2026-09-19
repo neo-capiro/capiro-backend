@@ -192,6 +192,7 @@ export function App() {
       <Route element={isSignedIn ? <BillingGate /> : <Navigate to="/sign-in" replace />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/clients" element={<ClientWorkspacePage />} />
+        <Route path="/portfolio" element={<PortfolioIndexRedirect />} />
         <Route path="/engagement/*" element={<EngagementPage />} />
         {/* Workspace — standalone document-builder engine (own ECR/Fargate
             service at /workspace-api/*; this is the SPA UI). */}
@@ -538,6 +539,16 @@ function BillDetailRedirectRoute() {
 function LegacyRadarRedirect() {
   const { search } = useLocation();
   return <Navigate to={`/legiwatch${search}`} replace />;
+}
+
+// The Portfolio index lives at /clients (ClientWorkspacePage renders
+// PortfolioIndexPage when there is no ?clientId). `portfolio-routing.ts`
+// documents /portfolio as that index's canonical URL, so the bare path has to
+// resolve instead of hitting the 404 page. Preserve the query string — the
+// index's whole state (?q/status/sort/layout, ?modal=import-lda) rides on it.
+function PortfolioIndexRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/clients${search}`} replace />;
 }
 
 function AuthPage({ mode }: { mode: 'sign-in' | 'sign-up' }) {

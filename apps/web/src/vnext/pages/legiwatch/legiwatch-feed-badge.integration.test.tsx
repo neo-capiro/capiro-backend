@@ -106,7 +106,7 @@ function renderModule() {
 }
 
 function feedTab(): HTMLElement {
-  const tab = screen.getAllByRole('tab').find((t) => t.textContent?.startsWith('Feed'));
+  const tab = screen.getAllByRole('tab').find((t) => t.textContent?.startsWith('Updates'));
   if (!tab) throw new Error('Feed tab not rendered');
   return tab;
 }
@@ -119,9 +119,10 @@ describe('LW-QA-020 — the Feed badge is the exact server count', () => {
     expect(feedTab().querySelector('.lw-tab__count')?.textContent).not.toBe(String(PAGE_ROWS));
   });
 
-  it('the header pill reports the same exact count', async () => {
+  it('shows the alert count on Updates, not as a global header badge', async () => {
     renderModule();
-    expect(await screen.findByText('LIVE · 60 ACTIVE')).toBeTruthy();
+    await waitFor(() => expect(feedTab().querySelector('.lw-tab__count')?.textContent).toBe('60'));
+    expect(screen.queryByText('LIVE · 60 ACTIVE')).toBeNull();
   });
 
   it("matches the Feed tab's own Active queue row for the same response", async () => {
@@ -140,7 +141,7 @@ describe('LW-QA-020 — the Feed badge is the exact server count', () => {
     expect(await screen.findByText('Alert 0')).toBeTruthy();
     expect(feedTab().querySelector('.lw-tab__count')).toBeNull();
     expect(screen.queryByText(/0 ACTIVE/)).toBeNull();
-    expect(screen.getByText('LIVE')).toBeTruthy();
+    expect(screen.queryByText(/LIVE/)).toBeNull();
   });
 
   it('keeps the 999+ clamp for a very large queue', async () => {
@@ -149,6 +150,6 @@ describe('LW-QA-020 — the Feed badge is the exact server count', () => {
     await waitFor(() =>
       expect(feedTab().querySelector('.lw-tab__count')?.textContent).toBe('999+'),
     );
-    expect(await screen.findByText('LIVE · 1200 ACTIVE')).toBeTruthy();
+    expect(feedTab().querySelector('.lw-tab__count')?.textContent).toBe('999+');
   });
 });

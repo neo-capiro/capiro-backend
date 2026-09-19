@@ -1,0 +1,142 @@
+.capiro-vnext-root .lw .lw-hearings-filter-details {
+  margin: 8px 0;
+}
+
+.capiro-vnext-root .lw .lw-body.lw-hearings-body {
+  gap: 9px;
+}
+
+.capiro-vnext-root .lw .lw-hearings-filter-details > summary,
+.capiro-vnext-root .lw .lw-hearings-source-health > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.capiro-vnext-root .lw .lw-hearings-filter-details > summary::-webkit-details-marker,
+.capiro-vnext-root .lw .lw-hearings-source-health > summary::-webkit-details-marker {
+  display: none;
+}
+
+.capiro-vnext-root .lw .lw-hearings-filter-details__body {
+  padding: 10px 0 0;
+}
+
+.capiro-vnext-root .lw .lw-hearings-quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.capiro-vnext-root .lw .lw-hearings-source-health {
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.capiro-vnext-root .lw .lw-hearings-source-health > summary span {
+  color: var(--lw-brand);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .lw .lw-hearings-source-health__body {
+  padding-top: 10px;
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-hearings-quick-filters {
+    gap: 10px 16px;
+  }
+}
+
+
+.capiro-vnext-root .lw .lw-hearings-quick-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .lw .lw-hearings-quick-filters input {
+  accent-color: var(--lw-brand);
+}
+
+
+/* Keep the primary schedule controls compact without hiding any actions. */
+.capiro-vnext-root .lw .lw-hearings-date-controls__reminder {
+  font-size: 12px;
+  color: var(--lw-meta);
+}
+
+.capiro-vnext-root .lw .lw-hearings-date-controls__export {
+  margin-left: auto;
+}
+
+.capiro-vnext-root .lw .lw-hearings-source-health {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-hearings-date-controls {
+    gap: 8px;
+  }
+
+  .capiro-vnext-root .lw .lw-hearings-date-controls__reminder {
+    flex-basis: 100%;
+  }
+
+  .capiro-vnext-root .lw .lw-hearings-date-controls__export {
+    margin-left: 0;
+  }
+}
+
+
+/* Keep mobile schedule controls compact while retaining their accessible labels. */
+.capiro-vnext-root .lw .lw-hearings-expand--drawer { display: block; }
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-hearings-expand { display: none; }
+  .capiro-vnext-root .lw .lw-hearings-date-controls {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .capiro-vnext-root .lw .lw-hearings-date-controls > .lw-hearings-date-prev,
+  .capiro-vnext-root .lw .lw-hearings-date-controls > .lw-hearings-date-today,
+  .capiro-vnext-root .lw .lw-hearings-date-controls > .lw-hearings-date-next {
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+  .capiro-vnext-root .lw .lw-hearings-date-controls > .lw-hearings-date-prev,
+  .capiro-vnext-root .lw .lw-hearings-date-controls > .lw-hearings-date-next {
+    font-size: 0;
+    width: 36px;
+  }
+  .capiro-vnext-root .lw .lw-hearings-date-prev::before { content: '‹'; font-size: 22px; line-height: 1; }
+  .capiro-vnext-root .lw .lw-hearings-date-next::before { content: '›'; font-size: 22px; line-height: 1; }
+  .capiro-vnext-root .lw .lw-hearings-date-controls > label { min-width: 0; }
+  .capiro-vnext-root .lw .lw-hearings-date-controls > label input[type='date'] { width: 100%; min-width: 0; }
+  .capiro-vnext-root .lw .lw-hearings-date-controls > .lw-seg { grid-column: 1 / -1; }
+}
+
+
+.capiro-vnext-root .lw .lw-hearings-mobile-toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 780px) {
+  .capiro-vnext-root .lw .lw-hearings-mobile-toolbar { display: none; }
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-controls.lw-hearings-date-controls {
+    display: grid;
+    grid-template-columns: 36px 52px minmax(0, 1fr) 36px;
+    gap: 6px;
+  }
+  .capiro-vnext-root .lw .lw-controls.lw-hearings-date-controls > .lw-seg,
+  .capiro-vnext-root .lw .lw-controls.lw-hearings-date-controls > .lw-hearings-date-controls__reminder,
+  .capiro-vnext-root .lw .lw-controls.lw-hearings-date-controls > .lw-btn.lw-hearings-date-controls__export { display: none; }
+}

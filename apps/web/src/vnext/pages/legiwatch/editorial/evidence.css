@@ -84,6 +84,18 @@
 .lw-evidence-toolbar {
   margin-bottom: 16px;
 }
+.lw-evidence-scope,
+.lw-evidence-filter-summary {
+  color: #475467;
+  font-size: 12px;
+}
+.lw-evidence-scope {
+  align-self: center;
+  white-space: nowrap;
+}
+.lw-evidence-filter-summary {
+  margin: 10px 0 0;
+}
 .lw-evidence-card .lw-evidence-toolbar {
   margin-bottom: 0;
 }

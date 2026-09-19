@@ -338,6 +338,33 @@ function ResearchWorkspace() {
   const versions = selected.data?.versions ?? [];
   const rightVersions = rightBill ? (rightSelected.data?.versions ?? []) : versions;
 
+  // Specialist filters, compacted into chips. Every option stays reachable;
+  // this only makes the applied subset visible and individually clearable.
+  const specialistFilters: Array<{ label: string; param: string }> = [
+    { label: 'Bill', param: 'bill' },
+    { label: 'Bill title', param: 'billTitle' },
+    { label: 'Sponsor', param: 'sponsor' },
+    { label: 'Chamber', param: 'chamber' },
+    { label: 'Latest action', param: 'action' },
+    { label: 'Document kind', param: 'documentKind' },
+    { label: 'Retained versions', param: 'versionPolicy' },
+    { label: 'Publisher stage', param: 'versionStage' },
+    { label: 'Statute citation', param: 'referenceId' },
+  ];
+  const isDefaultFilter = (param: string, value: string | null) =>
+    !value ||
+    (param === 'documentKind' && value === 'all') ||
+    (param === 'versionPolicy' && value === 'any_retained') ||
+    (param === 'versionStage' && value === 'all');
+  const appliedFilters = specialistFilters.filter(
+    (f) => !isDefaultFilter(f.param, params.get(f.param)),
+  );
+  const clearAllFilters = () =>
+    change({
+      ...Object.fromEntries(appliedFilters.map((f) => [f.param, ''])),
+      cursor: '',
+    });
+
   const memberships = useQuery({
     queryKey: ['research-memberships', identity, scope],
     enabled: Boolean(folderId) && view === 'statutes',
@@ -365,6 +392,12 @@ function ResearchWorkspace() {
         ].map(([value, label]) => (
           <CapiroButton
             key={value}
+            aria-pressed={view === value || (value === 'bills' && view === 'compare')}
+            variant={
+              view === value || (value === 'bills' && view === 'compare')
+                ? 'primary'
+                : 'secondary'
+            }
             onClick={() => {
               change({ researchView: value!, cursor: '', researchQuery: '' });
               setDraft('');
@@ -374,6 +407,22 @@ function ResearchWorkspace() {
           </CapiroButton>
         ))}
       </nav>
+
+      <p className="lw-research__scope-note" role="note">
+        {view === 'bills'
+          ? 'Full-text search across the bill documents LegiWatch has retained — bill text, amendments and supplements. Metadata browsing lives in Bills.'
+          : view === 'compare'
+            ? 'Exact-wording comparison of two retained document versions.'
+            : view === 'statutes'
+              ? 'Citation lookup in the retained Florida Statutes editions and the current Constitution snapshot.'
+              : view === 'rules'
+                ? 'Rule notices retained from the official rule sources.'
+                : view === 'deadlines'
+                  ? 'Published dates and deadlines from retained rule notices.'
+                  : view === 'imports'
+                    ? 'Review setup imported into this workspace before it takes effect.'
+                    : 'Which official sources LegiWatch has retained, and how complete each source check is.'}
+      </p>
 
       <div className="lw-research__scope">
         <span>
@@ -406,6 +455,14 @@ function ResearchWorkspace() {
             onChange={(e) => change({ session: e.target.value, cursor: '' })}
           />
         )}
+        <span className="lw-research__effective">
+          Effective scope: {jurisdiction === 'FL' ? 'Florida Legislature' : 'U.S. Congress'} ·{' '}
+          {view === 'statutes' ? `edition ${edition}` : `session ${sessionKey}`} ·{' '}
+          {folderId || clientId
+            ? 'selected folder/client context'
+            : 'public corpus, no folder filter'}{' '}
+          · retained sources only — unretained documents cannot match (see Source coverage).
+        </span>
       </div>
 
       {view === 'statutes' ? (
@@ -467,49 +524,86 @@ function ResearchWorkspace() {
               />
             ))}
           </details>
-          <CapiroSelect
-            label="Document kind"
-            value={params.get('documentKind') ?? 'all'}
-            options={options(['all', 'text', 'amendment', 'supplement'])}
-            onChange={(e) => change({ documentKind: e.target.value, cursor: '' })}
-          />
-          <CapiroSelect
-            label="Retained version policy"
-            value={params.get('versionPolicy') ?? 'any_retained'}
-            options={[
-              { value: 'any_retained', label: 'All retained versions' },
-              { value: 'current_extractions', label: 'Current extraction of each document' },
-              { value: 'newest_dated_text', label: 'Newest dated bill text' },
-            ]}
-            onChange={(e) => change({ versionPolicy: e.target.value, cursor: '' })}
-          />
-          <CapiroSelect
-            label="Publisher text stage"
-            value={params.get('versionStage') ?? 'all'}
-            options={[
-              { value: 'all', label: 'All published stages' },
-              { value: 'enrolled', label: 'Publisher-labeled enrolled text' },
-              { value: 'chaptered', label: 'Publisher-labeled chaptered text' },
-            ]}
-            onChange={(e) => change({ versionStage: e.target.value, cursor: '' })}
-          />
-          {params.get('versionPolicy') === 'newest_dated_text' ? (
-            <p>
-              Uses the newest retained publisher date, including ties. Undated texts are omitted;
-              missing evidence may affect the result.
-            </p>
-          ) : null}
-          {params.get('versionStage') && params.get('versionStage') !== 'all' ? (
-            <p>
-              The publisher's document label does not establish which provisions became effective.
-              Review the original record and any related outcomes.
-            </p>
-          ) : null}
+          <details>
+            <summary>More filters — document kind, retained versions, publisher stage</summary>
+            <CapiroSelect
+              label="Document kind"
+              value={params.get('documentKind') ?? 'all'}
+              options={[
+                { value: 'all', label: 'All document kinds' },
+                { value: 'text', label: 'Bill text' },
+                { value: 'amendment', label: 'Amendments' },
+                { value: 'supplement', label: 'Supplements' },
+              ]}
+              onChange={(e) => change({ documentKind: e.target.value, cursor: '' })}
+            />
+            <CapiroSelect
+              label="Retained version policy"
+              value={params.get('versionPolicy') ?? 'any_retained'}
+              options={[
+                {
+                  value: 'any_retained',
+                  label: 'All retained versions — every saved extraction can match',
+                },
+                {
+                  value: 'current_extractions',
+                  label: 'Current extraction only — the latest saved copy of each document',
+                },
+                {
+                  value: 'newest_dated_text',
+                  label: 'Newest dated bill text — by publisher date, ties included',
+                },
+              ]}
+              onChange={(e) => change({ versionPolicy: e.target.value, cursor: '' })}
+            />
+            <CapiroSelect
+              label="Publisher text stage"
+              value={params.get('versionStage') ?? 'all'}
+              options={[
+                { value: 'all', label: 'All published stages' },
+                { value: 'enrolled', label: 'Publisher-labeled enrolled text' },
+                { value: 'chaptered', label: 'Publisher-labeled chaptered text' },
+              ]}
+              onChange={(e) => change({ versionStage: e.target.value, cursor: '' })}
+            />
+            {params.get('versionPolicy') === 'newest_dated_text' ? (
+              <p>
+                Uses the newest retained publisher date, including ties. Undated texts are omitted;
+                missing evidence may affect the result.
+              </p>
+            ) : null}
+            {params.get('versionStage') && params.get('versionStage') !== 'all' ? (
+              <p>
+                The publisher's document label does not establish which provisions became
+                effective. Review the original record and any related outcomes.
+              </p>
+            ) : null}
+          </details>
           {params.get('bill') ? (
             <CapiroButton onClick={() => change({ bill: '', cursor: '' })}>
               Search all bills in session
             </CapiroButton>
           ) : null}
+        </div>
+      ) : null}
+
+      {view === 'bills' && appliedFilters.length ? (
+        <div className="lw-research__chips" role="group" aria-label="Active research filters">
+          <span>Active filters:</span>
+          {appliedFilters.map((f) => (
+            <button
+              key={f.param}
+              type="button"
+              className="lw-research__chip"
+              title="Remove this filter"
+              onClick={() => change({ [f.param]: '', cursor: '' })}
+            >
+              {f.label}: {params.get(f.param)} ✕
+            </button>
+          ))}
+          <CapiroButton size="compact" onClick={clearAllFilters}>
+            Clear all filters
+          </CapiroButton>
         </div>
       ) : null}
 
@@ -522,11 +616,15 @@ function ResearchWorkspace() {
       ) : null}
 
       {read.isPending ? (
-        <p role="status">Loading research…</p>
+        <p role="status">
+          Searching the retained sources for this scope — results appear when the source
+          responds…
+        </p>
       ) : read.isError ? (
         <p role="alert">
-          Research is unavailable for this scope. Check workspace access and source setup, then
-          retry. <CapiroButton onClick={() => read.refetch()}>Retry</CapiroButton>
+          This research view did not return. The retained sources or workspace access may be
+          unavailable; your filters are unchanged and nothing was deleted.{' '}
+          <CapiroButton onClick={() => read.refetch()}>Retry</CapiroButton>
         </p>
       ) : null}
 
@@ -543,6 +641,10 @@ function ResearchWorkspace() {
 
       {isBillView && leftBill && versions.length > 0 ? (
         <div className="lw-research__pair">
+          <p className="lw-research__pair-note">
+            Each entry is one retained document version: label · publisher date · version id.
+            Only versions LegiWatch has saved from official sources are listed.
+          </p>
           <CapiroSelect
             label="Left version"
             value={params.get('left') ?? ''}
@@ -677,12 +779,32 @@ function ResearchWorkspace() {
       ) : null}
 
       {view === 'bills' && read.data && !read.data.items?.length ? (
-        <p>
-          No match on this source page.{' '}
-          {read.data.cursor
-            ? 'Continue to the next page.'
-            : 'Check source coverage before treating this as a complete negative.'}
-        </p>
+        <div className="lw-research__empty" role="status">
+          <p>
+            <strong>No retained document matches this page of results.</strong>{' '}
+            {read.data.cursor
+              ? 'More source pages remain — use “Search next source page” below before concluding there is no match.'
+              : 'This covers only the retained sources for the effective scope above; check source coverage before treating this as a complete negative.'}
+          </p>
+          <div className="lw-research__chips">
+            {query ? (
+              <CapiroButton
+                size="compact"
+                onClick={() => change({ researchQuery: '', cursor: '' })}
+              >
+                Clear search text
+              </CapiroButton>
+            ) : null}
+            {appliedFilters.length ? (
+              <CapiroButton size="compact" onClick={clearAllFilters}>
+                Clear all filters
+              </CapiroButton>
+            ) : null}
+            <CapiroButton size="compact" onClick={() => change({ researchView: 'coverage' })}>
+              Review source coverage
+            </CapiroButton>
+          </div>
+        </div>
       ) : null}
 
       {view === 'bills' && read.data ? (

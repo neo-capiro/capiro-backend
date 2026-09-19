@@ -147,10 +147,13 @@ describe('LW-QA-011 — responsive hearings view-mode', () => {
     renderHearings();
     await screen.findByLabelText('Schedule list');
     expect(screen.queryByLabelText('Week calendar')).toBeNull();
-    const seg = screen.getByLabelText('Schedule view');
-    expect(seg.getAttribute('aria-disabled')).toBe('true');
-    // Honest reason is visible; the saved choice is never overwritten.
-    expect(screen.getByText(/Agenda layout at this width/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar filters' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Calendar filters' });
+    const seg = within(drawer).getByLabelText('Schedule view');
+    expect(seg).toBeTruthy();
+    expect(within(drawer).getByText('Agenda')).toBeTruthy();
+    // Mobile controls live in the filters drawer; the saved desktop preference is not changed.
+    expect(screen.getByLabelText('Schedule list')).toBeTruthy();
   });
 
   it('§9 preference preservation: switching narrow→wide restores Calendar without the user re-choosing', async () => {

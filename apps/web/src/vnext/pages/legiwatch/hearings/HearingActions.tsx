@@ -304,14 +304,14 @@ export function HearingActions({
         <LwButton
           onClick={() => run('stage_outreach', {})}
           disabled={!clientId}
-          title={clientId ? undefined : 'Select a client lens to stage outreach.'}
+          title={clientId ? undefined : 'Select a client to stage outreach.'}
         >
           Stage outreach
         </LwButton>
         <LwButton
           onClick={() => run('save_to_client', {})}
           disabled={!clientId}
-          title={clientId ? undefined : 'Select a client lens to save this hearing to a client.'}
+          title={clientId ? undefined : 'Select a client to save this hearing.'}
         >
           Save to client
         </LwButton>

@@ -51,6 +51,9 @@ export function AnalyticsTab({ scope }: { scope: string }) {
 
   return (
     <div className="lw-body lw-analytics">
+      <p className="lw-state__body" style={{ maxWidth: 'none', marginTop: 0 }}>
+        Trends for {scope === 'all' ? 'all accessible clients' : 'the selected client'} · server totals for the last 30 days.
+      </p>
       <div className="lw-tiles">
         <Tile label="Signals in 30 days" value={s.signalsTotal} denom={`across ${s.sourceFamiliesInvolved} source famil${s.sourceFamiliesInvolved === 1 ? 'y' : 'ies'}`} />
         <Tile label="Client decisions" value={s.clientDecisions} denom={`of ${s.signalsTotal} signals reached a decision`} />
@@ -135,7 +138,7 @@ export function AnalyticsTab({ scope }: { scope: string }) {
             ) : exposure.isError || !exposure.data ? (
               <LwStateUnavailable source="Client exposure" reason="The exposure matrix did not respond." onRetry={() => exposure.refetch()} />
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto' }} tabIndex={0} role="region" aria-label="Client exposure by source family table">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr>
@@ -190,19 +193,19 @@ export function AnalyticsTab({ scope }: { scope: string }) {
           {/* dark source-coverage panel */}
           <section style={{ background: 'var(--lw-ink)', borderRadius: 12, padding: 18, color: '#fff' }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Source coverage</h3>
-            <p style={{ margin: '6px 0 10px', fontSize: 12, color: 'var(--lw-faint)' }}>
+            <p style={{ margin: '6px 0 10px', fontSize: 12, color: '#D0D5DD' }}>
               Missing coverage is never represented as zero.
             </p>
             {coverage.isLoading ? (
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--lw-faint)' }}>Loading…</p>
+              <p style={{ margin: 0, fontSize: 13, color: '#D0D5DD' }}>Loading…</p>
             ) : coverage.isError || !coverage.data ? (
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--lw-faint)' }}>Source coverage could not be loaded.</p>
+              <p style={{ margin: 0, fontSize: 13, color: '#D0D5DD' }}>Source coverage could not be loaded.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {coverage.data.sources.map((src) => (
                   <div key={src.family} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ flex: 1, fontSize: 13 }}>{src.family}</span>
-                    <span className="lw-mono" style={{ fontSize: 12, color: 'var(--lw-faint)' }}>
+                    <span className="lw-mono" style={{ fontSize: 12, color: '#D0D5DD' }}>
                       {src.coveragePct == null ? '—' : `${src.coveragePct}%`}
                     </span>
                   </div>

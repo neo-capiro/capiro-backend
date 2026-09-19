@@ -70,10 +70,10 @@ export function ClientRelevancePanel({
 
       <label style={{ display: 'block', margin: '8px 0 14px' }}>
         <span className="lw-eyebrow" style={{ display: 'block', marginBottom: 4 }}>
-          Client lens
+          Client
         </span>
         <select
-          aria-label="Client lens"
+          aria-label="Client"
           value={clientId}
           onChange={(e) => onSelectClient(e.target.value)}
           style={{ minWidth: 240, padding: '6px 8px' }}

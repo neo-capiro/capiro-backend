@@ -66,7 +66,7 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
   const [openBill, setOpenBill] = useState<string | null>(null);
 
   // Global public corpus search — available even when the folder-tracker flag
-  // is off, so a tenant can find any ingested federal/state bill by number or
+  // is off, so a tenant can find any available federal/state bill by number or
   // title. Entering a query switches the table from the tracked board to the
   // full corpus; clearing it returns to the board.
   const corpusQ = params.get('corpusQ') ?? '';
@@ -368,20 +368,20 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
       </div>
       ) : null}
 
-      {/* Global corpus search — every ingested bill, flag-independent. Renders
+      {/* Global corpus search — every available bill, flag-independent. Renders
           regardless of the private tracked board's loading/error state. */}
       <div className="lw-card" style={{ padding: '10px 18px' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <label style={{ flex: 1, minWidth: 220, fontSize: 13 }}>
             <span style={{ display: 'block', marginBottom: 4, color: 'var(--lw-meta)' }}>
-              Search all ingested bills
+              Search all available bills
             </span>
             <input
               type="search"
               value={corpusQ}
               onChange={(e) => setFilter('corpusQ', e.target.value)}
               placeholder="Bill number or title — e.g. H.R. 177, HB 27, data center"
-              aria-label="Search all ingested bills"
+              aria-label="Search all available bills"
               className="lw-btn"
               style={{ width: '100%', textAlign: 'left' }}
             />
@@ -396,7 +396,7 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
               value={corpusJurisdiction}
               onChange={(e) => setFilter('corpusJurisdiction', e.target.value)}
             >
-              <option value="">All ingested jurisdictions</option>
+              <option value="">All available jurisdictions</option>
               {(corpusMeta.data?.jurisdictions ?? []).map((j) => (
                 <option key={j.key} value={j.key}>
                   {j.key === 'US' ? 'Federal' : j.key} ({j.count})
@@ -408,7 +408,7 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
         {corpusSearch ? (
           <div style={{ marginTop: 10 }}>
             {corpus.isPending ? (
-              <p role="status">Searching the ingested corpus…</p>
+              <p role="status">Searching the available corpus…</p>
             ) : corpus.isError ? (
               <p role="alert">Corpus search is unavailable right now. Try again in a moment.</p>
             ) : (
@@ -437,7 +437,7 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
                   ))}
                   {!corpusRows.length ? (
                     <li style={{ fontSize: 13, color: 'var(--lw-meta)' }}>
-                      No ingested bills match “{corpusQ}”.
+                      No available bills match “{corpusQ}”.
                     </li>
                   ) : null}
                 </ul>

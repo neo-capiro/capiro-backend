@@ -61,8 +61,10 @@ export function CapiroSelect({
   const controlId = id ?? generatedId;
   const messageId = `${controlId}-message`;
   return (
-    <label className="capiro-field" htmlFor={controlId}>
-      <span className="capiro-field__label">{label}</span>
+    <div className="capiro-field">
+      <label className="capiro-field__label" htmlFor={controlId}>
+        {label}
+      </label>
       <select
         id={controlId}
         className={`capiro-select ${className}`.trim()}
@@ -81,7 +83,7 @@ export function CapiroSelect({
       ) : helpText ? (
         <span id={messageId} className="capiro-field__help">{helpText}</span>
       ) : null}
-    </label>
+    </div>
   );
 }
 

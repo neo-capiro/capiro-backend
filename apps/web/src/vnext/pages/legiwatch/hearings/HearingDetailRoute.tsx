@@ -500,6 +500,10 @@ export function HearingDetailRoute() {
                 separate controls: following notifies, attending captures. The
                 Attend control renders only when the server says a mode is actually
                 available, so a closed session has no attendance affordance at all. */}
+            <p className="lw-card__meta" style={{ marginTop: 10, fontSize: 12 }}>
+              Follow sends updates about this hearing. Record hearing asks Capiro to capture and
+              transcribe it; these are separate actions.
+            </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               <LwButton
                 variant={follow.data?.following ? undefined : 'primary'}
@@ -520,7 +524,7 @@ export function HearingDetailRoute() {
                   (attendance.data.browserAvailable ??
                     (attendance.data.availableModes ?? []).includes('browser'))) ? (
                 <LwButton variant="primary" onClick={() => setDialog('attend')}>
-                  Have Capiro attend
+                  Record hearing
                 </LwButton>
               ) : attendance.data ? (
                 // No control, but the state is still stated rather than hidden.

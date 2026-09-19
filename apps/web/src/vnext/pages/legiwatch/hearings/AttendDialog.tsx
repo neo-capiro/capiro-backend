@@ -162,7 +162,7 @@ export function AttendDialog({
   return (
     <LwModal
       kind="transcription"
-      eyebrow="Have Capiro attend"
+      eyebrow="Record hearing"
       title="Attendance & capture"
       subtitle={hearingTitle}
       note="Attending captures and transcribes this proceeding."

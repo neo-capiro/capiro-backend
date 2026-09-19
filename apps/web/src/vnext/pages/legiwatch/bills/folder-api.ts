@@ -50,8 +50,8 @@ export interface FolderBill extends FolderContext {
   subjects?: string[];
   currentCommittee?: string | null;
 }
-export interface FolderPage {
-  rows: FolderBill[];
+export interface FolderPage<T = FolderBill> {
+  rows: T[];
   total: number;
   nextCursor: string | null;
 }
