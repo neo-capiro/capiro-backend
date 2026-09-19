@@ -22,6 +22,8 @@ export interface ScheduledIngestionJob {
   cron: { minute: string; hour: string; day?: string; month?: string; weekDay?: string };
   /** Human note for the rule description. */
   description: string;
+  /** Optional environment variables applied only to this scheduled container invocation. */
+  environment?: Record<string, string>;
   /** Tier for grouping/observability. */
   tier: 'daily' | 'weekly' | 'monthly' | 'derived' | 'embeddings' | 'agent';
   /**
@@ -360,8 +362,7 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   {
     id: 'ReconcileHearingArchives',
     command: ['reconcile-hearing-archives', '--lookback-days=30'],
-    // 08:40 UTC, not 07:55 — SyncSamOpportunitiesAllFederal already owns that
-    // minute. Note `sync-hearing-transcripts` has an entrypoint verb but NO rule
+    // Note `sync-hearing-transcripts` has an entrypoint verb but NO rule
     // in this matrix, so official transcripts only land when it is run manually;
     // until it is scheduled, this job's transcript linkage will usually find
     // nothing and simply marks past events completed. That is a real coverage
@@ -412,19 +413,17 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['sync-sam-opportunities'],
     cron: { minute: '50', hour: '7' },
     tier: 'daily',
-    description: 'SAM.gov DoD contract opportunities (daily, incremental)',
+    description: 'SAM.gov DoD contract opportunities (redundant with all-federal rail)',
+    enabled: false,
   },
   {
     id: 'SyncSamOpportunitiesAllFederal',
-    command: ['sync-sam-opportunities-all-federal'],
-    cron: { minute: '55', hour: '7' },
+    command: ['sync-sam-opportunities-all-federal', '--skip-descriptions'],
+    cron: { minute: '15', hour: '0' },
     tier: 'daily',
     description:
-      'Funding Opportunities: all-federal SAM.gov contract notices (daily, independent watermark)',
-    // Enable out-of-band only after the all-federal backfill and internal canary.
-    // The existing DoD rule may remain during canary because upserts are idempotent,
-    // but should be disabled once this complete rail is stable to avoid duplicate API use.
-    enabled: false,
+      'Funding Opportunities: all-federal SAM.gov contract notices (daily 00:15 UTC, descriptions deferred)',
+    enabled: true,
   },
   {
     id: 'EnrichAwardDistricts',
@@ -671,15 +670,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: relevant vehicles and past-performance sync into client_relevant_vehicle (daily 12:40 UTC)',
     enabled: false,
   },
-  // Forecast source sync. Scheduling never enables a customer capability.
-  // Deploy only scoped rules after checking live task/image drift.
+  // Funding Opportunities forecast sync is quota-capped per run.
   {
     id: 'SyncTangoForecasts',
-    command: ['sync-tango-forecasts', '--commit'],
-    cron: { minute: '50', hour: '12' },
+    command: ['sync-tango-forecasts', '--commit', '--limit=5000'],
+    cron: { minute: '0', hour: '2' },
     tier: 'daily',
     description:
-      'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
+      'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 02:00 UTC)',
+    environment: { TANGO_REQUEST_CEILING_PER_RUN: '30' },
     enabled: true,
   },
   {
@@ -702,43 +701,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'District Nexus: Tango subaward incremental sync into tango_subaward (daily 13:15 UTC)',
     enabled: false,
   },
-  // ── Funding Opportunities P40 part 3 — DIBBS bid board (ships DISABLED) ─────
-  //
-  // TWO JOBS, and the pairing is load-bearing rather than belt-and-braces.
-  // DIBBS publishes no `modified_after` filter — only `issue_date_after`,
-  // `issued_date_after` and `posted_date_after` — so the incremental window
-  // selects records ISSUED since a date. An amendment to an already-issued
-  // solicitation never re-enters that window, and the incremental job would
-  // report itself complete having never seen it. The weekly `--full` run is
-  // what actually keeps the catalog true; it is not an optimisation.
-  //
-  // Both are idempotent (upsert on the provider's own `uuid`), so the two
-  // firing on the same day is harmless — Sunday simply refreshes what Sunday's
-  // incremental already wrote.
-  //
-  // RATE LIMIT: P17's live probe (2026-08-08) measured this account at 25
-  // requests per ~31s. A page-complete walk at limit=100 reaches that as a
-  // matter of course, so the sync throttles and retries rather than treating a
-  // 429 as exceptional (D-65). Budget wall-clock accordingly: the full weekly
-  // reconciliation is paced by the provider, not by Postgres.
-  //
-  // DISABLED, and not merely by house convention. P17 now confirms entitlement
-  // and confirms the pagination ENVELOPE against a live response — but the
-  // probe captures no response bodies, so mapper field types, null semantics
-  // and date formats remain readings of published NAMES. Full live contract
-  // validation has not run. Enabling this before it would write a whole catalog
-  // shaped by an only-partly-verified contract.
-  // Enable the incremental first, read one run's summary — especially
-  // `quantityDroppedMissingUnit` and the per-endpoint drop counts — and only
-  // then enable the full reconciliation.
+  // ── Funding Opportunities — DIBBS bid board ───────────────────────────────
   {
     id: 'SyncTangoDibbs',
     command: ['sync-tango-dibbs', '--commit'],
-    cron: { minute: '10', hour: '13' },
+    cron: { minute: '5', hour: '0' },
     tier: 'daily',
     description:
-      'Funding Opportunities: DIBBS bid-board incremental sync (daily 13:10 UTC, issue-date window + 7d overlap)',
-    enabled: false,
+      'Funding Opportunities: DIBBS bid-board incremental sync (daily 00:05 UTC, issue-date window + 7d overlap)',
+    enabled: true,
   },
   {
     id: 'ReconcileTangoDibbsFull',
@@ -749,34 +720,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) — catches amendments the issue-date window cannot',
     enabled: false,
   },
-  // Funding Opportunities P42 part 3: SBIR/STTR. DISABLED, and with a STRONGER
-  // reason than the DIBBS pair above.
-  //
-  // P17 confirmed the DIBBS envelope against a live response on 2026-08-08.
-  // NOTHING HAS EVER CALLED /api/sbir/ — not once. The client, the schema, the
-  // mappers and the walk are all written against a published field list, so
-  // enabling this would write a whole catalog shaped by a contract that has
-  // never been observed at all, not merely one only partly verified.
-  //
-  // Order of operations when the time comes: run the P17 probe to answer
-  // entitlement and the envelope, then a live contract validation capturing
-  // real record contents, then the incremental ALONE, then read one run's
-  // summary — especially `topicsWithNoStatedCycle` and the per-endpoint
-  // droppedNoId / droppedNoRequiredField counts, which are the fields that say
-  // the reading of an identifier or the parent key is wrong — and only then
-  // enable the full reconciliation.
-  //
-  // Offset 20 minutes from the DIBBS pair: both hit the same account, and P17
-  // measured it at 25 requests per ~31s, which a page-complete walk reaches
-  // routinely. Overlapping two catalog walks would make each throttle the other.
+  // ── Funding Opportunities — SBIR/STTR ─────────────────────────────────────
   {
     id: 'SyncTangoSbir',
     command: ['sync-tango-sbir', '--commit'],
-    cron: { minute: '30', hour: '13' },
+    cron: { minute: '20', hour: '1' },
     tier: 'daily',
     description:
-      'Funding Opportunities: SBIR/STTR incremental sync (daily 13:30 UTC, publication-date window + 7d overlap)',
-    enabled: false,
+      'Funding Opportunities: SBIR/STTR incremental sync (daily 01:20 UTC, publication-date window + 7d overlap)',
+    enabled: true,
   },
   {
     id: 'ReconcileTangoSbirFull',
