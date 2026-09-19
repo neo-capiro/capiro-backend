@@ -10,7 +10,8 @@ export type StrategyType =
   | 'regulatory'
   | 'coalition'
   | 'procurement'
-  | 'earmark';
+  | 'earmark'
+  | 'amendment';
 
 export type NodeKind = 'action' | 'decision' | 'gate' | 'milestone' | 'risk';
 export type NodeSubject =

@@ -125,255 +125,260 @@ export function ArchiveSubTab({ clientId }: { clientId: string }) {
           Saved hearing sessions could not be checked. Transcript results may be incomplete.
         </p>
       ) : null}
-      <div className="lw-search" style={{ marginBottom: 12 }}>
-        <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>
-          ⌕
-        </span>
-        <input
-          type="search"
-          aria-label="Search the hearing archive"
-          placeholder="Search titles, committees, witnesses, transcripts and findings"
-          value={rawQuery}
-          onChange={(e) => setRawQuery(e.target.value)}
-        />
-      </div>
+      <div className="lw-archive__cols">
+        <div className="lw-archive__results">
+          <div className="lw-search">
+            <span aria-hidden="true" style={{ color: 'var(--lw-meta)' }}>
+              ⌕
+            </span>
+            <input
+              type="search"
+              aria-label="Search the hearing archive"
+              placeholder="Search titles, committees, witnesses, transcripts and findings"
+              value={rawQuery}
+              onChange={(e) => setRawQuery(e.target.value)}
+            />
+          </div>
 
-      <div
-        role="group"
-        aria-label="Archive filters"
-        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}
-      >
-        <label>
-          <span className="lw-eyebrow">Chamber</span>
-          <select
-            aria-label="Chamber"
-            value={filters.chamber ?? ''}
-            onChange={(e) => setFilter('chamber', e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="House">House</option>
-            <option value="Senate">Senate</option>
-            <option value="Joint">Joint</option>
-          </select>
-        </label>
-        <label>
-          <span className="lw-eyebrow">Committee</span>
-          <select
-            aria-label="Committee"
-            value={filters.committee ?? ''}
-            onChange={(e) => setFilter('committee', e.target.value)}
-          >
-            <option value="">All</option>
-            {(search.data?.facets.committee ?? []).map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label} ({f.count})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="lw-eyebrow">From</span>
-          <input
-            type="date"
-            aria-label="From date"
-            value={filters.from ?? ''}
-            onChange={(e) => setFilter('from', e.target.value)}
-          />
-        </label>
-        <label>
-          <span className="lw-eyebrow">To</span>
-          <input
-            type="date"
-            aria-label="To date"
-            value={filters.to ?? ''}
-            onChange={(e) => setFilter('to', e.target.value)}
-          />
-        </label>
-        <label>
-          <span className="lw-eyebrow">Status</span>
-          <select
-            aria-label="Hearing status"
-            value={filters.eventStatus ?? ''}
-            onChange={(e) => setFilter('eventStatus', e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="completed">Completed</option>
-            <option value="canceled">Canceled</option>
-          </select>
-        </label>
-        <label>
-          <span className="lw-eyebrow">Transcript</span>
-          <select
-            aria-label="Transcript availability"
-            value={filters.hasTranscript ?? ''}
-            onChange={(e) => setFilter('hasTranscript', e.target.value)}
-          >
-            <option value="">Any</option>
-            <option value="true">Available</option>
-            <option value="false">Not available</option>
-          </select>
-        </label>
-        <label>
-          <span className="lw-eyebrow">Intelligence</span>
-          <select
-            aria-label="Intelligence type"
-            value={filters.intelligenceType ?? ''}
-            onChange={(e) => setFilter('intelligenceType', e.target.value)}
-          >
-            <option value="">Any</option>
-            {INTELLIGENCE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t.replace(/_/g, ' ').toLowerCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-        {clientId ? (
-          <label>
-            <span className="lw-eyebrow">Client relevance</span>
-            <select
-              aria-label="Client relevance band"
-              value={filters.relevanceBand ?? ''}
-              onChange={(e) => setFilter('relevanceBand', e.target.value)}
-            >
-              <option value="">Any</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium and above</option>
-              <option value="LOW">Low and above</option>
-            </select>
-          </label>
-        ) : null}
-      </div>
-
-      {isTyping || search.isPending || wasCanceled ? (
-        <>
-          <p className="lw-card__meta" style={{ marginTop: 0 }} role="status" aria-live="polite">
-            Searching…
-          </p>
-          <LwSkeleton height={72} />
-          <div style={{ height: 10 }} />
-          <LwSkeleton height={72} delay={2} />
-          <div style={{ height: 10 }} />
-          <LwSkeleton height={72} delay={3} />
-        </>
-      ) : isRealError ? (
-        <LwStateUnavailable
-          source="Hearing archive"
-          reason={`Archive search is unavailable. ${w1Error(search.error)}`}
-          onRetry={() => void search.refetch()}
-        />
-      ) : rows.length === 0 ? (
-        // Three distinct empty states: an empty corpus, a query that matched
-        // nothing, and facets that matched nothing. Each has its own way out.
-        <div className="lw-card" style={{ padding: 18 }}>
-          {corpusEmpty ? (
-            <p style={{ margin: 0, fontSize: 14 }}>
-              The archive has no completed proceedings yet. Hearings appear here once they have
-              taken place.
-            </p>
-          ) : hasQuery ? (
-            <>
-              <p style={{ margin: 0, fontSize: 14 }}>
-                No results match “{query}”. Try a broader phrase or clear your search.
+          {isTyping || search.isPending || wasCanceled ? (
+            <div className="lw-card">
+              <p className="lw-card__meta" style={{ marginTop: 0 }} role="status" aria-live="polite">
+                Searching…
               </p>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                <LwButton
-                  onClick={() => {
-                    // Committed directly as well as through the input: an
-                    // explicit clear has nothing to debounce.
-                    setRawQuery('');
-                    setQuery('');
-                    setPage(1);
-                  }}
-                >
-                  Clear search
-                </LwButton>
-                {/* Both narrowings are in play, so neither exit may be missing. */}
-                {hasFacetFilters ? (
-                  <LwButton
-                    onClick={() => {
-                      setFilters({});
-                      setPage(1);
-                    }}
-                  >
-                    Clear filters
-                  </LwButton>
-                ) : null}
-              </div>
-            </>
+              <LwSkeleton height={72} />
+              <div style={{ height: 10 }} />
+              <LwSkeleton height={72} delay={2} />
+              <div style={{ height: 10 }} />
+              <LwSkeleton height={72} delay={3} />
+            </div>
+          ) : isRealError ? (
+            <LwStateUnavailable
+              source="Hearing archive"
+              reason={`Archive search is unavailable. ${w1Error(search.error)}`}
+              onRetry={() => void search.refetch()}
+            />
+          ) : rows.length === 0 ? (
+            // Three distinct empty states: an empty corpus, a query that matched
+            // nothing, and facets that matched nothing. Each has its own way out.
+            <div className="lw-card lw-archive__empty">
+              {corpusEmpty ? (
+                <p style={{ margin: 0, fontSize: 14 }}>
+                  The archive has no completed proceedings yet. Hearings appear here once they have
+                  taken place.
+                </p>
+              ) : hasQuery ? (
+                <>
+                  <p style={{ margin: 0, fontSize: 14 }}>
+                    No results match “{query}”. Try a broader phrase or clear your search.
+                  </p>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                    <LwButton
+                      onClick={() => {
+                        // Committed directly as well as through the input: an
+                        // explicit clear has nothing to debounce.
+                        setRawQuery('');
+                        setQuery('');
+                        setPage(1);
+                      }}
+                    >
+                      Clear search
+                    </LwButton>
+                    {/* Both narrowings are in play, so neither exit may be missing. */}
+                    {hasFacetFilters ? (
+                      <LwButton
+                        onClick={() => {
+                          setFilters({});
+                          setPage(1);
+                        }}
+                      >
+                        Clear filters
+                      </LwButton>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ margin: 0, fontSize: 14 }}>
+                    No archived proceedings match these filters.
+                  </p>
+                  <div style={{ marginTop: 10 }}>
+                    <LwButton
+                      onClick={() => {
+                        setFilters({});
+                        setPage(1);
+                      }}
+                    >
+                      Clear filters
+                    </LwButton>
+                  </div>
+                </>
+              )}
+            </div>
           ) : (
             <>
-              <p style={{ margin: 0, fontSize: 14 }}>
-                No archived proceedings match these filters.
+              <p className="lw-card__meta" style={{ marginTop: 0 }}>
+                {search.data!.total} archived proceeding
+                {search.data!.total === 1 ? '' : 's'}
+                {/* Nothing matched every word, so these are any-term hits. Saying so
+                    is the difference between a search result and a misleading one. */}
+                {search.data!.matchMode === 'partial' ? ' · partial matches only' : ''}
+                {search.isFetching ? ' · updating…' : ''}
               </p>
-              <div style={{ marginTop: 10 }}>
+              <ol className="lw-archive__list">
+                {rows.map((row) => (
+                  <li key={row.id}>
+                    <ArchiveResultCard
+                      row={row}
+                      onOpen={(hash) => navigate(`${row.detailPath}${hash}`)}
+                    />
+                  </li>
+                ))}
+              </ol>
+
+              <nav aria-label="Archive pagination" className="lw-archive__pages">
                 <LwButton
-                  onClick={() => {
-                    setFilters({});
-                    setPage(1);
-                  }}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || search.isPlaceholderData}
                 >
-                  Clear filters
+                  ← Previous
                 </LwButton>
-              </div>
+                <span className="lw-card__meta">
+                  Page {page} of {Math.max(1, Math.ceil(search.data!.total / PAGE_SIZE))}
+                </span>
+                <LwButton
+                  onClick={() => setPage((p) => p + 1)}
+                  // While the held-over page is on screen, `hasMore` describes the
+                  // page being left, not the one arriving. Wait for the real answer
+                  // rather than let a click run off the end of the results.
+                  disabled={!search.data!.hasMore || search.isPlaceholderData}
+                >
+                  Next →
+                </LwButton>
+              </nav>
             </>
           )}
         </div>
-      ) : (
-        <>
-          <p className="lw-card__meta" style={{ marginTop: 0 }}>
-            {search.data!.total} archived proceeding
-            {search.data!.total === 1 ? '' : 's'}
-            {/* Nothing matched every word, so these are any-term hits. Saying so
-                is the difference between a search result and a misleading one. */}
-            {search.data!.matchMode === 'partial' ? ' · partial matches only' : ''}
-            {search.isFetching ? ' · updating…' : ''}
-          </p>
-          <ol
-            style={{
-              listStyle: 'none',
-              margin: 0,
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-            }}
-          >
-            {rows.map((row) => (
-              <li key={row.id}>
-                <ArchiveResultCard
-                  row={row}
-                  onOpen={(hash) => navigate(`${row.detailPath}${hash}`)}
-                />
-              </li>
-            ))}
-          </ol>
 
-          <nav
-            aria-label="Archive pagination"
-            style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}
-          >
-            <LwButton
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || search.isPlaceholderData}
+        <aside className="lw-archive__rail" aria-label="Narrow the corpus">
+          <div className="lw-archive__rail-head">
+            <span className="lw-eyebrow">Narrow the corpus</span>
+            <button
+              type="button"
+              className="lw-archive__rail-reset"
+              onClick={() => {
+                setFilters({});
+                setRawQuery('');
+                setQuery('');
+                setPage(1);
+              }}
             >
-              ← Previous
-            </LwButton>
-            <span className="lw-card__meta">
-              Page {page} of {Math.max(1, Math.ceil(search.data!.total / PAGE_SIZE))}
-            </span>
-            <LwButton
-              onClick={() => setPage((p) => p + 1)}
-              // While the held-over page is on screen, `hasMore` describes the
-              // page being left, not the one arriving. Wait for the real answer
-              // rather than let a click run off the end of the results.
-              disabled={!search.data!.hasMore || search.isPlaceholderData}
-            >
-              Next →
-            </LwButton>
-          </nav>
-        </>
-      )}
+              Reset
+            </button>
+          </div>
+          <div role="group" aria-label="Archive filters" className="lw-archive__rail-fields">
+            <label>
+              <span className="lw-eyebrow">Chamber</span>
+              <select
+                aria-label="Chamber"
+                value={filters.chamber ?? ''}
+                onChange={(e) => setFilter('chamber', e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="House">House</option>
+                <option value="Senate">Senate</option>
+                <option value="Joint">Joint</option>
+              </select>
+            </label>
+            <label>
+              <span className="lw-eyebrow">Committee</span>
+              <select
+                aria-label="Committee"
+                value={filters.committee ?? ''}
+                onChange={(e) => setFilter('committee', e.target.value)}
+              >
+                <option value="">All</option>
+                {(search.data?.facets.committee ?? []).map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label} ({f.count})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="lw-eyebrow">From</span>
+              <input
+                type="date"
+                aria-label="From date"
+                value={filters.from ?? ''}
+                onChange={(e) => setFilter('from', e.target.value)}
+              />
+            </label>
+            <label>
+              <span className="lw-eyebrow">To</span>
+              <input
+                type="date"
+                aria-label="To date"
+                value={filters.to ?? ''}
+                onChange={(e) => setFilter('to', e.target.value)}
+              />
+            </label>
+            <label>
+              <span className="lw-eyebrow">Status</span>
+              <select
+                aria-label="Hearing status"
+                value={filters.eventStatus ?? ''}
+                onChange={(e) => setFilter('eventStatus', e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="completed">Completed</option>
+                <option value="canceled">Canceled</option>
+              </select>
+            </label>
+            <label>
+              <span className="lw-eyebrow">Transcript</span>
+              <select
+                aria-label="Transcript availability"
+                value={filters.hasTranscript ?? ''}
+                onChange={(e) => setFilter('hasTranscript', e.target.value)}
+              >
+                <option value="">Any</option>
+                <option value="true">Available</option>
+                <option value="false">Not available</option>
+              </select>
+            </label>
+            <label>
+              <span className="lw-eyebrow">Intelligence</span>
+              <select
+                aria-label="Intelligence type"
+                value={filters.intelligenceType ?? ''}
+                onChange={(e) => setFilter('intelligenceType', e.target.value)}
+              >
+                <option value="">Any</option>
+                {INTELLIGENCE_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t.replace(/_/g, ' ').toLowerCase()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {clientId ? (
+              <label>
+                <span className="lw-eyebrow">Client relevance</span>
+                <select
+                  aria-label="Client relevance band"
+                  value={filters.relevanceBand ?? ''}
+                  onChange={(e) => setFilter('relevanceBand', e.target.value)}
+                >
+                  <option value="">Any</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium and above</option>
+                  <option value="LOW">Low and above</option>
+                </select>
+              </label>
+            ) : null}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

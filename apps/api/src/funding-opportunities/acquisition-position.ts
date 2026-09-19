@@ -87,7 +87,7 @@ export type AcquisitionPositionState = (typeof ACQUISITION_POSITION_STATES)[numb
  *
  * None of those three is a negative determination, and treating any of them as
  * "has access: false" in a scoring input is fine — treating them as "cannot
- * compete" in COPY is not. `forecast-relevance.ts`'s `knownVehicleAccess` is
+ * compete" in COPY is not. the forecast rail's `knownVehicleAccess` is
  * documented against exactly this list.
  */
 export const USABLE_ACQUISITION_POSITION_STATES = [

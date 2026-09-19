@@ -13,7 +13,7 @@
  * class + token); no layout, color, or behavior changes.
  */
 
-.cap-pf-work {
+.cap-pf .cap-pf-work {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -35,17 +35,17 @@
 
 /* Client-record drawer: the standalone prototype uses a compact strategy
    table here, not the full-page portfolio dashboard above. */
-.cap-pf-work-drawer { min-width: 0; background: #fff; }
-.cap-pf-work-drawer__scroll { overflow-x: auto; }
-.cap-pf-work-drawer__table { min-width: 660px; }
-.cap-pf-work-drawer__head,
-.cap-pf-work-drawer__row {
+.cap-pf .cap-pf-work-drawer { min-width: 0; background: #fff; }
+.cap-pf .cap-pf-work-drawer__scroll { overflow-x: auto; }
+.cap-pf .cap-pf-work-drawer__table { min-width: 660px; }
+.cap-pf .cap-pf-work-drawer__head,
+.cap-pf .cap-pf-work-drawer__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 132px 90px 84px 104px;
   align-items: center;
   gap: 14px;
 }
-.cap-pf-work-drawer__head {
+.cap-pf .cap-pf-work-drawer__head {
   padding: 10px 20px;
   background: #f9fafb;
   border-bottom: 1px solid #e4e7ec;
@@ -54,19 +54,22 @@
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
+  /* Reference work.html header is 34px — the shell's inherited 24px leading
+     on 10.5px uppercase text was inflating it. */
+  line-height: 14px;
 }
-.cap-pf-work-drawer__head > :nth-child(n+3) { text-align: right; }
-.cap-pf-work-drawer__row {
+.cap-pf .cap-pf-work-drawer__head > :nth-child(n+3) { text-align: right; }
+.cap-pf .cap-pf-work-drawer__row {
   width: 100%;
   padding: 14px 20px;
   border-bottom: 1px solid #f2f4f7;
   background: #fff;
   text-align: left;
 }
-.cap-pf-work-drawer__row:hover { background: #f9fafb; }
-.cap-pf-work-drawer__strategy,
-.cap-pf-work-drawer__owner { min-width: 0; }
-.cap-pf-work-drawer__strategy strong {
+.cap-pf .cap-pf-work-drawer__row:hover { background: #f9fafb; }
+.cap-pf .cap-pf-work-drawer__strategy,
+.cap-pf .cap-pf-work-drawer__owner { min-width: 0; }
+.cap-pf .cap-pf-work-drawer__strategy strong {
   display: block;
   overflow: hidden;
   color: #101828;
@@ -75,7 +78,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cap-pf-work-drawer__strategy small {
+.cap-pf .cap-pf-work-drawer__strategy small {
   display: block;
   margin-top: 2px;
   color: #667085;
@@ -84,22 +87,23 @@
   letter-spacing: .05em;
   text-transform: uppercase;
 }
-.cap-pf-work-drawer__owner { display: flex; align-items: center; gap: 8px; }
-.cap-pf-work-drawer__owner > span:last-child {
+.cap-pf .cap-pf-work-drawer__owner { display: flex; align-items: center; gap: 8px; }
+.cap-pf .cap-pf-work-drawer__owner > span:last-child {
   overflow: hidden;
   color: #344054;
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cap-pf-work-drawer__number { color: #101828; font-size: 13.5px; font-weight: 600; text-align: right; }
-.cap-pf-work-drawer__target { color: #475467; font-size: 13px; text-align: right; }
-.cap-pf-work-drawer__status { display: flex; justify-content: flex-end; }
-.cap-pf-work-drawer__state { padding: 28px 20px; color: #667085; font-size: 13px; }
-.cap-pf-work-drawer__state--error { display: flex; align-items: center; gap: 10px; color: #b42318; }
-.cap-pf-work-drawer__state button,
-.cap-pf-work-drawer__footer button { color: #294e68; font-size: 12.5px; font-weight: 600; }
-.cap-pf-work-drawer__footer {
+.cap-pf .cap-pf-work-drawer__number { color: #101828; font-size: 13.5px; font-weight: 600; text-align: right; }
+.cap-pf .cap-pf-work-drawer__target { color: #475467; font-size: 13px; text-align: right; }
+.cap-pf .cap-pf-work-drawer__status { display: flex; justify-content: flex-end; }
+.cap-pf .cap-pf-work-drawer__state { padding: 28px 20px; color: #667085; font-size: 13px; }
+.cap-pf .cap-pf-work-drawer__state--error { display: flex; align-items: center; gap: 10px; color: #b42318; }
+.cap-pf .cap-pf-work-drawer__state button,
+/* Reference work.html: "Open Strategies" link-color button, 14px/600. */
+.cap-pf .cap-pf-work-drawer__footer button { color: #294e68; font-size: 14px; font-weight: 600; }
+.cap-pf .cap-pf-work-drawer__footer {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -107,9 +111,9 @@
   background: #f9fafb;
   flex-wrap: wrap;
 }
-.cap-pf-work-drawer__footer > button { margin-left: auto; }
-.cap-pf-work-drawer__count-note { flex-basis: 100%; color: #667085; font-size: 12px; }
-.cap-pf-work-drawer__truth {
+.cap-pf .cap-pf-work-drawer__footer > button { margin-left: auto; }
+.cap-pf .cap-pf-work-drawer__count-note { flex-basis: 100%; color: #667085; font-size: 12px; }
+.cap-pf .cap-pf-work-drawer__truth {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -120,11 +124,11 @@
   text-transform: uppercase;
   white-space: nowrap;
 }
-.cap-pf-work-drawer__truth i { width: 5px; height: 5px; border-radius: 50%; background: #363f72; }
+.cap-pf .cap-pf-work-drawer__truth i { width: 5px; height: 5px; border-radius: 50%; background: #363f72; }
 
 /* ── header actions: "Source of truth" pill ──────────────────────────────── */
 
-.cap-pf-work__truth-pill {
+.cap-pf .cap-pf-work__truth-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -141,7 +145,7 @@
   white-space: nowrap;
 }
 
-.cap-pf-work__truth-dot {
+.cap-pf .cap-pf-work__truth-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -150,7 +154,7 @@
 
 /* ── §9.1 deep stat band ──────────────────────────────────────────────────── */
 
-.cap-pf-work__band {
+.cap-pf .cap-pf-work__band {
   background: var(--pf-grad);
   border-radius: 12px;
   padding: 22px 28px;
@@ -160,7 +164,7 @@
   flex-wrap: wrap;
 }
 
-.cap-pf-work__band-title {
+.cap-pf .cap-pf-work__band-title {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: .04em;
@@ -169,17 +173,17 @@
   flex: 0 0 auto;
 }
 
-.cap-pf-work__band-cell {
+.cap-pf .cap-pf-work__band-cell {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.cap-pf-work__band-cell.is-loading {
+.cap-pf .cap-pf-work__band-cell.is-loading {
   gap: 6px;
 }
 
-.cap-pf-work__band-value {
+.cap-pf .cap-pf-work__band-value {
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -187,7 +191,7 @@
   line-height: 1.2;
 }
 
-.cap-pf-work__band-sublabel {
+.cap-pf .cap-pf-work__band-sublabel {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: .04em;
@@ -195,14 +199,14 @@
   color: var(--pf-faint);
 }
 
-.cap-pf-work__band-empty {
+.cap-pf .cap-pf-work__band-empty {
   flex: 0 0 auto;
   font-size: 13px;
   color: var(--pf-faint);
   text-wrap: pretty;
 }
 
-.cap-pf-work__band-warn {
+.cap-pf .cap-pf-work__band-warn {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -211,12 +215,12 @@
   color: var(--pf-warning-on-dark);
 }
 
-.cap-pf-work__band-spacer {
+.cap-pf .cap-pf-work__band-spacer {
   flex: 1;
   min-width: 12px;
 }
 
-.cap-pf-work__band-note {
+.cap-pf .cap-pf-work__band-note {
   flex: 0 0 auto;
   max-width: 260px;
   font-size: 13px;
@@ -229,37 +233,37 @@
 
 /* ── shared state text (error cards / empty state) ───────────────────────── */
 
-.cap-pf-work__state-title {
+.cap-pf .cap-pf-work__state-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--pf-ink);
 }
 
-.cap-pf-work__state-body {
+.cap-pf .cap-pf-work__state-body {
   margin: 8px 0 16px;
   font-size: 14px;
   line-height: 20px;
   color: var(--pf-body-2);
   text-wrap: pretty;
 }
-.cap-pf-work__state-body.is-flush {
+.cap-pf .cap-pf-work__state-body.is-flush {
   margin: 0;
 }
 
 /* ── §9.2/§9.3 two-column layout ──────────────────────────────────────────── */
 
-.cap-pf-work__grid {
+.cap-pf .cap-pf-work__grid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
-.cap-pf-work__grid.is-narrow {
+.cap-pf .cap-pf-work__grid.is-narrow {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.cap-pf-work__col {
+.cap-pf .cap-pf-work__col {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -268,25 +272,25 @@
 
 /* ── featured strategy card ───────────────────────────────────────────────── */
 
-.cap-pf-work__featured {
+.cap-pf .cap-pf-work__featured {
   background: var(--pf-surface);
   border-radius: 12px;
   box-shadow: 0 0 0 1.5px var(--pf-ink);
   overflow: hidden;
 }
 
-.cap-pf-work__featured-head {
+.cap-pf .cap-pf-work__featured-head {
   padding: 22px 24px 20px;
 }
 
-.cap-pf-work__featured-top {
+.cap-pf .cap-pf-work__featured-top {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.cap-pf-work__eyebrow {
+.cap-pf .cap-pf-work__eyebrow {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: .05em;
@@ -294,11 +298,11 @@
   color: var(--pf-muted);
 }
 
-.cap-pf-work__spacer {
+.cap-pf .cap-pf-work__spacer {
   flex: 1;
 }
 
-.cap-pf-work__featured-body-row {
+.cap-pf .cap-pf-work__featured-body-row {
   display: flex;
   align-items: flex-start;
   gap: 24px;
@@ -306,12 +310,12 @@
   flex-wrap: wrap;
 }
 
-.cap-pf-work__featured-main {
+.cap-pf .cap-pf-work__featured-main {
   flex: 1;
   min-width: 280px;
 }
 
-.cap-pf-work__featured-title {
+.cap-pf .cap-pf-work__featured-title {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
@@ -319,7 +323,7 @@
   color: var(--pf-ink);
 }
 
-.cap-pf-work__featured-desc {
+.cap-pf .cap-pf-work__featured-desc {
   margin: 8px 0 0;
   font-size: 14px;
   line-height: 20px;
@@ -327,7 +331,7 @@
   text-wrap: pretty;
 }
 
-.cap-pf-work__featured-side {
+.cap-pf .cap-pf-work__featured-side {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
@@ -335,26 +339,26 @@
   gap: 10px;
 }
 
-.cap-pf-work__meta-row {
+.cap-pf .cap-pf-work__meta-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.cap-pf-work__meta-value {
+.cap-pf .cap-pf-work__meta-value {
   font-size: 14px;
   color: var(--pf-ink);
   white-space: nowrap;
 }
 
-.cap-pf-work__featured-foot {
+.cap-pf .cap-pf-work__featured-foot {
   border-top: 1px solid var(--pf-ring-soft);
   padding: 16px 24px 8px;
 }
 
 /* ── featured node rows ───────────────────────────────────────────────────── */
 
-.cap-pf-work__node-row {
+.cap-pf .cap-pf-work__node-row {
   display: flex;
   width: 100%;
   align-items: center;
@@ -363,11 +367,11 @@
   border-top: 1px solid var(--pf-tint);
   background: transparent;
 }
-.cap-pf-work__node-row.is-hover {
+.cap-pf .cap-pf-work__node-row.is-hover {
   background: var(--pf-subtle-bg);
 }
 
-.cap-pf-work__node-mark {
+.cap-pf .cap-pf-work__node-mark {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -381,12 +385,12 @@
   font-weight: 600;
 }
 
-.cap-pf-work__node-main {
+.cap-pf .cap-pf-work__node-main {
   flex: 1;
   min-width: 0;
 }
 
-.cap-pf-work__node-kind {
+.cap-pf .cap-pf-work__node-kind {
   display: block;
   font-size: 11px;
   font-weight: 600;
@@ -395,7 +399,7 @@
   color: var(--pf-muted);
 }
 
-.cap-pf-work__node-title {
+.cap-pf .cap-pf-work__node-title {
   display: block;
   margin-top: 2px;
   font-size: 14px;
@@ -406,7 +410,7 @@
   text-overflow: ellipsis;
 }
 
-.cap-pf-work__node-owner {
+.cap-pf .cap-pf-work__node-owner {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -415,7 +419,7 @@
   min-width: 0;
 }
 
-.cap-pf-work__node-owner-name {
+.cap-pf .cap-pf-work__node-owner-name {
   font-size: 14px;
   color: var(--pf-body-2);
   white-space: nowrap;
@@ -423,14 +427,14 @@
   text-overflow: ellipsis;
 }
 
-.cap-pf-work__node-date {
+.cap-pf .cap-pf-work__node-date {
   flex: 0 0 auto;
   width: 64px;
   font-size: 14px;
   color: var(--pf-body-2);
 }
 
-.cap-pf-work__node-status {
+.cap-pf .cap-pf-work__node-status {
   flex: 0 0 auto;
   width: 118px;
   display: flex;
@@ -439,33 +443,33 @@
 
 /* ── secondary strategy cards ─────────────────────────────────────────────── */
 
-.cap-pf-work__sec-row {
+.cap-pf .cap-pf-work__sec-row {
   display: flex;
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.cap-pf-work__sec-main {
+.cap-pf .cap-pf-work__sec-main {
   flex: 1;
   min-width: 260px;
 }
 
-.cap-pf-work__sec-title-row {
+.cap-pf .cap-pf-work__sec-title-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.cap-pf-work__sec-title {
+.cap-pf .cap-pf-work__sec-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--pf-ink);
 }
 
-.cap-pf-work__sec-type {
+.cap-pf .cap-pf-work__sec-type {
   display: inline-flex;
   align-items: center;
   height: 22px;
@@ -479,7 +483,7 @@
   white-space: nowrap;
 }
 
-.cap-pf-work__sec-desc {
+.cap-pf .cap-pf-work__sec-desc {
   margin: 8px 0 0;
   font-size: 14px;
   line-height: 20px;
@@ -487,14 +491,14 @@
   text-wrap: pretty;
 }
 
-.cap-pf-work__sec-owner {
+.cap-pf .cap-pf-work__sec-owner {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.cap-pf-work__sec-foot {
+.cap-pf .cap-pf-work__sec-foot {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -502,12 +506,12 @@
   flex-wrap: wrap;
 }
 
-.cap-pf-work__sec-foot-spacer {
+.cap-pf .cap-pf-work__sec-foot-spacer {
   flex: 1;
   min-width: 180px;
 }
 
-.cap-pf-work__sec-foot-label {
+.cap-pf .cap-pf-work__sec-foot-label {
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 600;
@@ -518,7 +522,7 @@
 
 /* ── §9.3 upcoming work / risks panels ────────────────────────────────────── */
 
-.cap-pf-work__panel-head {
+.cap-pf .cap-pf-work__panel-head {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -526,46 +530,46 @@
   border-bottom: 1px solid var(--pf-ring-soft);
 }
 
-.cap-pf-work__panel-head-main {
+.cap-pf .cap-pf-work__panel-head-main {
   flex: 1;
   min-width: 0;
 }
 
-.cap-pf-work__panel-title {
+.cap-pf .cap-pf-work__panel-title {
   display: block;
   font-size: 18px;
   font-weight: 600;
   color: var(--pf-ink);
 }
 
-.cap-pf-work__panel-sub {
+.cap-pf .cap-pf-work__panel-sub {
   display: block;
   margin-top: 3px;
   font-size: 14px;
   color: var(--pf-body-2);
 }
 
-.cap-pf-work__empty-note {
+.cap-pf .cap-pf-work__empty-note {
   margin: 0;
   padding: 20px 24px;
   font-size: 14px;
   color: var(--pf-body-2);
 }
 
-.cap-pf-work__risks-body {
+.cap-pf .cap-pf-work__risks-body {
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.cap-pf-work__risks-empty {
+.cap-pf .cap-pf-work__risks-empty {
   margin: 0;
   font-size: 14px;
   color: var(--pf-body-2);
 }
 
-.cap-pf-work__up-row {
+.cap-pf .cap-pf-work__up-row {
   display: flex;
   width: 100%;
   align-items: center;
@@ -574,7 +578,7 @@
   border-bottom: 1px solid var(--pf-tint);
 }
 
-.cap-pf-work__up-date {
+.cap-pf .cap-pf-work__up-date {
   flex: 0 0 auto;
   width: 56px;
   font-size: 12px;
@@ -584,12 +588,12 @@
   color: var(--pf-muted);
 }
 
-.cap-pf-work__up-main {
+.cap-pf .cap-pf-work__up-main {
   flex: 1;
   min-width: 0;
 }
 
-.cap-pf-work__up-title {
+.cap-pf .cap-pf-work__up-title {
   display: block;
   font-size: 14px;
   font-weight: 500;
@@ -599,7 +603,7 @@
   text-overflow: ellipsis;
 }
 
-.cap-pf-work__up-strategy {
+.cap-pf .cap-pf-work__up-strategy {
   display: block;
   margin-top: 2px;
   font-size: 13px;
@@ -609,36 +613,36 @@
   text-overflow: ellipsis;
 }
 
-.cap-pf-work__up-dot {
+.cap-pf .cap-pf-work__up-dot {
   flex: 0 0 auto;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--pf-muted); /* gray fallback, matches PILL.gray dot */
 }
-.cap-pf-work__up-dot.is-tone-gray { background: var(--pf-muted); }
-.cap-pf-work__up-dot.is-tone-brand { background: var(--pf-ink); }
-.cap-pf-work__up-dot.is-tone-blue { background: var(--pf-body-strong); }
-.cap-pf-work__up-dot.is-tone-error { background: var(--pf-error-dot); }
-.cap-pf-work__up-dot.is-tone-warning { background: var(--pf-warning-dot); }
-.cap-pf-work__up-dot.is-tone-success { background: var(--pf-success-dot); }
+.cap-pf .cap-pf-work__up-dot.is-tone-gray { background: var(--pf-muted); }
+.cap-pf .cap-pf-work__up-dot.is-tone-brand { background: var(--pf-ink); }
+.cap-pf .cap-pf-work__up-dot.is-tone-blue { background: var(--pf-body-strong); }
+.cap-pf .cap-pf-work__up-dot.is-tone-error { background: var(--pf-error-dot); }
+.cap-pf .cap-pf-work__up-dot.is-tone-warning { background: var(--pf-warning-dot); }
+.cap-pf .cap-pf-work__up-dot.is-tone-success { background: var(--pf-success-dot); }
 
 /* ── risk panel ───────────────────────────────────────────────────────────── */
 
-.cap-pf-work__risk {
+.cap-pf .cap-pf-work__risk {
   padding: 14px 16px;
   border-radius: 10px;
   background: var(--pf-warning-bg);
   border: 1px solid var(--pf-warning-ring);
 }
 
-.cap-pf-work__risk-top {
+.cap-pf .cap-pf-work__risk-top {
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
 
-.cap-pf-work__risk-dot {
+.cap-pf .cap-pf-work__risk-dot {
   flex: 0 0 auto;
   margin-top: 5px;
   width: 8px;
@@ -647,44 +651,44 @@
   background: var(--pf-warning-dot);
 }
 
-.cap-pf-work__risk-main {
+.cap-pf .cap-pf-work__risk-main {
   flex: 1;
   min-width: 0;
 }
 
-.cap-pf-work__risk-title {
+.cap-pf .cap-pf-work__risk-title {
   font-size: 14px;
   font-weight: 600;
   color: var(--pf-warning-fg-strong);
   text-wrap: pretty;
 }
 
-.cap-pf-work__risk-body {
+.cap-pf .cap-pf-work__risk-body {
   margin-top: 4px;
   font-size: 13px;
   color: var(--pf-warning-fg);
   text-wrap: pretty;
 }
 
-.cap-pf-work__risk-foot {
+.cap-pf .cap-pf-work__risk-foot {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
 }
 
-.cap-pf-work__risk-link {
+.cap-pf .cap-pf-work__risk-link {
   font-size: 14px;
   font-weight: 600;
   color: var(--pf-warning-fg-strong);
   opacity: 1;
 }
-.cap-pf-work__risk-link.is-hover {
+.cap-pf .cap-pf-work__risk-link.is-hover {
   opacity: .8;
 }
 
 /* ── empty featured card (no strategies yet) ──────────────────────────────── */
 
-.cap-pf-work__empty-card {
+.cap-pf .cap-pf-work__empty-card {
   background: var(--pf-surface);
   border-radius: 12px;
   box-shadow: 0 0 0 1px var(--pf-ring-soft);

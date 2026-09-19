@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PHASE8_FEATURES, compileNewsQuery } from '@capiro/shared';
@@ -113,26 +113,71 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       lane === 'news' && ['personnel', 'registrations'].includes(view),
     ),
     budget = useEvidence<Row>('budget', params, lane === 'budget');
+  // Comparison state belongs to the exact current scope: amount observations,
+  // their source revisions, a pending request and its result are only valid for
+  // the client/folder/fiscal year/session/project selection that produced them.
+  // Any scope change clears them so a stale id or late response cannot surface
+  // under a new selection; an unrelated refetch with an unchanged scope keeps
+  // the valid result. The key is a JSON-encoded tuple, never a raw concatenation,
+  // so two different scopes can never collide (e.g. ['ab','c'] vs ['a','bc']).
+  const comparisonScope = JSON.stringify([
+    client,
+    folder,
+    params.fiscalYear,
+    params.sessionKey,
+    params.projectId,
+  ]);
+  // The result and any in-flight request also belong to the chosen amount
+  // observations themselves. Changing either selection after a successful compare
+  // must drop the prior result, and a response that finishes after the selection
+  // changed belongs to the former amounts and must not be applied. The operand
+  // key is the selection state only — never live-fetched rows — so an unrelated
+  // refetch that momentarily empties the amounts list cannot clear a valid result.
+  const operandScope = JSON.stringify([left, right]);
+  const comparisonScopeRef = useRef(comparisonScope);
+  const operandScopeRef = useRef(operandScope);
+  useEffect(() => {
+    if (comparisonScopeRef.current !== comparisonScope) {
+      comparisonScopeRef.current = comparisonScope;
+      setLeft('');
+      setRight('');
+      setComparison(null);
+      setError('');
+    }
+  }, [comparisonScope]);
+  useEffect(() => {
+    if (operandScopeRef.current === operandScope) return;
+    operandScopeRef.current = operandScope;
+    setComparison(null);
+  }, [operandScope]);
   const folders = useQuery({
     queryKey: ['phase8-folders', scope, client],
+    // The authenticated folder list already applies server scope semantics: an
+    // All-clients view may still see accessible client-bound folders, and the
+    // evidence endpoints resolve the folder's client when clientId is null.
     queryFn: async () =>
       (await api.get<Folder[]>(FOLDER_BASE)).data.filter(
-        (f) => !f.archived && f.clientId === (client || null),
+        (f) => !f.archived && (client === '' || f.clientId === client),
       ),
   });
   const action = async (fn: () => Promise<unknown>, success: string) => {
     setBusy(true);
     setError('');
+    // An action started under one scope must not surface its error (or clear the
+    // busy flag for a new action) after the scope has already changed underneath
+    // it; that outcome belongs to the abandoned selection.
+    const actionScope = comparisonScopeRef.current;
     try {
       await fn();
       setMessage(success);
       await qc.invalidateQueries({ queryKey: ['legiwatch-evidence', scope] });
     } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : 'This action could not finish. Retry after reviewing the source and scope.',
-      );
+      if (comparisonScopeRef.current === actionScope)
+        setError(
+          e instanceof Error
+            ? e.message
+            : 'This action could not finish. Retry after reviewing the source and scope.',
+        );
     } finally {
       setBusy(false);
     }
@@ -193,17 +238,19 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
           : personnel.isError;
   return (
     <section className="lw-evidence">
-      <div className="lw-evidence-toolbar">
-        <CapiroSelect
-          label="Folder"
-          value={folder}
-          options={[
-            option('', 'Choose a folder'),
-            ...(folders.data ?? []).map((f) => option(f.id, f.name)),
-          ]}
-          onChange={(e) => set('folder', e.target.value)}
-        />
-        <Link to={reportLink}>Create a briefing in Reports →</Link>
+      <div className="lw-evidence-card">
+        <div className="lw-evidence-toolbar">
+          <CapiroSelect
+            label="Folder"
+            value={folder}
+            options={[
+              option('', 'Choose a folder'),
+              ...(folders.data ?? []).map((f) => option(f.id, f.name)),
+            ]}
+            onChange={(e) => set('folder', e.target.value)}
+          />
+          <Link to={reportLink}>Create a briefing in Reports →</Link>
+        </div>
       </div>
       <nav className="lw-evidence-nav" aria-label={lane === 'news' ? 'News views' : 'Budget views'}>
         {(lane === 'news'
@@ -243,34 +290,36 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       )}
       {lane === 'news' && view === 'articles' && (
         <>
-          <div className="lw-evidence-toolbar">
-            <CapiroInput
-              label="Search retained coverage"
-              value={params.q}
-              onChange={(e) => set('q', e.target.value)}
-            />
-            <CapiroSelect
-              label="Time window"
-              value={params.days}
-              options={[1, 3, 7, 14].map((n) => option(String(n), `${n} day${n === 1 ? '' : 's'}`))}
-              onChange={(e) => set('days', e.target.value)}
-            />
-            <CapiroSelect
-              label="Monitor"
-              value={params.monitorId}
-              options={[
-                option('', 'All retained articles'),
-                ...(monitors.data?.monitors ?? []).map((m: Row) =>
-                  option(m.id, m.config.name ?? m.config.query),
-                ),
-              ]}
-              onChange={(e) => set('monitor', e.target.value)}
-            />
-            <CapiroInput
-              label="Publisher"
-              value={params.publisher}
-              onChange={(e) => set('publisher', e.target.value)}
-            />
+          <div className="lw-evidence-card">
+            <div className="lw-evidence-toolbar">
+              <CapiroInput
+                label="Search retained coverage"
+                value={params.q}
+                onChange={(e) => set('q', e.target.value)}
+              />
+              <CapiroSelect
+                label="Time window"
+                value={params.days}
+                options={[1, 3, 7, 14].map((n) => option(String(n), `${n} day${n === 1 ? '' : 's'}`))}
+                onChange={(e) => set('days', e.target.value)}
+              />
+              <CapiroSelect
+                label="Monitor"
+                value={params.monitorId}
+                options={[
+                  option('', 'All retained articles'),
+                  ...(monitors.data?.monitors ?? []).map((m: Row) =>
+                    option(m.id, m.config.name ?? m.config.query),
+                  ),
+                ]}
+                onChange={(e) => set('monitor', e.target.value)}
+              />
+              <CapiroInput
+                label="Publisher"
+                value={params.publisher}
+                onChange={(e) => set('publisher', e.target.value)}
+              />
+            </div>
           </div>
           <p className="lw-evidence-notice">
             {news.data?.coverageMessage ?? 'Loading source coverage…'} Sorted by publication date;
@@ -427,27 +476,29 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       )}
       {lane === 'news' && ['personnel', 'registrations'].includes(view) && (
         <>
-          <div className="lw-evidence-toolbar">
-            <CapiroInput
-              label="Person, firm or principal"
-              value={params.q}
-              onChange={(e) => set('q', e.target.value)}
-            />
-            <CapiroInput
-              label="Registration year"
-              value={p.get('year') ?? String(new Date().getFullYear())}
-              onChange={(e) => set('year', e.target.value)}
-            />
-            <CapiroSelect
-              label="Branch"
-              value={p.get('branch') ?? ''}
-              options={[
-                option('', 'Both branches'),
-                option('legislative', 'Legislative'),
-                option('executive', 'Executive'),
-              ]}
-              onChange={(e) => set('branch', e.target.value)}
-            />
+          <div className="lw-evidence-card">
+            <div className="lw-evidence-toolbar">
+              <CapiroInput
+                label="Person, firm or principal"
+                value={params.q}
+                onChange={(e) => set('q', e.target.value)}
+              />
+              <CapiroInput
+                label="Registration year"
+                value={p.get('year') ?? String(new Date().getFullYear())}
+                onChange={(e) => set('year', e.target.value)}
+              />
+              <CapiroSelect
+                label="Branch"
+                value={p.get('branch') ?? ''}
+                options={[
+                  option('', 'Both branches'),
+                  option('legislative', 'Legislative'),
+                  option('executive', 'Executive'),
+                ]}
+                onChange={(e) => set('branch', e.target.value)}
+              />
+            </div>
           </div>
           <p className="lw-evidence-notice">{personnel.data?.notice}</p>
           <div className="lw-evidence-table">
@@ -538,31 +589,33 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       )}
       {lane === 'budget' && (
         <>
-          <div className="lw-evidence-toolbar">
-            <CapiroInput
-              label="Fiscal year"
-              value={params.fiscalYear}
-              placeholder="2026-27"
-              onChange={(e) => set('fiscalYear', e.target.value)}
-            />
-            <CapiroSelect
-              label="Legislative session"
-              value={params.sessionKey}
-              options={[
-                option('', 'All sessions'),
-                option('2026'),
-                option('2026E'),
-                option('2025'),
-              ]}
-              onChange={(e) => set('budgetSession', e.target.value)}
-            />
+          <div className="lw-evidence-card">
+            <div className="lw-evidence-toolbar">
+              <CapiroInput
+                label="Fiscal year"
+                value={params.fiscalYear}
+                placeholder="2026-27"
+                onChange={(e) => set('fiscalYear', e.target.value)}
+              />
+              <CapiroSelect
+                label="Legislative session"
+                value={params.sessionKey}
+                options={[
+                  option('', 'All sessions'),
+                  option('2026'),
+                  option('2026E'),
+                  option('2025'),
+                ]}
+                onChange={(e) => set('budgetSession', e.target.value)}
+              />
+              <CapiroInput
+                label="Search project title or request identity"
+                value={params.q}
+                onChange={(e) => set('q', e.target.value)}
+              />
+            </div>
           </div>
           <p className="lw-evidence-notice">{budget.data?.notice}</p>
-          <CapiroInput
-            label="Search project title or request identity"
-            value={params.q}
-            onChange={(e) => set('q', e.target.value)}
-          />
           {view === 'calendar' ? (
             <p>
               <Link to={`/legiwatch?tab=hearings&client=${encodeURIComponent(client)}`}>
@@ -647,7 +700,6 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                     size="compact"
                     onClick={() => {
                       set('project', '');
-                      setComparison(null);
                     }}
                   >
                     All projects
@@ -675,26 +727,53 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                       />
                     ))}
                     <CapiroButton
-                      disabled={!left || !right || busy}
-                      onClick={() =>
-                        void action(async () => {
-                          const amounts = budget.data?.amounts ?? [];
-                          setComparison(
-                            (
-                              await api.post<Row>(`${EVIDENCE_BASE}/budget/compare`, {
-                                clientId: client || null,
-                                folderId: folder || null,
-                                leftId: left,
-                                rightId: right,
-                                leftRevision: amounts.find((r: Row) => r.id === left)?.observation
-                                  .sourceRevision,
-                                rightRevision: amounts.find((r: Row) => r.id === right)?.observation
-                                  .sourceRevision,
-                              })
-                            ).data,
-                          );
-                        }, '')
+                      disabled={
+                        busy ||
+                        !(
+                          left &&
+                          right &&
+                          left !== right &&
+                          (budget.data?.amounts ?? []).some(
+                            (r: Row) => r.id === left && r.observation?.sourceRevision,
+                          ) &&
+                          (budget.data?.amounts ?? []).some(
+                            (r: Row) => r.id === right && r.observation?.sourceRevision,
+                          )
+                        )
                       }
+                      onClick={() => {
+                        const amounts = budget.data?.amounts ?? [];
+                        const leftRow = amounts.find((r: Row) => r.id === left),
+                          rightRow = amounts.find((r: Row) => r.id === right);
+                        if (
+                          !leftRow?.observation?.sourceRevision ||
+                          !rightRow?.observation?.sourceRevision ||
+                          left === right
+                        )
+                          return;
+                        const requestScope = comparisonScope;
+                        const requestOperand = operandScope;
+                        void action(async () => {
+                          const result = (
+                            await api.post<Row>(`${EVIDENCE_BASE}/budget/compare`, {
+                              clientId: client || null,
+                              folderId: folder || null,
+                              leftId: left,
+                              rightId: right,
+                              leftRevision: leftRow.observation.sourceRevision,
+                              rightRevision: rightRow.observation.sourceRevision,
+                            })
+                          ).data;
+                          // A result that finishes after the scope or the amount
+                          // selection changed belongs to the former operands and
+                          // must not surface under the new one.
+                          if (
+                            comparisonScopeRef.current === requestScope &&
+                            operandScopeRef.current === requestOperand
+                          )
+                            setComparison(result);
+                        }, '');
+                      }}
                     >
                       Compare
                     </CapiroButton>

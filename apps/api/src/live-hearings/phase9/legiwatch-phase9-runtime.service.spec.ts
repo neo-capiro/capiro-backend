@@ -114,9 +114,7 @@ describe('LegiWatchPhase9RuntimeService', () => {
     const { service } = harness();
     await expect(
       service.registerSchedules({
-        registrations: [
-          { jobKey: 'unknown-job', enabled: true, scheduleEnabled: true },
-        ],
+        registrations: [{ jobKey: 'unknown-job', enabled: true, scheduleEnabled: true }],
         actor: 'admin-user',
         confirmation: 'ENABLE LEGIWATCH SCHEDULES',
       }),
@@ -177,6 +175,35 @@ describe('LegiWatchPhase9RuntimeService', () => {
       String(sql).includes('UPDATE legiwatch_cutover_state'),
     );
     expect(stateCall?.[1]).toBe(false);
+  });
+
+  it('registers notification delivery without changing hearing capture cutover state', async () => {
+    const { service, execute } = harness();
+    await service.registerSchedules({
+      registrations: [
+        {
+          jobKey: 'notification-drain',
+          enabled: true,
+          scheduleEnabled: true,
+          ruleName: 'notification-rule',
+          taskFamily: 'api-jobs',
+        },
+      ],
+      actor: 'admin-user',
+      confirmation: 'ENABLE LEGIWATCH SCHEDULES',
+    });
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE legiwatch_runtime_heartbeat'),
+      'notification-drain',
+      true,
+      true,
+      'notification-rule',
+      'api-jobs',
+      expect.any(String),
+    );
+    expect(
+      execute.mock.calls.some(([sql]) => String(sql).includes('UPDATE legiwatch_cutover_state')),
+    ).toBe(false);
   });
 
   it('refuses an automated job while its registry row is dark', async () => {

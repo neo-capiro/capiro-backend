@@ -39,7 +39,11 @@ import { ClientProfileFillCompletionService } from './client-profile-fill-comple
 class StartClientProfileFillDto {
   @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
+  // Explicit [] is meaningful: a legacy document-only run carries
+  // requestedSources=[] (the legacy engine's own "attachmentId ? []" rule).
+  // Rejecting [] at the boundary forced the workflow layer to widen it into
+  // every connected source — silently broadening a document-only retry into
+  // web research. Omitted still defaults to the full set in the service.
   @ArrayMaxSize(CLIENT_PROFILE_FILL_SOURCES.length)
   @IsIn(CLIENT_PROFILE_FILL_SOURCES, { each: true })
   sources?: ClientProfileFillSource[];

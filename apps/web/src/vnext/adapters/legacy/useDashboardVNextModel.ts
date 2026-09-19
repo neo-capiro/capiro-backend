@@ -11,12 +11,17 @@ import {
   type NewsPreferences,
 } from '../../../pages/dashboard/news-preferences.js';
 import type {
+  ComingUpItem,
   ComingUpResult,
   IntelligenceChange,
   PortfolioAlertItem,
   PortfolioAlertsResponse,
 } from '../../../pages/intelligence/types.js';
 import type { MeriState } from '../../../pages/engagement/meetings/meetings-types.js';
+import {
+  useLwNotifications,
+  type LwNotification,
+} from '../../pages/legiwatch/lib/wave1-api.js';
 import type { DefaultXFeedAccount } from '../../pages/dashboard/x-feed-defaults.js';
 
 /**
@@ -81,6 +86,13 @@ export interface AttentionItem {
   actionLabel: string;
   /** Count of near-duplicate rows collapsed into this one (renders "+N similar"). */
   similarCount: number;
+  /**
+   * 'lw-notification' marks rows sourced from the durable committee/hearing
+   * notification feed: the dashboard marks them read (via the lw read API)
+   * before navigating, so the badge count and this module stay in sync across
+   * a reload. Absent for every existing source (portfolio alerts, changes).
+   */
+  attentionSource?: 'lw-notification';
 }
 
 export interface NewsItem {
@@ -302,6 +314,10 @@ const DASHBOARD_QUERY_KEYS = [
   'x-feed-subscriptions',
 ] as const;
 
+/** The committee/hearing notification feed lives under the shared w1 prefix;
+ *  retry invalidates the whole prefix so bell + dashboard recover together. */
+const DASHBOARD_QUERY_PREFIXES = [['lw-w1', 'notifications'] as const] as const;
+
 export function useDashboardVNextModel(): DashboardVNextModel {
   const api = useApi();
   const { user } = useUser();
@@ -311,6 +327,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   const retry = useCallback(() => {
     for (const key of DASHBOARD_QUERY_KEYS) {
       void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+    for (const prefix of DASHBOARD_QUERY_PREFIXES) {
+      void queryClient.invalidateQueries({ queryKey: [...prefix] });
     }
   }, [queryClient]);
 
@@ -409,6 +428,10 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     staleTime: 2 * 60 * 1000,
   });
 
+  // Durable committee/hearing notifications for followed committees. UNREAD
+  // only — Needs Attention is a triage surface, not the read-history inbox.
+  const lwNotifications = useLwNotifications(true);
+
   const recentChanges = useQuery<IntelligenceChange[]>({
     queryKey: ['intel-changes-tracked'],
     queryFn: async () => {
@@ -498,6 +521,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       changes: recentChanges.data ?? [],
       failedSourceReason:
         visibility.news && news.data && !news.data.available ? (news.data.reason ?? null) : null,
+      lwNotifications: lwNotifications.data?.rows ?? [],
     });
 
     const status = buildStatus({
@@ -513,6 +537,12 @@ export function useDashboardVNextModel(): DashboardVNextModel {
           isLoading: recentChanges.isLoading,
           isError: recentChanges.isError,
           updatedAt: recentChanges.dataUpdatedAt,
+        },
+        {
+          name: 'Committee notifications',
+          isLoading: lwNotifications.isLoading,
+          isError: lwNotifications.isError,
+          updatedAt: lwNotifications.dataUpdatedAt,
         },
       ],
       hidden: false,
@@ -537,6 +567,10 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     recentChanges.dataUpdatedAt,
     recentChanges.isError,
     recentChanges.isLoading,
+    lwNotifications.data,
+    lwNotifications.dataUpdatedAt,
+    lwNotifications.isError,
+    lwNotifications.isLoading,
     news.data,
     visibility.news,
     limits.attention,
@@ -728,44 +762,8 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     // Ordering must use the real instant, not the rendered time string: the
     // week query returns every day's meetings, so sorting by "10:00 AM" alone
     // interleaves each day's recurring standup into one indistinguishable list.
-    const dated: Array<TodayEvent & { at: number }> = [];
-
-    for (const meeting of meetings.data ?? []) {
-      const joinUrl = readJoinUrl(meeting);
-      const at = new Date(meeting.startsAt).getTime();
-      dated.push({
-        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
-        id: `meeting-${meeting.id}`,
-        startsAt: meeting.startsAt,
-        time: formatTime(meeting.startsAt),
-        title: meeting.subject,
-        meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
-          .filter(Boolean)
-          .join(' · '),
-        href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
-        action: joinUrl ? 'join' : meeting.preps.length > 0 ? 'brief' : 'prepare',
-        joinUrl,
-        isMeeting: true,
-        isVirtual: meeting.isVirtual,
-        meri: meeting.meri,
-      });
-    }
-
-    // Hearings, comment deadlines, floor activity and other tracked events.
-    for (const item of comingUp.data?.items ?? []) {
-      const at = new Date(item.time ? `${item.date}T${item.time}` : item.date).getTime();
-      dated.push({
-        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
-        id: `coming-${item.id}`,
-        startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
-        time: item.time ?? formatDayShort(item.date),
-        title: item.title,
-        meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
-        href: item.href,
-        action: 'open',
-        isMeeting: false,
-      });
-    }
+    // See mergeTodayEvents for the meeting/coming-up pairing rules.
+    const dated = mergeTodayEvents(meetings.data ?? [], comingUp.data?.items ?? []);
 
     // Past events are not "today and coming up".
     const startOfToday = new Date();
@@ -1345,10 +1343,14 @@ export function selectAttentionItems({
   alerts,
   changes,
   failedSourceReason,
+  lwNotifications,
 }: {
   alerts: readonly PortfolioAlertItem[];
   changes: readonly IntelligenceChange[];
   failedSourceReason: 'not_configured' | 'no_clients' | 'provider_unavailable' | 'no_articles' | null;
+  /** Unread committee/hearing notifications (followed committees). Unread
+   *  only — read history belongs to the inbox, never to Needs Attention. */
+  lwNotifications?: readonly LwNotification[];
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
 
@@ -1388,6 +1390,33 @@ export function selectAttentionItems({
     } as AttentionItem & { _group: string });
   }
 
+  // Followed-committee alerts: new hearings and committee publications
+  // ("What has been published"). These are ROUTINE signals — severity normal —
+  // so they never outrank legitimate critical/high portfolio work. UNREAD rows
+  // only (the feed is asked for unreadOnly, but a defensive filter keeps a
+  // cached full-history response from leaking read rows in). Stable identity
+  // is the server's durable notification id; destination is always the
+  // server-provided deepLink.
+  for (const n of lwNotifications ?? []) {
+    if (n.read) continue;
+    items.push({
+      id: `lw-notif-${n.id}`,
+      kind: n.eventType === 'committee_publication' ? 'Publication' : 'Hearing',
+      severity: 'normal',
+      eyebrow: n.eventType === 'committee_publication' ? 'Committee publication' : 'Committee alert',
+      title: n.title,
+      context: n.body || null,
+      due: relativeDay(n.createdAt),
+      href: n.deepLink || null,
+      actionLabel: 'Open',
+      similarCount: 0,
+      attentionSource: 'lw-notification',
+      // Carried to the final sort: newest unread committee item first among
+      // normal-severity rows.
+      _sortAt: Date.parse(n.createdAt) || 0,
+    } as AttentionItem & { _sortAt: number });
+  }
+
   // A failed source is itself actionable and must never be silently hidden.
   // `no_clients` is a configuration state, not a failure, so it is not raised.
   if (failedSourceReason === 'provider_unavailable' || failedSourceReason === 'not_configured') {
@@ -1409,7 +1438,15 @@ export function selectAttentionItems({
   }
 
   return collapseSimilarAttentionItems(
-    items.sort((a, b) => severityRank(a.severity) - severityRank(b.severity)),
+    items.sort((a, b) => {
+      const rank = severityRank(a.severity) - severityRank(b.severity);
+      if (rank !== 0) return rank;
+      // Within a severity band, newest first — a freshly-arrived committee
+      // alert must never sit below an older same-severity row.
+      const aAt = (a as AttentionItem & { _sortAt?: number })._sortAt ?? 0;
+      const bAt = (b as AttentionItem & { _sortAt?: number })._sortAt ?? 0;
+      return bAt - aAt;
+    }),
   );
 }
 
@@ -1431,7 +1468,8 @@ function collapseSimilarAttentionItems(items: AttentionItem[]): AttentionItem[] 
   for (const item of items) {
     const group = (item as AttentionItem & { _group?: string })._group;
     if (!group) {
-      out.push(item);
+      const { _sortAt: _omitAt, ...clean } = item as AttentionItem & { _sortAt?: number };
+      out.push(clean);
       continue;
     }
     const existing = groupIndex.get(group);
@@ -1439,7 +1477,10 @@ function collapseSimilarAttentionItems(items: AttentionItem[]): AttentionItem[] 
       existing.similarCount += 1;
       continue;
     }
-    const { _group: _omit, ...clean } = item as AttentionItem & { _group?: string };
+    const { _group: _omit, _sortAt: _omitAt, ...clean } = item as AttentionItem & {
+      _group?: string;
+      _sortAt?: number;
+    };
     const row: AttentionItem = { ...clean, similarCount: 0 };
     groupIndex.set(group, row);
     out.push(row);
@@ -1600,6 +1641,91 @@ function dayLabel(iso: string): string | null {
   const today = new Date();
   if (date.toDateString() === today.toDateString()) return null;
   return date.toLocaleDateString(undefined, { weekday: 'short' });
+}
+
+/**
+ * Maps the two Today & Coming Up sources into a single event-list skeleton
+ * with a numeric `at` instant for ordering.
+ *
+ * Meetings come from /api/engagement/meetings with the real startsAt instant,
+ * join/prepare/brief actions and Meri state. comingUp's kind==='meeting' items
+ * are the SAME meetings re-projected (id `meeting-${id}`, date = startsAt), so
+ * they are deduped by meeting identity and the rich primary mapping wins.
+ * They are NOT all dropped: comingUp spans tomorrow→+7d, which reaches past the
+ * Monday-first calendar week the primary query loads, and its meetings are
+ * already user-owned (ownMeetingWhere). A unique one is kept as a fallback
+ * meeting row — real ISO instant, original href/title/detail, plain Open
+ * action, and no invented join URL / isVirtual / prep / Meri state. Tracked
+ * hearings/markups/deadlines have no other representation and are preserved.
+ */
+export function mergeTodayEvents(
+  meetings: DashMeeting[],
+  comingUpItems: ComingUpItem[],
+): Array<TodayEvent & { at: number }> {
+  const dated: Array<TodayEvent & { at: number }> = [];
+
+  for (const meeting of meetings) {
+    const joinUrl = readJoinUrl(meeting);
+    const at = new Date(meeting.startsAt).getTime();
+    dated.push({
+      at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
+      id: `meeting-${meeting.id}`,
+      startsAt: meeting.startsAt,
+      time: formatTime(meeting.startsAt),
+      title: meeting.subject,
+      meta: [dayLabel(meeting.startsAt), meeting.client?.name, meeting.location]
+        .filter(Boolean)
+        .join(' · '),
+      href: `/engagement/meetings/${encodeURIComponent(meeting.id)}`,
+      action: joinUrl ? 'join' : meeting.preps.length > 0 ? 'brief' : 'prepare',
+      joinUrl,
+      isMeeting: true,
+      isVirtual: meeting.isVirtual,
+      meri: meeting.meri,
+    });
+  }
+
+  const primaryMeetingIds = new Set(meetings.map((meeting) => meeting.id));
+
+  // Hearings, comment deadlines, floor activity and other tracked events.
+  for (const item of comingUpItems) {
+    if (item.kind === 'meeting') {
+      // Same meeting as a primary row → the primary mapping already covers it.
+      const rawMeetingId = item.id.replace(/^meeting-/, '');
+      if (primaryMeetingIds.has(rawMeetingId)) continue;
+      // The ISO date IS the real instant; the localized `time` label must
+      // never be combined with it (that misparse built phantom NaN rows).
+      const at = new Date(item.date).getTime();
+      dated.push({
+        at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
+        // Canonical meeting event id (Send Meri strips this prefix), never a
+        // `coming-` one.
+        id: `meeting-${rawMeetingId}`,
+        startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
+        time: item.time ?? formatDayShort(item.date),
+        title: item.title,
+        meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
+        href: item.href,
+        action: 'open',
+        isMeeting: true,
+      });
+      continue;
+    }
+    const at = new Date(item.time ? `${item.date}T${item.time}` : item.date).getTime();
+    dated.push({
+      at: Number.isFinite(at) ? at : Number.MAX_SAFE_INTEGER,
+      id: `coming-${item.id}`,
+      startsAt: Number.isFinite(at) ? new Date(at).toISOString() : item.date,
+      time: item.time ?? formatDayShort(item.date),
+      title: item.title,
+      meta: [dayLabel(item.date), item.label, item.detail].filter(Boolean).join(' · '),
+      href: item.href,
+      action: 'open',
+      isMeeting: false,
+    });
+  }
+
+  return dated;
 }
 
 /**

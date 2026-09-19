@@ -296,3 +296,19 @@
   padding-top: 14px;
   border-top: 1px solid var(--capiro-color-border-default);
 }
+
+/* Details worker's new save/document error states — the established module
+   error recipe (same as capiro-intel-v2-error / rel-hist-mutation-error):
+   #B42318 text, underlined 600 retry. */
+.capiro-vnext-root .capiro-capd__field-error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #B42318;
+}
+.capiro-vnext-root .capiro-capd__retry {
+  font-size: 13px;
+  font-weight: 600;
+  color: #B42318;
+  text-decoration: underline;
+  cursor: pointer;
+}

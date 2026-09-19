@@ -426,12 +426,19 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   }
 
   async startRun(ctx: TenantContext, clientId: string, input: StartClientProfileFillWorkflowInput) {
+    // sources:[] is only meaningful for a document-only run. With no
+    // attachments either, the run would have zero tasks — reject before any
+    // DB read instead of failing later with a misleading 'no tasks selected'.
+    const preAttachmentIds = this.normalizeAttachmentIds(input.attachmentIds);
+    if (input.sources !== undefined && input.sources.length === 0 && preAttachmentIds.length === 0) {
+      throw new BadRequestException('An empty sources list requires at least one capability document');
+    }
     const active = await this.latestActiveRun(ctx.tenantId, clientId);
     if (active) return this.getRun(ctx, clientId, active.id);
 
     const setup = await this.getSetup(ctx, clientId);
     const sources = this.normalizeSources(input.sources);
-    const attachmentIds = this.normalizeAttachmentIds(input.attachmentIds);
+    const attachmentIds = preAttachmentIds;
     const requestedLdaIds = this.normalizeLdaIds(input.ldaClientIds);
     const allowedIdentities = new Map(
       [...setup.selectedIdentities, ...setup.suggestedIdentities].map((identity) => [
@@ -1224,7 +1231,13 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
         `UPDATE client_profile_fill_run
             SET source_states_jsonb = jsonb_set(
                   COALESCE(source_states_jsonb, '{}'::jsonb),
-                  ARRAY[$3]::text[], $4::jsonb, true
+                  ARRAY[$3]::text[],
+                  -- Preserve the initial state's extra keys (client_document
+                  -- carries an attachments list with the exact attachment ids
+                  -- the UI Retry needs after reload) by merging the aggregated
+                  -- status/count fields into the existing object rather than
+                  -- replacing it wholesale.
+                  COALESCE(source_states_jsonb->$3, '{}'::jsonb) || $4::jsonb, true
                 ),
                 last_progress_at = now(), updated_at = now()
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND status = 'running'`,
@@ -1339,6 +1352,11 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
   }
 
   private normalizeSources(requested?: ClientProfileFillSource[]): ClientProfileFillSource[] {
+    // Explicit [] means "no connected sources" (legacy document-only scope)
+    // and is preserved as []. Omitted/undefined means the caller made no
+    // choice and defaults to the full source set. Widening [] to all sources
+    // would silently broaden a document-only retry into web research.
+    if (requested !== undefined && requested.length === 0) return [];
     if (!requested?.length) return [...CLIENT_PROFILE_FILL_SOURCES];
     const allowed = new Set<ClientProfileFillSource>(CLIENT_PROFILE_FILL_SOURCES);
     const sources = [...new Set(requested)].filter((source) => allowed.has(source));

@@ -121,6 +121,19 @@ const MAX_PAGES_PER_ENDPOINT = 10_000;
  * loop," never "the task is gone for hours."
  */
 const MAX_PROVIDER_WAIT_MS = 120_000;
+/**
+ * Live 2026-09 operation found rfq alone consuming the account's entire
+ * ~100-request daily quota (shared across dibbs's own 3 endpoints AND the
+ * separately-scheduled forecasts/sbir syncs): rfq walks first, exhausts every
+ * retry on a rate-limited page, and by the time rfp/award get their turn the
+ * daily quota is already gone — they log `rateLimitRetries` but never
+ * complete a single page, every day, indefinitely. Capping each endpoint's
+ * own REQUEST COUNT (successes and retries both count — a retried page is
+ * still a real HTTP call against the quota) below a third of the burst limit
+ * guarantees rfp and award always get a meaningful share, at the cost of rfq
+ * needing more days to work through a large backlog.
+ */
+const DEFAULT_MAX_REQUESTS_PER_ENDPOINT = 20;
 
 export const DIBBS_ENDPOINTS = ['rfq', 'rfp', 'award'] as const;
 export type DibbsEndpoint = (typeof DIBBS_ENDPOINTS)[number];
@@ -218,11 +231,19 @@ export interface DibbsSyncOptions {
   batchSize?: number;
   endpoints?: DibbsEndpoint[];
   maxRateLimitRetries?: number;
+  /** Real HTTP requests (successes + retries) one endpoint may make in a run
+   * before yielding, so it can never spend the other endpoints' share of the
+   * shared daily quota. See DEFAULT_MAX_REQUESTS_PER_ENDPOINT. */
+  maxRequestsPerEndpoint?: number;
 }
 
 export interface DibbsEndpointSummary {
   endpoint: DibbsEndpoint;
   pagesRead: number;
+  /** Real HTTP requests made for this endpoint, successes and rate-limit
+   * retries both counted — what the provider's shared quota actually meters.
+   * Distinct from `pagesRead`, which only counts pages that returned data. */
+  requestAttempts: number;
   processed: number;
   /** Would-be or actual upserts — real only when `commit` is true. */
   written: number;
@@ -240,6 +261,9 @@ export interface DibbsEndpointSummary {
   complete: boolean;
   /** A 429 outlasted every retry and stopped THIS endpoint. Never aborts the run. */
   rateLimited: boolean;
+  /** True when this endpoint stopped specifically because it hit its own
+   * request budget (not a rate limit) — see maxRequestsPerEndpoint. */
+  budgetExhausted: boolean;
   /** 429s that were retried and then succeeded. Nonzero is normal on a big walk. */
   rateLimitRetries: number;
   /** Deliberate pauses taken because the previous page reported `remaining: 0`. */
@@ -269,6 +293,13 @@ export interface DibbsSyncSummary {
    * us and the catalog is now partially synced".
    */
   rateLimited: boolean;
+  /**
+   * At least one endpoint yielded on its own request budget before the
+   * provider ever rate-limited it — distinct from `rateLimited` so an
+   * operator can tell "the provider throttled us" apart from "we voluntarily
+   * left quota for the other endpoints" (see DEFAULT_MAX_REQUESTS_PER_ENDPOINT).
+   */
+  budgetExhausted: boolean;
 }
 
 function isoDay(date: Date): string {
@@ -296,6 +327,7 @@ async function fetchWithRateLimitRetry(
   const maxRetries = options.maxRateLimitRetries ?? DEFAULT_MAX_RATE_LIMIT_RETRIES;
 
   for (let attempt = 0; ; attempt += 1) {
+    summary.requestAttempts += 1;
     try {
       return await fetchPage();
     } catch (error) {
@@ -330,10 +362,12 @@ async function walkEndpoint(
 ): Promise<DibbsEndpointSummary> {
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const limit = options.limit ?? Number.POSITIVE_INFINITY;
+  const maxRequests = options.maxRequestsPerEndpoint ?? DEFAULT_MAX_REQUESTS_PER_ENDPOINT;
 
   const summary: DibbsEndpointSummary = {
     endpoint,
     pagesRead: 0,
+    requestAttempts: 0,
     processed: 0,
     written: 0,
     droppedNoUuid: 0,
@@ -342,6 +376,7 @@ async function walkEndpoint(
     windowFrom,
     complete: false,
     rateLimited: false,
+    budgetExhausted: false,
     rateLimitRetries: 0,
     throttleWaits: 0,
   };
@@ -352,6 +387,14 @@ async function walkEndpoint(
     const remaining = limit - summary.processed;
     if (remaining <= 0) return summary; // stopped by --limit: complete stays false.
     if (summary.pagesRead >= MAX_PAGES_PER_ENDPOINT) return summary;
+    // Yield to the next endpoint before spending its share of the shared
+    // daily quota — checked BEFORE issuing another request, since a retried
+    // page already counts against requestAttempts even when it never reads
+    // a page. Not `rateLimited`: this endpoint may never have seen a 429.
+    if (summary.requestAttempts >= maxRequests) {
+      summary.budgetExhausted = true;
+      return summary;
+    }
 
     // Capped to `remaining`, not just `batchSize` — a page longer than what
     // this run should consume would force a mid-page stop (decision-log D-43).
@@ -523,6 +566,7 @@ export async function runDibbsSync(
     windowKind,
     completeness: summaries.every((s) => s.complete) ? 'complete' : 'in_progress',
     rateLimited: summaries.some((s) => s.rateLimited),
+    budgetExhausted: summaries.some((s) => s.budgetExhausted),
   };
 }
 
@@ -556,7 +600,7 @@ export async function runDibbsSyncJob(
       complete,
       ...(!complete
         ? {
-            incompleteReason: `DIBBS ${summary.windowKind} run incomplete: ${incomplete.join(', ') || 'only selected endpoints were scanned'}${summary.rateLimited ? '; rate-limit retries exhausted' : ''}.`,
+            incompleteReason: `DIBBS ${summary.windowKind} run incomplete: ${incomplete.join(', ') || 'only selected endpoints were scanned'}${summary.rateLimited ? '; rate-limit retries exhausted' : ''}${summary.budgetExhausted ? '; per-endpoint request budget exhausted (yielded quota to other endpoints)' : ''}.`,
           }
         : {}),
       ...(errors

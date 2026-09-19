@@ -7,7 +7,7 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
 import { MessagePlanService, MESSAGE_PLAN_MAX_OUTPUT_TOKENS, supportsStrictJson } from './message-plan.service.js';
-import { MessagePlanInvalidError, type MessagePlan } from './message-plan.schema.js';
+import { MessagePlanInvalidError, messagePlanSchema, type MessagePlan } from './message-plan.schema.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 
 const NOW = new Date('2026-07-26T00:00:00.000Z');
@@ -368,7 +368,7 @@ describe('plan pass token ceiling', () => {
     const svc = new MessagePlanService(config, llm as never);
     const cred = {
       provider: 'openai',
-      apiKey: 'k',
+      apiKey: String(123),
       model: 'gpt-5',
       modelOverridden: false,
     } as never;
@@ -384,6 +384,315 @@ describe('plan pass token ceiling', () => {
     const arg = (llm.complete as jest.Mock).mock.calls[0]![0] as { maxTokens: number };
     expect(arg.maxTokens).toBe(MESSAGE_PLAN_MAX_OUTPUT_TOKENS);
     expect(arg.maxTokens).toBeGreaterThan(2000);
+  });
+});
+
+// ── String-overlength-only repair ────────────────────────────────────────────
+//
+// Defect (QA 2026-09-16): MESSAGE_PLAN_JSON_SCHEMA communicates size bounds
+// only as prose (raw Claude structured outputs reject minLength/maxLength/
+// maxItems), so a substantively correct plan can exceed a bound and fail
+// MESSAGE_PLAN_INVALID ("String must contain at most 400 character(s)") with
+// no draft. buildPlan now takes exactly ONE targeted repair pass when STRING
+// overlength is all that is wrong, re-parsing against the SAME strict schema
+// and re-running ALL grounding validation.
+describe('string-overlength-only repair', () => {
+  const cred = {
+    provider: 'openai' as const,
+    apiKey: String(123),
+    model: 'gpt-5',
+    usedTenantKey: false,
+    modelOverridden: false,
+  };
+
+  const buildRequest = {
+    packet: packet(),
+    creds: [cred],
+    recipientBrief: 'Name: Dana Reed',
+    audienceKind: 'individual' as const,
+    clientName: null,
+    tone: 'professional' as const,
+    recipientScopeKeys: [],
+    reasoningEffort: 'high' as const,
+  };
+
+  /** The valid plan with whyNow[0] inflated past the 400-char bound. */
+  function overlengthPlanJson(): string {
+    const over = { ...plan() } as { whyNow: string[] };
+    over.whyNow = ['The markup is approaching.'.padEnd(401, ' a reason to act now')];
+    return JSON.stringify(over);
+  }
+
+  function serviceWithLlm(
+    impls: Array<() => Promise<{ text: string; usage: unknown }>>,
+  ): { svc: MessagePlanService; complete: jest.Mock } {
+    let call = 0;
+    const complete = jest.fn(() => {
+      const fn = impls[Math.min(call, impls.length - 1)]!;
+      call += 1;
+      return fn();
+    });
+    const config = { get: () => '' } as never;
+    return { svc: new MessagePlanService(config, { complete } as never), complete };
+  }
+
+  test('a plan over only the 400-char bound is repaired once, strict-validated, and usage is combined', async () => {
+    const { svc, complete } = serviceWithLlm([
+      // First pass: overlength whyNow[0] — the defect's shape.
+      async () => ({
+        text: overlengthPlanJson(),
+        usage: { inputTokens: 100, outputTokens: 50 },
+      }),
+      // Repair pass: the SAME plan with the wording condensed.
+      async () => ({
+        text: JSON.stringify(plan()),
+        usage: { inputTokens: 120, outputTokens: 60, cacheReadTokens: 80 },
+      }),
+    ]);
+
+    const result = await svc.buildPlan(CTX, buildRequest);
+
+    // Bounded at exactly 2 planning calls: original + one repair.
+    expect(complete).toHaveBeenCalledTimes(2);
+
+    // The repair call is the SAME pinned identity end to end: same runtime
+    // action, provider, credential key, model, max tokens, reasoning effort.
+    const [originalArg, repairArg] = complete.mock.calls.map(
+      ([a]) =>
+        a as {
+          runtimeAction: unknown;
+          provider: string;
+          apiKey: string;
+          model: string;
+          maxTokens: number;
+          reasoningEffort: unknown;
+          userStatic: string;
+          system: string;
+          userVolatile: string;
+        },
+    ) as [
+      {
+        runtimeAction: unknown;
+        provider: string;
+        apiKey: string;
+        model: string;
+        maxTokens: number;
+        reasoningEffort: unknown;
+        userStatic: string;
+        system: string;
+        userVolatile: string;
+      },
+      {
+        runtimeAction: unknown;
+        provider: string;
+        apiKey: string;
+        model: string;
+        maxTokens: number;
+        reasoningEffort: unknown;
+        userStatic: string;
+        system: string;
+        userVolatile: string;
+      },
+    ];
+    expect(repairArg.provider).toBe(originalArg.provider);
+    expect(repairArg.apiKey).toBe(originalArg.apiKey);
+    expect(repairArg.model).toBe(originalArg.model);
+    expect(repairArg.maxTokens).toBe(originalArg.maxTokens);
+    expect(repairArg.maxTokens).toBe(MESSAGE_PLAN_MAX_OUTPUT_TOKENS);
+    expect(repairArg.reasoningEffort).toBe(originalArg.reasoningEffort);
+    expect(repairArg.runtimeAction).toBe(originalArg.runtimeAction);
+    // Same cacheable prefix — only the volatile tail differs.
+    expect(repairArg.system).toBe(originalArg.system);
+    expect(repairArg.userStatic).toBe(originalArg.userStatic);
+    expect(repairArg.userVolatile.startsWith(originalArg.userVolatile)).toBe(true);
+    // The repair tail names the bound and carries the invalid plan as DATA.
+    expect(repairArg.userVolatile).toContain('exceeded their maximum length');
+    expect(repairArg.userVolatile).toContain('whyNow.0');
+    expect(repairArg.userVolatile).toContain('<<<EXTERNAL_CONTENT');
+    expect(repairArg.userVolatile).toContain('The markup is approaching.');
+
+    // The repaired plan is the REAL validated plan (grounding re-ran on it).
+    expect(result.plan.whyNow[0]).toBe('The markup is approaching.');
+    // Usage is the honest SUM of both planning calls, cache fields included.
+    expect(result.usage).toEqual({
+      inputTokens: 220,
+      outputTokens: 110,
+      cacheReadTokens: 80,
+      cacheCreationTokens: 0,
+    });
+  });
+
+  test('a repair that is STILL invalid fails truthfully — no second repair', async () => {
+    const { svc, complete } = serviceWithLlm([
+      async () => ({ text: overlengthPlanJson(), usage: { inputTokens: 1, outputTokens: 1 } }),
+      // The repair also returns an overlength value: the plan stays invalid.
+      async () => ({ text: overlengthPlanJson(), usage: { inputTokens: 2, outputTokens: 2 } }),
+      async () => {
+        throw new Error('must not be called a third time');
+      },
+    ]);
+
+    await expect(svc.buildPlan(CTX, buildRequest)).rejects.toBeInstanceOf(MessagePlanInvalidError);
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  test('malformed JSON is never repaired', async () => {
+    const { svc, complete } = serviceWithLlm([
+      async () => ({ text: 'not json at all', usage: { inputTokens: 1, outputTokens: 1 } }),
+      async () => {
+        throw new Error('must not repair');
+      },
+    ]);
+    await expect(svc.buildPlan(CTX, buildRequest)).rejects.toBeInstanceOf(MessagePlanInvalidError);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  test('a non-size schema violation (invalid type) is never repaired', async () => {
+    const raw = JSON.stringify({ ...plan(), tone: 123 });
+    const { svc, complete } = serviceWithLlm([
+      async () => ({ text: raw, usage: { inputTokens: 1, outputTokens: 1 } }),
+      async () => {
+        throw new Error('must not repair');
+      },
+    ]);
+    await expect(svc.buildPlan(CTX, buildRequest)).rejects.toBeInstanceOf(MessagePlanInvalidError);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  test('eligibility uses the FULL issue list, not parsePlan’s 12-issue slice', async () => {
+    // 15 string-overlength issues (>12, past parsePlan's slice) plus one
+    // invalid type. The sliced exception would show only size issues; the
+    // fresh full safeParse must see the invalid type and refuse repair.
+    const pad = (s: string, c: string) => s.padEnd(401, c);
+    const over = {
+      ...plan(),
+      tone: 123, // the non-size issue hiding behind the slice
+      whyNow: Array.from({ length: 5 }, () => pad('The markup is approaching.', 'x')),
+      clientAsk: Array.from({ length: 5 }, () => pad('A 20-minute meeting.', 'y')),
+      whyRecipient: Array.from({ length: 5 }, () => pad('Sits on Armed Services.', 'z')),
+    };
+    // Prove the fixture really carries 15 string issues and an invalid_type
+    // issue beyond slice index 12 — the concrete >12 behavior under test.
+    const raw = JSON.stringify(over);
+    const probe = messagePlanSchema.safeParse(JSON.parse(raw));
+    expect(probe.success).toBe(false);
+    if (probe.success) return;
+    const sizeIssues = probe.error.issues.filter(
+      (i) => i.code === 'too_big' && i.type === 'string' && i.path.length > 0,
+    );
+    const typeIdx = probe.error.issues.findIndex((i) => i.code === 'invalid_type');
+    expect(sizeIssues.length).toBe(15);
+    expect(typeIdx).toBeGreaterThan(12);
+
+    const { svc, complete } = serviceWithLlm([
+      async () => ({ text: raw, usage: { inputTokens: 1, outputTokens: 1 } }),
+      async () => {
+        throw new Error('must not repair');
+      },
+    ]);
+    await expect(svc.buildPlan(CTX, buildRequest)).rejects.toBeInstanceOf(MessagePlanInvalidError);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  test('15 pure string-overlength issues (past the 12-issue slice) still repair', async () => {
+    // Proves the eligibility check sees ALL issues: every one of the 15 is a
+    // string too_big, so repair fires even though parsePlan's sliced
+    // exception only reported the first 12. callToAction stays valid so the
+    // issue count is exactly 15.
+    const pad = (s: string, c: string) => s.padEnd(401, c);
+    const over = {
+      ...plan(),
+      whyNow: Array.from({ length: 5 }, () => pad('The markup is approaching.', 'a')),
+      clientAsk: Array.from({ length: 5 }, () => pad('A 20-minute meeting.', 'b')),
+      whyRecipient: Array.from({ length: 5 }, () => pad('Sits on Armed Services.', 'c')),
+    };
+    const probe = messagePlanSchema.safeParse(over);
+    expect(probe.success).toBe(false);
+    if (probe.success) return;
+    expect(
+      probe.error.issues.filter(
+        (i) => i.code === 'too_big' && i.type === 'string' && i.path.length > 0,
+      ).length,
+    ).toBe(15);
+
+    const { svc, complete } = serviceWithLlm([
+      async () => ({
+        text: JSON.stringify(over),
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
+      async () => ({
+        text: JSON.stringify(plan()),
+        usage: { inputTokens: 2, outputTokens: 2 },
+      }),
+    ]);
+    const result = await svc.buildPlan(CTX, buildRequest);
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(result.plan.callToAction).toBe('Could we find 20 minutes?');
+  });
+
+  test('an array-bound violation is never repaired (dropping entries is not condensing)', async () => {
+    // supportedClaims max is 30; fitting that bound means dropping whole
+    // claims, which the repair prompt forbids — so it stays an error.
+    const many = Array.from({ length: 31 }, () => ({
+      claim: 'HR 1234 was referred to Armed Services.',
+      sourceIds: ['hr1234-119'],
+      asOf: '2026-07-20',
+      claimType: 'legislative_status' as const,
+    }));
+    const { svc, complete } = serviceWithLlm([
+      async () => ({
+        text: JSON.stringify({ ...plan(), supportedClaims: many }),
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
+      async () => {
+        throw new Error('must not repair');
+      },
+    ]);
+    await expect(svc.buildPlan(CTX, buildRequest)).rejects.toBeInstanceOf(MessagePlanInvalidError);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  test('an overlength plan that ALSO cites an unknown source is never repaired', async () => {
+    // Mixed size + grounding failure: condensing wording cannot fix a bad
+    // citation, so this must stay a truthful error.
+    const over = {
+      ...plan(),
+      whyNow: ['The markup is approaching.'.padEnd(401, ' a reason to act now')],
+      supportedClaims: [
+        {
+          claim: 'S. 999 advanced.',
+          sourceIds: ['s999-does-not-exist'],
+          asOf: '2026-07-20',
+          claimType: 'legislative_status' as const,
+        },
+      ],
+    };
+    const { svc, complete } = serviceWithLlm([
+      async () => ({
+        text: JSON.stringify(over),
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
+      async () => {
+        throw new Error('must not repair');
+      },
+    ]);
+    await expect(svc.buildPlan(CTX, buildRequest)).rejects.toBeInstanceOf(MessagePlanInvalidError);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  test('a valid plan never triggers any repair call', async () => {
+    const { svc, complete } = serviceWithLlm([
+      async () => ({
+        text: JSON.stringify(plan()),
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      async () => {
+        throw new Error('must not repair');
+      },
+    ]);
+    const result = await svc.buildPlan(CTX, buildRequest);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.usage).toEqual({ inputTokens: 10, outputTokens: 5 });
   });
 });
 

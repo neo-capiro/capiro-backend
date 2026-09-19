@@ -38,6 +38,7 @@ enum SpStrategyType {
   coalition
   procurement
   earmark
+  amendment
 
   @@map("sp_strategy_type")
 }
@@ -96,6 +97,18 @@ enum SpArtifactType {
   outreach_record
 
   @@map("sp_artifact_type")
+}
+
+// Draft-from-goal async job lifecycle (strategy generation timeout fix).
+// queued -> running -> completed | failed. A worker claim-sweep drives it; see
+// DraftJobWorkerService.
+enum SpDraftJobStatus {
+  queued
+  running
+  completed
+  failed
+
+  @@map("sp_draft_job_status")
 }
 
 // ---- Models -------------------------------------------------------------------
@@ -733,4 +746,43 @@ model SpEventOutbox {
   @@index([consumedAt, createdAt])
   @@index([tenantId, createdAt])
   @@map("sp_event_outbox")
+}
+
+// Draft-from-goal async job (strategy generation timeout fix). POST
+// /strategies/draft used to run one fully synchronous call all the way through
+// the orchestrator's repair loop (up to ~3 attempts x 8 rounds x 120s) and
+// could exceed the ALB/client timeout. The endpoint now enqueues this row and
+// returns 202; DraftJobWorkerService's claim-sweep runs the actual generation
+// off the request path and streams progress into stage/progressText/
+// streamPreview. requestKey (hash of the submitted input) + the unique index
+// below make a double-submit (client retry, double-click) return the SAME job
+// instead of starting a second generation.
+model SpDraftJob {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  clientId      String           @map("client_id") @db.Uuid // apps/api clients.id — no FK
+  ownerUserId   String           @map("owner_user_id") // raw Clerk subject — the submitting user
+  requestKey    String           @map("request_key")
+  input         Json // { dto: DraftStrategyDto, bearer: string | null }
+  status        SpDraftJobStatus @default(queued)
+  stage         String? // 'compiling_context' | 'drafting' | 'verifying' | 'repairing' | 'persisting' | ...
+  progressText  String?          @map("progress_text") @db.Text
+  streamPreview String?          @map("stream_preview") @db.Text // rolling tail of streamed model text (last ~4000 chars)
+  attempt       Int              @default(1)
+  strategyId    String?          @map("strategy_id") @db.Uuid // set on completion
+  errorMessage  String?          @map("error_message") @db.Text
+  claimedBy     String?          @map("claimed_by") // worker instance id
+  claimedAt     DateTime?        @map("claimed_at")
+  deadlineAt    DateTime         @map("deadline_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  @@unique([tenantId, requestKey])
+  @@index([tenantId, status])
+  // Claim-sweep candidate scan (queued work) and stale-claim reclaim (running,
+  // ordered by last progress) both key off status; updatedAt bumps on every
+  // progress write, which is what makes the stale check "no progress" rather
+  // than just "claimed a while ago".
+  @@index([status, updatedAt])
+  @@map("sp_draft_job")
 }

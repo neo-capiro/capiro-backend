@@ -7,21 +7,34 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { NewsEvidenceService, newsHash } from '../src/intelligence/news/news-evidence.service.js';
 import { createHash } from 'node:crypto';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { checkPhase8Sources } from './check-legiwatch-phase8-sources.js';
 dotenvConfig();
 
 const DELAY_MS = 300;
+// Honest, identifying RSS client header. Probe 2026-09-15 18:06 UTC: this
+// exact bare token returned 200/10 items from both HHS and USDA in the same
+// minute the longer "Capiro-RSS/1.0 (neo@capiro.ai)" form was 403-blocked —
+// the parenthesized contact tail is what their WAF pattern-rejects, so the
+// identifier stays bare. No browser impersonation, no IP rotation, no auth.
+const RSS_USER_AGENT = 'Capiro-RSS/1.0';
 
-const FEEDS = [
-  // Qualified current Florida publisher feeds; each keeps its actual feed limit.
-  ...(process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true'
-    ? [
-        { source: 'florida_phoenix', url: 'https://floridaphoenix.com/feed/' },
-        { source: 'wusf', url: 'https://www.wusf.org/news.rss' },
-        { source: 'florida_daily', url: 'https://floridadaily.com/feed/' },
-        { source: 'cbs_miami', url: 'https://www.cbsnews.com/miami/latest/rss/main' },
-      ]
-    : []),
+export interface RssFeed {
+  /** Canonical `intel_article.source` slug — the shared-corpus vocabulary. */
+  source: string;
+  url: string;
+}
+
+/** Qualified current Florida publisher feeds; each keeps its actual feed limit.
+ * Only ingested when LEGIWATCH_NEWS_INGEST_ENABLED=true. */
+export const FLORIDA_FEEDS: readonly RssFeed[] = [
+  { source: 'florida_phoenix', url: 'https://floridaphoenix.com/feed/' },
+  { source: 'wusf', url: 'https://www.wusf.org/news.rss' },
+  { source: 'florida_daily', url: 'https://floridadaily.com/feed/' },
+  { source: 'cbs_miami', url: 'https://www.cbsnews.com/miami/latest/rss/main' },
+];
+
+export const CORE_FEEDS: readonly RssFeed[] = [
   // News outlets
   { source: 'roll_call', url: 'https://rollcall.com/feed/' },
   { source: 'the_hill', url: 'https://thehill.com/feed/' },
@@ -37,9 +50,12 @@ const FEEDS = [
     source: 'dod',
     url: 'https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?max=20&ContentType=1',
   },
-  { source: 'hhs', url: 'https://www.hhs.gov/rss/news-releases.xml' },
+  { source: 'hhs', url: 'https://www.hhs.gov/rss/news.xml' },
   { source: 'usda', url: 'https://www.usda.gov/rss/latest-releases.xml' },
-  { source: 'doj', url: 'https://www.justice.gov/feeds/opa/justice-news.xml' },
+  {
+    source: 'doj',
+    url: 'https://www.justice.gov/feeds/justice-news.xml?type=All&component%5B436%5D=436&organization=All',
+  },
   { source: 'state_dept', url: 'https://www.state.gov/rss-feed/press-releases/feed/' },
   { source: 'commerce', url: 'https://www.commerce.gov/feeds/news' },
   { source: 'va', url: 'https://news.va.gov/feed/' },
@@ -56,6 +72,13 @@ const FEEDS = [
   // Removed (dead/404/WAF-blocked, no working alternative found):
   // whitehouse.gov, treasury, epa, sba, dot, cap, rand, cfr, third_way
 ];
+
+/** Every feed this script has ever been configured to write, regardless of
+ * env gating — the complete feed_url → source slug map used by backfills. */
+export const ALL_FEEDS: readonly RssFeed[] = [...FLORIDA_FEEDS, ...CORE_FEEDS];
+
+const FEEDS: readonly RssFeed[] =
+  process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true' ? ALL_FEEDS : CORE_FEEDS;
 
 // RSS/Atom fields commonly arrive HTML-entity-escaped (named entities like
 // &amp;/&lt;/&gt;, and numeric character references like &#8216; or &#x2019;
@@ -115,6 +138,89 @@ function safeDate(v: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/** Clock-skew allowance before a feed's pubDate is treated as bogus. */
+export const FUTURE_PUBLISHED_TOLERANCE_MS = 60 * 60 * 1000;
+
+/**
+ * Feed publication instant, or null when the feed gave none, an unparseable
+ * one, or one in the future. The shared corpus sorts by published_at desc, so
+ * a future-dated item (observed live 2026-09-16: a DOJ release stamped six
+ * weeks ahead) pins itself to the top of every Dashboard Wire and Explorer
+ * News list until that date passes. Null lets the caller fall back to the
+ * sync instant, which is the honest "first seen" time.
+ */
+export function publishedAtFor(
+  pubDate: string | null | undefined,
+  now: Date = new Date(),
+): Date | null {
+  const parsed = safeDate(pubDate);
+  if (!parsed) return null;
+  return parsed.getTime() > now.getTime() + FUTURE_PUBLISHED_TOLERANCE_MS ? null : parsed;
+}
+
+export interface ParsedFeedItem {
+  url: string;
+  title: string;
+  description: string | null;
+  pubDate: string | null;
+  author: string | null;
+  categories: string[];
+}
+
+/**
+ * NewsEvidenceService.retain() input for one feed item. `source` is the feed's
+ * canonical slug (what Dashboard/Explorer source filters, saved preferences and
+ * outlet marks are keyed on); `publisher` is the article hostname kept for the
+ * LegiWatch observation ledger. Passing only `publisher` made retain() store
+ * hostnames in intel_article.source and emptied every saved source filter.
+ */
+export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = new Date()) {
+  return {
+    provider: 'rss' as const,
+    providerId: item.url,
+    url: item.url,
+    source: feed.source,
+    publisher: new URL(item.url).hostname,
+    title: item.title,
+    summary: item.description,
+    publishedAt: publishedAtFor(item.pubDate, now)?.toISOString(),
+    author: item.author,
+    feedUrl: feed.url,
+    categories: item.categories,
+    rights: 'excerpt' as const,
+  };
+}
+
+/**
+ * Structural gate: the response body must actually BE an RSS/Atom/RDF feed,
+ * not just an HTTP 200 — a 200 HTML challenge/soft-404 page was previously
+ * accepted as "success, 0 items", reporting false source health. The body is
+ * validated as one complete XML document: the previous 256KB prefix-trim
+ * rejected any valid feed larger than 256KB as "unclosed" (a real 280161-byte
+ * RSS body failed exactly that way), so validation now runs on the full body
+ * with no size cap. Requires the document root to be a recognized feed root
+ * (<rss>, <feed>, or RDF in either spelling — prefixed <rdf:RDF> or
+ * default-namespace <RDF>); Content-Type is deliberately not checked (valid
+ * feeds are served text/plain). The feed bodies handled here are far smaller
+ * than memory, so whole-document validation costs nothing extra in practice.
+ */
+const FEED_ROOT_TAGS = new Set(['rss', 'feed', 'rdf:RDF', 'RDF']);
+
+export function validateFeedXml(xml: string): string | null {
+  const valid = XMLValidator.validate(xml);
+  if (valid !== true) return valid.err.msg;
+  const parsed = new XMLParser({
+    ignoreAttributes: false,
+    processEntities: false,
+    ignoreDeclaration: true,
+  }).parse(xml);
+  const root = Object.keys(parsed).find((k) => !k.startsWith('?') && !k.startsWith('!'));
+  if (!root || !FEED_ROOT_TAGS.has(root)) {
+    return `unrecognized document root <${root ?? 'none'}> — not an RSS/Atom/RDF feed`;
+  }
+  return null;
+}
+
 async function main() {
   const prisma = new PrismaClient();
   const t0 = Date.now();
@@ -128,11 +234,18 @@ async function main() {
     await new Promise((r) => setTimeout(r, DELAY_MS));
     try {
       const resp = await fetch(feed.url, {
-        headers: { 'User-Agent': 'Capiro/1.0 (neo@capiro.ai)' },
+        headers: { 'User-Agent': RSS_USER_AGENT },
         signal: AbortSignal.timeout(20000),
       });
       if (!resp.ok) throw new Error(`rss_http_${resp.status}`);
       const xml = await resp.text();
+
+      // HTTP 200 is not feed health — the body must parse as an actual
+      // RSS/Atom/RDF document. A 200 HTML challenge/soft-404 page fails
+      // here into the existing failed-source path instead of being
+      // recorded as success-with-0-items.
+      const feedError = validateFeedXml(xml);
+      if (feedError) throw new Error(`rss_invalid_feed: ${feedError}`);
 
       // Parse RSS items (works for both RSS 2.0 and Atom with fallback)
       const items = xml.split(/<item[ >]/).slice(1);
@@ -159,19 +272,16 @@ async function main() {
 
         try {
           if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true') {
-            await new NewsEvidenceService(prisma as never).retain({
-              provider: 'rss',
-              providerId: url,
-              url,
-              publisher: new URL(url).hostname,
-              title,
-              summary: description,
-              publishedAt: safeDate(pubDate)?.toISOString(),
-              author,
-              feedUrl: feed.url,
-              categories: extractCategories(item),
-              rights: 'excerpt',
-            });
+            await new NewsEvidenceService(prisma as never).retain(
+              retainInputFor(feed, {
+                url,
+                title,
+                description,
+                pubDate,
+                author,
+                categories: extractCategories(item),
+              }),
+            );
           } else
             await (prisma as any).intelArticle.upsert({
               where: { url },
@@ -182,7 +292,7 @@ async function main() {
                 title,
                 url,
                 author: author?.slice(0, 200) || null,
-                publishedAt: safeDate(pubDate) || new Date(),
+                publishedAt: publishedAtFor(pubDate) || new Date(),
                 summary: description?.slice(0, 5000) || null,
                 categories: extractCategories(item),
               },

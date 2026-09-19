@@ -249,20 +249,24 @@ describe('SAM date-window completeness', () => {
     ).rejects.toThrow(/SAM_GOV_API_KEY/);
   });
 
-  test('5,001 rows split into multiple windows and all unique rows are returned', async () => {
+  test('5,001 rows split into multiple windows and reset page indexes', async () => {
+    const offsetsByWindow = new Map<string, number[]>();
     const fetcher: SamFetchPage = jest.fn(
       async (_key: string, from: string, to: string, offset: number, limit: number) => {
+        const windowKey = `${from}..${to}`;
+        offsetsByWindow.set(windowKey, [...(offsetsByWindow.get(windowKey) ?? []), offset]);
         if (from === '07/01/2026' && to === '07/04/2026') {
           return { totalRecords: 5001, opportunitiesData: [] };
         }
         const left = from === '07/01/2026';
         const total = left ? 2500 : 2501;
         const prefix = left ? 'L' : 'R';
-        const end = Math.min(total, offset + limit);
+        const pageStart = offset * limit;
+        const end = Math.min(total, pageStart + limit);
         return {
           totalRecords: total,
-          opportunitiesData: Array.from({ length: Math.max(0, end - offset) }, (_, index) =>
-            record(`${prefix}-${offset + index}`),
+          opportunitiesData: Array.from({ length: Math.max(0, end - pageStart) }, (_, index) =>
+            record(`${prefix}-${pageStart + index}`),
           ),
         };
       },
@@ -277,6 +281,8 @@ describe('SAM date-window completeness', () => {
     expect(result.reportedTotal).toBe(5001);
     expect(result.leafWindows).toBe(2);
     expect(result.duplicateNoticeCount).toBe(0);
+    expect(offsetsByWindow.get('07/01/2026..07/02/2026')?.slice(0, 2)).toEqual([0, 1]);
+    expect(offsetsByWindow.get('07/03/2026..07/04/2026')?.slice(0, 2)).toEqual([0, 1]);
   });
 
   test('a window exactly at capacity does not split', async () => {
@@ -284,8 +290,8 @@ describe('SAM date-window completeness', () => {
       async (_key: string, _from: string, _to: string, offset: number, limit: number) => ({
         totalRecords: 4,
         opportunitiesData: Array.from(
-          { length: Math.max(0, Math.min(4, offset + limit) - offset) },
-          (_, i) => record(`N-${offset + i}`),
+          { length: Math.max(0, Math.min(4, offset * limit + limit) - offset * limit) },
+          (_, i) => record(`N-${offset * limit + i}`),
         ),
       }),
     );
@@ -301,13 +307,82 @@ describe('SAM date-window completeness', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  test('uses zero-based provider page indexes for three full pages', async () => {
+    const offsets: number[] = [];
+    const fetcher: SamFetchPage = jest.fn(
+      async (_key: string, _from: string, _to: string, offset: number, limit: number) => {
+        offsets.push(offset);
+        const pageStart = offset * limit;
+        const total = 5;
+        return {
+          totalRecords: total,
+          opportunitiesData: Array.from(
+            { length: Math.max(0, Math.min(total, pageStart + limit) - pageStart) },
+            (_, i) => record(`P-${pageStart + i}`),
+          ),
+        };
+      },
+    );
+
+    const result = await collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-01'), {
+      fetchPage: fetcher,
+      pageLimit: 2,
+      maxPages: 3,
+    });
+
+    expect(result.complete).toBe(true);
+    expect(result.records.map((row) => row.noticeId)).toEqual(['P-0', 'P-1', 'P-2', 'P-3', 'P-4']);
+    expect(offsets).toEqual([0, 1, 2]);
+  });
+
+  test('a final short provider page completes and stops without a fourth request', async () => {
+    const offsets: number[] = [];
+    const fetcher: SamFetchPage = jest.fn(
+      async (_key: string, _from: string, _to: string, offset: number, limit: number) => {
+        offsets.push(offset);
+        const pageStart = offset * limit;
+        const total = 3;
+        return {
+          totalRecords: total,
+          opportunitiesData: Array.from(
+            { length: Math.max(0, Math.min(total, pageStart + limit) - pageStart) },
+            (_, i) => record(`S-${pageStart + i}`),
+          ),
+        };
+      },
+    );
+
+    const result = await collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-01'), {
+      fetchPage: fetcher,
+      pageLimit: 2,
+      maxPages: 4,
+    });
+
+    expect(result.complete).toBe(true);
+    expect(offsets).toEqual([0, 1]);
+  });
+
+  test('an empty or inconsistent response remains incomplete', async () => {
+    const fetcher: SamFetchPage = jest.fn(async () => ({ totalRecords: 5, opportunitiesData: [] }));
+
+    const result = await collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-01'), {
+      fetchPage: fetcher,
+      pageLimit: 2,
+      maxPages: 3,
+    });
+
+    expect(result.complete).toBe(false);
+    expect(result.records).toHaveLength(0);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   test('a single UTC day above capacity is processed but returned partial', async () => {
     const fetcher: SamFetchPage = jest.fn(
       async (_key: string, _from: string, _to: string, offset: number, limit: number) => ({
         totalRecords: 5,
         opportunitiesData: Array.from(
-          { length: Math.max(0, Math.min(4, offset + limit) - offset) },
-          (_, i) => record(`N-${offset + i}`),
+          { length: Math.max(0, Math.min(4, offset * limit + limit) - offset * limit) },
+          (_, i) => record(`N-${offset * limit + i}`),
         ),
       }),
     );
@@ -343,6 +418,69 @@ describe('SAM date-window completeness', () => {
 
     expect(result.records.map((row) => row.noticeId)).toEqual(['LEFT', 'DUP', 'RIGHT']);
     expect(result.duplicateNoticeCount).toBe(1);
+  });
+
+  // A window that has grown large because the sync hasn't had a clean success
+  // in a while can time out on its very first request, before `total` is
+  // ever known — the "total > capacity" split above never gets a chance to
+  // run. Live 2026-09 operation found the DoD-scope job failing this way on
+  // a ~51-day window every single day. These tests exist because that was
+  // found in production, not in review.
+  test('an abort on the first request splits the window and retries instead of failing the whole run', async () => {
+    const attemptedWindows: string[] = [];
+    const fetcher: SamFetchPage = jest.fn(
+      async (_key: string, from: string, to: string, _offset: number, _limit: number) => {
+        attemptedWindows.push(`${from}..${to}`);
+        if (from !== to) {
+          throw new Error('SAM.gov request failed: [REDACTED] This operation was aborted');
+        }
+        return { totalRecords: 1, opportunitiesData: [record(`D-${from}`)] };
+      },
+    );
+
+    const result = await collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-04'), {
+      fetchPage: fetcher,
+    });
+
+    expect(result.complete).toBe(true);
+    expect(result.records.map((row) => row.noticeId).sort()).toEqual([
+      'D-07/01/2026',
+      'D-07/02/2026',
+      'D-07/03/2026',
+      'D-07/04/2026',
+    ]);
+    // The oversized window was attempted and abandoned — proof the split
+    // happened because of the abort, not because it was never tried.
+    expect(attemptedWindows).toContain('07/01/2026..07/04/2026');
+  });
+
+  test('a single-day window that aborts has nothing left to split into, and throws', async () => {
+    const fetcher: SamFetchPage = jest.fn(async () => {
+      throw new Error('SAM.gov request failed: [REDACTED] This operation was aborted');
+    });
+
+    await expect(
+      collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-01'), {
+        fetchPage: fetcher,
+      }),
+    ).rejects.toThrow(/aborted/);
+  });
+
+  test('a non-transient error on a large window propagates immediately, never multiplied across splits', async () => {
+    const fetcher: SamFetchPage = jest.fn(async () => {
+      throw new Error(
+        'SAM.gov request failed: SAM.gov 401: unauthorized. Check SAM_GOV_API_KEY is present, active, and entitled.',
+      );
+    });
+
+    await expect(
+      collectSamWindowRecords('secret', samWindow('2026-07-01', '2026-07-04'), {
+        fetchPage: fetcher,
+      }),
+    ).rejects.toThrow(/401/);
+    // A real auth failure must not be retried across shrinking windows — it
+    // would just repeat the identical error more slowly.
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
 

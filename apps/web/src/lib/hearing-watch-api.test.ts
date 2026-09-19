@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import type { HearingBrief } from './hearing-watch-api.js';
 
 const apiGet = vi.fn();
 const apiPost = vi.fn();
@@ -13,6 +14,7 @@ const {
   briefToMarkdown,
   isMediaUrl,
   mediaKindOf,
+  useCurrentHearingRecap,
   useGenerateBrief,
   useHearingTranscript,
   useSaveRecap,
@@ -72,12 +74,199 @@ describe('mediaKindOf', () => {
 });
 
 describe('briefToMarkdown', () => {
-  test('preserves transcript segment and timestamp anchors in the client deliverable', () => {
+  const base = {
+    sessionId: 'session-1',
+    title: 'House Armed Services hearing',
+    generatedAt: '2026-07-28T16:00:00.000Z',
+    executiveSummary: 'The committee discussed acquisition reform.',
+    keyMoments: [],
+    relevantQuotes: [],
+    supporters: [],
+    opponents: [],
+    tone: 'constructive',
+    risks: [],
+    opportunities: [],
+    recommendedNextSteps: ['Follow up with committee staff.'],
+    draftClientEmail: { subject: 'Update', body: 'Body' },
+    synthesisSource: 'orchestrator' as const,
+  };
+
+  test('renders the model narrative with readable merged timestamp-range citations and NO opaque ids', () => {
     const markdown = briefToMarkdown({
-      sessionId: 'session-1',
-      title: 'House Armed Services hearing',
-      generatedAt: '2026-07-28T16:00:00.000Z',
-      executiveSummary: 'The committee discussed acquisition reform.',
+      ...base,
+      summaryTitle: 'Acquisition reform in focus',
+      keyDevelopments: [
+        {
+          title: 'Faster acquisition',
+          text: 'Witnesses urged a faster acquisition process.',
+          evidenceIds: ['segment-7', 'segment-7', 'segment-8', 'segment-9', 'foreign-id'],
+        },
+      ],
+      claimMap: [
+        // Two contiguous ASR fragments (gap 500ms <= 1000ms) merge into one range.
+        { claimId: 'claim-1', segmentId: 'segment-7', timestampMs: 125_000, endMs: 129_500 },
+        { claimId: 'claim-2', segmentId: 'segment-8', timestampMs: 130_000, endMs: 134_000 },
+        // A later, separate segment (real end) stays its own range.
+        { claimId: 'claim-3', segmentId: 'segment-9', timestampMs: 250_000, endMs: 254_000 },
+      ],
+    });
+
+    // New narrative present, concise title used.
+    expect(markdown).toContain('# Acquisition reform in focus');
+    expect(markdown).toContain('### Faster acquisition');
+    expect(markdown).toContain('Witnesses urged a faster acquisition process\\.');
+    // Merged range 2:05–2:14 (125s–134s), then a distinct 4:10–4:14 range.
+    expect(markdown).toContain('_Cited at 2:05–2:14 · 4:10–4:14_');
+    // No opaque machine ids or source-anchor wall.
+    expect(markdown).not.toContain('[segment:');
+    expect(markdown).not.toContain('claim-1');
+    expect(markdown).not.toContain('Source anchors');
+    // Formal title retained as provenance (distinct from summaryTitle).
+    expect(markdown).toContain('_Hearing: House Armed Services hearing_');
+    // Real session retrieval link.
+    expect(markdown).toContain('(/intelligence/hearing-watch/session-1)');
+    expect(markdown).toContain('Follow up with committee staff\\.');
+  });
+
+  test('citations merge only contiguous/overlapping real-ended segments; legacy points never merge or infer ends', () => {
+    const briefFor = (claimMap: HearingBrief['claimMap'], ids: string[]) =>
+      briefToMarkdown({
+        ...base,
+        keyDevelopments: [{ title: 'D', text: 'T.', evidenceIds: ids }],
+        claimMap,
+      });
+    const line = (md: string) => md.split('\n').find((l) => l.startsWith('_Cited at '));
+
+    // Fragmented: gap > 1000ms → two distinct ranges preserved.
+    const fragmented = line(
+      briefFor(
+        [
+          { claimId: 'a', segmentId: 's1', timestampMs: 10_000, endMs: 12_000 },
+          { claimId: 'b', segmentId: 's2', timestampMs: 20_000, endMs: 22_000 },
+        ],
+        ['s1', 's2'],
+      ),
+    );
+    expect(fragmented).toBe('_Cited at 0:10–0:12 · 0:20–0:22_');
+
+    // Continuous: overlapping/contiguous → one merged range.
+    const continuous = line(
+      briefFor(
+        [
+          { claimId: 'a', segmentId: 's1', timestampMs: 10_000, endMs: 15_000 },
+          { claimId: 'b', segmentId: 's2', timestampMs: 14_500, endMs: 20_000 },
+        ],
+        ['s1', 's2'],
+      ),
+    );
+    expect(continuous).toBe('_Cited at 0:10–0:20_');
+
+    // Legacy point (no endMs) never merges and never gets an inferred end.
+    const legacy = line(
+      briefFor(
+        [
+          { claimId: 'a', segmentId: 's1', timestampMs: 10_000 }, // no endMs
+          { claimId: 'b', segmentId: 's2', timestampMs: 10_500, endMs: 12_000 },
+        ],
+        ['s1', 's2'],
+      ),
+    );
+    expect(legacy).toBe('_Cited at 0:10 · 0:10–0:12_');
+  });
+
+  test('escapes Markdown special characters in model/title text so it cannot inject structure', () => {
+    const markdown = briefToMarkdown({
+      ...base,
+      summaryTitle: '**Not bold** # nope',
+      executiveSummary: 'See [this](https://evil.example) and <script>alert(1)</script>.',
+    });
+    // Interpolated model text is escaped — it renders literally, not as markup.
+    expect(markdown).toContain('\\*\\*Not bold\\*\\*');
+    expect(markdown).not.toContain('](https://evil.example)');
+    expect(markdown).toContain('\\[this\\]\\(https://evil\\.example\\)');
+    expect(markdown).toContain('\\<script\\>alert\\(1\\)\\</script\\>');
+  });
+
+  test('states coverage against the available recording, never the whole hearing', () => {
+    const full = briefToMarkdown({
+      ...base,
+      sourceCoverage: {
+        availableSegments: 138,
+        includedSegments: 138,
+        startMs: 15_000,
+        endMs: 676_000,
+        limited: false,
+      },
+    });
+    expect(full).toContain('all 138 captured transcript segments');
+    expect(full).toContain('of the available recording');
+    expect(full).not.toMatch(/whole hearing|entire hearing|full hearing/i);
+
+    const bounded = briefToMarkdown({
+      ...base,
+      sourceCoverage: {
+        availableSegments: 138,
+        includedSegments: 60,
+        startMs: 15_000,
+        endMs: 300_000,
+        limited: true,
+      },
+    });
+    expect(bounded).toContain('60 of 138 captured transcript segments');
+    // Omitted count derived when not explicit (138-60=78).
+    expect(bounded).toContain('78 segments not included');
+  });
+
+  test('distinguishes shortened text from omitted segments — "all segments" is not "all text"', () => {
+    // All segments included, but some text was shortened: must NOT read as full text.
+    const truncated = briefToMarkdown({
+      ...base,
+      sourceCoverage: {
+        availableSegments: 138,
+        includedSegments: 138,
+        startMs: 15_000,
+        endMs: 676_000,
+        limited: true,
+        truncatedSegments: 12,
+        omittedSegments: 0,
+      },
+    });
+    expect(truncated).toContain('138 of 138 captured transcript segments');
+    expect(truncated).toContain('12 segments shortened for length');
+    expect(truncated).not.toContain('not included');
+
+    // Both omitted and truncated.
+    const both = briefToMarkdown({
+      ...base,
+      sourceCoverage: {
+        availableSegments: 200,
+        includedSegments: 150,
+        startMs: 0,
+        endMs: 600_000,
+        limited: true,
+        truncatedSegments: 5,
+        omittedSegments: 50,
+      },
+    });
+    expect(both).toContain('150 of 200 captured transcript segments');
+    expect(both).toContain('50 segments not included');
+    expect(both).toContain('5 segments shortened for length');
+  });
+
+  test('does not print claim counts or unverifiable record-metadata claims', () => {
+    const markdown = briefToMarkdown({
+      ...base,
+      claimMap: [{ claimId: 'claim-1', segmentId: 'segment-1', timestampMs: 1_000 }],
+    });
+    expect(markdown).not.toMatch(/\d+ claims?/);
+    expect(markdown).not.toContain('recap record');
+    expect(markdown).not.toContain('further anchor');
+  });
+
+  test('falls back to legacy keyMoments for older briefs without keyDevelopments', () => {
+    const markdown = briefToMarkdown({
+      ...base,
+      keyDevelopments: undefined,
       keyMoments: [
         {
           segmentId: 'segment-7',
@@ -86,88 +275,11 @@ describe('briefToMarkdown', () => {
           text: 'We need a faster acquisition process.',
         },
       ],
-      relevantQuotes: [],
-      supporters: [],
-      opponents: [],
-      tone: 'constructive',
-      risks: [],
-      opportunities: [],
-      recommendedNextSteps: ['Follow up with committee staff.'],
-      draftClientEmail: { subject: 'Update', body: 'Body' },
-      claimMap: [{ claimId: 'claim-1', segmentId: 'segment-7', timestampMs: 125_000 }],
-      synthesisSource: 'orchestrator',
     });
-
-    expect(markdown).toContain('[segment:segment-7]');
-    expect(markdown).toContain('[claim-1] segment segment-7 at 2:05');
-    expect(markdown).toContain('Follow up with committee staff.');
-  });
-
-  /**
-   * A real recap on 2026-07-29 carried 111 claim anchors. Rendering all of them
-   * produced a wall of opaque ids longer than the recap itself, which is what made
-   * the deliverable unusable rather than merely terse. The render is now bounded —
-   * but a cap that hides its own existence reads as "that was all of them", so the
-   * omission has to be stated.
-   */
-  test('bounds the source-anchor list and says how many it omitted', () => {
-    const claimMap = Array.from({ length: 111 }, (_, i) => ({
-      claimId: `claim-${i + 1}`,
-      segmentId: `segment-${i + 1}`,
-      timestampMs: (i + 1) * 1_000,
-    }));
-    const markdown = briefToMarkdown({
-      sessionId: 'session-2',
-      title: 'Homeland Security hearing',
-      generatedAt: '2026-07-29T15:33:03.000Z',
-      executiveSummary: 'Assembly only.',
-      keyMoments: [],
-      relevantQuotes: [],
-      supporters: [],
-      opponents: [],
-      tone: 'not assessed',
-      risks: [],
-      opportunities: [],
-      recommendedNextSteps: [],
-      draftClientEmail: { subject: 'Update', body: 'Body' },
-      claimMap,
-      synthesisSource: 'deterministic',
-    });
-
-    // The total is stated up front.
-    expect(markdown).toContain('111 claims in this recap trace to a transcript segment');
-    // A bounded preview is rendered, not the whole map.
-    expect(markdown).toContain('[claim-1] segment segment-1 at 0:01');
-    expect(markdown).toContain('[claim-10] segment segment-10 at 0:10');
-    expect(markdown).not.toContain('[claim-11]');
-    // And the omission is explicit — this is the assertion that matters.
-    expect(markdown).toContain('101 further anchors');
-    // Sanity: the anchor section must not dominate the document any more.
-    const anchorLines = markdown.split('\n').filter((l) => /^- \[claim-/.test(l));
-    expect(anchorLines).toHaveLength(10);
-  });
-
-  test('does not add an omission note when every anchor fits', () => {
-    const markdown = briefToMarkdown({
-      sessionId: 'session-3',
-      title: 'Short hearing',
-      generatedAt: '2026-07-29T15:33:03.000Z',
-      executiveSummary: 'Assembly only.',
-      keyMoments: [],
-      relevantQuotes: [],
-      supporters: [],
-      opponents: [],
-      tone: 'not assessed',
-      risks: [],
-      opportunities: [],
-      recommendedNextSteps: [],
-      draftClientEmail: { subject: 'Update', body: 'Body' },
-      claimMap: [{ claimId: 'claim-1', segmentId: 'segment-1', timestampMs: 1_000 }],
-      synthesisSource: 'deterministic',
-    });
-
-    expect(markdown).toContain('1 claim in this recap traces to a transcript segment');
-    expect(markdown).not.toContain('further anchor');
+    expect(markdown).toContain('## Key moments');
+    // mdEscape escapes the trailing period (CommonMark-safe; renders identically).
+    expect(markdown).toContain('**2:05** Chair Smith: We need a faster acquisition process\\.');
+    expect(markdown).not.toContain('[segment:');
   });
 });
 
@@ -241,6 +353,15 @@ describe('useGenerateBrief', () => {
     expect(apiGet.mock.calls[0]![0]).toBe('/intel-api/hearings/session-1/brief?clientId=client-9');
   });
 
+  test('uses the AI-generation timeout, not the tight 30s default (real synthesis runs 34–69s)', async () => {
+    const { result } = renderHook(() => useGenerateBrief(), { wrapper: withQueryClient() });
+    result.current.mutate({ sessionId: 'session-1', clientId: 'client-9' });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1));
+    // The brief URL does not match GENERATION_URL_PATTERNS, so the explicit
+    // per-request timeout is what keeps a real synthesis from aborting at 30s.
+    expect(apiGet.mock.calls[0]![1]).toEqual({ timeout: 175_000 });
+  });
+
   test('omits the client parameter when no client is given (client-agnostic brief)', async () => {
     const { result } = renderHook(() => useGenerateBrief(), { wrapper: withQueryClient() });
     result.current.mutate({ sessionId: 'session-1' });
@@ -282,6 +403,52 @@ describe('useSaveRecap', () => {
       markdown: '# recap',
     });
     expect(body).not.toHaveProperty('clientName');
+  });
+});
+
+describe('useCurrentHearingRecap', () => {
+  beforeEach(() => {
+    apiGet.mockReset();
+  });
+
+  test('uses the exact sessionId filter (single bounded query), not a page scan', async () => {
+    apiGet.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: 'att-400-plus',
+            fileName: 'Old.docx',
+            indexedAt: null,
+            createdAt: '2025-01-01T00:00:00.000Z',
+            sessionId: 'session-9',
+            sessionTitle: 'Old hearing',
+            sourceType: 'hearing',
+          },
+        ],
+        hasMore: false,
+        nextCursor: null,
+      },
+    });
+    const { result } = renderHook(() => useCurrentHearingRecap('client-9', 'session-9'), {
+      wrapper: withQueryClient(),
+    });
+    await waitFor(() => expect(result.current.data?.id).toBe('att-400-plus'));
+    // One filtered request naming the session — an old recap beyond any client
+    // scan window is still found because the SERVER filters by sessionId.
+    expect(apiGet).toHaveBeenCalledTimes(1);
+    const url = apiGet.mock.calls[0]![0] as string;
+    expect(url).toContain('/api/intelligence/clients/client-9/hearing-recaps?');
+    expect(url).toContain('sessionId=session-9');
+    expect(url).toContain('limit=1');
+  });
+
+  test('returns null when the client has no recap for this session', async () => {
+    apiGet.mockResolvedValue({ data: { items: [], hasMore: false, nextCursor: null } });
+    const { result } = renderHook(() => useCurrentHearingRecap('client-9', 'session-9'), {
+      wrapper: withQueryClient(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
   });
 });
 

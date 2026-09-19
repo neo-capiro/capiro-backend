@@ -5,7 +5,7 @@ import {
   GRANTS_GOV_UNRESTRICTED_APPLICANTS,
 } from '@capiro/shared';
 import type { Client } from './clientTypes.js';
-import { readClientFundingPriorities, readClientRegistrations } from './client-registrations.js';
+import { readClientFundingPriorities, readClientRegistrations, SET_ASIDE_CERTIFICATION_OPTIONS, setAsideLabel } from './client-registrations.js';
 
 function client(fields: Partial<Client> = {}): Client {
   return { id: 'client-display', name: 'Harbor Institute', ...fields } as Client;
@@ -105,6 +105,36 @@ describe('registration accuracy', () => {
     expect(rows.find((row) => row.label === 'Registration — review needed')?.value).toContain('For-profit and nonprofit');
     expect(rows.find((row) => row.label === 'Registration — review needed')?.value).toContain('Small and large business');
     expect(saved).toEqual(before);
+  });
+});
+
+describe('set-aside certification options (D9)', () => {
+  // The canonical durable-certification set the API accepts
+  // (apps/api/src/funding-opportunities/set-aside.ts DURABLE_SET_ASIDE_CERTIFICATIONS,
+  // enforced by the update DTO's @IsIn). The offered options must align exactly.
+  const API_DURABLE_CODES = ['8A', 'SDVOSB', 'VOSB', 'WOSB', 'EDWOSB', 'HUBZONE'];
+
+  it('offers exactly the canonical durable certifications the API accepts', () => {
+    expect(SET_ASIDE_CERTIFICATION_OPTIONS.map((o) => o.value)).toEqual(API_DURABLE_CODES);
+  });
+
+  it('never offers solicitation restriction codes as certifications', () => {
+    const offered = new Set(SET_ASIDE_CERTIFICATION_OPTIONS.map((o) => o.value));
+    for (const restriction of ['SBA', 'SBP', '8AN', 'SDVOSBC', 'SDVOSBS', 'WOSBSS', 'EDWOSBSS', 'HZC', 'HZS']) {
+      expect(offered.has(restriction)).toBe(false);
+    }
+  });
+
+  it('labels durable codes directly and stored legacy codes honestly without inventing them', () => {
+    expect(setAsideLabel('8A')).toBe('8(a) Business Development');
+    expect(setAsideLabel('HUBZONE')).toBe('HUBZone');
+    // Legacy restriction codes already persisted on older records render as
+    // English (legacy-tagged), not raw codes — and are NOT certifications.
+    expect(setAsideLabel('SDVOSBC')).toBe('Service-disabled veteran-owned small business (legacy)');
+    expect(setAsideLabel('HZC')).toBe('HUBZone (legacy)');
+    expect(setAsideLabel('SBA')).toBe('Total small business set-aside (legacy)');
+    // An unrecognized code is shown as-is, never dropped.
+    expect(setAsideLabel('SOMETHINGELSE')).toBe('SOMETHINGELSE');
   });
 });
 

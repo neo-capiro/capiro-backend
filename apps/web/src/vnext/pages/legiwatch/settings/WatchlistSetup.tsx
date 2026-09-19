@@ -7,7 +7,7 @@ import { LwButton } from '../lib/primitives.js';
 import { watchlistSetupPath } from '../lib/watchlist-navigation.js';
 
 /** Reuse the existing targeting, permissions, autosave and per-client alert
- * contracts. Watch presets only supplement this canonical client watchlist. */
+ * contracts. */
 export function WatchlistSetup() {
   const api = useApi();
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ export function WatchlistSetup() {
             )
           }
         >
-          Back to settings and watch presets
+          Back to settings
         </LwButton>
         {clients.isLoading ? (
           <p>Loading clients…</p>

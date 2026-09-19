@@ -289,6 +289,41 @@ describe("report narrative verifier", () => {
     ).toHaveLength(1);
   });
 
+  it("treats amendment-type vocabulary as common words, not ungrounded names", () => {
+    // None of these capitalised words appear in the evidence packet; without
+    // the allowlist the first one ("Amendment") would be rejected as a name.
+    const result = verifyReportNarrative({
+      evidence,
+      envelope: envelope([
+        section("objectives_and_ask", [
+          {
+            text: "The Amendment ask moves through Markup and Conference with an Offset carried alongside the Vehicle, and no single Vendor is named.",
+            evidenceIds: ["plan:strategy"],
+          },
+        ]),
+      ]),
+    });
+    expect(result.rejections).toEqual([]);
+    expect(result.acceptedParagraphs).toBe(1);
+  });
+
+  it("still rejects a real name next to the amendment vocabulary", () => {
+    const result = verifyReportNarrative({
+      evidence,
+      envelope: envelope([
+        section("objectives_and_ask", [
+          {
+            text: "The Amendment ask is sponsored by Blackwood.",
+            evidenceIds: ["plan:strategy"],
+          },
+        ]),
+      ]),
+    });
+    expect(result.rejections).toEqual([
+      expect.objectContaining({ reason: "ungrounded_name", detail: "Blackwood" }),
+    ]);
+  });
+
   it("tolerates a malformed envelope without throwing", () => {
     const result = verifyReportNarrative({
       evidence,

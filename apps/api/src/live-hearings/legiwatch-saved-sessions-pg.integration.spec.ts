@@ -43,6 +43,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     null as never,
     null as never,
     null as never,
+    null as never,
   );
 
   beforeAll(async () => {
@@ -64,8 +65,9 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       CREATE TEMP TABLE intel_live_hearing_session (
         id text PRIMARY KEY, hearing_id text, tenant_id text, created_by text,
         title text, source_type text DEFAULT 'hearing', source_url text, status text DEFAULT 'ended',
-        started_at timestamptz, ended_at timestamptz, created_at timestamptz DEFAULT now()
-      );
+        started_at timestamptz, ended_at timestamptz, created_at timestamptz DEFAULT now(),
+        public_capture_id text
+    );
       CREATE TEMP TABLE intel_transcript_segment (
         id text, tenant_id text, session_id text, is_final boolean DEFAULT true, text_plain text
       );
@@ -75,10 +77,12 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       );
       CREATE TEMP TABLE official_hearing_transcript (id text, hearing_id text, text text);
       CREATE TEMP TABLE public_hearing_transcript_segment (
-        id text, capture_id text, start_ms integer, speaker_label text, text text, sequence integer
-      );
+        id text, capture_id text, start_ms integer, speaker_label text, text text, sequence integer,
+        is_final boolean DEFAULT true
+    );
       CREATE TEMP TABLE public_hearing_insight (
-        id text, hearing_id text, insight_type text, title text, summary text, evidence_text text, sequence integer
+        id text, hearing_id text, capture_id text, segment_id text,
+        insight_type text, title text, summary text, evidence_text text, sequence integer
       );
       CREATE SCHEMA ${functionSchema};
       SET search_path = ${functionSchema}, pg_temp, public;
@@ -363,6 +367,13 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
 
   it('reports missing intel rails explicitly without failing public archive or hiding errors', async () => {
     await client.query('ALTER TABLE intel_live_summary_card RENAME TO saved_card_unavailable');
+    // Exclude public so a real/migrated public.intel_live_summary_card cannot
+    // satisfy to_regclass fallback and mask the missing TEMP rail.
+    const pathResult = await client.query<{ search_path: string }>('SHOW search_path');
+    const pathRow = pathResult.rows[0];
+    if (!pathRow) throw new Error('SHOW search_path returned no rows');
+    const originalPath = pathRow.search_path;
+    await client.query(`SET search_path = ${functionSchema}, pg_temp`);
     try {
       const detail = await service.savedSessions(ctx, 'fauci');
       expect(detail).toMatchObject({ savedSessionsState: 'unavailable', sessions: [] });
@@ -373,6 +384,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         expect.arrayContaining([expect.objectContaining({ savedTranscriptAvailable: null })]),
       );
     } finally {
+      await client.query(`SET search_path = ${originalPath}`);
       await client.query('ALTER TABLE saved_card_unavailable RENAME TO intel_live_summary_card');
     }
     const failure = new Error('database disconnected');
@@ -387,5 +399,203 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
         'clerk-a',
       ),
     ).rejects.toBe(failure);
+  });
+
+  it('public review session counts canonical final segments and never borrows another capture', async () => {
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
+    for (let i = 1; i <= 37; i++) {
+      await client.query(
+        `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+         VALUES ($1, 'cap-fauci', $2, $3, true, 'public canonical')`,
+        [`seg-${i}`, i * 1000, i],
+      );
+    }
+    // One interim public segment must not be counted.
+    await client.query(
+      `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+       VALUES ('interim-pub', 'cap-fauci', 38000, 38, false, 'public interim')`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, public_capture_id)
+       VALUES ('review-fauci', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'cap-fauci')`,
+    );
+    const result = await service.savedSessions(ctx, 'fauci');
+    expect(result.sessions).toEqual([
+      expect.objectContaining({
+        id: 'review-fauci',
+        hearingId: 'fauci',
+        association: 'hearing_id',
+        transcriptSegmentCount: 37,
+      }),
+    ]);
+    expect(JSON.stringify(result)).not.toContain('public canonical');
+  });
+
+  it('public review session counts distinct insight source segments and ignores private decoys', async () => {
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
+    // Two segments back the moments; one carries two insight rows that must
+    // dedup to one moment, mirroring the 7-rows-over-6-segments public shape.
+    await client.query(
+      `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+       VALUES ('seg-1', 'cap-fauci', 1000, 1, true, 'public canonical'),
+              ('seg-2', 'cap-fauci', 2000, 2, true, 'public canonical')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_insight (id, hearing_id, capture_id, segment_id, insight_type, title, summary, sequence)
+       VALUES ('i-1', 'fauci', 'cap-fauci', 'seg-1', 'KEY_QUOTE', 'q1', 's1', 1),
+              ('i-2', 'fauci', 'cap-fauci', 'seg-1', 'COMMITMENT', 'q2', 's2', 2),
+              ('i-3', 'fauci', 'cap-fauci', 'seg-2', 'QUESTION', 'q3', 's3', 3)`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, public_capture_id)
+       VALUES ('review-fauci', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'cap-fauci')`,
+    );
+    // Decoys: a native private card on the same session and a foreign-tenant
+    // card must never leak into the public review count.
+    await client.query(
+      `INSERT INTO intel_live_summary_card (id, tenant_id, session_id, segment_id)
+       VALUES ('decoy-own', 'tenant-a', 'review-fauci', 'seg-9'),
+              ('decoy-foreign', 'tenant-b', 'review-fauci', 'seg-8')`,
+    );
+    const result = await service.savedSessions(ctx, 'fauci');
+    expect(result.sessions).toEqual([
+      expect.objectContaining({
+        id: 'review-fauci',
+        transcriptSegmentCount: 2,
+        intelligenceMomentCount: 2,
+      }),
+    ]);
+  });
+
+  it('misassociated public capture never borrows public insights and keeps the private count', async () => {
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-other','other')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+       VALUES ('other-seg', 'cap-other', 1000, 1, true, 'other hearing transcript')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_insight (id, hearing_id, capture_id, segment_id, insight_type, title, summary, sequence)
+       VALUES ('oi-1', 'other', 'cap-other', 'other-seg', 'KEY_QUOTE', 'oq', 'os', 1)`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, public_capture_id)
+       VALUES ('mis-fauci', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'cap-other')`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_summary_card (id, tenant_id, session_id, segment_id)
+       VALUES ('own-card', 'tenant-a', 'mis-fauci', 'own-seg')`,
+    );
+    const result = await service.savedSessions(ctx, 'fauci');
+    expect(result.sessions).toEqual([
+      expect.objectContaining({ id: 'mis-fauci', intelligenceMomentCount: 1 }),
+    ]);
+  });
+
+  it('ordinary private session keeps tenant private intelligence count; public capture does not merge', async () => {
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+       VALUES ('pub-1', 'cap-fauci', 1000, 1, true, 'public canonical')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_insight (id, hearing_id, capture_id, segment_id, insight_type, title, summary, sequence)
+       VALUES ('pi-1', 'fauci', 'cap-fauci', 'pub-1', 'KEY_QUOTE', 'pq', 'ps', 1)`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, source_type)
+       VALUES ('private-own', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'meeting')`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_summary_card (id, tenant_id, session_id, segment_id)
+       VALUES ('c-1', 'tenant-a', 'private-own', 'seg-1'),
+              ('c-2', 'tenant-a', 'private-own', 'seg-1'),
+              ('c-foreign', 'tenant-b', 'private-own', 'seg-2')`,
+    );
+    const result = await service.savedSessions(ctx, 'fauci');
+    // Public insights exist for this hearing but the private session has no
+    // capture, so only its own tenant cards count (distinct segments).
+    expect(result.sessions).toEqual([
+      expect.objectContaining({ id: 'private-own', intelligenceMomentCount: 1 }),
+    ]);
+  });
+
+  it('ordinary private session keeps tenant private count; public capture does not merge', async () => {
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+       VALUES ('pub-1', 'cap-fauci', 1000, 1, true, 'public canonical')`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, public_capture_id)
+       VALUES ('review-fauci', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'cap-fauci')`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, source_type)
+       VALUES ('private-own', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'meeting')`,
+    );
+    await transcript('private-own');
+    const result = await service.savedSessions(ctx, 'fauci');
+    expect(result.sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'review-fauci', transcriptSegmentCount: 1 }),
+        expect.objectContaining({ id: 'private-own', transcriptSegmentCount: 1 }),
+      ]),
+    );
+    const review = result.sessions.find((s) => s.id === 'review-fauci');
+    const own = result.sessions.find((s) => s.id === 'private-own');
+    expect(review?.association).toBe('hearing_id');
+    expect(own?.association).toBe('hearing_id');
+  });
+
+  it('misassociated public capture falls back to private count and never merges another hearing', async () => {
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-other','other')`,
+    );
+    await client.query(
+      `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+       VALUES ('other-seg', 'cap-other', 1000, 1, true, 'other hearing transcript')`,
+    );
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, public_capture_id)
+       VALUES ('mis-fauci', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'cap-other')`,
+    );
+    await transcript('mis-fauci');
+    const result = await service.savedSessions(ctx, 'fauci');
+    expect(result.sessions).toEqual([
+      expect.objectContaining({ id: 'mis-fauci', transcriptSegmentCount: 1 }),
+    ]);
+    expect(result.sessions[0]?.transcriptSegmentCount).toBe(1);
+  });
+
+  it('closed hearing with public capture remains discoverable and counts canonical segments', async () => {
+    await client.query(`UPDATE committee_hearing SET visibility='private' WHERE id='fauci'`);
+    await client.query(
+      `INSERT INTO public_hearing_capture (id, hearing_id) VALUES ('cap-fauci','fauci')`,
+    );
+    for (let i = 1; i <= 5; i++) {
+      await client.query(
+        `INSERT INTO public_hearing_transcript_segment (id, capture_id, start_ms, sequence, is_final, text)
+         VALUES ($1, 'cap-fauci', $2, $3, true, 'public canonical')`,
+        [`seg-${i}`, i * 1000, i],
+      );
+    }
+    await client.query(
+      `INSERT INTO intel_live_hearing_session (id, hearing_id, tenant_id, created_by, title, public_capture_id)
+       VALUES ('review-closed', 'fauci', 'tenant-a', 'clerk-a', 'TESTIMONY OF ANTHONY FAUCI', 'cap-fauci')`,
+    );
+    const result = await service.savedSessions(ctx, 'fauci');
+    expect(result.sessions).toEqual([
+      expect.objectContaining({ id: 'review-closed', transcriptSegmentCount: 5 }),
+    ]);
   });
 });

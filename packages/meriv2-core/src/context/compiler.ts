@@ -51,12 +51,6 @@ export function renderHumanSections(sections: unknown): string {
     .join('\n');
 }
 
-export function renderAllSections(sections: unknown): string {
-  return renderSectionUnits(sections, 'all')
-    .map((unit) => unit.body)
-    .join('\n');
-}
-
 function renderSectionUnits(sections: unknown, mode: 'human' | 'all'): SectionUnit[] {
   if (!Array.isArray(sections)) return [];
   const out: SectionUnit[] = [];

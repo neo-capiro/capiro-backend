@@ -20,6 +20,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { sectorLabel } from '../../lib/labels.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
+import { useClientFundingOpportunitiesV2 } from './useClientFundingOpportunitiesV2.js';
 import { useActionsList } from '../../../pages/actions/actions-api.js';
 import { useMeetings } from '../../../pages/engagement/meetings/meetings-api.js';
 import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.js';
@@ -337,6 +338,7 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
 
   /* Intelligence -------------------------------------------------------- */
   const { enabled: trackerV2, ready: intelFlagsReady } = useIntelFeature('tracker_v2');
+  const { search: opportunities, feature: fundingFeature } = useClientFundingOpportunitiesV2(clientId);
   const trackerSummary = useQuery<TrackerSummary>({
     queryKey: trackerKeys.summary(clientId),
     queryFn: async () =>
@@ -347,13 +349,6 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
       ).data,
     enabled: intelFlagsReady,
     staleTime: 60_000,
-  });
-  const opportunities = useQuery<{ total?: number; count?: number }>({
-    queryKey: ['client-funding-opportunities', clientId],
-    queryFn: async () =>
-      (await api.get<{ total?: number; count?: number }>(`/api/intelligence/clients/${clientId}/opportunities/summary`))
-        .data,
-    staleTime: 5 * 60 * 1000,
   });
   const facilities = useQuery<ClientFacility[]>({
     queryKey: ['client-facilities', clientId],
@@ -568,7 +563,7 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
   }, [strategyDetails, clientStrategies, clientId]);
 
   const intelligence = useMemo<IntelligencePulse>(() => {
-    const opportunityCount = opportunities.data?.total ?? opportunities.data?.count ?? null;
+    const opportunityCount = opportunities.data?.total ?? null;
 
     // Comment alerts are a global feed carrying a client reference; counting the
     // whole feed would attribute every tenant's matters to this client.
@@ -599,9 +594,11 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
         ? value(trackerSummary.data.boardCount, crmHref(clientId, 'intelligence', 'legislative'))
         : unavailable('Tracker summary unavailable'),
       opportunities:
-        opportunityCount == null
-          ? unavailable('Opportunity summary unavailable')
-          : value(opportunityCount, crmHref(clientId, 'opportunities')),
+        !fundingFeature.ready || !fundingFeature.enabled
+          ? unavailable('Funding opportunities unavailable')
+          : opportunityCount == null
+            ? unavailable('Opportunity search unavailable')
+            : value(opportunityCount, crmHref(clientId, 'opportunities')),
       districts: facilities.data
         ? value(distinctDistrictCount, crmHref(clientId, 'intelligence', 'district'))
         : unavailable('Facilities unavailable'),
@@ -614,6 +611,8 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
   }, [
     opportunities.data,
     opportunities.dataUpdatedAt,
+    fundingFeature.enabled,
+    fundingFeature.ready,
     alerts.data,
     alerts.dataUpdatedAt,
     facilities.data,

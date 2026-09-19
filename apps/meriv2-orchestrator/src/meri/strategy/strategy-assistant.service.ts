@@ -73,6 +73,28 @@ interface TerminalResult {
   model?: string;
 }
 
+/**
+ * Progress event emitted by the streaming variant of `draft()` as text deltas
+ * arrive from the model, threaded through `runTerminal()`'s attempt/round
+ * counters so a consumer (api-strategy's async draft worker) can render
+ * "attempt 2 of 3" style progress. `onProgress` is undefined at the existing
+ * non-streaming call site, so that path's behavior is byte-identical to
+ * before this was added.
+ */
+export interface StrategyDraftProgressEvent {
+  stage: 'drafting';
+  attempt: number;
+  round: number;
+  delta: string;
+}
+
+export interface StrategyDraftOptions {
+  onProgress?: (event: StrategyDraftProgressEvent) => void;
+  /** Aborts the in-flight LLM call (and skips any further repair attempts)
+   *  when the streaming HTTP caller disconnects early. */
+  signal?: AbortSignal;
+}
+
 const str = (v: unknown): string | undefined =>
   typeof v === 'string' && v.trim() ? v.trim() : undefined;
 
@@ -102,7 +124,7 @@ export class StrategyAssistantService {
     this.callTimeoutMs = Number.parseInt(config.get<string>('MERIV2_TIMEOUT_MS') ?? '120000', 10);
   }
 
-  async draft(ctx: MeriContext, input: StrategyDraftInput) {
+  async draft(ctx: MeriContext, input: StrategyDraftInput, opts: StrategyDraftOptions = {}) {
     const pack = await this.pack.compile({
       ctx,
       clientId: input.clientId,
@@ -150,6 +172,10 @@ export class StrategyAssistantService {
       errorCount: number;
     } | null = null;
     for (let attempt = 0; attempt <= MAX_REPAIRS; attempt += 1) {
+      // A disconnected streaming caller (opts.signal) shouldn't burn further
+      // repair attempts — bail before starting another one. Inert for the
+      // non-streaming call site, which never passes a signal.
+      if (opts.signal?.aborted) break;
       const roundStart = Date.now();
       const result = await this.runTerminal(
         // repairSuffix ('' on the first attempt) rides the DYNAMIC tail —
@@ -167,6 +193,11 @@ export class StrategyAssistantService {
         // Scoped to draft: the assistant/reference/document paths keep their
         // prose-then-nudge behaviour (and their tests).
         true,
+        opts.onProgress
+          ? (round, delta) =>
+              opts.onProgress!({ stage: 'drafting', attempt: attempt + 1, round, delta })
+          : undefined,
+        opts.signal,
       );
       const attemptSummary = str(result.input?.summary) ?? result.text ?? summary;
       const rawNodes = result.input?.nodes;
@@ -439,6 +470,17 @@ export class StrategyAssistantService {
      * prose-then-nudge behaviour their tests pin.
      */
     forceToolFromFirstRound = false,
+    /**
+     * Draft-stream only: called with (round, delta) as text streams in from
+     * the model for this round (round is 1-based). Passing this also flips
+     * completeWithTools to the Anthropic streaming (SSE) wire path — see
+     * request-scoped-llm.client.ts. Undefined for every other caller
+     * (assistant/document/reference paths, and the non-streaming draft call
+     * site), which keeps their non-streaming JSON request byte-identical.
+     */
+    onRoundDelta?: (round: number, delta: string) => void,
+    /** Draft-stream only: aborts the in-flight LLM call on client disconnect. */
+    signal?: AbortSignal,
   ): Promise<TerminalResult> {
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
       { role: 'user', content: userText },
@@ -446,6 +488,9 @@ export class StrategyAssistantService {
     let lastText = '';
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      if (signal?.aborted) {
+        return { input: null, text: lastText || 'Cancelled — the client disconnected.' };
+      }
       let resp: ToolLoopResponse;
       const callStart = Date.now();
       try {
@@ -458,6 +503,10 @@ export class StrategyAssistantService {
             : {}),
           maxTokens: MAX_TOKENS,
           timeoutMs: this.callTimeoutMs,
+          ...(onRoundDelta
+            ? { onTextDelta: (delta: string) => onRoundDelta(round + 1, delta) }
+            : {}),
+          ...(signal ? { signal } : {}),
         });
       } catch (e) {
         this.logger.warn(
@@ -525,6 +574,9 @@ export class StrategyAssistantService {
       });
     }
 
+    if (signal?.aborted) {
+      return { input: null, text: lastText || 'Cancelled — the client disconnected.' };
+    }
     // A7.4: budget spent without a tool call — FORCE the terminal tool so even the
     // degraded path returns a schema-valid plan/edits, never prose-only.
     try {
@@ -537,6 +589,10 @@ export class StrategyAssistantService {
         toolChoice: { type: 'tool', name: tool.name },
         maxTokens: MAX_TOKENS,
         timeoutMs: this.callTimeoutMs,
+        ...(onRoundDelta
+          ? { onTextDelta: (delta: string) => onRoundDelta(MAX_ROUNDS + 1, delta) }
+          : {}),
+        ...(signal ? { signal } : {}),
       });
       void this.meterRound(ctx, resp, workflow);
       const content = resp.content as ContentBlock[];

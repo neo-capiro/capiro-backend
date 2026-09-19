@@ -19,6 +19,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import { useEffect } from 'react';
 /* NOTE (overlay build, 2026-08): this import previously read
  * '../../../../../lib/use-api.js' (5 levels up → apps/lib/, which does not
  * exist — verified with ls). use-api lives at apps/web/src/lib/use-api.ts,
@@ -572,21 +573,83 @@ export function useCreateStrategy() {
   });
 }
 
-export function useDraftStrategy() {
+/**
+ * Draft-with-Meri async job contract (timeout-and-progress remediation,
+ * 2026-09-17). `POST .../strategies/draft` used to block on ONE HTTP call all
+ * the way through LLM generation — no client timeout on that call is both
+ * safe (generation can legitimately run minutes) and good UX (90s produced
+ * "timeout of 90000ms exceeded" while the server kept working). The server
+ * now enqueues a job and returns 202 almost immediately; the client polls
+ * `GET .../strategies/draft-jobs/:jobId` for status, stage/progress copy and a
+ * rolling preview of Meri's actual drafting text.
+ */
+export type DraftStrategyJobStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export interface DraftStrategyJob {
+  jobId: string;
+  status: DraftStrategyJobStatus;
+  stage: string | null;
+  progressText: string | null;
+  /** Rolling window (up to ~4000 chars) of Meri's in-progress drafting text,
+   * refreshed roughly every 500ms-1s while status === 'running'. */
+  streamPreview: string | null;
+  strategyId: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DraftStrategyJobSubmission {
+  jobId: string;
+  status: 'queued';
+}
+
+/**
+ * Submit-only mutation: POSTs the draft request and returns as soon as the
+ * job is enqueued. This call now does almost no work server-side, so it keeps
+ * the shared axios instance's ordinary default timeout (30s) instead of the
+ * old 90s override built for a blocking generation call.
+ */
+export function useSubmitDraftStrategy() {
   const api = useApi();
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: DraftStrategyInput) =>
       (
-        await api.post<StrategyDetail>(`${BASE}/strategies/draft`, body, {
-          timeout: 90_000,
-        })
+        await api.post<DraftStrategyJobSubmission>(`${BASE}/strategies/draft`, body)
       ).data,
-    onSuccess: (detail) => {
-      qc.setQueryData(['strategy', 'strategy', detail.id], detail);
-      void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
-    },
   });
+}
+
+/**
+ * Polls the draft job while it is active, stopping once it reaches a terminal
+ * status — same shape as the Meeting Prep async job
+ * (`pages/engagement/meetings/meetings-api.ts`'s `useMeetingPrepJob`). On
+ * `completed`, invalidates the library and the new strategy's detail cache so
+ * the caller's own navigation lands on fresh data (the job payload carries
+ * only `strategyId`, not a full `StrategyDetail`, so a cache invalidation is
+ * used here instead of a direct `setQueryData`).
+ */
+export function useDraftJobStatus(jobId: string | null) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const query = useQuery<DraftStrategyJob>({
+    queryKey: ['strategy', 'draft-job', jobId],
+    enabled: !!jobId,
+    queryFn: async () =>
+      (await api.get<DraftStrategyJob>(`${BASE}/strategies/draft-jobs/${jobId}`)).data,
+    refetchInterval: (query) =>
+      ['queued', 'running'].includes(query.state.data?.status ?? '') ? 1_500 : false,
+    refetchIntervalInBackground: true,
+  });
+  useEffect(() => {
+    if (query.data?.status !== 'completed') return;
+    void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+    if (query.data.strategyId) {
+      void qc.invalidateQueries({ queryKey: ['strategy', 'strategy', query.data.strategyId] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data?.jobId, query.data?.status]);
+  return query;
 }
 
 export function useAddNode(strategyId: string) {

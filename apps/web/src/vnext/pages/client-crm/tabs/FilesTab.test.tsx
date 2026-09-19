@@ -328,6 +328,47 @@ describe('ClientCrmFilesProto', () => {
     fetchSpy.mockRestore();
   });
 
+  it('presigns a blank-MIME .docx under its inferred content type, not the rejected octet-stream (Q03)', async () => {
+    // A file the OS picker reports no type for must be presigned with the
+    // extension-derived type — 'application/octet-stream' is the one value the
+    // server allowlist rejects with a 400 (see attachment-content-type.ts).
+    mockApi({ attachments: [] });
+    postMock.mockImplementation((url: string) => {
+      if (url === '/api/engagement/attachments/upload-url') {
+        return Promise.resolve({ data: { url: 'https://s3.example.com/upload', fields: {}, s3Key: 'tenants/t/engagement/f' } });
+      }
+      if (url === '/api/engagement/attachments/confirm') {
+        return Promise.resolve({ data: attachment({ id: 'att-docx' }) });
+      }
+      return Promise.reject(new Error(`unexpected post ${url}`));
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+
+    const { container } = renderFiles();
+    await waitFor(() => expect(screen.getByText('No files uploaded yet.')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['bytes'], 'memo.docx', { type: '' })] } });
+
+    const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/engagement/attachments/upload-url',
+        expect.objectContaining({ contentType: DOCX }),
+      ),
+    );
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/engagement/attachments/confirm',
+        expect.objectContaining({ contentType: DOCX }),
+      ),
+    );
+    // And never the rejected fallback.
+    expect(postMock).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ contentType: 'application/octet-stream' }));
+    fetchSpy.mockRestore();
+  });
+
   /* ── folder tree + New folder ("3 Compose extend" items 2-3) ───────────── */
 
   it('builds the folder tree from the real folders endpoint, not the FOLDERS fixture', async () => {
@@ -550,5 +591,103 @@ describe('ClientCrmFilesProto — drawer, New folder', () => {
     await waitFor(() => expect(patchMock).toHaveBeenCalledTimes(1));
     expect(patchMock.mock.calls[0]?.[0]).toBe('/api/clients/client-1/files/att-1/folder');
     expect(patchMock.mock.calls[0]?.[1]).toEqual({ folder: 'Hill Submissions' });
+  });
+
+  /* ── drawer "+ Upload" targets the folder actually being viewed ────────── */
+
+  /** Route the presign/confirm POSTs the upload pipeline makes. */
+  function mockUpload(attachmentId = 'att-new') {
+    postMock.mockImplementation((url: string) => {
+      if (url === '/api/engagement/attachments/upload-url') {
+        return Promise.resolve({ data: { url: 'https://s3.example.com/upload', fields: {}, s3Key: 'tenants/t/engagement/f' } });
+      }
+      if (url === '/api/engagement/attachments/confirm') {
+        return Promise.resolve({ data: attachment({ id: attachmentId, fileName: 'probe.docx', folder: null }) });
+      }
+      return Promise.reject(new Error(`unexpected post ${url}`));
+    });
+  }
+
+  it('uploads into the open DRAFT folder so it becomes real (was hardcoded to root)', async () => {
+    mockApi({ attachments: [] });
+    mockUpload();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+    const { container } = renderFilesDrawer();
+
+    // Land on All files, create a draft folder (auto-opens it), then upload.
+    fireEvent.click(await screen.findByRole('tab', { name: 'All files' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'Hill Submissions' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create folder' }));
+    await screen.findByText('Draft folder · upload or move a file here to create it');
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Upload' }));
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'probe.docx', { type: '' })] } });
+
+    // The confirm PATCHes the new attachment into the draft folder — this is
+    // what makes the draft real. Previously `triggerUpload(null)` skipped this.
+    await waitFor(() =>
+      expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/files/att-new/folder', { folder: 'Hill Submissions' }),
+    );
+    fetchSpy.mockRestore();
+  });
+
+  it('uploads into the open REAL folder group', async () => {
+    mockApi({ attachments: [attachment({ id: 'att-1', folder: 'Award Docs' })] });
+    mockUpload();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+    const { container } = renderFilesDrawer();
+
+    // Open the real "Award Docs" folder group, then upload from inside it.
+    fireEvent.click(await screen.findByRole('button', { name: /Award Docs/ }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Upload' }));
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'probe.docx', { type: '' })] } });
+
+    await waitFor(() =>
+      expect(patchMock).toHaveBeenCalledWith('/api/clients/client-1/files/att-new/folder', { folder: 'Award Docs' }),
+    );
+    fetchSpy.mockRestore();
+  });
+
+  it('still files at the root from the unscoped All files view (no folder)', async () => {
+    mockApi({ attachments: [attachment({ id: 'att-1', folder: 'Award Docs' })] });
+    mockUpload();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+    const { container } = renderFilesDrawer();
+
+    // Stay on the unscoped All files list — no folder group open.
+    fireEvent.click(await screen.findByRole('tab', { name: 'All files' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Upload' }));
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'probe.docx', { type: '' })] } });
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/engagement/attachments/confirm', expect.objectContaining({ fileName: 'probe.docx' })),
+    );
+    // No folder PATCH — nothing scoped.
+    expect(patchMock).not.toHaveBeenCalledWith(expect.stringContaining('/folder'), expect.anything());
+    fetchSpy.mockRestore();
+  });
+
+  it('shows a retryable error on All files when the read fails — never a false empty (D7)', async () => {
+    // A 503 used to render "No files uploaded yet." — a failed read
+    // indistinguishable from an empty file room. The Folders tab already has
+    // an error/retry branch; the All files list needed the same honesty.
+    getMock.mockImplementation((url: string) => {
+      if (url.endsWith('/files/folders')) return Promise.resolve({ data: [] });
+      return Promise.reject(Object.assign(new Error('Request failed with status code 503'), { response: { status: 503 } }));
+    });
+    renderFilesDrawer();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'All files' }));
+    expect(await screen.findByText('Files could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByText('No files uploaded yet.')).not.toBeInTheDocument();
+
+    // Retry recovers once the read succeeds.
+    mockApi({ attachments: [attachment({ id: 'att-1', fileName: 'Recovered.pdf', folder: null })] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Recovered')).toBeInTheDocument();
   });
 });

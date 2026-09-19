@@ -56,8 +56,16 @@ describe('policy context derivation', () => {
     expect(policyChannelForTool('create_client')).toBe('crm');
     expect(policyChannelForTool('update_client_profile')).toBe('crm');
     expect(policyChannelForTool('create_task')).toBe('crm');
-    expect(policyChannelForTool('save_chat_attachments')).toBe('crm');
     expect(policyChannelForTool('draft_policy_memo')).toBe('document');
+  });
+
+  it('classifies filing an already-authorized chat attachment as internal, not a CRM mutation', () => {
+    // save_chat_attachments only ever writes an attachment the user already
+    // uploaded to THIS conversation under the client already selected for it —
+    // unlike create_client/update_client_profile/create_task/update_task, it
+    // never touches the CRM system of record, so it must not share their
+    // channel and must land on internal_artifacts.pass, not a CRM-scoped rule.
+    expect(policyChannelForTool('save_chat_attachments')).toBe('internal');
   });
 
   it('defaults an UNKNOWN tool to the narrowest channel and recipient', () => {

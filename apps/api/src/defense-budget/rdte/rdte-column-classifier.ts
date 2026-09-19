@@ -58,6 +58,19 @@ export function classifyRdteColumn(input: {
       reason: 'explicit quantity label',
     };
   }
+  /* "Prior Years" cumulative column: reuses the existing prior_actual_context
+   * role (already historical/contextual-only, never canonical) rather than
+   * introducing a new role -- but deliberately does NOT set a fiscalYear.
+   * Inventing one (e.g. `cycleFiscalYear - 2`) would misrepresent a
+   * multi-year lump sum as a single year's actual spend, which is exactly
+   * the kind of silent derived value this module's callers forbid. */
+  if (column.fiscalLabelKind === 'prior_years_cumulative') {
+    return {
+      role: 'prior_actual_context',
+      confident: true,
+      reason: 'explicit prior-years cumulative label (no single fiscal year; pre-window lump sum)',
+    };
+  }
 
   /* Component columns take precedence over stage when both are present. */
   if (column.componentLabel === 'base') {

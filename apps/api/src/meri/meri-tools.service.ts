@@ -1002,7 +1002,9 @@ export class MeriToolsService {
           clientId: str(
             'Destination client UUID. Use the selected conversation client when present; it is already resolved and does not need to be asked for again. Otherwise resolve the intended client.',
           ),
-          conversationId: str('Current Meri conversation UUID containing the user attachments.'),
+          conversationId: str(
+            'Current Meri conversation UUID containing the user attachments. Use the current conversation id already given to you in context; it is already resolved and does not need to be asked for again.',
+          ),
           attachmentIds: {
             type: 'array',
             minItems: 1,
@@ -2046,7 +2048,7 @@ export class MeriToolsService {
       case 'query_regulatory_dockets':
         return this.queryRegulatoryDockets(input);
       case 'search_sam_opportunities':
-        return this.searchSamOpportunities(input);
+        return this.searchSamOpportunities(ctx, input);
       case 'query_debriefs':
         return this.queryDebriefs(ctx, input);
       case 'read_client_documents':
@@ -6745,7 +6747,7 @@ export class MeriToolsService {
     };
   }
 
-  private async searchSamOpportunities(input: Record<string, unknown>) {
+  private async searchSamOpportunities(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 240);
     const naics = optionalString(input, 'naics', 12);
     const includeInactive = optionalBoolean(input, 'includeInactive');
@@ -6760,22 +6762,21 @@ export class MeriToolsService {
 
     // Same all-federal rail and ledger as Funding Opportunities. A successful
     // local search says nothing about current SAM.gov coverage by itself.
-    const sourceFreshness = await this.opportunityTools.readSamSourceFreshness();
+    const sourceFreshness = await this.opportunityTools.readSamSourceFreshness({ tenantId: ctx.tenantId, userId: ctx.userId });
     const source = sourceFreshness[0];
     const sourceReason =
-      !source || source.countsUnavailable
+      !source || source.recordCount == null
         ? 'source_freshness_unavailable'
-        : source.neverSynced
+        : source.lastSyncedAt == null
           ? 'all_federal_source_never_synced'
           : !source.lastSyncedAt ||
-              source.hoursSinceLastSuccess === null ||
-              source.hoursSinceLastSuccess < 0
+              Number.isNaN(Date.parse(source.lastSyncedAt))
             ? 'source_freshness_unknown'
-            : source.lastRunStatus !== 'success' || source.lastRunDegraded !== false
+            : source.state !== 'current'
               ? 'latest_source_sync_incomplete'
               : // The canonical all-federal schedule is daily. Two missed daily
                 // windows are stale, even when the last recorded attempt succeeded.
-                source.hoursSinceLastSuccess >= 48
+                (Date.now() - Date.parse(source.lastSyncedAt!)) / 3600000 >= 48
                 ? 'source_sync_stale'
                 : null;
     const sourceStatus =

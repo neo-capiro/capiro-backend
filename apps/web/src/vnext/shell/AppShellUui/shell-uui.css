@@ -24,6 +24,7 @@
 @import '../../foundations/untitled-ui-tokens.css';
 
 .capiro-vnext-root .capiro-vnext-uui {
+  --uui-font-family: Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   display: grid;
   /* minmax(0, 1fr), not 1fr: a bare 1fr is minmax(auto, 1fr) whose automatic
      minimum is the content's min-content width, so one too-wide page body
@@ -51,13 +52,13 @@
   font-family: var(--uui-font-family);
   font-size: var(--uui-text-body);
   line-height: var(--uui-line-body);
-  transition: grid-template-columns 180ms cubic-bezier(.2,0,0,1);
+  transition: grid-template-columns 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] {
   grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr);
 }
 
-/* Top bar — 72px, white, sticky, hairline bottom border (no brand accent). */
+/* Top bar — 64px, white, sticky, hairline bottom border (no brand accent). */
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar {
   grid-area: topbar;
   height: var(--uui-topbar-h);
@@ -71,16 +72,44 @@
   top: 0;
   z-index: 40;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__brand { display: flex; align-items: center; gap: 16px; }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__wordmark { height: 26px; display: block; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__wordmark {
+  width: auto;
+  height: 26px;
+  display: block;
+}
 /* 1px vertical divider between the wordmark and the section label. */
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider { width: 1px; height: 24px; background: var(--uui-gray-200); flex-shrink: 0; }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__section { font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); white-space: nowrap; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--uui-gray-200);
+  flex-shrink: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__section {
+  font-size: var(--uui-text-body);
+  font-weight: var(--uui-weight-semibold);
+  color: var(--uui-gray-900);
+  white-space: nowrap;
+}
 /* "All clients" scope pill. */
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope {
-  display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px;
-  background: var(--uui-gray-50); border: 1px solid var(--uui-gray-200);
-  font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--uui-gray-50);
+  border: 1px solid var(--uui-gray-200);
+  font-size: 12px;
+  font-weight: var(--uui-weight-medium);
+  color: var(--uui-gray-700);
+  white-space: nowrap;
+  font-family: inherit;
+  cursor: pointer;
 }
 /* Centered in the bar per Neo 2026-08-21: the brand block is fixed-left and
  * the actions cluster is fixed-right (margin-left:auto), so the search takes
@@ -95,9 +124,13 @@
   justify-content: center;
   flex: 1 1 auto;
   min-width: 0;
-  margin: 0 8px;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
 
 /* Reused GlobalSearch, restyled — 40px tall, radius 8, 16px input, ⌘K chip. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__trigger {
@@ -120,11 +153,21 @@
   box-shadow: var(--uui-shadow-input-focus) !important;
   outline: none;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__placeholder { flex: 1; text-align: left; font-size: var(--uui-text-body); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__placeholder {
+  flex: 1;
+  text-align: left;
+  font-size: var(--uui-text-body);
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__shortcut {
-  display: inline-flex; align-items: center; height: 24px; padding: 0 6px;
-  font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-500);
-  border: 1px solid var(--uui-gray-200); border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: var(--uui-weight-medium);
+  color: var(--uui-gray-500);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: 4px;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__popover {
   border-radius: var(--uui-radius-card) !important;
@@ -132,13 +175,45 @@
   background: var(--uui-white) !important;
   width: 480px;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__input-row { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--uui-gray-200); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__input { flex: 1; border: none; outline: none; font-size: var(--uui-text-body); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__escape { font-size: 11px; color: var(--uui-gray-400); border: 1px solid var(--uui-gray-200); border-radius: 4px; padding: 2px 6px; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__results { padding: 20px 16px; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__state-title { font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); margin-bottom: 4px; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__state-body { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__footer { padding: 10px 16px; border-top: 1px solid var(--uui-gray-200); font-size: var(--uui-text-xs); color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: var(--uui-text-body);
+  color: var(--uui-gray-900);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__escape {
+  font-size: 11px;
+  color: var(--uui-gray-400);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__results {
+  padding: 20px 16px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__state-title {
+  font-weight: var(--uui-weight-medium);
+  color: var(--uui-gray-900);
+  margin-bottom: 4px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__state-body {
+  font-size: var(--uui-text-sm);
+  color: var(--uui-gray-500);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--uui-gray-200);
+  font-size: var(--uui-text-xs);
+  color: var(--uui-gray-500);
+}
 
 /*
  * Reused MeriLauncher (CapiroButton) restyled to the metallic black primary
@@ -149,6 +224,7 @@
  */
 .capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher {
   min-width: 0 !important;
+  min-height: 40px !important;
   width: auto !important;
   height: 40px !important;
   background-color: transparent !important;
@@ -186,92 +262,314 @@
   color: var(--uui-gray-400) !important;
 }
 
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline { display: flex; align-items: center; gap: 8px; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline .capiro-mailbox-status__indicator { position: static; width: 10px; height: 10px; margin-left: 0; flex: 0 0 auto; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { margin-top: 4px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root
+  .capiro-vnext-uui
+  .capiro-mailbox-status__headline
+  .capiro-mailbox-status__indicator {
+  position: static;
+  width: 10px;
+  height: 10px;
+  margin-left: 0;
+  flex: 0 0 auto;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail {
+  margin-top: 4px;
+}
 
 /* Reused NotificationBell */
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell {
-  position: relative; width: 40px; height: 40px; border-radius: var(--uui-radius-control);
-  border: 1px solid transparent; background: transparent; color: var(--uui-gray-500);
-  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--uui-radius-control);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--uui-gray-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell:hover {
+  background: var(--uui-gray-50);
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell__count {
-  position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px;
-  border-radius: 999px; background: var(--uui-brand-solid); color: var(--uui-white);
-  font-size: 10px; font-weight: var(--uui-weight-semibold); display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--uui-brand-solid);
+  color: var(--uui-white);
+  font-size: 10px;
+  font-weight: var(--uui-weight-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 0 0 2px var(--uui-white);
 }
 
 /* Reused ProfileMenu — avatar 40px initials on the brand tint; name 14px/600
    gray-900; role 14px/400 gray-600. */
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger { display: flex; align-items: center; gap: 10px; background: none; border: none; padding: 4px; border-radius: var(--uui-radius-control); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: var(--uui-radius-control);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger:hover {
+  background: var(--uui-gray-50);
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar {
-  width: 40px; height: 40px; border-radius: 999px; background: var(--uui-brand-tint); color: var(--uui-brand-hover);
-  display: flex; align-items: center; justify-content: center; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold);
-  overflow: hidden; flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--uui-brand-tint);
+  color: var(--uui-brand-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--uui-text-sm);
+  font-weight: var(--uui-weight-semibold);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 /* Real photo sized to the 40px circle without the zoomed-in crop: shrink the
    whole image to fit (contain) and center it. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar__img {
-  width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
 }
 /* Name/title left-aligned (Neo 2026-08-21) — the trigger is a centered flex
    button, so the copy column needs explicit left text-align. */
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; text-align: left; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__role { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; text-transform: none; letter-spacing: 0; font-family: var(--uui-font-family); text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  line-height: 1.43;
+}
+.capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__name {
+  font-size: var(--uui-text-sm);
+  line-height: 20px;
+  font-weight: var(--uui-weight-semibold);
+  color: var(--uui-gray-900);
+  display: block;
+  text-align: left;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__role {
+  font-size: var(--uui-text-sm);
+  font-weight: var(--uui-weight-regular);
+  color: var(--uui-gray-600);
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--uui-font-family);
+  text-align: left;
+}
 /* Dropdown menus (profile + notifications) are positioned below and flush to
    the right edge of their trigger so they never clip past the viewport. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile,
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell-wrap { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell-wrap {
+  position: relative;
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu {
-  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
-  border-radius: var(--uui-radius-card) !important; box-shadow: var(--uui-shadow-menu) !important;
-  background: var(--uui-white) !important; width: 240px; padding: 4px;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  border-radius: var(--uui-radius-card) !important;
+  box-shadow: var(--uui-shadow-menu) !important;
+  background: var(--uui-white) !important;
+  width: 240px;
+  padding: 4px;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__header { padding: 10px 12px; border-bottom: 1px solid var(--uui-gray-200); margin-bottom: 4px; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__title, .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__email { font-size: 12px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--uui-gray-200);
+  margin-bottom: 4px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__name {
+  font-size: var(--uui-text-sm);
+  font-weight: var(--uui-weight-semibold);
+  color: var(--uui-gray-900);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__title,
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__email {
+  font-size: 12px;
+  color: var(--uui-gray-500);
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item {
-  width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px;
-  background: none; border: none; font-size: var(--uui-text-sm); color: var(--uui-gray-700); text-align: left;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  font-size: var(--uui-text-sm);
+  color: var(--uui-gray-700);
+  text-align: left;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item:hover:not(:disabled) { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item .capiro-vnext-menu__icon { flex-shrink: 0; display: inline-flex; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item .capiro-vnext-menu__label { flex: 1; min-width: 0; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-destructive] { color: var(--uui-error-fg); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-destructive] .capiro-vnext-menu__icon { color: var(--uui-error-fg); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-separated] { margin-top: 4px; border-top: 1px solid var(--uui-gray-200); padding-top: 8px; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__tag { font-size: 11px; color: var(--uui-gray-400); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item:hover:not(:disabled) {
+  background: var(--uui-gray-50);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item .capiro-vnext-menu__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--uui-gray-500);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item .capiro-vnext-menu__label {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-destructive] {
+  color: var(--uui-error-fg);
+}
+.capiro-vnext-root
+  .capiro-vnext-uui
+  .capiro-vnext-menu__item[data-destructive]
+  .capiro-vnext-menu__icon {
+  color: var(--uui-error-fg);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-separated] {
+  margin-top: 4px;
+  border-top: 1px solid var(--uui-gray-200);
+  padding-top: 8px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__tag {
+  font-size: 11px;
+  color: var(--uui-gray-400);
+}
 
 /* Notifications dropdown — same feed as app.capiro.ai's WorkspaceNotificationBell. */
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif { width: 360px; max-height: 460px; overflow-y: auto; padding: 0; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__head {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 11px 14px; border-bottom: 1px solid var(--uui-gray-200);
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif {
+  width: 360px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 0;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__title { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__markall { background: none; border: none; padding: 0; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-brand-hover); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__empty { margin: 0; padding: 24px 14px; font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__list { list-style: none; margin: 0; padding: 0; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item { display: block; padding: 10px 14px; border-bottom: 1px solid var(--uui-gray-200); cursor: pointer; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item:last-child { border-bottom: 0; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item[data-unread] { background: var(--uui-brand-tint); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__message { display: block; font-size: 13px; color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__time { display: block; margin-top: 4px; font-size: 11px; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__actions { display: flex; gap: 8px; margin-top: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__title {
+  font-size: var(--uui-text-sm);
+  font-weight: var(--uui-weight-semibold);
+  color: var(--uui-gray-900);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__markall {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: var(--uui-weight-medium);
+  color: var(--uui-brand-hover);
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__empty {
+  margin: 0;
+  padding: 24px 14px;
+  font-size: var(--uui-text-sm);
+  color: var(--uui-gray-500);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item {
+  display: block;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--uui-gray-200);
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item:last-child {
+  border-bottom: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item[data-unread] {
+  background: var(--uui-brand-tint);
+}
+/* Committee/hearing rows: a real <button> fills the li so keyboard users get
+   a focusable control (the li itself is not a button). Reuses the item's own
+   spacing so the two sources' rows are visually identical. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item:has(.capiro-vnext-notif__open) {
+  padding: 0;
+  cursor: default;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__open {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__open:disabled {
+  cursor: wait;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__source {
+  display: block;
+  font-size: 11px;
+  font-weight: var(--uui-weight-semibold);
+  color: var(--uui-brand-hover);
+  margin-bottom: 2px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__message {
+  display: block;
+  font-size: 13px;
+  color: var(--uui-gray-900);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__time {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--uui-gray-500);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__accept,
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__decline {
-  height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: var(--uui-weight-semibold); cursor: pointer;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: var(--uui-weight-semibold);
+  cursor: pointer;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__accept {
-  background-image: var(--uui-btn-metal-face); box-shadow: var(--uui-btn-metal-shadow); color: var(--uui-btn-metal-fg); border: 0;
+  background-image: var(--uui-btn-metal-face);
+  box-shadow: var(--uui-btn-metal-shadow);
+  color: var(--uui-btn-metal-fg);
+  border: 0;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__decline {
-  background: var(--uui-white); color: var(--uui-gray-700); border: 1px solid var(--uui-gray-300);
+  background: var(--uui-white);
+  color: var(--uui-gray-700);
+  border: 1px solid var(--uui-gray-300);
 }
 
 /* Rail — sits below the full-width top bar. 248px expanded / 72px collapsed.
@@ -288,7 +586,11 @@
   top: var(--uui-topbar-h);
   height: calc(100vh - var(--uui-topbar-h));
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { display: flex; flex-direction: column; flex: 1; }
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
 /* "NAVIGATION" eyebrow above the rail list (hidden when collapsed). Part of
    the 2026-08-16 inline-dropdown pass — DO NOT restyle without Neo's approval. */
 .capiro-vnext-root .capiro-vnext-uui .uui-rail__eyebrow {
@@ -305,24 +607,61 @@
    the rail itself, per the handoff). Icon 20px, passed explicitly by icons.tsx. */
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item,
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; margin-bottom: 2px;
-  border-radius: var(--uui-radius-control); color: var(--uui-chrome-label-idle); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium);
-  background: transparent; border: none; text-align: left; text-decoration: none; transition: background 120ms ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 2px;
+  border-radius: var(--uui-radius-control);
+  color: var(--uui-chrome-label-idle);
+  font-size: var(--uui-text-sm);
+  font-weight: var(--uui-weight-medium);
+  background: transparent;
+  border: none;
+  text-align: left;
+  text-decoration: none;
+  transition: background 120ms ease;
 }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item,
-.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-group > button { justify-content: center; padding: 11px; }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-group > button {
+  justify-content: center;
+  padding: 12px;
+}
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__label,
-.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__chevron { display: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item:hover { background: var(--uui-chrome-item-hover-bg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current { background: var(--uui-chrome-item-active-bg); color: var(--uui-chrome-label-active); font-weight: var(--uui-weight-semibold); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-chrome-label-active); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__icon { flex-shrink: 0; color: var(--uui-chrome-icon-idle); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label { flex: 1; }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { color: var(--uui-chrome-icon-idle); transition: transform 150ms cubic-bezier(.2,0,0,1); }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__chevron {
+  display: none;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item:hover {
+  background: var(--uui-chrome-item-hover-bg);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current {
+  background: var(--uui-chrome-item-active-bg);
+  color: var(--uui-chrome-label-active);
+  font-weight: var(--uui-weight-semibold);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current .uui-nav-item__icon {
+  color: var(--uui-chrome-label-active);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__icon {
+  flex-shrink: 0;
+  color: var(--uui-chrome-icon-idle);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label {
+  flex: 1;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron {
+  color: var(--uui-chrome-icon-idle);
+  transition: transform 150ms cubic-bezier(0.2, 0, 0, 1);
+}
 /* The chevron points right when the family is collapsed and rotates 90deg
    (points down) when open — the inline dropdown state cue. */
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron[data-open] { transform: rotate(90deg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-group { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron[data-open] {
+  transform: rotate(90deg);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-group {
+  position: relative;
+}
 
 /* ============================================================================
    INLINE SUBMENU (2026-08-16 — Neo Martinez directive)
@@ -333,71 +672,182 @@
    left rail groups the children under the parent, matching the target
    screenshot. DO NOT change this without Neo Martinez's explicit approval.
    ============================================================================ */
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--section { cursor: default; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--section {
+  cursor: default;
+}
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested {
-  display: flex; flex-direction: column; gap: 1px;
-  margin-top: 1px; margin-bottom: 4px; margin-left: 23px; padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 4px 0 4px 18px;
+  padding-left: 14px;
   border-left: 1px solid var(--uui-chrome-divider);
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item {
-  padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--uui-chrome-label-idle); text-decoration: none;
+  padding: 7px 10px;
+  border-radius: var(--uui-radius-control);
+  font-size: 13px;
+  color: var(--uui-chrome-label-idle);
+  text-decoration: none;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item:hover { background: var(--uui-chrome-item-hover-bg); color: var(--uui-chrome-label-active); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item:hover {
+  background: var(--uui-chrome-item-hover-bg);
+  color: var(--uui-chrome-label-active);
+}
 /* NavLink sets aria-current="page" on the active route regardless of how
    className is passed; a plain-string className (used here) does not also
    get an "active" class, so this is the only selector that will ever match. */
-.capiro-vnext-root .capiro-vnext-uui a.uui-nav-nested-item[aria-current='page'] { color: var(--uui-chrome-label-active); font-weight: var(--uui-weight-semibold); background: var(--uui-chrome-item-active-bg); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item--disabled { opacity: 0.6; cursor: not-allowed; }
-.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-nested { display: none; }
+.capiro-vnext-root .capiro-vnext-uui a.uui-nav-nested-item[aria-current='page'] {
+  color: var(--uui-chrome-label-active);
+  font-weight: var(--uui-weight-semibold);
+  background: var(--uui-chrome-item-active-bg);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-nested {
+  display: none;
+}
 
-.capiro-vnext-root .capiro-vnext-uui .uui-rail__footer { display: flex; flex-direction: column; border-top: 0; padding-top: 0; }
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__footer {
+  display: flex;
+  flex-direction: column;
+  border-top: 0;
+  padding-top: 0;
+}
 /* Mailbox sync — plain text on the rail, not a bordered card (the handoff's
    footer group has no background box here). Real title/detail from
    useMailboxSyncStatus can run longer than the handoff's static "2m" demo
    string (e.g. an error detail), so the two stay on separate lines rather
    than being forced into one. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status {
-  display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; padding: 10px 12px; margin-bottom: 6px;
-  background: transparent; border: none; text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: transparent;
+  border: none;
+  text-align: left;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover { background: var(--uui-chrome-item-hover-bg); border-radius: var(--uui-radius-control); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title { font-size: 12px; font-weight: var(--uui-weight-regular); color: var(--uui-chrome-icon-idle); display: block; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { font-size: 12px; font-weight: var(--uui-weight-regular); color: var(--uui-chrome-icon-idle); display: block; }
-.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status { display: none; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__indicator { width: 6px; height: 6px; border-radius: 999px; background: var(--uui-success-dot); margin-left: 0; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status[data-state='needs_attention'] .capiro-mailbox-status__indicator { background: var(--uui-warning-dot); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover {
+  background: var(--uui-chrome-item-hover-bg);
+  border-radius: var(--uui-radius-control);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title {
+  font-size: 12px;
+  font-weight: var(--uui-weight-regular);
+  color: var(--uui-chrome-icon-idle);
+  display: block;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail {
+  font-size: 12px;
+  font-weight: var(--uui-weight-regular);
+  color: var(--uui-chrome-icon-idle);
+  display: block;
+}
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status {
+  display: none;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--uui-success-dot);
+  margin-left: 0;
+}
+.capiro-vnext-root
+  .capiro-vnext-uui
+  .capiro-mailbox-status[data-state='needs_attention']
+  .capiro-mailbox-status__indicator {
+  background: var(--uui-warning-dot);
+}
 .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; margin-top: 2px; border-radius: var(--uui-radius-control); background: none; border: none;
-  color: var(--uui-chrome-label-idle); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  margin-top: 2px;
+  border-radius: var(--uui-radius-control);
+  background: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  border: 0;
+  color: var(--uui-chrome-label-idle);
+  font-size: var(--uui-text-sm);
+  font-weight: var(--uui-weight-medium);
+  text-align: left;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn:hover { background: var(--uui-chrome-item-hover-bg); }
+.capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn:hover {
+  background: var(--uui-chrome-item-hover-bg);
+}
 
 /* Content */
-.capiro-vnext-root .capiro-vnext-uui .uui-content { grid-area: content; padding: var(--uui-content-gutter); max-width: var(--uui-content-max-w); width: 100%; margin: 0 auto; }
+.capiro-vnext-root .capiro-vnext-uui .uui-content {
+  grid-area: content;
+  padding: var(--uui-content-gutter);
+  max-width: var(--uui-content-max-w);
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* The funding route owns its full-bleed canvas and reference rail widths. */
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities {
+  --uui-rail-w-expanded: 232px;
+  --uui-rail-w-collapsed: 80px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-content {
+  max-width: none;
+  padding: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-settings-hidden {
+  display: none;
+}
 
 /* v3 corrected this from 999px to the handoff's explicit "identity text
    hidden below 1240px" rule — the avatar always shows, only the name/role
    text collapses. */
-@media (max-width: 1239px) {
-  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy { display: none; }
+@media (max-width: 1359px) {
+  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy {
+    display: none;
+  }
 }
 @media (max-width: 879px) {
   .capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider,
   .capiro-vnext-root .capiro-vnext-uui .uui-topbar__section,
-  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope {
+    display: none;
+  }
 }
 
 /* Mobile bottom nav (< 780px) + tablet rail auto-collapse (780-1179px) */
-.capiro-vnext-root .capiro-vnext-uui .uui-bottomnav { display: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim { display: none; }
+.capiro-vnext-root .capiro-vnext-uui .uui-bottomnav {
+  display: none;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim {
+  display: none;
+}
 
 @media (max-width: 1179px) {
-  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search { width: min(340px, 40vw); }
-  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
+    width: min(340px, 40vw);
+  }
+  .capiro-vnext-root .capiro-vnext-uui {
+    grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr);
+  }
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label,
-  .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron {
+    display: none;
+  }
   .capiro-vnext-root .capiro-vnext-uui .uui-nav-item,
-  .capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button { justify-content: center; padding: 12px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button {
+    justify-content: center;
+    padding: 12px;
+  }
 
   /*
    * Rail parity for the 780-1179 band.
@@ -409,10 +859,31 @@
    * painted over the content beside them. The rules below restate what
    * [data-collapsed] does, keyed on width instead of state.
    */
-  .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn { justify-content: center; padding: 12px; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn__label { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested {
+    display: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status {
+    display: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn {
+    justify-content: center;
+    padding: 12px;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn__label {
+    display: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities {
+    grid-template-columns: var(--uui-rail-w-expanded) minmax(0, 1fr);
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-item__label,
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-item__chevron {
+    display: block;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-item,
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-group > button {
+    justify-content: flex-start;
+    padding: 9px 12px;
+  }
 }
 
 /*
@@ -422,10 +893,23 @@
  * Settings / Collapse become unreachable, with no affordance. The nav scrolls
  * internally; the footer stays pinned.
  */
-.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { overflow-y: auto; min-height: 0; }
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav {
+  overflow-y: auto;
+  min-height: 0;
+}
 
 @media (max-width: 779px) {
-  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'topbar' 'content'; padding-bottom: 64px; }
+  .capiro-vnext-root .capiro-vnext-uui {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'topbar' 'content';
+    padding-bottom: 64px;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities {
+    padding-bottom: 0;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-bottomnav {
+    display: none;
+  }
   /*
    * MUST be restated for the [data-collapsed] variant. Media queries add no
    * specificity, so the (0,3,0) [data-collapsed] rule at the top of this file
@@ -436,9 +920,18 @@
    * rendered inside an 80px strip. Measured at 642px wide: 80px content column
    * with the attribute, 666px without it.
    */
-  .capiro-vnext-root .capiro-vnext-uui[data-collapsed] { grid-template-columns: minmax(0, 1fr); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-rail { display: none; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-content { padding: 16px; }
+  .capiro-vnext-root .capiro-vnext-uui[data-collapsed] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-rail {
+    display: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-content {
+    padding: 16px;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-content {
+    padding: 0;
+  }
   /*
    * True centering (base rule above) assumes there's room on both sides.
    * Below this width the actions cluster (Meri + bell + profile) alone is
@@ -446,39 +939,88 @@
    * it — back to a small in-flow icon between brand and actions, the same
    * shape this had before the desktop centering fix.
    */
-  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__search {
     position: static;
     top: auto;
     left: auto;
     transform: none;
-    height: auto;
-    width: 40px;
-    flex: 0 0 auto;
+    height: 100%;
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
   }
-  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__placeholder,
-  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__shortcut { display: none; }
-
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__trigger {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 0% !important;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__placeholder {
+    min-width: 0 !important;
+    flex: 1 1 0% !important;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__shortcut {
+    flex: 0 0 auto !important;
+  }
   /* v3 moves the tab bar to the same dark surface-chrome as the rail — it's
      the rail's mobile replacement, so it carries the same idle/active
      colors (chrome-icon-idle already equals the handoff's literal idle tab
      color). */
   .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav {
-    display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: var(--uui-chrome-bg);
-    border-top: 0; z-index: 40;
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: var(--uui-chrome-bg);
+    border-top: 0;
+    z-index: 40;
   }
   .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 0 12px;
-    color: var(--uui-chrome-icon-idle); font-size: 11px; font-weight: var(--uui-weight-semibold); background: none; border: none; text-decoration: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 0 12px;
+    color: var(--uui-chrome-icon-idle);
+    font-size: 11px;
+    font-weight: var(--uui-weight-semibold);
+    background: none;
+    border: none;
+    text-decoration: none;
   }
-  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current { color: var(--uui-chrome-label-active); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current {
+    color: var(--uui-chrome-label-active);
+  }
 
   .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim {
-    display: flex; position: fixed; inset: 0; background: var(--uui-scrim); align-items: flex-end; z-index: 40;
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: var(--uui-scrim);
+    align-items: flex-end;
+    z-index: 40;
   }
   .capiro-vnext-root .capiro-vnext-uui .uui-moresheet {
-    width: 100%; background: var(--uui-white); border-radius: 16px 16px 0 0; padding: 16px 12px 24px; max-height: 70vh; overflow-y: auto;
+    width: 100%;
+    background: var(--uui-white);
+    border-radius: 16px 16px 0 0;
+    padding: 16px 12px 24px;
+    max-height: 70vh;
+    overflow-y: auto;
   }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__label { font-size: 11px; font-weight: var(--uui-weight-semibold); color: var(--uui-gray-400); letter-spacing: 0.04em; padding: 8px 12px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__label {
+    font-size: 11px;
+    font-weight: var(--uui-weight-semibold);
+    color: var(--uui-gray-400);
+    letter-spacing: 0.04em;
+    padding: 8px 12px;
+  }
 
   /*
    * .uui-nav-item and .capiro-mailbox-status are shared with the dark rail
@@ -487,15 +1029,32 @@
    * light-gray-on-white text. Restore the light equivalents inside this
    * scope only.
    */
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item { color: var(--uui-gray-700); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item:hover { background: var(--uui-gray-50); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item__icon { color: var(--uui-gray-500); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item--current { background: var(--uui-gray-50); color: var(--uui-gray-900); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-brand-solid); }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status { display: flex; }
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status:hover { background: var(--uui-gray-50); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item {
+    color: var(--uui-gray-700);
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item:hover {
+    background: var(--uui-gray-50);
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item__icon {
+    color: var(--uui-gray-500);
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item--current {
+    background: var(--uui-gray-50);
+    color: var(--uui-gray-900);
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item--current .uui-nav-item__icon {
+    color: var(--uui-brand-solid);
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status {
+    display: flex;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status:hover {
+    background: var(--uui-gray-50);
+  }
   .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status__title,
-  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status__detail { color: var(--uui-gray-600); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status__detail {
+    color: var(--uui-gray-600);
+  }
 }
 
 /* Quick Note (top bar trigger + dialog body). Reuses .capiro-overlay/.capiro-modal
@@ -509,7 +1068,9 @@
     width: 40px !important;
     padding: 0 !important;
   }
-  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-quicknote__label { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-quicknote__label {
+    display: none;
+  }
 }
 .capiro-vnext-root .capiro-vnext-quicknote__desc {
   margin: 4px 0 0;
@@ -523,14 +1084,19 @@
   gap: 14px;
   margin-top: 16px;
 }
-.capiro-vnext-root .capiro-vnext-quicknote__note { min-height: 132px; }
+.capiro-vnext-root .capiro-vnext-quicknote__note {
+  min-height: 132px;
+}
 .capiro-vnext-root .capiro-vnext-quicknote__field-foot {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   margin-top: 6px;
 }
-.capiro-vnext-root .capiro-vnext-quicknote__field-foot .capiro-field__help { flex: 1; min-width: 0; }
+.capiro-vnext-root .capiro-vnext-quicknote__field-foot .capiro-field__help {
+  flex: 1;
+  min-width: 0;
+}
 .capiro-vnext-root .capiro-vnext-quicknote__charcount {
   flex: 0 0 auto;
   font-family: var(--capiro-type-family-mono, ui-monospace);
@@ -538,7 +1104,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--uui-gray-500);
 }
-.capiro-vnext-root .capiro-vnext-quicknote__charcount[data-near-limit='true'] { color: var(--uui-warning-fg); }
+.capiro-vnext-root .capiro-vnext-quicknote__charcount[data-near-limit='true'] {
+  color: var(--uui-warning-fg);
+}
 .capiro-vnext-root .capiro-vnext-quicknote__foot {
   display: flex;
   align-items: center;
@@ -548,18 +1116,25 @@
 }
 
 /* Avatar menu chevron + row icons (see TopBar/index.tsx ProfileMenu). */
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger {
+  position: relative;
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__chevron {
   flex-shrink: 0;
   color: var(--uui-gray-400);
   transform: rotate(90deg);
   transition: transform 140ms ease;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger[aria-expanded='true'] .capiro-vnext-profile__chevron {
+.capiro-vnext-root
+  .capiro-vnext-uui
+  .capiro-vnext-profile__trigger[aria-expanded='true']
+  .capiro-vnext-profile__chevron {
   transform: rotate(-90deg);
 }
 @media (max-width: 1239px) {
-  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__chevron { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__chevron {
+    display: none;
+  }
 }
 
 /* Focus visibility everywhere in this shell, per handoff §10. */
@@ -567,4 +1142,206 @@
 .capiro-vnext-root .capiro-vnext-uui a:focus-visible {
   outline: 2px solid var(--uui-focus-ring);
   outline-offset: 2px;
+}
+
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__brand {
+  gap: 16px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__section {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__scope {
+  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__scope {
+  min-width: 103.203125px;
+  justify-content: center;
+  border: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search {
+  display: block;
+  width: 100% !important;
+  max-width: 480px !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search {
+    width: 100% !important;
+    max-width: 480px !important;
+    min-width: 0 !important;
+    overflow: hidden;
+  }
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__trigger {
+  height: 40px !important;
+  flex: 0 0 480px !important;
+  width: 480px !important;
+  max-width: 480px !important;
+  border: 0 !important;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-vnext-profile__chevron {
+  display: none;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-vnext-profile__trigger {
+  padding: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-vnext-avatar {
+  background: #f9fafb;
+  color: #667085;
+  font-size: 16px;
+  font-weight: 400;
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__trigger {
+    box-sizing: border-box !important;
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 480px !important;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__placeholder {
+    min-width: 0 !important;
+  }
+}
+
+/* Funding's selected Intelligence trigger is a button; the shared button rule
+   otherwise wins on specificity and leaves the active row transparent. */
+.capiro-vnext-root
+  .capiro-vnext-uui--funding-opportunities
+  .uui-nav-group
+  > button.uui-nav-item--current {
+  background: var(--uui-chrome-item-active-bg);
+  color: var(--uui-chrome-label-active);
+  font-weight: var(--uui-weight-semibold);
+}
+.capiro-vnext-root
+  .capiro-vnext-uui--funding-opportunities
+  .uui-nav-item--current
+  .uui-nav-item__icon,
+.capiro-vnext-root
+  .capiro-vnext-uui--funding-opportunities
+  .uui-nav-item--current
+  .uui-nav-item__chevron {
+  color: var(--uui-chrome-label-active);
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-nested {
+  margin-left: 18px;
+  padding-left: 14px;
+  gap: 2px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-nested-item {
+  flex: 0 0 31px;
+  height: 31px;
+  min-height: 31px;
+  padding: 7px 10px;
+  font-size: 14px;
+  line-height: 17px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-collapse-btn {
+  justify-content: center;
+}
+/* Funding's reference rail has no family chevrons. Keep the buttons and
+   aria-expanded state operable; only the visual affordance is suppressed. */
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-item__chevron {
+  display: none;
+}
+
+/* Funding Opportunities feature-scoped rail treatment. */
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: auto 0 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #7c8698;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health__headline {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #e4e7ec;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 17px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health__headline i {
+  margin-top: 3px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health > span:last-child {
+  display: block;
+  margin-left: 22px;
+  line-height: 16px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health__headline i {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+  background: #dc6803;
+}
+@media (max-width: 899px) {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health {
+    display: none;
+  }
+}
+
+/* Funding reference has no fixed bottom navigation; keep it on other routes. */
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities {
+    padding-bottom: 0;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-bottomnav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__divider,
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__section,
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__scope {
+    display: none;
+  }
+}
+
+@media (max-width: 879px) {
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__section,
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-topbar__scope {
+    display: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-global-search__placeholder {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-item,
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-group > button {
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
+  margin-bottom: 2px;
+  padding: 10px 12px;
+  line-height: 20px;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-group {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-nav-group > button.uui-nav-item {
+  display: flex;
 }

@@ -17,6 +17,8 @@ import { TrackerBoardService } from '../src/tracker/tracker-board.service.js';
 const TENANT = 'tenant-pg';
 
 interface FakeBillRow {
+  /** Real table is tenant-scoped; the board query always predicates on it. */
+  tenantId: string;
   billId: string;
   clientId: string;
   stage: string;
@@ -43,6 +45,7 @@ const BASE_MS = new Date('2026-01-01T00:00:00Z').getTime();
 /** `n` rows, newest (index 0) first — bill-0000's trackedAt is the latest. */
 function makeRows(n: number, clientId = 'client-1', offsetMs = 0): FakeBillRow[] {
   return Array.from({ length: n }, (_, i) => ({
+    tenantId: TENANT,
     billId: `bill-${clientId}-${String(i).padStart(4, '0')}`,
     clientId,
     stage: 'introduced',
@@ -58,34 +61,57 @@ function makeRows(n: number, clientId = 'client-1', offsetMs = 0): FakeBillRow[]
 }
 
 function matchesWhere(row: FakeBillRow, where: Record<string, unknown>): boolean {
-  if (where['clientId'] && row.clientId !== where['clientId']) return false;
-  const billIdIn = (where['billId'] as { in?: string[] } | undefined)?.in;
-  if (billIdIn && !billIdIn.includes(row.billId)) return false;
-  const clientIdIn = (where['clientId'] as { in?: string[] } | undefined)?.in;
-  if (clientIdIn && !clientIdIn.includes(row.clientId)) return false;
-  const stageIn = (where['stage'] as { in?: string[] } | undefined)?.in;
-  if (stageIn && !stageIn.includes(row.stage)) return false;
-  const stageNot = (where['stage'] as { not?: string } | undefined)?.not;
-  if (stageNot && row.stage === stageNot) return false;
-  const or = where['OR'] as
-    | [
-        { trackedAt: { lt: Date } },
-        { trackedAt: Date; billId: { lt: string } },
-        { trackedAt: Date; billId: string; clientId: { lt: string } }?,
-      ]
-    | undefined;
-  if (or) {
-    const passLt = row.trackedAt.getTime() < or[0].trackedAt.lt.getTime();
-    const passBill =
-      row.trackedAt.getTime() === or[1].trackedAt.getTime() && row.billId < or[1].billId.lt;
-    const clientTie = or[2];
-    const passClient = Boolean(
-      clientTie &&
-        row.trackedAt.getTime() === clientTie.trackedAt.getTime() &&
-        row.billId === clientTie.billId &&
-        row.clientId < clientTie.clientId.lt,
-    );
-    if (!(passLt || passBill || passClient)) return false;
+  for (const [key, cond] of Object.entries(where)) {
+    if (key === 'AND') {
+      if (!(cond as Array<Record<string, unknown>>).every((c) => matchesWhere(row, c)))
+        return false;
+      continue;
+    }
+    if (key === 'OR') {
+      if (!(cond as Array<Record<string, unknown>>).some((c) => matchesWhere(row, c))) return false;
+      continue;
+    }
+    const value = row[key as keyof FakeBillRow];
+    // A bare Date condition is an equality predicate (keyset cursor's exact
+    // trackedAt tiebreak), not an operator bag — it must be compared BEFORE
+    // the generic object branch, which would otherwise see no operators and
+    // vacuously pass.
+    if (cond instanceof Date) {
+      if (!(value instanceof Date) || value.getTime() !== cond.getTime()) return false;
+      continue;
+    }
+    if (cond && typeof cond === 'object') {
+      const c = cond as Record<string, unknown>;
+      if ('in' in c && !(c.in as unknown[]).includes(value)) return false;
+      if ('notIn' in c && (c.notIn as unknown[]).includes(value)) return false;
+      if ('not' in c && value === c.not) return false;
+      if ('lt' in c) {
+        if (value instanceof Date && c.lt instanceof Date) {
+          if (value.getTime() >= c.lt.getTime()) return false;
+        } else if (typeof value === 'string' && typeof c.lt === 'string') {
+          if (value >= c.lt) return false;
+        } else {
+          return false;
+        }
+      }
+      if ('gt' in c) {
+        if (value instanceof Date && c.gt instanceof Date) {
+          if (value.getTime() <= c.gt.getTime()) return false;
+        } else if (typeof value === 'string' && typeof c.gt === 'string') {
+          if (value <= c.gt) return false;
+        } else {
+          return false;
+        }
+      }
+      if ('gte' in c && value instanceof Date && c.gte instanceof Date) {
+        if (value.getTime() < c.gte.getTime()) return false;
+      }
+      if ('lte' in c && value instanceof Date && c.lte instanceof Date) {
+        if (value.getTime() > c.lte.getTime()) return false;
+      }
+      continue;
+    }
+    if (value !== cond) return false;
   }
   return true;
 }
@@ -218,6 +244,59 @@ function makeHarness(rows: FakeBillRow[], alerts: FakeAlertRow[] = []) {
   };
 }
 
+describe('matchesWhere fake evaluator — nested predicate fidelity', () => {
+  const row = makeRows(1)[0]!;
+
+  it('applies a stage exclusion nested inside AND (the activeOnly shape)', () => {
+    const where = {
+      clientId: 'client-1',
+      AND: [{ stage: { not: 'enacted' } }],
+    };
+    expect(matchesWhere(row, where)).toBe(true);
+    expect(matchesWhere({ ...row, stage: 'enacted' }, where)).toBe(false);
+  });
+
+  it('applies billId.notIn nested inside AND (source-faithful stage selection)', () => {
+    const where = {
+      AND: [{ billId: { notIn: [row.billId] } }],
+    };
+    expect(matchesWhere(row, where)).toBe(false);
+    expect(matchesWhere({ ...row, billId: 'bill-other' }, where)).toBe(true);
+  });
+
+  it('requires every AND branch and any OR branch, at depth', () => {
+    const where = {
+      AND: [
+        {
+          OR: [{ stage: { in: ['introduced'] } }, { stage: 'committee' }],
+        },
+        { billId: { notIn: ['bill-gone'] } },
+      ],
+    };
+    expect(matchesWhere(row, where)).toBe(true);
+    // fails the nested OR
+    expect(matchesWhere({ ...row, stage: 'enacted' }, where)).toBe(false);
+    // fails the nested notIn
+    expect(matchesWhere({ ...row, billId: 'bill-gone' }, where)).toBe(false);
+    // OR with no matching branch fails even when AND siblings pass
+    expect(matchesWhere(row, { AND: [{ OR: [{ stage: 'passed' }, { stage: 'enacted' }] }] })).toBe(
+      false,
+    );
+  });
+
+  it('treats a bare Date condition as exact equality (cursor tiebreak), never vacuous', () => {
+    const t = row.trackedAt;
+    expect(matchesWhere(row, { trackedAt: t })).toBe(true);
+    expect(matchesWhere(row, { trackedAt: new Date(t.getTime() + 1000) })).toBe(false);
+    expect(matchesWhere(row, { trackedAt: new Date(t.getTime() - 1000) })).toBe(false);
+  });
+
+  it('scopes every query to its own tenant — another tenant row never matches', () => {
+    expect(matchesWhere(row, { tenantId: TENANT })).toBe(true);
+    expect(matchesWhere({ ...row, tenantId: 'tenant-other' }, { tenantId: TENANT })).toBe(false);
+  });
+});
+
 describe('TrackerBoardService — getTenantBoard pagination (P1-18)', () => {
   it('a-8.1: 250 tracked bills, default limit -> 200 cards, hasMore true, total 250, withheld 50', async () => {
     const h = makeHarness(makeRows(250));
@@ -246,8 +325,34 @@ describe('TrackerBoardService — getTenantBoard pagination (P1-18)', () => {
   it('a-8.3: two bills with an IDENTICAL trackedAt are both returned exactly once across two pages (billId tiebreak)', async () => {
     const tied = new Date(BASE_MS);
     const rows: FakeBillRow[] = [
-      { billId: 'bill-aaaa', clientId: 'client-1', stage: 'introduced', trackedAt: tied, note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null },
-      { billId: 'bill-bbbb', clientId: 'client-1', stage: 'introduced', trackedAt: tied, note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null },
+      {
+        tenantId: TENANT,
+        billId: 'bill-aaaa',
+        clientId: 'client-1',
+        stage: 'introduced',
+        trackedAt: tied,
+        note: null,
+        isManual: true,
+        unread: false,
+        lastSeenActionText: null,
+        lastSeenActionDate: null,
+        lastHearingSessionId: null,
+        lastHearingAt: null,
+      },
+      {
+        tenantId: TENANT,
+        billId: 'bill-bbbb',
+        clientId: 'client-1',
+        stage: 'introduced',
+        trackedAt: tied,
+        note: null,
+        isManual: true,
+        unread: false,
+        lastSeenActionText: null,
+        lastSeenActionDate: null,
+        lastHearingSessionId: null,
+        lastHearingAt: null,
+      },
       ...makeRows(3, 'client-1', 10_000), // 3 rows older than the tied pair (positive offset = further in the past)
     ];
     const h = makeHarness(rows);
@@ -266,6 +371,7 @@ describe('TrackerBoardService — getTenantBoard pagination (P1-18)', () => {
   it('a-8.3b: same bill + same timestamp across two clients is never skipped at a page boundary', async () => {
     const tied = new Date(BASE_MS);
     const common = {
+      tenantId: TENANT,
       billId: 'bill-shared',
       stage: 'introduced',
       trackedAt: tied,
@@ -297,7 +403,9 @@ describe('TrackerBoardService — getTenantBoard pagination (P1-18)', () => {
     const h1 = makeHarness(makeRows(5, 'client-1'));
     await h1.svc.getTenantBoard(TENANT);
 
-    const manyRows = Array.from({ length: 50 }, (_, i) => makeRows(1, `client-${i}`, i * 1000)).flat();
+    const manyRows = Array.from({ length: 50 }, (_, i) =>
+      makeRows(1, `client-${i}`, i * 1000),
+    ).flat();
     const h50 = makeHarness(manyRows);
     await h50.svc.getTenantBoard(TENANT);
 
@@ -314,8 +422,18 @@ describe('TrackerBoardService — getTenantBoard pagination (P1-18)', () => {
     const recentId = rows[0]!.billId; // newest
     const oldId = rows[1]!.billId;
     const alerts: FakeAlertRow[] = [
-      { sourceRef: recentId, clientId: 'client-1', sourceType: 'bill', createdAt: new Date(Date.now() - 2 * 86_400_000) },
-      { sourceRef: oldId, clientId: 'client-1', sourceType: 'bill', createdAt: new Date(Date.now() - 30 * 86_400_000) },
+      {
+        sourceRef: recentId,
+        clientId: 'client-1',
+        sourceType: 'bill',
+        createdAt: new Date(Date.now() - 2 * 86_400_000),
+      },
+      {
+        sourceRef: oldId,
+        clientId: 'client-1',
+        sourceType: 'bill',
+        createdAt: new Date(Date.now() - 30 * 86_400_000),
+      },
     ];
     const h = makeHarness(rows, alerts);
 
@@ -364,9 +482,9 @@ describe('TrackerBoardService — getBoard (single client) pagination (P1-18 a-7
 
   it('a malformed cursor is ignored (returns page 1), never throws', async () => {
     const h = makeHarness(makeRows(5, 'client-1'));
-    await expect(h.svc.getBoard(TENANT, 'client-1', { cursor: 'not-a-real-cursor' })).resolves.toMatchObject(
-      { total: 5, hasMore: false },
-    );
+    await expect(
+      h.svc.getBoard(TENANT, 'client-1', { cursor: 'not-a-real-cursor' }),
+    ).resolves.toMatchObject({ total: 5, hasMore: false });
   });
 
   it('a stale cursor from a different (larger) page size still returns a valid, non-throwing page', async () => {
@@ -381,8 +499,35 @@ describe('TrackerBoardService — getBoard (single client) pagination (P1-18 a-7
   // per-client AND the tenant-wide roll-up (edge case 6: cards spanning clients).
   it('MP-15: projects trackedBy onto each card, defaulting to null for a row tracked before the column existed', async () => {
     const rows: FakeBillRow[] = [
-      { billId: 'bill-tracked', clientId: 'client-1', stage: 'introduced', trackedAt: new Date(BASE_MS), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null, trackedBy: 'clerk-42' },
-      { billId: 'bill-untracked', clientId: 'client-1', stage: 'introduced', trackedAt: new Date(BASE_MS - 1000), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null },
+      {
+        billId: 'bill-tracked',
+        tenantId: TENANT,
+        clientId: 'client-1',
+        stage: 'introduced',
+        trackedAt: new Date(BASE_MS),
+        note: null,
+        isManual: true,
+        unread: false,
+        lastSeenActionText: null,
+        lastSeenActionDate: null,
+        lastHearingSessionId: null,
+        lastHearingAt: null,
+        trackedBy: 'clerk-42',
+      },
+      {
+        billId: 'bill-untracked',
+        tenantId: TENANT,
+        clientId: 'client-1',
+        stage: 'introduced',
+        trackedAt: new Date(BASE_MS - 1000),
+        note: null,
+        isManual: true,
+        unread: false,
+        lastSeenActionText: null,
+        lastSeenActionDate: null,
+        lastHearingSessionId: null,
+        lastHearingAt: null,
+      },
     ];
     const h = makeHarness(rows);
     const res = await h.svc.getBoard(TENANT, 'client-1');
@@ -395,13 +540,51 @@ describe('TrackerBoardService — getBoard (single client) pagination (P1-18 a-7
 describe('TrackerBoardService — getTenantBoard: trackedBy on the all-clients roll-up (MP-15 / Gate H phase d)', () => {
   it('projects trackedBy on cards spanning MULTIPLE clients (edge case 6)', async () => {
     const rows: FakeBillRow[] = [
-      { billId: 'bill-a', clientId: 'client-1', stage: 'introduced', trackedAt: new Date(BASE_MS), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null, trackedBy: 'clerk-1' },
-      { billId: 'bill-b', clientId: 'client-2', stage: 'introduced', trackedAt: new Date(BASE_MS - 1000), note: null, isManual: true, unread: false, lastSeenActionText: null, lastSeenActionDate: null, lastHearingSessionId: null, lastHearingAt: null, trackedBy: 'clerk-2' },
+      {
+        billId: 'bill-a',
+        tenantId: TENANT,
+        clientId: 'client-1',
+        stage: 'introduced',
+        trackedAt: new Date(BASE_MS),
+        note: null,
+        isManual: true,
+        unread: false,
+        lastSeenActionText: null,
+        lastSeenActionDate: null,
+        lastHearingSessionId: null,
+        lastHearingAt: null,
+        trackedBy: 'clerk-1',
+      },
+      {
+        billId: 'bill-b',
+        tenantId: TENANT,
+        clientId: 'client-2',
+        stage: 'introduced',
+        trackedAt: new Date(BASE_MS - 1000),
+        note: null,
+        isManual: true,
+        unread: false,
+        lastSeenActionText: null,
+        lastSeenActionDate: null,
+        lastHearingSessionId: null,
+        lastHearingAt: null,
+        trackedBy: 'clerk-2',
+      },
     ];
     const h = makeHarness(rows);
     const res = await h.svc.getTenantBoard(TENANT);
-    const cards = res.columns.flatMap((c) => c.cards) as Array<{ billId: string; clientId: string; trackedBy: string | null }>;
-    expect(cards.find((c) => c.billId === 'bill-a')).toMatchObject({ clientId: 'client-1', trackedBy: 'clerk-1' });
-    expect(cards.find((c) => c.billId === 'bill-b')).toMatchObject({ clientId: 'client-2', trackedBy: 'clerk-2' });
+    const cards = res.columns.flatMap((c) => c.cards) as Array<{
+      billId: string;
+      clientId: string;
+      trackedBy: string | null;
+    }>;
+    expect(cards.find((c) => c.billId === 'bill-a')).toMatchObject({
+      clientId: 'client-1',
+      trackedBy: 'clerk-1',
+    });
+    expect(cards.find((c) => c.billId === 'bill-b')).toMatchObject({
+      clientId: 'client-2',
+      trackedBy: 'clerk-2',
+    });
   });
 });

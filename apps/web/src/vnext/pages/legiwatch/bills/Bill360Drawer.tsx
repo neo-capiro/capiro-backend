@@ -42,6 +42,34 @@ const TABS = [
 ] as const;
 type DossierTab = (typeof TABS)[number];
 
+/**
+ * Research scope from the dossier's canonical identity — never naive
+ * `billId.split('-')` segments (`ca-2025-ab1093` sent lowercase `ca`, which the
+ * research service rejects; `119-hr-8800` sent `119` as the jurisdiction).
+ * Federal resolves US even when `jurisdiction` is missing; a state bill with
+ * missing jurisdiction falls back to its canonical DD1 key prefix.
+ */
+function researchScopeFor(bill: {
+  id: string;
+  jurisdiction: string | null;
+  isState: boolean;
+  congress: number | null;
+}): { jurisdiction: string; session: string } {
+  // DD1 state-bill key: <state>-<session>-<number>; session keeps its full
+  // canonical form (2026, or a special session like 2026x2266).
+  const key = /^([a-z]{2})-(\d{4}(?:x\d+)?)-[a-z]+\d+[a-z]?$/i.exec(bill.id);
+  if (bill.isState) {
+    const fromMeta = /^[A-Za-z]{2}$/.test(bill.jurisdiction ?? '')
+      ? bill.jurisdiction!.toUpperCase()
+      : null;
+    return {
+      jurisdiction: fromMeta ?? (key ? key[1]!.toUpperCase() : 'FL'),
+      session: key?.[2] ?? '',
+    };
+  }
+  return { jurisdiction: 'US', session: bill.congress ? String(bill.congress) : '' };
+}
+
 export function Bill360Drawer({
   billId,
   clientId,
@@ -191,8 +219,7 @@ export function Bill360Drawer({
                       tab: 'research',
                       researchView: 'bills',
                       bill: billId,
-                      jurisdiction: billId.split('-')[0] ?? 'FL',
-                      session: billId.split('-')[1] ?? '',
+                      ...researchScopeFor(d.bill),
                       ...(clientId ? { client: clientId } : {}),
                       ...(folderId ? { folder: folderId } : {}),
                     })

@@ -97,8 +97,28 @@ function AddBillBody({
     () => (prefs.data?.jurisdictions ?? []).filter((j) => j && j !== 'US'),
     [prefs.data],
   );
+  // Jurisdiction chips derive from the ACTUALLY ingested corpus, not a static
+  // list — a newly ingested state appears without a code change.
+  const corpus = useQuery<{ jurisdictions: Array<{ key: string; count: number }> }>({
+    queryKey: ['bill-corpus-metadata'],
+    queryFn: async () =>
+      (
+        await api.get<{ jurisdictions: Array<{ key: string; count: number }> }>(
+          '/intel-api/legiwatch/bills/corpus-metadata',
+        )
+      ).data,
+    enabled: trackerV2 && flagsReady,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const availableJuris = useMemo(
+    () => (corpus.data?.jurisdictions ?? []).map((j) => j.key),
+    [corpus.data],
+  );
   const [selectedJuris, setSelectedJuris] = useState<string[] | null>(null);
-  const jurisdictions = selectedJuris ?? ['US', ...clientStates];
+  // Default: everything ingested (federal + all states) — any matching bill is
+  // eligible. Untouched by client watchlist scope; the user can narrow.
+  const jurisdictions = selectedJuris ?? availableJuris;
 
   const results = useQuery<BillSearchResult[]>({
     queryKey: ['tracker-bill-search', clientId, q, jurisdictions.join(',')],
@@ -114,12 +134,22 @@ function AddBillBody({
   });
 
   const isTracked = (billId: string) => boardBillIds.has(billId) || added.has(billId);
+  // A failed track write must say so on the row itself — previously the
+  // rejection was swallowed here (the caller's toast is easy to miss and the
+  // row just snapped back to an untouched "Track" button, reading as "the
+  // click did nothing"). The message clears on the next attempt or keystroke.
+  const [trackError, setTrackError] = useState<{ billId: string; message: string } | null>(null);
   const handle = (b: BillSearchResult) => {
     setPendingId(b.billId);
+    setTrackError(null);
     void Promise.resolve(onTrack(b.billId))
       .then(() => setAdded((s) => new Set(s).add(b.billId)))
-      .catch(() => {
-        /* the caller surfaces the error; the row simply stays untracked */
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : 'Could not track this bill. Try again.';
+        setTrackError({ billId: b.billId, message });
       })
       .finally(() => setPendingId((cur) => (cur === b.billId ? null : cur)));
   };
@@ -128,8 +158,8 @@ function AddBillBody({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
-        {trackerV2 && clientStates.length
-          ? 'Search Congress and the state legislatures this client tracks, by number or title.'
+        {trackerV2
+          ? 'Search every ingested federal and state bill by number or title — any Congress or session.'
           : 'Search Congress by number or title.'}
       </p>
 
@@ -165,9 +195,9 @@ function AddBillBody({
         />
       </div>
 
-      {trackerV2 && clientStates.length > 0 ? (
+      {trackerV2 && availableJuris.length > 0 ? (
         <div role="group" aria-label="Jurisdictions" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {['US', ...clientStates].map((j) => {
+          {availableJuris.map((j) => {
             const on = jurisdictions.includes(j);
             return (
               <button
@@ -257,7 +287,17 @@ function AddBillBody({
             </div>
           );
         })}
-        {q.trim().length >= 2 && !results.isFetching && rows.length === 0 ? (
+        {trackError ? (
+          <div role="alert" style={{ padding: '8px 12px', fontSize: 13, color: '#B42318' }}>
+            Couldn’t track {rows.find((b) => b.billId === trackError.billId)?.displayNum ?? 'this bill'}.{' '}
+            {trackError.message}
+          </div>
+        ) : null}
+        {results.isError ? (
+          <div style={{ padding: '16px 12px', fontSize: 14, color: '#B42318' }}>
+            Bill search is unavailable right now. Try again in a moment.
+          </div>
+        ) : q.trim().length >= 2 && !results.isFetching && rows.length === 0 ? (
           <div style={{ padding: '16px 12px', fontSize: 14, color: '#667085' }}>
             No bills match “{q}”. Try a bill number or keyword.
           </div>

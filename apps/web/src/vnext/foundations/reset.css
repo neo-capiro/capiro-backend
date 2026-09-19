@@ -12,10 +12,11 @@
   text-rendering: optimizeLegibility;
 }
 
-.capiro-vnext-root button,
-.capiro-vnext-root input,
-.capiro-vnext-root select,
-.capiro-vnext-root textarea {
+/* Funding controls own their type scale through the module's low-specificity reset. */
+.capiro-vnext-root button:not(:where(.fo-module--v2 *)),
+.capiro-vnext-root input:not(:where(.fo-module--v2 *)),
+.capiro-vnext-root select:not(:where(.fo-module--v2 *)),
+.capiro-vnext-root textarea:not(:where(.fo-module--v2 *)) {
   font: inherit;
 }
 

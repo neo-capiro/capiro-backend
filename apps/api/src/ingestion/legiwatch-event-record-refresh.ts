@@ -51,16 +51,24 @@ export async function queueEventRecordRefresh(prisma: PrismaClient, states: stri
       (EXISTS(SELECT 1 FROM legislative_agenda_item a WHERE a.state_bill_key=b.id AND a.active AND a.hearing_id=ANY(${ids}::text[]))
        OR EXISTS(SELECT 1 FROM state_bill_record_check d WHERE d.bill_key=b.id AND d.next_check_at<=now() AND d.attempts<10))
       ORDER BY "cursorId","billId" LIMIT 100`;
+      // Exact per-cursor admission provenance, computed INSIDE the same
+      // cursor-lock transaction: an id is an admission of this run iff it was
+      // not already in that cursor's pendingBills when we locked it. This is
+      // immune to concurrent masterlist appends (a before/after array diff is
+      // not): the lock serializes against sync-legiscan-masterlist's own
+      // cursor upsert, and anything already pending — changed spine, vote
+      // retry, legacy-ambiguous — is excluded by construction.
+      const admittedByCursor = new Map<string, number[]>();
       for (const cursorId of [...new Set(rows.map((r) => r.cursorId))]) {
         await tx.$queryRaw`SELECT id FROM state_sync_cursor WHERE id=${cursorId} FOR UPDATE`;
         const cursor = await tx.stateSyncCursor.findUniqueOrThrow({ where: { id: cursorId } }),
-          pending = [
-            ...new Set([
-              ...cursor.pendingBills,
-              ...rows.filter((r) => r.cursorId === cursorId).map((r) => r.billId),
-            ]),
-          ];
+          alreadyPending = new Set(cursor.pendingBills),
+          freshForCursor = rows
+            .filter((r) => r.cursorId === cursorId && !alreadyPending.has(r.billId))
+            .map((r) => r.billId),
+          pending = [...new Set([...cursor.pendingBills, ...freshForCursor])];
         queued += pending.length - cursor.pendingBills.length;
+        if (freshForCursor.length) admittedByCursor.set(cursorId, freshForCursor);
         await tx.stateSyncCursor.update({
           where: { id: cursorId },
           data: { pendingBills: { set: pending } },
@@ -68,7 +76,13 @@ export async function queueEventRecordRefresh(prisma: PrismaClient, states: stri
       }
       await tx.$executeRaw`UPDATE legiwatch_event_record_watch SET next_check_at=now()+interval '3 hours',attempts=attempts+1,state='queued' WHERE event_id=ANY(${ids}::text[])`;
       await tx.$executeRaw`UPDATE legiwatch_event_record_watch SET state='review_required' WHERE expires_at<=now() AND state<>'review_required'`;
-      return { events: watches.length, eligible: rows.length, queued, cap: 100 };
+      return {
+        events: watches.length,
+        eligible: rows.length,
+        queued,
+        cap: 100,
+        admittedByCursor: Object.fromEntries(admittedByCursor),
+      };
     },
     { timeout: 30000 },
   );

@@ -70,16 +70,6 @@ export const CONTEXT_LAYER_DEFINITIONS = {
   },
 } as const satisfies Readonly<Record<ContextLayer, ContextLayerDefinition>>;
 
-export const CONTEXT_LAYER_BY_STEERING_LAYER: Readonly<
-  Record<SteeringLayer, Extract<ContextLayer, 'firm-context' | 'user-context' | 'client-context'>>
-> = {
-  'firm-identity': 'firm-context',
-  'firm-playbook': 'firm-context',
-  'user-voice': 'user-context',
-  'client-steering': 'client-context',
-  'client-people': 'client-context',
-};
-
 export interface NormalizedContextLayer {
   id: ContextLayerId;
   layer: ContextLayer;
@@ -108,10 +98,6 @@ export interface NormalizeContextLayersInput {
   subjectClientIds?: readonly string[];
   liveAuthoritativeSources?: readonly string[];
   institutionalKnowledgeSources?: readonly string[];
-}
-
-export function contextLayerForSteeringLayer(layer: SteeringLayer): ContextLayer {
-  return CONTEXT_LAYER_BY_STEERING_LAYER[layer];
 }
 
 export function normalizeContextLayers(
@@ -146,12 +132,6 @@ export function normalizeContextLayers(
     slot('live-authoritative', liveSources),
     slot('institutional-knowledge', institutionalSources),
   ];
-}
-
-export function selectedSteeringLayersFromContextLayers(
-  layers: NormalizedContextLayers,
-): SteeringLayer[] {
-  return layers.flatMap((layer) => layer.selectedSteeringLayers);
 }
 
 function uniqueStrings(values: readonly string[]): string[] {

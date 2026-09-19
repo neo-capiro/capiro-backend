@@ -21,6 +21,50 @@ export const CAPTURE_LEASE_STALE_MS = Number.parseInt(
 
 const PUBLIC_SOURCE_TYPES = [LiveHearingSourceType.hearing, LiveHearingSourceType.markup] as const;
 
+/** First-party Florida hosts whose published proceedings are publicly streamable. */
+const FLORIDA_FIRST_PARTY_HOSTS = /(^|\.)(flsenate\.gov|flhouse\.gov)$/i;
+/** The Florida Channel's EXACT per-event video page — the /videos/ archive index
+ *  and every other path on the host are listings, never a capture target. */
+const FLORIDA_CHANNEL_VIDEO_PAGE = /^\/videos\/[a-z0-9][a-z0-9-]*\/?$/i;
+
+/**
+ * True only for an OFFICIAL Florida browser page: an flsenate.gov/flhouse.gov
+ * event page, or the exact Florida Channel per-event video page. Anything else
+ * (off-host, listing pages, non-http(s)) is never a recognized FL source.
+ */
+export function isOfficialFloridaBrowserPage(url: string | null | undefined): boolean {
+  if (!url) return false;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  // https only — never credentials in the URL, never a non-standard port.
+  if (u.protocol !== 'https:') return false;
+  if (u.username || u.password) return false;
+  if (u.port) return false;
+  const host = u.hostname.toLowerCase();
+  if (FLORIDA_FIRST_PARTY_HOSTS.test(host)) return true;
+  return host === 'thefloridachannel.org' && FLORIDA_CHANNEL_VIDEO_PAGE.test(u.pathname);
+}
+
+/** The URLs a Florida session's sourceUrl may legitimately equal: the canonical
+ *  hearing page, the calendar snapshot's advertised watch page, and every
+ *  advertised stream-candidate official page. */
+export function floridaAnchorUrls(hearing: {
+  url: string | null;
+  calendarSnapshot: unknown;
+  streamCandidates: Array<{ officialPageUrl: string | null }>;
+}): string[] {
+  const anchors: string[] = [];
+  if (hearing.url) anchors.push(hearing.url);
+  const snap = hearing.calendarSnapshot as { watchUrl?: unknown } | null | undefined;
+  if (snap && typeof snap.watchUrl === 'string' && snap.watchUrl) anchors.push(snap.watchUrl);
+  for (const c of hearing.streamCandidates) if (c.officialPageUrl) anchors.push(c.officialPageUrl);
+  return anchors;
+}
+
 interface HearingHistoryCursor {
   t: string;
   id: string;
@@ -352,26 +396,97 @@ export class HearingSessionService {
     }
     if (session.hearingId) {
       const state = await this.prisma.$queryRaw<
-        Array<{ id: string }>
-      >`SELECT id FROM committee_hearing
+        Array<{ id: string; geographic_jurisdiction: string | null }>
+      >`SELECT id, geographic_jurisdiction FROM committee_hearing
         WHERE id=${session.hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
       if (state.length) {
-        const grants = await this.prisma.withTenant(
-          tenantId,
-          (tx) => tx.$queryRaw<Array<{ id: string }>>`
-          SELECT p.id FROM intel_hearing_media_permission p
-          JOIN committee_hearing h ON h.id=p.hearing_id AND h.url=p.source_url AND h.visibility='public'
-          JOIN intel_feature_flag f ON f.tenant_id=p.tenant_id AND f.feature='legiwatch_hearing_recording_v1' AND f.enabled
-          WHERE p.tenant_id=${tenantId} AND p.hearing_id=${session.hearingId} AND p.source_url=${session.sourceUrl ?? ''}
-            AND p.mode='browser' AND p.revoked_at IS NULL AND p.expires_at>clock_timestamp()
-            AND p.operations @> ARRAY['capture','transcription']::text[]
-            AND h.event_status NOT IN ('canceled','cancelled')`,
-        );
-        if (!grants.length)
-          throw new ForbiddenException('STATE_BROWSER_CAPTURE_PERMISSION_REQUIRED');
+        const jurisdiction = (state[0]?.geographic_jurisdiction ?? '').toUpperCase();
+        const allowed =
+          jurisdiction === 'FL' ? await this.isPublicFloridaBrowserCapture(session) : false;
+        if (!allowed) {
+          // Reviewed-grant path: required for every non-FL state hearing, and the
+          // fallback for an FL session that fails the public-capture predicate
+          // (e.g. consent confirmed for a private-adjacent workflow).
+          const grants = await this.prisma.withTenant(
+            tenantId,
+            (tx) => tx.$queryRaw<Array<{ id: string }>>`
+            SELECT p.id FROM intel_hearing_media_permission p
+            JOIN committee_hearing h ON h.id=p.hearing_id AND h.url=p.source_url AND h.visibility='public'
+            JOIN intel_feature_flag f ON f.tenant_id=p.tenant_id AND f.feature='legiwatch_hearing_recording_v1' AND f.enabled
+            WHERE p.tenant_id=${tenantId} AND p.hearing_id=${session.hearingId} AND p.source_url=${session.sourceUrl ?? ''}
+              AND p.mode='browser' AND p.revoked_at IS NULL AND p.expires_at>clock_timestamp()
+              AND p.operations @> ARRAY['capture','transcription']::text[]
+              AND h.event_status NOT IN ('canceled','cancelled')`,
+          );
+          if (!grants.length)
+            throw new ForbiddenException('STATE_BROWSER_CAPTURE_PERMISSION_REQUIRED');
+        }
       }
     }
     return session;
+  }
+
+  /**
+   * Public Florida browser capture (in-person public proceeding anyone may attend
+   * or stream from the official page). Allowed WITHOUT a reviewed media
+   * permission only when ALL of these hold:
+   *   - sourceType is a PUBLIC proceeding (`hearing`/`markup`) — never a private
+   *     meeting/webinar/agency session;
+   *   - actual browser-tab audio is the capture path (`browser_mic`) — a server
+   *     or stream ingestion path never rides this allowance;
+   *   - consent stays satisfied: `not_required` for public proceedings, or an
+   *     already-`confirmed` attestation. `needs_review` was rejected above and
+   *     stays rejected;
+   *   - client/matter/issue/bill/PE/agency LINKAGE DOES NOT BLOCK capture here:
+   *     an analyst attends a public proceeding FOR a client. Linkage still marks
+   *     the session sensitive for ENCRYPTION (isSensitiveSession) — a separate,
+   *     preserved concern;
+   *   - the hearing is PUBLIC and not canceled — INCLUDING completed/archive
+   *     events whose replay is published;
+   *   - the session's sourceUrl EXACTLY equals one of the hearing's canonical
+   *     anchors (committee_hearing.url, calendar_snapshot.watchUrl, or an
+   *     advertised hearing_stream_candidate.official_page_url) AND that URL is
+   *     a recognized official FL page (flsenate.gov / flhouse.gov / the exact
+   *     thefloridachannel.org /videos/<slug>/ page). An arbitrary operator-typed
+   *     URL never qualifies.
+   */
+  private async isPublicFloridaBrowserCapture(session: {
+    sourceType: string;
+    audioSource: string;
+    consentStatus: string;
+    clientId: string | null;
+    matterId: string | null;
+    issueIds: string[];
+    billIds: string[];
+    programElementIds: string[];
+    agencyIds: string[];
+    hearingId: string | null;
+    sourceUrl: string | null;
+  }): Promise<boolean> {
+    if (!PUBLIC_SOURCE_TYPES.includes(session.sourceType as (typeof PUBLIC_SOURCE_TYPES)[number]))
+      return false;
+    if (session.audioSource !== LiveHearingAudioSourceDto.browser_mic) return false;
+    if (session.consentStatus === 'needs_review') return false;
+    if (!session.hearingId || !session.sourceUrl) return false;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ url: string | null; visibility: string; event_status: string; calendar_snapshot: unknown }>
+    >`SELECT url, visibility, event_status, calendar_snapshot FROM committee_hearing WHERE id=${session.hearingId}`;
+    const hearing = rows[0];
+    if (!hearing) return false;
+    if (hearing.visibility !== 'public') return false;
+    const status = (hearing.event_status ?? '').toLowerCase();
+    if (status === 'canceled' || status === 'cancelled') return false;
+
+    const candidates = await this.prisma.$queryRaw<Array<{ official_page_url: string | null }>>`
+      SELECT official_page_url FROM hearing_stream_candidate WHERE hearing_id=${session.hearingId}`;
+    const anchors = floridaAnchorUrls({
+      url: hearing.url,
+      calendarSnapshot: hearing.calendar_snapshot,
+      streamCandidates: candidates.map((c) => ({ officialPageUrl: c.official_page_url })),
+    });
+    if (!anchors.includes(session.sourceUrl)) return false;
+    return isOfficialFloridaBrowserPage(session.sourceUrl);
   }
 
   /**

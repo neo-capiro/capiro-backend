@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest, prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 /**
  * Provider-neutral, per-call AI credential resolution.
  *
@@ -43,8 +44,8 @@ export class AiCredentialResolverService implements OnModuleInit {
     this.globalOpenaiKey = config.get('OPENAI_API_KEY', { infer: true });
     this.globalAnthropicKey = config.get('ANTHROPIC_API_KEY', { infer: true });
     this.preferredProvider = config.get('AI_PROVIDER', { infer: true });
-    this.openaiModel = config.get('OPENAI_MODEL', { infer: true });
-    this.anthropicModel = config.get('ANTHROPIC_MODEL', { infer: true });
+    this.openaiModel = upgradeTextModel(config.get('OPENAI_MODEL', { infer: true }));
+    this.anthropicModel = upgradeTextModel(config.get('ANTHROPIC_MODEL', { infer: true }));
     const rawKey = config.get('AI_CREDENTIAL_ENCRYPTION_KEY', { infer: true });
     if (rawKey) {
       try {
@@ -176,7 +177,7 @@ export class AiCredentialResolverService implements OnModuleInit {
           return {
             provider,
             apiKey,
-            model: row.modelOverride ?? this.defaultModelFor(provider),
+            model: upgradeTextModel(row.modelOverride ?? this.defaultModelFor(provider)),
             usedTenantKey: true,
             modelOverridden: row.modelOverride != null,
           };
@@ -218,11 +219,11 @@ export class AiCredentialResolverService implements OnModuleInit {
                 Authorization: `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
+              body: JSON.stringify(prepareOpenAiResponsesRequest({
                 model: model || this.openaiModel,
                 input: 'ping',
                 max_output_tokens: 16,
-              }),
+              })),
               signal: controller.signal,
             })
           : await fetch('https://api.anthropic.com/v1/messages', {
@@ -232,11 +233,11 @@ export class AiCredentialResolverService implements OnModuleInit {
                 'anthropic-version': '2023-06-01',
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
+              body: JSON.stringify(prepareAnthropicRequest({
                 model: model || this.anthropicModel,
                 max_tokens: 1,
                 messages: [{ role: 'user', content: 'ping' }],
-              }),
+              })),
               signal: controller.signal,
             });
       if (response.ok) return { ok: true };

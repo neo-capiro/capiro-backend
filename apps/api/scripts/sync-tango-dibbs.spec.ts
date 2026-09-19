@@ -720,6 +720,103 @@ describe('rate limiting', () => {
   });
 });
 
+// ── Per-endpoint request budget ─────────────────────────────────────────────
+//
+// Live 2026-09 operation found rfq alone consuming the account's entire
+// shared daily quota before rfp/award ever got a single successful request —
+// every day, indefinitely. These tests exist because that was found in
+// production, not in review.
+
+describe('per-endpoint request budget', () => {
+  test('an endpoint yields once it hits its own request budget, leaving the run incomplete but never throwing', async () => {
+    // 30 one-item pages: far more than a small budget should ever traverse.
+    const manyPages: Pages = Array.from({ length: 30 }, (_v, i) => [rfq(`p${i}`)]);
+    const { deps, calls } = fakeDeps({ rfq: manyPages });
+
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+      maxRequestsPerEndpoint: 3,
+    });
+
+    expect(calls.filter((c) => c.endpoint === 'rfq')).toHaveLength(3);
+    expect(byEndpoint(summary, 'rfq').requestAttempts).toBe(3);
+    expect(byEndpoint(summary, 'rfq').budgetExhausted).toBe(true);
+    expect(byEndpoint(summary, 'rfq').rateLimited).toBe(false);
+    expect(byEndpoint(summary, 'rfq').complete).toBe(false);
+    expect(summary.budgetExhausted).toBe(true);
+    expect(summary.completeness).toBe('in_progress');
+  });
+
+  test('THE CONTAINMENT PROPERTY: rfq exhausting its budget still lets rfp and award make real progress', async () => {
+    // Before this fix, rfq walked to exhaustion (retrying every rate-limited
+    // page) before rfp/award ever ran, so they always got zero rows.
+    const manyPages: Pages = Array.from({ length: 30 }, (_v, i) => [rfq(`p${i}`)]);
+    const { deps, solicitations, awards } = fakeDeps({
+      rfq: manyPages,
+      rfp: [[rfp('r')]],
+      award: [[award('a')]],
+    });
+
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq', 'rfp', 'award'],
+      maxRequestsPerEndpoint: 3,
+    });
+
+    expect(byEndpoint(summary, 'rfq').budgetExhausted).toBe(true);
+    // rfp and award each fit comfortably within the same small budget and
+    // reach a real, complete, written row — the defect this fix closes.
+    expect(byEndpoint(summary, 'rfp').complete).toBe(true);
+    expect(byEndpoint(summary, 'award').complete).toBe(true);
+    expect([...solicitations.keys()]).toContain('r');
+    expect([...awards.keys()]).toEqual(['a']);
+  });
+
+  test('retried requests count against the budget, not just successful pages', async () => {
+    const { deps, calls } = fakeDeps({ rfq: [[rfq('a')], [rfq('b')]] });
+    let attempt = 0;
+    (deps.gateway as any).listRfqs = jest.fn((options: any = {}) => {
+      attempt += 1;
+      calls.push({ endpoint: 'rfq', options: { ...options } });
+      // The first request is rate-limited and retried, so it alone spends
+      // half of the budget's 2 requests before a single page is ever read.
+      if (attempt === 1)
+        return Promise.reject(
+          new TangoDibbsHttpError(429, 'Tango DIBBS request failed (429)', {
+            remaining: 0,
+            limit: 25,
+            resetIn: null,
+            retryAfter: 0,
+            limitType: null,
+          }),
+        );
+      const page = (options?.page ?? 1) - 1;
+      return Promise.resolve({
+        items: [rfq(['a', 'b'][page]!)],
+        totalCount: null,
+        nextPage: page + 1 < 2 ? page + 2 : null,
+        rate: null,
+      });
+    });
+
+    const summary = await runDibbsSync(deps, {
+      commit: true,
+      full: true,
+      endpoints: ['rfq'],
+      maxRequestsPerEndpoint: 2,
+    });
+
+    // attempt 1: 429 (retried, no page read). attempt 2: page 1 succeeds and
+    // spends the budget's last request — page 2 is never fetched.
+    expect(byEndpoint(summary, 'rfq').requestAttempts).toBe(2);
+    expect(byEndpoint(summary, 'rfq').pagesRead).toBe(1);
+    expect(byEndpoint(summary, 'rfq').budgetExhausted).toBe(true);
+  });
+});
+
 // ── The client's envelope assertion ──────────────────────────────────────────
 
 describe('TangoDibbsClient envelope handling', () => {

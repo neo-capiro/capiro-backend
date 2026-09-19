@@ -35,10 +35,11 @@
  * the next incremental read starts there minus the safety overlap. This catches
  * updates to early pages even when a backfill takes several days to finish.
  *
- * Checkpoint format v2 has a distinct fingerprint. Older checkpoints did not
- * preserve the original walk start, so their cursor/window cannot be safely
- * promoted. The first v2 run deliberately replays the catalog once. Existing
- * forecast rows and human work remain intact; upserts are idempotent.
+ * Checkpoint format v3 has a distinct fingerprint because the forecast provider
+ * now receives a calendar-date query instead of the prior timestamp query. An
+ * unfinished v2 cursor must not be reused against those changed query semantics;
+ * the first v3 run deliberately replays the catalog once. Existing forecast rows
+ * and human work remain intact; upserts are idempotent.
  *
  * ── Resilience ───────────────────────────────────────────────────────────────
  *
@@ -164,8 +165,11 @@ export async function runForecastSync(
 
   // Version the checkpoint format, not the provider query. Safe one-time replay
   // avoids treating a legacy unfinished window as a proven watermark.
+  // v3 deliberately invalidates v2 checkpoints: forecast modified_after now
+  // has provider calendar-date semantics, so an old partial cursor must not be
+  // reused against the widened query window.
   const filterFingerprint = computeFilterFingerprint({
-    cursorWindowVersion: 2,
+    cursorWindowVersion: 3,
   });
   const checkpoint = await deps.store.readCheckpoint(SYNC_VERB, 'forecast', filterFingerprint);
   const isFirstRun = checkpoint == null;

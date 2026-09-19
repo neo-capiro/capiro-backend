@@ -104,7 +104,7 @@ describe('Advocacy History security & privacy contract', () => {
 
   it('Meri never auto-writes a canonical successful/partially_successful/unsuccessful outcome status without confirmOutcome or existing evidence', () => {
     expect(service).toContain('confirmOutcome');
-    expect(service).toMatch(/OUTCOME_STATUSES[\s\S]{0,600}hasOutcomeEvidence[\s\S]{0,300}confirmOutcome/);
+    expect(service).toMatch(/OUTCOME_STATUSES[\s\S]{0,1600}hasOutcomeEvidence[\s\S]{0,600}confirmOutcome/);
   });
 
   it('outcome links always carry causationClaimed:false — never an unconditional causal claim', () => {

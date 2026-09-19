@@ -22,6 +22,17 @@ describe('buildChatSystemPrompt', () => {
     expect(parts.base).not.toContain('trace to a tool result you retrieved this turn');
   });
 
+  it('injects the real conversation id so save_chat_attachments/save_note never have to ask the user for it', () => {
+    const prompt = buildChatSystemPrompt({ clientId: 'c1', conversationId: 'conv-42' }, ctx);
+    expect(prompt).toContain('The current conversation id is: conv-42');
+    expect(prompt).toContain('must never be asked of the user');
+  });
+
+  it('omits the conversation id line when no conversationId is given', () => {
+    const prompt = buildChatSystemPrompt({ clientId: 'c1' }, ctx);
+    expect(prompt).not.toContain('The current conversation id is:');
+  });
+
   it('injects pre-warmed memories so personal facts answer without a tool round (canary regression)', () => {
     const prompt = buildChatSystemPrompt(
       {

@@ -91,7 +91,13 @@ describe('Phase 6 §4 — strategy migrations are ordered, additive and reversib
   });
 
   it('appends the QA migrations without rewriting the prototype history', () => {
-    expect(migrationNames().slice(-QA_MIGRATIONS.length)).toEqual(QA_MIGRATIONS);
+    // Consecutive-and-in-order, not "the last two ever" — later migrations
+    // (e.g. the amendment strategy type, the async draft job) legitimately
+    // land after these without rewriting this rollout's own history.
+    const names = migrationNames();
+    const qaStart = names.indexOf(QA_MIGRATIONS[0]!);
+    expect(qaStart).toBeGreaterThan(-1);
+    expect(names.slice(qaStart, qaStart + QA_MIGRATIONS.length)).toEqual(QA_MIGRATIONS);
     expect(executableSql(sqlOf(QA_MIGRATIONS[1]!))).toMatch(/ADD COLUMN "purpose" TEXT\s*;/);
     expect(sqlOf(QA_MIGRATIONS[1]!)).toMatch(/--\s*ROLLBACK/);
   });

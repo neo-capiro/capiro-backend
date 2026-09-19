@@ -87,11 +87,61 @@ describe('LW-03 saved sessions in the hearing journey', () => {
     const link = await within(panel).findByRole('link', { name: /Open saved session:.*Fauci/ });
     expect(panel).toHaveTextContent('710 saved transcript segments');
     expect(panel).toHaveTextContent('19 intelligence moments');
+    // "No automatic capture requested" is inside the Live & Capture tab
+    fireEvent.click(screen.getByRole('tab', { name: 'Live & Capture' }));
     expect(screen.getByText('No automatic capture requested')).toBeInTheDocument();
     expect(screen.queryByText(/Capiro has no transcript for this proceeding/)).not.toBeInTheDocument();
-    expect(link).toHaveAttribute('href', `/intelligence/hearing-watch/${SESSION_ID}`);
-    fireEvent.click(link);
+    // Return to Overview to access the saved sessions panel
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    const panelAgain = await screen.findByRole('region', { name: 'Saved hearing sessions' });
+    const linkAgain = await within(panelAgain).findByRole('link', { name: /Open saved session:.*Fauci/ });
+    expect(linkAgain).toHaveAttribute('href', `/intelligence/hearing-watch/${SESSION_ID}`);
+    fireEvent.click(linkAgain);
     expect(await screen.findByText('Saved recording room reached')).toBeInTheDocument();
+  });
+
+  it('loads saved sessions through the canonical id when a legacy alias URL resolves elsewhere', async () => {
+    // Production shape (cm-119-338741 → canonical sen-*): the event endpoint
+    // resolves the alias server-side and returns the canonical event, and the
+    // sessions endpoint echoes the canonical id it resolved. The route must
+    // query sessions through the resolved canonical id — not the raw URL slug —
+    // or the hook's strict identity check rejects every valid response.
+    const ALIAS_ID = 'cm-119-338741';
+    const CANONICAL_ID = 'sen-119-338741';
+    const canonicalSavedResponse = {
+      ...savedResponse,
+      hearingId: CANONICAL_ID,
+      sessions: savedResponse.sessions.map((session) => ({
+        ...session,
+        id: `${session.id}-canonical`,
+      })),
+    };
+    apiGet.mockImplementation(async (url: string) => {
+      if (url === `/api/legiwatch/live-hearings/events/${CANONICAL_ID}/sessions`)
+        return { data: canonicalSavedResponse };
+      if (url === `/api/legiwatch/live-hearings/events/${CANONICAL_ID}`)
+        return { data: { ...publicHearing, id: CANONICAL_ID } };
+      if (url === `/api/legiwatch/live-hearings/events/${ALIAS_ID}`)
+        return { data: { ...publicHearing, id: CANONICAL_ID } };
+      throw new Error(`unexpected GET ${url}`);
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
+        <MemoryRouter initialEntries={[`/legiwatch/hearings/${ALIAS_ID}`]}>
+          <Routes>
+            <Route path="/legiwatch/hearings/:hearingId" element={<HearingDetailRoute />} />
+            <Route path="/intelligence/hearing-watch/:sessionId" element={<div>Saved recording room reached</div>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const panel = await screen.findByRole('region', { name: 'Saved hearing sessions' });
+    const link = await within(panel).findByRole('link', { name: /Open saved session/ });
+    expect(link).toHaveAttribute('href', `/intelligence/hearing-watch/${SESSION_ID}-canonical`);
+    // Sessions were fetched through the canonical id, never the raw alias.
+    expect(apiGet.mock.calls.some(([url]) => url === `/api/legiwatch/live-hearings/events/${CANONICAL_ID}/sessions`)).toBe(true);
+    expect(apiGet.mock.calls.some(([url]) => url === `/api/legiwatch/live-hearings/events/${ALIAS_ID}/sessions`)).toBe(false);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('keeps a failed session lookup distinct from zero and retries', async () => {

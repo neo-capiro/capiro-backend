@@ -1,10 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { hostname } from 'node:os';
 import { CommitteeSiteAdapter } from '../../hearing-discovery/adapters/committee-site.adapter.js';
-import { CongressGovAdapter, currentCongress } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
+import {
+  CongressGovAdapter,
+  currentCongress,
+} from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../../hearing-discovery/adapters/house-repository.adapter.js';
 import { SenateScheduleAdapter } from '../../hearing-discovery/adapters/senate-schedule.adapter.js';
-import { DiscoveryJobsService, type ProbeAdapterMap, type ProbeableAdapter } from '../../hearing-discovery/discovery-jobs.service.js';
+import {
+  DiscoveryJobsService,
+  type ProbeAdapterMap,
+  type ProbeableAdapter,
+} from '../../hearing-discovery/discovery-jobs.service.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LegiWatchPhase9CentralDiscoveryService } from './legiwatch-phase9-central-discovery.service.js';
@@ -14,6 +21,7 @@ import { LegiWatchPhase9ProvenanceBackfillService } from './legiwatch-phase9-pro
 import { LegiWatchPhase9OfficialTimeObservationService } from './legiwatch-phase9-official-time-observation.service.js';
 import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.service.js';
 import { LegiWatchPhase9RuntimeService } from './legiwatch-phase9-runtime.service.js';
+import { LegiWatchCommitteeNotificationService } from '../legiwatch-committee-notification.service.js';
 import type {
   LegiWatchPhase9EvidenceSource,
   LegiWatchPhase9Mode,
@@ -31,6 +39,7 @@ export const LEGIWATCH_PHASE9_API_JOBS = [
   'metrics',
   'provenance-backfill',
   'official-time-observation',
+  'notification-drain',
 ] as const;
 
 export type LegiWatchPhase9ApiJob = (typeof LEGIWATCH_PHASE9_API_JOBS)[number];
@@ -46,6 +55,7 @@ export class LegiWatchPhase9JobsService {
     private readonly provenanceBackfill: LegiWatchPhase9ProvenanceBackfillService,
     private readonly officialTimeObservation: LegiWatchPhase9OfficialTimeObservationService,
     private readonly metrics: LegiWatchPhase9MetricsService,
+    private readonly committeeNotifications: LegiWatchCommitteeNotificationService,
   ) {}
 
   async run(input: {
@@ -56,8 +66,7 @@ export class LegiWatchPhase9JobsService {
     limit?: number;
   }): Promise<unknown> {
     const workerId =
-      input.workerId?.trim() ||
-      `phase9-api:${hostname()}:${process.pid}:${input.job}`;
+      input.workerId?.trim() || `phase9-api:${hostname()}:${process.pid}:${input.job}`;
     const discovery = new DiscoveryJobsService(this.prisma);
 
     return this.runtime.run({
@@ -130,6 +139,31 @@ export class LegiWatchPhase9JobsService {
             intelligenceLagMinutes: integerEnv('LEGIWATCH_INTELLIGENCE_LAG_MINUTES', 10),
           });
         }
+        if (input.job === 'notification-drain') {
+          const codes = await this.prisma.withSystem(
+            (tx) => tx.$queryRaw<Array<{ code: string }>>`
+            SELECT DISTINCT committee_system_code AS code FROM legiwatch_committee_follow`,
+          );
+          const failures: string[] = [];
+          let inserted = 0;
+          for (const row of codes) {
+            try {
+              inserted += (
+                await this.committeeNotifications.syncFollow({ committeeSystemCode: row.code })
+              ).inserted;
+            } catch (error) {
+              failures.push(
+                `${row.code}: ${error instanceof Error ? error.message : String(error)}`,
+              );
+            }
+          }
+          const drained = await this.committeeNotifications.drainEmail();
+          // Complete queued deliveries, then expose any intake failure in the
+          // runtime heartbeat so the next tick can reconcile missed observations.
+          if (failures.length)
+            throw new Error(`Committee notification intake failed: ${failures.join('; ')}`);
+          return { committees: codes.length, inserted, ...drained };
+        }
         if (input.job === 'metrics') return this.metrics.emit();
         if (input.job === 'provenance-backfill') {
           // MANUAL-ONLY. Never scheduled, never registered as a required job.
@@ -195,7 +229,11 @@ function evidenceSourceFromEnv(): LegiWatchPhase9EvidenceSource {
 
 function rolloutAuditMode(): LegiWatchPhase9Mode {
   const value = (process.env.LEGIWATCH_PARALLEL_MODE ?? 'SHADOW').toUpperCase();
-  if (['SHADOW', 'CANARY', 'READINESS', 'CUTOVER_VERIFICATION', 'ROLLBACK_VERIFICATION'].includes(value)) {
+  if (
+    ['SHADOW', 'CANARY', 'READINESS', 'CUTOVER_VERIFICATION', 'ROLLBACK_VERIFICATION'].includes(
+      value,
+    )
+  ) {
     return value as LegiWatchPhase9Mode;
   }
   return 'SHADOW';

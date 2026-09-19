@@ -10,7 +10,6 @@ import {
   normalizeSetAsideCode,
   type SetAsideEligibilityInput,
 } from './set-aside.js';
-import { computeSamEligibility } from './sam-opportunity-relevance.js';
 
 function input(overrides: Partial<SetAsideEligibilityInput> = {}): SetAsideEligibilityInput {
   return {
@@ -129,7 +128,20 @@ describe('a matching certification still returns needs_review', () => {
   });
 
   test('no state is ever `eligible` or `ineligible`, across the whole input space', () => {
-    for (const code of ['SBA', 'SBP', '8A', '8AN', 'SDVOSBC', 'SDVOSBS', 'WOSB', 'WOSBSS', 'EDWOSB', 'HZC', 'HZS', 'UNKNOWNCODE']) {
+    for (const code of [
+      'SBA',
+      'SBP',
+      '8A',
+      '8AN',
+      'SDVOSBC',
+      'SDVOSBS',
+      'WOSB',
+      'WOSBSS',
+      'EDWOSB',
+      'HZC',
+      'HZS',
+      'UNKNOWNCODE',
+    ]) {
       for (const certifications of [[], ['8A'], ['SDVOSB'], ['EDWOSB'], ['HUBZONE'], ['SBA']]) {
         for (const selfReportsSmallBusiness of [true, false]) {
           for (const hasNaicsSizeDetermination of [true, false]) {
@@ -153,7 +165,11 @@ describe('general small-business and full-and-open', () => {
   test('a small-business set-aside turns on size, not on a certification', () => {
     // Holding 8(a) says nothing about whether the firm is small for THIS NAICS.
     const result = evaluateSetAsideEligibility(
-      input({ certifications: ['8A'], setAsideCode: 'SBA', setAsideLabel: 'Total Small Business Set-Aside' }),
+      input({
+        certifications: ['8A'],
+        setAsideCode: 'SBA',
+        setAsideLabel: 'Total Small Business Set-Aside',
+      }),
     );
     expect(result.state).toBe('needs_review');
     expect(result.matchedCertifications).toEqual([]);
@@ -169,9 +185,7 @@ describe('general small-business and full-and-open', () => {
   });
 
   test('no set-aside at all is `unknown`, not a claim', () => {
-    const result = evaluateSetAsideEligibility(
-      input({ setAsideCode: null, setAsideLabel: null }),
-    );
+    const result = evaluateSetAsideEligibility(input({ setAsideCode: null, setAsideLabel: null }));
     expect(result.state).toBe('unknown');
     expect(result.reason).toMatch(/responsibility determination/);
     expect(result.missingFacts).toEqual([]);
@@ -212,67 +226,27 @@ describe('legacy value migration table', () => {
   });
 });
 
-describe('computeSamEligibility delegates to the shared evaluator', () => {
-  const client = {
-    naicsCodes: [],
-    pscCodes: [],
-    capabilityKeywords: [],
-    programElementCodes: [],
-    priorAgencies: [],
-    priorOffices: [],
-    facilityStates: [],
-    facilitySites: [],
-    setAsideCertifications: ['SDVOSB'],
-    sector: null,
-    applicantTypes: [],
-  };
-
-  test('an exact certification match no longer reports `eligible`', () => {
-    const result = computeSamEligibility(client, {
-      noticeType: 'Solicitation',
-      setAside: 'SDVOSB Set-Aside',
-      setAsideCode: 'SDVOSBC',
-      naicsCode: '541715',
-      pscCode: null,
-      agency: null,
-      subAgency: null,
-      office: null,
-      title: 'x',
-      description: null,
-      placeOfPerformance: {},
-      acceptedProgramElementCodes: [],
-    } as never);
-    expect(result.state).toBe('needs_review');
-  });
-
-  test('a client recorded with the legacy `SBA` value gets no eligibility credit', () => {
-    const result = computeSamEligibility(
-      { ...client, setAsideCertifications: ['SBA'] },
-      {
-        noticeType: 'Solicitation',
-        setAside: 'Total Small Business Set-Aside',
-        setAsideCode: 'SBA',
-        naicsCode: '541715',
-        pscCode: null,
-        agency: null,
-        subAgency: null,
-        office: null,
-        title: 'x',
-        description: null,
-        placeOfPerformance: {},
-        acceptedProgramElementCodes: [],
-      } as never,
-    );
-    expect(result.state).toBe('needs_review');
-    expect(result.reason).not.toMatch(/explicitly records certification/);
-  });
-});
 describe('source no-set-aside sentinels', () => {
-  test.each(['No Set aside used', 'No set-aside', 'None', 'N/A', 'Unrestricted', 'Full and open competition'])('normalizes %s without asserting general eligibility', (label) => {
-    expect(evaluateSetAsideEligibility(input({ setAsideCode: null, setAsideLabel: label }))).toMatchObject({ state: 'unknown', missingFacts: [], matchedCertifications: [] });
-    expect(evaluateSetAsideEligibility(input({ setAsideCode: label, setAsideLabel: null })).state).toBe('unknown');
+  test.each([
+    'No Set aside used',
+    'No set-aside',
+    'None',
+    'N/A',
+    'Unrestricted',
+    'Full and open competition',
+  ])('normalizes %s without asserting general eligibility', (label) => {
+    expect(
+      evaluateSetAsideEligibility(input({ setAsideCode: null, setAsideLabel: label })),
+    ).toMatchObject({ state: 'unknown', missingFacts: [], matchedCertifications: [] });
+    expect(
+      evaluateSetAsideEligibility(input({ setAsideCode: label, setAsideLabel: null })).state,
+    ).toBe('unknown');
   });
   test('keeps a real restriction when a contradictory label says none', () => {
-    expect(evaluateSetAsideEligibility(input({ setAsideCode: 'SDVOSBC', setAsideLabel: 'No Set aside used' })).state).toBe('needs_review');
+    expect(
+      evaluateSetAsideEligibility(
+        input({ setAsideCode: 'SDVOSBC', setAsideLabel: 'No Set aside used' }),
+      ).state,
+    ).toBe('needs_review');
   });
 });

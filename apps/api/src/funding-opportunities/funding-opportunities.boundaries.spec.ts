@@ -55,14 +55,9 @@ describe('role matrix (real RolesGuard, real @Roles metadata)', () => {
   const guard = new RolesGuard(new Reflector());
   const proto = FundingOpportunitiesController.prototype;
   const handlers: Array<[string, (...args: never[]) => unknown]> = [
-    ['list', proto.list],
-    ['getOne', proto.getOne],
-    ['listForClient', proto.listForClient],
-    ['summaryForClient', proto.summaryForClient],
     ['save', proto.save],
     ['patch', proto.patch],
-    ['dismiss', proto.dismiss],
-    ['restore', proto.restore],
+    ['act', proto.act],
   ];
 
   test('the controller declares standard_user as its minimum', () => {
@@ -92,7 +87,7 @@ describe('role matrix (real RolesGuard, real @Roles metadata)', () => {
   });
 
   test('an unrecognized role fails CLOSED', () => {
-    expect(() => guard.canActivate(contextFor('legacy_owner', proto.list))).toThrow(
+    expect(() => guard.canActivate(contextFor('legacy_owner', proto.act))).toThrow(
       ForbiddenException,
     );
   });
@@ -413,27 +408,12 @@ describe('tenant-scope coverage', () => {
     expect(model).toMatch(/\n\s*tenantId\s/);
   });
 
-  test('the service never touches the workflow model outside withTenant', () => {
-    const src = readFileSync(join(__dirname, 'funding-opportunities.service.ts'), 'utf8');
-    // Bare `this.prisma.clientFundingOpportunity.<op>` would silently return every
-    // tenant's rows: the runtime role bypasses RLS.
-    expect(src).not.toMatch(/this\.prisma\.clientFundingOpportunity\./);
-  });
-
-  test('every global-catalog read is explicitly marked exempt with a reason', () => {
-    const src = readFileSync(join(__dirname, 'funding-opportunities.service.ts'), 'utf8');
-    const globalReads = (src.match(/this\.prisma\.(federalGrant|samOpportunity)\./g) ?? []).length;
-    const exemptions = (src.match(/tenant-scope-exempt:/g) ?? []).length;
-    expect(globalReads).toBeGreaterThan(0);
-    expect(exemptions).toBeGreaterThan(0);
-  });
 });
 
 // ── Corporate award attribution must be explicitly reviewed ────────────────
 
 describe('award attribution requires a confirmed reviewed mapping with opt-in roll-up', () => {
   const files = [
-    join(__dirname, 'funding-opportunities.service.ts'),
     join(__dirname, '../district-nexus/district-nexus.service.ts'),
     join(__dirname, '../intelligence/report-card.service.ts'),
     join(__dirname, '../intelligence/intelligence.service.ts'),
@@ -449,10 +429,10 @@ describe('award attribution requires a confirmed reviewed mapping with opt-in ro
   test('contracting and assistance award consumers require review + roll-up', () => {
     for (const file of files) {
       const src = stripComments(readFileSync(file, 'utf8'));
-      for (const match of src.matchAll(/source:\s*(?:\{\s*in:\s*\[[^\]]*(?:contracting|assistance_recipient)[^\]]*\]\s*\}|['"](?:contracting|assistance_recipient)['"])/g)) {
+      for (const match of src.matchAll(/source:\s*(?:\{\s*in:\s*\[[^\]]*(?:contracting|assistance_recipient)[^\]]*\]\s*\}|['\"](?:contracting|assistance_recipient)['\"])/g)) {
         const nearby = src.slice(Math.max(0, match.index! - 180), match.index! + 360);
         if (!/confirmed:\s*true/.test(nearby)) continue;
-        expect(nearby).toMatch(/reviewStatus:\s*['"]confirmed['"]/);
+        expect(nearby).toMatch(/reviewStatus:\s*['\"]confirmed['\"]/);
         expect(nearby).toMatch(/rollUpAwards:\s*true/);
       }
     }
@@ -475,21 +455,14 @@ describe('a future opportunity never contributes to a District Nexus score', () 
   });
 
   test('the District Nexus scorer SUPPRESSES awarded-funding credit for opportunity-only evidence', () => {
-    // The guarantee is not "the scorer never hears about opportunities" — it does,
-    // via `opportunityOnly`, and that is how the guarantee is IMPLEMENTED: an
-    // awarded-funding component backed only by forecasts earns a zero multiplier,
-    // not a reduced one. Asserting the absence of the word would have passed only
-    // until someone deleted the protection.
     const src = readFileSync(join(dnDir, 'district-nexus-scoring.ts'), 'utf8');
     expect(src).toContain('opportunityOnly');
     expect(src).toMatch(/suppressedByOpportunityOnly[\s\S]{0,400}multiplier\s*=\s*suppressedByOpportunityOnly\s*\?\s*0/);
   });
 
-  test('the Funding Opportunities service never writes District Nexus evidence', () => {
-    // A pursuit decision is not geographic evidence. If saving an opportunity
-    // wrote a ClientGrantNexus row, it would start contributing to a district
-    // nexus score — the exact false claim the two-table split exists to prevent.
-    const src = readFileSync(join(__dirname, 'funding-opportunities.service.ts'), 'utf8');
+  test('V2 human opportunity writes never create District Nexus evidence', () => {
+    const src = readFileSync(join(__dirname, 'funding-opportunity-v2-workflow.service.ts'), 'utf8');
+    expect(src).toContain('clientFundingOpportunity');
     expect(src).not.toMatch(/clientGrantNexus/);
   });
 });

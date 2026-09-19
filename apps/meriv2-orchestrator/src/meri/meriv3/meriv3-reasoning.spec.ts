@@ -5,13 +5,13 @@ import {
 } from './meriv3-reasoning.js';
 
 describe('MeriV3 reasoning profiles', () => {
-  test('unknown or missing input defaults to balanced GPT-5.6 Terra', () => {
+  test('unknown or missing input defaults to GPT-6 Astra at medium effort', () => {
     expect(normalizeMeriV3ReasoningMode(undefined)).toBe('standard');
     expect(normalizeMeriV3ReasoningMode('ultra')).toBe('standard');
     expect(resolveMeriV3ReasoningProfile(undefined, {})).toMatchObject({
       mode: 'standard',
       effort: 'medium',
-      model: 'gpt-5.6-terra',
+      model: 'gpt-6-astra',
     });
   });
 
@@ -19,10 +19,10 @@ describe('MeriV3 reasoning profiles', () => {
     const profiles = listMeriV3ReasoningProfiles({});
     expect(profiles.map((profile) => profile.mode)).toEqual(['fast', 'standard', 'deep', 'max']);
     expect(profiles.map(({ model, effort }) => ({ model, effort }))).toEqual([
-      { model: 'gpt-5.6-luna', effort: 'low' },
-      { model: 'gpt-5.6-terra', effort: 'medium' },
-      { model: 'gpt-5.6', effort: 'high' },
-      { model: 'gpt-5.6', effort: 'max' },
+      { model: 'gpt-6-astra', effort: 'low' },
+      { model: 'gpt-6-astra', effort: 'medium' },
+      { model: 'gpt-6-astra', effort: 'high' },
+      { model: 'gpt-6-astra', effort: 'max' },
     ]);
   });
 
@@ -72,7 +72,7 @@ describe('MeriV3 reasoning profiles', () => {
       resolveMeriV3ReasoningProfile('max', {
         MERIV3_MAX_MODEL: 'gpt-5.6-sol',
       }),
-    ).toMatchObject({ model: 'gpt-5.6-sol', effort: 'max' });
+    ).toMatchObject({ model: 'gpt-6-astra', effort: 'max' });
 
     expect(
       resolveMeriV3ReasoningProfile('max', {

@@ -34,7 +34,7 @@
      to stay centered/capped at 1368 beyond it — the same calc-padding trick
      Strategies uses for .st-hero (strategies.css:45), scaled to Directory's
      own 24px gutter and 1368px surface instead of 32px/1440px. */
-  padding: 18px calc(var(--capiro-space-06) + max(0px, (100% - 1368px) / 2)) 0;
+  padding: 22px calc(var(--capiro-space-06) + max(0px, (100% - 1368px) / 2)) 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -51,7 +51,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  background: var(--capiro-color-icon-accent);
+  background: var(--uui-directory-accent);
 }
 
 .capiro-vnext-root .capiro-directory-header__copy {
@@ -63,7 +63,7 @@
 .capiro-vnext-root .capiro-directory-header__eyebrow {
   margin: 0;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
@@ -84,6 +84,7 @@
 }
 
 .capiro-vnext-root .capiro-directory-header__subtitle {
+  max-width: 720px;
   margin: 2px 0 0;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
@@ -138,12 +139,13 @@
   box-sizing: border-box;
   min-height: 40px;
   /* Same full-bleed-background/centered-content trick as the header above. */
-  padding: 6px calc(var(--capiro-space-06) + max(0px, (100% - 1368px) / 2)) 0;
+  padding: 18px calc(var(--capiro-space-06) + max(0px, (100% - 1368px) / 2)) 0;
   display: flex;
   align-items: flex-start;
   gap: var(--capiro-space-02);
   background: var(--uui-gray-50);
   overflow-x: auto;
+  border-bottom: 1px solid var(--uui-gray-200);
   scrollbar-width: none;
 }
 
@@ -177,7 +179,7 @@
   color: var(--uui-gray-900);
   font-weight: 600;
   border-color: var(--uui-gray-200);
-  box-shadow: inset 0 2px 0 var(--capiro-color-text-accent);
+  box-shadow: inset 0 2px 0 var(--uui-directory-accent);
 }
 
 .capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item--current:hover {
@@ -217,7 +219,7 @@
   height: 24px;
   flex: 0 0 auto;
   border-radius: var(--capiro-radius-circular);
-  background: var(--capiro-color-icon-accent);
+  background: var(--uui-directory-accent);
 }
 
 .capiro-vnext-root .capiro-directory-ribbon__label {
@@ -306,7 +308,7 @@
 }
 
 .capiro-vnext-root .capiro-directory-search__clear:hover { color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-directory-search__clear:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--uui-radius-control); }
+.capiro-vnext-root .capiro-directory-search__clear:focus-visible { outline: none; box-shadow: var(--uui-directory-focus-ring); border-radius: var(--uui-radius-control); }
 
 /* Filter pill (937:2721) — circular, label is the control's text. */
 .capiro-vnext-root .capiro-directory-filter { position: relative; flex: 0 0 auto; }
@@ -329,13 +331,17 @@
   white-space: nowrap;
 }
 
-.capiro-vnext-root .capiro-directory-filter__pill:hover { color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-directory-filter__pill:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
+.capiro-vnext-root .capiro-directory-filter__pill:hover {
+  border-color: var(--uui-directory-accent-ring);
+  background: var(--uui-gray-100);
+  color: var(--uui-directory-accent-hover);
+}
+.capiro-vnext-root .capiro-directory-filter__pill:focus-visible { outline: none; box-shadow: var(--uui-directory-focus-ring); }
 
 .capiro-vnext-root .capiro-directory-filter__pill--selected {
-  border-color: var(--capiro-color-text-accent);
-  background: var(--capiro-color-bg-accent-soft);
-  color: var(--capiro-color-text-accent);
+  border-color: var(--uui-directory-accent);
+  background: var(--uui-directory-accent-tint);
+  color: var(--uui-directory-accent);
 }
 
 .capiro-vnext-root .capiro-directory-filter__pill--unavailable { cursor: not-allowed; opacity: 0.72; color: var(--uui-gray-400); }
@@ -383,8 +389,8 @@
 }
 
 .capiro-vnext-root .capiro-directory-filter__option:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-directory-filter__option:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
-.capiro-vnext-root .capiro-directory-filter__option[aria-checked='true'] { color: var(--capiro-color-text-accent); font-weight: 600; }
+.capiro-vnext-root .capiro-directory-filter__option:focus-visible { outline: none; box-shadow: var(--uui-directory-focus-ring); }
+.capiro-vnext-root .capiro-directory-filter__option[aria-checked='true'] { color: var(--uui-directory-accent); font-weight: 600; }
 
 .capiro-vnext-root .capiro-directory-filter__note {
   margin: 0;
@@ -402,10 +408,10 @@
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   line-height: 17px;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
 }
 
-.capiro-vnext-root .capiro-directory-toolbar__reset:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--uui-radius-control); }
+.capiro-vnext-root .capiro-directory-toolbar__reset:focus-visible { outline: none; box-shadow: var(--uui-directory-focus-ring); border-radius: var(--uui-radius-control); }
 
 /* ── Results + selection rail (937:2737) ────────────────────────────────── */
 .capiro-vnext-root .capiro-directory-split {
@@ -494,13 +500,13 @@
   letter-spacing: 0.6px;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
   cursor: pointer;
 }
 
 .capiro-vnext-root .capiro-directory-results__expand:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 /* Column header (937:2742) + rows (937:2748) share one grid so the columns
@@ -529,19 +535,22 @@
 .capiro-vnext-root .capiro-directory-row-grid {
   display: grid;
   grid-template-columns:
-    minmax(0, 1.6fr) minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 1.4fr) 70px;
+    minmax(190px, 1.15fr) minmax(190px, 1.15fr) minmax(170px, 1fr) minmax(180px, 1fr) 70px;
+  min-width: 900px;
   gap: 10px;
   align-items: start;
 }
 
 /* Department of War results column is 960px with six columns (939). The grid
    shares the column-header / row contract so columns cannot drift apart. */
-.capiro-vnext-root .capiro-directory-results--dow { max-width: 960px; }
+.capiro-vnext-root .capiro-directory-results--dow { max-width: none; }
 .capiro-vnext-root .capiro-directory-row-grid--dow {
   display: grid;
   grid-template-columns:
-    minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 1.5fr) 60px;
-  gap: 10px;
+    minmax(175px, 1.05fr) minmax(150px, 0.85fr) minmax(175px, 1.05fr)
+    minmax(78px, 0.42fr) minmax(190px, 1.15fr) 70px;
+  min-width: 1020px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -631,11 +640,15 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: calc(100vh - 268px);
   border: 0;
   border-radius: var(--uui-radius-card);
   background: var(--uui-white);
   box-shadow: var(--uui-shadow-elevation);
   overflow: hidden;
+}
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-directory-canvas { min-height: 560px; }
 }
 .capiro-vnext-root .capiro-directory-canvas__scroller {
   overflow-x: auto;
@@ -654,6 +667,11 @@
    the frame itself just fills whatever width the canvas card has. */
 .capiro-vnext-root .capiro-directory-canvas__frame {
   width: 100%;
+  /* The hard 1180px floor (04-RESPONSIVE-CONTRACT.md: "hierarchy canvas has a
+     hard min-width: 1180px and scrolls in both axes") belongs on the SCROLLED
+     CONTENT, never on .capiro-directory-canvas__scroller itself — a min-width
+     on the scroller defeats the scroll (responsive.css section 4). */
+  min-width: 1180px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -733,9 +751,10 @@
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow { background: var(--uui-white); }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__pane { cursor: grab; }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__pane:active { cursor: grabbing; }
-.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node { width: 268px; border: 0; background: transparent; }
-.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-committee { width: 360px; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node { width: 270px; border: 0; background: transparent; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-committee { width: 340px; }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-more { width: 216px; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-unit { width: 100%; }
 /* Handles exist only so an edge docks on the card border. Never a connection
    affordance (nodesConnectable={false}), so they are invisible and inert. */
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__handle {
@@ -750,6 +769,7 @@
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-flow-node { width: 100%; max-width: none; pointer-events: none; }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee {
   padding: 16px;
+  border-radius: var(--uui-radius-card);
   background: var(--uui-gray-900);
   box-shadow: var(--uui-shadow-elevation);
 }
@@ -760,32 +780,61 @@
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__contactline { color: var(--uui-chrome-label-idle); }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__contact { border-top-color: var(--uui-chrome-item-active-bg); }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__mark { background: var(--uui-chrome-item-active-bg); color: var(--uui-white); }
-.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--leadership { border-left: 3px solid var(--capiro-color-text-accent); }
-/* A unit card is the column header for the roster hanging beneath it: quiet
-   fill, so the eye groups the column before it reads individual names. */
+/* Leadership tier (02-VISUAL-SPEC.md "Committee hierarchy"): white card,
+   inset hairline ring + card shadow — no accent left-border. */
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--leadership {
+  min-height: 62px;
+  box-shadow: var(--uui-shadow-card);
+}
+/* A unit card is the column header for the roster hanging beneath it: white
+   card with the card shadow, matching the spec's unit-card treatment
+   (no left accent bar, no gray-50 fill — that was this file's pre-restyle
+   placeholder look). */
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--unit {
-  border-color: var(--uui-gray-200);
-  border-left: 3px solid var(--uui-gray-400);
-  background: var(--uui-gray-50);
+  min-height: 70px;
+  padding: 12px 14px;
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-card);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--staff {
+  min-height: 68px;
+  padding: 11px 12px;
+  border: 1px solid var(--uui-gray-200);
+  border-radius: 10px;
   box-shadow: none;
 }
-.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--staff { border: 1px solid var(--uui-gray-200); box-shadow: var(--uui-shadow-card); }
 /* "Show N more" keeps a full unit column collapsed by default — a 60-person
    committee must still read as an org chart, not a wall of cards. */
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--more {
   align-items: center;
+  min-height: 52px;
+  padding: 11px 12px;
+  border-radius: 10px;
   border-color: var(--uui-gray-200);
   background: var(--uui-gray-50);
   box-shadow: none;
 }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--more .capiro-directory-node__name { margin-top: 0; font-size: 12px; }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--former { opacity: 0.65; }
-.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node.selected .capiro-directory-node--staff {
-  border-color: var(--capiro-color-text-accent);
-  box-shadow: var(--capiro-focus-ring);
-  background: var(--capiro-color-bg-accent-soft);
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--staff:hover,
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--leadership:hover,
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--unit:hover {
+  background: var(--uui-gray-50);
 }
-.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__edge-path { stroke: var(--uui-gray-300); stroke-width: 1.5; }
+/* Selected node ring (02: "selected hierarchy node ring — inset 0 0 0 2px
+   #294E68") — not the keyboard focus ring, which is a different token for a
+   different state (:focus-visible, not .selected). */
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node.selected .capiro-directory-node--staff {
+  border-color: var(--uui-directory-accent);
+  box-shadow: inset 0 0 0 2px var(--uui-directory-accent);
+  background: var(--uui-directory-accent-tint);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--staff .capiro-directory-node__kind {
+  color: var(--uui-directory-accent);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__edge-path { stroke: var(--uui-gray-300); stroke-width: 1; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__background pattern circle { fill: var(--uui-gray-200); }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__controls {
   overflow: hidden;
   border: 1px solid var(--uui-gray-200);
@@ -815,7 +864,7 @@
   box-shadow: var(--uui-shadow-card);
   font-size: 11px;
   line-height: 16px;
-  color: var(--uui-gray-600);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-directory-node {
@@ -870,9 +919,9 @@
   max-width: 240px;
 }
 .capiro-vnext-root .capiro-directory-node--selected {
-  border: 2px solid var(--capiro-color-text-accent);
+  border: 2px solid var(--uui-directory-accent);
   box-shadow: none;
-  background: var(--capiro-color-bg-accent-soft);
+  background: var(--uui-directory-accent-tint);
 }
 /* Dimmed so a former staffer reads as the exception at a glance, scanning the
    diagram — not just from the "Former" badge text next to their name. */
@@ -976,7 +1025,7 @@
   margin-top: 8px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
   opacity: 0;
   transition: opacity var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
@@ -1032,8 +1081,12 @@
   color: var(--uui-gray-500);
 }
 
+.capiro-vnext-root .capiro-directory-cell--aligned .capiro-directory-cell__primary {
+  color: var(--uui-directory-accent);
+}
+
 .capiro-vnext-root .capiro-directory-cell--muted .capiro-directory-cell__primary {
-  color: var(--uui-gray-500);
+  color: var(--uui-gray-400);
 }
 
 /* A plain quiet sub-box, matching every other field row on the rail — the
@@ -1120,11 +1173,12 @@
 }
 
 .capiro-vnext-root .capiro-directory-row:hover { border-color: var(--uui-gray-300); }
-.capiro-vnext-root .capiro-directory-row:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
+.capiro-vnext-root .capiro-directory-row:focus-visible { outline: none; box-shadow: var(--uui-directory-focus-ring); }
 
 .capiro-vnext-root .capiro-directory-row--selected {
   border-color: var(--uui-gray-300);
   background: var(--uui-gray-100);
+  box-shadow: inset 3px 0 0 var(--uui-directory-accent);
 }
 
 /* ── Congressional Staff hierarchy rows ─────────────────────────────────────
@@ -1154,7 +1208,7 @@
 
 .capiro-vnext-root .capiro-directory-row__select:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 /* Disclosure caret. Expanding an office and selecting it are different
@@ -1182,17 +1236,17 @@
 
 .capiro-vnext-root .capiro-directory-caret:hover {
   border-color: var(--uui-gray-300);
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
 }
 
 .capiro-vnext-root .capiro-directory-caret:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 .capiro-vnext-root .capiro-directory-caret[aria-expanded='true'] {
   border-color: var(--uui-gray-300);
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
 }
 
 /* Roster block: the staffers of one office. The [hidden] override is required,
@@ -1243,7 +1297,7 @@
   top: -13px;
   bottom: -13px;
   width: 2px;
-  background: var(--capiro-color-icon-accent);
+  background: var(--uui-directory-accent);
   opacity: 0.3;
 }
 
@@ -1254,7 +1308,7 @@
   top: 22px;
   width: 14px;
   height: 2px;
-  background: var(--capiro-color-icon-accent);
+  background: var(--uui-directory-accent);
   opacity: 0.3;
 }
 
@@ -1302,6 +1356,12 @@
   background: var(--uui-gray-900);
   border: 0;
   color: var(--uui-white);
+}
+.capiro-vnext-root .capiro-directory-leg-card .capiro-identity-mark--md {
+  width: 36px;
+  height: 36px;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .capiro-vnext-root .capiro-directory-rail .capiro-identity-mark--lg {
@@ -1392,7 +1452,7 @@
   font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
   white-space: nowrap;
   opacity: 0;
   transition: opacity var(--capiro-motion-fast) var(--capiro-motion-ease);
@@ -1555,8 +1615,15 @@
   color: var(--uui-gray-600);
 }
 
-/* A background refetch must be visible without blanking resolved content. */
-.capiro-vnext-root .capiro-directory-results--refetching { opacity: 0.72; }
+/* A background refetch must be visible without blanking resolved content.
+   Note: uiFade (0 -> 1 opacity) is the wrong shape for settling INTO a
+   dimmed resting state — it was misapplied here in an earlier pass and has
+   been reverted. uiFade is for the surface/profile switch transition
+   (02-VISUAL-SPEC.md "Motion"), which belongs on whichever component owns
+   the route/tab switch, not this dimming state. */
+.capiro-vnext-root .capiro-directory-results--refetching {
+  opacity: 0.72;
+}
 
 /* ── State Legislators card grid (§7.5) ─────────────────────────────────── */
 .capiro-vnext-root .capiro-directory-leg-section { display: flex; flex-direction: column; gap: 10px; }
@@ -1567,20 +1634,20 @@
 .capiro-vnext-root .capiro-directory-leg-grid {
   display: grid;
   min-width: 0;
-  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .capiro-vnext-root .capiro-directory-leg-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   padding: 16px;
   text-align: left;
   background: var(--uui-white);
   border: 0;
   border-radius: var(--uui-radius-card);
-  box-shadow: var(--uui-shadow-card);
+  box-shadow: 0 0 0 1px var(--uui-gray-200), var(--uui-shadow-elevation);
   cursor: pointer;
   font: inherit;
   color: inherit;
@@ -1589,12 +1656,24 @@
 /* A grid card gets a full selection ring (it's a tile you've chosen), not
    the row-list's left accent bar — distinct affordance for a distinct
    layout, matching the prototype exactly. */
+.capiro-vnext-root .capiro-directory-leg-card:hover {
+  box-shadow: 0 0 0 1px var(--uui-directory-accent-ring), var(--uui-shadow-card-hover);
+}
+
 .capiro-vnext-root .capiro-directory-leg-card--selected {
-  box-shadow: 0 0 0 2px var(--capiro-color-text-accent), var(--uui-shadow-elevation);
+  box-shadow: 0 0 0 2px var(--uui-directory-accent), var(--uui-shadow-elevation);
 }
 
 .capiro-vnext-root .capiro-directory-leg-card__head { display: flex; gap: 10px; align-items: center; }
 .capiro-vnext-root .capiro-directory-leg-card__id { min-width: 0; }
+.capiro-vnext-root .capiro-directory-leg-card__eyebrow {
+  margin: 0 0 2px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--uui-gray-500);
+}
 
 .capiro-vnext-root .capiro-directory-leg-card__name {
   margin: 0;
@@ -1627,14 +1706,14 @@
 }
 
 .capiro-vnext-root .capiro-directory-party-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 9999px;
   background: var(--uui-gray-500);
 }
-.capiro-vnext-root .capiro-directory-party-dot--d { background: var(--capiro-color-info-rail); }
-.capiro-vnext-root .capiro-directory-party-dot--r { background: var(--capiro-color-danger-rail); }
-.capiro-vnext-root .capiro-directory-party-dot--i { background: var(--capiro-color-warning-rail); }
+.capiro-vnext-root .capiro-directory-party-dot--d { background: var(--uui-directory-accent); }
+.capiro-vnext-root .capiro-directory-party-dot--r { background: var(--uui-error-fg); }
+.capiro-vnext-root .capiro-directory-party-dot--i { background: var(--uui-gray-500); }
 
 /* 1px gap over a gray-200 fill reads as hairline dividers between the three
    cells, so the group looks like one seamed strip rather than three
@@ -1685,7 +1764,7 @@
   color: var(--uui-gray-300);
 }
 .capiro-vnext-root .capiro-directory-stat--unknown .capiro-directory-stat__label {
-  color: var(--capiro-color-text-warning);
+  color: var(--uui-warning-fg);
 }
 .capiro-vnext-root .capiro-directory-stat__unknown-note {
   display: block;
@@ -1701,7 +1780,6 @@
 .capiro-vnext-root .capiro-directory-leg-card__foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--uui-gray-200);
@@ -1716,7 +1794,14 @@
   white-space: nowrap;
 }
 
-.capiro-vnext-root .capiro-directory-leg-card__email--none { color: var(--capiro-color-text-warning); }
+.capiro-vnext-root .capiro-directory-leg-card__email--none { color: var(--uui-warning-fg); }
+.capiro-vnext-root .capiro-directory-leg-card__footer-dot {
+  color: var(--uui-gray-300);
+  flex: 0 0 auto;
+}
+.capiro-vnext-root .capiro-directory-leg-card__foot .capiro-directory-cell__action {
+  margin-left: auto;
+}
 
 /* ── Member profile modal (MemberProfileModalVNext) ─────────────────────────
    vNext re-skin of canonical's DirectoryMemberProfileModal: same seven tabs,
@@ -1726,7 +1811,13 @@
    overrides above, never a bare `.capiro-modal` rule. */
 .capiro-vnext-root .capiro-dirprofile .capiro-modal {
   width: min(1120px, 100%);
-  max-height: min(88vh, 940px);
+  max-height: calc(100vh - 56px);
+  border-radius: var(--uui-radius-dialog);
+  animation: uiRise 0.18s ease-out;
+}
+
+.capiro-vnext-root .capiro-dirprofile--node .capiro-modal {
+  width: min(560px, 100%);
 }
 
 .capiro-vnext-root .capiro-dirprofile__body {
@@ -1742,7 +1833,7 @@
   font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
   text-decoration: none;
 }
 
@@ -1752,7 +1843,7 @@
 .capiro-vnext-root .capiro-dirprofile__escape-link:focus-visible,
 .capiro-vnext-root .capiro-dirprofile__link:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
   border-radius: var(--uui-radius-control);
 }
 
@@ -1836,7 +1927,7 @@
 
 .capiro-vnext-root .capiro-dirprofile__linkbtn:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 .capiro-vnext-root .capiro-dirprofile__linkbtn--primary {
@@ -1968,7 +2059,7 @@
 
 .capiro-vnext-root .capiro-dirprofile__copybtn:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 .capiro-vnext-root .capiro-dirprofile__addresses {
@@ -2010,7 +2101,7 @@
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
 }
 
 .capiro-vnext-root .capiro-dirprofile-card__rows {
@@ -2037,7 +2128,7 @@
 .capiro-vnext-root .capiro-dirprofile__textarea {
   box-sizing: border-box;
   width: 100%;
-  min-height: 68px;
+  min-height: 80px;
   resize: vertical;
   padding: 8px 10px;
   border: 1px solid var(--uui-gray-300);
@@ -2054,7 +2145,7 @@
 .capiro-vnext-root .capiro-dirprofile__textarea:focus-visible {
   outline: none;
   border-color: var(--uui-gray-400);
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 .capiro-vnext-root .capiro-dirprofile__count {
@@ -2314,7 +2405,7 @@
   font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-directory-accent);
   text-decoration: none;
 }
 
@@ -2322,7 +2413,7 @@
 
 .capiro-vnext-root .capiro-dirpage__back:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
   border-radius: var(--uui-radius-control);
 }
 
@@ -2370,9 +2461,10 @@
 .capiro-vnext-root .capiro-dirpage__title {
   margin: 0;
   font-family: var(--uui-font-family);
-  font-size: var(--capiro-type-size-title-lg);
-  line-height: 1.25;
+  font-size: 34px;
+  line-height: 42px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--uui-gray-900);
   overflow-wrap: anywhere;
 }
@@ -2405,6 +2497,8 @@
 
 .capiro-vnext-root .capiro-dirpage__desc-item dd {
   margin: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
   font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-body-sm);
   line-height: var(--capiro-type-line-body-sm);
@@ -2516,7 +2610,7 @@
 
 .capiro-vnext-root .capiro-dirpage-segmented button:focus-visible {
   outline: none;
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 .capiro-vnext-root .capiro-dirpage-segmented button[data-selected] {
@@ -2554,7 +2648,7 @@
 .capiro-vnext-root .capiro-dirpage__search-input:focus-visible {
   outline: none;
   border-color: var(--capiro-color-border-information);
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-directory-focus-ring);
 }
 
 /* Committee roster / current representatives: mark + name + badge meta rows. */
@@ -2622,9 +2716,9 @@
 }
 
 .capiro-vnext-root .capiro-dirpage-boundary path {
-  fill: var(--capiro-color-icon-accent);
+  fill: var(--uui-directory-accent);
   fill-opacity: 0.25;
-  stroke: var(--capiro-color-icon-accent);
+  stroke: var(--uui-directory-accent);
   stroke-width: 1.5;
 }
 
@@ -2634,4 +2728,56 @@
   .capiro-vnext-root .capiro-dirpage__desc { grid-template-columns: minmax(0, 1fr); }
   .capiro-vnext-root .capiro-dirpage__search-input { max-width: none; }
   .capiro-vnext-root .capiro-dirpage__hero { flex-wrap: wrap; }
+}
+
+
+/* Directory visual-spec motion foundation (02-VISUAL-SPEC.md "Motion") — the
+   four keyframes verbatim from the design file. These animations are
+   intentionally limited to explicitly changing/loading surfaces; row hover
+   remains static. */
+@keyframes uiFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes uiRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes uiPulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@keyframes uiBand {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* The inspector remains beside the list on desktop and stacks with it at the
+   canonical 1179px breakpoint. */
+@media (min-width: 1180px) {
+  .capiro-vnext-root .capiro-directory-rail {
+    flex: 0 0 340px;
+    position: sticky;
+    top: 183px;
+  }
+}
+
+
+/* Committee roster grid contract (02-VISUAL-SPEC.md "Table" column table). */
+.capiro-vnext-root .capiro-directory-results--roster { max-width: none; }
+.capiro-vnext-root .capiro-directory-row-grid--roster {
+  grid-template-columns:
+    minmax(190px, 1.1fr) minmax(160px, 1fr) minmax(170px, 1fr) minmax(180px, 1fr) 70px;
+  gap: 16px;
+  min-width: 880px;
+}
+
+
+@media (min-width: 1180px) {
+  .capiro-vnext-root .capiro-directory-leg-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }

@@ -237,7 +237,7 @@ class UpdateClientDto {
 
   @IsOptional()
   @IsArray()
-  @IsIn(FEDERAL_SET_ASIDE_CERTIFICATION_CODES, { each: true })
+  @IsString({ each: true })
   setAsideCertifications?: string[];
 
   /**

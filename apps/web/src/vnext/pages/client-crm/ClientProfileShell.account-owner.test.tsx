@@ -102,6 +102,38 @@ describe('ClientProfileShell account owner', () => {
     await waitFor(() => expect(select).toHaveValue(jordan.id));
   });
 
+  it('invalidates the team roster cache after a successful owner reassignment (the roster merges the owner row)', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ClientProfileShell
+            client={client}
+            tab="overview"
+            view={null}
+            onNavigate={vi.fn()}
+            onFillWithMeri={vi.fn()}
+            onDataHealth={vi.fn()}
+            canEditFocus
+          >
+            <div>body</div>
+          </ClientProfileShell>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const select = await screen.findByRole('combobox', { name: 'Account owner' });
+    await waitFor(() => expect(select).toHaveValue(sarah.id));
+    fireEvent.change(select, { target: { value: jordan.id } });
+
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: ['client-team', 'client-1'] }),
+      ),
+    );
+  });
+
   it('renders the persisted owner read-only when assignment is not allowed', async () => {
     renderShell(false);
 
@@ -130,6 +162,14 @@ describe('ClientProfileShell account owner', () => {
   it('does not invent funding priorities when only sector tags are recorded', () => {
     renderShell(false, { ...client, intakeData: { sectors: ['ENERGY'] } });
     expect(screen.queryByRole('list', { name: 'Funding priorities' })).not.toBeInTheDocument();
+  });
+
+  it('renders a date-only createdAt without shifting the day in negative-UTC timezones', () => {
+    // Regression: new Date('2026-01-12') is UTC midnight -> Jan 11 behind UTC.
+    // The seed hit this live in America/New_York; the formatter must anchor
+    // date-only strings to local noon so the calendar day is stable everywhere.
+    renderShell(false, { ...client, createdAt: '2026-01-12' });
+    expect(screen.getByText('Jan 12, 2026')).toBeInTheDocument();
   });
 
   it('keeps long priority lists compact while leaving every saved priority available', () => {

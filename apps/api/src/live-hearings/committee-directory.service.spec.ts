@@ -189,7 +189,10 @@ describe('CommitteeDirectoryService', () => {
     const result = await service.committees();
     expect(result.rows.find((row) => row.systemCode === 'hsag00')?.upcomingEventCount).toBe(3);
     expect(result.rows.find((row) => row.systemCode === 'hsag16')?.upcomingEventCount).toBe(2);
-    expect(prisma.committeeHearing.findMany.mock.calls[0]?.[0].where.AND[1].OR).toContainEqual({
+    // federalHearingWhere wraps the committee `where` at AND[2] (AND[0] is
+    // canonicalHearingId, AND[1] the geographic-jurisdiction OR) — the consumer
+    // `where` holds the committee/subcommittee OR clause.
+    expect(prisma.committeeHearing.findMany.mock.calls[0]?.[0].where.AND[2].OR).toContainEqual({
       committeeCode: { in: ['hsag00', 'hsag16', 'ssas00'] },
     });
   });
@@ -245,8 +248,10 @@ describe('CommitteeDirectoryService', () => {
       lastSourceSuccessAt: now.toISOString(),
     });
 
-    // The room's rows ARE the calendar rows: same names, no re-aliasing.
-    expect(room.upcomingEvents).toEqual([wireEvent]);
+    // The room's rows ARE the calendar rows: same names, no re-aliasing. This
+    // event is past-dated, so the time-bucket correction places it in recent —
+    // the WIRE contract (field names) is identical in either bucket.
+    expect(room.recentEvents).toEqual([wireEvent]);
     expect(Object.keys(wireEvent)).toEqual(
       expect.arrayContaining(['date', 'startsAt', 'timezone', 'eventStatus']),
     );
@@ -273,5 +278,227 @@ describe('CommitteeDirectoryService', () => {
 
     expect(result.chair?.name).toBe('Alex Chair');
     expect(result.rankingMember?.name).toBe('Blair Ranking');
+  });
+
+  /**
+   * Fresh Hermes 58 — Committee Room time buckets. The room previously returned
+   * the two raw day-bucket pages (today→future = "upcoming", past→yesterday =
+   * "recent") verbatim, so a passed start time today (e.g. 13:00Z at a 20:17Z
+   * read) rendered in BOTH the room's upcoming array AND the directory's
+   * recentEventCount. These tests fix the comparison instant and assert the
+   * reclassification against a single frozen `now`, with the source
+   * `eventStatus` left untouched (a passed start is not proof of completion).
+   */
+  describe('committee room time buckets (fixed instant)', () => {
+    // 2026-09-15T20:17:00Z — the receipt instant from the spec, trimmed to the
+    // minute for determinism.
+    const NOW = new Date('2026-09-15T20:17:00.000Z');
+
+    function calEvent(over: Record<string, unknown>) {
+      return {
+        id: 'evt',
+        chamber: 'house',
+        committeeName: 'House Committee on Agriculture',
+        committeeSystemCode: 'hsag00',
+        subcommitteeSystemCode: null,
+        title: 'Proceeding',
+        eventType: 'hearing',
+        eventStatus: 'scheduled',
+        visibility: 'public',
+        date: '2026-09-15',
+        startsAt: null,
+        time: null,
+        timezone: 'America/New_York',
+        location: null,
+        officialPageUrl: null,
+        witnesses: [],
+        streamAvailability: 'none',
+        coverageStatus: 'none',
+        sourceRevision: 1,
+        lastOfficialUpdateAt: null,
+        capture: null,
+        streamCandidates: [],
+        subscription: null,
+        congress: 119,
+        ...over,
+      };
+    }
+
+    function roomFixture(calendarRows: Array<Record<string, unknown>>[]) {
+      const { service, prisma, hearings } = fixture();
+      // The two bounded calendar calls: [upcoming day-bucket, recent day-bucket].
+      hearings.calendar.mockImplementation(
+        (_ctx: unknown, query: { from: string; to: string }) => {
+          const isUpcoming = query.from >= query.to === false && query.from === '2026-09-15';
+          const rows = (isUpcoming ? calendarRows[0] : calendarRows[1]) ?? [];
+          return Promise.resolve({ rows, total: rows.length, page: 1, pageSize: 100 });
+        },
+      );
+      return { service, prisma, hearings };
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      jest.setSystemTime(NOW);
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('keeps an exact-now event upcoming', async () => {
+      const exact = calEvent({ id: 'exact-now', startsAt: '2026-09-15T20:17:00.000Z' });
+      const { service } = roomFixture([[exact], []]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.upcomingEvents as Array<{ id: string }>).map((e) => e.id)).toEqual([
+        'exact-now',
+      ]);
+      expect(room.recentEvents).toEqual([]);
+    });
+
+    it('moves a passed 13:00Z start today into recent while keeping eventStatus scheduled', async () => {
+      const passed = calEvent({
+        id: 'passed-today',
+        startsAt: '2026-09-15T13:00:00.000Z',
+        eventStatus: 'scheduled',
+      });
+      const { service } = roomFixture([[passed], []]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect(room.upcomingEvents).toEqual([]);
+      const recent = room.recentEvents as Array<{ id: string; eventStatus: string; startsAt: string }>;
+      expect(recent.map((e) => e.id)).toEqual(['passed-today']);
+      // Source status/time preserved verbatim — not coerced to "completed".
+      expect(recent[0]).toMatchObject({
+        eventStatus: 'scheduled',
+        startsAt: '2026-09-15T13:00:00.000Z',
+      });
+    });
+
+    it('keeps a future 21:00Z start today upcoming', async () => {
+      const future = calEvent({ id: 'later-today', startsAt: '2026-09-15T21:00:00.000Z' });
+      const { service } = roomFixture([[future], []]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.upcomingEvents as Array<{ id: string }>).map((e) => e.id)).toEqual([
+        'later-today',
+      ]);
+      expect(room.recentEvents).toEqual([]);
+    });
+
+    it('keeps a tomorrow event upcoming and a yesterday event recent', async () => {
+      const tomorrow = calEvent({
+        id: 'tomorrow',
+        date: '2026-09-16',
+        startsAt: '2026-09-16T14:00:00.000Z',
+      });
+      const yesterday = calEvent({
+        id: 'yesterday',
+        date: '2026-09-14',
+        startsAt: '2026-09-14T14:00:00.000Z',
+      });
+      const { service } = roomFixture([[tomorrow], [yesterday]]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.upcomingEvents as Array<{ id: string }>).map((e) => e.id)).toEqual(['tomorrow']);
+      expect((room.recentEvents as Array<{ id: string }>).map((e) => e.id)).toEqual(['yesterday']);
+    });
+
+    it('treats a date-only today by the UTC-midnight fallback as recent after midnight, without inventing startsAt', async () => {
+      const dateOnly = calEvent({ id: 'date-only-today', date: '2026-09-15', startsAt: null });
+      const { service } = roomFixture([[dateOnly], []]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect(room.upcomingEvents).toEqual([]);
+      const recent = room.recentEvents as Array<{ id: string; startsAt: string | null }>;
+      expect(recent.map((e) => e.id)).toEqual(['date-only-today']);
+      expect(recent[0]?.startsAt).toBeNull();
+    });
+
+    it('moves a past-date-window row with a future start (rescheduled) into upcoming', async () => {
+      // Fetched in the OLD recent day-bucket (date 2026-09-14), but its actual
+      // start instant is in the future — `date` and `startsAt` are independent.
+      const rescheduled = calEvent({
+        id: 'rescheduled',
+        date: '2026-09-14',
+        startsAt: '2026-09-16T14:00:00.000Z',
+      });
+      const { service } = roomFixture([[], [rescheduled]]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.upcomingEvents as Array<{ id: string }>).map((e) => e.id)).toEqual([
+        'rescheduled',
+      ]);
+      expect(room.recentEvents).toEqual([]);
+    });
+
+    it('keeps upcoming ascending and recent descending, with deterministic id tie-breaks', async () => {
+      const up1 = calEvent({ id: 'b-up', startsAt: '2026-09-16T14:00:00.000Z', date: '2026-09-16' });
+      const up2 = calEvent({ id: 'a-up', startsAt: '2026-09-16T14:00:00.000Z', date: '2026-09-16' });
+      const re1 = calEvent({ id: 'r-old', startsAt: '2026-09-13T14:00:00.000Z', date: '2026-09-13' });
+      const re2 = calEvent({ id: 'r-new', startsAt: '2026-09-14T14:00:00.000Z', date: '2026-09-14' });
+      const { service } = roomFixture([
+        [up1, up2],
+        [re1, re2],
+      ]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.upcomingEvents as Array<{ id: string }>).map((e) => e.id)).toEqual([
+        'a-up',
+        'b-up',
+      ]);
+      expect((room.recentEvents as Array<{ id: string }>).map((e) => e.id)).toEqual([
+        'r-new',
+        'r-old',
+      ]);
+    });
+
+    it('deduplicates a proceeding that appears in both fetched pages by canonical id', async () => {
+      const dup = calEvent({ id: 'dup', startsAt: '2026-09-15T13:00:00.000Z' });
+      const { service } = roomFixture([[dup], [dup]]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.recentEvents as Array<{ id: string }>).map((e) => e.id)).toEqual(['dup']);
+    });
+
+    it('caps each displayed bucket at 100 without touching aggregate counts', async () => {
+      const upcomingRows = Array.from({ length: 150 }, (_, i) =>
+        calEvent({
+          id: `u${String(i).padStart(3, '0')}`,
+          date: '2026-09-16',
+          startsAt: '2026-09-16T14:00:00.000Z',
+        }),
+      );
+      const { service, prisma } = roomFixture([upcomingRows, []]);
+      const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
+      expect((room.upcomingEvents as unknown[]).length).toBe(100);
+      // The directory aggregate counts come from loadDirectory's own prisma
+      // pass, not from the capped room arrays — the mock returns exactly one
+      // committeeHearing, so the aggregate is NOT collapsed to the 100-cap.
+      expect(prisma.committeeHearing.findMany).toHaveBeenCalled();
+      expect(room.upcomingEventCount).not.toBe(100);
+      expect(typeof room.upcomingEventCount).toBe('number');
+    });
+
+    it('still issues exactly the two bounded calendar calls with the parent filter and forwarded context', async () => {
+      const { service, hearings } = roomFixture([[], []]);
+      const ctx = { tenantId: 't1', userId: 'u1' } as never;
+      await service.committee('hsag00', ctx);
+      expect(hearings.calendar).toHaveBeenCalledTimes(2);
+      const calls = hearings.calendar.mock.calls as Array<
+        [
+          unknown,
+          {
+            committee?: string;
+            subcommittee?: string;
+            from: string;
+            to: string;
+            page: number;
+            pageSize: number;
+          },
+        ]
+      >;
+      const c1 = calls[0];
+      const c2 = calls[1];
+      if (!c1 || !c2) throw new Error('expected two bounded calendar calls');
+      expect(c1[0]).toBe(ctx);
+      expect(c2[0]).toBe(ctx);
+      expect(c1[1]).toMatchObject({ committee: 'hsag00', page: 1, pageSize: 100 });
+      expect(c2[1]).toMatchObject({ committee: 'hsag00', page: 1, pageSize: 100 });
+      expect(c1[1].from).toBe('2026-09-15');
+      expect(c2[1].to).toBe('2026-09-14');
+    });
   });
 });

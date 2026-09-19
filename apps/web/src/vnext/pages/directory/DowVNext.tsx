@@ -209,7 +209,7 @@ export function DowVNextView({ model }: { model: DowModel }) {
                   </span>
                   <span
                     className={`capiro-directory-cell capiro-directory-cell--mono${
-                      alignment.aligned ? '' : ' capiro-directory-cell--muted'
+                      alignment.aligned ? ' capiro-directory-cell--aligned' : ' capiro-directory-cell--muted'
                     }`}
                   >
                     <span className="capiro-directory-cell__primary">{alignment.primary}</span>

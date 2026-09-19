@@ -46,6 +46,7 @@ function hearing(overrides: Row = {}): Row {
     id: 'cm-119-119504',
     congress: 119,
     geographicJurisdiction: 'US',
+    canonicalHearingId: null,
     chamber: 'House',
     committeeName: 'House Committee on Energy and Commerce',
     committeeCode: 'hsif00',
@@ -129,7 +130,7 @@ function makePrisma(seed: {
     committees: seed.committees ?? [],
     follows: seed.follows ?? [],
   };
-  const calls = { bareSubscriptionReads: 0 };
+  const calls = { bareSubscriptionReads: 0, orderBys: [] as unknown[] };
 
   const subscriptionDelegate = (tenantId: string | null) => ({
     findMany: async (args: { where?: Row } = {}) => {
@@ -145,7 +146,8 @@ function makePrisma(seed: {
   const prisma = {
     __calls: calls,
     committeeHearing: {
-      findMany: async (args: { where?: Row; take?: number; skip?: number } = {}) => {
+      findMany: async (args: { where?: Row; take?: number; skip?: number; orderBy?: unknown } = {}) => {
+        if ('orderBy' in args) calls.orderBys.push(args.orderBy);
         const hits = store.hearings.filter((h) => matches(h, args.where));
         const skip = args.skip ?? 0;
         return hits.slice(skip, skip + (args.take ?? hits.length));
@@ -538,6 +540,35 @@ describe('buildWhere', () => {
   it('maps the stream and capture state filters onto the denormalized rollups', () => {
     expect(buildWhere({ streamState: 'live_only' }).streamAvailability).toBe('live_only');
     expect(buildWhere({ captureState: 'capturing' }).coverageStatus).toBe('capturing');
+  });
+
+  it('excludes canonical-alias children from every calendar selection', () => {
+    // The production buildWhere starts from { canonicalHearingId: null } so a
+    // child hearing that was merged into a canonical parent never appears as a
+    // separate calendar row. The fake evaluator must model the real nullable
+    // column, not treat an absent key as a match.
+    const where = buildWhere({}) as Row;
+    expect(where.canonicalHearingId).toBeNull();
+    expect(matches(hearing(), where)).toBe(true);
+    expect(matches(hearing({ canonicalHearingId: 'cm-119-parent' }), where)).toBe(false);
+  });
+});
+
+describe('LiveHearingsService — calendar sort direction', () => {
+  const seed = { hearings: [hearing()], subscriptions: [] };
+
+  it('defaults to the chronological asc contract (date → startsAt → id)', async () => {
+    const { service, prisma } = makeService(seed);
+    await service.calendar(ctxA, { jurisdiction: 'FL' });
+    const call = prisma.__calls.orderBys.at(-1);
+    expect(call).toEqual([{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }]);
+  });
+
+  it('flips the whole deterministic tie order for an explicit latest-first lookup', async () => {
+    const { service, prisma } = makeService(seed);
+    await service.calendar(ctxA, { jurisdiction: 'FL', sort: 'desc', pageSize: 1 });
+    const call = prisma.__calls.orderBys.at(-1);
+    expect(call).toEqual([{ date: 'desc' }, { startsAt: 'desc' }, { id: 'desc' }]);
   });
 });
 

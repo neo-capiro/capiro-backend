@@ -19,9 +19,10 @@ import type { TenantRole } from '@capiro/shared';
 import { MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { FundingOpportunitiesService } from './funding-opportunities.service.js';
+import { FundingOpportunityV2SearchService } from './funding-opportunity-v2-search.service.js';
 import { GovernmentLandscapeService } from './government-landscape.service.js';
 import { OpportunityRequirementService } from './requirements/opportunity-requirement.service.js';
+import { FundingOpportunityV2DetailService } from './funding-opportunity-v2-detail.service.js';
 
 /**
  * Typed local Meri opportunity tools (P37).
@@ -167,7 +168,7 @@ function makeAdapter(
     flagThrows?: boolean;
     visibleClientIds?: string[];
     getOpportunity?: (...args: unknown[]) => Promise<FundingOpportunity>;
-    listClientOpportunities?: (...args: unknown[]) => Promise<unknown>;
+    search?: (...args: unknown[]) => Promise<unknown>;
     getRequirements?: (...args: unknown[]) => Promise<unknown>;
     getClientSummary?: () => Promise<unknown>;
     compose?: (...args: unknown[]) => Promise<unknown>;
@@ -213,56 +214,56 @@ function makeAdapter(
     },
   };
 
-  const opportunities = {
-    listClientOpportunities: async (...args: unknown[]) => {
-      calls.list += 1;
-      if (over.listClientOpportunities) return over.listClientOpportunities(...args);
+  const canonicalRow = (overrides: Record<string, unknown> = {}) => ({
+    id: `sam_gov:${SAM_ID}`, source: 'sam_gov', sourceRecordId: SAM_ID,
+    title: 'Shipboard power conversion units', agency: 'Department of the Navy',
+    sourceUrl: 'https://sam.gov/opp/example', type: 'solicitation', lifecycle: 'active',
+    postedDate: '2026-07-01T00:00:00.000Z', deadline: '2026-10-01T17:00:00.000Z',
+    closeOrArchiveDate: null, isPursuable: true, summary: 'Procurement of shipboard power conversion units.',
+    naicsCodes: ['335313'], pscCodes: ['6110'], setAside: null, applicantTypes: [], geography: [],
+    value: null, valueBasis: 'not_stated_by_source', sourceFacts: { provenance: 'test', sourceUpdated: '2026-08-06T00:00:00.000Z' },
+    relevanceScore: 72, matchedSignals: [],
+    eligibility: { state: 'needs_review', reason: 'No recorded certifications to check against.' },
+    clientId: CLIENT, ...overrides,
+  });
+  const canonicalResponse = (overrides: Record<string, unknown> = {}) => ({
+    criteria: {}, opportunities: [canonicalRow()], page: 1, pageSize: 5, total: 1,
+    totalIsCapped: false, catalogComplete: true,
+    counts: { grants: 0, contracts: 1, active: 1, closed: 0 }, mode: 'matched', clientId: CLIENT,
+    freshness: [], provenance: [], emptyReason: null, profileGaps: null,
+    generatedAt: AS_OF.toISOString(), ...overrides,
+  });
+  const search = jest.fn(async (...args: unknown[]) => {
+    calls.list += 1;
+    if (over.search) return over.search(...args);
+    return canonicalResponse();
+  });
+  const opportunities = { search };
+  const opportunityDetails = {
+    readDetail: jest.fn(async (...args: unknown[]) => {
+      const legacy = over.getOpportunity ? await over.getOpportunity(...args) : null;
+      const requestedSource = String(args[1] ?? 'sam_gov');
+      const requestedId = String(args[2] ?? SAM_ID);
+      const canonical = legacy
+        ? canonicalRow({
+            id: `${requestedSource}:${requestedId}`, source: requestedSource, sourceRecordId: requestedId,
+            type: legacy.kind === 'grant' ? 'grant' : 'solicitation', lifecycle: legacy.status === 'posted' ? 'active' : legacy.status,
+            title: legacy.title, agency: legacy.agency, sourceUrl: legacy.sourceUrl,
+            postedDate: legacy.postedDate, deadline: legacy.responseDeadline, closeOrArchiveDate: legacy.closeOrArchiveDate,
+            isPursuable: legacy.isPursuable, summary: legacy.summary, naicsCodes: legacy.naicsCodes, pscCodes: legacy.pscCodes,
+            applicantTypes: legacy.eligibleApplicantTypes, value: legacy.contractValue?.estimatedValue ?? null,
+            sourceFacts: { sourceUpdated: legacy.sourceUpdatedAt, opportunityNumber: legacy.sourceReference },
+            relevanceScore: legacy.relevanceScore, matchedSignals: legacy.matchedSignals,
+            eligibility: legacy.eligibility, clientId: legacy.clientId,
+          })
+        : canonicalRow({ id: `${requestedSource}:${requestedId}`, source: requestedSource, sourceRecordId: requestedId });
       return {
-        opportunities: [opportunity()],
-        total: 1,
-        totalIsCapped: false,
-        page: 1,
-        pageSize: 5,
-        counts: {},
-        freshness: [],
-        emptyReason: null,
-        emptyExplanation: null,
-        missingProfileFields: [MISSING_CERTIFICATIONS],
-        generatedAt: AS_OF.toISOString(),
+        opportunity: canonical,
+        generatedAt: AS_OF.toISOString(), source: requestedSource, sourceRecordId: requestedId,
+        authoritativeSourceUrl: canonical.sourceUrl,
       };
-    },
-    getOpportunity: async (...args: unknown[]) => {
-      calls.getOpportunity += 1;
-      if (over.getOpportunity) return over.getOpportunity(...args);
-      return opportunity();
-    },
-    getClientSummary: async () => {
-      calls.summary += 1;
-      if (over.getClientSummary) return over.getClientSummary();
-      return {
-        clientId: CLIENT,
-        counts: {
-          activeGrants: 1,
-          activeContracts: 2,
-          saved: 0,
-          pursuing: 0,
-          dismissed: 0,
-          deadlinesIn30Days: 1,
-        },
-        nextDeadline: null,
-        topGrants: [],
-        topContracts: [opportunity()],
-        missingProfileFields: [MISSING_CERTIFICATIONS],
-        freshness: [
-          { source: 'sam_gov', lastSyncedAt: '2026-08-06T00:00:00.000Z', state: 'fresh' },
-        ],
-        emptyReason: null,
-        emptyExplanation: null,
-        generatedAt: AS_OF.toISOString(),
-      };
-    },
+    }),
   };
-
   const landscape = {
     compose: async (...args: unknown[]) => {
       calls.compose += 1;
@@ -310,8 +311,9 @@ function makeAdapter(
     opportunities as never,
     landscape as never,
     requirements as never,
+    opportunityDetails as never,
   );
-  return { adapter, calls };
+  return { adapter, calls, search, opportunityDetails };
 }
 
 /** Every tool, called with its own required inputs. One list, all call sites. */
@@ -522,9 +524,9 @@ describe('P37 — no tool can call Tango or retrieve a credential', () => {
 
   it('the constructor takes four canonical local collaborators', () => {
     // Name every local dependency so an external provider cannot arrive unnoticed.
-    expect(MeriOpportunityToolsAdapter.length).toBe(4);
+    expect(MeriOpportunityToolsAdapter.length).toBe(5);
     expect(code).toContain('private readonly prisma: PrismaService');
-    expect(code).toContain('private readonly opportunities: FundingOpportunitiesService');
+    expect(code).toContain('private readonly opportunities: FundingOpportunityV2SearchService');
     expect(code).toContain('private readonly landscape: GovernmentLandscapeService');
     expect(code).toContain('private readonly requirements: OpportunityRequirementService');
   });
@@ -638,7 +640,7 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
     const data = result.data!;
     expect(data.relevanceScore).toBe(72);
     expect(data.eligibility.state).toBe('needs_review');
-    expect(data.recommendation?.machineRecommendation).toBe('needs_review');
+    expect(data.recommendation).toBeNull();
     expect(data.humanDecision).toBeNull();
     // No blended field anywhere: a single "score" is the one thing a model
     // would collapse the four into.
@@ -653,7 +655,7 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
       { clientId: CLIENT, source: 'sam_gov', sourceRecordId: SAM_ID },
       AS_OF,
     );
-    expect(result.data!.missingProfileFields).toEqual([MISSING_CERTIFICATIONS]);
+    expect(result.data!.missingProfileFields).toBeNull();
     // The gap travels with its own IMPACT sentence, not just a key: that is
     // what lets a model say "unassessable" instead of "poor fit".
     expect(MISSING_CERTIFICATIONS.impact.length).toBeGreaterThan(10);
@@ -920,9 +922,10 @@ describe('government-affairs funding evidence contract', () => {
       providers: [
         MeriOpportunityToolsAdapter,
         { provide: PrismaService, useValue: {} },
-        { provide: FundingOpportunitiesService, useValue: {} },
+        { provide: FundingOpportunityV2SearchService, useValue: {} },
         { provide: GovernmentLandscapeService, useValue: {} },
         { provide: OpportunityRequirementService, useValue: {} },
+        { provide: FundingOpportunityV2DetailService, useValue: {} },
       ],
     }).compile();
     expect(module.get(MeriOpportunityToolsAdapter)).toBeInstanceOf(MeriOpportunityToolsAdapter);
@@ -930,44 +933,41 @@ describe('government-affairs funding evidence contract', () => {
   });
 
   it('delegates paginated discovery to the workspace matching service without rescoring or hiding scan limits', async () => {
-    const record = opportunity({
-      relevanceScore: 92,
-      eligibility: {
-        state: 'ineligible',
-        reason: 'Notice requires an applicant type absent from the verified client profile.',
-      },
-      eligibleApplicantTypes: ['Public and State controlled institutions of higher education'],
-      status: 'forecasted',
-    });
+    const record = {
+      id: 'sam_gov:abc-123', source: 'sam_gov', sourceRecordId: 'abc-123',
+      title: 'UGV Autonomy R&D', agency: 'Department of Defense', sourceUrl: 'https://sam.gov/opp/abc-123',
+      type: 'forecast', lifecycle: 'forecast', postedDate: '2026-08-01T00:00:00Z', deadline: null,
+      closeOrArchiveDate: null, isPursuable: false, summary: 'Forecast notice.',
+      naicsCodes: ['541330'], pscCodes: [], setAside: null, applicantTypes: ['Public and State controlled institutions of higher education'],
+      geography: [], value: null, valueBasis: 'not_stated_by_source',
+      sourceFacts: { sourceUpdated: '2026-08-01T00:00:00Z' }, relevanceScore: 92,
+      matchedSignals: [{ signal: 'exact_naics_match', strength: 'strong', matchedOn: '541330' }],
+      eligibility: { state: 'ineligible', reason: 'Notice requires an applicant type absent from the verified client profile.' },
+      clientId: CLIENT,
+    };
     const canonical = {
-      opportunities: [record],
-      total: 11,
-      totalIsCapped: true,
-      page: 2,
-      pageSize: 5,
-      counts: { activeGrants: 4 },
-      freshness: [
-        { source: 'sam_gov', lastRunDegraded: true, lastSyncedAt: '2026-08-01T00:00:00Z' },
-      ],
-      missingProfileFields: [MISSING_CERTIFICATIONS],
-      emptyReason: null,
-      emptyExplanation: null,
+      criteria: { mode: 'matched', clientId: CLIENT, sources: ['sam_gov'], lifecycle: ['active'], page: 2, pageSize: 5 },
+      opportunities: [record], total: 11, totalIsCapped: true, catalogComplete: false,
+      page: 2, pageSize: 5, counts: { grants: 4, contracts: null, active: null, closed: null }, mode: 'matched', clientId: CLIENT,
+      freshness: [{ source: 'sam_gov', state: 'degraded', recordCount: null, activeRecordCount: null, lastSyncedAt: '2026-08-01T00:00:00Z' }],
+      profileGaps: { items: [MISSING_CERTIFICATIONS], unavailableReason: null }, emptyReason: null,
+      provenance: [{ source: 'sam_gov', queried: true, returned: 1, count: 11, capped: true }],
       generatedAt: AS_OF.toISOString(),
     };
-    const listClientOpportunities = jest.fn(async () => canonical);
-    const { adapter } = makeAdapter({ listClientOpportunities });
+    const search = jest.fn(async () => canonical);
+    const { adapter } = makeAdapter({ search });
     const result = await adapter.searchFundingOpportunities(
       STANDARD,
       { clientId: CLIENT, source: 'sam_gov', query: 'power conversion', page: 2, pageSize: 5 },
       AS_OF,
     );
-    expect(listClientOpportunities).toHaveBeenCalledWith(TENANT, CLIENT, {
-      source: 'sam_gov',
-      q: 'power conversion',
-      page: 2,
-      pageSize: 5,
-      activeState: 'active',
-    });
+    expect(search).toHaveBeenCalledWith(
+      { tenantId: TENANT, userId: USER },
+      expect.objectContaining({
+        mode: 'matched', clientId: CLIENT, query: 'power conversion',
+        sources: ['sam_gov'], lifecycle: ['active'], page: 2, pageSize: 5,
+      }),
+    );
     expect(result.state).toBe('available');
     expect(result.data).toMatchObject({
       total: 11,
@@ -984,39 +984,40 @@ describe('government-affairs funding evidence contract', () => {
     const returned = result.data!.opportunities[0]!;
     expect(returned.relevanceScore).toBe(92);
     expect(returned.eligibility).toBe(record.eligibility);
-    expect(returned.matchedSignals).toBe(record.matchedSignals);
-    expect(returned.recommendation).toBe(record.recommendation);
-    expect(returned.eligibleApplicantTypes).toEqual(record.eligibleApplicantTypes);
-    expect(returned.status).toBe('forecasted');
+    expect(returned.matchedSignals).toEqual(expect.arrayContaining([{ signal: 'exact_naics_match', strength: 'strong', matchedOn: '541330', weight: undefined }]));
+    expect(returned.recommendation).toBeNull();
+    expect(returned.eligibleApplicantTypes).toEqual(record.applicantTypes);
+    expect(returned.status).toBe('forecast');
     expect(returned.evidence.disqualifiers).toEqual([
       { basis: 'canonical_eligibility', reason: record.eligibility.reason },
     ]);
-    expect(returned.evidence.recommendationConfidence).toBe('medium');
+    expect(returned.evidence.recommendationConfidence).toBeNull();
     expect(returned.evidence.recordRef).toBe(record.id);
   });
 
   it('reports an empty canonical result and profile gaps as unknown coverage, not no opportunities', async () => {
-    const listClientOpportunities = jest.fn(async () => ({
+    const search = jest.fn(async () => ({
       opportunities: [],
       total: 0,
       totalIsCapped: false,
       page: 1,
       pageSize: 5,
-      counts: {},
-      freshness: [{ source: 'grants_gov', neverSynced: true }],
-      missingProfileFields: [MISSING_CERTIFICATIONS],
+      counts: { grants: null, contracts: null, active: null, closed: null },
+      catalogComplete: false,
+      mode: 'matched', clientId: CLIENT, profileGaps: { items: [MISSING_CERTIFICATIONS], unavailableReason: null },
+      freshness: [{ source: 'grants_gov', state: 'never_synced', recordCount: null, activeRecordCount: null, lastSyncedAt: null }],
       emptyReason: 'source_never_synced',
       emptyExplanation: 'Nothing can be said about matches until the source sync runs.',
       generatedAt: AS_OF.toISOString(),
     }));
-    const { adapter } = makeAdapter({ listClientOpportunities });
+    const { adapter } = makeAdapter({ search });
     const result = await adapter.searchFundingOpportunities(STANDARD, { clientId: CLIENT }, AS_OF);
     expect(result.data).toMatchObject({
       nextPage: null,
       hasMore: false,
       emptyReason: 'source_never_synced',
       missingProfileFields: [MISSING_CERTIFICATIONS],
-      freshness: [{ neverSynced: true }],
+      freshness: [{ source: 'grants_gov', state: 'never_synced' }],
     });
     expect(result.data!.coverage.explanation).toContain(
       'no matching result does not prove no opportunity exists',

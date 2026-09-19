@@ -1,6 +1,11 @@
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { meriToolCoverageCatalogEntry } from '../retrieval/meri-tool-catalog.js';
 import {
+  completeDocumentPages,
+  documentPageReceipt,
+  type DocumentPageReceipt,
+} from './meriv3-document-completion.js';
+import {
   coalesceMeriMailPages,
   observeMeriToolCoverage,
   type MeriMailPageReceipt,
@@ -28,6 +33,7 @@ export interface MeriToolCoverageReceipt {
   lastSyncAt?: string;
   detail?: string;
   mailPage?: MeriMailPageReceipt;
+  documentPage?: DocumentPageReceipt;
 }
 
 export type MeriTurnRetrieval = InitialRetrieval & {
@@ -294,6 +300,13 @@ export function observeMeriTurnToolCoverage(
     ];
   }
   const coveredDomains = domains(tool);
+  if (tool === 'read_client_documents') {
+    const page = documentPageReceipt(payload);
+    return coveredDomains.map((domain) => ({
+      ...receipt(tool, domain, coverage ?? {}, payload),
+      ...(page ? { documentPage: page } : {}),
+    }));
+  }
   if (coveredDomains.length <= 1)
     return coveredDomains.map((domain) => receipt(tool, domain, coverage ?? {}, payload));
   // The catalog records a tool's capabilities, not a per-source inventory. A
@@ -338,6 +351,30 @@ export function reconcileMeriTurnCoverage(
 ): InitialRetrieval | MeriTurnRetrieval {
   if (!reads.length) return initial;
   const individualReads = reads;
+  const documentIds = [
+    ...new Set(reads.flatMap((read) => (read.documentPage ? [read.documentPage.documentId] : []))),
+  ];
+  reads = [
+    ...reads.filter((read) => !read.documentPage),
+    ...documentIds.map((id): MeriToolCoverageReceipt => {
+      const pages = reads.filter((read) => read.documentPage?.documentId === id);
+      const complete = completeDocumentPages(
+        pages.map((read) => read.documentPage!).filter((page) => !page.query),
+      );
+      return {
+        ...pages[0]!,
+        status: complete ? 'complete' : 'partial',
+        // Individual page counts/ranges remain on toolReads. Do not add pages
+        // together as if they were distinct source documents.
+        recordsReturned: null,
+        recordsDisplayed: null,
+        paginationComplete: complete,
+        truncated: !complete,
+        detail: complete ? 'selected_document_fully_read' : 'selected_document_read_incomplete',
+      };
+    }),
+  ];
+
   const mailPages = reads.filter((read) => read.mailPage);
   reads = [
     ...reads.filter((read) => !read.mailPage),

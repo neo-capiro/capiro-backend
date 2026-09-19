@@ -1,7 +1,6 @@
 import {
   buildAssuranceEnvelope,
   buildAssuredClaimLedger,
-  classifyAssuranceRisk,
   evaluateAssuranceRelease,
   inferClaimCategories,
   planGovernmentAffairsEvidence,
@@ -164,16 +163,6 @@ export function assessStewardFacts(input: {
     .map((conflict) => ({ ...conflict, newFactIndex: oldToNew.get(conflict.newFactIndex)! }));
 
   return { facts, conflicts, verdicts, heldCount, gate, ledgerHash: ledger.hash, envelope };
-}
-
-export function stewardRiskLevel(templateKey: string): string {
-  return classifyAssuranceRisk(
-    'steward',
-    planGovernmentAffairsEvidence({
-      request: templateKey,
-      frame: resolveGovernmentAffairsOperatingFrame({ request: templateKey }),
-    }),
-  ).level;
 }
 
 function findingAttribution(

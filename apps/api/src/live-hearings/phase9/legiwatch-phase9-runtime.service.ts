@@ -51,11 +51,7 @@ export class LegiWatchPhase9RuntimeService {
     return mapRow(row, now);
   }
 
-  async begin(input: {
-    jobKey: string;
-    workerId: string;
-    manual?: boolean;
-  }): Promise<void> {
+  async begin(input: { jobKey: string; workerId: string; manual?: boolean }): Promise<void> {
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{ enabled: boolean; scheduleEnabled: boolean }>
     >(
@@ -113,10 +109,7 @@ export class LegiWatchPhase9RuntimeService {
     }
   }
 
-  async succeed(input: {
-    jobKey: string;
-    metrics?: Record<string, unknown>;
-  }): Promise<void> {
+  async succeed(input: { jobKey: string; metrics?: Record<string, unknown> }): Promise<void> {
     const count = await this.prisma.$executeRawUnsafe(
       `UPDATE legiwatch_runtime_heartbeat
        SET status='succeeded',
@@ -208,7 +201,12 @@ export class LegiWatchPhase9RuntimeService {
     if (!input.registrations.length) {
       throw new Error('At least one runtime registration is required');
     }
-    const allowedKeys = new Set<string>(LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS);
+    // Notification delivery is independently scheduled and must not become a
+    // prerequisite for hearing capture readiness.
+    const allowedKeys = new Set<string>([
+      ...LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS,
+      'notification-drain',
+    ]);
     const seen = new Set<string>();
     for (const registration of input.registrations) {
       if (!allowedKeys.has(registration.jobKey)) {
@@ -248,15 +246,17 @@ export class LegiWatchPhase9RuntimeService {
           }),
         );
         if (count === 0) {
-          throw new NotFoundException(
-            `LegiWatch runtime job ${registration.jobKey} not found`,
-          );
+          throw new NotFoundException(`LegiWatch runtime job ${registration.jobKey} not found`);
         }
       }
+      if (
+        !input.registrations.some((row) =>
+          (LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS as readonly string[]).includes(row.jobKey),
+        )
+      )
+        return;
       const requiredKeys = [...LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS];
-      const counts = await tx.$queryRawUnsafe<
-        Array<{ registered: number; enabled: number }>
-      >(
+      const counts = await tx.$queryRawUnsafe<Array<{ registered: number; enabled: number }>>(
         `SELECT COUNT(*) FILTER (WHERE job_key = ANY($1::text[]))::int AS registered,
                 COUNT(*) FILTER (
                   WHERE job_key = ANY($1::text[])
@@ -268,8 +268,7 @@ export class LegiWatchPhase9RuntimeService {
       );
       const registered = counts[0]?.registered ?? 0;
       const enabled = counts[0]?.enabled ?? 0;
-      const complete =
-        registered === requiredKeys.length && enabled === requiredKeys.length;
+      const complete = registered === requiredKeys.length && enabled === requiredKeys.length;
       await tx.$executeRawUnsafe(
         `UPDATE legiwatch_cutover_state
          SET schedules_enabled=$1,
@@ -346,7 +345,10 @@ function safeRecord(value: unknown): Record<string, unknown> {
 }
 
 function bounded(value: string, maximum: number): string {
-  const clean = value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, maximum);
+  const clean = value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, maximum);
   if (!clean) throw new Error('A non-empty value is required');
   return clean;
 }

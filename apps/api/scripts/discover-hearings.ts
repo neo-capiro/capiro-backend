@@ -20,7 +20,8 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { runFloridaCalendarDiscovery } from '../src/hearing-discovery/florida-calendar-discovery.js';
+import { runFloridaCalendarDiscovery, runFloridaWatchBackfill } from '../src/hearing-discovery/florida-calendar-discovery.js';
+import { runFloridaArchiveBackfill } from '../src/hearing-discovery/florida-archive-discovery.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { CommitteeSourceRepository } from '../src/hearing-discovery/committee-source.repository.js';
 import { HearingReconcilerService } from '../src/hearing-discovery/hearing-reconciler.service.js';
@@ -203,6 +204,14 @@ async function runDryRun(flags: Flags): Promise<void> {
 async function main(): Promise<void> {
   if (process.argv.includes('--source=florida')) {
     await runFloridaCalendarDiscovery(process.argv.slice(2));
+    return;
+  }
+  if (process.argv.includes('--source=florida-watch-backfill')) {
+    await runFloridaWatchBackfill(process.argv.slice(2));
+    return;
+  }
+  if (process.argv.includes('--source=florida-archive')) {
+    await runFloridaArchiveBackfill(process.argv.slice(2));
     return;
   }
   const flags = parseFlags(process.argv.slice(2));

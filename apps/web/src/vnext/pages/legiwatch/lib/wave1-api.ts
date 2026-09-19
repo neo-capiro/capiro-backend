@@ -10,8 +10,15 @@
  * the detail route without a manual refetch.
  */
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import { useHearingQueryIdentity, type SavedHearingSession } from './saved-hearing-sessions.js';
+import { useCreateHearing } from '../../../../lib/hearing-watch-api.js';
+import {
+  usePhase7BrowserJoin,
+  type Phase7BrowserJoinPlan,
+} from '../../../../pages/radar/live-hearings/live-hearings-phase7-api.js';
 
 const BASE = '/api/legiwatch/live-hearings';
 const enc = encodeURIComponent;
@@ -62,6 +69,13 @@ export interface AttendanceAssessment {
   availableModes: Array<'automatic' | 'browser'>;
   consentRequired: boolean;
   scheduled: boolean;
+  /** True when the proceeding is public and has a usable browser source,
+   *  REGARDLESS of server-capture state — a browser fallback stays open even
+   *  while a canonical capture is scheduled/capturing/failed/complete. */
+  browserAvailable?: boolean;
+  /** True when a FRESH `automatic` request would be accepted now — independent
+   *  of any browser session the user already has open. */
+  automaticAvailable?: boolean;
 }
 
 export type RelevanceBand = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' | 'INSUFFICIENT_EVIDENCE';
@@ -199,6 +213,8 @@ export interface CommitteeFollowConfig {
   notifyOnScheduleChange: boolean;
   notifyOnTranscriptReady: boolean;
   notifyOnHighPriorityMatch: boolean;
+  /** Committee publications ("What has been published") — default true. */
+  notifyOnPublication: boolean;
 }
 
 export interface CommitteeIntelligenceEntity {
@@ -260,13 +276,35 @@ export interface CalendarExport {
 export interface LwNotification {
   id: string;
   eventType: string;
-  hearingId: string;
+  /** Null for committee-level rows (e.g. a committee publication with no
+   *  hearing) — the destination is always `deepLink`, never this id. */
+  hearingId: string | null;
+  committeeSystemCode: string | null;
   clientId: string | null;
   title: string;
   body: string | null;
   deepLink: string;
   read: boolean;
   createdAt: string;
+}
+
+/** Paginated notifications response. `unread` is the SERVER-side unread count
+ *  for the caller (not derivable from the current page's rows). */
+export interface LwNotificationsPage {
+  rows: LwNotification[];
+  total: number;
+  unread: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+/** Per-user committee alert email preference (committee-follow-alerts). */
+export interface LwNotificationPreferences {
+  committeeEmailEnabled: boolean;
+  /** The signed-in account address delivery targets; null when the account
+   *  has no usable email (backend explains and refuses enabling). */
+  emailAddress: string | null;
 }
 
 // ── query keys ─────────────────────────────────────────────────────────────
@@ -284,8 +322,16 @@ export const w1Keys = {
   committeeIntel: (systemCode: string, params: unknown) =>
     ['lw-w1', 'committee-intel', systemCode, params] as const,
   calendar: (hearingId: string) => ['lw-w1', 'calendar', hearingId] as const,
-  notifications: (unreadOnly: boolean) => ['lw-w1', 'notifications', unreadOnly] as const,
+  /** All committee/hearing notification queries share this prefix so a single
+   *  prefix invalidation refreshes inbox, bell and dashboard together. The
+   *  caller identity is INSIDE the key (never cross-user bleed). */
+  notifications: (unreadOnly: boolean, pageSize: number, identity: string | null) =>
+    ['lw-w1', 'notifications', unreadOnly, pageSize, identity] as const,
+  notificationPreferences: (identity: string | null) =>
+    ['lw-w1', 'notification-preferences', identity] as const,
   savedItems: (hearingId: string) => ['lw-w1', 'saved-items', hearingId] as const,
+  serverSessions: (page: number, pageSize: number) =>
+    ['lw-w1', 'server-sessions', page, pageSize] as const,
 };
 
 /**
@@ -405,6 +451,9 @@ export function useRequestAttendance(hearingId: string) {
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
       void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
+      // A request adds durable server-capture demand: refresh the My Sessions
+      // server-captures list so the new Scheduled row appears immediately.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'server-sessions'] });
     },
   });
 }
@@ -425,7 +474,163 @@ export function useCancelAttendance(hearingId: string) {
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'event', hearingId] });
       void qc.invalidateQueries({ queryKey: ['lw', 'canonical-calendar'] });
       void qc.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
+      // A cancel removes durable demand: drop the row from the server list.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'server-sessions'] });
     },
+  });
+}
+
+// ── W1-2b · browser fallback (independent of server attendance) ────────────
+
+export interface BrowserOpenResult {
+  outcome: 'opened' | 'attached' | 'blocked';
+  message?: string;
+}
+
+/**
+ * Open a private browser capture room for a proceeding. INDEPENDENT of server
+ * attendance: calling this never clears scheduled server demand, and an active
+ * server capture never blocks opening the browser fallback. The join plan's
+ * `sourceUrl`/`sourceKind` come from the server's official-source selection —
+ * the UI never constructs a player URL. A browser session is only created when
+ * the plan is BROWSER_CAPTURE; ATTACH_CANONICAL means a shared capture is
+ * already running and the user is attached to it instead of duplicating it.
+ */
+export function useOpenBrowserRoom(hearingId: string) {
+  const browserJoin = usePhase7BrowserJoin();
+  const createBrowserSession = useCreateHearing();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const inFlight = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const open = async (): Promise<BrowserOpenResult> => {
+    if (inFlight.current) return { outcome: 'blocked', message: 'Already opening.' };
+    inFlight.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      const plan: Phase7BrowserJoinPlan = await browserJoin.mutateAsync(hearingId);
+      if (plan.mode === 'BLOCKED') {
+        setError(plan.message);
+        return { outcome: 'blocked', message: plan.message };
+      }
+      if (plan.mode === 'ATTACH_CANONICAL') {
+        // A canonical capture is already active; attach rather than duplicate.
+        void qc.invalidateQueries({ queryKey: ['lw-w1', 'attendance', hearingId] });
+        return { outcome: 'attached' };
+      }
+      const session = await createBrowserSession.mutateAsync({
+        title: plan.title,
+        sourceType: plan.sourceType,
+        audioSource: plan.audioSource,
+        recordingPolicy: plan.recordingPolicy,
+        sourceUrl: plan.sourceUrl,
+        hearingId: plan.hearingId,
+        committeeId: plan.committeeId,
+        consentAttestation:
+          'I confirm this proceeding is public and recording it through my browser is permitted.',
+      });
+      if (!session?.id) {
+        const msg = 'The browser hearing room could not be created. Please retry.';
+        setError(msg);
+        return { outcome: 'blocked', message: msg };
+      }
+      navigate(`/intelligence/hearing-watch/${encodeURIComponent(session.id)}`);
+      return { outcome: 'opened' };
+    } catch (err) {
+      const msg = w1Error(err);
+      setError(msg);
+      return { outcome: 'blocked', message: msg };
+    } finally {
+      inFlight.current = false;
+      setPending(false);
+    }
+  };
+
+  return { open, pending, error, clearError: () => setError(null) };
+}
+
+// ── W1-2c · durable server capture sessions (My Sessions) ─────────────────
+
+export interface ServerCaptureSession {
+  id: string;
+  title: string;
+  committeeName: string | null;
+  chamber: string | null;
+  /** Verbatim proceeding status — canceled/postponed stay honest. */
+  eventStatus: string;
+  /** Verbatim visibility — a proceeding later closed to public stays honest. */
+  visibility: string;
+  date: string | null;
+  startsAt: string | null;
+  time: string | null;
+  timeZone: string | null;
+  location: string | null;
+  officialPageUrl: string | null;
+  capture: {
+    id: string;
+    status: string;
+    actualStart: string | null;
+    actualEnd: string | null;
+  } | null;
+  /** True when durable demand exists but no canonical capture is acquired yet. */
+  capturePending: boolean;
+  scheduleSource: { byUser: boolean; byRule: boolean; ruleId: string | null } | null;
+}
+
+export interface ServerCaptureSessionsPage {
+  rows: ServerCaptureSession[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Durable all-lifecycle SERVER capture attendance for exactly this tenant+user,
+ * sourced from the durable subscription demand rows (the recorder's own
+ * predicate). Independent of the selected calendar week and of any
+ * client/jurisdiction filter: a scheduled row appears immediately and stays
+ * visible through started/processing/completed/failed. Browser-only and
+ * notify-only demand are excluded server-side.
+ */
+export function useServerCaptureSessions(
+  page = 1,
+  pageSize = 50,
+): UseQueryResult<ServerCaptureSessionsPage, Error> {
+  const api = useApi();
+  // Private per-user attendance: the cache key MUST carry the caller identity
+  // so a tenant/user switch never shows the previous user's saved demand.
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<ServerCaptureSessionsPage, Error>({
+    queryKey: [...w1Keys.serverSessions(page, pageSize), identity],
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to check server capture sessions.');
+      return (
+        await api.get<ServerCaptureSessionsPage>(
+          `${BASE}/server-sessions?page=${page}&pageSize=${pageSize}`,
+          { signal },
+        )
+      ).data;
+    },
+    enabled: ready,
+    staleTime: 15_000,
+    retry: false,
+    // Advance nonterminal/pending captures without a manual reload; stop
+    // polling once every row on the page is terminal.
+    refetchInterval: (query) => {
+      const rows = query.state.data?.rows ?? [];
+      const active = rows.some((row) => {
+        if (row.capturePending) return true;
+        const s = row.capture?.status?.toUpperCase();
+        return Boolean(
+          s && !['COMPLETE', 'COMPLETE_WITH_GAPS', 'FAILED', 'BLOCKED', 'CANCELED'].includes(s),
+        );
+      });
+      return active ? 15_000 : false;
+    },
+    refetchIntervalInBackground: true,
   });
 }
 
@@ -530,6 +735,7 @@ export interface CommitteeFollowInput {
   notifyOnScheduleChange?: boolean;
   notifyOnTranscriptReady?: boolean;
   notifyOnHighPriorityMatch?: boolean;
+  notifyOnPublication?: boolean;
 }
 
 export function useSaveCommitteeFollow(systemCode: string) {
@@ -539,7 +745,12 @@ export function useSaveCommitteeFollow(systemCode: string) {
     mutationFn: async (input) =>
       (await api.put<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`, input))
         .data,
-    onSuccess: (data) => qc.setQueryData(w1Keys.committeeFollow(systemCode), data),
+    onSuccess: (data) => {
+      qc.setQueryData(w1Keys.committeeFollow(systemCode), data);
+      // A follow lets the server generate catch-up notifications for recent
+      // publications — refresh the shared inbox/bell/dashboard feed now.
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
   });
 }
 
@@ -550,7 +761,10 @@ export function useUnfollowCommittee(systemCode: string) {
     mutationFn: async () =>
       (await api.delete<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`))
         .data,
-    onSuccess: (data) => qc.setQueryData(w1Keys.committeeFollow(systemCode), data),
+    onSuccess: (data) => {
+      qc.setQueryData(w1Keys.committeeFollow(systemCode), data);
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
   });
 }
 
@@ -866,18 +1080,101 @@ export function downloadIcs(exportResult: Pick<CalendarExport, 'ics' | 'filename
 
 // ── W1-5 · notification inbox ──────────────────────────────────────────────
 
-export function useLwNotifications(unreadOnly = false) {
+/**
+ * The durable committee/hearing notification feed (dashboard Needs Attention,
+ * top-nav bell). Caller identity is part of the cache key — a tenant/user
+ * switch can never show the previous caller's inbox — and the feed polls so
+ * newly-followed committees surface without a manual reload.
+ */
+export function useLwNotifications(
+  unreadOnly = false,
+  pageSize = 100,
+): UseQueryResult<LwNotificationsPage, Error> {
   const api = useApi();
-  return useQuery<{ rows: LwNotification[]; total: number; unread: number }, Error>({
-    queryKey: w1Keys.notifications(unreadOnly),
-    queryFn: async () =>
-      (
-        await api.get<{ rows: LwNotification[]; total: number; unread: number }>(
-          `${BASE}/notifications?unreadOnly=${unreadOnly ? 'true' : 'false'}`,
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<LwNotificationsPage, Error>({
+    queryKey: w1Keys.notifications(unreadOnly, pageSize, identity),
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to check committee notifications.');
+      return (
+        await api.get<LwNotificationsPage>(
+          `${BASE}/notifications?unreadOnly=${unreadOnly ? 'true' : 'false'}&page=1&pageSize=${pageSize}`,
+          { signal },
         )
-      ).data,
+      ).data;
+    },
+    enabled: ready,
+    staleTime: 30_000,
+    retry: false,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkLwNotificationRead() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation<{ read: boolean }, Error, string>({
+    mutationFn: async (id) => {
+      const data = (await api.post<{ read: boolean }>(`${BASE}/notifications/${enc(id)}/read`, {}))
+        .data;
+      // HTTP 200 with read:false is NOT success — the backend returns false
+      // for a nonexistent or ineligible id. Treat it as the failure it is so
+      // callers never navigate/clear as if the row had been marked read.
+      if (data?.read !== true) {
+        throw new Error('This alert could not be marked read. It may no longer be available.');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
+  });
+}
+
+/** Marks EVERY caller unread row read server-side (not just the loaded page). */
+export function useMarkAllLwNotificationsRead() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation<{ read: number }, Error, void>({
+    mutationFn: async () =>
+      (await api.post<{ read: number }>(`${BASE}/notifications/read-all`, {})).data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
+    },
+  });
+}
+
+/** Per-user committee email opt-in. Default OFF; delivery goes to the signed-in
+ *  account address only, and the backend may refuse enabling with an
+ *  explanatory message (rendered verbatim by the caller). */
+export function useLwNotificationPreferences(): UseQueryResult<LwNotificationPreferences, Error> {
+  const api = useApi();
+  const { identity, ready } = useHearingQueryIdentity();
+  return useQuery<LwNotificationPreferences, Error>({
+    queryKey: w1Keys.notificationPreferences(identity),
+    queryFn: async ({ signal }) => {
+      if (!ready) throw new Error('Sign in to manage committee email alerts.');
+      return (
+        await api.get<LwNotificationPreferences>(`${BASE}/notification-preferences`, { signal })
+      ).data;
+    },
+    enabled: ready,
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+export function useSaveLwNotificationPreferences() {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { identity } = useHearingQueryIdentity();
+  return useMutation<LwNotificationPreferences, Error, { committeeEmailEnabled: boolean }>({
+    mutationFn: async (input) =>
+      (await api.put<LwNotificationPreferences>(`${BASE}/notification-preferences`, input)).data,
+    onSuccess: (data) => {
+      // Seed from the server's own persisted state (never the requested value).
+      qc.setQueryData(w1Keys.notificationPreferences(identity), data);
+    },
   });
 }
 

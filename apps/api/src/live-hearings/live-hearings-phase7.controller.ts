@@ -168,6 +168,20 @@ export class LiveHearingsPhase7Controller {
     return this.phase7.recordings(ctx, query);
   }
 
+  /**
+   * Durable all-lifecycle SERVER capture attendance for exactly this
+   * tenant+user, sourced from the durable `hearing_subscription` demand rows
+   * (the same predicate the recorder worker uses). Unlike the legacy
+   * `recordings` list it applies the automatic user-or-rule demand predicate,
+   * spans every lifecycle state (no event_status filter), and reads the
+   * canonical federal+state hearing table. Opt-in dedicated route so the
+   * legacy `recordings` contract and its existing caller are unchanged.
+   */
+  @Get('server-sessions')
+  serverSessions(@CurrentTenant() ctx: TenantContext, @Query() query: PageQueryDto) {
+    return this.phase7.serverSessions(ctx, query);
+  }
+
   @Get('archive')
   archive(@CurrentTenant() ctx: TenantContext, @Query() query: PageQueryDto) {
     return this.phase7.archive(ctx, query);

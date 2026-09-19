@@ -158,7 +158,10 @@ describe('Gmail reset/reclaim state', () => {
       query: frozenQuery,
       pageToken: 'page-13',
     });
-    expect(state.mail).toMatchObject({ historyId: 'new-history' });
+    expect(state.mail).toMatchObject({ historyId: 'old-history' });
+    // The pre-reset baseline is restored once the chain is exhausted (#1522
+    // capture-replay), so incremental sync catches changes made during replay.
+    expect(state.mail).toMatchObject({ captureReplayHistoryId: 'old-history' });
     expect(state.mail!.labels!.ALL).toMatchObject({
       backfillPageToken: null,
       backfillDone: true,

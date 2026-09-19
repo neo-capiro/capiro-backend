@@ -19,7 +19,9 @@ import {
   type FolderSourceBill,
 } from '../../sourcedata/folder-source-data.repository.js';
 import {
+  type BillCorpusQueryDto,
   type BulkFolderBillsDto,
+  type FolderActivityQueryDto,
   type FolderBoardQueryDto,
   type FolderContextDto,
   type FolderExportDto,
@@ -63,6 +65,10 @@ export type FolderBillRow = FolderSourceBill & {
   addedAt: Date | null;
   addedDateRaw: string | null;
   addedDatePrecision: string | null;
+  summary?: string | null;
+  classifications?: string[] | null;
+  subjects?: string[] | null;
+  currentCommittee?: string | null;
 };
 
 @Injectable()
@@ -302,6 +308,13 @@ export class FolderTrackerService {
     search = false,
     selectedIds?: string[],
   ) {
+    // jurisdiction/sessionKey are DTO-optional only so the global search path
+    // can omit them; a folder board (or any folderId-scoped read) still
+    // requires both. Enforced here because one DTO serves both routes.
+    if (!search || input.folderId) {
+      if (!input.jurisdiction || !input.sessionKey)
+        throw new BadRequestException('JURISDICTION_AND_SESSION_REQUIRED');
+    }
     const { cursor, limit = 50, ...filters } = input;
     const scope = hash({ tenantId: ctx.tenantId, filters, search, selectedIds });
     let offset = 0;
@@ -315,19 +328,34 @@ export class FolderTrackerService {
         throw new BadRequestException('CURSOR_SCOPE_CHANGED');
       }
     }
+    if (input.clientId) {
+      // Read-only client validation BEFORE opening the interactive transaction:
+      // getClientProfile opens its own withSystem read and nesting it inside
+      // withActor starves the pool (P5015 under normal pooling).
+      if (!(await this.legacySource.getClientProfile(ctx.tenantId, input.clientId)))
+        throw new NotFoundException('CLIENT_NOT_FOUND');
+      if (input.folderId) {
+        const folder = await this.prisma.legiWatchFolder.findFirst({
+          where: { tenantId: ctx.tenantId, id: input.folderId },
+          select: { clientId: true },
+        });
+        if (folder && folder.clientId !== input.clientId)
+          throw new NotFoundException('FOLDER_CLIENT_MISMATCH');
+      }
+    }
     return this.withActor(ctx, async (tx) => {
       if (input.folderId) await this.folder(tx, ctx, input.folderId);
-      if (
-        input.clientId &&
-        !(await this.legacySource.getClientProfile(ctx.tenantId, input.clientId))
-      )
-        throw new NotFoundException('CLIENT_NOT_FOUND');
-      const values: unknown[] = [ctx.tenantId, input.jurisdiction, input.sessionKey];
+      const values: unknown[] = [ctx.tenantId];
       const bind = (value: unknown) => {
         values.push(value);
         return `$${values.length}`;
       };
-      const where = ['b.jurisdiction = $2', 'b."sessionKey" = $3'];
+      // An omitted jurisdiction or sessionKey searches the entire ingested
+      // corpus (all states, all Congresses, special sessions). Explicit values
+      // keep exact predicates.
+      const where: string[] = [];
+      if (input.jurisdiction) where.push(`b.jurisdiction = ${bind(input.jurisdiction)}`);
+      if (input.sessionKey) where.push(`b."sessionKey" = ${bind(input.sessionKey)}`);
       // Search can show unassigned canonical bills. A board always shows assignments.
       const join = search ? 'LEFT JOIN' : 'JOIN';
       let assignmentScope = 'a.tenant_id = $1 AND a.bill_id = b.id';
@@ -335,13 +363,30 @@ export class FolderTrackerService {
       else if (search) assignmentScope += ' AND false';
       if (input.clientId) where.push(`f.client_id = ${bind(input.clientId)}`);
       if (input.q) {
+        const escaped = '%' + input.q.replace(/[\\%_]/g, '\\$&') + '%';
         const billNumber = normalizeBillNumber(input.q, input.jurisdiction);
+        // FL H/S aliases are row-local: only FL rows read H as HB. When no
+        // jurisdiction is selected, also match the un-aliased token so a
+        // Florida H0027 and a Massachusetts H 27 both answer "H 27".
+        const flAlias = !input.jurisdiction ? normalizeBillNumber(input.q, 'FL') : null;
+        const numberMatch = [
+          billNumber ? `${FOLDER_NUMBER_SQL} = ${bind(billNumber)}` : null,
+          flAlias && flAlias !== billNumber
+            ? `(b.jurisdiction = 'FL' AND ${FOLDER_NUMBER_SQL} = ${bind(flAlias)})`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' OR ');
         where.push(
-          `(b.title ILIKE ${bind('%' + input.q.replace(/[\\%_]/g, '\\$&') + '%')} OR b.number ILIKE ${bind('%' + input.q.replace(/[\\%_]/g, '\\$&') + '%')}${billNumber ? ` OR ${FOLDER_NUMBER_SQL} = ${bind(billNumber)}` : ''})`,
+          `(b.title ILIKE ${bind(escaped)} OR b.number ILIKE ${bind(escaped)}${numberMatch ? ` OR ${numberMatch}` : ''})`,
         );
       }
-      if (input.sponsor)
-        where.push(`b.sponsor ILIKE ${bind('%' + input.sponsor.replace(/[\\%_]/g, '\\$&') + '%')}`);
+      if (input.sponsor) {
+        const pattern = bind('%' + input.sponsor.replace(/[\\%_]/g, '\\$&') + '%');
+        where.push(
+          `(b.sponsor ILIKE ${pattern} OR EXISTS (SELECT 1 FROM state_bill_sponsor s WHERE s.bill_key = b.id AND s.name ILIKE ${pattern}) OR EXISTS (SELECT 1 FROM congress_bill_cosponsor cs WHERE cs.bill_id = b.id AND cs.withdrawn_date IS NULL AND cs.full_name ILIKE ${pattern}))`,
+        );
+      }
       if (input.status) where.push(`b.status = ${bind(input.status)}`);
       if (input.chamber) where.push(`b.chamber = ${bind(input.chamber)}`);
       if (input.comments === 'internal') where.push(`a.internal_comments <> ''`);
@@ -354,8 +399,24 @@ export class FolderTrackerService {
       if (input.importance) where.push(`a.importance = ${bind(input.importance)}`);
       if (input.position) where.push(`a.position = ${bind(input.position)}`);
       if (selectedIds) where.push(`a.id = ANY(${bind(selectedIds)}::text[])`);
+      if (input.classification)
+        where.push(
+          `EXISTS (SELECT 1 FROM unnest(coalesce(b.classifications, ARRAY[]::text[])) c WHERE c = ${bind(input.classification)})`,
+        );
+      if (input.subject)
+        where.push(
+          `EXISTS (SELECT 1 FROM unnest(b.subjects) s WHERE s ILIKE ${bind('%' + input.subject.replace(/[\\%_]/g, '\\$&') + '%')})`,
+        );
+      if (input.committee) where.push(`b."currentCommittee" = ${bind(input.committee)}`);
+      if (input.summary)
+        where.push(`b.summary ILIKE ${bind('%' + input.summary.replace(/[\\%_]/g, '\\$&') + '%')}`);
+      if (input.actionText)
+        where.push(
+          `b."latestAction" ILIKE ${bind('%' + input.actionText.replace(/[\\%_]/g, '\\$&') + '%')}`,
+        );
+      const predicates = where.length ? `WHERE ${where.join(' AND ')}` : '';
       const from = `FROM (${FOLDER_SOURCE_SQL}) b ${join} intel_legiwatch_folder_bill a ON ${assignmentScope}
-        LEFT JOIN intel_legiwatch_folder f ON f.tenant_id = $1 AND f.id = a.folder_id WHERE ${where.join(' AND ')}`;
+        LEFT JOIN intel_legiwatch_folder f ON f.tenant_id = $1 AND f.id = a.folder_id ${predicates}`;
       const direction = input.direction === 'desc' ? 'DESC' : 'ASC';
       const sortSql: Record<string, string> = {
         bill: `regexp_replace(b.number, '[^A-Za-z]', '', 'g') ${direction}, coalesce(nullif(regexp_replace(b.number, '[^0-9]', '', 'g'), ''), '0')::numeric ${direction}`,
@@ -372,7 +433,8 @@ export class FolderTrackerService {
         `SELECT b.*, a.id AS "assignmentId", a.folder_id AS "folderId",
         a.top_priority AS "topPriority", a.importance, a.position, a.internal_comments AS "internalComments",
         a.external_comments AS "externalComments", a.version, a.added_at AS "addedAt",
-        a.added_date_raw AS "addedDateRaw", a.added_date_precision AS "addedDatePrecision"
+        a.added_date_raw AS "addedDateRaw", a.added_date_precision AS "addedDatePrecision",
+        ${input.summaryIncluded === 'true' ? `b.summary, b.classifications, b.subjects, b."currentCommittee"` : `NULL AS summary, NULL AS classifications, NULL AS subjects, NULL AS "currentCommittee"`}
         ${from} ORDER BY ${sortSql[input.sort ?? 'bill'] ?? sortSql.bill}, b.id, a.id
         LIMIT ${bind(limit)} OFFSET ${bind(offset)}`,
         ...values,
@@ -389,6 +451,36 @@ export class FolderTrackerService {
             : null,
       };
     });
+  }
+  /**
+   * Global corpus search for the public route. BillCorpusQueryDto carries no
+   * folder/client/private fields by construction; this wrapper additionally
+   * strips any stray value so the search can never join tenant-private tables.
+   */
+  async searchCorpus(ctx: WorkspaceTenantContext, input: BillCorpusQueryDto) {
+    const { jurisdiction, sessionKey, q, sponsor, status, chamber, sort, direction, cursor, limit, classification, subject, committee, summary, actionText, summaryIncluded } = input;
+    return this.board(
+      ctx,
+      {
+        jurisdiction,
+        sessionKey,
+        q,
+        sponsor,
+        status,
+        chamber,
+        sort,
+        direction,
+        cursor,
+        limit,
+        classification,
+        subject,
+        committee,
+        summary,
+        actionText,
+        summaryIncluded,
+      },
+      true,
+    );
   }
   async export(ctx: WorkspaceTenantContext, input: FolderExportDto) {
     if (input.scope === 'selected' && !input.selectedIds?.length)
@@ -419,6 +511,11 @@ export class FolderTrackerService {
       ['Date foldered (source)', 'addedDateRaw'],
       ['Date precision', 'addedDatePrecision'],
     ];
+    if (input.summaryIncluded === 'true') {
+      columns.push(['Summary', 'summary']);
+      columns.push(['Current committee', 'currentCommittee']);
+      columns.push(['Classification', 'classifications']);
+    }
     if (includeInternalComments) columns.push(['Folder internal comments', 'internalComments']);
     if (includeExternalComments) columns.push(['Folder external comments', 'externalComments']);
     return {
@@ -428,5 +525,155 @@ export class FolderTrackerService {
         ...rows.map((row) => columns.map(([, key]) => csvCell(row[key])).join(',')),
       ].join('\r\n'),
     };
+  }
+
+  /** Daily original-record activity (session/folder/client-scoped). */
+  async activities(ctx: WorkspaceTenantContext, input: FolderActivityQueryDto) {
+    if (input.clientId && !(await this.legacySource.getClientProfile(ctx.tenantId, input.clientId)))
+      throw new NotFoundException('CLIENT_NOT_FOUND');
+    const { cursor, limit = 25, ...filters } = input;
+    const scope = hash({ tenantId: ctx.tenantId, filters });
+    let offset = 0;
+    if (cursor) {
+      try {
+        const decoded = JSON.parse(Buffer.from(cursor, 'base64url').toString());
+        if (decoded.scope !== scope || !Number.isSafeInteger(decoded.offset) || decoded.offset < 0)
+          throw new Error();
+        offset = decoded.offset;
+      } catch {
+        throw new BadRequestException('INVALID_ACTIVITY_CURSOR');
+      }
+    }
+    if (input.from && input.to && input.from > input.to)
+      throw new BadRequestException('INVALID_DATE_RANGE');
+    for (const d of [input.from, input.to]) {
+      if (!d) continue;
+      const t = Date.parse(d);
+      if (!Number.isFinite(t) || new Date(t).toISOString().slice(0, 10) !== d)
+        throw new BadRequestException('INVALID_DATE_RANGE');
+    }
+    return this.withActor(ctx, async (tx) => {
+      if (input.folderId) await this.folder(tx, ctx, input.folderId);
+      const scopeMeta = {
+        jurisdiction: input.jurisdiction,
+        sessionKey: input.sessionKey,
+        folderId: input.folderId ?? null,
+        clientId: input.clientId ?? null,
+        onlyTracked: input.onlyTracked === 'true',
+        chamber: input.chamber ?? null,
+      };
+      // Federal text/amendment activity has no retained daily source: the text
+      // join is state-only (state_bill_version) and the amendment join is
+      // state-only (state_bill_published_record), so US rows are necessarily
+      // empty regardless of real federal publications. Report the source as
+      // unavailable instead of implying zero events occurred. This short
+      // circuit runs only after all tenant/client/folder ownership and
+      // input/cursor validation above — unsupported kinds never bypass it.
+      if (input.jurisdiction === 'US' && input.kind !== 'action') {
+        return {
+          rows: [],
+          total: 0,
+          nextCursor: null,
+          availability: 'unavailable',
+          reason:
+            input.kind === 'text'
+              ? 'Federal text filing activity is not available from the retained activity sources.'
+              : 'Federal amendment activity is not available from the retained activity sources.',
+          kind: input.kind,
+          from: input.from ?? null,
+          to: input.to ?? null,
+          scope: scopeMeta,
+        };
+      }
+      const values: unknown[] = [ctx.tenantId, input.jurisdiction, input.sessionKey];
+      const bind = (value: unknown) => {
+        values.push(value);
+        return `$${values.length}`;
+      };
+      const scopeSql: string[] = [];
+      if (input.folderId || input.clientId || input.onlyTracked === 'true') {
+        const parts: string[] = ['ta.tenant_id = $1', 'ta.bill_id = b.id'];
+        if (input.folderId) parts.push(`ta.folder_id = ${bind(input.folderId)}`);
+        if (input.clientId)
+          parts.push(
+            `EXISTS (SELECT 1 FROM intel_legiwatch_folder tf WHERE tf.tenant_id = $1 AND tf.id = ta.folder_id AND tf.client_id = ${bind(input.clientId)})`,
+          );
+        if (input.onlyTracked === 'true')
+          parts.push(
+            `EXISTS (SELECT 1 FROM intel_legiwatch_folder tf WHERE tf.tenant_id = $1 AND tf.id = ta.folder_id AND NOT tf.archived)`,
+          );
+        scopeSql.push(
+          `EXISTS (SELECT 1 FROM intel_legiwatch_folder_bill ta WHERE ${parts.join(' AND ')})`,
+        );
+      }
+      if (input.chamber) scopeSql.push(`b.chamber = ${bind(input.chamber)}`);
+      const whereSql = scopeSql.length ? ' AND ' + scopeSql.join(' AND ') : '';
+      const dateSql =
+        input.kind === 'amendment'
+          ? (input.from ? ` AND NULLIF(r.event_date, '')::date >= ${bind(input.from)}::date` : '') +
+            (input.to ? ` AND NULLIF(r.event_date, '')::date <= ${bind(input.to)}::date` : '')
+          : (input.from ? ` AND x.date::date >= ${bind(input.from)}::date` : '') +
+            (input.to ? ` AND x.date::date <= ${bind(input.to)}::date` : '');
+      let fromSql: string, selectSql: string, orderSql: string;
+      if (input.kind === 'action') {
+        if (input.jurisdiction === 'US') {
+          fromSql = `FROM (${FOLDER_SOURCE_SQL}) b JOIN congress_bill_action x ON x.bill_id = b.id WHERE b.jurisdiction = $2 AND b."sessionKey" = $3`;
+          selectSql = `x.id::text AS id, b.id AS "billId", b.number, b.title, b.jurisdiction, b."sessionKey", x.date::text AS date, 'action' AS kind, x.text, b."sourceUrl" AS url, NULL::int AS "providerDocumentId", b.chamber, 'congress_action' AS provenance`;
+          orderSql = `x.date DESC NULLS LAST, x.id`;
+        } else {
+          fromSql = `FROM (${FOLDER_SOURCE_SQL}) b JOIN (
+            SELECT id::text, bill_key, date, text, order_key::int, NULL::text AS url, 'legacy_action' AS provenance FROM state_bill_action la
+            WHERE NOT EXISTS (SELECT 1 FROM state_bill_published_record r WHERE r.bill_key = la.bill_key AND r.kind = 'action')
+              AND NOT EXISTS (SELECT 1 FROM state_bill sb2 WHERE sb2.id = la.bill_key AND coalesce(sb2.report_source_facts->'coverage'->>'actions','false') = 'true')
+            UNION ALL
+            SELECT id::text, bill_key, NULLIF(event_date, '')::date, evidence->>'text' AS text, source_order::int, evidence->>'url' AS url, 'published_record' AS provenance FROM state_bill_published_record r
+            WHERE kind = 'action'
+              AND coalesce(
+                (SELECT o.state_record_id = r.id FROM published_record_source_current o WHERE o.source_key = 'state:' || r.bill_key || ':' || r.kind || ':' || r.source_identity),
+                NOT EXISTS(SELECT 1 FROM state_bill_published_record later WHERE later.bill_key = r.bill_key AND later.kind = r.kind AND later.source_identity = r.source_identity AND (later.first_observed_at, later.id) > (r.first_observed_at, r.id))
+              )
+          ) x ON x.bill_key = b.id WHERE b.jurisdiction = $2 AND b."sessionKey" = $3`;
+          selectSql = `x.id::text AS id, b.id AS "billId", b.number, b.title, b.jurisdiction, b."sessionKey", x.date::text AS date, 'action' AS kind, x.text, coalesce(x.url, b."sourceUrl") AS url, NULL::int AS "providerDocumentId", b.chamber, x.provenance`;
+          orderSql = `x.date DESC NULLS LAST, x.order_key DESC, x.id`;
+        }
+      } else if (input.kind === 'text') {
+        fromSql = `FROM (${FOLDER_SOURCE_SQL}) b JOIN state_bill_version x ON x.bill_key = b.id WHERE b.jurisdiction = $2 AND b."sessionKey" = $3 AND x.date <> '1970-01-01'::date`;
+        selectSql = `x.id::text AS id, b.id AS "billId", b.number, b.title, b.jurisdiction, b."sessionKey", x.date::text AS date, 'text' AS kind, x.version_type AS text, x.state_url AS url, x.legiscan_doc_id AS "providerDocumentId", b.chamber, 'bill_version' AS provenance`;
+        orderSql = `x.date DESC NULLS LAST, x.id`;
+      } else {
+        fromSql = `FROM (${FOLDER_SOURCE_SQL}) b JOIN state_bill_published_record r ON r.bill_key = b.id AND r.kind = 'amendment' WHERE b.jurisdiction = $2 AND b."sessionKey" = $3
+          AND coalesce(
+            (SELECT o.state_record_id = r.id FROM published_record_source_current o WHERE o.source_key = 'state:' || r.bill_key || ':' || r.kind || ':' || r.source_identity),
+            NOT EXISTS(SELECT 1 FROM state_bill_published_record later WHERE later.bill_key = r.bill_key AND later.kind = r.kind AND later.source_identity = r.source_identity AND (later.first_observed_at, later.id) > (r.first_observed_at, r.id))
+          )`;
+        selectSql = `r.id::text AS id, b.id AS "billId", b.number, b.title, b.jurisdiction, b."sessionKey", r.event_date AS date, 'amendment' AS kind, r.evidence->>'text' AS text, r.evidence->>'url' AS url, NULL::int AS "providerDocumentId", b.chamber, 'published_record' AS provenance`;
+        orderSql = `r.event_date DESC NULLS LAST, r.source_order DESC, r.id`;
+      }
+      const count = await tx.$queryRawUnsafe<Array<{ total: number }>>(
+        `SELECT count(*)::int AS total ${fromSql}${whereSql}${dateSql}`,
+        ...values,
+      );
+      const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
+        `SELECT ${selectSql} ${fromSql}${whereSql}${dateSql} ORDER BY ${orderSql} LIMIT ${bind(limit)} OFFSET ${bind(offset)}`,
+        ...values,
+      );
+      const total = count[0]?.total ?? 0;
+      return {
+        rows,
+        total,
+        nextCursor:
+          offset + rows.length < total
+            ? Buffer.from(JSON.stringify({ scope, offset: offset + rows.length })).toString(
+                'base64url',
+              )
+            : null,
+        availability: 'available',
+        reason: null,
+        kind: input.kind,
+        from: input.from ?? null,
+        to: input.to ?? null,
+        scope: scopeMeta,
+      };
+    });
   }
 }

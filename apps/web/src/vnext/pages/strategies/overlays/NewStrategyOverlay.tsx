@@ -26,9 +26,10 @@ import type { StrategyType } from '../../../../pages/strategy/types.js';
 import {
   useClientsLite,
   useCreateStrategy,
-  useDraftStrategy,
+  useDraftJobStatus,
   useFirmPhases,
   useStrategyContextAvailability,
+  useSubmitDraftStrategy,
   useTenantMembers,
 } from '../strategies-api.js';
 import { useShellClientContext } from '../../../adapters/legacy/useShellClientContext.js';
@@ -70,9 +71,43 @@ export function NewStrategyOverlay() {
 
   const availability = useStrategyContextAvailability(clientId || null);
   const createStrategy = useCreateStrategy();
-  const draftStrategy = useDraftStrategy();
-  const busy = createStrategy.isPending || draftStrategy.isPending;
-  const mutationError = createStrategy.error ?? draftStrategy.error;
+  const submitDraft = useSubmitDraftStrategy();
+
+  /*
+   * "Draft with Meri" no longer awaits one blocking call to a StrategyDetail —
+   * it submits, gets a jobId back almost immediately, and this overlay switches
+   * into a generating view that polls the job and shows Meri's live progress.
+   * `jobId` is local component state: closing the overlay unmounts it (route
+   * sync in StrategiesModalShell), which both stops the poll (react-query's
+   * `enabled` flag) and drops this state, so reopening the overlay always
+   * starts from a fresh form rather than a stuck job.
+   */
+  const [jobId, setJobId] = useState<string | null>(null);
+  const job = useDraftJobStatus(jobId);
+  const navigatedRef = useRef(false);
+
+  useEffect(() => {
+    const data = job.data;
+    if (data?.status === 'completed' && data.strategyId && !navigatedRef.current) {
+      navigatedRef.current = true;
+      navigate(`/strategies/${data.strategyId}`);
+    }
+  }, [job.data?.status, job.data?.strategyId, navigate]);
+
+  const retryDraft = () => {
+    navigatedRef.current = false;
+    setJobId(null);
+  };
+
+  /* Keep the live preview panel scrolled to the newest text as the rolling
+   * window grows — no typewriter/fade animation, just follow the tail. */
+  const previewRef = useRef<HTMLPreElement | null>(null);
+  useEffect(() => {
+    if (previewRef.current) previewRef.current.scrollTop = previewRef.current.scrollHeight;
+  }, [job.data?.streamPreview]);
+
+  const busy = createStrategy.isPending || submitDraft.isPending;
+  const mutationError = createStrategy.error ?? submitDraft.error;
 
   const requiredComplete = Boolean(clientId && type && goal.trim() && ownerUserId);
   /* F06: the initialized client is the baseline, not a pending edit — only
@@ -117,10 +152,62 @@ export function NewStrategyOverlay() {
     };
     const onSuccess = (detail: { id: string }) => navigate(`/strategies/${detail.id}`);
     /* "Draft with Meri" creates the strategy AND a draft proposal — it never
-     * produces an applied plan (§7.10a, governance §1: review required). */
-    if (startingPoint === 'draft') draftStrategy.mutate(base, { onSuccess });
-    else createStrategy.mutate(base, { onSuccess });
+     * produces an applied plan (§7.10a, governance §1: review required). The
+     * submit call only enqueues the job; navigation happens later, once the
+     * polled job reaches `completed` (see the effect above). */
+    if (startingPoint === 'draft') {
+      submitDraft.mutate(base, { onSuccess: (res) => setJobId(res.jobId) });
+    } else {
+      createStrategy.mutate(base, { onSuccess });
+    }
   };
+
+  /*
+   * Once a draft job is submitted, the overlay switches from the form to a
+   * generating/failed view — same shell (Escape/backdrop/route-sync stay
+   * live), different body. `dirty` is false here on purpose: closing the
+   * overlay does not discard anything, the job keeps running server-side.
+   */
+  if (jobId) {
+    const status = job.data?.status ?? 'queued';
+    const failed = status === 'failed';
+    const statusLine = job.data?.progressText || job.data?.stage || 'Starting…';
+    return (
+      <StrategiesModalShell
+        eyebrow="New strategy"
+        title="What are you trying to achieve?"
+        closeTo="/strategies"
+        dirty={false}
+        maxWidth={1000}
+        primaryLabel={failed ? 'Try again' : 'Generating…'}
+        onPrimary={failed ? retryDraft : undefined}
+        primaryDisabled={!failed}
+        footerNote={
+          failed
+            ? 'Nothing was created. Try again, or close and start an empty timeline instead.'
+            : 'You can close this dialog — the draft keeps generating and will be ready in the library.'
+        }
+      >
+        {failed ? (
+          <p className="st-modal__alert" role="alert">
+            The strategy could not be created. {job.data?.errorMessage || 'Please try again.'}
+          </p>
+        ) : (
+          <div className="st-ns__generating">
+            <p className="st-ns__generating-status" role="status">
+              {statusLine}
+            </p>
+            <div className="st-dark-panel">
+              <p className="st-dark-panel__label">Watching Meri draft</p>
+              <pre ref={previewRef} className="st-ns__stream-preview" aria-live="polite">
+                {job.data?.streamPreview || 'Meri is getting started…'}
+              </pre>
+            </div>
+          </div>
+        )}
+      </StrategiesModalShell>
+    );
+  }
 
   const clientOptions = [
     { value: '', label: clients.isLoading ? 'Loading clients…' : 'Select a client' },

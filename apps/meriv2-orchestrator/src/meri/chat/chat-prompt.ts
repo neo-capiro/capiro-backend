@@ -381,6 +381,9 @@ export function composeChatSystemPrompt(
   // cache). Closes the <meri_grounding> element opened in the base.
   const dynamic = [
     meriGroundingDateBlock(new Date().toISOString()),
+    dto.conversationId
+      ? `\nThe current conversation id is: ${dto.conversationId}. Use this exact value for any tool's conversationId parameter — it is already resolved and must never be asked of the user.`
+      : '',
     dto.clientId
       ? `\nThe conversation is focused on client id: ${dto.clientId} (use it for client tools).`
       : '',

@@ -129,6 +129,7 @@ const TYPE_LABEL: Record<StrategyType, string> = {
   coalition: 'Coalition',
   procurement: 'Procurement',
   earmark: 'Earmark',
+  amendment: 'Amendment',
 };
 
 const KIND_LABEL: Record<NodeKind, string> = {

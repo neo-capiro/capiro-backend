@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { hasAtLeast, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
+import { readVisibleClientIds } from './funding-opportunity-access.js';
 import {
   FUNDING_OPPORTUNITIES_RISK_CONTEXT_FEATURE,
   isFundingOpportunitiesFeatureEnabled,

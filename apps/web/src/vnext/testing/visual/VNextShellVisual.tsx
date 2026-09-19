@@ -10,6 +10,9 @@ import { StrategyEditorVNext } from '../../pages/strategies/StrategyEditorVNext.
 // the view directly and skips that router.
 import '../../pages/strategies/strategies-tokens.css';
 import { CongressionalStaffVNextView } from '../../pages/directory/CongressionalStaffVNext.js';
+import { CommitteeStaffVNextView } from '../../pages/directory/CommitteeStaffVNext.js';
+import { DowVNextView } from '../../pages/directory/DowVNext.js';
+import { StateLegislatorsVNextView } from '../../pages/directory/StateLegislatorsVNext.js';
 import { HillDayLibrary } from '../../pages/workspace/hillday/HillDayLibrary.js';
 import { HillDayWizard } from '../../pages/workspace/hillday/HillDayWizard.js';
 import { HillDayEditor } from '../../pages/workspace/hillday/HillDayEditor.js';
@@ -18,6 +21,9 @@ import { DASHBOARD_VISUAL_FIXTURE, DASHBOARD_STATE_FIXTURES } from '../fixtures/
 import {
   CONGRESSIONAL_STAFF_EMPTY_FIXTURE,
   CONGRESSIONAL_STAFF_VISUAL_FIXTURE,
+  COMMITTEE_STAFF_VISUAL_FIXTURE, COMMITTEE_STAFF_EMPTY_FIXTURE,
+  DOW_VISUAL_FIXTURE, DOW_EMPTY_FIXTURE,
+  STATE_LEGISLATORS_VISUAL_FIXTURE, STATE_LEGISLATORS_EMPTY_FIXTURE,
 } from '../fixtures/directory.js';
 import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 import { ClientProfileShell } from '../../pages/client-crm/ClientProfileShell.js';
@@ -177,6 +183,9 @@ export type VNextVisualScreen =
   | 'client-facilities'
   | 'congressional-staff'
   | 'congressional-staff-empty'
+  | 'committee-staff' | 'committee-staff-empty'
+  | 'department-of-war' | 'department-of-war-empty'
+  | 'state-legislators' | 'state-legislators-empty'
   | 'strategies'
   | 'strategies-empty'
   | 'strategy-editor'
@@ -199,6 +208,9 @@ const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
   'client-facilities': '/clients?clientId=visual-fixture&tab=intelligence',
   'congressional-staff': DIRECTORY_ROUTES.congressionalStaff,
   'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
+  'committee-staff': DIRECTORY_ROUTES.committeeStaff, 'committee-staff-empty': DIRECTORY_ROUTES.committeeStaff,
+  'department-of-war': DIRECTORY_ROUTES.departmentOfWar, 'department-of-war-empty': DIRECTORY_ROUTES.departmentOfWar,
+  'state-legislators': DIRECTORY_ROUTES.stateLegislators, 'state-legislators-empty': DIRECTORY_ROUTES.stateLegislators,
   strategies: '/strategies',
   'strategies-empty': '/strategies',
   'strategy-editor': '/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34',
@@ -296,6 +308,18 @@ export function VNextShellVisual({
             <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_VISUAL_FIXTURE} />
           ) : screen === 'congressional-staff-empty' ? (
             <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_EMPTY_FIXTURE} />
+          ) : screen === 'committee-staff' ? (
+            <CommitteeStaffVNextView model={COMMITTEE_STAFF_VISUAL_FIXTURE} />
+          ) : screen === 'committee-staff-empty' ? (
+            <CommitteeStaffVNextView model={COMMITTEE_STAFF_EMPTY_FIXTURE} />
+          ) : screen === 'department-of-war' ? (
+            <DowVNextView model={DOW_VISUAL_FIXTURE} />
+          ) : screen === 'department-of-war-empty' ? (
+            <DowVNextView model={DOW_EMPTY_FIXTURE} />
+          ) : screen === 'state-legislators' ? (
+            <StateLegislatorsVNextView model={STATE_LEGISLATORS_VISUAL_FIXTURE} />
+          ) : screen === 'state-legislators-empty' ? (
+            <StateLegislatorsVNextView model={STATE_LEGISLATORS_EMPTY_FIXTURE} />
           ) : screen === 'strategies' || screen === 'strategies-empty' ? (
             // .capiro-strategies normally comes from VNextStrategiesRoutes' wrapper
             // div, not StrategyLibraryVNext itself — reproduced here since the

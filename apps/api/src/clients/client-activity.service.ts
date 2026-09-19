@@ -3,7 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import { isISO8601 } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
-import { ownOutreachRecordWhere } from '../engagement/engagement-access.helpers.js';
+import { ownMeetingWhere, ownOutreachRecordWhere } from '../engagement/engagement-access.helpers.js';
 
 /**
  * Client relationship history — the normalized CRM activity read model
@@ -88,7 +88,12 @@ export class ClientActivityService {
     clientId: string,
     options: { kinds?: ActivityKind[]; limit?: number } = {},
   ): Promise<ActivityItem[]> {
-    const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+    // A non-numeric ?limit= string arrives as NaN — Math.min/max propagate
+    // NaN into Prisma's `take`, which throws a validation error that
+    // surfaces as a 500. A malformed limit is a client error, not a server
+    // fault: fall back to the default window.
+    const rawLimit = options.limit ?? 200;
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 500) : 200;
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const client = await tx.client.findFirst({
@@ -104,7 +109,11 @@ export class ClientActivityService {
           take: limit,
         }),
         tx.meeting.findMany({
-          where: { tenantId: ctx.tenantId, clientId },
+          // Same visibility contract as the Meetings surface and
+          // getMeeting(): a colleague's private meeting must not appear in
+          // this client's Timeline when its own GET would 404 — otherwise
+          // the row renders but the "Open meeting" action dead-ends.
+          where: { tenantId: ctx.tenantId, clientId, ...ownMeetingWhere(ctx.userId) },
           orderBy: { startsAt: 'desc' },
           take: limit,
           select: { id: true, subject: true, startsAt: true, location: true },
@@ -240,6 +249,19 @@ export class ClientActivityService {
         select: { id: true },
       });
       if (!client) throw new NotFoundException('Client not found');
+
+      // personId must name a contact of THIS client. Without the check the
+      // FK constraint (client_person.id) happily accepts another client's —
+      // or another tenant's — person, and the activity row then points at a
+      // contact the caller cannot see (cross-client data write defect found
+      // in the boundary audit).
+      if (input.personId) {
+        const person = await tx.clientPerson.findFirst({
+          where: { id: input.personId, tenantId: ctx.tenantId, clientId },
+          select: { id: true },
+        });
+        if (!person) throw new BadRequestException('That person is not a contact of this client');
+      }
 
       return tx.clientActivity.create({
         data: {

@@ -446,7 +446,7 @@ export const safeUrl = (url: string | null): string | null => {
 export function renderReport(d: ReportDocument, appOrigin = 'https://os.capiro.ai') {
   const e = escapeHtml;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(d.name)}</title>
-  <style>body{font:15px/1.55 system-ui,sans-serif;color:#182624;max-width:900px;margin:32px auto;padding:0 24px}h1{font-size:32px;line-height:1.2}h2{font-size:20px;break-after:avoid}h3{font-size:14px}a{color:#136f63;overflow-wrap:anywhere}article{border-top:1px solid #d8dfdc;padding:16px 0}p{margin:8px 0}.meta{font-size:12px;color:#556762}.warning{padding:12px;border:1px solid #b78321;background:#fff8e7}li{margin-bottom:6px}@media print{body{margin:0;max-width:none;font-size:10pt}h1,h2,h3{break-after:avoid}li{break-inside:avoid}thead{display:table-header}a{color:inherit}}</style></head><body>
+  <style>body{font:15px/1.55 system-ui,sans-serif;color:#182624;max-width:900px;margin:32px auto;padding:0 24px}h1{font-size:32px;line-height:1.2}h2{font-size:20px;break-after:avoid}h3{font-size:14px;break-after:avoid}a{color:#136f63;overflow-wrap:anywhere}article{border-top:1px solid #d8dfdc;padding:16px 0}p{margin:8px 0}.meta{font-size:12px;color:#556762}.warning{padding:12px;border:1px solid #b78321;background:#fff8e7}li{margin-bottom:6px}@media print{body{margin:0;max-width:none;font-size:10pt}h1,h2,h3{break-after:avoid}h2{break-before:auto}article{break-inside:auto}.bill-head{break-inside:avoid}li{break-inside:avoid}thead{display:table-header}a{color:inherit}}</style></head><body>
   <p class="meta">CAPIRO · LEGISLATIVE REPORT · ${e(d.audience.toUpperCase())}</p><h1>${e(d.name)}</h1><p>Published records through ${e(d.cutoff)}</p>
   <p class="meta">Generated ${e(d.generatedAt)} · Definition ${d.definitionVersion + 1} · ${d.rows.length} folder/bill rows</p>
   <p class="meta">${e(d.currentFieldsNotice)}</p>${d.issues.length ? `<aside class="warning"><strong>${d.complete ? 'Source notes' : 'Source check incomplete — delivery held'}</strong><ul>${d.issues.map((i) => `<li>${e(i.billId)}: ${e(i.reason)}</li>`).join('')}</ul></aside>` : ''}
@@ -454,12 +454,26 @@ export function renderReport(d: ReportDocument, appOrigin = 'https://os.capiro.a
   ${d.rows
     .map((r) => {
       const url = r.billUrl?.startsWith('/') ? `${appOrigin}${r.billUrl}` : safeUrl(r.billUrl);
-      return `<article><h2>${url ? `<a href="${e(url)}">${e(r.number)}</a>` : e(r.number)} · ${e(r.title)}</h2>
+      const summary = r.summary ? `<h3>Source description</h3><p>${e(r.summary)}</p>` : '';
+      const committees = r.committees.length
+        ? `<h3>Committee references</h3><ul>${r.committees.map((c) => `<li>${e(c.name)}${c.current ? ' · Current' : ''}${c.date ? ` · ${e(c.date)}` : ''}</li>`).join('')}</ul>`
+        : '';
+      const actions =
+        d.settings.actions !== 'off'
+          ? `<h3>Published actions</h3>${r.actions.length ? `<ul>${r.actions.map((a) => `<li>${e(a.date)} — ${e(a.text)}</li>`).join('')}</ul>` : '<p>No actions in the selected display window.</p>'}`
+          : '';
+      const relations = r.relations.length
+        ? `<h3>Related bills</h3><ul>${r.relations.map((x) => `<li>${e(x.category)} · ${e(x.number)} — ${e(x.title ?? 'Detail unavailable')}${x.lastAction ? `<br>${e(x.lastAction.date)} — ${e(x.lastAction.text)}` : ''}</li>`).join('')}</ul>`
+        : '';
+      // Keep the bill heading, metadata and first section block together in print.
+      // The wrapper carries the first real section (summary when present, else the
+      // first available section) so a break cannot orphan the h2 at a page foot.
+      // Long bills still flow: only the head group is break-inside:avoid, not the article.
+      const [lead, ...rest] = [summary, committees, actions, relations].filter(Boolean);
+      return `<article><div class="bill-head"><h2>${url ? `<a href="${e(url)}">${e(r.number)}</a>` : e(r.number)} · ${e(r.title)}</h2>
     <p class="meta">${e(r.folderName)} · ${e(r.sponsor)} · ${e(r.status)}</p>${d.settings.links === 'subscribers' ? '<p class="meta">Bill detail links require an authorized Capiro account.</p>' : ''}
-    ${r.summary ? `<h3>Source description</h3><p>${e(r.summary)}</p>` : ''}
-    ${r.committees.length ? `<h3>Committee references</h3><ul>${r.committees.map((c) => `<li>${e(c.name)}${c.current ? ' · Current' : ''}${c.date ? ` · ${e(c.date)}` : ''}</li>`).join('')}</ul>` : ''}
-    ${d.settings.actions !== 'off' ? `<h3>Published actions</h3>${r.actions.length ? `<ul>${r.actions.map((a) => `<li>${e(a.date)} — ${e(a.text)}</li>`).join('')}</ul>` : '<p>No actions in the selected display window.</p>'}` : ''}
-    ${r.relations.length ? `<h3>Related bills</h3><ul>${r.relations.map((x) => `<li>${e(x.category)} · ${e(x.number)} — ${e(x.title ?? 'Detail unavailable')}${x.lastAction ? `<br>${e(x.lastAction.date)} — ${e(x.lastAction.text)}` : ''}</li>`).join('')}</ul>` : ''}
+    ${lead ?? ''}</div>
+    ${rest.join('')}
     ${r.priority ? `<p>${e(r.priority)} · ${e(r.position)}</p>` : ''}${r.externalComments ? `<h3>External comments</h3><p>${e(r.externalComments)}</p>` : ''}
     ${d.audience === 'internal' && r.internalComments ? `<h3>Internal comments</h3><p>${e(r.internalComments)}</p>` : ''}
     <p class="meta">Source check: ${e(r.sourceCheckStatus ?? 'unknown')} · ${e(r.sourceCheckedAt ?? 'not available')}${safeUrl(r.sourceUrl) ? ` · <a href="${e(r.sourceUrl)}">Original record</a>` : ''}</p></article>`;

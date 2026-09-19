@@ -16,6 +16,7 @@ import type {
   FeedResponse,
   FeedSourceType,
 } from '../../../../pages/clients/tracker/intel-feed-api.js';
+import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 export type { FeedItem, FeedResponse, FeedSourceType };
 
@@ -24,10 +25,11 @@ export type { FeedItem, FeedResponse, FeedSourceType };
 export type PacketBand =
   | 'CRITICAL'
   | 'HEARING'
-  | 'DEADLINE'
+  | 'BILL'
   | 'BUDGET'
   | 'STATE BILL'
-  | 'REGULATION';
+  | 'REGULATION'
+  | 'UPDATE';
 
 /** §6.2 — server-authoritative per-user work state. */
 
@@ -142,13 +144,11 @@ export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
  * through the canonical client targeting subview under Settings. */
 export const REMOVED_TABS = new Set(['overview']);
 
-/** Settings dispatches watchlist/watchlists to canonical client targeting;
- * watches/presets open the separate additive preset list. */
+/** Settings dispatches watchlist/watchlists to canonical client targeting.
+ * The watches/presets aliases went away with the W2-4 watch-presets feature. */
 export const TAB_ALIASES: Record<string, LegiWatchTab> = {
   watchlist: 'settings',
   watchlists: 'settings',
-  watches: 'settings',
-  presets: 'settings',
 };
 
 /** react-query key namespace for this module. Shared records (alerts, bills,
@@ -165,7 +165,10 @@ export const lwKeys = {
 };
 
 /** Derive the packet band from the server source type + severity (§6.1).
- *  CRITICAL is severity-driven; the rest are kind-driven. */
+ *  CRITICAL is severity-driven; the rest are kind-driven. The FeedItem DTO
+ *  carries no deadline semantics, so no source maps to a deadline claim: a
+ *  federal bill change is a BILL, and an unrecognised future sourceType
+ *  degrades to the neutral UPDATE — never an invented deadline. */
 export function packetBand(item: FeedItem): { band: PacketBand; tone: Tone } {
   if (item.severity === 'critical') return { band: 'CRITICAL', tone: 'error' };
   switch (item.sourceType) {
@@ -180,8 +183,9 @@ export function packetBand(item: FeedItem): { band: PacketBand; tone: Tone } {
     case 'regulation':
       return { band: 'REGULATION', tone: 'gray' };
     case 'bill':
+      return { band: 'BILL', tone: 'gray' };
     default:
-      return { band: 'DEADLINE', tone: 'warning' };
+      return { band: 'UPDATE', tone: 'gray' };
   }
 }
 
@@ -200,12 +204,17 @@ export function ageLabel(iso: string | null | undefined, now = Date.now()): stri
 }
 
 /** §8.8 — client attribution is exact: one client named, several counted. */
-export function clientAttribution(item: FeedItem): string {
-  // The feed row carries one owning client; combined/client-count display comes
-  // from the server when a packet spans clients (a count, never a truncated list).
-  // PR C §16: a null clientName means the row's clientId is not in the CURRENT
-  // tenant directory (archived-then-excluded, renamed-away, or deleted client —
-  // historical feed rows legitimately outlive the client). Label it honestly as
-  // a historical reference; never fabricate a name.
-  return item.clientName ?? 'Historical client';
+export function clientAttribution(
+  item: FeedItem,
+  /** The selected scope-lens client; used only as an ID-matched display
+   *  fallback — the backend resolves clientName on the tenant roll-up only,
+   *  so a client-scoped feed's own rows take their name from here. */
+  selectedClient?: Client | null,
+): string {
+  // A null clientName whose owner id is NOT the selected client means the id
+  // is not in the current tenant directory (archived/renamed/deleted client —
+  // PR C §16): keep the honest "Historical client" label; never fabricate.
+  if (item.clientName) return item.clientName;
+  if (selectedClient && item.clientId === selectedClient.id) return selectedClient.name;
+  return 'Historical client';
 }

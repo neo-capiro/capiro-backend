@@ -330,4 +330,22 @@ describe('buildFactSheetLines — provenance travels with every claim', () => {
     expect(t).toContain('(stale)');
     expect(t).toContain('Official / Capiro analysis / Analyst outlook labels are shown in brackets');
   });
+
+  test('PDF spells out the delta_from_request KPI (jsPDF Helvetica cannot encode Δ)', () => {
+    // The shared strip labels this cell "Δ from request"; jsPDF's built-in font
+    // renders Δ as a curly quote (native-bill360-root/fact-sheet-page-1.png). The
+    // fact sheet substitutes a readable label keyed on the stable semantic id,
+    // while every other KPI label passes through unchanged.
+    const t = text(
+      dossier({
+        kpis: [
+          { id: 'delta_from_request', label: 'Δ from request', value: '+$10.0B', valueType: 'money', asOf: '2026-07-10T00:00:00.000Z', sub: 'vs FY27 request', unavailableReason: null },
+          { id: 'current_status', label: 'Current status', value: 'Passed chamber', valueType: 'status', asOf: '2026-07-10T00:00:00.000Z', sub: null, unavailableReason: null },
+        ],
+      }),
+    );
+    expect(t).toContain('Change from request: +$10.0B');
+    expect(t).not.toContain('Δ from request: +$10.0B');
+    expect(t).toContain('Current status: Passed chamber'); // unrelated labels untouched
+  });
 });

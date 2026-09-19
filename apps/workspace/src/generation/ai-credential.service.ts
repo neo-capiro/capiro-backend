@@ -1,3 +1,4 @@
+import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -43,7 +44,7 @@ export class AiCredentialService {
   ) {
     this.globalAnthropic = config.get<string>('ANTHROPIC_API_KEY');
     // Sonnet is the document-generation runtime model (build directive).
-    this.workspaceModel = config.get<string>('WORKSPACE_MODEL') ?? 'claude-sonnet-4-6';
+    this.workspaceModel = upgradeTextModel(config.get<string>('WORKSPACE_MODEL') ?? 'claude-sonnet-5');
     const rawKey = config.get<string>('AI_CREDENTIAL_ENCRYPTION_KEY');
     if (rawKey) {
       try {
@@ -114,7 +115,7 @@ export class AiCredentialService {
       return {
         provider: 'anthropic',
         secret: decrypted,
-        model: row.model_override ?? this.workspaceModel,
+        model: upgradeTextModel(row.model_override ?? this.workspaceModel),
         usedTenantKey: true,
       };
     } catch (err) {

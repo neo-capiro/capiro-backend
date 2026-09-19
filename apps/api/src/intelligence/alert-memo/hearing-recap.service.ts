@@ -10,7 +10,8 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { ClientDocumentWriterService } from '../../client-documents/client-document-writer.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { DOCX_MIME, markdownToMemoDocInput, renderMemoDocx } from './alert-memo-docx.js';
+import { DOCX_MIME } from './alert-memo-docx.js';
+import { markdownToHearingRecapDocInput, renderHearingRecapDocx } from './hearing-recap-docx.js';
 import { renderApprovedHearingRecap } from './approved-hearing-recap-docx.js';
 
 export interface ApprovedHearingRecapInput {
@@ -444,8 +445,11 @@ export class HearingRecapService {
       throw new NotFoundException('Current hearing recap not found');
     }
 
-    const buffer = await renderMemoDocx(
-      markdownToMemoDocInput(input.markdown, client.name, input.title),
+    // The Markdown already carries the formal hearing title once (in its
+    // Sources & coverage provenance), so we do NOT also pass hearingTitle here —
+    // passing both printed the formal title twice in the DOCX.
+    const buffer = await renderHearingRecapDocx(
+      markdownToHearingRecapDocInput(input.markdown, client.name, input.title),
     );
     const fileName = `${input.title}.docx`.replace(/[\/:*?"<>|]+/g, '-');
     requireLegacySession(await this.accessibleSession(ctx, input.sessionId));
@@ -475,7 +479,11 @@ export class HearingRecapService {
     };
   }
 
-  async list(ctx: TenantContext, clientId: string, opts?: { cursor?: string; limit?: number }) {
+  async list(
+    ctx: TenantContext,
+    clientId: string,
+    opts?: { cursor?: string; limit?: number; sessionId?: string },
+  ) {
     await this.clientOrThrow(ctx, clientId);
     const limit = Math.min(Math.max(Math.floor(opts?.limit ?? 25), 1), 100);
     const cursor = decodeCursor(opts?.cursor);
@@ -483,6 +491,12 @@ export class HearingRecapService {
       ? Prisma.sql`AND (a.created_at < ${new Date(cursor.t)} OR (a.created_at = ${new Date(
           cursor.t,
         )} AND a.id < ${cursor.id}::uuid))`
+      : Prisma.sql``;
+    // Optional exact-session filter: lets a caller find THE current recap for one
+    // session in a single bounded query instead of scanning pages (a recap older
+    // than the scan window would otherwise be missed and silently reused).
+    const sessionClause = opts?.sessionId
+      ? Prisma.sql`AND a.source_entity_type = 'hearing_session' AND a.source_entity_id = ${opts.sessionId}`
       : Prisma.sql``;
 
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -521,6 +535,7 @@ export class HearingRecapService {
             OR (s.source_type::text IN ('hearing', 'markup') AND s.public_capture_id IS NULL)
             OR s.created_by = ${ctx.clerkUserId}
           )
+          ${sessionClause}
           ${cursorClause}
         ORDER BY a.created_at DESC, a.id DESC
         LIMIT ${limit + 1}

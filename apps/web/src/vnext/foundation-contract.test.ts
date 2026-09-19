@@ -54,10 +54,21 @@ function fromVNext(relativePath: string): string {
 describe('vNext foundation contract', () => {
   it('keeps vNext styling below the capiro-vnext root instead of global element/Ant overrides', () => {
     for (const path of cssFiles) {
+      // Strip comments BEFORE the selector assertions. A comment may legitimately
+      // name `body`/`html` (e.g. legiwatch.css's note that "a 900px body with 24px
+      // horizontal padding yields ~852px cards") — that is prose, not a global
+      // element selector. The rule is about what the browser renders, not about
+      // prose, matching the color-literal test below.
       const css = readFileSync(fromVNext(path), 'utf8');
+      const declarations = css.replace(/\/\*[\s\S]*?\*\//g, ' ');
+      // Non-vacuity on the RAW file: the root marker must exist somewhere, which
+      // also means a file that is ONLY comments still fails here. (The selector
+      // assertions below run on the comment-stripped text so prose like "a 900px
+      // body with 24px padding" no longer reads as a global `body` selector.)
       expect(css).toContain('.capiro-vnext-root');
-      expect(css).not.toMatch(/(^|\n)\s*(body|html)\b/);
-      expect(css).not.toMatch(/(^|\n)\s*\.ant-[\w-]+/);
+      // Real global body/html element selectors and .ant overrides are still caught.
+      expect(declarations).not.toMatch(/(^|\n)\s*(body|html)\b/);
+      expect(declarations).not.toMatch(/(^|\n)\s*\.ant-[\w-]+/);
     }
   });
 

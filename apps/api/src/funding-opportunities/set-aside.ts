@@ -93,7 +93,7 @@ export const LEGACY_SET_ASIDE_VALUE_MIGRATION: Readonly<Record<string, DurableSe
     HUBZ: 'HUBZONE',
   });
 
-/** Uppercase alphanumerics only — matches sam-opportunity-relevance's normCode. */
+/** Uppercase alphanumerics only — uses the same uppercase-alphanumeric normalization. */
 export function normalizeSetAsideCode(value: string | null | undefined): string {
   return (value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }

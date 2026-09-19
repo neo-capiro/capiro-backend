@@ -153,6 +153,16 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     mutationFn: async ({ id, ...body }: { id: string } & Record<string, unknown>) =>
       (await api.patch(`/api/clients/${client.id}/activity/${id}`, body)).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['client-activity', client.id] }),
+    // A pin/settle failure used to be invisible: the click flipped nothing,
+    // the list re-rendered from the same query, and there was no message —
+    // identical to a slow click. Toast the reason AND pin a durable banner
+    // (via `mutate.isError` below) so the failure survives the toast.
+    onError: (error) =>
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Could not update this activity. Please try again.',
+      ),
   });
 
   const create = useMutation({
@@ -302,6 +312,35 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
 
   return (
     <div className="cap-pf-anim-rise rel-hist-root">
+      {mutate.isError ? (
+        // Durable partner to the toast: a failed pin/settle must stay visible
+        // after the toast auto-dismisses, and offer the exact retry.
+        <div role="alert" className="rel-hist-mutation-error">
+          <span>
+            Could not update this activity.{' '}
+            {mutate.error instanceof Error && mutate.error.message ? mutate.error.message : null}
+          </span>
+          <button
+            type="button"
+            className="rel-hist-mutation-error__retry"
+            onClick={() => {
+              const variables = mutate.variables;
+              mutate.reset();
+              if (variables) mutate.mutate(variables);
+            }}
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss update error"
+            className="rel-hist-mutation-error__dismiss"
+            onClick={() => mutate.reset()}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <TimelineAndControlsCard
         entries={shown}
         noActivityYet={genuinelyEmpty}
@@ -423,7 +462,10 @@ function TimelineAndControlsCard({
 
   return (
     <section className="rel-hist-card">
-      <CardHead title="Account relationship timeline" />
+      {/* Redundant: the section's own PageHead already says "Timeline" with the
+          prototype's description; the in-card CardHead restated "Account
+          relationship timeline" and pushed the controls 77px below the frame's
+          656px first-row anchor. */}
       <div className="rel-hist-filterbar">
         <label className="rel-hist-search">
           <UIcon name="SearchLg" size={15} color="#667085" />
@@ -471,7 +513,8 @@ function TimelineAndControlsCard({
         </div>
 
         <aside className="rel-hist-rail" aria-label="Relationship controls">
-          <h4 className="rel-hist-rail-title">Relationship controls</h4>
+          {/* Redundant against the prototype: the rail opens with QUICK ADD
+              directly; the prototype has no "Relationship controls" word. */}
           <div className="rel-hist-rail-section rel-hist-rail-section--first">
             <Eyebrow>Quick add</Eyebrow>
             <div className="rel-hist-rail-list">
@@ -541,7 +584,7 @@ function TimelineEntry({
     <article className="rel-hist-row">
       <span className="rel-hist-node-rail" aria-hidden>
         <span className="rel-hist-node">
-          <UIcon name={iconForGroup(entry.group)} size={18} color="#475467" />
+          <UIcon name={iconForEntry(entry)} size={18} color="#475467" />
         </span>
         {!last ? <span className="rel-hist-node-connector" /> : null}
       </span>
@@ -638,12 +681,27 @@ function EmailThreadPreview({ threadId }: { threadId: string }) {
   );
 }
 
-function iconForGroup(group: string): string {
-  if (group === 'Meetings') return 'Calendar2';
-  if (group === 'Email') return 'Mail01';
-  if (group === 'Outreach') return 'Send01';
-  if (group === 'Notes') return 'MessageTextSquare01';
-  return 'File04';
+/**
+ * Node icon per row, keyed by the activity kind rather than the filter group:
+ * the reference gives commitment its own clock glyph even though commitments
+ * filter under Notes, and the group-only map also sent Notes/Outreach to icon
+ * names that do not exist in the portfolio set (MessageTextSquare01, Send01),
+ * which rendered a blank node. Every name below is present in
+ * portfolio-icon-data.ts — verified against the export keys.
+ */
+function iconForEntry(entry: HistEntry): string {
+  switch (entry.source?.kind) {
+    case 'email': return 'Mail01';
+    case 'meeting': return 'Calendar2';
+    case 'commitment': return 'Clock';
+    case 'document': return 'File04';
+    // No paper-plane glyph exists in the set; the arrow is the nearest
+    // outbound metaphor that actually renders.
+    case 'outreach': return 'ArrowRight';
+    case 'call': return 'Clock';
+    // note / request / decision — the reference note icon is Edit01.
+    default: return 'Edit01';
+  }
 }
 
 

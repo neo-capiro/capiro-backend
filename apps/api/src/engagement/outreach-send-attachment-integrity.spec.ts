@@ -311,10 +311,12 @@ function makeDeliverHarness(opts: {
   manifest: Array<Record<string, unknown>>;
   attachmentRows: Array<Record<string, unknown>>;
   readBytes?: (s3Key: string) => Promise<Buffer>;
+  envelopes?: Array<{ to: Array<{ email: string }>; cc: string[]; bcc: string[] }>;
 }) {
-  const state = { claimed: false };
+  const state = { claimed: 0 };
   const updates: Array<{ data: Record<string, unknown> }> = [];
   let providerCalls = 0;
+  const providerInputs: Array<Record<string, unknown>> = [];
 
   const tx = {
     $queryRaw: async (strings?: TemplateStringsArray) => {
@@ -323,18 +325,19 @@ function makeDeliverHarness(opts: {
       // intent. These delivery tests cover the CLASSIC path.
       const sql = Array.isArray(strings) ? strings.join(' ') : '';
       if (sql.includes('outreach_events')) return [];
-      if (state.claimed) return [];
-      state.claimed = true;
+      if (state.claimed >= (opts.envelopes?.length ?? 1)) return [];
+      const envelope = opts.envelopes?.[state.claimed];
+      state.claimed += 1;
       return [
         {
-          id: 'del-1',
+          id: `del-${state.claimed}`,
           tenant_id: 't1',
           draft_version_id: 'v-1',
           generation_key: 'individual:a@x.com',
           correlation_id: 'corr-1',
           rendered_subject: 'Subject',
           rendered_body: 'Body',
-          recipient_envelope_jsonb: { to: [{ email: 'a@x.com' }], cc: [], bcc: [] },
+          recipient_envelope_jsonb: envelope ?? { to: [{ email: 'a@x.com' }], cc: [], bcc: [] },
           attachment_manifest_jsonb: opts.manifest,
           provider: 'gmail',
         },
@@ -379,8 +382,9 @@ function makeDeliverHarness(opts: {
   patch.attachmentContent = attachmentContent;
   patch.attachmentScanner = { scanRequired: false };
   patch.mailSender = {
-    sendMail: async () => {
+    sendMail: async (_ctx: unknown, _connection: unknown, input: Record<string, unknown>) => {
       providerCalls++;
+      providerInputs.push(input);
       return { ok: true, provider: 'gmail', providerMessageId: 'gm-1', correlationId: 'corr-1' };
     },
   };
@@ -388,11 +392,50 @@ function makeDeliverHarness(opts: {
   return {
     service,
     updates,
+    providerInputs,
     get providerCalls() {
       return providerCalls;
     },
   };
 }
+
+test('the worker sends both complete groups and the exact selected file bytes on every email', async () => {
+  const envelopes = [
+    {
+      to: ['a@example.test', 'b@example.test', 'c@example.test'].map((email) => ({ email })),
+      cc: ['copy@example.test'],
+      bcc: [],
+    },
+    {
+      to: ['d@example.test', 'e@example.test'].map((email) => ({ email })),
+      cc: [],
+      bcc: ['private@example.test'],
+    },
+  ];
+  const h = makeDeliverHarness({
+    manifest: [manifestEntry()],
+    attachmentRows: [attachmentRow()],
+    envelopes,
+  });
+  await (h.service as unknown as { processIntent(id: string): Promise<void> }).processIntent(
+    'intent-1',
+  );
+  expect(h.providerInputs).toHaveLength(2);
+  expect(h.providerInputs.map((input) => input.toRecipients)).toEqual(
+    envelopes.map((envelope) => envelope.to),
+  );
+  expect(h.providerInputs[0]!.ccRecipients).toEqual([{ email: 'copy@example.test' }]);
+  expect(h.providerInputs[1]!.bccRecipients).toEqual([{ email: 'private@example.test' }]);
+  for (const input of h.providerInputs) {
+    expect(input.attachments).toEqual([
+      {
+        name: 'contract.pdf',
+        contentType: 'application/pdf',
+        contentBytes: DEFAULT_BYTES.toString('base64'),
+      },
+    ]);
+  }
+});
 
 /** The immutable manifest entry captured at (simulated) intent-creation time. */
 function manifestEntry(over: Partial<Record<string, unknown>> = {}) {

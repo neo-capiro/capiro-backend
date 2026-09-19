@@ -52,6 +52,15 @@ export function FolderImportReview({ onClose }: { onClose: () => void }) {
     enabled: Boolean(id),
     retry: false,
   });
+  const reportItems =
+    review.data?.items.filter((i) => i.kind === 'report' && i.status !== 'excluded') ?? [];
+  const singleReport = reportItems.length === 1 ? reportItems[0] : null;
+  const reportCount = review.data?.counts
+    .filter((c) => c.kind === 'report')
+    .reduce((sum, c) => sum + c._count._all, 0);
+  const activeReportCount = review.data?.counts
+    .filter((c) => c.kind === 'report' && c.status !== 'excluded')
+    .reduce((sum, c) => sum + c._count._all, 0);
   const runsErrorStatus = (runs.error as { response?: { status?: number } } | null)?.response
     ?.status;
   return (
@@ -125,8 +134,42 @@ export function FolderImportReview({ onClose }: { onClose: () => void }) {
           >
             Download reconciliation
           </CapiroButton>
-          <CapiroButton onClick={() => setReportId('68654')}>Preview Acadia report</CapiroButton>
         </div>
+      )}
+      {review.data && singleReport && (
+        <div className="lw-folder-actions">
+          <CapiroButton onClick={() => setReportId(singleReport.sourceId)}>
+            Preview captured report {singleReport.sourceId}
+          </CapiroButton>
+        </div>
+      )}
+      {review.data && reportItems.length > 1 && (
+        <CapiroSelect
+          label="Preview captured report"
+          value=""
+          options={[
+            { value: '', label: 'Choose a captured report' },
+            ...reportItems.map((item) => ({
+              value: item.sourceId,
+              label: `Report ${item.sourceId}`,
+            })),
+          ]}
+          onChange={(e) => {
+            if (e.target.value) setReportId(e.target.value);
+          }}
+        />
+      )}
+      {review.data && !reportItems.length && reportCount === 0 && (
+        <p>No captured report records in this import run.</p>
+      )}
+      {review.data && !reportItems.length && reportCount !== 0 && activeReportCount === 0 && (
+        <p>Captured report records in this run are excluded and cannot be previewed.</p>
+      )}
+      {review.data && !reportItems.length && activeReportCount !== 0 && (
+        <p>
+          Captured report records are outside this page of results. Page through the items to
+          reach them.
+        </p>
       )}
       {runs.isPending ? (
         <p role="status">Loading import runs…</p>
@@ -158,6 +201,9 @@ export function FolderImportReview({ onClose }: { onClose: () => void }) {
             setRunId(e.target.value);
             setOffset(0);
             setSelected([]);
+            setDetails(null);
+            setReportId('');
+            setError('');
           }}
         />
       )}

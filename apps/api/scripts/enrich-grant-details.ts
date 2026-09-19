@@ -282,7 +282,7 @@ export async function enrichGrantCandidates(
   // sweep therefore drew almost entirely from archived rows at 300/run — roughly
   // nine months — while the ~850 unenriched grants producers actually score waited
   // behind them. `description` and `eligibility` come ONLY from this enrichment and
-  // generate-funding-grant-candidates reads both, so that ordering starved the live
+  // the canonical Funding search reads both, so that ordering starved the live
   // scorer.
   //
   // The fix for THAT starvation created the opposite one: taking `limit` pursuable

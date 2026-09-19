@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { hasAtLeast, isTenantAdmin, type TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
-import { readVisibleClientIds } from './funding-opportunity-inbox.service.js';
+import { readVisibleClientIds } from './funding-opportunity-access.js';
 import { isFundingOpportunitiesFeatureEnabled } from './funding-opportunities-flag.guard.js';
 import { FUNDING_OPPORTUNITIES_PIPELINE_V2_FEATURE } from './funding-opportunities-flag.guard.js';
 

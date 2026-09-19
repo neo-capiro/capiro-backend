@@ -189,7 +189,7 @@ describeDb('LiveHearingsPhase7Service (Postgres)', () => {
     expect(JSON.stringify(second)).not.toContain('deepgram');
   });
 
-  it('browser join attaches to an active canonical capture instead of creating a duplicate browser transcript', async () => {
+  it('explicit browser join returns an independent BROWSER_CAPTURE plan even while the canonical capture is active', async () => {
     const scheduled = await phase7.schedule(ctxA, HEARING_ID);
     await prisma.$executeRawUnsafe(
       `UPDATE public_hearing_capture
@@ -198,10 +198,20 @@ describeDb('LiveHearingsPhase7Service (Postgres)', () => {
       String(scheduled.captureId),
     );
 
-    expect(await phase7.browserJoin(ctxA, HEARING_ID)).toMatchObject({
-      mode: 'ATTACH_CANONICAL',
-      captureId: String(scheduled.captureId),
-      reasonCode: 'CANONICAL_CAPTURE_ACTIVE',
+    const plan = await phase7.browserJoin(ctxA, HEARING_ID);
+    // The explicit browser request is independent of the server recorder: it
+    // returns BROWSER_CAPTURE and carries the canonical capture as metadata so
+    // the UI can show "Capiro is capturing" alongside the private browser entry.
+    expect(plan).toMatchObject({
+      mode: 'BROWSER_CAPTURE',
+      canonicalCaptureId: String(scheduled.captureId),
+      canonicalCaptureStatus: 'CAPTURING',
     });
+    // The one canonical recorder is untouched — no duplicate capture row.
+    const captures = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      `SELECT count(*)::int AS count FROM public_hearing_capture WHERE hearing_id=$1`,
+      HEARING_ID,
+    );
+    expect(captures[0]?.count).toBe(1);
   });
 });

@@ -1,16 +1,20 @@
 import type { Prisma } from '@prisma/client';
-import type { InboxSource } from './funding-opportunity-inbox.service.js';
+import type { StorableOpportunitySource } from './funding-opportunity-identity.js';
 
 export const FUNDING_OPPORTUNITY_TASK_SOURCE = 'funding_opportunity';
-type TaskIntent = 'review' | 'pursuit';
+export type FundingOpportunityTaskIntent = 'review' | 'pursuit';
 
 export function fundingOpportunityTaskSourceId(
   clientId: string,
-  source: InboxSource,
+  source: StorableOpportunitySource,
   sourceRecordId: string,
-  intent: TaskIntent,
+  intent: FundingOpportunityTaskIntent,
+  recordType?: string,
 ): string {
-  return `v2:${clientId}:${source}:${encodeURIComponent(sourceRecordId)}:${intent}`;
+  const identity = recordType
+    ? `${source}:${recordType}:${encodeURIComponent(sourceRecordId)}`
+    : `${source}:${encodeURIComponent(sourceRecordId)}`;
+  return `v2:${clientId}:${identity}:${intent}`;
 }
 
 /** Current identity first; old identities are safe only with the actual client. */
@@ -19,9 +23,10 @@ export async function findFundingOpportunityTask(
   input: {
     tenantId: string;
     clientId: string;
-    source: InboxSource;
+    source: StorableOpportunitySource;
     sourceRecordId: string;
-    intent: TaskIntent;
+    intent: FundingOpportunityTaskIntent;
+    recordType?: string;
   },
 ) {
   const scope = {
@@ -30,24 +35,26 @@ export async function findFundingOpportunityTask(
     sourceType: FUNDING_OPPORTUNITY_TASK_SOURCE,
   };
   const select = { id: true, title: true, ownerUserId: true, dueDate: true } as const;
-  return (
-    (await tx.engagementTask.findFirst({
-      where: {
-        ...scope,
-        sourceId: fundingOpportunityTaskSourceId(
-          input.clientId,
-          input.source,
-          input.sourceRecordId,
-          input.intent,
-        ),
-      },
+  const current = await tx.engagementTask.findFirst({
+    where: {
+      ...scope,
+      sourceId: fundingOpportunityTaskSourceId(input.clientId, input.source, input.sourceRecordId, input.intent, input.recordType),
+    },
+    select,
+  });
+  if (current) return current;
+  if (input.recordType && input.source !== 'sbir_sttr') {
+    const priorV2 = await tx.engagementTask.findFirst({
+      where: { ...scope, sourceId: fundingOpportunityTaskSourceId(input.clientId, input.source, input.sourceRecordId, input.intent) },
       select,
-    })) ??
-    (await tx.engagementTask.findFirst({
-      where: { ...scope, sourceId: `${input.source}:${input.sourceRecordId}:${input.intent}` },
-      select,
-    }))
-  );
+    });
+    if (priorV2) return priorV2;
+  }
+  if (input.source === 'sbir_sttr') return null;
+  return tx.engagementTask.findFirst({
+    where: { ...scope, sourceId: `${input.source}:${input.sourceRecordId}:${input.intent}` },
+    select,
+  });
 }
 
 /** Keep explicit workflow edits aligned with an existing same-client task. */
@@ -56,9 +63,10 @@ export async function syncExistingFundingActionTask(
   input: {
     tenantId: string;
     clientId: string;
-    source: InboxSource;
+    source: StorableOpportunitySource;
     sourceRecordId: string;
-    intent: TaskIntent;
+    intent: FundingOpportunityTaskIntent;
+    recordType?: string;
     ownerUserId?: string | null;
     nextAction?: string | null;
     nextActionDueAt?: Date | null;

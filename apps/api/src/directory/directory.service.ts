@@ -12,7 +12,8 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { matchFacilityDistrictCode } from '../common/district-code.util.js';
+import { matchFacilityDistrictCode, UNRESOLVABLE_HOUSE_SENTINELS } from '../common/district-code.util.js';
+import { US_HOUSE_SEATS } from '../common/us-congressional-districts.js';
 import { manifestKey, artifactKey, type BoundaryManifest } from './boundary-artifact.util.js';
 import { FEC_DISCLAIMER } from '../intelligence/fec-disclaimer.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
@@ -2203,14 +2204,51 @@ export class DirectoryService implements OnModuleInit {
     const { contacts } = await this.getDirectoryData();
     const contact = contacts.find((c) => c.id === normalizedContactId);
     if (!contact || contact.chamber === 'Governor' || !contact.bioguideId) return { clients: [] };
-    const districtNo = Number(contact.district);
     const clients = await this.representation.clientsRepresentedByMember(ctx.tenantId, {
       bioguideId: contact.bioguideId,
       chamber: contact.chamber === 'Senate' ? 'senate' : 'house',
       state: contact.state,
-      district: Number.isFinite(districtNo) && districtNo > 0 ? districtNo : null,
+      district: this.houseDistrictNoForRepresentation(contact),
     });
     return { clients };
+  }
+
+  /**
+   * Recover the bare House district number from a directory contact's DISPLAY
+   * `district` (built by `formatDistrict` as 'FL-8' for a real seat, or the
+   * bare state 'FL' for Senate/at-large/unresolvable). `Number(contact.district)`
+   * cannot parse the 'FL-8' display form (NaN), which previously collapsed a
+   * real House member's district to null and broke the House inverse join while
+   * leaving Senators unaffected.
+   *
+   * At-largeness is derived from US_HOUSE_SEATS (a single-seat state's 'ST'
+   * display maps to null), matching the resolver's '00' <-> null convention; a
+   * multi-seat state with no parseable district number stays null rather than
+   * guessing a seat.
+   */
+  private houseDistrictNoForRepresentation(contact: {
+    chamber: Chamber;
+    state: string;
+    district: string;
+  }): number | null {
+    if (contact.chamber !== 'House') return null;
+    const state = (contact.state ?? '').trim().toUpperCase();
+    if (US_HOUSE_SEATS[state] === 1) return null;
+    const raw = (contact.district ?? '').trim().toUpperCase();
+    // Strictly the observed display forms: a bare integer ('8' / '08') or the
+    // state-prefixed 'FL-8' built by formatDistrict. A state prefix must match
+    // the contact's own state; anything else (junk prefix, 3+ digits, sentinel
+    // codes) is not a House seat we can assert — stay null, never guess.
+    const parse = (digits: string): number | null => {
+      if (UNRESOLVABLE_HOUSE_SENTINELS.has(digits.padStart(2, '0'))) return null;
+      const districtNo = Number(digits);
+      return districtNo > 0 ? districtNo : null;
+    };
+    const bare = /^(\d{1,2})$/.exec(raw);
+    if (bare) return parse(bare[1]!);
+    const prefixed = /^([A-Z]{2})-(\d{1,2})$/.exec(raw);
+    if (prefixed && prefixed[1] === state) return parse(prefixed[2]!);
+    return null;
   }
 
   /**

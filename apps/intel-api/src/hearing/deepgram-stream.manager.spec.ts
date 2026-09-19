@@ -222,6 +222,104 @@ describe('DeepgramStreamManager browser WebM safety', () => {
     expect(manager.isOpen).toBe(false);
   });
 
+  it('splits a mixed-speaker final into ordered runs without adding any timeline base', () => {
+    const conn = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);
+    const cb = callbacks();
+    const manager = new DeepgramStreamManager('key', cb);
+    manager.start();
+    conn.emit('open');
+
+    conn.emit('transcript', {
+      is_final: true,
+      start: 100,
+      duration: 3.5,
+      channel: {
+        alternatives: [
+          {
+            transcript: 'Hello there. Yes indeed. Back to me.',
+            confidence: 0.9,
+            words: [
+              { word: 'Hello', punctuated_word: 'Hello', start: 100, end: 100.5, speaker: 0 },
+              { word: 'there', punctuated_word: 'there.', start: 100.5, end: 101, speaker: 0 },
+              { word: 'Yes', punctuated_word: 'Yes', start: 101.2, end: 101.6, speaker: 1 },
+              { word: 'indeed', punctuated_word: 'indeed.', start: 101.6, end: 102, speaker: 1 },
+              { word: 'Back', punctuated_word: 'Back', start: 102.4, end: 102.8, speaker: 0 },
+              { word: 'to', punctuated_word: 'to', start: 102.8, end: 103, speaker: 0 },
+              { word: 'me', punctuated_word: 'me.', start: 103, end: 103.5, speaker: 0 },
+            ],
+          },
+        ],
+      },
+    });
+
+    // Ranges are exactly the word-derived milliseconds — the gateway's
+    // persisted timelineOffsetMs is applied downstream, not here.
+    expect((cb.onFinal as jest.Mock).mock.calls.map(([segment]) => segment)).toEqual([
+      { startMs: 100_000, endMs: 101_000, text: 'Hello there.', speakerLabel: '0', confidence: 0.9 },
+      { startMs: 101_200, endMs: 102_000, text: 'Yes indeed.', speakerLabel: '1', confidence: 0.9 },
+      { startMs: 102_400, endMs: 103_500, text: 'Back to me.', speakerLabel: '0', confidence: 0.9 },
+    ]);
+  });
+
+  it('never labels a mixed interim with the first word speaker and retains split runs on graceful flush', async () => {
+    const conn = fakeConnection();
+    createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);
+    const cb = callbacks();
+    const manager = new DeepgramStreamManager('key', cb);
+    manager.start();
+    conn.emit('open');
+
+    conn.emit('transcript', {
+      is_final: false,
+      start: 0,
+      duration: 1,
+      channel: {
+        alternatives: [
+          {
+            transcript: 'interim mix',
+            words: [
+              { word: 'interim', start: 0, end: 0.5, speaker: 0 },
+              { word: 'mix', start: 0.5, end: 1.0, speaker: 1 },
+            ],
+          },
+        ],
+      },
+    });
+    expect(cb.onInterim).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: 'interim mix', speakerLabel: undefined }),
+    );
+    expect(cb.onFinal).not.toHaveBeenCalled();
+
+    conn.requestClose.mockImplementation(() => {
+      conn.emit('transcript', {
+        is_final: true,
+        start: 2,
+        duration: 2,
+        channel: {
+          alternatives: [
+            {
+              transcript: 'last words here',
+              confidence: 0.7,
+              words: [
+                { word: 'last', start: 2.0, end: 2.5, speaker: 0 },
+                { word: 'words', start: 2.5, end: 3.0, speaker: 1 },
+                { word: 'here', start: 3.0, end: 4.0, speaker: 1 },
+              ],
+            },
+          ],
+        },
+      });
+      conn.emit('close', { code: 1000 });
+    });
+    await manager.stopAndWait(5_000);
+
+    expect((cb.onFinal as jest.Mock).mock.calls.map(([segment]) => segment)).toEqual([
+      { startMs: 2_000, endMs: 2_500, text: 'last', speakerLabel: '0', confidence: 0.7 },
+      { startMs: 2_500, endMs: 4_000, text: 'words here', speakerLabel: '1', confidence: 0.7 },
+    ]);
+  });
+
   it('does not wait for another close after the provider already disconnected', async () => {
     const conn = fakeConnection();
     createClientMock.mockReturnValue({ listen: { live: jest.fn(() => conn) } } as never);

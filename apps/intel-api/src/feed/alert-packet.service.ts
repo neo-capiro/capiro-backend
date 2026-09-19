@@ -12,16 +12,9 @@ import {
 } from './alert-packet.js';
 
 /**
- * §4.1 / P1-13. Builds the server-side Government Affairs Alert Packet for one alert.
- *
- * Why it exists: `draftOutreach` used to hand the wizard
- * `[whyItMatters, oneBillAction].join(' · ')`, which dropped every hearing quote and
- * speaker, every PE funding delta, every regulation field, the official source URL, the
- * client's position and priority, and the active strategy and target offices. The
- * generator then had to invent whatever it needed.
- *
- * Built entirely from data intel-api already owns. Everything it cannot reach is named in
- * `confidence.missingFields` rather than omitted (plan §6.1 option a).
+ * §4.1 / P1-13. Builds the server-side Government Affairs Alert Packet for one
+ * alert, entirely from data intel-api already owns. Anything it cannot reach is
+ * named in `confidence.missingFields` rather than omitted (plan §6.1 option a).
  */
 @Injectable()
 export class AlertPacketService {
@@ -93,15 +86,33 @@ export class AlertPacketService {
     };
 
     // ---- officialEvidence: one entry per real fact, each with its own provenance.
+    // A `bill_new_match` alert is a Capiro DETECTION, not a legislative event: its
+    // evidence stage/actionText is the detection label and its actionDate is the
+    // bill's stale latest-action date. Emitting those verbatim would label a computed
+    // match as an OFFICIAL stage/action backdated to the old date, so new-match rows
+    // record the match itself as an honestly-labelled detection instead.
+    const isNewMatch = alert.changeType === 'bill_new_match';
     const facts: Array<{ text: string; url?: string | null }> = [];
     if (bill) {
       facts.push({ text: `Bill: ${bill.displayNum}${bill.title ? ` — ${bill.title}` : ''}`, url: bill.url });
-      if (bill.stage) facts.push({ text: `Stage: ${bill.stage}`, url: bill.url });
-      if (bill.actionText)
+      if (isNewMatch) {
+        const fit = typeof evidence.extra?.fit === 'number' ? (evidence.extra.fit as number) : null;
         facts.push({
-          text: `Official action${bill.actionDate ? ` (${bill.actionDate})` : ''}: ${bill.actionText}`,
-          url: bill.url,
+          text:
+            `Watchlist match${fit != null ? ` (fit ${fit.toFixed(2)})` : ''}` +
+            ` — Capiro detection: ${bill.actionText ?? 'now matches your watchlist'}` +
+            `, detected ${alert.createdAt.toISOString().slice(0, 10)}`,
+          // No sourceUrl: the official bill page does not verify Capiro's
+          // computed match, so this fact must not inherit an 'official' badge.
         });
+      } else {
+        if (bill.stage) facts.push({ text: `Stage: ${bill.stage}`, url: bill.url });
+        if (bill.actionText)
+          facts.push({
+            text: `Official action${bill.actionDate ? ` (${bill.actionDate})` : ''}: ${bill.actionText}`,
+            url: bill.url,
+          });
+      }
     }
     if (hearing) {
       if (hearing.title) facts.push({ text: `Hearing: ${hearing.title}`, url: evidence.provenance.sourceUrl });
@@ -192,8 +203,11 @@ export class AlertPacketService {
     }
 
     // ---- proceduralMeaning, from Gate D phase b's deterministic state machine.
-    const stageLabel =
-      bill?.stage || reg?.ruleType || pe?.deltaTypeLabel || evidence.provenance.band || 'not established';
+    // A new-match detection carries no official stage — its evidence `stage` is the
+    // detection label, so it must not become the reported currentStage. Only a real
+    // legislative event (or a canonical status genuinely recorded on the row) may.
+    const rawStageLabel = bill?.stage || reg?.ruleType || pe?.deltaTypeLabel || evidence.provenance.band || 'not established';
+    const stageLabel = isNewMatch ? 'not established' : rawStageLabel;
     const outlook = proceduralOutlook(
       proceduralStateFromAlert({
         changeType: alert.changeType ?? '',
@@ -238,7 +252,7 @@ export class AlertPacketService {
       alert.clientId, // clientId
       matchedTopics[0] ?? evidence.match.matchedTags[0] ?? null, // issueId
       null, // whoActs — no feed source today (P1-11, Gate D phase c)
-      bill?.actionDate ?? hearing?.occurredAt ?? deadline, // deadline
+      bill?.actionDate && !isNewMatch ? bill.actionDate : (hearing?.occurredAt ?? deadline), // deadline
       alert.sourceType, // sourceType
     ];
     const filled = canonical.filter((v) => v !== null && v !== undefined && v !== '').length;
@@ -248,9 +262,15 @@ export class AlertPacketService {
       event: {
         sourceType: alert.sourceType,
         whatChanged: alert.title,
-        canonicalStatus: bill?.stage || reg?.ruleType || pe?.deltaTypeLabel || null,
-        occurredAt:
-          bill?.actionDate ?? hearing?.occurredAt ?? alert.createdAt.toISOString().slice(0, 10),
+        // A new-match alert is a detection, not a legislative event: it carries no
+        // official canonicalStatus, and its occurrence is the detection time, not
+        // the stale bill latest-action date the detector reused as `actionDate`.
+        canonicalStatus: isNewMatch
+          ? null
+          : bill?.stage || reg?.ruleType || pe?.deltaTypeLabel || null,
+        occurredAt: isNewMatch
+          ? alert.createdAt.toISOString().slice(0, 10)
+          : bill?.actionDate ?? hearing?.occurredAt ?? alert.createdAt.toISOString().slice(0, 10),
         effectiveAt: reg?.effectiveDate ?? null,
       },
       officialEvidence,

@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Generates a short, plain-English "what happened" summary for a tracked-bill
  * move, to add context to the alert. NOT client-specific — it explains the
@@ -212,7 +213,7 @@ export class TrackerSummaryService {
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        body: JSON.stringify(prepareAnthropicRequest({
           model: cred.model,
           max_tokens: SUMMARY_MAX_TOKENS,
           // §4.3: this path is figure- and procedure-heavy — a bill number, a
@@ -222,7 +223,7 @@ export class TrackerSummaryService {
           temperature: SUMMARY_TEMPERATURE,
           system: SUMMARY_SYSTEM_PROMPT,
           messages: [{ role: 'user', content: buildSummaryPrompt({ ...input, firmContext }) }],
-        }),
+        })),
         signal: controller.signal,
       });
       if (!res.ok) {

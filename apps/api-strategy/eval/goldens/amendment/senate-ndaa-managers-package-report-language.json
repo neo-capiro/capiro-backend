@@ -1,0 +1,127 @@
+{
+  "goal": "Place report language in the Senate NDAA managers' package directing a fielding-status report for a soldier-borne power capability, and carry it into conference as a directive hook for a later funding request.",
+  "clientContextFixture": {
+    "clientName": "Harbor Light Energy",
+    "profileSummary": "Small business with a qualified soldier-borne power unit and a documented unit shortfall; no funding increase is requested in this cycle, only directive report language; the Senate NDAA has not been taken up on the floor and a SASC-member sponsor has not yet been secured.",
+    "fiscal": {
+      "today": "2026-10-05",
+      "fys": [2027, 2028, 2029],
+      "fyLabels": ["FY27", "FY28", "FY29"],
+      "focalFy": "FY27"
+    },
+    "congress": [],
+    "ppbeCurrentPhases": []
+  },
+  "plan": {
+    "nodes": [
+      {
+        "id": "n1",
+        "kind": "risk",
+        "subject": "optics",
+        "title": "Managers' package excludes items without bipartisan staff clearance",
+        "startsOn": "2026-10-05",
+        "endsOn": null,
+        "dependsOnIds": []
+      },
+      {
+        "id": "n2",
+        "kind": "decision",
+        "subject": "ask",
+        "title": "Client input required: requirement or fielding gap and the program of record",
+        "startsOn": "2026-10-05",
+        "endsOn": "2026-10-16",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n3",
+        "kind": "action",
+        "subject": "deliverable",
+        "title": "Draft the report-language concept and one-page justification",
+        "startsOn": "2026-10-19",
+        "endsOn": "2026-10-30",
+        "dependsOnIds": ["n2"]
+      },
+      {
+        "id": "n4",
+        "kind": "action",
+        "subject": "member",
+        "title": "Secure a SASC-member sponsor office to carry the language",
+        "startsOn": "2026-10-19",
+        "endsOn": "2026-11-06",
+        "dependsOnIds": []
+      },
+      {
+        "id": "n5",
+        "kind": "gate",
+        "subject": "ask",
+        "title": "Sponsor office confirms it will file the language",
+        "startsOn": "2026-11-09",
+        "endsOn": null,
+        "dependsOnIds": ["n4"]
+      },
+      {
+        "id": "n6",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Clear the language with SASC majority and minority staff",
+        "startsOn": "2026-11-10",
+        "endsOn": "2026-11-25",
+        "dependsOnIds": ["n5", "n3"]
+      },
+      {
+        "id": "n7",
+        "kind": "action",
+        "subject": "submission",
+        "title": "File the report-language amendment for the Senate NDAA managers' package",
+        "startsOn": "2026-11-30",
+        "endsOn": "2026-12-04",
+        "dependsOnIds": ["n6"]
+      },
+      {
+        "id": "n8",
+        "kind": "milestone",
+        "subject": "outcome",
+        "title": "Language included in the managers' package or carried to conference",
+        "startsOn": "2026-12-18",
+        "endsOn": null,
+        "dependsOnIds": ["n7"]
+      },
+      {
+        "id": "n9",
+        "kind": "action",
+        "subject": "committee",
+        "title": "Conference positioning with HASC and SASC staff",
+        "startsOn": "2027-01-04",
+        "endsOn": "2027-01-29",
+        "dependsOnIds": ["n8"]
+      },
+      {
+        "id": "n10",
+        "kind": "gate",
+        "subject": "outcome",
+        "title": "Conference report carries the directive, or the FY28 request window opens",
+        "startsOn": "2027-02-01",
+        "endsOn": null,
+        "dependsOnIds": ["n9"]
+      }
+    ]
+  },
+  "expectedPlanShape": {
+    "nodeCountRange": [10, 10],
+    "requiredKinds": ["action", "decision", "gate", "milestone", "risk"],
+    "requiredSubjects": ["optics", "ask", "deliverable", "member", "committee", "submission", "outcome"],
+    "orderingAssertions": [
+      {
+        "description": "a sponsor is secured before the language is filed",
+        "beforeNodeId": "n5",
+        "afterNodeId": "n7"
+      },
+      {
+        "description": "staff clearance precedes filing",
+        "beforeNodeId": "n6",
+        "afterNodeId": "n7"
+      }
+    ]
+  },
+  "notes": "Report-language-only amendment (no dollars): the vehicle-named submission (n7) satisfies amendment-no-vehicle, and because no funding increase is requested the offset gate is NOT required; exercises the offset check's funding-ask guard. Senate track with conference and FY28 fallback."
+}

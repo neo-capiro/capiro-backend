@@ -118,6 +118,30 @@ export const REPORT_NARRATIVE_SYSTEM_BASE = [
   '- Quotation marks only for text you are quoting verbatim from the evidence.',
 ].join('\n');
 
+/**
+ * Conventions for an amendment-type strategy (a budget line or authorizing
+ * provision pursued through a named legislative vehicle). Mirrors the
+ * plan-drafting addendum in strategy-prompt.ts so the report reads the same
+ * way the plan was written. Appended to the user message ONLY for that type;
+ * every other type's prompt is byte-identical to before.
+ */
+export const AMENDMENT_REPORT_CONVENTIONS = [
+  '# Amendment strategy conventions',
+  '- Figures: when you cite a dollar amount, quantity or fiscal-year baseline, say which exhibit type the evidence attributes it to (for example a P-1, R-1, P-40 or R-2 exhibit, a committee report, or NDAA funding tables). Never carry a figure across from a different line item, program element or fiscal year.',
+  '- The ask: describe it as a program increase to a specific line, stated as capability and quantity. Keep it vendor-neutral — never name a single company as the recipient and never call it a directed buy.',
+  '- Status ladder: use exactly the five stages the evidence uses — filed, made in order, adopted, conferenced, enacted — and never advance a stage the evidence does not show. Do not describe the request as enacted, appropriated, secured or received unless the evidence states that stage.',
+  '- Floor timing: when the evidence gives no scheduled floor or Rules Committee window, describe it as not yet scheduled rather than estimating a date.',
+  '- Backstop: when the evidence records a fallback route (the other chamber, conference, or the next fiscal-year request window), describe it as the backstop for the primary vehicle.',
+].join('\n');
+
+/**
+ * api-strategy sends the display label ("Amendment ask") rather than the raw
+ * type, so match the label prefix as well as the raw enum value.
+ */
+export function isAmendmentStrategyType(type: string | null | undefined): boolean {
+  return /^amendment\b/i.test((type ?? '').trim());
+}
+
 export function composeReportNarrativePrompt(input: ReportNarrativeInput): {
   system: string;
   user: string;
@@ -131,6 +155,7 @@ export function composeReportNarrativePrompt(input: ReportNarrativeInput): {
   const user = [
     `Report: ${input.strategy.title} (${input.strategy.type}) for ${input.strategy.clientName}, plan as of ${input.strategy.asOf}.`,
     audienceNote,
+    ...(isAmendmentStrategyType(input.strategy.type) ? ['', AMENDMENT_REPORT_CONVENTIONS] : []),
     '',
     `Requested sections (at most ${input.maxParagraphsPerSection} paragraphs each; omit a section the evidence cannot support):`,
     sections,

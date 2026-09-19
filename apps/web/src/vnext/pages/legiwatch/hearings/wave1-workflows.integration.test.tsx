@@ -391,11 +391,56 @@ describe('W1-1 Follow dialog', () => {
 // ── W1-2 · Attend ──────────────────────────────────────────────────────────
 
 describe('W1-2 Attend dialog', () => {
-  it('uses the real capability state from the server', async () => {
+  it('renders BOTH server and browser as independent actions', async () => {
     renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
     expect(await screen.findByText('Automatic attendance available')).toBeTruthy();
     expect(screen.getByText('An approved server-capture source is available.')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: /Capiro attends automatically/ })).toBeTruthy();
+    // Both actions are present at once — not a radio that locks one out.
+    expect(
+      screen.getByRole('button', { name: 'Schedule server attendance' }),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open browser attendance' })).toBeTruthy();
+  });
+
+  it('keeps the browser fallback available while server capture is active', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'CAPTURING',
+          reasonCode: 'CANONICAL_CAPTURE_ACTIVE',
+          message: 'Capiro is capturing the official stream.',
+          canRequest: false,
+          availableModes: [],
+          scheduled: true,
+          automaticAvailable: false,
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    expect(await screen.findByText('Capturing')).toBeTruthy();
+    // Server schedule is NOT offered (already capturing) but browser stays open.
+    expect(screen.queryByRole('button', { name: 'Schedule server attendance' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open browser attendance' })).toBeTruthy();
+  });
+
+  it('keeps server scheduling available while a browser session exists', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'AUTOMATIC_AVAILABLE',
+          automaticAvailable: true,
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    await screen.findByText('Automatic attendance available');
+    expect(
+      screen.getByRole('button', { name: 'Schedule server attendance' }),
+    ).toBeTruthy();
   });
 
   it('offers ONLY browser attendance when that is the only permitted mode', async () => {
@@ -406,6 +451,8 @@ describe('W1-2 Attend dialog', () => {
           reasonCode: 'BROWSER_CAPTURE_ONLY',
           message: 'The verified source is browser-capture only.',
           availableModes: ['browser'],
+          automaticAvailable: false,
+          browserAvailable: true,
           consentRequired: true,
         });
       }
@@ -414,83 +461,198 @@ describe('W1-2 Attend dialog', () => {
     renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
 
     expect(await screen.findByText('Browser attendance required')).toBeTruthy();
-    expect(screen.queryByRole('radio', { name: /Capiro attends automatically/ })).toBeNull();
-    expect(screen.getByRole('radio', { name: /Browser attendance/ })).toBeTruthy();
-    // Consent is required, so the primary is blocked until it is given.
-    expect(
-      (screen.getByRole('button', { name: 'Open browser attendance' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Schedule server attendance' })).toBeNull();
+    const openBtn = screen.getByRole('button', { name: 'Open browser attendance' });
+    // Consent is required, so the browser action is blocked until it is given.
+    expect((openBtn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  function browserAttendance() {
-    const assessment = attendanceState({ state: 'BROWSER_ONLY', availableModes: ['browser'], consentRequired: true });
-    handlers.get.mockImplementation(() => assessment);
-    handlers.put.mockImplementation(() => ({ attendance: assessment }));
+  function browserPlan() {
     return {
       mode: 'BROWSER_CAPTURE', hearingId: HEARING_ID, title: 'Shipbuilding', sourceType: 'hearing',
       sourceUrl: 'https://armedservices.house.gov/hearings', audioSource: 'browser_mic', recordingPolicy: 'transcript_only',
     };
   }
 
-  async function openBrowserAttendance() {
+  it('opens a real browser hearing room only after consent', async () => {
+    const plan = browserPlan();
+    handlers.get.mockImplementation((url: string) =>
+      url.includes('/attendance')
+        ? attendanceState({ state: 'BROWSER_ONLY', availableModes: ['browser'], browserAvailable: true, automaticAvailable: false, consentRequired: true })
+        : {},
+    );
+    handlers.put.mockImplementation((_url, body) => ({ attendance: attendanceState(), body }));
+    handlers.post.mockImplementation((url) => url.endsWith('/join-browser') ? plan : { id: 'browser-session-1' });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
     await screen.findByText('Browser attendance required');
     fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this proceeding is public/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Open browser attendance' }));
-  }
-
-  it('opens a real browser hearing session after consent and canonical join assessment', async () => {
-    const plan = browserAttendance();
-    handlers.post.mockImplementation((url) => url.endsWith('/join-browser') ? plan : { id: 'browser-session-1' });
-    const onClose = vi.fn();
-    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
-    await openBrowserAttendance();
     await waitFor(() => expect(screen.getByTestId('current-location')).toHaveTextContent('/intelligence/hearing-watch/browser-session-1'));
-    expect(calls.filter((call) => call.method !== 'get').map((call) => call.url)).toEqual([
-      `/api/legiwatch/live-hearings/events/${HEARING_ID}/attendance`,
-      `/api/legiwatch/live-hearings/events/${HEARING_ID}/join-browser`,
-      '/intel-api/hearings',
-    ]);
-    expect(calls.find((call) => call.url === '/intel-api/hearings')?.body).toMatchObject({
+    expect(calls.find((c) => c.url === '/intel-api/hearings')?.body).toMatchObject({
       hearingId: HEARING_ID, audioSource: 'browser_mic', sourceUrl: plan.sourceUrl,
-      consentAttestation: expect.stringContaining('recording it through my browser is permitted'),
     });
-    expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('attaches to an existing canonical capture without creating a duplicate browser session', async () => {
-    browserAttendance();
-    handlers.post.mockImplementation(() => ({ mode: 'ATTACH_CANONICAL', hearingId: HEARING_ID, captureId: 'cap-existing', captureStatus: 'CAPTURING' }));
-    const onClose = vi.fn();
-    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
-    await openBrowserAttendance();
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(calls.some((call) => call.url === '/intel-api/hearings')).toBe(false);
-    expect(screen.getByTestId('current-location')).toHaveTextContent('/legiwatch');
-  });
-
-  it('keeps the browser dialog open with the actual policy refusal', async () => {
-    browserAttendance();
+  it('reports a BLOCKED browser join instead of a false success', async () => {
+    handlers.get.mockImplementation((url: string) =>
+      url.includes('/attendance')
+        ? attendanceState({ state: 'BROWSER_ONLY', availableModes: ['browser'], browserAvailable: true, automaticAvailable: false, consentRequired: true })
+        : {},
+    );
     handlers.post.mockImplementation(() => ({ mode: 'BLOCKED', hearingId: HEARING_ID, message: 'This proceeding has been canceled.' }));
-    const onClose = vi.fn();
-    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
-    await openBrowserAttendance();
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    await screen.findByText('Browser attendance required');
+    fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this proceeding is public/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open browser attendance' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('This proceeding has been canceled.');
-    expect(calls.some((call) => call.url === '/intel-api/hearings')).toBe(false);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(calls.some((c) => c.url === '/intel-api/hearings')).toBe(false);
   });
 
-  it('does not close or navigate when creating the browser room fails', async () => {
-    const plan = browserAttendance();
-    handlers.post.mockImplementation((url) => {
-      if (url.endsWith('/join-browser')) return plan;
-      throw new Error('Hearing service is unavailable.');
-    });
-    const onClose = vi.fn();
-    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
-    await openBrowserAttendance();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Hearing service is unavailable.');
+  it('schedules server attendance and confirms without navigating', async () => {
+    handlers.put.mockImplementation(() => ({
+      attendance: attendanceState({ state: 'SCHEDULED', scheduled: true, canRequest: false }),
+    }));
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Schedule server attendance' }));
+    // Explicit per-mode confirmation text (not the location probe's status role).
+    expect(await screen.findByText(/Server attendance scheduled/)).toBeTruthy();
+    const put = calls.find((c) => c.method === 'put' && c.url.includes('/attendance'));
+    expect(put!.body).toMatchObject({ mode: 'automatic' });
+    // No navigation to a browser room; the dialog stays put.
     expect(screen.getByTestId('current-location')).toHaveTextContent('/legiwatch');
-    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a server refusal instead of claiming success', async () => {
+    handlers.put.mockImplementation(() => {
+      throw {
+        response: { data: { code: 'CLOSED_PROCEEDING', message: 'This is a closed session.' } },
+      };
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    await screen.findByText('Automatic attendance available');
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule server attendance' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('This is a closed session.');
+    // No success confirmation is shown on failure.
+    expect(screen.queryByText(/Server attendance scheduled/)).toBeNull();
+  });
+
+  it('offers browser replay on a completed public proceeding even when canRequest is false', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'COMPLETE',
+          reasonCode: 'CAPTURE_COMPLETE',
+          message: 'The canonical capture is complete.',
+          canRequest: false,
+          availableModes: [],
+          scheduled: false,
+          automaticAvailable: false,
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    expect(await screen.findByText('Ready')).toBeTruthy();
+    // Browser replay stays open; fresh server scheduling is not re-offered.
+    expect(screen.getByRole('button', { name: 'Open browser attendance' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Schedule server attendance' })).toBeNull();
+  });
+
+  it('keeps the browser fallback open when another tenant’s canonical capture is active', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'CAPTURING',
+          reasonCode: 'CANONICAL_CAPTURE_ACTIVE',
+          message: 'Capiro is capturing the official stream.',
+          canRequest: false,
+          availableModes: [],
+          scheduled: false, // scheduled by ANOTHER workspace, not this one
+          automaticAvailable: true, // backend allows joining the shared recorder
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    expect(await screen.findByText('Capturing')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open browser attendance' })).toBeTruthy();
+    // This tenant may JOIN the shared canonical capture (backend dedups to one
+    // recorder) — scheduling is offered because THIS workspace hasn't scheduled.
+    expect(screen.getByRole('button', { name: 'Schedule server attendance' })).toBeTruthy();
+    // No "cancel" affordance for a capture this workspace did not schedule.
+    expect(screen.queryByRole('button', { name: 'Cancel server attendance' })).toBeNull();
+  });
+
+  it('labels a completed server capture as READY, not "scheduled / not yet capturing"', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'COMPLETE',
+          reasonCode: 'CAPTURE_COMPLETE',
+          message: 'The canonical capture is complete and its transcript is ready.',
+          scheduled: true, // durable demand stays true after completion
+          canRequest: false,
+          availableModes: [],
+          automaticAvailable: false,
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    expect(await screen.findByText('SERVER CAPTURE READY')).toBeTruthy();
+    expect(screen.queryByText('SERVER ATTENDANCE SCHEDULED')).toBeNull();
+    expect(screen.queryByText(/not yet capturing/)).toBeNull();
+  });
+
+  it('labels a failed server capture as FAILED with a retry path, not "scheduled"', async () => {
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'FAILED',
+          reasonCode: 'CAPTURE_FAILED',
+          message: 'The server capture failed.',
+          scheduled: true,
+          canRequest: false,
+          availableModes: [],
+          automaticAvailable: true,
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    expect(await screen.findByText('SERVER CAPTURE FAILED')).toBeTruthy();
+    expect(screen.queryByText('SERVER ATTENDANCE SCHEDULED')).toBeNull();
+  });
+
+  it('requires the browser consent checkbox even when the automatic mode does not', async () => {
+    // AUTO + browser both available, server flags consentRequired=false — the
+    // browser action still cannot attest unseen consent.
+    handlers.get.mockImplementation((url: string) => {
+      if (url.includes('/attendance')) {
+        return attendanceState({
+          state: 'AUTOMATIC_AVAILABLE',
+          consentRequired: false,
+          automaticAvailable: true,
+          browserAvailable: true,
+        });
+      }
+      return {};
+    });
+    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
+    await screen.findByText('Automatic attendance available');
+    const openBtn = screen.getByRole('button', { name: 'Open browser attendance' });
+    expect((openBtn as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('checkbox', { name: /I confirm this proceeding is public/ }));
+    expect((openBtn as HTMLButtonElement).disabled).toBe(false);
+    // The server schedule action is unaffected by the browser consent gate.
+    expect(
+      (screen.getByRole('button', { name: 'Schedule server attendance' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 
   it('a CLOSED session gets NO attendance affordance', async () => {
@@ -502,6 +664,8 @@ describe('W1-2 Attend dialog', () => {
           message: 'This is a closed session.',
           canRequest: false,
           availableModes: [],
+          automaticAvailable: false,
+          browserAvailable: false,
         });
       }
       return {};
@@ -510,42 +674,8 @@ describe('W1-2 Attend dialog', () => {
 
     expect(await screen.findByText('Closed session')).toBeTruthy();
     expect(screen.getByText('There is no attendance option for this proceeding.')).toBeTruthy();
-    // No mode radios at all, and the primary cannot be used.
-    expect(screen.queryAllByRole('radio')).toHaveLength(0);
-    expect(
-      (screen.getByRole('button', { name: 'Schedule attendance' }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-  });
-
-  it('schedules through the real endpoint and carries the chosen mode', async () => {
-    handlers.put.mockImplementation(() => ({
-      attendance: attendanceState({ state: 'SCHEDULED', scheduled: true, canRequest: false }),
-    }));
-    const onClose = vi.fn();
-    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
-
-    fireEvent.click(await screen.findByRole('radio', { name: /Capiro attends automatically/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule attendance' }));
-
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const put = calls.find((c) => c.method === 'put' && c.url.includes('/attendance'));
-    expect(put!.body).toMatchObject({ mode: 'automatic' });
-  });
-
-  it('surfaces a server refusal instead of claiming success', async () => {
-    handlers.put.mockImplementation(() => {
-      throw {
-        response: { data: { code: 'CLOSED_PROCEEDING', message: 'This is a closed session.' } },
-      };
-    });
-    const onClose = vi.fn();
-    renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={onClose} />);
-    // Wait for the capability assessment: submitting before it lands has no
-    // mode to send.
-    await screen.findByText('Automatic attendance available');
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule attendance' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('This is a closed session.');
-    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Schedule server attendance' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open browser attendance' })).toBeNull();
   });
 
   it('offers cancellation once this workspace has scheduled', async () => {
@@ -564,7 +694,7 @@ describe('W1-2 Attend dialog', () => {
     handlers.delete.mockImplementation(() => ({ attendance: attendanceState() }));
     renderIn(<AttendDialog hearingId={HEARING_ID} hearingTitle="Shipbuilding" onClose={vi.fn()} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancel attendance' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel server attendance' }));
     await waitFor(() =>
       expect(calls.some((c) => c.method === 'delete' && c.url.includes('/attendance'))).toBe(true),
     );

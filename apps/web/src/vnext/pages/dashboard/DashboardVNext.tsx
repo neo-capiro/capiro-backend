@@ -9,6 +9,8 @@ import {
 } from '../../adapters/legacy/useDashboardVNextModel.js';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { CustomizeDrawer } from './CustomizeDrawer.js';
+import { useMarkLwNotificationRead } from '../legiwatch/lib/wave1-api.js';
+// The mutation lives in the connected DashboardVNext wrapper, not the view.
 import { resolveNewsOutletMark } from './news-outlet-logos.js';
 import type { NewsLookback } from '../../../pages/dashboard/news-preferences.js';
 import './dashboard.css';
@@ -41,11 +43,36 @@ function useAttentionPerPage() {
 }
 
 export function DashboardVNext() {
-  return <DashboardVNextView model={useDashboardVNextModel()} />;
+  const markLwRead = useMarkLwNotificationRead();
+  return (
+    <DashboardVNextView
+      model={useDashboardVNextModel()}
+      onClearAttention={(item, finish, fail) => {
+        // Committee/hearing rows are durable: mark read FIRST, navigate only
+        // on success so the bell badge + this module agree after a reload.
+        // A failed read restores the row and shows the inline error.
+        if (item.attentionSource === 'lw-notification') {
+          const lwId = item.id.slice('lw-notif-'.length);
+          markLwRead.mutate(lwId, { onSuccess: finish, onError: fail });
+          return;
+        }
+        finish();
+      }}
+    />
+  );
 }
 
-export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
+export function DashboardVNextView({
+  model,
+  onClearAttention,
+}: {
+  model: DashboardVNextModel;
+  /** Connected wrapper supplies the lw read-then-navigate behavior. Optional
+   *  so fixture renders of the pure view need no QueryClient. */
+  onClearAttention?: (item: AttentionItem, finish: () => void, fail: () => void) => void;
+}) {
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [attentionError, setAttentionError] = useState<string | null>(null);
   const [customizeSection, setCustomizeSection] = useState<'x' | null>(null);
   const [wireFilter, setWireFilter] = useState<WireFilter>('all');
   const [showAllWire, setShowAllWire] = useState(false);
@@ -115,12 +142,30 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
   const clearAttention = (item: AttentionItem) => {
     if (clearingAttentionIds.has(item.id)) return;
     setClearingAttentionIds((current) => new Set([...current, item.id]));
-    window.setTimeout(() => {
+    setAttentionError(null);
+
+    const finish = () => {
       setClearedAttentionIds((current) => new Set([...current, item.id]));
       setClearingAttentionIds((current) => { const next = new Set(current); next.delete(item.id); return next; });
       if (selectedAttentionId === item.id) setSelectedAttentionId(null);
       if (item.href) window.location.assign(item.href);
-    }, 260);
+    };
+    const fail = () => {
+      // The read did not persist — restore the row and say so instead of
+      // navigating as if it had been triaged.
+      setClearingAttentionIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+      setAttentionError('This alert could not be marked read. It is still unread — try again.');
+    };
+
+    if (item.attentionSource === 'lw-notification' && onClearAttention) {
+      onClearAttention(item, () => window.setTimeout(finish, 260), fail);
+      return;
+    }
+    window.setTimeout(finish, 260);
   };
 
   return (
@@ -181,6 +226,12 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
             ) : null}
           </div>
 
+          {attentionError ? (
+            <div className="dashv2-source-state" role="alert">
+              <strong>Committee alert not marked read</strong>
+              <span>{attentionError}</span>
+            </div>
+          ) : null}
           {model.needsAttention.status.state === 'loading' ? (
             <div className="dashv2-allclear" data-state="loading">Loading time-sensitive signals…</div>
           ) : model.needsAttention.status.state === 'unavailable' ? (

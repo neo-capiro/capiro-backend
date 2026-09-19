@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { computeSendPreflight, type SendPreflightInput } from './send-preflight.js';
-import { analyzeRecipientCollisions, collisionsFingerprint, type OutreachTarget } from './targets.js';
+import {
+  analyzeRecipientCollisions,
+  collisionsFingerprint,
+  type OutreachTarget,
+} from './targets.js';
 import type { OutreachRecipient } from '../../OutreachView.js';
 import type { GeneratedDraft } from './types.js';
 
@@ -45,6 +49,38 @@ const baseInput: SendPreflightInput = {
 };
 
 describe('computeSendPreflight', () => {
+  it.each(['dirty', 'pending'] as const)(
+    'blocks a partial send while one of two drafts is %s',
+    (state) => {
+      const result = computeSendPreflight({
+        ...baseInput,
+        targets: [individual('a@x.com'), individual('b@x.com')],
+        slots: [...baseInput.slots, { genKey: 'individual:b@x.com', resultId: 'b@x.com' }],
+        generated: {
+          ...baseInput.generated,
+          'individual:b@x.com': {
+            ...sendableDraft(),
+            ...(state === 'dirty' ? { dirty: true } : { auditStatus: 'pending', sendable: false }),
+          },
+        },
+      });
+      expect(result.sendableCount).toBe(1);
+      expect(result.canSend).toBe(false);
+    },
+  );
+
+  it('blocks sending until every attachment upload completes', () => {
+    const pending = computeSendPreflight({ ...baseInput, attachmentUploadsPending: 2 });
+    expect(pending.canSend).toBe(false);
+    expect(pending.blockers[0]!.message).toMatch(/uploads to finish/);
+    expect(computeSendPreflight({ ...baseInput, attachmentUploadsPending: 0 }).canSend).toBe(true);
+  });
+
+  it('blocks sending after an upload failure until the failed file is removed or retried', () => {
+    const result = computeSendPreflight({ ...baseInput, attachmentUploadFailures: ['brief.pdf'] });
+    expect(result.canSend).toBe(false);
+    expect(result.blockers[0]!.message).toContain('brief.pdf');
+  });
   it('allows send when everything is clean', () => {
     const result = computeSendPreflight(baseInput);
     expect(result.canSend).toBe(true);

@@ -1,9 +1,10 @@
 jest.mock('../../program-element/program-element-read.service.js', () => ({
   ProgramElementReadService: class ProgramElementReadService {},
 }));
-jest.mock('../../funding-opportunities/funding-opportunities.service.js', () => ({
-  FundingOpportunitiesService: class FundingOpportunitiesService {},
-}));
+jest.mock('../../funding-opportunities/funding-opportunity-v2-search.service.js', () => {
+  const actual = jest.requireActual('../../funding-opportunities/funding-opportunity-v2-search.service.js');
+  return { ...actual, FundingOpportunityV2SearchService: class FundingOpportunityV2SearchService {} };
+});
 jest.mock('../../federal-spending/federal-market.service.js', () => ({
   FederalMarketService: class FederalMarketService {},
 }));
@@ -57,29 +58,31 @@ function setup() {
     }),
   };
   const funding = {
-    listOpportunities: jest.fn().mockImplementation(async (_tenant, query) => ({
+    search: jest.fn().mockImplementation(async (_context, criteria) => ({
       opportunities: [
         {
-          id: `${query.source}:1`,
+          id: `${criteria.sources[0]}:1`,
+          source: criteria.sources[0],
           sourceRecordId: '1',
           sourceUrl: 'https://example.gov/1',
           title: 'Robotics',
-          sourceUpdatedAt: sync,
           postedDate: sync,
-          eligibility: { state: 'needs_review' },
+          agency: null,
+          type: 'contract', lifecycle: 'active', deadline: null, closeOrArchiveDate: null,
+          isPursuable: true, summary: null, naicsCodes: [], pscCodes: [], setAside: null,
+          applicantTypes: [], geography: [], value: null, valueBasis: 'not_stated_by_source',
+          sourceFacts: { provenance: 'test' }, relevanceScore: null, matchedSignals: [],
+          eligibility: { state: 'needs_review', reason: 'Unknown' }, clientId: criteria.clientId,
         },
       ],
-      total: 1,
-      totalIsCapped: false,
-      missingProfileFields: [],
+      page: criteria.page, pageSize: criteria.pageSize, total: 1, totalIsCapped: false,
+      catalogComplete: true, mode: criteria.mode, clientId: criteria.clientId,
+      counts: { grants: 1, contracts: 1, active: 1, closed: 0 },
+      profileGaps: null, emptyReason: null, generatedAt: sync,
       freshness: [
         {
-          source: query.source,
+          source: criteria.sources[0], state: 'current', recordCount: 1, activeRecordCount: 1,
           lastSyncedAt: sync,
-          neverSynced: false,
-          countsUnavailable: false,
-          lastRunDegraded: false,
-          enrichment: null,
         },
       ],
     })),
@@ -90,7 +93,6 @@ function setup() {
         {
           id: 'award1',
           actionDate: sync,
-          sourceUpdatedAt: sync,
           amount: 123,
         },
       ],
@@ -107,7 +109,7 @@ function setup() {
   };
   const services = {
     ProgramElementReadService: pe,
-    FundingOpportunitiesService: funding,
+    FundingOpportunityV2SearchService: funding,
     FederalMarketService: awards,
     DirectoryService: directory,
   };
@@ -199,6 +201,7 @@ describe('public source retrieval through canonical read services', () => {
     class RetrievalReadsModule {}
     Module({
       providers: [PublicDomainRetrievalAdapter, { provide: PrismaService, useValue: prisma }, { provide: PublicBillReadService, useValue: bills }],
+      imports: [DomainReadsModule],
       exports: [PublicDomainRetrievalAdapter],
     })(RetrievalReadsModule);
     const application = await Test.createTestingModule({ imports: [DomainReadsModule, RetrievalReadsModule] }).compile();
@@ -286,10 +289,10 @@ describe('public source retrieval through canonical read services', () => {
     };
     await adapter.retrieve(dataset('grants'), request('grants', dates));
     await adapter.retrieve(dataset('federal_awards'), request('federal_awards', dates));
-    expect(funding.listOpportunities.mock.calls[0][1]).toMatchObject({
+    expect(funding.search.mock.calls[0][1]).toMatchObject({
       deadlineFrom: dates.windowStart.toISOString(),
       deadlineTo: dates.windowEnd.toISOString(),
-      source: 'grants_gov',
+      sources: ['grants_gov'],
     });
     expect(awards.listContracts.mock.calls[0][1]).toMatchObject({
       dateFrom: dates.windowStart.toISOString(),
@@ -312,12 +315,12 @@ describe('public source retrieval through canonical read services', () => {
       { memoryWall: false },
       { memoryAccessGrants: { some: { userId: 'user-1' } } },
     ]);
-    expect(funding.listOpportunities.mock.calls[0][1]).toMatchObject({
-      source: 'sam_gov',
+    expect(funding.search.mock.calls[0][1]).toMatchObject({
+      sources: ['sam_gov'],
       clientId: 'client1',
     });
     expect(result.records[0]?.payload.eligibility).toEqual({
-      state: 'needs_review',
+      state: 'needs_review', reason: 'Unknown',
     });
     expect(result.records[0]?.provenance?.clientScopeApplied).toBe(true);
   });
@@ -342,7 +345,7 @@ describe('public source retrieval through canonical read services', () => {
         })
       ).sourceStatus,
     ).toBe('unauthorized');
-    expect(funding.listOpportunities).not.toHaveBeenCalled();
+    expect(funding.search).not.toHaveBeenCalled();
   });
 
   it('walks each explicitly authorized client without pretending the first total covers all clients', async () => {
@@ -359,7 +362,7 @@ describe('public source retrieval through canonical read services', () => {
     });
     const first = await adapter.retrieve(dataset('grants'), input);
     const second = await adapter.retrieve(dataset('grants'), input, first.nextCursor);
-    expect(funding.listOpportunities.mock.calls.map((call) => call[1].clientId)).toEqual([
+    expect(funding.search.mock.calls.map((call) => call[1].clientId)).toEqual([
       'client1',
       'client2',
     ]);
@@ -379,7 +382,7 @@ describe('public source retrieval through canonical read services', () => {
       const result = await adapter.retrieve(dataset('grants'), request('grants'));
       expect(result.sourceStatus).toBe(kind === 'flag_error' ? 'unavailable' : 'unauthorized');
       expect(result.coverageComplete).toBe(false);
-      expect(funding.listOpportunities).not.toHaveBeenCalled();
+      expect(funding.search).not.toHaveBeenCalled();
       expect(clientRead).not.toHaveBeenCalled();
     },
   );
@@ -388,14 +391,14 @@ describe('public source retrieval through canonical read services', () => {
     'preserves %s source coverage instead of claiming a complete scan',
     async (kind) => {
       const { adapter, funding } = setup();
-      funding.listOpportunities.mockResolvedValue({
+      funding.search.mockResolvedValue({
         opportunities: [],
         total: 0,
         totalIsCapped: kind === 'cap',
         missingProfileFields: [],
         freshness: [
           {
-            source: 'grants_gov',
+            sources: ['grants_gov'],
             lastSyncedAt: kind === 'never_synced' ? null : sync,
             neverSynced: kind === 'never_synced',
             countsUnavailable: false,

@@ -47,10 +47,13 @@ export async function discoverSavedHearingSessions(
   // intel-api migrations can roll out separately from API migrations. A missing
   // rail is explicitly unavailable, never an assertion that no sessions exist.
   const readiness = await tx.$queryRawUnsafe<Array<{ available: boolean }>>(`
-    SELECT to_regclass('intel_live_hearing_session') IS NOT NULL
-       AND to_regclass('intel_transcript_segment') IS NOT NULL
-       AND to_regclass('intel_live_summary_card') IS NOT NULL AS available
-  `);
+   SELECT to_regclass('intel_live_hearing_session') IS NOT NULL
+      AND to_regclass('intel_transcript_segment') IS NOT NULL
+      AND to_regclass('intel_live_summary_card') IS NOT NULL
+      AND to_regclass('public_hearing_capture') IS NOT NULL
+      AND to_regclass('public_hearing_transcript_segment') IS NOT NULL
+      AND to_regclass('public_hearing_insight') IS NOT NULL AS available
+ `);
   if (!readiness[0]?.available) return { savedSessionsState: 'unavailable', sessions: [] };
 
   const rows = await tx.$queryRawUnsafe<
@@ -130,10 +133,38 @@ export async function discoverSavedHearingSessions(
     )
     SELECT s.id, a.hearing_id AS "hearingId", s.title, s.status::text AS status,
       a.association, s.source_url AS "sourceUrl", s.started_at AS "startedAt", s.ended_at AS "endedAt",
-      (SELECT count(*)::int FROM intel_transcript_segment seg
-       WHERE seg.tenant_id = $1 AND seg.session_id = s.id AND seg.is_final = true) AS "transcriptSegmentCount",
-      (SELECT count(DISTINCT coalesce(card.segment_id, card.id))::int FROM intel_live_summary_card card
-       WHERE card.tenant_id = $1 AND card.session_id = s.id) AS "intelligenceMomentCount"
+      CASE
+        -- Canonical public review context: count the public capture's final
+        -- transcript instead of the tenant-private browser rail. The capture FK
+        -- trigger validates the hearing association at write time; we verify it
+        -- again here so a stale/misassociated session cannot borrow another
+        -- hearing's transcript count.
+        WHEN s.public_capture_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM public_hearing_capture c
+          WHERE c.id = s.public_capture_id AND c.hearing_id = s.hearing_id
+        )
+        THEN (SELECT count(*)::int FROM public_hearing_transcript_segment pts
+              WHERE pts.capture_id = s.public_capture_id AND pts.is_final = true)
+        ELSE (SELECT count(*)::int FROM intel_transcript_segment seg
+              WHERE seg.tenant_id = $1 AND seg.session_id = s.id AND seg.is_final = true)
+      END AS "transcriptSegmentCount",
+      -- Same owner choice as the transcript count above: a verified public
+      -- review session counts its capture's public insight moments instead of
+      -- the tenant-private summary-card rail (which is always empty there).
+      -- Insight rows hang off one canonical segment each, so the moment count
+      -- is distinct source segments, never raw rows or synthetic edges.
+      CASE
+        WHEN s.public_capture_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM public_hearing_capture c
+          WHERE c.id = s.public_capture_id AND c.hearing_id = s.hearing_id
+        )
+        THEN (SELECT count(DISTINCT coalesce(insight.segment_id, insight.id))::int
+              FROM public_hearing_insight insight
+              WHERE insight.capture_id = s.public_capture_id
+                AND insight.hearing_id = s.hearing_id)
+        ELSE (SELECT count(DISTINCT coalesce(card.segment_id, card.id))::int FROM intel_live_summary_card card
+              WHERE card.tenant_id = $1 AND card.session_id = s.id)
+      END AS "intelligenceMomentCount"
     FROM associations a JOIN accessible_sessions s ON s.id = a.session_id
     ORDER BY s.created_at DESC, s.id DESC
   `,

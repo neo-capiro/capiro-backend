@@ -24,11 +24,13 @@ import { useApi } from '../../lib/use-api.js';
 import { useHearingWakeLock } from '../../lib/use-hearing-wake-lock.js';
 import { useIntelFeatureEnabled } from '../../lib/intel-feature-flags.js';
 import { useApiScope } from '../../lib/use-api-scope.js';
+import { useCapiroToast } from '../../vnext/components/feedback/toast.js';
 import {
   HearingRecordingTransport,
   type AudioSaved,
 } from '../../lib/hearing-recording-transport.js';
 import { HearingRecordingPanel } from './HearingRecordingPanel.js';
+import { PublicHearingAudioPanel } from './PublicHearingAudioPanel.js';
 import { HearingPublicationsPanel } from './HearingPublicationsPanel.js';
 import { HearingPublishedRecordsPanel } from './HearingPublishedRecordsPanel.js';
 import '../radar/legiwatch.css';
@@ -38,13 +40,27 @@ import {
   mediaKindOf,
   mintWsTicket,
   useConfirmConsent,
+  useCurrentHearingRecap,
   useGenerateBrief,
   useHearingSession,
   useHearingTranscript,
+  useResolveStream,
   useSaveRecap,
   type HearingBrief,
   type HearingTranscriptItem,
+  type ResolveStreamResult,
 } from '../../lib/hearing-watch-api.js';
+import { HearingRecapPreview } from './HearingRecapPreview.js';
+import {
+  useAttendance,
+  useRequestAttendance,
+  w1Error,
+} from '../../vnext/pages/legiwatch/lib/wave1-api.js';
+import {
+  useHearingIntelligence,
+  usePublicHearingTranscript,
+} from '../radar/live-hearings/live-hearings-api.js';
+import type { PublicTranscriptSegment } from '../radar/live-hearings/live-hearings.types.js';
 
 const { Title, Text, Paragraph } = Typography;
 const RECORDER_MIME = 'audio/webm;codecs=opus';
@@ -69,6 +85,9 @@ interface Card_ {
   title: string;
   body?: string;
   startMs?: number;
+  /** The finding's cited transcript segment id, when the source carries one.
+   *  This is the authoritative jump target at shared interval boundaries. */
+  segmentId?: string;
 }
 
 /** Presentation boundary: both rooms use the same capture/recovery lifecycle. */
@@ -87,6 +106,9 @@ export interface HearingRoomViewModel {
   transcriptError: boolean;
   transcriptionDelayed?: boolean;
   intelligenceError: boolean;
+  /** True while extraction is still producing public findings (loading,
+   *  PROCESSING, or pending public jobs) — never claimed when DEGRADED only. */
+  intelligenceProcessing?: boolean;
   error: string | null;
   dismissError: () => void;
   statusText: string | null;
@@ -101,6 +123,10 @@ export interface HearingRoomViewModel {
   lastTranscriptAt: number | null;
   wakeLock: ReturnType<typeof useHearingWakeLock>;
   sourcePlayer: ReactNode;
+  /** The official source URL to open (resolved player page when available,
+   *  else the saved sourceUrl). Never the raw Congress listing when a resolved
+   *  official source exists. */
+  openSourceUrl?: string | null;
   connect: () => void;
   disconnect: () => void;
   startCapture: () => void;
@@ -109,6 +135,33 @@ export interface HearingRoomViewModel {
   confirmConsent: () => void;
   confirmingConsent: boolean;
   saveRecap: () => void;
+  /** Canonical hearing detail path, when this room is linked to a hearing. */
+  detailPath?: string | null;
+  /** Server-attendance panel for rooms tied to a canonical hearing. */
+  serverAttendance?: {
+    available: boolean;
+    /** This workspace has durable server demand for the proceeding. */
+    scheduled: boolean;
+    callerScheduled?: boolean;
+    /** Capture lifecycle from the server's own state — never inferred from the
+     *  durable demand flag (which stays true after complete/failed). */
+    lifecycle?: 'scheduled' | 'capturing' | 'processing' | 'complete' | 'failed';
+    stateLabel?: string;
+    message?: string;
+    pending: boolean;
+    error?: string | null;
+    confirm?: string | null;
+    onSchedule: () => void;
+  };
+  /** Official-source resolution when the saved source is a listing page. */
+  sourceResolution?: {
+    status: 'idle' | 'resolving' | 'resolved' | 'unresolvable' | 'error';
+    note?: string;
+    referenceUrl?: string;
+    candidates?: Array<{ title: string; pageUrl: string }>;
+    onRetry: () => void;
+    onSelectCandidate: (pageUrl: string) => void;
+  };
 }
 
 const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{6,}$/;
@@ -372,6 +425,63 @@ export function LiveHearingRoomPage({
   const confirmConsent = useConfirmConsent();
   const session = useHearingSession(id);
   const transcript = useHearingTranscript(id);
+  const isPublicReview = Boolean(session.data?.publicCaptureId && session.data?.hearingId);
+  const publicTranscript = usePublicHearingTranscript(
+    isPublicReview ? (session.data?.hearingId ?? '') : '',
+  );
+  // Saved public reviews read canonical PUBLIC intelligence (the same paged,
+  // reconciled hook HearingDetailRoute uses); the private tenant summary below
+  // stays the source for browser-capture sessions.
+  const publicIntelRaw = useHearingIntelligence(
+    isPublicReview ? (session.data?.hearingId ?? '') : '',
+  );
+  // Capture identity guard: the transcript rail already proved the returned
+  // capture matches this session's canonical capture. Until it does (or if a
+  // newer capture replaced it), that event's intelligence is NOT this saved
+  // capture's — render nothing rather than another capture's findings.
+  const publicIntelCaptureVerified = Boolean(
+    isPublicReview &&
+      session.data?.publicCaptureId &&
+      publicTranscript.data &&
+      publicTranscript.data.captureId === session.data.publicCaptureId,
+  );
+  const publicIntel = useMemo(
+    () =>
+      publicIntelCaptureVerified
+        ? publicIntelRaw
+        : { ...publicIntelRaw, data: undefined },
+    [publicIntelCaptureVerified, publicIntelRaw],
+  );
+  const publicSegments = useMemo(
+    () => {
+      const canonical = session.data?.publicCaptureId;
+      const capture = publicTranscript.data?.captureId;
+      // The hook already reconciles capture changes; if the returned capture
+      // still doesn't match the session's canonical capture, the public rail
+      // is inconsistent — render nothing rather than another capture's text.
+      if (!isPublicReview || !publicTranscript.data || !canonical || capture !== canonical)
+        return [] as HearingTranscriptItem[];
+      return publicTranscript.data.pages
+        .flatMap((p) => p.items)
+        .filter((s: PublicTranscriptSegment) => s.isFinal)
+        .map(
+          (s): HearingTranscriptItem => ({
+            id: s.id,
+            startMs: s.startMs,
+            endMs: s.endMs,
+            text: s.text,
+            speakerLabel: s.speakerLabel,
+            resolvedSpeakerName: s.speakerName,
+            confidence: s.confidence,
+          }),
+        );
+    },
+    [isPublicReview, publicTranscript.data, session.data?.publicCaptureId],
+  );
+  const transcriptLoading = isPublicReview
+    ? publicTranscript.isLoading && publicSegments.length === 0
+    : transcript.isLoading;
+  const transcriptError = isPublicReview ? publicTranscript.isError : transcript.isError;
   // Clients (id→name) to resolve the recap's target client + label the picker.
   const clientsQuery = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['clients', apiScope],
@@ -397,6 +507,13 @@ export function LiveHearingRoomPage({
   const [bytesSent, setBytesSent] = useState(0);
   const [bytesSaved, setBytesSaved] = useState(0);
   const [evidenceTime, setEvidenceTime] = useState<{ ms: number; revision: number }>();
+  /** Shared by the transcript list and the publications panel: both must drive
+   *  the SAME mounted player, with a monotonic revision so a repeated position
+   *  still re-seeks. */
+  const playEvidenceAt = useCallback(
+    (ms: number) => setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 })),
+    [],
+  );
   const [captureClock, setCaptureClock] = useState<{ wallMs: number; offsetMs: number }>();
   const [capturedElapsedMs, setCapturedElapsedMs] = useState(0);
   const [savedRecording, setSavedRecording] = useState<{
@@ -429,8 +546,11 @@ export function LiveHearingRoomPage({
   const recordingEpochRef = useRef<{ epochId: string; startMs: number } | null>(null);
 
   const persistedSegments = useMemo(
-    () => transcript.data?.pages.flatMap((p) => p.items) ?? [],
-    [transcript.data],
+    () =>
+      isPublicReview
+        ? publicSegments
+        : transcript.data?.pages.flatMap((p) => p.items) ?? [],
+    [isPublicReview, publicSegments, transcript.data],
   );
   const segments = useMemo(
     () => mergeSegments(persistedSegments, liveSegments),
@@ -441,6 +561,156 @@ export function LiveHearingRoomPage({
   const referenceUrl = sourceUrl && !isMediaUrl(sourceUrl) ? sourceUrl : undefined;
   const embeddableUrl = sourceUrl && isMediaUrl(sourceUrl) ? sourceUrl : undefined;
   const youtubeVideoId = referenceUrl ? extractYouTubeVideoId(referenceUrl) : null;
+
+  // ── Server attendance (independent of this browser room) ────────────────
+  const canonicalHearingId = session.data?.hearingId ?? undefined;
+  const attendance = useAttendance(canonicalHearingId ?? '');
+  const requestAttendance = useRequestAttendance(canonicalHearingId ?? '');
+  const [serverConfirm, setServerConfirm] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const attendanceData = attendance.data;
+  const automaticAvailable =
+    attendanceData?.automaticAvailable ??
+    (attendanceData?.availableModes ?? []).includes('automatic') ??
+    false;
+  const serverScheduled = Boolean(
+    attendanceData &&
+      (attendanceData.scheduled ||
+        ['SCHEDULED', 'CAPTURING', 'PROCESSING'].includes(attendanceData.state)),
+  );
+  // The lifecycle label comes from the server's own capture STATE, not from the
+  // durable demand flag — scheduled_by_user stays true after COMPLETE/FAILED,
+  // so inferring "capturing/scheduled" from it misrepresents the lifecycle.
+  const serverLifecycle =
+    attendanceData?.state === 'CAPTURING'
+      ? 'capturing'
+      : attendanceData?.state === 'PROCESSING'
+        ? 'processing'
+        : attendanceData?.state === 'COMPLETE'
+          ? 'complete'
+          : attendanceData?.state === 'FAILED'
+            ? 'failed'
+            : 'scheduled';
+  const onScheduleServer = useCallback(() => {
+    if (!canonicalHearingId || requestAttendance.isPending) return;
+    setServerError(null);
+    setServerConfirm(null);
+    requestAttendance.mutate(
+      { mode: 'automatic' },
+      {
+        onSuccess: () =>
+          setServerConfirm(
+            'Server attendance scheduled. Capiro captures the official stream on the server — this browser room and its private capture are unaffected and stay available.',
+          ),
+        onError: (err) => setServerError(w1Error(err)),
+      },
+    );
+  }, [canonicalHearingId, requestAttendance]);
+
+  // ── Official-source resolution for listing-page sources ─────────────────
+  // A saved sourceUrl that is a plain event LISTING page (Congress.gov, a
+  // committee notice) carries no playable media. Restore the official player:
+  // run the same stream resolver the add-hearing flow uses so reopening this
+  // room surfaces a playable source instead of a dead link. The resolver never
+  // ingests server-side; it returns the official media/page for the browser.
+  const resolveStream = useResolveStream();
+  const [resolution, setResolution] = useState<{
+    status: 'idle' | 'resolving' | 'resolved' | 'unresolvable' | 'error';
+    note?: string;
+    referenceUrl?: string;
+    candidates?: Array<{ title: string; pageUrl: string }>;
+  }>({ status: 'idle' });
+  const needsResolution = Boolean(
+    !isPublicReview && referenceUrl && !youtubeVideoId && canonicalHearingId,
+  );
+  // Guard re-entrancy by the exact (session, source) identity — the mutation
+  // object is unstable across renders, so it must not drive the effect.
+  const resolveKeyRef = useRef<string | null>(null);
+  const attemptResolve = useCallback(
+    (pageUrl?: string) => {
+      if (!canonicalHearingId) return;
+      const key = `${id}:${pageUrl ?? referenceUrl ?? ''}`;
+      resolveKeyRef.current = key;
+      setResolution({ status: 'resolving' });
+      resolveStream.mutate(
+        { pageUrl: pageUrl ?? referenceUrl, hearingId: canonicalHearingId },
+        {
+          onSuccess: (r: ResolveStreamResult) => {
+            // Drop a stale response that arrived after the source changed.
+            if (resolveKeyRef.current !== key) return;
+            const empty = r.status === 'candidates' && !(r.candidates && r.candidates.length);
+            if (r.status === 'resolved' && r.media && !r.media.ipBound) {
+              setResolution({ status: 'resolved', note: r.note, referenceUrl: r.media.url });
+            } else if (r.status === 'resolved' && r.media?.ipBound) {
+              setResolution({
+                status: 'unresolvable',
+                note:
+                  r.note ??
+                  'The official source is short-lived and cannot be saved. Open it and share that tab’s audio.',
+                referenceUrl: r.reference,
+              });
+            } else if (r.status === 'candidates' && !empty) {
+              setResolution({
+                status: 'unresolvable',
+                note: 'Pick the matching official video below.',
+                candidates: r.candidates?.map((c) => ({ title: c.title, pageUrl: c.pageUrl })),
+                referenceUrl: r.reference,
+              });
+            } else {
+              setResolution({
+                status: 'unresolvable',
+                note:
+                  r.note ??
+                  'Could not resolve an official playable source for this hearing. Open the official page and share that tab’s audio.',
+                referenceUrl: r.reference ?? pageUrl ?? referenceUrl,
+              });
+            }
+          },
+          onError: (e: unknown) => {
+            if (resolveKeyRef.current !== key) return;
+            setResolution({
+              status: 'error',
+              note: (e as Error).message,
+              referenceUrl: pageUrl ?? referenceUrl,
+            });
+          },
+        },
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, canonicalHearingId, referenceUrl],
+  );
+  // Reset resolution whenever the session or saved source changes.
+  useEffect(() => {
+    resolveKeyRef.current = null;
+    setResolution({ status: 'idle' });
+  }, [id, referenceUrl]);
+  // Auto-resolve once per (session, source) when the saved source is a listing page.
+  useEffect(() => {
+    if (!needsResolution || !referenceUrl) return;
+    const key = `${id}:${referenceUrl}`;
+    if (resolveKeyRef.current === key) return;
+    attemptResolve(referenceUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, needsResolution, referenceUrl]);
+  // The URL the room opens/embeds. Prefer a resolved official source (media or
+  // the resolver's official reference — e.g. a committee page that embeds the
+  // YouTube player); fall back to the saved sourceUrl. Never show the original
+  // Congress listing alongside a second obscure link.
+  const resolvedMediaUrl =
+    resolution.status === 'resolved' && resolution.referenceUrl && isMediaUrl(resolution.referenceUrl)
+      ? resolution.referenceUrl
+      : undefined;
+  const resolvedPageUrl =
+    resolution.referenceUrl && !isMediaUrl(resolution.referenceUrl) ? resolution.referenceUrl : undefined;
+  const effectiveEmbeddableUrl = embeddableUrl ?? resolvedMediaUrl;
+  // A resolved official PAGE (committee/player page) becomes the reference the
+  // room opens — it may itself be a known YouTube player page.
+  const effectiveReferenceUrl = resolvedPageUrl ?? referenceUrl;
+  const effectiveYoutubeId = effectiveReferenceUrl
+    ? extractYouTubeVideoId(effectiveReferenceUrl)
+    : null;
+
   const sessionEnded =
     phase === 'ended' || session.data?.status === 'ended' || session.data?.status === 'failed';
   const captureActive = ['requesting_share', 'preparing', 'capturing', 'stopping'].includes(phase);
@@ -450,30 +720,52 @@ export function LiveHearingRoomPage({
     queryFn: async () =>
       (await api.get<{ cards?: Card_[] }>(`/intel-api/hearings/${encodeURIComponent(id)}/summary`))
         .data,
-    enabled: enabled && Boolean(id),
+    // Tenant summary is private to browser-capture sessions; public reviews
+    // have canonical insights instead of tenant cards.
+    enabled: enabled && Boolean(id) && !isPublicReview,
     retry: false,
     refetchInterval: captureActive || session.data?.status === 'live' ? 15_000 : false,
     refetchIntervalInBackground: true,
   });
   const cards = useMemo(() => {
+    if (isPublicReview) {
+      // Genuine canonical fields only: real id/type/title/summary plus the
+      // evidence's own startMs. Findings without a timestamp stay (the views
+      // already omit the jump control when startMs is undefined) — never
+      // dropped, never given a guessed position.
+      return (publicIntel.data ?? [])
+        .map(
+          (item): Card_ => ({
+            id: item.id,
+            cardType: item.insightType,
+            title: item.title,
+            body: item.summary,
+            startMs: item.startMs,
+            segmentId: item.segmentId,
+          }),
+        )
+        .sort((a, b) => (b.startMs ?? 0) - (a.startMs ?? 0));
+    }
     const merged = new Map<string, Card_>();
     for (const card of [...(summary.data?.cards ?? []), ...liveCards]) {
       const key = card.id || `${card.cardType}:${card.startMs}:${card.title}`;
       merged.set(key, { ...card, id: key });
     }
     return [...merged.values()].sort((a, b) => (b.startMs ?? 0) - (a.startMs ?? 0));
-  }, [summary.data, liveCards]);
+  }, [isPublicReview, publicIntel.data, summary.data, liveCards]);
   const refreshPersisted = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ['intel', 'hearing', id] });
   }, [queryClient, id]);
 
   // Reopened sessions and a refreshed first page may expose additional history.
   // Drain it automatically so a four-hour room never stops at 500 segments.
+  // The public review path already drains internally via usePublicHearingTranscript.
   useEffect(() => {
-    if (transcript.hasNextPage && !transcript.isFetchingNextPage && !transcript.isError) {
+    if (!isPublicReview && transcript.hasNextPage && !transcript.isFetchingNextPage && !transcript.isError) {
       void transcript.fetchNextPage();
     }
   }, [
+    isPublicReview,
     transcript.hasNextPage,
     transcript.isFetchingNextPage,
     transcript.isError,
@@ -803,8 +1095,9 @@ export function LiveHearingRoomPage({
     transcriptionDelayedRef.current = false;
     setTranscriptionDelayed(false);
     // The hearing plays in the embed on THIS page unless the source is
-    // reference-only, in which case the analyst opened it in another tab.
-    const capturesThisTab = Boolean(embeddableUrl || youtubeVideoId);
+    // reference-only, in which case the analyst opened it in another tab. A
+    // resolved official media URL upgrades a listing page to a this-tab source.
+    const capturesThisTab = Boolean(effectiveEmbeddableUrl || effectiveYoutubeId);
     setStatusText(
       capturesThisTab
         ? 'Choose This tab and enable Share tab audio.'
@@ -986,11 +1279,11 @@ export function LiveHearingRoomPage({
   }, [
     cleanupCaptureTracks,
     disconnectSocket,
-    embeddableUrl,
+    effectiveEmbeddableUrl,
+    effectiveYoutubeId,
     endSession,
     session.data?.recordingPolicy,
     setPhaseNow,
-    youtubeVideoId,
   ]);
 
   useEffect(() => {
@@ -1051,6 +1344,30 @@ export function LiveHearingRoomPage({
     );
   }
 
+  // One playback surface per room, shared by both presentations. Public review
+  // sessions play the canonical server capture through the SAME public player
+  // the hearing detail page uses — never the tenant-private browser recorder.
+  // The key carries the canonical capture id so a source/capture reassignment
+  // remounts the player instead of replaying the previous capture's state.
+  const recordingPanelNode = isPublicReview ? (
+    <PublicHearingAudioPanel
+      key={`public-audio:${apiScope}:${session.data?.hearingId ?? ''}:${session.data?.publicCaptureId ?? ''}`}
+      hearingId={session.data?.hearingId ?? ''}
+      seek={
+        evidenceTime ? { positionMs: evidenceTime.ms, request: evidenceTime.revision } : undefined
+      }
+    />
+  ) : recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
+    <HearingRecordingPanel
+      key={`recording:${apiScope}:${id}`}
+      sessionId={id}
+      live={captureActive}
+      canEnable={!captureActive && !session.data?.startedAt}
+      evidenceTime={evidenceTime}
+      onProgress={onRecordingProgress}
+    />
+  ) : null;
+
   const unofficialPublicationsPanel =
     (updatesEnabled || recapsEnabled) &&
     session.data &&
@@ -1067,9 +1384,7 @@ export function LiveHearingRoomPage({
         smsEnabled={smsEnabled}
         recapRequested={recapOpen}
         onRecapOpened={() => setRecapOpen(false)}
-        playEvidence={(ms) =>
-          setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 }))
-        }
+        playEvidence={playEvidenceAt}
       />
     ) : null;
   const publicationsPanel = (
@@ -1093,6 +1408,7 @@ export function LiveHearingRoomPage({
           unavailable: session.isError || !session.data,
           retry: () => {
             void session.refetch();
+            if (isPublicReview) void publicIntelRaw.refetch();
             refreshPersisted();
           },
           phase,
@@ -1101,10 +1417,15 @@ export function LiveHearingRoomPage({
           segments,
           interim,
           cards,
-          transcriptLoading: transcript.isLoading,
-          transcriptError: transcript.isError,
+          transcriptLoading,
+          transcriptError,
           transcriptionDelayed,
-          intelligenceError: summary.isError,
+          intelligenceError: isPublicReview ? publicIntel.isError : summary.isError,
+          intelligenceProcessing:
+            isPublicReview &&
+            (publicIntel.isLoading ||
+              publicIntel.data?.status === 'PROCESSING' ||
+              (publicIntel.data?.jobs?.public?.pending ?? 0) > 0),
           error,
           dismissError: () => setError(null),
           statusText,
@@ -1118,25 +1439,14 @@ export function LiveHearingRoomPage({
           captureStartedAt: captureClock?.wallMs,
           captureOffsetMs: captureClock?.offsetMs,
           capturedElapsedMs: Math.max(capturedElapsedMs, currentSavedRecording?.endMs ?? 0),
-          recordingPanel:
-            recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript' ? (
-              <HearingRecordingPanel
-                key={`recording:${apiScope}:${id}`}
-                sessionId={id}
-                live={captureActive}
-                canEnable={!captureActive && !session.data?.startedAt}
-                evidenceTime={evidenceTime}
-                onProgress={onRecordingProgress}
-              />
-            ) : null,
+          recordingPanel: recordingPanelNode,
           publicationsPanel,
-          playEvidence: (ms) =>
-            setEvidenceTime((current) => ({ ms, revision: (current?.revision ?? 0) + 1 })),
-          sourcePlayer: embeddableUrl ? (
-            <MediaPlayer src={embeddableUrl} />
-          ) : youtubeVideoId ? (
+          playEvidence: playEvidenceAt,
+          sourcePlayer: effectiveEmbeddableUrl ? (
+            <MediaPlayer src={effectiveEmbeddableUrl} />
+          ) : effectiveYoutubeId ? (
             <iframe
-              src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+              src={`https://www.youtube.com/embed/${effectiveYoutubeId}`}
               title="Hearing video"
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
@@ -1165,6 +1475,38 @@ export function LiveHearingRoomPage({
             ),
           confirmingConsent: confirmConsent.isPending,
           saveRecap: () => setRecapOpen(true),
+          detailPath: session.data?.hearingId
+            ? `/legiwatch/hearings/${encodeURIComponent(session.data.hearingId)}`
+            : null,
+          openSourceUrl: effectiveEmbeddableUrl ?? effectiveReferenceUrl ?? session.data?.sourceUrl ?? null,
+          serverAttendance: session.data?.hearingId
+            ? {
+                // This tenant may add its own server demand even while a
+                // canonical capture is active (backend joins the shared
+                // recorder) — only the caller's own existing schedule hides it.
+                available: automaticAvailable && !attendanceData?.scheduled,
+                scheduled: serverScheduled,
+                callerScheduled: Boolean(attendanceData?.scheduled),
+                lifecycle: serverLifecycle,
+                stateLabel: attendanceData?.state,
+                message: attendanceData?.message,
+                pending: requestAttendance.isPending,
+                error: serverError,
+                confirm: serverConfirm,
+                onSchedule: onScheduleServer,
+              }
+            : undefined,
+          sourceResolution:
+            needsResolution && resolution.status !== 'idle'
+              ? {
+                  status: resolution.status,
+                  note: resolution.note,
+                  referenceUrl: resolution.referenceUrl,
+                  candidates: resolution.candidates,
+                  onRetry: () => attemptResolve(),
+                  onSelectCandidate: (pageUrl: string) => attemptResolve(pageUrl),
+                }
+              : undefined,
         })}
         {recapOpen && !recapsEnabled && (
           <SaveRecapModal
@@ -1345,16 +1687,7 @@ export function LiveHearingRoomPage({
         </Space>
       </Card>
 
-      {(recordingEnabled || session.data?.recordingPolicy === 'audio_and_transcript') && (
-        <HearingRecordingPanel
-          key={`recording:${apiScope}:${id}`}
-          sessionId={id}
-          live={captureActive}
-          canEnable={!captureActive && !session.data?.startedAt}
-          evidenceTime={evidenceTime}
-          onProgress={onRecordingProgress}
-        />
-      )}
+      {recordingPanelNode}
       {publicationsPanel}
       <div
         style={{
@@ -1364,10 +1697,10 @@ export function LiveHearingRoomPage({
         }}
       >
         <Card title="Transcript" size="small" style={{ minHeight: 420 }}>
-          {transcript.isError && (
+          {transcriptError && (
             <Alert type="warning" message="Saved transcript could not be refreshed." />
           )}
-          {transcript.isLoading && segments.length === 0 ? (
+          {transcriptLoading && segments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Spin />
             </div>
@@ -1383,8 +1716,8 @@ export function LiveHearingRoomPage({
               segments={segments}
               interim={interim}
               playEvidence={
-                session.data?.recordingPolicy === 'audio_and_transcript'
-                  ? (ms) => setEvidenceTime({ ms, revision: Date.now() })
+                isPublicReview || session.data?.recordingPolicy === 'audio_and_transcript'
+                  ? playEvidenceAt
                   : undefined
               }
             />
@@ -1402,11 +1735,20 @@ export function LiveHearingRoomPage({
         </Card>
 
         <Card title="Intelligence cards" size="small" style={{ minHeight: 420 }}>
-          {summary.isError && (
+          {(isPublicReview ? publicIntel.isError : summary.isError) && (
             <Alert type="warning" message="Saved intelligence could not be refreshed." />
           )}
           {cards.length === 0 ? (
-            <Empty description="Relevant moments will appear here." />
+            <Empty
+              description={
+                isPublicReview &&
+                (publicIntel.isLoading ||
+                  publicIntel.data?.status === 'PROCESSING' ||
+                  (publicIntel.data?.jobs?.public?.pending ?? 0) > 0)
+                  ? 'Public intelligence is still being extracted from the canonical transcript.'
+                  : 'Relevant moments will appear here.'
+              }
+            />
           ) : (
             <div style={{ maxHeight: 560, overflowY: 'auto' }}>
               {cards.map((c) => (
@@ -1473,9 +1815,32 @@ export function SaveRecapModal({
   const { message } = AntApp.useApp();
   const gen = useGenerateBrief();
   const save = useSaveRecap();
+  // vNext mounts NO antd App provider, so AntApp.useApp().message is `{}` there;
+  // calling message.success would throw and prevent the dialog from closing.
+  // Use the native vNext toast when antd message is absent; antd where present.
+  const capiroToast = useCapiroToast();
+  const notify = useMemo(() => {
+    const antdUsable =
+      message && typeof (message as { success?: unknown }).success === 'function';
+    return {
+      success: (text: string) =>
+        antdUsable ? message.success(text) : capiroToast.success(text),
+      error: (text: string) => (antdUsable ? message.error(text) : capiroToast.error(text)),
+    };
+  }, [message, capiroToast]);
   const [brief, setBrief] = useState<HearingBrief | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Why there is no preview: nothing transcribed yet (null from the API) vs
+  // Meri's synthesis being unavailable / failing (request error). They are
+  // different problems with different next steps, so they are not merged.
+  const [failure, setFailure] = useState<'none' | 'no-transcript' | 'generation'>('none');
+  // A reused/kept-existing outcome surfaces inline (honest) instead of a green
+  // success — the vNext toast has no warning variant and a "saved" toast would lie.
+  const [keptExisting, setKeptExisting] = useState(false);
   const [clientId, setClientId] = useState(defaultClientId ?? '');
+  // The recap this client already filed for THIS session, if any — drives the
+  // explicit "Update existing recap" affordance (the save endpoint otherwise
+  // silently reuses the old document).
+  const existingRecap = useCurrentHearingRecap(clientId, sessionId);
 
   // Generation is async and the client can change mid-flight. Only the LATEST
   // request may populate the preview: a stale success would label a recap that
@@ -1489,18 +1854,24 @@ export function SaveRecapModal({
     (forClientId: string) => {
       const requestId = ++requestRef.current;
       setBrief(null);
-      setFailed(false);
+      setFailure('none');
+      setKeptExisting(false);
       mutateRef.current(
         { sessionId, clientId: forClientId },
         {
           onSuccess: (value) => {
             if (requestRef.current !== requestId) return;
-            if (value) setBrief(value);
-            else setFailed(true);
+            if (value) {
+              setBrief(value);
+              setFailure('none');
+            } else {
+              // API returned null: no transcribed content to summarize.
+              setFailure('no-transcript');
+            }
           },
           onError: () => {
             if (requestRef.current !== requestId) return;
-            setFailed(true);
+            setFailure('generation');
           },
         },
       );
@@ -1513,41 +1884,74 @@ export function SaveRecapModal({
       // No client, no recap — and any in-flight request is now stale.
       requestRef.current += 1;
       setBrief(null);
-      setFailed(false);
+      setFailure('none');
       return;
     }
     generate(clientId);
   }, [sessionId, clientId, generate]);
 
   const clientName = clients.find((c) => c.id === clientId)?.name ?? '';
-  const generating = Boolean(clientId) && !brief && !failed;
+  const generating = Boolean(clientId) && !brief && failure === 'none';
   const synthesized = brief?.synthesisSource === 'orchestrator';
   const clientContext = brief?.clientContext;
   const matchedBand =
     clientContext?.relevanceBand && ['HIGH', 'MEDIUM', 'LOW'].includes(clientContext.relevanceBand)
       ? clientContext.relevanceBand
       : null;
+  // Replacement is exact-id only. Until we KNOW whether this client already has
+  // a recap for THIS session, Save stays gated: saving blind could either
+  // silently reuse a stale document (no replaceAttachmentId) or 404 on a
+  // guessed id. Loading OR lookup-error both keep it gated.
+  const recapLookupBusy = Boolean(clientId) && (existingRecap.isLoading || existingRecap.isError);
+  const currentRecap = existingRecap.data ?? null;
   const onSave = () => {
-    if (!brief || !clientId) return;
+    // Never file a deterministic (Meri-unavailable) assembly as if it were a
+    // synthesized recap — the Save control is hidden in that case, this is the
+    // belt-and-suspenders guard. And never save while the current-recap lookup
+    // is unresolved (would risk a silent stale-reuse).
+    if (!brief || !clientId || brief.synthesisSource !== 'orchestrator' || recapLookupBusy) return;
+    // Prefer the model's concise report title for the filed document; fall back
+    // to the session title. (The full formal title is kept inside the document
+    // as provenance, not duplicated as the file name.)
+    const docTitle = brief.summaryTitle?.trim() || `Hearing recap — ${sessionTitle}`;
     save.mutate(
       {
         sessionId,
         clientId,
-        title: `Hearing recap — ${sessionTitle}`,
+        title: docTitle,
         markdown: briefToMarkdown(brief),
+        // Explicitly name the exact current recap to replace it; omitting it
+        // makes the server silently reuse the old document.
+        ...(currentRecap ? { replaceAttachmentId: currentRecap.id } : {}),
       },
       {
-        onSuccess: () => {
-          message.success(`Recap saved to ${clientName}'s Documents and added to Meri's knowledge`);
+        onSuccess: (result) => {
+          // Trust the server's own account of what it did, not our expectation.
+          // `reused` means the existing document was KEPT (nothing new written).
+          // That is NOT a success — surface it inline (honest) and stay open so
+          // the analyst can choose Update; a green "saved" toast would lie.
+          if (result?.reused) {
+            setKeptExisting(true);
+            return;
+          }
+          notify.success(
+            currentRecap
+              ? `Recap updated — saved to ${clientName}'s Documents and available to Meri`
+              : `Recap saved to ${clientName}'s Documents and available to Meri`,
+          );
           onClose();
         },
         onError: (e: unknown) => {
           const detail = (e as { response?: { data?: { message?: string | string[] } } })?.response
             ?.data?.message;
-          message.error(
-            `Could not save recap: ${
-              Array.isArray(detail) ? detail.join('; ') : (detail ?? (e as Error).message)
-            }`,
+          const text = Array.isArray(detail) ? detail.join('; ') : (detail ?? (e as Error).message);
+          // The current recap changed between lookup and save (concurrent edit):
+          // surface it plainly rather than a bare 404.
+          const changed = /current hearing recap not found/i.test(String(text));
+          notify.error(
+            changed
+              ? 'The existing recap changed while you were reviewing. Reopen Save Recap to see the current version.'
+              : `Could not save recap: ${text}`,
           );
         },
       },
@@ -1566,16 +1970,22 @@ export function SaveRecapModal({
         <Button key="cancel" onClick={onClose}>
           Cancel
         </Button>,
-        <Button
-          key="save"
-          type="primary"
-          icon={<SaveOutlined />}
-          loading={save.isPending}
-          disabled={!brief || !clientId}
-          onClick={onSave}
-        >
-          Save to Client Profile
-        </Button>,
+        // No Save affordance for a deterministic (Meri-unavailable) assembly:
+        // it is not a synthesized recap and must not be filed as one.
+        ...(synthesized
+          ? [
+              <Button
+                key="save"
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={save.isPending}
+                disabled={!brief || !clientId || recapLookupBusy}
+                onClick={onSave}
+              >
+                {currentRecap ? 'Update existing recap' : 'Save to Client Profile'}
+              </Button>,
+            ]
+          : []),
       ]}
     >
       <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--muted, #8a8a96)' }}>
@@ -1592,6 +2002,20 @@ export function SaveRecapModal({
         optionFilterProp="label"
       />
       <Divider style={{ margin: '12px 0' }} />
+      {clientId && existingRecap.isError ? (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Could not check for an existing recap"
+          description="Saving is paused until we know whether this client already has a recap for this session — otherwise we could overwrite or keep the wrong document."
+          action={
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => existingRecap.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      ) : null}
       {!clientId ? (
         <Alert
           type="info"
@@ -1606,13 +2030,25 @@ export function SaveRecapModal({
             Meri is writing the recap for {clientName || 'this client'}…
           </div>
         </div>
-      ) : failed ? (
+      ) : failure === 'no-transcript' ? (
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Alert
+            type="info"
+            showIcon
+            message="No transcript yet"
+            description="This session has no transcribed content to summarize. Capture or import the hearing transcript, then generate the recap."
+          />
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => generate(clientId)}>
+            Try again
+          </Button>
+        </Space>
+      ) : failure === 'generation' ? (
         <Space direction="vertical" size={8} style={{ width: '100%' }}>
           <Alert
             type="warning"
             showIcon
-            message="No recap available yet"
-            description="This session has no transcribed content to summarize."
+            message="Recap generation failed"
+            description="Meri's synthesis was unavailable or returned something unusable. Nothing was assembled from the transcript as a substitute. You can retry."
           />
           <Button size="small" icon={<ReloadOutlined />} onClick={() => generate(clientId)}>
             Try again
@@ -1620,6 +2056,15 @@ export function SaveRecapModal({
         </Space>
       ) : (
         <div>
+          {keptExisting && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 8 }}
+              message="The existing recap for this session was kept"
+              description="No new document was written. Use Update existing recap to replace it with this version, or Cancel to leave it as is."
+            />
+          )}
           <Space wrap size={6} style={{ marginBottom: 8 }}>
             {synthesized ? (
               <Tag color="green">Meri synthesis</Tag>
@@ -1649,21 +2094,15 @@ export function SaveRecapModal({
               type="warning"
               showIcon
               style={{ marginBottom: 8 }}
-              message="This recap was assembled from the transcript, not analysed"
-              description="Meri's synthesis was unavailable when it ran. It is fully sourced, so you can still save it — or regenerate to retry."
+              message="Transcript-based recap — Meri synthesis unavailable"
+              description="Assembled from the transcript, not analysed. It cannot be saved as a synthesized recap — regenerate to retry Meri."
             />
           )}
-          <Paragraph strong style={{ marginBottom: 6 }}>
-            {brief!.title}
-          </Paragraph>
-          <Paragraph
-            type="secondary"
-            style={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', fontSize: 12.5 }}
-          >
-            {briefToMarkdown(brief!)}
-          </Paragraph>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Saving files this recap into the client’s Documents and indexes it for Meri.
+          <HearingRecapPreview markdown={briefToMarkdown(brief!)} />
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            {currentRecap
+              ? `Updating replaces ${clientName || "this client"}'s existing recap for this session — saved to the client's Documents and available to Meri.`
+              : `Saved to ${clientName || "this client"}'s Documents and available to Meri.`}
           </Text>
         </div>
       )}

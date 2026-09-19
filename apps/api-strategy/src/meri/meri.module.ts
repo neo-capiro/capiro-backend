@@ -11,6 +11,8 @@ import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import { StrategyConversationService } from './strategy-conversation.service.js';
 import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
+import { DraftJobService } from './draft-job.service.js';
+import { DraftJobWorkerService } from './draft-job-worker.service.js';
 import {
   createGovernedStrategyMeriService,
   RAW_STRATEGY_MERI_SERVICE,
@@ -32,6 +34,8 @@ import {
     StrategyOrchestratorClient,
     StrategyConversationService,
     StrategyContextPlaneClient,
+    DraftJobService,
+    DraftJobWorkerService,
     {
       provide: RAW_STRATEGY_MERI_SERVICE,
       useClass: MeriService,

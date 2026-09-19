@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import PptxGenJS from "pptxgenjs";
 import {
+  AMENDMENT_STATUS_LADDER,
+  amendmentMessageDiscipline,
+  clientInputsRequired,
   clip,
   contextItems,
   criticalNodes,
@@ -10,11 +13,15 @@ import {
   executiveSummary,
   focusAreas,
   formatDate,
+  isAmendmentStrategy,
   kindLabel,
   leadershipAgenda,
   roadmap,
+  routeAndVehicleItems,
   statusLabel,
   strategyTypeLabel,
+  targetBudgetLineItems,
+  validationSummary,
 } from "./report-content.js";
 import { containBox, readRasterSize } from "./report-image.js";
 import {
@@ -31,6 +38,7 @@ import {
 import type {
   ClientLogoAsset,
   ExecutiveReportSnapshot,
+  ReportContextFact,
   ReportMemberDetail,
   ReportNarrativeItem,
   ReportNode,
@@ -173,6 +181,9 @@ export class PptxReportRenderer {
       return slide;
     };
     const sourceRegister = buildSourceRegister(snapshot);
+    // Amendment-type strategies get three extra slides; every other type's
+    // deck is unchanged (see report-content.ts amendment helpers).
+    const isAmendment = isAmendmentStrategy(snapshot);
 
     // Cover
     const cover = pptx.addSlide();
@@ -563,6 +574,14 @@ export class PptxReportRenderer {
           accent: C.green,
           empty: "No explicit outcome or success criterion is recorded.",
         },
+      );
+    }
+
+    if (isAmendment) {
+      addAmendmentRoutesSlide(
+        pptx,
+        nextSlide("Routes and vehicle status", "Vehicle, entry point and backstop"),
+        snapshot,
       );
     }
 
@@ -970,6 +989,21 @@ export class PptxReportRenderer {
         C.red,
         false,
         allRisks.length - risks.length,
+      );
+    }
+
+    if (isAmendment) {
+      addAmendmentMessageSlide(
+        pptx,
+        nextSlide("Core message discipline", "What to say and what not to say"),
+      );
+      addAmendmentInputsSlide(
+        pptx,
+        nextSlide(
+          "Information required from the client",
+          "Open inputs and validation status",
+        ),
+        snapshot,
       );
     }
 
@@ -1544,6 +1578,233 @@ function addTextPanel(
       });
     }
   });
+}
+
+/*
+ * Amendment-type slides. Facts come from the audience-filtered snapshot; the
+ * message discipline is fixed text with no figures (see report-content.ts).
+ */
+
+function factDisplayItem(fact: ReportContextFact): DisplayItem {
+  return {
+    text: fact.text,
+    detail: [
+      fact.documentTitle,
+      fact.asOf ? `As of ${formatDate(fact.asOf)}` : null,
+      confidenceLabel(fact.confidence),
+    ]
+      .filter(isString)
+      .join(" · "),
+  };
+}
+
+function addAmendmentRoutesSlide(
+  pptx: PptxGenJS,
+  slide: Slide,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const routes = routeAndVehicleItems(snapshot);
+  const targets = targetBudgetLineItems(snapshot);
+  const shownRoutes = routes.slice(0, 5);
+  const shownTargets = targets.slice(0, 5);
+  addTextPanel(
+    pptx,
+    slide,
+    shownRoutes.length < routes.length
+      ? `ROUTES & VEHICLE STATUS · ${shownRoutes.length} OF ${routes.length}`
+      : "ROUTES & VEHICLE STATUS",
+    shownRoutes.map(factDisplayItem),
+    {
+      x: 0.72,
+      y: 1.52,
+      w: 5.78,
+      h: 4.95,
+      accent: C.blue,
+      empty:
+        "No route or vehicle status facts are recorded yet; upload 16_route_and_vehicle_status.md.",
+    },
+  );
+  addTextPanel(
+    pptx,
+    slide,
+    shownTargets.length < targets.length
+      ? `TARGET BUDGET LINE · ${shownTargets.length} OF ${targets.length}`
+      : "TARGET BUDGET LINE",
+    shownTargets.map(factDisplayItem),
+    {
+      x: 6.78,
+      y: 1.52,
+      w: 5.79,
+      h: 4.95,
+      accent: C.gold,
+      empty:
+        "No target budget line facts are recorded yet; upload 14_target_budget_line.md.",
+    },
+  );
+  slide.addText(
+    `Status ladder: ${AMENDMENT_STATUS_LADDER.join(" → ")} · a stage advances only when the rule report, roll call or enrolled text shows it`,
+    {
+      x: 0.75,
+      y: 6.58,
+      w: 11.7,
+      h: 0.24,
+      fontSize: 9.5,
+      italic: true,
+      align: "right",
+      color: C.slate,
+      margin: 0,
+      fit: "shrink",
+    },
+  );
+}
+
+function addAmendmentMessageSlide(pptx: PptxGenJS, slide: Slide): void {
+  const discipline = amendmentMessageDiscipline();
+  addTextPanel(
+    pptx,
+    slide,
+    "WHAT TO SAY",
+    discipline.say.map((text) => ({ text })),
+    {
+      x: 0.72,
+      y: 1.52,
+      w: 5.78,
+      h: 4.95,
+      accent: C.green,
+      empty: "No message guidance is available.",
+    },
+  );
+  addTextPanel(
+    pptx,
+    slide,
+    "WHAT NOT TO SAY",
+    discipline.avoid.map((text) => ({ text })),
+    {
+      x: 6.78,
+      y: 1.52,
+      w: 5.79,
+      h: 4.95,
+      accent: C.red,
+      empty: "No message guidance is available.",
+    },
+  );
+  slide.addText(
+    "Fixed framing for every conversation about the ask; the figures live on the target budget line slide.",
+    {
+      x: 0.75,
+      y: 6.58,
+      w: 11.7,
+      h: 0.24,
+      fontSize: 9.5,
+      italic: true,
+      align: "right",
+      color: C.slate,
+      margin: 0,
+    },
+  );
+}
+
+function addAmendmentInputsSlide(
+  pptx: PptxGenJS,
+  slide: Slide,
+  snapshot: ExecutiveReportSnapshot,
+): void {
+  const inputs = clientInputsRequired(snapshot);
+  const shown = inputs.slice(0, 5);
+  addTextPanel(
+    pptx,
+    slide,
+    shown.length < inputs.length
+      ? `CLIENT INPUTS · ${shown.length} OF ${inputs.length}`
+      : "CLIENT INPUTS",
+    shown.map((requirement) => ({
+      text: requirement.input,
+      detail: `${requirement.status} · Needed by ${requirement.neededBy}`,
+    })),
+    {
+      x: 0.72,
+      y: 1.55,
+      w: 7.45,
+      h: 4.95,
+      accent: C.gold,
+      empty:
+        "No client inputs are recorded. Track them as decision steps titled “Client input required: …”.",
+    },
+  );
+  const rows = validationSummary(snapshot);
+  const confirmed = rows.filter((row) => row.result === "Confirmed").length;
+  const unverified = rows.filter((row) => row.result === "Unverified").length;
+  const gaps = rows.filter((row) => row.result === "Open gap").length;
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 8.45,
+    y: 1.55,
+    w: 4.12,
+    h: 4.95,
+    fill: { color: C.navy },
+    line: { color: C.navy },
+  });
+  slide.addText("VALIDATION SUMMARY", {
+    x: 8.78,
+    y: 1.9,
+    w: 3.4,
+    h: 0.25,
+    fontSize: 9,
+    bold: true,
+    charSpacing: 1.4,
+    color: "7ED0CE",
+    margin: 0,
+  });
+  slide.addText(String(rows.length), {
+    x: 8.78,
+    y: 2.38,
+    w: 3.4,
+    h: 0.85,
+    fontSize: 40,
+    bold: true,
+    color: C.white,
+    margin: 0,
+  });
+  slide.addText("CLAIMS AND OPEN GAPS", {
+    x: 8.78,
+    y: 3.18,
+    w: 3.25,
+    h: 0.22,
+    fontSize: 9,
+    bold: true,
+    color: C.mist,
+    margin: 0,
+  });
+  addBullets(
+    slide,
+    [
+      `${confirmed} confirmed claim${confirmed === 1 ? "" : "s"}`,
+      `${unverified} unverified claim${unverified === 1 ? "" : "s"}`,
+      `${gaps} open gap${gaps === 1 ? "" : "s"}`,
+      `${inputs.length} client input${inputs.length === 1 ? "" : "s"} tracked`,
+    ],
+    {
+      x: 8.78,
+      y: 3.68,
+      w: 3.25,
+      h: 1.75,
+      fontSize: 15,
+      color: C.mist,
+    },
+  );
+  slide.addText(
+    "Unverified rows must be confirmed against the named source before external use.",
+    {
+      x: 0.75,
+      y: 6.58,
+      w: 11.7,
+      h: 0.24,
+      fontSize: 9.5,
+      italic: true,
+      align: "right",
+      color: C.slate,
+      margin: 0,
+    },
+  );
 }
 
 function addSignalPanel(

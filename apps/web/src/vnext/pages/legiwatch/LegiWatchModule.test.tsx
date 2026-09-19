@@ -57,8 +57,9 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
 
   it('renders the uniform header control set with the shaded Client lens', async () => {
     mount();
-    await waitFor(() => expect(screen.getByRole('button', { name: /saved views/i })).toBeTruthy());
-    expect(screen.getByRole('button', { name: /create watch/i })).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole('button', { name: /search legiwatch/i })).toBeTruthy());
+    expect(screen.queryByRole('button', { name: /saved views/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /create watch/i })).toBeNull();
     expect(screen.getByRole('button', { name: /legiwatch settings/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /search legiwatch/i })).toBeTruthy();
     // Client lens is the shaded dropdown (not a native <select>).

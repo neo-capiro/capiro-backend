@@ -52,12 +52,10 @@
  */
 
 import {
-  FUNDING_STAGE_VEHICLE,
   billStatusLabel,
   billStatusRank,
   extractCitedPeCodes,
   validateFormBCitations,
-  type FundingVehicle,
 } from '@capiro/shared';
 import { compilePeFundingEvidence, type EvidencePacket, type FundingYearRecord } from './evidence';
 
@@ -1140,16 +1138,6 @@ export function runAuditor(input: AuditInput): AuditVerdict {
     topSeverity,
     decision: auditDecisionFor(surface, topSeverity, mode),
   };
-}
-
-/** Stage→vehicle helper re-exported for callers building D4/D4b context. */
-export function vehicleOfStageLabel(stageLabel: string): FundingVehicle | null {
-  const norm = stageLabel.toLowerCase();
-  if (/hasc|sasc|ndaa|authoriz/.test(norm)) return 'authorization';
-  if (/hac-?d|sac-?d|conference|enacted|appropriat/.test(norm)) return 'appropriation';
-  if (/request/.test(norm)) return 'request';
-  // Fall back to the shared stage map when the label is a bare stage key.
-  return (FUNDING_STAGE_VEHICLE as Record<string, FundingVehicle>)[norm] ?? null;
 }
 
 /** Extract cited budget codes from output (re-export of the shared scanner). */

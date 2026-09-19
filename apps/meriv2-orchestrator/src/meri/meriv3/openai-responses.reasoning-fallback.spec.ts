@@ -7,7 +7,7 @@ import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 const completedBody = {
   id: 'resp_max',
   status: 'completed',
-  model: 'gpt-5.6',
+  model: 'gpt-6-astra',
   output: [
     {
       type: 'message',
@@ -51,8 +51,8 @@ describe('OpenAiResponsesClient reasoning effort fallback', () => {
     const request = requestBody(fetchMock.mock.calls[0]);
     expect(request.reasoning.effort).toBe('max');
     expect(result.telemetry).toEqual({
-      requestedModel: 'gpt-5.6',
-      effectiveModel: 'gpt-5.6',
+      requestedModel: 'gpt-6-astra',
+      effectiveModel: 'gpt-6-astra',
       requestedReasoningEffort: 'max',
       effectiveReasoningEffort: 'max',
       reasoningFallbackReasons: [],

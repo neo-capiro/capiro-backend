@@ -30,7 +30,7 @@ import { ReferenceService, type ReferenceRow } from '../reference/reference.serv
 import { StewardService } from '../context/steward.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
-import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
+import { StrategyOrchestratorClient, type ServiceDelegation } from './strategy-orchestrator.client.js';
 import {
   StrategyConversationService,
   type ChatAttachmentSnapshot,
@@ -42,11 +42,14 @@ import type {
   NodeDocumentDraftResponse,
   PlanEdit,
   PublicContextGap,
+  ResolvedAiProvider,
   StewardFactLine,
   StewardHealth,
   StrategyDraftErrorBody,
+  StrategyDraftResponse,
 } from './meri.types.js';
 import type { AssistantDto, DraftStrategyDto, ReferenceAssistDto } from './dto/meri.dto.js';
+import { DRAFT_JOB_STAGE_TEXT, type DraftJobRuntime } from './draft-job.types.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -101,6 +104,9 @@ const FACT_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export const CONTEXT_GAP_LABELS: Record<string, string> = {
   strategy_brief: 'the strategy brief',
   client_constraints: "this client's constraints",
+  target_budget_line: 'the target budget line baseline',
+  vendor_reference_pull: 'the performing-company reference pull',
+  route_and_vehicle_status: 'the legislative vehicle status',
 };
 
 const TYPE_LABEL: Record<StrategyTypeValue, string> = {
@@ -110,6 +116,7 @@ const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   coalition: 'Coalition / positioning',
   procurement: 'Contract / procurement',
   earmark: 'Grant / earmark',
+  amendment: 'Amendment ask',
 };
 
 /**
@@ -213,7 +220,20 @@ export class MeriService {
     };
   }
 
-  async draft(tenantId: string, clerkUserId: string, bearer: string | undefined, dto: DraftStrategyDto) {
+  async draft(
+    tenantId: string,
+    clerkUserId: string,
+    bearer: string | undefined,
+    dto: DraftStrategyDto,
+    // Strategy generation timeout fix: undefined (the legacy synchronous HTTP
+    // path, if anything still calls it that way) preserves the exact original
+    // behavior — a single non-streaming orchestrator.draft() call. Provided
+    // (the async draft-job worker) switches the orchestrator hop to the
+    // streaming client and reports stage/progress through the given hooks.
+    // draft()'s own logic — validation, verify/repair, persistence — is
+    // otherwise UNCHANGED either way.
+    jobRuntime?: DraftJobRuntime,
+  ) {
     // capiro_app is NOT RLS-bypass on `clients`; read inside withTenant (sets
     // app.current_tenant) so the clients RLS exposes this tenant's rows — a bare
     // raw read returns 0 and false-negatives every valid client. Phase 5 §3.2:
@@ -235,7 +255,8 @@ export class MeriService {
       this.attachments.resolve(bearer, dto.attachmentIds),
       this.stewardContext(tenantId, dto.clientId),
     ]);
-    const resp = await this.orchestrator.draft(
+    jobRuntime?.onStage('drafting', DRAFT_JOB_STAGE_TEXT.drafting);
+    const resp = await this.callOrchestratorDraft(
       {
         clientId: dto.clientId,
         type: dto.type,
@@ -250,6 +271,7 @@ export class MeriService {
       bearer,
       aiProvider,
       { tenantId, clerkUserId },
+      jobRuntime,
     );
 
     // A7.5 / Phase 5 §4.3: never silently persist an empty draft — typed 422
@@ -294,9 +316,11 @@ export class MeriService {
     // repair the orchestrator already ran index-side, against the REAL uuid
     // graph — a second, independent pass that never depends on the
     // orchestrator having run it (or having run it correctly).
+    jobRuntime?.onStage('verifying', DRAFT_JOB_STAGE_TEXT.verifying);
     let violations = this.verify(dto.type, nodeData, ground, dto.goal ?? '');
     let errs = violations.filter((v) => v.severity === 'error');
     if (errs.length > 0) {
+      jobRuntime?.onStage('repairing', DRAFT_JOB_STAGE_TEXT.repairing);
       const repair = repairDependencyOrder(toVerifierNodes(nodeData));
       if (!repair.refused && repair.changedIds.length > 0) {
         applyRepairedNodeDates(nodeData, repair.nodes);
@@ -325,6 +349,7 @@ export class MeriService {
       }
     }
 
+    jobRuntime?.onStage('persisting', DRAFT_JOB_STAGE_TEXT.persisting);
     return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
       const strategy = await tx.spStrategy.create({
         data: {
@@ -445,7 +470,7 @@ export class MeriService {
     let docs: Awaited<ReturnType<StrategyAttachmentResolver['resolve']>>;
     let resp: Awaited<ReturnType<StrategyOrchestratorClient['assistant']>>;
     try {
-      const [aiProvider, g, d, stewardCtx] = await Promise.all([
+      const [aiProvider, g, d, stewardCtx, ownerNames] = await Promise.all([
         this.resolver.resolve(tenantId),
         this.grounding(tenantId),
         this.attachments.resolve(bearer, dto.attachmentIds),
@@ -453,6 +478,7 @@ export class MeriService {
         // grounded for THIS strategy's assistant pack (other strategies'
         // scoped material stays excluded).
         this.stewardContext(tenantId, strategy.clientId, { strategyId }),
+        this.resolveOwnerNames(tenantId),
       ]);
       ground = g;
       docs = d;
@@ -465,19 +491,10 @@ export class MeriService {
           attachments: docs,
           clientId: strategy.clientId,
           strategy: strategySnapshot,
-          // F02 fix: the orchestrator's renderPlan() renders the text Meri
-          // actually reads for the plan — before this fix it carried NO owner
-          // information at all (only kind/subject/title/dates/status/deps),
-          // so an ownership question had nothing to answer from and guessed,
-          // contradicting the editor/inspector/plan-health surfaces that all
-          // read sp_node.owner_user_id directly. Resolved the same way the web
-          // editor's memberName() does (first+last name, 'Team member'
-          // fallback) so Meri's answer matches what the user sees on screen.
-          // Sent as a SIBLING map (clerkUserId -> display name), not merged
-          // into strategySnapshot, so assertAssistantSnapshot's optimistic-
-          // concurrency comparison (JSON.stringify(serializeStrategy(...)))
-          // is untouched by this fix.
-          ownerNames: await this.resolveOwnerNames(tenantId, strategy.nodes.map((n) => n.ownerUserId)),
+          // Include every active member, including people not yet assigned a
+          // step. Keep the directory separate from the plan snapshot used by
+          // optimistic concurrency checks.
+          ownerNames,
           ...ground,
           ...stewardCtx,
         },
@@ -485,6 +502,18 @@ export class MeriService {
         aiProvider,
         { tenantId, clerkUserId },
       );
+      // Model output is untrusted. Validate the whole ownership batch before
+      // opening the edit transaction, including when the member lookup failed.
+      for (const edit of resp.edits ?? []) {
+        if (
+          edit.ownerUserId !== undefined &&
+          edit.ownerUserId !== null &&
+          (typeof edit.ownerUserId !== 'string' ||
+            !Object.prototype.hasOwnProperty.call(ownerNames, edit.ownerUserId))
+        ) {
+          throw new BadRequestException('Meri selected an owner who is not an active team member');
+        }
+      }
     } catch (err) {
       // The user's message is already stored, so the thread must say what
       // happened to it. Plain copy only — no stack trace, no provider name.
@@ -686,22 +715,12 @@ export class MeriService {
   }
 
   /**
-   * F02 fix: resolve the same display names the web editor shows
-   * (memberName in strategies-api.ts: first+last name, 'Team member'
-   * fallback for an owner id that no longer matches an active member,
-   * 'Unassigned' for null) so Meri's rendered plan text agrees with the
-   * editor/inspector/plan-health surfaces instead of leaving the model to
-   * guess from raw Clerk ids it was never given. Read on the SYSTEM
-   * connection like context-documents.service.ts's isOrgAdmin — tenant_memberships
-   * is FORCE-RLS and owned by apps/api, so it cannot be read inside this
-   * service's tenant-scoped transaction.
+   * Resolve the active tenant directory for existing and new owners. Display
+   * names match memberName in the editor. The SYSTEM connection is required
+   * for API-owned tenant_memberships; explicitly scope this query to the tenant
+   * because it bypasses this service's tenant-scoped transaction.
    */
-  private async resolveOwnerNames(
-    tenantId: string,
-    ownerUserIds: Array<string | null>,
-  ): Promise<Record<string, string>> {
-    const ids = [...new Set(ownerUserIds.filter((id): id is string => !!id))];
-    if (!ids.length) return {};
+  private async resolveOwnerNames(tenantId: string): Promise<Record<string, string>> {
     try {
       const rows = await this.prisma.withSystem((tx) =>
         tx.$queryRaw<Array<{ clerkUserId: string; firstName: string | null; lastName: string | null }>>`
@@ -709,17 +728,16 @@ export class MeriService {
           FROM tenant_memberships tm
           JOIN users u ON u.id = tm.user_id
           WHERE tm.tenant_id = ${tenantId}::uuid
-            AND u.clerk_user_id IN (${Prisma.join(ids)})
             AND tm.status::text = 'active'
+            AND u.clerk_user_id IS NOT NULL
         `,
       );
       return Object.fromEntries(
         rows.map((r) => [r.clerkUserId, [r.firstName, r.lastName].filter(Boolean).join(' ').trim() || 'Team member']),
       );
     } catch (err) {
-      // Owner names are a Q&A grounding aid, not load-bearing state — a lookup
-      // failure must never block the assistant call. Meri falls back to
-      // rendering the raw id (still better than silence); nothing is persisted.
+      // Q&A can still use current owner ids. With an empty directory, the
+      // assistant cannot assign a new owner and validation rejects invented ids.
       this.logger.warn(`could not resolve owner names for strategy assistant: ${(err as Error).message}`);
       return {};
     }
@@ -818,6 +836,39 @@ export class MeriService {
     }
     await this.logVerification(tx, tenantId, actorUserId, strategyId, violations);
     return { detail, violations };
+  }
+
+  /**
+   * Strategy generation timeout fix: the ONE place draft() decides which
+   * orchestrator transport to use. `jobRuntime` undefined => the original
+   * single-shot orchestrator.draft() call (unchanged behavior — the
+   * synchronous HTTP path, and every existing test that calls draft() without
+   * a 5th argument). `jobRuntime` provided => the async draft-job worker,
+   * which streams via orchestrator.draftStreaming() so it can report
+   * stage/progress and run past what a client-facing request could ever wait
+   * for, bounded only by the job's own deadline (jobRuntime.timeoutMs), not
+   * STRATEGY_MERI_TIMEOUT_MS.
+   */
+  private async callOrchestratorDraft(
+    body: unknown,
+    bearer: string | undefined,
+    aiProvider: ResolvedAiProvider | undefined,
+    delegation: ServiceDelegation,
+    jobRuntime: DraftJobRuntime | undefined,
+  ): Promise<StrategyDraftResponse> {
+    if (!jobRuntime) {
+      return this.orchestrator.draft(body, bearer, aiProvider, delegation);
+    }
+    return this.orchestrator.draftStreaming(
+      body,
+      bearer,
+      aiProvider,
+      delegation,
+      (evt) => {
+        if (evt.delta) jobRuntime.onStreamDelta(evt.delta);
+      },
+      jobRuntime.timeoutMs,
+    );
   }
 
   // ---- apply helpers ----

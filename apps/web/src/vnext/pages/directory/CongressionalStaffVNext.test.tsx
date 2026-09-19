@@ -326,7 +326,7 @@ describe('Congressional Staff vNext — offices and their rosters', () => {
 
     resolveWith([]);
     renderScreen('/directory/congressional-staff?q=nobody');
-    expect(await screen.findByText('No offices match these filters')).toBeTruthy();
+    expect(await screen.findByText('No people match these filters')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
   });
 

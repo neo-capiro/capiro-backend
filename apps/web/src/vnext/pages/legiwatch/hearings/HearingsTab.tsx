@@ -25,6 +25,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, Search, DownloadCloud } from 'lucide-react';
 import { ArchiveSubTab } from './ArchiveSubTab.js';
+import { ServerCaptureSessions } from './ServerCaptureSessions.js';
 import { CapiroDrawer } from '../../../components/overlays/index.js';
 import { useHearingSessionHistory } from '../../../../lib/hearing-watch-api.js';
 import { useLiveHearingsCoverage } from '../../../../pages/radar/live-hearings/live-hearings-api.js';
@@ -39,6 +40,7 @@ import { LwPill, LwSeg, LwButton, LwSkeleton } from '../lib/primitives.js';
 import { LwStateEmpty, LwStateUnavailable } from '../states/SystemStates.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { useCalendarExportBulk, downloadIcs } from '../lib/wave1-api.js';
+import { useLatestFloridaHearing } from '../lib/use-latest-florida-hearing.js';
 import {
   useIntelFeatureEnabled,
   STATE_CALENDAR_FEATURE,
@@ -171,10 +173,9 @@ export function HearingsTab({ scope }: { scope: string }) {
   const exportWeek = useCalendarExportBulk();
   const sessions = history.data?.pages.flatMap((page) => page.items) ?? [];
   const interrupted = sessions.filter((session) => captureNeedsAttention(session.status));
-  // Do not hide an interrupted capture just because three newer sessions exist.
-  const visibleSessions = sessions.filter(
-    (session, index) => index < 3 || captureNeedsAttention(session.status),
-  );
+  // Show ALL loaded browser sessions — never hide a loaded row behind an
+  // arbitrary "first 3" cut. Older sessions stay reachable via load-more.
+  const visibleSessions = sessions;
 
   // The user's saved desktop preference (LegiWatch Settings → default view).
   const [view, setView] = useState<ViewMode>(
@@ -195,11 +196,19 @@ export function HearingsTab({ scope }: { scope: string }) {
   const [rangeMode, setRangeMode] = useState<'week' | 'day'>(
     searchParams.get('calendarRange') === 'day' ? 'day' : 'week',
   );
+  // Florida public hearings are visible to EVERY tenant. The stateCalendar
+  // flag still gates the folder/session/chamber/status refinement controls,
+  // but the jurisdiction filter itself is a public-feed control and must not
+  // be hidden per-tenant. Florida is the only supported state today; the
+  // default calendar is inclusive (All jurisdictions) unless the user saved a
+  // narrower filter.
   const stateCalendar = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
-  const jurisdiction: 'US' | 'FL' | 'ALL' =
-    stateCalendar && ['FL', 'ALL'].includes(searchParams.get('jurisdiction') ?? '')
-      ? (searchParams.get('jurisdiction') as 'FL' | 'ALL')
-      : 'US';
+  const savedJurisdiction = searchParams.get('jurisdiction');
+  const jurisdiction: 'US' | 'FL' | 'ALL' = ['US', 'FL', 'ALL'].includes(
+    savedJurisdiction ?? '',
+  )
+    ? (savedJurisdiction as 'US' | 'FL' | 'ALL')
+    : 'ALL';
   const selectedFolders = stateCalendar
     ? searchParams.getAll('calendarFolder').filter(Boolean)
     : [];
@@ -251,7 +260,12 @@ export function HearingsTab({ scope }: { scope: string }) {
       if (value) params.set(key, value);
       else params.delete(key);
     }
-    if (params.toString() !== searchParams.toString()) setSearchParams(params, { replace: true });
+    // Forward the incoming location state: a Back navigation from hearing
+    // detail hands the scroll offset over via legiwatchScrollY, and this
+    // normalization write runs BEFORE the calendar query resolves — dropping
+    // state here means the scroll-restore effect below never sees it.
+    if (params.toString() !== searchParams.toString())
+      setSearchParams(params, { replace: true, state: location.state });
   }, [
     anchorDay,
     view,
@@ -262,25 +276,28 @@ export function HearingsTab({ scope }: { scope: string }) {
     expandedAgenda,
     searchParams,
     setSearchParams,
+    location.state,
   ]);
-  const rangeFrom = stateCalendar && rangeMode === 'day' ? anchorDay : (weekDays[0] ?? '');
-  const rangeTo = stateCalendar && rangeMode === 'day' ? anchorDay : (weekDays[6] ?? '');
+  const rangeFrom = rangeMode === 'day' ? anchorDay : (weekDays[0] ?? '');
+  const rangeTo = rangeMode === 'day' ? anchorDay : (weekDays[6] ?? '');
   const sourceCoverage = useCalendarSourceCoverage(
     { from: rangeFrom, to: rangeTo, session: session || undefined },
-    stateCalendar && jurisdiction !== 'US' && sub === 'schedule',
+    jurisdiction !== 'US' && sub === 'schedule',
   );
 
   // LW-QA-005: server-side range query. The query key includes the week, so a
   // prior week's response can never overwrite a newer navigation request.
+  // Jurisdiction is ALWAYS forwarded — the public Florida feed must not depend
+  // on a tenant feature flag.
   const calendarSelection = {
     from: rangeFrom,
     to: rangeTo,
     committee: committee || undefined,
     q: search.trim() || undefined,
     eventType: kind || undefined,
+    jurisdiction,
     ...(stateCalendar
       ? {
-          jurisdiction,
           session: session || undefined,
           following: following || undefined,
           chamber: chamber || undefined,
@@ -294,6 +311,48 @@ export function HearingsTab({ scope }: { scope: string }) {
     !privateSelection || folderSelection.isSuccess,
   );
 
+  /**
+   * Explicit, user-initiated lookup for the most recent canonical Florida
+   * proceeding that MATCHES the active calendar selection (minus date bounds).
+   * Only enabled when the Florida range is EMPTY and fully loaded — the
+   * calendar never changes the date window in response to a filter, so the
+   * only way the date moves here is the deliberate click below. Bounded
+   * (pageSize 1, latest-first) and global-public (every tenant; no media
+   * feature flag required to VIEW public FL rows). Because the lookup honors
+   * the active filters, the row it finds renders in the calendar it jumps to.
+   */
+  const floridaRangeEmpty =
+    jurisdiction === 'FL' && calendar.isSuccess && (calendar.data?.total ?? 0) === 0;
+  const latestFloridaSelection = {
+    committee: committee || undefined,
+    q: search.trim() || undefined,
+    eventType: kind || undefined,
+    ...(stateCalendar ? {
+        session: session || undefined,
+        following: following || undefined,
+        chamber: chamber || undefined,
+        eventStatus: eventStatus || undefined,
+        ...(privateSelection ? { billIds: folderSelection.data?.billIds ?? [] } : {}),
+      } : {}),
+  };
+  const latestFlorida = useLatestFloridaHearing(
+    latestFloridaSelection,
+    sub === 'schedule' && floridaRangeEmpty,
+  );
+  const jumpToLatestFlorida = (calendarDay: string) => {
+    // Require a real canonical date — never fabricate one. The button is
+    // disabled unless the returned event carries calendarDate, so this
+    // always receives a valid day.
+    const anchor = new Date(`${calendarDay}T12:00:00Z`);
+    if (rangeMode === 'week') {
+      // Rewind to the Monday of the event's week (Eastern week starts Monday).
+      const dow = anchor.getUTCDay(); // 0=Sun … 6=Sat
+      const daysSinceMonday = (dow + 6) % 7;
+      anchor.setUTCDate(anchor.getUTCDate() - daysSinceMonday);
+    }
+    setWeekAnchor(anchor);
+  };
+
   const rows = useMemo(() => calendar.data?.items ?? [], [calendar.data]);
   useEffect(() => {
     const y = location.state?.legiwatchScrollY;
@@ -303,7 +362,6 @@ export function HearingsTab({ scope }: { scope: string }) {
     }
   }, [calendar.isSuccess, location.key]);
   const serverTotal = calendar.data?.total ?? 0;
-  const scheduledAttendance = rows.filter((event) => event.subscription?.scheduled);
 
   const filtered = rows;
 
@@ -372,12 +430,10 @@ export function HearingsTab({ scope }: { scope: string }) {
     </div>
   );
 
-  const phase3Filters = (
-    <div
-      className="lw-controls"
-      aria-label="Calendar selection"
-      style={narrow ? { display: 'grid', gap: 16 } : undefined}
-    >
+  // The jurisdiction filter is a PUBLIC-feed control: it is never hidden by a
+  // tenant feature flag. Florida is the only supported state today.
+  const jurisdictionControl = (
+    <div className="lw-controls" aria-label="Calendar jurisdiction selection">
       <label>
         Jurisdiction{' '}
         <select
@@ -389,11 +445,20 @@ export function HearingsTab({ scope }: { scope: string }) {
             setCalendarParam('jurisdiction', e.target.value);
           }}
         >
+          <option value="ALL">All jurisdictions</option>
           <option value="US">Federal</option>
           <option value="FL">Florida</option>
-          <option value="ALL">All jurisdictions</option>
         </select>
       </label>
+    </div>
+  );
+
+  const phase3Filters = (
+    <div
+      className="lw-controls"
+      aria-label="Calendar selection"
+      style={narrow ? { display: 'grid', gap: 16 } : undefined}
+    >
       <label>
         Chamber{' '}
         <select
@@ -506,7 +571,7 @@ export function HearingsTab({ scope }: { scope: string }) {
   return (
     <div className="lw-body">
       {subStrip}
-      {stateCalendar && sub === 'schedule' ? (
+      {sub === 'schedule' ? (
         <>
           {narrow ? (
             <>
@@ -516,11 +581,15 @@ export function HearingsTab({ scope }: { scope: string }) {
                 title="Calendar filters"
                 onClose={() => setFiltersOpen(false)}
               >
-                {phase3Filters}
+                {jurisdictionControl}
+                {stateCalendar ? phase3Filters : null}
               </CapiroDrawer>
             </>
           ) : (
-            phase3Filters
+            <>
+              {jurisdictionControl}
+              {stateCalendar ? phase3Filters : null}
+            </>
           )}
           <div className="lw-controls" aria-label="Calendar date and display">
             <LwButton
@@ -577,15 +646,7 @@ export function HearingsTab({ scope }: { scope: string }) {
         </>
       ) : null}
       {sub === 'schedule' ? (
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
+        <div className="lw-controls" aria-label="Calendar export options">
           {stateCalendar ? (
             <label>
               <input
@@ -597,6 +658,7 @@ export function HearingsTab({ scope }: { scope: string }) {
             </label>
           ) : null}
           <LwButton
+            className="lw-controls__export"
             disabled={
               exportWeek.isPending ||
               calendar.isError ||
@@ -625,7 +687,7 @@ export function HearingsTab({ scope }: { scope: string }) {
       {exportWeek.isError ? (
         <p role="alert">Calendar export failed. Refresh the selection and try again.</p>
       ) : null}
-      {stateCalendar && jurisdiction !== 'US' && sub === 'schedule' ? (
+      {jurisdiction !== 'US' && sub === 'schedule' ? (
         <section
           className="lw-card"
           aria-label="Florida source coverage"
@@ -666,6 +728,43 @@ export function HearingsTab({ scope }: { scope: string }) {
             ? ` ${exportWeek.data.skipped.length} events were skipped: ${exportWeek.data.skipped.map((s) => s.reason).join('; ')}`
             : ''}
         </p>
+      ) : null}
+      {/* Latest-Florida action: shown ONLY when the Florida range is empty
+          and fully loaded. This is an explicit user action — the calendar
+          never changes the date window in response to a filter, and no date
+          moves until the user clicks. Honest states: a source error is
+          reported, a null hearing means no matching FL rows exist, and the
+          button is disabled until the lookup returns a real canonical date. */}
+      {sub === 'schedule' && floridaRangeEmpty ? (
+        <div className="lw-controls" aria-label="Latest Florida hearings">
+          {latestFlorida.isError ? (
+            <span role="alert" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+              The latest Florida hearings could not be checked.{' '}
+              <button onClick={() => void latestFlorida.refetch()}>Retry</button>
+            </span>
+          ) : latestFlorida.isPending ? (
+            <span role="status" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+              Checking for the latest Florida hearings…
+            </span>
+          ) : latestFlorida.data?.hearing && latestFlorida.data.hearing.calendarDate ? (
+            (() => {
+              // Narrow once for the callback — the guard above proves the
+              // hearing and its canonical date exist, but TS can't carry that
+              // into the onClick closure.
+              const hearing = latestFlorida.data.hearing;
+              const day = hearing.calendarDate!;
+              return (
+                <LwButton onClick={() => jumpToLatestFlorida(day)}>
+                  View latest Florida hearings
+                </LwButton>
+              );
+            })()
+          ) : latestFlorida.data?.answered ? (
+            <span style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+              No Florida hearings match this selection.
+            </span>
+          ) : null}
+        </div>
       ) : null}
       <div
         className={sub === 'sessions' ? 'lw-hearings-cols lw-hearings-cols--single' : 'lw-schedule'}
@@ -1078,8 +1177,28 @@ export function HearingsTab({ scope }: { scope: string }) {
           </div>
         )}
 
-        {/* RIGHT — My Sessions + Scheduled recordings */}
+        {/* RIGHT — Server captures first (durable booking immediately visible),
+            then My Sessions browser/live history, source health last. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <section className="lw-card" aria-label="Server captures">
+            <div className="lw-card__head">
+              <h2 className="lw-card__title">Server captures</h2>
+              <span className="lw-card__meta">All dates</span>
+            </div>
+            {/* Durable all-lifecycle server attendance for exactly this
+                tenant+user — independent of the selected week and filters. A
+                scheduled row appears immediately and stays through completion. */}
+            <ServerCaptureSessions />
+            <div className="lw-note">
+              <div className="lw-note__label">How unattended capture works</div>
+              <div className="lw-note__body">
+                Automatic attendance records the official stream on the server and continues when
+                you leave the site. Open a hearing to check its capture status, transcript and
+                intelligence. Browser attendance requires an open tab and an awake device.
+              </div>
+            </div>
+          </section>
+
           <section className="lw-card" aria-label="My Sessions">
             <div className="lw-card__head">
               <h2 className="lw-card__title">My Sessions</h2>
@@ -1220,64 +1339,6 @@ export function HearingsTab({ scope }: { scope: string }) {
           </section>
 
           <CommitteeSourceStatus />
-
-          <section className="lw-card" aria-label="Scheduled recordings">
-            <div className="lw-card__head">
-              <h2 className="lw-card__title">Scheduled recordings</h2>
-              <span className="lw-card__meta">Selected week</span>
-            </div>
-            <div className="lw-recs__rows">
-              {calendar.isLoading ? (
-                <div className="lw-recs__empty" role="status">
-                  Loading scheduled attendance…
-                </div>
-              ) : calendar.isError ? (
-                <LwStateUnavailable
-                  source="Scheduled attendance"
-                  reason="The selected week's calendar could not be refreshed. Scheduled attendance is unverified."
-                  onRetry={() => void calendar.refetch()}
-                />
-              ) : scheduledAttendance.length === 0 ? (
-                <div className="lw-recs__empty">
-                  No attendance is scheduled for the selected week. Open a hearing to check
-                  automatic or browser attendance.
-                </div>
-              ) : (
-                scheduledAttendance.map((event) => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    className="lw-hrow"
-                    onClick={() => openHearing(event)}
-                    style={{
-                      width: '100%',
-                      border: 0,
-                      background: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div>
-                      <div className="lw-hrow__title">{event.title}</div>
-                      <div className="lw-hrow__sub">
-                        {formatHearingDay(momentOfCanonicalEvent(event))} ·{' '}
-                        {formatHearingTime(momentOfCanonicalEvent(event))}
-                      </div>
-                    </div>
-                    <LwPill tone="brand">{event.capture?.status ?? 'SCHEDULED'}</LwPill>
-                  </button>
-                ))
-              )}
-            </div>
-            <div className="lw-note">
-              <div className="lw-note__label">How unattended capture works</div>
-              <div className="lw-note__body">
-                Automatic attendance records the official stream on the server and continues when
-                you leave the site. Open a hearing to check its capture status, transcript and
-                intelligence. Browser attendance requires an open tab and an awake device.
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </div>

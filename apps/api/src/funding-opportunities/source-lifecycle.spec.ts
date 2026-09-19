@@ -11,6 +11,7 @@ import {
   grantRevisionEvidence,
   grantSourceFingerprint,
   isGrantActive,
+  isTopicClosed,
   isGrantClosed,
   isInformationalSamNotice,
   isPursuableSamNotice,
@@ -118,7 +119,10 @@ describe('source-backed revision evidence DOES fire', () => {
   });
 
   test('a higher amendment count is amendment evidence', () => {
-    const evidence = grantRevisionEvidence(grant({ amendmentCount: 0 }), grant({ amendmentCount: 1 }));
+    const evidence = grantRevisionEvidence(
+      grant({ amendmentCount: 0 }),
+      grant({ amendmentCount: 1 }),
+    );
     expect(evidence.changed).toBe(true);
     expect(evidence.reasons.join(' ')).toMatch(/Amendment count/);
   });
@@ -126,7 +130,10 @@ describe('source-backed revision evidence DOES fire', () => {
   test('a changed material term is amendment evidence even with no revision bump', () => {
     // Grants.gov does not reliably bump `revision`. A halved award ceiling is a
     // real amendment whether or not the counter moved.
-    const evidence = grantRevisionEvidence(grant({ awardCeiling: 500_000 }), grant({ awardCeiling: 250_000 }));
+    const evidence = grantRevisionEvidence(
+      grant({ awardCeiling: 500_000 }),
+      grant({ awardCeiling: 250_000 }),
+    );
     expect(evidence.changed).toBe(true);
     expect(evidence.reasons.join(' ')).toMatch(/Award ceiling changed from 500000 to 250000/);
   });
@@ -137,7 +144,9 @@ describe('source-backed revision evidence DOES fire', () => {
       sam({ noticeType: 'Solicitation' }),
     );
     expect(evidence.changed).toBe(true);
-    expect(evidence.reasons.join(' ')).toMatch(/Notice type changed from Presolicitation to Solicitation/);
+    expect(evidence.reasons.join(' ')).toMatch(
+      /Notice type changed from Presolicitation to Solicitation/,
+    );
   });
 
   test('a rewritten SAM statement of work is amendment evidence', () => {
@@ -149,6 +158,34 @@ describe('source-backed revision evidence DOES fire', () => {
     expect(samSourceFingerprint(sam({ description: 'a' }))).not.toBe(
       samSourceFingerprint(sam({ description: 'b' })),
     );
+  });
+});
+
+describe('SBIR topic lifecycle', () => {
+  const topic = (status: string | null, closeDate: string | null, asOf = NOW) =>
+    isTopicClosed({ solicitationStatus: status, closeDate, asOf });
+
+  test.each(['Closed', 'ARCHIVED', 'expired'])('normalizes provider status %s', (status) => {
+    expect(topic(status, null)).toBe(true);
+  });
+  test('does not treat Closing Soon as closed by substring', () => {
+    expect(topic('Closing Soon', '2026-08-01')).toBe(false);
+  });
+  test('past close date closes an otherwise Open topic', () => {
+    expect(topic('Open', '2026-07-28')).toBe(true);
+  });
+  test.each(['2026-07-29T00:01:00.000Z', '2026-07-29T23:59:59.999Z'])(
+    'close date today remains open at %s',
+    (stamp) => {
+      expect(topic('Open', '2026-07-29', new Date(stamp))).toBe(false);
+    },
+  );
+  test('yesterday is closed', () => {
+    expect(topic('Open', '2026-07-28', new Date('2026-07-29T23:00:00.000Z'))).toBe(true);
+  });
+  test('null and unparseable dates do not fabricate closure', () => {
+    expect(topic(null, null)).toBe(false);
+    expect(topic(null, 'sometime in spring')).toBe(false);
   });
 });
 
@@ -277,7 +314,14 @@ describe('SQL predicates mirror the TypeScript predicates', () => {
   });
 
   test('pursuable SQL excludes every non-pursuable family the normalizer excludes', () => {
-    for (const fragment of ['award', 'special notice', 'justification', 'intent to bundle', 'fair opportunity', 'sale of surplus']) {
+    for (const fragment of [
+      'award',
+      'special notice',
+      'justification',
+      'intent to bundle',
+      'fair opportunity',
+      'sale of surplus',
+    ]) {
       expect(SAM_PURSUABLE_KIND_SQL).toContain(fragment);
     }
   });

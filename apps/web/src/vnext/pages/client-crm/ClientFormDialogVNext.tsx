@@ -15,7 +15,7 @@ import type {
   ClientFormSubmit,
   ClientFormValues,
 } from '../../../pages/clients/clientTypes.js';
-import { SET_ASIDE_CERTIFICATION_OPTIONS } from '../../../pages/clients/client-registrations.js';
+import { SET_ASIDE_CERTIFICATION_OPTIONS, setAsideLabel } from '../../../pages/clients/client-registrations.js';
 import { OrganizationTypesField } from '../../../pages/clients/OrganizationTypesField.js';
 import {
   CLIENT_FORM_STEP_FIELDS,
@@ -543,6 +543,11 @@ function GovRegistrationStep({ values, errors = {}, set }: StepProps) {
           options={[...SET_ASIDE_CERTIFICATION_OPTIONS]}
           values={values.setAsideCertifications ?? []}
           onChange={(list) => set('setAsideCertifications', list)}
+          // Legacy stored codes (solicitation restriction codes like SDVOSBC /
+          // HZC) render with an honest English label, not a raw code — and are
+          // NOT offered as new choices. The value itself stays as stored; the
+          // API-side legacy-value preservation fix is the Intel worker's.
+          labelFor={setAsideLabel}
         />
       </div>
     </div>
@@ -568,6 +573,10 @@ function SectorTracksStep({
     queryFn: async () =>
       (await api.get<Array<{ code: string; name: string }>>('/api/lda-intel/issues')).data,
     staleTime: 30 * 60 * 1000,
+    // A reference-list failure must surface promptly (the user is mid-edit);
+    // background retries would leave the false "No options match." up for
+    // seconds before the error branch shows.
+    retry: false,
     enabled,
   });
   return (
@@ -607,6 +616,7 @@ function SectorTracksStep({
         helpText="Federal lobbying issue areas used to auto-match this client to bills and regulations. These normally fill in automatically from the client's LDA match — set them here to add or correct codes when that match is thin or missing."
         searchable
         loading={issuesQuery.isLoading}
+        failed={issuesQuery.isError}
         options={(issuesQuery.data ?? []).map((issue) => ({
           value: issue.code,
           label: `${issue.code} — ${issue.name}`,
@@ -614,6 +624,17 @@ function SectorTracksStep({
         values={values.issueCodes ?? []}
         onChange={(list) => set('issueCodes', list)}
       />
+      {/* A failed reference-list read used to fall through to "No options
+          match." — indistinguishable from an LDA source that genuinely has no
+          codes, and with no way to recover. Truthful error + retry instead. */}
+      {issuesQuery.isError ? (
+        <p className="capiro-cform__field-note capiro-cform__state--error" role="alert">
+          Could not load the LDA issue-code reference list.{' '}
+          <button type="button" className="capiro-cform__retry" onClick={() => void issuesQuery.refetch()}>
+            Retry
+          </button>
+        </p>
+      ) : null}
 
       <div className="capiro-cform__grid" style={{ marginTop: 12 }}>
         <CapiroInput
@@ -758,6 +779,8 @@ function MultiCheckField({
   onChange,
   searchable = false,
   loading = false,
+  labelFor,
+  failed = false,
 }: {
   id?: string;
   label: string;
@@ -767,6 +790,12 @@ function MultiCheckField({
   onChange: (values: string[]) => void;
   searchable?: boolean;
   loading?: boolean;
+  /** Resolve a human label for a stored value not in `options` (a legacy code);
+   *  keeps history readable without offering it as a new choice. */
+  labelFor?: (value: string) => string;
+  /** The reference list failed to load — suppress the "No options match."
+   *  empty state (a failed read is not an exhausted one). */
+  failed?: boolean;
 }) {
   const [filter, setFilter] = useState('');
   const visible = useMemo(() => {
@@ -787,7 +816,7 @@ function MultiCheckField({
         <div className="capiro-cform__chips">
           {values.map((v) => (
             <span className="capiro-cform__chip" key={v}>
-              {options.find((o) => o.value === v)?.label ?? v}
+              {options.find((o) => o.value === v)?.label ?? labelFor?.(v) ?? v}
               <button
                 type="button"
                 className="capiro-cform__chip-x"
@@ -818,6 +847,10 @@ function MultiCheckField({
       >
         {loading ? (
           <span className="capiro-field__help">Loading…</span>
+        ) : failed ? (
+          // The reference read failed; the caller renders the error/retry.
+          // Never claim "No options match." for a read that never answered.
+          null
         ) : visible.length === 0 ? (
           <span className="capiro-field__help">No options match.</span>
         ) : (
@@ -832,7 +865,7 @@ function MultiCheckField({
         )}
         {orphans.length > 0 && !loading
           ? orphans.map((v) => (
-              <CformCheck key={v} label={v} checked onChange={(on) => toggle(v, on)} />
+              <CformCheck key={v} label={labelFor?.(v) ?? v} checked onChange={(on) => toggle(v, on)} />
             ))
           : null}
       </div>

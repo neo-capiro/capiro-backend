@@ -59,6 +59,7 @@ RULE_ROWS=(
   "central-discovery|rate(10 minutes)|api|central-discovery"
   "committee-enrichment|rate(15 minutes)|api|committee-enrichment"
   "committee-updates|rate(30 minutes)|api|committee-updates"
+  "notification-drain|rate(5 minutes)|api|notification-drain"
   "source-probe|rate(20 minutes)|api|source-probe"
   "coverage-audit|rate(6 hours)|api|coverage-audit"
   "stream-preflight|rate(2 minutes)|api|stream-preflight"

@@ -127,12 +127,17 @@ export interface BoardFilters {
   /** Only bills with a bill/state_bill alert in the last N days. */
   changedWithinDays?: number;
   /**
-   * Excludes the 'enacted' lane — a STAGE-based proxy for "terminal"
-   * (enacted/failed/vetoed). The richer signal, `terminalRisk`, is derived
-   * from alerts inside the 21-day RECENT_CHANGE_DAYS window (see
-   * `canonicalStatusFor` below) and is therefore unknown for a bill that
-   * went terminal longer ago than that — it cannot gate the paginated query
-   * without a join this phase does not add. Documented, not silent.
+   * Excludes terminal bills from the active board. Historically a STAGE-based
+   * proxy for "terminal" (the enacted lane, because every rank-9 terminal
+   * collapsed into it). That proxy was wrong at the source — a failed bill was
+   * never enacted — so the exclusion is now TWO-part: the 'enacted' lane still
+   * drops genuinely enacted bills, and a canonical-status pass drops
+   * terminal-NEGATIVE state bills (vetoed / failed / dead_by_deadline) whose
+   * lane is no longer 'enacted'. Federal bills are unchanged (their terminal
+   * signal was never carried by the enacted lane). The richer `terminalRisk`
+   * card signal is still derived per card; this gate keeps the PAGINATED query
+   * correct for the common state-terminal case via one bounded status read,
+   * only when activeOnly is set.
    */
   activeOnly?: boolean;
   stages?: BillStage[];
@@ -376,13 +381,57 @@ export class TrackerBoardService {
     private readonly stateRepo: StateSourceDataRepository,
   ) {}
 
-  /** Bucket a state_bill status rank (0-9) into the board's 4 congress-shaped columns (S4.5 — no status ladder in P0; the drawer shows the real status). */
+  /**
+   * Bucket a canonical state_bill status into the board's 4 congress-shaped
+   * columns (S4.5 — no status ladder in P0; the drawer shows the real status).
+   *
+   * Rank is terminal *position*, not outcome, so this maps on the explicit
+   * canonical status rather than `stateBillStatusRank` alone (every rank-9
+   * terminal used to collapse to 'enacted', rank-3 'floor' to 'passed').
+   * Negative outcomes (failed / dead_by_deadline) claim zero progress
+   * ('introduced'); 'floor' stays a positive pre-passage 'committee'.
+   */
   private stateStatusToBoardStage(status: string | null): BillStage {
+    if (status === 'enacted' || status === 'veto_overridden') return 'enacted';
+    if (status === 'vetoed') return 'passed';
+    if (status === 'failed' || status === 'dead_by_deadline' || status === null) {
+      return 'introduced';
+    }
+    // 'floor', 'committee', 'reported', and any rank>=4 positive status.
     const rank = stateBillStatusRank(status);
-    if (rank >= 9) return 'enacted';
-    if (rank >= 3) return 'passed';
+    if (rank >= 4) return 'passed';
     if (rank >= 1) return 'committee';
     return 'introduced';
+  }
+
+  /**
+   * Corrected display stage for a STATE bill on the board: the canonical status
+   * (already fetched on the read path) is authoritative, NOT the persisted
+   * `t.stage` — rows tracked before the mapping fix may carry a wrong stage,
+   * and this read-time derivation corrects them without a destructive backfill.
+   * A terminal-negative bill floors at 'introduced' (its last-reached stage is
+   * not derivable from the retained state columns); the truthful terminal label
+   * still surfaces via `canonicalStatus`. If the source row is absent we fall
+   * back to the persisted stage rather than invent one.
+   */
+  private stateBoardStage(
+    bill: { status?: string | null } | null,
+    persisted: BillStage | null,
+  ): BillStage {
+    if (bill) return this.stateStatusToBoardStage(bill.status ?? null);
+    return persisted ?? 'introduced';
+  }
+
+  /**
+   * Recommendation label for a state candidate. The coarse lane label actively
+   * misleads for a terminal or specific status, so prefer the canonical state
+   * label whenever it differs; an unknown/null status keeps the lane label.
+   * Federal recommendations already label by stage.
+   */
+  private stateStageLabel(status: string | null, stage: BillStage): string {
+    if (!status) return stageLabelOf(stage);
+    const label = stateBillStatusLabel(status);
+    return label === status ? stageLabelOf(stage) : label;
   }
 
   /**
@@ -461,8 +510,103 @@ export class TrackerBoardService {
     return BILL_STAGES.find((s) => s.id === stage)?.label ?? null;
   }
 
+  /**
+   * True when a STATE bill's canonical status is a terminal-negative outcome
+   * (vetoed / failed / dead_by_deadline), independent of any recent change
+   * chip. The chip signal only covers a bill that went terminal inside the
+   * RECENT_CHANGE_DAYS window, so a bill that failed long ago (or whose
+   * detector never fired) would otherwise render as an ordinary card. Only
+   * terminal-NEGATIVE statuses qualify — 'enacted' and 'veto_overridden' are
+   * successful terminal outcomes, not risk. Federal bills return false (their
+   * terminal signal already flows through the chip change types).
+   */
+  private isTerminalNegativeStateStatus(
+    billId: string,
+    status: string | null | undefined,
+  ): boolean {
+    if (!isStateBillKey(billId) || !status) return false;
+    return status === 'vetoed' || status === 'failed' || status === 'dead_by_deadline';
+  }
+
   private displayNumFor(billId: string): string {
     return isStateBillKey(billId) ? humanizeStateBillKey(billId) : humanizeBillId(billId);
+  }
+
+  /**
+   * Align the board query to the CORRECTED state stage. State rows display at
+   * a stage derived from the canonical status (see `stateBoardStage`), not the
+   * persisted `t.stage`, so the persisted `stage` WHERE on `activeOnly` /
+   * `stages` cannot drive state-row selection or filter/count/pagination would
+   * disagree with the corrected display.
+   *
+   * Scope: only the candidate set — the caller's own tracked ids intersected
+   * with any changedWithinDays `billId IN` restriction (never an all-table
+   * scan), plus one bounded `state_bill` lookup, only when the filter is set.
+   * The stage constraint becomes `federalByStage OR keptStateId` under a single
+   * AND: a FEDERAL row keeps the persisted-stage filter, a state row with a
+   * canonical row is selected by its corrected stage, and a state row with NO
+   * canonical row keeps the persisted-stage filter exactly like a federal row
+   * (its display stage also falls back to persisted — filter and display agree).
+   *
+   * Mutates `baseWhere`. Always returns false — a void helper; an empty
+   * candidate set yields an empty board through the same paginated query.
+   */
+  private async alignStateStageFilter(
+    tenantId: string,
+    clientId: string | null,
+    baseWhere: Record<string, unknown>,
+    filters: BoardFilters | undefined,
+  ): Promise<void> {
+    const isActiveOnly = !!filters?.activeOnly && !filters?.stages?.length;
+    const isStages = !!filters?.stages?.length;
+    if (!isActiveOnly && !isStages) return;
+
+    const stageFilter = baseWhere['stage'];
+    delete baseWhere['stage'];
+    const existing = baseWhere['billId'] as { in?: string[]; notIn?: string[] } | undefined;
+    delete baseWhere['billId'];
+
+    // Candidate ids = tracked (tenant[+client]) ∩ existing billId.in.
+    const trackedRows = await this.prisma.withTenant(tenantId, (tx) =>
+      tx.trackedBill.findMany({
+        where: { tenantId, ...(clientId ? { clientId } : {}) },
+        select: { billId: true },
+        distinct: ['billId'],
+      }),
+    );
+    let candidates = trackedRows.map((r) => r.billId);
+    if (existing?.in) candidates = candidates.filter((id) => existing.in!.includes(id));
+    if (existing?.notIn) candidates = candidates.filter((id) => !existing.notIn!.includes(id));
+
+    const stateIds = candidates.filter((id) => isStateBillKey(id));
+    const stateBills = stateIds.length ? await this.stateRepo.getStateBillsByIds(stateIds) : [];
+    const known = new Set(stateBills.map((b) => b.id));
+    const keepState = new Set<string>();
+    for (const b of stateBills) {
+      const stage = this.stateStatusToBoardStage(b.status ?? null);
+      const keep = isActiveOnly
+        ? // Preserve the standard terminal exclusion: drop the enacted lane AND
+          // terminal-negative outcomes (which no longer occupy the enacted lane).
+          stage !== 'enacted' && !this.isTerminalNegativeStateStatus(b.id, b.status)
+        : filters!.stages!.includes(stage);
+      if (keep) keepState.add(b.id);
+    }
+    // Only a KNOWN state id bypasses the persisted-stage filter. An unknown id
+    // (no canonical row) cannot be re-derived, so it joins the federal clause
+    // below and keeps the persisted-stage filter — exactly like a federal row.
+
+    const clauses: Array<Record<string, unknown>> = [];
+    if (existing?.in) clauses.push({ billId: { in: existing.in } });
+    if (existing?.notIn) clauses.push({ billId: { notIn: existing.notIn } });
+    clauses.push({
+      OR: [
+        // Federal rows AND unknown state rows: persisted stage filter.
+        { AND: [{ billId: { notIn: [...known] } }, stageFilter ? { stage: stageFilter } : {}] },
+        // Known state rows: corrected stage decided above.
+        { billId: { in: [...keepState] } },
+      ],
+    });
+    baseWhere['AND'] = clauses;
   }
 
   /** 'US' | <state code>, derived from the id shape alone (the DD1 key's leading 2-letter segment). */
@@ -595,7 +739,8 @@ export class TrackerBoardService {
           stageLabel: stageLabelOf(stage),
           passageProbability: passageProbability({
             latestActionText: b.latestActionText,
-            status: b.status, actionTexts: b.actionTexts,
+            status: b.status,
+            actionTexts: b.actionTexts,
             title: b.title,
             latestActionDate: b.latestActionDate,
             nowMs,
@@ -651,7 +796,9 @@ export class TrackerBoardService {
             displayNum: humanizeStateBillKey(b.id),
             title: b.title,
             stage,
-            stageLabel: stageLabelOf(stage),
+            // The coarse lane mislabels a terminal state outcome ('enacted'
+            // was emitted for a failed bill) — use the canonical status label.
+            stageLabel: this.stateStageLabel(b.status, stage),
             passageProbability: passageProbability({
               latestActionText: b.latestActionText,
               title: b.title,
@@ -725,6 +872,9 @@ export class TrackerBoardService {
     if (changedIds) baseWhere['billId'] = { in: [...changedIds] };
     if (opts.filters?.stages?.length) baseWhere['stage'] = { in: opts.filters.stages };
     else if (opts.filters?.activeOnly) baseWhere['stage'] = { not: 'enacted' };
+    // Align state-row selection to the corrected (canonical-status) stage so the
+    // filter/count/pagination agree with the corrected display.
+    await this.alignStateStageFilter(tenantId, clientId, baseWhere, opts.filters);
     const pageWhere: Record<string, unknown> = { ...baseWhere };
     if (cur) {
       pageWhere['OR'] = [
@@ -819,7 +969,11 @@ export class TrackerBoardService {
       const bill = billById.get(t.billId) ?? null;
       const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
-      const stage = bill && !isStateBillKey(t.billId) ? billStage(latestActionText, bill.status, bill.actionTexts) : (t.stage as BillStage | null) ?? billStage(latestActionText);
+      const stage = isStateBillKey(t.billId)
+        ? this.stateBoardStage(bill, (t.stage as BillStage | null) ?? null)
+        : bill
+          ? billStage(latestActionText, bill.status, bill.actionTexts)
+          : ((t.stage as BillStage | null) ?? billStage(latestActionText));
       const matchedTags = bill
         ? scoreBillFit(toRelevanceBill({ ...bill, id: t.billId }), topics, issueAreas, 0, false)
             .matchedTags
@@ -849,13 +1003,18 @@ export class TrackerBoardService {
         changeChip: chipByBill.get(t.billId) ?? null,
         // P2-09: the real status + a terminal-risk flag, so a failed rule never
         // renders as an ordinary card in whichever lane its stage maps to.
+        // terminalRisk must reflect the canonical state OUTCOME even when no
+        // recent change chip fired (a bill that failed > RECENT_CHANGE_DAYS
+        // ago has no chip but is still terminal-negative).
         canonicalStatus: this.canonicalStatusFor(
           t.billId,
           chipByBill.get(t.billId) ?? null,
           bill?.status,
           stage,
         ),
-        terminalRisk: isTerminalRisk(chipByBill.get(t.billId)?.changeType),
+        terminalRisk:
+          isTerminalRisk(chipByBill.get(t.billId)?.changeType) ||
+          this.isTerminalNegativeStateStatus(t.billId, bill?.status),
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByBill.get(t.billId) ?? 0,
@@ -920,6 +1079,8 @@ export class TrackerBoardService {
     if (opts.filters?.clientIds?.length) baseWhere['clientId'] = { in: opts.filters.clientIds };
     if (opts.filters?.stages?.length) baseWhere['stage'] = { in: opts.filters.stages };
     else if (opts.filters?.activeOnly) baseWhere['stage'] = { not: 'enacted' };
+    // Same corrected-stage alignment as getBoard, tenant-wide.
+    await this.alignStateStageFilter(tenantId, null, baseWhere, opts.filters);
     const pageWhere: Record<string, unknown> = { ...baseWhere };
     if (cur) {
       // The tenant board's real row identity is (clientId,billId). Two clients
@@ -1030,7 +1191,11 @@ export class TrackerBoardService {
       const bill = billById.get(t.billId) ?? null;
       const latestActionText = bill?.latestActionText ?? t.lastSeenActionText ?? null;
       const latestActionDate = bill?.latestActionDate ?? t.lastSeenActionDate ?? null;
-      const stage = bill && !isStateBillKey(t.billId) ? billStage(latestActionText, bill.status, bill.actionTexts) : (t.stage as BillStage | null) ?? billStage(latestActionText);
+      const stage = isStateBillKey(t.billId)
+        ? this.stateBoardStage(bill, (t.stage as BillStage | null) ?? null)
+        : bill
+          ? billStage(latestActionText, bill.status, bill.actionTexts)
+          : ((t.stage as BillStage | null) ?? billStage(latestActionText));
       const ct = topicsByClient.get(t.clientId);
       const matchedTags =
         bill && ct
@@ -1073,7 +1238,9 @@ export class TrackerBoardService {
           bill?.status,
           stage,
         ),
-        terminalRisk: isTerminalRisk(chipByCB.get(ck(t.clientId, t.billId))?.changeType),
+        terminalRisk:
+          isTerminalRisk(chipByCB.get(ck(t.clientId, t.billId))?.changeType) ||
+          this.isTerminalNegativeStateStatus(t.billId, bill?.status),
         lastHearingSessionId: t.lastHearingSessionId ?? null,
         lastHearingAt: t.lastHearingAt ?? null,
         hearingCount: hearingCountByCB.get(ck(t.clientId, t.billId)) ?? 0,
@@ -1302,19 +1469,16 @@ export class TrackerBoardService {
 
   /**
    * Add-bill-modal text search (P1.1, ported from apps/api
-   * tracker.service.searchBills). Current Congress only; <2 chars → []. Tenant-
-   * independent by design (GLOBAL `congress_bill`; auth is the route guards).
+   * tracker.service.searchBills). <2 chars → []. Tenant-independent by design
+   * (GLOBAL `congress_bill`/`state_bill`; auth is the route guards).
    *
-   * P1-17: this searched the federal corpus ONLY, while the modal's copy claimed
-   * it searched the congressional record — so a client could enable state
-   * jurisdictions, receive state recommendations, and still be unable to add a
-   * state bill it had missed. It now searches both rails.
-   *
-   * `jurisdictions` semantics, matching the rest of LegiWatch: an EMPTY/absent
-   * list means BOTH (federal + every state the caller passes nothing about),
-   * `['US']` means federal only, and a list of state codes searches those states
-   * (plus federal when 'US' is among them). Never "fix" an empty array to a
-   * default list — MASTER §4.5.
+   * The default searches the entire ingested corpus: every Congress and every
+   * ingested state — a bounded suggestion list must not hide an older-session
+   * or differently-jurisdiction bill. `jurisdictions` semantics, matching the
+   * rest of LegiWatch: an EMPTY/absent list means everything, `['US']` means
+   * federal only, and a list of state codes searches those states (plus
+   * federal when 'US' is among them). Never "fix" an empty array to a default
+   * list — MASTER §4.5.
    */
   async searchBills(
     q: string,
@@ -1331,12 +1495,10 @@ export class TrackerBoardService {
     const states = juris.filter((j) => j !== 'US');
 
     const [federal, stateRows] = await Promise.all([
-      wantsFederal
-        ? this.repo.searchBillRows(titleLike, idLike, currentCongress())
-        : Promise.resolve([]),
-      // With no jurisdictions named we cannot scan all 50 legislatures on a
-      // 2-character query, so the state rail runs only when states are named.
-      states.length
+      wantsFederal ? this.repo.searchBillRows(titleLike, idLike, null) : Promise.resolve([]),
+      // The ingested state corpus is a handful of legislatures, so the state
+      // rail searches them all unless the caller names a subset.
+      wantsAll || states.length
         ? this.stateRepo.searchStateBillRows(titleLike, idLike, states, limit)
         : Promise.resolve([]),
     ]);
@@ -1348,7 +1510,8 @@ export class TrackerBoardService {
       stage: billStage(b.latestActionText, b.status, b.actionTexts),
       probability: passageProbability({
         latestActionText: b.latestActionText,
-        status: b.status, actionTexts: b.actionTexts,
+        status: b.status,
+        actionTexts: b.actionTexts,
         title: b.title,
         latestActionDate: b.latestActionDate,
       }),

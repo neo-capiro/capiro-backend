@@ -35,6 +35,7 @@ import {
   SendOutlined,
 } from '@ant-design/icons';
 import { useApi } from '../../../../lib/use-api.js';
+import { attachmentContentType } from '../../../../lib/attachment-content-type.js';
 import { useMe } from '../../../../lib/me.js';
 import { useApproveReview, useRejectReview } from '../../../reviews/reviews-api.js';
 import { intelTrackerPaths } from '../../../clients/tracker/intel-tracker-api.js';
@@ -423,6 +424,9 @@ export function NewOutreachWizard({
   /** Request keys minted per Send click, reused across network retries. */
   const sendRequestKeyRef = useRef<string | null>(null);
   const testRequestKeyRef = useRef<string | null>(null);
+  const attachmentUploadsRef = useRef(0);
+  const [attachmentUploadsPending, setAttachmentUploadsPending] = useState(0);
+  const [attachmentUploadFailures, setAttachmentUploadFailures] = useState<string[]>([]);
 
   // WIZARD_STEPS is readonly + non-empty, but TS's noUncheckedIndexedAccess
   // narrows the indexed read to `T | undefined`. The clamp on stepIdx
@@ -445,6 +449,12 @@ export function NewOutreachWizard({
   }, [state]);
 
   const next = () => {
+    if (attachmentUploadsRef.current > 0 || attachmentUploadFailures.length > 0) {
+      message.warning(
+        'Finish uploading your attachments or remove failed files before continuing.',
+      );
+      return;
+    }
     const leavingGenerate = step.id === 'generate';
     if (!versionedOutreach || !leavingGenerate) {
       rawNext();
@@ -701,8 +711,7 @@ export function NewOutreachWizard({
           }>
         >(`/api/engagement/outreach/${resumeId}/draft-artifacts`);
         const withCurrent = artifacts.filter(
-          (a): a is typeof a & { current: NonNullable<(typeof a)['current']> } =>
-            a.current != null,
+          (a): a is typeof a & { current: NonNullable<(typeof a)['current']> } => a.current != null,
         );
         if (withCurrent.length === 0) return;
         setState((prev) => {
@@ -1034,9 +1043,13 @@ export function NewOutreachWizard({
         // step without anyone noticing.
         return true;
       case 'pool':
-        // Same requirement the old single "Build Context" step enforced
-        // before the split — at least one context item selected.
-        return state.contextItems.length > 0;
+        // Context is OPTIONAL. A campaign whose main idea (step 4) carries it
+        // must be able to continue with zero pool items — the server's planner
+        // handles an empty evidence packet honestly ("plan an honest,
+        // non-specific message and list what is missing"). Requiring at least
+        // one ticked item here dead-ended real campaigns at step 5 and, on a
+        // resumed failed generation, blocked the only path forward.
+        return true;
       default:
         return true;
     }
@@ -1156,10 +1169,11 @@ export function NewOutreachWizard({
           // UNSAVED edits; once an edit autosaves as a version it is neither, and
           // was previously fair game for this overwrite.)
           if (p.status === 'error') {
-            generatedEmails[p.genKey] = applyGenerationFailure(prior, {
-              subject: p.subject,
-              body: p.body,
-            });
+            generatedEmails[p.genKey] = applyGenerationFailure(
+              prior,
+              { subject: p.subject, body: p.body },
+              p.failureReason,
+            );
             continue;
           }
           generatedEmails[p.genKey] = {
@@ -1214,13 +1228,53 @@ export function NewOutreachWizard({
     if (!slots.length) return;
     const base = buildBaseParams();
     const tasks = buildGenerateTasks(slots, GEN_BATCH_MAX);
+    // Versioned parity with the sync path (§3.g3): under versioned outreach
+    // generateBatchEmails requires an owned draft record and rejects the batch
+    // before any AI spend when outreachRecordId is missing — and the worker
+    // surfaces that reject only as a failed job item, so the wizard showed a
+    // generic placeholder. Create the record ONCE here (shared ref serializes
+    // concurrent callers) and attach its id + per-slot generation keys exactly
+    // like the sync mutation does.
+    let recordId: string | null = null;
+    if (versionedOutreach) {
+      try {
+        recordId = await ensureDraftRecord();
+      } catch (err) {
+        // Same contract as the sync path: keep the server's message and submit
+        // nothing — no record means no job, so no spend and no pending state.
+        const detail = apiErrorMessage(err);
+        message.error(
+          detail
+            ? `Could not create the protected draft record, so generation was not started: ${detail}`
+            : 'Could not create the protected draft record; generation was not started.',
+        );
+        return;
+      }
+    }
     jobMarkFreshRef.current = { markFresh: markFresh ?? false, sig: sig ?? null };
+    const withGenerationKeys = (
+      recipients: OutreachRecipient[],
+      chunkSlots: GenSlot[],
+    ): OutreachRecipient[] => {
+      if (!versionedOutreach) return recipients;
+      const keysByResultId = new Map<string, string[]>();
+      for (const slot of chunkSlots) {
+        const list = keysByResultId.get(slot.resultId) ?? [];
+        list.push(slot.genKey);
+        keysByResultId.set(slot.resultId, list);
+      }
+      return recipients.map((r) => {
+        const keys = keysByResultId.get(recipientKey(r)) ?? [];
+        return keys.length ? ({ ...r, generationKeys: keys } as unknown as OutreachRecipient) : r;
+      });
+    };
     try {
       const submitted = await Promise.all(
         tasks.map((t) =>
           submitOutreachGenerateJob(api, {
             ...base,
-            recipients: t.recipients,
+            ...(recordId ? { outreachRecordId: recordId } : {}),
+            recipients: withGenerationKeys(t.recipients, t.chunkSlots),
             ...(t.additionalContext ? { additionalContext: t.additionalContext } : {}),
             ...(t.audienceKind ? { audienceKind: t.audienceKind } : {}),
           }),
@@ -1353,9 +1407,7 @@ export function NewOutreachWizard({
         }
         return recipients.map((r) => {
           const keys = keysByResultId.get(recipientKey(r)) ?? [];
-          return keys.length
-            ? ({ ...r, generationKeys: keys } as unknown as OutreachRecipient)
-            : r;
+          return keys.length ? ({ ...r, generationKeys: keys } as unknown as OutreachRecipient) : r;
         });
       };
 
@@ -1400,7 +1452,12 @@ export function NewOutreachWizard({
         | {
             ok: true;
             drafts: GenDraft[];
-            heldDrafts: Array<{ genKey: string; subject: string; body: string; contextNote?: string }>;
+            heldDrafts: Array<{
+              genKey: string;
+              subject: string;
+              body: string;
+              contextNote?: string;
+            }>;
             failedGenKeys: string[];
             failures: GenerationSlotFailure[];
             refs: Map<string, DraftVersionRef>;
@@ -1708,7 +1765,13 @@ export function NewOutreachWizard({
       // with no draft yet is marked 'error' (unsendable) so nothing half-generated
       // leaks; a slot that already has one keeps its text — see
       // applyGenerationFailure.
-      const reason = apiErrorMessage(err) || undefined;
+      // apiErrorMessage only parses HTTP response bodies; a locally thrown
+      // Error (e.g. the ensureDraftRecord preflight wrap below) carries its
+      // reason on .message, which must not be discarded into a generic
+      // "generation failed".
+      const detail = apiErrorMessage(err);
+      const localReason = err instanceof Error && err.message ? err.message : null;
+      const reason = detail ?? localReason ?? undefined;
       setState((prev) => {
         const generatedEmails = { ...prev.generatedEmails };
         for (const s of vars.slots) {
@@ -1721,9 +1784,7 @@ export function NewOutreachWizard({
         return { ...prev, generatedEmails };
       });
       setGeneratingKey(null);
-      message.error(
-        apiErrorMessage(err) || 'Generation failed. Edit or regenerate the flagged drafts.',
-      );
+      message.error(reason ?? 'Generation failed. Edit or regenerate the flagged drafts.');
     },
   });
 
@@ -1770,7 +1831,8 @@ export function NewOutreachWizard({
   // itself uses, so a slot that is not actually sendable can never be offered.
   const [testPreviewGenerationKey, setTestPreviewGenerationKey] = useState<string | null>(null);
   const testPreviewSendableGenKeys = useMemo(
-    () => new Set(projectVersionIdsForSend(state.targets, state.generatedEmails).map((u) => u.genKey)),
+    () =>
+      new Set(projectVersionIdsForSend(state.targets, state.generatedEmails).map((u) => u.genKey)),
     [state.targets, state.generatedEmails],
   );
   const testPreviewOptions = useMemo(
@@ -1779,8 +1841,7 @@ export function NewOutreachWizard({
         .filter((s) => testPreviewSendableGenKeys.has(s.genKey))
         .map((s) => ({
           genKey: s.genKey,
-          label:
-            s.genRecipients[0]?.name || s.genRecipients[0]?.email || s.genKey,
+          label: s.genRecipients[0]?.name || s.genRecipients[0]?.email || s.genKey,
         })),
     [genModel.slots, testPreviewSendableGenKeys],
   );
@@ -1808,6 +1869,9 @@ export function NewOutreachWizard({
   const sendIntentMutation = useMutation({
     mutationFn: async (vars?: { testMode?: boolean; onlyGenKeys?: string[] }) => {
       const testMode = vars?.testMode === true;
+      if (attachmentUploadsRef.current > 0 || attachmentUploadFailures.length > 0) {
+        throw new Error('Finish uploading your attachments or remove failed files before sending.');
+      }
       const recordId = draftId ?? (await ensureDraftRecord());
 
       // §f1/f2 — a test send previews exactly ONE explicitly selected version;
@@ -1824,6 +1888,14 @@ export function NewOutreachWizard({
       // the first already-delivered draft, which rolls the new intent back
       // entirely — so a partial-failure retry would 409 instead of working.
       const isRetry = !testMode && !!vars?.onlyGenKeys?.length;
+      if (!testMode && !isRetry) {
+        const gate = canEnterSendStep(genModel.slots, state.generatedEmails);
+        if (!gate.ok) {
+          throw new Error(
+            'Every selected recipient needs a verified draft before sending. Return to Generate & Review.',
+          );
+        }
+      }
       const units = scopeUnitsToGenKeys(
         projectVersionIdsForSend(state.targets, state.generatedEmails),
         vars?.onlyGenKeys,
@@ -1918,6 +1990,9 @@ export function NewOutreachWizard({
 
   const sendMutation = useMutation({
     mutationFn: async (vars?: { testMode?: boolean }) => {
+      if (attachmentUploadsRef.current > 0 || attachmentUploadFailures.length > 0) {
+        throw new Error('Finish uploading your attachments or remove failed files before sending.');
+      }
       const res = await api.post<{
         test: boolean;
         sent: number;
@@ -2199,8 +2274,11 @@ export function NewOutreachWizard({
     }));
 
   const uploadAttachment = async (file: File) => {
+    attachmentUploadsRef.current += 1;
+    setAttachmentUploadsPending(attachmentUploadsRef.current);
+    setAttachmentUploadFailures((prior) => prior.filter((name) => name !== file.name));
     try {
-      const contentType = file.type || 'application/octet-stream';
+      const contentType = attachmentContentType(file);
       // Attachments are tenant-scoped. With a client selected the file is filed
       // under that client (and shows in their Documents); with no client it
       // becomes a general outreach attachment (tagged source "outreach"),
@@ -2239,7 +2317,11 @@ export function NewOutreachWizard({
       await docsQuery.refetch();
       message.success(`Attached ${file.name}`);
     } catch (err) {
+      setAttachmentUploadFailures((prior) => Array.from(new Set([...prior, file.name])));
       message.error(apiErrorMessage(err) || 'Could not upload attachment');
+    } finally {
+      attachmentUploadsRef.current -= 1;
+      setAttachmentUploadsPending(attachmentUploadsRef.current);
     }
   };
 
@@ -2357,7 +2439,8 @@ export function NewOutreachWizard({
           };
         });
       } catch (err) {
-        const status = (err as { response?: { status?: number; data?: unknown } })?.response?.status;
+        const status = (err as { response?: { status?: number; data?: unknown } })?.response
+          ?.status;
         if (status === 409) {
           const data = (err as { response?: { data?: { currentVersionId?: string | null } } })
             .response?.data;
@@ -2429,7 +2512,10 @@ export function NewOutreachWizard({
         if (!d) return prev;
         return {
           ...prev,
-          generatedEmails: { ...prev.generatedEmails, [genKey]: applyNewVersion(d, match.current!) },
+          generatedEmails: {
+            ...prev.generatedEmails,
+            [genKey]: applyNewVersion(d, match.current!),
+          },
         };
       });
       message.success('Loaded the latest version of this draft.');
@@ -2523,7 +2609,10 @@ export function NewOutreachWizard({
         if (!d) return prev;
         return {
           ...prev,
-          generatedEmails: { ...prev.generatedEmails, [candidate.genKey]: applyNewVersion(d, res.data) },
+          generatedEmails: {
+            ...prev.generatedEmails,
+            [candidate.genKey]: applyNewVersion(d, res.data),
+          },
         };
       });
       keepMineCandidate(candidate.genKey);
@@ -2697,7 +2786,8 @@ export function NewOutreachWizard({
             // Trust the server's returned lifecycle over a local guess — the
             // release decides sendability, not this screen.
             patch({
-              auditStatus: (res?.released?.auditStatus as GeneratedDraft['auditStatus']) ?? 'passed',
+              auditStatus:
+                (res?.released?.auditStatus as GeneratedDraft['auditStatus']) ?? 'passed',
               approvalStatus:
                 (res?.released?.approvalStatus as GeneratedDraft['approvalStatus']) ?? 'approved',
               sendable: res?.released?.sendUnblocked ?? true,
@@ -2753,10 +2843,8 @@ export function NewOutreachWizard({
     else sendMutation.mutate(vars);
   };
   const activeSendMutation = versionedOutreach ? sendIntentMutation : sendMutation;
-  const realSending =
-    activeSendMutation.isPending && !activeSendMutation.variables?.testMode;
-  const testSending =
-    activeSendMutation.isPending && !!activeSendMutation.variables?.testMode;
+  const realSending = activeSendMutation.isPending && !activeSendMutation.variables?.testMode;
+  const testSending = activeSendMutation.isPending && !!activeSendMutation.variables?.testMode;
   /** Disable Send while an intent with the same request key is still active. */
   const sendLocked = versionedOutreach && (intentPolling || activeSendMutation.isPending);
   const intentSummary = summarizeIntent(sendIntent);
@@ -2789,6 +2877,8 @@ export function NewOutreachWizard({
     emailConnected,
     selectedInboxId,
     sendInFlight: activeSendMutation.isPending,
+    attachmentUploadsPending,
+    attachmentUploadFailures,
   });
 
   // ---- Render ----
@@ -2890,16 +2980,24 @@ export function NewOutreachWizard({
           )}
 
           {step.id === 'pool' && (
-            <StepContextBuilder
-              recipients={state.recipients}
-              targets={state.targets}
-              selected={state.contextItems}
-              onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
-              pool={pool}
-              discoveryBills={discoveryBills}
-              hasClient={Boolean(state.clientId)}
-              loading={poolLoading}
-            />
+            <>
+              <div
+                role="note"
+                className="mb-3 text-[13px] leading-5 text-ink-secondary"
+              >
+                Context is optional. Add supporting details, or continue with your main idea.
+              </div>
+              <StepContextBuilder
+                recipients={state.recipients}
+                targets={state.targets}
+                selected={state.contextItems}
+                onChange={(items) => setState((p) => ({ ...p, contextItems: items }))}
+                pool={pool}
+                discoveryBills={discoveryBills}
+                hasClient={Boolean(state.clientId)}
+                loading={poolLoading}
+              />
+            </>
           )}
 
           {step.id === 'generate' && jobProgress && (
@@ -3016,6 +3114,17 @@ export function NewOutreachWizard({
           <UiButton variant="secondary" onPress={onCancel}>
             Cancel &amp; discard
           </UiButton>
+          {attachmentUploadsPending > 0 && (
+            <span role="status">Uploading {attachmentUploadsPending} attachment(s)…</span>
+          )}
+          {attachmentUploadFailures.length > 0 && (
+            <div role="alert">
+              Upload failed: {attachmentUploadFailures.join(', ')}. Retry the upload or{' '}
+              <UiButton variant="secondary" onPress={() => setAttachmentUploadFailures([])}>
+                Remove failed files
+              </UiButton>
+            </div>
+          )}
           {stepIdx > 0 && (
             <UiButton variant="secondary" onPress={back}>
               Back
@@ -3050,9 +3159,7 @@ export function NewOutreachWizard({
                 onPress={() => submitSend(undefined)}
                 // Locked while an intent with the same request key is active, so a
                 // second click cannot start a second send.
-                isDisabled={
-                  !emailConnected || sendableDraftCount === 0 || sendLocked || realSending
-                }
+                isDisabled={!preflight.canSend || sendLocked || realSending}
               >
                 <Icon.Send01 size={15} /> {realSending ? 'Sending…' : 'Send all'}
               </UiButton>
@@ -3061,7 +3168,9 @@ export function NewOutreachWizard({
             <UiButton
               variant="primary"
               onPress={step.id === 'direction' ? startOutreach : next}
-              isDisabled={!canAdvance()}
+              isDisabled={
+                !canAdvance() || attachmentUploadsPending > 0 || attachmentUploadFailures.length > 0
+              }
             >
               {step.id === 'generate' ? 'Review Emails' : 'Continue'}
               <Icon.ArrowRight size={15} />
@@ -3078,4 +3187,3 @@ export function NewOutreachWizard({
 // StepTemplate/PreviewTemplateModal/CreateTemplateModal moved to
 // ./StepTemplate.tsx and StepSend moved to ./StepSend.tsx, both as part of
 // the Tailwind + React Aria migration.
-

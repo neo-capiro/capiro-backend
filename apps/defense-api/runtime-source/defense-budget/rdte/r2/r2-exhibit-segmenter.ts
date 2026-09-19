@@ -108,7 +108,29 @@ function extractProjectCodes(text: string): string[] {
   return codes;
 }
 const R2_HEADER_RE = /\bR-2\b|\bRDT&E\s+Budget\s+Item\s+Justification\b/i;
-const R2A_HEADER_RE = /\bR-2A\b|\bRDT&E\s+Project\s+Justification\b/i;
+/* Deliberately anchored to the literal exhibit-title phrase "Exhibit R-2A"
+ * (word order: "Exhibit" then "R-2A"), NOT a bare `\bR-2A\b` anywhere in the
+ * page -- matching the fix already applied to the sibling
+ * `R2A_MARKER_RE` in r2a-structural-project-header-parser-v1.ts (see that
+ * constant's doc comment for the full real-document evidence).
+ *
+ * This module's own body-text fallback (`isR2A = hasStructuredExhibitSignal
+ * ? structuredIsR2A : R2A_HEADER_RE.test(bodyOnlyText)` below) makes a bare
+ * `\bR-2A\b` self-match CONFIRMED reproducible here, not merely
+ * theoretical: real Army R-2/R-2A exhibit title lines are printed by the
+ * parser as plain body/'text' blocks, not 'header'/'heading' blocks (see
+ * the Phase 10B-16 Part D fixtures/comment a few lines below and in
+ * r2-segmentation.spec.ts), so `hasStructuredExhibitSignal` is false for
+ * these real pages and isR2/isR2A both resolve via body-text fallback. On
+ * the real FY2024 Army RDT&E Vol 1 BA2 PE 0602181A page 429 and PE
+ * 0602146A page 262, the "*This project's R-2a exhibit has been
+ * suppressed..." footnote's bare "R-2a" token was confirmed (by tracing
+ * this exact code path against the real document) to satisfy the
+ * pre-narrowing regex via that fallback and mis-set `isR2A = true`
+ * alongside the page's genuine `isR2 = true` -- and because the
+ * classification switch below checks `isR2A` before `isR2`, this
+ * misclassified the page as `r2a_project` instead of `r2_pe_summary`. */
+const R2A_HEADER_RE = /\bExhibit\s+R-2A\b|\bRDT&E\s+Project\s+Justification\b/i;
 const R3_HEADER_RE = /\bR-3\b|\bRDT&E\s+Cost\s+Analysis\b/i;
 const R4_HEADER_RE = /\bR-4\b|\bR-4A\b|\bRDT&E\s+Schedule\s+Profile\b/i;
 const APPROPRIATION_RE = /\b(?:appropriation|appn)\s*[:\-]?\s*([A-Z0-9\s&]+?)(?:\s{2,}|$)/i;

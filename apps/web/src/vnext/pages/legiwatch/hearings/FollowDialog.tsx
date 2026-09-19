@@ -137,7 +137,7 @@ export function FollowDialog({
 
   return (
     <LwModal
-      kind="watch"
+      kind="follow"
       eyebrow="Follow"
       title={following ? 'Edit follow' : 'Follow this hearing'}
       subtitle={hearingTitle}

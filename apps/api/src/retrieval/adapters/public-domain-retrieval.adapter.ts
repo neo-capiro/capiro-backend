@@ -2,7 +2,8 @@ import { Injectable, type Type } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { DirectoryService } from '../../directory/directory.service.js';
 import { FederalMarketService } from '../../federal-spending/federal-market.service.js';
-import { FundingOpportunitiesService } from '../../funding-opportunities/funding-opportunities.service.js';
+import { FundingOpportunityV2SearchService } from '../../funding-opportunities/funding-opportunity-v2-search.service.js';
+import { normalizeOpportunitySearchQuery } from '../../funding-opportunities/funding-opportunity-v2-search.service.js';
 import {
   FUNDING_OPPORTUNITIES_FEATURE,
   FUNDING_OPPORTUNITIES_MERI_V2_FEATURE,
@@ -33,7 +34,7 @@ import {
 /** Explicit contract with already-registered domain providers; no service-name guessing. */
 export const PUBLIC_RETRIEVAL_SERVICE_CONTRACTS = [
   { token: ProgramElementReadService, method: 'listProgramElements' },
-  { token: FundingOpportunitiesService, method: 'listOpportunities' },
+  { token: FundingOpportunityV2SearchService, method: 'search' },
   { token: FederalMarketService, method: 'listContracts' },
   { token: DirectoryService, method: 'getPeople' },
 ] as const;
@@ -122,7 +123,7 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
       domain === 'grants' || domain === 'contracts_opportunities' || domain === 'federal_awards';
     if (
       !position ||
-      position.subject >= (clientFiltered ? Math.max(1, clientIds.length) : 1) ||
+      position.subject >= (clientFiltered ? (clientIds.length ? clientIds.length : 1) : 1) ||
       position.family > (domain === 'legiwatch_bills' ? 1 : 0)
     ) {
       return publicResult(domain, request, {
@@ -284,7 +285,7 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
     return publicResult(domain, request, {
       records,
       returned: records.length,
-      total: page.total,
+      ...(page.total != null ? { total: page.total } : {}),
       recordsEvaluated: records.length,
       pagesRead: 1,
       hasMore: more,
@@ -360,29 +361,25 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
     const clientId = clientIds[position.subject];
     const size = publicPageSize(request);
     const page = await this.service(
-      FundingOpportunitiesService,
-      'listOpportunities',
-    ).listOpportunities(request.caller.tenantId, {
-      source,
-      clientId,
-      q: request.query,
-      activeState: 'all',
-      page: position.page,
-      pageSize: size,
-      deadlineFrom: request.windowStart?.toISOString(),
-      deadlineTo: request.windowEnd?.toISOString(),
-    });
+      FundingOpportunityV2SearchService,
+      'search',
+    ).search(
+      { tenantId: request.caller.tenantId, userId: request.caller.userId },
+      normalizeOpportunitySearchQuery({
+        mode: clientId ? 'matched' : 'all', clientId, sources: [source], query: request.query,
+        lifecycle: ['active', 'closed', 'post_award'], page: position.page, pageSize: size,
+        deadlineFrom: request.windowStart?.toISOString() ?? null, deadlineTo: request.windowEnd?.toISOString() ?? null,
+      }),
+    );
     const health = page.freshness.find((rail) => rail.source === source);
-    const unavailable = health?.neverSynced === true && page.opportunities.length === 0;
+    const unavailable = !health || ['unavailable', 'never_synced', 'not_enabled'].includes(health.state);
     const degraded =
       !health ||
-      health.countsUnavailable ||
+      health.recordCount == null ||
       !health.lastSyncedAt ||
-      health.lastRunDegraded !== false ||
-      health.enrichment?.degraded === true ||
-      (health.enrichment?.activeAwaitingEnrichment ?? 0) > 0 ||
-      page.totalIsCapped ||
-      page.missingProfileFields.length > 0;
+      !['current'].includes(health.state) ||
+      page.total == null ||
+      Boolean(page.profileGaps) || page.freshness.some((item) => item.state !== 'current');
     const records = page.opportunities.map((row) =>
       publicRecord(
         domain,
@@ -395,15 +392,15 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
           clientId: clientId ?? null,
           clientScopeApplied: Boolean(clientId),
           sourceHealth: health ?? null,
-          totalIsCapped: page.totalIsCapped,
-          missingProfileFields: page.missingProfileFields,
+          totalIsCapped: page.total == null,
+          profileGaps: page.profileGaps,
           dateFilterBasis: 'response_deadline',
-          sourceWindow: 'existing_funding_opportunity_service_scan',
+          sourceWindow: 'canonical_funding_opportunity_v2_search',
         }),
-        { occurredAt: row.postedDate, updatedAt: row.sourceUpdatedAt },
+        { occurredAt: row.postedDate, updatedAt: null },
       ),
     );
-    const moreHere = position.page * size < page.total;
+    const moreHere = page.total == null ? records.length === size : position.page * size < page.total;
     const more = moreHere || position.subject + 1 < clientIds.length;
     const next = moreHere
       ? { ...position, page: position.page + 1 }
@@ -411,20 +408,20 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
     return publicResult(domain, request, {
       records,
       returned: records.length,
-      ...(clientIds.length <= 1 ? { total: page.total } : {}),
+      ...(clientIds.length <= 1 && page.total != null ? { total: page.total } : {}),
       recordsEvaluated: records.length,
       searchedEntityCount: clientId ? position.subject + 1 : 0,
       pagesRead: 1,
       hasMore: more,
       ...(more ? { nextCursor: encodePublicCursor(domain, request, next) } : {}),
-      truncated: more || page.totalIsCapped,
-      paginationComplete: !more && !page.totalIsCapped,
+      truncated: more || page.total == null,
+      paginationComplete: !more && page.total != null && !page.totalIsCapped,
       coverageComplete: !more && !degraded && !unavailable,
       sourceStatus: unavailable ? 'unavailable' : degraded ? 'degraded' : 'healthy',
       lastSyncAt: sourceDate(health?.lastSyncedAt),
       stopReason: unavailable
         ? 'source_never_synced'
-        : page.totalIsCapped
+        : page.total == null
           ? 'domain_source_scan_cap_reached'
           : degraded
             ? 'source_or_profile_partial'
@@ -470,7 +467,7 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
         { occurredAt: row.actionDate, updatedAt: row.sourceUpdatedAt },
       ),
     );
-    const moreHere = position.page * size < page.total;
+    const moreHere = page.total == null ? records.length === size : position.page * size < page.total;
     const more = moreHere || position.subject + 1 < clientIds.length;
     const next = moreHere
       ? { ...position, page: position.page + 1 }
@@ -479,7 +476,7 @@ export class PublicDomainRetrievalAdapter implements RetrievalSourceAdapter {
     return publicResult(domain, request, {
       records,
       returned: records.length,
-      ...(clientIds.length <= 1 ? { total: page.total } : {}),
+      ...(clientIds.length <= 1 && page.total != null ? { total: page.total } : {}),
       recordsEvaluated: records.length,
       searchedEntityCount: clientId ? position.subject + 1 : 0,
       pagesRead: 1,

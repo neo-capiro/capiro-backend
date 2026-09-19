@@ -1,3 +1,4 @@
+import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import './meriv3-pricing.js';
 import {
   MERIV3_REASONING_MODES,
@@ -30,9 +31,7 @@ export function normalizeMeriV3ReasoningMode(value: unknown): MeriV3ReasoningMod
  * Translate stable Capiro UX modes into the current OpenAI reasoning family,
  * effort, output ceiling and bounded tool-loop budget.
  *
- * - Fast defaults to GPT-5.6 Luna (cost-sensitive / high-volume tier).
- * - Standard defaults to GPT-5.6 Terra (balanced intelligence and cost).
- * - Deep and Max default to GPT-5.6 Sol (`gpt-5.6` alias).
+ * All modes use GPT-6 Astra; effort, output and tool-loop budgets still differ.
  * - Max requests the provider's `max` effort. OpenAiResponsesClient degrades
  *   only when the selected/BYOK model rejects that exact effort.
  *
@@ -46,10 +45,10 @@ export function resolveMeriV3ReasoningProfile(
   env: NodeJS.ProcessEnv = process.env,
 ): MeriV3ReasoningProfile {
   const mode = normalizeMeriV3ReasoningMode(modeInput);
-  const fastModel = env.MERIV3_FAST_MODEL?.trim() || 'gpt-5.6-luna';
-  const standardModel = env.MERIV3_MODEL?.trim() || 'gpt-5.6-terra';
-  const deepModel = env.MERIV3_DEEP_MODEL?.trim() || 'gpt-5.6';
-  const maxModel = env.MERIV3_MAX_MODEL?.trim() || deepModel;
+  const fastModel = upgradeTextModel(env.MERIV3_FAST_MODEL?.trim() || 'gpt-6-astra');
+  const standardModel = upgradeTextModel(env.MERIV3_MODEL?.trim() || 'gpt-6-astra');
+  const deepModel = upgradeTextModel(env.MERIV3_DEEP_MODEL?.trim() || 'gpt-6-astra');
+  const maxModel = upgradeTextModel(env.MERIV3_MAX_MODEL?.trim() || deepModel);
 
   switch (mode) {
     case 'fast':

@@ -53,6 +53,27 @@ const CAPTURE_COLUMNS = `id, hearing_id AS "hearingId", status,
   lease_acquired_at AS "leaseAcquiredAt", fencing_token AS "fencingToken",
   captured_ms AS "capturedMs", gaps`;
 
+/**
+ * Automatic server-capture demand: a subscription only asks the SERVER to
+ * attend when attendance_mode='automatic' AND it has an explicit schedule
+ * origin (user-scheduled or rule-scheduled) — the same predicate as
+ * public-capture-permission.ts. Browser attendance rows (Wave 1 writer:
+ * attendance_mode='browser', scheduled_by_user=false) and bare notification
+ * interest must not create server capture demand. cancelSchedule clears
+ * scheduled_by_user but keeps scheduled_by_rule_id, so a surviving rule
+ * remains automatic demand after manual cancellation.
+ */
+const AUTOMATIC_DEMAND_SQL = `s.attendance_mode='automatic' AND (s.scheduled_by_user OR s.scheduled_by_rule_id IS NOT NULL)`;
+
+/**
+ * Event types eligible for PUBLIC automatic capture, matched against
+ * LOWER(h.type) with exact string equality. `committee_hearing.type` stores
+ * the source's own wording verbatim (the Senate schedule adapter records the
+ * official string), so the official `Open Hearing` / `Open Business Meeting`
+ * must be listed here — the same fold normalizeEventType already encodes.
+ * Exact equality means closed/executive variants ('Closed Hearing', ...)
+ * never match, and unknown wordings stay ineligible.
+ */
 export const ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES = [
   'hearing',
   'markup',
@@ -61,6 +82,8 @@ export const ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES = [
   'business_meeting',
   'roundtable',
   'forum',
+  'open hearing',
+  'open business meeting',
 ] as const;
 
 export class OptimisticCaptureWriteError extends Error {
@@ -119,8 +142,8 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count
-         FROM hearing_subscription
-         WHERE hearing_id = $1`,
+         FROM hearing_subscription s
+         WHERE s.hearing_id = $1 AND ${AUTOMATIC_DEMAND_SQL}`,
         hearingId,
       ),
     );
@@ -140,7 +163,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
          WHERE h.event_status IN ('scheduled','postponed','in_progress')
            AND LOWER(COALESCE(h.type,'')) = ANY($3::text[])
            AND (
-             s.hearing_id IS NOT NULL OR
+             (${AUTOMATIC_DEMAND_SQL}) OR
              ($2::boolean = true AND h.visibility = 'public')
            )
            AND (

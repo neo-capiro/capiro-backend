@@ -278,3 +278,172 @@ describe('refuseAttendanceRequest', () => {
     expect(refuseAttendanceRequest(a, 'automatic')).toBeNull();
   });
 });
+
+describe('assessAttendance — independent browser/server capabilities', () => {
+  it('exposes browserAvailable and automaticAvailable independently on a fresh public hearing', () => {
+    const a = assessAttendance({ hearing: PUBLIC_UPCOMING, candidates: SERVER_OK });
+    expect(a.automaticAvailable).toBe(true);
+    expect(a.browserAvailable).toBe(true);
+  });
+
+  it('keeps browserAvailable true while the canonical capture is active (browser fallback not locked out)', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'in_progress' },
+      candidates: SERVER_OK,
+      capture: { domainStatus: 'CAPTURING' },
+    });
+    expect(a.state).toBe('CAPTURING');
+    // Phase 7 reuses the one canonical capture, so an active capture is not a
+    // duplicate recorder: another tenant's automatic demand is still accepted.
+    expect(a.automaticAvailable).toBe(true);
+    expect(a.browserAvailable).toBe(true); // the user may still open a browser
+  });
+
+  it('keeps automaticAvailable true when the user only has browser intent (browser does not lock out server)', () => {
+    const a = assessAttendance({
+      hearing: PUBLIC_UPCOMING,
+      candidates: SERVER_OK,
+      subscription: { scheduledByUser: false, attendanceMode: 'browser' },
+    });
+    expect(a.automaticAvailable).toBe(true);
+    expect(a.browserAvailable).toBe(true);
+  });
+
+  it('allows a browser-scheduled tenant to ADD automatic attendance (browser -> automatic)', () => {
+    const a = assessAttendance({
+      hearing: PUBLIC_UPCOMING,
+      candidates: SERVER_OK,
+      subscription: { scheduledByUser: false, attendanceMode: 'browser' },
+    });
+    expect(refuseAttendanceRequest(a, 'automatic')).toBeNull();
+  });
+
+  it('allows an automatic-scheduled tenant to OPEN browser attendance (automatic -> browser)', () => {
+    const a = assessAttendance({
+      hearing: PUBLIC_UPCOMING,
+      candidates: SERVER_OK,
+      subscription: { scheduledByUser: true, attendanceMode: 'automatic' },
+    });
+    expect(refuseAttendanceRequest(a, 'browser')).toBeNull();
+  });
+
+  it('keeps browserAvailable true on a REVIEW_REQUIRED source (FBI case) while server is preflight-pending', () => {
+    const a = assessAttendance({
+      hearing: PUBLIC_UPCOMING,
+      candidates: [{ capturePolicy: 'REVIEW_REQUIRED', resolutionState: 'NOT_CHECKED' }],
+    });
+    expect(a.state).toBe('AUTOMATIC_PENDING_PREFLIGHT');
+    expect(a.automaticAvailable).toBe(true);
+    expect(a.browserAvailable).toBe(true);
+  });
+
+  it('keeps browserAvailable true on a FAILED capture when a public source exists', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'completed' },
+      candidates: SERVER_OK,
+      capture: { domainStatus: 'FAILED', failureCode: 'MEDIA_CONNECTION_LOST' },
+    });
+    expect(a.state).toBe('FAILED');
+    expect(a.browserAvailable).toBe(true);
+  });
+
+  it.each(['FAILED', 'CANCELED', 'BLOCKED', 'COMPLETE', 'COMPLETE_WITH_GAPS'])(
+    'sets automaticAvailable=false on a terminal %s canonical capture (worker returns TERMINAL, no reset)',
+    (domainStatus) => {
+      const a = assessAttendance({
+        hearing: { ...PUBLIC_UPCOMING, eventStatus: 'completed' },
+        candidates: SERVER_OK,
+        capture: { domainStatus },
+        hasTranscript: true,
+      });
+      expect(a.automaticAvailable).toBe(false);
+      // The browser fallback stays available even though automatic is not.
+      expect(a.browserAvailable).toBe(true);
+      // And the request boundary refuses automatic rather than claiming a
+      // capture the worker would immediately return TERMINAL on.
+      expect(refuseAttendanceRequest(a, 'automatic')).not.toBeNull();
+    },
+  );
+
+  it('never exposes browserAvailable for a closed session', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, visibility: 'private' },
+      candidates: SERVER_OK,
+    });
+    expect(a.browserAvailable).toBe(false);
+    expect(a.automaticAvailable).toBe(false);
+  });
+
+  it('never exposes browserAvailable for a canceled event', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'canceled' },
+      candidates: SERVER_OK,
+    });
+    expect(a.browserAvailable).toBe(false);
+  });
+});
+
+describe('refuseAttendanceRequest — per-mode independent boundary', () => {
+  it('permits a browser request while the canonical capture is ACTIVE', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'in_progress' },
+      candidates: SERVER_OK,
+      capture: { domainStatus: 'CAPTURING' },
+    });
+    expect(refuseAttendanceRequest(a, 'browser')).toBeNull();
+  });
+
+  it('permits a browser request after the canonical capture is COMPLETE (replay)', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'completed' },
+      candidates: SERVER_OK,
+      capture: { domainStatus: 'COMPLETE' },
+      hasTranscript: true,
+    });
+    expect(refuseAttendanceRequest(a, 'browser')).toBeNull();
+  });
+
+  it('permits a browser replay for a completed Florida-style hearing with a watch source', () => {
+    const a = assessAttendance({
+      hearing: {
+        id: 'fl-1',
+        visibility: 'public',
+        eventStatus: 'completed',
+        url: 'https://thefloridachannel.org/videos/092626-senate-session/',
+      },
+      candidates: [],
+    });
+    expect(a.browserAvailable).toBe(true);
+    expect(refuseAttendanceRequest(a, 'browser')).toBeNull();
+  });
+
+  it('refuses a request on a canceled event even when a scheduled row already exists', () => {
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'canceled' },
+      candidates: SERVER_OK,
+      subscription: { scheduledByUser: true, attendanceMode: 'automatic' },
+    });
+    expect(refuseAttendanceRequest(a, 'automatic')?.code).toBe('EVENT_CANCELED');
+    expect(refuseAttendanceRequest(a, 'browser')?.code).toBe('EVENT_CANCELED');
+  });
+
+  it('permits automatic for another tenant while the canonical capture is active (one shared recorder)', () => {
+    // Phase 7.schedule reuses the existing canonical capture id — an active
+    // capture is NOT a duplicate recorder, so automatic demand is accepted.
+    const a = assessAttendance({
+      hearing: { ...PUBLIC_UPCOMING, eventStatus: 'in_progress' },
+      candidates: SERVER_OK,
+      capture: { domainStatus: 'CAPTURING' },
+    });
+    expect(refuseAttendanceRequest(a, 'automatic')).toBeNull();
+  });
+
+  it('keeps same-mode automatic re-request idempotent while policy permits', () => {
+    const a = assessAttendance({
+      hearing: PUBLIC_UPCOMING,
+      candidates: SERVER_OK,
+      subscription: { scheduledByUser: true, attendanceMode: 'automatic' },
+    });
+    expect(refuseAttendanceRequest(a, 'automatic')).toBeNull();
+  });
+});

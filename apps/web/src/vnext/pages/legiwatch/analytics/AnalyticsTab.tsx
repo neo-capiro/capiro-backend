@@ -6,7 +6,6 @@
  * Feed page. A monitored client with no signals renders `0`; an unmonitored
  * client renders a dash — the two are never conflated.
  */
-import { LwPill } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
 import {
   useAnalyticsSummary,
@@ -48,9 +47,10 @@ export function AnalyticsTab({ scope }: { scope: string }) {
 
   const s = summary.data;
   const maxDay = Math.max(1, ...(volume.data?.days.map((d) => d.count) ?? [1]));
+  const maxMomentum = Math.max(1, ...(momentum.data?.topics.map((t) => t.index) ?? [1]));
 
   return (
-    <div className="lw-body">
+    <div className="lw-body lw-analytics">
       <div className="lw-tiles">
         <Tile label="Signals in 30 days" value={s.signalsTotal} denom={`across ${s.sourceFamiliesInvolved} source famil${s.sourceFamiliesInvolved === 1 ? 'y' : 'ies'}`} />
         <Tile label="Client decisions" value={s.clientDecisions} denom={`of ${s.signalsTotal} signals reached a decision`} />
@@ -64,40 +64,66 @@ export function AnalyticsTab({ scope }: { scope: string }) {
         />
       </div>
 
+      {/* Signal volume runs full width directly under the tiles (reference
+          analytics.png); the two-column split starts below it. */}
+      <section className="lw-card" style={{ padding: 18 }}>
+        <h3 className="lw-sect__title">Signal volume · last 30 days</h3>
+        {volume.isLoading ? (
+          <LwStateLoading rows={3} />
+        ) : volume.isError || !volume.data ? (
+          <LwStateUnavailable source="Signal volume" reason="The time-series aggregate did not respond." onRetry={() => volume.refetch()} />
+        ) : volume.data.total === 0 ? (
+          <p className="lw-state__body" style={{ maxWidth: 'none' }}>No signals in this window.</p>
+        ) : (
+          <>
+            <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
+              {volume.data.total} signals across the tracked source families.
+            </p>
+            <div className="lw-volbars" role="img" aria-label="Signal volume per day">
+              {volume.data.days.map((d) => (
+                <div key={d.date} className="lw-volbars__col">
+                  <div
+                    className="lw-volbars__bar"
+                    title={`${d.date}: ${d.count}`}
+                    style={{ height: `${Math.max(4, (d.count / maxDay) * 120)}px` }}
+                  />
+                  <div className="lw-volbars__date">{d.date.slice(5)}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="lw-card" style={{ padding: 18 }}>
+        <h3 className="lw-sect__title">Issue momentum</h3>
+        <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
+          The last seven days, weighted by materiality, compared with each topic&rsquo;s
+          previous 23-day daily average. A steady rate is 100.
+        </p>
+        {momentum.isLoading ? (
+          <LwStateLoading rows={4} />
+        ) : momentum.isError || !momentum.data ? (
+          <LwStateUnavailable source="Issue momentum" reason="The momentum aggregate did not respond." onRetry={() => momentum.refetch()} />
+        ) : momentum.data.topics.length === 0 ? (
+          <p className="lw-state__body" style={{ maxWidth: 'none' }}>No watchlist topics have enough history yet.</p>
+        ) : (
+          <div className="lw-momentum">
+            {momentum.data.topics.map((t) => (
+              <div key={t.topicId} className="lw-momentum__row">
+                <span className="lw-momentum__label">{t.label}</span>
+                <span className="lw-momentum__value">{t.index}</span>
+                <div className="lw-momentum__track" aria-hidden="true">
+                  <div className="lw-momentum__fill" style={{ width: `${Math.min(100, (t.index / maxMomentum) * 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="lw-feed-cols">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          <section className="lw-card" style={{ padding: 18 }}>
-            <h3 className="lw-sect__title">Signal volume · last 30 days</h3>
-            {volume.isLoading ? (
-              <LwStateLoading rows={3} />
-            ) : volume.isError || !volume.data ? (
-              <LwStateUnavailable source="Signal volume" reason="The time-series aggregate did not respond." onRetry={() => volume.refetch()} />
-            ) : volume.data.total === 0 ? (
-              <p className="lw-state__body" style={{ maxWidth: 'none' }}>No signals in this window.</p>
-            ) : (
-              <>
-                <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
-                  {volume.data.total} signals across the tracked source families.
-                </p>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
-                  {volume.data.days.map((d) => (
-                    <div
-                      key={d.date}
-                      title={`${d.date}: ${d.count}`}
-                      style={{
-                        flex: 1,
-                        minWidth: 3,
-                        height: `${Math.max(4, (d.count / maxDay) * 80)}px`,
-                        background: 'var(--lw-brand-fg)',
-                        borderRadius: 2,
-                      }}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-
           <section className="lw-card" style={{ padding: 18 }}>
             <h3 className="lw-sect__title">Client exposure by source family</h3>
             <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
@@ -138,30 +164,6 @@ export function AnalyticsTab({ scope }: { scope: string }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          <section className="lw-card" style={{ padding: 18 }}>
-            <h3 className="lw-sect__title">Issue momentum</h3>
-            <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
-              The last seven days, weighted by materiality, compared with each topic&rsquo;s
-              previous 23-day daily average. A steady rate is 100.
-            </p>
-            {momentum.isLoading ? (
-              <LwStateLoading rows={4} />
-            ) : momentum.isError || !momentum.data ? (
-              <LwStateUnavailable source="Issue momentum" reason="The momentum aggregate did not respond." onRetry={() => momentum.refetch()} />
-            ) : momentum.data.topics.length === 0 ? (
-              <p className="lw-state__body" style={{ maxWidth: 'none' }}>No watchlist topics have enough history yet.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {momentum.data.topics.map((t) => (
-                  <div key={t.topicId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ flex: 1, fontSize: 13 }}>{t.label}</span>
-                    <LwPill tone={t.index >= 150 ? 'error' : t.index >= 100 ? 'warning' : 'gray'} size="22">{t.index}</LwPill>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
           <section className="lw-card" style={{ padding: 18 }}>
             <h3 className="lw-sect__title">Committee activity</h3>
             <p className="lw-state__body" style={{ maxWidth: 'none', marginBottom: 10 }}>
@@ -229,13 +231,11 @@ function Tile({
 }) {
   return (
     <div className="lw-tile">
+      <div className="lw-tile__label">{label}</div>
       <div className="lw-tile__value">
         {unavailable || value == null ? '—' : `${value.toLocaleString()}${suffix ?? ''}`}
       </div>
-      <div className="lw-tile__label">{label}</div>
-      <div style={{ marginTop: 4, fontFamily: 'var(--lw-mono)', fontSize: 10, color: 'var(--lw-faint)' }}>
-        {unavailable ? 'UNAVAILABLE' : denom}
-      </div>
+      <div className="lw-tile__denom">{unavailable ? 'Unavailable' : denom}</div>
     </div>
   );
 }

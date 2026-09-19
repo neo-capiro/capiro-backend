@@ -36,7 +36,7 @@
  * something and fail to find it, we simply hold nothing.
  */
 
-import type { SignalStrength } from './sam-opportunity-relevance.js';
+import type { SignalStrength } from './opportunity-profile.types.js';
 import { meetsGrantSuggestionFloor } from '../district-nexus/grant-opportunity-relevance.js';
 
 /**

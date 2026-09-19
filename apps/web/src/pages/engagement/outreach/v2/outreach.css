@@ -158,6 +158,34 @@
 }
 .ov2-wiz-foot .step-label { font-size: 12.5px; color: var(--ov2-ink-3); white-space: nowrap; }
 
+/* Mobile (≤767px): stack the step rail into a horizontal strip above the
+   body so the form pane keeps the viewport width. Unlayered rules here win
+   over Tailwind's layered grid utilities; desktop is untouched. */
+@media (max-width: 767px) {
+  .ov2-wiz {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    min-height: 0;
+  }
+  .ov2-wiz > aside {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--ov2-border-1);
+    padding: 10px 12px;
+  }
+  .ov2-wiz > aside > div {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .ov2-wiz-body { min-width: 0; }
+  .ov2-wiz-pane { padding: 16px; min-width: 0; }
+  .ov2-wiz-body > .flex.flex-wrap {
+    row-gap: 8px;
+    padding: 12px 16px;
+  }
+}
+
 /* ---------- Direction step ---------- */
 .ov2-dir-pick {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px;

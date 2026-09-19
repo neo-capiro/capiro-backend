@@ -1,539 +1,510 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, beforeEach, test, vi } from 'vitest';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FundingOpportunitiesPage } from './FundingOpportunitiesPage.js';
 import {
-  INBOX_FILTERS,
-  type InboxResponse,
-  type InboxRow,
-} from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
+  fundingOpportunitiesV2DefaultRoute,
+  createReferenceFixtureApi,
+  referenceFixtureMapping,
+  type FixtureApi,
+} from '../../testing/visual/funding-opportunities-v2-fixture-api.js';
+import { opportunityQueryKeys } from './opportunity-query-cache.js';
+import { FUNDING_CLIENT_PICKER_EVENT } from './funding-client-picker-seam.js';
+import { referenceOpportunityRows } from '../../testing/visual/funding-opportunities-v2-reference-data.js';
 
-const { flags, urlStore, apiGet, apiPost, success, error } = vi.hoisted(() => ({
-  flags: {} as Record<string, boolean>,
-  apiGet: vi.fn(),
-  apiPost: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  api: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
-  urlStore: (() => {
-    let search = '';
-    const listeners = new Set<() => void>();
-    return {
-      get: () => search,
-      set: (next: string) => {
-        search = next;
-        [...listeners].forEach((listener) => listener());
-      },
-      subscribe: (listener: () => void) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-    };
-  })(),
+  feature: { enabled: true, ready: true },
 }));
-vi.mock('../../../lib/intel-feature-flags.js', () => ({
-  useIntelFeature: (feature: string) => ({
-    enabled: flags[feature] === true,
-    ready: true,
+
+vi.mock('../../../lib/use-api.js', () => ({ useApi: () => mocks.api() }));
+vi.mock('../../../lib/intel-feature-flags.js', () => ({ useIntelFeature: () => mocks.feature }));
+vi.mock('../../../lib/me.js', () => ({
+  useMe: () => ({
+    data: {
+      user: { id: '11111111-1111-4111-8111-111111111111' },
+      role: 'user_admin',
+      tenant: { slug: 'capiro-internal' },
+    },
   }),
 }));
-vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: apiGet, post: apiPost }),
-}));
 vi.mock('../../components/feedback/toast.js', () => ({
-  useCapiroToast: () => ({ success, error }),
-}));
-vi.mock('react-router-dom', async () => {
-  const React = await import('react');
-  return {
-    useSearchParams: () => {
-      const value = React.useSyncExternalStore(urlStore.subscribe, urlStore.get, urlStore.get);
-      return [
-        new URLSearchParams(value),
-        (params: URLSearchParams) => urlStore.set(params.toString()),
-      ];
-    },
-  };
-});
-vi.mock('./FundingOpportunityExplore.js', () => ({
-  FundingOpportunityExplore: ({ clientId }: { clientId?: string }) => (
-    <div data-testid="fo-explore">Browse for {clientId ?? 'all'}</div>
-  ),
-}));
-vi.mock('./FundingOpportunityPipeline.js', () => ({
-  FundingOpportunityPipeline: () => <div data-testid="fo-pipeline">Pursuit board</div>,
-}));
-vi.mock('./FundingOpportunityDrawer.js', () => ({
-  FundingOpportunityDrawer: ({ refValue }: { refValue: unknown }) =>
-    refValue ? <div data-testid="fo-drawer">{JSON.stringify(refValue)}</div> : null,
+  useCapiroToast: () => ({ success: mocks.success, error: mocks.error }),
 }));
 
-function row(overrides: Partial<InboxRow> = {}): InboxRow {
-  return {
-    id: 'row-1',
-    client: { id: 'client-1', name: 'Acme Defense' },
-    source: 'sam_gov',
-    sourceRecordId: 'notice-1',
-    title: 'Engine maintenance',
-    agency: 'Army',
-    forecast: null,
-    dibbs: null,
-    sbir: null,
-    responseDeadline: '2026-10-01',
-    daysUntilDeadline: 25,
-    workflowStatus: 'suggested',
-    humanDecision: null,
-    nextAction: null,
-    nextActionDueAt: null,
-    owner: null,
-    relevanceScore: 65,
-    eligibility: { state: null, reason: null },
-    noLongerSuggested: false,
-    sourceClosed: false,
-    updatedAt: '2026-09-06T00:00:00Z',
-    matchSignals: [
-      {
-        signal: 'capabilityKeyword',
-        matchedOn: 'engine maintenance',
-        weight: 20,
-        strength: 'strong',
-      },
-    ],
-    pipelineStage: null,
-    ...overrides,
-  };
+function LocationProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="location">
+        {location.pathname}
+        {location.search}
+      </output>
+      <button onClick={() => navigate(-1)}>History back</button>
+      <button onClick={() => navigate(1)}>History forward</button>
+    </>
+  );
 }
-function response(overrides: Partial<InboxResponse> = {}): InboxResponse {
-  return {
-    filter: 'suggested',
-    clientId: null,
-    source: null,
-    rows: [],
-    nextCursor: null,
-    pageSize: 50,
-    counts: Object.fromEntries(
-      INBOX_FILTERS.map((filter) => [filter, 0]),
-    ) as InboxResponse['counts'],
-    countsAllClients: null,
-    countsUnavailableReason: null,
-    generatedAt: '2026-09-06T00:00:00Z',
-    ...overrides,
-  };
-}
-let current: InboxResponse;
-function mount() {
-  const qc = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+
+function mount(
+  initialEntry = fundingOpportunitiesV2DefaultRoute,
+  api = createReferenceFixtureApi(),
+) {
+  mocks.api.mockReturnValue(api);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   });
-  render(
-    <QueryClientProvider client={qc}>
-      <FundingOpportunitiesPage />
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route
+            path="/intelligence/opportunities"
+            element={
+              <>
+                <FundingOpportunitiesPage />
+                <LocationProbe />
+              </>
+            }
+          />
+          <Route
+            path="/intelligence/opportunities/:source/:sourceRecordId"
+            element={
+              <>
+                <FundingOpportunitiesPage />
+                <LocationProbe />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
-  return qc;
 }
+
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const key of Object.keys(flags)) delete flags[key];
-  flags.funding_opportunities = true;
-  flags.funding_opportunities_client_inbox = true;
-  urlStore.set('');
-  current = response();
-  apiPost.mockResolvedValue({ data: {} });
-  apiGet.mockImplementation(async (path: string) => {
-    if (path === '/api/clients')
-      return {
-        data: [
-          { id: 'client-1', name: 'Acme Defense' },
-          { id: 'client-2', name: 'Beta Systems' },
-        ],
-      };
-    if (path.includes('/inbox?')) return { data: current };
-    if (path === '/api/intelligence/opportunities/inbox/tracked-clients')
-      return { data: [{ id: 'client-1', name: 'Acme Defense' }] };
-    return { data: { freshness: [] } };
-  });
-});
-afterEach(cleanup);
-
-describe('simple vNext navigation', () => {
-  test('Recommended is the default and requests only new suggestions', async () => {
-    mount();
-    expect(
-      await screen.findByRole('tab', { name: 'Recommended', selected: true }),
-    ).toBeInTheDocument();
-    await waitFor(() =>
-      expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('filter=suggested&sort=updated')),
-    );
-    expect(screen.getByRole('heading', { name: 'Funding Opportunities' })).toBeInTheDocument();
-    expect(screen.queryByText('Triage inbox')).not.toBeInTheDocument();
-  });
-  test('Browse remains explicit in URLs and preserves the client', async () => {
-    urlStore.set('view=inbox&clientId=client-1');
-    current = response({ clientId: 'client-1' });
-    mount();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Browse' }));
-    expect(urlStore.get()).toContain('view=explore');
-    expect(urlStore.get()).toContain('clientId=client-1');
-    expect(await screen.findByTestId('fo-explore')).toHaveTextContent('client-1');
-  });
-  test('an old explicit Explore link stays in Browse', async () => {
-    urlStore.set('view=explore&tab=saved&clientId=client-1');
-    mount();
-    expect(await screen.findByRole('tab', { name: 'Browse', selected: true })).toBeInTheDocument();
-  });
-  test('unavailable recommendations fall back to Browse with an explanation', async () => {
-    flags.funding_opportunities_client_inbox = false;
-    mount();
-    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
-    expect(screen.getByText(/Recommendations and tracking are not enabled/)).toBeInTheDocument();
-    expect(apiGet.mock.calls.some(([path]) => String(path).includes('/inbox'))).toBe(false);
-  });
-  test('Tracking defaults to Show All and fetches the cross-client inbox', async () => {
-    urlStore.set('view=pipeline');
-    mount();
-    expect(await screen.findByTestId('fo-tracking')).toBeInTheDocument();
-    const selector = screen
-      .getAllByRole('combobox', { name: 'Client' })
-      .find((el) => (el as HTMLSelectElement).value === '')!;
-    expect(selector).toBeDefined();
-    // The Show All option is the first entry in the dropdown, and names the
-    // tracked set — not every accessible client.
-    expect((selector as HTMLSelectElement).options[0]?.text).toBe('Show all tracked clients');
-    // The inbox is queried without a clientId so every tracked client appears.
-    expect(
-      apiGet.mock.calls.some(
-        ([path]) => String(path).includes('/inbox') && !String(path).includes('clientId='),
-      ),
-    ).toBe(true);
-  });
-  test('Tracking asks for tracked clients only, and the dropdown omits untracked ones', async () => {
-    urlStore.set('view=pipeline');
-    mount();
-    await screen.findByTestId('fo-tracking');
-    await waitFor(() =>
-      expect(apiGet).toHaveBeenCalledWith(
-        '/api/intelligence/opportunities/inbox/tracked-clients',
-      ),
-    );
-    const selector = screen
-      .getAllByRole('combobox', { name: 'Client' })
-      .find((el) => (el as HTMLSelectElement).value === '')!;
-    const names = [...(selector as HTMLSelectElement).options].map((o) => o.text);
-    // Only the tracked client is offered; the accessible-but-untracked one is not.
-    expect(names).toContain('Acme Defense');
-    expect(names).not.toContain('Beta Systems');
-    expect(names).toContain('Show all tracked clients');
-  });
-  test('the tracked-clients endpoint is not called outside the Tracking tab', async () => {
-    urlStore.set('view=inbox');
-    mount();
-    await screen.findByRole('tab', { name: 'Recommended', selected: true });
-    await waitFor(() =>
-      expect(apiGet.mock.calls.some(([path]) => String(path).includes('/inbox?'))).toBe(true),
-    );
-    expect(
-      apiGet.mock.calls.some(([path]) =>
-        String(path).includes('/inbox/tracked-clients'),
-      ),
-    ).toBe(false);
-  });
-  test('a selected client with nothing tracked keeps its value with an explanatory option', async () => {
-    urlStore.set('view=pipeline&clientId=client-2');
-    mount();
-    await screen.findByTestId('fo-tracking');
-    await waitFor(() =>
-      expect(apiGet).toHaveBeenCalledWith(
-        '/api/intelligence/opportunities/inbox/tracked-clients',
-      ),
-    );
-    const selector = screen
-      .getAllByRole('combobox', { name: 'Client' })
-      .find((el) => (el as HTMLSelectElement).value === 'client-2')!;
-    const names = [...(selector as HTMLSelectElement).options].map((o) => o.text);
-    expect(names).toContain('Selected client has nothing tracked');
-    expect(names).not.toContain('Beta Systems');
-  });
-  test('an empty tracked list says no clients are tracked yet', async () => {
-    urlStore.set('view=pipeline');
-    apiGet.mockImplementation(async (path: string) => {
-      if (path === '/api/clients')
-        return {
-          data: [
-            { id: 'client-1', name: 'Acme Defense' },
-            { id: 'client-2', name: 'Beta Systems' },
-          ],
-        };
-      if (path === '/api/intelligence/opportunities/inbox/tracked-clients') return { data: [] };
-      if (path.includes('/inbox?')) return { data: current };
-      return { data: { freshness: [] } };
-    });
-    mount();
-    await screen.findByTestId('fo-tracking');
-    await waitFor(() =>
-      expect(
-        screen
-          .getAllByRole('combobox', { name: 'Client' })
-          .find((el) => (el as HTMLSelectElement).value === '')
-          ?.textContent,
-      ).toContain('No clients tracked yet'),
-    );
-    const selector = screen
-      .getAllByRole('combobox', { name: 'Client' })
-      .find((el) => (el as HTMLSelectElement).value === '')!;
-    expect((selector as HTMLSelectElement).options[0]?.text).toBe('No clients tracked yet');
-  });
-  test('switching to Tracking clears a pinned client (Show All is the landing state)', async () => {
-    urlStore.set('view=inbox&clientId=client-1');
-    current = response({ clientId: 'client-1' });
-    mount();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Tracking' }));
-    expect(urlStore.get()).toContain('view=pipeline');
-    expect(urlStore.get()).not.toContain('clientId=');
-  });
-  test('leaving Tracking for Recommended keeps the pinned client', async () => {
-    urlStore.set('view=pipeline&clientId=client-1');
-    current = response({ clientId: 'client-1' });
-    mount();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Recommended' }));
-    expect(urlStore.get()).toContain('view=inbox');
-    expect(urlStore.get()).toContain('clientId=client-1');
-  });
-  test('Tracking is list first and saved items need no pipeline stage or board flag', async () => {
-    urlStore.set('view=pipeline&clientId=client-1');
-    current = response({
-      clientId: 'client-1',
-      rows: [
-        row({
-          workflowStatus: 'saved',
-          nextAction: 'Discuss with capture lead',
-          nextActionDueAt: '2026-09-10T00:00:00Z',
-        }),
-      ],
-    });
-    mount();
-    expect(await screen.findByTestId('fo-tracking')).toBeInTheDocument();
-    expect(await screen.findByText('No stage recorded')).toBeInTheDocument();
-    expect(screen.getByText('Discuss with capture lead')).toBeInTheDocument();
-    expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('filter=tracked'));
-    expect(screen.queryByTestId('fo-pipeline')).not.toBeInTheDocument();
-  });
-  test('Tracking empty state says not tracking rather than interpolating the filter label', async () => {
-    urlStore.set('view=pipeline&clientId=client-1');
-    current = response({ clientId: 'client-1' });
-    mount();
-    expect(await screen.findByTestId('fo-inbox-empty')).toBeInTheDocument();
-    expect(screen.getByText('Not currently tracking opportunities for Acme Defense')).toBeInTheDocument();
-    expect(screen.queryByText(/No tracked opportunities/)).not.toBeInTheDocument();
-  });
-  test('non-tracked Tracking filters keep the existing empty-state wording', async () => {
-    urlStore.set('view=pipeline&clientId=client-1&filter=tracked_deadlines');
-    current = response({ clientId: 'client-1', filter: 'tracked_deadlines' });
-    mount();
-    expect(await screen.findByTestId('fo-inbox-empty')).toBeInTheDocument();
-    expect(screen.getByText('No due soon & overdue opportunities for Acme Defense')).toBeInTheDocument();
-  });
-  test('a leftover recommendation filter cannot show untracked suggestions in Tracking', async () => {
-    urlStore.set('view=pipeline&clientId=client-1&filter=suggested');
-    current = response({ clientId: 'client-1' });
-    mount();
-    await waitFor(() =>
-      expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('filter=tracked')),
-    );
-    expect(apiGet.mock.calls.some(([path]) => String(path).includes('filter=suggested'))).toBe(
-      false,
-    );
-  });
-  test('Due soon in Tracking uses tracked follow-ups instead of the whole deadline queue', async () => {
-    urlStore.set('view=pipeline&clientId=client-1');
-    current = response({ clientId: 'client-1' });
-    mount();
-    fireEvent.change(await screen.findByLabelText('Tracked opportunities'), {
-      target: { value: 'tracked_deadlines' },
-    });
-    await waitFor(() =>
-      expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('filter=tracked_deadlines')),
-    );
-  });
+  mocks.feature.enabled = true;
+  mocks.feature.ready = true;
+  window.history.scrollRestoration = 'manual';
 });
 
-describe('useful and correctly scoped recommendations', () => {
-  test('funding priority reasons name the actual phrase and keep grant eligibility separate', async () => {
-    current = response({
-      rows: [
-        row({
-          source: 'grants_gov',
-          eligibility: { state: 'eligible', reason: 'Organization type matches.' },
-          matchSignals: [
-            {
-              signal: 'applicantType',
-              matchedOn: 'County governments',
-              strength: 'weak',
-              weight: 25,
-            },
-            { signal: 'stateRestriction', matchedOn: 'VA', strength: 'weak', weight: 15 },
-            {
-              signal: 'capabilityKeyword',
-              source: 'funding_priority',
-              matchedOn: 'rural broadband deployment',
-              strength: 'moderate',
-              weight: 15,
-            },
-          ],
-        }),
-      ],
-    });
-    mount();
-    const card = await screen.findByTestId('fo-inbox-row-row-1');
-    expect(
-      within(card).getByText('Funding priority match: rural broadband deployment'),
-    ).toBeInTheDocument();
-    expect(within(card).getByText('Last assessed eligibility')).toBeInTheDocument();
-    expect(within(card).getByText('Last assessed match')).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'View current match' })).toBeInTheDocument();
-    expect(within(card).queryByText(/County governments/)).not.toBeInTheDocument();
-    expect(within(card).queryByText(/Restricted to a state/)).not.toBeInTheDocument();
-    expect(within(card).queryByText(/Capability match/)).not.toBeInTheDocument();
+describe('mounted Funding Opportunities v2 integration', () => {
+  test.each(['/intelligence/opportunities', '/intelligence/opportunities?mode=matched', '/intelligence/opportunities?mode=matched&client=%20'])('normalizes unscoped routes to the all-opportunities catalog contract: %s', async (route) => {
+    const api = createReferenceFixtureApi();
+    const get = vi.spyOn(api, 'get');
+    mount(route, api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+
+    const searchCalls = get.mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.startsWith('/api/intelligence/opportunities/v2/search?'));
+    expect(searchCalls.length).toBeGreaterThan(0);
+    for (const searchUrl of searchCalls) {
+      const params = new URLSearchParams(searchUrl.split('?')[1]);
+      expect(params.get('mode')).toBe('all');
+      expect(params.get('clientId')).toBe('');
+    }
+    expect(screen.queryByText('Opportunities could not be loaded')).not.toBeInTheDocument();
   });
 
-  test('an eligibility-only saved row does not claim a reason it matched', async () => {
-    current = response({
-      rows: [
-        row({
-          matchSignals: [
-            {
-              signal: 'applicantType',
-              matchedOn: 'Small businesses',
-              strength: 'weak',
-              weight: 25,
-            },
-            { signal: 'stateRestriction', matchedOn: 'VA', strength: 'weak', weight: 0 },
-          ],
-        }),
-      ],
-    });
-    mount();
-    const card = await screen.findByTestId('fo-inbox-row-row-1');
-    expect(within(card).queryByText('Why it matched')).not.toBeInTheDocument();
-    expect(
-      within(card).getByText('Review the source details and client requirements before deciding.'),
-    ).toBeInTheDocument();
+  test('keeps typed keywords draft-only until Search or Enter commits them', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    expect(await screen.findByText(referenceOpportunityRows[0]!.title)).toBeInTheDocument();
+    const keyword = screen.getByRole('textbox', { name: 'Keyword search' });
+    fireEvent.change(keyword, { target: { value: 'new keyword' } });
+    expect(screen.getByTestId('location')).not.toHaveTextContent('query=new+keyword');
+    fireEvent.keyDown(keyword, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('query=new+keyword'));
+    expect(screen.getByTestId('location')).toHaveTextContent('queryMatch=keywords');
   });
 
-  test('each row names its client and displays recorded fit reasons instead of a percent', async () => {
-    current = response({
-      rows: [row(), row({ id: 'row-2', client: { id: 'client-2', name: 'Beta Systems' } })],
-    });
-    mount();
-    expect(
-      await screen.findByRole('button', { name: 'Show only Acme Defense' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show only Beta Systems' })).toBeInTheDocument();
-    expect(screen.getAllByText('Capability match: engine maintenance')).toHaveLength(2);
-    expect(screen.queryByText('65% fit')).not.toBeInTheDocument();
+  test('keeps draft text when switching to exact phrase and commits once at page one', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched&page=2');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    const keyword = screen.getByRole('textbox', { name: 'Keyword search' });
+    fireEvent.change(keyword, { target: { value: 'autonomous ground vehicle' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search mode' }), { target: { value: 'phrase' } });
+    expect(keyword).toHaveValue('autonomous ground vehicle');
+    expect(screen.getByTestId('location')).toHaveTextContent('page=2');
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('query=autonomous+ground+vehicle'));
+    expect(screen.getByTestId('location')).toHaveTextContent('queryMatch=phrase');
+    expect(screen.getByTestId('location')).toHaveTextContent('page=1');
   });
-  test('a client scope rejection never puts another client beneath the requested heading', async () => {
-    urlStore.set('view=inbox&clientId=client-1');
-    current = response({
-      clientId: null,
-      rows: [row({ client: { id: 'client-2', name: 'Beta Systems' } })],
-    });
-    mount();
-    expect(await screen.findByText('That client filter could not be applied')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Show only Beta Systems' }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Clear client filter' }));
-    expect(
-      await screen.findByRole('button', { name: 'Show only Beta Systems' }),
-    ).toBeInTheDocument();
+
+  test('Save search commits the visible draft query and mode before opening the dialog', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Keyword search' }), { target: { value: 'quoted phrase' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search mode' }), { target: { value: 'phrase' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save search' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Save search' });
+    expect(dialog).toHaveTextContent('quoted phrase');
   });
-  test('Save uses the row client and refetches recommendations after the server succeeds', async () => {
-    current = response({
-      rows: [row({ client: { id: 'client-2', name: 'Beta Systems' } })],
+
+  test('shows a matched count only for the same client and criteria, not an all-mode catalog total', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Overland AI' })[0]!);
+    const matchedDialog = await screen.findByRole('dialog', { name: 'Choose a client' });
+    expect(within(matchedDialog).getByRole('button', { name: /Overland AI/ })).toHaveTextContent(
+      '6 matched',
+    );
+    expect(
+      within(matchedDialog).getByRole('button', { name: /Aperture Defense/ }),
+    ).toHaveTextContent('?');
+    fireEvent.click(within(matchedDialog).getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'All opportunities' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('mode=all'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Overland AI' })[0]!);
+    const allDialog = await screen.findByRole('dialog', { name: 'Choose a client' });
+    expect(within(allDialog).getByRole('button', { name: /Overland AI/ })).toHaveTextContent('?');
+  });
+
+  test('opens the custom sort menu, selects an option, and closes with Escape restoring focus', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    const sort = screen.getByRole('button', { name: 'Sort' });
+    sort.focus();
+    fireEvent.click(sort);
+    const menu = await screen.findByRole('listbox', { name: 'Sort' });
+    expect(menu).toHaveTextContent('Deadline — soonest first');
+    fireEvent.click(within(menu).getByRole('option', { name: 'Title' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('sort=title'));
+    expect(sort).toHaveTextContent('Title');
+    fireEvent.click(sort);
+    const keyboardMenu = screen.getByRole('listbox', { name: 'Sort' });
+    const selected = within(keyboardMenu).getByRole('option', { name: 'Title' });
+    selected.focus();
+    fireEvent.keyDown(selected, { key: 'ArrowDown' });
+    expect(screen.getByRole('listbox', { name: 'Sort' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('sort=title');
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('sort=posted'));
+    fireEvent.click(sort);
+    const cancelMenu = screen.getByRole('listbox', { name: 'Sort' });
+    fireEvent.keyDown(within(cancelMenu).getByRole('option', { name: 'Posted date' }), {
+      key: 'ArrowUp',
     });
-    apiPost.mockImplementation(async () => {
-      current = response();
-      return { data: {} };
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('listbox', { name: 'Sort' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('sort=posted');
+    expect(sort).toHaveFocus();
+  });
+
+  test('keeps filters usable and Any agency changes immediately', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
+    const filters = await screen.findByRole('dialog', { name: 'Filters' });
+    fireEvent.click(within(filters).getByRole('button', { name: 'Required' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('costShare=required');
+    fireEvent.click(within(filters).getByRole('button', { name: 'Department of the Army' }));
+    fireEvent.click(within(filters).getByRole('button', { name: 'Any agency' }));
+    expect(filters).toBeInTheDocument();
+    expect(screen.getByTestId('location')).not.toHaveTextContent('agency=army');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Filters' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('costShare=required');
+  });
+
+  test('preserves Pursuit origin, criteria, exact identity, and browser Back/Forward through detail', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getByRole('tab', { name: /Pursuit/ }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('tab=pursuit'));
+    fireEvent.click(screen.getAllByRole('button', { name: 'List' }).at(-1)!);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('board=list'));
+    const pursuitTitle = await screen.findByRole('button', {
+      name: /Autonomous Ground Systems Integration/,
     });
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    const pursuitRow =
+      referenceOpportunityRows.find((item) => item.title === pursuitTitle.textContent) ??
+      referenceOpportunityRows.find((item) => item.title.includes('Autonomous Ground Systems'))!;
+    const expectedSourceRecordId = referenceFixtureMapping.rowIdsByReferenceId[pursuitRow.id]!;
+    fireEvent.click(pursuitTitle);
     await waitFor(() =>
-      expect(apiPost).toHaveBeenCalledWith(
-        '/api/intelligence/clients/client-2/opportunities/sam_gov/notice-1/save',
-        { status: 'saved' },
+      expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/opportunities/'),
+    );
+    expect(
+      decodeURIComponent(
+        screen.getByTestId('location').textContent!.split('/').at(-1)!.split('?')[0]!,
+      ),
+    ).toBe(expectedSourceRecordId);
+    const detailUrl = screen.getByTestId('location').textContent!;
+    fireEvent.click(screen.getByRole('button', { name: 'History back' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location').textContent).toMatch(
+        /^\/intelligence\/opportunities\?/,
       ),
     );
-    await waitFor(() => expect(screen.queryByText('Engine maintenance')).not.toBeInTheDocument());
-    expect(success).toHaveBeenCalledWith('Saved for Beta Systems. Find it in Tracking.');
+    expect(screen.getByTestId('location')).toHaveTextContent('tab=pursuit');
+    expect(screen.getByTestId('location')).toHaveTextContent('board=list');
+    expect(screen.getByTestId('location')).toHaveTextContent('client=overland');
+    fireEvent.click(screen.getByRole('button', { name: 'History forward' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(detailUrl));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to results' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('tab=pursuit'));
+    expect(screen.getByTestId('location')).toHaveTextContent('board=list');
   });
-  test('forecast timing is estimated and can be saved without a pursuit action', async () => {
-    flags.funding_opportunities_forecasts = true;
-    urlStore.set('source=agency_forecast');
-    current = response({
-      rows: [
-        row({
-          source: 'agency_forecast',
-          responseDeadline: null,
-          forecast: {
-            anticipatedAwardDate: '2027-03-01',
-            anticipatedSolicitationDate: null,
-            estimatedPeriod: null,
-            fiscalYear: 2027,
-            sourceSystem: 'APFS',
-            status: null,
-            isActive: true,
-            lastSyncedAt: '2026-09-06T00:00:00Z',
-            providerModifiedAt: null,
-          },
-        }),
-      ],
-    });
-    mount();
-    const card = await screen.findByTestId('fo-inbox-row-row-1');
-    expect(within(card).getByText('Estimated award')).toBeInTheDocument();
-    expect(card).toHaveTextContent('Agency planning estimate');
-    expect(within(card).queryByText('Eligibility')).not.toBeInTheDocument();
-    expect(within(card).queryByText('Response deadline')).not.toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'Save' })).toBeInTheDocument();
-    expect(within(card).queryByRole('button', { name: 'Pursue' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Sort opportunities')).toBeDisabled();
-  });
-  test('an empty page with a next cursor remains navigable', async () => {
-    urlStore.set('cursor=old-cursor');
-    current = response({ nextCursor: 'new-cursor' });
-    mount();
-    expect(await screen.findByText('No results on this page')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    await waitFor(() => expect(urlStore.get()).toContain('cursor=new-cursor'));
-    expect(await screen.findByRole('button', { name: 'Previous' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    await waitFor(() => expect(urlStore.get()).toContain('cursor=old-cursor'));
-  });
-  test('the drawer uses the selected row identity and client', async () => {
-    current = response({
-      rows: [row({ client: { id: 'client-2', name: 'Beta Systems' } })],
-    });
-    mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'View details' }));
-    expect(await screen.findByTestId('fo-drawer')).toHaveTextContent('client-2');
-  });
-  test('Refresh waits for active requests before reporting success', async () => {
-    mount();
-    await screen.findByTestId('fo-inbox-empty');
-    let finish: (() => void) | undefined;
-    apiGet.mockImplementation((path: string) =>
-      path.includes('/inbox?')
-        ? new Promise((resolve) => {
-            finish = () => resolve({ data: current });
-          })
-        : Promise.resolve({ data: { freshness: [] } }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-    await waitFor(() => expect(finish).toBeDefined());
-    expect(success).not.toHaveBeenCalled();
-    finish!();
+
+  test('applies the second readable saved search, keeps identity while edited, and clears invalid identity from URL', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getByRole('button', { name: /Saved searches 4/ }));
+    const saved = await screen.findByRole('dialog', { name: 'Saved searches' });
+    expect(saved).toHaveTextContent('Army sustainment recompetes');
+    const secondSearch =
+      saved.querySelector('.fo-saved-card:nth-of-type(2)') ??
+      [...saved.querySelectorAll('.fo-saved-card')].find((card) =>
+        card.textContent?.includes('Army sustainment recompetes'),
+      );
+    expect(secondSearch).toBeTruthy();
+    fireEvent.click(secondSearch!.querySelector('button')!);
     await waitFor(() =>
-      expect(success).toHaveBeenCalledWith('Current opportunity records refreshed.'),
+      expect(screen.getByTestId('location')).toHaveTextContent('savedSearchId=s2'),
     );
+    expect(
+      screen.getByRole('button', { name: /Saved: Army sustainment recompetes/ }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Keyword search' }), {
+      target: { value: 'edited criteria' },
+    });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Keyword search' }), { key: 'Enter' });
+    expect(screen.getByTestId('location')).toHaveTextContent('savedSearchId=s2');
+    expect(
+      screen.getByRole('button', { name: /Saved: Army sustainment recompetes/ }),
+    ).toHaveTextContent('Criteria changed');
+  });
+
+  test('clears an inaccessible saved-search identity from canonical URL state', async () => {
+    mount('/intelligence/opportunities?client=halcyon&mode=all&savedSearchId=s2');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).not.toHaveTextContent('savedSearchId='),
+    );
+    expect(screen.getByTestId('location')).toHaveTextContent('client=halcyon');
+  });
+
+  test('a shell client-picker event opens this same canonical chooser and keeps cancellation local', async () => {
+    mount('/intelligence/opportunities?client=overland&mode=matched&query=typed');
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    const trigger = screen.getAllByRole('button', { name: 'Overland AI' })[0]!;
+    trigger.focus();
+    await act(async () => window.dispatchEvent(new Event(FUNDING_CLIENT_PICKER_EVENT)));
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a client' });
+    expect(within(dialog).getByRole('button', { name: /Overland AI/ })).toBeInTheDocument();
+    fireEvent.keyDown(dialog.firstElementChild!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Choose a client' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(screen.getByTestId('location')).toHaveTextContent('client=overland');
+    expect(screen.getByTestId('location')).toHaveTextContent('query=typed');
+  });
+
+  test('cached matched count is withdrawn after the same-key refresh fails', async () => {
+    const fixture = createReferenceFixtureApi();
+    let failSearch = false;
+    const get = vi.fn((url: string, config?: Parameters<typeof fixture.get>[1]) => {
+      if (failSearch && url.startsWith('/api/intelligence/opportunities/v2/search?')) {
+        return Promise.reject(new Error('refresh failed'));
+      }
+      return fixture.get(url, config);
+    });
+    mocks.api.mockReturnValue({ ...fixture, get });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/intelligence/opportunities?client=overland&mode=matched']}>
+          <Routes>
+            <Route
+              path="/intelligence/opportunities"
+              element={
+                <>
+                  <FundingOpportunitiesPage />
+                  <LocationProbe />
+                </>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Overland AI' })[0]!);
+    const firstDialog = await screen.findByRole('dialog', { name: 'Choose a client' });
+    expect(within(firstDialog).getByRole('button', { name: /Overland AI/ })).toHaveTextContent(
+      '6 matched',
+    );
+    fireEvent.click(within(firstDialog).getByRole('button', { name: 'Close' }));
+    failSearch = true;
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['funding-opportunities-v2'] });
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Opportunities could not be loaded')).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Overland AI' })[0]!);
+    const failedDialog = await screen.findByRole('dialog', { name: 'Choose a client' });
+    expect(within(failedDialog).getByRole('button', { name: /Overland AI/ })).toHaveTextContent(
+      '?',
+    );
+  });
+
+  test('source-health loading is not styled as an error and successful rows preserve provider and timestamp', async () => {
+    const fixture = createReferenceFixtureApi();
+    let resolveHealth!: (value: { data: unknown }) => void;
+    const healthPending = new Promise<{ data: unknown }>((resolve) => {
+      resolveHealth = resolve;
+    });
+    const get = vi.fn(<T,>(
+      url: string,
+      config?: Parameters<FixtureApi['get']>[1],
+    ): Promise<{ data: T }> =>
+      url === '/api/intelligence/opportunities/v2/sources'
+        ? (healthPending as Promise<{ data: T }>)
+        : fixture.get<T>(url, config),
+    ) as FixtureApi['get'];
+    mount('/intelligence/opportunities?client=overland&mode=matched', { ...fixture, get });
+    const loading = await screen.findByRole('button', { name: 'SOURCE HEALTH LOADING' });
+    expect(loading.className).toContain('fo-v2-health-pill--loading');
+    expect(loading.className).not.toContain('fo-v2-health-pill--error');
+    const response = await fixture.get<{ sources: unknown[]; generatedAt: string }>(
+      '/api/intelligence/opportunities/v2/sources',
+    );
+    await act(async () => resolveHealth(response));
+    const current = (await screen.findAllByRole('button', { name: /SOURCES CURRENT/ }))[0]!;
+    expect(current).toHaveTextContent('SOURCES CURRENT');
+    fireEvent.click(current);
+    const drawer = await screen.findByRole('dialog', { name: 'Source health' });
+    expect(drawer).toHaveTextContent('SAM.gov');
+    expect(drawer).toHaveTextContent('LAST RUN');
+    expect(drawer).toHaveTextContent('Current');
+  });
+
+  test('disabled Funding feature does not query source health', async () => {
+    mocks.feature.enabled = false;
+    const fixture = createReferenceFixtureApi();
+    const get = vi.fn(<T,>(
+      url: string,
+      config?: Parameters<FixtureApi['get']>[1],
+    ): Promise<{ data: T }> => fixture.get<T>(url, config)) as FixtureApi['get'];
+    mount('/intelligence/opportunities', { ...fixture, get });
+    expect(
+      await screen.findByText('Funding Opportunities is not enabled for this workspace.'),
+    ).toBeInTheDocument();
+    expect(get).not.toHaveBeenCalledWith('/api/intelligence/opportunities/v2/sources');
+  });
+
+  test('cancelling client selection does not replay a pending pursue intent', async () => {
+    const fixture = createReferenceFixtureApi();
+    const post = vi.spyOn(fixture, 'post');
+    mocks.api.mockReturnValue(fixture);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/intelligence/opportunities?mode=all']}>
+          <Routes>
+            <Route path="/intelligence/opportunities" element={<FundingOpportunitiesPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pursue' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a client' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(dialog).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select a client' })[0]!);
+    const reopened = await screen.findByRole('dialog', { name: 'Choose a client' });
+    fireEvent.click(within(reopened).getByText('Aperture Defense').closest('button')!);
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+    expect(post.mock.calls.filter(([url]) => String(url).endsWith('/action'))).toHaveLength(0);
+  });
+
+  test('cancelling the shell client chooser preserves the underlying Quick record', async () => {
+    const api = createReferenceFixtureApi();
+    const post = vi.spyOn(api, 'post');
+    mount('/intelligence/opportunities?mode=all', api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quick details' })[0]!);
+    const quick = await screen.findByRole('dialog', { name: referenceOpportunityRows[0]!.title });
+    await act(async () => window.dispatchEvent(new Event(FUNDING_CLIENT_PICKER_EVENT)));
+    const chooser = await screen.findByRole('dialog', { name: 'Choose a client' });
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Close' }));
+    expect(chooser).not.toBeInTheDocument();
+    expect(quick).toBeInTheDocument();
+    expect(quick).toHaveTextContent(referenceOpportunityRows[0]!.title);
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  test('explicit client choice pursues the original record exactly once', async () => {
+    const api = createReferenceFixtureApi();
+    const post = vi.spyOn(api, 'post');
+    mount('/intelligence/opportunities?mode=all', api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pursue' })[0]!);
+    const chooser = await screen.findByRole('dialog', { name: 'Choose a client' });
+    fireEvent.click(within(chooser).getByRole('button', { name: /Aperture Defense/ }));
+    const row = referenceOpportunityRows[0]!;
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        `/api/intelligence/clients/aperture/opportunities/${row.source}/${referenceFixtureMapping.rowIdsByReferenceId[row.id]}/action`,
+        { intent: 'pursuit' },
+      ),
+    );
+    expect(post.mock.calls.filter(([url]) => String(url).endsWith('/action'))).toHaveLength(1);
+  });
+
+  test('owner roster failure retries, then persists one scoped owner change and refreshes dependent views', async () => {
+    const api = createReferenceFixtureApi();
+    const originalGet = api.get.bind(api);
+    let rosterReads = 0;
+    vi.spyOn(api, 'get').mockImplementation(async (url, ...args) => {
+      if (url === '/api/tenant-members' && ++rosterReads === 1)
+        throw new Error('Roster unavailable');
+      return originalGet(url, ...args);
+    });
+    const patch = vi.spyOn(api, 'patch');
+    const invalidation = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    mount('/intelligence/opportunities?client=overland&mode=matched', api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getAllByRole('button', { name: 'More actions' })[0]!);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Assign owner' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Assign owner' });
+    await within(dialog).findByText('Team members could not be loaded.');
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(patch).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Retry team members' }));
+    const owner = await within(dialog).findByRole('combobox', { name: 'Owner' });
+    const selectedId = (within(owner).getAllByRole('option')[1] as HTMLOptionElement).value;
+    fireEvent.change(owner, { target: { value: selectedId } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    const row = referenceOpportunityRows[0]!;
+    expect(patch).toHaveBeenCalledTimes(1);
+    expect(patch).toHaveBeenCalledWith(
+      `/api/intelligence/clients/overland/opportunities/${row.source}/${referenceFixtureMapping.rowIdsByReferenceId[row.id]}`,
+      { ownerUserId: selectedId },
+    );
+    expect(rosterReads).toBe(2);
+    for (const key of [
+      'funding-opportunities-v2',
+      'funding-opportunity-v2-detail',
+      'funding-opportunity-pipeline',
+      'funding-opportunities-v2-saved',
+      'engagement-tasks',
+    ]) {
+      expect(invalidation).toHaveBeenCalledWith({ queryKey: [key] });
+    }
+    invalidation.mockRestore();
   });
 });

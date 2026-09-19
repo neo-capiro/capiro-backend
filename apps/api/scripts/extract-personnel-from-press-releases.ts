@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 /**
  * Step 32 — extract DoD personnel from press releases (IntelArticle, source='dod').
  *
@@ -30,7 +31,7 @@ import { MatchScorerService } from '../src/acquisition-personnel/matching/match-
 dotenvConfig();
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5';
 const DOD_SOURCE = 'dod';
 
 function arg(name: string): string | undefined {
@@ -48,12 +49,12 @@ async function llmExtract(article: PressArticle): Promise<LlmMention[]> {
       'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
+    body: JSON.stringify(prepareAnthropicRequest({
       model: ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: PRESS_NER_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: PressReleasePersonnelExtractorService.buildUserPrompt(article) }],
-    }),
+    })),
   });
   const raw = (await res.json()) as { content?: Array<{ text?: string }>; error?: { message?: string } };
   if (!res.ok) throw new Error(`Anthropic ${res.status}: ${raw.error?.message ?? 'error'}`);

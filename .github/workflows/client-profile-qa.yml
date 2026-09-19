@@ -7,13 +7,16 @@ on:
       - 'apps/api/src/clients/**'
       - 'apps/intel-api/src/tracker/**'
       - 'apps/intel-api/test/tracker-*.spec.ts'
-      - 'apps/web/src/pages/intelligence/opportunities/**'
       - 'apps/web/src/pages/clients/facilities-api.ts'
       - 'apps/web/src/vnext/pages/client-crm/**'
       - 'apps/web/src/vnext/adapters/legacy/useShellClientContext.ts'
+      - 'apps/web/src/vnext/adapters/legacy/useClientCrmOverviewModel.test.tsx'
+      - 'apps/web/src/pages/settings/IntelligenceMappingsPage.test.tsx'
       - 'apps/web/src/vnext/pages/strategies/StrategyLibraryVNext*'
       - 'apps/web/src/vnext/pages/strategies/ScopeBar.tsx'
       - 'apps/web/src/vnext/pages/funding-opportunities/**'
+      - 'apps/web/src/vnext/adapters/legacy/**'
+      - 'apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection.tsx'
       - 'apps/web/src/vnext/pages/portfolio/**'
       - 'packages/shared/**'
       - 'packages/strategy-verifier/**'
@@ -63,7 +66,11 @@ jobs:
         run: >
           pnpm --filter @capiro/web exec vitest run
           src/pages/intelligence/opportunities/opportunity-description.test.tsx
-          src/vnext/pages/funding-opportunities/FundingOpportunityBrowse.test.tsx
+          src/vnext/pages/funding-opportunities/FundingOpportunitiesPage.test.tsx
+          src/vnext/adapters/legacy/useShellClientContext.funding.test.tsx
+          src/vnext/adapters/legacy/useClientCrmOverviewModel.test.tsx
+          src/pages/settings/IntelligenceMappingsPage.test.tsx
+          src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection.test.tsx
           src/vnext/pages/client-crm/ClientFillWithMeriDrawer.review.test.tsx
           src/vnext/pages/portfolio/PortfolioIndexPage.test.tsx
           src/vnext/pages/client-crm/tabs/RelationshipsHistoryTab.test.tsx

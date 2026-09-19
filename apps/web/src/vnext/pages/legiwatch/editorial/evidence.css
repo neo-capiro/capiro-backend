@@ -1,7 +1,78 @@
 .lw-evidence {
-  padding: 20px 24px;
+  padding: 0;
   min-width: 0;
   color: var(--lw-body, #344054);
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* Reference parity: the briefing form reads as white 12px cards with the
+   shared ring/elevation on the page canvas, 13px body, 34px controls. */
+.lw-evidence h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #101828;
+}
+.lw-evidence h4 {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #101828;
+}
+.lw-evidence p {
+  margin: 6px 0 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+.lw-evidence .capiro-input,
+.lw-evidence .capiro-select {
+  min-height: 34px;
+  font-size: 13px;
+}
+.lw-evidence .capiro-textarea {
+  font-size: 13px;
+  line-height: 20px;
+}
+.lw-evidence .capiro-field__label {
+  font-size: 12px;
+}
+.lw-evidence .lw-evidence-toolbar {
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
+  padding: 12px 14px;
+}
+.lw-evidence ul {
+  margin: 6px 0 12px;
+  padding: 6px 14px;
+  list-style: none;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
+}
+.lw-evidence ul li {
+  padding: 10px 0;
+  border-bottom: 1px solid #eaecf0;
+  font-size: 13px;
+}
+.lw-evidence ul li:last-child {
+  border-bottom: 0;
+}
+/* Reference parity: cool-gray canvas with white 12px cards and the shared ring/elevation. */
+.lw-evidence-card {
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
+  padding: 14px 16px;
+  margin-bottom: 16px;
 }
 .lw-evidence-toolbar,
 .lw-evidence-actions {
@@ -13,6 +84,9 @@
 .lw-evidence-toolbar {
   margin-bottom: 16px;
 }
+.lw-evidence-card .lw-evidence-toolbar {
+  margin-bottom: 0;
+}
 .lw-evidence-toolbar > div {
   min-width: 180px;
   flex: 1;
@@ -21,25 +95,34 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  border-bottom: 1px solid #e4e7ec;
   margin: 12px 0 20px;
 }
 .lw-evidence-nav button {
-  padding: 10px 12px;
+  padding: 8px 14px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 8px;
   background: transparent;
-  color: inherit;
+  color: var(--lw-body, #344054);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
 }
 .lw-evidence-nav button[aria-current='page'] {
-  border-color: var(--lw-brand-fg, #294e68);
+  background: #fff;
   color: var(--lw-brand-fg, #294e68);
   font-weight: 600;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
 }
 .lw-evidence-table {
   overflow-x: auto;
-  border: 1px solid #e4e7ec;
-  border-radius: 8px;
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
 }
 .lw-evidence-table table {
   border-collapse: collapse;
@@ -48,16 +131,23 @@
   font-size: 13px;
 }
 .lw-evidence-table th {
-  background: #f9fafb;
+  background: transparent;
   text-align: left;
-  color: #475467;
+  color: #667085;
   font-weight: 600;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .lw-evidence-table th,
 .lw-evidence-table td {
   padding: 12px 16px;
   border-bottom: 1px solid #eaecf0;
   vertical-align: top;
+}
+.lw-evidence-table tr:last-child td {
+  border-bottom: 0;
 }
 .lw-evidence-table th:first-child {
   width: 43%;
@@ -66,6 +156,8 @@
   display: block;
   color: #667085;
   margin-top: 5px;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
 }
 .lw-evidence-table p {
   margin: 7px 0;
@@ -83,17 +175,19 @@
   line-height: 1.5;
 }
 .lw-evidence-notice {
-  padding: 12px 14px;
-  border: 1px solid #d0d5dd;
-  border-radius: 7px;
-  background: #f9fafb;
+  margin: 0 0 16px;
   font-size: 13px;
   line-height: 1.5;
+  color: #475467;
 }
 .lw-evidence-empty {
   padding: 32px 24px;
   line-height: 1.6;
-  background: #f9fafb;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
 }
 .lw-evidence-text {
   white-space: pre-wrap;
@@ -104,10 +198,27 @@
   line-height: 1.6;
 }
 .lw-evidence-comparison {
-  padding: 20px;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
+  padding: 16px 20px;
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #e4e7ec,
+    0 1px 3px rgba(16, 24, 40, 0.1);
   margin-top: 16px;
+}
+.lw-evidence-comparison h3 {
+  margin: 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #101828;
+}
+/* The comparison block is already a card; its toolbar stays flat inside it. */
+.lw-evidence-comparison .lw-evidence-toolbar {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
 }
 .lw-evidence-import {
   display: flex;
@@ -116,8 +227,9 @@
 }
 .lw-evidence button:focus-visible,
 .lw-evidence a:focus-visible {
-  outline: 3px solid #a4bcfd;
-  outline-offset: 3px;
+  outline: 2px solid #4a7a9b;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 .lw-evidence [role='alert'] {
   color: #b42318;
@@ -126,15 +238,12 @@
   color: #344054;
 }
 @media (max-width: 640px) {
-  .lw-evidence {
-    padding: 14px 12px;
-  }
   .lw-evidence-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
   .lw-evidence-nav {
-    gap: 0;
+    gap: 4px;
   }
   .lw-evidence-import {
     flex-direction: column;

@@ -53,6 +53,7 @@ import {
   type CalendarExportResult,
 } from './legiwatch-calendar-export.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
+import { LegiWatchCommitteeNotificationService } from './legiwatch-committee-notification.service.js';
 import {
   discoverSavedHearingSessions,
   type SavedSessionsDiscovery,
@@ -146,6 +147,7 @@ export interface CommitteeFollowInput {
   notifyOnScheduleChange?: boolean;
   notifyOnTranscriptReady?: boolean;
   notifyOnHighPriorityMatch?: boolean;
+  notifyOnPublication?: boolean;
 }
 
 export interface ArchiveSearchInput {
@@ -237,6 +239,7 @@ export class LegiWatchWave1Service {
     private readonly phase7: LiveHearingsPhase7Service,
     private readonly committees: CommitteeDirectoryService,
     private readonly notifications: LegiWatchLifecycleNotificationService,
+    private readonly committeeAlerts: LegiWatchCommitteeNotificationService,
   ) {}
 
   // ── W1-1 · configurable hearing following ────────────────────────────────
@@ -422,9 +425,14 @@ export class LegiWatchWave1Service {
       // preflight. Wave 1 adds no second scheduler.
       scheduleResult = await this.phase7.schedule(ctx, hearingId);
     } else {
-      // Browser attendance is still tenant demand (so the user's sessions and
-      // notifications work), but it must not create server-capture demand.
-      // scheduled_by_user stays false for exactly that reason.
+      // Browser attendance is tenant demand for notifications/sessions, but it
+      // must not create server-capture demand — and it must NOT erase existing
+      // automatic demand either. Choosing the browser never locks out enabling
+      // the server later: scheduled_by_user is preserved exactly as it was,
+      // and attendance_mode stays 'automatic' whenever server demand (user- or
+      // rule-scheduled) already exists — the worker's AUTOMATIC_DEMAND_SQL
+      // requires attendance_mode='automatic', so flipping it to 'browser'
+      // would silently disable capture (the actual worker failure root hit).
       await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.$executeRawUnsafe(
           `INSERT INTO hearing_subscription
@@ -434,8 +442,12 @@ export class LegiWatchWave1Service {
            VALUES ($1::uuid, $2, $3, true, false, false, NULL, ARRAY[]::text[], NULL,
                    'browser', now(), now(), now())
            ON CONFLICT (tenant_id, user_id, hearing_id)
-           DO UPDATE SET attendance_mode='browser',
-                         scheduled_by_user=false,
+           DO UPDATE SET attendance_mode = CASE
+                           WHEN hearing_subscription.scheduled_by_user
+                             OR hearing_subscription.scheduled_by_rule_id IS NOT NULL
+                           THEN 'automatic'
+                           ELSE 'browser'
+                         END,
                          consent_acknowledged_at=COALESCE(hearing_subscription.consent_acknowledged_at, now()),
                          updated_at=now()`,
           ctx.tenantId,
@@ -502,7 +514,12 @@ export class LegiWatchWave1Service {
       this.prisma.hearingStreamCandidate.findMany({
         where: { hearingId: hearing.id },
         orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }],
-        select: { capturePolicy: true, resolutionState: true },
+        select: {
+          capturePolicy: true,
+          resolutionState: true,
+          officialPageUrl: true,
+          provider: true,
+        },
       }),
       // domain_status / terminal_reason_code are SQL-owned columns that are not
       // declared on the Prisma model, exactly as the Phase 7 service reads
@@ -1080,6 +1097,7 @@ export class LegiWatchWave1Service {
           notifyOnScheduleChange: input.notifyOnScheduleChange ?? true,
           notifyOnTranscriptReady: input.notifyOnTranscriptReady ?? false,
           notifyOnHighPriorityMatch: input.notifyOnHighPriorityMatch ?? true,
+          notifyOnPublication: input.notifyOnPublication ?? true,
         },
         update: {
           clientIds,
@@ -1095,10 +1113,20 @@ export class LegiWatchWave1Service {
           ...(input.notifyOnHighPriorityMatch === undefined
             ? {}
             : { notifyOnHighPriorityMatch: input.notifyOnHighPriorityMatch }),
+          ...(input.notifyOnPublication === undefined
+            ? {}
+            : { notifyOnPublication: input.notifyOnPublication }),
           updatedAt: new Date(),
         },
       }),
     );
+    // Initial follow catches up on recent publications in-app. The service
+    // persists its initialization boundary and never emails this history.
+    await this.committeeAlerts.catchUpFollow({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      committeeSystemCode: canonicalCode,
+    });
     return this.toCommitteeFollowState(ctx, canonicalCode, row);
   }
 
@@ -1124,6 +1152,7 @@ export class LegiWatchWave1Service {
       notifyOnScheduleChange: boolean;
       notifyOnTranscriptReady: boolean;
       notifyOnHighPriorityMatch: boolean;
+      notifyOnPublication: boolean;
       createdAt: Date;
       updatedAt: Date;
     } | null,
@@ -1138,6 +1167,7 @@ export class LegiWatchWave1Service {
         notifyOnScheduleChange: true,
         notifyOnTranscriptReady: false,
         notifyOnHighPriorityMatch: true,
+        notifyOnPublication: true,
         createdAt: null,
         updatedAt: null,
       };
@@ -1151,6 +1181,7 @@ export class LegiWatchWave1Service {
       notifyOnScheduleChange: row.notifyOnScheduleChange,
       notifyOnTranscriptReady: row.notifyOnTranscriptReady,
       notifyOnHighPriorityMatch: row.notifyOnHighPriorityMatch,
+      notifyOnPublication: row.notifyOnPublication,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -2200,6 +2231,72 @@ export class LegiWatchWave1Service {
     return this.notifications.markRead(ctx, id);
   }
 
+  /** Marks all of the caller's unread LegiWatch notifications read. */
+  async markAllNotificationsRead(ctx: TenantContext): Promise<{ read: number }> {
+    return this.notifications.markAllRead(ctx);
+  }
+
+  // ── committee email preferences ───────────────────────────────────────────
+
+  /**
+   * GET returns the CURRENT account email snapshot (settings shows what
+   * mail would go to). Never a stale cache the last PUT stored.
+   */
+  async getNotificationPreferences(ctx: TenantContext): Promise<Record<string, unknown>> {
+    const [row, account] = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+      Promise.all([
+        tx.legiWatchCommitteeEmailPreference.findFirst({
+          where: { userId: ctx.userId },
+          select: { committeeEmailEnabled: true },
+        }),
+        tx.user.findFirst({ where: { id: ctx.userId }, select: { email: true } }),
+      ]),
+    );
+    return {
+      committeeEmailEnabled: row?.committeeEmailEnabled ?? false,
+      emailAddress: account?.email && isValidEmail(account.email) ? account.email : null,
+    };
+  }
+
+  /**
+   * PUT — required boolean (400s otherwise). Enabling requires an
+   * account email and syntactic validation. Same-value PUT is a
+   * no-op on `updatedAt`, so the intake opt-in boundary stays put.
+   */
+  async putNotificationPreferences(
+    ctx: TenantContext,
+    body: { committeeEmailEnabled: boolean },
+  ): Promise<Record<string, unknown>> {
+    const enabled = body.committeeEmailEnabled;
+    if (typeof enabled !== 'boolean')
+      throw new BadRequestException('committeeEmailEnabled must be a boolean');
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const account = await tx.user.findUnique({
+        where: { id: ctx.userId },
+        select: { email: true },
+      });
+      const emailAddress = account?.email && isValidEmail(account.email) ? account.email : null;
+      if (enabled && !emailAddress)
+        throw new BadRequestException(
+          'A valid account email is required to enable committee email alerts.',
+        );
+      // Preserve the opt-in boundary for repeated concurrent requests while
+      // refreshing the account address snapshot.
+      await tx.$executeRaw`
+        INSERT INTO legiwatch_committee_email_preference
+          (tenant_id,user_id,committee_email_enabled,email_address)
+        VALUES (${ctx.tenantId}::uuid,${ctx.userId},${enabled},${emailAddress})
+        ON CONFLICT (tenant_id,user_id) DO UPDATE SET
+          committee_email_enabled=EXCLUDED.committee_email_enabled,
+          email_address=EXCLUDED.email_address,
+          updated_at=CASE
+            WHEN legiwatch_committee_email_preference.committee_email_enabled
+              IS DISTINCT FROM EXCLUDED.committee_email_enabled THEN now()
+            ELSE legiwatch_committee_email_preference.updated_at END`;
+      return { committeeEmailEnabled: enabled, emailAddress };
+    });
+  }
+
   // ── shared helpers ───────────────────────────────────────────────────────
 
   /**
@@ -2385,4 +2482,9 @@ export class LegiWatchWave1Service {
       );
     }
   }
+}
+
+/** required by the preference PUT guard only. */
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }

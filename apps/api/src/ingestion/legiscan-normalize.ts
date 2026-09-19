@@ -143,6 +143,44 @@ function safeDate(v: string | null | undefined): Date | null {
 }
 
 /**
+ * Parse LegiScan `session.sine_die` defensively. Real getSessionList payloads
+ * send a boolean/integer flag (FL 2026 Regular Session: `"sine_die": 1`), not
+ * an adjournment date — a naive `new Date(String(1))` fabricated a 2001
+ * deadline the derived-status engine consumed. Flag forms (0/1, '0'/'1',
+ * true/false) and every non-string scalar yield null; only a strict ISO
+ * `YYYY-MM-DD` calendar date the provider actually supplied is preserved, with
+ * rollover forms (2026-02-30) rejected. This function never infers a deadline
+ * from a flag.
+ */
+export function parseSineDieDate(v: string | number | null | undefined): Date | null {
+  if (v === null || v === undefined) return null;
+  // Numeric flags are never dates — never epoch-parse a number.
+  if (typeof v === 'number') return null;
+  // An unexpected boolean provider flag narrows safely to null (no throw).
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  if (s === '0' || s === '1') return null;
+  // Accept only a strict ISO calendar date the provider actually supplied.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const [_, ys, ms, ds] = m;
+  const year = Number(ys), month = Number(ms), day = Number(ds);
+  // Reject impossible month/day ranges up front, then require the UTC date to
+  // round-trip to the SAME Y/M/D so rollover forms (2026-02-30, 2026-13-01)
+  // are rejected rather than silently shifted.
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() !== month - 1 ||
+    d.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return d;
+}
+
+/**
  * Normalize a LegiScan-sourced chamber string to OpenStates' 'upper'/'lower'
  * vocabulary. LegiScan's committee.chamber is a single-letter code ('H' House,
  * 'S' Senate, 'A' Assembly — verified against the LegiScan API user manual +
@@ -474,10 +512,12 @@ export async function upsertStateSession(
 ): Promise<void> {
   const id = stateSessionId(state, session.session_id);
   const sessionKey = computeSessionKey(session);
-  const sineDie =
-    session.sine_die != null && session.sine_die !== 0 && session.sine_die !== '0'
-      ? safeDate(String(session.sine_die))
-      : null;
+  // Parse sine_die as flag-vs-date (see parseSineDieDate): the FL getSessionList
+  // payload sends the integer flag 1, which a naive Date parse would store as
+  // 2001-01-01 and feed the derived-status engine a fake sine-die deadline. A
+  // genuine provider ISO date is preserved; flags/unknown forms stay null so the
+  // deadline remains source-faithful (never inferred, never fabricated).
+  const sineDie = parseSineDieDate(session.sine_die);
   const data = {
     state: state.toUpperCase(),
     legiscanSessionId: session.session_id,

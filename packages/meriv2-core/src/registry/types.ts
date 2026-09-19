@@ -1,5 +1,5 @@
 import type { ZodType, ZodIssue } from 'zod';
-import type { MeriCitation, TenantContext, TenantRole } from '@capiro/shared';
+import type { MeriCitation, TenantRole } from '@capiro/shared';
 import type { MemoryAuthority } from '../memory/governance';
 import type { ToolExecutionMetadata } from './tool-execution-metadata';
 
@@ -185,16 +185,6 @@ export interface MeriContext {
   clientRoster?: Array<{ name: string; status: string }>;
   clientSteering?: { soul?: string; compass?: string; people?: string };
   contextPacket?: MeriContextPacketSummary;
-}
-
-export function meriContextFromTenant(ctx: TenantContext, org?: MeriContext['org']): MeriContext {
-  return {
-    tenantId: ctx.tenantId,
-    userId: ctx.userId,
-    clerkUserId: ctx.clerkUserId,
-    role: ctx.role,
-    ...(org ? { org } : {}),
-  };
 }
 
 export interface ToolDefinition<I, O> {

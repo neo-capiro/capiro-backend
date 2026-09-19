@@ -47,6 +47,11 @@ const COMMITTEE_NOTIFICATIONS = [
     label: 'High-priority client match',
     hint: 'A HIGH-relevance finding is detected for a selected client.',
   },
+  {
+    key: 'notifyOnPublication' as const,
+    label: 'Committee publications',
+    hint: 'The committee publishes documents, testimony or other material.',
+  },
 ];
 
 /** The Follow control for a Committee Room header. */
@@ -111,6 +116,7 @@ export function CommitteeFollowDialog({
     notifyOnScheduleChange: true,
     notifyOnTranscriptReady: false,
     notifyOnHighPriorityMatch: true,
+    notifyOnPublication: true,
   });
   const [hydrated, setHydrated] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -125,6 +131,8 @@ export function CommitteeFollowDialog({
       notifyOnScheduleChange: existing.data.notifyOnScheduleChange,
       notifyOnTranscriptReady: existing.data.notifyOnTranscriptReady,
       notifyOnHighPriorityMatch: existing.data.notifyOnHighPriorityMatch,
+      // Server default is true; tolerate a pre-contract response that omits it.
+      notifyOnPublication: existing.data.notifyOnPublication ?? true,
     });
     setHydrated(true);
   }, [existing.data, hydrated]);
@@ -138,7 +146,7 @@ export function CommitteeFollowDialog({
 
   return (
     <LwModal
-      kind="watch"
+      kind="follow"
       eyebrow="Follow committee"
       title={following ? 'Edit committee follow' : 'Follow this committee'}
       subtitle={committeeName}

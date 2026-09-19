@@ -37,7 +37,13 @@ describe('existing calendar subscriptions after hearing reconciliation', () => {
         ),
       },
     };
-    return new LegiWatchWave1Service(prisma as never, {} as never, {} as never, {} as never);
+    return new LegiWatchWave1Service(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
   }
   afterEach(() => {
     jest.restoreAllMocks();

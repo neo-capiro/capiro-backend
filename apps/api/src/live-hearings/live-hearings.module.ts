@@ -10,15 +10,15 @@
 import { Module } from '@nestjs/common';
 import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { TrackerEmailService } from '../tracker/notifications/tracker-email.service.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
 import { InternalLegiWatchController } from './internal-legiwatch.controller.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import { LegiWatchWave2Controller } from './legiwatch-wave2.controller.js';
-import { LegiWatchWave2SavedViewsService } from './legiwatch-wave2-saved-views.service.js';
-import { LegiWatchWave2WatchPresetsService } from './legiwatch-wave2-watch-presets.service.js';
 import { LegiWatchWave2CoverageService } from './legiwatch-wave2-coverage.service.js';
 import { LegiWatchWave3Controller } from './legiwatch-wave3.controller.js';
+import { LegiWatchCommitteeNotificationService } from './legiwatch-committee-notification.service.js';
 import { LegiWatchDigestService } from './legiwatch-digest.service.js';
 import { LegiWatchAnalyticsService } from './legiwatch-analytics.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
@@ -59,6 +59,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchPhase9AdminController,
   ],
   providers: [
+    TrackerEmailService,
     CanonicalHearingIdPipe,
     LiveHearingsService,
     CommitteeDirectoryService,
@@ -68,8 +69,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LiveHearingsPhase8Service,
     LegiWatchWave1Service,
     LegiWatchLifecycleNotificationService,
-    LegiWatchWave2SavedViewsService,
-    LegiWatchWave2WatchPresetsService,
+    LegiWatchCommitteeNotificationService,
     LegiWatchWave2CoverageService,
     LegiWatchDigestService,
     LegiWatchAnalyticsService,
@@ -91,8 +91,7 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LiveHearingsPhase8Service,
     LegiWatchWave1Service,
     LegiWatchLifecycleNotificationService,
-    LegiWatchWave2SavedViewsService,
-    LegiWatchWave2WatchPresetsService,
+    LegiWatchCommitteeNotificationService,
     LegiWatchWave2CoverageService,
     LegiWatchDigestService,
     LegiWatchAnalyticsService,

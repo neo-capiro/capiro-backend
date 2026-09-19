@@ -198,8 +198,8 @@ export class OrchestratorClient {
 
   /**
    * Narrative synthesis for the post-hearing brief (exec summary, tone, risks,
-   * opportunities, next steps, draft client email). Returns null on any failure
-   * so the caller falls back to deterministic assembly.
+   * opportunities, next steps, draft client email). Returns null on failure so
+   * the caller can surface synthesis as unavailable.
    */
   async summarizeHearing(params: {
     tenantId: string;
@@ -211,6 +211,18 @@ export class OrchestratorClient {
     actionItems: string[];
     /** The client the recap is written FOR; absent/null = client-agnostic brief. */
     client?: PostHearingClientInput | null;
+    /**
+     * LEGACY narrative source: bounded, decrypted FINAL transcript segments for
+     * the authored recap. Distinct from `evidence` (governed branch, untouched).
+     * When present the recap runs the strict narrative schema branch.
+     */
+    narrativeSource?: Array<{
+      segmentId: string;
+      text: string;
+      startMs: number;
+      endMs: number;
+      speakerLabel?: string | null;
+    }>;
     evidence?: Array<{
       segmentId: string;
       text: string;
@@ -251,13 +263,12 @@ export class OrchestratorClient {
       evidenceIds: string[];
     }>;
     promptVersion?: string;
+    /** NEW (legacy narrative branch). Model-authored report title + themes. */
+    summaryTitle?: string;
+    keyDevelopments?: Array<{ title: string; text: string; evidenceIds: string[] }>;
   } | null> {
-    // Every `return null` below is logged. This method degrades to a
-    // deterministic recap on failure, and the caller ALSO swallows null quietly,
-    // so an unlogged null meant a recap could silently drop from Meri synthesis
-    // to bare assembly with no trace anywhere. That is exactly what happened on
-    // 2026-07-29: a 62-minute Senate hearing produced a recap whose summary was a
-    // bare flagged-moment count, and nothing in the API logs said why.
+    // Log every unavailable result so an operator can distinguish transport,
+    // provider, and response failures without logging transcript content.
     if (!this.baseUrl) {
       this.logger.warn(
         `summarizeHearing skipped session=${params.sessionId}: no orchestrator base URL configured`,
@@ -266,7 +277,18 @@ export class OrchestratorClient {
     }
     const aiProvider = await this.aiCredentials.resolve(params.tenantId);
     const controller = new AbortController();
-    const budgetMs = this.timeoutMs * 3;
+    // summarizeHearing's outer deadline must cover the provider's own structured-
+    // generation window. The EVIDENCE branch runs a bounded manual-thinking step
+    // on a 60s inner budget → 65s outer. The legacy NARRATIVE branch runs a
+    // strict-schema authored recap on a 120s provider budget (strict compilation
+    // adds latency) → 130s outer, still within the UI's 175s allowance and the
+    // ALB's 300s idle timeout. The plain legacy (no source) recap keeps the 35s
+    // floor and extraction keeps the single-timeout behavior.
+    const budgetMs = params.evidence
+      ? 65000
+      : params.narrativeSource
+        ? 130000
+        : Math.max(this.timeoutMs * 3, 35000);
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       const res = await fetch(
@@ -289,6 +311,7 @@ export class OrchestratorClient {
               mentions: params.mentions,
               actionItems: params.actionItems,
               ...(params.client ? { client: params.client } : {}),
+              ...(params.narrativeSource ? { narrativeSource: params.narrativeSource } : {}),
               ...(params.evidence
                 ? {
                     evidence: params.evidence,
@@ -313,7 +336,7 @@ export class OrchestratorClient {
       if (!res.ok) {
         this.logger.warn(
           `summarizeHearing HTTP ${res.status} session=${params.sessionId}; ` +
-            `falling back to deterministic recap`,
+            `returning no synthesis`,
         );
         return null;
       }
@@ -333,12 +356,14 @@ export class OrchestratorClient {
             evidenceIds: string[];
           }>;
           promptVersion?: string;
+          summaryTitle?: string;
+          keyDevelopments?: Array<{ title: string; text: string; evidenceIds: string[] }>;
         };
       } | null;
       if (!envelope?.result) {
         this.logger.warn(
           `summarizeHearing returned no result envelope session=${params.sessionId}; ` +
-            `falling back to deterministic recap`,
+            `returning no synthesis`,
         );
         return null;
       }
@@ -353,7 +378,7 @@ export class OrchestratorClient {
       this.logger.warn(
         `summarizeHearing ${aborted ? `timed out after ${budgetMs}ms` : 'failed'} ` +
           `session=${params.sessionId}: ${(err as Error).message}; ` +
-          `falling back to deterministic recap`,
+          `returning no synthesis`,
       );
       return null;
     } finally {

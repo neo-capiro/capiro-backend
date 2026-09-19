@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
@@ -6,6 +7,7 @@ import {
   BILL_360_FEATURE,
 } from '../src/feature-flags/feature-flag.service.js';
 import {
+  FolderTrackerService,
   canEditFolder,
   csvCell,
   normalizeBillNumber,
@@ -54,6 +56,10 @@ describe('folder tracker contracts', () => {
     expect(normalizeBillNumber('H0027', 'FL')).toBe('HB27');
     expect(normalizeBillNumber('S0028', 'FL')).toBe('SB28');
     expect(normalizeBillNumber('H0027', 'GA')).toBe('H27');
+    expect(normalizeBillNumber('H.R. 177')).toBe('HR177');
+    expect(normalizeBillNumber('H R 177')).toBe('HR177');
+    expect(normalizeBillNumber('H B 2', 'FL')).toBe('HB2');
+    expect(normalizeBillNumber('s. 1932')).toBe('S1932');
     for (const proposal of ['HCB27', 'SAB28', 'GOS27', 'BUC27', 'WMC27'])
       expect(normalizeBillNumber(proposal, 'FL')).toBe(proposal);
   });
@@ -73,10 +79,13 @@ describe('folder tracker contracts', () => {
     });
     expect(await validate(input, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
   });
-  it('rejects incomplete scope and injected ownership fields', async () => {
+  it('accepts a scope-free global search query and rejects injected ownership fields', async () => {
+    // jurisdiction/session are optional on the board DTO (the service enforces
+    // them on the non-search path) so the global corpus search can omit both.
     expect(
       (await validate(plainToInstance(FolderBoardQueryDto, { jurisdiction: 'FL' }))).length,
-    ).toBeGreaterThan(0);
+    ).toBe(0);
+    expect((await validate(plainToInstance(FolderBoardQueryDto, {}))).length).toBe(0);
     expect(
       (
         await validate(
@@ -93,5 +102,42 @@ describe('folder tracker contracts', () => {
         )
       ).length,
     ).toBeGreaterThan(0);
+  });
+  it('export cursor scope binds the selectedIds identity and rejects a mutated selection', async () => {
+    // Evidence test: the cursor scope must already bind the exact selectedIds
+    // array. A cursor minted under a different selection must be rejected, not
+    // silently re-paged (that would corrupt a scoped export).
+    const captured: string[] = [];
+    const prisma = {
+      withTenant: async (_t: string, fn: (tx: unknown) => unknown) =>
+        fn({
+          $executeRaw: async () => 0,
+          $queryRawUnsafe: async (sql: string) => {
+            captured.push(sql);
+            return sql.includes('count(*)') ? [{ total: 0 }] : [];
+          },
+        }),
+    };
+    const svc = new FolderTrackerService(prisma as never, {} as never, {} as never);
+    const ctx = { tenantId: 't1', clerkUserId: 'u1', role: 'org:admin' };
+    const query = { jurisdiction: 'FL', sessionKey: '2099' };
+    await svc.board(ctx as never, query, false, ['a', 'b']);
+    expect(captured.join('\n')).toContain('a.id = ANY(');
+    const foreignScope = createHash('sha256')
+      .update(
+        JSON.stringify({
+          tenantId: 't1',
+          filters: { ...query },
+          search: false,
+          selectedIds: ['a', 'c'],
+        }),
+      )
+      .digest('hex');
+    const cursor = Buffer.from(JSON.stringify({ scope: foreignScope, offset: 0 })).toString(
+      'base64url',
+    );
+    await expect(svc.board(ctx as never, { ...query, cursor }, false, ['a', 'b'])).rejects.toThrow(
+      'CURSOR_SCOPE_CHANGED',
+    );
   });
 });

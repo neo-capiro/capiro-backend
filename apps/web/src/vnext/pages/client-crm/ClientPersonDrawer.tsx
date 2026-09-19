@@ -68,6 +68,10 @@ export function ClientPersonDrawer({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const [placementError, setPlacementError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const set = (key: keyof typeof form, value: string) => {
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -297,13 +301,30 @@ export function ClientPersonDrawer({
               </div>
 
               {person.placementSource === 'manual' && onPlace ? (
-                <CapiroButton
-                  variant="quiet"
-                  size="compact"
-                  onClick={() => void onPlace({ resetToAutomatic: true }).then(onClose)}
-                >
-                  Return to automatic placement
-                </CapiroButton>
+                <>
+                  {/* Caught here, not voided: a failed reset (e.g. a 503 from the
+                      hierarchy endpoint) used to escape as an uncaught page error
+                      and silently leave the manual placement in place. Now it
+                      reports under the button and offers the same write again. */}
+                  <CapiroButton
+                    variant="quiet"
+                    size="compact"
+                    loading={placing}
+                    onClick={() => {
+                      setPlacing(true);
+                      setPlacementError(null);
+                      void onPlace({ resetToAutomatic: true })
+                        .then(() => onClose())
+                        .catch((caught) => setPlacementError(messageOf(caught)))
+                        .finally(() => setPlacing(false));
+                    }}
+                  >
+                    Return to automatic placement
+                  </CapiroButton>
+                  {placementError ? (
+                    <p className="capiro-crm__foot capiro-crm__state--error" role="alert">{placementError}</p>
+                  ) : null}
+                </>
               ) : null}
             </>
           ) : null}
@@ -368,8 +389,31 @@ export function ClientPersonDrawer({
         <p className="capiro-crm__foot">
           Remove <strong>{person?.name}</strong>? Anyone reporting to them becomes unattached.
         </p>
+        {/* The Remove action's promise used to be voided — a failed DELETE
+            surfaced as an uncaught page error with no visible feedback and the
+            record silently still there. Kept inside the modal instead: the
+            error renders under the prompt and Remove stays available to retry. */}
+        {deleteError ? (
+          <p className="capiro-crm__foot capiro-crm__state--error" role="alert">{deleteError}</p>
+        ) : null}
         <div className="capiro-crm__form-actions">
-          <CapiroButton variant="primary" size="compact" onClick={() => void onDelete?.()}>
+          <CapiroButton
+            variant="primary"
+            size="compact"
+            loading={deleting}
+            onClick={() => {
+              if (!onDelete) return;
+              setDeleting(true);
+              setDeleteError(null);
+              void onDelete()
+                .then(() => {
+                  // Only dismiss once the delete actually succeeded.
+                  setConfirmDelete(false);
+                })
+                .catch((caught) => setDeleteError(messageOf(caught)))
+                .finally(() => setDeleting(false));
+            }}
+          >
             Remove
           </CapiroButton>
           <CapiroButton variant="secondary" size="compact" onClick={() => setConfirmDelete(false)}>

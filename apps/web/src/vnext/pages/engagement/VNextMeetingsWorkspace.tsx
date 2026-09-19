@@ -442,7 +442,16 @@ function NewMeetingModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const canSave = subject.trim().length > 0 && Boolean(dateKeyValue) && Boolean(startTime) && Boolean(endTime);
+  // Mirrors the API's own create-meeting rule (engagement.service.ts:1386,
+  // "endsAt must be after startsAt") so the user learns it inline instead of
+  // from a generic post-submit "Could not save the meeting" banner.
+  const timesInverted = Boolean(startTime) && Boolean(endTime) && endTime < startTime;
+  const canSave =
+    subject.trim().length > 0 &&
+    Boolean(dateKeyValue) &&
+    Boolean(startTime) &&
+    Boolean(endTime) &&
+    !timesInverted;
 
   return (
     <EngagementDialog
@@ -521,7 +530,18 @@ function NewMeetingModal({
         </label>
         <label className="engagement-dialog__field">
           End time
-          <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+          <input
+            type="time"
+            value={endTime}
+            onChange={(event) => setEndTime(event.target.value)}
+            aria-invalid={timesInverted || undefined}
+            aria-describedby={timesInverted ? 'new-meeting-end-time-error' : undefined}
+          />
+          {timesInverted && (
+            <small className="uui-field-error" id="new-meeting-end-time-error">
+              End time must be after the start time.
+            </small>
+          )}
         </label>
         {/*
           EM-10 — these two fields used to not exist at all: the create form
@@ -1067,8 +1087,8 @@ export function VNextMeetingsWorkspace({ clientId, clientLabel }: VNextMeetingsW
             <span className="uui-eyebrow">Meeting not found</span>
             <h3>This meeting is deleted or not authorized for you</h3>
             <p>
-              A deleted or unauthorized deep-link id renders this stable explicit panel instead of
-              an empty drawer.
+              This meeting may have been removed or may not be available to your account. Choose
+              another meeting from the calendar.
             </p>
             <button type="button" className="uui-button" onClick={clearSelection}>
               Back to {viewLabel} view

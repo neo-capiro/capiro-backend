@@ -54,7 +54,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
   // depend on it without a cycle — ClientsModule already imports
   // DirectoryModule for the Facilities tab's directory cross-links.
   // TrackerModule exports TrackerService for capability-fit bill projection
-  // (Phase B). FundingOpportunitiesModule exports FundingOpportunitiesService
+  // (Phase B). FundingOpportunitiesModule exports canonical FundingOpportunityV2 services
   // for FO projection (Phase C). Cycle risk verified none: TrackerModule only
   // imports IntelligenceModule + EngagementModule; FO module imports MemoryModule.
   imports: [

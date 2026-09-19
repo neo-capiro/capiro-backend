@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import type { InboxSource } from './funding-opportunity-inbox.service.js';
-import { FORECAST_INBOX_SOURCE } from './funding-opportunity-inbox.service.js';
-import type { OpportunityActionIntent } from './funding-opportunity-actions.service.js';
+import type { InboxSource } from './funding-opportunity-access.js';
+import { FORECAST_INBOX_SOURCE } from './funding-opportunity-access.js';
+import type { V2ActionIntent } from './funding-opportunity-v2-workflow.service.js';
 import type { OpportunityKind } from './funding-opportunities.types.js';
 import type { LandscapeItem } from './government-landscape.types.js';
 
@@ -104,7 +104,7 @@ export type ActionCategory = (typeof ACTION_CATEGORIES)[number];
  * and the UI offers no accept control for it.
  */
 export const ACTION_INTENTS = ['review', 'pursuit', 'none'] as const;
-export type ActionIntent = OpportunityActionIntent | 'none';
+export type ActionIntent = V2ActionIntent | 'none';
 
 export interface ActionEvidence {
   source: string;

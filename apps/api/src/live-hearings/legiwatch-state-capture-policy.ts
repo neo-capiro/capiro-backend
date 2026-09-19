@@ -1,10 +1,7 @@
 import type { TenantContext } from '@capiro/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
-import {
-  assessStrictSchedulePolicy,
-  type StrictScheduleAssessment,
-} from './live-hearings-phase7-schedule.guard.js';
+import type { StrictScheduleAssessment } from './live-hearings-phase7-schedule.guard.js';
 
 export interface StateCaptureHearing {
   id: string;
@@ -14,7 +11,62 @@ export interface StateCaptureHearing {
   url?: string | null;
 }
 
-/** Explicit state adapter. Legacy federal scheduling keeps its existing policy. */
+/**
+ * First-party Florida chamber hosts. A public Florida proceeding is
+ * browser-attendable when its official page is on one of these — the user opens
+ * the official chamber/committee player themselves. This is the public
+ * browser-safe policy, deliberately distinct from backend (server) ingestion
+ * eligibility, which stays fail-closed behind a reviewed media permission.
+ */
+const FLORIDA_FIRST_PARTY_HOSTS = /(^|\.)(flsenate\.gov|flhouse\.gov)$/i;
+/** The Florida Channel's EXACT per-event video page is a first-party browser
+ *  player for a published proceeding. The /videos/ archive index and every
+ *  other path on the host are listings and are never browser-offered. */
+const FLORIDA_CHANNEL_VIDEO_PAGE = /^\/videos\/[a-z0-9][a-z0-9-]*\/?$/i;
+
+/** Public browser-safe Florida source: an official chamber page, or the exact
+ *  Florida Channel per-event video page (never the archive index). Aligned
+ *  with the final Intel public-capture guard and stream resolver so the UI
+ *  never offers a source the capture path would reject: HTTPS only, no
+ *  credentials in the URL, no non-standard port. */
+function floridaPublicBrowserPage(url: string | null | undefined): boolean {
+  if (!url) return false;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  // https only — never credentials in the URL, never a non-standard port.
+  if (u.protocol !== 'https:') return false;
+  if (u.username || u.password) return false;
+  if (u.port && u.port !== '443') return false;
+  const host = u.hostname;
+  if (FLORIDA_FIRST_PARTY_HOSTS.test(host)) return true;
+  return host.toLowerCase() === 'thefloridachannel.org' && FLORIDA_CHANNEL_VIDEO_PAGE.test(u.pathname);
+}
+
+/**
+ * Explicit state adapter. Legacy federal scheduling keeps its existing policy.
+ *
+ * Two INDEPENDENT decisions are made here, per the user-authorized rule change:
+ *
+ *  - BROWSER availability for a PUBLIC Florida event no longer requires the
+ *    legacy per-tenant `intel_hearing_media_permission` browser grant. A public
+ *    state proceeding on an official chamber page is browser-attendable by any
+ *    tenant; the user records with their own browser on a public page. Closed
+ *    or private proceedings and canceled events are refused before this is
+ *    considered. A COMPLETED public event keeps browser access when it has an
+ *    official page — its published replay is watchable even though new
+ *    automatic demand is closed.
+ *
+ *  - SERVER (unattended) capture is UNCHANGED and fail-closed: it still needs
+ *    the runtime gates plus a reviewed `intel_hearing_media_permission` row
+ *    (mode `server`, unexpired, unrevoked, operations ⊇ capture/transcription/
+ *    retention) for this exact hearing + source and an active member of a
+ *    tenant with `legiwatch_hearing_recording_v1` enabled. We never fabricate a
+ *    server path or bypass a source's own security.
+ */
 export async function stateCapturePolicy(
   prisma: PrismaService,
   ctx: TenantContext,
@@ -22,8 +74,43 @@ export async function stateCapturePolicy(
 ): Promise<{ policy: StrictScheduleAssessment; browserAllowed: boolean } | undefined> {
   if (!hearing.geographicJurisdiction || hearing.geographicJurisdiction === 'US') return undefined;
   await requireStateCalendar(prisma, ctx.tenantId);
-  const terminal = assessStrictSchedulePolicy(hearing, []);
-  if (!terminal.allowed) return { policy: terminal, browserAllowed: false };
+
+  // Public browser-safe policy, decided independently of automatic temporal
+  // eligibility: closed/private and canceled events are never browser-offered;
+  // a public event (including a completed one with a published replay) on an
+  // official first-party Florida page is browser-attendable.
+  const status = (hearing.eventStatus ?? '').toLowerCase();
+  const publicBrowser =
+    hearing.visibility === 'public' &&
+    status !== 'canceled' &&
+    status !== 'cancelled' &&
+    floridaPublicBrowserPage(hearing.url);
+
+  // Closed/private proceedings are terminal for every mode.
+  if (hearing.visibility !== 'public') {
+    return {
+      browserAllowed: false,
+      policy: {
+        allowed: false,
+        state: 'BLOCKED',
+        reasonCode: 'NON_PUBLIC_PROCEEDING',
+        message: 'This proceeding is not public and cannot be scheduled for public server capture.',
+      },
+    };
+  }
+  // Canceled events are terminal for every mode.
+  if (status === 'canceled' || status === 'cancelled') {
+    return {
+      browserAllowed: false,
+      policy: {
+        allowed: false,
+        state: 'BLOCKED',
+        reasonCode: 'EVENT_CANCELED',
+        message: 'This proceeding has been canceled.',
+      },
+    };
+  }
+
   const grants = await prisma.withSystem(
     (tx) => tx.$queryRaw<Array<{ mode: string }>>`
     SELECT DISTINCT p.mode FROM intel_hearing_media_permission p
@@ -37,7 +124,22 @@ export async function stateCapturePolicy(
       AND (p.mode='browser' OR p.operations @> ARRAY['retention']::text[])
   `,
   );
-  const browserAllowed = grants.some((grant) => grant.mode === 'browser');
+  const browserAllowed = publicBrowser || grants.some((grant) => grant.mode === 'browser');
+
+  // A completed event takes no new automatic demand, but its official replay
+  // stays browser-watchable.
+  if (status === 'completed') {
+    return {
+      browserAllowed,
+      policy: {
+        allowed: false,
+        state: 'BLOCKED',
+        reasonCode: 'EVENT_COMPLETED',
+        message: 'This proceeding is already complete.',
+      },
+    };
+  }
+
   const serverAllowed =
     process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED === 'true' &&
     process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED === 'true' &&
@@ -59,7 +161,9 @@ export async function stateCapturePolicy(
       ? {
           allowed: false,
           state: 'BROWSER_ONLY',
-          reasonCode: 'STATE_BROWSER_PERMISSION_REVIEWED',
+          reasonCode: publicBrowser
+            ? 'STATE_PUBLIC_BROWSER_AVAILABLE'
+            : 'STATE_BROWSER_PERMISSION_REVIEWED',
           message:
             'Browser capture is permitted for this event. Keep the selected tab and device active.',
         }

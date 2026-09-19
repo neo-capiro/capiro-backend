@@ -122,7 +122,9 @@
   border-radius: 50%;
 }
 .capiro-vnext-root .cap-pf-client-description {
-  max-width: none;
+  /* Reference: max-width 64ch — at 14px Inter this is ~520px, wrapping the
+     description to two lines on 1440px layouts. */
+  max-width: 64ch;
   overflow-wrap: anywhere;
   margin: 8px 0 0;
   color: #475467;
@@ -174,24 +176,26 @@
   flex-wrap: wrap;
 }
 .capiro-vnext-root .cap-pf-funding-priorities {
-  max-width: 64ch;
-  margin-top: 10px;
+  /* Preserve the field but keep it compact — reference has no such block;
+     the prototype puts funding priorities under the description. */
+  max-width: 520px;
+  margin-top: 6px;
   color: #475467;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12.5px;
+  line-height: 18px;
 }
 .capiro-vnext-root .cap-pf-funding-priorities__label {
   color: #344054;
   font-weight: 600;
 }
 .capiro-vnext-root .cap-pf-funding-priorities ul {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   padding-left: 18px;
   overflow-wrap: anywhere;
 }
 .capiro-vnext-root .cap-pf-funding-priorities summary {
   width: fit-content;
-  margin-top: 4px;
+  margin-top: 2px;
   color: #344054;
   cursor: pointer;
 }
@@ -272,11 +276,13 @@
   justify-content: center;
   width: 24px;
   height: 24px;
+  /* Reference avatar (account card + timeline meta share the same Untitled
+     avatar recipe): tertiary fill, hairline ring, 12px/600 quaternary text. */
   border: 1px solid #eaecf0;
   border-radius: 50%;
   background: #f2f4f7;
-  color: #667085;
-  font-size: 10px;
+  color: #98a2b3;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
 }

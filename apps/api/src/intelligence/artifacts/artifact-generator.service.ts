@@ -1,3 +1,4 @@
+import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
@@ -341,12 +342,12 @@ export class ArtifactGeneratorService {
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareAnthropicRequest({
         model: this.model,
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
-      }),
+      })),
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {

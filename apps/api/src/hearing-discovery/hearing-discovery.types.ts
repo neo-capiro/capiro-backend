@@ -146,6 +146,16 @@ export interface SourceEvent {
   streamCandidates?: ObservedStreamCandidate[];
   /** Raw provenance blob stored on the observation for later forensics. */
   raw?: Record<string, unknown>;
+  /**
+   * STRONG-PROOF canonical attachment (state legislative path only): the
+   * canonical `committee_hearing.id` this observation was proven to belong to
+   * by an exact publisher page or a shared publisher media entry — never by a
+   * title/date guess. When set, the legislative reconciler attaches the new
+   * source's observation to THIS row instead of deriving a fresh id from the
+   * observation's own identity, so two official sources citing the same
+   * proceeding converge on one canonical row.
+   */
+  canonicalHearingId?: string | null;
 }
 
 /**

@@ -12,7 +12,7 @@
  * browser back restores the underlying worklist state.
  */
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { useLwAlert, useLwPacket, useLwWorkState } from '../lib/api.js';
+import { useLwAlert, useLwPacket, useLwWorkState, useLwAssignSelf } from '../lib/api.js';
 import {
   WORK_STATE_LABEL,
   WORK_STATE_TONE,
@@ -44,8 +44,30 @@ function PacketDrawerContent({
   onClose,
 }: PacketDrawerProps) {
   const alert = useLwAlert(scope, alertId);
-  const packet = useLwPacket(scope, alertId);
   const workState = useLwWorkState(scope);
+  const self = useLwAssignSelf();
+  const it = alert.data ?? null;
+  // Packet route is per OWNING client — there is no `_all` route. Under All
+  // clients the owner is the alert's own clientId, resolved after the alert
+  // read; under a client lens only when the scope IS the owner, so a foreign
+  // client's packet is never requested or leaked through a lens URL.
+  const ownerClientId = it
+    ? scope && it.clientId !== scope
+      ? null
+      : it.clientId || null
+    : null;
+  const packet = useLwPacket(ownerClientId, alertId);
+  // Honest reason when no packet can be shown: owner not resolvable, foreign
+  // lens, or the request failed — never rendered as absence of evidence.
+  const packetBlocked = Boolean(it) && !ownerClientId;
+  const packetUnavailableReason =
+    packet.errorKind === 'request_failed'
+      ? 'Official evidence could not be loaded.'
+      : packetBlocked && scope
+        ? 'Official evidence could not be loaded — this alert belongs to a different client than the selected view.'
+        : packetBlocked
+          ? 'Official evidence could not be loaded.'
+          : null;
   /** Result of the last Change-menu action — the drawer's only feedback path. */
   const [notice, setNotice] = useState<string | null>(null);
   const [memoOpen, setMemoOpen] = useState(false);
@@ -56,7 +78,6 @@ function PacketDrawerContent({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const it = alert.data;
   const pk = packet.data;
   const bandInfo = it ? packetBand(it) : null;
   const ws = ((it?.workState?.state ?? 'new') as WorkState);
@@ -122,8 +143,18 @@ function PacketDrawerContent({
                     onChange={(e) => {
                       const next = e.target.value as WorkState;
                       setNotice(null);
+                      // LW-QA-021: 'assigned' without the actor's id 400s at
+                      // the real API. Block honestly instead.
+                      if (next === 'assigned' && !self.userId) {
+                        setNotice('Assignee could not be resolved — state not changed');
+                        return;
+                      }
                       workState.mutate(
-                        { alertIds: [it.id], state: next },
+                        {
+                          alertIds: [it.id],
+                          state: next,
+                          ...(next === 'assigned' ? { assignedTo: self.userId } : {}),
+                        },
                         {
                           onSuccess: () =>
                             setNotice(`Marked ${WORK_STATE_LABEL[next].toLowerCase()}`),
@@ -141,7 +172,9 @@ function PacketDrawerContent({
                     }}
                   >
                     {(Object.keys(WORK_STATE_LABEL) as WorkState[]).map((s) => (
-                      <option key={s} value={s}>{WORK_STATE_LABEL[s]}</option>
+                      <option key={s} value={s}>
+                        {s === 'assigned' ? (self.userId ? 'Assign to me' : 'Assigned (unavailable)') : WORK_STATE_LABEL[s]}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -182,7 +215,15 @@ function PacketDrawerContent({
               {/* Official evidence — always names its record and verified time. */}
               <section>
                 <h3 className="lw-sect__title">Official evidence</h3>
-                {pk?.officialEvidence?.length ? (
+                {packetUnavailableReason ? (
+                  <p className="lw-state__body" style={{ maxWidth: 'none' }}>
+                    {packetUnavailableReason}
+                  </p>
+                ) : packet.isPending ? (
+                  <p className="lw-state__body" style={{ maxWidth: 'none' }} role="status">
+                    Loading official evidence…
+                  </p>
+                ) : pk?.officialEvidence?.length ? (
                   pk.officialEvidence.slice(0, 3).map((ev) => (
                     <div key={ev.claimId} className="lw-block" style={{ marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -240,7 +281,11 @@ function PacketDrawerContent({
               <section className="lw-two-up">
                 <div className="lw-block">
                   <div className="lw-block__label">Confidence</div>
-                  {pk?.confidence ? (
+                  {packetUnavailableReason ? (
+                    <div className="lw-block__body">Not loaded.</div>
+                  ) : packet.isPending ? (
+                    <div className="lw-block__body" role="status">Loading…</div>
+                  ) : pk?.confidence ? (
                     <>
                       <div className="lw-block__head" style={{ marginTop: 6 }}>
                         {confidenceLabel(pk.confidence.evidenceCoverage)} · {pk.confidence.evidenceCoverage.toFixed(2)}
@@ -256,11 +301,15 @@ function PacketDrawerContent({
                 <div className="lw-block">
                   <div className="lw-block__label">Unknowns</div>
                   <div className="lw-block__body">
-                    {pk?.confidence?.missingFields?.length
-                      ? pk.confidence.missingFields.join(', ')
-                      : pk?.proceduralMeaning?.uncertainty?.length
-                        ? pk.proceduralMeaning.uncertainty.join(', ')
-                        : 'No explicit unknowns were recorded for this packet.'}
+                    {packetUnavailableReason
+                      ? 'Not loaded.'
+                      : packet.isPending
+                        ? 'Loading…'
+                        : pk?.confidence?.missingFields?.length
+                          ? pk.confidence.missingFields.join(', ')
+                          : pk?.proceduralMeaning?.uncertainty?.length
+                            ? pk.proceduralMeaning.uncertainty.join(', ')
+                            : 'No explicit unknowns were recorded for this packet.'}
                   </div>
                 </div>
               </section>

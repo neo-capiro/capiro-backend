@@ -160,6 +160,21 @@ describe('operational report semantics', () => {
       expect(renderReport(result).html).toContain('Synthetic HB 93');
     },
   );
+  it('keeps the bill heading, metadata and first section block together in print', () => {
+    // Print pagination: an article's h2 + folder/sponsor metadata + the first
+    // section block are wrapped in .bill-head{break-inside:avoid} so a break
+    // cannot orphan the heading at a page foot. Sibling-selector rules proved
+    // brittle (they orphaned the H0547 heading) and are removed.
+    const d = document({}, [bill('b1', 'HB 93')]);
+    const { html } = renderReport(d);
+    expect(html).toContain('.bill-head{break-inside:avoid}');
+    expect(html).toContain('<div class="bill-head"><h2>');
+    expect(html).not.toContain('article>h2~h3:first-of-type');
+    expect(html).not.toContain('article>h2+*');
+    // Long bills still flow across pages: no whole-article break-inside:avoid.
+    expect(html).toContain('article{break-inside:auto}');
+    expect(html).not.toContain('article{break-inside:avoid}');
+  });
   it('retains an unchanged tracked bill with an empty action display window', () => {
     const old = bill('old', 'SB 122');
     old.events = old.events.slice(0, 1);

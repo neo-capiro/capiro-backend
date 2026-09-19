@@ -35,6 +35,39 @@ function decodeRaw(raw: string): string {
   return Buffer.from(raw, 'base64url').toString('utf8');
 }
 
+test('Gmail MIME includes every group recipient and both complete attachment payloads', () => {
+  const attachments = [
+    {
+      name: 'brief.pdf',
+      contentType: 'application/pdf',
+      contentBytes: Buffer.from('%PDF-1.7\nbrief').toString('base64'),
+    },
+    {
+      name: 'contacts.csv',
+      contentType: 'text/csv',
+      contentBytes: Buffer.from('name,email\r\nA,a@example.test').toString('base64'),
+    },
+  ];
+  const mime = decodeRaw(
+    buildGmailRawMessage({
+      ...INPUT,
+      toRecipients: ['a@example.test', 'b@example.test', 'c@example.test'].map((email) => ({
+        email,
+      })),
+      ccRecipients: [{ email: 'copy@example.test' }],
+      bccRecipients: [{ email: 'private@example.test' }],
+      attachments,
+    }),
+  );
+  expect(mime).toContain('To: a@example.test, b@example.test, c@example.test');
+  expect(mime).toContain('Cc: copy@example.test');
+  expect(mime).toContain('Bcc: private@example.test');
+  for (const attachment of attachments) {
+    expect(mime).toContain(attachment.name);
+    expect(mime).toContain(attachment.contentBytes);
+  }
+});
+
 function makeService(fetchImpl: () => Promise<Response>, owner = 'u1') {
   const service = Object.create(GmailSendService.prototype) as GmailSendService;
   const patch = service as unknown as Record<string, unknown>;
@@ -103,9 +136,7 @@ describe('buildGmailRawMessage — correlation header', () => {
   });
 
   test('subject CR/LF injection is still collapsed to one header line (regression guard)', () => {
-    const mime = decodeRaw(
-      buildGmailRawMessage({ ...INPUT, subject: 'Hi\r\nBcc: victim@x.com' }),
-    );
+    const mime = decodeRaw(buildGmailRawMessage({ ...INPUT, subject: 'Hi\r\nBcc: victim@x.com' }));
     // The existing guard collapses CR/LF to a SPACE, so the smuggled text stays
     // inside the Subject VALUE and no second header is created. Assert on the
     // structure (no line begins with Bcc:), not on the text being absent.
@@ -187,7 +218,10 @@ describe('sendMail — result contract', () => {
     ['socket reset mid-request', new Error('read ECONNRESET')],
     ['connection died after the body went out', new Error('socket hang up')],
     ['request timeout', new Error('request timeout')],
-    ['aborted request', Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })],
+    [
+      'aborted request',
+      Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }),
+    ],
   ])('a rejected fetch (%s) is AMBIGUOUS, not a retryable failure', async (_label, err) => {
     const h = makeService(async () => {
       throw err;
@@ -273,13 +307,16 @@ describe('sendMail — result contract', () => {
     },
   );
 
-  test.each([400, 404, 429])('a %i response (other than 401/403) is a KNOWN failure', async (status) => {
-    const h = makeService(async () => jsonResponse({ error: 'bad request' }, status));
-    try {
-      const caught = await h.service.sendMail(ctx, 'conn-1', INPUT).catch((e: unknown) => e);
-      expect(caught).not.toBeInstanceOf(AmbiguousMailSendError);
-    } finally {
-      h.restore();
-    }
-  });
+  test.each([400, 404, 429])(
+    'a %i response (other than 401/403) is a KNOWN failure',
+    async (status) => {
+      const h = makeService(async () => jsonResponse({ error: 'bad request' }, status));
+      try {
+        const caught = await h.service.sendMail(ctx, 'conn-1', INPUT).catch((e: unknown) => e);
+        expect(caught).not.toBeInstanceOf(AmbiguousMailSendError);
+      } finally {
+        h.restore();
+      }
+    },
+  );
 });

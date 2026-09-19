@@ -32,7 +32,8 @@ export function ResearchReportReview({
     retry: false,
   });
   const route = new URLSearchParams(params);
-  route.set('tab', 'reports');
+  route.set('tab', 'digest');
+  route.set('reportView', 'reports');
   route.set('reportRun', runId);
   return (
     <section aria-label="Include reviewed research in a report">

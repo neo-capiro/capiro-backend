@@ -327,6 +327,18 @@ export class ClientPeopleService {
         select: { id: true },
       });
       if (!existing) throw new NotFoundException('Person not found');
+      // Detach direct reports first. The schema's composite self-FK
+      // (client_people_reports_to_fk) is ON DELETE SET NULL over
+      // (reports_to_person_id, tenant_id, client_id) — Postgres SET NULL on a
+      // composite FK nulls EVERY column in the set, including tenant_id,
+      // which is NOT NULL, so deleting a manager fails with P2011. Clearing
+      // only the manager reference here preserves the children's
+      // tenant/client identity exactly (the hierarchy contract: deleting a
+      // manager unplaces their reports, never deletes or orphans them).
+      await tx.clientPerson.updateMany({
+        where: { tenantId: ctx.tenantId, clientId, reportsToPersonId: id },
+        data: { reportsToPersonId: null },
+      });
       await tx.clientPerson.delete({ where: { id } });
       return { deleted: true };
     });

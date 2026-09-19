@@ -5,7 +5,7 @@ import {
   FORECAST_INBOX_SOURCE,
   readVisibleClientIds,
   type InboxSource,
-} from './funding-opportunity-inbox.service.js';
+} from './funding-opportunity-access.js';
 import { assertRequestSourceRecordId } from './funding-opportunity-identity.js';
 import { NON_PURSUABLE_KINDS, type OpportunityKind } from './funding-opportunities.types.js';
 import { samNoticeKind } from './opportunity-kind.js';

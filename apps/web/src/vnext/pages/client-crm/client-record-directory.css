@@ -11,6 +11,8 @@
   font-weight: 600;
   letter-spacing: .07em;
   text-transform: uppercase;
+  /* Pin leading against the shell's inherited 24px body line. */
+  line-height: 14px;
 }
 
 .capiro-vnext-root .cap-pf-record-directory__list {
@@ -67,12 +69,18 @@
   color: inherit;
   font-size: 13.5px;
   font-weight: 500;
+  /* Reference measured: 13.5px on a 16px line (style-diagnostic). The shell's
+     content column carries line-height: 24px (--uui-line-body), which inflated
+     every two-line row to ~67px against the reference's 49px. */
+  line-height: 16px;
 }
 
 .capiro-vnext-root .cap-pf-record-directory__detail {
   margin-top: 1px;
   color: #98a2b3;
   font-size: 11px;
+  /* Reference measured: 11px on a 14px line. */
+  line-height: 14px;
 }
 
 .capiro-vnext-root .cap-pf-record-directory__row--active .cap-pf-record-directory__label {

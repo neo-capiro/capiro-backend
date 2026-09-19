@@ -132,7 +132,7 @@ export interface PolicyPackValidation {
  */
 export const CAPIRO_APPROVED_GENERIC_POLICY_PACK: CompliancePolicyPack = {
   id: 'capiro-generic-action-approval',
-  version: '2026-07-27.meriv2-p0.v1',
+  version: '2026-09-15.meriv2-p0.v2',
   jurisdiction: 'all',
   status: 'published',
   legalReviewStatus: 'not_required_product_policy',
@@ -201,13 +201,14 @@ export const CAPIRO_APPROVED_GENERIC_POLICY_PACK: CompliancePolicyPack = {
     {
       id: 'internal_artifacts.pass',
       description:
-        'Internal reversible artifacts and explicit memory saves are pre-approved and audited.',
+        'Internal reversible artifacts, explicit memory saves, and filing already-authorized chat attachments under the selected client are pre-approved and audited.',
       outcome: 'PASS',
       tier: 'low',
       enabled: true,
       match: {
         tools: [
           'save_note',
+          'save_chat_attachments',
           'save_memory',
           'create_word',
           'create_excel',
@@ -216,7 +217,8 @@ export const CAPIRO_APPROVED_GENERIC_POLICY_PACK: CompliancePolicyPack = {
           'draft_policy_memo',
         ],
       },
-      reason: 'The action creates an internal, reversible artifact or explicit memory save.',
+      reason:
+        'The action creates an internal, reversible artifact, an explicit memory save, or files an already-authorized attachment the user uploaded to this conversation.',
       authorityRef: 'approved-product-policy:internal_artifacts.pass',
       tests: ['policy.internal-artifacts.pass'],
     },
@@ -227,6 +229,11 @@ export const CAPIRO_APPROVED_GENERIC_POLICY_PACK: CompliancePolicyPack = {
       at: '2026-07-27T00:00:00.000Z',
       actorUserId: 'system',
       note: 'Encoded existing Phase 0 approved generic action gates; no legal rule added.',
+    },
+    {
+      at: '2026-09-15T00:00:00.000Z',
+      actorUserId: 'system',
+      note: 'Moved save_chat_attachments into internal_artifacts.pass: filing an attachment the user already uploaded to this conversation, under the client already selected for it, is an internal reversible save, not a CRM system-of-record mutation — it no longer requires approval and saves immediately.',
     },
   ],
   nonProduction: false,

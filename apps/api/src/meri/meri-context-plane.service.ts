@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
+import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest } from '@capiro/shared';
 import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
 import type {
   ContextRequest,
@@ -132,11 +133,28 @@ export class MeriContextPlaneService {
     input: { conversationId: string; task: string },
   ): Promise<MeriGovernedTurnContext> {
     const conversation = await this.chatConversationScope(ctx, input.conversationId);
+    let task = input.task;
+    if (conversation.clientId && isMeriDocumentLocationClarification(task)) {
+      const recent = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        tx.clioMessage.findMany({
+          where: { conversationId: input.conversationId, role: 'user' },
+          orderBy: { createdAt: 'desc' },
+          take: 4,
+          select: { role: true, body: true },
+        }),
+      );
+      const messages = recent
+        .reverse()
+        .map((message) => ({ role: message.role, text: message.body }));
+      if (messages.at(-1)?.text !== task) messages.push({ role: 'user', text: task });
+      task = resolveMeriDocumentRequest(messages)?.request ?? task;
+    }
+
     return this.resolve(ctx, {
       operationId: 'meri.chat',
       surface: 'chat',
       resolverSurface: 'chat',
-      task: input.task,
+      task,
       sessionId: input.conversationId,
       uiClientId: conversation.clientId,
       uiClientName: conversation.clientName,

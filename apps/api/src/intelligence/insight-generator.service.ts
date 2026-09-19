@@ -1,3 +1,4 @@
+import { prepareOpenAiResponsesRequest, prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -295,15 +296,8 @@ function toSafeStringArray(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === 'string');
 }
 
-function isCheapModel(model: string | null | undefined): boolean {
-  if (!model) return false;
-  const normalized = model.toLowerCase();
-  return normalized.includes('gpt-4o-mini') || normalized.includes('haiku');
-}
-
-function toCheapModel(currentModel: string, provider: 'openai' | 'anthropic'): string {
-  if (isCheapModel(currentModel)) return currentModel;
-  return provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-haiku-20241022';
+function toQualityModel(currentModel: string, _provider: 'openai' | 'anthropic'): string {
+  return upgradeTextModel(currentModel);
 }
 
 function toIsoOrNull(value: Date | null): string | null {
@@ -903,7 +897,7 @@ If PROGRAM ELEMENT STATUS block is absent, return programElementStatus as [] onl
     const peContexts = sortBySeverityDesc(Array.from(peContextByCode.values()));
     const aiProvider: 'openai' | 'anthropic' =
       preferredProvider === 'anthropic' ? 'anthropic' : 'openai';
-    const aiModel = toCheapModel(
+    const aiModel = toQualityModel(
       aiProvider === 'openai' ? this.openaiModel : this.anthropicModel,
       aiProvider,
     );
@@ -1247,7 +1241,7 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
     const res = await fetchWithTimeout('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.openaiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: this.openaiModel, instructions: SYSTEM_PROMPT, input: prompt }),
+      body: JSON.stringify(prepareOpenAiResponsesRequest({ model: this.openaiModel, instructions: SYSTEM_PROMPT, input: prompt })),
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok)
@@ -1265,12 +1259,12 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareAnthropicRequest({
         model: this.anthropicModel,
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
-      }),
+      })),
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok)
@@ -1322,12 +1316,12 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
         Authorization: `Bearer ${this.openaiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareOpenAiResponsesRequest({
         model: modelOverride ?? this.openaiModel,
         instructions: SYSTEM_PROMPT,
         input: prompt,
         text: { format: { type: 'json_schema', name: schemaName, strict: true, schema } },
-      }),
+      })),
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok)
@@ -1353,7 +1347,7 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
         'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: JSON.stringify(prepareAnthropicRequest({
         model: modelOverride ?? this.anthropicModel,
         max_tokens: 2000,
         system: SYSTEM_PROMPT,
@@ -1363,7 +1357,7 @@ Write the brief now. Start with "Today's leverage is" or similar. Do not include
             content: `${prompt}\n\nReturn JSON matching this schema:\n${JSON.stringify(schema)}`,
           },
         ],
-      }),
+      })),
     });
     const json = (await res.json()) as Record<string, unknown>;
     if (!res.ok)

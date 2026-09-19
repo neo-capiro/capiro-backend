@@ -16,6 +16,7 @@ import type { AppConfig } from '../../config/config.schema.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { notetakerEnabled } from '../../common/tenant-flags.js';
 import { EngagementService, ownMeetingWhere } from '../engagement.service.js';
+import type { MeetingCapturePersistenceService } from '../../meeting-capture/meeting-capture-persistence.service.js';
 import {
   MEETING_BOT_PROVIDER,
   TranscriptNotReadyError,
@@ -195,7 +196,7 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(MEETING_BOT_PROVIDER) private readonly bot: MeetingBotProvider,
-    private readonly engagement: EngagementService,
+    private readonly engagement: EngagementService | MeetingCapturePersistenceService,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {}

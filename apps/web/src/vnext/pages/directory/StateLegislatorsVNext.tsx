@@ -191,6 +191,7 @@ export function StateLegislatorsVNextView({ model }: { model: StateLegModel }) {
                   <div className="capiro-directory-leg-card__head">
                     <IdentityMark kind="person" size="md" name={leg.name} imageUrl={leg.image} />
                     <div className="capiro-directory-leg-card__id">
+                      <p className="capiro-directory-leg-card__eyebrow">PERSON</p>
                       <p className="capiro-directory-leg-card__name">{leg.name}</p>
                       <p className="capiro-directory-leg-card__meta">{chamberLabel(leg)}</p>
                     </div>
@@ -202,6 +203,14 @@ export function StateLegislatorsVNextView({ model }: { model: StateLegModel }) {
                         .toLowerCase()}`}
                       aria-hidden="true"
                     />
+                    {/* 02-VISUAL-SPEC.md pairs party with a status suffix
+                        ("{PARTY} · {STATUS}"), but StateLegislatorRow (the
+                        real list-row shape) carries no per-row status field
+                        — only StateLegislatorDetail (the profile fetch) has
+                        `active: boolean`. Fabricating "Active" here would be
+                        exactly the "empty rendered as a fact" the data
+                        contract forbids, so the suffix is omitted until a
+                        real row-level status is wired. */}
                     {leg.party || 'Party —'}
                   </p>
                   <div className="capiro-directory-leg-card__stats">
@@ -217,8 +226,9 @@ export function StateLegislatorsVNextView({ model }: { model: StateLegModel }) {
                           : 'capiro-directory-leg-card__email capiro-directory-leg-card__email--none'
                       }
                     >
-                      {leg.email || 'No email'}
+                      {leg.email ? 'Email on file' : 'No email'}
                     </span>
+                    <span className="capiro-directory-leg-card__footer-dot" aria-hidden="true">·</span>
                     <span className="capiro-directory-cell__action" aria-hidden="true">
                       Open profile →
                     </span>

@@ -146,10 +146,3 @@ export async function fetchLatestMeriContextPacket(
 export async function deleteMeriResearch(api: AxiosInstance, researchId: string): Promise<void> {
   await api.delete(`/api/clio/research/${encodeURIComponent(researchId)}`);
 }
-
-export async function listMeriToolLabels(api: AxiosInstance): Promise<string[]> {
-  const response = await api.get<{ tools?: Array<{ name?: unknown; description?: unknown }> }>('/api/clio/tools');
-  return (response.data.tools ?? [])
-    .map((tool) => (typeof tool.name === 'string' ? tool.name : ''))
-    .filter(Boolean);
-}

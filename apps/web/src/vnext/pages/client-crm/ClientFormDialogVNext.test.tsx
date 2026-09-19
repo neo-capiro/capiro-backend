@@ -26,8 +26,17 @@ beforeEach(() => {
 // Labels that carry a character count, help text, or an inline error inside
 // the <label> match by prefix, not exact text.
 
-function renderDialog(props: Partial<Parameters<typeof ClientFormDialogVNext>[0]> = {}) {
-  getMock.mockResolvedValue({ data: [{ code: 'DEF', name: 'Defense' }] });
+function renderDialog(
+  props: Partial<Parameters<typeof ClientFormDialogVNext>[0]> = {},
+  options: { issuesError?: boolean } = {},
+) {
+  // Default the LDA reference read to success; a failure-path test opts into
+  // the rejection explicitly so the mock is never clobbered mid-render.
+  if (options.issuesError) {
+    getMock.mockRejectedValue(Object.assign(new Error('Request failed with status code 503'), { response: { status: 503 } }));
+  } else {
+    getMock.mockResolvedValue({ data: [{ code: 'DEF', name: 'Defense' }] });
+  }
   const onSubmit = vi.fn<(submission: ClientFormSubmit) => void>();
   const onCancel = vi.fn();
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -128,7 +137,10 @@ describe('ClientFormDialogVNext', () => {
     expect(payload?.intakeData).not.toHaveProperty('ein');
     expect(payload?.intakeData).not.toHaveProperty('primaryNaics');
     expect(payload?.naicsCodes).toEqual(['336414', '541330']);
-    expect(payload?.setAsideCertifications).toContain('HZC');
+    // The certification option is the canonical durable code (was the legacy
+    // solicitation-restriction code HZC before the options reconciled to the
+    // API's DURABLE_SET_ASIDE_CERTIFICATIONS).
+    expect(payload?.setAsideCertifications).toContain('HUBZONE');
     expect(payload?.intakeData?.profileNotes).toBe('Updated in background');
   });
 
@@ -471,5 +483,50 @@ describe('ClientFormDialogVNext', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     // The LDA issue-code reference read is gated on `open`.
     expect(getMock).not.toHaveBeenCalled();
+  });
+
+  it('D11: a failed LDA issue-code reference read shows a retryable error, not "No options match."', async () => {
+    // The rejection is arranged by renderDialog's options so it's in place the
+    // moment the issues query mounts (setting it before render is clobbered
+    // by the default success mock; after render, the query already resolved).
+    renderDialog({}, { issuesError: true });
+    fillRequiredStepOne();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    // The reference read failed — the field must say so, not claim there are
+    // simply no codes (which reads as "source answered, empty").
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the LDA issue-code reference list.');
+    expect(screen.queryByText('No options match.')).not.toBeInTheDocument();
+
+    // Retry recovers once the source answers.
+    getMock.mockResolvedValue({ data: [{ code: 'DEF', name: 'Defense' }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByLabelText('DEF — Defense')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('D9: stored legacy certification codes render an honest label, not a raw code, and are not offered as new choices', async () => {
+    const client = {
+      id: 'client-legacy',
+      name: 'Legacy Cert Co',
+      website: 'legacy.example',
+      description: 'Holds a legacy restriction code.',
+      setAsideCertifications: ['SDVOSBC', 'HZC'],
+      intakeData: {},
+    } as unknown as Client;
+    renderDialog({ mode: 'edit', client });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    // Stored legacy codes are visible with English labels (legacy-tagged),
+    // not raw codes — and NOT offered again as selectable options. The label
+    // appears on both the selected chip and the (removable) orphan checkbox.
+    expect(screen.getAllByText('Service-disabled veteran-owned small business (legacy)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('HUBZone (legacy)').length).toBeGreaterThan(0);
+    // The durable certification is recorded as selected (a current option) —
+    // the legacy codes ride through as history, never re-offered.
+    expect(screen.queryByRole('checkbox', { name: 'SDVOSBC' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'HZC' })).not.toBeInTheDocument();
   });
 });

@@ -270,3 +270,109 @@ describe('OrchestratorClient.summarizeHearing — generate_post_hearing_summary 
     expect(out?.clientContext).toBe('applied');
   });
 });
+
+describe('OrchestratorClient.summarizeHearing — outer budget vs provider window', () => {
+  const RESULT = {
+    executiveSummary: 'ok',
+    tone: 'neutral',
+    risks: [],
+    opportunities: [],
+    recommendedNextSteps: [],
+    draftClientEmail: { subject: 's', body: 'b' },
+  };
+  const PARAMS = {
+    tenantId: 'tenant_1',
+    sessionId: 'sess_1',
+    clerkUserId: 'user_1',
+    title: 'HASC Hearing',
+    quotes: [],
+    mentions: [],
+    actionItems: [],
+  };
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('permits a response inside the provider 30s window (24s outer budget would have aborted it)', async () => {
+    // The orchestrator's provider clients default to a 30000ms generation
+    // window; the outer caller must not abort a response arriving inside it.
+    // The mock MUST honor init.signal — a mock that resolves after abort would
+    // let this pass even under the old 24s budget (false positive).
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise((resolve, reject) => {
+          const signal = init.signal as AbortSignal;
+          const respond = setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                status: 200,
+                json: async () => ({ tool: 'generate_post_hearing_summary', result: RESULT }),
+              }),
+            30_000,
+          );
+          signal.addEventListener('abort', () => {
+            clearTimeout(respond);
+            reject(new Error('The operation was aborted'));
+          });
+        }),
+    );
+    const promise = makeClient().summarizeHearing(PARAMS);
+    await jest.advanceTimersByTimeAsync(30_000);
+    await expect(promise).resolves.toEqual(RESULT);
+    // The abort timer was cleared on success — nothing left pending.
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('returns null and clears its timer when the response passes the outer deadline', async () => {
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          (init.signal as AbortSignal).addEventListener('abort', () =>
+            reject(new Error('The operation was aborted')),
+          );
+        }),
+    );
+    const promise = makeClient().summarizeHearing(PARAMS);
+    await jest.advanceTimersByTimeAsync(35_000);
+    await expect(promise).resolves.toBeNull();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('preserves an explicitly larger configured budget (MERIV2_TIMEOUT_MS=20000 → 60s)', async () => {
+    const config = {
+      get: (key: string) =>
+        key === 'MERIV2_ORCHESTRATOR_URL'
+          ? BASE
+          : key === 'MERIV2_TIMEOUT_MS'
+            ? '20000'
+            : key === 'INTERNAL_SERVICE_SECRET'
+              ? SECRET
+              : undefined,
+    } as never;
+    const client = new OrchestratorClient(config, { resolve: async () => null } as never);
+    (global as unknown as { fetch: unknown }).fetch = jest.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise((resolve, reject) => {
+          const signal = init.signal as AbortSignal;
+          const respond = setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                status: 200,
+                json: async () => ({ tool: 'generate_post_hearing_summary', result: RESULT }),
+              }),
+            40_000,
+          );
+          signal.addEventListener('abort', () => {
+            clearTimeout(respond);
+            reject(new Error('The operation was aborted'));
+          });
+        }),
+    );
+    const promise = client.summarizeHearing(PARAMS);
+    await jest.advanceTimersByTimeAsync(40_000);
+    await expect(promise).resolves.toEqual(RESULT);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+});
