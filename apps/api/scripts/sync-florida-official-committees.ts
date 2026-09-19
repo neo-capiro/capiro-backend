@@ -79,6 +79,31 @@ function directoryEvidence(sourceEvidence: unknown): DirectoryEvidence | null {
     : null;
 }
 
+/**
+ * Calendar discovery stores identity evidence at the root, while this sync
+ * stores directory evidence under `directory`. The root `officialBodyKey`
+ * still proves that a legacy row belongs to the same 2026 official-key namespace.
+ */
+export function isManagedDirectoryRow(row: {
+  officialSourceKey: string | null;
+  sourceEvidence: unknown;
+}): boolean {
+  if (directoryEvidence(row.sourceEvidence) != null) return true;
+  if (
+    !row.sourceEvidence ||
+    typeof row.sourceEvidence !== 'object' ||
+    Array.isArray(row.sourceEvidence)
+  ) {
+    return false;
+  }
+  const officialBodyKey = (row.sourceEvidence as { officialBodyKey?: unknown }).officialBodyKey;
+  return (
+    typeof officialBodyKey === 'string' &&
+    officialBodyKey.length > 0 &&
+    row.officialSourceKey === `FL:2026:${officialBodyKey}`
+  );
+}
+
 /** Rows soft-retired by this inventory remain addressable but leave directory lists. */
 export function isActiveDirectoryRow(row: { sourceEvidence: unknown }): boolean {
   return directoryEvidence(row.sourceEvidence)?.active !== false;
@@ -289,7 +314,7 @@ async function main(): Promise<void> {
       (row) =>
         row.officialSourceKey != null &&
         !inventoryKeys.has(row.officialSourceKey) &&
-        directoryEvidence(row.sourceEvidence) != null &&
+        isManagedDirectoryRow(row) &&
         isActiveDirectoryRow(row),
     );
     report.retired = staleDirectoryRows.length;
@@ -298,10 +323,7 @@ async function main(): Promise<void> {
         await prisma.stateCommittee.update({
           where: { id: row.id },
           data: {
-            sourceEvidence: retiredDirectorySourceEvidence(
-              row.sourceEvidence,
-              snapshot.checkedAt,
-            ),
+            sourceEvidence: retiredDirectorySourceEvidence(row.sourceEvidence, snapshot.checkedAt),
             lastSyncedAt: new Date(),
           },
         });
