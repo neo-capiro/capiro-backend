@@ -95,6 +95,18 @@ The compute envelope is genuinely small; the cost risk is the isolated database 
 
 **Active runs are handled explicitly, not orphaned.** Closing the gate stops new *admissions*; it must not make live workers uncontrollable. Drain policy: let in-flight runs finish within their wall-clock budget, or cancel them via `POST /api/clio/hermes/runs/:id/stop`, which reaches the worker and produces an honest `cancelled` terminal state. Any run whose consuming replica has died is reconciled to `interrupted` — never silently to success. Run records, events and the audit trail are retained regardless; rollback is not a data deletion.
 
+**Exactly which operations survive the gate closing.** This was a genuine code/document contradiction found during closeout — the controller routed Stop through the enablement check, so disabling the pilot also removed the ability to stop the runs it left behind. The contract, now enforced in code and tested:
+
+| Operation on an already-admitted run | After the gate closes | Why |
+|---|---|---|
+| `POST …/runs/:id/stop` | **Allowed** (ownership only) | Otherwise the kill switch strands live workers — the opposite of a rollback |
+| `GET …/runs/:id`, `GET …/runs/:id/events` | **Allowed** (ownership only) | The operator and the user must be able to watch the drain complete |
+| New submissions / a new turn | **Refused** | This is the point of the kill switch |
+| `GET …/capabilities` | **Refused (404)** | The pilot surface is invisible outside the gate |
+| `POST …/runs/:id/approval` | **Refused** | Approving a native command after disable would grant the worker *new* execution. Stop is the correct drain path for a run waiting on approval |
+
+Ownership is still required for every allowed operation: a non-owner receives 404 exactly as before.
+
 **Code rollback.** Deploy the previous API revision. Because every migration is additive, the older revision runs unchanged against the migrated schema; the new tables simply go unused. Do **not** attempt a down-migration to "clean up" — dropping `meri_agent_runs` and friends would destroy the audit record of what the pilot did.
 
 **Infrastructure rollback.** Delete the isolated stack created in §3. In Option B, deletion is by the distinct `capiro-hermesval-*` names only; verify no resource outside that prefix is in the change set before applying.
