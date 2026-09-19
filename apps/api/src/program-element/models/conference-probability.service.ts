@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import * as ss from 'simple-statistics';
 import { PrismaService } from '../../prisma/prisma.service.js';
+
+// v7.12 publishes a CommonJS runtime entry, but marks its shared declaration
+// entry as ESM. Use the package's explicit `require` condition from this CJS
+// package and type only the two calls the model makes.
+const ss = require('simple-statistics') as {
+  linearRegression(data: Array<[number, number]>): { m: number; b: number };
+  sampleStandardDeviation(values: number[]): number;
+};
 
 const MODEL_VERSION = 'conference-probability-v1';
 const Z_95 = 1.96;

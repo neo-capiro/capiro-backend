@@ -79,8 +79,10 @@ test('PARITY: the model constants are identical', () => {
 test('PARITY: the model uses simple-statistics, not a re-derived regression', () => {
   // A hand-rolled OLS would agree to within float noise but not exactly, and these
   // numbers feed money-adjacent forecast fields compared by deep equality.
-  assert.match(LEGACY, /from 'simple-statistics'/);
+  assert.match(LEGACY, /require\('simple-statistics'\)/);
   assert.match(NEXT, /require\('simple-statistics'\)/);
+  assert.doesNotMatch(LEGACY, /from 'simple-statistics'/);
+  assert.doesNotMatch(NEXT, /from 'simple-statistics'/);
   for (const call of ['ss.linearRegression(', 'ss.sampleStandardDeviation(']) {
     assert.ok(LEGACY.includes(call), `apps/api no longer calls ${call}`);
     assert.ok(NEXT.includes(call), `the package copy no longer calls ${call}`);
