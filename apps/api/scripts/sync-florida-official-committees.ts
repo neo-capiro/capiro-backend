@@ -1,7 +1,8 @@
 /**
  * Reconcile the first-party Florida committee directory into state_committee.
- * Default mode is a read-only report. Use --apply only against a reviewed,
- * non-production database. This script never deletes or merges rows.
+ * Default mode is a read-only report. Applying to a non-local database needs
+ * both an explicit non-local opt-in and the exact inventory confirmation token.
+ * The sync only upserts the 66 reviewed rows; it never deletes or merges rows.
  */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -21,11 +22,19 @@ export type InventoryRow = {
   existing: Array<{ id: string; chamber: string | null; officialSourceKey: string | null }>;
 };
 
-type Snapshot = {
+export type Snapshot = {
   checkedAt: string;
   provenance: { comparisonArtifact: string; sources: Record<string, string> };
   counts: { house: number; senate: number; joint: number; total: number };
   rows: InventoryRow[];
+};
+
+export type AppliedInventoryRow = {
+  state: string;
+  chamber: string | null;
+  name: string;
+  officialSourceKey: string | null;
+  legislativeSession: string | null;
 };
 
 export function officialKey(row: InventoryRow): string {
@@ -46,6 +55,39 @@ export function verifiedAliasIds(row: InventoryRow, officialId: string): string[
     .map((entry) => entry.id);
 }
 
+export function expectedInventoryRecord(row: InventoryRow): AppliedInventoryRow {
+  return {
+    state: 'FL',
+    chamber: row.chamber === 'house' ? 'lower' : row.chamber === 'senate' ? 'upper' : 'joint',
+    name: row.name,
+    officialSourceKey: officialKey(row),
+    legislativeSession: row.chamber === 'joint' ? null : '2026',
+  };
+}
+
+export function assertAppliedInventory(snapshot: Snapshot, rows: AppliedInventoryRow[]): number {
+  const byKey = new Map(rows.map((row) => [row.officialSourceKey, row]));
+  const mismatches: string[] = [];
+  for (const inventoryRow of snapshot.rows) {
+    const expected = expectedInventoryRecord(inventoryRow);
+    const actual = byKey.get(expected.officialSourceKey);
+    if (
+      !actual ||
+      Object.entries(expected).some(
+        ([field, value]) => actual[field as keyof AppliedInventoryRow] !== value,
+      )
+    ) {
+      mismatches.push(expected.officialSourceKey ?? inventoryRow.officialCode);
+    }
+  }
+  if (mismatches.length) {
+    throw new Error(
+      `Florida inventory postcondition failed for ${mismatches.length} of ${snapshot.rows.length} keys: ${mismatches.slice(0, 10).join(', ')}`,
+    );
+  }
+  return snapshot.rows.length;
+}
+
 export function validateSnapshot(snapshot: Snapshot): void {
   if (snapshot.rows.length !== 66 || snapshot.counts.total !== 66) {
     throw new Error(`Florida snapshot must contain exactly 66 rows (got ${snapshot.rows.length})`);
@@ -55,30 +97,49 @@ export function validateSnapshot(snapshot: Snapshot): void {
     if (count !== snapshot.counts[chamber]) throw new Error(`Florida ${chamber} count mismatch`);
   }
   const keys = snapshot.rows.map(officialKey);
-  if (new Set(keys).size !== keys.length) throw new Error('Florida snapshot has duplicate official keys');
+  if (new Set(keys).size !== keys.length)
+    throw new Error('Florida snapshot has duplicate official keys');
   for (const row of snapshot.rows) {
-    const sourceUrl = row.officialUrl ?? (row.listingOnly ? snapshot.provenance.sources.senate : null);
+    const sourceUrl =
+      row.officialUrl ?? (row.listingOnly ? snapshot.provenance.sources.senate : null);
     if (!sourceUrl) throw new Error(`Florida snapshot has no official URL for ${row.officialCode}`);
     const url = new URL(sourceUrl);
-    if (!row.name.trim() || !row.officialCode.trim() || url.protocol !== 'https:' ||
-        !['flhouse.gov', 'www.flhouse.gov', 'flsenate.gov', 'www.flsenate.gov',
-          'leg.state.fl.us', 'www.leg.state.fl.us'].includes(url.hostname)) {
+    if (
+      !row.name.trim() ||
+      !row.officialCode.trim() ||
+      url.protocol !== 'https:' ||
+      ![
+        'flhouse.gov',
+        'www.flhouse.gov',
+        'flsenate.gov',
+        'www.flsenate.gov',
+        'leg.state.fl.us',
+        'www.leg.state.fl.us',
+      ].includes(url.hostname)
+    ) {
       throw new Error(`Florida snapshot contains an invalid official entry: ${row.officialCode}`);
     }
   }
 }
 
-function validateDatabaseUrl(apply: boolean): URL {
-  const raw = process.env.DATABASE_URL;
+export const FLORIDA_SYNC_LOCAL_CONFIRM = '2026-local-only';
+export const FLORIDA_SYNC_NONLOCAL_CONFIRM = 'apply-2026-official-florida-committees';
+
+export function validateDatabaseUrl(apply: boolean, env: NodeJS.ProcessEnv = process.env): URL {
+  const raw = env.DATABASE_URL;
   if (!raw) throw new Error('DATABASE_URL is required for the report (never use a fallback)');
   const url = new URL(raw);
-  if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('DATABASE_URL must be PostgreSQL');
+  if (!['postgres:', 'postgresql:'].includes(url.protocol))
+    throw new Error('DATABASE_URL must be PostgreSQL');
   const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
-  if (!local && process.env.ALLOW_NONLOCAL_FLORIDA_SYNC !== '1') {
-    throw new Error(`Refusing non-local database host ${url.hostname}; this sync must not run against production`);
+  if (!local && env.ALLOW_NONLOCAL_FLORIDA_SYNC !== '1') {
+    throw new Error(
+      `Refusing non-local database host ${url.hostname}; set ALLOW_NONLOCAL_FLORIDA_SYNC=1 for an operator-reviewed one-shot run`,
+    );
   }
-  if (apply && process.env.FLORIDA_SYNC_CONFIRM !== '2026-local-only') {
-    throw new Error('Apply requires FLORIDA_SYNC_CONFIRM=2026-local-only');
+  const expectedConfirmation = local ? FLORIDA_SYNC_LOCAL_CONFIRM : FLORIDA_SYNC_NONLOCAL_CONFIRM;
+  if (apply && env.FLORIDA_SYNC_CONFIRM !== expectedConfirmation) {
+    throw new Error(`Apply requires FLORIDA_SYNC_CONFIRM=${expectedConfirmation}`);
   }
   return url;
 }
@@ -90,28 +151,41 @@ async function main(): Promise<void> {
   validateSnapshot(snapshot);
   const db = validateDatabaseUrl(apply);
   const prisma = new PrismaClient();
-  const report = { mode: apply ? 'apply' : 'dry-run', databaseHost: db.hostname, total: snapshot.rows.length, created: 0, enriched: 0, unchanged: 0, refreshed: 0, errors: [] as string[] };
+  const report = {
+    mode: apply ? 'apply' : 'dry-run',
+    databaseHost: db.hostname,
+    total: snapshot.rows.length,
+    created: 0,
+    enriched: 0,
+    unchanged: 0,
+    refreshed: 0,
+    verified: 0,
+    errors: [] as string[],
+  };
 
   try {
     for (const row of snapshot.rows) {
       const key = officialKey(row);
       const directoryUrl = row.officialUrl ?? snapshot.provenance.sources.senate;
       const legacyId = row.existing.find((entry) => !entry.officialSourceKey)?.id;
-      const existingOfficial = await prisma.stateCommittee.findUnique({ where: { officialSourceKey: key } });
+      const existingOfficial = await prisma.stateCommittee.findUnique({
+        where: { officialSourceKey: key },
+      });
       const legacy = legacyId
         ? await prisma.stateCommittee.findUnique({ where: { id: legacyId } })
         : null;
       // Joint roster rows came from legislators in two chambers. Keep both
       // chamber-specific records and referrals untouched; add one directory row.
-      const eligibleLegacy = row.chamber !== 'joint' && legacy && !legacy.officialSourceKey
-        ? legacy
-        : null;
+      const eligibleLegacy =
+        row.chamber !== 'joint' && legacy && !legacy.officialSourceKey ? legacy : null;
       const id = existingOfficial?.id ?? eligibleLegacy?.id ?? deterministicId(key);
       const existing = existingOfficial ?? eligibleLegacy;
       const aliasIds = verifiedAliasIds(row, id);
       const priorEvidence = existing?.sourceEvidence;
       const sourceEvidence = {
-        ...(priorEvidence && typeof priorEvidence === 'object' && !Array.isArray(priorEvidence) ? priorEvidence : {}),
+        ...(priorEvidence && typeof priorEvidence === 'object' && !Array.isArray(priorEvidence)
+          ? priorEvidence
+          : {}),
         directory: {
           sourceUrl: directoryUrl,
           checkedAt: snapshot.checkedAt,
@@ -121,11 +195,7 @@ async function main(): Promise<void> {
         },
       };
       const data = {
-        state: 'FL',
-        chamber: row.chamber === 'house' ? 'lower' : row.chamber === 'senate' ? 'upper' : 'joint',
-        name: row.name,
-        officialSourceKey: key,
-        legislativeSession: row.chamber === 'joint' ? null : '2026',
+        ...expectedInventoryRecord(row),
         sourceUrl: existing?.sourceUrl ?? directoryUrl,
         sourceEvidence,
         lastSyncedAt: new Date(),
@@ -138,9 +208,26 @@ async function main(): Promise<void> {
         await prisma.stateCommittee.update({ where: { id: existingOfficial.id }, data });
         report.refreshed++;
       } else {
-        await prisma.stateCommittee.upsert({ where: { id }, create: { id, ...data }, update: data });
+        await prisma.stateCommittee.upsert({
+          where: { id },
+          create: { id, ...data },
+          update: data,
+        });
         report[eligibleLegacy ? 'enriched' : 'created']++;
       }
+    }
+    if (apply) {
+      const appliedRows = await prisma.stateCommittee.findMany({
+        where: { officialSourceKey: { in: snapshot.rows.map(officialKey) } },
+        select: {
+          state: true,
+          chamber: true,
+          name: true,
+          officialSourceKey: true,
+          legislativeSession: true,
+        },
+      });
+      report.verified = assertAppliedInventory(snapshot, appliedRows);
     }
   } finally {
     await prisma.$disconnect();
