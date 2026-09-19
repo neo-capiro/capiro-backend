@@ -57,7 +57,7 @@ jobs:
       # packageManager (matches ci-pr.yml / meriv2-evals.yml; pinning both errors
       # "Multiple versions of pnpm specified").
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
