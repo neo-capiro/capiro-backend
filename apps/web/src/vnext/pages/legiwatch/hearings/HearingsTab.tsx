@@ -1351,7 +1351,7 @@ export function HearingsTab({ scope }: { scope: string }) {
             <p role="status">Checking source coverage…</p>
           ) : (
             ['house', 'senate'].map((chamber) => {
-              const source = sourceCoverage.data?.rows.find((row) => row.chamber === chamber);
+              const source = sourceCoverage.data?.rows?.find((row) => row.chamber === chamber);
               const fresh = source && Date.now() - Date.parse(source.checkedAt) < 86400000;
               const sessionIssue = source?.details?.issues?.some((issue) => /session/i.test(issue));
               const status = source
