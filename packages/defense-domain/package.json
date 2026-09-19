@@ -89,7 +89,7 @@
   },
   "dependencies": {
     "@capiro/shared": "workspace:*",
-    "simple-statistics": "^7.8.8"
+    "simple-statistics": "^7.12.0"
   },
   "devDependencies": {
     "@types/node": "^20.16.10",

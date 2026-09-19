@@ -110,8 +110,8 @@
     "verify:phase8-session12:e2e:db": "node scripts/verify-phase8-session12-e2e-db.mjs"
   },
   "devDependencies": {
-    "turbo": "^2.1.3",
+    "turbo": "^2.10.13",
     "typescript": "^5.5.4",
-    "prettier": "^3.3.3"
+    "prettier": "^3.9.6"
   }
 }
