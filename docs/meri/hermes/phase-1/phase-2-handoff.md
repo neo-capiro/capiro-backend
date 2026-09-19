@@ -36,6 +36,18 @@ Surfaced by the Phase 2 orchestration session's read-only review and **each inde
 
 Also noted, and owned by Phase 2 rather than fixed here: `ContextPlaneRecallPort.recall` receives `authorizedClientIds` from the broker but its body never reads it, relying on the downstream governed rail instead — only the *prototype* port enforces the envelope list. The recall path should therefore **not** be described as envelope-enforced on the production rail.
 
+### A8 — a Hermes answer emits no citations (Phase 1 acceptance gap, not Phase 2 carryover)
+
+Verified here: `grep -il citation` across the non-spec sources in `apps/api/src/meri/hermes/` returns **nothing**, while the consumer contract is fully built and in use on the V3 path (`meri-citations.helpers.ts`, the SSE citations frame, source chips, the evidence tab).
+
+This is **not** a Phase 2 item, because P1-08's own vertical-slice criterion reads *"performs a permitted broker read, emits supported progress/**citations** and saves one final response"*. What the Hermes path does emit today is the `tool.completed → {type:'sources'}` trust-step frame (tool name, label, summary) — tool provenance, not record-level citation. The underlying data is already present at the broker boundary: governed recall demonstrably returns a real `sourceId` plus `provenance{source, sourceType}` and coverage. It is simply never translated into the citation contract the Meri UI consumes, so the pilot would answer without sources while V3 answers with them — a visible regression against "preserve the existing Meri experience".
+
+Recorded as a **Phase 1 gap against P1-08**, not signed off. Raised by the Phase 2 orchestration session (which had generously taken it as its own P2-08b) and reclassified here after checking the acceptance wording.
+
+### A9 — no untrusted-content handling on the Hermes path (informational)
+
+Also verified: nothing in `apps/api/src/meri/hermes/` mentions untrusted content, whereas the legacy path sanitizes MCP tool descriptions and labels results `untrusted: true`. Phase 1's exposure is bounded — the pilot's only tools are the six broker tools, whose outputs are Meri's own governed records rather than third-party text — and the adapter's instructions already tell the model to treat tool results as data, never instructions. It becomes materially more important the moment Phase 2 admits MCP, mail and web content, and the master plan's launch evidence (prompt injection cannot change scope, reveal credentials or bypass approval) is not satisfied by the current state. Tracked for Phase 2.
+
 ## 2. What Phase 2 must not assume
 
 - **Not proven at scale.** The tested envelope is 1 tenant / 2 users / private scopes, with the numeric limits in `decisions.md` §4. Nothing here demonstrates 25, 100 or 500 scopes. Phase 2's new data/mail/MCP call paths must be brought under the *same* budget and fairness controls — a new call path that bypasses the parent reservation is a regression, not a feature.
