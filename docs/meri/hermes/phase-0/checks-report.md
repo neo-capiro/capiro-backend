@@ -110,3 +110,66 @@ Conditions that must hold before any tenant — including capiro-internal in sta
 Decisions that belong to the product owner, surfaced rather than made here: warm-capacity policy per scope (idle cost dominates, see `measurements.md`); default model (`gpt-5.6-terra` for turns and `luna` for auxiliary is the recommendation in `pilot-configuration.md`); whether native command approvals (`HERMES_EXEC_ASK=1`) are exposed to pilot users or only Meri business approvals in Phase 1; tenant persona ownership and versioning.
 
 What "ready" does **not** mean: no deployed configuration was changed, the pilot flag is off everywhere, and no production tenant has been routed to Hermes.
+
+---
+
+# Corrections appendix (Phase 0/1 closeout, 2026-09-19)
+
+Everything above is preserved exactly as written on 2026-09-19 during Phase 0. This appendix corrects claims that were wrong, stale, or over-stated, each with its reason. Where a correction is backed by a *new* test run, that is said explicitly; where it is a re-reading of the original evidence, that is said too. Corrections are authoritative where they conflict with the text above.
+
+## C1. ISO2's `409 NOT_ROUTED_TO_HERMES` was a harness artifact
+
+**Original claim (§A, ISO2):** "outside-tenant identity → gate `false`, stream refused (409 `NOT_ROUTED_TO_HERMES`)".
+
+**Correction:** that status code exists nowhere in shipped code. It was synthesized by the Phase 0 harness's own bespoke server (`apps/api/scripts/meri-hermes-phase0-harness-api.ts`), which has no legacy/V3 route to fall through to and therefore had to invent a refusal. Real closed-gate behavior in production code is one of two things:
+
+1. **Routing seam** (`apps/api/src/meri/meriv3-runtime.proxy.ts`): when `hermes.shouldHandle(ctx)` is false the request simply falls through to MeriV3/legacy. There is no Hermes-specific error at all — this is the intended "non-pilot tenants are unaffected" behavior, covered by `meriv3-runtime.proxy.spec.ts`.
+2. **Direct Hermes control routes** (`apps/api/src/meri/hermes/meri-hermes.controller.ts`): `assertEnabled()` returns **404** for a tenant outside the gate, so the pilot surface is not merely forbidden but invisible.
+
+**Evidence (new, production code, not the harness):** `apps/api/src/meri/hermes/meri-hermes-isolation.spec.ts` asserts the real 404 and the real fall-through. The gate-off case is additionally covered by `meri-hermes-flags.spec.ts`. ISO2's *finding* (an outside tenant cannot reach Hermes) stands; only the recorded status code was wrong.
+
+## C2. D6c session-key rule is retained and now has both isolation directions
+
+The D6c fix stands and is still in the code: the Hermes session key is `tenant:<t>:user:<u>:conversation:<conversationId>` (`meri-hermes-runtime.adapter.ts`), never per-user. Both isolation directions are evidenced:
+
+- **Two conversations, same user:** `evidence/2026-09-19T14-07-11-015Z/PROBE-session-isolation.json` (second conversation answered "NO PREVIOUS ANSWER.", bound to a distinct Hermes session).
+- **Two users:** ISO1 plus D2c, now also asserted in production-code tests (`meri-hermes-isolation.spec.ts`).
+
+## C3. Explicit skill creation passed; automatic learning did **not**
+
+The original report already separated these in prose (§C), but `capability-ledger.md` row C "Automatic learning (background review)" is labelled **"verified mechanism / observed"**, which reads as a pass. It is not one.
+
+- **Explicit** `skill_manage` creation (D3b) and reuse after worker replacement (D3c): genuinely **verified**.
+- **Automatic/background** learning (D3d): **not verified live.** The probe ran a 3-tool task; upstream only spawns background review after ~10 tool iterations since the last skill activity, so nothing was triggered. The mechanism is source-verified only.
+
+**Phase assignment:** automatic learning, the skill registry, curator, staged skill approval and persona controls are **Phase 2B**, not Phase 1. Nothing in Phase 1 depends on them. Phase 1 must only ensure that if background review is enabled, its work is not silently discarded by idle teardown — and if it is disabled, that this is explicit and verified (see the Phase 1 closeout report).
+
+## C4. Stale statements superseded by Phase 1 implementation
+
+| Stale statement | Where | Correct as of commit `493d3079c` |
+|---|---|---|
+| "Durable run store / events across API restart — in-memory prototype (`MeriHermesRunStore`); replay verified within one API process only" | §G, contracts.md §4.2, `meri-hermes-run-store.ts` header | **Superseded.** Runs, events and pending interactions are Prisma-backed (`MeriHermesPrismaRunRepository`, tables `meri_agent_runs` / `meri_agent_run_events` / `meri_agent_interactions` / `meri_execution_scopes`, migrations `20280920010000_meri_hermes_durable_runs` and `20280920020000_meri_hermes_admission_fencing`). `MeriHermesRunStore` survives only as the in-memory test double. Cross-replica *live push* is still in-process — tracked as a Phase 1 closeout requirement, not as "no durable store". |
+| "Decisions that belong to the product owner, surfaced rather than made here: warm-capacity policy, default model, whether native command approvals are exposed, tenant persona ownership" | Recommendation section | **All settled.** See `docs/meri/hermes/phase-1/decisions.md` for each value and its provenance. They must not be re-asked. |
+| "none of them is required to *start* Phase 1; all are Phase 1 tickets" | §G | **Wrong on the second clause.** Several §G items are not Phase 1 work at all (see C5). |
+
+## C5. §G items reassigned to their actual milestones
+
+| §G item | Actual milestone |
+|---|---|
+| Durable run store / events across API restart | **Phase 1 — done** (ticket #1) |
+| Governed recall through the real Context Plane rail | **Phase 1** (ticket #6) |
+| arm64 image | **Phase 1** (ticket #3) |
+| Pilot tenant traffic (`capiro-internal`) | **Phase 1 deployment validation**, gated on an authorized environment |
+| Steer during a run | **Phase 1** for the endpoint + an explicit UI capability statement; full steering UX is P1/5A — assignment resolved explicitly rather than dropped |
+| Automatic (background) skill learning observed live | **Phase 2B** |
+| Delegation / subagents live | **Phase 5A** |
+| Bot Mode specialists, goals/heartbeat, cron wake, kanban | **Phase 5 / 5A** |
+| Browser automation, media | **Phase 5A** |
+
+## C6. A proposed memory is not a saved memory
+
+D2b is correct as recorded but easy to misread, and `capability-ledger.md` row B "Memory write = governed candidate … **verified**" compounds it. To be unambiguous: Phase 0 verified that the runtime can **propose** a memory candidate which lands `governed_status: suggested` / `status: pending`, and that the model reported it as pending rather than saved. Phase 0 **never observed a commit** of a proposed memory into authoritative institutional memory, and the runtime is never an admin. "Proposed" must be reported as proposed until the authoritative service actually commits it.
+
+## C7. The data inventory counts schema declarations, not distinct business tables
+
+`data-inventory.md` reports **549 models across 12 schemas**, and `capability-ledger.md` row B says "Comprehensive authorized data access (549 models)" with a "340-model gap". These are **Prisma model declarations**, not 549 distinct business tables. Six of the twelve schemas are explicitly projections of the main API schema (`api/non-rdte-projection` 12, `api/outreach-v3-phase2` 4, `api/outreach-v3-phase3` 2, `api/outreach-v3-templates` 5, `api/phase6-projection` 3, `api/rdte-projection` 3 = 29 declarations), and cross-service schemas may model the same underlying entity more than once. The inventory's own header already labels itself heuristic and owner-review-required; that caveat is load-bearing and must accompany any coverage claim. Establishing the real count of distinct, policy-classified business entities is **Phase 2A** work and is a precondition for any "comprehensive coverage" statement.
