@@ -160,6 +160,33 @@ export function useRevalidateWatch() {
   return { mutate: () => {}, isPending: false };
 }
 
+/* WatchControls.tsx also imports these two — missing from the stub broke the
+   whole harness bundle with a "does not provide an export" SyntaxError on
+   EVERY screen, not just Strategies, since VNextShellVisual.tsx imports the
+   Strategies tree eagerly. Inert stubs, same as useRevalidateWatch above. */
+export function useWatchMonitoring(_strategyId: string) {
+  return { data: undefined, isLoading: false, isError: false };
+}
+
+export function useConfigureWatchMonitoring(_strategyId: string) {
+  return { mutate: () => {}, mutateAsync: async () => undefined, isPending: false };
+}
+
+/* Same drift, three more real exports (strategies-api.ts) with no stub
+   counterpart, each also breaking the whole harness bundle for every screen
+   until added. */
+export function useMissions(_strategyId?: string | null, _enabled = true) {
+  return { data: [], isLoading: false, isError: false };
+}
+
+export function usePlanExecution() {
+  return { mutate: () => {}, mutateAsync: async () => null, isPending: false };
+}
+
+export function useExecutionPreflight(_strategyId: string, _nodeId: string, _nodeUpdatedAt?: string) {
+  return { data: undefined, isLoading: false, isError: false };
+}
+
 /* StepInspector's own hooks. The inspector is reachable from the editor (any
    step click deep-links `?step=<id>`), so the alias has to satisfy its imports
    too or the harness bundle will not build. Inert stubs — the inspector's own

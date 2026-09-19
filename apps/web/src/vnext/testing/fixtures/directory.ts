@@ -367,3 +367,46 @@ export const CONGRESSIONAL_STAFF_EMPTY_FIXTURE: CongressionalStaffModel = {
     selected: null,
   },
 };
+
+
+import type { CommitteeStaffModel } from '../../pages/directory/useCommitteeStaffModel.js';
+import type { DowModel } from '../../pages/directory/useDowModel.js';
+import type { StateLegModel } from '../../pages/directory/useStateLegislatorsModel.js';
+import type { DirectoryCommitteeStaffer } from '../../../pages/directory/directoryData.js';
+import type { AcquisitionPersonnelListItem } from '../../../pages/program-element/types.js';
+import type { StateLegislatorRow } from '../../../pages/directory/StateLegislatorDirectory.js';
+
+/**
+ * Committee Staff / Department of War / State Legislators visual fixtures —
+ * same disclaimer as CONGRESSIONAL_STAFF_VISUAL_FIXTURE above: these are not
+ * real people, offices or programs. Names read as obviously synthetic
+ * ("X Fixture"), emails are `@fixture.invalid`, and no fixture carries a
+ * photo URL — the harness is offline, so the initials fallback is the honest
+ * rendering. The three named committee units (TALF, READY, SEA) and their
+ * structure are reused from design-handoff_directory/01-INFORMATION-
+ * ARCHITECTURE.md as layout shapes only, not as real HASC data.
+ */
+
+const COMMITTEE_DETAIL = { id: 'fixture-hasc', officeId: 9001, name: 'House Armed Services Committee', chamber: 'House' as const, kind: 'committee' as const, committeeCode: 'HASC', parentOfficeId: null, staffCount: 6, phone: '202-555-0100', officeLocation: 'Fixture Capitol office', chair: { id: 'fixture-chair', name: 'Fixture Chair' }, rankingMember: { id: 'fixture-ranking', name: 'Fixture Ranking Member' }, viceChairs: [] };
+const COMMITTEE_UNITS = [
+  { id: 'fixture-talf', officeId: 9002, name: 'Tactical Air & Land Forces', kind: 'subcommittee' as const },
+  { id: 'fixture-ready', officeId: 9003, name: 'Readiness Subcommittee', kind: 'subcommittee' as const },
+  { id: 'fixture-sea', officeId: 9004, name: 'Seapower & Projection Forces', kind: 'subcommittee' as const },
+];
+function committeeStaff(id: string, name: string, title: string, unit: typeof COMMITTEE_UNITS[number]): DirectoryCommitteeStaffer { return { id, fullName: name, title, email: `${id}@fixture.invalid`, phone: '', officeLocation: 'Fixture office', isCurrent: true, committee: { id: unit.id, name: unit.name, chamber: 'House', kind: 'subcommittee' } }; }
+const COMMITTEE_GROUPS = COMMITTEE_UNITS.map((unit, index) => ({ committeeId: unit.id, name: unit.name, shortName: unit.name, kind: 'subcommittee' as const, chamber: 'House' as const, staff: index === 0 ? [committeeStaff('fixture-morgan', 'Morgan Fixture', 'Policy Lead', unit), committeeStaff('fixture-nina', 'Nina Fixture', 'Staff Director', unit)] : index === 1 ? [committeeStaff('fixture-sam', 'Sam Fixture', 'Readiness Lead', unit), committeeStaff('fixture-chris', 'Chris Fixture', 'Counsel', unit)] : [committeeStaff('fixture-claire', 'Claire Fixture', 'Seapower Lead', unit), committeeStaff('fixture-avery', 'Avery Fixture', 'Legislative Assistant', unit)], currentCount: 2, formerCount: 0, isLoading: false }));
+const COMMITTEE_MODEL: CommitteeStaffModel = { search: { text: '', onChange: noop }, view: { current: 'hierarchy', onChange: noop }, committee: { selectedId: COMMITTEE_DETAIL.id, options: [{ value: COMMITTEE_DETAIL.id, label: COMMITTEE_DETAIL.name }], committees: [{ ...COMMITTEE_DETAIL }], onSelect: noop, detail: COMMITTEE_DETAIL, isLoadingList: false, units: COMMITTEE_UNITS, isLoadingUnits: false }, filters: { chamber: [], chamberOptions: [{ value: 'House', label: 'House' }], hasAny: false, onChange: noop, onClearAll: noop }, results: { staff: COMMITTEE_GROUPS.flatMap((g) => g.staff), total: 6, groups: COMMITTEE_GROUPS, isLoadingGroups: false, isInitialLoading: false, isRefetching: false, isError: false, onRetry: noop }, selection: { selectedId: null, selected: null, onToggle: noop, onOpenProfile: noop } };
+export const COMMITTEE_STAFF_VISUAL_FIXTURE = COMMITTEE_MODEL;
+export const COMMITTEE_STAFF_EMPTY_FIXTURE: CommitteeStaffModel = { ...COMMITTEE_MODEL, filters: { ...COMMITTEE_MODEL.filters, hasAny: true }, results: { ...COMMITTEE_MODEL.results, staff: [], total: 0, groups: [] } };
+
+function dow(id: string, name: string, aligned: boolean): AcquisitionPersonnelListItem { return { id, fullName: name, service: 'ARMY', organization: aligned ? 'PEO Ground Combat Systems' : 'Fixture Contracting Directorate', title: 'Fixture Program Lead', role: aligned ? 'PEO' : 'KO', pePrimary: aligned ? 'PE-FIX-01' : null, peSecondary: [], emailDomain: 'fixture.invalid', publicProfileUrl: null, headshotUrl: null, confidence: 0, status: 'fixture', firstSeenAt: '', lastSeenAt: '', sourceCount: 0 }; }
+const DOW_PERSONS = [dow('fixture-dow-1', 'Alex Fixture', true), dow('fixture-dow-2', 'Jordan Fixture', false)];
+const DOW_MODEL: DowModel = { search: { text: '', onChange: noop }, filters: { pe: [], service: [], role: [], org: [], peOptions: [{ value: 'aligned', label: 'PE-aligned' }, { value: 'unaligned', label: 'Unaligned' }], serviceOptions: [], roleOptions: [], orgOptions: [], hasAny: false, onChange: noop, onClearAll: noop }, results: { persons: DOW_PERSONS, total: 2, isInitialLoading: false, isRefetching: false, isError: false, onRetry: noop }, pagination: { page: 1, totalPages: 1, pageSize: 12, onPageChange: noop }, selection: { selectedId: null, selected: null, onToggle: noop, onOpenProfile: noop, detail: { isLoading: false, isError: false, detail: null, onRetry: noop } } };
+export const DOW_VISUAL_FIXTURE = DOW_MODEL;
+export const DOW_EMPTY_FIXTURE: DowModel = { ...DOW_MODEL, filters: { ...DOW_MODEL.filters, hasAny: true }, results: { ...DOW_MODEL.results, persons: [], total: 0 } };
+
+function legislator(id: string, name: string, billCount: number | null, enactedCount: number | null): StateLegislatorRow { return { id, name, state: 'VA', chamber: 'House', district: 'Fixture district', party: 'Fixture party', email: null, image: null, url: null, committeeCount: 0, billCount, enactedCount }; }
+const STATE_PERSONS = [legislator('fixture-state-1', 'Taylor Fixture', 0, 0), legislator('fixture-state-2', 'Casey Fixture', null, null)];
+const STATE_MODEL: StateLegModel = { search: { text: '', onChange: noop }, filters: { state: [], chamber: [], party: [], stateOptions: [{ value: 'VA', label: 'VA' }], chamberOptions: [{ value: 'House', label: 'House' }], partyOptions: [{ value: 'Fixture party', label: 'Fixture party' }], hasAny: false, onChange: noop, onClearAll: noop }, results: { legislators: STATE_PERSONS, total: 2, isInitialLoading: false, isRefetching: false, isError: false, onRetry: noop }, pagination: { page: 1, totalPages: 1, pageSize: 12, onPageChange: noop }, selection: { selectedId: null, selected: null, onToggle: noop, onOpenProfile: noop, detail: { isLoading: false, isError: false, detail: null, onRetry: noop } } };
+export const STATE_LEGISLATORS_VISUAL_FIXTURE = STATE_MODEL;
+export const STATE_LEGISLATORS_EMPTY_FIXTURE: StateLegModel = { ...STATE_MODEL, filters: { ...STATE_MODEL.filters, hasAny: true }, results: { ...STATE_MODEL.results, legislators: [], total: 0 } };

@@ -182,4 +182,29 @@
      this, never --uui-white or a module surface token. Aliases the
      foundation token so the two roots cannot drift apart. */
   --uui-surface-assistant: var(--capiro-surface-assistant, #fffdfa);
+
+  /* Directory vNext (design_handoff_directory, 02-VISUAL-SPEC.md) — its own
+     navy-accent pairing, deliberately NOT folded into --uui-brand-* above.
+     The v3 shell's "brand" ramp is now a purple/indigo (--uui-brand-solid:
+     #3e4784) used for the active tab underline, links and count chips
+     app-wide; the Directory handoff instead specifies Capiro navy (#294E68 —
+     the same hex as tokens.css's --capiro-color-text-accent) for its own
+     selection/state accent. Repointing --uui-brand-* to navy would recolor
+     every vnext page's active nav, links and chips as a side effect of a
+     Directory-only change, so Directory gets its own aliases instead. Scope
+     any new consumer to Directory's own component CSS. */
+  --uui-directory-accent: #294e68;
+  --uui-directory-accent-hover: #1f3d52;
+  --uui-directory-accent-tint: #edf3f7;
+  --uui-directory-accent-ring: #c3d5e1;
+  /* Global focus-visible is --uui-focus-ring (#4e5ba6) — a different, already
+     shipped hex. The handoff's 02-VISUAL-SPEC.md calls for #4A7A9B on
+     Directory's own controls specifically; kept as its own token rather than
+     overwriting the app-wide focus color. */
+  --uui-directory-focus-ring: #4a7a9b;
+  /* Node modal radius (02-VISUAL-SPEC.md "Geometry"): 14px, a deliberate
+     divergence from --uui-radius-control (8px) / --uui-radius-card (12px)
+     called out as an open question in 05-COMPONENT-MAP.md and resolved here
+     as its own named dialog radius rather than snapping to 12px. */
+  --uui-radius-dialog: 14px;
 }

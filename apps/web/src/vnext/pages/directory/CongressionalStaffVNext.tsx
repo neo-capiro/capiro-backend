@@ -252,7 +252,7 @@ export function CongressionalStaffVNextView({ model }: { model: CongressionalSta
             </>
           ) : offices.length === 0 ? (
             <CapiroEmptyState
-              title={filters.hasAny ? 'No offices match these filters' : 'No congressional offices available'}
+              title={filters.hasAny ? 'No people match these filters' : 'No congressional offices available'}
               description={
                 filters.hasAny
                   ? 'Clear a filter or broaden the search to see more of the directory.'

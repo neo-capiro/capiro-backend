@@ -48,7 +48,7 @@ export function MemberDetailModalVNext({
     : '';
 
   return (
-    <div className="capiro-dirprofile">
+    <div className="capiro-dirprofile capiro-dirprofile--node">
       <CapiroModal open={open} title={displayName || 'Member profile'} onClose={onClose}>
         <div key={memberId} className="capiro-dirprofile__body">
           {query.isLoading ? (

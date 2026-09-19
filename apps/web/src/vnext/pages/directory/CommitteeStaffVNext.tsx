@@ -171,7 +171,7 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
             <div className="capiro-directory-columns capiro-directory-row-grid--roster">
               <p className="capiro-directory-columns__label">Staffer</p>
               <p className="capiro-directory-columns__label">Committee / Unit</p>
-              <p className="capiro-directory-columns__label">Role</p>
+              <p className="capiro-directory-columns__label">Role &amp; Portfolio</p>
               <p className="capiro-directory-columns__label">Contact</p>
               <p className="capiro-directory-columns__label" aria-hidden="true" />
             </div>
@@ -361,9 +361,9 @@ type OrgChartNodeData = {
 
 type OrgChartNode = Node<OrgChartNodeData>;
 
-const COL_W = 320;
-const CARD_W = 268;
-const ROOT_W = 360;
+const COL_GAP = 20;
+const CARD_W = 270;
+const ROOT_W = 340;
 const ROOT_Y = 0;
 const TIER_GAP = 52;
 const CARD_GAP = 20;
@@ -521,7 +521,17 @@ function CommitteeOrgChart({
     const nextNodes: OrgChartNode[] = [];
     const nextEdges: Edge[] = [];
     const columns = Math.max(groups.length, 1);
-    const canvasWidth = columns * COL_W;
+    // Match the handoff's weighted unit derivation: each unit gets
+    // (people × 0.5 + 0.5) fractional columns, rather than a hardcoded share.
+    const weights = groups.map((group) => group.staff.length * 0.5 + 0.5);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+    const canvasWidth = Math.max(columns * CARD_W + Math.max(columns - 1, 0) * COL_GAP, 1180);
+    const usableWidth = Math.max(canvasWidth - Math.max(columns - 1, 0) * COL_GAP, CARD_W);
+    const unitWidths = weights.map((weight) => (usableWidth * weight) / totalWeight);
+    const unitStarts = unitWidths.reduce<number[]>((starts, width, index) => {
+      starts.push((starts[index - 1] ?? 0) + (index ? unitWidths[index - 1]! + COL_GAP : 0));
+      return starts;
+    }, []);
     const center = canvasWidth / 2;
 
     const rootData: OrgChartNodeData = {
@@ -591,7 +601,7 @@ function CommitteeOrgChart({
 
     groups.forEach((group, columnIndex) => {
       const unitNodeId = `unit-${group.committeeId}`;
-      const columnX = columnIndex * COL_W + (COL_W - CARD_W) / 2;
+      const columnX = unitStarts[columnIndex]! + (unitWidths[columnIndex]! - CARD_W) / 2;
       nextNodes.push({
         id: unitNodeId,
         type: 'unit',
