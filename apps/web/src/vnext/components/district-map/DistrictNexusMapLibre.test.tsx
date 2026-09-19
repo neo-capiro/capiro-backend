@@ -52,6 +52,7 @@ vi.mock('@vis.gl/react-maplibre', async () => {
           (props.data?.features ?? []).map((f: any) => ({
             id: f.id,
             color: f.properties?.__color,
+            hasNexus: f.properties?.__hasNexus,
             coordinates: f.geometry?.coordinates,
           })),
         ),
@@ -146,6 +147,20 @@ const DISTRICTS = [
   }),
 ];
 
+// Matches zeroNexusDistrictSummary: national coverage must not invent footprint.
+const PLACEHOLDER = district({
+  districtKey: 'WY-00',
+  state: 'WY',
+  districtCode: '00',
+  name: 'Wyoming at large',
+  clientCount: 0,
+  score: null,
+  coveragePercent: 0,
+  awarded: { contractObligations: null, grantObligations: null, grantOutlays: null },
+  employeeCount: null,
+  employeesUnreported: false,
+});
+
 const CONUS: [[number, number], [number, number]] = [
   [-125.2, 24.4],
   [-66.8, 49.6],
@@ -175,7 +190,7 @@ function renderMap(props: Partial<Parameters<typeof DistrictNexusMapLibre>[0]> =
   );
 }
 
-function sourceFeatures(testId: string): Array<{ id: string; color: string }> {
+function sourceFeatures(testId: string): Array<{ id: string; color: string; hasNexus?: boolean }> {
   return JSON.parse(screen.getByTestId(testId).getAttribute('data-features')!);
 }
 
@@ -186,6 +201,29 @@ beforeEach(() => {
 });
 
 describe('camera fit — the viewport the user actually lands on', () => {
+  test('national placeholders do not expand a selected client footprint or the Fit footprint control', async () => {
+    renderMap({ districts: [...DISTRICTS, PLACEHOLDER], fit: { token: 'client-1' } });
+    await waitFor(() => expect(fitBoundsMock).toHaveBeenCalled());
+    expect(fitBoundsMock).toHaveBeenLastCalledWith(FOOTPRINT_UNION, {
+      padding: 48,
+      maxZoom: 6.5,
+      animate: false,
+    });
+    fitBoundsMock.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Fit footprint' }));
+    expect(fitBoundsMock).toHaveBeenLastCalledWith(FOOTPRINT_UNION, {
+      padding: 48,
+      maxZoom: 6.5,
+      animate: false,
+    });
+  });
+
+  test('a national view with only placeholders falls back to CONUS when fitting footprint', async () => {
+    renderMap({ districts: [PLACEHOLDER] });
+    await waitFor(() => expect(fitBoundsMock).toHaveBeenCalled());
+    expect(fitBoundsMock).toHaveBeenLastCalledWith(CONUS, { padding: 24, animate: false });
+  });
+
   test("default 'footprint' mode (client-crm) fits the districts' bbox union once loaded", async () => {
     renderMap();
     await waitFor(() => expect(fitBoundsMock).toHaveBeenCalled());
@@ -227,6 +265,36 @@ describe('camera fit — the viewport the user actually lands on', () => {
 });
 
 describe('layer presence — what actually reaches the GL engine', () => {
+  test.each(['nexus', 'contracts', 'grants', 'employees', 'clients', 'coverage'] as const)(
+    'national placeholders remain no-footprint under the %s metric',
+    async (metric) => {
+      renderMap({ districts: [...DISTRICTS, PLACEHOLDER], metric });
+      await screen.findByTestId('source-pfdn-districts');
+      const features = sourceFeatures('source-pfdn-districts');
+      expect(features.find((f) => f.id === 'WY-00')).toMatchObject({
+        color: NO_NEXUS_FILL,
+        hasNexus: false,
+      });
+      expect(features.find((f) => f.id === 'TX-23')).toMatchObject({
+        color: rampColorForValue(metricValue(DISTRICTS[0]!, metric), metric),
+        hasNexus: true,
+      });
+    },
+  );
+
+  test.each([0, null])(
+    'real client footprint with score %s stays distinct from a placeholder',
+    async (score) => {
+      const real = district({ score });
+      renderMap({ districts: [real, PLACEHOLDER] });
+      await screen.findByTestId('source-pfdn-districts');
+      expect(sourceFeatures('source-pfdn-districts').find((f) => f.id === 'TX-23')).toMatchObject({
+        color: rampColorForValue(metricValue(real, 'nexus'), 'nexus'),
+        hasNexus: true,
+      });
+    },
+  );
+
   test('mounts the district source with fill + outline layers, coloring matched districts by metric and unmatched ones as no-nexus', async () => {
     renderMap();
     await screen.findByTestId('source-pfdn-districts');

@@ -78,14 +78,22 @@ const REGION_BOUNDS: Record<'AK' | 'HI' | 'PR', [[number, number], [number, numb
 };
 
 let webglSupportCache: boolean | null = null;
+// All-districts coverage includes placeholder rows with no client evidence.
+// A known zero score or an unscored real client row still has footprint.
+function hasClientFootprint(
+  district: DistrictNexusDistrictSummary | undefined,
+): district is DistrictNexusDistrictSummary {
+  return district != null && (district.clientCount > 0 || district.score != null);
+}
+
 function supportsWebGL(): boolean {
   if (webglSupportCache != null) return webglSupportCache;
   try {
     const canvas = document.createElement('canvas');
     webglSupportCache = Boolean(
       canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl'),
+        canvas.getContext('webgl') ||
+        canvas.getContext('experimental-webgl'),
     );
   } catch {
     webglSupportCache = false;
@@ -193,7 +201,8 @@ export function DistrictNexusMapLibre({
       ...geojson.data,
       features: geojson.data.features.map((feature) => {
         const district = byKey.get(feature.id);
-        const color = district
+        const hasFootprint = hasClientFootprint(district);
+        const color = hasFootprint
           ? rampColorForValue(metricValue(district, metric), metric)
           : NO_NEXUS_FILL;
         return {
@@ -202,7 +211,7 @@ export function DistrictNexusMapLibre({
             ...feature.properties,
             __districtKey: feature.id,
             __color: color,
-            __hasNexus: Boolean(district),
+            __hasNexus: hasFootprint,
           },
         };
       }),
@@ -269,7 +278,7 @@ export function DistrictNexusMapLibre({
     const map = mapRef.current;
     if (!map || !geojson.data) return;
     const boxes = geojson.data.features
-      .filter((f) => byKey.has(f.id))
+      .filter((f) => hasClientFootprint(byKey.get(f.id)))
       .map((f) => f.properties.bbox);
     if (facilities)
       for (const point of facilityPoints.features) {
@@ -459,10 +468,8 @@ export function DistrictNexusMapLibre({
           <div className="cap-pf-dn-hr">
             <span>Nexus</span>
             <b>
-              {hoveredDistrict
-                ? hoveredDistrict.clientCount > 0 || hoveredDistrict.score != null
-                  ? (hoveredDistrict.score ?? 'unscored')
-                  : 'no verified footprint'
+              {hasClientFootprint(hoveredDistrict)
+                ? (hoveredDistrict.score ?? 'unscored')
                 : 'no verified footprint'}
             </b>
           </div>
