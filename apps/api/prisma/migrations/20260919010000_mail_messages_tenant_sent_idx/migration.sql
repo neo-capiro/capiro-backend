@@ -1,0 +1,48 @@
+-- Engagement Reports overview: make the sentAt branch of the mail window
+-- index-driven.
+--
+-- `reportOverview()` (apps/api/src/engagement/engagement.service.ts) selects the
+-- caller's mail for the reporting cycle with
+--     OR: [{ sentAt: {gte, lt} }, { receivedAt: {gte, lt} }]
+-- The receivedAt branch was served by `mail_messages_tenant_received_idx`
+-- (tenant_id, received_at). There was NO index covering sent_at, so Postgres
+-- could not satisfy the disjunction from indexes and fell back to a sequential
+-- scan of mail_messages for the tenant. That table carries body_text and
+-- raw_jsonb, so it is wide and the scan is expensive.
+--
+-- On production this pushed the request past the 5000 ms interactive-
+-- transaction budget in `prisma.withTenant`, surfacing to the client as
+-- HTTP 503 {"message":"The database is temporarily busy. Please retry."}.
+-- Measured: 5203 / 5625 / 5817 ms then 503 for period=current and period=all,
+-- while period=previous (an empty 2025 window) returned 200 instantly.
+--
+-- LOCKING / DEPLOY RUNBOOK -- read before applying to a populated database.
+--
+-- This is a plain CREATE INDEX, deliberately NOT CONCURRENTLY: Prisma wraps
+-- each migration in a transaction and CREATE INDEX CONCURRENTLY cannot run
+-- inside one. This follows the same convention and tradeoff documented in
+-- 20260801010000_faa_recipient_name_btree/migration.sql.
+--
+-- Unlike that case, mail_messages is NOT empty in production, so this WILL
+-- take an ACCESS EXCLUSIVE lock on mail_messages for the duration of the
+-- build, blocking reads and writes on that table -- including the Microsoft
+-- Graph mail delta sync. That sync is incremental and runs on a ~14 minute
+-- cadence, so a blocked run simply retries on its next tick; it does not lose
+-- data. Expect a short build (a two-column btree), but apply it during a quiet
+-- window rather than under peak load.
+--
+-- PREFERRED, if you can reach the database directly: build it out-of-band
+-- first and let this statement no-op via IF NOT EXISTS --
+--     CREATE INDEX CONCURRENTLY IF NOT EXISTS "mail_messages_tenant_sent_idx"
+--       ON "mail_messages" ("tenant_id", "sent_at");
+-- CAUTION (same gotcha called out in 20260724010000_congress_bill_trgm_lower):
+-- a CREATE INDEX CONCURRENTLY that FAILS leaves an INVALID index of the same
+-- name, and IF NOT EXISTS below checks name existence, not validity -- which
+-- would silently leave production on the seq-scan plan. If you pre-create,
+-- verify pg_index.indisvalid = true before running migrate deploy, and REINDEX
+-- (or DROP + recreate CONCURRENTLY) if it is not.
+--
+-- Rollback: DROP INDEX "mail_messages_tenant_sent_idx";
+
+CREATE INDEX IF NOT EXISTS "mail_messages_tenant_sent_idx"
+  ON "mail_messages" ("tenant_id", "sent_at");

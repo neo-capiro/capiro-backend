@@ -10813,44 +10813,6 @@ function formatRecipientDirectoryProfile(match: DirectoryEmailMatch | null): str
 }
 
 /**
- * Turn an Office Recommender result for a specific office into a one-line "why
- * this office is a fit for the client" rationale, drawn from the transparent
- * signal tags + jurisdiction committee + tracked-bill count. Returns null when
- * there is no recommendation or no usable signal. (Tier-2 outreach enrichment.)
- */
-function formatTargetRationale(
-  rec: OfficeRecommendation | undefined,
-  computedAt: string | null,
-): string | null {
-  if (!rec) return null;
-  const bits: string[] = [];
-  const tags = rec.tags ?? [];
-  if (rec.committee && (tags.includes('committee') || rec.billCount > 0)) {
-    bits.push(
-      rec.billCount > 0
-        ? `sits on ${rec.committee}, which has jurisdiction over ${rec.billCount} of the client's tracked bill${
-            rec.billCount === 1 ? '' : 's'
-          }`
-        : `sits on ${rec.committee}`,
-    );
-  } else if (tags.includes('committee') && rec.billCount > 0) {
-    bits.push(
-      `has jurisdiction over ${rec.billCount} of the client's tracked bill${
-        rec.billCount === 1 ? '' : 's'
-      }`,
-    );
-  }
-  if (tags.includes('district')) {
-    bits.push(`has a constituent / facility nexus in ${rec.state ?? "the client's footprint"}`);
-  }
-  if (tags.includes('issue')) bits.push("overlaps the client's core issue areas");
-  if (tags.includes('leadership')) bits.push('holds a relevant leadership post');
-  if (!bits.length) return null;
-  const asOf = computedAt ? ` (recommender as of ${computedAt})` : '';
-  return `Why this office is a fit for the client: ${bits.join('; ')}${asOf}.`;
-}
-
-/**
  * Collect the lowercased email addresses that appear on a mail thread — from its
  * participants list and from the (up to 3) included messages' from/to/cc — so a
  * batch of threads can be bucketed to the specific recipient(s) they involve.
@@ -11389,54 +11351,6 @@ function pruneForAi(value: unknown): Record<string, unknown> {
       return entry;
     }),
   ) as Record<string, unknown>;
-}
-
-/**
- * Phase 0 — build the structured auditor ledger for ONE recipient's draft from
- * the authoritative bill/PE truth already resolved for their in-scope context
- * items. Extracted from the inline auditor block so the versioned path stores
- * the EXACT entries the auditor will judge the text against, rather than a
- * re-derived copy (plan §3.c2). Exported for unit tests.
- */
-export function buildOutreachLedgerEntries(
-  usedItems: OutreachSelectedContextItemInput[],
-  truthByItemId: Map<string, OutreachContextTruth>,
-): LedgerEntry[] {
-  const entries: LedgerEntry[] = [];
-  for (const item of usedItems) {
-    const truth = truthByItemId.get(item.id);
-    if (!truth) continue;
-    if (truth.kind === 'bill') {
-      const b = truth.raw;
-      entries.push({
-        tool: 'get_bill_status',
-        serialized: item.body ?? '',
-        result: {
-          billId: b.id,
-          status: b.status,
-          statusAt: b.statusAt ? new Date(b.statusAt).toISOString() : null,
-          ...(b.sponsorName ? { sponsor: { name: b.sponsorName } } : {}),
-        },
-      });
-    } else {
-      const pe = truth.raw;
-      entries.push({
-        tool: 'get_pe_budget_timeline',
-        serialized: item.body ?? '',
-        result: {
-          peCode: pe.peCode,
-          years: pe.years,
-          currentCycleFy: pe.currentCycleFy ?? null,
-          identifierKind:
-            pe.budgetExhibitType && /procurement line item/i.test(pe.budgetExhibitType)
-              ? 'procurement_line_item'
-              : 'pe',
-          generatedAt: new Date().toISOString(),
-        },
-      });
-    }
-  }
-  return entries;
 }
 
 /**
