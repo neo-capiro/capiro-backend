@@ -1,0 +1,33 @@
+{
+  "id": "D6b",
+  "title": "Browser disconnect detaches (run continues), assistant message persisted, reconnect replays events from cursor",
+  "status": "passed",
+  "at": "2026-09-19T14:01:16.074Z",
+  "runId": "eebd774a-ec34-4277-a3bd-cd694ac554b4",
+  "framesSeenBeforeDisconnect": 7,
+  "abortedAtMs": 9487,
+  "finalStatus": "completed",
+  "detachedFlag": true,
+  "replayFrameCount": 127,
+  "replayTextChars": 584,
+  "persistedMessagePreview": "1. The federal fiscal year begins October 1.\n2. It ends September 30 of the following calendar year.\n3. The President generally submits the budget request by the first Monday in February.\n4. Congress ",
+  "persistedMetadataKeys": [
+    "error",
+    "model",
+    "usage",
+    "partial",
+    "runtime",
+    "detached",
+    "servedBy",
+    "meriRunId",
+    "toolsUsed",
+    "trustSteps",
+    "hermesRunId",
+    "finishReason",
+    "hermesSessionId",
+    "executionScopeId",
+    "pendingInteractions"
+  ],
+  "lastSeq": 131,
+  "seqAtAbort": null
+}

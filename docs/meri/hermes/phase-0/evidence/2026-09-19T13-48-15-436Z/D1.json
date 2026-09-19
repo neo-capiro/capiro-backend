@@ -1,0 +1,50 @@
+{
+  "id": "D1",
+  "title": "Real Hermes turn: streamed text, native terminal tool, completion, usage",
+  "status": "passed",
+  "at": "2026-09-19T13:49:27.191Z",
+  "runId": "a8d349e8-c17b-48a4-955a-0d293413b3d7",
+  "httpStatus": 200,
+  "httpBody": null,
+  "timingsMs": {
+    "t0": 1789825759446,
+    "firstFrame": 36,
+    "turnAccepted": 36,
+    "start": 47,
+    "firstText": 6246,
+    "firstTool": 5523,
+    "done": 6540,
+    "abortedAt": null
+  },
+  "toolCalls": [
+    "terminal"
+  ],
+  "textChars": 34,
+  "textPreview": "\n\nExact output:\nMERI-D1-1789825765",
+  "doneFrame": {
+    "t": 6540,
+    "type": "done",
+    "runtime": "hermes",
+    "runId": "a8d349e8-c17b-48a4-955a-0d293413b3d7",
+    "model": "gpt-5.6-luna",
+    "finishReason": "stop",
+    "partial": false,
+    "messageId": "747779c5-cc74-467f-a9ce-33ea3b748e5c"
+  },
+  "usage": {
+    "inputTokens": 21827,
+    "outputTokens": 146,
+    "totalTokens": 21973,
+    "costUsd": null
+  },
+  "finalStatus": "completed",
+  "frameTypes": [
+    "turn_accepted",
+    "start",
+    "tool_call",
+    "sources",
+    "text",
+    "usage",
+    "done"
+  ]
+}

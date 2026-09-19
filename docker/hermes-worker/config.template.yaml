@@ -1,0 +1,79 @@
+# Meri Hermes worker configuration (rendered by entrypoint.sh; ${VARS} come from
+# the worker environment). Pinned build: hermes-agent v2026.9.14 / 0.21.3.
+#
+# Design intent (see docs/meri/hermes/phase-0/state-and-isolation-decisions.md):
+#  - Hermes keeps its native agent loop, SOUL.md personality, skills + automatic
+#    learning (background review), native tools and session store.
+#  - Institutional FACT memory is Meri's: the built-in MEMORY.md/USER.md store is
+#    disabled and the `meri_memory` provider (plugins/meri_memory) is the only
+#    memory provider. Personality (SOUL.md) and skills stay native.
+#  - The worker IS the sandbox (one Fargate task per execution scope), so the
+#    terminal backend is `local` inside the container.
+#  - Approvals stay in manual mode so guarded commands surface as native
+#    `approval.request` events over /v1/runs instead of being auto-run.
+
+model:
+  default: "${MERI_HERMES_MODEL}"
+  # "custom" = any OpenAI-compatible endpoint (the platform's OpenAI key via
+  # OPENAI_API_KEY against https://api.openai.com/v1); "anthropic" and
+  # "openrouter" are also valid on this build. Chosen by Meri, not the model.
+  provider: "${MERI_HERMES_PROVIDER}"
+  base_url: "${MERI_HERMES_BASE_URL}"
+
+agent:
+  max_turns: 60
+  # Toolsets Meri does not want in this pilot regardless of platform defaults.
+  disabled_toolsets: []
+
+terminal:
+  backend: "local"
+  cwd: "${MERI_WORKSPACE_DIR}"
+  timeout: 180
+
+memory:
+  provider: "meri_memory"
+  memory_enabled: false
+  user_profile_enabled: false
+  write_approval: false
+
+skills:
+  create_dir: "${MERI_SKILLS_DIR}"
+  write_approval: false
+  guard_agent_created: true
+
+approvals:
+  mode: "manual"
+  timeout: 300
+  unattended_mode: "deny"
+
+# Auxiliary model tasks (background skill/memory review, compression) run on
+# the same Meri-chosen provider/model so no task silently routes to a
+# different vendor (the "auto" default tried Nous Portal on this build).
+auxiliary:
+  background_review:
+    enabled: true
+    provider: "${MERI_HERMES_PROVIDER}"
+    model: "${MERI_HERMES_MODEL}"
+  compression:
+    provider: "${MERI_HERMES_PROVIDER}"
+    model: "${MERI_HERMES_MODEL}"
+  title_generation:
+    enabled: false
+
+compression:
+  enabled: true
+
+checkpoints:
+  enabled: false
+
+plugins:
+  enabled:
+    - meri_tools
+    - meri_memory
+
+gateway:
+  api_server:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8642
+    max_concurrent_runs: ${MERI_MAX_CONCURRENT_RUNS}

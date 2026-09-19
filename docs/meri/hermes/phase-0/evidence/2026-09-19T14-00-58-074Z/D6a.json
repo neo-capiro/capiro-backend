@@ -1,0 +1,43 @@
+{
+  "id": "D6a",
+  "title": "Explicit Stop cancels the Hermes run and yields an accurate terminal state",
+  "status": "passed",
+  "at": "2026-09-19T14:01:05.518Z",
+  "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+  "stopResponse": {
+    "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+    "status": "cancelling",
+    "conversationId": "a0000000-0000-4000-8000-00000000e001",
+    "executionScopeId": "tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1",
+    "audience": "private",
+    "hermesRunId": "run_1b163f3fffbe4222aeee20072a5a9eec",
+    "hermesSessionId": null,
+    "createdAt": "2026-09-19T14:01:00.767Z",
+    "updatedAt": "2026-09-19T14:01:05.289Z",
+    "finishedAt": null,
+    "lastSeq": 6,
+    "finishReason": null,
+    "partial": false,
+    "error": null,
+    "usage": null,
+    "detached": false,
+    "stopRequestedAt": "2026-09-19T14:01:05.289Z",
+    "userMessageId": "47313285-8273-4caf-826c-471323332106",
+    "assistantMessageId": null,
+    "brokerCalls": 1,
+    "pendingInteractions": []
+  },
+  "stopToTerminalMs": 225,
+  "finalStatus": "cancelled",
+  "doneFrame": {
+    "t": 4770,
+    "type": "done",
+    "runtime": "hermes",
+    "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+    "model": "gpt-5.6-luna",
+    "finishReason": "aborted",
+    "partial": true,
+    "messageId": "f8e0d506-a7c8-415e-8c49-79be8ac62dfa"
+  },
+  "assistantMessageId": "f8e0d506-a7c8-415e-8c49-79be8ac62dfa"
+}

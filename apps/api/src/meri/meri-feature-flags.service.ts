@@ -6,6 +6,11 @@ import {
   meriV3CanaryTenantSlugs,
   meriV3EnvironmentEnabled,
 } from '../common/meriv3-flags.js';
+import {
+  MERI_HERMES_RUNTIME_FLAG,
+  meriHermesEnvironmentEnabled,
+  meriHermesPilotTenantIds,
+} from '../common/meri-hermes-flags.js';
 
 const CACHE_TTL_MS = 60_000;
 
@@ -78,6 +83,19 @@ export class MeriFeatureFlagsService {
     if (!meriV3EnvironmentEnabled()) return false;
     if (!meriV3CanaryTenantSlugs().has(tenantSlug.trim().toLowerCase())) return false;
     return this.isEnabled(tenantId, MERIV3_CHAT_FLAG, false);
+  }
+
+  /**
+   * Hermes runtime pilot (Phase 0): global switch, server-resolved CANONICAL
+   * tenant-id allowlist (default empty), and an explicit per-tenant true.
+   * The tenant id is the authenticated context's id — never a client claim.
+   * Rollback is flipping any one key; a DB read failure resolves to the
+   * default (false), which routes the turn to the existing runtimes.
+   */
+  async isMeriHermesRuntimeEnabled(tenantId: string): Promise<boolean> {
+    if (!meriHermesEnvironmentEnabled()) return false;
+    if (!meriHermesPilotTenantIds().has(tenantId.trim().toLowerCase())) return false;
+    return this.isEnabled(tenantId, MERI_HERMES_RUNTIME_FLAG, false);
   }
 
   /**

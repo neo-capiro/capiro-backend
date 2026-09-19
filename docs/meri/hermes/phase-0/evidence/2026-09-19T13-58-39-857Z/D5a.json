@@ -1,0 +1,46 @@
+{
+  "id": "D5a",
+  "title": "Clarification via broker adapter: durable pending interaction, survives reconnect replay, resolved by next message",
+  "status": "passed",
+  "at": "2026-09-19T13:58:49.791Z",
+  "askRunId": "cd41314a-cca0-4368-aa3f-ddaa7f00e866",
+  "clarifyFrame": {
+    "t": 4893,
+    "type": "clarify",
+    "runtime": "hermes",
+    "requestId": "clar_0c9c8f8c-eb6f-41d8-803a-e32daa64f604",
+    "questions": [
+      {
+        "id": "clar_0c9c8f8c-eb6f-41d8-803a-e32daa64f604",
+        "question": "Which client is this work for?",
+        "choices": [
+          "Fixture Client Open",
+          "Fixture Client Walled"
+        ],
+        "multiSelect": false
+      }
+    ],
+    "continuation": "durable_continuation"
+  },
+  "pendingAfterTurn": {
+    "requestId": "clar_0c9c8f8c-eb6f-41d8-803a-e32daa64f604",
+    "kind": "clarification",
+    "prompt": "Which client is this work for?",
+    "choices": [
+      "Fixture Client Open",
+      "Fixture Client Walled"
+    ],
+    "multiSelect": false,
+    "continuation": "durable_continuation",
+    "createdAt": "2026-09-19T13:58:47.373Z",
+    "expiresAt": null,
+    "resolved": false,
+    "decision": null
+  },
+  "askRunStatus": "completed",
+  "replayHasClarify": true,
+  "answerRunId": "ab9bb175-e1ef-4fba-b8e5-b2da832121ae",
+  "answerText": "I’ll use Fixture Client Open for this work.",
+  "resolvedAfterAnswer": true,
+  "continuation": "durable_continuation (no live process retained)"
+}

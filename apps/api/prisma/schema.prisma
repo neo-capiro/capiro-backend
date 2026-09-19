@@ -250,6 +250,8 @@ model Tenant {
   meriActionApprovals                MeriActionApproval[]
   meriPendingActions                 MeriPendingAction[]
   meriActionProposals                MeriActionProposal[]
+  meriExecutionScopes                MeriExecutionScope[]
+  meriAgentRuns                      MeriAgentRun[]
   clioAttachments                    ClioAttachment[]
   clioMcpServers                     ClioMcpServer[]
   clioMcpOAuthCredentials            ClioMcpOAuthCredential[]
@@ -1944,9 +1946,10 @@ model ClioConversation {
   user      User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
   client    Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
   workspace MeriWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  messages  ClioMessage[]
-  artifacts ClioArtifact[]
-  notes     ClioNote[]
+  messages     ClioMessage[]
+  artifacts    ClioArtifact[]
+  notes        ClioNote[]
+  meriAgentRuns MeriAgentRun[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
@@ -2338,6 +2341,127 @@ model MeriActionProposal {
   @@index([tenantId, policyPackKey, policyPackVersion], map: "meri_action_proposals_policy_pack_idx")
   @@index([tenantId, policyDecisionHash], map: "meri_action_proposals_policy_decision_idx")
   @@map("meri_action_proposals")
+}
+
+/// Phase 1 backlog #1: durable run/event/interaction tables replacing the Phase 0
+/// in-memory `MeriHermesRunStore` prototype, behind the same `MeriHermesRunRepository`
+/// interface (apps/api/src/meri/hermes/meri-hermes-run-store.ts). A run now survives
+/// an API restart; events replay across replicas by `seq`. Design: docs/meri/hermes/
+/// phase-0/contracts.md §7.
+model MeriExecutionScope {
+  /// Natural key, not a random uuid: `tenant:<tenantId>:user:<userId>` today (Phase 0
+  /// private scope). A shared room gets its own composed id once room scopes exist.
+  id                   String   @id @db.VarChar(200)
+  tenantId             String   @map("tenant_id") @db.Uuid
+  principalType        String   @map("principal_type") @db.VarChar(20)
+  principalId          String   @map("principal_id") @db.VarChar(200)
+  kind                 String   @default("private") @db.VarChar(20)
+  authorizationVersion String   @map("authorization_version") @db.VarChar(80)
+  homeVolumeRef        String?  @map("home_volume_ref") @db.VarChar(200)
+  personaVersion       String?  @map("persona_version") @db.VarChar(80)
+  workerState          Json     @default("{}") @map("worker_state_jsonb")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   MeriAgentRun[]
+
+  @@index([tenantId, principalType, principalId], map: "meri_execution_scopes_tenant_principal_idx")
+  @@map("meri_execution_scopes")
+}
+
+/// One Hermes (or future runtime) agent run. Mirrors `MeriHermesRunRecord` field
+/// for field; `envelope`/`actorContext` are the same JSON the in-memory store held
+/// in process, now durable. Never persist raw broker/worker credentials here.
+///
+/// NOTE: a partial unique index enforcing "at most one non-terminal run per
+/// conversation" (the single-writer-per-conversation lease, P1-02) is NOT
+/// representable in the Prisma schema DSL (no WHERE clause on @@unique/@@index).
+/// It lives only in migration 20280920020000_meri_hermes_admission_fencing/migration.sql
+/// as `meri_agent_runs_conversation_single_writer_idx`. Never run `prisma migrate
+/// dev`/`db pull` against this schema without accounting for that index appearing
+/// as drift — this codebase already carries other invariants (RLS policies, CHECK
+/// constraints) that live in migration SQL only, not in this file.
+model MeriAgentRun {
+  id                 String    @id @default(uuid()) @db.Uuid
+  tenantId           String    @map("tenant_id") @db.Uuid
+  scopeId            String    @map("scope_id") @db.VarChar(200)
+  actorId            String    @map("actor_id") @db.Uuid
+  conversationId     String    @map("conversation_id") @db.Uuid
+  userMessageId      String?   @map("user_message_id") @db.Uuid
+  assistantMessageId String?   @map("assistant_message_id") @db.Uuid
+  hermesRunId        String?   @unique @map("hermes_run_id") @db.VarChar(120)
+  hermesSessionId    String?   @map("hermes_session_id") @db.VarChar(120)
+  status             String    @db.VarChar(32)
+  finishReason       String?   @map("finish_reason") @db.VarChar(20)
+  partial            Boolean   @default(false)
+  idempotencyKey     String    @map("idempotency_key") @db.VarChar(200)
+  envelope           Json      @map("envelope_jsonb")
+  actorContext       Json      @map("actor_context_jsonb")
+  lastSeq            Int       @default(0) @map("last_seq")
+  output             String    @default("") @db.Text
+  usage              Json?     @map("usage_jsonb")
+  error              String?   @db.Text
+  detached           Boolean   @default(false)
+  stopRequestedAt    DateTime? @map("stop_requested_at") @db.Timestamptz(6)
+  brokerCalls        Int       @default(0) @map("broker_calls")
+  /// Durable-dispatch outbox lite: 'pending' at admission commit (before Hermes
+  /// /v1/runs is ever called), 'dispatched' once the acceptance response lands,
+  /// 'failed' if dispatch itself errored. A run stuck 'pending' past a timeout
+  /// is ambiguous-startup (P1-07) and is reconciled, never blindly retried.
+  dispatchStatus     String    @default("pending") @map("dispatch_status") @db.VarChar(20)
+  dispatchAttempts   Int       @default(0) @map("dispatch_attempts")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  finishedAt         DateTime? @map("finished_at") @db.Timestamptz(6)
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scope        MeriExecutionScope     @relation(fields: [scopeId], references: [id], onDelete: Cascade)
+  conversation ClioConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  events       MeriAgentRunEvent[]
+  interactions MeriAgentInteraction[]
+
+  @@unique([scopeId, idempotencyKey], map: "meri_agent_runs_scope_idempotency_key")
+  @@index([tenantId, actorId, conversationId, createdAt], map: "meri_agent_runs_tenant_actor_conversation_idx")
+  @@index([scopeId, status], map: "meri_agent_runs_scope_status_idx")
+  @@map("meri_agent_runs")
+}
+
+/// Sequenced durable event log. `payload_jsonb` carries the same `frames[]` shape
+/// the browser replays on reconnect (`GET .../events?after=seq`).
+model MeriAgentRunEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  runId      String   @map("run_id") @db.Uuid
+  seq        Int
+  kind       String   @db.VarChar(40)
+  visibility String   @default("public") @db.VarChar(20)
+  payload    Json     @map("payload_jsonb")
+  at         DateTime @default(now()) @db.Timestamptz(6)
+
+  run MeriAgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, seq], map: "meri_agent_run_events_run_seq_key")
+  @@map("meri_agent_run_events")
+}
+
+/// Pending approval/clarification that must survive reconnect and worker replacement.
+model MeriAgentInteraction {
+  id           String    @id @default(uuid()) @db.Uuid
+  runId        String    @map("run_id") @db.Uuid
+  requestId    String    @map("request_id") @db.VarChar(120)
+  kind         String    @db.VarChar(20)
+  continuation String    @db.VarChar(24)
+  prompt       String    @db.Text
+  choices      Json      @default("[]") @map("choices_jsonb")
+  multiSelect  Boolean   @default(false) @map("multi_select")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  resolution   Json?     @map("resolution_jsonb")
+
+  run MeriAgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, requestId], map: "meri_agent_interactions_run_request_key")
+  @@map("meri_agent_interactions")
 }
 
 /// Clio self-scheduled recurring task (W3). A user asks Clio to run something on

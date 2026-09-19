@@ -1,0 +1,86 @@
+{
+  "id": "D2a",
+  "title": "Authorized broker read through Meri governed memory (firm fact visible, other user private fact absent)",
+  "status": "passed",
+  "at": "2026-09-19T13:43:25.210Z",
+  "runId": "4f8b4afd-146e-4c35-9f3b-ecfbd7230760",
+  "httpStatus": 200,
+  "recallEvents": [
+    {
+      "seq": 4,
+      "runId": "4f8b4afd-146e-4c35-9f3b-ecfbd7230760",
+      "at": "2026-09-19T13:43:19.531Z",
+      "kind": "memory.recalled",
+      "visibility": "internal",
+      "payload": {
+        "path": "direct_memory_items_prototype",
+        "returned": 0,
+        "coverage": {
+          "requested": 6,
+          "returned": 0,
+          "total": 0,
+          "sourceStatus": "healthy",
+          "complete": true,
+          "detail": "ilike_text_filter_prototype"
+        },
+        "frames": []
+      }
+    },
+    {
+      "seq": 6,
+      "runId": "4f8b4afd-146e-4c35-9f3b-ecfbd7230760",
+      "at": "2026-09-19T13:43:20.821Z",
+      "kind": "memory.recalled",
+      "visibility": "internal",
+      "payload": {
+        "path": "direct_memory_items_prototype",
+        "returned": 0,
+        "coverage": {
+          "requested": 10,
+          "returned": 0,
+          "total": 0,
+          "sourceStatus": "healthy",
+          "complete": true,
+          "detail": "ilike_text_filter_prototype"
+        },
+        "frames": []
+      }
+    },
+    {
+      "seq": 9,
+      "runId": "4f8b4afd-146e-4c35-9f3b-ecfbd7230760",
+      "at": "2026-09-19T13:43:23.051Z",
+      "kind": "memory.recalled",
+      "visibility": "internal",
+      "payload": {
+        "path": "direct_memory_items_prototype",
+        "returned": 1,
+        "coverage": {
+          "requested": 20,
+          "returned": 1,
+          "total": 1,
+          "sourceStatus": "healthy",
+          "complete": true,
+          "detail": "ilike_text_filter_prototype"
+        },
+        "frames": []
+      }
+    }
+  ],
+  "toolCalls": [
+    "meri_memory_search",
+    "meri_memory_search"
+  ],
+  "textPreview": "\n\nExact PHASE0 marker text:\n\n“PHASE0-FIRM-FACT: Every morning briefing leads with the three commitments due this week, then blockers, then a one-line recommendation. Keep it under 120 words.”\n\nsource_id: a0000000-0000-4000-8000-00000000f001\n\nNo private preference belonging to another user was returned.",
+  "leakedBobPrivate": false,
+  "timingsMs": {
+    "t0": 1789825399259,
+    "firstFrame": 52,
+    "turnAccepted": 52,
+    "start": 70,
+    "firstText": 5313,
+    "firstTool": 1516,
+    "done": 5933,
+    "abortedAt": null
+  }
+}

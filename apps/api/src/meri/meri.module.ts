@@ -76,6 +76,21 @@ import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.j
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
+import { MeriHermesRuntimeClient } from './hermes/meri-hermes-runtime.client.js';
+import { MERI_HERMES_RUN_REPOSITORY, MeriHermesRunStore } from './hermes/meri-hermes-run-store.js';
+import { MeriHermesPrismaRunRepository } from './hermes/meri-hermes-prisma-run-repository.js';
+import { MeriHermesRuntimeAdapter } from './hermes/meri-hermes-runtime.adapter.js';
+import { MeriHermesBrokerService } from './hermes/meri-hermes-broker.service.js';
+import {
+  MeriHermesBrokerController,
+  MeriHermesWorkerTokenGuard,
+} from './hermes/meri-hermes-broker.controller.js';
+import { MeriHermesController } from './hermes/meri-hermes.controller.js';
+import {
+  ContextPlaneRecallPort,
+  MERI_HERMES_RECALL_PORT,
+} from './hermes/meri-hermes-recall.ports.js';
+import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.port.js';
 
 @Module({
   imports: [
@@ -113,6 +128,9 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriPolicyPackController,
     MeriMcpOAuthController,
     MeriVNextLibraryController,
+    // Phase 0 Hermes pilot surfaces (server-gated; 404 outside the pilot).
+    MeriHermesController,
+    MeriHermesBrokerController,
   ],
   providers: [
     MeriClientFilingService,
@@ -125,6 +143,20 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriV3ResearchRunner,
     MeriV3ProxyService,
     MeriConversationEvidenceService,
+    // Hermes runtime: client, run repository (durable Prisma-backed, Phase 1
+    // backlog #1) plus the in-memory MeriHermesRunStore test double, broker
+    // and adapter. The adapter/broker/controllers depend on the
+    // MERI_HERMES_RUN_REPOSITORY token, not the concrete class, so real
+    // traffic is durable across API restarts while specs can still construct
+    // MeriHermesRunStore directly.
+    MeriHermesRuntimeClient,
+    MeriHermesRunStore,
+    { provide: MERI_HERMES_RUN_REPOSITORY, useClass: MeriHermesPrismaRunRepository },
+    { provide: MERI_HERMES_RECALL_PORT, useClass: ContextPlaneRecallPort },
+    { provide: MERI_HERMES_SECURITY_ENVELOPE, useExisting: MeriContextPlaneService },
+    MeriHermesBrokerService,
+    MeriHermesWorkerTokenGuard,
+    MeriHermesRuntimeAdapter,
     {
       provide: MeriService,
       useFactory: createMeriRuntimeService,
@@ -133,6 +165,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
         MeriV3ProxyService,
         MeriV3VisualAnalysisService,
         MeriContextPlaneRuntimeService,
+        MeriHermesRuntimeAdapter,
       ],
     },
     AnalyticsDbService,

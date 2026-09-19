@@ -1,0 +1,54 @@
+{
+  "id": "D2c",
+  "title": "Ethical wall + private scope: Bob cannot recall the walled client fact or Alice private fact",
+  "status": "passed",
+  "at": "2026-09-19T13:49:45.903Z",
+  "runId": "bde819c1-62ac-4fa1-99a0-36b9d6aa2759",
+  "httpStatus": 200,
+  "recallEvents": [
+    {
+      "seq": 4,
+      "runId": "bde819c1-62ac-4fa1-99a0-36b9d6aa2759",
+      "at": "2026-09-19T13:49:36.563Z",
+      "kind": "memory.recalled",
+      "visibility": "internal",
+      "payload": {
+        "path": "direct_memory_items_prototype",
+        "returned": 0,
+        "coverage": {
+          "requested": 6,
+          "returned": 0,
+          "total": 0,
+          "sourceStatus": "healthy",
+          "complete": true,
+          "detail": "ilike_text_filter_prototype"
+        },
+        "frames": []
+      }
+    },
+    {
+      "seq": 6,
+      "runId": "bde819c1-62ac-4fa1-99a0-36b9d6aa2759",
+      "at": "2026-09-19T13:49:39.383Z",
+      "kind": "memory.recalled",
+      "visibility": "internal",
+      "payload": {
+        "path": "direct_memory_items_prototype",
+        "returned": 0,
+        "coverage": {
+          "requested": 8,
+          "returned": 0,
+          "total": 0,
+          "sourceStatus": "healthy",
+          "complete": true,
+          "detail": "ilike_text_filter_prototype"
+        },
+        "frames": []
+      }
+    }
+  ],
+  "textPreview": "\n\nNothing about a walled client was returned. The search returned 0 items; coverage was complete and the source status was healthy.",
+  "bobSawWalled": false,
+  "bobSawAlicePrivate": false,
+  "runStatus": "completed"
+}
