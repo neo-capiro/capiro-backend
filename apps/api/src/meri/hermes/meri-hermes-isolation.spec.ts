@@ -402,10 +402,26 @@ describe('Meri Hermes isolation acceptance suite (ISO1, ISO2, ISO3, ISO5, D2c)',
       );
     });
 
-    test('OFF: gate is false, the control surface is not exposed (capabilities 404), any run lookup is refused the same way stream would be', async () => {
+    test('OFF: gate is false; everything that creates new work or grants new execution is refused BY THE GATE, while control of an already-admitted run falls through to ownership', async () => {
       await expect(adapter.shouldHandle(iso5Ctx)).resolves.toBe(false);
       await expect(controller.capabilities(iso5Ctx)).rejects.toThrow('Hermes runtime is not enabled for this tenant');
-      await expect(controller.run(iso5Ctx, randomUUID())).rejects.toThrow('Hermes runtime is not enabled for this tenant');
+      // New work / new execution: closed by the gate itself.
+      await expect(
+        controller.approval(iso5Ctx, randomUUID(), { requestId: 'req_x', decision: 'deny' }),
+      ).rejects.toThrow('Hermes runtime is not enabled for this tenant');
+      await expect(controller.steer(iso5Ctx, randomUUID(), { text: 'more guidance' })).rejects.toThrow(
+        'Hermes runtime is not enabled for this tenant',
+      );
+      /**
+       * Control and OBSERVATION of an already-admitted run are ownership-only
+       * by design: `deployment-validation-and-rollback.md` requires the kill
+       * switch to be a DRAIN (stop in-flight runs via
+       * `POST .../runs/:id/stop`), and "a flag change must not make active
+       * workers uncontrollable". So an unknown run id is refused as "Run not
+       * found" here, not by the gate — see `MeriHermesController.ownedRun`.
+       */
+      await expect(controller.run(iso5Ctx, randomUUID())).rejects.toThrow('Run not found');
+      await expect(controller.stop(iso5Ctx, randomUUID())).rejects.toThrow('Run not found');
     });
 
     test('ON: flipping ONLY the per-tenant DB flag (and invalidating the 60s cache the service documents) brings it back immediately — proving live config, not a cached read', async () => {
@@ -418,10 +434,15 @@ describe('Meri Hermes isolation acceptance suite (ISO1, ISO2, ISO3, ISO5, D2c)',
       flags.invalidate(iso5TenantId);
 
       await expect(adapter.shouldHandle(iso5Ctx)).resolves.toBe(true);
-      // assertEnabled no longer trips: the run lookup now falls through to the
+      // assertEnabled no longer trips: a GATED surface now falls through to the
       // REAL ownership check and 404s for a different reason ("Run not
       // found", not "not enabled") — proof the gate itself opened, not that
-      // the 404 message coincidentally repeats.
+      // the 404 message coincidentally repeats. The gated surface has to be
+      // one the gate still guards; `run()` is ownership-only in both states
+      // now, so it can no longer tell the two apart.
+      await expect(
+        controller.approval(iso5Ctx, randomUUID(), { requestId: 'req_x', decision: 'deny' }),
+      ).rejects.toThrow('Run not found');
       await expect(controller.run(iso5Ctx, randomUUID())).rejects.toThrow('Run not found');
     });
 

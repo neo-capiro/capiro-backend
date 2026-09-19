@@ -1,0 +1,226 @@
+# ==============================================================================
+# THIS WORKFLOW CANNOT RUN YET. IT IS workflow_dispatch-ONLY ON PURPOSE.
+#
+# It provisions and runs the PROVISIONED e2e tier
+# (apps/api/src/meri/hermes/meri-hermes-full-application.e2e.spec.ts), which
+# needs the pinned worker image `meri-hermes-worker:v2026.9.14-meri`. That image
+# is produced by .github/workflows/meri-hermes-worker-image.yml and pushed to
+# ECR repository `capiro/<env>/meri-hermes-worker` — and THAT REPOSITORY DOES
+# NOT EXIST YET. Creating it is part of the authorization ask in
+# docs/meri/hermes/phase-1/deployment-validation-and-rollback.md.
+#
+# Until the repository exists and that build has run at least once, every
+# dispatch of this workflow will fail at the "Pull the pinned worker image"
+# step. That is deliberate: a red, honest failure at a named step beats a job
+# that pretends to be a gate. No `pull_request:` or `push:` trigger is wired,
+# so this never reports a misleading green on a PR.
+#
+# THREE further prerequisites, none of them satisfiable by merging this file:
+#
+#   1. RUNNER ARCHITECTURE. meri-hermes-worker-image.yml builds linux/arm64
+#      ONLY (production Fargate is ARM64). `ubuntu-latest` is x86_64 and cannot
+#      run that image without QEMU. This job therefore requests
+#      `ubuntu-24.04-arm`, which prerequisite 4 of meri-hermes-worker-image.yml
+#      records as historically unavailable on this account for billing reasons.
+#   2. MODEL CREDENTIALS. The spec runs a REAL model turn through the worker's
+#      own provider. secrets.MERI_HERMES_MODEL_API_KEY must be set, and the run
+#      costs real tokens. This is why the job is never automatic.
+#   3. GATEWAY KEY. secrets.MERI_HERMES_GATEWAY_KEY is the worker's
+#      API_SERVER_KEY. The spec reads it (and the model key) out of the
+#      REFERENCE container's env rather than from the environment, which is why
+#      this job starts a reference container at all.
+#
+# The preflight in apps/api/jest.e2e.preflight.cjs prints the same list, with
+# fix instructions, if any of it is missing at run time.
+# ==============================================================================
+name: meri-hermes-e2e-ci
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_image_ref:
+        description: >-
+          Fully-qualified ECR image reference (digest form strongly preferred),
+          e.g. <acct>.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker@sha256:...
+          This repository does not exist yet; see the header.
+        required: true
+      aws_region:
+        description: 'AWS region of the ECR repository'
+        required: false
+        default: 'us-east-1'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  # The spec binds fixed host ports (18642 reference, 18743 worker under test)
+  # and fixed container names, so two of these must never overlap on a runner.
+  group: meri-hermes-e2e
+  cancel-in-progress: false
+
+jobs:
+  full-application-e2e:
+    # See prerequisite 1 in the header: the pinned image is arm64-only.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 75
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      # Must match the names the spec defaults to
+      # (meri-hermes-full-application.e2e.spec.ts:136-139).
+      LOCAL_WORKER_IMAGE: meri-hermes-worker:v2026.9.14-meri
+      MERI_HERMES_REFERENCE_CONTAINER: meri-hermes-ci-reference
+      REFERENCE_HOST_PORT: '18642'
+      MERI_HERMES_CLOSEOUT_PORT: '18743'
+      AWS_REGION: ${{ github.event.inputs.aws_region || 'us-east-1' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail before spending 10 minutes on install if the run cannot possibly
+      # succeed. Values are only tested for emptiness; none is ever echoed.
+      - name: Assert the required credentials are configured
+        env:
+          GATEWAY_KEY: ${{ secrets.MERI_HERMES_GATEWAY_KEY }}
+          MODEL_API_KEY: ${{ secrets.MERI_HERMES_MODEL_API_KEY }}
+          ROLE_ARN: ${{ vars.AWS_DEV_GHA_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${GATEWAY_KEY}" ]   || missing="${missing} secrets.MERI_HERMES_GATEWAY_KEY"
+          [ -n "${MODEL_API_KEY}" ] || missing="${missing} secrets.MERI_HERMES_MODEL_API_KEY"
+          [ -n "${ROLE_ARN}" ]      || missing="${missing} vars.AWS_DEV_GHA_ROLE_ARN"
+          if [ -n "${missing}" ]; then
+            echo "::error::meri-hermes-e2e-ci cannot run. Missing:${missing}"
+            echo "See the header of .github/workflows/meri-hermes-e2e-ci.yml."
+            exit 1
+          fi
+          echo "all required credentials are present"
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Same fresh-worktree gate prebuild as meri-hermes-isolation-ci.yml.
+      # Order matters: later packages depend on earlier ones.
+      - name: Build workspace package prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Generate API Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Replay the complete API migration chain on a clean Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # THE STEP THAT CANNOT SUCCEED TODAY — see the header. The repository
+      # `capiro/<env>/meri-hermes-worker` has never been created.
+      - name: Pull the pinned worker image
+        run: |
+          set -euo pipefail
+          docker pull "${{ github.event.inputs.worker_image_ref }}"
+          # The spec defaults to the local tag; retag rather than teach it a
+          # registry path, so the spec file itself needs no CI-specific change.
+          docker tag "${{ github.event.inputs.worker_image_ref }}" "${LOCAL_WORKER_IMAGE}"
+          docker image inspect "${LOCAL_WORKER_IMAGE}" --format 'pinned image present: {{.Id}}'
+
+      # The spec reads API_SERVER_KEY / OPENAI_API_KEY / MERI_HERMES_MODEL /
+      # MERI_HERMES_PROVIDER / MERI_HERMES_BASE_URL out of this container
+      # (meri-hermes-full-application.e2e.spec.ts:431-435) and then launches its
+      # OWN container, `meri-hermes-closeout-alice`, for the actual turn.
+      - name: Start the reference worker container
+        env:
+          GATEWAY_KEY: ${{ secrets.MERI_HERMES_GATEWAY_KEY }}
+          MODEL_API_KEY: ${{ secrets.MERI_HERMES_MODEL_API_KEY }}
+          HERMES_MODEL: ${{ vars.MERI_HERMES_MODEL }}
+          HERMES_PROVIDER: ${{ vars.MERI_HERMES_PROVIDER }}
+          HERMES_BASE_URL: ${{ vars.MERI_HERMES_BASE_URL }}
+        run: |
+          set -euo pipefail
+          docker rm -f "${MERI_HERMES_REFERENCE_CONTAINER}" >/dev/null 2>&1 || true
+          docker run -d \
+            --name "${MERI_HERMES_REFERENCE_CONTAINER}" \
+            -p "${REFERENCE_HOST_PORT}:8642" \
+            --cpus 1 --memory 2g \
+            --add-host host.docker.internal:host-gateway \
+            -e "API_SERVER_KEY=${GATEWAY_KEY}" \
+            -e "OPENAI_API_KEY=${MODEL_API_KEY}" \
+            -e "MERI_HERMES_MODEL=${HERMES_MODEL:-gpt-5.6-terra}" \
+            -e "MERI_HERMES_PROVIDER=${HERMES_PROVIDER:-custom}" \
+            -e "MERI_HERMES_BASE_URL=${HERMES_BASE_URL:-https://api.openai.com/v1}" \
+            -e MERI_MAX_CONCURRENT_RUNS=4 \
+            -e HERMES_EXEC_ASK=1 \
+            "${LOCAL_WORKER_IMAGE}"
+
+      - name: Wait for the reference worker to report healthy
+        env:
+          GATEWAY_KEY: ${{ secrets.MERI_HERMES_GATEWAY_KEY }}
+        run: |
+          set -euo pipefail
+          deadline=$(( $(date +%s) + 240 ))
+          until curl -fsS -o /dev/null \
+                  -H "Authorization: Bearer ${GATEWAY_KEY}" \
+                  "http://127.0.0.1:${REFERENCE_HOST_PORT}/health"; do
+            if [ "$(date +%s)" -ge "${deadline}" ]; then
+              echo "::error::reference worker did not become healthy within 240s"
+              docker logs --tail 200 "${MERI_HERMES_REFERENCE_CONTAINER}" || true
+              exit 1
+            fi
+            sleep 3
+          done
+          echo "reference worker healthy on 127.0.0.1:${REFERENCE_HOST_PORT}/health"
+
+      # The ONLY command in this repository that requires the provisioned
+      # worker. Everything else — including `jest src/meri/hermes` — is
+      # hermetic, because jest.config.cjs ignores `*.e2e.spec.ts`.
+      - name: Run the Meri/Hermes full-application e2e tier
+        run: pnpm --filter @capiro/api run test:e2e:meri-hermes
+
+      - name: Collect worker logs on failure
+        if: failure()
+        run: |
+          docker logs --tail 400 "${MERI_HERMES_REFERENCE_CONTAINER}" || true
+          docker logs --tail 400 meri-hermes-closeout-alice || true
+
+      # The spec removes its own `meri-hermes-closeout-*` containers in
+      # afterAll; this only removes the reference container this job created,
+      # and is a belt-and-braces net for an aborted run.
+      - name: Tear down containers this job created
+        if: always()
+        run: |
+          docker rm -f "${MERI_HERMES_REFERENCE_CONTAINER}" >/dev/null 2>&1 || true
+          docker rm -f meri-hermes-closeout-alice >/dev/null 2>&1 || true
+          docker volume rm meri-hermes-closeout-alice-home >/dev/null 2>&1 || true

@@ -70,8 +70,40 @@ module.exports = {
     '<rootDir>/src/**/*.spec.ts',
     '<rootDir>/scripts/**/*.spec.ts',
     // Step 4.2 — slower end-to-end acceptance specs live under test/e2e/.
+    // NOTE: since the e2e tier split below, this pattern is inert for the
+    // DEFAULT config and is kept only so jest.e2e.config.cjs can reuse it.
     '<rootDir>/test/**/*.e2e.spec.ts',
   ],
+  /**
+   * TIER SPLIT — the default apps/api jest run is hermetic (Meri/Hermes
+   * Phase 1, required fix 6a).
+   *
+   * `*.e2e.spec.ts` files need provisioned infrastructure that a plain
+   * developer checkout or a plain CI runner does not have. The specific
+   * trigger was `src/meri/hermes/meri-hermes-full-application.e2e.spec.ts`,
+   * which needs docker, the pinned `meri-hermes-worker:v2026.9.14-meri`
+   * image, the reference container it reads model/gateway credentials out
+   * of, and a free host port. Because it lives under `src/`, it was matched
+   * by `<rootDir>/src/**\/*.spec.ts` and therefore collected by the broad
+   * `jest src/meri/hermes` command that meri-hermes-isolation-ci.yml runs —
+   * making that command impossible to execute anywhere the worker container
+   * is absent.
+   *
+   * Ignoring the suffix (not a directory) keeps the rule true for any future
+   * e2e spec wherever it is placed. The e2e tier is still runnable, by its
+   * own explicit command:
+   *
+   *   pnpm --filter @capiro/api test:e2e               # whole e2e tier
+   *   pnpm --filter @capiro/api test:e2e:meri-hermes   # Hermes e2e only
+   *
+   * which loads jest.e2e.config.cjs — the ONLY config that requires the
+   * provisioned worker, and which preflights those prerequisites and fails
+   * with an actionable message when they are missing.
+   *
+   * '/node_modules/' is jest's default and must be restated, because
+   * supplying this key replaces the default rather than extending it.
+   */
+  testPathIgnorePatterns: ['/node_modules/', '\\.e2e\\.spec\\.ts$'],
   setupFiles: ['<rootDir>/jest.setup.ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json', diagnostics: { ignoreCodes: [151002] } }],

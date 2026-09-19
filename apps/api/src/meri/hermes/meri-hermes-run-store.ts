@@ -53,6 +53,42 @@ export class MeriHermesConversationOccupiedError extends Error {
   }
 }
 
+/**
+ * Thrown by a FENCED `append()` / `update()` (one carrying
+ * `{ consumerId }`) when that consumer no longer holds the run's lease —
+ * because another replica took the run over, or because the run went
+ * terminal. P1-09 gave the lease an atomic claim and a heartbeat, but the
+ * WRITE path never checked it: a consumer whose heartbeat had already failed
+ * kept appending events and overwriting `output`, so a taken-over run's
+ * durable log interleaved two writers. The fence closes that: after a
+ * takeover the old consumer's writes are rejected at the database, not merely
+ * discouraged by a flag it might not have read yet.
+ *
+ * It is a normal, expected outcome — the losing consumer catches it, stops
+ * consuming and terminates cleanly. It is never a reason to fail a run.
+ */
+export class MeriHermesConsumerFencedError extends Error {
+  constructor(
+    public readonly runId: string,
+    public readonly consumerId: string,
+  ) {
+    super(`Consumer ${consumerId} no longer owns run ${runId}`);
+    this.name = 'MeriHermesConsumerFencedError';
+  }
+}
+
+/**
+ * Write-side fence for the consumer lease. When `consumerId` is present the
+ * write only applies while that consumer still owns a non-terminal run;
+ * otherwise it is rejected with `MeriHermesConsumerFencedError` and nothing is
+ * written. Omitting it leaves the write unfenced, which is correct for the
+ * paths that are NOT the stream consumer (admission, browser detach, explicit
+ * Stop, broker tool calls, takeover recovery).
+ */
+export interface RunWriteFence {
+  consumerId?: string | null;
+}
+
 export interface MeriHermesRunRecord {
   runId: string;
   hermesRunId: string | null;
@@ -72,6 +108,15 @@ export interface MeriHermesRunRecord {
   finishedAt: string | null;
   lastSeq: number;
   output: string;
+  /**
+   * Pruning-safe recovery snapshot cursor (P1-08): the `seq` of the last event
+   * whose content is already represented in `output`. Written in the SAME
+   * transaction as that event, so the two can never diverge. A recovering
+   * client takes `output` as authoritative up to here and then asks only for
+   * `seq > outputSeq`; the event cap correspondingly never prunes an event
+   * above this line.
+   */
+  outputSeq: number;
   usage: MeriHermesUsage | null;
   error: string | null;
   finishReason: string | null;
@@ -84,6 +129,24 @@ export interface MeriHermesRunRecord {
   /** Durable-dispatch outbox lite (P1-02) — see `MeriHermesDispatchStatus`. */
   dispatchStatus: MeriHermesDispatchStatus;
   dispatchAttempts: number;
+  /** Consumer lease owner (P1-09): the replica consuming Hermes's stream, or null. */
+  consumerId: string | null;
+  /** Consumer lease liveness; stale (or null) means the run may be taken over. */
+  consumerHeartbeatAt: string | null;
+}
+
+/**
+ * Everything the conversation-scoped discovery endpoint
+ * (`GET /api/clio/hermes/conversations/:conversationId/active`) needs, in ONE
+ * repository round trip. `run` is the most recent NON-terminal run for
+ * (tenant, actor, conversation) — the answer to "is something still running
+ * here?" without any client-side pointer. `pendingInteractions` deliberately
+ * spans TERMINAL runs too: a clarification is a `durable_continuation`, so it
+ * must stay answerable after the run that asked it has ended.
+ */
+export interface MeriHermesConversationActivity {
+  run: MeriHermesRunRecord | null;
+  pendingInteractions: Array<MeriHermesPendingInteraction & { runId: string }>;
 }
 
 export type MeriHermesRunListener = (event: MeriHermesRunEvent) => void;
@@ -124,17 +187,76 @@ export interface MeriHermesRunRepository {
    * only a run that is still non-terminal actually moves, so two racing
    * terminal updates (e.g. an explicit Stop crossing a late Hermes success
    * callback) can never both "win" — the loser gets the current (already
-   * terminal) row back instead of throwing or silently overwriting it.
+   * terminal) row back instead of throwing or silently overwriting it. Use
+   * `transitionTerminal()` when the caller needs to KNOW which side it was on.
+   *
+   * `fence`: see `RunWriteFence`. A consumer that has lost the lease is
+   * rejected with `MeriHermesConsumerFencedError` and writes nothing.
    */
-  update(runId: string, patch: RunPatch, tx?: Prisma.TransactionClient): Promise<MeriHermesRunRecord>;
+  update(
+    runId: string,
+    patch: RunPatch,
+    tx?: Prisma.TransactionClient,
+    fence?: RunWriteFence,
+  ): Promise<MeriHermesRunRecord>;
+  /**
+   * The fenced terminal transition of `update()`, with the winner made
+   * explicit: `won` is true for exactly ONE caller per run — the one whose
+   * guarded write actually moved the run from non-terminal to terminal. Every
+   * later/racing caller gets `won: false` and the current terminal row.
+   *
+   * That distinction is what makes finalization atomic (P1-12): the assistant
+   * `ClioMessage` and the final event may only be published by the winner, so
+   * competing completion / Stop / revocation paths can no longer each persist
+   * their own assistant message for one turn before discovering they lost.
+   * Pass the same `tx` used for those writes so the decision and the
+   * publication commit together.
+   */
+  transitionTerminal(
+    runId: string,
+    patch: RunPatch,
+    tx?: Prisma.TransactionClient,
+    fence?: RunWriteFence,
+  ): Promise<{ won: boolean; run: MeriHermesRunRecord }>;
   append(
     runId: string,
     kind: MeriHermesRunEventKind,
     payload: Record<string, unknown>,
     visibility?: 'public' | 'internal',
     tx?: Prisma.TransactionClient,
+    fence?: RunWriteFence,
   ): Promise<MeriHermesRunEvent>;
   eventsAfter(runId: string, afterSeq: number, visibility?: 'public' | 'all'): Promise<MeriHermesRunEvent[]>;
+  /**
+   * Durable, REPLICA-AGNOSTIC subscription (P1-09). Polls `eventsAfter` on an
+   * interval, delivers every matching event in `seq` order exactly once,
+   * advances its own cursor, and resolves when the run reaches a terminal
+   * status with nothing left to deliver, or when `signal` aborts.
+   *
+   * Why polling and not the in-process emitter: `subscribe()` is a
+   * process-local listener map, so a browser attached to replica B never sees
+   * events produced by replica A. `watch()` reads the durable log, so any
+   * replica sees every event. Because the cursor is always
+   * `seq > lastDelivered`, there is NO replay/live handoff seam by
+   * construction — the "read history, then attach a live subscription" pattern
+   * this replaces had a gap window between the two steps. The in-process
+   * emitter survives only as a latency optimisation that wakes the poll early;
+   * correctness never depends on it (proved by
+   * meri-hermes-cross-replica.spec.ts, which uses two independently
+   * constructed repositories that share no emitter).
+   *
+   * Delivery is strictly serialized: an async `onEvent` is awaited before the
+   * next event is handed over, so a consumer can do ordered I/O per event.
+   * Poll interval: `opts.intervalMs`, else `MERI_HERMES_WATCH_INTERVAL_MS`,
+   * else 300 ms.
+   */
+  watch(
+    runId: string,
+    fromSeq: number,
+    onEvent: (event: MeriHermesRunEvent) => void | Promise<void>,
+    signal: AbortSignal,
+    opts?: { visibility?: 'public' | 'all'; intervalMs?: number },
+  ): Promise<void>;
   subscribe(runId: string, listener: MeriHermesRunListener): () => void;
   addInteraction(runId: string, interaction: MeriHermesPendingInteraction): Promise<void>;
   resolveInteraction(
@@ -144,6 +266,47 @@ export interface MeriHermesRunRepository {
   ): Promise<MeriHermesPendingInteraction | null>;
   listActiveForScope(executionScopeId: string): Promise<MeriHermesRunRecord[]>;
   listForConversation(tenantId: string, actorId: string, conversationId: string): Promise<MeriHermesRunRecord[]>;
+  /**
+   * Conversation-scoped discovery (P1-10): the active run and every UNRESOLVED
+   * interaction for one owned conversation, including interactions whose run
+   * already went terminal. Owner-scoped by (tenantId, actorId) in the query
+   * itself, so a conversation the caller does not own is indistinguishable
+   * from an unknown one.
+   */
+  findConversationActivity(
+    tenantId: string,
+    actorId: string,
+    conversationId: string,
+  ): Promise<MeriHermesConversationActivity>;
+  /**
+   * Claim (or renew) the consumer lease for `runId` (P1-09). Succeeds when the
+   * run is non-terminal AND the lease is free, already ours, or stale beyond
+   * `staleAfterMs`. Atomic: two concurrent claims by different replicas can
+   * never both return true.
+   */
+  claimConsumer(runId: string, consumerId: string, staleAfterMs: number, now?: Date): Promise<boolean>;
+  /** Renew our lease. `false` means we lost it (or the run is terminal) — stop consuming. */
+  heartbeatConsumer(runId: string, consumerId: string, now?: Date): Promise<boolean>;
+  /**
+   * Non-terminal, already-dispatched runs whose consumer heartbeat is stale
+   * (takeover candidates). `opts.tenantId` narrows the scan to one tenant,
+   * which is what the request-driven recovery sweep uses: a replica serving a
+   * request for tenant T recovers T's orphans and never reaches across
+   * tenants it was not asked about. Omitted = the global scan a scheduler
+   * would use.
+   */
+  listTakeoverCandidates(
+    staleAfterMs: number,
+    now?: Date,
+    opts?: { tenantId?: string },
+  ): Promise<MeriHermesRunRecord[]>;
+  /**
+   * P1-07 ambiguous-startup reconciliation: admitted (`dispatchStatus:
+   * 'pending'`) but never confirmed dispatched within `olderThanMs` → marked
+   * `interrupted`, never retried. On the interface (not just the Prisma class)
+   * because the admission path and the discovery endpoint both call it.
+   */
+  reconcileStuckDispatches(olderThanMs: number, now?: Date): Promise<number>;
   sweep(now?: Date): Promise<number>;
 }
 
@@ -157,6 +320,18 @@ export const MERI_HERMES_RUN_REPOSITORY = Symbol('MERI_HERMES_RUN_REPOSITORY');
 
 export const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 export const MAX_EVENTS_PER_RUN = 5000;
+/** Default `watch()` poll interval; override per call or via `MERI_HERMES_WATCH_INTERVAL_MS`. */
+export const DEFAULT_WATCH_INTERVAL_MS = 300;
+
+/** Resolve the effective `watch()` poll interval (explicit > env > default). */
+export function meriHermesWatchIntervalMs(
+  explicit: number | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  if (explicit !== undefined && Number.isFinite(explicit) && explicit > 0) return explicit;
+  const fromEnv = Number(env.MERI_HERMES_WATCH_INTERVAL_MS ?? '');
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : DEFAULT_WATCH_INTERVAL_MS;
+}
 
 @Injectable()
 export class MeriHermesRunStore implements MeriHermesRunRepository {
@@ -169,6 +344,13 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
   // Not constructor parameters: Nest would try to inject Number/Function by type.
   private ttlMs: number = DEFAULT_TTL_MS;
   private now: () => Date = () => new Date();
+
+  /**
+   * Test seam, mirroring `MeriHermesPrismaRunRepository.maxEventsPerRun`:
+   * exercising the pruning rules for real is cheaper at a cap of ~20 events
+   * than at 5 000. Production never assigns this.
+   */
+  maxEventsPerRun: number = MAX_EVENTS_PER_RUN;
 
   /** Test seam: a store with an explicit TTL and clock. */
   static withClock(ttlMs: number, now: () => Date): MeriHermesRunStore {
@@ -197,6 +379,7 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
       finishedAt: null,
       lastSeq: 0,
       output: '',
+      outputSeq: 0,
       usage: null,
       error: null,
       finishReason: null,
@@ -207,6 +390,8 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
       brokerCalls: 0,
       dispatchStatus: 'pending',
       dispatchAttempts: 0,
+      consumerId: null,
+      consumerHeartbeatAt: null,
     };
     this.runs.set(record.runId, record);
     this.events.set(record.runId, []);
@@ -245,9 +430,19 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
   }
 
   /** `tx` is accepted for interface parity with `MeriHermesPrismaRunRepository` and ignored — this store has no transactions. */
-  async update(runId: string, patch: RunPatch, _tx?: Prisma.TransactionClient): Promise<MeriHermesRunRecord> {
+  async update(
+    runId: string,
+    patch: RunPatch,
+    _tx?: Prisma.TransactionClient,
+    fence?: RunWriteFence,
+  ): Promise<MeriHermesRunRecord> {
     const run = this.require(runId);
+    this.assertOwns(run, fence);
     const wasTerminal = MERI_HERMES_TERMINAL_STATUSES.has(run.status);
+    // A terminal run's status is immutable — mirrors the Prisma repository's
+    // guarded status write, so a Stop that lost the race cannot move a
+    // finished run back to `cancelling`.
+    if (wasTerminal && patch.status !== undefined) return run;
     if (patch.hermesRunId && patch.hermesRunId !== run.hermesRunId) {
       if (run.hermesRunId) this.byHermesRunId.delete(run.hermesRunId);
       this.byHermesRunId.set(patch.hermesRunId, runId);
@@ -259,6 +454,24 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
     return run;
   }
 
+  /**
+   * In-memory equivalent of the Prisma repository's guarded terminal
+   * `updateMany`: this single-threaded store has no concurrent writers, so
+   * "did I win" is simply "was the run still non-terminal when I got here",
+   * and a loser applies NOTHING.
+   */
+  async transitionTerminal(
+    runId: string,
+    patch: RunPatch,
+    tx?: Prisma.TransactionClient,
+    fence?: RunWriteFence,
+  ): Promise<{ won: boolean; run: MeriHermesRunRecord }> {
+    const existing = this.require(runId);
+    this.assertOwns(existing, fence);
+    if (MERI_HERMES_TERMINAL_STATUSES.has(existing.status)) return { won: false, run: existing };
+    return { won: true, run: await this.update(runId, patch, tx, fence) };
+  }
+
   /** `tx` is accepted for interface parity with `MeriHermesPrismaRunRepository` and ignored — this store has no transactions. */
   async append(
     runId: string,
@@ -266,8 +479,10 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
     payload: Record<string, unknown>,
     visibility: 'public' | 'internal' = 'public',
     _tx?: Prisma.TransactionClient,
+    fence?: RunWriteFence,
   ): Promise<MeriHermesRunEvent> {
     const run = this.require(runId);
+    this.assertOwns(run, fence);
     const log = this.events.get(runId)!;
     run.lastSeq += 1;
     run.updatedAt = this.now().toISOString();
@@ -280,10 +495,20 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
       payload,
     };
     log.push(event);
-    if (log.length > MAX_EVENTS_PER_RUN) {
+    if (log.length > this.maxEventsPerRun) {
       // Keep the head (acceptance) and the tail; mark the gap so a reconnect knows.
-      log.splice(1, log.length - MAX_EVENTS_PER_RUN);
-      log[1] = { ...log[1]!, payload: { ...log[1]!.payload, truncatedBefore: true } };
+      // PRUNING-SAFE (P1-08): an event at or above the `outputSeq` snapshot is
+      // NOT yet represented in `output`, so dropping it would lose assistant
+      // text a recovering client can no longer reconstruct. Only the prefix at
+      // or below the snapshot is droppable, which can leave the log
+      // temporarily over the cap — over-retaining is the safe failure.
+      const wanted = log.length - this.maxEventsPerRun;
+      let droppable = 0;
+      while (droppable < wanted && log[1 + droppable] && log[1 + droppable]!.seq <= run.outputSeq) droppable += 1;
+      if (droppable > 0) {
+        log.splice(1, droppable);
+        log[1] = { ...log[1]!, payload: { ...log[1]!.payload, truncatedBefore: true } };
+      }
     }
     for (const listener of this.listeners.get(runId) ?? []) {
       try {
@@ -304,6 +529,126 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
     return log.filter(
       (e) => e.seq > afterSeq && (visibility === 'all' || e.visibility === 'public'),
     );
+  }
+
+  /**
+   * Same contract as the Prisma implementation, polling this store's own
+   * arrays instead of Postgres. It exists so the interface stays honest (a
+   * consumer written against `watch()` works against either implementation)
+   * and so adapter-level specs can exercise the watch-driven code paths
+   * without a database.
+   */
+  async watch(
+    runId: string,
+    fromSeq: number,
+    onEvent: (event: MeriHermesRunEvent) => void | Promise<void>,
+    signal: AbortSignal,
+    opts?: { visibility?: 'public' | 'all'; intervalMs?: number },
+  ): Promise<void> {
+    const visibility = opts?.visibility ?? 'public';
+    const intervalMs = meriHermesWatchIntervalMs(opts?.intervalMs);
+    let cursor = fromSeq;
+    for (;;) {
+      if (signal.aborted) return;
+      const batch = await this.eventsAfter(runId, cursor, visibility);
+      for (const event of batch) {
+        if (signal.aborted) return;
+        cursor = event.seq;
+        await onEvent(event);
+      }
+      if (batch.length) continue;
+      const run = await this.get(runId);
+      if (!run) return;
+      if (MERI_HERMES_TERMINAL_STATUSES.has(run.status)) {
+        // Drain anything that landed between the poll above and this status
+        // read, then stop: terminal + nothing left to deliver.
+        for (const event of await this.eventsAfter(runId, cursor, visibility)) {
+          cursor = event.seq;
+          await onEvent(event);
+        }
+        return;
+      }
+      await this.sleep(intervalMs, signal);
+    }
+  }
+
+  private sleep(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(done, ms);
+      function done(): void {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', done);
+        resolve();
+      }
+      signal.addEventListener('abort', done, { once: true });
+    });
+  }
+
+  async findConversationActivity(
+    tenantId: string,
+    actorId: string,
+    conversationId: string,
+  ): Promise<MeriHermesConversationActivity> {
+    const runs = await this.listForConversation(tenantId, actorId, conversationId);
+    const active = [...runs].reverse().find((r) => !MERI_HERMES_TERMINAL_STATUSES.has(r.status)) ?? null;
+    const pendingInteractions = runs.flatMap((r) =>
+      r.pendingInteractions.filter((i) => !i.resolution).map((i) => ({ ...i, runId: r.runId })),
+    );
+    return { run: active, pendingInteractions };
+  }
+
+  async claimConsumer(runId: string, consumerId: string, staleAfterMs: number, now: Date = this.now()): Promise<boolean> {
+    const run = this.runs.get(runId);
+    if (!run || MERI_HERMES_TERMINAL_STATUSES.has(run.status)) return false;
+    const heartbeat = run.consumerHeartbeatAt ? Date.parse(run.consumerHeartbeatAt) : null;
+    const free = !run.consumerId || run.consumerId === consumerId || heartbeat === null;
+    const stale = heartbeat !== null && now.getTime() - heartbeat > staleAfterMs;
+    if (!free && !stale) return false;
+    run.consumerId = consumerId;
+    run.consumerHeartbeatAt = now.toISOString();
+    run.updatedAt = run.consumerHeartbeatAt;
+    return true;
+  }
+
+  async heartbeatConsumer(runId: string, consumerId: string, now: Date = this.now()): Promise<boolean> {
+    const run = this.runs.get(runId);
+    if (!run || run.consumerId !== consumerId || MERI_HERMES_TERMINAL_STATUSES.has(run.status)) return false;
+    run.consumerHeartbeatAt = now.toISOString();
+    return true;
+  }
+
+  async listTakeoverCandidates(
+    staleAfterMs: number,
+    now: Date = this.now(),
+    opts?: { tenantId?: string },
+  ): Promise<MeriHermesRunRecord[]> {
+    return [...this.runs.values()].filter((r) => {
+      if (MERI_HERMES_TERMINAL_STATUSES.has(r.status) || r.dispatchStatus !== 'dispatched') return false;
+      if (opts?.tenantId && r.envelope.tenantId !== opts.tenantId) return false;
+      // A never-heartbeated run counts as orphaned only once it has ALSO been
+      // untouched for the stale window — see the Prisma sibling for why (the
+      // dispatched-but-not-yet-claimed window is a healthy run with no
+      // heartbeat, and the request-driven sweep must not interrupt it).
+      if (!r.consumerHeartbeatAt) return now.getTime() - Date.parse(r.updatedAt) > staleAfterMs;
+      return now.getTime() - Date.parse(r.consumerHeartbeatAt) > staleAfterMs;
+    });
+  }
+
+  async reconcileStuckDispatches(olderThanMs: number, now: Date = this.now()): Promise<number> {
+    let reconciled = 0;
+    for (const run of this.runs.values()) {
+      if (run.dispatchStatus !== 'pending' || MERI_HERMES_TERMINAL_STATUSES.has(run.status)) continue;
+      if (now.getTime() - Date.parse(run.createdAt) <= olderThanMs) continue;
+      run.status = 'interrupted';
+      run.finishReason = 'interrupted';
+      run.dispatchStatus = 'failed';
+      run.error =
+        'Admission succeeded but dispatch to Hermes was never confirmed (process crash or timeout); treated as ambiguous startup, not retried.';
+      run.finishedAt = now.toISOString();
+      run.updatedAt = run.finishedAt;
+      reconciled += 1;
+    }
+    return reconciled;
   }
 
   subscribe(runId: string, listener: MeriHermesRunListener): () => void {
@@ -378,6 +723,15 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
     const run = this.runs.get(runId);
     if (!run) throw new Error(`Unknown Hermes run ${runId}`);
     return run;
+  }
+
+  /** Write-side consumer fence — see `RunWriteFence` / `MeriHermesConsumerFencedError`. */
+  private assertOwns(run: MeriHermesRunRecord, fence?: RunWriteFence): void {
+    const consumerId = fence?.consumerId;
+    if (!consumerId) return;
+    if (run.consumerId !== consumerId || MERI_HERMES_TERMINAL_STATUSES.has(run.status)) {
+      throw new MeriHermesConsumerFencedError(run.runId, consumerId);
+    }
   }
 
   private idemKey(executionScopeId: string, idempotencyKey: string): string {

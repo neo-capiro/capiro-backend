@@ -9,7 +9,7 @@
  * Environment (names only): MERI_HERMES_RUNTIME_URL, MERI_HERMES_API_KEY,
  * MERI_HERMES_REQUEST_TIMEOUT_MS.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { meriHermesRuntimeConfig } from '../../common/meri-hermes-flags.js';
 import {
   hermesWireCapabilitiesSchema,
@@ -19,6 +19,11 @@ import {
   type HermesWireEvent,
   type HermesWireRunStatus,
 } from './hermes-runtime.contracts.js';
+import {
+  MERI_HERMES_WORKER_RESOLVER,
+  type MeriHermesWorkerResolverPort,
+  type MeriHermesWorkerScopeRef,
+} from './meri-hermes-worker-resolver.port.js';
 
 export interface HermesCreateRunInput {
   input: string;
@@ -60,6 +65,19 @@ export class MeriHermesRuntimeClient {
   private env: NodeJS.ProcessEnv = process.env;
   private fetchImpl: typeof fetch = fetch;
 
+  /**
+   * Optional: the Phase 1 worker lifecycle service (injected by token, not by
+   * concrete class — see meri-hermes-worker-resolver.port.ts's doc for why
+   * this avoids a circular class dependency). `@Optional()` because a client
+   * built via `withEnv()` (every test double, and the resolved-runtime client
+   * `forScope()` itself returns) has no resolver and does not need one.
+   */
+  constructor(
+    @Optional()
+    @Inject(MERI_HERMES_WORKER_RESOLVER)
+    private readonly resolver?: MeriHermesWorkerResolverPort,
+  ) {}
+
   /** Test seam: a client bound to a specific environment and fetch implementation. */
   static withEnv(env: NodeJS.ProcessEnv, fetchImpl: typeof fetch = fetch): MeriHermesRuntimeClient {
     const client = new MeriHermesRuntimeClient();
@@ -69,29 +87,48 @@ export class MeriHermesRuntimeClient {
   }
 
   /**
-   * One worker per execution scope. Phase 0 resolves the scope's worker from
-   * `MERI_HERMES_SCOPE_RUNTIMES` (JSON `{ "<executionScopeId>": {"url","apiKey"} }`),
-   * falling back to the default runtime. Phase 1 replaces this with the worker
-   * lifecycle service's registry (provision on demand, lease, teardown).
+   * One worker per execution scope.
+   *
+   * Local/harness override (unchanged from Phase 0, explicit opt-in): if
+   * `MERI_HERMES_SCOPE_RUNTIMES` (JSON `{ "<executionScopeId>": {"url","apiKey"} }`)
+   * is set, resolve from that static map instead of provisioning anything —
+   * this keeps `scripts/meri-hermes/phase0-harness.mjs` working unmodified
+   * against a single locally-run worker container with no AWS/Prisma
+   * dependency. The env var itself IS the explicit flag: nobody sets it by
+   * accident, and production task definitions never set it.
+   *
+   * Otherwise (Phase 1): ask the injected `MeriHermesWorkerResolverPort` (the
+   * worker lifecycle service in production) to find-or-provision the scope's
+   * worker on demand. If no resolver is wired at all (e.g. a bare
+   * `new MeriHermesRuntimeClient()` in a unit test), fall back to the single
+   * default runtime configured by `MERI_HERMES_RUNTIME_URL` — the same
+   * behaviour Phase 0 had for a scope with no map entry.
    */
-  forScope(executionScopeId: string): MeriHermesRuntimeClient {
+  async forScope(scope: MeriHermesWorkerScopeRef): Promise<MeriHermesRuntimeClient> {
     const raw = this.env.MERI_HERMES_SCOPE_RUNTIMES?.trim();
-    if (!raw) return this;
-    let map: Record<string, { url?: string; apiKey?: string }> = {};
-    try {
-      map = JSON.parse(raw) as Record<string, { url?: string; apiKey?: string }>;
-    } catch {
-      this.logger.warn('MERI_HERMES_SCOPE_RUNTIMES is not valid JSON; using the default runtime');
-      return this;
+    if (raw) {
+      let map: Record<string, { url?: string; apiKey?: string }> = {};
+      try {
+        map = JSON.parse(raw) as Record<string, { url?: string; apiKey?: string }>;
+      } catch {
+        this.logger.warn('MERI_HERMES_SCOPE_RUNTIMES is not valid JSON; using the default runtime');
+        return this;
+      }
+      const entry = map[scope.executionScopeId] ?? map[scope.executionScopeId.toLowerCase()];
+      if (!entry?.url) return this;
+      return MeriHermesRuntimeClient.withEnv(
+        {
+          ...this.env,
+          MERI_HERMES_RUNTIME_URL: entry.url,
+          ...(entry.apiKey ? { MERI_HERMES_API_KEY: entry.apiKey } : {}),
+        },
+        this.fetchImpl,
+      );
     }
-    const entry = map[executionScopeId] ?? map[executionScopeId.toLowerCase()];
-    if (!entry?.url) return this;
+    if (!this.resolver) return this;
+    const resolved = await this.resolver.resolveWorker(scope);
     return MeriHermesRuntimeClient.withEnv(
-      {
-        ...this.env,
-        MERI_HERMES_RUNTIME_URL: entry.url,
-        ...(entry.apiKey ? { MERI_HERMES_API_KEY: entry.apiKey } : {}),
-      },
+      { ...this.env, MERI_HERMES_RUNTIME_URL: resolved.url },
       this.fetchImpl,
     );
   }

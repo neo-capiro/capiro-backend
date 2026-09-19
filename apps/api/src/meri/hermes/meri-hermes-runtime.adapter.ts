@@ -20,7 +20,7 @@
  * gets an `error` frame and a persisted failure receipt. There is NO fallback
  * to MeriV3/legacy — rollback is the flag.
  */
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { createHash, randomUUID } from 'node:crypto';
@@ -52,6 +52,7 @@ import { translateHermesWireEvent } from './meri-hermes-event-translator.js';
 import { MeriHermesRuntimeClient } from './meri-hermes-runtime.client.js';
 import {
   MERI_HERMES_RUN_REPOSITORY,
+  MeriHermesConsumerFencedError,
   MeriHermesConversationOccupiedError,
   type MeriHermesRunRecord,
   type MeriHermesRunRepository,
@@ -89,6 +90,22 @@ export const HERMES_CONVERSATION_METADATA_KEY = 'hermes';
 const DEFAULT_MAX_WALL_MS = 10 * 60 * 1000;
 const STATUS_RECONCILE_ATTEMPTS = 6;
 const STATUS_RECONCILE_DELAY_MS = 1000;
+/** A run admitted but never confirmed dispatched for this long is ambiguous startup (P1-07). */
+const DEFAULT_DISPATCH_STUCK_MS = 2 * 60 * 1000;
+/** A consumer lease unrenewed for this long is presumed dead and may be taken over (P1-09). */
+const DEFAULT_CONSUMER_STALE_MS = 60 * 1000;
+/** How often the consuming replica renews its lease. Must be well under the stale threshold. */
+const DEFAULT_CONSUMER_HEARTBEAT_MS = 10 * 1000;
+/** Minimum gap between request-driven stale-consumer recovery sweeps, per tenant, per process. */
+const DEFAULT_TAKEOVER_SWEEP_MS = 30 * 1000;
+/**
+ * How many idempotency generations the request-fingerprint scan will walk
+ * before giving up (see `resolveIdempotencyKey`). Reaching this needs the same
+ * user to send the byte-identical message 16 times in one conversation; the
+ * loop exits at the first unused generation, which is generation 0 or 1 in
+ * every realistic case.
+ */
+const MAX_IDEMPOTENCY_GENERATIONS = 16;
 
 /** Deterministic authorization version: changes when grants/role change → fences older workers. */
 export function computeAuthorizationVersion(input: {
@@ -111,6 +128,19 @@ export class MeriHermesRuntimeAdapter {
 
   /** Not a constructor parameter (Nest would try to inject it); overridable in tests. */
   env: NodeJS.ProcessEnv = process.env;
+
+  /**
+   * Identity of THIS API replica as a consumer of Hermes event streams (P1-09).
+   * Written into `meri_agent_runs.consumer_id` when this replica claims a run,
+   * and compared on every heartbeat/takeover so a lease can only be renewed by
+   * its holder. Process-unique rather than host-unique on purpose: two API
+   * processes on one host are two independent consumers. Assignable in tests so
+   * a spec can impersonate "replica A" and "replica B".
+   */
+  consumerId: string = `api:${process.pid}:${randomUUID().slice(0, 8)}`;
+
+  /** Per-tenant throttle for the request-driven recovery sweep (`sweepStaleConsumers`). */
+  private readonly lastTakeoverSweepAt = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -159,6 +189,35 @@ export class MeriHermesRuntimeAdapter {
     }
 
     const conversation = await this.ensureConversation(ctx, conversationId);
+
+    // P1-07 reachability: reconcile ambiguous startups BEFORE anything else
+    // starts work for this conversation. A run whose admission committed but
+    // whose dispatch to Hermes was never confirmed (the replica died in
+    // between) still holds this conversation's single-writer lease and would
+    // make every later turn fail with `conversation_occupied` forever. This is
+    // the caller `reconcileStuckDispatches()` was missing — no cron, just the
+    // one place that must not proceed past a stuck row. Best effort: a failure
+    // here must not block an otherwise healthy turn.
+    await this.reconcileStuckDispatches().catch((error) =>
+      this.logger.warn(`dispatch reconciliation before admission failed: ${String(error)}`),
+    );
+
+    // P1-11 request-fingerprint idempotency: resolve the key BEFORE
+    // `prepareTurn`, because prepareTurn is what mints the user message. A
+    // retried HTTP submission must reattach to the run already in flight
+    // instead of creating a second user message AND a second run.
+    const resolved = await this.resolveIdempotencyKey(ctx, conversation, body, mode, attachmentIds);
+    if (resolved.reattachTo) {
+      const existing = resolved.reattachTo;
+      writeFrame({
+        type: 'turn_accepted',
+        ...(existing.userMessageId ? { messageId: existing.userMessageId } : {}),
+      });
+      await this.attach(existing, writeFrame, clientSignal, 0);
+      return;
+    }
+    const idempotencyKey = resolved.key;
+
     const turn = await this.prepareTurn(ctx, conversation, body, mode, attachmentIds);
     writeFrame({
       type: 'turn_accepted',
@@ -187,7 +246,6 @@ export class MeriHermesRuntimeAdapter {
     }
 
     const envelope = await this.buildEnvelope(ctx, conversation);
-    const idempotencyKey = `meri:${turn.sourceMessageId ?? envelope.runId}`;
     let run: MeriHermesRunRecord;
     try {
       run = await this.runs.create({
@@ -231,16 +289,19 @@ export class MeriHermesRuntimeAdapter {
       frames: [{ type: 'start', intent: 'general_question', tier: 'deep', runtime: 'hermes', runId: run.runId }],
     });
 
-    const detachWriter = await this.attachWriter(run, writeFrame, clientSignal, 0, () => {
+    const writer = this.attachWriter(run, writeFrame, clientSignal, 0, () => {
       clientGone = true;
     });
 
-    const runtime = this.client.forScope(envelope.executionScopeId);
+    const runtime = await this.client.forScope(envelope);
     // The Hermes session key names the TRANSCRIPT on this build (api_server
     // `_declared_conversation_session`), so it must be per Meri conversation —
     // a per-user key blended a user's conversations into one Hermes session
     // (found in harness D3/D6). Institutional memory is Meri's regardless.
-    const sessionKey = `${envelope.executionScopeId}:conversation:${conversation.id}`;
+    // The EPOCH suffix (F-2) is what makes an authorization fence actually
+    // rebuild: `invalidateSessionBinding()` bumps it, so the next attempt asks
+    // Hermes for a different transcript instead of resuming the fenced one.
+    const sessionKey = this.sessionKeyFor(envelope, conversation);
     let accepted;
     try {
       accepted = await runtime.createRun({
@@ -266,11 +327,20 @@ export class MeriHermesRuntimeAdapter {
         output: null,
         error: message,
       });
-      detachWriter();
+      await writer.finished;
+      writer.detach();
       return;
     }
 
-    await this.runs.update(run.runId, {
+    // REASSIGN, don't just write. `run` is passed to `consume()` below, which
+    // no-ops when `run.hermesRunId` is null — and with the Prisma repository
+    // `update()` returns a FRESH record instead of mutating the one `create()`
+    // handed back (the in-memory store's `Object.assign` aliasing made the old
+    // fire-and-forget write appear to work). Dropping the return value here
+    // meant the durable path consumed nothing, never finalized, and left the
+    // turn hanging until the client gave up. Caught by
+    // meri-hermes-cross-replica.spec.ts tests 6 and 7.
+    run = await this.runs.update(run.runId, {
       hermesRunId: accepted.runId,
       hermesSessionId: accepted.sessionId ?? boundSessionId,
       status: 'running',
@@ -291,7 +361,14 @@ export class MeriHermesRuntimeAdapter {
       this.logger.error(`run ${run.runId} consumption failed: ${String(error)}`);
     });
     await this.waitForTerminalOrDetach(run, clientSignal);
-    detachWriter();
+    // The writer is its own durable watch, so the terminal wait above and the
+    // frame delivery below are two independent pollers over the same log.
+    // Awaiting the writer's completion (it ends on the SAME condition: terminal
+    // or client abort) is what guarantees the browser actually received the
+    // final `done` frame before this handler returns and the SSE response is
+    // closed — with the old in-process emitter that ordering was incidental.
+    await writer.finished;
+    writer.detach();
     if (!clientGone) await consumption;
   }
 
@@ -299,7 +376,18 @@ export class MeriHermesRuntimeAdapter {
   // Reconnect / control surface used by MeriHermesController
   // ---------------------------------------------------------------------------
 
-  /** Replay public frames after `afterSeq`, then stream live until terminal or client abort. */
+  /**
+   * Stream every public frame with `seq > afterSeq` until the run is terminal
+   * or the client goes away. This is what `GET /api/clio/hermes/runs/:id/events`
+   * serves.
+   *
+   * P1-09: there is no longer a "replay history, THEN attach a live listener"
+   * seam here. `watch()` is one ordered durable cursor over the event log, so
+   * (a) an event appended between the old replay read and the old subscribe
+   * call can no longer be dropped, and (b) a browser attached to THIS replica
+   * receives events produced by ANY other replica, because the delivery path is
+   * Postgres rather than a process-local emitter.
+   */
   async attach(
     run: MeriHermesRunRecord,
     write: (frame: MeriSseFrame) => void,
@@ -307,15 +395,26 @@ export class MeriHermesRuntimeAdapter {
     afterSeq: number,
   ): Promise<void> {
     await this.runs.append(run.runId, 'client.reconnected', { afterSeq, frames: [] }, 'internal');
-    const detach = await this.attachWriter(run, write, clientSignal, afterSeq);
-    await this.waitForTerminalOrDetach(run, clientSignal);
-    detach();
+    const writer = this.attachWriter(run, write, clientSignal, afterSeq);
+    await writer.finished;
+    writer.detach();
   }
 
   async requestStop(run: MeriHermesRunRecord): Promise<MeriHermesRunRecord> {
-    if (MERI_HERMES_TERMINAL_STATUSES.has(run.status)) return run;
+    // Re-read rather than trusting the caller's snapshot: by the time a Stop
+    // arrives the run may already have finished on another path. The status
+    // write below is itself guarded (a terminal run's status is immutable), so
+    // this is a fast path, not the safety property.
+    const current = (await this.runs.get(run.runId)) ?? run;
+    if (MERI_HERMES_TERMINAL_STATUSES.has(current.status)) return current;
     const at = new Date().toISOString();
-    await this.runs.update(run.runId, { status: 'cancelling', stopRequestedAt: at });
+    const patched = await this.runs.update(run.runId, { status: 'cancelling', stopRequestedAt: at });
+    if (patched.status !== 'cancelling' && MERI_HERMES_TERMINAL_STATUSES.has(patched.status)) {
+      // Lost the race to a terminal transition between the read and the write.
+      // The run is finished; publishing a `cancelling` event for it would be a
+      // lie about a run nobody is going to cancel.
+      return patched;
+    }
     await this.runs.append(run.runId, 'run.status', { status: 'cancelling', requestedAt: at, frames: [] });
     if (run.hermesRunId) {
       await this.stopHermesWorker(run);
@@ -349,14 +448,97 @@ export class MeriHermesRuntimeAdapter {
    */
   async stopWorkerAndFinalize(run: MeriHermesRunRecord, terminal: TerminalOutcome): Promise<void> {
     await this.stopHermesWorker(run);
+    // F-2: the fenced attempt's Hermes session binding is UNSAFE. Invalidate
+    // it before finalizing, so the next authorized attempt in this
+    // conversation cannot be handed the transcript the downgrade was supposed
+    // to remove. Best effort: a failure here must not stop the fence itself
+    // from landing (a run left live would be strictly worse).
+    await this.invalidateSessionBinding(run, terminal.finishReason).catch((error) =>
+      this.logger.error(`session-binding invalidation for run ${run.runId} failed: ${String(error)}`),
+    );
     await this.finalize(run.actorContext, null, run, terminal);
+  }
+
+  /**
+   * F-2 — invalidate a fenced attempt's conversation ⇄ Hermes session binding.
+   *
+   * contracts.md §2 is explicit that checking the NEXT tool call cannot remove
+   * context the model already loaded, so an authorization downgrade is
+   * stop-and-REBUILD, not filter-and-continue. The stop half already worked;
+   * the rebuild half did not. `clio_conversations.metadata.hermes.sessionId`
+   * still named the fenced attempt's transcript, so `streamMessage` handed the
+   * NEXT (freshly authorized) attempt `session_id: <the fenced session>` and
+   * Hermes resumed a transcript that may contain now-forbidden material.
+   *
+   * Two things must change together, because either alone is insufficient:
+   *   1. `sessionId` is cleared (moved to `supersededSessionIds`), so the
+   *      adapter stops sending `session_id` for this conversation; and
+   *   2. `sessionEpoch` is bumped, because `X-Hermes-Session-Key` is what
+   *      NAMES the transcript on this build (contracts.md §6) — leaving the
+   *      key unchanged would make Hermes resolve the very same session again
+   *      even with no `session_id` in the body.
+   *
+   * The run row keeps its own `hermesSessionId`: that is the audit record of
+   * which transcript was fenced, and tests compare against it.
+   */
+  async invalidateSessionBinding(run: MeriHermesRunRecord, reason: string): Promise<void> {
+    const ctx = run.actorContext;
+    const conversation = await this.loadConversation(ctx, run.envelope.conversationId);
+    if (!conversation) return;
+    const existing =
+      conversation.metadata && typeof conversation.metadata === 'object' && !Array.isArray(conversation.metadata)
+        ? { ...(conversation.metadata as Record<string, unknown>) }
+        : {};
+    const hermes =
+      existing[HERMES_CONVERSATION_METADATA_KEY] && typeof existing[HERMES_CONVERSATION_METADATA_KEY] === 'object'
+        ? { ...(existing[HERMES_CONVERSATION_METADATA_KEY] as Record<string, unknown>) }
+        : {};
+    const boundSessionId = typeof hermes.sessionId === 'string' ? hermes.sessionId : null;
+    const superseded = Array.isArray(hermes.supersededSessionIds)
+      ? (hermes.supersededSessionIds as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+    const invalidated = boundSessionId ?? run.hermesSessionId;
+    const nextEpoch = (typeof hermes.sessionEpoch === 'number' && Number.isFinite(hermes.sessionEpoch)
+      ? hermes.sessionEpoch
+      : 0) + 1;
+    const nextHermes: Record<string, unknown> = {
+      ...hermes,
+      sessionId: null,
+      sessionEpoch: nextEpoch,
+      supersededSessionIds: invalidated ? [...new Set([...superseded, invalidated])].slice(-20) : superseded,
+      invalidatedAt: new Date().toISOString(),
+      invalidatedReason: reason,
+      invalidatedByRunId: run.runId,
+    };
+    const metadata = { ...existing, [HERMES_CONVERSATION_METADATA_KEY]: nextHermes };
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioConversation.update({
+        where: { id: conversation.id },
+        data: { metadata: metadata as Prisma.InputJsonValue },
+      }),
+    );
+    conversation.metadata = metadata as Prisma.JsonValue;
+    await this.runs
+      .append(
+        run.runId,
+        'run.status',
+        {
+          sessionBindingInvalidated: true,
+          reason,
+          supersededSessionId: invalidated,
+          nextSessionEpoch: nextEpoch,
+          frames: [],
+        },
+        'internal',
+      )
+      .catch(() => undefined);
   }
 
   /** Best-effort request to stop the Hermes worker's execution of this run; never throws. */
   private async stopHermesWorker(run: MeriHermesRunRecord): Promise<void> {
     if (!run.hermesRunId) return;
     try {
-      await this.runtimeFor(run).stopRun(run.hermesRunId);
+      await (await this.runtimeFor(run)).stopRun(run.hermesRunId);
     } catch (error) {
       this.logger.warn(`stop for run ${run.runId} failed: ${String(error)}`);
     }
@@ -372,9 +554,22 @@ export class MeriHermesRuntimeAdapter {
       (i) => i.requestId === requestId && i.kind === 'approval' && !i.resolution,
     );
     if (!interaction) throw new NotFoundException('No pending approval with that request id');
+    // A native Hermes approval is a LIVE-PROCESS interaction (contracts.md §3):
+    // the worker is blocked inside the run waiting for the decision. Once the
+    // run is terminal there is no blocked process left to release, so honoring
+    // the approval is genuinely impossible — say so explicitly rather than
+    // recording a decision that will never take effect. (A CLARIFICATION is
+    // the opposite: `durable_continuation`, answerable after its run ends —
+    // see answerClarification below.)
+    if (MERI_HERMES_TERMINAL_STATUSES.has(run.status)) {
+      throw new ConflictException(
+        `This run has already finished (${run.status}), so the command approval it was waiting on can no longer be applied — ` +
+          'the process that asked for it is gone. Send the request again to run it in a new turn.',
+      );
+    }
     if (!run.hermesRunId) throw new BadRequestException('Run is not bound to a Hermes run');
     const choice = decision === 'approve_once' ? 'once' : 'deny';
-    await this.runtimeFor(run).resolveApproval(run.hermesRunId, choice, requestId);
+    await (await this.runtimeFor(run)).resolveApproval(run.hermesRunId, choice, requestId);
     await this.runs.resolveInteraction(run.runId, requestId, {
       at: new Date().toISOString(),
       actorId,
@@ -384,6 +579,16 @@ export class MeriHermesRuntimeAdapter {
     await this.runs.update(run.runId, { status: 'running' });
   }
 
+  /**
+   * Answer a clarification. DELIBERATELY has no terminal-run guard: a
+   * clarification is a `durable_continuation` — the run that asked it ENDS its
+   * turn immediately (contracts.md §3, harness D5a), so by the time the user
+   * sees the question its run is normally already terminal. Refusing here
+   * would make every clarification unanswerable. The answer is recorded
+   * against the (terminal) run and delivered as the next turn's input; the
+   * conversation-scoped discovery endpoint is what surfaces these after a
+   * reload, precisely because they outlive their run.
+   */
   async answerClarification(
     run: MeriHermesRunRecord,
     requestId: string,
@@ -411,48 +616,232 @@ export class MeriHermesRuntimeAdapter {
 
   async steer(run: MeriHermesRunRecord, text: string): Promise<boolean> {
     if (!run.hermesRunId) throw new BadRequestException('Run is not bound to a Hermes run');
-    const accepted = await this.runtimeFor(run).steerRun(run.hermesRunId, text);
+    const accepted = await (await this.runtimeFor(run)).steerRun(run.hermesRunId, text);
     await this.runs.append(run.runId, 'steer.accepted', { accepted, chars: text.length, frames: [] }, 'internal');
     return accepted;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Crash / lease recovery (P1-07, P1-09)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * P1-07: close out runs whose admission committed but whose dispatch to
+   * Hermes was never confirmed. Wired into the admission path (before a turn
+   * starts work on a conversation), into the conversation discovery endpoint
+   * — so a crashed replica's stuck row is cleared by the next real request —
+   * and into the scheduled `MeriHermesMaintenanceService` tick, for when no
+   * request ever comes.
+   */
+  async reconcileStuckDispatches(olderThanMs = this.dispatchStuckMs()): Promise<number> {
+    return this.runs.reconcileStuckDispatches(olderThanMs);
+  }
+
+  /**
+   * P1-09 consumer takeover. A run whose consuming replica died leaves a
+   * non-terminal row with a stale lease; nothing else will ever finish it.
+   * Another replica claims it atomically and closes it out HONESTLY:
+   *
+   *   - claim lost → another replica got there first; do nothing.
+   *   - claim won  → ask Hermes for the run's authoritative final status
+   *     (`GET /v1/runs/{id}`, the replayable status surface) and finalize with
+   *     whatever Hermes actually says. If Hermes says `completed`, that is a
+   *     real completion with Hermes's own output; if Hermes is unreachable, the
+   *     run was never dispatched, or it does not reach a terminal state within
+   *     the reconcile attempts, the run is finalized `interrupted`.
+   *
+   * It NEVER reports success that Hermes did not report, and it does not
+   * promise transparent process resumption: the user gets an honest terminal
+   * state and can re-ask. See the report note on why the event stream is not
+   * re-consumed here (`MeriHermesRuntimeClient.streamRunEvents` has no resume
+   * cursor, so replaying it would duplicate deltas in the durable log).
+   */
+  async takeOverStaleRuns(
+    staleAfterMs = this.consumerStaleMs(),
+    opts?: { tenantId?: string; limit?: number },
+  ): Promise<Array<{ runId: string; outcome: 'not_claimed' | 'interrupted' | 'finalized_from_hermes' }>> {
+    const all = await this.runs.listTakeoverCandidates(staleAfterMs, undefined, opts);
+    /**
+     * `limit` bounds the WORK, which is what actually costs anything here:
+     * each takeover is a Hermes status call plus a finalization transaction.
+     * The selection itself is one indexed query and is left whole (the
+     * repository owns that query and is not modified by this change).
+     * Candidates come back oldest-first, so a bounded tick still drains the
+     * backlog in age order across successive ticks.
+     */
+    const candidates =
+      typeof opts?.limit === 'number' && opts.limit >= 0 ? all.slice(0, opts.limit) : all;
+    const results: Array<{ runId: string; outcome: 'not_claimed' | 'interrupted' | 'finalized_from_hermes' }> = [];
+    for (const candidate of candidates) {
+      results.push({ runId: candidate.runId, outcome: await this.takeOverRun(candidate, staleAfterMs) });
+    }
+    return results;
+  }
+
+  /**
+   * The REQUEST-DRIVEN production caller for `takeOverStaleRuns()`, wired
+   * into the conversation discovery endpoint.
+   *
+   * It is one of two callers, not the only one. The other is
+   * `MeriHermesMaintenanceService` (meri-hermes-worker-lifecycle.service.ts),
+   * the scheduled background owner — necessary because the case this
+   * recovers is exactly the case where no request arrives: the replica died
+   * and the user's tab is gone. The two are safely concurrent: every takeover
+   * goes through the atomic `claimConsumer()` compare-and-set, so whichever
+   * gets there first wins and the other does nothing.
+   *
+   * Two safety properties matter:
+   *   - TENANT-SCOPED. A replica serving tenant T recovers T's orphans only.
+   *     A cross-tenant scan from a per-request path would let one tenant's
+   *     traffic finalize another's runs.
+   *   - THROTTLED per process (`MERI_HERMES_TAKEOVER_SWEEP_MS`, default 30 s;
+   *     0 disables), so a polling client cannot turn discovery into a scan
+   *     storm.
+   */
+  async sweepStaleConsumers(tenantId: string): Promise<number> {
+    const everyMs = Number(this.env.MERI_HERMES_TAKEOVER_SWEEP_MS ?? '');
+    const throttleMs = Number.isFinite(everyMs) ? everyMs : DEFAULT_TAKEOVER_SWEEP_MS;
+    if (throttleMs === 0) return 0;
+    const now = Date.now();
+    const last = this.lastTakeoverSweepAt.get(tenantId) ?? 0;
+    if (now - last < throttleMs) return 0;
+    this.lastTakeoverSweepAt.set(tenantId, now);
+    const results = await this.takeOverStaleRuns(this.consumerStaleMs(), { tenantId });
+    const recovered = results.filter((r) => r.outcome !== 'not_claimed').length;
+    if (recovered) this.logger.warn(`recovered ${recovered} orphaned Hermes run(s) for tenant ${tenantId}`);
+    return recovered;
+  }
+
+  /** Take over a single stale run. See `takeOverStaleRuns` for the policy. */
+  async takeOverRun(
+    run: MeriHermesRunRecord,
+    staleAfterMs = this.consumerStaleMs(),
+  ): Promise<'not_claimed' | 'interrupted' | 'finalized_from_hermes'> {
+    if (!(await this.runs.claimConsumer(run.runId, this.consumerId, staleAfterMs))) return 'not_claimed';
+    const current = (await this.runs.get(run.runId)) ?? run;
+    // Claimed, but it went terminal underneath us (the original consumer was
+    // slow, not dead): nothing to do, and nothing to overwrite.
+    if (MERI_HERMES_TERMINAL_STATUSES.has(current.status)) return 'not_claimed';
+    const terminal = await this.reconcileFromStatus(current, null);
+    const conversation = await this.ensureConversation(
+      current.actorContext,
+      current.envelope.conversationId,
+    ).catch(() => null);
+    await this.finalize(current.actorContext, conversation, current, terminal);
+    return terminal.finishReason === 'stop' ? 'finalized_from_hermes' : 'interrupted';
+  }
+
+  private dispatchStuckMs(): number {
+    return Number(this.env.MERI_HERMES_DISPATCH_STUCK_MS ?? '') || DEFAULT_DISPATCH_STUCK_MS;
+  }
+
+  private consumerStaleMs(): number {
+    return Number(this.env.MERI_HERMES_CONSUMER_STALE_MS ?? '') || DEFAULT_CONSUMER_STALE_MS;
+  }
+
+  private consumerHeartbeatMs(): number {
+    return Number(this.env.MERI_HERMES_CONSUMER_HEARTBEAT_MS ?? '') || DEFAULT_CONSUMER_HEARTBEAT_MS;
   }
 
   // ---------------------------------------------------------------------------
   // Internals
   // ---------------------------------------------------------------------------
 
+  /**
+   * P1-11 request-fingerprint idempotency.
+   *
+   * The old key was `meri:<userMessageId>`, which could never deduplicate
+   * anything real: a retried HTTP submission mints a NEW user message first, so
+   * every retry produced a new key, a second user message and a second run. The
+   * key is now a SERVER-computed fingerprint over the authenticated actor, the
+   * conversation, the normalized body text, the sorted attachment ids and the
+   * mode — nothing the client can spoof, and identical for a byte-identical
+   * resubmission.
+   *
+   * Generations: a fingerprint alone would also dedupe a LEGITIMATE repeat
+   * ("ok" twice in one conversation) forever, because the key would collide
+   * with the first, long-finished run. So the scan walks generations: if the
+   * run holding this fingerprint is still NON-TERMINAL it is a true duplicate
+   * request and we reattach to it; if it is terminal, that attempt concluded
+   * and the next generation (`…:r1`, `…:r2`, …) is a fresh key. The loop exits
+   * at the first unused generation — generation 0 or 1 in every realistic case.
+   *
+   * Note what this does NOT change: a DIFFERENT body submitted to a
+   * conversation that already has a live run gets a different fingerprint,
+   * falls through to `create()`, and still hits the single-writer conflict path
+   * (`MeriHermesConversationOccupiedError` → `conversation_occupied`).
+   */
+  private async resolveIdempotencyKey(
+    ctx: TenantContext,
+    conversation: ConversationRow,
+    body: string,
+    mode: RerunMode,
+    attachmentIds: string[],
+  ): Promise<{ key: string; reattachTo: MeriHermesRunRecord | null }> {
+    const executionScopeId = privateExecutionScopeId(ctx.tenantId, ctx.userId);
+    const normalizedBody = String(body ?? '')
+      .replace(/(^|\s)#trace\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const material = JSON.stringify([
+      'meri-hermes-request-v1',
+      ctx.tenantId,
+      ctx.userId,
+      conversation.id,
+      mode,
+      normalizedBody,
+      [...new Set(attachmentIds)].sort(),
+    ]);
+    const base = `meri:${createHash('sha256').update(material).digest('hex').slice(0, 32)}`;
+    let key = base;
+    for (let generation = 0; generation < MAX_IDEMPOTENCY_GENERATIONS; generation += 1) {
+      const existing = await this.runs.findByIdempotencyKey(executionScopeId, key);
+      if (!existing) return { key, reattachTo: null };
+      if (!MERI_HERMES_TERMINAL_STATUSES.has(existing.status)) return { key, reattachTo: existing };
+      key = `${base}:r${generation + 1}`;
+    }
+    // Pathological: 16 finished runs with the identical body in one
+    // conversation. Fall through with the last key; `create()`'s
+    // (scope, idempotencyKey) constraint backstop resolves whatever happens.
+    return { key, reattachTo: null };
+  }
+
   /** The worker bound to this run's execution scope (one worker per scope). */
-  private runtimeFor(run: MeriHermesRunRecord): MeriHermesRuntimeClient {
-    return this.client.forScope(run.envelope.executionScopeId);
+  private async runtimeFor(run: MeriHermesRunRecord): Promise<MeriHermesRuntimeClient> {
+    return this.client.forScope(run.envelope);
   }
 
   /**
-   * Async because `eventsAfter`/`get`/`update`/`append` are DB reads/writes
-   * (Prisma-backed in production). `subscribe` itself stays synchronous
-   * in-process pub/sub (see MeriHermesRunRepository's doc comment); only the
-   * one-time replay-then-subscribe setup and the on-abort bookkeeping below
-   * need awaiting. The on-abort path can fire long after this method
-   * returns (a real browser disconnect), so it cannot itself be awaited by
-   * any caller — failures there are logged, never thrown into the void.
+   * Start an ordered durable delivery of this run's public frames to `write`,
+   * from `afterSeq`. Synchronous (returns a handle, not a promise) because the
+   * caller wants the stream RUNNING while it does other work — `finished`
+   * resolves when the run goes terminal or the client aborts.
+   *
+   * The on-abort path can fire long after this method returns (a real browser
+   * disconnect), so it cannot be awaited by any caller — failures there are
+   * logged, never thrown into the void.
    */
-  private async attachWriter(
+  private attachWriter(
     run: MeriHermesRunRecord,
     write: (frame: MeriSseFrame) => void,
     clientSignal: AbortSignal | undefined,
     afterSeq: number,
     onDetach?: () => void,
-  ): Promise<() => void> {
+  ): { finished: Promise<void>; detach: () => void } {
     const forward = (event: MeriHermesRunEvent) => {
       if (event.visibility !== 'public') return;
       const frames = Array.isArray(event.payload.frames) ? (event.payload.frames as MeriSseFrame[]) : [];
       for (const frame of frames) write(frame);
     };
-    for (const event of await this.runs.eventsAfter(run.runId, afterSeq)) forward(event);
-    const unsubscribe = this.runs.subscribe(run.runId, forward);
+    const abort = new AbortController();
+    const finished = this.runs
+      .watch(run.runId, afterSeq, forward, abort.signal)
+      .catch((error) => this.logger.error(`event watch for run ${run.runId} failed: ${String(error)}`));
     let detached = false;
     const detach = () => {
       if (detached) return;
       detached = true;
-      unsubscribe();
+      abort.abort();
     };
     const onAbort = async () => {
       const current = await this.runs.get(run.runId);
@@ -468,33 +857,42 @@ export class MeriHermesRuntimeAdapter {
         this.logger.error(`attachWriter onAbort failed for run ${run.runId}: ${String(error)}`),
       );
     };
-    if (clientSignal?.aborted) await onAbort();
+    if (clientSignal?.aborted) onAbortListener();
     else clientSignal?.addEventListener('abort', onAbortListener, { once: true });
-    return () => {
-      clientSignal?.removeEventListener('abort', onAbortListener);
-      detach();
+    return {
+      finished,
+      detach: () => {
+        clientSignal?.removeEventListener('abort', onAbortListener);
+        detach();
+      },
     };
   }
 
-  private async waitForTerminalOrDetach(run: MeriHermesRunRecord, clientSignal?: AbortSignal): Promise<void> {
+  /**
+   * Resolve when the run is terminal or the browser went away.
+   *
+   * P1-09: this used to hang off the in-process emitter, which meant a run
+   * finalized by ANOTHER replica never ended the wait — the request handler sat
+   * there until the client gave up. It now rides the same durable
+   * `watch()` cursor as everything else (visibility `all`, from the run's
+   * current `lastSeq`, discarding the events themselves), so a terminal
+   * transition written by any replica ends it. Public, so a spec can assert
+   * exactly that cross-instance behaviour.
+   */
+  async waitForTerminalOrDetach(run: MeriHermesRunRecord, clientSignal?: AbortSignal): Promise<void> {
     const current = await this.runs.get(run.runId);
     if (!current || MERI_HERMES_TERMINAL_STATUSES.has(current.status) || clientSignal?.aborted) {
       return;
     }
-    return new Promise((resolve) => {
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        off();
-        clientSignal?.removeEventListener('abort', finish);
-        resolve();
-      };
-      const off = this.runs.subscribe(run.runId, (event) => {
-        if (event.kind === 'run.status' && event.payload.final === true) finish();
-      });
-      clientSignal?.addEventListener('abort', finish, { once: true });
-    });
+    const abort = new AbortController();
+    const onAbort = () => abort.abort();
+    clientSignal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      await this.runs.watch(run.runId, current.lastSeq, () => {}, abort.signal, { visibility: 'all' });
+    } finally {
+      clientSignal?.removeEventListener('abort', onAbort);
+      abort.abort();
+    }
   }
 
   private async consume(
@@ -504,7 +902,54 @@ export class MeriHermesRuntimeAdapter {
   ): Promise<void> {
     const hermesRunId = run.hermesRunId;
     if (!hermesRunId) return;
+
+    // CONSUMER LEASE (P1-09). Exactly one replica consumes a run's Hermes event
+    // stream at a time; the claim is a conditional atomic UPDATE, so a replica
+    // that arrives while another one is alive and heartbeating simply declines
+    // instead of double-writing the event log. Losing the claim here is normal
+    // and not an error.
+    if (!(await this.runs.claimConsumer(run.runId, this.consumerId, this.consumerStaleMs()))) {
+      this.logger.log(`run ${run.runId} is already being consumed by another replica; not double-consuming`);
+      return;
+    }
+    /**
+     * PUBLICATION FENCE (P1-09 completion). Every write this loop makes
+     * carries our consumerId, so the database rejects it the moment we stop
+     * owning the run. Before this, a failed heartbeat was logged and ignored:
+     * a consumer that had already been taken over kept appending events and
+     * overwriting `output`, interleaving two writers in one durable log.
+     *
+     * `ownershipLost` is the local half of the same fact — it aborts the
+     * Hermes stream so we stop racing, and suppresses the finalize at the
+     * bottom, which belongs to whoever owns the run now.
+     */
+    const fence = { consumerId: this.consumerId };
     const controller = new AbortController();
+    let ownershipLost = false;
+    const loseOwnership = (why: string): void => {
+      if (ownershipLost) return;
+      ownershipLost = true;
+      this.logger.warn(
+        `run ${run.runId}: consumer ${this.consumerId} no longer owns this run (${why}); stopping consumption`,
+      );
+      controller.abort();
+    };
+    const heartbeat = setInterval(() => {
+      void this.runs
+        .heartbeatConsumer(run.runId, this.consumerId)
+        .then((held) => {
+          if (!held) loseOwnership('lease heartbeat rejected');
+        })
+        .catch((error) => this.logger.warn(`consumer heartbeat for run ${run.runId} failed: ${String(error)}`));
+    }, this.consumerHeartbeatMs());
+    heartbeat.unref?.();
+
+    // Assistant text is accumulated HERE rather than re-read per delta: this
+    // replica holds the consumer lease, so it is the only writer of `output`
+    // for this run. Seeded from the durable value so a takeover that resumes
+    // consumption continues the existing answer instead of restarting it.
+    let output = (await this.runs.get(run.runId))?.output ?? '';
+
     const wallTimer = setTimeout(() => {
       this.logger.warn(`run ${run.runId} exceeded wall-clock budget; stopping`);
       void (async () => {
@@ -517,17 +962,28 @@ export class MeriHermesRuntimeAdapter {
     }, run.envelope.budget.maxWallClockMs);
     let terminal: TerminalOutcome | null = null;
     let streamError: unknown = null;
-    const runtime = this.runtimeFor(run);
+    const runtime = await this.runtimeFor(run);
+    /**
+     * A write rejected by the ownership fence is not an error condition: it
+     * means another replica legitimately owns this run now. Swallow it HERE,
+     * inside the per-event callback, so the stream unwinds normally and this
+     * consumer terminates cleanly instead of surfacing an unhandled rejection
+     * or being mistaken for a Hermes transport failure.
+     */
+    const unlessFenced = async (handle: () => Promise<void>): Promise<void> => {
+      try {
+        await handle();
+      } catch (error) {
+        if (!(error instanceof MeriHermesConsumerFencedError)) throw error;
+        loseOwnership('durable write rejected by the ownership fence');
+      }
+    };
     try {
       await runtime.streamRunEvents(
         hermesRunId,
-        async (wire) => {
-          if (terminal) return;
+        async (wire) => unlessFenced(async () => {
+          if (terminal || ownershipLost) return;
           const translation = translateHermesWireEvent(wire, { meriRunId: run.runId });
-          if (translation.textDelta) {
-            const current = await this.runs.get(run.runId);
-            await this.runs.update(run.runId, { output: `${current?.output ?? ''}${translation.textDelta}` });
-          }
           if (translation.pendingInteraction) {
             await this.runs.addInteraction(run.runId, {
               requestId: translation.pendingInteraction.requestId,
@@ -541,28 +997,74 @@ export class MeriHermesRuntimeAdapter {
               resolution: null,
             });
           }
-          if (translation.usage) await this.runs.update(run.runId, { usage: translation.usage });
+          if (translation.usage) await this.runs.update(run.runId, { usage: translation.usage }, undefined, fence);
           if (translation.status && !translation.terminal) {
             const current = await this.runs.get(run.runId);
             // A stop already requested keeps `cancelling` until the terminal frame.
-            if (current && current.status !== 'cancelling') await this.runs.update(run.runId, { status: translation.status });
+            if (current && current.status !== 'cancelling') {
+              await this.runs.update(run.runId, { status: translation.status }, undefined, fence);
+            }
           }
-          if (translation.event) {
-            await this.runs.append(
-              run.runId,
-              translation.event.kind,
-              { ...translation.event.payload, frames: translation.frames },
-              translation.event.visibility,
-            );
+          const event = translation.event;
+          if (event) {
+            if (translation.textDelta) {
+              // PRUNING-SAFE SNAPSHOT (P1-08). The accumulated `output` and the
+              // `outputSeq` that names it are written in the SAME transaction as
+              // the delta event whose seq that is, so the snapshot and its
+              // cursor can never diverge — not on a crash between the two
+              // writes, not under a concurrent append. That invariant is what
+              // lets `enforceEventCap` prune below the snapshot safely and lets
+              // a recovering client trust `output` up to `outputSeq` and ask
+              // only for `seq > outputSeq`.
+              output += translation.textDelta;
+              const snapshot = output;
+              await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+                const appended = await this.runs.append(
+                  run.runId,
+                  event.kind,
+                  { ...event.payload, frames: translation.frames },
+                  event.visibility,
+                  tx,
+                  fence,
+                );
+                await this.runs.update(run.runId, { output: snapshot, outputSeq: appended.seq }, tx, fence);
+              });
+            } else {
+              await this.runs.append(
+                run.runId,
+                event.kind,
+                { ...event.payload, frames: translation.frames },
+                event.visibility,
+                undefined,
+                fence,
+              );
+            }
+          } else if (translation.textDelta) {
+            // Text with no durable event to anchor it to (not produced by the
+            // current translator, but the contract allows it): persist the text
+            // WITHOUT advancing the snapshot, since there is no seq it
+            // corresponds to.
+            output += translation.textDelta;
+            await this.runs.update(run.runId, { output }, undefined, fence);
           }
           if (translation.terminal) terminal = translation.terminal;
-        },
+        }),
         controller.signal,
       );
     } catch (error) {
-      streamError = error;
+      if (error instanceof MeriHermesConsumerFencedError) loseOwnership('durable write rejected by the ownership fence');
+      else streamError = error;
     } finally {
       clearTimeout(wallTimer);
+      clearInterval(heartbeat);
+    }
+    if (ownershipLost) {
+      // Another replica owns this run. Publishing ANYTHING now — a reconciled
+      // terminal state, an assistant message, a final event — would be exactly
+      // the corruption the fence exists to prevent. Stop here: the owner
+      // finalizes, and this consumer exits without throwing.
+      this.logger.log(`run ${run.runId}: consumption ended after takeover; leaving finalization to the current owner`);
+      return;
     }
     if (!terminal) terminal = await this.reconcileFromStatus(run, streamError);
     const current = await this.runs.get(run.runId);
@@ -578,7 +1080,7 @@ export class MeriHermesRuntimeAdapter {
     if (!hermesRunId) {
       return { finishReason: 'interrupted', partial: true, output: null, error: 'Run was never admitted to Hermes.' };
     }
-    const runtime = this.runtimeFor(run);
+    const runtime = await this.runtimeFor(run);
     for (let attempt = 0; attempt < STATUS_RECONCILE_ATTEMPTS; attempt += 1) {
       try {
         const status = await runtime.getRun(hermesRunId);
@@ -612,6 +1114,25 @@ export class MeriHermesRuntimeAdapter {
     };
   }
 
+  /**
+   * ATOMIC FINALIZATION (P1-12).
+   *
+   * The old order was: build the answer → persist the assistant `ClioMessage`
+   * → append the final event → transition the run. The terminal transition was
+   * already fenced, so the run status never ended up wrong — but the fence was
+   * the LAST step, and everything before it had already been written. Three
+   * paths can finalize one run (the consume loop's completion, an explicit
+   * Stop, a broker revocation fence), and under a real race each could create
+   * its own assistant message and its own "final" event before discovering it
+   * had lost. One turn, two or three assistant bubbles.
+   *
+   * Now the FENCED TERMINAL TRANSITION HAPPENS FIRST, inside the same
+   * transaction as the publication, and exactly one caller is told it won.
+   * A loser has written nothing at all (its `updateMany` matched no row) and
+   * returns silently, leaving the already-terminal state alone. The
+   * pre-read below is kept only as a cheap short circuit; correctness comes
+   * from the guarded write, not from it.
+   */
   private async finalize(
     ctx: TenantContext,
     conversation: ConversationRow | null,
@@ -620,6 +1141,14 @@ export class MeriHermesRuntimeAdapter {
   ): Promise<void> {
     const current = (await this.runs.get(run.runId)) ?? run;
     if (MERI_HERMES_TERMINAL_STATUSES.has(current.status)) return;
+    /**
+     * Every terminal path publishes the SAME single assistant message, so
+     * resolve the conversation when the caller did not supply one (an
+     * out-of-band fence via `stopWorkerAndFinalize`, or a Stop on a run that
+     * never reached Hermes). Best effort: if it cannot be read, finalization
+     * still lands, just without a persisted answer — the old behaviour.
+     */
+    const target = conversation ?? (await this.loadConversation(ctx, run.envelope.conversationId));
     const status =
       terminal.finishReason === 'stop'
         ? 'completed'
@@ -674,20 +1203,26 @@ export class MeriHermesRuntimeAdapter {
       output: body,
     };
 
-    if (conversation) {
-      // Transactionally consistent (contracts.md §3): the assistant message
-      // and the terminal run state (update + final event) commit together in
-      // ONE transaction, or neither does, on a crash mid-finalize. The model
-      // call itself is long over by the time finalize() runs -- this
-      // transaction only persists the already-known outcome, so it never
-      // holds a transaction open while waiting on the model.
-      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    // Transactionally consistent (contracts.md §3): the terminal transition,
+    // the assistant message and the final event commit together in ONE
+    // transaction, or none of them does. The model call itself is long over by
+    // the time finalize() runs -- this transaction only persists the
+    // already-known outcome, so it never holds a transaction open while
+    // waiting on the model.
+    const won = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // STEP 1, BEFORE ANY PUBLICATION: claim the terminal transition. A
+      // competing finalizer either has not reached this statement yet (it will
+      // block on the row lock and then match nothing) or already committed
+      // (we match nothing). Only the winner continues.
+      const transition = await this.runs.transitionTerminal(run.runId, basePatch, tx);
+      if (!transition.won) return false;
+      if (target) {
         const message = await tx.clioMessage.create({
           data: {
             tenantId: ctx.tenantId,
             userId: ctx.userId,
-            clientId: conversation.clientId,
-            conversationId: conversation.id,
+            clientId: target.clientId,
+            conversationId: target.id,
             role: 'assistant',
             body,
             metadata: {
@@ -716,17 +1251,39 @@ export class MeriHermesRuntimeAdapter {
           },
           select: { id: true },
         });
-        await this.runs.update(run.runId, { ...basePatch, assistantMessageId: message.id }, tx);
-        await this.runs.append(run.runId, 'run.status', { status, final: true, frames: buildFrames(message.id) }, 'public', tx);
-      });
-      this.maintenance.scheduleAfterTurnMaintenance(ctx, conversation.id);
-    } else {
-      // No conversation loaded (e.g. requestStop on a run never admitted to
-      // Hermes) -- nothing to persist alongside, so update/append each run in
-      // their own transaction as usual.
-      await this.runs.update(run.runId, { ...basePatch, assistantMessageId: null });
-      await this.runs.append(run.runId, 'run.status', { status, final: true, frames: buildFrames(null) });
-    }
+        // Append BEFORE update so the terminal event's own seq can be recorded
+        // as the final `outputSeq` in the same transaction: at this point
+        // `body` is the complete assistant answer, so every event up to and
+        // including this one is represented in the snapshot and is therefore
+        // safely prunable (P1-08).
+        const finalEvent = await this.runs.append(
+          run.runId,
+          'run.status',
+          { status, final: true, frames: buildFrames(message.id) },
+          'public',
+          tx,
+        );
+        await this.runs.update(
+          run.runId,
+          { assistantMessageId: message.id, outputSeq: finalEvent.seq },
+          tx,
+        );
+        return true;
+      }
+      // No readable conversation (e.g. a Stop on a run whose conversation is
+      // gone): still publish the run's own terminal event, just without an
+      // assistant message to point at.
+      const finalEvent = await this.runs.append(
+        run.runId,
+        'run.status',
+        { status, final: true, frames: buildFrames(null) },
+        'public',
+        tx,
+      );
+      await this.runs.update(run.runId, { assistantMessageId: null, outputSeq: finalEvent.seq }, tx);
+      return true;
+    });
+    if (won && target) this.maintenance.scheduleAfterTurnMaintenance(ctx, target.id);
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string): Promise<ConversationRow> {
@@ -843,13 +1400,37 @@ export class MeriHermesRuntimeAdapter {
     };
   }
 
-  private boundSessionId(conversation: ConversationRow): string | null {
+  private hermesMetadata(conversation: ConversationRow): Record<string, unknown> {
     const metadata = conversation.metadata;
-    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return {};
     const hermes = (metadata as Record<string, unknown>)[HERMES_CONVERSATION_METADATA_KEY];
-    if (!hermes || typeof hermes !== 'object' || Array.isArray(hermes)) return null;
-    const sessionId = (hermes as Record<string, unknown>).sessionId;
+    if (!hermes || typeof hermes !== 'object' || Array.isArray(hermes)) return {};
+    return hermes as Record<string, unknown>;
+  }
+
+  private boundSessionId(conversation: ConversationRow): string | null {
+    const sessionId = this.hermesMetadata(conversation).sessionId;
     return typeof sessionId === 'string' && sessionId ? sessionId : null;
+  }
+
+  /**
+   * `X-Hermes-Session-Key` — the name of the Hermes TRANSCRIPT for this Meri
+   * conversation (contracts.md §6). Suffixed with the session epoch once an
+   * authorization fence has invalidated the previous binding (F-2), so a
+   * rebuilt attempt genuinely starts a new transcript. Epoch 0 keeps the
+   * historical key byte-for-byte, so conversations that were never fenced
+   * continue on exactly the session they already have.
+   */
+  private sessionKeyFor(envelope: MeriHermesAuthorizationEnvelope, conversation: ConversationRow): string {
+    const base = `${envelope.executionScopeId}:conversation:${conversation.id}`;
+    const raw = this.hermesMetadata(conversation).sessionEpoch;
+    const epoch = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
+    return epoch > 0 ? `${base}:e${epoch}` : base;
+  }
+
+  /** The owned conversation row, or null when it is gone / not readable in this context. */
+  private async loadConversation(ctx: TenantContext, conversationId: string): Promise<ConversationRow | null> {
+    return this.ensureConversation(ctx, conversationId).catch(() => null);
   }
 
   private async bindSession(ctx: TenantContext, conversation: ConversationRow, sessionId: string): Promise<void> {

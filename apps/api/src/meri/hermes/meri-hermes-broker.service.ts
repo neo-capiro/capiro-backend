@@ -115,12 +115,55 @@ export class MeriHermesBrokerService {
       this.logger.warn(`broker scope mismatch for run ${run.runId}`);
       throw new ForbiddenException({ code: 'scope_mismatch' });
     }
-    if (MERI_HERMES_TERMINAL_STATUSES.has(run.status)) {
-      throw new ConflictException({ code: 'run_not_live', status: run.status });
+    // At entry the authorization version is checked against the CREDENTIAL's
+    // claims: a token minted under a newer version must not drive an older run.
+    const live = await this.assertLiveAuthorization(run, claims.authorizationVersion, now, 'entry');
+    return { claims, run: live.run, membershipRole: live.membershipRole };
+  }
+
+  /**
+   * Re-verify a run's LIVE authorization against CURRENT server state:
+   * run liveness/fence, envelope expiry, `authorizationVersion` equality with
+   * `expectedAuthorizationVersion`, and CURRENT active membership.
+   *
+   * What that version is depends on the phase, and the difference matters:
+   *   - 'entry' compares the run envelope against the CREDENTIAL's claims, so
+   *     a token minted under a different authorization version cannot drive
+   *     this run (the check contracts.md §2 describes).
+   *   - 'release' compares the FRESHLY RE-READ envelope against the version
+   *     this call was admitted under, so what it detects is the stored
+   *     authorization changing WHILE the read was in flight. Re-comparing the
+   *     credential's claims there would only repeat the entry check, since
+   *     claims are immutable for the life of a call.
+   *
+   * Every failure branch behaves exactly as the entry-time revocation branch
+   * always did: append the durable `error` event, ask the adapter to stop the
+   * Hermes worker and finalize the Meri run to a terminal state
+   * (`expired` / `interrupted`), then throw the stable-coded HTTP exception.
+   * Calling it twice is safe: the second call short-circuits on the terminal
+   * status with `run_not_live` instead of re-fencing.
+   *
+   * `phase` is diagnostic only: 'entry' is the pre-handler check
+   * (`authorize()`), 'release' is the post-read, pre-return check
+   * (`assertStillAuthorizedBeforeRelease()`).
+   */
+  private async assertLiveAuthorization(
+    run: MeriHermesRunRecord,
+    expectedAuthorizationVersion: string | undefined,
+    now: Date,
+    phase: 'entry' | 'release',
+  ): Promise<{ run: MeriHermesRunRecord; membershipRole: string }> {
+    // At 'entry' the caller has just loaded the run by its Hermes run id, so
+    // the record is already fresh and a second read would only add a round
+    // trip to every tool call. At 'release' it may be minutes old and a fence
+    // may have landed in between, so re-read.
+    const current = phase === 'release' ? ((await this.runs.get(run.runId)) ?? run) : run;
+    if (MERI_HERMES_TERMINAL_STATUSES.has(current.status)) {
+      throw new ConflictException({ code: 'run_not_live', status: current.status });
     }
-    if (Date.parse(run.envelope.expiresAt) <= now.getTime()) {
-      await this.runs.append(run.runId, 'error', { code: 'run_expired', frames: [] }, 'internal');
-      await this.adapter.stopWorkerAndFinalize(run, {
+    if (Date.parse(current.envelope.expiresAt) <= now.getTime()) {
+      await this.runs.append(current.runId, 'error', { code: 'run_expired', phase, frames: [] }, 'internal');
+      await this.adapter.stopWorkerAndFinalize(current, {
         finishReason: 'expired',
         partial: true,
         output: null,
@@ -128,10 +171,17 @@ export class MeriHermesBrokerService {
       });
       throw new ConflictException({ code: 'run_expired' });
     }
-    if (run.envelope.authorizationVersion !== claims.authorizationVersion) {
-      this.logger.warn(`authorization version mismatch for run ${run.runId}; stopping and fencing to interrupted`);
-      await this.runs.append(run.runId, 'error', { code: 'authorization_version_mismatch', frames: [] }, 'internal');
-      await this.adapter.stopWorkerAndFinalize(run, {
+    if (current.envelope.authorizationVersion !== expectedAuthorizationVersion) {
+      this.logger.warn(
+        `authorization version mismatch for run ${current.runId} (${phase}); stopping and fencing to interrupted`,
+      );
+      await this.runs.append(
+        current.runId,
+        'error',
+        { code: 'authorization_version_mismatch', phase, frames: [] },
+        'internal',
+      );
+      await this.adapter.stopWorkerAndFinalize(current, {
         finishReason: 'interrupted',
         partial: true,
         output: null,
@@ -140,16 +190,16 @@ export class MeriHermesBrokerService {
       throw new ForbiddenException({ code: 'authorization_version_mismatch' });
     }
     // Recheck CURRENT membership on every call: removal fences a live run.
-    const membership = await this.prisma.withTenant(run.envelope.tenantId, (tx) =>
+    const membership = await this.prisma.withTenant(current.envelope.tenantId, (tx) =>
       tx.tenantMembership.findFirst({
-        where: { tenantId: run.envelope.tenantId, userId: run.envelope.actorId, status: 'active' },
+        where: { tenantId: current.envelope.tenantId, userId: current.envelope.actorId, status: 'active' },
         select: { role: true },
       }),
     );
     if (!membership) {
-      this.logger.warn(`membership revoked mid-run for run ${run.runId}; stopping and fencing to interrupted`);
-      await this.runs.append(run.runId, 'error', { code: 'authorization_revoked', frames: [] }, 'internal');
-      await this.adapter.stopWorkerAndFinalize(run, {
+      this.logger.warn(`membership revoked mid-run for run ${current.runId} (${phase}); stopping and fencing to interrupted`);
+      await this.runs.append(current.runId, 'error', { code: 'authorization_revoked', phase, frames: [] }, 'internal');
+      await this.adapter.stopWorkerAndFinalize(current, {
         finishReason: 'interrupted',
         partial: true,
         output: null,
@@ -157,7 +207,39 @@ export class MeriHermesBrokerService {
       });
       throw new ForbiddenException({ code: 'authorization_revoked' });
     }
-    return { claims, run, membershipRole: membership.role };
+    return { run: current, membershipRole: membership.role };
+  }
+
+  /**
+   * RELEASE GUARD (Phase 1 finding F-1). `authorize()` runs once, at entry to a
+   * tool call. A governed read that takes real time — the Context Plane recall
+   * is a multi-table query — can therefore be authorized microseconds before a
+   * revocation lands and still hand its payload to the worker, and from there
+   * to the model, where contracts.md §2 says no later check can remove it.
+   *
+   * So every broker path that RETURNS DATA re-verifies the same live state
+   * AFTER the underlying read resolves and BEFORE the payload is returned. On
+   * failure the payload is discarded by construction (this throws, so the
+   * caller's `return` is never reached — the bytes are only ever a local
+   * variable), the attempt is fenced exactly as the entry-time branch fences
+   * it, and the worker gets the same stable-coded 403/409.
+   *
+   * Mutating paths (`proposeMemory`, `publishArtifact`, `requestClarification`)
+   * deliberately do NOT carry this guard: their work is already committed by
+   * the time it would run, so a 403 there would report failure for a write that
+   * happened. Their protection remains the entry check plus the fact that a
+   * fenced run rejects every subsequent call with `run_not_live`.
+   */
+  private async assertStillAuthorizedBeforeRelease(auth: MeriHermesBrokerAuth): Promise<void> {
+    /**
+     * The version compared here is the one this call was ADMITTED under
+     * (`auth.run.envelope.authorizationVersion`, already checked against the
+     * credential's claims at entry), re-read from the store. That is the
+     * comparison that can actually change while a read is in flight; the
+     * credential's own claims are immutable for the life of the call, so
+     * re-comparing against them would only repeat the entry check.
+     */
+    await this.assertLiveAuthorization(auth.run, auth.run.envelope.authorizationVersion, new Date(), 'release');
   }
 
   async assertTool(auth: MeriHermesBrokerAuth, tool: MeriHermesBrokerTool): Promise<void> {
@@ -187,6 +269,10 @@ export class MeriHermesBrokerService {
       limit,
       authorizedClientIds: auth.run.envelope.authorizedClientIds,
     });
+    // F-1 release guard: `result` is still only a local variable here. If
+    // authorization changed while the governed read was running, this throws
+    // and the payload is discarded without ever reaching the worker.
+    await this.assertStillAuthorizedBeforeRelease(auth);
     await this.runs.append(
       auth.run.runId,
       'memory.recalled',
@@ -264,6 +350,10 @@ export class MeriHermesBrokerService {
       }),
     );
     if (!row) throw new NotFoundException('Attachment not found');
+    // F-1 release guard, same rule as `recall()`: the attachment bytes are
+    // still only a local variable, and a revocation that landed while this
+    // read was in flight must withhold them rather than hand them to the model.
+    await this.assertStillAuthorizedBeforeRelease(auth);
     await this.runs.append(
       auth.run.runId,
       'run.status',

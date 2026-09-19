@@ -1,0 +1,68 @@
+[32m[Nest] 16728  - [39m09/19/2026, 6:13:29 PM [32m    LOG[39m [38;5;3m[MeriHermesMaintenanceService] [39m[32mMeri/Hermes maintenance sweep started (every 250ms)[39m
+[33m[Nest] 16728  - [39m09/19/2026, 6:13:31 PM [33m   WARN[39m [38;5;3m[MeriHermesMaintenanceService] [39m[33mrecovered 2 orphaned Hermes run(s) from a dead replica[39m
+[33m[Nest] 16728  - [39m09/19/2026, 6:13:31 PM [33m   WARN[39m [38;5;3m[MeriHermesMaintenanceService] [39m[33mrecovered 1 orphaned Hermes run(s) from a dead replica[39m
+[33m[Nest] 16728  - [39m09/19/2026, 6:13:31 PM [33m   WARN[39m [38;5;3m[MeriHermesMaintenanceService] [39m[33mrecovered 1 orphaned Hermes run(s) from a dead replica[39m
+[32m[Nest] 16728  - [39m09/19/2026, 6:13:31 PM [32m    LOG[39m [38;5;3m[MeriHermesMaintenanceService] [39m[32mMeri/Hermes maintenance sweep started (every 5000ms)[39m
+FAIL src/meri/hermes/meri-hermes-maintenance.worker.spec.ts (111.047 s)
+  ● Meri/Hermes scheduled maintenance (real local Postgres) › 3. the same tick reclaims an idle worker (sweepIdleWorkers finally has a production caller)
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 1
+    Received:    0
+
+    [0m [90m 458 |[39m     [36mconst[39m result [33m=[39m [36mawait[39m maintenance[33m.[39mrunOnce()[33m;[39m
+     [90m 459 |[39m
+    [31m[1m>[22m[39m[90m 460 |[39m     expect(result[33m.[39mworkersStopped)[33m.[39mtoBeGreaterThanOrEqual([35m1[39m)[33m;[39m
+     [90m     |[39m                                   [31m[1m^[22m[39m
+     [90m 461 |[39m     expect(stopped)[33m.[39mtoContain([32m'arn:aws:ecs:us-east-1:000000000000:task/idle-one'[39m)[33m;[39m
+     [90m 462 |[39m     [36mconst[39m row [33m=[39m [36mawait[39m prismaA[33m.[39mwithTenant(tenantId[33m,[39m (tx) [33m=>[39m
+     [90m 463 |[39m       tx[33m.[39mmeriExecutionScope[33m.[39mfindUnique({ where[33m:[39m { id[33m:[39m executionScopeId }[33m,[39m select[33m:[39m { workerState[33m:[39m [36mtrue[39m } })[33m,[39m[0m
+
+      at Object.<anonymous> (src/meri/hermes/meri-hermes-maintenance.worker.spec.ts:460:35)
+
+PASS src/meri/hermes/meri-hermes-worker-provisioning-fencing.spec.ts
+[31m[Nest] 16728  - [39m09/19/2026, 6:13:53 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun a1cb3ca3-028d-4513-9641-1a48665c52e4 admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+PASS src/meri/hermes/meri-hermes-isolation.spec.ts (19.453 s)
+[33m[Nest] 16728  - [39m09/19/2026, 6:13:56 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mrun 3c830fd1-01bf-42df-9cae-b5b48c1f9842: consumer replica-a no longer owns this run (durable write rejected by the ownership fence); stopping consumption[39m
+[32m[Nest] 16728  - [39m09/19/2026, 6:13:56 PM [32m    LOG[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[32mrun 3c830fd1-01bf-42df-9cae-b5b48c1f9842: consumption ended after takeover; leaving finalization to the current owner[39m
+[33m[Nest] 16728  - [39m09/19/2026, 6:14:00 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mrecovered 2 orphaned Hermes run(s) for tenant d62fd199-04ec-4b75-aa56-d63f9d49e7dd[39m
+PASS src/meri/hermes/meri-hermes-ownership-and-finalization.spec.ts (7.043 s)
+[33m[Nest] 16728  - [39m09/19/2026, 6:14:05 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33madmission rejected for conversation 191df5cd-34b1-4b42-a01c-32405a13f582: This conversation already has an active turn in progress (run 2309a013-7984-437b-90ca-e2246e27bd8a).[39m
+PASS src/meri/hermes/meri-hermes-cross-replica.spec.ts (5.189 s)
+PASS src/meri/hermes/meri-hermes-artifact-storage.integration.spec.ts
+[31m[Nest] 16728  - [39m09/19/2026, 6:14:09 PM [31m  ERROR[39m [38;5;3m[MeriHermesWorkerLifecycleService] [39m[31mworker provisioning failed for scope tenant:tenant-1:user:alice: Timed out waiting for ECS task arn:aws:ecs:...:task/stuck to reach RUNNING[39m
+PASS src/meri/hermes/meri-hermes-worker-lifecycle.service.spec.ts
+  ● Console
+
+    console.error
+      {"event":"meri_hermes_worker_provisioning","failed":1,"executionScopeId":"tenant:tenant-1:user:alice","tenantId":"tenant-1","reason":"Timed out waiting for ECS task arn:aws:ecs:...:task/stuck to reach RUNNING"}
+
+    [0m [90m 464 |[39m       [90m// (MeriHermesWorkerFleet's optional apiLogGroup alarm) can find it.[39m
+     [90m 465 |[39m       [90m// eslint-disable-next-line no-console[39m
+    [31m[1m>[22m[39m[90m 466 |[39m       console[33m.[39merror(
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 467 |[39m         [33mJSON[39m[33m.[39mstringify({
+     [90m 468 |[39m           event[33m:[39m [32m'meri_hermes_worker_provisioning'[39m[33m,[39m
+     [90m 469 |[39m           failed[33m:[39m [35m1[39m[33m,[39m[0m
+
+      at MeriHermesWorkerLifecycleService.provision (src/meri/hermes/meri-hermes-worker-lifecycle.service.ts:466:15)
+      at Object.<anonymous> (src/meri/hermes/meri-hermes-worker-lifecycle.service.spec.ts:291:5)
+
+PASS src/meri/hermes/meri-hermes-prisma-run-repository.spec.ts
+PASS src/meri/hermes/meri-hermes-governed-recall.integration.spec.ts
+[33m[Nest] 16728  - [39m09/19/2026, 6:14:14 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mbroker scope mismatch for run 91185294-0c62-4004-8376-46f38eeb93c9[39m
+[33m[Nest] 16728  - [39m09/19/2026, 6:14:14 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mauthorization version mismatch for run bc20517d-c428-463d-b924-c965e5ba9b37 (entry); stopping and fencing to interrupted[39m
+[33m[Nest] 16728  - [39m09/19/2026, 6:14:15 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mmembership revoked mid-run for run f9a1e363-4c08-44a1-9f32-aff67a52255b (entry); stopping and fencing to interrupted[39m
+PASS src/meri/hermes/meri-hermes-broker-isolation.spec.ts
+PASS src/meri/hermes/meri-hermes-run-store.spec.ts
+PASS src/meri/hermes/meri-hermes-event-translator.spec.ts
+PASS src/meri/hermes/meri-hermes-worker-token.spec.ts
+
+Test Suites: 1 failed, 12 passed, 13 total
+Tests:       1 failed, 90 passed, 91 total
+Snapshots:   0 total
+Time:        155.839 s
+Ran all test suites matching /src\\meri\\hermes/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+jest exit=1

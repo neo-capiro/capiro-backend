@@ -83,6 +83,11 @@ import { MeriHermesRuntimeAdapter } from './hermes/meri-hermes-runtime.adapter.j
 import { MeriHermesBrokerService } from './hermes/meri-hermes-broker.service.js';
 import { MeriHermesArtifactStorageService } from './hermes/meri-hermes-artifact-storage.service.js';
 import {
+  MeriHermesMaintenanceService,
+  MeriHermesWorkerLifecycleService,
+} from './hermes/meri-hermes-worker-lifecycle.service.js';
+import { MERI_HERMES_WORKER_RESOLVER } from './hermes/meri-hermes-worker-resolver.port.js';
+import {
   MeriHermesBrokerController,
   MeriHermesWorkerTokenGuard,
 } from './hermes/meri-hermes-broker.controller.js';
@@ -153,12 +158,28 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
     MeriHermesRuntimeClient,
     MeriHermesRunStore,
     { provide: MERI_HERMES_RUN_REPOSITORY, useClass: MeriHermesPrismaRunRepository },
+    // Phase 1 backlog #2: on-demand worker provisioning. Bound to the client
+    // by the MERI_HERMES_WORKER_RESOLVER token (not by concrete class) to
+    // avoid a circular class dependency — see meri-hermes-worker-resolver.port.ts.
+    MeriHermesWorkerLifecycleService,
+    { provide: MERI_HERMES_WORKER_RESOLVER, useExisting: MeriHermesWorkerLifecycleService },
     { provide: MERI_HERMES_RECALL_PORT, useClass: ContextPlaneRecallPort },
     { provide: MERI_HERMES_SECURITY_ENVELOPE, useExisting: MeriContextPlaneService },
     MeriHermesArtifactStorageService,
     MeriHermesBrokerService,
     MeriHermesWorkerTokenGuard,
     MeriHermesRuntimeAdapter,
+    /**
+     * Phase 1 required fix 2a: the background owner of crash recovery
+     * (`takeOverStaleRuns`) and idle-worker reclamation (`sweepIdleWorkers`),
+     * neither of which had any production caller. Registered here rather than
+     * in `EngagementWorkersModule` because that module is explicitly the
+     * owner of *Engagement* timers and is not loaded by every process that
+     * serves Meri. Its own guards (NODE_ENV, HTTP adapter presence,
+     * MERI_HERMES_MAINTENANCE_ENABLED) decide whether it actually starts —
+     * see the class doc.
+     */
+    MeriHermesMaintenanceService,
     {
       provide: MeriService,
       useFactory: createMeriRuntimeService,

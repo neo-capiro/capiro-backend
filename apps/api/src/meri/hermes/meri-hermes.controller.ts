@@ -68,6 +68,16 @@ export function projectRun(run: MeriHermesRunRecord) {
     updatedAt: run.updatedAt,
     finishedAt: run.finishedAt,
     lastSeq: run.lastSeq,
+    /**
+     * Pruning-safe recovery pair (P1-08). `outputSnapshot` is the assistant
+     * text already accumulated, authoritative up to `outputSeq`; the event log
+     * is guaranteed never to have pruned anything above that line. A client
+     * recovering a long run should render `outputSnapshot` and then replay
+     * `events?after=outputSeq` — NOT `after=0`, which silently loses text once
+     * a run exceeds the event cap.
+     */
+    outputSnapshot: run.output,
+    outputSeq: run.outputSeq,
     finishReason: run.finishReason,
     partial: run.partial,
     error: run.error,
@@ -111,11 +121,40 @@ export class MeriHermesController {
     }
   }
 
+  /**
+   * CONTROL / OBSERVATION of an ALREADY-ADMITTED run: ownership ONLY, no
+   * enablement gate.
+   *
+   * `deployment-validation-and-rollback.md` makes the kill switch a drain:
+   * after the flag is closed, in-flight runs are stopped via
+   * `POST .../runs/:id/stop`, and "a flag change must not make active workers
+   * uncontrollable". Routing Stop through the gate contradicted that exactly —
+   * closing the flag turned every live run into something the owner could
+   * neither stop nor even look at, while the Hermes worker kept running. The
+   * flag's job is to stop NEW work being admitted, not to strand work already
+   * admitted under it.
+   *
+   * Ownership is unchanged and remains the real authorization: a non-owner
+   * (or another tenant) still gets an indistinguishable 404, gate or no gate.
+   */
   private async ownedRun(ctx: TenantContext, runId: string): Promise<MeriHermesRunRecord> {
-    await this.assertEnabled(ctx);
     const run = await this.runs.requireOwned(runId, ctx.tenantId, ctx.userId);
     if (!run) throw new NotFoundException('Run not found');
     return run;
+  }
+
+  /**
+   * Anything that CREATES NEW WORK or GRANTS NEW EXECUTION stays behind the
+   * gate, even for the owner of an existing run: capabilities, approval
+   * resolution (approving a native command after the kill switch would let the
+   * worker execute MORE — Stop is the correct drain path), clarification
+   * answers (they become the next turn's input) and steering (new guidance to
+   * act on). New submissions are refused upstream by
+   * `MeriHermesRuntimeAdapter.shouldHandle`.
+   */
+  private async gatedOwnedRun(ctx: TenantContext, runId: string): Promise<MeriHermesRunRecord> {
+    await this.assertEnabled(ctx);
+    return this.ownedRun(ctx, runId);
   }
 
   @Get('capabilities')
@@ -186,6 +225,88 @@ export class MeriHermesController {
     return projectRun(await this.ownedRun(ctx, runId));
   }
 
+  /**
+   * Conversation-scoped discovery (P1-10). Answers "is anything running in this
+   * conversation, and is anything waiting on me?" from the server, so the
+   * browser needs no `sessionStorage` run pointer that a new tab, a different
+   * device or a cleared session would not have.
+   *
+   * Guards, in order: pilot gate (404 outside the pilot), then conversation
+   * OWNERSHIP — a conversation belonging to another tenant/user is 404,
+   * identical to an unknown id, so the endpoint leaks no existence.
+   *
+   * It is also a natural reconciliation point (P1-07): a run left
+   * admitted-but-never-dispatched by a crashed replica still holds this
+   * conversation's single-writer lease, and the client asking "what is
+   * happening here?" is exactly when that must be cleared — otherwise the next
+   * turn fails with `conversation_occupied` forever.
+   *
+   * `pendingInteractions` deliberately includes interactions whose run is
+   * already TERMINAL: a clarification is a durable continuation, and its run
+   * ends its turn as soon as the question is asked.
+   */
+  @Get('conversations/:conversationId/active')
+  async conversationActive(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+  ) {
+    /**
+     * Deliberately still GATED, unlike the per-run control surfaces below.
+     * This is a CONVERSATION-level lookup ("does this conversation have a
+     * runtime at all?"), not control of an already-admitted run, and a client
+     * that has a run open already holds its run id. The drain path the
+     * rollback document specifies — read the run, replay its events, Stop it —
+     * is per-run and needs ownership only; see `ownedRun()`.
+     */
+    await this.assertEnabled(ctx);
+    const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioConversation.findFirst({
+        where: { id: conversationId, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: { id: true },
+      }),
+    );
+    if (!conversation) throw new NotFoundException('Conversation not found');
+    await this.adapter
+      .reconcileStuckDispatches()
+      .catch(() => undefined); // best effort; never fail discovery on it
+    // P1-09 recovery, request-driven: a run whose consuming replica died is
+    // otherwise finished by nobody. "What is happening in this conversation?"
+    // is exactly the moment to notice. Tenant-scoped and throttled inside the
+    // adapter; best effort, never fails discovery.
+    await this.adapter.sweepStaleConsumers(ctx.tenantId).catch(() => undefined);
+    const activity = await this.runs.findConversationActivity(ctx.tenantId, ctx.userId, conversationId);
+    return {
+      run: activity.run
+        ? {
+            runId: activity.run.runId,
+            status: activity.run.status,
+            finishReason: activity.run.finishReason,
+            partial: activity.run.partial,
+            detached: activity.run.detached,
+            outputSnapshot: activity.run.output,
+            outputSeq: activity.run.outputSeq,
+            lastSeq: activity.run.lastSeq,
+            hermesRunId: activity.run.hermesRunId,
+            hermesSessionId: activity.run.hermesSessionId,
+            createdAt: activity.run.createdAt,
+            updatedAt: activity.run.updatedAt,
+            finishedAt: activity.run.finishedAt,
+          }
+        : null,
+      pendingInteractions: activity.pendingInteractions.map((i) => ({
+        runId: i.runId,
+        requestId: i.requestId,
+        kind: i.kind,
+        continuation: i.continuation,
+        prompt: i.prompt,
+        choices: i.choices,
+        multiSelect: i.multiSelect,
+        createdAt: i.createdAt,
+        expiresAt: i.expiresAt,
+      })),
+    };
+  }
+
   @Get('runs/:runId/events')
   async events(
     @CurrentTenant() ctx: TenantContext,
@@ -231,7 +352,7 @@ export class MeriHermesController {
     @Param('runId', ParseUUIDPipe) runId: string,
     @Body() body: ApprovalDecisionDto,
   ) {
-    const run = await this.ownedRun(ctx, runId);
+    const run = await this.gatedOwnedRun(ctx, runId);
     await this.adapter.resolveApproval(run, body.requestId, body.decision, ctx.userId);
     return projectRun((await this.runs.get(run.runId)) ?? run);
   }
@@ -242,7 +363,7 @@ export class MeriHermesController {
     @Param('runId', ParseUUIDPipe) runId: string,
     @Body() body: ClarificationAnswerDto,
   ) {
-    const run = await this.ownedRun(ctx, runId);
+    const run = await this.gatedOwnedRun(ctx, runId);
     const answer = body.answers?.length ? body.answers : body.answer;
     if (!answer) throw new BadRequestException('answer or answers is required');
     const result = await this.adapter.answerClarification(run, body.requestId, answer, ctx.userId);
@@ -255,7 +376,7 @@ export class MeriHermesController {
     @Param('runId', ParseUUIDPipe) runId: string,
     @Body() body: SteerDto,
   ) {
-    const run = await this.ownedRun(ctx, runId);
+    const run = await this.gatedOwnedRun(ctx, runId);
     return { accepted: await this.adapter.steer(run, body.text) };
   }
 

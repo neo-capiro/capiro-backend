@@ -42,6 +42,14 @@ test('Outreach V3 is explicitly enabled without opening the global shadow contro
 
   // The effort above is inert unless the model accepts a reasoning parameter, so
   // the pair is asserted together — dropping either one silently returns V3
-  // drafting to no reasoning at all, which is the failure this pins.
-  assert.equal(env.OUTREACH_V3_GENERATION_MODEL, 'gpt-5');
+  // drafting to no reasoning at all, which is the failure this pins. That premise
+  // survives the GPT-6 upgrade (f78a2a07a): gpt-6-astra still matches
+  // reasoning-effort.ts's OPENAI_REASONING_PATTERNS (/^gpt-[56]/), so the effort
+  // is still sent. What changed is that it is no longer clamped on the way out —
+  // openAiReasoningEffort() returns 'max' for GPT-6 where gpt-5 collapsed it to
+  // 'high', so this pin now guards the top of the ladder as well as its presence.
+  //
+  // 'gpt-5' is not a valid pin here even as a rollback: config.schema.ts runs this
+  // value through upgradeTextModel(), which rewrites it to gpt-6-astra at boot.
+  assert.equal(env.OUTREACH_V3_GENERATION_MODEL, 'gpt-6-astra');
 });

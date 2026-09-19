@@ -2411,6 +2411,19 @@ model MeriAgentRun {
   /// is ambiguous-startup (P1-07) and is reconciled, never blindly retried.
   dispatchStatus     String    @default("pending") @map("dispatch_status") @db.VarChar(20)
   dispatchAttempts   Int       @default(0) @map("dispatch_attempts")
+  /// Pruning-safe recovery snapshot (P1-08): the `seq` of the LAST event whose
+  /// content is already represented in `output`. Written in the SAME transaction
+  /// as the event it names, so the snapshot and its sequence can never diverge.
+  /// A recovering client reads `output` + `output_seq` and then replays only
+  /// `seq > output_seq`; `enforceEventCap` correspondingly never prunes an event
+  /// with `seq > output_seq`.
+  outputSeq          Int       @default(0) @map("output_seq")
+  /// Consumer lease (P1-09): the API replica currently consuming Hermes's event
+  /// stream for this run, plus its liveness heartbeat. A non-terminal, dispatched
+  /// run whose heartbeat is stale may be claimed by another replica
+  /// (`claimConsumer`, an atomic conditional UPDATE so only one replica wins).
+  consumerId          String?   @map("consumer_id") @db.VarChar(80)
+  consumerHeartbeatAt DateTime? @map("consumer_heartbeat_at") @db.Timestamptz(6)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   finishedAt         DateTime? @map("finished_at") @db.Timestamptz(6)
@@ -2424,6 +2437,7 @@ model MeriAgentRun {
   @@unique([scopeId, idempotencyKey], map: "meri_agent_runs_scope_idempotency_key")
   @@index([tenantId, actorId, conversationId, createdAt], map: "meri_agent_runs_tenant_actor_conversation_idx")
   @@index([scopeId, status], map: "meri_agent_runs_scope_status_idx")
+  @@index([consumerHeartbeatAt], map: "meri_agent_runs_consumer_heartbeat_idx")
   @@map("meri_agent_runs")
 }
 
