@@ -103,7 +103,13 @@ describe('syncMail — frozen backfill query', () => {
       },
     });
     const state: Record<string, unknown> = {
-      mail: { labels: { ALL: { backfillPageToken: 'legacy-token', backfillDone: false } } },
+      // captureVersion 1 keeps this on the resume path the test describes;
+      // without it the forced replay discards the legacy token anyway and
+      // the warn-once assertion would vacuously pass for the wrong reason.
+      mail: {
+        captureVersion: 1,
+        labels: { ALL: { backfillPageToken: 'legacy-token', backfillDone: false } },
+      },
     };
 
     await runSyncMail(service, state, {});

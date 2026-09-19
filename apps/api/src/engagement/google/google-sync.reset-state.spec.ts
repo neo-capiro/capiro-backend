@@ -18,6 +18,7 @@ type MailState = {
     historyId?: string | null;
     incrementalPageToken?: string | null;
     incrementalLatestHistoryId?: string | null;
+    captureVersion?: number;
     labels?: Record<
       string,
       {
@@ -175,6 +176,10 @@ describe('Gmail reset/reclaim state', () => {
     const state: MailState = {
       mail: {
         historyId: 'stale-history',
+        // Post-capture-replay (#1522): a connection that has already completed
+        // its capture replay carries captureVersion 1. Without it the forced
+        // replay below would discard this legacy continuation entirely.
+        captureVersion: 1,
         labels: {
           ALL: {
             backfillPageToken: 'page-13',
@@ -206,6 +211,7 @@ describe('Gmail reset/reclaim state', () => {
     const { service, patch } = mailHarness([{ messages: [] }], 'recovered-history');
     const state: MailState = {
       mail: {
+        captureVersion: 1,
         labels: {
           ALL: {
             backfillPageToken: 'page-13',

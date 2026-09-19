@@ -53,6 +53,24 @@ const GOOGLE_SYNC_TX_TIMEOUT_MS = 20_000;
 // the same retryable status with a small Retry-After could hold a request (and
 // its scheduler slot) open forever. 3 attempts = at most ~30s of backoff.
 const MAX_RETRYABLE_ATTEMPTS = 3;
+// Gmail charges ~5 quota units per messages.get / messages.list against a
+// per-user per-minute limit (240 by default; the Capiro project still runs the
+// default). One full-backfill page of GMAIL_PAGE_SIZE message fetches is
+// therefore ~505 units in a burst — far beyond one minute's window — and the
+// resulting 403 quota rejections starve interactive traffic (sends, manual
+// syncs) that shares the same per-user bucket. This is exactly the
+// 2026-09-08 capture-replay storm. Budget each run's provider calls and
+// checkpoint unprocessed refs so a replay advances steadily across scheduler
+// cycles instead of slamming the wall every cycle.
+const GMAIL_QUOTA_UNITS_PER_REQUEST = 5;
+// 24 provider requests per run. A run finishes in seconds, so its calls land
+// inside one rolling per-minute window — the budget must stay well under the
+// 240 limit to leave headroom for concurrent user-triggered traffic (a manual
+// "Sync now" or a Gmail send bursts against the same window). 120 = exactly
+// the existing MAX_MAIL_PAGES_PER_LABEL_PER_RUN cap's cost for the smallest
+// real page (one list + one message), so the two bounds compose predictably:
+// the page cap binds for sparse pages, the quota budget for dense ones.
+const GMAIL_BACKFILL_RUN_QUOTA_UNITS = 120;
 // Gmail labels we mirror into the store — the direct analog of the Outlook
 // 'inbox' / 'sentitems' mail folders.
 // Backfill scope: ALL mail minus junk — spam/trash/drafts excluded, archived
@@ -174,6 +192,19 @@ interface MailLabelSyncState {
   backfillPageToken?: string | null;
   backfillDone?: boolean;
   backfillQuery?: string | null;
+  // Full-backfill resume state for quota-budgeted runs: `backfillPendingRefs`
+  // holds the not-yet-fetched message ids from the last partially-consumed
+  // messages.list page (front of the queue), and `backfillPendingPageToken`
+  // holds that page's continuation. While refs remain, the run must NOT call
+  // messages.list again — it resumes draining the queue, then picks up the
+  // saved pageToken (reissuing the frozen query) to keep advancing.
+  backfillPendingRefs?: string[];
+  backfillPendingPageToken?: string | null;
+  // True once the provider's messages.list chain reported no nextPageToken
+  // AND every ref it returned has been persisted. Kept separately from
+  // backfillDone because a quota yield can leave the final page's refs queued
+  // while the chain itself is already exhausted.
+  backfillChainEnded?: boolean;
   updatedAt?: string | null;
 }
 
@@ -823,23 +854,42 @@ export class GoogleSyncService {
     // own backfill (upserts are idempotent).
     const labelStates = reset ? {} : (mailState.labels ?? {});
     const current = labelStates[MAIL_BACKFILL_SCOPE] ?? {};
-    if (current.backfillDone && !current.backfillPageToken && !reset) {
+    // Pending refs are concrete unfinished work; they win over a stale
+    // completion flag exactly like a surviving page token does.
+    const hasPendingRefs = (current.backfillPendingRefs?.length ?? 0) > 0;
+    if (current.backfillDone && !current.backfillPageToken && !hasPendingRefs && !reset) {
       results[MAIL_BACKFILL_SCOPE] = emptyStats();
     } else {
       const stats = emptyStats();
-      let pageToken: string | null = reset ? null : (current.backfillPageToken ?? null);
+      // Quota-budgeted resume state. `queue` holds message ids from the last
+      // partially-consumed messages.list page (front = next to fetch);
+      // `nextToken` is the continuation for the next list call ONCE the queue
+      // is empty — while refs remain, it is the continuation OF the page being
+      // drained. `chainEnded` records that the provider said the page chain is
+      // over so a resumed final page never re-lists from page one.
+      let queue: string[] = hasPendingRefs ? [...(current.backfillPendingRefs ?? [])] : [];
+      let nextToken: string | null = reset
+        ? null
+        : hasPendingRefs
+          ? (current.backfillPendingPageToken ?? null)
+          : (current.backfillPageToken ?? null);
+      let chainEnded = hasPendingRefs ? current.backfillChainEnded === true : false;
+      let yielded = false;
+      let quotaBudget = GMAIL_BACKFILL_RUN_QUOTA_UNITS;
 
       // The pageToken a prior run stored is only valid against the EXACT query
       // that produced it. `after:` is a Unix timestamp computed from "now", so
       // recomputing it on every scheduler tick would silently drift the query
       // out from under a still-valid pageToken. Freeze it once per backfill
-      // cycle and reuse verbatim on every resume within that cycle.
+      // cycle and reuse verbatim on every resume within that cycle — including
+      // quota-yield resumes of a final page whose continuation is null.
+      const freshQuery = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
       let query: string;
-      if (reset || !pageToken) {
-        query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
+      if (reset) {
+        query = freshQuery;
       } else if (current.backfillQuery) {
         query = current.backfillQuery;
-      } else {
+      } else if (nextToken) {
         // Legacy state: a page token was persisted before backfillQuery
         // existed. It cannot be trusted against a freshly computed query —
         // discard it and restart the backfill from page one instead of
@@ -847,25 +897,31 @@ export class GoogleSyncService {
         this.logger.warn(
           `Gmail backfill pageToken for connection ${connection.id} has no stored query; discarding and restarting from page one`,
         );
-        pageToken = null;
-        query = `after:${Math.floor(addDays(new Date(), -MAIL_BACKFILL_DAYS).getTime() / 1000)} ${MAIL_EXCLUDE_QUERY}`;
+        nextToken = null;
+        query = freshQuery;
+      } else {
+        query = freshQuery;
       }
 
       for (let page = 0; page < MAX_MAIL_PAGES_PER_LABEL_PER_RUN; page += 1) {
-        stats.pages += 1;
-        const list = await this.gmailList(accessToken, {
-          query,
-          pageToken: pageToken ?? undefined,
-        });
-        for (const ref of list.messages ?? []) {
-          if (!ref.id) continue;
+        // 1. Drain the pending-refs queue. Resume work needs no list call, so
+        //    a run interrupted by the quota wall makes progress every cycle.
+        //    (Runs even when chainEnded — the final page's refs still need
+        //    draining before the backfill can complete.)
+        while (queue.length > 0) {
+          if (quotaBudget < GMAIL_QUOTA_UNITS_PER_REQUEST) {
+            yielded = true;
+            break;
+          }
+          const id = queue.shift()!;
+          quotaBudget -= GMAIL_QUOTA_UNITS_PER_REQUEST;
           stats.scanned += 1;
           try {
-            const message = await this.gmailGet(accessToken, ref.id);
+            const message = await this.gmailGet(accessToken, id);
             // Labels can change between listing and fetch. Apply the same
             // removal contract as incremental sync instead of restoring trash.
             if ((message.labelIds ?? []).some((label) => EXCLUDED_LABEL_IDS.has(label))) {
-              await this.markGmailMessageRemoved(tenantId, ref.id, 'trashed');
+              await this.markGmailMessageRemoved(tenantId, id, 'trashed');
               stats.removed += 1;
               continue;
             }
@@ -880,28 +936,75 @@ export class GoogleSyncService {
           } catch (err) {
             // ONLY skip a genuinely gone message (deleted between list and
             // fetch). Transient/infra errors (429, 5xx, DB pool/timeout) MUST
-            // propagate: aborting here leaves the backfill pageToken un-advanced
-            // so the scheduler re-fetches this page next cycle. Swallowing them
+            // propagate: aborting here leaves the cursor un-advanced so the
+            // scheduler re-fetches this page next cycle. Swallowing them
             // would advance the cursor past never-persisted messages and
             // silently drop them.
-            if (!isMessageGoneError(err)) throw err;
-            stats.failed += 1;
-            this.logger.warn(
-              `Gmail message ${ref.id} is gone for connection ${connection.id}; skipping: ${
-                err instanceof Error ? err.message : err
-              }`,
-            );
+            if (isMessageGoneError(err)) {
+              stats.failed += 1;
+              this.logger.warn(
+                `Gmail message ${id} is gone for connection ${connection.id}; skipping: ${
+                  err instanceof Error ? err.message : err
+                }`,
+              );
+              continue;
+            }
+            if (isTransientQuotaError(err)) {
+              // Quota wall mid-page: put the ref back and CHECKPOINT instead
+              // of throwing. Throwing discards all of this run's progress
+              // (state.mail is only assigned on success), so the next run
+              // would restart the page from scratch — the livelock behind
+              // the 2026-09-08 storm.
+              queue.unshift(id);
+              yielded = true;
+              break;
+            }
+            throw err;
           }
         }
-        pageToken = list.nextPageToken ?? null;
-        if (!pageToken) break;
+        if (yielded) break;
+        // 2. The previous list (this run or a quota-yielding prior one) said
+        //    the chain is over, and everything it returned is persisted.
+        if (chainEnded) break;
+        // 3. Afford one more messages.list before spending its quota units.
+        if (quotaBudget < GMAIL_QUOTA_UNITS_PER_REQUEST) {
+          yielded = true;
+          break;
+        }
+        // 4. Fetch the next page of the frozen query.
+        stats.pages += 1;
+        quotaBudget -= GMAIL_QUOTA_UNITS_PER_REQUEST;
+        let list: GmailListResponse;
+        try {
+          list = await this.gmailList(accessToken, {
+            query,
+            pageToken: nextToken ?? undefined,
+          });
+        } catch (err) {
+          if (isTransientQuotaError(err)) {
+            // The failed list advanced nothing; the token stays valid for the
+            // next run. Yield cleanly rather than failing the connection.
+            yielded = true;
+            break;
+          }
+          throw err;
+        }
+        queue = (list.messages ?? [])
+          .map((ref) => ref.id)
+          .filter((id): id is string => Boolean(id));
+        nextToken = list.nextPageToken ?? null;
+        chainEnded = nextToken === null;
       }
 
-      stats.hasMore = Boolean(pageToken);
+      const hasMore = yielded || queue.length > 0 || nextToken !== null;
+      stats.hasMore = hasMore;
       labelStates[MAIL_BACKFILL_SCOPE] = {
-        backfillPageToken: pageToken,
-        backfillDone: !pageToken,
+        backfillPageToken: queue.length > 0 ? null : nextToken,
+        backfillDone: !hasMore,
         backfillQuery: query,
+        backfillPendingRefs: queue,
+        backfillPendingPageToken: queue.length > 0 ? nextToken : null,
+        backfillChainEnded: chainEnded,
         updatedAt: new Date().toISOString(),
       };
       results[MAIL_BACKFILL_SCOPE] = stats;
@@ -1436,7 +1539,16 @@ export class GoogleSyncService {
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      const message = `Google API GET ${url} failed (${response.status}): ${text.slice(0, 500)}`;
+      // Error reason FIRST, parsed out of the body: Gmail's quota-exceeded
+      // body is ~505+ chars, so a plain slice(0, 500) cut it mid-word inside
+      // "rateLimitExceeded" — and every downstream classifier (including
+      // isPermanentMailFailure) regex-matches that reason to distinguish
+      // transient quota walls from permanent permission failures. A truncated
+      // reason silently reclassified quota 403s as permanent and flipped every
+      // connection to error state (the 2026-09-08 storm's red-banner half).
+      const reason = extractGoogleErrorReason(text);
+      const suffix = reason ? ` [reason: ${reason}]` : '';
+      const message = `Google API GET ${url} failed (${response.status}):${suffix} ${text.slice(0, 500)}`;
       if (response.status === 404) throw new GoogleApiError(message, 404);
       if (response.status === 410) throw new GoogleApiError(message, 410);
       throw new ServiceUnavailableException(message);
@@ -1517,6 +1629,40 @@ function isMessageGoneError(err: unknown): boolean {
   return status === 404 || status === 410;
 }
 
+/**
+ * Extract the machine-readable `errors[].reason` (falling back to
+ * `error.errors[0].reason` shapes) from a Google API error body. Returned
+ * normalized to lowercase so classifiers can regex it case-insensitively
+ * without re-parsing JSON. Never throws; a non-JSON body returns null.
+ */
+export function extractGoogleErrorReason(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { reason?: string; errors?: Array<{ reason?: string }> };
+    };
+    const reason = parsed.error?.errors?.[0]?.reason ?? parsed.error?.reason ?? null;
+    if (typeof reason !== 'string' || reason.length === 0) return null;
+    return reason.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A Gmail per-user quota wall (403 rateLimitExceeded / userRateLimitExceeded /
+ * dailyLimitExceeded, or 429). The builder in googleGet hoists the parsed
+ * reason into the message as `[reason: …]`, so this matches reliably even
+ * when the body itself was truncated by slice(0, 500). These are NEVER
+ * permanent: the backfill treats them as a clean yield (checkpoint + resume
+ * next scheduler cycle) rather than a connection failure.
+ */
+export function isTransientQuotaError(err: unknown): boolean {
+  const status = mailErrorStatus(err);
+  if (status !== 429 && status !== 403) return false;
+  const msg = err instanceof Error ? err.message.toLowerCase() : '';
+  return /(ratelimitexceeded|userratelimitexceeded|dailylimitexceeded|quotaexceeded)/.test(msg);
+}
+
 /** A permanent mail-integration failure the user must act on (revoked scope /
  *  forbidden). Surfaced rather than silently retried. Transient errors
  *  (429/5xx/DB blips) are NOT permanent and should keep the connection connected
@@ -1526,12 +1672,13 @@ function isPermanentMailFailure(err: unknown): boolean {
   if (status === 401) return true;
   if (status === 403) {
     // Gmail returns 403 for BOTH permanent auth (insufficientPermissions /
-    // accessNotConfigured) AND transient quota/rate-limit conditions
-    // (rateLimitExceeded / userRateLimitExceeded / dailyLimitExceeded). googleGet
-    // doesn't retry 403, so only the permanent variety should surface as error;
-    // a rate-limit 403 must stay transient or it resurfaces the false banner.
-    const body = err instanceof Error ? err.message.toLowerCase() : '';
-    return !/(ratelimitexceeded|userratelimitexceeded|dailylimitexceeded|quotaexceeded)/.test(body);
+    // accessNotConfigured) AND transient quota/rate-limit conditions. The
+    // single source of truth for the transient variety is
+    // isTransientQuotaError — the reason is hoisted to the front of the
+    // googleGet error message as `[reason: …]` before any slice truncation,
+    // so that classifier is safe against body truncation (the 2026-09-08
+    // storm was exactly a truncated reason flipping quota 403s permanent).
+    return !isTransientQuotaError(err);
   }
   return false;
 }
