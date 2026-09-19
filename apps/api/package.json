@@ -145,6 +145,8 @@
     "review:defense-budget-scoped-fact-v1": "tsx scripts/review-defense-budget-scoped-fact-v1.ts",
     "revoke:defense-budget-scoped-fact-v1": "tsx scripts/revoke-defense-budget-scoped-fact-v1.ts",
     "correct:defense-budget-candidate-v1": "tsx scripts/correct-defense-budget-candidate-v1.ts",
+    "replace:defense-budget-candidate-approvals-v1": "tsx scripts/replace-defense-budget-candidate-approvals-v1.ts",
+    "verify:replace-defense-budget-candidate-approvals-v1:db": "bash scripts/replace-defense-budget-candidate-approvals-v1-rehearsal.sh",
     "verify:phase10b35-scoped-review-e2e:db": "bash scripts/phase10b35-scoped-review-e2e-rehearsal.sh",
     "verify:phase10b35c-candidate-correction-e2e:db": "bash scripts/phase10b35c-candidate-correction-e2e-rehearsal.sh",
     "verify:qualify-defense-budget-drain-image-v1:db": "bash scripts/qualify-defense-budget-drain-image-v1-rehearsal.sh",
