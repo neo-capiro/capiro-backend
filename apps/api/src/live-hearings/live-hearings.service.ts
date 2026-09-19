@@ -132,6 +132,39 @@ export interface CalendarQuery {
 
 const MAX_PAGE_SIZE = 200;
 
+type DirectoryEvidence = { aliasIds?: unknown };
+
+function verifiedDirectoryAliasIds(rows: Array<{ id: string; officialSourceKey: string | null; sourceEvidence: unknown }>): Set<string> {
+  const aliases = new Set<string>();
+  for (const row of rows) {
+    if (!row.officialSourceKey || !row.sourceEvidence || typeof row.sourceEvidence !== 'object' || Array.isArray(row.sourceEvidence)) continue;
+    const directory = (row.sourceEvidence as { directory?: DirectoryEvidence }).directory;
+    if (!directory || !Array.isArray(directory.aliasIds)) continue;
+    for (const aliasId of directory.aliasIds) {
+      if (typeof aliasId === 'string' && aliasId !== row.id) aliases.add(aliasId);
+    }
+  }
+  return aliases;
+}
+
+export function filterVerifiedDirectoryAliases<T extends { id: string; officialSourceKey: string | null; sourceEvidence: unknown }>(rows: T[]): T[] {
+  const aliases = verifiedDirectoryAliasIds(rows);
+  return rows.filter((row) => !aliases.has(row.id));
+}
+
+type LegacyCommitteeLink = { id: string; name: string; chamber: string | null };
+
+export function relatedLegacyBodiesForOfficial(
+  body: { chamber: string | null; officialSourceKey: string | null; sourceEvidence: unknown },
+  rows: LegacyCommitteeLink[],
+): LegacyCommitteeLink[] {
+  if (!body.officialSourceKey || !body.sourceEvidence || typeof body.sourceEvidence !== 'object' || Array.isArray(body.sourceEvidence)) return [];
+  const directory = (body.sourceEvidence as { directory?: DirectoryEvidence }).directory;
+  if (!directory || !Array.isArray(directory.aliasIds)) return [];
+  const ids = new Set(directory.aliasIds.filter((id): id is string => typeof id === 'string'));
+  return rows.filter((row) => ids.has(row.id));
+}
+
 /**
  * A hearing counts as LIVE from its start until this long after, when nothing
  * has told us it ended. Congressional hearings routinely run 3-4 hours; a
@@ -211,8 +244,8 @@ export class LiveHearingsService {
   }
   async stateBodies(ctx: TenantContext, session?: string) {
     await requireStateCalendar(this.prisma, ctx.tenantId);
-    return this.prisma.stateCommittee.findMany({
-      where: { state: 'FL', ...(session ? { legislativeSession: session } : {}) },
+    const rows = await this.prisma.stateCommittee.findMany({
+      where: { state: 'FL', ...(session ? { OR: [{ legislativeSession: session }, { chamber: 'joint', legislativeSession: null, officialSourceKey: { not: null } }] } : {}) },
       orderBy: [{ chamber: 'asc' }, { name: 'asc' }, { id: 'asc' }],
       take: 1000,
       select: {
@@ -223,9 +256,11 @@ export class LiveHearingsService {
         legislativeSession: true,
         officialSourceKey: true,
         sourceUrl: true,
+        sourceEvidence: true,
         lastSyncedAt: true,
       },
     });
+    return filterVerifiedDirectoryAliases(rows).map(({ sourceEvidence: _sourceEvidence, ...row }) => row);
   }
   async stateBody(ctx: TenantContext, id: string) {
     await requireStateCalendar(this.prisma, ctx.tenantId);
@@ -234,6 +269,19 @@ export class LiveHearingsService {
       include: { memberships: { include: { legislator: true } } },
     });
     if (!body || body.state !== 'FL') throw new NotFoundException('State committee not found');
+    const directoryAliases = body.officialSourceKey && body.sourceEvidence && typeof body.sourceEvidence === 'object' && !Array.isArray(body.sourceEvidence)
+      ? (body.sourceEvidence as { directory?: DirectoryEvidence }).directory?.aliasIds
+      : null;
+    const aliasIds = Array.isArray(directoryAliases)
+      ? directoryAliases.filter((aliasId): aliasId is string => typeof aliasId === 'string')
+      : [];
+    const legacyRows = aliasIds.length
+      ? await this.prisma.stateCommittee.findMany({
+          where: { id: { in: aliasIds }, state: 'FL' },
+          select: { id: true, name: true, chamber: true },
+        })
+      : [];
+    const relatedLegacyBodies = relatedLegacyBodiesForOfficial(body, legacyRows);
     const events = await this.calendar(ctx, {
       jurisdiction: 'FL',
       stateCommitteeId: id,
@@ -241,6 +289,7 @@ export class LiveHearingsService {
     });
     return {
       body,
+      relatedLegacyBodies,
       members: body.memberships.map((m) => ({
         id: m.legislator.id,
         name: m.legislator.name,

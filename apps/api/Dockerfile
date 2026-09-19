@@ -50,6 +50,7 @@ COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/
 COPY apps/api/prisma apps/api/prisma
 COPY apps/api/scripts apps/api/scripts
+COPY apps/api/data apps/api/data
 
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/meriv2-core build
@@ -114,6 +115,7 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
+COPY --chown=capiro:capiro --from=build /workspace/apps/api/data /app/apps/api/data
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/package.json /app/apps/api/package.json
 # bootstrap-*, sync-* and emit-* commands run TS scripts via tsx at task
 # launch. Copy both the scripts AND the app `src/` they import from (e.g.

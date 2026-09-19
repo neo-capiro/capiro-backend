@@ -18,6 +18,7 @@ import { LwStateAllClear, LwStateEmpty } from '../states/SystemStates.js';
 
 const COVERAGE_URL = '/api/legiwatch/live-hearings/coverage';
 const CALENDAR_PREFIX = '/api/legiwatch/live-hearings/calendar?';
+const SOURCE_COVERAGE_URL = '/api/legiwatch/live-hearings/calendar/coverage?';
 const HISTORY_PREFIX = '/intel-api/hearings/history?';
 const SERVER_SESSIONS_PREFIX = '/api/legiwatch/live-hearings/server-sessions';
 
@@ -37,11 +38,13 @@ const coveragePartial = {
 let historyData: Record<string, unknown>;
 let coverageData: unknown;
 let calendarData: Record<string, unknown>;
+let sourceCoverageData: Record<string, unknown>;
 const clients: QueryClient[] = [];
 
 function defaultResponse(url: string) {
   if (url === COVERAGE_URL) return Promise.resolve({ data: coverageData });
   if (url.startsWith(CALENDAR_PREFIX)) return Promise.resolve({ data: calendarData });
+  if (url.startsWith(SOURCE_COVERAGE_URL)) return Promise.resolve({ data: sourceCoverageData });
   if (url.startsWith(HISTORY_PREFIX)) return Promise.resolve({ data: historyData });
   if (url.startsWith(SERVER_SESSIONS_PREFIX))
     return Promise.resolve({ data: { rows: [], total: 0, page: 1, pageSize: 50 } });
@@ -52,6 +55,7 @@ beforeEach(() => {
   historyData = { items: [session('fauci', 'failed-recoverable')], total: 1, hasMore: false, nextCursor: null };
   coverageData = coveragePartial;
   calendarData = { items: [], total: 0 };
+  sourceCoverageData = { rows: [] };
   apiGet.mockReset();
   apiGet.mockImplementation(defaultResponse);
 });
@@ -81,6 +85,34 @@ function openHearings(url = '/legiwatch?sub=sessions') {
 }
 
 describe('LW-02 — independent capture and source status', () => {
+  it('summarizes a fresh partial notice check and exposes its session conflict in details', async () => {
+    const checkedAt = new Date().toISOString();
+    sourceCoverageData = {
+      rows: [{ chamber: 'house', status: 'partial', checkedAt, items: 1, details: { found: 1, expected: 1, issues: ['publisher session conflict'] } }],
+    };
+    openHearings('/legiwatch');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schedule' }));
+
+    expect(await screen.findByText(/Florida calendar checks · Partial check/)).toBeInTheDocument();
+    expect(screen.getByText(/House · Notice found, session unresolved · 1 of 1 notices found/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Florida calendar checks · Partial check/));
+    expect(screen.getByText(/Last check:/)).toBeInTheDocument();
+    expect(screen.getByText(/Technical issue: publisher session conflict/)).toBeInTheDocument();
+  });
+
+  it('summarizes a stale complete check without implying missing notices', async () => {
+    const checkedAt = new Date(Date.now() - 86400000 * 2).toISOString();
+    sourceCoverageData = {
+      rows: [{ chamber: 'senate', status: 'complete', checkedAt, items: 1, details: { found: 1, expected: 1 } }],
+    };
+    openHearings('/legiwatch');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schedule' }));
+
+    expect(await screen.findByText(/Florida calendar checks · Stale check/)).toBeInTheDocument();
+    expect(screen.getByText(/Senate · Stale check · 1 of 1 notices found/)).toBeInTheDocument();
+    expect(screen.queryByText(/No notices found|0 events/)).not.toBeInTheDocument();
+  });
+
   it('shows failing sources and an older interrupted capture even with no live proceedings or watchlist matches', async () => {
     historyData = {
       items: [session('recent-1'), session('recent-2'), session('recent-3'), session('fauci', 'failed-recoverable')],
@@ -90,11 +122,13 @@ describe('LW-02 — independent capture and source status', () => {
 
     expect(await screen.findByText('CAPTURE ATTENTION')).toBeInTheDocument();
     expect(screen.getByText(/1 interrupted capture in loaded session history/)).toBeInTheDocument();
+    expect(screen.getByText('No live proceedings in the selected week and filters.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }));
     expect(await screen.findByText(/75 of 83 registered committee sources report healthy/)).toBeInTheDocument();
     expect(screen.getByText(/0 degraded · 1 failing · 7 unknown/)).toBeInTheDocument();
     expect(screen.getByText(/Failing: Joint Committee on Taxation/)).toBeInTheDocument();
-    expect(screen.getByText('No live proceedings in the selected week and filters.')).toBeInTheDocument();
     expect(screen.queryByText(/ALL CLEAR|Every source is current|Nothing needs action|just now/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Recordings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open Hearing fauci' }));
     expect(await screen.findByTestId('destination')).toHaveTextContent('/intelligence/hearing-watch/fauci');
   });
@@ -104,8 +138,10 @@ describe('LW-02 — independent capture and source status', () => {
     historyData = { items: [session('complete')], total: 1, hasMore: false, nextCursor: null };
     openHearings();
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }));
     expect(await screen.findByText(/83 of 83 registered committee sources report healthy/)).toBeInTheDocument();
     expect(screen.getByText(/does not establish complete coverage of every committee calendar/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Recordings' }));
     expect(screen.getByText('No interrupted captures in loaded session history.')).toBeInTheDocument();
     expect(screen.queryByText(/ALL CLEAR|Every source is current|Nothing needs action/)).not.toBeInTheDocument();
   });
@@ -115,9 +151,10 @@ describe('LW-02 — independent capture and source status', () => {
       id: 'live-1', title: 'Live posture hearing', eventStatus: 'live', visibility: 'public',
       date: '2026-09-09', startsAt: '2026-09-09T14:00:00Z', committeeName: 'Armed Services',
     }], total: 1 };
-    openHearings();
+    openHearings('/legiwatch?sub=sessions&calendarDate=2026-09-09');
+    expect(await screen.findByText('CAPTURE ATTENTION')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }));
     expect(await screen.findByText('Live posture hearing')).toBeInTheDocument();
-    expect(screen.getByText('CAPTURE ATTENTION')).toBeInTheDocument();
     expect(await screen.findByText('SOURCE FAILURES')).toBeInTheDocument();
   });
 
@@ -126,14 +163,15 @@ describe('LW-02 — independent capture and source status', () => {
       ? new Promise(() => {}) : defaultResponse(url));
     const view = openHearings();
     expect(await screen.findByText('No live proceedings in the selected week and filters.')).toBeInTheDocument();
-    expect(screen.getByText('Checking committee source health…')).toBeInTheDocument();
     expect(screen.getByText('Checking saved capture sessions…')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }));
+    expect(screen.getByText('Checking committee source health…')).toBeInTheDocument();
     expect(screen.queryByText(/No sessions yet|No interrupted captures|sources report healthy/)).not.toBeInTheDocument();
     view.unmount();
 
     apiGet.mockImplementation(defaultResponse);
     coverageData = {};
-    openHearings();
+    openHearings('/legiwatch');
     expect(await screen.findByText('SOURCE STATUS UNKNOWN')).toBeInTheDocument();
     expect(screen.queryByText(/0 of 0|sources report healthy/)).not.toBeInTheDocument();
   });
@@ -152,13 +190,14 @@ describe('LW-02 — independent capture and source status', () => {
     openHearings('/legiwatch');
     expect(await screen.findByText('Hearing schedule is unavailable')).toBeInTheDocument();
     expect(await screen.findByText('Committee source health is unavailable')).toBeInTheDocument();
-    expect(screen.getByText('CAPTURE ATTENTION')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Archive' })).toBeInTheDocument();
-    expect(screen.getByText('Server captures is unavailable')).toBeInTheDocument();
-    expect(screen.queryByText(/No server captures yet|No live proceedings in the selected/)).not.toBeInTheDocument();
     sourceFailed = false;
     fireEvent.click(screen.getByRole('button', { name: 'Refresh source status' }));
     expect(await screen.findByText(/75 of 83 registered committee sources report healthy/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Recordings' }));
+    expect(screen.getByText('CAPTURE ATTENTION')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Past hearings' })).toBeInTheDocument();
+    expect(await screen.findByText('Server captures is unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/No server captures yet|No live proceedings in the selected/)).not.toBeInTheDocument();
   });
 
   it('does not report an empty or clean capture history when the history request fails', async () => {
@@ -167,6 +206,7 @@ describe('LW-02 — independent capture and source status', () => {
     expect(await screen.findByText('Capture session status is unavailable')).toBeInTheDocument();
     expect(screen.getByText(/Capture attention is unverified/)).toBeInTheDocument();
     expect(screen.queryByText(/No sessions yet|No interrupted captures/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }));
     expect(await screen.findByText('SOURCE FAILURES')).toBeInTheDocument();
   });
 
@@ -187,6 +227,7 @@ describe('LW-02 — independent capture and source status', () => {
 
   it('labels an empty agenda as proceedings without making claims about ingestion health', async () => {
     openHearings('/legiwatch');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schedule' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Agenda' }));
     const schedule = screen.getByRole('region', { name: 'Schedule list' });
     expect(within(schedule).getByText('No proceedings matched these filters')).toBeInTheDocument();

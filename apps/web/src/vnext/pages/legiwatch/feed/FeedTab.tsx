@@ -215,7 +215,8 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
   const row = (it: FeedItem) => {
     const { band, tone } = packetBand(it);
     const ws = (it.workState?.state ?? 'new') as WorkState;
-    const src = it.evidence?.bill?.displayNum ?? it.sourceType.toUpperCase();
+    const itemTitle = it.evidence?.bill?.title || it.evidence?.hearing?.title || it.title;
+    const change = observedChange(it);
     // LW-QA-003/§12: bounded deep-link (hearingId → official event id →
     // congress.gov URL). NEVER title fuzzy-match. Legacy rows without any of
     // those anchors stay on the packet drawer (honest non-linkable).
@@ -225,11 +226,6 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
       <div
         key={it.id}
         className={`lw-prow${selected.has(it.id) ? ' is-selected' : ''}`}
-        onClick={() => openRow()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && openRow()}
-        style={hearingHref ? { cursor: 'pointer' } : undefined}
       >
         <button
           type="button"
@@ -246,12 +242,17 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
         <div className="lw-prow__main">
           <div className="lw-prow__meta">
             <LwPill tone={tone} size="22">{band}</LwPill>
-            <span className="lw-prow__src">
-              {src} · {ageLabel(it.createdAt)}
-            </span>
+            <span className="lw-prow__src">{ageLabel(it.createdAt)}</span>
           </div>
+          <button
+            type="button"
+            className="lw-prow__title lw-prow__title--action"
+            onClick={openRow}
+          >
+            {itemTitle}
+          </button>
+          <div className="lw-prow__block">{change}</div>
           <span className="lw-prow__client">{clientAttribution(it, selectedClient)}</span>
-          <div className="lw-prow__title">{it.title}</div>
           {it.whyItMatters ? (
             <div className="lw-prow__block">
               <span className="lw-prow__prefix">WHY · </span>
@@ -473,6 +474,17 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
       {toast ? <div className="lw-toast" role="status">{toast}</div> : null}
     </div>
   );
+}
+
+
+function observedChange(item: FeedItem): string {
+  if (item.evidence?.bill?.actionText) return item.evidence.bill.actionText;
+  switch (item.kind) {
+    case 'bill_text_changed': return 'Bill text changed';
+    case 'bill_new_match': return 'New bill match';
+    case 'hearing_new': return 'New hearing';
+    default: return item.kind?.replaceAll('_', ' ') || 'Change recorded';
+  }
 }
 
 function RailOption({

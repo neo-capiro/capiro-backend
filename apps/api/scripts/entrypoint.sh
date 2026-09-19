@@ -81,6 +81,12 @@ case "${1:-serve}" in
     echo "Seeding workflow templates"
     exec ./node_modules/.bin/tsx prisma/seed-workflows.ts
     ;;
+  sync-florida-official-committees)
+    shift
+    compose_database_url
+    echo "Running sync-florida-official-committees (dry run unless --apply; non-local apply requires explicit opt-in and confirmation)"
+    exec ./node_modules/.bin/tsx scripts/sync-florida-official-committees.ts "$@"
+    ;;
   diag-pe-trust)
     shift
     compose_database_url

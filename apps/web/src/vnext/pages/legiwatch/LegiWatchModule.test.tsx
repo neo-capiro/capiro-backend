@@ -11,10 +11,10 @@ import { LegiWatchModule } from './LegiWatchModule.js';
 /**
  * v2 prototype restyle — the Hearings landing against the current main tip.
  * The Schedule sub-view runs the calendar the full content width (the old
- * two-column My Sessions rail is gone from Schedule), the sub-views are the
- * segmented Schedule/My Sessions/Archive control with the public/private
+ * two-column sessions rail is gone from Schedule), the sub-views are the
+ * segmented Schedule/Recordings/Past hearings control with the public/private
  * legend chip, and the header set is the uniform 42px family with the shaded
- * Client lens dropdown. Pins the structure so a regression can't silently
+ * Client dropdown. Pins the structure so a regression can't silently
  * restore the rail or drop a control.
  */
 
@@ -55,22 +55,60 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     getMock.mockImplementation(async (url: string) => ({ data: apiShape(url) }));
   });
 
-  it('renders the uniform header control set with the shaded Client lens', async () => {
+  it('defaults bare /legiwatch to Updates', async () => {
+    mount('/legiwatch');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Updates' })).toBeTruthy());
+    expect(screen.getByRole('tab', { name: /Updates/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it.each(['news', 'budget', 'committees'])(
+    'marks Research selected while preserving the %s secondary route',
+    async (secondaryTab) => {
+      mount(`/legiwatch?tab=${secondaryTab}`);
+      await waitFor(() => expect(screen.getByRole('tab', { name: 'Research' })).toHaveAttribute('aria-selected', 'true'));
+      expect(screen.getByRole('button', { name: new RegExp(`^${secondaryTab === 'budget' ? 'Florida Budget' : secondaryTab}$`, 'i') })).toHaveClass('is-active');
+    },
+  );
+
+  it('marks Updates selected for analytics without changing the analytics route', async () => {
+    mount('/legiwatch?tab=analytics');
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Updates/ })).toHaveAttribute('aria-selected', 'true'));
+    expect(screen.getByRole('button', { name: 'Trends / Analytics' })).toHaveClass('is-active');
+  });
+
+  it('provides compact labelled mobile selectors without changing route identities', async () => {
+    mount('/legiwatch?tab=hearings');
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'LegiWatch section' })).toBeTruthy());
+
+    expect(screen.getByRole('combobox', { name: 'LegiWatch section' })).toHaveValue('hearings');
+    expect(screen.getByRole('combobox', { name: 'More LegiWatch sections' })).toHaveValue('');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'More LegiWatch sections' }), { target: { value: 'analytics' } });
+    expect(screen.getByRole('combobox', { name: 'More LegiWatch sections' })).toHaveValue('analytics');
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=analytics');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'LegiWatch section' }), { target: { value: 'bills' } });
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=bills');
+  });
+
+  it('renders the uniform header control set with the shaded Client', async () => {
     mount();
     await waitFor(() => expect(screen.getByRole('button', { name: /search legiwatch/i })).toBeTruthy());
     expect(screen.queryByRole('button', { name: /saved views/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /create watch/i })).toBeNull();
     expect(screen.getByRole('button', { name: /legiwatch settings/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /search legiwatch/i })).toBeTruthy();
-    // Client lens is the shaded dropdown (not a native <select>).
-    expect(screen.getByRole('button', { name: /client lens/i })).toBeTruthy();
+    // Client control is the shaded dropdown (not a native <select>).
+    expect(screen.getByRole('button', { name: /client/i })).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(await screen.findByRole('dialog', { name: 'Search LegiWatch' })).toBeTruthy();
   });
 
-  it('renders the Schedule/My Sessions/Archive sub-tabs and the legend chip', async () => {
+  it('renders the Schedule/Recordings/Past hearings sub-tabs and the legend chip', async () => {
     mount();
     await waitFor(() => expect(screen.getByRole('tab', { name: /^schedule$/i })).toBeTruthy());
-    expect(screen.getByRole('tab', { name: /my sessions/i })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /archive/i })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /recordings/i })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /past hearings/i })).toBeTruthy();
     expect(screen.getByText(/public record/i)).toBeTruthy();
     expect(screen.getByText(/your analysis/i)).toBeTruthy();
   });
@@ -79,7 +117,7 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     mount(
       '/legiwatch?tab=hearings&client=c1&folder=f1&q=Rubin&offset=25&budgetProjectsQuery=housing',
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'Budget' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Florida Budget' }));
     const params = new URLSearchParams(
       screen.getByLabelText('Current navigation').textContent ?? '',
     );
@@ -96,7 +134,7 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
       '/legiwatch?tab=news&folder=old-folder&newsArticlesQuery=Clarity&newsArticlesOffset=50&budgetProjectsOffset=25&researchCursor=old-cursor',
     );
     await waitFor(() => expect(getMock).toHaveBeenCalledWith('/api/clients'));
-    fireEvent.click(screen.getByRole('button', { name: /Client lens/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Client/ }));
     fireEvent.click(await screen.findByRole('option', { name: /Overland AI/ }));
     const params = new URLSearchParams(
       screen.getByLabelText('Current navigation').textContent ?? '',

@@ -118,7 +118,7 @@ describe('Legacy flag-OFF BillsTab — public corpus search survives a 403 board
   it('renders corpus search + inline board error, paginates past 50, distinct jurisdiction/session', async () => {
     renderLegacy();
     // Search UI is reachable even though the private board 403s.
-    const input = await screen.findByRole('searchbox', { name: 'Search all ingested bills' });
+    const input = await screen.findByRole('searchbox', { name: 'Search all available bills' });
     // Board error is inline, not page-replacing.
     expect(await screen.findByText('Bills board is unavailable')).toBeTruthy();
 
@@ -152,8 +152,8 @@ describe('Legacy flag-OFF BillsTab — public corpus search survives a 403 board
       return Promise.resolve(hit);
     });
     renderLegacy();
-    await screen.findByRole('searchbox', { name: 'Search all ingested bills' });
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search all ingested bills' }), {
+    await screen.findByRole('searchbox', { name: 'Search all available bills' });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search all available bills' }), {
       target: { value: 'Corpus marker' },
     });
     expect(await screen.findByText('51 matching bills')).toBeTruthy();

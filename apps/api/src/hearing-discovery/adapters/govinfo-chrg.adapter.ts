@@ -22,8 +22,31 @@
  *    a `new` answer refuses the row.
  */
 import { fetchJson } from './source-http.js';
+import { currentCongress } from './congress-gov.adapter.js';
+import type { DiscoveryContext, SourceDescriptor, SourceHealth } from '../hearing-discovery.types.js';
 
 export const GOVINFO_BASE = 'https://api.govinfo.gov';
+
+interface GovInfoCollectionResponse {
+  packages?: unknown[];
+}
+
+export function govInfoChrgCollectionUrl(
+  apiKey: string,
+  congress = currentCongress(),
+  now = new Date(),
+): string {
+  const from = new Date(now);
+  from.setUTCDate(from.getUTCDate() - 7);
+  const url = new URL(
+    `${GOVINFO_BASE}/collections/CHRG/${from.toISOString().replace(/\.\d+Z$/, 'Z')}/${now.toISOString().replace(/\.\d+Z$/, 'Z')}`,
+  );
+  url.searchParams.set('congress', String(congress));
+  url.searchParams.set('pageSize', '1');
+  url.searchParams.set('offsetMark', '*');
+  url.searchParams.set('api_key', apiKey);
+  return url.toString();
+}
 
 /** Subset of the GovInfo package summary the adapter needs. */
 export interface GovInfoChrgSummary {
@@ -57,6 +80,23 @@ export class GovInfoChrgAdapter {
       { timeoutMs: 30_000 },
     );
     return res.data ?? null;
+  }
+
+  async healthCheck(_source: SourceDescriptor, _ctx: DiscoveryContext): Promise<SourceHealth> {
+    if (!this.apiKey) {
+      return { ok: false, status: null, durationMs: 0, error: 'GOVINFO_API_KEY is required for the govinfo-chrg adapter', observedEvents: null };
+    }
+    const res = await fetchJson<GovInfoCollectionResponse>(
+      govInfoChrgCollectionUrl(this.apiKey),
+      { timeoutMs: 15_000 },
+    );
+    return {
+      ok: res.ok,
+      status: res.status,
+      durationMs: res.durationMs,
+      error: res.error?.replaceAll(this.apiKey, '[redacted]') ?? null,
+      observedEvents: res.data?.packages?.length ?? null,
+    };
   }
 
   async fetchMods(packageId: string): Promise<GovInfoChrgMods | null> {

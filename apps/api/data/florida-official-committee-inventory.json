@@ -1,0 +1,908 @@
+{
+  "checkedAt": "2026-09-18T13:32:56.788Z",
+  "provenance": {
+    "comparisonArtifact": "C:/dev/main/outputs/legiwatch-ux-implementation-qa/florida-official-inventory-comparison.json",
+    "sources": {
+      "house": "https://flhouse.gov/Sections/Committees/committees.aspx",
+      "senate": "https://www.flsenate.gov/Committees/"
+    }
+  },
+  "counts": {
+    "house": 34,
+    "senate": 27,
+    "joint": 5,
+    "total": 66
+  },
+  "rows": [
+    {
+      "chamber": "house",
+      "officialCode": "3276",
+      "name": "Budget Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3276",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-budget",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3277",
+      "name": "Agriculture & Natural Resources Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3277",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3278",
+      "name": "Health Care Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3278",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3279",
+      "name": "Higher Education Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3279",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3280",
+      "name": "Information Technology Budget & Policy Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3280",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3281",
+      "name": "Justice Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3281",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3282",
+      "name": "PreK-12 Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3282",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3283",
+      "name": "State Administration Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3283",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3284",
+      "name": "Transportation & Economic Development Budget Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3284",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3285",
+      "name": "Commerce Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3285",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-commerce",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3286",
+      "name": "Economic Infrastructure Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3286",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3287",
+      "name": "Housing, Agriculture & Tourism Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3287",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3288",
+      "name": "Industries & Professional Activities Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3288",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3289",
+      "name": "Insurance & Banking Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3289",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3290",
+      "name": "Education & Employment Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3290",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-education-and-employment",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3291",
+      "name": "Careers & Workforce Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3291",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3292",
+      "name": "Education Administration Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3292",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3293",
+      "name": "Student Academic Success Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3293",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3294",
+      "name": "Health & Human Services Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3294",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-health-and-human-services",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3295",
+      "name": "Health Care Facilities & Systems Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3295",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3296",
+      "name": "Health Professions & Programs Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3296",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3297",
+      "name": "Human Services Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3297",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3298",
+      "name": "Judiciary Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3298",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-judiciary",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3299",
+      "name": "Civil Justice & Claims Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3299",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3300",
+      "name": "Criminal Justice Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3300",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3301",
+      "name": "Rules & Ethics Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3301",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-rules-and-ethics",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3302",
+      "name": "State Affairs Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3302",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-state-affairs",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3303",
+      "name": "Government Operations Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3303",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3304",
+      "name": "Intergovernmental Affairs Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3304",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3305",
+      "name": "Natural Resources & Disasters Subcommittee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3305",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3306",
+      "name": "Ways & Means Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3306",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-ways-and-means",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3307",
+      "name": "Security & Threat Assessment Committee",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3307",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-security-and-threat-assessment",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3355",
+      "name": "Select Committee on Property Taxes",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3355",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-property-taxes-select",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "house",
+      "officialCode": "3364",
+      "name": "Select Committee on Congressional Redistricting",
+      "officialUrl": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3364",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-congressional-redistricting-select",
+          "chamber": "lower",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "AG",
+      "name": "Agriculture",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/AG/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-agriculture",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "AP",
+      "name": "Appropriations",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/AP/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-f1157b6e19f54bcf1841213c11bb058d",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:AP"
+        },
+        {
+          "id": "FL-upper-appropriations",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "AEG",
+      "name": "Appropriations Committee on Agriculture, Environment, and General Government",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/AEG/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-9b3e2ba689ae8c0943c28c7876191eeb",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:AEG"
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "ACJ",
+      "name": "Appropriations Committee on Criminal and Civil Justice",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/ACJ/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-68cc73c356d75a4156bbdfe51c06e95d",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:ACJ"
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "AHS",
+      "name": "Appropriations Committee on Health and Human Services",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/AHS/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-b5e734dbe478a07bb9d610427071ca0d",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:AHS"
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "AHE",
+      "name": "Appropriations Committee on Higher Education",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/AHE/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-4025a290bc8c251bbe041c914ce9234b",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:AHE"
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "AED",
+      "name": "Appropriations Committee on Pre-K - 12 Education",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/AED/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-bc81e590b75472ad0d1a1902c4875252",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:AED"
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "ATD",
+      "name": "Appropriations Committee on Transportation, Tourism, and Economic Development",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/ATD/",
+      "listingOnly": false,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "BI",
+      "name": "Banking and Insurance",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/BI/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-banking-and-insurance",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "CF",
+      "name": "Children, Families, and Elder Affairs",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/CF/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-children-families-and-elder-affairs",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "CM",
+      "name": "Commerce and Tourism",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/CM/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-commerce-and-tourism",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "CA",
+      "name": "Community Affairs",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/CA/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-community-affairs",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "CJ",
+      "name": "Criminal Justice",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/CJ/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-criminal-justice",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "HE",
+      "name": "Education Postsecondary",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/HE/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-education-postsecondary",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "ED",
+      "name": "Education Pre-K - 12",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/ED/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-education-pre-k-12",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "EN",
+      "name": "Environment and Natural Resources",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/EN/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-environment-and-natural-resources",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "EE",
+      "name": "Ethics and Elections",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/EE/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-f4034bed0dd768dc5921e455699787f1",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:EE"
+        },
+        {
+          "id": "FL-upper-ethics-and-elections",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "FT",
+      "name": "Finance and Tax",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/FT/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-61b86179a3b0dbd0da6c468079e5a978",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:FT"
+        },
+        {
+          "id": "FL-upper-finance-and-tax",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "FP",
+      "name": "Fiscal Policy",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/FP/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-3934dc810cc0f7eba7e868453043ab61",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:FP"
+        },
+        {
+          "id": "FL-upper-fiscal-policy",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "GO",
+      "name": "Governmental Oversight and Accountability",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/GO/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-governmental-oversight-and-accountability",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "HP",
+      "name": "Health Policy",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/HP/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-health-policy",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "JU",
+      "name": "Judiciary",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/JU/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-judiciary",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "MS",
+      "name": "Military and Veterans Affairs, Space, and Domestic Security",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/MS/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-military-and-veterans-affairs-space-and-domestic-security",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "RE",
+      "name": "Reapportionment",
+      "officialUrl": null,
+      "listingOnly": true,
+      "existing": [],
+      "missing": true
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "RI",
+      "name": "Regulated Industries",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/RI/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-regulated-industries",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "RC",
+      "name": "Rules",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/RC/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "official-abffb299b6b09660f0ade25419756047",
+          "chamber": "senate",
+          "officialSourceKey": "FL:2026:fl:senate:RC"
+        },
+        {
+          "id": "FL-upper-rules",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "senate",
+      "officialCode": "TR",
+      "name": "Transportation",
+      "officialUrl": "https://www.flsenate.gov/Committees/Show/TR/",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-upper-transportation",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "joint",
+      "officialCode": "JAPC",
+      "name": "Joint Administrative Procedures Committee",
+      "officialUrl": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JAPC/&File=index_css.html&Tab=committees",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-administrative-procedures",
+          "chamber": "lower",
+          "officialSourceKey": null
+        },
+        {
+          "id": "FL-upper-administrative-procedures",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "joint",
+      "officialCode": "JCPO",
+      "name": "Joint Committee on Public Counsel Oversight",
+      "officialUrl": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JCPO/&File=index_css.html&Tab=committees",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-public-counsel-oversight",
+          "chamber": "lower",
+          "officialSourceKey": null
+        },
+        {
+          "id": "FL-upper-public-counsel-oversight",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "joint",
+      "officialCode": "JLAC",
+      "name": "Joint Legislative Auditing Committee",
+      "officialUrl": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JCLA/&File=index_css.html&Tab=committees",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-legislative-auditing",
+          "chamber": "lower",
+          "officialSourceKey": null
+        },
+        {
+          "id": "FL-upper-legislative-auditing",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "joint",
+      "officialCode": "JSCB",
+      "name": "Joint Select Committee on Collective Bargaining",
+      "officialUrl": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JSCB/&File=index_css.html&Tab=committees",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-collective-bargaining-select",
+          "chamber": "lower",
+          "officialSourceKey": null
+        },
+        {
+          "id": "FL-upper-collective-bargaining-select",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    },
+    {
+      "chamber": "joint",
+      "officialCode": "JLBC",
+      "name": "Joint Legislative Budget Commission",
+      "officialUrl": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JLBC/&File=index_css.html&Tab=committees",
+      "listingOnly": false,
+      "existing": [
+        {
+          "id": "FL-lower-legislative-budget-commission",
+          "chamber": "lower",
+          "officialSourceKey": null
+        },
+        {
+          "id": "FL-upper-legislative-budget-commission",
+          "chamber": "upper",
+          "officialSourceKey": null
+        }
+      ],
+      "missing": false
+    }
+  ]
+}

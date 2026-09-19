@@ -53,6 +53,7 @@ export function GlobalSearch({
         ref={triggerRef}
         type="button"
         className="capiro-global-search__trigger capiro-elevation-control"
+        aria-label="Global search"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         onClick={() => open(triggerRef.current)}
@@ -93,8 +94,8 @@ export function GlobalSearch({
           <div className="capiro-global-search__results">
             <p className="capiro-global-search__state-title">Search is not enabled yet</p>
             <p className="capiro-global-search__state-body">
-              Cross-entity search has no backend contract on this surface. Use the
-              destination pages until it is available.
+              Search across the app is not available yet. Use search within a
+              section to find its records.
             </p>
           </div>
 

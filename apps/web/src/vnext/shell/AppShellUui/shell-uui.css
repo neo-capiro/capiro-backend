@@ -775,7 +775,7 @@
   margin-top: 2px;
   border-radius: var(--uui-radius-control);
   background: none;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px var(--uui-chrome-divider);
   border: 0;
   color: var(--uui-chrome-label-idle);
   font-size: var(--uui-text-sm);
@@ -899,6 +899,36 @@
 }
 
 @media (max-width: 779px) {
+  /* Keep shell actions in one row on phones. Search becomes an icon with an
+     accessible name, and the dialog retains its full input. */
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .uui-topbar {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .uui-topbar__actions {
+    gap: 8px;
+  }
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .uui-topbar__search {
+    flex: 0 0 42px;
+    width: 42px;
+  }
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .capiro-global-search__trigger {
+    width: 42px;
+    min-width: 42px;
+    padding: 0 !important;
+    justify-content: center;
+  }
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .capiro-global-search__placeholder,
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .capiro-global-search__shortcut {
+    display: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .capiro-global-search__popover {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: calc(100vw - 32px);
+  }
   .capiro-vnext-root .capiro-vnext-uui {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: 'topbar' 'content';
@@ -1057,6 +1087,12 @@
   }
 }
 
+@media (max-width: 399px) {
+  .capiro-vnext-root .capiro-vnext-uui:not(.capiro-vnext-uui--funding-opportunities) .uui-topbar__brand {
+    display: none;
+  }
+}
+
 /* Quick Note (top bar trigger + dialog body). Reuses .capiro-overlay/.capiro-modal
    as-is — only this button and the dialog's internal layout are new. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-quicknote {
@@ -1189,8 +1225,8 @@
   padding: 0;
 }
 .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .capiro-vnext-avatar {
-  background: #f9fafb;
-  color: #667085;
+  background: var(--uui-gray-50);
+  color: var(--uui-gray-500);
   font-size: 16px;
   font-weight: 400;
 }
@@ -1259,8 +1295,8 @@
   margin: auto 0 12px;
   padding: 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #7c8698;
+  background: var(--uui-chrome-item-subtle-bg);
+  color: var(--uui-chrome-icon-idle);
   font-size: 11px;
   line-height: 16px;
   letter-spacing: 0.05em;
@@ -1270,7 +1306,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  color: #e4e7ec;
+  color: var(--uui-gray-200);
   font-size: 14px;
   font-weight: 600;
   line-height: 17px;
@@ -1290,7 +1326,7 @@
   height: 12px;
   flex: 0 0 auto;
   border-radius: 3px;
-  background: #dc6803;
+  background: var(--uui-warning-tone);
 }
 @media (max-width: 899px) {
   .capiro-vnext-root .capiro-vnext-uui--funding-opportunities .uui-funding-source-health {
