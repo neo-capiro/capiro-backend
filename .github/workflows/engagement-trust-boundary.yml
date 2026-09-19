@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload migration failure diagnostics
         if: steps.migrate.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engagement-migration-deploy-log
           path: migration-deploy.log
@@ -186,7 +186,7 @@ jobs:
 
       - name: Upload integration test evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-sync-correctness-summary
           path: integration-sync-summary.json

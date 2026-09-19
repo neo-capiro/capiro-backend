@@ -406,7 +406,7 @@ jobs:
 
       - name: Preserve Phase 4 qualification results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: legiwatch-phase4-qualification
           path: work/phase4-qualification/*.json
@@ -419,7 +419,7 @@ jobs:
 
       - name: Preserve Phase 5 qualification results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: legiwatch-phase5-qualification
           path: work/phase5-qualification/*.json

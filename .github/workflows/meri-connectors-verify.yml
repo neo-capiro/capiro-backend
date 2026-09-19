@@ -80,7 +80,7 @@ jobs:
           aws-region: us-east-1
       - name: Inspect running API configuration without secret values
         run: python3 scripts/inspect-meri-connectors.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: meri-connector-deployment
           path: meri-connector-deployment.json

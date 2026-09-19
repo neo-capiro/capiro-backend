@@ -183,7 +183,7 @@ jobs:
 
       - name: Upload Phase 20 evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: meriv2-phase20-control-${{ github.sha }}
           path: /tmp/meriv2-phase20-evidence

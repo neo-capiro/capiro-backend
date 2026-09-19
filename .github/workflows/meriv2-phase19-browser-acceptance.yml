@@ -207,7 +207,7 @@ jobs:
 
       - name: Upload Phase 19 browser evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: meriv2-phase19-browser-${{ github.sha }}
           path: |

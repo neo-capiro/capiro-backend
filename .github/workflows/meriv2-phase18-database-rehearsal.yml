@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload bounded rehearsal evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: meriv2-phase18-database-rehearsal-${{ github.sha }}
           path: /tmp/meriv2-phase18-evidence
