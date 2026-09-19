@@ -8,6 +8,8 @@ import {
   parseCliDate,
   parseSamSyncArgs,
   persistMatches,
+  buildSamOpportunityUpdateData,
+  prepareOpportunity,
   recordInSamScope,
   resolveSamDescription,
   resolveSamWindow,
@@ -27,9 +29,16 @@ describe('SAM opportunity ingestion scope', () => {
       matchOnly: false,
       since: null,
       postedTo: null,
+      skipDescriptions: false,
     });
     expect(syncSourceForScope('dod')).toBe('sync-sam-opportunities');
     expect(defaultLookbackDaysForScope('dod')).toBe(30);
+  });
+
+  test('parses --skip-descriptions without changing other flags', () => {
+    expect(
+      parseSamSyncArgs(['--all-federal', '--commit', '--skip-descriptions']).skipDescriptions,
+    ).toBe(true);
   });
 
   test('all-federal scope uses an independent watermark and short cold-start window', () => {
@@ -48,6 +57,7 @@ describe('SAM opportunity ingestion scope', () => {
       matchOnly: false,
       since: '2026-07-01',
       postedTo: '2026-07-07',
+      skipDescriptions: false,
     });
     expect(syncSourceForScope('all_federal')).toBe('sync-sam-opportunities-all-federal');
     expect(defaultLookbackDaysForScope('all_federal')).toBe(2);
@@ -120,15 +130,19 @@ describe('parseCliDate validates rather than silently substituting', () => {
     expect(parseCliDate('', '--since')).toBeNull();
   });
 
-  test.each(['2026-13-01', '2026-02-30', '07/01/2026', 'yesterday', '2026-7-1', '2026-07-01T00:00:00Z'])(
-    '%p is rejected',
-    (raw) => {
-      // The old `--posted-to` path was `safeDate(x) ?? new Date()`, so a typo turned
-      // a bounded historical window into an unbounded one that also moved the
-      // watermark. A typo must stop the run, not change what it does.
-      expect(() => parseCliDate(raw, '--posted-to')).toThrow();
-    },
-  );
+  test.each([
+    '2026-13-01',
+    '2026-02-30',
+    '07/01/2026',
+    'yesterday',
+    '2026-7-1',
+    '2026-07-01T00:00:00Z',
+  ])('%p is rejected', (raw) => {
+    // The old `--posted-to` path was `safeDate(x) ?? new Date()`, so a typo turned
+    // a bounded historical window into an unbounded one that also moved the
+    // watermark. A typo must stop the run, not change what it does.
+    expect(() => parseCliDate(raw, '--posted-to')).toThrow();
+  });
 
   test('the error names the flag, so the operator knows which one to fix', () => {
     expect(() => parseCliDate('nope', '--posted-to')).toThrow(/--posted-to/);
@@ -137,12 +151,13 @@ describe('parseCliDate validates rather than silently substituting', () => {
 });
 
 describe('resolveSamWindow', () => {
-  const base = { scope: 'dod' as const, commit: true, matchOnly: false };
+  const base = { scope: 'dod' as const, commit: true, matchOnly: false, skipDescriptions: false };
 
   test('a daily run needs no explicit window', () => {
-    expect(
-      resolveSamWindow({ ...base, backfill: false, since: null, postedTo: null }),
-    ).toEqual({ since: null, postedTo: null });
+    expect(resolveSamWindow({ ...base, backfill: false, since: null, postedTo: null })).toEqual({
+      since: null,
+      postedTo: null,
+    });
   });
 
   test('a backfill REQUIRES an explicit --since', () => {
@@ -490,13 +505,41 @@ describe('SAM description resolution', () => {
     await expect(resolveSamDescription(null, 'secret', { fetchImpl })).resolves.toEqual({
       text: null,
       sourceUrl: null,
+      deferred: false,
     });
     await expect(
       resolveSamDescription('plain notice text', 'secret', { fetchImpl }),
     ).resolves.toEqual({
       text: 'plain notice text',
       sourceUrl: null,
+      deferred: false,
     });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test('skip mode defers URL descriptions without making a network call', async () => {
+    const fetchImpl = jest.fn<typeof fetch>();
+    await expect(
+      resolveSamDescription('https://api.sam.gov/opportunities/v1/noticedesc?id=abc', 'secret', {
+        fetchImpl,
+        skipDescriptions: true,
+      }),
+    ).resolves.toEqual({
+      text: null,
+      sourceUrl: 'https://api.sam.gov/opportunities/v1/noticedesc?id=abc',
+      deferred: true,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test('skip mode retains and sanitizes inline descriptions', async () => {
+    const fetchImpl = jest.fn<typeof fetch>();
+    await expect(
+      resolveSamDescription('<b>Inline</b> <script>bad()</script> text', 'secret', {
+        fetchImpl,
+        skipDescriptions: true,
+      }),
+    ).resolves.toMatchObject({ text: 'Inline text', deferred: false });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -581,6 +624,38 @@ describe('SAM description resolution', () => {
         maxBytes: 10,
       }),
     ).rejects.toThrow(/exceeded 10 bytes/);
+  });
+
+  test('deferred URL descriptions preserve existing content in the update payload', async () => {
+    const prepared = await prepareOpportunity(
+      {
+        noticeId: 'notice-1',
+        title: 'Notice',
+        description: 'https://api.sam.gov/opportunities/v1/noticedesc?id=abc',
+      },
+      'notice-1',
+      'secret',
+      { skipDescriptions: true },
+    );
+    const update = buildSamOpportunityUpdateData(prepared, new Date('2026-09-19T00:00:00Z'));
+
+    expect(prepared.data.description).toBeNull();
+    expect(prepared.descriptionError).toBeNull();
+    expect(prepared.preserveExistingDescription).toBe(true);
+    expect(update).not.toHaveProperty('description');
+  });
+
+  test('resolved descriptions are included in the update payload', () => {
+    const prepared = {
+      data: { description: 'Resolved description', title: 'Notice' },
+      raw: {},
+      preserveExistingDescription: false,
+    } as Parameters<typeof buildSamOpportunityUpdateData>[0];
+
+    expect(buildSamOpportunityUpdateData(prepared, new Date())).toHaveProperty(
+      'description',
+      'Resolved description',
+    );
   });
 
   test('a URL containing a PE-shaped string is never scanned as notice text', () => {

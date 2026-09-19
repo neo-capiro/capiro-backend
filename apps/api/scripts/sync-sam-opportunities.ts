@@ -49,7 +49,11 @@
 import { config as dotenvConfig } from 'dotenv';
 import { Prisma, PrismaClient } from '@prisma/client';
 import sanitizeHtml from 'sanitize-html';
-import { runWithSyncRun, lastSuccessfulWatermark, type RunCounts } from '../src/ingestion/sync-run.helper.js';
+import {
+  runWithSyncRun,
+  lastSuccessfulWatermark,
+  type RunCounts,
+} from '../src/ingestion/sync-run.helper.js';
 import {
   matchOpportunity,
   trigrams,
@@ -95,6 +99,7 @@ export interface SamSyncArgs {
   matchOnly: boolean;
   since: string | null;
   postedTo: string | null;
+  skipDescriptions: boolean;
 }
 
 export function parseSamSyncArgs(argv: string[]): SamSyncArgs {
@@ -105,6 +110,7 @@ export function parseSamSyncArgs(argv: string[]): SamSyncArgs {
     matchOnly: flag('match-only', argv),
     since: arg('since', argv) ?? null,
     postedTo: arg('posted-to', argv) ?? null,
+    skipDescriptions: flag('skip-descriptions', argv),
   };
 }
 
@@ -762,6 +768,13 @@ export interface ResolveSamDescriptionOptions {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   maxBytes?: number;
+  skipDescriptions?: boolean;
+}
+
+export interface ResolvedSamDescription {
+  text: string | null;
+  sourceUrl: string | null;
+  deferred: boolean;
 }
 
 /** Resolve a SAM-hosted description endpoint without ever matching the URL itself. */
@@ -769,14 +782,20 @@ export async function resolveSamDescription(
   rawDescription: string | null,
   apiKey: string,
   options: ResolveSamDescriptionOptions = {},
-): Promise<{ text: string | null; sourceUrl: string | null }> {
+): Promise<ResolvedSamDescription> {
   const value = str(rawDescription);
-  if (!value) return { text: null, sourceUrl: null };
-  if (!looksLikeUrl(value)) return { text: value, sourceUrl: null };
+  if (!value) return { text: null, sourceUrl: null, deferred: false };
+  if (!looksLikeUrl(value)) {
+    return { text: descriptionTextFromResponse(value, null), sourceUrl: null, deferred: false };
+  }
+
+  const sourceUrl = samDescriptionSourceUrl(value);
+  if (options.skipDescriptions) {
+    return { text: null, sourceUrl, deferred: true };
+  }
 
   const source = safeSamUrl(value);
-  if (!source) return { text: value, sourceUrl: null };
-  const sourceUrl = samDescriptionSourceUrl(value);
+  if (!source) return { text: value, sourceUrl: null, deferred: false };
   const requestUrl = new URL(source.toString());
   if (
     requestUrl.hostname.toLowerCase() === 'api.sam.gov' &&
@@ -803,6 +822,7 @@ export async function resolveSamDescription(
     return {
       text: descriptionTextFromResponse(body, response.headers.get('content-type')),
       sourceUrl,
+      deferred: false,
     };
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : String(error);
@@ -977,12 +997,27 @@ interface PreparedOpportunity {
   };
   raw: Prisma.InputJsonValue;
   descriptionError: string | null;
+  preserveExistingDescription: boolean;
 }
 
-async function prepareOpportunity(
+export function buildSamOpportunityUpdateData(
+  prepared: Pick<PreparedOpportunity, 'data' | 'raw' | 'preserveExistingDescription'>,
+  lastSyncedAt: Date,
+) {
+  const { description: _preparedDescription, ...preparedDataWithoutDescription } = prepared.data;
+  return {
+    ...preparedDataWithoutDescription,
+    ...(prepared.preserveExistingDescription ? {} : { description: prepared.data.description }),
+    raw: prepared.raw,
+    lastSyncedAt,
+  };
+}
+
+export async function prepareOpportunity(
   record: SamOpportunityRecord,
   noticeId: string,
   apiKey: string,
+  options: { skipDescriptions?: boolean } = {},
 ): Promise<PreparedOpportunity> {
   const archiveDate = safeDate(record.archiveDate);
   const active =
@@ -995,12 +1030,18 @@ async function prepareOpportunity(
   const descriptionSourceUrl = samDescriptionSourceUrl(rawDescription);
   let description: string | null = null;
   let descriptionError: string | null = null;
-  let descriptionResolution: 'none' | 'inline' | 'resolved' | 'failed' = 'none';
+  let descriptionResolution: 'none' | 'inline' | 'resolved' | 'deferred' | 'failed' = 'none';
 
   try {
-    const resolved = await resolveSamDescription(rawDescription, apiKey);
+    const resolved = await resolveSamDescription(rawDescription, apiKey, options);
     description = resolved.text;
-    descriptionResolution = resolved.sourceUrl ? 'resolved' : description ? 'inline' : 'none';
+    descriptionResolution = resolved.deferred
+      ? 'deferred'
+      : resolved.sourceUrl
+        ? 'resolved'
+        : description
+          ? 'inline'
+          : 'none';
   } catch (error) {
     descriptionError = (error instanceof Error ? error.message : String(error)).slice(0, 1000);
     descriptionResolution = 'failed';
@@ -1045,12 +1086,14 @@ async function prepareOpportunity(
     },
     raw,
     descriptionError,
+    preserveExistingDescription:
+      Boolean(rawDescription && looksLikeUrl(rawDescription)) && description === null,
   };
 }
 
 async function main(): Promise<void> {
   const parsed = parseSamSyncArgs(process.argv.slice(2));
-  const { commit, backfill, matchOnly, scope } = parsed;
+  const { commit, backfill, matchOnly, scope, skipDescriptions } = parsed;
 
   if (matchOnly) {
     const prismaMatch = new PrismaClient();
@@ -1069,7 +1112,9 @@ async function main(): Promise<void> {
   const postedToDate = window.postedTo ?? new Date();
   const t0 = Date.now();
   console.log(
-    `[sam-opportunities] starting scope=${scope} (${commit ? 'COMMIT' : 'DRY-RUN'}${backfill ? ', BACKFILL' : ''}) maxPages=${MAX_PAGES}`,
+    `[sam-opportunities] starting scope=${scope} (${commit ? 'COMMIT' : 'DRY-RUN'}${
+      backfill ? ', BACKFILL' : ''
+    }${skipDescriptions ? ', SKIP_DESCRIPTIONS' : ''}) maxPages=${MAX_PAGES}`,
   );
 
   const prisma = new PrismaClient();
@@ -1124,7 +1169,7 @@ async function main(): Promise<void> {
           continue;
         }
 
-        const prepared = await prepareOpportunity(rec, noticeId, apiKey);
+        const prepared = await prepareOpportunity(rec, noticeId, apiKey, { skipDescriptions });
         if (prepared.descriptionError) {
           counts.errors += 1;
           console.warn(
@@ -1137,17 +1182,20 @@ async function main(): Promise<void> {
             const result = await prisma.$transaction(async (tx) => {
               const existing = await tx.samOpportunity.findUnique({
                 where: { noticeId },
-                select: { id: true },
+                select: { id: true, description: true },
               });
+              const lastSyncedAt = new Date();
               const row = await tx.samOpportunity.upsert({
                 where: { noticeId },
-                create: { ...prepared.data, raw: prepared.raw, lastSyncedAt: new Date() },
-                update: { ...prepared.data, raw: prepared.raw, lastSyncedAt: new Date() },
+                create: { ...prepared.data, raw: prepared.raw, lastSyncedAt },
+                update: buildSamOpportunityUpdateData(prepared, lastSyncedAt),
                 select: { id: true },
               });
               const forMatch: OpportunityForMatch = {
                 title: prepared.data.title,
-                description: descriptionForMatching(prepared.data.description),
+                description: descriptionForMatching(
+                  prepared.data.description ?? existing?.description ?? null,
+                ),
                 office: prepared.data.office,
                 pscCode: prepared.data.pscCode,
                 naicsCode: prepared.data.naicsCode,
@@ -1163,14 +1211,16 @@ async function main(): Promise<void> {
           } else {
             const existing = await prisma.samOpportunity.findUnique({
               where: { noticeId },
-              select: { id: true },
+              select: { id: true, description: true },
             });
             if (existing) counts.updated += 1;
             else counts.inserted += 1;
             matchesProposed += matchOpportunity(
               {
                 title: prepared.data.title,
-                description: descriptionForMatching(prepared.data.description),
+                description: descriptionForMatching(
+                  prepared.data.description ?? existing?.description ?? null,
+                ),
                 office: prepared.data.office,
                 pscCode: prepared.data.pscCode,
                 naicsCode: prepared.data.naicsCode,
@@ -1197,12 +1247,10 @@ async function main(): Promise<void> {
     };
 
     if (commit) {
-      await runWithSyncRun(
-        prisma as never,
-        syncSourceForScope(scope, backfill),
-        execute,
-        { overrideSince: sinceArg ?? null, skipIfRunning: !backfill },
-      );
+      await runWithSyncRun(prisma as never, syncSourceForScope(scope, backfill), execute, {
+        overrideSince: sinceArg ?? null,
+        skipIfRunning: !backfill,
+      });
     } else {
       // Dry-run must not create a SyncRun row (would advance / pollute the ledger).
       const watermark = sinceArg

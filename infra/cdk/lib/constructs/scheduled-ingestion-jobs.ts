@@ -60,6 +60,14 @@ export class ScheduledIngestionJobs extends Construct {
             {
               containerName: props.containerName,
               command: job.command,
+              ...(job.environment
+                ? {
+                    environment: Object.entries(job.environment).map(([name, value]) => ({
+                      name,
+                      value,
+                    })),
+                  }
+                : {}),
             },
           ],
         }),
