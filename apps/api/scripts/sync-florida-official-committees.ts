@@ -2,14 +2,16 @@
  * Reconcile the first-party Florida committee directory into state_committee.
  * Default mode is a read-only report. Applying to a non-local database needs
  * both an explicit non-local opt-in and the exact inventory confirmation token.
- * The sync only upserts the 66 reviewed rows; it never deletes or merges rows.
+ * The sync upserts the 66 reviewed rows and soft-retires older directory rows
+ * that are no longer in that reviewed inventory. It never deletes or merges
+ * rows, so historical referrals, rosters, hearings, and deep links remain.
  */
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { URL } from 'node:url';
 import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 
 dotenvConfig();
 
@@ -36,6 +38,8 @@ export type AppliedInventoryRow = {
   officialSourceKey: string | null;
   legislativeSession: string | null;
 };
+
+type DirectoryEvidence = Record<string, unknown> & { active?: boolean };
 
 export function officialKey(row: InventoryRow): string {
   if (row.chamber === 'house') return `FL:2026:fl:house:committee:${row.officialCode}`;
@@ -65,6 +69,40 @@ export function expectedInventoryRecord(row: InventoryRow): AppliedInventoryRow 
   };
 }
 
+function directoryEvidence(sourceEvidence: unknown): DirectoryEvidence | null {
+  if (!sourceEvidence || typeof sourceEvidence !== 'object' || Array.isArray(sourceEvidence)) {
+    return null;
+  }
+  const directory = (sourceEvidence as { directory?: unknown }).directory;
+  return directory && typeof directory === 'object' && !Array.isArray(directory)
+    ? (directory as DirectoryEvidence)
+    : null;
+}
+
+/** Rows soft-retired by this inventory remain addressable but leave directory lists. */
+export function isActiveDirectoryRow(row: { sourceEvidence: unknown }): boolean {
+  return directoryEvidence(row.sourceEvidence)?.active !== false;
+}
+
+export function retiredDirectorySourceEvidence(
+  sourceEvidence: unknown,
+  checkedAt: string,
+): Prisma.InputJsonObject {
+  const root =
+    sourceEvidence && typeof sourceEvidence === 'object' && !Array.isArray(sourceEvidence)
+      ? (sourceEvidence as Record<string, unknown>)
+      : {};
+  return {
+    ...root,
+    directory: {
+      ...(directoryEvidence(sourceEvidence) ?? {}),
+      active: false,
+      retiredAt: checkedAt,
+      retirementReason: 'not-in-reviewed-inventory',
+    },
+  } as unknown as Prisma.InputJsonObject;
+}
+
 export function assertAppliedInventory(snapshot: Snapshot, rows: AppliedInventoryRow[]): number {
   const byKey = new Map(rows.map((row) => [row.officialSourceKey, row]));
   const mismatches: string[] = [];
@@ -80,9 +118,24 @@ export function assertAppliedInventory(snapshot: Snapshot, rows: AppliedInventor
       mismatches.push(expected.officialSourceKey ?? inventoryRow.officialCode);
     }
   }
+  const expectedKeys = new Set(snapshot.rows.map(officialKey));
+  const unexpected = rows
+    .map((row) => row.officialSourceKey)
+    .filter((key): key is string => typeof key === 'string')
+    .filter((key) => !expectedKeys.has(key));
   if (mismatches.length) {
     throw new Error(
       `Florida inventory postcondition failed for ${mismatches.length} of ${snapshot.rows.length} keys: ${mismatches.slice(0, 10).join(', ')}`,
+    );
+  }
+  if (unexpected.length) {
+    throw new Error(
+      `Florida inventory postcondition found ${unexpected.length} unexpected active keys: ${unexpected.slice(0, 10).join(', ')}`,
+    );
+  }
+  if (rows.length !== snapshot.rows.length) {
+    throw new Error(
+      `Florida inventory postcondition expected ${snapshot.rows.length} active rows (got ${rows.length})`,
     );
   }
   return snapshot.rows.length;
@@ -159,6 +212,7 @@ async function main(): Promise<void> {
     enriched: 0,
     unchanged: 0,
     refreshed: 0,
+    retired: 0,
     verified: 0,
     errors: [] as string[],
   };
@@ -192,6 +246,7 @@ async function main(): Promise<void> {
           listingOnly: row.listingOnly,
           directoryOnly: row.chamber === 'joint',
           aliasIds,
+          active: true,
         },
       };
       const data = {
@@ -216,18 +271,67 @@ async function main(): Promise<void> {
         report[eligibleLegacy ? 'enriched' : 'created']++;
       }
     }
+
+    const inventoryKeys = new Set(snapshot.rows.map(officialKey));
+    const managedRows = await prisma.stateCommittee.findMany({
+      where: {
+        state: 'FL',
+        officialSourceKey: { not: null },
+        OR: [
+          { officialSourceKey: { startsWith: 'FL:2026:fl:house:committee:' } },
+          { officialSourceKey: { startsWith: 'FL:2026:fl:senate:' } },
+          { officialSourceKey: { startsWith: 'FL:directory:fl:joint:' } },
+        ],
+      },
+      select: { id: true, officialSourceKey: true, sourceEvidence: true },
+    });
+    const staleDirectoryRows = managedRows.filter(
+      (row) =>
+        row.officialSourceKey != null &&
+        !inventoryKeys.has(row.officialSourceKey) &&
+        directoryEvidence(row.sourceEvidence) != null &&
+        isActiveDirectoryRow(row),
+    );
+    report.retired = staleDirectoryRows.length;
+    if (apply) {
+      for (const row of staleDirectoryRows) {
+        await prisma.stateCommittee.update({
+          where: { id: row.id },
+          data: {
+            sourceEvidence: retiredDirectorySourceEvidence(
+              row.sourceEvidence,
+              snapshot.checkedAt,
+            ),
+            lastSyncedAt: new Date(),
+          },
+        });
+      }
+    }
     if (apply) {
       const appliedRows = await prisma.stateCommittee.findMany({
-        where: { officialSourceKey: { in: snapshot.rows.map(officialKey) } },
+        where: {
+          state: 'FL',
+          officialSourceKey: {
+            in: managedRows
+              .map((row) => row.officialSourceKey)
+              .filter((key): key is string => Boolean(key)),
+          },
+        },
         select: {
           state: true,
           chamber: true,
           name: true,
           officialSourceKey: true,
           legislativeSession: true,
+          sourceEvidence: true,
         },
       });
-      report.verified = assertAppliedInventory(snapshot, appliedRows);
+      report.verified = assertAppliedInventory(
+        snapshot,
+        appliedRows
+          .filter(isActiveDirectoryRow)
+          .map(({ sourceEvidence: _sourceEvidence, ...row }) => row),
+      );
     }
   } finally {
     await prisma.$disconnect();

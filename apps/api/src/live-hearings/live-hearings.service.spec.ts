@@ -691,6 +691,31 @@ describe('state committee directory aliases', () => {
     expect(filterVerifiedDirectoryAliases(rows).map((row) => row.id)).toEqual(['legacy', 'official']);
   });
 
+  test('keeps a retired official row addressable but removes it from directory lists', () => {
+    const rows = [
+      {
+        id: 'official-ap',
+        officialSourceKey: 'FL:2026:fl:senate:AP',
+        sourceEvidence: { directory: { aliasIds: [], active: true } },
+      },
+      {
+        id: 'official-socg',
+        officialSourceKey: 'FL:2026:fl:senate:SOCG',
+        sourceEvidence: { directory: { aliasIds: ['legacy-socg'], active: false } },
+      },
+      {
+        id: 'legacy-socg',
+        officialSourceKey: null,
+        sourceEvidence: null,
+      },
+    ];
+
+    expect(filterVerifiedDirectoryAliases(rows).map((row) => row.id)).toEqual([
+      'official-ap',
+      'legacy-socg',
+    ]);
+  });
+
   test('preserves a Senate legacy record through the official detail link', () => {
     const official = {
       chamber: 'upper', officialSourceKey: 'FL:2026:fl:senate:AP',

@@ -18,6 +18,8 @@ import { SubscribePage } from './pages/onboarding/SubscribePage.js';
 import { useBillingState } from './lib/billing.js';
 import { useMe } from './lib/me.js';
 import { LockoutScreen } from './components/onboarding/LockoutScreen.js';
+import { WorkspaceAccessError } from './components/WorkspaceAccessError.js';
+import { httpErrorStatus, isAuthenticationOrAccessError } from './lib/query-retry.js';
 import { CapiroAdminPage } from './pages/capiro-admin/CapiroAdminPage.js';
 import { ClientWorkspacePage } from './pages/clients/ClientWorkspacePage.js';
 import { DirectoryPage } from './pages/directory/DirectoryPage.js';
@@ -459,9 +461,10 @@ export function App() {
  * Wraps the authenticated app shell with a billing paywall. A tenant whose
  * subscription is missing or canceled is routed to the welcome/subscribe screen
  * before it can use the product. Uses the role-safe /api/billing/state read
- * (the full summary is billing-admin-only under onboarding v1). Fails OPEN:
- * any state error renders the app normally — only a definitive non-entitled
- * status from the server gates. comped/active/trialing pass through.
+ * (the full summary is billing-admin-only under onboarding v1). Non-auth
+ * state errors fail open; a 401/403 stops at the workspace-access recovery
+ * screen. Only a definitive non-entitled status from the server paywalls.
+ * comped/active/trialing pass through.
  */
 /**
  * Program Elements v2 — capiro-internal visual refinement (branch
@@ -482,8 +485,26 @@ function ProgramElementWatchGate() {
 
 function BillingGate() {
   const billing = useBillingState();
+  const me = useMe();
   const location = useLocation();
-  if (billing.isLoading) {
+  // A signed-in Clerk session can still fail tenant bootstrap (for example,
+  // when its organization has not been mapped locally). Stop here so the app
+  // shell cannot fan out its route queries behind a permanent Loading state.
+  // Other outages retain the existing fail-open behavior.
+  const accessError = [me.error, billing.error].find(isAuthenticationOrAccessError);
+  if (accessError) {
+    const status = httpErrorStatus(accessError);
+    return (
+      <WorkspaceAccessError
+        status={status === 401 ? 401 : 403}
+        retrying={me.isFetching || billing.isFetching}
+        onRetry={() => {
+          void Promise.all([me.refetch(), billing.refetch()]);
+        }}
+      />
+    );
+  }
+  if (billing.isLoading || me.isLoading) {
     return <PlaceholderPage title="Loading" description="Please wait..." />;
   }
   const data = billing.data;

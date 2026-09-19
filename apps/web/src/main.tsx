@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App.js';
 import { config, isVNextSurface } from './env.js';
 import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
+import { shouldRetryQuery } from './lib/query-retry.js';
 
 // theme.css is the LEGACY surface's global stylesheet. One bundle serves two
 // surfaces (see env.ts): app.capiro.ai still renders antd and needs it;
@@ -24,7 +25,7 @@ if (!isVNextSurface) {
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 },
+    queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: shouldRetryQuery },
   },
 });
 

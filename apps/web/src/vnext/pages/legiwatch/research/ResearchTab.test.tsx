@@ -11,6 +11,8 @@ import { ResearchTab } from './ResearchTab.js';
 const mocks = vi.hoisted(() => ({
   identity: 'tenant-a',
   enabled: true,
+  role: 'user_admin',
+  meLoading: false,
   get: vi.fn(),
   post: vi.fn(),
 }));
@@ -23,12 +25,21 @@ vi.mock('../../../../lib/intel-feature-flags.js', () => ({
   useIntelFeatureEnabled: () => mocks.enabled,
 }));
 
+vi.mock('../../../../lib/me.js', () => ({
+  useMe: () => ({
+    data: mocks.meLoading ? undefined : { role: mocks.role },
+    isLoading: mocks.meLoading,
+  }),
+}));
+
 beforeEach(() => {
   sessionStorage.clear();
   mocks.get.mockReset();
   mocks.post.mockReset();
   mocks.identity = 'tenant-a';
   mocks.enabled = true;
+  mocks.role = 'user_admin';
+  mocks.meLoading = false;
   mocks.get.mockResolvedValue({ data: [] });
 });
 
@@ -119,6 +130,67 @@ test('disabled research gives a setup state without requesting source or private
   expect(screen.getByText('Research setup')).toBeTruthy();
   expect(mocks.get).not.toHaveBeenCalled();
   expect(mocks.post).not.toHaveBeenCalled();
+});
+
+test('standard users do not see the administrator-only imported setup view', async () => {
+  mocks.role = 'standard_user';
+  mocks.post.mockResolvedValue({ data: { items: [] } });
+  mount();
+
+  expect(await screen.findByRole('button', { name: 'Bills' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Review imported setup' })).toBeNull();
+  expect(mocks.get.mock.calls.some(([url]) => String(url).includes('/research/imports?'))).toBe(
+    false,
+  );
+});
+
+test('standard-user imported-setup deep links fall back to Bills without requesting imports', async () => {
+  mocks.role = 'standard_user';
+  mocks.post.mockResolvedValue({ data: { items: [] } });
+  mount('/legiwatch?tab=research&researchView=imports&session=2026');
+
+  expect(
+    await screen.findByText(
+      'Imported setup review is available to workspace administrators. Research opened in Bills instead.',
+    ),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Bills' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByRole('button', { name: 'Review imported setup' })).toBeNull();
+  expect(mocks.get.mock.calls.some(([url]) => String(url).includes('/research/imports?'))).toBe(
+    false,
+  );
+  await waitFor(() =>
+    expect(mocks.post).toHaveBeenCalledWith(
+      '/intel-api/legiwatch/research/search',
+      expect.objectContaining({ sessionKey: '2026' }),
+    ),
+  );
+});
+
+test('imported setup does not request protected data while the current role is loading', () => {
+  mocks.meLoading = true;
+  mount('/legiwatch?tab=research&researchView=imports&session=2026');
+
+  expect(screen.getByText('Checking administrator access to imported setup review…')).toBeTruthy();
+  expect(mocks.get).not.toHaveBeenCalled();
+  expect(mocks.post).not.toHaveBeenCalled();
+});
+
+test('tenant administrators can open imported setup and request its review data', async () => {
+  mocks.role = 'user_admin';
+  mocks.get.mockResolvedValue({ data: { memberships: [], rules: [] } });
+  mount('/legiwatch?tab=research&researchView=imports&session=2026');
+
+  expect(await screen.findByRole('button', { name: 'Review imported setup' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await waitFor(() =>
+    expect(mocks.get).toHaveBeenCalledWith(
+      expect.stringContaining('/intel-api/legiwatch/research/imports?'),
+    ),
+  );
+  expect(screen.queryByText(/Research opened in Bills instead/)).toBeNull();
 });
 
 test('reopened comparison requests both pinned revisions and keeps client scope', async () => {
