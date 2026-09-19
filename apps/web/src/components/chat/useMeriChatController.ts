@@ -70,6 +70,27 @@ import {
 import { formatMeriHttpError } from './meri-http-error.js';
 import { mergeMeriRuntimeStatus, meriRuntimeStatus, type MeriRuntimeStatus } from './meri-runtime-status.js';
 import {
+  clearHermesRunPointer,
+  hermesApprovalCardFromFrame,
+  hermesApprovalUrl,
+  hermesClarifyCardFromFrame,
+  hermesClarificationUrl,
+  hermesRunEventsUrl,
+  hermesRunUrl,
+  hermesStopUrl,
+  isHermesRunTerminal,
+  mergeHermesInteractionsFromProjection,
+  readHermesRunPointer,
+  readHermesRunProjection,
+  resolveHermesInteraction,
+  upsertHermesInteraction,
+  writeHermesRunPointer,
+  type MeriHermesApprovalCard,
+  type MeriHermesClarifyCard,
+  type MeriHermesInteractionCard,
+  type MeriHermesRunStatus,
+} from './meri-hermes-interactions.js';
+import {
   readRecoveredResearch,
   readResearchReportEvidence,
   readResearchRun,
@@ -97,8 +118,20 @@ type SseEvent =
       phase?: string;
       runId?: string;
       accepted?: false;
+      /** Present on the reconnect endpoint's opening frame (contracts.md §5/§6). */
+      afterSeq?: number;
     }
-  | { type: 'start'; intent: string; tier?: 'fast' | 'deep'; reasoningMode?: string }
+  | {
+      type: 'start';
+      intent: string;
+      tier?: 'fast' | 'deep';
+      reasoningMode?: string;
+      /** Present when this turn is served by the Hermes runtime adapter. */
+      runtime?: 'hermes';
+      /** Meri's own run id (not the wire Hermes run id) — routes the Stop/
+       * approval/clarification control surface (contracts.md §5). */
+      runId?: string;
+    }
   | {
       type: 'trace';
       trace?: Array<{ tool: string; action: 'selected' | 'skipped'; reason: string }>;
@@ -163,7 +196,31 @@ type SseEvent =
         recipientType: string | null;
       };
       preview: MeriActionPreview;
+      /**
+       * Present ONLY on a native Hermes terminal-command approval
+       * (contracts.md §4.1). Its semantics differ from the business-action
+       * card above — choices are always once/deny, and Hermes never reports
+       * the outcome as its own event — so this is routed to a distinct
+       * HermesApprovalCard rather than ActionProposalCard; see
+       * meri-hermes-interactions.ts.
+       */
+      runtime?: 'hermes';
+      interaction?: { requestId: string; choices: string[]; continuation: 'live_process' | 'durable_continuation' };
     }
+  // Hermes durable-continuation clarification (contracts.md §4.1): the
+  // broker's meri_request_clarification tool asked the user something and
+  // ended its turn; the answer is sent as the next chat message. Unknown to
+  // legacy/V3 turns, which never emit it.
+  | {
+      type: 'clarify';
+      runtime: 'hermes';
+      requestId: string;
+      questions: Array<{ id: string; question: string; choices: string[]; multiSelect: boolean }>;
+      continuation: 'durable_continuation';
+    }
+  // Hermes token usage receipt (contracts.md §4.1). Not rendered today; kept
+  // in the union so it is a recognized no-op frame rather than an unknown shape.
+  | { type: 'usage'; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } }
   // Retrieval plan forwarded by the orchestrator's `done` frame. Absent on
   // legacy turns (and on turns that don't run the retrieval assistant), so
   // `retrieval` stays optional and older clients keep working. The shape
@@ -183,8 +240,20 @@ type SseEvent =
       contextPacketId?: string;
       turnScope?: MeriTurnScope;
       retrieval?: ChatMessageRetrieval;
+      /** Present when this turn was served by the Hermes runtime adapter. */
+      runtime?: 'hermes';
+      runId?: string;
+      pendingInteractions?: Array<{ requestId: string; kind: 'approval' | 'clarification'; continuation: string }>;
     }
-  | { type: 'error'; message: string; accepted?: false }
+  | {
+      type: 'error';
+      message: string;
+      accepted?: false;
+      /** Hermes single-writer-per-conversation admission conflict (contracts.md §3):
+       * another run is already live for this conversation. */
+      code?: string;
+      occupyingRunId?: string;
+    }
   | {
       type: 'draft_updated';
       engagementId: string;
@@ -260,6 +329,16 @@ export function formatElapsed(ms: number): string {
 
 function generateId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+/** sessionStorage can throw (private window, disabled storage) — never let a
+ * Hermes reconnect-pointer read/write take down the chat turn itself. */
+function safeSessionStorage(): Storage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.sessionStorage;
+  } catch {
+    return null;
+  }
 }
 
 // ── Chat attachments (F1) ────────────────────────────────────────────────
@@ -478,6 +557,29 @@ export function useMeriChatController({
     ((sessionId?: string | null, routeEpoch?: number) => void) | null
   >(null);
   const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
+
+  // ── Hermes control surface (Phase 1 backlog tickets 4/5) ───────────────
+  // Native approval + durable clarification cards for a turn served by the
+  // Hermes runtime adapter. Kept separate from `pendingApprovals` above
+  // (Meri business-action proposals): the two card families have genuinely
+  // different semantics — see meri-hermes-interactions.ts's file header.
+  const [hermesInteractions, setHermesInteractions] = useState<MeriHermesInteractionCard[]>([]);
+  const [hermesBusyRequestId, setHermesBusyRequestId] = useState<string | null>(null);
+  const [hermesRunStatus, setHermesRunStatus] = useState<MeriHermesRunStatus | null>(null);
+  // The run currently "owned" by this tab — either the turn just sent, or a
+  // run reattached on mount/reconnect. Stop and the reconnect effect below
+  // both read this. A ref (not state) because it must be read synchronously
+  // from handleStop without waiting for a render.
+  const hermesRunRef = useRef<{ runId: string; conversationId: string; assistantMessageId: string } | null>(
+    null,
+  );
+  // Aborts an in-progress reconnect SSE read (distinct from abortRef, which
+  // belongs to a live `sendMessage` turn) so a route/session change or a
+  // second reconnect attempt cannot leave two readers writing the same
+  // placeholder message.
+  const hermesReconnectAbortRef = useRef<AbortController | null>(null);
+  const hermesReconnectEpochRef = useRef(0);
+
   const [orchestratorTemplate, setOrchestratorTemplate] = useState<{
     heading: string;
     sections: string[];
@@ -2127,10 +2229,25 @@ export function useMeriChatController({
               // wiped the cards, the model re-proposed under a fresh fingerprint,
               // and nothing was ever written. Cards clear on approve, on dismiss,
               // or on a session switch, and nowhere else.
+              if (event.runtime === 'hermes' && event.runId) {
+                hermesRunRef.current = { runId: event.runId, conversationId: sid, assistantMessageId: assistantId };
+                setHermesRunStatus('running');
+                writeHermesRunPointer(safeSessionStorage(), sid, { runId: event.runId });
+              }
             } else if (event.type === 'runtime') {
               const status = meriRuntimeStatus(event);
               turnRuntimeStatus = status ? mergeMeriRuntimeStatus(turnRuntimeStatus, status) : turnRuntimeStatus;
               if (status) setChatMessageRuntimeStatus(assistantId, status);
+            } else if (event.type === 'pending_approval' && event.runtime === 'hermes') {
+              // Native Hermes terminal-command approval — a genuinely
+              // different card (once/deny only, no server-reported outcome).
+              // See meri-hermes-interactions.ts and HermesApprovalCard.tsx.
+              const runId = hermesRunRef.current?.runId;
+              const card = runId ? hermesApprovalCardFromFrame(event, runId) : null;
+              if (card) {
+                setHermesRunStatus('waiting_for_approval');
+                setHermesInteractions((prev) => upsertHermesInteraction(prev, card));
+              }
             } else if (event.type === 'pending_approval') {
               // MeriV2 gate-held write — the server already created the durable
               // proposal; this just renders the card the id identifies.
@@ -2157,6 +2274,15 @@ export function useMeriChatController({
                   updatedAt: new Date().toISOString(),
                 }),
               );
+            } else if (event.type === 'clarify' && event.runtime === 'hermes') {
+              // Durable-continuation clarification (contracts.md §4.1). The run
+              // ends its turn now; the user's next message answers it.
+              const runId = hermesRunRef.current?.runId;
+              const card = runId ? hermesClarifyCardFromFrame(event, runId) : null;
+              if (card) {
+                setHermesRunStatus('waiting_for_clarification');
+                setHermesInteractions((prev) => upsertHermesInteraction(prev, card));
+              }
             } else if (event.type === 'trace') {
               if (event.policy?.tier) {
                 setOrchestratorTier(event.policy.tier);
@@ -2301,6 +2427,15 @@ export function useMeriChatController({
                 setChatMessageRetrieval(assistantId, retrieval);
                 setLastRetrieval(retrieval);
               }
+              if (event.runtime === 'hermes') {
+                // `done` is always terminal for a Hermes turn (contracts.md §3) —
+                // release ownership so Stop/reconnect stop targeting it, and drop
+                // the reconnect pointer so a later reload does not try to
+                // reattach a run that has already finished.
+                setHermesRunStatus(null);
+                if (!event.runId || hermesRunRef.current?.runId === event.runId) hermesRunRef.current = null;
+                clearHermesRunPointer(safeSessionStorage(), sid);
+              }
               // Reconcile the optimistic id LAST, after every mutation above
               // that still needs to match by the id this message was created
               // under. Without this, rating the message immediately after
@@ -2322,6 +2457,17 @@ export function useMeriChatController({
                   return { ...rest, [canonicalId]: offer! };
                 });
               }
+              break outer;
+            } else if (event.type === 'error' && event.code === 'conversation_occupied' && event.occupyingRunId) {
+              // A run is already live for this conversation (single-writer-per-
+              // conversation admission, contracts.md §3) — most often this
+              // tab's own earlier turn, still running server-side after a
+              // detach. Record the pointer and let the reconnect effect below
+              // reattach on its own once this turn finishes unwinding (rather
+              // than racing a second consumer against this one here).
+              updateChatMessage(assistantId, '_That run is already in progress — reconnecting…_');
+              writeHermesRunPointer(safeSessionStorage(), sid, { runId: event.occupyingRunId });
+              accepted = true;
               break outer;
             } else if (event.type === 'error') {
               accepted = event.accepted !== false;
@@ -2447,6 +2593,264 @@ export function useMeriChatController({
     return () => window.removeEventListener(MERI_CONTEXT_PROMPT_EVENT, onContextPrompt);
   }, []);
 
+  // ── Hermes reconnect (Phase 1 backlog ticket 4) ────────────────────────
+  // Reattaches this tab to an in-flight Hermes run: GET the safe run
+  // projection (status + pending interactions — reappears the approval/
+  // clarification card immediately, even before any SSE byte arrives), then
+  // stream `GET .../events?after=0` to keep the message live. Always replays
+  // from seq 0 into a FRESH placeholder rather than tracking a client-side
+  // seq cursor across reconnects: the wire frames the browser receives never
+  // carry a `seq` (only the run projection's summary `lastSeq` does), so a
+  // precise incremental resume isn't available without a backend change: a
+  // full replay is bounded (contracts.md §4.2: capped at 5000 events/run) and
+  // idempotent, which is the safer dedup strategy — see meri-hermes-interactions.ts.
+  const attachHermesRun = useCallback(
+    (runId: string, conversationId: string) => {
+      const requestIdentityKey = identityKeyRef.current;
+      hermesReconnectAbortRef.current?.abort();
+      const controller = new AbortController();
+      hermesReconnectAbortRef.current = controller;
+      const epoch = ++hermesReconnectEpochRef.current;
+      const current = () =>
+        epoch === hermesReconnectEpochRef.current &&
+        !controller.signal.aborted &&
+        currentSessionRef.current === conversationId &&
+        mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current);
+
+      // Reuse the placeholder from a prior attempt at THIS exact run (a retry
+      // after a dropped connection); otherwise start a fresh one, since a hard
+      // reload has no local text to reconcile against in the first place.
+      const assistantId =
+        hermesRunRef.current?.runId === runId && hermesRunRef.current.conversationId === conversationId
+          ? hermesRunRef.current.assistantMessageId
+          : generateId();
+      if (!getChatStateSnapshot().messages.some((message) => message.id === assistantId)) {
+        appendChatMessage({
+          id: assistantId,
+          role: 'assistant',
+          content: '',
+          createdAt: new Date(),
+          runtimeStatus: meriRuntimeStatus({ type: 'start' }),
+        });
+      }
+      hermesRunRef.current = { runId, conversationId, assistantMessageId: assistantId };
+
+      const retry = () => {
+        window.setTimeout(() => {
+          if (current()) void restore();
+        }, 8_000);
+      };
+
+      const restore = async (): Promise<void> => {
+        if (!current()) return;
+        try {
+          const headers = await authHeaders();
+          if (!current()) return;
+          const projectionRes = await fetch(hermesRunUrl(config.apiBaseUrl, runId), {
+            headers,
+            signal: controller.signal,
+          });
+          if (!projectionRes.ok) throw new Error(`HTTP ${projectionRes.status}`);
+          const projection = readHermesRunProjection(await projectionRes.json());
+          if (!current() || !projection) return;
+          if (isHermesRunTerminal(projection.status)) {
+            hermesRunRef.current = null;
+            setHermesRunStatus(null);
+            clearHermesRunPointer(safeSessionStorage(), conversationId);
+            return;
+          }
+          setHermesRunStatus(projection.status);
+          setHermesInteractions((prev) =>
+            mergeHermesInteractionsFromProjection(prev, projection.pendingInteractions, runId),
+          );
+          writeHermesRunPointer(safeSessionStorage(), conversationId, { runId });
+          setStreaming(true);
+
+          const res = await fetch(hermesRunEventsUrl(config.apiBaseUrl, runId, 0), {
+            headers,
+            signal: controller.signal,
+          });
+          if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let accumulated = '';
+          let terminal = false;
+          outer: while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (!current()) {
+              await reader.cancel().catch(() => {});
+              return;
+            }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+              if (!current()) break outer;
+              if (!line.startsWith('data: ')) continue;
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              let event: SseEvent;
+              try {
+                event = JSON.parse(jsonStr) as SseEvent;
+              } catch {
+                continue;
+              }
+              if (event.type === 'text') {
+                accumulated += event.text;
+                updateChatMessage(assistantId, accumulated);
+              } else if (event.type === 'tool_call') {
+                const label = event.label || event.tool;
+                setTrustSteps((prev) => [...prev, { tool: event.tool, label, status: 'running' as const }]);
+              } else if (event.type === 'sources') {
+                const src = (Array.isArray(event.sources) ? event.sources : [])[0];
+                if (src) {
+                  setTrustSteps((prev) => {
+                    const next = [...prev];
+                    for (let i = next.length - 1; i >= 0; i -= 1) {
+                      if (next[i]!.status === 'running' && next[i]!.tool === src.tool) {
+                        next[i] = {
+                          ...next[i]!,
+                          label: src.label || next[i]!.label,
+                          detail: src.summary,
+                          status: src.confidence === 'low' ? 'error' : 'done',
+                        };
+                        return next;
+                      }
+                    }
+                    return next;
+                  });
+                }
+              } else if (event.type === 'pending_approval' && event.runtime === 'hermes') {
+                const card = hermesApprovalCardFromFrame(event, runId);
+                if (card) {
+                  setHermesRunStatus('waiting_for_approval');
+                  setHermesInteractions((prev) => upsertHermesInteraction(prev, card));
+                }
+              } else if (event.type === 'clarify' && event.runtime === 'hermes') {
+                const card = hermesClarifyCardFromFrame(event, runId);
+                if (card) {
+                  setHermesRunStatus('waiting_for_clarification');
+                  setHermesInteractions((prev) => upsertHermesInteraction(prev, card));
+                }
+              } else if (event.type === 'error') {
+                updateChatMessage(assistantId, `Error: ${event.message}`);
+              } else if (event.type === 'done') {
+                terminal = true;
+                if (typeof event.messageId === 'string' && event.messageId && event.messageId !== assistantId) {
+                  replaceChatMessageId(assistantId, event.messageId);
+                }
+                break outer;
+              }
+            }
+          }
+          await reader.cancel().catch(() => {});
+          if (!current()) return;
+          if (terminal) {
+            hermesRunRef.current = null;
+            setHermesRunStatus(null);
+            setStreaming(false);
+            clearHermesRunPointer(safeSessionStorage(), conversationId);
+            return;
+          }
+          // The connection ended without a terminal frame (proxy drop,
+          // container restart) — the run may well still be alive server-side;
+          // reattach rather than declaring it over (contracts.md §3's own
+          // reconciliation applies on the SERVER side to the Hermes stream
+          // itself; this is the client-side analogue for the browser leg).
+          retry();
+        } catch {
+          if (!current()) return;
+          retry();
+        }
+      };
+      void restore();
+    },
+    [authHeaders],
+  );
+
+  // On mount (or when the active conversation/identity changes), reattach a
+  // still-running Hermes turn this tab knows about from a prior visit. The
+  // pointer is per-tab (sessionStorage) — there is currently no backend route
+  // to list a conversation's active run by id (contracts.md §5 only offers
+  // by-runId lookups), so a fresh session in a different tab/device cannot
+  // discover an in-flight run this way; it will see the completed answer once
+  // the run finishes and this conversation's message history is reloaded.
+  useEffect(() => {
+    const conversationId = sessionId;
+    if (!conversationId || !identityKey || isStreaming) return;
+    const pointer = readHermesRunPointer(safeSessionStorage(), conversationId);
+    if (!pointer) return;
+    if (hermesRunRef.current?.runId === pointer.runId && hermesRunRef.current.conversationId === conversationId) {
+      return;
+    }
+    attachHermesRun(pointer.runId, conversationId);
+  }, [sessionId, identityKey, isStreaming, attachHermesRun]);
+
+  const resolveHermesApproval = useCallback(
+    async (card: MeriHermesApprovalCard, decision: 'approve_once' | 'deny') => {
+      const requestIdentityKey = identityKeyRef.current;
+      setHermesBusyRequestId(card.requestId);
+      try {
+        const headers = await authHeaders();
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
+        const res = await fetch(hermesApprovalUrl(config.apiBaseUrl, card.runId), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ requestId: card.requestId, decision }),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
+        setHermesInteractions((prev) =>
+          resolveHermesInteraction(prev, card.requestId, { decision, at: new Date().toISOString() }),
+        );
+        setHermesRunStatus('running');
+      } finally {
+        if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) setHermesBusyRequestId(null);
+      }
+    },
+    [authHeaders],
+  );
+
+  /**
+   * Durable-continuation answer (contracts.md §6: "answer is sent as the next
+   * message with the request id"). POSTing /clarification first is a
+   * best-effort durable receipt that resolves the card immediately; it is not
+   * fatal if it fails because the adapter's resolvePendingClarifications scans
+   * every unresolved clarification for the conversation on ANY next message
+   * regardless (meri-hermes-runtime.adapter.ts), so the durable continuation
+   * still completes even if this one POST is dropped.
+   */
+  const answerHermesClarification = useCallback(
+    async (card: MeriHermesClarifyCard, answer: string) => {
+      const requestIdentityKey = identityKeyRef.current;
+      setHermesBusyRequestId(card.requestId);
+      try {
+        const headers = await authHeaders();
+        if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
+          await fetch(hermesClarificationUrl(config.apiBaseUrl, card.runId), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ requestId: card.requestId, answer }),
+          }).catch(() => {});
+        }
+        if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
+          setHermesInteractions((prev) =>
+            resolveHermesInteraction(prev, card.requestId, { answer, at: new Date().toISOString() }),
+          );
+        }
+      } finally {
+        if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) setHermesBusyRequestId(null);
+      }
+      await sendMessage(answer);
+    },
+    [authHeaders, sendMessage],
+  );
+
   const handleClose = useCallback(() => {
     abortRef.current?.abort();
     setStreaming(false);
@@ -2520,6 +2924,16 @@ export function useMeriChatController({
     streamEpochRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
+    // Release THIS TAB's ownership of any Hermes run's live consumer (both the
+    // turn just sent and a reattached reconnect read), but deliberately leave
+    // the sessionStorage pointer and hermesInteractions cards alone — they are
+    // conversation-scoped, durable-ish state, not this navigation's transient
+    // execution state (same rule as pendingApprovals below). Clearing the ref
+    // (not the pointer) is what lets the reconnect effect reattach once this
+    // view becomes current again (e.g. after an integrations detour).
+    hermesReconnectAbortRef.current?.abort();
+    hermesReconnectAbortRef.current = null;
+    hermesRunRef.current = null;
     setStreaming(false);
     setTrustSteps([]);
     setPlanSteps([]);
@@ -2553,6 +2967,14 @@ export function useMeriChatController({
     executedThisRoundRef.current = [];
     setResearchOffers({});
     setLastRetrieval(null);
+    // Unlike invalidateRouteStream, this IS a session boundary: the old
+    // conversation's Hermes cards/status belong to a thread this tab is
+    // leaving, and its sessionStorage pointer would otherwise cause the next
+    // mount effect pass (still keyed by the OLD sessionId's closure until
+    // React re-renders) to spuriously reattach here.
+    setHermesInteractions([]);
+    setHermesRunStatus(null);
+    setHermesBusyRequestId(null);
   }, [invalidateRouteStream]);
 
   // The shared store is claimed at the controller boundary as well as the vNext
@@ -2599,6 +3021,48 @@ export function useMeriChatController({
   }, [discardRouteState, identityKey]);
 
   const handleStop = useCallback(() => {
+    // Hermes: aborting the browser fetch only DETACHES (contracts.md §3 — the
+    // adapter keeps consuming the run on its own controller so a page reload
+    // never loses work in progress). Only this explicit control calls the
+    // real cancel route. Checked first because a Hermes turn is never also a
+    // research turn.
+    const hermesRun = hermesRunRef.current;
+    if (hermesRun && hermesRun.conversationId === currentSessionRef.current) {
+      const requestIdentityKey = identityKeyRef.current;
+      const { runId, conversationId, assistantMessageId } = hermesRun;
+      abortRef.current?.abort();
+      hermesReconnectAbortRef.current?.abort();
+      hermesRunRef.current = null;
+      setStreaming(false);
+      setTurnProgress(null);
+      setHermesRunStatus('cancelling');
+      setChatMessageRuntimeStatus(assistantMessageId, meriRuntimeStatus({ finishReason: 'aborted', partial: true })!);
+      void (async () => {
+        try {
+          const headers = await authHeaders();
+          if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
+          const response = await fetch(hermesStopUrl(config.apiBaseUrl, runId), {
+            method: 'POST',
+            headers,
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch {
+          // Best-effort: the server's own wall-clock budget and detach
+          // handling still eventually resolve the run even if this POST is
+          // lost; the button can simply be pressed again.
+        } finally {
+          if (
+            mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) &&
+            currentSessionRef.current === conversationId
+          ) {
+            clearHermesRunPointer(safeSessionStorage(), conversationId);
+            setHermesRunStatus(null);
+          }
+        }
+      })();
+      return;
+    }
+
     const researchId =
       researchSessionRef.current ??
       (researchRecovery?.run.status === 'running' ? researchRecovery.id : null);
@@ -3261,6 +3725,13 @@ export function useMeriChatController({
     orchestratorConflict,
     pendingApprovals,
     approvingProposalId,
+    // Hermes control surface (Phase 1 backlog tickets 4/5) — distinct from
+    // pendingApprovals above; see meri-hermes-interactions.ts.
+    hermesInteractions,
+    hermesRunStatus,
+    hermesBusyRequestId,
+    resolveHermesApproval,
+    answerHermesClarification,
     orchestratorTemplate,
     contextLabel,
     hideMeriFab,

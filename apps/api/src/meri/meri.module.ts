@@ -81,6 +81,7 @@ import { MERI_HERMES_RUN_REPOSITORY, MeriHermesRunStore } from './hermes/meri-he
 import { MeriHermesPrismaRunRepository } from './hermes/meri-hermes-prisma-run-repository.js';
 import { MeriHermesRuntimeAdapter } from './hermes/meri-hermes-runtime.adapter.js';
 import { MeriHermesBrokerService } from './hermes/meri-hermes-broker.service.js';
+import { MeriHermesArtifactStorageService } from './hermes/meri-hermes-artifact-storage.service.js';
 import {
   MeriHermesBrokerController,
   MeriHermesWorkerTokenGuard,
@@ -154,6 +155,7 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
     { provide: MERI_HERMES_RUN_REPOSITORY, useClass: MeriHermesPrismaRunRepository },
     { provide: MERI_HERMES_RECALL_PORT, useClass: ContextPlaneRecallPort },
     { provide: MERI_HERMES_SECURITY_ENVELOPE, useExisting: MeriContextPlaneService },
+    MeriHermesArtifactStorageService,
     MeriHermesBrokerService,
     MeriHermesWorkerTokenGuard,
     MeriHermesRuntimeAdapter,

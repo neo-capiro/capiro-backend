@@ -32,6 +32,7 @@ import { MeriFeatureFlagsService } from '../meri-feature-flags.service.js';
 import type { MeriHermesCapabilityDescriptor, MeriSseFrame } from './hermes-runtime.contracts.js';
 import { MeriHermesRuntimeAdapter } from './meri-hermes-runtime.adapter.js';
 import { MeriHermesRuntimeClient } from './meri-hermes-runtime.client.js';
+import { MeriHermesArtifactStorageService } from './meri-hermes-artifact-storage.service.js';
 import {
   MERI_HERMES_RUN_REPOSITORY,
   type MeriHermesRunRecord,
@@ -100,6 +101,7 @@ export class MeriHermesController {
     private readonly flags: MeriFeatureFlagsService,
     private readonly client: MeriHermesRuntimeClient,
     private readonly adapter: MeriHermesRuntimeAdapter,
+    private readonly artifactStorage: MeriHermesArtifactStorageService,
     @Inject(MERI_HERMES_RUN_REPOSITORY) private readonly runs: MeriHermesRunRepository,
   ) {}
 
@@ -268,7 +270,7 @@ export class MeriHermesController {
     const artifact = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioArtifact.findFirst({
         where: { id: artifactId, tenantId: ctx.tenantId, userId: ctx.userId },
-        select: { id: true, title: true, kind: true, contentType: true, bodyText: true, metadata: true },
+        select: { id: true, title: true, kind: true, contentType: true, bodyText: true, s3Key: true, metadata: true },
       }),
     );
     if (!artifact) throw new NotFoundException('Artifact not found');
@@ -277,6 +279,16 @@ export class MeriHermesController {
     const filename = typeof metadata.filename === 'string' && metadata.filename ? metadata.filename : `${artifact.title}.txt`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/[^\w.\- ]+/g, '_')}"`);
     res.setHeader('X-Meri-Artifact-Sha256', String(metadata.sha256 ?? ''));
+    if (artifact.s3Key) {
+      // Phase 1 backlog #11: real bytes now live in S3 (see
+      // MeriHermesArtifactStorageService), not inlined in `metadata`.
+      const bytes = await this.artifactStorage.getBytes(artifact.s3Key);
+      res.setHeader('Content-Type', artifact.contentType ?? 'application/octet-stream');
+      res.end(bytes);
+      return;
+    }
+    // Phase 0 prototype rows published before this migration inlined bytes
+    // as base64 in `metadata.inlineBase64`; keep serving those unchanged.
     if (typeof metadata.inlineBase64 === 'string') {
       res.setHeader('Content-Type', artifact.contentType ?? 'application/octet-stream');
       res.end(Buffer.from(metadata.inlineBase64, 'base64'));

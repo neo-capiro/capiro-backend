@@ -25,7 +25,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  PayloadTooLargeException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -43,7 +42,13 @@ import {
   verifyMeriHermesWorkerToken,
   type MeriHermesWorkerTokenClaims,
 } from './meri-hermes-worker-token.js';
-import { MERI_HERMES_TERMINAL_STATUSES } from './hermes-runtime.contracts.js';
+import {
+  MERI_HERMES_BROKER_TOOLS,
+  MERI_HERMES_TERMINAL_STATUSES,
+  type MeriHermesBrokerTool,
+} from './hermes-runtime.contracts.js';
+import { MeriHermesRuntimeAdapter } from './meri-hermes-runtime.adapter.js';
+import { MeriHermesArtifactStorageService } from './meri-hermes-artifact-storage.service.js';
 
 export interface MeriHermesBrokerAuth {
   claims: MeriHermesWorkerTokenClaims;
@@ -51,22 +56,12 @@ export interface MeriHermesBrokerAuth {
   membershipRole: string;
 }
 
-export const MERI_HERMES_BROKER_TOOLS = [
-  'meri_memory_search',
-  'meri_memory_propose',
-  'meri_fetch_attachment',
-  'meri_publish_artifact',
-  'meri_request_clarification',
-  'meri_record_turn',
-] as const;
-export type MeriHermesBrokerTool = (typeof MERI_HERMES_BROKER_TOOLS)[number];
+export { MERI_HERMES_BROKER_TOOLS, type MeriHermesBrokerTool };
 
 const MUTATING_TOOLS: ReadonlySet<MeriHermesBrokerTool> = new Set([
   'meri_memory_propose',
   'meri_publish_artifact',
 ]);
-
-const MAX_INLINE_ARTIFACT_BYTES = 2 * 1024 * 1024;
 
 @Injectable()
 export class MeriHermesBrokerService {
@@ -80,12 +75,25 @@ export class MeriHermesBrokerService {
     @Inject(MERI_HERMES_RUN_REPOSITORY) private readonly runs: MeriHermesRunRepository,
     private readonly candidates: MemoryCandidateService,
     @Inject(MERI_HERMES_RECALL_PORT) private readonly recallPort: MeriHermesRecallPort,
+    private readonly adapter: MeriHermesRuntimeAdapter,
+    private readonly artifactStorage: MeriHermesArtifactStorageService,
   ) {}
 
   /**
    * Authenticate a worker call. Throws HTTP exceptions with stable codes.
    * Order matters: token → run binding → scope match → liveness → CURRENT
    * membership → authorization version. Nothing is cached from the token.
+   *
+   * contracts.md §2: checking the NEXT tool call cannot undo context the
+   * model already loaded into its window, so a live authorization failure
+   * (expiry, version mismatch, membership removal) does not just deny THIS
+   * call -- it fences the whole run. Before throwing, we ask the adapter to
+   * stop the Hermes worker's execution of this run and finalize the Meri run
+   * record to a terminal state (`expired` / `interrupted`), so the browser
+   * sees an honest terminal frame instead of a silently hung run. A stale
+   * transcript therefore can never be resumed: `authorize()` rejects the
+   * NEXT call on this run with `run_not_live` (MERI_HERMES_TERMINAL_STATUSES
+   * check above) rather than re-triggering another stop.
    */
   async authorize(token: string | null, hermesRunId: string | null, now = new Date()): Promise<MeriHermesBrokerAuth> {
     const signingKey = this.env.MERI_HERMES_BROKER_SIGNING_KEY?.trim() ?? '';
@@ -111,10 +119,24 @@ export class MeriHermesBrokerService {
       throw new ConflictException({ code: 'run_not_live', status: run.status });
     }
     if (Date.parse(run.envelope.expiresAt) <= now.getTime()) {
-      await this.runs.update(run.runId, { status: 'expired', finishReason: 'expired', partial: true });
+      await this.runs.append(run.runId, 'error', { code: 'run_expired', frames: [] }, 'internal');
+      await this.adapter.stopWorkerAndFinalize(run, {
+        finishReason: 'expired',
+        partial: true,
+        output: null,
+        error: 'Run authorization envelope expired.',
+      });
       throw new ConflictException({ code: 'run_expired' });
     }
     if (run.envelope.authorizationVersion !== claims.authorizationVersion) {
+      this.logger.warn(`authorization version mismatch for run ${run.runId}; stopping and fencing to interrupted`);
+      await this.runs.append(run.runId, 'error', { code: 'authorization_version_mismatch', frames: [] }, 'internal');
+      await this.adapter.stopWorkerAndFinalize(run, {
+        finishReason: 'interrupted',
+        partial: true,
+        output: null,
+        error: 'authorization_downgrade: authorization version changed mid-run.',
+      });
       throw new ForbiddenException({ code: 'authorization_version_mismatch' });
     }
     // Recheck CURRENT membership on every call: removal fences a live run.
@@ -125,7 +147,14 @@ export class MeriHermesBrokerService {
       }),
     );
     if (!membership) {
+      this.logger.warn(`membership revoked mid-run for run ${run.runId}; stopping and fencing to interrupted`);
       await this.runs.append(run.runId, 'error', { code: 'authorization_revoked', frames: [] }, 'internal');
+      await this.adapter.stopWorkerAndFinalize(run, {
+        finishReason: 'interrupted',
+        partial: true,
+        output: null,
+        error: 'authorization_downgrade: membership is no longer active.',
+      });
       throw new ForbiddenException({ code: 'authorization_revoked' });
     }
     return { claims, run, membershipRole: membership.role };
@@ -262,11 +291,21 @@ export class MeriHermesBrokerService {
   ) {
     await this.assertTool(auth, 'meri_publish_artifact');
     const bytes = input.dataBase64 ? Buffer.from(input.dataBase64, 'base64') : null;
-    if (bytes && bytes.byteLength > MAX_INLINE_ARTIFACT_BYTES) {
-      throw new PayloadTooLargeException('Phase 0 inline artifact limit is 2 MiB');
-    }
     if (!bytes && !input.bodyText) throw new BadRequestException('bodyText or dataBase64 is required');
     const sha256 = createHash('sha256').update(bytes ?? Buffer.from(input.bodyText ?? '', 'utf8')).digest('hex');
+    // Real bytes go to S3 (Phase 1 backlog #11 — no size cap once real
+    // storage is used, unlike the Phase 0 inline-base64 prototype's 2 MiB
+    // limit); a bodyText-only artifact (no bytes) is unaffected and keeps
+    // working exactly as before.
+    let s3Key: string | null = null;
+    if (bytes) {
+      s3Key = this.artifactStorage.buildKey({
+        tenantId: auth.run.envelope.tenantId,
+        runId: auth.run.runId,
+        filename: input.filename ?? null,
+      });
+      await this.artifactStorage.putBytes(s3Key, bytes, input.contentType ?? null);
+    }
     const artifact = await this.prisma.withTenant(auth.run.envelope.tenantId, (tx) =>
       tx.clioArtifact.create({
         data: {
@@ -277,6 +316,7 @@ export class MeriHermesBrokerService {
           kind: input.kind.trim().slice(0, 60) || 'hermes_file',
           contentType: input.contentType ?? null,
           bodyText: input.bodyText ?? null,
+          s3Key,
           metadata: {
             runtime: 'hermes',
             meriRunId: auth.run.runId,
@@ -284,8 +324,7 @@ export class MeriHermesBrokerService {
             filename: input.filename ?? null,
             sha256,
             byteLength: bytes?.byteLength ?? Buffer.byteLength(input.bodyText ?? '', 'utf8'),
-            storage: bytes ? 'inline_prototype' : 'body_text',
-            ...(bytes ? { inlineBase64: bytes.toString('base64') } : {}),
+            storage: s3Key ? 's3' : 'body_text',
           } as Prisma.InputJsonValue,
         },
         select: { id: true, title: true, kind: true, contentType: true },

@@ -41,13 +41,13 @@ import { MeriFeatureFlagsService } from '../meri-feature-flags.service.js';
 import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from '../meri-turn-maintenance.js';
 import { planTurnRerun } from '../meri-turn.helpers.js';
 import {
+  MERI_HERMES_BROKER_TOOLS,
   MERI_HERMES_TERMINAL_STATUSES,
   type MeriHermesAuthorizationEnvelope,
   type MeriHermesFinishReason,
   type MeriHermesRunEvent,
   type MeriSseFrame,
 } from './hermes-runtime.contracts.js';
-import { MERI_HERMES_BROKER_TOOLS } from './meri-hermes-broker.service.js';
 import { translateHermesWireEvent } from './meri-hermes-event-translator.js';
 import { MeriHermesRuntimeClient } from './meri-hermes-runtime.client.js';
 import {
@@ -65,7 +65,7 @@ interface SseWriter {
 
 type RerunMode = 'new' | 'regenerate' | 'resend';
 
-interface TerminalOutcome {
+export interface TerminalOutcome {
   finishReason: MeriHermesFinishReason;
   partial: boolean;
   output: string | null;
@@ -318,11 +318,7 @@ export class MeriHermesRuntimeAdapter {
     await this.runs.update(run.runId, { status: 'cancelling', stopRequestedAt: at });
     await this.runs.append(run.runId, 'run.status', { status: 'cancelling', requestedAt: at, frames: [] });
     if (run.hermesRunId) {
-      try {
-        await this.runtimeFor(run).stopRun(run.hermesRunId);
-      } catch (error) {
-        this.logger.warn(`stop for run ${run.runId} failed: ${String(error)}`);
-      }
+      await this.stopHermesWorker(run);
     } else {
       // Never admitted to Hermes: terminal immediately.
       await this.finalize(run.actorContext, null, run, {
@@ -333,6 +329,37 @@ export class MeriHermesRuntimeAdapter {
       });
     }
     return (await this.runs.get(run.runId)) ?? run;
+  }
+
+  /**
+   * Fence a run to a terminal state from OUTSIDE the normal turn/consume
+   * lifecycle: best-effort stop of the Hermes worker's execution of this run,
+   * then finalize immediately with the given terminal outcome. Used by
+   * `MeriHermesBrokerService.authorize()` when it detects a live
+   * authorization failure (membership revoked, authorization version
+   * mismatch, or envelope expiry) mid-run -- contracts.md §2 requires
+   * stop-and-rebuild, not filter-and-continue, because checking the NEXT
+   * tool call cannot undo context the model already loaded into its window.
+   *
+   * Unlike `requestStop()` (explicit user Stop -> `cancelling` -> `aborted`
+   * once Hermes confirms), this lands the run as `terminal` right away:
+   * `finalize()` re-reads the current record and no-ops if the run already
+   * went terminal through the ordinary `consume()` stream, so this is safe
+   * even if Hermes's stop and the ordinary stream completion race.
+   */
+  async stopWorkerAndFinalize(run: MeriHermesRunRecord, terminal: TerminalOutcome): Promise<void> {
+    await this.stopHermesWorker(run);
+    await this.finalize(run.actorContext, null, run, terminal);
+  }
+
+  /** Best-effort request to stop the Hermes worker's execution of this run; never throws. */
+  private async stopHermesWorker(run: MeriHermesRunRecord): Promise<void> {
+    if (!run.hermesRunId) return;
+    try {
+      await this.runtimeFor(run).stopRun(run.hermesRunId);
+    } catch (error) {
+      this.logger.warn(`stop for run ${run.runId} failed: ${String(error)}`);
+    }
   }
 
   async resolveApproval(

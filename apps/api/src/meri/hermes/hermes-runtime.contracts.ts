@@ -29,6 +29,25 @@ export interface MeriHermesToolPolicy {
   readOnly: boolean;
 }
 
+/**
+ * The six broker tool names (Phase 0). Lives here — not in
+ * `meri-hermes-broker.service.ts` or `meri-hermes-runtime.adapter.ts` — because
+ * both of those modules need it (the adapter to build the default tool policy,
+ * the broker to type-check tool calls) and putting it in either one would make
+ * the two files import from each other (a real ESM circular import: the
+ * adapter needs the broker's `MeriHermesRuntimeAdapter` for revocation
+ * fencing, so the broker cannot also import a value from the adapter's file).
+ */
+export const MERI_HERMES_BROKER_TOOLS = [
+  'meri_memory_search',
+  'meri_memory_propose',
+  'meri_fetch_attachment',
+  'meri_publish_artifact',
+  'meri_request_clarification',
+  'meri_record_turn',
+] as const;
+export type MeriHermesBrokerTool = (typeof MERI_HERMES_BROKER_TOOLS)[number];
+
 export interface MeriHermesRunBudget {
   maxToolCalls: number;
   maxOutputTokens: number;

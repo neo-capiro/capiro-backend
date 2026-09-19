@@ -1,0 +1,89 @@
+# Meri/Hermes isolation acceptance suite (Phase 1 backlog #19).
+#
+# Promotes the Phase 0 manual harness's isolation checks (ISO1-ISO5, D2c —
+# docs/meri/hermes/phase-0/checks-report.md §A) into real jest specs
+# (apps/api/src/meri/hermes/meri-hermes-isolation.spec.ts and
+# meri-hermes-broker-isolation.spec.ts) that run automatically in CI on every
+# PR touching src/meri/hermes, instead of a script a human has to remember to
+# run against a live worker.
+#
+# Neither ci-pr.yml (the unconditional PR gate) nor meriv3-canary-ci.yml (whose
+# `paths:` filter DOES cover apps/api/src/meri/** but whose jest step lists an
+# unrelated, hand-picked set of MeriV3 files) actually execute
+# src/meri/hermes/*.spec.ts today — ci-pr.yml typechecks apps/api on every PR
+# but explicitly does not run its DB-backed jest suite at all (see that
+# workflow's "Follow-up: add an apps/api jest step" comment). This workflow
+# fills that gap for the Hermes isolation suite specifically, the same way
+# knowledge-phase10-ci.yml / district-nexus-release3-ci.yml / etc. each gate
+# their own slice of apps/api with a real Postgres service.
+name: meri-hermes-isolation-ci
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/meri/hermes/**'
+      - 'apps/api/src/common/meri-hermes-flags.ts'
+      - 'apps/api/src/common/meri-hermes-flags.spec.ts'
+      - 'apps/api/prisma/schema.prisma'
+      - '.github/workflows/meri-hermes-isolation-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meri-hermes-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolation-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Fresh-worktree gate prebuild: apps/api's TS project (and, transitively,
+      # its jest specs) pulls in types/values from these five workspace
+      # packages. Build order matters — later packages depend on earlier ones.
+      - name: Build workspace package prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Generate API Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Replay the complete API migration chain on a clean Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Test the Hermes isolation acceptance suite (ISO1-ISO5, D2c)
+        run: >
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit
+          src/meri/hermes

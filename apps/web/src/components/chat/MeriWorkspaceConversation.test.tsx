@@ -52,6 +52,11 @@ function makeController(overrides: Record<string, unknown> = {}) {
     handleApprovePending: vi.fn(),
     handleApproveAll: vi.fn(),
     handleDismissPending: vi.fn(),
+    hermesInteractions: [],
+    hermesRunStatus: null,
+    hermesBusyRequestId: null,
+    resolveHermesApproval: vi.fn(),
+    answerHermesClarification: vi.fn(),
     activeArtifact: null,
     setActiveArtifact: vi.fn(),
     authHeaders: vi.fn(),
@@ -154,5 +159,51 @@ describe('MeriWorkspaceConversation', () => {
     expect(screen.getByTestId('message-assistant')).toHaveTextContent('The Senate moved first.');
     expect(screen.getByText('Meri')).toBeTruthy();
     expect(screen.getByText(/SCOPED TO KESTREL DYNAMICS/)).toBeTruthy();
+  });
+
+  test('renders a native Hermes approval card while the run is still streaming, and Run once calls resolveHermesApproval', () => {
+    const resolveHermesApproval = vi.fn();
+    render(
+      <MeriWorkspaceConversation
+        controller={makeController({
+          isStreaming: true,
+          messages: [
+            { id: 'u1', role: 'user', content: 'Run the cleanup script', createdAt: new Date() },
+          ],
+          hermesRunStatus: 'waiting_for_approval',
+          hermesInteractions: [
+            {
+              kind: 'approval',
+              runId: 'run-1',
+              requestId: 'req-1',
+              proposalId: 'hermes:run-1:req-1',
+              label: 'Run: rm -rf build/',
+              command: 'rm -rf build/',
+              choices: ['once', 'deny'],
+              createdAt: new Date().toISOString(),
+              // Not yet expired relative to the real clock HermesApprovalCard
+              // reads by default (no `now` override is threaded through here).
+              expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+              resolution: null,
+            },
+          ],
+          resolveHermesApproval,
+        })}
+        userLabel="Maya Reyes"
+        greetingName="Maya"
+        tenantName="Ardent Federal Strategies"
+      />,
+    );
+
+    // Renders even while isStreaming — unlike the business pendingApprovals
+    // list, which is gated on `!isStreaming` (contracts.md: waiting_for_approval
+    // is a LIVE mid-turn state, not a post-turn one).
+    expect(screen.getByText('rm -rf build/')).toBeTruthy();
+    expect(screen.getByText('Waiting for your approval')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Run once' }));
+    expect(resolveHermesApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: 'req-1', runId: 'run-1' }),
+      'approve_once',
+    );
   });
 });

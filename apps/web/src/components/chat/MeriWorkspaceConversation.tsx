@@ -19,8 +19,14 @@ import {
   type MeriQuickActionSelection,
 } from './MeriQuickActionsPanel.js';
 import { MeriCanvas } from './MeriCanvas.js';
+import { HermesApprovalCard } from './HermesApprovalCard.js';
 import { ResearchClarifyForm } from './ResearchClarifyForm.js';
 import { WorkPerformed } from './WorkPerformed.js';
+import {
+  hermesRunStatusLabel,
+  type MeriHermesApprovalCard as MeriHermesApprovalCardData,
+  type MeriHermesClarifyCard,
+} from './meri-hermes-interactions.js';
 import { config } from '../../env.js';
 import { useApi } from '../../lib/use-api.js';
 import type { MeriChatController } from './useMeriChatController.js';
@@ -110,6 +116,11 @@ export function MeriWorkspaceConversation({
     handleApprovePending,
     handleApproveAll,
     handleDismissPending,
+    hermesInteractions,
+    hermesRunStatus,
+    hermesBusyRequestId,
+    resolveHermesApproval,
+    answerHermesClarification,
     activeArtifact,
     setActiveArtifact,
     authHeaders,
@@ -127,6 +138,13 @@ export function MeriWorkspaceConversation({
     orchestratorConflict,
     messagesEndRef,
   } = controller;
+
+  const hermesClarifyCards = hermesInteractions.filter(
+    (card): card is MeriHermesClarifyCard => card.kind === 'clarification' && !card.resolution,
+  );
+  const hermesApprovalCards = hermesInteractions.filter(
+    (card): card is MeriHermesApprovalCardData => card.kind === 'approval',
+  );
 
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
   // `handleNewSession` creates the durable server conversation immediately. The
@@ -524,6 +542,40 @@ export function MeriWorkspaceConversation({
               disabled={isStreaming}
               onSubmit={(answers, skipped) => void submitResearchAnswers(answers, skipped)}
             />
+          ) : null}
+
+          {/* Hermes control surface (Phase 1 backlog tickets 4/5): durable
+              clarification and native command-approval cards. Rendered
+              regardless of isStreaming — unlike the business pendingApprovals
+              below, these belong to a turn that is still live (running,
+              waiting_for_approval, waiting_for_clarification). Both survive
+              reconnect: they are rebuilt from the run projection the same way
+              on mount as they are from a live SSE frame — see
+              useMeriChatController.ts's attachHermesRun. */}
+          {hermesClarifyCards.map((card) => (
+            <ResearchClarifyForm
+              key={card.requestId}
+              questions={[{ question: card.question, choices: card.choices, multiSelect: card.multiSelect }]}
+              disabled={hermesBusyRequestId === card.requestId}
+              allowSkip={false}
+              submitLabel="Send answer"
+              headline="Meri is waiting for your answer"
+              onSubmit={(answers) => void answerHermesClarification(card, answers['0'] ?? '')}
+            />
+          ))}
+          {hermesApprovalCards.map((card) => (
+            <HermesApprovalCard
+              key={card.requestId}
+              card={card}
+              busy={hermesBusyRequestId === card.requestId}
+              onDecide={(decision) => resolveHermesApproval(card, decision)}
+            />
+          ))}
+          {hermesRunStatus ? (
+            <div className={`hermes-run-status hermes-run-status--${hermesRunStatus}`} role="status">
+              <span className="hermes-run-status__dot" aria-hidden="true" />
+              {hermesRunStatusLabel(hermesRunStatus)}
+            </div>
           ) : null}
 
           {orchestratorConflict ? (
