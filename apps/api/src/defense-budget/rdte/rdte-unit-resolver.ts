@@ -44,7 +44,19 @@ export type UnitResolution =
 
 const THOUSANDS_RE = /\$\s*in\s*thousands\b|\bin\s*thousands\b|\bthousands\s*of\s*dollars\b/i;
 const MILLIONS_RE = /\$\s*in\s*millions\b|\bin\s*millions\b|\bmillions\s*of\s*dollars\b/i;
-const DOLLARS_RE = /\$\s*in\s*dollars\b|\bin\s*dollars\b|\bdollars\b/i;
+/* Phase 10B-41: the bare `\bdollars\b` fallback previously here matched any
+ * ordinary narrative mention of the word "dollars" (e.g. "then-year
+ * dollars", "constant dollars") as if it were a genuine unit-scale
+ * declaration -- unlike THOUSANDS_RE/MILLIONS_RE, which both require an
+ * actual "in X" / "X of dollars" declaration phrase. That false positive
+ * manufactured a spurious second unit candidate alongside a real "$ in
+ * Millions" header, forcing an unresolved 'conflict' and dropping every
+ * numeric cell for the whole PE as a blocking `missing_unit` omission (see
+ * PE 0604017A in BA4A). Removing the bare alternative makes DOLLARS_RE
+ * structurally symmetric with its siblings: it still matches genuine
+ * "$ in Dollars" / "in dollars" declarations, but no longer self-matches
+ * ordinary prose. */
+const DOLLARS_RE = /\$\s*in\s*dollars\b|\bin\s*dollars\b/i;
 
 /**
  * Resolve the money unit for a table/page from explicit text candidates.

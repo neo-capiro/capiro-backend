@@ -92,6 +92,22 @@ export function extractR2Identities(input: {
       continue;
     }
 
+    /* Phase 10B-41: R-3/R-4 exhibit pages are never R-2 identity sources --
+     * the segmenter never attaches a PE code to r3_page/r4_page segments by
+     * design (see r2-exhibit-segmenter.ts: "R-3/R-4 pages are never
+     * consumed as R-2 narrative"), while the resolver reuses
+     * contextSource='explicit_header' for them for its own bookkeeping
+     * (see r2-context-resolver.ts). Without this check every R-3/R-4 page
+     * falls through to the missing_pe_context branch below even though
+     * there is no R-2 identity to omit here -- same completeness posture
+     * as non_semantic/r1_summary above. This is a targeted denylist
+     * addition (not a switch to an allowlist) so that a genuinely
+     * unresolved R-2 narrative page still surfaces its real omission via
+     * the 'unresolved' branch immediately below. */
+    if (resolvedPage.kind === 'r3_page' || resolvedPage.kind === 'r4_page') {
+      continue;
+    }
+
     if (resolvedPage.contextSource === 'unresolved') {
       omissions.push({
         page: resolvedPage.page,
