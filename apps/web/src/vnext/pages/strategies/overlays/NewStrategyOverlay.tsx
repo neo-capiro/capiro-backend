@@ -363,7 +363,7 @@ export function NewStrategyOverlay() {
                 Create suggested steps in the working plan from available context. Use them directly.
               </span>
               <span className="st-option-card__foot">
-                <span className="st-pill st-pill--accent">Meri-assisted</span>
+                <span className="st-pill st-pill--warning">Review required</span>
               </span>
             </button>
             <p className="st-ns__note">

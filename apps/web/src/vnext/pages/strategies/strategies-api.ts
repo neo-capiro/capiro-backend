@@ -59,7 +59,6 @@ import type {
   ResolveConflictInput,
   RestoreImpact,
   ResumeRunInput,
-  RunCheckResult,
   StrategyDetail,
   StrategyListItem,
   StrategyChatMessage,
@@ -77,7 +76,6 @@ import {
   normalizeMission,
   normalizeMissions,
   normalizeRun,
-  normalizeRunCheck,
   normalizeRuns,
 } from '../../../pages/strategy/agents/agent-utils.js';
 import {
@@ -1608,66 +1606,6 @@ export function useRevalidateWatch(strategyId: string) {
   });
 }
 
-/** POST /agents/watch/proposals/:id/accept — this call IS the approval. */
-export function useAcceptWatchProposal(strategyId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async (proposalId: string) =>
-      (
-        await api.post<WatchAcceptResult>(
-          `${BASE}/agents/watch/proposals/${proposalId}/accept`,
-        )
-      ).data,
-    onSuccess: (res) => {
-      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
-      qc.setQueryData(watchStateKey(strategyId), res.state);
-      invalidate();
-    },
-  });
-}
-
-/** POST /agents/watch/proposals/:id/dismiss — permanent suppression. */
-export function useDismissWatchProposal(strategyId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async (proposalId: string) =>
-      (
-        await api.post<WatchReviewState>(
-          `${BASE}/agents/watch/proposals/${proposalId}/dismiss`,
-        )
-      ).data,
-    onSuccess: (state) => {
-      qc.setQueryData(watchStateKey(strategyId), state);
-      invalidate();
-    },
-  });
-}
-
-/** POST /agents/watch/strategies/:id/accept-all — one dependency-ordered batch. */
-export function useAcceptAllWatchProposals(strategyId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async (input: AcceptAllWatchInput) =>
-      (
-        await api.post<WatchAcceptResult>(
-          `${BASE}/agents/watch/strategies/${strategyId}/accept-all`,
-          input,
-        )
-      ).data,
-    onSuccess: (res) => {
-      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
-      qc.setQueryData(watchStateKey(strategyId), res.state);
-      invalidate();
-    },
-  });
-}
-
 /* ------------------------------------------------------- Mission hooks */
 /** POST /agents/missions — create a standing mission (starts draft; PATCH to activate). */
 export function useCreateMission() {
@@ -1693,27 +1631,6 @@ export function useUpdateMission() {
           await api.patch<unknown>(
             `${BASE}/agents/missions/${vars.id}`,
             vars.input,
-          )
-        ).data,
-      ),
-    onSuccess: invalidate,
-  });
-}
-
-/** POST /agents/missions/:id/run-check — the Stage F on-demand Watcher check. */
-export function useRunCheck() {
-  const api = useApi();
-  const invalidate = useAgentsInvalidate();
-  return useMutation({
-    mutationFn: async (missionId: string): Promise<RunCheckResult> =>
-      normalizeRunCheck(
-        (
-          await api.post<unknown>(
-            `${BASE}/agents/missions/${missionId}/run-check`,
-            undefined,
-            {
-              timeout: 120_000,
-            },
           )
         ).data,
       ),
