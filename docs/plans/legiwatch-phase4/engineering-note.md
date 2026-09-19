@@ -1,6 +1,51 @@
 # LegiWatch Phase 4 — recording, reviewed updates and unofficial recaps
 
-## Current checkpoint — September 13, 07:49 UTC
+## Current closeout — 2026-09-13T12:08:27.180078+00:00
+
+Verified 2026-09-13T12:08:27.180078+00:00. The code is deployed in AWS account 967807252336, us-east-1, ECS cluster `capiro-dev`, serving [os.capiro.ai](https://os.capiro.ai). Implementation and the owned internal qualification are complete within the scope below. **The entire Phase 4 is not accepted:** source-qualified unattended operation, authorized external email/SMS receipt, proposed latency targets and client acceptance remain unqualified.
+
+The user requested execution of the supplied handoff. Its requirements guided the work; captured contacts and document text did not authorize outward messages, OTPs or provider outreach. None were sent.
+
+
+### Deployed code and operating state
+
+| Service | Observed healthy task definition | Immutable image |
+| --- | --- | --- |
+| capiro-dev-api | `capiro-dev-api:339` | `sha256:df738e0d6cd5437471b73c4dadd5c1a6a1a064ce49eaa1909f3605509d616cee` |
+| capiro-dev-intel-api | `capiro-dev-intel-api:37` | `sha256:de350c137501badfd80475439980896e083ef5531af61216ff8a3702bd6d5fb8` |
+| capiro-dev-meriv2-orchestrator | `capiro-dev-meriv2-orchestrator:48` | `sha256:ec391b3cfdc38d440e56a40c64be6bb73901f32021c48996a4352b4c1a36ad3b` |
+| capiro-dev-web-vnext | `capiro-dev-web-vnext:277` | `sha256:a967d56ae72f6fc041daa11d5e717b0edea53b74c9ac3c55a94e0ddae257b0e4` |
+
+The final Intel repair is source `2b54448d86f88af88b54423c002dd4971dcb2063`, tree `32538e8616a3f4c92cc8f78d38e096c24c6ea0c3`. Native ARM64 CodeBuild `capiro-build-intel-api:4fa97eba-599c-40c3-aa0c-d6182b75fa9e` succeeded with 768 scoped Intel and 106 Phase 4 tests, zero failures/skips, typechecking, source/image provenance and a full compiled-worker audio-preservation check. Intel HTTP revision 37 and media-worker revision 20 use its pinned image. The delivery worker stays at revision 19. Existing worker inputs and two-minute cadence were preserved.
+
+Phase 4 PR [#1616](https://github.com/neo-capiro/capirov2/pull/1616) and separately operated Phase 5 PRs #1617/#1618 are merged. Their combined web source `97c30ac4230bd52ec08ffb57198220eaf1045b7c` retains the saved-clock repair. The two final Intel fixes are pushed in draft follow-up [#1619](https://github.com/neo-capiro/capirov2/pull/1619). Deployment is verified independently of merge status. The current follow-up GitHub checks failed before starting because the account reports failed payments or a spending-limit block; native results do not relabel those checks. A separate API revision 339 rollout retained the same qualified API image; its old tasks drained before final qualification.
+
+The internal pilot is now held: its recording, update and recap tenant flags are false; delivery registration and EventBridge schedule are disabled. Only media maintenance registration and its existing revision-20 schedule remain enabled for bounded expiry cleanup. There are zero active browser/server captures. All approved publications, attachments, delivery history and retained media remain; the owned one-day grant expires September 14 at 05:27:02.555 UTC. External email/SMS and public/state capture stay disabled. Phase 1–3 and separately operated Phase 5 controls were not changed by this closeout.
+
+### Completed browser and recovery evidence
+
+The actual deployed browser recorded from 05:59:38.886 to 10:09:38.999 UTC: **250 minutes 0.113 seconds**, with normal standalone Chrome background behavior, an owned private HTTPS source, hidden-page capture, a 16-minute recess and explicit close/re-share. All 27,755 durable parts total 226,511,087 bytes. The capture-result wall time also includes assembly waiting and is not the recording duration.
+
+Both exact downloaded files fully decode without error to **249 minutes 46.380 seconds of audio**. A visible 13.209-second re-share gap remains. Twenty-two smaller source packet timestamp gaps total 0.800 seconds. The original 200-ms format-duration comparison failed and remains recorded as failed: decoded sample durations instead reconcile exactly to all encoded packet durations, and timestamp spans reconcile exactly to the container durations. No tolerance was widened; no audio was padded, trimmed or fabricated. The independently measured longest continuous near-silence is 16 minutes 0.893 seconds.
+
+Long playback exposed a tail-index problem: a middle seek in the 159-minute second epoch timed out after 45 seconds. The assembly worker now uses lossless FFmpeg `-cues_to_front 1`. Both exact owned existing artifacts were reindexed with compare-and-swap updates only after complete native decoded-PCM and packet-timing equivalence checks. All original artifacts and capture parts were retained. This maintenance repair is not a replay of raw-part assembly. A fresh authenticated browser downloaded the new files and passed all six actual start/middle/end seeks at 1.5 speed in **0.218–0.646 seconds**, range HTTP 206, expired signature HTTP 403 and authenticated refresh HTTP 206. Independent full decoding of those new downloads matches the original PCM hashes exactly.
+
+Transcript recovery also exposed a real provider word crossing a four-minute chunk boundary: 239.625–240.665 seconds. Recovery now reads up to two seconds of actual recorded context, owns words starting in the four-minute core window, checks existing coverage across that context and advances only the core cursor. Strict timestamp validation and EOF bounds remain. Real provider diagnostics and meaningful domain/caller tests cover this case. After deployment, an exact failed-job retry resumed at 480,000 ms; scheduled work and one bounded invocation of the ordinary registered media worker completed at cursor 5,399,910 ms. Both epochs are finalized, with **948 original finals plus two recovered finals and zero duplicate intervals**. The explicit partial recording/gap remains truthful. Earlier provider failures, failed operator attempts and the initial readback query error remain separate from the successful proof.
+
+Saved-clock reopen shows `04:10:00` and 216.02 MiB durable data. There were 1,490 roughly ten-second checkpoint samples: p50 1.399 seconds, p95 1.746 seconds, maximum 3.866 seconds; these are not per-part acknowledgement latencies. Browser JS heap peaked at 60.1 MiB; summed owned Node/Chrome RSS peaked at 1,419,788,288 bytes and includes shared pages. The first and last five-minute RSS medians were 1,286,625,280 and 1,204,291,584 bytes. These observations do not establish a production SLA.
+
+### Server, review, Documents and retention
+
+The independent native server fixture also passed: task `50381b822815431e947ad2391b012546` exited zero in all four containers after 250 minutes 5.117 seconds, with 249 minutes 49.719 seconds of verified PCM, all 2,998 part identities/sequences checked, two fixture tenants sharing one capture, a 10.149-second restart gap and 15 minutes 55 seconds of digital silence. Real FFmpeg, Deepgram and private S3 were used with isolated PostgreSQL and an injected owned WAV source. This does not qualify a production source resolver, Florida broadcast mapping or scheduled unattended start. Five separate native permission/demand/tenant/runtime/cancel process-stop cases passed. Full archives were verified before exact inactive fixture object versions were deleted.
+
+The short deployed generated recap and the long recap passed actual review, immutable versioning, Documents save/indexing, idempotent repeated save, exact saved/exported DOCX equality and visual page inspection. Long generated v1 remains an unapproved draft because one observation needed explicit attribution to the test narration. Staff-reviewed v2 `5bd53650-8871-4875-a1d6-a4d53b394546` supersedes it with the same five evidence passages and preserved partial-coverage snapshot. Its content hash is `bdee42ef3bb7ac564cb649d3def73ced6da6384263676f7d238c1b3b41b3d598`; saved/exported DOCX is 9,564 bytes, SHA-256 `397c5183676821a8a5dda6ac385ddba65ae047f521c2ed595ea87b064765be4d`. Later transcript recovery did not rewrite this approved snapshot. The original draft's failed claim review and a verifier assertion after successful v2 creation remain preserved.
+
+Four approved observations reached exactly one row each in the existing actor's own authenticated inbox: two short recaps, one live update during capture and the long corrected recap. Delivery-intent approval to provider acceptance measured **47.695, 33.298, 91.471 and 3.708 seconds**. This is the delivery intent's approval timestamp, not the earlier publication approval timestamp. Three exceed the proposed 30-second target; four samples establish no p95. The two-minute worker cadence/startup and approximately 15-minute-45-second final assembly wait remain measured limitations; no five-minute recap-finalization target is claimed.
+
+Actual scheduled retention passed on a separate stopped owned recording: all 135 object versions and 72.24 seconds of decoded audio were preserved before shortening only its expiry. The existing scheduled worker purged its exact prefix; database references expired, fresh playback returned 404 and seven transcript finals remained. This is a bounded expiry exercise, not a 24-hour elapsed test. Final feature-off browser verification denies capture/publication access, while owner readback confirms saved approved history is unchanged and media cleanup remains enabled.
+
+
+## Historical checkpoint — September 13, 07:49 UTC
 
 API 336 (`63dc1139c`), Intel 35 (`e85dad394`), Web 276 (`ff73d9eb9`) and Meri 47 (`ea927897b`) are healthy with pinned native ARM64 digests. The later main meeting-preparation fix remains preserved. The separate web saved-clock image at `b1c5970ad` passed 812 scoped and 68 Phase 4 tests and is sealed at `sha256:43fca9ccfd3d5f7ba071846466ac51ef54e6af6d4a68ea8df9729a05bc59c8b7`; its rollout remains guarded until the active browser recording completes. Intel must remain untouched during that capture.
 

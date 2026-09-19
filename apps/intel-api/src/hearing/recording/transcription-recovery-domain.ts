@@ -8,6 +8,18 @@ export interface RecoveryWord {
   confidence?: number;
   speaker?: number;
 }
+
+/** Lookahead is context for a word beginning in this cursor window. Words
+ * beginning in the following window are requested again when it owns them. */
+export function recoveryWindowWords(
+  words: RecoveryWord[],
+  ownedDurationMs: number,
+): RecoveryWord[] {
+  if (words.length > 10000) throw Error('Recovery transcript exceeds bounded word count');
+  return words.filter(
+    (word) => !Number.isFinite(word.start) || Math.round(word.start * 1000) < ownedDurationMs,
+  );
+}
 /** Keep persisted finals authoritative. Only uncovered, timed words become new
  * evidence; retries cannot rewrite existing text or duplicate overlapping speech. */
 export function uncoveredSegments(

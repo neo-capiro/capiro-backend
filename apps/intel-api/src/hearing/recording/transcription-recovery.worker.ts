@@ -9,10 +9,15 @@ import type { Prisma } from '../../../generated/prisma-client/index.js';
 import { HearingCryptoService } from '../hearing-crypto.service.js';
 import { RecordingStorageService } from './recording-storage.service.js';
 import { pcmWave } from '../capture/public-hearing-audio.store.js';
-import { uncoveredSegments, type RecoveryWord } from './transcription-recovery-domain.js';
+import {
+  recoveryWindowWords,
+  uncoveredSegments,
+  type RecoveryWord,
+} from './transcription-recovery-domain.js';
 
 const runFile = promisify(execFile),
   CHUNK_MS = 240000,
+  LOOKAHEAD_MS = 2000,
   LEASE_MS = 180000;
 interface Job {
   id: string;
@@ -201,10 +206,13 @@ export class TranscriptionRecoveryWorker {
           });
       }, 20000);
       const cursor = Number(job.cursor_ms),
-        duration = Math.min(CHUNK_MS, source.durationMs - cursor);
+        duration = Math.min(CHUNK_MS, source.durationMs - cursor),
+        readDuration = Math.min(duration + LOOKAHEAD_MS, source.durationMs - cursor);
       if (duration <= 0) throw Error('invalid_recovery_cursor');
-      const pcm = await this.readPcm(source, cursor, duration, cancel.signal);
-      const words = await this.transcribe(pcm, cancel.signal);
+      // A word crossing a four-minute boundary needs its recorded ending.
+      // At 16 kHz mono, 242 seconds stays below the existing 8 MiB PCM bound.
+      const pcm = await this.readPcm(source, cursor, readDuration, cancel.signal);
+      const words = recoveryWindowWords(await this.transcribe(pcm, cancel.signal), duration);
       cancel.signal.throwIfAborted();
       const next = Math.min(source.durationMs, cursor + duration),
         done = next >= source.durationMs;
@@ -215,7 +223,7 @@ export class TranscriptionRecoveryWorker {
         if (!(owned as unknown[]).length) throw Error('recovery_lease_lost');
         await this.authorize(tx, source);
         const begin = source.startMs + cursor,
-          end = begin + duration;
+          end = begin + readDuration;
         let covered: Array<{ startMs: number; endMs: number }>;
         if (source.kind === 'browser')
           covered = await tx.transcriptSegment.findMany({
@@ -236,7 +244,7 @@ export class TranscriptionRecoveryWorker {
             await tx.$queryRaw`SELECT start_ms AS "startMs",end_ms AS "endMs" FROM public_hearing_transcript_segment
             WHERE capture_id=${source.captureId!} AND is_final AND start_ms<${end} AND end_ms>${begin}`;
         }
-        const segments = uncoveredSegments(words, begin, duration, covered);
+        const segments = uncoveredSegments(words, begin, readDuration, covered);
         for (const segment of segments) {
           if (source.kind === 'browser')
             await tx.transcriptSegment.create({

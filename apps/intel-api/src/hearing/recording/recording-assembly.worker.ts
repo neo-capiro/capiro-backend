@@ -194,6 +194,10 @@ export class RecordingAssemblyWorker {
           '-vn',
           '-c:a',
           'copy',
+          // Let remote players read the seek index with initial metadata.
+          // Tail cues can cause Chrome to scan long signed S3 responses.
+          '-cues_to_front',
+          '1',
           '-f',
           'webm',
           output,

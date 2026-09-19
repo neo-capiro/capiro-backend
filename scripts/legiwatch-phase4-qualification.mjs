@@ -84,6 +84,7 @@ run(
     'test/hearing-runtime-privileges-postgres.spec.ts',
     'src/hearing/recording/recording-domain.spec.ts',
     'src/hearing/recording/transcription-recovery-domain.spec.ts',
+    'src/hearing/recording/transcription-recovery.worker.spec.ts',
     'src/hearing/hearing-gateway.capture.spec.ts',
     'src/hearing/capture/ffmpeg-deepgram-capture.runtime.spec.ts',
     'src/hearing/capture/public-capture.orchestrator.spec.ts',
@@ -92,7 +93,7 @@ run(
     'src/hearing/intelligence/postgres-public-hearing-insight.store.spec.ts',
     'test/sms-verification.spec.ts',
   ],
-  [14, 100],
+  [15, 106],
 );
 run(
   'web',
