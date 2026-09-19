@@ -88,7 +88,7 @@ export class ReportSnapshotService {
         type: snapshot.strategy.type,
         ready: errors.length === 0,
         asOf: snapshot.asOf,
-        formats: ["docx", "pptx"],
+        formats: ["docx", "pptx", "pdf"],
         audience: options.audience,
         format: options.format,
         snapshotHash: snapshot.snapshotHash,
@@ -792,7 +792,15 @@ export function reportCapacityIssues(input: {
   return issues;
 }
 
-/** One readiness policy is used by both preflight and the export endpoint. */
+/**
+ * One readiness policy is used by both preflight and the export endpoint.
+ *
+ * Only genuine validity guards remain: payload capacity and the presence of at
+ * least one plan step (an empty report is not a deliverable). Content-quality
+ * and review-state checks (placeholder titles, open context conflicts, missing
+ * executive premise) are advisory warnings for the author, never export
+ * blockers — the direct-export flow has no approval step.
+ */
 export function reportReadinessErrors(
   snapshot: ExecutiveReportSnapshot,
 ): ReportIssue[] {
@@ -801,43 +809,7 @@ export function reportReadinessErrors(
     errors.unshift({
       code: "NO_REPORTABLE_PLAN_STEPS",
       message:
-        snapshot.options.audience === "client"
-          ? "Move at least one reviewed plan step to In progress, Active or Completed before generating a client report."
-          : "Add at least one live plan step before generating an executive report.",
-    });
-  }
-  if (
-    snapshot.options.audience === "client" &&
-    snapshot.inclusion.placeholderNodes > 0
-  ) {
-    errors.push({
-      code: "CLIENT_PLACEHOLDER_CONTENT",
-      message:
-        "Rename or remove placeholder and test plan steps before generating a client-ready report.",
-    });
-  }
-  if (
-    snapshot.options.audience === "client" &&
-    snapshot.context.openMaterialConflicts > 0
-  ) {
-    errors.push({
-      code: "CLIENT_CONTEXT_CONFLICT",
-      message:
-        "Resolve material context conflicts before generating a client-ready report.",
-    });
-  }
-  const hasNarrative = snapshot.context.sections.some((section) =>
-    ["situation", "outcomes", "ask"].includes(section.key),
-  );
-  if (
-    snapshot.options.audience === "client" &&
-    !snapshot.strategy.goal?.trim() &&
-    !hasNarrative
-  ) {
-    errors.push({
-      code: "CLIENT_EXECUTIVE_PREMISE_MISSING",
-      message:
-        "Add a strategy goal or an approved strategy brief before generating a client-ready report.",
+        "Add at least one live plan step before generating an executive report.",
     });
   }
   return errors;

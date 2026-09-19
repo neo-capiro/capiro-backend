@@ -41,11 +41,7 @@ import { projectExecutionBlocker } from './execution-blocker.js';
 import { evaluateEligibility, type EligibilityResult } from './execution-eligibility.js';
 import { stampRunMetrics, type RunMetricsInput } from './run-metrics.js';
 import { PENDING_ARTIFACT_REF } from './artifact-ref.js';
-import {
-  GENERATION_ASSURANCE_HOLD_REASON,
-  assessGeneratedDocumentForRelease,
-  generationReleaseHoldEnforced,
-} from './execution-assurance.js';
+import { assessGeneratedDocumentForRelease } from './execution-assurance.js';
 import { isActionAllowed, reasonForState } from './run-state.js';
 import type {
   CreateRunDto,
@@ -249,23 +245,30 @@ export class ExecutionService {
       );
       const eligibility = g0.eligibility as EligibilityResult;
       const chainErrors = g0.verifierChainErrors as Array<{ message: string }>;
+      // Advisory review signals (missing context, open conflicts) are reported
+      // for display only — they never make the step ineligible or disable
+      // Prepare. g0.advisories carries conflicts; g0.missingRequired carries the
+      // missing steward docs; both are advisory.
+      const advisories = [
+        ...(Array.isArray(g0.advisories)
+          ? (g0.advisories as string[]).filter((k) => typeof k === 'string' && k.trim())
+          : []),
+      ];
       const missingRequired = Array.isArray(g0.missingRequired)
         ? (g0.missingRequired as string[]).filter((k) => typeof k === 'string' && k.trim())
         : [];
+      if (missingRequired.length) {
+        advisories.push(`required client context is missing: ${missingRequired.join(', ')}`);
+      }
       const reasons = [
         ...chainErrors.map((error) => `Fix this step or its prerequisites: ${error.message}`),
         ...eligibility.reasons,
-        // F03: explain missing required client context in readiness BEFORE the
-        // step is offered as Ready to prepare / Ready for review.
-        ...(missingRequired.length
-          ? [`required client context is missing: ${missingRequired.join(', ')}`]
-          : []),
       ];
       if (blockReason && !reasons.length) reasons.push(blockReason);
       const constraint = await this.preparationConstraint(tenantId, kind, strategy, targetNode);
       if (constraint) reasons.push(constraint);
       if (!userId) reasons.push('Sign in to prepare work for this step.');
-      return { enabled, eligible: reasons.length === 0, reasons };
+      return { enabled, eligible: reasons.length === 0, reasons, advisories };
     };
     const [workspace, outreach] = await Promise.all([check('workspace'), check('outreach')]);
     return {
@@ -471,6 +474,20 @@ export class ExecutionService {
       hasWorkspaceAccess: this.hasWorkspaceAccess(meta.kind),
       kind: meta.kind,
     });
+    // Business review signals (open material conflicts, missing required steward
+    // docs) are ADVISORY in Strategies, never a hard gate. evaluateEligibility
+    // still reports the conflict as a reason (used for display); we split those
+    // advisory reasons out of the eligibility result so they cannot feed
+    // blockReason or preflight's `eligible` flag. The remaining reasons
+    // (owner/date/kind/subject/completed/workspace-access) are structural plan
+    // data integrity and STILL block.
+    const ADVISORY = /open material conflict|required client context is missing/i;
+    const blockingReasons = eligibility.reasons.filter((reason) => !ADVISORY.test(reason));
+    const advisoryReasons = eligibility.reasons.filter((reason) => ADVISORY.test(reason));
+    const structuralEligibility: EligibilityResult = {
+      eligible: blockingReasons.length === 0,
+      reasons: blockingReasons,
+    };
 
     const g0 = {
       checkedAt: new Date().toISOString(),
@@ -482,29 +499,29 @@ export class ExecutionService {
         message: e.message,
         nodeIds: e.nodeIds,
       })),
-      eligibility,
+      // Structural (blocking) eligibility only — advisory review signals are
+      // split out so preflight/G0 never park on them.
+      eligibility: structuralEligibility,
+      // Advisory business-review signals: reported for display, never blocking.
+      advisories: advisoryReasons,
       openMaterialConflicts,
       // F03: surface missing required client context in the gate picture so
       // preflight/plan can explain it BEFORE marking the step Ready for review.
       missingRequired,
     };
 
-    // ANY blocking condition parks the run WITHOUT staging. Precedence gives the
-    // most specific precise reason; findings.g0 carries the full picture.
-    // missingRequired is checked before bare eligibility so a plan that would
-    // otherwise be "ready" still parks with a plain-words context gap (F03) —
-    // instead of inviting Execute plan and only failing later in the verifier.
+    // ONLY structural data-integrity conditions park the run. Open material
+    // conflicts and missing required steward docs are advisory (reported above)
+    // and NEVER block. versionDrift (staleness), verifier chain errors, and
+    // structural ineligibility (owner/date/kind/subject/completed/access) still
+    // block — they are plan data integrity, not business approval.
     const blockReason = versionDrift
       ? 'plan changed since approval'
       : chainErrors.length
         ? `plan verification failed: ${chainErrors.map((e) => e.message).join('; ')}`
-        : openMaterialConflicts > 0
-          ? 'unresolved material conflict'
-          : missingRequired.length > 0
-            ? `required client context is missing: ${missingRequired.join(', ')}`
-            : !eligibility.eligible
-              ? `node no longer eligible: ${eligibility.reasons.join('; ')}`
-              : null;
+        : !structuralEligibility.eligible
+          ? `node no longer eligible: ${structuralEligibility.reasons.join('; ')}`
+          : null;
 
     return { g0, blockReason, grounding: ground, stewardHealth };
   }
@@ -642,12 +659,14 @@ export class ExecutionService {
       return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
     }
 
-    // P0-3 ENFORCEMENT: a run carrying a recorded approval must have that
-    // approval re-verified against the CURRENT payload before we act on it. A
-    // drifted approval is persisted as invalidated and the run PARKS — the audit's
-    // "confirm execution is blocked until reapproval".
+    // P0-3 (Strategies): a previously recorded approval is NOT a prerequisite.
+    // Existing recorded approval hashes/expiry must not block old runs — a
+    // drifted approval is still surfaced to the caller via approvalStatus()
+    // (approvalValid=false) but never parks the run. verifyRunApproval is kept
+    // for observability/compat; it always returns null here. Current-plan
+    // freshness is enforced INDEPENDENTLY by the G0 versionDrift check above.
     const runRow = await this.runs.get(tenantId, runId);
-    const approvalBlock = await this.verifyRunApproval(
+    await this.verifyRunApproval(
       tenantId,
       userId,
       runId,
@@ -659,14 +678,7 @@ export class ExecutionService {
         stewardHealth,
       }),
     );
-    if (approvalBlock) {
-      await this.runs.transition(tenantId, userId, runId, {
-        to: 'waiting_for_input',
-        waitingReason: `approval no longer valid: ${approvalBlock}`,
-        findings: { execution: meta, g0 },
-      } as TransitionRunDto);
-      return this.settlePhase(tenantId, userId, runId, meta.missionId, 'execute', phaseStart);
-    }
+    // No approvalBlock branch — recorded approvals never block execution.
 
     const clientName = await this.resolveClientName(tenantId, strategy.clientId);
     // Read-only prompt grounding for the (optional) generation call below — NOT
@@ -679,10 +691,8 @@ export class ExecutionService {
 
     const results: Record<string, unknown> = {};
     let sendApproval: Record<string, unknown> | null = null;
-    let sendPending = false;
     let blocked = false;
     let stagingIncomplete = false;
-    let generationHeld = false;
     // Stage-G grounded generation provenance for this phase's metrics stamp —
     // set only when a generation call actually ran and returned a model.
     let generationModel: string | undefined;
@@ -704,7 +714,6 @@ export class ExecutionService {
         );
         results[key] = staged;
         if (isStagingIncomplete(staged)) stagingIncomplete = true;
-        if (isGenerationHeld(staged)) generationHeld = true;
         generationModel ??= readGeneratedModel(staged);
       } else if (task.type === 'outreach_record') {
         const constraint = await this.checkClientConstraints(
@@ -734,20 +743,17 @@ export class ExecutionService {
           stagingIncomplete = true;
           continue; // skip the dependent await_send_approval task
         }
-        if (isGenerationHeld(staged)) {
-          generationHeld = true;
-          continue; // no artifact exists and there is nothing to approve/send
-        }
       } else {
-        // await_send_approval: compute the send token, park — NEVER send.
-        if (blocked || stagingIncomplete || generationHeld) {
+        // await_send_approval (Strategies): the staged OutreachRecord IS the
+        // product — there is NO send path (sendEnabled is always false and no
+        // send route exists), so this task can never gate on a real approval.
+        // Treat it as satisfied once the record is staged; the run completes.
+        // We still compute the send token for observability/audit, but we NEVER
+        // park on it and NEVER send.
+        if (blocked || stagingIncomplete) {
           results[key] = {
             status: 'skipped',
-            reason: blocked
-              ? 'outreach blocked'
-              : generationHeld
-                ? 'outreach generation held by assurance'
-                : 'outreach staging incomplete',
+            reason: blocked ? 'outreach blocked' : 'outreach staging incomplete',
           };
           continue;
         }
@@ -759,8 +765,8 @@ export class ExecutionService {
           priorSendApproval,
           { headVersionId, stewardHealth },
         );
-        results[key] = { status: 'awaiting_send_approval' };
-        sendPending = true;
+        // No send is ever invoked; the token is recorded for audit only.
+        results[key] = { status: 'satisfied', reason: 'no external send in Strategies' };
       }
     }
 
@@ -770,26 +776,6 @@ export class ExecutionService {
     const generation = generationModel
       ? { model: generationModel, promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC }
       : undefined;
-
-    if (generationHeld) {
-      await this.runs.transition(tenantId, userId, runId, {
-        to: 'waiting_for_input',
-        waitingReason: GENERATION_ASSURANCE_HOLD_REASON,
-        findings: {
-          results,
-          assurance: { decision: 'hold', reason: GENERATION_ASSURANCE_HOLD_REASON },
-        },
-      } as TransitionRunDto);
-      return this.settlePhase(
-        tenantId,
-        userId,
-        runId,
-        meta.missionId,
-        'execute',
-        phaseStart,
-        generation,
-      );
-    }
 
     if (stagingIncomplete) {
       await this.runs.transition(tenantId, userId, runId, {
@@ -823,37 +809,12 @@ export class ExecutionService {
         generation,
       );
     }
-    if (sendPending) {
-      // The run does NOT auto-complete while a send is pending — it parks for a
-      // human to approve (and, only in Stage H, to actually send).
-      await this.runs.transition(tenantId, userId, runId, {
-        to: 'waiting_for_input',
-        waitingReason: 'awaiting send approval',
-        findings: { results, sendApproval },
-      } as TransitionRunDto);
-      return this.settlePhase(
-        tenantId,
-        userId,
-        runId,
-        meta.missionId,
-        'execute',
-        phaseStart,
-        generation,
-      );
-    }
-
-    // All non-send tasks done, nothing pending => STAGED, then complete.
-    //
-    // P0-2 vocabulary (audit P1-13): `staged` is the state that says "the
-    // Workspace draft / Outreach record EXISTS and is linked to the step" —
-    // distinct from `completed`, which says the run's workflow is finished. The
-    // pre-P0-2 path went executing -> ready_for_review -> completed, which
-    // overloaded ready_for_review to mean two different things (a plan awaiting
-    // approval, and a staged artifact awaiting acknowledgement) and gave the
-    // reconciler nothing to distinguish "artifact created" from "nothing created".
+    // All non-send tasks done; the staged artifact IS the product (no external
+    // send exists) => STAGED, then complete. The send token, when computed, rides
+    // along in findings for audit only — the run does NOT park on it.
     await this.runs.transition(tenantId, userId, runId, {
       to: 'staged',
-      findings: { results },
+      findings: { results, ...(sendApproval ? { sendApproval } : {}) },
     } as TransitionRunDto);
     await this.runs.transition(tenantId, userId, runId, {
       to: 'completed',
@@ -1008,17 +969,14 @@ export class ExecutionService {
         stewardHealth,
       }),
     );
+    // Generated-document release review is ADVISORY in Strategies — never a
+    // mandatory approval hold. assessGeneratedDocumentForRelease still runs and
+    // its findings ride along for observability, but a non-releaseable result
+    // does NOT hold the run or block staging.
     const assurance = assessGeneratedDocumentForRelease(doc);
-    if (generationReleaseHoldEnforced() && !assurance.releaseable) {
-      await this.releaseArtifactReservation(tenantId, node.id, 'workspace_draft');
-      return {
-        status: 'generation_held',
-        reason: GENERATION_ASSURANCE_HOLD_REASON,
-        blockers: assurance.blockers,
-        model: doc?.model ?? undefined,
-        promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
-      };
-    }
+    const assuranceAdvisory = assurance.releaseable
+      ? undefined
+      : { releaseable: false as const, blockers: assurance.blockers };
     const sections = this.buildWorkspaceSections(doc, node, strategy);
     // Gate title selection on the same signal buildWorkspaceSections uses for the
     // body (doc.sections.length) — a degenerate generation (title present, sections
@@ -1038,6 +996,9 @@ export class ExecutionService {
     return {
       status: 'staged',
       artifactRef: ref,
+      // Advisory release-review findings ride along for observability — they
+      // never held the staging, but the reviewer can still see them.
+      ...(assuranceAdvisory ? { assurance: assuranceAdvisory } : {}),
       // Gate on usable content (sections.length), not doc truthiness — same
       // signal as recordArtifact's provenance, so a degenerate doc never
       // surfaces a real model id for what is actually the deterministic body.
@@ -1089,16 +1050,12 @@ export class ExecutionService {
       }),
     );
     const assurance = assessGeneratedDocumentForRelease(doc);
-    if (generationReleaseHoldEnforced() && !assurance.releaseable) {
-      await this.releaseArtifactReservation(tenantId, node.id, 'outreach_record');
-      return {
-        status: 'generation_held',
-        reason: GENERATION_ASSURANCE_HOLD_REASON,
-        blockers: assurance.blockers,
-        model: doc?.model ?? undefined,
-        promptSpecVersion: EXECUTION_DOC_PROMPT_SPEC,
-      };
-    }
+    // Generated-document release review is ADVISORY in Strategies — never a
+    // mandatory approval hold (mirrors stageWorkspace). A non-releaseable
+    // result records advisory findings but never holds the run or blocks staging.
+    const assuranceAdvisory = assurance.releaseable
+      ? undefined
+      : { releaseable: false as const, blockers: assurance.blockers };
     // Gate title selection on the same signal the body uses (doc.sections.length)
     // — mirrors stageWorkspace's docTitle gating: a degenerate generation (title
     // present, sections empty/sanitized-away) must fall back to node.title for
@@ -1137,6 +1094,9 @@ export class ExecutionService {
       status: 'staged',
       artifactRef: ref,
       body,
+      // Advisory release-review findings ride along for observability — they
+      // never held the staging, but the reviewer can still see them.
+      ...(assuranceAdvisory ? { assurance: assuranceAdvisory } : {}),
       // Gate on usable content (sections.length), not doc truthiness — same
       // signal as recordArtifact's provenance, so a degenerate doc never
       // surfaces a real model id for what is actually the deterministic body.
@@ -1736,20 +1696,19 @@ export class ExecutionService {
     run: { findings: unknown },
     binding: ApprovalBinding,
   ): Promise<string | null> {
-    const rejection = asObject(asObject(run.findings)?.approvalRejection);
-    if (rejection) {
-      return typeof rejection.reason === 'string'
-        ? `approval rejected: ${rejection.reason}`
-        : 'approval rejected — review and approve the current content before continuing';
-    }
+    // Strategies: a recorded approval is advisory-only, NEVER a gate. We still
+    // persist the invalidation (drift audit) so approvalStatus() can report
+    // approvalValid=false, but this method always returns null — an old run's
+    // recorded approval hash/expiry never blocks it. Current-plan freshness is
+    // the G0 versionDrift check's job, independent of any approval.
     const approval = this.readApproval(run);
-    if (!approval) return null; // nothing approved => nothing to invalidate
+    if (!approval) return null; // nothing approved => nothing to observe
     const verification: ApprovalVerification = verifyApproval(binding, approval);
     if (verification.valid) return null;
     if (approval.status !== 'invalidated') {
       await this.persistInvalidation(tenantId, userId, runId, approval, verification);
     }
-    return verification.reason ?? 'the approved payload changed';
+    return null; // advisory: never block
   }
 
   private async persistInvalidation(
@@ -2322,10 +2281,6 @@ function isSendPark(run: {
 /** A stage result that signals a surviving write-ahead reservation (parks the run). */
 function isStagingIncomplete(result: unknown): boolean {
   return asObject(result)?.status === 'staging_incomplete';
-}
-
-function isGenerationHeld(result: unknown): boolean {
-  return asObject(result)?.status === 'generation_held';
 }
 
 function escapeHtml(value: string): string {

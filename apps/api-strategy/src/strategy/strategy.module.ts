@@ -14,6 +14,8 @@ import {
   MEMBER_OFFICE_READER,
 } from '../reports/member-office.reader.js';
 import { PptxReportRenderer } from '../reports/pptx-report.renderer.js';
+import { PdfBrowserDriver } from '../reports/pdf-browser.driver.js';
+import { PdfReportRenderer } from '../reports/pdf-report.renderer.js';
 import { ReportNarrativeService } from '../reports/report-narrative.service.js';
 import { ReportSnapshotService } from '../reports/report-snapshot.service.js';
 import { StrategyReportService } from '../reports/strategy-report.service.js';
@@ -30,6 +32,8 @@ import { StrategyOrchestratorClient } from '../meri/strategy-orchestrator.client
     ReportSnapshotService,
     DocxReportRenderer,
     PptxReportRenderer,
+    PdfBrowserDriver,
+    PdfReportRenderer,
     StrategyReportService,
     ReportNarrativeService,
     // The report narrative reuses Meri's orchestrator transport and BYOK

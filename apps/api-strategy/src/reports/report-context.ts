@@ -26,11 +26,13 @@ export interface ReportContextDocumentInput {
   }>;
 }
 
-const CLIENT_AUTHORITIES = new Set([
-  "client_approved",
-  "firm_approved",
-  "external_authoritative",
-]);
+/**
+ * Approval state and source-of-truth flags are provenance metadata, not export
+ * gates. A client deliverable includes working-draft and un-vetted context as
+ * long as it is marked client-safe; the authority label is rendered honestly
+ * (e.g. "working_draft") instead of being used to withhold the content. The
+ * only deliberate exclusions are confidentiality scope and freshness below.
+ */
 const SKIPPED_TEMPLATE_KEYS = new Set([
   "00_context_manifest",
   "07_current_plan",
@@ -41,6 +43,15 @@ const SKIPPED_TEMPLATE_KEYS = new Set([
 const PLACEHOLDER_ONLY =
   /^(?:-|—|null|n\/a|none|tbd|default|primary ask|yyyy-mm-dd|low\s*\/\s*medium\s*\/\s*high|yes\s*\/\s*no)$/i;
 const PLACEHOLDER_ID = /^(?:[a-z]+[_-])?(?:00*1|123|456|789)$/i;
+/**
+ * Import persistence wraps organized excerpts in provenance scaffolding
+ * (buildImportMarkdown): an "Imported on …" disclaimer, a "Source excerpts are
+ * working context …" disclaimer, and per-line `> ` quote markers. Those are
+ * import metadata, not substantive strategy content — they must never surface
+ * as recommendations, commitments, or narrative prose in a deliverable.
+ */
+const IMPORT_SCAFFOLDING =
+  /^(?:imported on \d{4}-\d{2}-\d{2}\b|source excerpts are working context\b|this is the import date\b|they do not grant permissions\b|imported information \d+\b|source details\b|source\s*:\s*\S)/i;
 const SECTION_TITLES: Record<ReportNarrativeSectionKey, string> = {
   situation: "Situation and stakes",
   outcomes: "Objectives and definition of success",
@@ -119,12 +130,10 @@ export function assembleReportContext(
       const factAuthority = fact.authority ?? metadata.authority;
       if (
         audience === "client" &&
-        (!factAuthority ||
-          !CLIENT_AUTHORITIES.has(factAuthority) ||
-          !includeHighlightHeading(
-            headingFromSourceRef(fact.sourceRef),
-            audience,
-          ))
+        !includeHighlightHeading(
+          headingFromSourceRef(fact.sourceRef),
+          audience,
+        )
       ) {
         continue;
       }
@@ -182,14 +191,10 @@ export function assembleReportContext(
 
 export function isClientSafeContextFrontmatter(frontmatter: unknown): boolean {
   const record = asRecord(frontmatter);
-  const authority = stringValue(record?.authority);
   const confidentiality = stringValue(record?.confidentiality);
-  const sourceOfTruth = record?.source_of_truth;
-  return (
-    confidentiality === "client_confidential" &&
-    Boolean(authority && CLIENT_AUTHORITIES.has(authority)) &&
-    sourceOfTruth === true
-  );
+  // Client-safe == explicitly marked shareable with the client. Approval
+  // authority and source-of-truth are provenance, not a gate.
+  return confidentiality === "client_confidential";
 }
 
 function includeContextDocument(
@@ -199,11 +204,10 @@ function includeContextDocument(
   asOf: string,
 ): boolean {
   if (audience === "internal") return true;
+  // Deliberate exclusions only: internal-scope confidentiality and staleness.
   return (
     (!validUntil || validUntil.getTime() >= Date.parse(`${asOf}T00:00:00Z`)) &&
-    metadata.confidentiality === "client_confidential" &&
-    Boolean(metadata.authority && CLIENT_AUTHORITIES.has(metadata.authority)) &&
-    metadata.sourceOfTruth === true
+    metadata.confidentiality === "client_confidential"
   );
 }
 
@@ -245,9 +249,14 @@ function extractHighlights(
       tableHeaders = null;
       continue;
     }
+    // Import scaffolding is provenance, never narrative/commitment content.
+    if (IMPORT_SCAFFOLDING.test(line)) continue;
     const headingMatch = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
     if (headingMatch) {
-      heading = cleanInline(headingMatch[2]!) || heading;
+      const candidate = cleanInline(headingMatch[2]!) || heading;
+      // Import "Imported information N" container headings are scaffolding, not
+      // a substantive section label — keep the prior meaningful heading.
+      heading = IMPORT_SCAFFOLDING.test(candidate) ? heading : candidate;
       tableHeaders = null;
       tableRow = 0;
       continue;
@@ -274,7 +283,10 @@ function extractHighlights(
     }
 
     tableHeaders = null;
-    const bullet = /^(?:[-*+]\s+|\d+[.)]\s+)(.*)$/.exec(line)?.[1] ?? line;
+    // Strip import quote markers (`> `) so excerpts render as prose, not raw
+    // Markdown; the source statement itself is preserved verbatim.
+    const unquoted = line.replace(/^>+\s?/, "");
+    const bullet = /^(?:[-*+]\s+|\d+[.)]\s+)(.*)$/.exec(unquoted)?.[1] ?? unquoted;
     const text = cleanValue(bullet);
     if (!text || !includeHighlightHeading(heading, audience)) continue;
     pushHighlight(results, {
@@ -337,7 +349,10 @@ function formatTableRow(
 
 function cleanValue(value: string | null | undefined): string | null {
   if (!value) return null;
-  const inline = cleanInline(value);
+  let inline = cleanInline(value);
+  // Drop import scaffolding and strip residual quote markers from fact text.
+  inline = inline.replace(/^>+\s?/, "").trim();
+  if (!inline || IMPORT_SCAFFOLDING.test(inline)) return null;
   if (/^[^:]{1,160}:\s*(?:`?YYYY-MM-DD`?|null)?\s*$/i.test(inline)) return null;
   const cleaned = inline
     .replace(/^`|`$/g, "")

@@ -7,7 +7,7 @@ import {
   Matches,
 } from "class-validator";
 
-export const REPORT_FORMATS = ["docx", "pptx"] as const;
+export const REPORT_FORMATS = ["docx", "pptx", "pdf"] as const;
 export const REPORT_AUDIENCES = ["client", "internal"] as const;
 
 export type ReportFormat = (typeof REPORT_FORMATS)[number];

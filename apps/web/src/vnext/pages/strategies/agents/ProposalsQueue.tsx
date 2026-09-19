@@ -198,7 +198,6 @@ export function ProposalsQueue() {
 
   return (
     <div className="st-agents">
-      {/* Policy copy — do not reword (§7.8, BUILD-CONTRACT). */}
       <div className="st-dark-banner st-dark-banner--agents">
         <span className="st-dark-banner__icon" aria-hidden="true">
           <BannerGovernanceGlyph />
@@ -206,8 +205,8 @@ export function ProposalsQueue() {
         <div>
           <p className="st-dark-banner__title">You decide which proposed changes to apply.</p>
           <p className="st-dark-banner__sub">
-            Proposals in this queue change a plan only after you approve and apply them. Each application
-            saves a revision and can be undone. Direct edits by you or Meri follow a separate workflow.
+            Applying a proposal updates the plan directly and saves a revision you can undo. Direct
+            edits by you or Meri follow a separate workflow.
           </p>
         </div>
         <span className="st-dark-banner__chip">No auto-apply</span>
@@ -609,8 +608,9 @@ function ChangeSetCard({
     );
   };
 
-  /* Approve is gated on a non-empty selection; critical risk confirms first
-   * WITH an impact summary (the RiskRouter ladder — mirrors the server). */
+  /* Approve is now an OPTIONAL compat path (the backend accepts a direct apply
+   * from `proposed`). It is gated on a non-empty selection; critical risk
+   * confirms first WITH an impact summary (the RiskRouter ladder). */
   const onApprove = () => {
     if (selected.size === 0) return;
     if (cs.risk === 'critical') setConfirm('approve-critical');
@@ -624,14 +624,19 @@ function ChangeSetCard({
     });
   };
 
-  /* Apply sends ONLY the change-set id (the server replays the approved
-   * subset against the current head). A 409 keyed on the response BODY as a
+  /* Apply replays the SELECTED subset into ONE revision. Direct apply from
+   * `proposed` sends the checked opIndexes (an unchecked op must NOT apply);
+   * applying an already-approved set sends no opIndexes (the server replays
+   * its recorded approved subset). A 409 keyed on the response BODY as a
    * stale-head conflict surfaces the queue-level regenerate state; any other
    * 409 (e.g. a concurrent reviewer won the race) shows the server's reason
    * inline — never the stale hint. */
   const onApply = () => {
+    const subset = isProposed && selected.size < cs.ops.length
+      ? [...selected].sort((a, b) => a - b)
+      : undefined;
     apply.mutate(
-      { id: cs.id, strategyId: cs.strategyId },
+      { id: cs.id, strategyId: cs.strategyId, opIndexes: subset },
       {
         onSuccess: () => setActionError(null),
         onError: (err) => {
@@ -780,48 +785,60 @@ function ChangeSetCard({
               Reject set
             </CapiroButton>
             {/*
-             * Split button (design handoff — "one 8px-radius group with a
-             * rgba(255,255,255,.16) divider"): purely a visual grouping of the
-             * two EXISTING, separate mutations. Approve stays gated on a
-             * proposed status + a non-empty selection; Apply stays gated on an
-             * approved status — never both live at once, so exactly one side
-             * of the pair is ever enabled (hard rule 2: approve ≠ apply).
+             * Direct apply (approval gates removed): a proposed change-set's
+             * primary action applies the selected subset straight into ONE new
+             * revision — no separate approve step. The backend accepts apply
+             * from `proposed` (backend-audit #1). Approve remains as an
+             * optional compatibility control for teams that still want a
+             * recorded approval before applying; it is never a prerequisite.
              */}
-            <span className="st-agents__split">
-              <CapiroButton
-                variant="primary"
-                size="compact"
-                className="st-agents__split-btn"
-                disabled={busy || !isProposed || selected.size === 0}
-                title={
-                  !isProposed
-                    ? 'Already approved.'
-                    : selected.size === 0
+            {isProposed ? (
+              <>
+                <CapiroButton
+                  variant="secondary"
+                  size="compact"
+                  disabled={busy || selected.size === 0}
+                  title={
+                    selected.size === 0
                       ? 'Select at least one change to approve — or reject the set.'
-                      : undefined
-                }
-                onClick={onApprove}
-              >
-                {approve.isPending
-                  ? 'Approving…'
-                  : !isProposed
-                    ? 'Approved'
+                      : 'Optionally record an approval before applying.'
+                  }
+                  onClick={onApprove}
+                >
+                  {approve.isPending
+                    ? 'Approving…'
                     : selected.size === cs.ops.length
                       ? 'Approve'
                       : `Approve ${selected.size} of ${cs.ops.length}`}
-              </CapiroButton>
-              <span className="st-agents__split-divider" aria-hidden="true" />
+                </CapiroButton>
+                <CapiroButton
+                  variant="primary"
+                  size="compact"
+                  className="st-agents__run-actions-primary"
+                  disabled={busy || selected.size === 0}
+                  title={
+                    selected.size === 0
+                      ? 'Select at least one change to apply — or reject the set.'
+                      : undefined
+                  }
+                  onClick={onApply}
+                >
+                  {apply.isPending
+                    ? 'Applying…'
+                    : `Apply ${selected.size} change${selected.size === 1 ? '' : 's'}`}
+                </CapiroButton>
+              </>
+            ) : (
               <CapiroButton
                 variant="primary"
                 size="compact"
-                className="st-agents__split-btn"
-                disabled={busy || isProposed || displayOps.length === 0}
-                title={isProposed ? 'Approve the change-set before applying it.' : undefined}
+                className="st-agents__run-actions-primary"
+                disabled={busy || displayOps.length === 0}
                 onClick={onApply}
               >
                 {apply.isPending ? 'Applying…' : `Apply ${displayOps.length} change${displayOps.length === 1 ? '' : 's'}`}
               </CapiroButton>
-            </span>
+            )}
           </div>
           <span className="st-agents__undo-note">
             Applying cuts one new revision. Every applied set is undoable — undo restores the

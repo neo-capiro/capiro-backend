@@ -186,6 +186,16 @@ export class RunReconcilerService implements OnModuleInit, OnModuleDestroy {
     let applied: { to: string; reason: string } | null = null;
     if (repair?.transition) {
       const to = repair.transition.to;
+      // Only when reconciliation actually COMPLETES a proven artifact-linked run
+      // (ARTIFACT_NOT_ADVANCED -> staged/completed) do we resolve legacy
+      // await_send_approval task statuses to 'satisfied' (advisory — the staged
+      // artifact is the product; no approval is fabricated; send stays disabled).
+      // Every other repair (missing target, failure, version drift, stranded)
+      // leaves results/provenance untouched.
+      const updatedResults =
+        repair.code === 'ARTIFACT_NOT_ADVANCED' && (to === 'staged' || to === 'completed')
+          ? markApprovalTasksSatisfied(readResultsForResolve(facts.execution, facts.run.findings))
+          : {};
       try {
         await this.runs.transition(tenantId, userId, runId, {
           to,
@@ -196,6 +206,7 @@ export class RunReconcilerService implements OnModuleInit, OnModuleDestroy {
             ? { error: repair.transition.reason }
             : {}),
           findings: {
+            ...updatedResults,
             reconciliation: {
               at: new Date().toISOString(),
               code: repair.code,
@@ -400,6 +411,7 @@ export class RunReconcilerService implements OnModuleInit, OnModuleDestroy {
           startedAt: run.startedAt,
           createdAt: run.createdAt,
           reconcileAttempts: run.reconcileAttempts,
+          findings: run.findings,
         },
         strategyId: run.strategyId,
         execution,
@@ -473,6 +485,51 @@ function readHasApproval(findings: unknown): boolean {
   if (!findings || typeof findings !== 'object' || Array.isArray(findings)) return false;
   const sa = (findings as Record<string, unknown>).sendApproval;
   return !!sa && typeof sa === 'object' && !Array.isArray(sa);
+}
+
+/**
+ * Read findings.results as a plain map. Returns {} when absent (workspace-only
+ * findings or a check run); reconciliation only rewrites on completion below.
+ */
+function readResultsForResolve(
+  _execution: { kind: string; nodeId: string; pinnedVersionId: string | null } | null,
+  findings: unknown,
+): Record<string, unknown> {
+  if (!findings || typeof findings !== 'object' || Array.isArray(findings)) return {};
+  const results = (findings as Record<string, unknown>).results;
+  if (!results || typeof results !== 'object' || Array.isArray(results)) return {};
+  return { results: results as Record<string, unknown> };
+}
+
+/**
+ * On completion, flip any task result whose status is a historical
+ * 'awaiting_send_approval' to 'satisfied' — ADVISORY ONLY. The staged artifact is
+ * the product; no approval actor/timestamp is ever fabricated, and send stays
+ * disabled. Other statuses (staged, skipped, blocked) are untouched.
+ */
+function markApprovalTasksSatisfied(results: Record<string, unknown>): Record<string, unknown> {
+  const resultsMap = results.results as Record<string, unknown> | undefined;
+  if (!resultsMap) return results;
+  let touched = false;
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(resultsMap)) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      (value as Record<string, unknown>).status === 'awaiting_send_approval'
+    ) {
+      next[key] = {
+        ...(value as Record<string, unknown>),
+        status: 'satisfied',
+        reason: 'no external send in Strategies',
+      };
+      touched = true;
+    } else {
+      next[key] = value;
+    }
+  }
+  return touched ? { results: next } : results;
 }
 
 /** Exported for the spec: which states the sweep looks at. */

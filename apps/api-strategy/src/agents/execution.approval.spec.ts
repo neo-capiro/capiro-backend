@@ -19,9 +19,9 @@ import type { ExecutionPlanDto } from './dto/agents.dto.js';
  * template change or a user edit.
  *
  * approval-binding.spec.ts covers the hashing/verification rules exhaustively.
- * THIS spec covers the wiring: that the service records a reproducible approval,
- * re-verifies it before acting, persists invalidation, and BLOCKS execution until
- * reapproval — with the real RunsService + real VersioningService over a fake tx,
+ * THIS spec covers optional historical approval records and exact payload audits.
+ * Approval is not a prerequisite for execution; current plan freshness still is.
+ * It uses the real RunsService + real VersioningService over a fake tx,
  * so lifecycle transitions and the activity trail run as in production.
  *
  * Invariant asserted throughout: NOTHING here sends. Every case holds with the
@@ -303,10 +303,8 @@ interface Opts {
     sections: Array<{ heading: string; html: string }>;
   } | null;
   /**
-   * MUTABLE by design: an open material conflict BLOCKS execution eligibility at
-   * plan time (evaluateG0), so a conflict cannot be seeded up front and still
-   * reach a staged run. Tests push into this array AFTER staging to model the real
-   * scenario — a conflict opening under an already-staged payload.
+   * Mutable so tests can introduce an advisory conflict after the payload was
+   * staged and verify that its historical context binding changes.
    */
   conflicts?: Conflict[];
 }
@@ -354,17 +352,20 @@ const wsPlan = () => ({ missionId: MID, nodeId: NID, kind: 'workspace' }) as Exe
 const outreachPlan = () => ({ missionId: MID, nodeId: NID, kind: 'outreach' }) as ExecutionPlanDto;
 
 /** A workspace run sitting at ready_for_review (a STAGE approval decision). */
-async function reviewedPlan(store: Store, opts: Opts = {}) {
+async function reviewedPlan(store: Store, opts: Opts = {}, pinned = true) {
   seedStrategy(store);
   seedMission(store);
   seedNode(store);
   const made = makeService(store, opts);
-  await made.svc.plan(T, U, 'bearer-x', wsPlan());
+  await made.svc.plan(T, U, 'bearer-x', { ...wsPlan(), ...(pinned ? { pinnedVersionId: 'v1' } : {}) });
   const runId = [...store.runs.keys()][0]!;
   return { ...made, runId };
 }
 
-/** An outreach run staged and parked on the send gate (a SEND approval decision). */
+/** Explicit historical fixture from before approval holds were removed.
+ * Current execute() completes directly; seed the old persisted wait to retain
+ * coverage of historical review records without requiring new runs to park.
+ */
 async function stagedOutreach(store: Store, opts: Opts = {}) {
   seedStrategy(store);
   seedMission(store);
@@ -383,6 +384,24 @@ async function stagedOutreach(store: Store, opts: Opts = {}) {
   await made.svc.plan(T, U, 'bearer-x', outreachPlan());
   const runId = [...store.runs.keys()][0]!;
   await made.svc.execute(T, U, 'bearer-x', runId);
+  const run = store.runs.get(runId)!;
+  expect(run.state).toBe('completed');
+  const findings = run.findings as Record<string, unknown>;
+  store.runs.set(runId, {
+    ...run,
+    state: 'waiting_for_input',
+    waitingReason: 'awaiting send approval',
+    finishedAt: null,
+    findings: {
+      ...findings,
+      sendApproval: {
+        tokenRunId: runId, artifactRef: 'or-1', status: 'pending', sendEnabled: false,
+      },
+    },
+  });
+  const legacy = store.runs.get(runId)!.findings as Record<string, unknown>;
+  (legacy.sendApproval as Record<string, unknown>).contentHash =
+    (await made.svc.approvalStatus(T, runId)).contentHash;
   return { ...made, runId };
 }
 
@@ -584,7 +603,7 @@ describe('approve — binds the exact payload (P0-3)', () => {
   });
 });
 
-describe('invalidation blocks execution until reapproval (P0-3 acceptance)', () => {
+describe('current plan freshness is independent of optional approval records', () => {
   it('a moved plan head after approval PARKS the run and stages nothing', async () => {
     const store = makeStore();
     const { svc, runId } = await reviewedPlan(store);
@@ -596,12 +615,11 @@ describe('invalidation blocks execution until reapproval (P0-3 acceptance)', () 
 
     const run = store.runs.get(runId)!;
     expect(run.state).toBe('waiting_for_input');
-    expect(String(run.waitingReason)).toMatch(/approval no longer valid/i);
-    expect(String(run.waitingReason)).toMatch(/plan version changed/i);
+    expect(String(run.waitingReason)).toMatch(/version|plan.*changed/i);
     expect([...store.artifacts.values()]).toHaveLength(0);
   });
 
-  it('persists the invalidation with the fields that moved, and audits it', async () => {
+  it('retains the historical approval and reports changed fields against the current plan', async () => {
     const store = makeStore();
     const { svc, runId } = await reviewedPlan(store);
     const status = await svc.approvalStatus(T, runId);
@@ -612,11 +630,13 @@ describe('invalidation blocks execution until reapproval (P0-3 acceptance)', () 
 
     const findings = store.runs.get(runId)!.findings as Record<string, unknown>;
     const approval = findings.approval as Record<string, unknown>;
-    expect(approval.status).toBe('invalidated');
-    expect(approval.changedFields).toEqual(['strategyVersionId']);
+    expect(approval.status).toBe('approved');
+    const current = await svc.approvalStatus(T, runId);
+    expect(current.approvalValid).toBe(false);
+    expect(current.changedFields).toEqual(['strategyVersionId']);
     // The ORIGINAL approved payload survives — history is not rewritten.
     expect((approval.binding as Record<string, unknown>).nodeId).toBe(NID);
-    expect(store.activity.some((a) => a.action === 'execution.approval_invalidated')).toBe(true);
+    expect(store.activity.some((a) => a.action === 'execution.approval_granted')).toBe(true);
   });
 
   it('the approval screen reports it invalid with a changed-since-review flag', async () => {
@@ -643,44 +663,50 @@ describe('invalidation blocks execution until reapproval (P0-3 acceptance)', () 
     expect(store.runs.get(runId)!.state).toBe('completed');
   });
 
-  it('re-approving against the CURRENT payload unblocks execution', async () => {
+  it('an unpinned run revalidates current data and invalidates stale approval as an advisory', async () => {
     const store = makeStore();
-    const { svc, runId } = await reviewedPlan(store);
-    const s1 = await svc.approvalStatus(T, runId);
-    await svc.approve(T, U, runId, { contentHash: s1.contentHash });
+    const { svc, runId } = await reviewedPlan(store, {}, false);
+    const before = await svc.approvalStatus(T, runId);
+    await svc.approve(T, U, runId, { contentHash: before.contentHash });
     advanceHead(store);
-    await svc.execute(T, U, 'bearer-x', runId); // parks: approval invalid
+    const completed = await svc.execute(T, U, 'bearer-x', runId);
+    expect(completed.state).toBe('completed');
+    expect(store.artifacts.size).toBe(1);
+    expect((await svc.approvalStatus(T, runId)).approvalValid).toBe(false);
+    expect(store.activity.some((row) => row.action === 'execution.approval_invalidated')).toBe(true);
+  });
 
-    const s2 = await svc.approvalStatus(T, runId);
-    await svc.approve(T, U, runId, { contentHash: s2.contentHash });
+  it('a historical outreach wait resumes directly without another approval', async () => {
+    const store = makeStore();
+    const { svc, runId } = await stagedOutreach(store);
     await svc.resume(T, U, 'bearer-x', runId);
 
     expect(store.runs.get(runId)!.state).toBe('completed');
     expect([...store.artifacts.values()]).toHaveLength(1);
+    expect((await svc.approvalStatus(T, runId)).approval).toBeNull();
   });
 });
 
 describe('rejectApproval (P0-3)', () => {
-  it('blocks execution after refusal even when the draft had never been approved', async () => {
+  it('records refusal as advisory and executes without requiring approval', async () => {
     const store = makeStore();
     const { svc, runId } = await reviewedPlan(store);
     await svc.rejectApproval(T, U, runId, 'needs corrections');
-    const blocked = await svc.execute(T, U, 'bearer-x', runId);
-    expect(blocked.state).toBe('waiting_for_input');
-    expect(String(blocked.waitingReason)).toMatch(/approval rejected: needs corrections/);
-    expect(store.artifacts.size).toBe(0);
+    const done = await svc.execute(T, U, 'bearer-x', runId);
+    expect(done.state).toBe('completed');
+    expect(done.waitingReason).toBeFalsy();
+    expect(store.artifacts.size).toBe(1);
+    expect((store.runs.get(runId)!.findings as Record<string, unknown>).approvalRejection).toMatchObject({ reason: 'needs corrections' });
   });
 
-  it('allows a refused draft to proceed only after fresh approval of its current content', async () => {
+  it('finishes a refused draft directly and does not fabricate a replacement approval', async () => {
     const store = makeStore();
     const { svc, runId } = await reviewedPlan(store);
     await svc.rejectApproval(T, U, runId, 'review required');
-    await svc.execute(T, U, 'bearer-x', runId);
-    const status = await svc.approvalStatus(T, runId);
-    await svc.approve(T, U, runId, { contentHash: status.contentHash });
-    const completed = await svc.resume(T, U, 'bearer-x', runId);
+    const completed = await svc.execute(T, U, 'bearer-x', runId);
     expect(completed.state).toBe('completed');
     expect(store.artifacts.size).toBeGreaterThan(0);
+    expect((await svc.approvalStatus(T, runId)).approval).toBeNull();
   });
 
   it('invalidates the approval, records who and why, and audits it', async () => {
@@ -712,7 +738,7 @@ describe('rejectApproval (P0-3)', () => {
     );
   });
 
-  it('a rejected approval never satisfies execution again', async () => {
+  it('a rejected historical approval remains invalid while execution proceeds directly', async () => {
     const store = makeStore();
     const { svc, runId } = await reviewedPlan(store);
     const status = await svc.approvalStatus(T, runId);
@@ -722,8 +748,8 @@ describe('rejectApproval (P0-3)', () => {
     await svc.execute(T, U, 'bearer-x', runId);
 
     const run = store.runs.get(runId)!;
-    expect(run.state).toBe('waiting_for_input');
-    expect(String(run.waitingReason)).toMatch(/approval no longer valid/i);
-    expect([...store.artifacts.values()]).toHaveLength(0);
+    expect(run.state).toBe('completed');
+    expect((await svc.approvalStatus(T, runId)).approvalValid).toBe(false);
+    expect([...store.artifacts.values()]).toHaveLength(1);
   });
 });

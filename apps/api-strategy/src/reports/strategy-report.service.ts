@@ -24,6 +24,8 @@ import {
   type MemberOfficeReader,
 } from "./member-office.reader.js";
 import { PptxReportRenderer } from "./pptx-report.renderer.js";
+import { PdfBrowserDriver } from "./pdf-browser.driver.js";
+import { PdfReportRenderer } from "./pdf-report.renderer.js";
 import { ReportNarrativeService } from "./report-narrative.service.js";
 import type { VerifiedReportNarrative } from "./report-narrative.types.js";
 import { normalizeReportOptions } from "./report-policy.js";
@@ -44,6 +46,7 @@ import type {
 const CONTENT_TYPES = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  pdf: "application/pdf",
 } as const;
 export const MAX_IN_PROCESS_EXPORTS = 4;
 export const MAX_RENDERED_REPORT_BYTES = 32 * 1024 * 1024;
@@ -75,6 +78,8 @@ export class StrategyReportService {
     @Inject(CLIENT_LOGO_READER) private readonly logos: ClientLogoReader,
     private readonly docx: DocxReportRenderer,
     private readonly pptx: PptxReportRenderer,
+    private readonly pdf: PdfReportRenderer,
+    private readonly pdfBrowser: PdfBrowserDriver,
     private readonly prisma: PrismaService,
     private readonly versioning: VersioningService,
     @Inject(MEMBER_OFFICE_READER)
@@ -106,6 +111,11 @@ export class StrategyReportService {
     const availability = this.narrative.availability();
     return {
       ...preflight,
+      report: {
+        ...preflight.report,
+        // Advertise only the formats this environment can actually render.
+        formats: this.advertisedFormats(),
+      },
       memberOffices: summarizeMembers(snapshot, memberDetails),
       narrative: {
         available: availability.available,
@@ -113,6 +123,12 @@ export class StrategyReportService {
         requested: options.includeNarrative,
       },
     };
+  }
+
+  private advertisedFormats(): Array<"docx" | "pptx" | "pdf"> {
+    return this.pdfBrowser.available
+      ? ["docx", "pptx", "pdf"]
+      : ["docx", "pptx"];
   }
 
   async export(
@@ -155,6 +171,13 @@ export class StrategyReportService {
     }
 
     const descriptor = snapshot.client.logo;
+    // Fail fast on an unrenderable PDF before any costly member/narrative work.
+    if (options.format === "pdf" && !this.pdf.available) {
+      throw new ServiceUnavailableException(
+        this.pdf.unavailableReason ??
+          "PDF export is not available in this environment.",
+      );
+    }
     const logoPromise =
       options.useClientLogo && descriptor.supported && descriptor.objectKey
         ? this.logos.read({
@@ -185,7 +208,9 @@ export class StrategyReportService {
     const bytes =
       options.format === "docx"
         ? await this.docx.render(snapshot, logo, extras)
-        : await this.pptx.render(snapshot, logo, extras);
+        : options.format === "pptx"
+          ? await this.pptx.render(snapshot, logo, extras)
+          : await this.pdf.render(snapshot, logo, extras);
     if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
       throw new Error("Executive report renderer returned an empty payload");
     }
@@ -403,7 +428,7 @@ export function buildReportFilename(
   clientName: string,
   strategyTitle: string,
   asOf: string,
-  extension: "docx" | "pptx",
+  extension: "docx" | "pptx" | "pdf",
   audience: "client" | "internal",
 ): string {
   const deliverable =

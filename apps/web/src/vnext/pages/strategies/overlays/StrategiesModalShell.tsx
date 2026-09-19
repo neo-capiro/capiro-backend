@@ -188,16 +188,22 @@ export function StrategiesModalShell({
   }, []);
 
   // Mount outside the page layout: transformed or narrow route containers
-  // must not become the fixed overlay's containing block. Retain the kit and
-  // module scope classes so their tokens and controls follow the portal.
+  // must not become the fixed overlay's containing block. The scope classes
+  // are NESTED (`.capiro-vnext-root` outer, `.capiro-strategies` inner) rather
+  // than flattened onto one element: every shared module rule is written
+  // `.capiro-vnext-root .capiro-strategies X` (ancestor → descendant), which
+  // only matches when the two classes are on DIFFERENT elements. Flattening
+  // them onto the portal root silently dropped every shared style (pills,
+  // section labels, cards) inside overlays.
   return createPortal(
     <div
-      className="capiro-vnext-root capiro-vnext-uui capiro-strategies st-overlay"
+      className="capiro-vnext-root capiro-vnext-uui st-overlay"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();
       }}
     >
+      <div className="capiro-strategies" style={{ display: 'contents' }}>
       <section
         ref={dialogRef}
         tabIndex={-1}
@@ -257,6 +263,7 @@ export function StrategiesModalShell({
           </div>
         </footer>
       </section>
+      </div>
     </div>,
     document.body,
   );

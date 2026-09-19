@@ -31,7 +31,7 @@ const TAB_COPY: Record<AgentsTab, { h1: string; description: string }> = {
   proposals: {
     h1: 'Agent review queue',
     description:
-      "Review suggested changes from Watch. Proposals in this queue need your approval and application; you and Meri can also edit the working plan directly.",
+      "Review suggested changes from Watch. Apply the ones you want directly to the working plan — each application saves a revision you can undo. You and Meri can also edit the working plan directly.",
   },
   runs: {
     h1: 'Execution',
@@ -56,14 +56,14 @@ function useAgentScopeStatus(
   firm: ReturnType<typeof useFirmReviewRuns>,
 ): ScopeBarStatus {
   if (proposed.isLoading || approved.isLoading || firm.isLoading) {
-    return { tone: 'gray', label: 'Checking approval status…' };
+    return { tone: 'gray', label: 'Checking review status…' };
   }
   if (proposed.isError || approved.isError || firm.isError) {
-    return { tone: 'gray', label: 'Approval status unavailable' };
+    return { tone: 'gray', label: 'Review status unavailable' };
   }
   const pending = (proposed.data?.length ?? 0) + (approved.data?.length ?? 0) + (firm.data?.length ?? 0);
   return pending > 0
-    ? { tone: 'warning', label: 'Human approval required' }
+    ? { tone: 'warning', label: 'Review pending' }
     : { tone: 'success', label: 'No pending review' };
 }
 

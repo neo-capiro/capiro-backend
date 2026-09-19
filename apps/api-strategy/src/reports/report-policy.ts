@@ -63,14 +63,19 @@ export function extractMemberRef(
   };
 }
 
-/** Only committed delivery states are eligible for a client deliverable. */
+/**
+ * Every live plan step is eligible for either audience. Workflow status is a
+ * workflow signal, not a delivery gate: generated (suggested) and in-draft
+ * steps belong in the export without a human promotion step. Intentional
+ * exclusions stay possible by archiving/removing the step itself.
+ */
 export function includeNodeForAudience(
   status: string,
   audience: "client" | "internal",
 ): boolean {
-  return (
-    audience === "internal" || status === "in_progress" || status === "active" || status === "completed"
-  );
+  void status;
+  void audience;
+  return true;
 }
 
 /** Preserve the stored workflow state; audience filtering is handled above. */

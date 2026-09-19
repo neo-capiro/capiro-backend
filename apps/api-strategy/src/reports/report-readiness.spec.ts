@@ -11,24 +11,30 @@ import { buildReportFilename } from "./strategy-report.service.js";
 import type { ExecutiveReportSnapshot, ReportNode } from "./report.types.js";
 
 describe("executive report readiness", () => {
-  it("blocks the observed sparse client shape and explains the real inclusion", () => {
+  it("no longer blocks a sparse client plan; review-state issues are advisory only", () => {
     const report = sparseClientReport();
 
-    expect(report.inclusion).toEqual({
-      liveNodes: 20,
-      includedNodes: 1,
-      omittedNodes: 19,
-      includedByStatus: { active: 1 },
-      omittedByStatus: { suggested: 17, draft: 2 },
-      placeholderNodes: 2,
-    });
-    expect(reportReadinessErrors(report)).toEqual(
+    // The approval gates (placeholder content, context conflicts, missing
+    // executive premise) are removed: the only hard readiness error left is a
+    // plan with zero steps. Suggested/draft steps export without promotion.
+    expect(reportReadinessErrors(report)).toEqual([]);
+    expect(reportReadinessErrors(report)).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "CLIENT_PLACEHOLDER_CONTENT" }),
+        expect.objectContaining({ code: "CLIENT_CONTEXT_CONFLICT" }),
+        expect.objectContaining({ code: "CLIENT_EXECUTIVE_PREMISE_MISSING" }),
       ]),
     );
-    expect(report.nodes.map((node) => node.title)).not.toEqual(
-      expect.arrayContaining(["New step", "Test Step Member #2"]),
+  });
+
+  it("still blocks a plan with zero reportable steps (empty deliverable)", () => {
+    const report = completeReport();
+    report.nodes = [];
+    report.counts = { ...report.counts, nodes: 0 };
+    expect(reportReadinessErrors(report)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "NO_REPORTABLE_PLAN_STEPS" }),
+      ]),
     );
   });
 

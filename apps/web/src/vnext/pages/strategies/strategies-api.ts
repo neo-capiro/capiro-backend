@@ -59,7 +59,6 @@ import type {
   ResolveConflictInput,
   RestoreImpact,
   ResumeRunInput,
-  RunCheckResult,
   StrategyDetail,
   StrategyListItem,
   StrategyChatMessage,
@@ -77,7 +76,6 @@ import {
   normalizeMission,
   normalizeMissions,
   normalizeRun,
-  normalizeRunCheck,
   normalizeRuns,
 } from '../../../pages/strategy/agents/agent-utils.js';
 import {
@@ -904,16 +902,20 @@ export function useRejectChangeSet() {
   });
 }
 
-/** Apply replays the approved subset into ONE revision. 409 = base revision moved. */
+/** Apply replays the selected/approved subset into ONE revision. opIndexes
+ * (optional, web→server contract) narrows a direct apply-from-proposed to the
+ * checked ops; omitted = the server replays the recorded approved subset.
+ * 409 = base revision moved. */
 export function useApplyChangeSet() {
   const api = useApi();
   const qc = useQueryClient();
   const invalidate = useAgentsInvalidate();
   return useMutation({
-    mutationFn: async (vars: { id: string; strategyId: string }) =>
+    mutationFn: async (vars: { id: string; strategyId: string; opIndexes?: number[] }) =>
       (
         await api.post<StrategyDetail>(
           `${BASE}/agents/change-sets/${vars.id}/apply`,
+          vars.opIndexes ? { opIndexes: vars.opIndexes } : {},
         )
       ).data,
     onSuccess: (detail, vars) => {
@@ -1322,7 +1324,7 @@ export function useCurrentPlanExport(
 
 /* ---------------------------------------------------- executive report export */
 
-export type StrategyExportFormat = 'docx' | 'pptx';
+export type StrategyExportFormat = 'docx' | 'pptx' | 'pdf';
 export type StrategyExportAudience = 'client' | 'internal';
 
 export interface StrategyExportOptions {
@@ -1450,7 +1452,9 @@ function exportFallbackFilename(
   const audienceLabel = audience === 'internal' ? 'internal-working' : 'client';
   return format === 'pptx'
     ? `strategy-executive-briefing-${audienceLabel}.pptx`
-    : `strategy-executive-report-${audienceLabel}.docx`;
+    : format === 'pdf'
+      ? `strategy-executive-report-${audienceLabel}.pdf`
+      : `strategy-executive-report-${audienceLabel}.docx`;
 }
 
 /** Parse both quoted filename= and UTF-8 filename*= response headers. */
@@ -1602,66 +1606,6 @@ export function useRevalidateWatch(strategyId: string) {
   });
 }
 
-/** POST /agents/watch/proposals/:id/accept — this call IS the approval. */
-export function useAcceptWatchProposal(strategyId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async (proposalId: string) =>
-      (
-        await api.post<WatchAcceptResult>(
-          `${BASE}/agents/watch/proposals/${proposalId}/accept`,
-        )
-      ).data,
-    onSuccess: (res) => {
-      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
-      qc.setQueryData(watchStateKey(strategyId), res.state);
-      invalidate();
-    },
-  });
-}
-
-/** POST /agents/watch/proposals/:id/dismiss — permanent suppression. */
-export function useDismissWatchProposal(strategyId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async (proposalId: string) =>
-      (
-        await api.post<WatchReviewState>(
-          `${BASE}/agents/watch/proposals/${proposalId}/dismiss`,
-        )
-      ).data,
-    onSuccess: (state) => {
-      qc.setQueryData(watchStateKey(strategyId), state);
-      invalidate();
-    },
-  });
-}
-
-/** POST /agents/watch/strategies/:id/accept-all — one dependency-ordered batch. */
-export function useAcceptAllWatchProposals(strategyId: string) {
-  const api = useApi();
-  const qc = useQueryClient();
-  const invalidate = useWatchInvalidate(strategyId);
-  return useMutation({
-    mutationFn: async (input: AcceptAllWatchInput) =>
-      (
-        await api.post<WatchAcceptResult>(
-          `${BASE}/agents/watch/strategies/${strategyId}/accept-all`,
-          input,
-        )
-      ).data,
-    onSuccess: (res) => {
-      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
-      qc.setQueryData(watchStateKey(strategyId), res.state);
-      invalidate();
-    },
-  });
-}
-
 /* ------------------------------------------------------- Mission hooks */
 /** POST /agents/missions — create a standing mission (starts draft; PATCH to activate). */
 export function useCreateMission() {
@@ -1687,27 +1631,6 @@ export function useUpdateMission() {
           await api.patch<unknown>(
             `${BASE}/agents/missions/${vars.id}`,
             vars.input,
-          )
-        ).data,
-      ),
-    onSuccess: invalidate,
-  });
-}
-
-/** POST /agents/missions/:id/run-check — the Stage F on-demand Watcher check. */
-export function useRunCheck() {
-  const api = useApi();
-  const invalidate = useAgentsInvalidate();
-  return useMutation({
-    mutationFn: async (missionId: string): Promise<RunCheckResult> =>
-      normalizeRunCheck(
-        (
-          await api.post<unknown>(
-            `${BASE}/agents/missions/${missionId}/run-check`,
-            undefined,
-            {
-              timeout: 120_000,
-            },
           )
         ).data,
       ),

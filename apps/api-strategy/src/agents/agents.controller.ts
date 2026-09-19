@@ -18,6 +18,7 @@ import { RunReconcilerService } from './run-reconciler.service.js';
 import {
   AcceptAllDto,
   ApproveChangeSetDto,
+  ApplyChangeSetDto,
   CreateChangeSetDto,
   CreateMissionDto,
   CreateRunDto,
@@ -370,8 +371,12 @@ export class AgentsController {
   }
 
   @Post('change-sets/:id/apply')
-  applyChangeSet(@CurrentTenant() tc: AuthTenantContext, @Param('id') id: string) {
-    return this.changeSets.apply(tc.tenantId, tc.clerkUserId, id);
+  applyChangeSet(
+    @CurrentTenant() tc: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: ApplyChangeSetDto,
+  ) {
+    return this.changeSets.apply(tc.tenantId, tc.clerkUserId, id, dto);
   }
 
   @Post('change-sets/:id/undo')

@@ -173,18 +173,21 @@ export function evidenceItems(snapshot: ExecutiveReportSnapshot): Array<{
   source: string;
   asOf: string | null;
   confidence: number | null;
+  authority: string | null;
 }> {
   const facts = snapshot.context.facts.map((fact) => ({
     text: fact.text,
     source: fact.documentTitle,
     asOf: fact.asOf,
     confidence: fact.confidence,
+    authority: fact.authority,
   }));
   const highlights = contextItems(snapshot, ["evidence"]).map((item) => ({
     text: item.text,
     source: item.sourceTitle,
     asOf: item.asOf,
     confidence: item.confidence,
+    authority: item.authority,
   }));
   return [...facts, ...highlights].filter(
     (item, index, all) =>

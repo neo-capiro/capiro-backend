@@ -291,6 +291,60 @@ describe('RunReconcilerService.reconcileRun — repairs', () => {
     expect(findings.execution).toBeDefined();
     expect(store.activity.some((a) => a.action === 'run.reconciled')).toBe(true);
   });
+
+  it('on ARTIFACT_NOT_ADVANCED -> completed, resolves legacy await_send_approval task statuses to satisfied (advisory) — and only then', async () => {
+    const store = makeStore();
+    // A staged outreach run that reconciler must finish to completed, carrying a
+    // legacy task result stuck at 'awaiting_send_approval' and a real artifact.
+    seedRun(store, {
+      state: 'staged',
+      idempotencyKey: 'exec:N1:outreach',
+      heartbeatAt: new Date(),
+      findings: {
+        execution: { kind: 'outreach', nodeId: 'N1', strategyId: 'S1', missionId: 'M1' },
+        results: {
+          'N1:outreach_record': { status: 'staged', artifactRef: 'or-1' },
+          'N1:await_send_approval': { status: 'awaiting_send_approval' },
+        },
+        sendApproval: { token: 'tk' },
+      },
+    });
+    seedNode(store);
+    seedVersion(store);
+    seedArtifact(store, 'or-1', { artifactType: 'outreach_record' });
+    const { svc } = makeService(store);
+
+    const out = await svc.reconcileRun(T, U, 'r1');
+
+    expect(out.applied!.to).toBe('completed');
+    const run = store.runs.get('r1')!;
+    const results = (run.findings as { results: Record<string, Rec> }).results;
+    // The legacy pending approval task is now advisory-satisfied, not waiting;
+    // no approval actor/timestamp is fabricated.
+    expect(results['N1:await_send_approval']!.status).toBe('satisfied');
+    expect(results['N1:outreach_record']!.status).toBe('staged');
+    expect(run.state).toBe('completed');
+  });
+
+  it('does NOT touch results/provenance on a non-completion repair (e.g. stranded -> failed_recoverable)', async () => {
+    const store = makeStore();
+    // Stranded run (no real artifact) -> failed_recoverable; the task findings
+    // must NOT be rewritten.
+    seedRun(store, {
+      findings: {
+        execution: { kind: 'workspace', nodeId: 'N1', strategyId: 'S1', missionId: 'M1' },
+        results: { 'N1:workspace_draft': { status: 'staged' } },
+      },
+    });
+    seedNode(store);
+    seedVersion(store);
+    const { svc } = makeService(store);
+
+    const out = await svc.reconcileRun(T, U, 'r1');
+    expect(out.applied!.to).toBe('failed_recoverable');
+    const results = (store.runs.get('r1')!.findings as { results: Record<string, Rec> }).results;
+    expect(results['N1:workspace_draft']!.status).toBe('staged'); // untouched
+  });
 });
 
 describe('RunReconcilerService.reconcileRun — escalation, not guessing', () => {

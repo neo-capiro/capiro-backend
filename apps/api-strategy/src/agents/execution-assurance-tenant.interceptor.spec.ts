@@ -26,21 +26,32 @@ describe('ExecutionAssuranceTenantInterceptor', () => {
   const interceptor = new ExecutionAssuranceTenantInterceptor();
 
   it('carries the authenticated tenant through asynchronous handler work', async () => {
+    // generationReleaseHoldEnforced is now advisory-only (always false), but the
+    // tenant-aware mode resolver still flows through the request context.
     const next: CallHandler = {
       handle: () =>
         defer(async () => {
           await Promise.resolve();
-          return generationReleaseHoldEnforced('enforce', 'tenant-a', 'strategy');
+          return {
+            mode: generationReleaseModeForTenant(
+              'tenant-a',
+              'strategy',
+              'enforce',
+              'tenant-a',
+              'strategy',
+            ),
+            held: generationReleaseHoldEnforced('enforce', 'tenant-a', 'strategy'),
+          };
         }),
     };
 
     await expect(
       lastValueFrom(interceptor.intercept(executionContext('tenant-a', AgentsController), next)),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ mode: 'enforce', held: false });
 
-    // The request-local scope is restored after the subscription; a direct
-    // non-request caller still needs the legacy all/all controls.
-    expect(generationReleaseHoldEnforced('enforce', 'tenant-a', 'strategy')).toBe(false);
+    // A direct non-request caller still resolves mode off for an unselected tenant.
+    expect(generationReleaseModeForTenant('tenant-b', 'strategy', 'enforce', 'tenant-a', 'strategy'))
+      .toBe('off');
   });
 
   it('does not let another tenant inherit the selected canary', async () => {

@@ -295,7 +295,7 @@ export const RUN_STATE_POLICY: Record<RunStateValue, RunStatePolicy> = {
     timeoutMinutes: null,
     actions: ['open_artifact', 'return_to_node', 'reconcile', 'cancel'],
     reason:
-      'Staged — the draft or record exists and is linked to the step. Nothing was sent. Confirm to finish.',
+      'Staged — the draft or record exists and is linked to the step. Nothing was sent. Reconcile to finish, or open the artifact.',
   },
   completed: {
     terminal: true,

@@ -41,11 +41,18 @@ describe('StrategiesModalShell', () => {
     try {
       renderModal();
       const dialog = screen.getByRole('dialog', { name: 'Upload files' });
-      const overlay = dialog.parentElement!;
+      // The dialog is nested inside the `.capiro-strategies` scope div, which
+      // sits inside the `.st-overlay` portal frame on document.body.
+      const overlay = dialog.closest('.st-overlay')!;
       expect(overlay.parentElement).toBe(document.body);
       expect(screen.getByTestId('page-container').contains(dialog)).toBe(false);
       expect(overlay.classList.contains('capiro-vnext-root')).toBe(true);
       expect(overlay.classList.contains('capiro-vnext-uui')).toBe(true);
+      // The nested scope div carries the module class so shared descendant
+      // rules (`.capiro-vnext-root .capiro-strategies X`) match inside the portal.
+      const scope = dialog.closest('.capiro-strategies')!;
+      expect(scope).not.toBeNull();
+      expect(overlay.contains(scope)).toBe(true);
       const layout = getComputedStyle(overlay);
       expect(layout.position).toBe('fixed');
       expect(Number.parseFloat(layout.inset)).toBe(0);
@@ -65,7 +72,7 @@ describe('StrategiesModalShell', () => {
     expect(screen.getByRole('alertdialog', { name: 'Discard unsaved changes?' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    fireEvent.mouseDown(screen.getByRole('dialog').parentElement!);
+    fireEvent.mouseDown(screen.getByRole('dialog').closest('.st-overlay')!);
     fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
     expect(screen.getByText('Context library')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -86,7 +93,7 @@ describe('StrategiesModalShell', () => {
   it('does not dismiss a running operation through Escape or the backdrop', () => {
     renderModal({ dirty: true, primaryBusy: true });
     fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.mouseDown(screen.getByRole('dialog').parentElement!);
+    fireEvent.mouseDown(screen.getByRole('dialog').closest('.st-overlay')!);
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });

@@ -63,11 +63,14 @@ RUN groupadd --system --gid 1001 capiro \
  && useradd --system --uid 1001 --gid capiro --shell /usr/sbin/nologin capiro \
  && apt-get update \
  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
+    chromium chromium-sandbox fonts-liberation \
  && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \
  && chown capiro:capiro /app/tmp
 ENV TMPDIR=/app/tmp
+# Headless Chromium for executive PDF export (Debian package, arm64-native).
+ENV STRATEGY_PDF_CHROMIUM_PATH=/usr/bin/chromium
 WORKDIR /app
 
 # Copy the entire workspace's pnpm-symlinked node_modules + the compiled dist.

@@ -1,17 +1,15 @@
 /*
  * Execution runs — /strategies/agents/runs (STRATEGIES-HANDOFF §7.9).
  *
- * Governance invariants (§11, BUILD-CONTRACT hard rules — release blockers):
- *  7. Execution STAGES only. This surface renders NO send control — no send
- *     button, no send-approval grant, nothing that marks a staged artifact as
- *     sent. A parked send-approval task renders its staged preview READ-ONLY.
- *     The Stage-H security card below is not decorative — it stays.
+ * Product boundaries (no business approval gates — removed per user directive):
+ *  7. Execution STAGES only. This surface renders NO external-send control —
+ *     no send button, nothing that marks a staged artifact as sent. A staged
+ *     outreach record renders its preview READ-ONLY; the staged record is the
+ *     product, never a dead-end "awaiting send approval" park.
  *  8. A failed run is never hidden: every failure state renders its reason.
  *  9. Run states are rendered exactly as the server reports them (mapped only
  *     to the §7.9 display vocabulary) — never derived client-side.
- *  - "Edit plan" invalidates prior approval, and says so before navigating.
- *
- * The dark banner copy is product policy — do not reword.
+ *  - "Edit plan" re-prepares the run against the current plan, and says so.
  */
 import { strategyArtifactHref } from '../lib/artifact-link.js';
 import { useMemo, useState } from 'react';
@@ -41,7 +39,6 @@ import {
   classifyWaitingReason,
   isAwaitingSendApproval,
   isAmbiguousRequestError,
-  isPriorApprovalInvalidated,
   sendApprovalTask,
 } from '../../../../pages/strategy/agents/agent-utils.js';
 import { projectExecutionBlocker, type ExecutionBlocker } from './execution-blocker.js';
@@ -323,42 +320,37 @@ export function ExecutionRuns() {
             </div>
           )}
 
-          {/* ---- Sending and approval (§7.9/§11 rule 9) — NOT decorative ------
-            The handoff links this card to the Stage-H criteria via the
-            ?stage-h=1 URL param (deep-linkable, bookmarkable). The criteria
-            also render inline in the modal as a read-only expansion of the
-            same static text. */}
+          {/* ---- Staging and review (§7.9) — the no-send boundary, NOT a
+            business approval gate. Outreach drafts/records are STAGED for
+            human review; nothing is transmitted externally from this surface.
+            The approval-binding language ("approval applies to the exact
+            content reviewed / a material edit requires a new review") was
+            removed with the rest of the mandatory-approval model. */}
           <div className="st-agents__section">
             <div className="st-card st-agents__security">
               <div className="st-card__header">
-                <h2 className="st-card__title">Sending and approval</h2>
+                <h2 className="st-card__title">Staging and review</h2>
               </div>
               <div className="st-card__body">
-                <p className="st-agents__security-headline">No direct send action is available.</p>
+                <p className="st-agents__security-headline">Nothing is sent from this surface.</p>
                 <p className="st-agents__security-copy">
-                  No direct send action exists on this surface. Outreach drafts are prepared for
-                  human review. Sending is not available from this screen.
+                  The Execution Agent prepares Workspace drafts and outreach records for human
+                  review. No external send action exists here.
                 </p>
                 <ul className="st-agents__security-list">
-                  <li>Draft preparation does not authorize sending.</li>
-                  <li>Sending requires separate organization authorization and security controls.</li>
-                  <li>
-                    Approval applies to the exact content reviewed. A material edit requires a new review.
-                  </li>
+                  <li>Draft and outreach records are staged, never transmitted.</li>
+                  <li>Execute, resume, retry and cancel act directly on the run.</li>
+                  <li>Editing the plan re-prepares the run against the current plan.</li>
                 </ul>
-                {/* The single most safety-emphasized control in the design
-                    handoff — solid red (`--st-error-fg`, the same #B42318
-                    token this file already uses for error states elsewhere).
-                    Purely informational: it only expands the SAME static
-                    criteria text above into a focused view. No mutation, no
-                    external link, nothing that sends/approves/transmits
-                    anything (§11 rule 7 stays intact). */}
+                {/* Read-only expansion of the SAME static staging/review text
+                    above into a focused view. No mutation, no external link,
+                    nothing that sends/approves/transmits anything. */}
                 <button
                   type="button"
                   className="st-agents__stageh-btn"
                   onClick={openStageH}
                 >
-                  View approval rules
+                  View staging rules
                 </button>
               </div>
             </div>
@@ -370,17 +362,17 @@ export function ExecutionRuns() {
           above — never a second, divergent copy of the policy text. */}
       <CapiroModal
         open={stageHOpen}
-        title="Sending and approval rules"
+        title="Staging and review rules"
         onClose={closeStageH}
       >
         <p className="st-agents__modal-copy">
-          No direct send action exists on this surface. Outreach drafts are prepared for human
-          review. Sending is not available from this screen.
+          The Execution Agent prepares Workspace drafts and outreach records for human review. No
+          external send action exists on this surface.
         </p>
         <ul className="st-agents__modal-list">
-          <li>Draft preparation does not authorize sending.</li>
-          <li>Sending requires separate organization authorization and security controls.</li>
-          <li>Approval applies to the exact content reviewed. A material edit requires a new review.</li>
+          <li>Draft and outreach records are staged, never transmitted.</li>
+          <li>Execute, resume, retry and cancel act directly on the run.</li>
+          <li>Editing the plan re-prepares the run against the current plan.</li>
         </ul>
       </CapiroModal>
     </div>
@@ -483,7 +475,13 @@ function RunCard({
   const resume = useResumeRun();
   const retry = useRetryRun();
   const cancel = useCancelRun();
-  const policy = useRunPolicy(run.id, !TERMINAL.has(run.state));
+  /* Fetch the run policy for `staged` runs too, not only non-terminal ones.
+     A staged run holds existing artifacts and can need a further reconcile to
+     reach `completed`; treating it as fully terminal hid that recovery action
+     (the policy fetch was disabled, so `can('reconcile')` was always false).
+     The server's run policy remains the sole authority for which actions a
+     staged run actually offers. */
+  const policy = useRunPolicy(run.id, !TERMINAL.has(run.state) || run.state === 'staged');
   const reconcile = useReconcileRun();
   const detail = useStrategy(label.title === 'Strategy unavailable' ? run.strategyId ?? '' : null);
   const can = (action: string) => policy.data?.state === run.state && policy.data.actions.some((a) => a === action);
@@ -594,8 +592,14 @@ function RunCard({
         </div>
 
         <details className="st-agents__meta"><summary>Run details</summary><p>Run reference: {run.id}</p><p>Recorded state: {run.state}</p>{policy.data?.heartbeatAt && <p>Last activity: {new Date(policy.data.heartbeatAt).toLocaleString()}</p>}</details>
-        {policy.isError && !TERMINAL.has(run.state) && <p role="alert">Available actions could not be checked. <button type="button" onClick={() => void policy.refetch()}>Try again</button></p>}
-        {overdueQueue && <div className="st-agents__block"><p>This run has had no recorded progress beyond its normal {policy.data?.timeoutMinutes}-minute window. Check its recorded state before retrying; a delay alone does not establish why it stopped.</p>
+        {/* Policy fetch now covers staged runs too, so its error/retry state
+            must surface for them as well (not only non-terminal runs). */}
+        {policy.isError && (!TERMINAL.has(run.state) || run.state === 'staged') && <p role="alert">Available actions could not be checked. <button type="button" onClick={() => void policy.refetch()}>Try again</button></p>}
+        {/* The overdue-queue reconcile is for in-flight/parked runs. A staged
+            run's recovery is surfaced by the dedicated staged-recovery action
+            row below — suppress the overdue block here so the two never render
+            a duplicate "Check run status" control. */}
+        {overdueQueue && run.state !== 'staged' && <div className="st-agents__block"><p>This run has had no recorded progress beyond its normal {policy.data?.timeoutMinutes}-minute window. Check its recorded state before retrying; a delay alone does not establish why it stopped.</p>
           {can('reconcile') && <CapiroButton disabled={busy} onClick={() => reconcile.mutate({ id: run.id }, { onSuccess: (result) => setRecoveryNote(result.findings.map((f) => f.detail).join(' ') || 'No repair was needed. The recorded run state is current.'), onError: (err) => setActionError(errorMessage(err, 'Could not check this run.')) })}>{reconcile.isPending ? 'Checking…' : 'Check run status'}</CapiroButton>}
         </div>}
         {recoveryNote && <p role="status">{recoveryNote}</p>}
@@ -635,13 +639,13 @@ function RunCard({
           </ol>
         )}
 
-        {/* Send-approval park: the staged outreach preview is READ-ONLY. The
-            approval control is deliberately absent — no send control renders
-            until Stage H (rule 7). */}
+        {/* Staged outreach record (read-only preview). The run no longer parks
+            on a dead-end "awaiting send approval" — the staged record IS the
+            product; nothing is sent externally. The preview stays read-only. */}
         {awaitingSend && (
           <div className="st-agents__send-preview">
             <p className="st-agents__send-preview-title">
-              Outreach draft ready — sending is unavailable
+              Outreach record staged — nothing is sent
             </p>
             {sendTask?.send ? (
               <dl className="st-agents__send-preview-grid">
@@ -679,12 +683,6 @@ function RunCard({
             ) : (
               <p className="st-agents__meta">
                 The staged preview was not returned by the server for this run.
-              </p>
-            )}
-            {isPriorApprovalInvalidated(sendTask?.send ?? null) && (
-              <p className="st-agents__send-preview-warning" role="status">
-                The staged content changed since a prior approval — that approval no longer binds
-                and needs a new review before any authorized send.
               </p>
             )}
           </div>
@@ -786,7 +784,7 @@ function RunCard({
                 >
                   Edit plan
                 </CapiroButton>
-                <span className="st-agents__meta">Editing the plan invalidates prior approval.</span>
+                <span className="st-agents__meta">Editing the plan re-prepares this run against the current plan.</span>
               </>
             )}
             {(run.state === 'ready_for_review' || run.state === 'approved') && (
@@ -809,6 +807,70 @@ function RunCard({
                 onClick={onRetry}
               >
                 {retry.isPending ? 'Retrying…' : 'Retry run'}
+              </CapiroButton>
+            )}
+            {/* A waiting run (including a legacy "awaiting send approval" park)
+                resumes directly — the staged record is the product; there is no
+                separate approval step to clear. The send-approval preview above
+                stays read-only; Resume completes the run. A version-drift park
+                is the exception: it prepares an updated plan (Retry) instead of
+                resuming the obsolete one. */}
+            {run.state === 'waiting_for_input' && can('resume') && blocker?.code !== 'plan_version_changed' && (
+                <CapiroButton
+                  variant="primary"
+                  size="compact"
+                  className="st-agents__run-actions-primary"
+                  disabled={busy}
+                  onClick={onResume}
+                >
+                  {resume.isPending ? 'Resuming…' : 'Resume'}
+                </CapiroButton>
+              )}
+          </div>
+        )}
+
+        {/* Staged-run recovery: a staged run holds existing artifacts and can
+            need a further reconcile/resume to reach `completed`. The action is
+            offered only when the server's run policy lists it — never
+            fabricated. This is the second reconcile the executing→staged→
+            completed path needs; it was hidden while staged was treated as
+            fully terminal. */}
+        {run.state === 'staged' && (can('reconcile') || can('resume')) && (
+          <div className="st-agents__run-actions">
+            <span className="st-agents__meta">
+              Drafts are staged. Check the run to finish recording the final state.
+            </span>
+            {can('reconcile') && (
+              <CapiroButton
+                size="compact"
+                className="st-agents__run-actions-primary"
+                disabled={busy}
+                onClick={() =>
+                  reconcile.mutate(
+                    { id: run.id },
+                    {
+                      onSuccess: (result) =>
+                        setRecoveryNote(
+                          result.findings.map((f) => f.detail).join(' ') ||
+                            'No repair was needed. The recorded run state is current.',
+                        ),
+                      onError: (err) => setActionError(errorMessage(err, 'Could not check this run.')),
+                    },
+                  )
+                }
+              >
+                {reconcile.isPending ? 'Checking…' : 'Check run status'}
+              </CapiroButton>
+            )}
+            {can('resume') && (
+              <CapiroButton
+                variant="primary"
+                size="compact"
+                className={can('reconcile') ? undefined : 'st-agents__run-actions-primary'}
+                disabled={busy}
+                onClick={onResume}
+              >
+                {resume.isPending ? 'Resuming…' : 'Resume'}
               </CapiroButton>
             )}
           </div>
@@ -839,11 +901,11 @@ function RunCard({
         </div>
       </CapiroModal>
 
-      {/* Edit plan — invalidates prior approval, and says so (§7.9). */}
+      {/* Edit plan — re-prepares the run against the current plan. */}
       <CapiroModal open={confirm === 'edit'} title="Edit the plan?" onClose={() => setConfirm(null)}>
         <p className="st-agents__modal-copy">
-          Editing the plan invalidates any prior approval on this run — a changed plan is a
-          different payload and must be reviewed again. You will be taken to the strategy editor.
+          Editing the plan changes the staged payload — this run re-prepares against the current
+          plan. You will be taken to the strategy editor.
         </p>
         <div className="st-agents__modal-actions">
           <CapiroButton size="compact" onClick={() => setConfirm(null)}>

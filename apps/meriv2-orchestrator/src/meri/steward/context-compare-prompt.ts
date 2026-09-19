@@ -172,6 +172,14 @@ export function sanitizeContextCompareResult(
     seen.add(pair);
     return { incomingFactId, otherFactId, material: conflict.material };
   });
-  const warnings = result.warnings.map((warning) => nonempty(warning, 1_000, 'Comparison warning'));
+  // Warnings are advisory-only review notes. The model may legally emit an
+  // optional warning slot that is blank or whitespace-only (observed with a
+  // real provider: an empty string in the warnings array); that is NOT a
+  // structural defect — discard blank entries instead of failing the whole
+  // otherwise-valid comparison. Still reject over-long or NUL-containing
+  // entries, which indicate malformed output rather than an omitted note.
+  const warnings = result.warnings
+    .filter((warning) => typeof warning === 'string' && warning.trim().length > 0)
+    .map((warning) => nonempty(warning, 1_000, 'Comparison warning'));
   return { conflicts, warnings };
 }
