@@ -81,8 +81,21 @@ jobs:
           --health-retries 10
 
     env:
-      NODE_OPTIONS: --max-old-space-size=4096
-      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+      # These four values are load-bearing and were each MEASURED, not guessed.
+      # The job was originally configured with the settings under which this
+      # suite was observed FAILING; do not lower them without re-measuring.
+      #
+      # 4096 sits inside the observed OOM band (a whole-AppModule import died at
+      # exit 134 around 4.1 GB, and leaked jest workers pinned ~3.8 GB). Runs
+      # that passed used 8192.
+      NODE_OPTIONS: --max-old-space-size=8192
+      # Prisma's default pool against this suite measured 18/31 failures; the
+      # suite deliberately parks several concurrent runs, so it needs both a
+      # wider pool and a longer acquire timeout. 33/30 is what passed.
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public&connection_limit=33&pool_timeout=30
+      # The 300 ms default poll interval was the other half of that failure;
+      # 750 ms is what passed.
+      MERI_HERMES_WATCH_INTERVAL_MS: '750'
       # Must match the names the spec defaults to
       # (meri-hermes-full-application.e2e.spec.ts:136-139).
       LOCAL_WORKER_IMAGE: meri-hermes-worker:v2026.9.14-meri
@@ -181,7 +194,11 @@ jobs:
             -e "MERI_HERMES_MODEL=${HERMES_MODEL:-gpt-5.6-terra}" \
             -e "MERI_HERMES_PROVIDER=${HERMES_PROVIDER:-custom}" \
             -e "MERI_HERMES_BASE_URL=${HERMES_BASE_URL:-https://api.openai.com/v1}" \
-            -e MERI_MAX_CONCURRENT_RUNS=4 \
+            # 4 is too low: this suite deliberately parks several runs at once
+            # (approval waits, clarification waits, takeover races) and was
+            # measured needing 16 locally. A low cap surfaces as unrelated-looking
+            # 429s from the worker rather than as an obvious capacity error.
+            -e MERI_MAX_CONCURRENT_RUNS=16 \
             -e HERMES_EXEC_ASK=1 \
             "${LOCAL_WORKER_IMAGE}"
 
