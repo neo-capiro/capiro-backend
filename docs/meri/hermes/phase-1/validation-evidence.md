@@ -46,4 +46,34 @@ The Hermes pin did not move during this closeout, so Phase 0's compatibility sui
 
 ## 4. Closeout implementation evidence
 
-Populated as each workstream lands; see `closeout-report.md` for the requirement-by-requirement verdict and for which gates are BLOCKED.
+### 4.1 Cross-replica coordination, pruning-safe recovery, discovery [DB-INT]
+
+Migration applied to the local fixture database: **`20280920030000_meri_hermes_cross_replica_coordination`** (additive only — `output_seq INTEGER NOT NULL DEFAULT 0`, `consumer_id VARCHAR(80)`, `consumer_heartbeat_at TIMESTAMPTZ(6)`, a non-negativity CHECK, one index, three column comments). `prisma migrate deploy` exit 0; exactly one migration was pending and applied. Note that `migrate deploy` applies *all* pending migrations — here there happened to be one.
+
+| Check | Command | Exit | Result |
+|---|---|---|---|
+| Typecheck | `npx tsc --noEmit --rootDir .` in `apps/api` | **1** | Only the pre-existing unrelated `conference-probability.service.ts` TS1479. **Exit code verified directly by the orchestrator**: the implementing agent reported exit 2; re-measurement shows **1**. The evidence records the measured value, not the reported one. |
+| Hermes suite | `npx jest --forceExit --runInBand src/meri/hermes` | **0** | **10 suites, 70 tests passed** (up from 8/54), independently re-run by the orchestrator | 
+
+Evidence: `evidence/closeout-coordination/jest-hermes.txt`.
+
+New cases in `meri-hermes-cross-replica.spec.ts`, all passing: cross-instance event delivery and terminal observation through Postgres with **no shared in-process emitter**; instance B finalizing a run instance A started, releasing A's wait; gap-free ordered delivery under concurrent production; event-cap pruning never crossing the recovery snapshot; a clarification on a **terminal** run still answerable while a native approval on one is refused; owner-scoped discovery; exactly one of two concurrent takeovers winning a stale lease; an un-takeoverable run finalized `interrupted` and never `completed`; identical resubmission reattaching while a different body still conflicts; a stuck dispatch reconciled by the admission path before new work proceeds.
+
+### 4.2 Defect found by this closeout — production turns would have hung
+
+Ticket #1 swapped the run repository from the in-memory store to Prisma. `streamMessage` did `await this.runs.update(runId, { hermesRunId, … })` and **discarded the result**, then passed the now-stale `run` object to `consume()`, which returns immediately when `!run.hermesRunId`. This was invisible with the in-memory store, whose `update()` mutates the *same* object via `Object.assign`; the Prisma repository returns a fresh record. In production this meant **nothing consumed the Hermes event stream, nothing ever finalized, and every turn hung until the client gave up.**
+
+Fixed (`meri-hermes-runtime.adapter.ts:334`, `run = await this.runs.update(…)`), verified by the orchestrator. Two lessons recorded rather than glossed:
+
+1. Ticket #1's earlier "complete and independently verified" status was **overconfident**. Its 54 tests passed but none exercised the dispatch → consume handoff, so a total-failure defect sat behind a green suite.
+2. A test double that mutates shared state can hide a real defect in the implementation it stands in for. The in-memory `MeriHermesRunStore` is retained for speed, but any future behavioural divergence from the Prisma repository is a latent production bug of exactly this shape.
+
+### 4.3 Known deviations in the coordination work (recorded, not hidden)
+
+1. **Takeover does not re-stream Hermes events.** `MeriHermesRuntimeClient.streamRunEvents` has no resume cursor, so replaying from the start would duplicate every delta in the durable log. `takeOverRun` instead claims the lease atomically and finalizes from Hermes's authoritative `GET /v1/runs/{id}` status — `completed` only if Hermes says so, otherwise `interrupted`. It never reports success Hermes did not report and never promises transparent resumption. True event-stream resumption requires an `after` cursor on the client.
+2. **`takeOverStaleRuns` is implemented and tested but not yet wired to a caller** (`reconcileStuckDispatches` *is* wired, in both the admission path and the discovery endpoint). Until a caller exists, a Stop issued while the consuming replica is dead stays `cancelling` rather than reaching a terminal state promptly. Tracked as a closeout blocker in the report.
+3. Test 3 lowers the event cap via a test seam (`maxEventsPerRun`, set to 8 then restored to 5000) rather than inserting 5 000 rows; the production path is unchanged.
+4. `enforceEventCap` may retain **more** than the cap when the droppable prefix at or below `outputSeq` is shorter than the overflow. Over-retention is the safe direction; the alternative is losing assistant text.
+5. Idempotency uses generations: the key is `meri:<sha256(actorId, conversationId, normalized body, sorted attachment ids, mode)>[0:32]`, but a bare fingerprint would permanently dedupe a legitimately repeated identical message (saying "ok" twice). A non-terminal holder means reattach (a true retry); a terminal holder advances to `…:r1`, `…:r2`, capped at 16.
+
+New env knobs, all defaulted: `MERI_HERMES_WATCH_INTERVAL_MS` (300), `MERI_HERMES_DISPATCH_STUCK_MS` (120000), `MERI_HERMES_CONSUMER_STALE_MS` (60000), `MERI_HERMES_CONSUMER_HEARTBEAT_MS` (10000).
