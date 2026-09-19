@@ -52,7 +52,9 @@ Migration applied to the local fixture database: **`20280920030000_meri_hermes_c
 
 | Check | Command | Exit | Result |
 |---|---|---|---|
-| Typecheck | `npx tsc --noEmit --rootDir .` in `apps/api` | **1** | Only the pre-existing unrelated `conference-probability.service.ts` TS1479. **Exit code verified directly by the orchestrator**: the implementing agent reported exit 2; re-measurement shows **1**. The evidence records the measured value, not the reported one. |
+| Typecheck | `npx tsc --noEmit --rootDir .` in `apps/api` | **1 at the time, 2 later — see the correction below** | Only the pre-existing unrelated `conference-probability.service.ts` TS1479. |
+
+> **Correction (orchestrator error).** In this table I originally recorded exit **1** and stated that the implementing agent's reported exit **2** was wrong. **My correction was itself wrong.** Re-measured later in the same tree with byte-identical diagnostics: `npx tsc --noEmit --rootDir .` returns **2**, while `npx tsc --noEmit` (no `--rootDir`) returns **1**. Two separate agents reported 2 and were right about the command they ran; I generalised a single measurement of one invocation into a claim about the other. What is stable and is what actually matters: **exactly one diagnostic, pre-existing and unrelated, and a non-zero exit either way** — this typecheck has never been green on this branch and is preserved as a baseline failure rather than fixed. Anyone re-running it should quote the exact flags alongside the code.
 | Hermes suite | `npx jest --forceExit --runInBand src/meri/hermes` | **0** | **10 suites, 70 tests passed** (up from 8/54), independently re-run by the orchestrator | 
 
 Evidence: `evidence/closeout-coordination/jest-hermes.txt`.
@@ -85,7 +87,7 @@ New env knobs, all defaulted: `MERI_HERMES_WATCH_INTERVAL_MS` (300), `MERI_HERME
 | Chat suite | `pnpm --filter @capiro/web exec vitest run src/components/chat` | **0** | **37 files / 359 tests passed** (baseline 37 / 327; +32 added), independently re-run by the orchestrator |
 | Web typecheck | `pnpm --filter @capiro/web run typecheck` | **2** | 7 errors, the **identical** pre-existing baseline set (`@capiro/strategy-verifier` resolution + implicit-`any` in `StrategyEditorVNext.tsx`); zero new errors introduced |
 
-Note the exit-code conventions differ by package and both are recorded as measured: `apps/api` `tsc --noEmit` exits **1**, `apps/web`'s typecheck script exits **2**. Neither is "passing"; both are preserved baselines.
+Exit codes differ by package *and* by invocation, and all are recorded as measured: `apps/web`'s typecheck script exits **2**; `apps/api` `tsc --noEmit --rootDir .` exits **2** while `tsc --noEmit` exits **1** (see the correction in §4.1). Neither package is "passing"; both are preserved baselines.
 
 Delivered: the `sessionStorage` run pointer is **deleted, not merely demoted** — no Hermes path reads browser storage at all, so fresh-tab/device recovery goes through `GET …/conversations/:id/active`. `attachHermesRun` seeds from `outputSnapshot` and subscribes at `after=outputSeq`; `after=0` is gone, and each retry re-reads a *fresh* snapshot rather than resuming a stale cursor. Unresolved clarifications on terminal runs stay rendered and answerable against the original `requestId`; a native approval on a terminal run renders an explicit "run has ended, it was never run" state instead of a button that would fail. Approval invariants re-verified: Run once / Deny only, expiry visible, and two new hardenings — interaction resolution and terminal state are now **monotonic** (a duplicate frame or stale discovery read cannot flip an answered card back to actionable) and a blocked decision is rejected before the POST.
 
