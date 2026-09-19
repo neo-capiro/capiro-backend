@@ -5,6 +5,7 @@ import {
   FLORIDA_SYNC_LOCAL_CONFIRM,
   FLORIDA_SYNC_NONLOCAL_CONFIRM,
   isActiveDirectoryRow,
+  isManagedDirectoryRow,
   officialKey,
   retiredDirectorySourceEvidence,
   validateDatabaseUrl,
@@ -154,10 +155,7 @@ describe('Florida official committee inventory sync', () => {
       priorSource: { observedAt: '2026-08-01T00:00:00Z' },
       directory: { sourceUrl: 'https://www.flsenate.gov/Committees/SOCG', aliasIds: [] },
     };
-    const retired = retiredDirectorySourceEvidence(
-      sourceEvidence,
-      '2026-09-18T13:32:56.788Z',
-    );
+    const retired = retiredDirectorySourceEvidence(sourceEvidence, '2026-09-18T13:32:56.788Z');
 
     expect(retired).toMatchObject({
       priorSource: sourceEvidence.priorSource,
@@ -174,9 +172,46 @@ describe('Florida official committee inventory sync', () => {
         sourceEvidence: retired,
       }),
     ).toBe(false);
+    expect(retiredDirectorySourceEvidence(retired, '2026-09-18T13:32:56.788Z')).toEqual(retired);
+  });
+
+  it('recognizes legacy calendar rows without treating arbitrary root evidence as managed', () => {
+    const sourceEvidence = {
+      rosterStatus: 'unqualified',
+      noticeIdentity: 'fl:senate:meeting:6879',
+      officialBodyKey: 'fl:senate:SOCG',
+    };
+    const legacyRow = {
+      officialSourceKey: 'FL:2026:fl:senate:SOCG',
+      sourceEvidence,
+    };
+
+    expect(isManagedDirectoryRow(legacyRow)).toBe(true);
+    expect(isActiveDirectoryRow(legacyRow)).toBe(true);
     expect(
-      retiredDirectorySourceEvidence(retired, '2026-09-18T13:32:56.788Z'),
-    ).toEqual(retired);
+      isManagedDirectoryRow({
+        ...legacyRow,
+        officialSourceKey: 'FL:2026:fl:senate:OTHER',
+      }),
+    ).toBe(false);
+    expect(
+      isManagedDirectoryRow({
+        ...legacyRow,
+        sourceEvidence: { priorSource: { observedAt: '2026-08-01T00:00:00Z' } },
+      }),
+    ).toBe(false);
+
+    const retired = retiredDirectorySourceEvidence(sourceEvidence, '2026-09-18T13:32:56.788Z');
+    expect(retired).toMatchObject({
+      ...sourceEvidence,
+      directory: {
+        active: false,
+        retiredAt: '2026-09-18T13:32:56.788Z',
+        retirementReason: 'not-in-reviewed-inventory',
+      },
+    });
+    expect(isActiveDirectoryRow({ sourceEvidence: retired })).toBe(false);
+    expect(retiredDirectorySourceEvidence(retired, '2026-09-18T13:32:56.788Z')).toEqual(retired);
   });
 });
 
