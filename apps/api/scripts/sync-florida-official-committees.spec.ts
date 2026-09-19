@@ -4,7 +4,9 @@ import {
   expectedInventoryRecord,
   FLORIDA_SYNC_LOCAL_CONFIRM,
   FLORIDA_SYNC_NONLOCAL_CONFIRM,
+  isActiveDirectoryRow,
   officialKey,
+  retiredDirectorySourceEvidence,
   validateDatabaseUrl,
   validateSnapshot,
   verifiedAliasIds,
@@ -125,6 +127,18 @@ describe('Florida official committee inventory sync', () => {
     expect(() => assertAppliedInventory(snapshot, expectedRows.slice(1))).toThrow(
       'postcondition failed for 1 of 66 keys',
     );
+    expect(() =>
+      assertAppliedInventory(snapshot, [
+        ...expectedRows,
+        {
+          state: 'FL',
+          chamber: 'upper',
+          name: 'Special Order Calendar Group',
+          officialSourceKey: 'FL:2026:fl:senate:SOCG',
+          legislativeSession: '2026',
+        },
+      ]),
+    ).toThrow('unexpected active keys');
 
     const dockerfile = readFileSync(join(apiRoot, 'Dockerfile'), 'utf8');
     expect(dockerfile).toContain('COPY apps/api/data apps/api/data');
@@ -133,6 +147,36 @@ describe('Florida official committee inventory sync', () => {
     const entrypoint = readFileSync(join(__dirname, 'entrypoint.sh'), 'utf8');
     expect(entrypoint).toContain('sync-florida-official-committees)');
     expect(entrypoint).toContain('scripts/sync-florida-official-committees.ts "$@"');
+  });
+
+  it('soft-retires stale directory rows without erasing their evidence', () => {
+    const sourceEvidence = {
+      priorSource: { observedAt: '2026-08-01T00:00:00Z' },
+      directory: { sourceUrl: 'https://www.flsenate.gov/Committees/SOCG', aliasIds: [] },
+    };
+    const retired = retiredDirectorySourceEvidence(
+      sourceEvidence,
+      '2026-09-18T13:32:56.788Z',
+    );
+
+    expect(retired).toMatchObject({
+      priorSource: sourceEvidence.priorSource,
+      directory: {
+        sourceUrl: 'https://www.flsenate.gov/Committees/SOCG',
+        aliasIds: [],
+        active: false,
+        retiredAt: '2026-09-18T13:32:56.788Z',
+        retirementReason: 'not-in-reviewed-inventory',
+      },
+    });
+    expect(
+      isActiveDirectoryRow({
+        sourceEvidence: retired,
+      }),
+    ).toBe(false);
+    expect(
+      retiredDirectorySourceEvidence(retired, '2026-09-18T13:32:56.788Z'),
+    ).toEqual(retired);
   });
 });
 

@@ -20,6 +20,8 @@ import { useApiScope } from '../../../../lib/use-api-scope.js';
 
 import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
 
+import { useMe } from '../../../../lib/me.js';
+
 import { CapiroButton } from '../../../components/actions/index.js';
 
 import { CapiroInput, CapiroSelect, CapiroTextarea } from '../../../components/fields/index.js';
@@ -33,7 +35,7 @@ import {
   CapiroTableCell as TD,
 } from '../../../components/tables/index.js';
 
-import type { ResearchVersion, ComparisonLine } from '@capiro/shared';
+import { isTenantAdmin, type ResearchVersion, type ComparisonLine } from '@capiro/shared';
 
 import './research.css';
 
@@ -124,9 +126,14 @@ function ResearchWorkspace() {
   const api = useApi(),
     navigate = useNavigate(),
     identity = useApiScope(),
+    me = useMe(),
     [params, setParams] = useSearchParams();
 
-  const view = params.get('researchView') ?? 'bills',
+  const requestedView = params.get('researchView') ?? 'bills',
+    canReviewImports = Boolean(me.data && isTenantAdmin(me.data.role)),
+    importAccessResolved = Boolean(me.data) || !me.isLoading,
+    importFallback = requestedView === 'imports' && importAccessResolved && !canReviewImports,
+    view = importFallback ? 'bills' : requestedView,
     query = params.get('researchQuery') ?? '',
     folderId = params.get('folder') ?? '',
     clientId = params.get('client') ?? '';
@@ -143,7 +150,8 @@ function ResearchWorkspace() {
     [error, setError] = useState(''),
     [analysis, setAnalysis] = useState(recovered.analysis),
     [saved, setSaved] = useState<{ draftId?: string; selectionId: string } | null>(recovered.saved),
-    [rightSearch, setRightSearch] = useState(params.get('rightSearch') ?? '');
+    [rightSearch, setRightSearch] = useState(params.get('rightSearch') ?? ''),
+    [importAccessNotice, setImportAccessNotice] = useState(false);
 
   const pending = useRef<{ hash: string; key: string } | null>(recovered.pending),
     mounted = useRef(true);
@@ -173,6 +181,18 @@ function ResearchWorkspace() {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!importFallback) return;
+    setImportAccessNotice(true);
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set('researchView', 'bills');
+      next.delete('cursor');
+      next.delete('researchQuery');
+      return next;
+    });
+  }, [importFallback, setParams]);
 
   const scope = {
     jurisdiction,
@@ -216,6 +236,7 @@ function ResearchWorkspace() {
 
   const read = useQuery<Result>({
     queryKey: key,
+    enabled: requestedView !== 'imports' || importAccessResolved,
     queryFn: async () => {
       if (view === 'compare')
         return post(BASE + '/compare', {
@@ -387,7 +408,7 @@ function ResearchWorkspace() {
           ['bills', 'Bills'],
           ['statutes', 'Statutes & Constitution'],
           ['rules', 'Rules & deadlines'],
-          ['imports', 'Review imported setup'],
+          ...(canReviewImports ? [['imports', 'Review imported setup']] : []),
           ['coverage', 'Source coverage'],
         ].map(([value, label]) => (
           <CapiroButton
@@ -399,6 +420,7 @@ function ResearchWorkspace() {
                 : 'secondary'
             }
             onClick={() => {
+              setImportAccessNotice(false);
               change({ researchView: value!, cursor: '', researchQuery: '' });
               setDraft('');
             }}
@@ -407,6 +429,13 @@ function ResearchWorkspace() {
           </CapiroButton>
         ))}
       </nav>
+
+      {importAccessNotice && !canReviewImports ? (
+        <p className="lw-research__scope-note" role="status">
+          Imported setup review is available to workspace administrators. Research opened in Bills
+          instead.
+        </p>
+      ) : null}
 
       <p className="lw-research__scope-note" role="note">
         {view === 'bills'
@@ -615,7 +644,9 @@ function ResearchWorkspace() {
         </CapiroButton>
       ) : null}
 
-      {read.isPending ? (
+      {requestedView === 'imports' && !importAccessResolved ? (
+        <p role="status">Checking administrator access to imported setup review…</p>
+      ) : read.isPending ? (
         <p role="status">
           Searching the retained sources for this scope — results appear when the source
           responds…

@@ -132,11 +132,26 @@ export interface CalendarQuery {
 
 const MAX_PAGE_SIZE = 200;
 
-type DirectoryEvidence = { aliasIds?: unknown };
+type DirectoryEvidence = { aliasIds?: unknown; active?: unknown };
+
+function isRetiredDirectoryRow(row: { sourceEvidence: unknown }): boolean {
+  if (
+    !row.sourceEvidence ||
+    typeof row.sourceEvidence !== 'object' ||
+    Array.isArray(row.sourceEvidence)
+  ) {
+    return false;
+  }
+  const directory = (row.sourceEvidence as { directory?: DirectoryEvidence }).directory;
+  return directory?.active === false;
+}
 
 function verifiedDirectoryAliasIds(rows: Array<{ id: string; officialSourceKey: string | null; sourceEvidence: unknown }>): Set<string> {
   const aliases = new Set<string>();
   for (const row of rows) {
+    // A retired official row no longer represents the directory. Its former
+    // aliases must remain visible instead of being hidden by stale metadata.
+    if (isRetiredDirectoryRow(row)) continue;
     if (!row.officialSourceKey || !row.sourceEvidence || typeof row.sourceEvidence !== 'object' || Array.isArray(row.sourceEvidence)) continue;
     const directory = (row.sourceEvidence as { directory?: DirectoryEvidence }).directory;
     if (!directory || !Array.isArray(directory.aliasIds)) continue;
@@ -149,7 +164,7 @@ function verifiedDirectoryAliasIds(rows: Array<{ id: string; officialSourceKey: 
 
 export function filterVerifiedDirectoryAliases<T extends { id: string; officialSourceKey: string | null; sourceEvidence: unknown }>(rows: T[]): T[] {
   const aliases = verifiedDirectoryAliasIds(rows);
-  return rows.filter((row) => !aliases.has(row.id));
+  return rows.filter((row) => !aliases.has(row.id) && !isRetiredDirectoryRow(row));
 }
 
 type LegacyCommitteeLink = { id: string; name: string; chamber: string | null };
