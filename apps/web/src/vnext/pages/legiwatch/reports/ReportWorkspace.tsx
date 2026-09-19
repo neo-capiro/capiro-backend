@@ -699,7 +699,7 @@ function Workspace({
             busy={busy}
             save={(value) =>
               action(
-                () =>
+                (): Promise<unknown> =>
                   value.id
                     ? api.put(`${B}/${value.id}`, { ...value, expectedVersion: value.version })
                     : api.post(B, value),
@@ -862,7 +862,7 @@ function Workspace({
             busy={busy}
             save={(value) =>
               action(
-                () =>
+                (): Promise<unknown> =>
                   contact === 'new'
                     ? api.post(`${B}/contacts`, value)
                     : api.put(`${B}/contacts/${contact.id}`, {
@@ -884,7 +884,7 @@ function Workspace({
             busy={busy}
             save={(value) =>
               action(
-                () =>
+                (): Promise<unknown> =>
                   list === 'new'
                     ? api.post(`${B}/lists`, value)
                     : api.put(`${B}/lists/${list.id}`, { ...value, expectedVersion: list.version }),
