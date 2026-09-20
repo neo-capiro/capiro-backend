@@ -37,14 +37,24 @@ function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+function usableActionText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 function normalizeAction(action: CongressActionApiItem): NormalizedCongressAction | null {
-  if (!action.actionDate || !action.text) return null;
+  if (!action.actionDate) return null;
   const date = new Date(action.actionDate);
   if (Number.isNaN(date.getTime())) return null;
+  const text =
+    typeof action.text === 'string' && action.text.trim()
+      ? action.text
+      : (usableActionText(action.actionCode) ?? usableActionText(action.type));
+  if (!text) return null;
 
   return {
     date,
-    text: action.text,
+    text,
     type: action.type ?? null,
     chamber: action.chamber ?? null,
   };

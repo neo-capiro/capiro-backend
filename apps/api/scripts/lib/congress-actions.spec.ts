@@ -118,6 +118,73 @@ describe('Congress bill action ingestion', () => {
     expect(db.raw.$transaction).toHaveBeenCalledWith([db.deleteOperation]);
   });
 
+  it('uses a trimmed actionCode when Congress returns a valid action with null text', async () => {
+    const db = prismaMock();
+
+    const result = await syncCongressBillActions({
+      prisma: db.prisma,
+      billId: '119-hres-212',
+      fetchPage: async () => ({
+        actions: [
+          {
+            actionDate: '2025-03-05',
+            text: null,
+            actionCode: '  Intro-H  ',
+            type: 'IntroReferral',
+            chamber: 'House',
+          },
+        ],
+      }),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      actions: [
+        {
+          date: new Date('2025-03-05'),
+          text: 'Intro-H',
+          type: 'IntroReferral',
+          chamber: 'House',
+        },
+      ],
+    });
+    expect(db.raw.congressBillAction.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          billId: '119-hres-212',
+          date: new Date('2025-03-05'),
+          text: 'Intro-H',
+          type: 'IntroReferral',
+          chamber: 'House',
+        },
+      ],
+    });
+  });
+
+  it('uses a trimmed type only when text and actionCode are unusable', async () => {
+    const db = prismaMock();
+
+    const result = await syncCongressBillActions({
+      prisma: db.prisma,
+      billId: '119-hres-213',
+      fetchPage: async () => ({
+        actions: [
+          {
+            actionDate: '2025-03-05',
+            text: '  ',
+            actionCode: null,
+            type: '  IntroReferral  ',
+          },
+        ],
+      }),
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      actions: [{ text: 'IntroReferral' }],
+    });
+  });
+
   it('preserves existing rows when a later actions page fails', async () => {
     const db = prismaMock();
     const fetchPage = jest.fn(async (nextPageUrl: string | null) => {
@@ -169,6 +236,30 @@ describe('Congress bill action ingestion', () => {
     });
 
     expect(result).toMatchObject({ ok: false, stage: 'fetch' });
+    expect(db.raw.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects an action with a date but no usable text, actionCode, or type', async () => {
+    const db = prismaMock();
+
+    const result = await syncCongressBillActions({
+      prisma: db.prisma,
+      billId: '119-hres-214',
+      fetchPage: async () => ({
+        actions: [
+          {
+            actionDate: '2025-03-05',
+            text: null,
+            actionCode: '  ',
+            type: null,
+          },
+        ],
+      }),
+    });
+
+    expect(result).toMatchObject({ ok: false, stage: 'fetch' });
+    expect(db.raw.congressBillAction.deleteMany).not.toHaveBeenCalled();
+    expect(db.raw.congressBillAction.createMany).not.toHaveBeenCalled();
     expect(db.raw.$transaction).not.toHaveBeenCalled();
   });
 
