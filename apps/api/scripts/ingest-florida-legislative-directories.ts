@@ -833,7 +833,7 @@ async function main(): Promise<void> {
   try {
     const result = await prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('FL:directory-pdf:ingest'))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('FL:directory-pdf:ingest'))`;
         const [legislators, committees] = await Promise.all([
           tx.stateLegislator.findMany({
             where: { state: 'FL' },
