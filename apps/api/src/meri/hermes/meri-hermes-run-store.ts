@@ -218,6 +218,29 @@ export interface MeriHermesRunRepository {
     tx?: Prisma.TransactionClient,
     fence?: RunWriteFence,
   ): Promise<{ won: boolean; run: MeriHermesRunRecord }>;
+  /**
+   * ATOMIC tool-budget reservation (closeout defect A4). Consumes one unit of
+   * the run's `budget.maxToolCalls` and reports whether it was admitted, in a
+   * SINGLE conditional statement — never read-then-write.
+   *
+   * The broker used to do `const calls = auth.run.brokerCalls + 1` against a
+   * snapshot taken at `authorize()` and write it back with a plain `SET`.
+   * Parallel tool calls are normal for an agent runtime, so N concurrent
+   * calls all read the same snapshot and all wrote `snapshot + 1`: the
+   * declared budget was a suggestion, not a cap.
+   *
+   * Contract for every implementation:
+   *   - Over the whole life of a run, AT MOST `maxToolCalls` calls may return
+   *     `admitted: true`, no matter how many run concurrently.
+   *   - `brokerCalls` is the counter value AFTER a successful reservation, or
+   *     the current (unchanged) value when refused.
+   *   - Refusal must not consume budget.
+   *   - An unknown run id throws, exactly as `update()` does; it is never
+   *     reported as a quiet refusal.
+   *
+   * `maxToolCalls <= 0` means no tool call is ever admitted.
+   */
+  reserveBrokerCall(runId: string, maxToolCalls: number): Promise<{ admitted: boolean; brokerCalls: number }>;
   append(
     runId: string,
     kind: MeriHermesRunEventKind,
@@ -470,6 +493,26 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
     this.assertOwns(existing, fence);
     if (MERI_HERMES_TERMINAL_STATUSES.has(existing.status)) return { won: false, run: existing };
     return { won: true, run: await this.update(runId, patch, tx, fence) };
+  }
+
+  /**
+   * In-memory equivalent of the Prisma repository's conditional
+   * `UPDATE … SET broker_calls = broker_calls + 1 WHERE broker_calls < $limit
+   * RETURNING broker_calls`. The check and the increment are one synchronous
+   * block with NO `await` between them, so the JavaScript event loop cannot
+   * interleave two reservations here any more than Postgres's row lock can
+   * interleave two of them there. That is what makes `maxToolCalls` an actual
+   * cap rather than a snapshot-plus-one race (closeout defect A4).
+   */
+  async reserveBrokerCall(
+    runId: string,
+    maxToolCalls: number,
+  ): Promise<{ admitted: boolean; brokerCalls: number }> {
+    const run = this.require(runId);
+    if (!(run.brokerCalls < maxToolCalls)) return { admitted: false, brokerCalls: run.brokerCalls };
+    run.brokerCalls += 1;
+    run.updatedAt = this.now().toISOString();
+    return { admitted: true, brokerCalls: run.brokerCalls };
   }
 
   /** `tx` is accepted for interface parity with `MeriHermesPrismaRunRepository` and ignored — this store has no transactions. */

@@ -21,11 +21,21 @@ export type MeriHermesActorType = 'user' | 'service';
 export type MeriHermesAudience = 'private' | 'room' | 'tenant';
 
 export interface MeriHermesToolPolicy {
-  /** Broker tool names the run may invoke. Empty = none. */
+  /**
+   * Broker tool names the run may invoke. **Empty = none** — this is an
+   * allow-list, not an optional filter, and `assertTool` enforces it that way
+   * unconditionally (closeout defect A3: it used to short-circuit on
+   * `allow.length`, so `allow: []` silently permitted every tool). A run that
+   * is meant to use tools must name them.
+   */
   allow: string[];
   /** Explicit denials that win over `allow` (defense in depth). */
   deny: string[];
-  /** When true the broker rejects every mutating tool regardless of `allow`. */
+  /**
+   * When true the broker rejects every tool that is not explicitly classified
+   * as safe for a read-only run in `MERI_HERMES_TOOL_EFFECTS`, regardless of
+   * `allow`. Unclassified = rejected (closeout defect A5).
+   */
   readOnly: boolean;
 }
 
@@ -47,6 +57,65 @@ export const MERI_HERMES_BROKER_TOOLS = [
   'meri_record_turn',
 ] as const;
 export type MeriHermesBrokerTool = (typeof MERI_HERMES_BROKER_TOOLS)[number];
+
+/**
+ * What a broker tool DOES, which is what decides whether a `readOnly: true`
+ * run may call it.
+ *
+ *   read              — returns governed application data, changes nothing.
+ *   run_local         — writes only to Meri's own record of THIS run (its
+ *                       durable event log / pending-interaction list). No
+ *                       application or governed-memory state is touched, and
+ *                       nothing outlives the run, so a read-only run may call
+ *                       it: that is what lets a read-only run still ask the
+ *                       user a question and record its own turn.
+ *   application_write — creates or mutates application / governed-memory
+ *                       state that outlives the run.
+ *
+ * Closeout defect A5: this replaced a hand-maintained two-element
+ * `MUTATING_TOOLS` set in the broker. That set was consulted as
+ * "is this tool mutating?", so any tool MISSING from it was treated as
+ * read-only and permitted on a read-only run — every future write tool was
+ * fail-OPEN by default. The classification is now:
+ *
+ *   1. Exhaustive by type. `Record<MeriHermesBrokerTool, …>` means adding a
+ *      name to `MERI_HERMES_BROKER_TOOLS` without classifying it here is a
+ *      COMPILE error, not a silent grant.
+ *   2. Fail-closed at runtime. `isReadOnlySafeTool()` answers `false` for
+ *      anything it does not recognise, so a tool that reaches the broker
+ *      without a classification (a hand-built policy, a future dynamic
+ *      registry) is refused on a read-only run rather than admitted.
+ *
+ * The effective behaviour for the six Phase 0 tools is unchanged: read-only
+ * runs still refuse exactly `meri_memory_propose` and `meri_publish_artifact`.
+ * What changed is the DEFAULT for anything new.
+ */
+export type MeriHermesToolEffect = 'read' | 'run_local' | 'application_write';
+
+export const MERI_HERMES_TOOL_EFFECTS: Readonly<Record<MeriHermesBrokerTool, MeriHermesToolEffect>> = {
+  /** Governed institutional-memory read through the Context Plane recall rail. */
+  meri_memory_search: 'read',
+  /** Owner-scoped chat attachment materialisation. */
+  meri_fetch_attachment: 'read',
+  /** Appends one internal `run.status` event to this run's own log. */
+  meri_record_turn: 'run_local',
+  /** Adds a pending interaction + event to this run; asks the user a question. */
+  meri_request_clarification: 'run_local',
+  /** Creates a governed memory candidate in the review queue. */
+  meri_memory_propose: 'application_write',
+  /** Creates a ClioArtifact row (and object-store bytes). */
+  meri_publish_artifact: 'application_write',
+};
+
+/**
+ * May a `readOnly: true` run call this tool? Fail-closed: an unrecognised
+ * tool name is NOT read-only-safe. Takes `string` deliberately — the guard
+ * must be able to reject a name that is not even a known broker tool.
+ */
+export function isReadOnlySafeTool(tool: string): boolean {
+  const effect = (MERI_HERMES_TOOL_EFFECTS as Readonly<Record<string, MeriHermesToolEffect | undefined>>)[tool];
+  return effect === 'read' || effect === 'run_local';
+}
 
 export interface MeriHermesRunBudget {
   maxToolCalls: number;

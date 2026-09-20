@@ -357,6 +357,57 @@ export class MeriHermesPrismaRunRepository implements MeriHermesRunRepository {
   }
 
   /**
+   * ATOMIC tool-budget reservation (closeout defect A4) — see the interface
+   * doc in meri-hermes-run-store.ts for the contract.
+   *
+   * The whole decision is ONE statement:
+   *
+   *   UPDATE meri_agent_runs
+   *      SET broker_calls = broker_calls + 1
+   *    WHERE id = $1 AND broker_calls < $2
+   *   RETURNING broker_calls
+   *
+   * Postgres takes a row lock for the UPDATE, so concurrent reservations on
+   * one run serialize and each sees the previous one's committed value —
+   * exactly the mechanism `appendInTx()` already relies on for `last_seq`.
+   * A row comes back only when the guard held, so the caller enforces the cap
+   * on the ATOMIC RESULT, never on a snapshot it read earlier. With N callers
+   * racing a budget of M, precisely M statements match and N − M return no
+   * row.
+   *
+   * No explicit `tenant_id` filter: `meri_agent_runs` FORCEs row-level
+   * security (see the class doc), so a wrong-tenant id matches zero rows.
+   * That makes "no row" ambiguous between "budget exhausted" and "not my
+   * run", so the refusal path re-reads the row and distinguishes the two —
+   * an unknown run throws, as `update()` does, rather than being reported as
+   * a quiet budget refusal.
+   */
+  async reserveBrokerCall(
+    runId: string,
+    maxToolCalls: number,
+  ): Promise<{ admitted: boolean; brokerCalls: number }> {
+    const tenantId = await this.resolveRunTenant(runId);
+    if (!tenantId) throw new Error(`Unknown Hermes run ${runId}`);
+    const limit = Number.isFinite(maxToolCalls) ? Math.floor(maxToolCalls) : 0;
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ broker_calls: number }>>(Prisma.sql`
+        UPDATE meri_agent_runs
+        SET broker_calls = broker_calls + 1, updated_at = now()
+        WHERE id = ${runId}::uuid AND broker_calls < ${limit}
+        RETURNING broker_calls
+      `);
+      const reserved = rows[0]?.broker_calls;
+      if (reserved !== undefined) return { admitted: true, brokerCalls: Number(reserved) };
+      const current = await tx.meriAgentRun.findUnique({
+        where: { id: runId },
+        select: { brokerCalls: true },
+      });
+      if (!current) throw new Error(`Unknown Hermes run ${runId}`);
+      return { admitted: false, brokerCalls: current.brokerCalls };
+    });
+  }
+
+  /**
    * `won` is meaningful only for a terminal patch (it is the result of the
    * guarded `updateMany`); a non-terminal patch always reports `won: true`
    * because there is no race to lose.

@@ -81,6 +81,10 @@ import { MERI_HERMES_RUN_REPOSITORY, MeriHermesRunStore } from './hermes/meri-he
 import { MeriHermesPrismaRunRepository } from './hermes/meri-hermes-prisma-run-repository.js';
 import { MeriHermesRuntimeAdapter } from './hermes/meri-hermes-runtime.adapter.js';
 import { MeriHermesBrokerService } from './hermes/meri-hermes-broker.service.js';
+import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './hermes/meri-hermes-db-governor.js';
+import { MeriHermesBudgetService } from './hermes/meri-hermes-budget.service.js';
+import { MeriHermesAdmissionControlService } from './hermes/meri-hermes-admission-control.service.js';
+import { MeriHermesProfileLeaseService } from './hermes/meri-hermes-profile-lease.service.js';
 import { MeriHermesArtifactStorageService } from './hermes/meri-hermes-artifact-storage.service.js';
 import {
   MeriHermesMaintenanceService,
@@ -166,6 +170,22 @@ import { MERI_HERMES_SECURITY_ENVELOPE } from './hermes/meri-hermes-security.por
     { provide: MERI_HERMES_RECALL_PORT, useClass: ContextPlaneRecallPort },
     { provide: MERI_HERMES_SECURITY_ENVELOPE, useExisting: MeriContextPlaneService },
     MeriHermesArtifactStorageService,
+    /**
+     * Phase 1 scaling obligations S-1..S-4. The governor is bound to the
+     * PROCESS-WIDE instance, not merely to a Nest singleton: its semaphore is
+     * what bounds Hermes-attributable database concurrency to its declared
+     * share of the API pool, and a per-consumer instance would bound nothing
+     * (three consumers with six slots each is eighteen slots). The adapter and
+     * the broker cannot receive it through DI — both are constructed
+     * positionally by their specs, so their constructors are deliberately not
+     * widened — and they reach the same object through
+     * `meriHermesSharedDbGovernor()`. Binding the provider to that same
+     * function is what keeps DI and non-DI consumers on one semaphore.
+     */
+    { provide: MeriHermesDbGovernor, useFactory: meriHermesSharedDbGovernor },
+    MeriHermesBudgetService,
+    MeriHermesAdmissionControlService,
+    MeriHermesProfileLeaseService,
     MeriHermesBrokerService,
     MeriHermesWorkerTokenGuard,
     MeriHermesRuntimeAdapter,

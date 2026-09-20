@@ -1,0 +1,47 @@
+PASS src/meri/hermes/meri-hermes-full-application.e2e.spec.ts (74.832 s)
+  CLOSEOUT — real AppModule + real auth boundary + real Context Plane + real broker + a REAL Hermes worker
+    the application graph that is actually under test
+      √ the real application graph is serving, and the real authentication boundary rejects an unauthenticated call (11 ms)
+      √ the real TenantContextMiddleware + RolesGuard admit an authenticated pilot user to the Hermes control surface (3084 ms)
+      √ an outside-tenant actor is refused by the server-side pilot gate (404, no existence leak) (21 ms)
+    A1 — a real Hermes turn through the authenticated Meri route performs governed institutional recall
+      √ the turn was accepted, served by the Hermes runtime, and completed through the real route (1 ms)
+      √ the run is durable in Postgres (meri_agent_runs), bound to a real Hermes run, owned by Alice (6 ms)
+      √ ASSERTION 1 — permitted institutional-memory retrieval returned the fixture fact with a real sourceId, provenance and coverage, via path=context_plane (1 ms)
+      √ the durable event log records the governed recall with path=context_plane (never the prototype port) (8 ms)
+      √ the assistant message was persisted by the real adapter with runtime=hermes (6 ms)
+    worker-facing probes against LIVE runs created by real authenticated turns
+      √ baseline — both live runs are genuinely live, owned by the right actors, and reachable with their own worker tokens (36 ms)
+      √ ASSERTION 2 — personal ownership: another user's private fact is never returned, in either direction (371 ms)
+      √ ASSERTION 3 — tenant isolation: an outside-tenant actor gets nothing, at the browser routes AND at the broker (132 ms)
+      √ ASSERTION 4 — restricted client: a walled client's PRIVATE material is denied to a non-granted user and fails closed on an explicit request (275 ms)
+      √ ASSERTION 5 — both MEMORY_GOVERNANCE_LIFECYCLE modes: authorization applies in both, and each mode's documented lifecycle semantics hold (778 ms)
+      √ ASSERTION 6 — no fallback: the prototype port is not in the container, and a failing governed path returns an honest error instead of ungoverned data (100 ms)
+      √ ASSERTION 6 (worker side) — the real worker has no local factual-memory store to fall back to (221 ms)
+      √ ASSERTION 7 — a proposed memory is reported as pending and is NOT saved until the authoritative service commits it (161 ms)
+      C. current-permission rechecks on every surface
+        √ C1 run status — owner 200, a different user in the SAME tenant 404, unauthenticated 401 (38 ms)
+        √ C2 event replay — owner streams, a different user 404, unauthenticated 401 (69 ms)
+        √ C3 artifact retrieval — owner 200, a different user 404, an outside tenant 404, unauthenticated 401 (61 ms)
+        √ C4 interaction answers — approval and clarification refuse a non-owner and an unauthenticated caller (67 ms)
+        √ C5 artifact publication — the broker refuses a publish bound to another actor's run (18 ms)
+        √ C6 the pilot gate is re-read LIVE, and its documented drain split holds: new work is refused while an already-admitted run stays controllable by its OWNER only (415 ms)
+        √ C7 after the kill switch the OWNER can still stop an already-admitted run and it really terminates; a non-owner cannot, and no new run is admitted (1269 ms)
+      D. worker credential binding, rotation and expiry, through the real broker route
+        √ D1 the native Hermes run id is bound to the CURRENT attempt server-side (60 ms)
+        √ D2 rotation — a freshly minted replacement credential works without touching the run, and the retired one keeps working only until it expires (36 ms)
+        √ D3 expiry — an expired credential is refused server-side even on a perfectly live run, and a not-yet-valid one is too (22 ms)
+        √ D4 an authorization-version rotation FENCES the run: the stale credential is refused and the REAL Hermes worker is actually stopped (177 ms)
+    B. membership revoked while a governed tool read is in flight
+      √ B1 the in-flight governed read is BLOCKED before it reaches the worker (and therefore before the model)
+      √ B2 the attempt is FENCED, not merely denied: terminal run, authorization_downgrade, and no "recalled" event for the blocked read (8 ms)
+      √ B3 stale callbacks from the fenced attempt are rejected (409 run_not_live), and the browser surfaces are closed by the real auth boundary (38 ms)
+      √ B4 a newly authorized attempt REBUILDS context instead of resuming the fenced transcript (1603 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       31 passed, 31 total
+Snapshots:   0 total
+Time:        75.067 s, estimated 120 s
+Ran all test suites matching /src\\meri\\hermes/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+e2e exit=0

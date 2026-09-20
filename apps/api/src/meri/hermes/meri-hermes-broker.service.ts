@@ -45,10 +45,13 @@ import {
 import {
   MERI_HERMES_BROKER_TOOLS,
   MERI_HERMES_TERMINAL_STATUSES,
+  isReadOnlySafeTool,
   type MeriHermesBrokerTool,
 } from './hermes-runtime.contracts.js';
 import { MeriHermesRuntimeAdapter } from './meri-hermes-runtime.adapter.js';
 import { MeriHermesArtifactStorageService } from './meri-hermes-artifact-storage.service.js';
+import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './meri-hermes-db-governor.js';
+import { meriHermesBoundedPage, meriHermesScalingLimits } from './meri-hermes-scaling.config.js';
 
 export interface MeriHermesBrokerAuth {
   claims: MeriHermesWorkerTokenClaims;
@@ -58,10 +61,19 @@ export interface MeriHermesBrokerAuth {
 
 export { MERI_HERMES_BROKER_TOOLS, type MeriHermesBrokerTool };
 
-const MUTATING_TOOLS: ReadonlySet<MeriHermesBrokerTool> = new Set([
-  'meri_memory_propose',
-  'meri_publish_artifact',
-]);
+/**
+ * Closeout defect A5. The hand-maintained `MUTATING_TOOLS` set that used to
+ * live here has been replaced by the exhaustive, fail-closed
+ * `MERI_HERMES_TOOL_EFFECTS` classification in hermes-runtime.contracts.ts
+ * (`isReadOnlySafeTool`). A set of "the mutating ones" is fail-OPEN by
+ * construction — every tool nobody remembered to add to it was treated as
+ * read-only — and the growth path this broker exists to serve is exactly
+ * "Phase 2 adds more tools".
+ */
+
+/** S-4: governed-recall page size. Unchanged values, now named and centrally clamped. */
+const RECALL_DEFAULT_LIMIT = 8;
+const RECALL_MAX_LIMIT = 50;
 
 @Injectable()
 export class MeriHermesBrokerService {
@@ -69,6 +81,24 @@ export class MeriHermesBrokerService {
 
   /** Not a constructor parameter (Nest would try to inject it); overridable in tests. */
   env: NodeJS.ProcessEnv = process.env;
+
+  /**
+   * S-4 — bounded database and tool usage.
+   *
+   * A public, lazily-created FIELD rather than a constructor parameter, the
+   * same convention `env` already uses here, and for the same reason: seven
+   * specs construct this service positionally and widening the constructor
+   * would break every one of them for no benefit.
+   *
+   * Every broker tool below runs inside `governor.guard(...)`, which is one
+   * bounded-concurrency slot (default: 20 % of the API connection pool — 6 of
+   * 33 on this host's configured URL) plus one deadline (default 30 s). The
+   * slot cap is what leaves application traffic its headroom; the deadline is
+   * what stops one stuck tool call from holding a slot indefinitely, together
+   * with the `SET LOCAL statement_timeout` the governor applies to the
+   * transactions it opens.
+   */
+  dbGovernor: MeriHermesDbGovernor = meriHermesSharedDbGovernor();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -157,7 +187,33 @@ export class MeriHermesBrokerService {
     // the record is already fresh and a second read would only add a round
     // trip to every tool call. At 'release' it may be minutes old and a fence
     // may have landed in between, so re-read.
-    const current = phase === 'release' ? ((await this.runs.get(run.runId)) ?? run) : run;
+    //
+    // Closeout defect A6: that re-read used to be `(await get()) ?? run`. A
+    // missing row silently substituted the ENTRY-TIME snapshot and the
+    // release check then validated stale state — precisely what F-1 exists to
+    // prevent, and it failed open in the one branch whose entire job is to
+    // catch a change that landed while the read was in flight. A live run
+    // whose record has vanished (deleted, pruned, wrong replica's view, a
+    // repository returning null for any reason) is not a run we can certify
+    // as still authorized, so it is a hard failure in the `run_not_live`
+    // shape the worker already handles.
+    //
+    // Nothing is fenced here: fencing means appending an `error` event to the
+    // run and finalizing it, and there is no row to append to or finalize.
+    // Withholding the payload is the whole of the available remedy.
+    let current: MeriHermesRunRecord;
+    if (phase === 'release') {
+      const reread = await this.runs.get(run.runId);
+      if (!reread) {
+        this.logger.error(
+          `run record ${run.runId} disappeared before release; refusing to validate the entry-time snapshot`,
+        );
+        throw new ConflictException({ code: 'run_not_live', status: 'missing' });
+      }
+      current = reread;
+    } else {
+      current = run;
+    }
     if (MERI_HERMES_TERMINAL_STATUSES.has(current.status)) {
       throw new ConflictException({ code: 'run_not_live', status: current.status });
     }
@@ -242,27 +298,76 @@ export class MeriHermesBrokerService {
     await this.assertLiveAuthorization(auth.run, auth.run.envelope.authorizationVersion, new Date(), 'release');
   }
 
+  /**
+   * The tool gate. Every broker operation calls this first, and it is the
+   * only place the run's tool policy and tool budget are enforced.
+   *
+   * Order is deliberate and each step is fail-CLOSED:
+   *
+   *   1. `deny` wins over everything (defense in depth).
+   *   2. `allow` is an ALLOW-LIST, applied unconditionally. Empty permits
+   *      nothing — which is what `MeriHermesToolPolicy.allow` has always
+   *      documented ("Empty = none") and what the code did not do (A3: the
+   *      guard was `policy.allow.length && !policy.allow.includes(tool)`, so
+   *      `allow: []` short-circuited on falsy `0` and permitted EVERY tool).
+   *   3. A `readOnly` run admits only tools explicitly classified read-only-
+   *      safe, so an unclassified tool is refused rather than assumed
+   *      harmless (A5).
+   *   4. The budget is consumed with ONE atomic conditional statement and the
+   *      cap is enforced on its RESULT, so N concurrent calls against a
+   *      budget of M admit exactly M (A4).
+   *
+   * Budget consumption is last on purpose: a call refused by policy must not
+   * burn budget, and the reservation must be the final thing that can fail,
+   * so an admitted reservation is always followed by the tool actually
+   * running.
+   */
   async assertTool(auth: MeriHermesBrokerAuth, tool: MeriHermesBrokerTool): Promise<void> {
     const policy = auth.run.envelope.toolPolicy;
     if (policy.deny.includes(tool)) throw new ForbiddenException({ code: 'tool_denied', tool });
-    if (policy.allow.length && !policy.allow.includes(tool)) {
+    if (!policy.allow.includes(tool)) {
       throw new ForbiddenException({ code: 'tool_not_allowed', tool });
     }
-    if (policy.readOnly && MUTATING_TOOLS.has(tool)) {
+    if (policy.readOnly && !isReadOnlySafeTool(tool)) {
       throw new ForbiddenException({ code: 'read_only_run', tool });
     }
-    const calls = auth.run.brokerCalls + 1;
-    if (calls > auth.run.envelope.budget.maxToolCalls) {
+    const reservation = await this.runs.reserveBrokerCall(
+      auth.run.runId,
+      auth.run.envelope.budget.maxToolCalls,
+    );
+    if (!reservation.admitted) {
       throw new ForbiddenException({ code: 'tool_budget_exhausted', tool });
     }
-    await this.runs.update(auth.run.runId, { brokerCalls: calls });
+    // Keep the in-flight auth snapshot consistent with what was actually
+    // reserved, so `whoami()` and any later read of `auth.run` in THIS call
+    // report the post-reservation count rather than the entry-time one.
+    auth.run.brokerCalls = reservation.brokerCalls;
   }
 
+  /** S-4: bounded slot + deadline; the body is `recallGoverned`. */
   async recall(auth: MeriHermesBrokerAuth, input: { query: string; clientId?: string | null; limit?: number }) {
+    return this.dbGovernor.guard('meri_memory_search', () => this.recallGoverned(auth, input));
+  }
+
+  private async recallGoverned(auth: MeriHermesBrokerAuth, input: { query: string; clientId?: string | null; limit?: number }) {
     await this.assertTool(auth, 'meri_memory_search');
     const query = input.query?.trim();
     if (!query) throw new BadRequestException('query is required');
-    const limit = Math.max(1, Math.min(50, input.limit ?? 8));
+    /**
+     * S-4 — an EXPLICIT, configured result limit on a read that would otherwise
+     * be unbounded. The numbers are unchanged from what this line already did
+     * (default 8, hard ceiling 50) — a "bounded usage" change must not widen an
+     * existing bound — but they now go through the shared `meriHermesBoundedPage`
+     * primitive and are additionally capped by the global `maxPageSize`, so one
+     * place governs every paged broker read rather than each one carrying its
+     * own literals.
+     */
+    const scaling = meriHermesScalingLimits(this.env);
+    const page = meriHermesBoundedPage(
+      { limit: input.limit ?? RECALL_DEFAULT_LIMIT },
+      { defaultPageSize: RECALL_DEFAULT_LIMIT, maxPageSize: Math.min(RECALL_MAX_LIMIT, scaling.maxPageSize) },
+    );
+    const limit = page.limit;
     const result = await this.recallPort.recall(auth.run.actorContext, {
       query,
       clientId: input.clientId ?? null,
@@ -282,7 +387,22 @@ export class MeriHermesBrokerService {
     return result;
   }
 
+  /** S-4: bounded slot + deadline; the body is `proposeMemoryGoverned`. */
   async proposeMemory(
+    auth: MeriHermesBrokerAuth,
+    input: {
+      key: string;
+      value: string;
+      scope: 'user_private' | 'firm' | 'client';
+      clientId?: string | null;
+      confidence?: number | null;
+      sourceExcerpt?: string | null;
+    },
+  ) {
+    return this.dbGovernor.guard('meri_memory_propose', () => this.proposeMemoryGoverned(auth, input));
+  }
+
+  private async proposeMemoryGoverned(
     auth: MeriHermesBrokerAuth,
     input: {
       key: string;
@@ -331,7 +451,12 @@ export class MeriHermesBrokerService {
     return result;
   }
 
+  /** S-4: bounded slot + deadline; the body is `getAttachmentGoverned`. */
   async getAttachment(auth: MeriHermesBrokerAuth, attachmentId: string) {
+    return this.dbGovernor.guard('meri_fetch_attachment', () => this.getAttachmentGoverned(auth, attachmentId));
+  }
+
+  private async getAttachmentGoverned(auth: MeriHermesBrokerAuth, attachmentId: string) {
     await this.assertTool(auth, 'meri_fetch_attachment');
     const row = await this.prisma.withTenant(auth.run.envelope.tenantId, (tx) =>
       tx.clioAttachment.findFirst({
@@ -375,7 +500,15 @@ export class MeriHermesBrokerService {
     };
   }
 
+  /** S-4: bounded slot + deadline; the body is `publishArtifactGoverned`. */
   async publishArtifact(
+    auth: MeriHermesBrokerAuth,
+    input: { title: string; kind: string; contentType?: string | null; filename?: string | null; bodyText?: string | null; dataBase64?: string | null },
+  ) {
+    return this.dbGovernor.guard('meri_publish_artifact', () => this.publishArtifactGoverned(auth, input));
+  }
+
+  private async publishArtifactGoverned(
     auth: MeriHermesBrokerAuth,
     input: { title: string; kind: string; contentType?: string | null; filename?: string | null; bodyText?: string | null; dataBase64?: string | null },
   ) {
@@ -443,7 +576,15 @@ export class MeriHermesBrokerService {
     return { artifactId: artifact.id, sha256, downloadUrl: `/api/clio/hermes/artifacts/${artifact.id}` };
   }
 
+  /** S-4: bounded slot + deadline; the body is `requestClarificationGoverned`. */
   async requestClarification(
+    auth: MeriHermesBrokerAuth,
+    input: { question: string; choices?: string[]; multiSelect?: boolean },
+  ) {
+    return this.dbGovernor.guard('meri_request_clarification', () => this.requestClarificationGoverned(auth, input));
+  }
+
+  private async requestClarificationGoverned(
     auth: MeriHermesBrokerAuth,
     input: { question: string; choices?: string[]; multiSelect?: boolean },
   ) {
@@ -487,7 +628,12 @@ export class MeriHermesBrokerService {
     };
   }
 
+  /** S-4: bounded slot + deadline; the body is `recordTurnGoverned`. */
   async recordTurn(auth: MeriHermesBrokerAuth, input: { userChars?: number; assistantChars?: number }) {
+    return this.dbGovernor.guard('meri_record_turn', () => this.recordTurnGoverned(auth, input));
+  }
+
+  private async recordTurnGoverned(auth: MeriHermesBrokerAuth, input: { userChars?: number; assistantChars?: number }) {
     await this.assertTool(auth, 'meri_record_turn');
     await this.runs.append(
       auth.run.runId,

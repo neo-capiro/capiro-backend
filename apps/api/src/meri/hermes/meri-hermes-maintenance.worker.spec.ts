@@ -43,6 +43,7 @@ import type { Readable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { HttpAdapterHost } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
 import type { TenantContext } from '@capiro/shared';
 import { StopTaskCommand } from '@aws-sdk/client-ecs';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -534,6 +535,32 @@ describe('Meri/Hermes scheduled maintenance (real local Postgres)', () => {
         setIntervalSpy.mockRestore();
         setTimeoutSpy.mockRestore();
       }
+    });
+
+    /**
+     * The repo's whole-graph smoke test (`src/app.module.spec.ts`) cannot run
+     * in this checkout — it dies parsing an ESM dependency reached through
+     * `users.controller.ts`, long before any Meri provider is touched, which
+     * is pre-existing debt outside this lane. This is the targeted
+     * equivalent for the provider being added: Nest must be able to
+     * construct `MeriHermesMaintenanceService` from its decorator metadata,
+     * with the optional `HttpAdapterHost` absent (a context that has no HTTP
+     * adapter) rather than failing to resolve it.
+     */
+    it('is constructible by Nest DI, with HttpAdapterHost optional', async () => {
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          MeriHermesMaintenanceService,
+          { provide: MeriHermesRuntimeAdapter, useValue: { reconcileStuckDispatches: async () => 0, takeOverStaleRuns: async () => [] } },
+          { provide: MeriHermesWorkerLifecycleService, useValue: { fleetConfigured: () => false } },
+        ],
+      }).compile();
+      const service = moduleRef.get(MeriHermesMaintenanceService);
+      expect(service).toBeInstanceOf(MeriHermesMaintenanceService);
+      // No HTTP adapter was provided, so the production guard refuses to start.
+      service.env = { NODE_ENV: 'production' };
+      expect(service.shouldStart()).toBe(false);
+      await moduleRef.close();
     });
 
     it('a started scheduler stops cleanly on module destroy', () => {

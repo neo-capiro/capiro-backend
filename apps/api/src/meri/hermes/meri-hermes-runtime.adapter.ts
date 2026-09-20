@@ -48,7 +48,11 @@ import {
   type MeriHermesRunEvent,
   type MeriSseFrame,
 } from './hermes-runtime.contracts.js';
-import { translateHermesWireEvent } from './meri-hermes-event-translator.js';
+import {
+  hermesCitationsFrame,
+  hermesCitationsFromRunEvents,
+  translateHermesWireEvent,
+} from './meri-hermes-event-translator.js';
 import { MeriHermesRuntimeClient } from './meri-hermes-runtime.client.js';
 import {
   MERI_HERMES_RUN_REPOSITORY,
@@ -59,6 +63,20 @@ import {
   type RunPatch,
 } from './meri-hermes-run-store.js';
 import { privateExecutionScopeId } from './meri-hermes-worker-token.js';
+import {
+  MeriHermesBudgetExhaustedError,
+  MeriHermesBudgetService,
+} from './meri-hermes-budget.service.js';
+import {
+  MeriHermesAdmissionControlService,
+  MeriHermesCapacityExhaustedError,
+  MeriHermesQueueTimeoutError,
+} from './meri-hermes-admission-control.service.js';
+import {
+  MeriHermesProfileBusyError,
+  MeriHermesProfileLeaseService,
+} from './meri-hermes-profile-lease.service.js';
+import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './meri-hermes-db-governor.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -150,6 +168,56 @@ export class MeriHermesRuntimeAdapter {
     @Inject(MERI_HERMES_SECURITY_ENVELOPE) private readonly security: MeriHermesSecurityEnvelopePort,
     @Inject(MERI_TURN_MAINTENANCE) private readonly maintenance: MeriTurnMaintenance,
   ) {}
+
+  /**
+   * S-1..S-4 scaling controls.
+   *
+   * Lazily constructed public FIELDS rather than constructor parameters, the
+   * same convention this class already uses for `env` and `consumerId`. The
+   * reason is concrete: fourteen specs construct this adapter positionally
+   * (`new MeriHermesRuntimeAdapter(prisma, flags, client, runs, security,
+   * maintenance)`), and widening the constructor would break every one of them
+   * — a change with a large blast radius and no benefit, since Nest resolves
+   * these three services from the same `PrismaService` this class already
+   * holds. A spec may assign its own instances (e.g. to share one governor and
+   * read its counters).
+   */
+  private governorInstance: MeriHermesDbGovernor | null = null;
+  private budgetsInstance: MeriHermesBudgetService | null = null;
+  private admissionInstance: MeriHermesAdmissionControlService | null = null;
+  private profilesInstance: MeriHermesProfileLeaseService | null = null;
+
+  get governor(): MeriHermesDbGovernor {
+    this.governorInstance ??= meriHermesSharedDbGovernor();
+    return this.governorInstance;
+  }
+  set governor(value: MeriHermesDbGovernor) {
+    this.governorInstance = value;
+  }
+
+  get budgets(): MeriHermesBudgetService {
+    this.budgetsInstance ??= new MeriHermesBudgetService(this.prisma, this.governor);
+    return this.budgetsInstance;
+  }
+  set budgets(value: MeriHermesBudgetService) {
+    this.budgetsInstance = value;
+  }
+
+  get admission(): MeriHermesAdmissionControlService {
+    this.admissionInstance ??= new MeriHermesAdmissionControlService(this.prisma, this.governor);
+    return this.admissionInstance;
+  }
+  set admission(value: MeriHermesAdmissionControlService) {
+    this.admissionInstance = value;
+  }
+
+  get profiles(): MeriHermesProfileLeaseService {
+    this.profilesInstance ??= new MeriHermesProfileLeaseService(this.prisma, this.governor);
+    return this.profilesInstance;
+  }
+  set profiles(value: MeriHermesProfileLeaseService) {
+    this.profilesInstance = value;
+  }
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
     return this.flags.isMeriHermesRuntimeEnabled(ctx.tenantId);
@@ -246,6 +314,42 @@ export class MeriHermesRuntimeAdapter {
     }
 
     const envelope = await this.buildEnvelope(ctx, conversation);
+
+    /**
+     * S-1 ADMISSION. The tenant's daily token and spend windows are tested
+     * FIRST, before any run row exists, so an exhausted tenant gets a clean
+     * refusal rather than a run record it then has to tear down. The
+     * reservation is keyed by `envelope.runId` — the id `runs.create()` is
+     * about to use — so the parent reservation and the run are the same
+     * identity from the first statement onwards.
+     *
+     * This refuses NEW admission only. Runs already in flight hold their own
+     * granted reservations and are never re-tested against the tenant window,
+     * which is what "in-flight runs finish" means mechanically.
+     */
+    try {
+      await this.budgets.reserveAdmission({
+        runId: envelope.runId,
+        tenantId: envelope.tenantId,
+        scopeId: envelope.executionScopeId,
+        conversationId: conversation.id,
+      });
+    } catch (error) {
+      if (error instanceof MeriHermesBudgetExhaustedError) {
+        this.logger.warn(`admission refused for tenant ${envelope.tenantId}: ${error.message}`);
+        writeFrame({
+          type: 'error',
+          message: error.message,
+          code: error.code,
+          ceiling: error.ceiling,
+          resetsAt: error.detail.resetsAt,
+        });
+        writeFrame({ type: 'done', runtime: 'hermes', finishReason: 'error', partial: true });
+        return;
+      }
+      throw error;
+    }
+
     let run: MeriHermesRunRecord;
     try {
       run = await this.runs.create({
@@ -255,6 +359,9 @@ export class MeriHermesRuntimeAdapter {
         userMessageId: turn.sourceMessageId,
       });
     } catch (error) {
+      // Nothing of ours is in flight, so hand the reservation straight back
+      // instead of leaving it to ring-fence tenant budget until the sweeper.
+      await this.abandonReservation(envelope);
       if (error instanceof MeriHermesConversationOccupiedError) {
         // A genuinely competing distinct submission to a conversation that
         // already has a live turn (P1-02 single-writer-per-conversation lease).
@@ -272,10 +379,105 @@ export class MeriHermesRuntimeAdapter {
     if (run.runId !== envelope.runId) {
       // Retry of an already-admitted turn: reconnect to the existing run instead
       // of creating duplicate work.
+      //
+      // S-1: the reservation just taken for the unused `envelope.runId` is
+      // handed back, and the retry is recorded as a draw on the ORIGINAL run's
+      // PARENT reservation. That is the retry half of "a retry or a
+      // reconciliation poll cannot bypass it": a retry has no allowance of its
+      // own to spend, because the allowance is keyed by the run id it
+      // reattached to.
+      await this.abandonReservation(envelope);
+      await this.budgets
+        .drawRunTokens({ runId: run.runId, tenantId: envelope.tenantId, callPath: 'retry', tokens: 0 })
+        .catch((error) => this.logger.warn(`retry draw not recorded for run ${run.runId}: ${String(error)}`));
       await this.runs.append(run.runId, 'client.reconnected', { via: 'idempotent_resubmit', frames: [] }, 'internal');
       await this.attach(run, writeFrame, clientSignal, 0);
       return;
     }
+
+    /**
+     * S-2 FAIRNESS. Capacity is taken AFTER `runs.create()`, deliberately:
+     *
+     *   • the one-active-run-per-conversation invariant is enforced by
+     *     `runs.create()` and is not re-implemented here, so it must get its
+     *     answer first;
+     *   • a queued run needs somewhere for its queued state to be VISIBLE, and
+     *     that somewhere is the durable run record — which now exists, already
+     *     in status `queued`, with an event log a reconnecting browser replays.
+     *
+     * A refusal from here therefore has a run to finalize, unlike the budget
+     * refusal above, and is finalized honestly rather than left occupying the
+     * conversation.
+     */
+    try {
+      const slot = await this.admission.admit({
+        runId: run.runId,
+        tenantId: envelope.tenantId,
+        scopeId: envelope.executionScopeId,
+        conversationId: conversation.id,
+      });
+      if (slot.state === 'queued') {
+        const announce = async (position: number | null, admitted: boolean) => {
+          const frame: MeriSseFrame = {
+            type: 'status',
+            runtime: 'hermes',
+            runId: run.runId,
+            state: admitted ? 'starting' : 'queued',
+            ...(position ? { queuePosition: position } : {}),
+            message: admitted
+              ? 'Capacity freed up — starting now.'
+              : `Waiting for Hermes capacity${position ? ` (position ${position})` : ''}.`,
+          };
+          writeFrame(frame);
+          await this.runs
+            .append(
+              run.runId,
+              'run.status',
+              {
+                status: admitted ? 'provisioning' : 'queued',
+                reason: 'capacity_queue',
+                queuePosition: position,
+                globalLimit: slot.counts.globalActive,
+                frames: [frame],
+              },
+              'public',
+            )
+            .catch((error) => this.logger.warn(`queue status not recorded for run ${run.runId}: ${String(error)}`));
+        };
+        await announce(slot.queuePosition, false);
+        let lastAnnounced = slot.queuePosition;
+        await this.admission.awaitActivation(run.runId, {
+          signal: clientSignal,
+          onWait: (position) => {
+            if (position !== lastAnnounced) {
+              lastAnnounced = position;
+              void announce(position, false);
+            }
+          },
+        });
+        await announce(null, true);
+      }
+    } catch (error) {
+      if (error instanceof MeriHermesCapacityExhaustedError || error instanceof MeriHermesQueueTimeoutError) {
+        this.logger.warn(`capacity refused run ${run.runId}: ${error.message}`);
+        writeFrame({ type: 'error', message: error.message, code: error.code });
+        // finalize() settles the budget reservation and releases any slot this
+        // run still holds, and frees the conversation's single-writer lease.
+        await this.finalize(ctx, conversation, run, {
+          finishReason: 'error',
+          partial: true,
+          output: null,
+          error: error.message,
+        });
+        writeFrame({ type: 'done', runtime: 'hermes', finishReason: 'error', partial: true });
+        return;
+      }
+      throw error;
+    }
+
+    // S-3: record this turn in the scope's shared writable-profile state under
+    // the single-writer lease, surfacing any serialization as a visible event.
+    await this.recordProfileTurn(envelope, conversation, run, writeFrame, clientSignal);
 
     const pendingAnswers = await this.resolvePendingClarifications(ctx, conversationId, turn.content);
     const governed = currentMeriGovernedRuntime();
@@ -941,6 +1143,12 @@ export class MeriHermesRuntimeAdapter {
           if (!held) loseOwnership('lease heartbeat rejected');
         })
         .catch((error) => this.logger.warn(`consumer heartbeat for run ${run.runId} failed: ${String(error)}`));
+      // S-2: the capacity slot has its own liveness. Without this a replica
+      // that dies mid-run would hold part of the declared global 8 forever,
+      // exactly as it would hold the consumer lease forever.
+      void this.admission
+        .heartbeat(run.runId)
+        .catch((error) => this.logger.warn(`capacity heartbeat for run ${run.runId} failed: ${String(error)}`));
     }, this.consumerHeartbeatMs());
     heartbeat.unref?.();
 
@@ -949,6 +1157,11 @@ export class MeriHermesRuntimeAdapter {
     // for this run. Seeded from the durable value so a takeover that resumes
     // consumption continues the existing answer instead of restarting it.
     let output = (await this.runs.get(run.runId))?.output ?? '';
+    /** Cumulative tokens already drawn from this run's parent reservation (S-1). */
+    let tokensDrawn = (await this.budgets
+      .getReservation(run.envelope.tenantId, run.runId)
+      .catch(() => null))?.drawnTokens ?? 0;
+    let budgetStopRequested = false;
 
     const wallTimer = setTimeout(() => {
       this.logger.warn(`run ${run.runId} exceeded wall-clock budget; stopping`);
@@ -997,7 +1210,42 @@ export class MeriHermesRuntimeAdapter {
               resolution: null,
             });
           }
-          if (translation.usage) await this.runs.update(run.runId, { usage: translation.usage }, undefined, fence);
+          if (translation.usage) {
+            await this.runs.update(run.runId, { usage: translation.usage }, undefined, fence);
+            /**
+             * S-1 DRAW. Hermes reports usage cumulatively, so only the DELTA
+             * since the last report is drawn — drawing the running total each
+             * time would exhaust the reservation after a handful of events.
+             * The draw targets the run's PARENT reservation; this is the
+             * `turn` call path, and `reconcileFromStatus` below is the
+             * `status_poll` one. Neither has an allowance of its own.
+             *
+             * Refusal ends the run honestly (`expired`, partial) rather than
+             * letting it keep spending past a declared cap.
+             */
+            const total = Math.max(0, Math.floor(translation.usage.totalTokens || 0));
+            const delta = total - tokensDrawn;
+            if (delta > 0) {
+              tokensDrawn = total;
+              const draw = await this.budgets
+                .drawRunTokens({ runId: run.runId, tenantId: run.envelope.tenantId, callPath: 'turn', tokens: delta })
+                .catch((error) => {
+                  this.logger.warn(`token draw failed for run ${run.runId}: ${String(error)}`);
+                  return null;
+                });
+              if (draw && !draw.admitted && !budgetStopRequested) {
+                budgetStopRequested = true;
+                this.logger.warn(
+                  `run ${run.runId} exhausted its ${draw.maxRunTokens}-token budget (${draw.drawnTokens} drawn); stopping`,
+                );
+                const current = (await this.runs.get(run.runId)) ?? run;
+                await this.requestStop(current).catch((error) =>
+                  this.logger.error(`budget stop for run ${run.runId} failed: ${String(error)}`),
+                );
+                await this.runs.update(run.runId, { finishReason: 'expired' }, undefined, fence).catch(() => undefined);
+              }
+            }
+          }
           if (translation.status && !translation.terminal) {
             const current = await this.runs.get(run.runId);
             // A stop already requested keeps `cancelling` until the terminal frame.
@@ -1084,6 +1332,26 @@ export class MeriHermesRuntimeAdapter {
     for (let attempt = 0; attempt < STATUS_RECONCILE_ATTEMPTS; attempt += 1) {
       try {
         const status = await runtime.getRun(hermesRunId);
+        /**
+         * S-1: the reconciliation poll is an ENABLED CALL PATH, so it draws on
+         * the same parent reservation as the turn rather than being a free
+         * side channel. Any tokens the poll reports that the stream did not
+         * already account for are charged here, under the `status_poll` label;
+         * when it reports nothing new the draw is zero and only the path tally
+         * moves, which is still the point — the poll asked the parent.
+         */
+        const polled = Math.max(0, Math.floor(Number(status.usage?.total_tokens ?? 0)));
+        const alreadyDrawn = (await this.budgets
+          .getReservation(run.envelope.tenantId, run.runId)
+          .catch(() => null))?.drawnTokens ?? 0;
+        await this.budgets
+          .drawRunTokens({
+            runId: run.runId,
+            tenantId: run.envelope.tenantId,
+            callPath: 'status_poll',
+            tokens: Math.max(0, polled - alreadyDrawn),
+          })
+          .catch((error) => this.logger.warn(`status-poll draw failed for run ${run.runId}: ${String(error)}`));
         await this.runs.append(run.runId, 'run.status', { reconciledStatus: status.status, attempt, frames: [] }, 'internal');
         switch (status.status) {
           case 'completed':
@@ -1171,6 +1439,27 @@ export class MeriHermesRuntimeAdapter {
         label: String(e.payload.tool ?? 'delegate task').replace(/[_-]+/g, ' '),
         status: e.kind.endsWith('.completed') ? (e.payload.error === true ? 'error' : 'done') : 'running',
       }));
+    /**
+     * A8 — RECORD-LEVEL CITATIONS (P1-08 acceptance: "emits supported
+     * progress/citations").
+     *
+     * `trustSteps` above is tool PROVENANCE — which tool ran and whether it
+     * succeeded. That is what the `tool.completed -> {type:'sources'}` frames
+     * have always carried, it is what the trust panel renders, and it is left
+     * exactly as it was because it answers a different question. What it is
+     * NOT is a citation: it names no record, so a Hermes answer could not say
+     * WHICH governed memory it drew on, while a V3 answer could.
+     *
+     * The run event log is the right place to derive these from: it is the
+     * durable, replica-agnostic record of what the broker actually released to
+     * the worker, it is already being read here for `trustSteps`, and it is
+     * already authorization-filtered (a record the envelope did not authorize
+     * never appears in a `memory.recalled` event, so it cannot be cited).
+     * `hermesCitationsFromRunEvents` widens nothing and invents nothing; see
+     * the A8 block in meri-hermes-event-translator.ts.
+     */
+    const citations = hermesCitationsFromRunEvents(publicEvents);
+    const citationsFrame = hermesCitationsFrame(citations);
     const unresolved = current.pendingInteractions.filter((i) => !i.resolution);
     const governed = currentMeriGovernedRuntime();
     const cfg = meriHermesRuntimeConfig(this.env);
@@ -1191,9 +1480,17 @@ export class MeriHermesRuntimeAdapter {
           ? { pendingInteractions: unresolved.map((i) => ({ requestId: i.requestId, kind: i.kind, continuation: i.continuation })) }
           : {}),
       };
-      return terminal.error && terminal.finishReason !== 'error'
-        ? [{ type: 'error', message: terminal.error }, doneFrame]
-        : [doneFrame];
+      const tail: MeriSseFrame[] =
+        terminal.error && terminal.finishReason !== 'error'
+          ? [{ type: 'error', message: terminal.error }, doneFrame]
+          : [doneFrame];
+      // Citations go BEFORE `done`, the same order meri.service.ts uses on the
+      // V3 path, so the client has attached the sources to the message by the
+      // time the turn is marked complete. Putting them in the final event
+      // frames (rather than writing them straight to the SSE socket) is what
+      // makes them survive reconnect and history replay: `attach()` replays
+      // `payload.frames` verbatim.
+      return citationsFrame ? [citationsFrame, ...tail] : tail;
     };
     const basePatch: RunPatch = {
       status,
@@ -1239,6 +1536,12 @@ export class MeriHermesRuntimeAdapter {
               error: terminal.error,
               trustSteps,
               toolsUsed: [...new Set(trustSteps.map((s) => s.tool))],
+              // Same key, same `MeriCitation` shape and the same always-present
+              // ([] when nothing was recalled) convention as the V3 paths in
+              // meri.service.ts, so history replay and
+              // MeriConversationEvidenceService read a Hermes turn exactly as
+              // they read a V3 turn.
+              citations: citations as unknown as Prisma.InputJsonValue,
               pendingInteractions: unresolved,
               detached: current.detached,
               ...(governed
@@ -1284,6 +1587,35 @@ export class MeriHermesRuntimeAdapter {
       return true;
     });
     if (won && target) this.maintenance.scheduleAfterTurnMaintenance(ctx, target.id);
+
+    /**
+     * S-1 / S-2 settlement. This is the ONE funnel every terminal path in this
+     * adapter goes through (normal completion, explicit Stop, revocation
+     * fencing, wall-clock expiry, dispatch failure), which is why settlement
+     * lives here rather than being repeated at each of them.
+     *
+     * Deliberately OUTSIDE the `won` guard and outside the transaction: both
+     * operations are idempotent (`reconcile` is guarded on `state = 'open'`,
+     * `release` on the slot's existence), so a finalizer that lost the terminal
+     * transition still leaves the budget settled and the slot handed back
+     * rather than depending on the winner having done it. And neither is worth
+     * failing an already-finished turn over — a failure here is logged and
+     * swept later (`budgets.sweepAbandoned`, `admission.reapStaleSlots`),
+     * never surfaced as a broken answer.
+     */
+    const settled = (await this.runs.get(run.runId)) ?? current;
+    await this.budgets
+      .reconcile({ runId: run.runId, tenantId: run.envelope.tenantId, usage: settled.usage })
+      .catch((error) => this.logger.warn(`budget reconciliation failed for run ${run.runId}: ${String(error)}`));
+    const release = await this.admission
+      .release(run.runId)
+      .catch((error) => {
+        this.logger.warn(`capacity slot release failed for run ${run.runId}: ${String(error)}`);
+        return { released: false, promoted: [] as string[] };
+      });
+    if (release.promoted.length) {
+      this.logger.log(`run ${run.runId} finished; promoted queued runs ${release.promoted.join(', ')}`);
+    }
   }
 
   private async ensureConversation(ctx: TenantContext, conversationId: string): Promise<ConversationRow> {
@@ -1398,6 +1730,143 @@ export class MeriHermesRuntimeAdapter {
       expiresAt: new Date(now.getTime() + maxWall + 5 * 60 * 1000).toISOString(),
       budget: { maxToolCalls: 40, maxOutputTokens: 8000, maxWallClockMs: maxWall },
     };
+  }
+
+  /**
+   * Hand a reservation back when the run it was taken for will never exist
+   * (a conversation-occupied refusal, or an idempotent resubmit that reattached
+   * to an earlier run). `reconcile` with no usage settles it at the run's
+   * actual draw — zero for a run that never started — so the whole estimate is
+   * returned to the tenant's day window immediately rather than waiting for
+   * `sweepAbandoned`.
+   */
+  private async abandonReservation(envelope: MeriHermesAuthorizationEnvelope): Promise<void> {
+    await this.budgets
+      .reconcile({ runId: envelope.runId, tenantId: envelope.tenantId, usage: null })
+      .catch((error) =>
+        this.logger.warn(`abandoned reservation ${envelope.runId} not released: ${String(error)}`),
+      );
+  }
+
+  /**
+   * S-3: record this turn in the execution scope's SHARED writable-profile
+   * state, as the scope's single fenced writer.
+   *
+   * Two conversations of one user share this scope. The per-conversation
+   * session key already keeps their TRANSCRIPTS apart (see `sessionKeyFor`);
+   * what it does not do is stop two concurrent read-modify-writes of shared
+   * profile state from losing one of the two. `writeSharedProfileState` does,
+   * by requiring the fenced lease and doing the read-modify-write with the
+   * scope row locked in one transaction.
+   *
+   * The lease is held for the duration of this small write ONLY, not for the
+   * turn. Holding it for the turn would quietly turn the declared per-scope
+   * concurrency of 2 into 1.
+   *
+   * SCOPE OF THE GUARANTEE, stated plainly: this serializes the profile state
+   * MERI owns. Writes the Hermes worker makes inside its own home volume
+   * happen in another process on another host and are not reachable from here;
+   * what bounds those is one worker per execution scope (the worker lifecycle
+   * service's provisioning claim), not this lease.
+   *
+   * Failure is deliberately NOT fatal to the turn — the answer is the turn's
+   * purpose and this is bookkeeping — but it is never silent: contention is
+   * announced as a public `run.status` event, and a failure is logged and
+   * recorded as an internal event.
+   */
+  private async recordProfileTurn(
+    envelope: MeriHermesAuthorizationEnvelope,
+    conversation: ConversationRow,
+    run: MeriHermesRunRecord,
+    writeFrame: (frame: MeriSseFrame) => void,
+    clientSignal?: AbortSignal,
+  ): Promise<void> {
+    const sessionKey = this.sessionKeyFor(envelope, conversation);
+    let announcedContention = false;
+    try {
+      await this.profiles.withProfileWrite(
+        {
+          scopeId: envelope.executionScopeId,
+          tenantId: envelope.tenantId,
+          runId: run.runId,
+          signal: clientSignal,
+          onWait: (holder, waitedMs) => {
+            // Announce once: the wait is normally milliseconds, and a frame
+            // per poll would be noise rather than information.
+            if (announcedContention) return;
+            announcedContention = true;
+            const frame: MeriSseFrame = {
+              type: 'status',
+              runtime: 'hermes',
+              runId: run.runId,
+              state: 'waiting_for_profile_write',
+              message: 'Another conversation in this workspace is writing to the shared Hermes profile; waiting briefly.',
+              ...(holder ? { holderRunId: holder.holderRunId } : {}),
+            };
+            writeFrame(frame);
+            void this.runs
+              .append(
+                run.runId,
+                'run.status',
+                {
+                  status: 'running',
+                  waitingFor: 'profile_write',
+                  holderRunId: holder?.holderRunId ?? null,
+                  waitedMs,
+                  frames: [frame],
+                },
+                'public',
+              )
+              .catch(() => undefined);
+          },
+        },
+        async (lease) => {
+          await this.profiles.writeSharedProfileState({
+            scopeId: envelope.executionScopeId,
+            tenantId: envelope.tenantId,
+            runId: run.runId,
+            fence: lease.fence,
+            mutate: (current) => {
+              const conversations =
+                current.conversations && typeof current.conversations === 'object' && !Array.isArray(current.conversations)
+                  ? { ...(current.conversations as Record<string, unknown>) }
+                  : {};
+              const previous =
+                conversations[conversation.id] && typeof conversations[conversation.id] === 'object'
+                  ? (conversations[conversation.id] as Record<string, unknown>)
+                  : {};
+              conversations[conversation.id] = {
+                ...previous,
+                sessionKey,
+                lastRunId: run.runId,
+                lastTurnAt: new Date().toISOString(),
+                turns: Number(previous.turns ?? 0) + 1,
+              };
+              return {
+                ...current,
+                conversations,
+                lastRunId: run.runId,
+                lastTurnAt: new Date().toISOString(),
+                turns: Number(current.turns ?? 0) + 1,
+              };
+            },
+          });
+        },
+      );
+    } catch (error) {
+      const reason = error instanceof MeriHermesProfileBusyError ? 'busy' : 'error';
+      this.logger.warn(
+        `shared profile write skipped for run ${run.runId} (${reason}): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      await this.runs
+        .append(
+          run.runId,
+          'run.status',
+          { status: 'running', profileWrite: 'skipped', reason, frames: [] },
+          'internal',
+        )
+        .catch(() => undefined);
+    }
   }
 
   private hermesMetadata(conversation: ConversationRow): Record<string, unknown> {

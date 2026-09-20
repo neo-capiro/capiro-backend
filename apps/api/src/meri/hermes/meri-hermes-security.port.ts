@@ -24,6 +24,31 @@ export interface MeriHermesSecurityEnvelopePort {
 
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
 
+/**
+ * GRANT LIFECYCLE — read this before "fixing" the `memoryAccessGrants`
+ * predicate below (closeout finding A1).
+ *
+ * `Client.memoryAccessGrants` is the `ClientMemoryAccess[]` relation
+ * (`client_memory_access`): id, tenant_id, client_id, user_id, granted_by,
+ * created_at, and nothing else — migration 20260719220000_client_memory_walls.
+ * There is no `status`, `expiresAt` or `revokedAt` to test; the generated
+ * `ClientMemoryAccessWhereInput` has no such fields, so the filter A1 asks
+ * for does not type-check. Revocation of an ethical-wall grant is a hard
+ * DELETE (`ClientsService.setMemoryAccess()` replace-set), which this
+ * `some: { userId }` therefore honours immediately.
+ *
+ * The model that DOES carry `status` / `expiresAt` / `revokedAt` is
+ * `MemoryAccessGrant` (`memory_access_grant`), reached from Client as
+ * `governedMemoryGrants`. It carries governed-memory permissions, not wall
+ * membership, and is enforced separately in `MemoryAuthorizationService`.
+ * Adding it to the OR below would WIDEN `authorizedClientIds`, not tighten
+ * it.
+ *
+ * This predicate is intentionally byte-identical to
+ * `MeriContextPlaneService.securityEnvelope()` — the production binding this
+ * port stands in for. Any change to one must be made to both.
+ */
+
 @Injectable()
 export class DirectSecurityEnvelopePort implements MeriHermesSecurityEnvelopePort {
   constructor(private readonly prisma: PrismaService) {}

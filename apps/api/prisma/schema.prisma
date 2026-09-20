@@ -2360,6 +2360,12 @@ model MeriExecutionScope {
   homeVolumeRef        String?  @map("home_volume_ref") @db.VarChar(200)
   personaVersion       String?  @map("persona_version") @db.VarChar(80)
   workerState          Json     @default("{}") @map("worker_state_jsonb")
+  /// S-3 shared writable-profile state. Single-writer: written ONLY through
+  /// MeriHermesProfileLeaseService.writeSharedProfileState(), which requires the
+  /// fenced lease in meri_agent_profile_leases and locks this row FOR UPDATE.
+  /// Deliberately NOT `workerState`, which belongs to the worker-lifecycle claim
+  /// and is serialized by a different lock (migration 20280920050000).
+  profileState         Json     @default("{}") @map("profile_state_jsonb")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -2476,6 +2482,118 @@ model MeriAgentInteraction {
 
   @@unique([runId, requestId], map: "meri_agent_interactions_run_request_key")
   @@map("meri_agent_interactions")
+}
+
+/// ---------------------------------------------------------------------------
+/// Phase 1 scaling controls S-1..S-4 (migration 20280920040000_meri_hermes_scaling_controls).
+///
+/// All four models are written and read exclusively through RAW SQL in
+/// apps/api/src/meri/hermes/meri-hermes-{budget,admission-control,profile-lease}.service.ts,
+/// because every decision they take must be ONE atomic conditional statement
+/// (`INSERT ... ON CONFLICT DO UPDATE ... WHERE`, `UPDATE ... WHERE guard`)
+/// rather than a read-then-write the query builder would split in two. They are
+/// declared here so the schema stays a complete description of the database.
+///
+/// NOTE, same class of thing as the `meri_agent_runs_conversation_single_writer_idx`
+/// caveat above: the `tenant_id` FOREIGN KEY to `tenants` on all four tables, and
+/// the RLS policies, live in the migration SQL only. The relation FIELD is
+/// deliberately not declared here so this block stays additive (no back-relation
+/// on `Tenant`); the constraint itself is real in the database and is what gives
+/// these tables tenant-cascade deletion.
+/// ---------------------------------------------------------------------------
+
+/// S-1: per-tenant, per-UTC-day Hermes budget counters. `committed_*` is the
+/// live exposure (open reservations + settled actuals) compared against the
+/// declared daily caps; `settled_*` is the pure actual. Money is micro-USD as
+/// BIGINT — never a float, because it is compared against a hard ceiling.
+model MeriAgentBudgetPeriod {
+  tenantId          String   @map("tenant_id") @db.Uuid
+  periodDate        DateTime @map("period_date") @db.Date
+  committedTokens   BigInt   @default(0) @map("committed_tokens")
+  committedMicroUsd BigInt   @default(0) @map("committed_micro_usd")
+  settledTokens     BigInt   @default(0) @map("settled_tokens")
+  settledMicroUsd   BigInt   @default(0) @map("settled_micro_usd")
+  admittedRuns      Int      @default(0) @map("admitted_runs")
+  settledRuns       Int      @default(0) @map("settled_runs")
+  refusedAdmissions Int      @default(0) @map("refused_admissions")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@id([tenantId, periodDate])
+  @@map("meri_agent_budget_periods")
+}
+
+/// S-1: the single PARENT token reservation for one run, primary-keyed by run
+/// id. Every enabled call path (the turn itself, a retry, a reconciliation
+/// poll, compression, a future child) resolves its allowance by that run id and
+/// draws from `drawnTokens`; the primary key is what makes a second allowance
+/// for one run unrepresentable. No FK to `meri_agent_runs`: the reservation is
+/// taken — and refusable — before a user-visible run row exists.
+model MeriAgentRunReservation {
+  runId             String    @id @map("run_id") @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  scopeId           String    @map("scope_id") @db.VarChar(200)
+  conversationId    String    @map("conversation_id") @db.Uuid
+  periodDate        DateTime  @map("period_date") @db.Date
+  maxRunTokens      Int       @map("max_run_tokens")
+  estimatedTokens   Int       @map("estimated_tokens")
+  estimatedMicroUsd BigInt    @map("estimated_micro_usd")
+  drawnTokens       Int       @default(0) @map("drawn_tokens")
+  draws             Int       @default(0)
+  /// Per-call-path tally, e.g. {"turn":3,"status_poll":1}. Evidential: it is
+  /// what lets a test prove several call paths drew down ONE counter.
+  drawPaths         Json      @default("{}") @map("draw_paths_jsonb")
+  actualTokens      Int?      @map("actual_tokens")
+  actualMicroUsd    BigInt?   @map("actual_micro_usd")
+  /// 'open' | 'reconciled' (CHECK constraint in the migration).
+  state             String    @default("open") @db.VarChar(16)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  reconciledAt      DateTime? @map("reconciled_at") @db.Timestamptz(6)
+
+  @@index([tenantId, periodDate, state], map: "meri_agent_run_reservations_period_idx")
+  @@index([state, createdAt], map: "meri_agent_run_reservations_open_created_idx")
+  @@map("meri_agent_run_reservations")
+}
+
+/// S-2: concurrency slots and the bounded per-tenant admission queue. Deleted
+/// on release. Deliberately does NOT enforce one-active-run-per-conversation —
+/// that invariant is already DB-enforced in `meri_agent_runs` and is composed
+/// with rather than duplicated.
+model MeriAgentAdmissionSlot {
+  runId          String    @id @map("run_id") @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  scopeId        String    @map("scope_id") @db.VarChar(200)
+  conversationId String    @map("conversation_id") @db.Uuid
+  /// 'active' | 'queued' (CHECK constraint in the migration).
+  state          String    @db.VarChar(16)
+  queuedAt       DateTime  @default(now()) @map("queued_at") @db.Timestamptz(6)
+  activatedAt    DateTime? @map("activated_at") @db.Timestamptz(6)
+  heartbeatAt    DateTime  @default(now()) @map("heartbeat_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([state, tenantId], map: "meri_agent_admission_slots_state_tenant_idx")
+  @@index([state, scopeId], map: "meri_agent_admission_slots_state_scope_idx")
+  @@index([state, queuedAt], map: "meri_agent_admission_slots_queue_order_idx")
+  @@index([heartbeatAt], map: "meri_agent_admission_slots_heartbeat_idx")
+  @@map("meri_agent_admission_slots")
+}
+
+/// S-3: one writer per writable Hermes profile (execution scope). `fence` is a
+/// monotonic token bumped on every change of holder; a writer whose lease
+/// expired or was taken over presents a stale (holderRunId, fence) pair and its
+/// write is rejected at the database.
+model MeriAgentProfileLease {
+  scopeId     String   @id @map("scope_id") @db.VarChar(200)
+  tenantId    String   @map("tenant_id") @db.Uuid
+  holderRunId String   @map("holder_run_id") @db.Uuid
+  fence       BigInt   @default(1)
+  acquiredAt  DateTime @default(now()) @map("acquired_at") @db.Timestamptz(6)
+  renewedAt   DateTime @default(now()) @map("renewed_at") @db.Timestamptz(6)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  handoffs    Int      @default(0)
+
+  @@index([expiresAt], map: "meri_agent_profile_leases_expiry_idx")
+  @@map("meri_agent_profile_leases")
 }
 
 /// Clio self-scheduled recurring task (W3). A user asks Clio to run something on
