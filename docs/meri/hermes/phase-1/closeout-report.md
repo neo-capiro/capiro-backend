@@ -1,8 +1,8 @@
 # Phase 0 / Phase 1 closeout report
 
-**Verdict: NOT READY FOR PHASE 2.** (Re-issued 2026-09-20 against the converged revision `56d97272`. The verdict is unchanged, but the reason has changed: it is no longer an unconverged verification or a missing AWS environment — both of those are resolved. It is now V5–V7 resting on a design decision, plus an unreconciled authorization ledger. See §4.)
+**Verdict: NOT READY FOR PHASE 2.** (Re-issued 2026-09-20 against the converged revision `56d97272`, which is also the revision now serving production.) The verdict is unchanged, but every original reason for it has been replaced. Verification has converged, the AWS environment exists, V1-V4 PASS, and the authorization ledger is reconciled. What remains: **V6** cannot be closed without granting the customer-facing API role escalation-capable IAM, which was refused; **V5, V7 and E-7** are executable and simply not yet run; and **one real authorization gap** (P2-02) is open. See §4.
 
-**Phase 0: CLOSED.** **Phase 1: NOT CLOSED** — V5–V7 blocked by design, E-7 partial, authorization ledger unreconciled.
+**Phase 0: CLOSED.** **Phase 1: NOT CLOSED** — V6 blocked by design, V5/V7/E-7 executable but not yet run, one authorization gap (P2-02) open.
 
 Production pilot activation status, reported separately as required: **not activated.** All three gate keys remain closed in every environment.
 
@@ -177,12 +177,13 @@ Consequently: the strongest green runs (11 suites / 77 tests exit 0; e2e 31/31 e
 
 **Rewritten 2026-09-20.** The original list is preserved at the end of this section.
 
-1. **V5–V7 — blocked by a design decision, not by work.** `MERI_HERMES_WORKER_RESOLVER` has exactly one binding (`meri.module.ts:169`, the ECS lifecycle service), so any API serving a Hermes run must itself hold `ecs:RegisterTaskDefinition` — which AWS cannot scope to a resource — plus `iam:PassRole`, on the role behind all customer traffic. That pair is privilege-escalation capable and the operator declined to grant it. **Do not close this by granting the IAM.** The fix is a second binding for that port. See `v5-v7-blocked-on-resolver-binding.md`.
-2. **Authorization ledger unreconciled.** Two records disagree about six broker-path defects (F-1's fail-open `?? run` fallback, F-2, `assertTool` passing every tool on an empty allow-list, non-atomic tool budget, hand-maintained `MUTATING_TOOLS`, and `ContextPlaneRecallPort` ignoring `authorizedClientIds`). The 2026-09-19 ledger says open; a later handover claims A3–A7 landed. **Neither was re-verified during the deploy session.** This is the largest remaining unknown and it gates the Phase 2 verdict.
-3. **E-7 partial** — completable only once the gate can be opened for a test tenant with an authenticated session. Downstream of blocker 1.
-4. **Production is ahead of `main`** until PR #1708 merges. `capiro-dev-api` rev 395 runs `56d97272`; a deploy from `main` would revert it. The migrations are additive, so no data is at risk, but the code would disappear silently.
+1. **V6 — blocked by a design decision, not by work.** V6 tests the *provisioning* lifecycle (a failed provisioning claim and the orphan it leaves), so it is the one gate that genuinely requires the API to provision through `MeriHermesWorkerLifecycleService`. That needs `ecs:RegisterTaskDefinition` — which AWS cannot scope to a resource — plus `iam:PassRole`, on the role behind all customer traffic. That pair is privilege-escalation capable and the operator declined to grant it. **Do not close V6 by granting the IAM.** The Phase 2 fix is to move provisioning off the request path behind the existing `MERI_HERMES_WORKER_RESOLVER` seam. See `v5-v7-blocked-on-resolver-binding.md`.
+   > **Correction:** this blocker previously read "V5–V7". That was wrong. `MERI_HERMES_SCOPE_RUNTIMES` (`meri-hermes-runtime.client.ts:107-129`) short-circuits `forScope()` before the resolver is consulted, so **V5 and V7 need no new permissions at all**. Only V6 does.
+2. **Authorization ledger — reconciled, one item open.** See `authorization-ledger-reconciled.md`. Five of six defects are closed, four cleanly with regression tests. Still open: **`ContextPlaneRecallPort` receives `authorizedClientIds` and never reads it** (`meri-hermes-recall.ports.ts:34-40`, `:83-93`), so a client outside the frozen envelope can still be reached if Context Plane authorizes it independently. **The production recall rail must not be described as envelope-enforced** until this closes. Tracked as P2-02. Separately, F-2's session invalidation is `.catch()`-logged — a deliberate, documented trade-off (the fence must land regardless) whose failure branch is untested.
+3. **V5, V7 and E-7 are executable now** and are simply not yet run. They need the deployed API to carry `MERI_HERMES_SCOPE_RUNTIMES` for the pilot scope plus the two env gate keys, with the per-tenant flag as the open/close switch.
+4. **Production is ahead of `main`** until PR #1708 merges. `capiro-dev-api` rev 395 runs `56d97272`; a deploy from `main` would revert it. The migrations are additive, so no data is at risk, but the code would disappear silently. Note that GitHub Actions is **intentionally disabled** on this repository, so the PR's all-red checks are expected and merge readiness rests on local runs plus the deployed service.
 
-**Cleared since the original list:** A1/A2 withdrawn (§3.1); C-12/C-13/C-14 wired; S-1…S-4 implemented; V-1 (local verification environment) stable and converged; W-3 image built and pushed; W-6 for V1–V4; E-6, E-8, CI-4 and C-11 closed.
+**Cleared since the original list:** A1/A2 withdrawn (§3.1); A3–A7 verified actually landed (`authorization-ledger-reconciled.md`); C-12/C-13/C-14 wired; S-1…S-4 implemented; V-1 (local verification environment) stable and converged; W-3 image built and pushed; W-6 for V1–V4; E-6, E-8, CI-4 and C-11 closed.
 
 <details><summary>Original §4 list (2026-09-19), retained</summary>
 
@@ -199,10 +200,11 @@ Consequently: the strongest green runs (11 suites / 77 tests exit 0; e2e 31/31 e
 
 **Rewritten 2026-09-20.** In order:
 
-1. **Merge PR #1708** — production is running unmerged code, and the branch merges cleanly today.
-2. **Add the second `MERI_HERMES_WORKER_RESOLVER` binding** — a static resolver returning a configured worker URL, with the ECS lifecycle service remaining the default. This unblocks V5–V7 with **zero** new permissions, against an out-of-band worker exactly as V1–V4 were run.
-3. **Run V5–V7**, then complete **E-7** with an authenticated gated session.
-4. **Reconcile the authorization ledger** (blocker 2) — read the code rather than the documents, and for each of the six state fixed-and-tested, fixed-but-untested, or open. Those are three materially different answers.
+1. **Merge PR #1708** — production is running unmerged code, and the branch merges cleanly today. CI cannot gate it (Actions is intentionally disabled); the evidence is §3 plus the fact that this revision is the one currently serving production.
+2. **Run V5 and V7.** No code change and no new permissions are needed — set `MERI_HERMES_SCOPE_RUNTIMES` for the pilot scope on the deployed API, open the per-tenant flag for `capiro-internal` only, run them, then close the flag.
+3. **Complete E-7** in the same window, with an authenticated session as a gated user — that is the only way to distinguish gate-closed (404) from not-signed-in (401).
+4. **Close P2-02** — make `ContextPlaneRecallPort` actually enforce `authorizedClientIds`, with a regression test. This is the last real authorization gap.
 5. **Accept or reject ticket #6.** Its stated precondition — A1/A2/A6 clearing plus a converged green run — is now met (§3), so what it needs is a decision, not more evidence.
+6. **V6** only via the Phase 2 provisioning redesign, never via an IAM grant to the customer-facing role.
 
-**Do not begin Phase 2.** Nothing here authorizes pilot activation or tenant-allowlist expansion. The gate is closed in every environment and must stay closed at least until blocker 2 is resolved.
+**Do not begin Phase 2.** Nothing here authorizes pilot activation beyond a time-boxed `capiro-internal` validation window, or any tenant-allowlist expansion.
