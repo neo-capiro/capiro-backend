@@ -12,6 +12,8 @@ on:
       - 'apps/api/src/capiro-admin/meriv3-*'
       - 'apps/api/src/capiro-admin/capiro-admin.module.ts'
       - 'apps/meriv2-orchestrator/src/meri/**'
+      - 'apps/web/public/meri-icons/**'
+      - 'apps/web/public/meri-manifest.json'
       - 'apps/web/src/components/chat/**'
       - 'apps/web/src/vnext/meri/**'
       - 'apps/web/src/lib/me.ts'
@@ -27,6 +29,8 @@ on:
       - 'apps/api/src/capiro-admin/meriv3-*'
       - 'apps/api/src/capiro-admin/capiro-admin.module.ts'
       - 'apps/meriv2-orchestrator/src/meri/**'
+      - 'apps/web/public/meri-icons/**'
+      - 'apps/web/public/meri-manifest.json'
       - 'apps/web/src/components/chat/**'
       - 'apps/web/src/vnext/meri/**'
       - 'apps/web/src/lib/me.ts'
@@ -216,6 +220,8 @@ jobs:
           src/components/chat/useMeriChatController.rename-persistence.test.tsx
           src/vnext/meri/VNextMeriComposer.drafts-import.test.tsx
           src/vnext/meri/VNextMeriMessage.work-performed.test.tsx
+          src/vnext/meri/meri-install.test.ts
+          src/vnext/meri/meri-pwa.contract.test.ts
           src/vnext/meri/meri-route-state.test.ts
           src/vnext/meri/meri-route-identity.test.tsx
           src/vnext/meri/meri-workspace-import.test.ts

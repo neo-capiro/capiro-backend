@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
     paths:
+      - 'apps/web/public/meri-icons/**'
+      - 'apps/web/public/meri-manifest.json'
+      - 'apps/web/src/main.tsx'
       - 'apps/web/src/vnext/**'
       - 'apps/web/src/components/chat/**'
       - 'apps/web/src/env.ts'
@@ -65,6 +68,8 @@ jobs:
           src/vnext/app/presentation.test.ts
           src/vnext/foundation-contract.test.ts
           src/vnext/figma-strategy-legiwatch-contract.test.ts
+          src/vnext/meri/meri-install.test.ts
+          src/vnext/meri/meri-pwa.contract.test.ts
           src/vnext/meri/meri-route-state.test.ts
           --poolOptions.threads.singleThread
 

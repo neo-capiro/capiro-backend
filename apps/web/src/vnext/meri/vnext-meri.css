@@ -411,6 +411,35 @@ display: flex;
   color: var(--meri-ink);
 }
 
+.capiro-vnext-root .vnext-meri button.vnext-meri__install-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--meri-dark-ink);
+  color: #FFFFFF;
+  font-family: var(--meri-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--meri-shadow-button);
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__install-trigger:hover {
+  background: var(--meri-dark-2);
+}
+
+.capiro-vnext-root .vnext-meri button.vnext-meri__install-trigger:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 /* Inline-sized variant used for the in-rail "add workspace" affordance. It was
    a width/height inline style, which no media query can reach. */
 .capiro-vnext-root .vnext-meri__icon-btn--tiny {

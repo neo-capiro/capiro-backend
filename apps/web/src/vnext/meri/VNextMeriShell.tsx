@@ -18,6 +18,7 @@ import { MeriCommandPalette } from './MeriCommandPalette.js';
 import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
 import { meriTurnInspectorInitialTab } from './MeriTurnInspector.js';
 import { buildDefaultTurnInspector } from './meri-default-inspector.js';
+import { useMeriInstall } from './meri-install.js';
 import {
   getMeriVNextPreferences,
   saveMeriVNextPreferences,
@@ -77,6 +78,7 @@ export function VNextMeriShell({
   const me = useMe();
   const api = useApi();
   const navigate = useNavigate();
+  const install = useMeriInstall();
   const [windowChrome, setWindowChrome] = useState<MeriWindowChrome>('undocked');
   const [railCollapsed, setRailCollapsed] = useState(false);
   /**
@@ -223,11 +225,11 @@ export function VNextMeriShell({
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = 'Meri — Capiro';
+    document.title = install.isStandalone ? 'Meri' : 'Meri — Capiro';
     return () => {
       document.title = previousTitle;
     };
-  }, []);
+  }, [install.isStandalone]);
 
   // ⌘K opening is owned by MeriCommandPalette while it is mounted.
 
@@ -344,7 +346,14 @@ export function VNextMeriShell({
         }
       : null;
 
-  if (windowChrome === 'docked') {
+  // An installed Meri app is already its own OS window. Always present the
+  // workspace edge-to-edge there, even if the browser-mode preference was
+  // previously saved as docked; do not overwrite that browser preference.
+  const effectiveWindowChrome: MeriWindowChrome = install.isStandalone
+    ? 'maximized'
+    : windowChrome;
+
+  if (effectiveWindowChrome === 'docked') {
     return (
       <div className="vnext-meri-page" data-meri-page>
         <button
@@ -367,14 +376,14 @@ export function VNextMeriShell({
   return (
     <ManagedMcpAppsProvider>
       <div
-        className={`vnext-meri-page${windowChrome === 'maximized' ? ' is-maximized' : ''}`}
+        className={`vnext-meri-page${effectiveWindowChrome === 'maximized' ? ' is-maximized' : ''}`}
         data-meri-page
       >
         <div className="vnext-meri" data-meri-window aria-label="Meri workspace">
           <VNextMeriTopBar
             controller={controller}
             me={me.data}
-            windowChrome={windowChrome}
+            windowChrome={effectiveWindowChrome}
             onNewChat={handleNewChat}
             onSearch={() => setPaletteOpen(true)}
             onDock={() => setWindowChrome('docked')}
@@ -382,6 +391,7 @@ export function VNextMeriShell({
               setWindowChrome((current) => (current === 'maximized' ? 'undocked' : 'maximized'))
             }
             onClose={() => navigate('/')}
+            showWindowControls={!install.isStandalone}
           />
 
           <div className="vnext-meri__body">

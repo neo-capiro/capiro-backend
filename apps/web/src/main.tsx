@@ -8,6 +8,7 @@ import { App } from './App.js';
 import { config, isVNextSurface } from './env.js';
 import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
 import { shouldRetryQuery } from './lib/query-retry.js';
+import { initializeMeriInstallExperience } from './vnext/meri/meri-install.js';
 
 // theme.css is the LEGACY surface's global stylesheet. One bundle serves two
 // surfaces (see env.ts): app.capiro.ai still renders antd and needs it;
@@ -17,6 +18,7 @@ import { shouldRetryQuery } from './lib/query-retry.js';
 if (!isVNextSurface) {
   void import('./theme.css');
 } else {
+  initializeMeriInstallExperience();
   // AuthPage (App.tsx) is shared by both surfaces and renders before either
   // ClerkAuth or BillingGate mounts VNextApp — its vNext styling has to load
   // here rather than being carried in by any lazy vNext route.

@@ -5,6 +5,7 @@ import { IdentityMark, identityInitials } from '../components/identity/index.js'
 import { MeriIcon } from './meri-icons.js';
 import { MERI_LOGO_SRC } from './meri-presentation.js';
 import type { MeriWindowChrome } from './meri-prefs.js';
+import { MeriInstallButton } from './MeriInstallButton.js';
 
 interface VNextMeriTopBarProps {
   controller: MeriChatController;
@@ -15,6 +16,7 @@ interface VNextMeriTopBarProps {
   onDock: () => void;
   onToggleMaximize: () => void;
   onClose: () => void;
+  showWindowControls: boolean;
 }
 
 /** "What Meri can do" content, kept within capabilities exposed by the build. */
@@ -51,6 +53,7 @@ export function VNextMeriTopBar({
   onDock,
   onToggleMaximize,
   onClose,
+  showWindowControls,
 }: VNextMeriTopBarProps) {
   const [scopeQuery, setScopeQuery] = useState('');
   const [tipOpen, setTipOpen] = useState(false);
@@ -281,6 +284,8 @@ export function VNextMeriTopBar({
           <MeriIcon name="Plus" size={17} color="#475467" />
         </button>
 
+        <MeriInstallButton />
+
         <span className="vnext-meri__protip" ref={tipRef}>
           <button
             type="button"
@@ -336,39 +341,43 @@ export function VNextMeriTopBar({
           />
         </span>
 
-        <span className="vnext-meri__topbar-divider" />
+        {showWindowControls ? (
+          <>
+            <span className="vnext-meri__topbar-divider" />
 
-        <button
-          type="button"
-          className="vnext-meri__chrome-btn"
-          title="Dock Meri"
-          aria-label="Dock Meri"
-          onClick={onDock}
-        >
-          <MeriIcon name="Minus" size={16} color="#667085" />
-        </button>
-        <button
-          type="button"
-          className="vnext-meri__chrome-btn"
-          title={windowChrome === 'maximized' ? 'Restore window' : 'Maximise window'}
-          aria-label={windowChrome === 'maximized' ? 'Restore window' : 'Maximise window'}
-          onClick={onToggleMaximize}
-        >
-          <MeriIcon
-            name={windowChrome === 'maximized' ? 'Minimize01' : 'Maximize01'}
-            size={15}
-            color="#667085"
-          />
-        </button>
-        <button
-          type="button"
-          className="vnext-meri__chrome-btn vnext-meri__chrome-btn--close"
-          title="Close Meri"
-          aria-label="Close Meri"
-          onClick={onClose}
-        >
-          <MeriIcon name="XClose" size={16} color="#667085" />
-        </button>
+            <button
+              type="button"
+              className="vnext-meri__chrome-btn"
+              title="Dock Meri"
+              aria-label="Dock Meri"
+              onClick={onDock}
+            >
+              <MeriIcon name="Minus" size={16} color="#667085" />
+            </button>
+            <button
+              type="button"
+              className="vnext-meri__chrome-btn"
+              title={windowChrome === 'maximized' ? 'Restore window' : 'Maximise window'}
+              aria-label={windowChrome === 'maximized' ? 'Restore window' : 'Maximise window'}
+              onClick={onToggleMaximize}
+            >
+              <MeriIcon
+                name={windowChrome === 'maximized' ? 'Minimize01' : 'Maximize01'}
+                size={15}
+                color="#667085"
+              />
+            </button>
+            <button
+              type="button"
+              className="vnext-meri__chrome-btn vnext-meri__chrome-btn--close"
+              title="Close Meri"
+              aria-label="Close Meri"
+              onClick={onClose}
+            >
+              <MeriIcon name="XClose" size={16} color="#667085" />
+            </button>
+          </>
+        ) : null}
       </div>
     </header>
   );

@@ -45,6 +45,15 @@
     width: 15px;
     height: 15px;
   }
+  .capiro-vnext-root .vnext-meri button.vnext-meri__install-trigger {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    gap: 0;
+  }
+  .capiro-vnext-root .vnext-meri .vnext-meri__install-label {
+    display: none;
+  }
 
   /* The left rail's "Hide thread rail" control is hover/focus-revealed in the
      section heading, which is unreachable on touch — force it visible inside
