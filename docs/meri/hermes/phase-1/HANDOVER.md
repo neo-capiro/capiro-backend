@@ -20,12 +20,16 @@
 This branch is behind `main`, and `main` moved **twice during a single session**. Deploying a stale branch silently reverts production commits — it already did exactly that to PR #1691, and it was caught here about to revert 8 live commits including a Gmail quota-storm fix.
 
 ```bash
-SHA=$(aws ecs describe-task-definition --task-definition capiro-dev-api \
-  --query "taskDefinition.containerDefinitions[0].environment[?name=='GIT_SHA'].value|[0]" --output text)
+# CORRECT FORM — read what the SERVICE runs, not the family alias.
+TD=$(aws ecs describe-services --cluster capiro-dev --services capiro-dev-api       --query 'services[0].taskDefinition' --output text)
+SHA=$(aws ecs describe-task-definition --task-definition "$TD"       --query "taskDefinition.containerDefinitions[0].environment[?name=='GIT_SHA'].value|[0]" --output text)
+git fetch origin -q
 git merge-base --is-ancestor "$SHA" HEAD && echo SAFE || echo "RE-MERGE FIRST"
 ```
 
-**As of this handover it returns NOT SAFE.** Production advanced to `884297998` (#1705, "preserve distinct R-3 cost rows"), which is not in this branch. **Re-merge `origin/main`, re-run the full verification, then deploy.**
+**Do NOT pass the bare family name** (`--task-definition capiro-dev-api`). That resolves to the latest *registered* revision, which is not necessarily the one the service is *running* — they diverge whenever a task definition is registered without being deployed, or a deploy is mid-flight. Always go through `describe-services`.
+
+**This answer changes by the hour — do not cache it.** Observed within a single session: `c32b4a17` (NOT SAFE, would have reverted 8 commits including a Gmail quota-storm fix) → `884297998` / #1705 (NOT SAFE) → `56d97272` on TD `:395` (**SAFE**, already in this branch's history). It read NOT SAFE and then SAFE minutes apart. **Re-run the check as the last step before deploying, every time**; if it says RE-MERGE FIRST, merge `origin/main`, re-run the full verification, and check again.
 
 ### 2.2 `capiro-dev` IS production, and `os.capiro.ai` is not a separate environment
 
