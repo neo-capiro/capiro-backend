@@ -809,6 +809,7 @@ describe('state committee directory aliases', () => {
       email: 'jane@example.test',
       image: 'https://example.test/jane.jpg',
       url: 'https://openstates.org/person/jane',
+      sourceEvidence: null,
       active: true,
       legiscanPeopleId: 42,
       syncedAt: new Date('2026-09-18T12:00:00Z'),
@@ -843,5 +844,55 @@ describe('state committee directory aliases', () => {
         lastSyncedAt: '2026-09-19T12:00:00.000Z',
       }),
     ]);
+  });
+
+  test('uses reviewed directory contact fallbacks only when canonical values are blank', () => {
+    const members = mergeStateCommitteeMembers([
+      {
+        id: 'official-ap',
+        memberships: [
+          {
+            role: 'Member',
+            lastSyncedAt: new Date('2026-09-20T12:00:00Z'),
+            legislator: {
+              id: 'ocd-person/pdf-fallback',
+              name: 'PDF Fallback',
+              chamber: 'lower',
+              district: '12',
+              party: 'R',
+              email: ' ',
+              image: '',
+              url: null,
+              sourceEvidence: {
+                directoryPdf: {
+                  observations: [
+                    {
+                      email: 'fallback@flhouse.gov',
+                      portrait: {
+                        publicUrl:
+                          '/florida-directory/portraits/house-district-012-pdf-fallback.jpg',
+                      },
+                      source: {
+                        document: 'HouseDirectory.pdf',
+                        sha256: 'a'.repeat(64),
+                        asOfDate: '2026-06-04',
+                        pages: [84],
+                      },
+                    },
+                  ],
+                },
+              },
+              active: true,
+              legiscanPeopleId: null,
+              syncedAt: new Date('2026-09-20T12:00:00Z'),
+            },
+          },
+        ],
+      },
+    ]);
+    expect(members[0]).toMatchObject({
+      email: 'fallback@flhouse.gov',
+      image: '/florida-directory/portraits/house-district-012-pdf-fallback.jpg',
+    });
   });
 });

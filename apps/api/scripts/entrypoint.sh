@@ -87,6 +87,12 @@ case "${1:-serve}" in
     echo "Running sync-florida-official-committees (dry run unless --apply; non-local apply requires explicit opt-in and confirmation)"
     exec ./node_modules/.bin/tsx scripts/sync-florida-official-committees.ts "$@"
     ;;
+  ingest-florida-legislative-directories)
+    shift
+    compose_database_url
+    echo "Running ingest-florida-legislative-directories (dry run unless --apply; exact manifest and plan confirmations required)"
+    exec ./node_modules/.bin/tsx scripts/ingest-florida-legislative-directories.ts "$@"
+    ;;
   diag-pe-trust)
     shift
     compose_database_url

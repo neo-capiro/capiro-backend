@@ -51,6 +51,10 @@ COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json 
 COPY apps/api/prisma apps/api/prisma
 COPY apps/api/scripts apps/api/scripts
 COPY apps/api/data apps/api/data
+# The one-shot Florida directory importer verifies every web portrait byte,
+# checksum, and JPEG dimension before it may write source evidence. Keep an
+# audit copy in the API release image; the web image serves the same files.
+COPY apps/web/public/florida-directory/portraits apps/api/data/florida-legislative-directory/portraits
 
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/meriv2-core build

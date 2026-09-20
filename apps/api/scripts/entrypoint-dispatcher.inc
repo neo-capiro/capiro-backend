@@ -541,6 +541,11 @@ case "${1:-serve}" in
   sync-legistorm-trips) shift; exec ./node_modules/.bin/tsx scripts/sync-legistorm-trips.ts "$@" ;;
   sync-openstates)        exec ./node_modules/.bin/tsx scripts/sync-openstates.ts ;;
   sync-openstates-events) exec ./node_modules/.bin/tsx scripts/sync-openstates-events.ts ;;
+  repair-florida-openstates-aliases)
+    shift
+    echo "Running reviewed Florida OpenStates alias repair $*"
+    exec ./node_modules/.bin/tsx scripts/repair-florida-openstates-aliases.ts "$@"
+    ;;
   # State Legislation Platform (Phase 0 S1) â€” LegiScan is the bill spine.
   # backfill = one-time dataset seed + quota-exhaustion fallback (accepts
   # LEGISCAN_STATES/LEGISCAN_SESSIONS via env, no CLI flags); masterlist =

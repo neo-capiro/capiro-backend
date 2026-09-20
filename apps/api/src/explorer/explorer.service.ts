@@ -4,6 +4,10 @@ import { Prisma } from '@prisma/client';
 import { toUsaSpendingDistrictCode } from '../common/district-code.util.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  floridaLegislatorDirectoryProfile,
+  preferNonBlank,
+} from '../hearing-discovery/florida-directory-profile.js';
 import { buildSemanticIntelArticleWhere } from './news-semantic-matching.js';
 
 /**
@@ -1292,33 +1296,40 @@ export class ExplorerService {
     }
 
     return {
-      rows: rows.map((l) => ({
-        id: l.id,
-        name: l.name,
-        state: l.state,
-        chamber: l.chamber,
-        district: l.district,
-        party: l.party,
-        email: l.email,
-        image: l.image,
-        url: l.url,
-        committeeCount: l._count.committeeMemberships,
-        billCount: l.legiscanPeopleId == null ? null : (billByPerson.get(l.legiscanPeopleId) ?? 0),
-        enactedCount:
-          l.legiscanPeopleId == null ? null : (enactedByPerson.get(l.legiscanPeopleId) ?? 0),
-        // Recipient-tab-only: the legislator's committees for the Committee
-        // column + filter chips. Additive — omitted for existing callers.
-        ...(opts.includeCommittees
-          ? {
-              committees: l.committeeMemberships.map((m) => ({
-                id: m.committee.id,
-                name: m.committee.name,
-                chamber: m.committee.chamber,
-                role: m.role,
-              })),
-            }
-          : {}),
-      })),
+      rows: rows.map((l) => {
+        const directory = floridaLegislatorDirectoryProfile(l.sourceEvidence);
+        return {
+          id: l.id,
+          name: l.name,
+          state: l.state,
+          chamber: l.chamber,
+          district: l.district,
+          party: l.party,
+          // OpenStates remains authoritative. The dated official directory is
+          // a read-time fallback only, so a later provider null cannot erase it
+          // and a provider value always wins.
+          email: preferNonBlank(l.email, directory?.email ?? null),
+          image: preferNonBlank(l.image, directory?.portraitUrl ?? null),
+          url: l.url,
+          committeeCount: l._count.committeeMemberships,
+          billCount:
+            l.legiscanPeopleId == null ? null : (billByPerson.get(l.legiscanPeopleId) ?? 0),
+          enactedCount:
+            l.legiscanPeopleId == null ? null : (enactedByPerson.get(l.legiscanPeopleId) ?? 0),
+          // Recipient-tab-only: the legislator's committees for the Committee
+          // column + filter chips. Additive — omitted for existing callers.
+          ...(opts.includeCommittees
+            ? {
+                committees: l.committeeMemberships.map((m) => ({
+                  id: m.committee.id,
+                  name: m.committee.name,
+                  chamber: m.committee.chamber,
+                  role: m.role,
+                })),
+              }
+            : {}),
+        };
+      }),
       total,
     };
   }
@@ -1356,6 +1367,7 @@ export class ExplorerService {
     });
     if (!legislator) return null;
     const committeeRows = legislator.committeeMemberships;
+    const directory = floridaLegislatorDirectoryProfile(legislator.sourceEvidence);
 
     // Resolve the join key: the stored crosswalk id, or an unambiguous
     // same-state name fallback when it hasn't been stamped yet.
@@ -1430,12 +1442,13 @@ export class ExplorerService {
       chamber: legislator.chamber,
       district: legislator.district,
       party: legislator.party,
-      email: legislator.email,
-      image: legislator.image,
+      email: preferNonBlank(legislator.email, directory?.email ?? null),
+      image: preferNonBlank(legislator.image, directory?.portraitUrl ?? null),
       url: legislator.url,
       active: legislator.active,
       legiscanPeopleId: legislator.legiscanPeopleId,
       syncedAt: legislator.syncedAt.toISOString(),
+      directoryProfile: directory,
       committees: committeeRows.map((c) => ({
         id: c.committee.id,
         name: c.committee.name,

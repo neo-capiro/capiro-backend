@@ -26,6 +26,7 @@ import {
 } from '../src/hearing-discovery/legislative-calendar.js';
 import { contentHash } from '../src/hearing-discovery/hearing-identity.js';
 import { floridaBillNumberAliases } from '../src/hearing-discovery/adapters/florida-calendar.adapter.js';
+import { lockFloridaOpenstatesEventWriter } from '../src/hearing-discovery/florida-openstates-concurrency.js';
 
 dotenvConfig();
 
@@ -460,6 +461,14 @@ export function qualifiedCommitteeChamber(
   return encoded && encoded !== normalized ? null : normalized;
 }
 
+/** Once this provider ledger has linked an event, that durable mapping outranks
+ * discovery-time cross-provider attachment. Re-probing can only rediscover the
+ * linked hearing plus its official twin and manufacture a false ambiguity; any
+ * reviewed alias/relink is a separate, explicit transaction. */
+export function shouldProbeFloridaCrossProvider(priorHearingId: string | null | undefined) {
+  return !priorHearingId;
+}
+
 function directoryAliasIds(sourceEvidence: unknown): string[] {
   const root = record(sourceEvidence);
   const directory = record(root?.directory);
@@ -658,7 +667,6 @@ export async function syncFloridaOpenstatesEvents(
   const log = options.log ?? console.log;
   const repo = new CommitteeSourceRepository(prisma);
   const reconciler = new HearingReconcilerService(prisma);
-  const candidates = new StreamCandidateRepository(prisma);
   const source = await repo.ensureSource({
     committeeSystemCode: null,
     chamber: 'joint',
@@ -792,6 +800,16 @@ export async function syncFloridaOpenstatesEvents(
     options.after.slice(0, 4),
     log,
   );
+  const rawEventIds = observations.map((observation) =>
+    observation.officialIdentity.slice('openstates:event:'.length),
+  );
+  const priorObservations = await prisma.hearingSourceObservation.findMany({
+    where: { sourceId: source.id, externalEventId: { in: rawEventIds } },
+    select: { externalEventId: true, hearingId: true },
+  });
+  const priorHearingByEvent = new Map(
+    priorObservations.map((observation) => [observation.externalEventId, observation.hearingId]),
+  );
   let inserted = 0;
   let updated = identityRepairs;
   let unchanged = 0;
@@ -814,15 +832,17 @@ export async function syncFloridaOpenstatesEvents(
       if (!externalEventId.startsWith('ocd-event/'))
         throw new Error('OpenStates observation is missing its raw provider event id');
       const watchUrl = observation.fields.watchUrl;
-      const crosswalk = watchUrl
-        ? await findFloridaCanonicalBySharedEntry(prisma, watchUrl, probeCache, {
-            observation: {
-              chamber: observation.chamber,
-              date: observation.fields.time?.date ?? null,
-            },
-            log,
-          })
-        : { hearingId: null, ambiguous: false };
+      const priorHearingId = priorHearingByEvent.get(externalEventId);
+      const crosswalk =
+        watchUrl && shouldProbeFloridaCrossProvider(priorHearingId)
+          ? await findFloridaCanonicalBySharedEntry(prisma, watchUrl, probeCache, {
+              observation: {
+                chamber: observation.chamber,
+                date: observation.fields.time?.date ?? null,
+              },
+              log,
+            })
+          : { hearingId: null, ambiguous: false };
       if (crosswalk.ambiguous) {
         errors++;
         log(`[openstates-events] ${observation.officialIdentity}: ambiguous publisher media proof`);
@@ -842,20 +862,35 @@ export async function syncFloridaOpenstatesEvents(
       else if (outcome.changedFields.length) updated++;
       else unchanged++;
       if (watchUrl) {
-        await candidates.recordCandidates(
-          outcome.hearingId,
-          [
-            {
-              provider: '',
-              officialPageUrl: watchUrl,
-              mediaUrl: null,
-              mediaType: 'video',
-              capturePolicy: 'BROWSER_CAPTURE_ONLY',
-              priority: 30,
+        await prisma.$transaction(async (tx) => {
+          // Re-enter the exact per-event lock used by calendar reconcile and
+          // reread the durable source ledger after acquiring it. If a reviewed
+          // alias repair committed between the two transactions, this writes
+          // to the canonical hearing instead of recreating an alias-side row.
+          await lockFloridaOpenstatesEventWriter(tx, externalEventId, 'wait');
+          const durableObservation = await tx.hearingSourceObservation.findUnique({
+            where: {
+              sourceId_externalEventId: { sourceId: source.id, externalEventId },
             },
-          ],
-          { now, sourceId: source.id },
-        );
+            select: { hearingId: true },
+          });
+          if (!durableObservation?.hearingId)
+            throw new Error('OpenStates source ledger lost its durable hearing link');
+          await new StreamCandidateRepository(tx).recordCandidates(
+            durableObservation.hearingId,
+            [
+              {
+                provider: '',
+                officialPageUrl: watchUrl,
+                mediaUrl: null,
+                mediaType: 'video',
+                capturePolicy: 'BROWSER_CAPTURE_ONLY',
+                priority: 30,
+              },
+            ],
+            { now, sourceId: source.id },
+          );
+        });
       }
       log(
         JSON.stringify({
@@ -894,6 +929,7 @@ export async function syncFloridaOpenstatesEvents(
           qualified: observations.length,
           linkedCommittees: committees.size,
           linkedOfficialCommittees: officialCommittees.size,
+          ledgerLinkedEvents: [...priorHearingByEvent.values()].filter(Boolean).length,
           identityRepairs,
           complete: page.complete,
           errors,
