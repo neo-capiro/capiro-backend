@@ -69,7 +69,7 @@ Status vocabulary: **PASS** (asserted and evidenced), **FAIL** (asserted and did
 | G-4 | F-2: fenced session binding invalidated; next attempt rebuilds context | `invalidateSessionBinding()` clears `sessionId` **and** bumps `sessionEpoch` (clearing the id alone is insufficient — the key names the transcript) | **PASS** |
 | G-5 | Authorization rechecked on status, replay, artifacts, interaction answers, publication | C1–C6 at HTTP level | **PASS** |
 | G-6 | Worker credential binding, rotation, expiry; stale/mismatched calls rejected | D1–D4 | **PASS** |
-| **G-7** | **Ticket #6 accepted** | — | **NOT ACCEPTED** — blocked by A1/A2/A6 below |
+| **G-7** | **Ticket #6 accepted** | — | **PENDING** — its two blockers resolved (A1/A2 withdrawn as non-defects, A6 fixed). No outstanding authorization blocker; acceptance now waits only on a converged green run against one revision |
 
 ### 2.3 Authorization defects found during closeout review — all verified in source
 
@@ -77,8 +77,8 @@ Surfaced by the Phase 2 orchestration session's read-only review and each re-ver
 
 | # | Defect | Status |
 |---|---|---|
-| A1 | A **revoked or expired** client grant still authorizes a walled client — `authorizedClientIds` filters on `userId` only, ignoring `status`/`expiresAt`/`revokedAt` | **FAIL — open** |
-| A2 | No downstream net: `fetchDeniedClientIds()` is equally lifecycle-blind (shared memory-system code, predates Hermes) | **FAIL — open** |
+| A1 | ~~A revoked/expired client grant still authorizes a walled client~~ | **WITHDRAWN — not a defect.** The review misidentified the model: `Client.memoryAccessGrants` resolves to `ClientMemoryAccess` (six columns, no lifecycle fields), not `MemoryAccessGrant`. Revocation is a hard delete, so no dead row survives. See §3.1 |
+| A2 | ~~No downstream net in `fetchDeniedClientIds()`~~ | **WITHDRAWN — same misidentification.** Recorded for future work: that helper family has **58 non-spec callers**, so any real change there is wide-blast-radius |
 | A3 | `assertTool` allow-list **fails open**: `policy.allow.length &&` short-circuits on `allow: []`, permitting every tool, inverting its own documented contract | **FAIL — open** |
 | A4 | Tool budget is not a cap: `brokerCalls` read from an entry snapshot, written as a plain `SET` rather than an atomic increment | **FAIL — open** |
 | A5 | `MUTATING_TOOLS` is a hand-maintained two-element set, so future write tools are permitted by default on `readOnly` runs | **FAIL — open** |
@@ -122,6 +122,14 @@ Surfaced by the Phase 2 orchestration session's read-only review and each re-ver
 
 ---
 
+## 3.1 Withdrawn findings — an error in this review, recorded not deleted
+
+**A1 and A2 were wrong, and the mistake was mine.** I escalated them as the most severe items in the set, downgraded the broker boundary partly on them, made ticket #6 conditional on them, and sent them to the Phase 2 session as "the worst of the set."
+
+Two individually-true observations joined by a false inference: `meri-hermes-security.port.ts` really does filter `memoryAccessGrants: { some: { userId } }`, and a model really is named `MemoryAccessGrant` carrying `status`/`expiresAt`/`revokedAt`. But `Client.memoryAccessGrants` resolves to **`ClientMemoryAccess`** (`schema.prisma:905`) — `id, tenantId, clientId, userId, grantedBy, createdAt`, no lifecycle columns. `MemoryAccessGrant` hangs off a *different* relation, `governedMemoryGrants` (`:907`). Revocation on the model actually in use is a hard `deleteMany` replace-set in `ClientsService.setMemoryAccess()`, its only writer, so there is no revoked-but-present row for either layer to miss. The filter I prescribed would not have type-checked.
+
+I connected a relation to a model **by name similarity** and never checked the relation's declared type. The verification I applied to others' claims — read both endpoints, not the label — is the one I skipped on my own. Kept visible rather than deleted, because a closeout that hides its own false positives is worth less than one that shows them.
+
 ## 3. Why the verification numbers do not converge
 
 Two independent problems, both recorded rather than smoothed over.
@@ -138,7 +146,7 @@ Consequently: the strongest green runs (11 suites / 77 tests exit 0; e2e 31/31 e
 
 ## 4. Blockers, in the order they must be cleared
 
-1. **A1–A8** — eight verified authorization/experience defects, all open. A1/A2 are the most serious: revocation, the property the restricted-client story is sold on, does not hold in the envelope builder *or* in the downstream wall probe.
+1. **A3–A8** — six defects. A3–A7 have fixes landed and awaiting verification; **A8 (no citations) remains open**. A1/A2 are **withdrawn** — they were my error, not the code's (§3.1).
 2. **S-1…S-4** — the entire scaling obligation is unimplemented.
 3. **C-12/C-13/C-14** — recovery wiring unfinished and currently failing; provisioning race open.
 4. **V-1** — local verification environment unstable; required before any of the above can be re-proved.
