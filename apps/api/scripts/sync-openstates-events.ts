@@ -17,6 +17,7 @@ import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { CommitteeSourceRepository } from '../src/hearing-discovery/committee-source.repository.js';
 import { HearingReconcilerService } from '../src/hearing-discovery/hearing-reconciler.service.js';
 import { StreamCandidateRepository } from '../src/hearing-discovery/stream-candidate.repository.js';
+import { findFloridaCanonicalBySharedEntry } from '../src/hearing-discovery/florida-crosswalk.js';
 import {
   publicSourceUrl,
   type AgendaItem,
@@ -28,10 +29,16 @@ import { floridaBillNumberAliases } from '../src/hearing-discovery/adapters/flor
 
 dotenvConfig();
 
-const PARSER_VERSION = 'openstates-events-v1';
+const PARSER_VERSION = 'openstates-events-v2';
 const SOURCE_URL = 'https://v3.openstates.org/events';
 const EVENT_INCLUDES = ['links', 'sources', 'media', 'documents', 'participants', 'agenda'];
 const MAX_EVENT_PAGES = 25;
+const UNMAPPED_COMMITTEE_ISSUE =
+  'OpenStates committee organization is not yet crosswalked to a canonical state committee.';
+const CONFLICTING_COMMITTEE_ISSUE =
+  'OpenStates organization and Florida publisher committee evidence conflict; no committee profile was asserted.';
+const AMBIGUOUS_PUBLISHER_COMMITTEE_ISSUE =
+  'Florida publisher URLs identify multiple committees; no committee profile was asserted.';
 
 export type OpenstatesEventLink = { url?: string; note?: string | null };
 export type OpenstatesEventMedia = {
@@ -101,6 +108,10 @@ type CommitteeCrosswalk = {
   bodySourceKey: string;
 };
 
+function sessionIdentity(session: string, identity: string): string {
+  return `${session}\u0000${identity}`;
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -138,34 +149,35 @@ function eventUrls(event: OpenstatesEvent): string[] {
   ].flatMap((link) => (link.url ? [link.url] : []));
 }
 
-/**
- * Return the same first-party notice identity used by the Florida chamber
- * adapters, but only when OpenStates publishes exactly one qualifying notice
- * URL. This is the cross-provider proof that lets OpenStates enrich the
- * existing canonical hearing instead of manufacturing a duplicate. Dates,
- * titles and committee names are intentionally not used as identity.
- */
-export function floridaOfficialIdentityFromEvent(event: OpenstatesEvent): string | null {
+/** Resolve a committee body (not an event) from exact Florida publisher URLs.
+ * Senate notice numbers in OpenStates documents are demonstrably stale and
+ * reused across distinct meetings, but the `/Committees/Show/<CODE>/` segment
+ * remains stable committee evidence. Every qualifying URL must agree. */
+export function floridaOfficialCommitteeEvidenceFromEvent(event: OpenstatesEvent): {
+  key: string | null;
+  ambiguous: boolean;
+} {
   const identities = new Set<string>();
   for (const raw of eventUrls(event)) {
     try {
       const url = new URL(raw);
       const host = url.hostname.toLowerCase();
       if (host === 'flsenate.gov' || host === 'www.flsenate.gov') {
-        const match = /\/MeetingNotice\/(\d+)(?:\/|$)/i.exec(url.pathname);
-        if (match) identities.add(`fl:senate:meeting:${match[1]}`);
-      }
-      if (host === 'flhouse.gov' || host === 'www.flhouse.gov') {
-        const meetingId = [...url.searchParams.entries()].find(
-          ([key]) => key.toLowerCase() === 'meetingid',
-        )?.[1];
-        if (meetingId && /^\d+$/.test(meetingId)) identities.add(`fl:house:meeting:${meetingId}`);
+        const match = /\/Committees\/Show\/([^/]+)(?:\/|$)/i.exec(url.pathname);
+        if (match?.[1]) identities.add(`fl:senate:${decodeURIComponent(match[1]).toUpperCase()}`);
       }
     } catch {
       // Malformed provider links prove nothing and cannot become identity.
     }
   }
-  return identities.size === 1 ? [...identities][0]! : null;
+  return {
+    key: identities.size === 1 ? [...identities][0]! : null,
+    ambiguous: identities.size > 1,
+  };
+}
+
+export function floridaOfficialCommitteeKeyFromEvent(event: OpenstatesEvent): string | null {
+  return floridaOfficialCommitteeEvidenceFromEvent(event).key;
 }
 
 function providerStatus(event: OpenstatesEvent): LegislativeObservation['fields']['status'] {
@@ -321,14 +333,36 @@ export function openstatesEventObservation(
   event: OpenstatesEvent,
   committees: Map<string, CommitteeCrosswalk>,
   bills: Map<string, { id: string; sessionKey: string }>,
+  officialCommittees: Map<string, CommitteeCrosswalk> = new Map(),
 ): LegislativeObservation | null {
   if (!event.id?.trim() || !event.name?.trim() || !Number.isFinite(Date.parse(event.start_date)))
     return null;
+  const eventSession = event.start_date.slice(0, 4);
   const organizations = organizationParticipants(event);
   const linked = organizations
-    .map((org) => committees.get(org.id))
+    .map((org) => committees.get(sessionIdentity(eventSession, org.id)))
     .filter(Boolean) as CommitteeCrosswalk[];
-  const exactCommittee = linked.length === 1 ? linked[0]! : null;
+  const publisherEvidence = floridaOfficialCommitteeEvidenceFromEvent(event);
+  const publisherCommittee = officialCommittees.get(
+    sessionIdentity(eventSession, publisherEvidence.key ?? ''),
+  );
+  // A lone successful lookup among multiple participant organizations is not
+  // proof that the others refer to the same body. Multi-body events remain
+  // unresolved rather than inheriting whichever organization happened to map.
+  const linkedCommittee = organizations.length === 1 && linked.length === 1 ? linked[0]! : null;
+  const conflictingCommitteeEvidence = Boolean(
+    publisherEvidence.ambiguous ||
+    (linkedCommittee &&
+      publisherCommittee &&
+      linkedCommittee.stateCommitteeId !== publisherCommittee.stateCommitteeId),
+  );
+  const exactCommittee = conflictingCommitteeEvidence
+    ? null
+    : linkedCommittee
+      ? linkedCommittee
+      : linked.length === 0 && organizations.length <= 1
+        ? (publisherCommittee ?? null)
+        : null;
   const chamber =
     exactCommittee?.chamber ??
     providerChamber(organizations.map((org) => org.name).join(' ')) ??
@@ -340,8 +374,9 @@ export function openstatesEventObservation(
   const allDay = Boolean(event.all_day);
   const sourceUrl = eventSourceUrl(event);
   const watchUrl = eventWatchUrl(event);
-  const session = exactCommittee?.session ?? event.start_date.slice(0, 4);
-  const firstPartyIdentity = floridaOfficialIdentityFromEvent(event);
+  // The event window owns the session. Committee evidence may qualify that
+  // session, but must never rewrite a current event into a historical row.
+  const session = eventSession;
   const bodyIdentity = organizations.length
     ? organizations
         .map((org) => org.id)
@@ -353,18 +388,24 @@ export function openstatesEventObservation(
     issues.push(
       'Multiple committee organizations were published; no single committee profile was asserted.',
     );
-  if (organizations.length && !exactCommittee)
-    issues.push(
-      'OpenStates committee organization is not yet crosswalked to a canonical state committee.',
-    );
+  if (publisherEvidence.ambiguous) issues.push(AMBIGUOUS_PUBLISHER_COMMITTEE_ISSUE);
+  else if (conflictingCommitteeEvidence) issues.push(CONFLICTING_COMMITTEE_ISSUE);
+  if (organizations.length && !exactCommittee) issues.push(UNMAPPED_COMMITTEE_ISSUE);
   if (event.deleted) issues.push('OpenStates marks this event record deleted.');
 
   return {
     jurisdiction: 'FL',
     session,
     chamber,
-    officialIdentity: firstPartyIdentity ?? `openstates:event:${event.id}`,
-    bodySourceKey: exactCommittee?.bodySourceKey ?? `openstates:${bodyIdentity}`,
+    // The supplier event id is the only stable event identity OpenStates owns.
+    // Never key a proceeding from its Senate MeetingNotice documents: live
+    // payloads reuse those stale URLs across several real meeting dates.
+    officialIdentity: `openstates:event:${event.id}`,
+    // An OpenStates organization is stable provider evidence, but until it is
+    // crosswalked it is not a canonical committee body. Mark it explicitly as
+    // unresolved so a later exact roster crosswalk may refine the same
+    // first-party meeting instead of conflicting with this provisional key.
+    bodySourceKey: exactCommittee?.bodySourceKey ?? `unresolved-body:openstates:${bodyIdentity}`,
     bodyName: exactCommittee?.name ?? organizations[0]?.name ?? event.name,
     stateCommitteeId: exactCommittee?.stateCommitteeId ?? null,
     eventType: organizations.length > 1 || chamber === 'joint' ? 'joint' : 'committee',
@@ -409,6 +450,16 @@ function normalizeChamber(chamber: string | null): CommitteeCrosswalk['chamber']
   return null;
 }
 
+export function qualifiedCommitteeChamber(
+  chamber: string | null,
+  bodySourceKey: string,
+): Exclude<CommitteeCrosswalk['chamber'], null> | null {
+  const normalized = normalizeChamber(chamber);
+  if (!normalized) return null;
+  const encoded = /^fl:(house|senate|joint):/i.exec(bodySourceKey)?.[1]?.toLowerCase();
+  return encoded && encoded !== normalized ? null : normalized;
+}
+
 function directoryAliasIds(sourceEvidence: unknown): string[] {
   const root = record(sourceEvidence);
   const directory = record(root?.directory);
@@ -421,6 +472,162 @@ function officialBodySourceKey(officialSourceKey: string | null, session: string
   if (!officialSourceKey || !session) return null;
   const prefix = `FL:${session}:`;
   return officialSourceKey.startsWith(prefix) ? officialSourceKey.slice(prefix.length) : null;
+}
+
+export function legacyOpenstatesEventIdentity(
+  sourceMetadata: unknown,
+  expectedSession: string,
+  expectedLegacyIdentity: string,
+): string | null {
+  const legislative = record(record(sourceMetadata)?.legislative);
+  const bodySourceKey = legislative?.bodySourceKey;
+  if (
+    legislative?.jurisdiction !== 'FL' ||
+    legislative?.chamber !== 'senate' ||
+    legislative?.session !== expectedSession ||
+    legislative?.stateCommitteeId !== null ||
+    legislative?.officialIdentity !== expectedLegacyIdentity ||
+    !/^fl:senate:meeting:\d+$/.test(expectedLegacyIdentity) ||
+    typeof bodySourceKey !== 'string' ||
+    !/^openstates:event:ocd-event\/[0-9a-f-]{36}$/i.test(bodySourceKey)
+  )
+    return null;
+  return bodySourceKey.slice('openstates:event:'.length);
+}
+
+export function repairedOpenstatesSourceMetadata(
+  sourceMetadata: unknown,
+  targetIdentity: string,
+): Prisma.InputJsonValue {
+  const root = record(sourceMetadata);
+  const legislative = record(root?.legislative);
+  if (!root || !legislative || !/^ocd-event\/[0-9a-f-]{36}$/i.test(targetIdentity))
+    throw new Error('Legacy OpenStates metadata repair is not qualified');
+  return JSON.parse(
+    JSON.stringify({
+      ...root,
+      legislative: {
+        ...legislative,
+        officialIdentity: `openstates:event:${targetIdentity}`,
+      },
+    }),
+  ) as Prisma.InputJsonValue;
+}
+
+async function repairLegacyOpenstatesEventIdentities(
+  prisma: PrismaClient,
+  sourceId: string,
+  currentIdentities: Set<string>,
+  session: string,
+  log: (message: string) => void,
+): Promise<number> {
+  const rows = await prisma.hearingSourceObservation.findMany({
+    where: { sourceId, externalEventId: { startsWith: 'fl:senate:meeting:' } },
+    select: {
+      id: true,
+      hearingId: true,
+      externalEventId: true,
+      sourceMetadata: true,
+    },
+  });
+  if (!rows.length) return 0;
+
+  const plans: Array<{
+    id: string;
+    hearingId: string;
+    previousIdentity: string;
+    targetIdentity: string;
+    sourceMetadata: Prisma.InputJsonValue;
+  }> = [];
+  for (const row of rows) {
+    const targetIdentity = legacyOpenstatesEventIdentity(
+      row.sourceMetadata,
+      session,
+      row.externalEventId,
+    );
+    if (
+      !/^fl:senate:meeting:\d+$/.test(row.externalEventId) ||
+      !row.hearingId ||
+      !targetIdentity ||
+      !currentIdentities.has(targetIdentity)
+    )
+      throw new Error(
+        `Legacy OpenStates identity repair is not qualified for ${row.externalEventId}`,
+      );
+
+    const [hearing, collision, sourceObservationCount] = await Promise.all([
+      prisma.committeeHearing.findUnique({
+        where: { id: row.hearingId },
+        select: {
+          geographicJurisdiction: true,
+          legislativeSession: true,
+          chamber: true,
+          stateCommitteeId: true,
+          bodySourceKey: true,
+          canonicalHearingId: true,
+        },
+      }),
+      prisma.hearingSourceObservation.findUnique({
+        where: { sourceId_externalEventId: { sourceId, externalEventId: targetIdentity } },
+        select: { id: true },
+      }),
+      prisma.hearingSourceObservation.count({ where: { sourceId, hearingId: row.hearingId } }),
+    ]);
+    if (
+      !hearing ||
+      hearing.geographicJurisdiction !== 'FL' ||
+      hearing.legislativeSession !== session ||
+      hearing.chamber !== 'Senate' ||
+      hearing.stateCommitteeId !== null ||
+      hearing.bodySourceKey !== `openstates:event:${targetIdentity}` ||
+      hearing.canonicalHearingId !== null ||
+      sourceObservationCount !== 1 ||
+      (collision && collision.id !== row.id)
+    )
+      throw new Error(
+        `Legacy OpenStates hearing repair assertions failed for ${row.externalEventId}`,
+      );
+    plans.push({
+      id: row.id,
+      hearingId: row.hearingId,
+      previousIdentity: row.externalEventId,
+      targetIdentity,
+      sourceMetadata: repairedOpenstatesSourceMetadata(row.sourceMetadata, targetIdentity),
+    });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const plan of plans) {
+      await tx.legislativeObservationRevision.updateMany({
+        where: {
+          sourceId,
+          externalEventId: plan.previousIdentity,
+          hearingId: plan.hearingId,
+        },
+        data: { externalEventId: plan.targetIdentity },
+      });
+      await tx.hearingSourceObservation.update({
+        where: { id: plan.id },
+        data: {
+          externalEventId: plan.targetIdentity,
+          // Remove the stale first-party alias immediately. Keep the old hash
+          // so normal reconciliation records a fresh revision of the corrected
+          // observation rather than hiding the parser change.
+          sourceMetadata: plan.sourceMetadata,
+        },
+      });
+    }
+  });
+  for (const plan of plans)
+    log(
+      `SOURCE_IDENTITY_REPAIR ${JSON.stringify({
+        source: 'openstates',
+        from: plan.previousIdentity,
+        to: plan.targetIdentity,
+        hearingId: plan.hearingId,
+      })}`,
+    );
+  return plans.length;
 }
 
 function statesFromEnv(value: string | undefined): string[] {
@@ -495,36 +702,67 @@ export async function syncFloridaOpenstatesEvents(
 
   const officialByAlias = new Map<string, (typeof committeeRows)[number]>();
   for (const row of committeeRows) {
-    if (!row.officialSourceKey) continue;
-    for (const aliasId of directoryAliasIds(row.sourceEvidence)) officialByAlias.set(aliasId, row);
+    if (!row.officialSourceKey || !row.legislativeSession) continue;
+    for (const aliasId of directoryAliasIds(row.sourceEvidence))
+      officialByAlias.set(sessionIdentity(row.legislativeSession, aliasId), row);
   }
   const committees = new Map<string, CommitteeCrosswalk>();
   const ambiguousCommitteeIdentities = new Set<string>();
   for (const row of committeeRows) {
     const id = openstatesCommitteeIdentity(row.sourceEvidence);
-    if (!id || ambiguousCommitteeIdentities.has(id)) continue;
-    const canonical = row.officialSourceKey ? row : (officialByAlias.get(row.id) ?? row);
+    if (!id || !row.legislativeSession) continue;
+    const identity = sessionIdentity(row.legislativeSession, id);
+    if (ambiguousCommitteeIdentities.has(identity)) continue;
+    const canonical = row.officialSourceKey
+      ? row
+      : (officialByAlias.get(sessionIdentity(row.legislativeSession, row.id)) ?? row);
+    const session = canonical.legislativeSession ?? row.legislativeSession;
+    if (!session || session !== row.legislativeSession) continue;
+    const bodySourceKey =
+      officialBodySourceKey(canonical.officialSourceKey, session) ?? `openstates:${id}`;
+    const chamber = qualifiedCommitteeChamber(canonical.chamber, bodySourceKey);
+    if (!chamber) continue;
     const next: CommitteeCrosswalk = {
       stateCommitteeId: canonical.id,
       name: canonical.name,
-      chamber: normalizeChamber(canonical.chamber),
-      session: canonical.legislativeSession ?? row.legislativeSession,
-      bodySourceKey:
-        officialBodySourceKey(
-          canonical.officialSourceKey,
-          canonical.legislativeSession ?? row.legislativeSession,
-        ) ?? `openstates:${id}`,
+      chamber,
+      session,
+      bodySourceKey,
     };
-    const existing = committees.get(id);
+    const existing = committees.get(identity);
     if (existing && existing.stateCommitteeId !== next.stateCommitteeId) {
       // One provider organization pointing at two canonical profiles is not a
       // crosswalk. Leave it unresolved instead of choosing whichever row the
       // database happened to return first.
-      committees.delete(id);
-      ambiguousCommitteeIdentities.add(id);
+      committees.delete(identity);
+      ambiguousCommitteeIdentities.add(identity);
       continue;
     }
-    committees.set(id, next);
+    committees.set(identity, next);
+  }
+  const officialCommittees = new Map<string, CommitteeCrosswalk>();
+  const ambiguousOfficialBodies = new Set<string>();
+  for (const row of committeeRows) {
+    const bodySourceKey = officialBodySourceKey(row.officialSourceKey, row.legislativeSession);
+    if (!bodySourceKey || !row.legislativeSession) continue;
+    const chamber = qualifiedCommitteeChamber(row.chamber, bodySourceKey);
+    if (!chamber) continue;
+    const identity = sessionIdentity(row.legislativeSession, bodySourceKey);
+    if (ambiguousOfficialBodies.has(identity)) continue;
+    const next: CommitteeCrosswalk = {
+      stateCommitteeId: row.id,
+      name: row.name,
+      chamber,
+      session: row.legislativeSession,
+      bodySourceKey,
+    };
+    const existing = officialCommittees.get(identity);
+    if (existing && existing.stateCommitteeId !== next.stateCommitteeId) {
+      officialCommittees.delete(identity);
+      ambiguousOfficialBodies.add(identity);
+      continue;
+    }
+    officialCommittees.set(identity, next);
   }
   const bills = new Map<string, { id: string; sessionKey: string }>();
   for (const bill of billRows)
@@ -536,29 +774,73 @@ export async function syncFloridaOpenstatesEvents(
         });
 
   const observations = page.rows
-    .map((event) => openstatesEventObservation(event, committees, bills))
+    .map((event) => openstatesEventObservation(event, committees, bills, officialCommittees))
     .filter((event): event is LegislativeObservation => Boolean(event));
+  const qualifiedObservations = observations.filter(
+    (observation) =>
+      !observation.issues.includes(CONFLICTING_COMMITTEE_ISSUE) &&
+      !observation.issues.includes(AMBIGUOUS_PUBLISHER_COMMITTEE_ISSUE),
+  );
+  const identityRepairs = await repairLegacyOpenstatesEventIdentities(
+    prisma,
+    source.id,
+    new Set(
+      qualifiedObservations.map((observation) =>
+        observation.officialIdentity.slice('openstates:event:'.length),
+      ),
+    ),
+    options.after.slice(0, 4),
+    log,
+  );
   let inserted = 0;
-  let updated = 0;
+  let updated = identityRepairs;
   let unchanged = 0;
   let errors = 0;
+  const probeCache = new Map<string, string | null>();
   const byChamber = new Map<string, number>();
   for (const observation of observations) {
     byChamber.set(observation.chamber, (byChamber.get(observation.chamber) ?? 0) + 1);
     try {
+      const committeeEvidenceError = observation.issues.find(
+        (issue) =>
+          issue === CONFLICTING_COMMITTEE_ISSUE || issue === AMBIGUOUS_PUBLISHER_COMMITTEE_ISSUE,
+      );
+      if (committeeEvidenceError) {
+        errors++;
+        log(`[openstates-events] ${observation.officialIdentity}: ${committeeEvidenceError}`);
+        continue;
+      }
+      const externalEventId = observation.officialIdentity.slice('openstates:event:'.length);
+      if (!externalEventId.startsWith('ocd-event/'))
+        throw new Error('OpenStates observation is missing its raw provider event id');
+      const watchUrl = observation.fields.watchUrl;
+      const crosswalk = watchUrl
+        ? await findFloridaCanonicalBySharedEntry(prisma, watchUrl, probeCache, {
+            observation: {
+              chamber: observation.chamber,
+              date: observation.fields.time?.date ?? null,
+            },
+            log,
+          })
+        : { hearingId: null, ambiguous: false };
+      if (crosswalk.ambiguous) {
+        errors++;
+        log(`[openstates-events] ${observation.officialIdentity}: ambiguous publisher media proof`);
+        continue;
+      }
       const outcome = await reconciler.reconcileEvent(
         source,
         {
-          externalEventId: observation.officialIdentity,
+          externalEventId,
           chamber: observation.chamber,
           legislative: observation,
+          ...(crosswalk.hearingId ? { canonicalHearingId: crosswalk.hearingId } : {}),
         },
         now,
       );
       if (outcome.hearingCreated) inserted++;
       else if (outcome.changedFields.length) updated++;
       else unchanged++;
-      const watchUrl = observation.fields.watchUrl;
       if (watchUrl) {
         await candidates.recordCandidates(
           outcome.hearingId,
@@ -611,6 +893,8 @@ export async function syncFloridaOpenstatesEvents(
           fetched: page.rows.length,
           qualified: observations.length,
           linkedCommittees: committees.size,
+          linkedOfficialCommittees: officialCommittees.size,
+          identityRepairs,
           complete: page.complete,
           errors,
         } as Prisma.InputJsonObject,
