@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Per-tree offset between a migration directory's timestamp prefix and the real",
+    "commit date. Enforced by scripts/check-migration-timestamps.mjs on every PR.",
+    "",
+    "apps/api carries yearOffset 2 because its names ratcheted +730 days ahead of",
+    "real time between 2026-07-19 and 2026-09-05 and cannot be renamed: many of",
+    "these migrations are applied to production and to the shared local fixture DB,",
+    "and renaming an applied migration causes Prisma drift errors. Pinning the",
+    "offset FREEZES the drift at exactly two years instead of letting it keep",
+    "growing. It does not fix it. The offset is retired to 0 at the next migration",
+    "baseline/squash, when the directory names can be rewritten safely.",
+    "",
+    "Raising a yearOffset is a deliberate, reviewable change. If you find yourself",
+    "wanting to raise one, that is the drift trying to happen again."
+  ],
+  "apps/api/prisma/migrations": { "yearOffset": 2, "toleranceDays": 7 },
+  "apps/api/prisma/phase6-projection/migrations": { "yearOffset": 0, "toleranceDays": 7 },
+  "apps/api-strategy/prisma/migrations": { "yearOffset": 0, "toleranceDays": 7 },
+  "apps/intel-api/prisma/migrations": { "yearOffset": 0, "toleranceDays": 7 },
+  "apps/onboard-api/prisma/migrations": { "yearOffset": 0, "toleranceDays": 7 },
+  "apps/workspace/prisma/migrations": { "yearOffset": 0, "toleranceDays": 7 }
+}
