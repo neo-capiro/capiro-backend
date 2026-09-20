@@ -774,37 +774,51 @@ async function createExactBeforeSnapshots(tx: Prisma.TransactionClient): Promise
 
 async function exactNonMutationDiffs(tx: Prisma.TransactionClient): Promise<number> {
   const rows = await tx.$queryRawUnsafe<Array<{ count: bigint }>>(`
-    SELECT COUNT(*)::bigint AS count FROM (
-      (SELECT * FROM fl_pdf_legislator_before EXCEPT ALL
-       SELECT id, name, state, chamber, district, party, email, image, url, committees,
-              active, legiscan_people_id, synced_at FROM state_legislator WHERE state = 'FL')
-      UNION ALL
-      (SELECT id, name, state, chamber, district, party, email, image, url, committees,
-              active, legiscan_people_id, synced_at FROM state_legislator WHERE state = 'FL'
-       EXCEPT ALL SELECT * FROM fl_pdf_legislator_before)
-      UNION ALL
-      (SELECT * FROM fl_pdf_committee_before EXCEPT ALL
-       SELECT official_source_key, legislative_session, source_url, id, state, chamber,
-              name, legiscan_committee_id, last_synced_at FROM state_committee WHERE state = 'FL')
-      UNION ALL
-      (SELECT official_source_key, legislative_session, source_url, id, state, chamber,
-              name, legiscan_committee_id, last_synced_at FROM state_committee WHERE state = 'FL'
-       EXCEPT ALL SELECT * FROM fl_pdf_committee_before)
-      UNION ALL
-      (SELECT * FROM fl_pdf_membership_before EXCEPT ALL
-       SELECT m.id, m.committee_id, m.legislator_id, m.role, m.last_synced_at
-         FROM state_committee_membership m
-         JOIN state_committee c ON c.id = m.committee_id
-         JOIN state_legislator l ON l.id = m.legislator_id
-        WHERE c.state = 'FL' OR l.state = 'FL')
-      UNION ALL
-      (SELECT m.id, m.committee_id, m.legislator_id, m.role, m.last_synced_at
-         FROM state_committee_membership m
-         JOIN state_committee c ON c.id = m.committee_id
-         JOIN state_legislator l ON l.id = m.legislator_id
-        WHERE c.state = 'FL' OR l.state = 'FL'
-       EXCEPT ALL SELECT * FROM fl_pdf_membership_before)
-    ) differences
+    WITH legislator_before_diff AS (
+      SELECT * FROM fl_pdf_legislator_before
+      EXCEPT ALL
+      SELECT id, name, state, chamber, district, party, email, image, url, committees,
+             active, legiscan_people_id, synced_at FROM state_legislator WHERE state = 'FL'
+    ), legislator_after_diff AS (
+      SELECT id, name, state, chamber, district, party, email, image, url, committees,
+             active, legiscan_people_id, synced_at FROM state_legislator WHERE state = 'FL'
+      EXCEPT ALL
+      SELECT * FROM fl_pdf_legislator_before
+    ), committee_before_diff AS (
+      SELECT * FROM fl_pdf_committee_before
+      EXCEPT ALL
+      SELECT official_source_key, legislative_session, source_url, id, state, chamber,
+             name, legiscan_committee_id, last_synced_at FROM state_committee WHERE state = 'FL'
+    ), committee_after_diff AS (
+      SELECT official_source_key, legislative_session, source_url, id, state, chamber,
+             name, legiscan_committee_id, last_synced_at FROM state_committee WHERE state = 'FL'
+      EXCEPT ALL
+      SELECT * FROM fl_pdf_committee_before
+    ), membership_before_diff AS (
+      SELECT * FROM fl_pdf_membership_before
+      EXCEPT ALL
+      SELECT m.id, m.committee_id, m.legislator_id, m.role, m.last_synced_at
+        FROM state_committee_membership m
+        JOIN state_committee c ON c.id = m.committee_id
+        JOIN state_legislator l ON l.id = m.legislator_id
+       WHERE c.state = 'FL' OR l.state = 'FL'
+    ), membership_after_diff AS (
+      SELECT m.id, m.committee_id, m.legislator_id, m.role, m.last_synced_at
+        FROM state_committee_membership m
+        JOIN state_committee c ON c.id = m.committee_id
+        JOIN state_legislator l ON l.id = m.legislator_id
+       WHERE c.state = 'FL' OR l.state = 'FL'
+      EXCEPT ALL
+      SELECT * FROM fl_pdf_membership_before
+    )
+    SELECT (
+      (SELECT COUNT(*) FROM legislator_before_diff) +
+      (SELECT COUNT(*) FROM legislator_after_diff) +
+      (SELECT COUNT(*) FROM committee_before_diff) +
+      (SELECT COUNT(*) FROM committee_after_diff) +
+      (SELECT COUNT(*) FROM membership_before_diff) +
+      (SELECT COUNT(*) FROM membership_after_diff)
+    )::bigint AS count
   `);
   return Number(rows[0]?.count ?? 0n);
 }
