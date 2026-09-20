@@ -12,9 +12,11 @@
 import { describe, expect, test } from '@jest/globals';
 import { join } from 'node:path';
 import {
+  assertCanonicalSourceUrl,
   buildQualificationReport,
   canonicalize,
   checkSourceIdentity,
+  encodeChunkedPayload,
   jsonSafe,
   resolveQualificationConfig,
   stripRunIdentity,
@@ -47,6 +49,7 @@ describe('resolveQualificationConfig', () => {
       QUAL_SOURCE_SHA256: 'a'.repeat(64),
       QUAL_SOURCE_BYTES: '123',
       QUAL_TARGET_PE: '0601234A',
+      QUAL_TARGET_R3_PE: '0605678A',
       QUAL_FISCAL_YEAR: '2025',
       QUAL_CYCLE_ID: '11111111-1111-1111-1111-111111111111',
       QUAL_SOURCE_DOCUMENT_ID: '22222222-2222-2222-2222-222222222222',
@@ -59,6 +62,7 @@ describe('resolveQualificationConfig', () => {
     expect(config.sourceSha256).toBe('a'.repeat(64));
     expect(config.sourceBytes).toBe(123);
     expect(config.targetPeCode).toBe('0601234A');
+    expect(config.targetR3PeCode).toBe('0605678A');
     expect(config.fiscalYear).toBe(2025);
     expect(config.cycleId).toBe('11111111-1111-1111-1111-111111111111');
     expect(config.sourceDocumentId).toBe('22222222-2222-2222-2222-222222222222');
@@ -66,6 +70,35 @@ describe('resolveQualificationConfig', () => {
     expect(config.archiveBucket).toBe('custom-bucket');
     expect(config.component).toBe('NAVY');
     expect(config.budgetFamily).toBe('procurement');
+  });
+
+  test('rejects a fetch credential as the durable source locator', () => {
+    const samePlainUrl = 'https://archive.example/source.pdf';
+    expect(() =>
+      resolveQualificationConfig({
+        QUAL_PRESIGNED_GET: samePlainUrl,
+        QUAL_SOURCE_URL: samePlainUrl,
+      }),
+    ).toThrow(UsageError);
+
+    const signed = 'https://archive.example/source.pdf?X-Amz-Signature=secret';
+    expect(() =>
+      resolveQualificationConfig({ QUAL_PRESIGNED_GET: signed, QUAL_SOURCE_URL: signed }),
+    ).toThrow(UsageError);
+    expect(() =>
+      resolveQualificationConfig({
+        QUAL_PRESIGNED_GET: 'https://archive.example/presigned',
+        QUAL_SOURCE_URL: signed,
+      }),
+    ).toThrow(UsageError);
+  });
+
+  test('accepts the canonical Air Force LinkClick locator', () => {
+    const sourceUrl =
+      'https://www.saffm.hq.af.mil/LinkClick.aspx?fileticket=k4ghOMooM40%3D&portalid=84';
+    expect(() =>
+      assertCanonicalSourceUrl(sourceUrl, 'https://archive.example/presigned?X-Amz-Signature=secret'),
+    ).not.toThrow();
   });
 
   test('resolves paths under the given QUAL_OUT_ROOT', () => {
@@ -77,6 +110,39 @@ describe('resolveQualificationConfig', () => {
   test('appsApiDir resolves to the script’s own parent directory, not process.cwd()', () => {
     const config = resolveQualificationConfig(baseEnv);
     expect(config.appsApiDir.endsWith('api')).toBe(true);
+  });
+});
+
+describe('encodeChunkedPayload', () => {
+  test('round-trips multiple chunks and binds byte count and SHA-256', () => {
+    const source = Buffer.from(JSON.stringify({ assertions: [], omissions: [] }), 'utf8');
+    const encoded = encodeChunkedPayload(source, 7);
+    const reconstructed = Buffer.from(encoded.parts.join(''), 'base64');
+    const report = buildQualificationReport({
+      runId: 'chunk-contract',
+      decision: 'REVIEW',
+      finalState: 'TERMINAL_REVIEW',
+      artifact: { assertions: [], omissions: [] },
+      artifactRawBytes: source,
+      manifestCycleId: 'x',
+      targetPeCode: '0604017A',
+      fiscalYear: 2024,
+      dbverify: { candidate: null, run: null, checks: [], discrepancies: [], proofSnapshots: [] },
+    });
+
+    expect(encoded.parts.length).toBeGreaterThan(1);
+    expect(reconstructed.equals(source)).toBe(true);
+    expect(encoded.bytes).toBe(source.length);
+    expect(encoded.sha256).toBe(report.artifactSha256);
+  });
+
+  test('represents an empty payload with one empty part', () => {
+    expect(encodeChunkedPayload(Buffer.alloc(0), 10).parts).toEqual(['']);
+  });
+
+  test('rejects invalid chunk sizes', () => {
+    expect(() => encodeChunkedPayload(Buffer.from('x'), 0)).toThrow(RangeError);
+    expect(() => encodeChunkedPayload(Buffer.from('x'), 1.5)).toThrow(RangeError);
   });
 });
 
@@ -256,5 +322,92 @@ describe('buildQualificationReport', () => {
     });
     expect(report.targetPeFiscalYearTotalMillions).toBeNull();
     expect(report.decision).toBe('REJECT');
+  });
+
+  test('projects target-PE R-3 evidence and counts blocking natural-key conflicts', () => {
+    const artifactRawBytes = Buffer.from(
+      JSON.stringify({
+        assertions: [
+          {
+            assertionKind: 'performer',
+            parentPeCode: '0604020A',
+            performerName: 'Various : Various',
+            performerNormalized: 'VARIOUS : VARIOUS',
+            costCategory: 'Olympus: Program Management and Capability Transition',
+            contractMethod: 'TBD',
+            fiscalYear: 2024,
+            totalCost: { valueMillions: '6.178' },
+            metadata: { exhibit: 'R-3', naturalKey: 'key-olympus', physicalPage: 399 },
+          },
+          {
+            assertionKind: 'performer',
+            parentPeCode: '0604020A',
+            performerName: 'Various : Various.',
+            performerNormalized: 'VARIOUS : VARIOUS',
+            costCategory: 'SBIR & STTR Adjustment',
+            contractMethod: 'TBD',
+            fiscalYear: 2024,
+            totalCost: { valueMillions: '2.811' },
+            metadata: { exhibit: 'R-3', naturalKey: 'key-sbir', physicalPage: 399 },
+          },
+          {
+            assertionKind: 'performer',
+            parentPeCode: '0604020A',
+            performerName: 'Same PE but R-2',
+            performerNormalized: 'SAME PE BUT R-2',
+            metadata: { exhibit: 'R-2', naturalKey: 'not-r3', physicalPage: 399 },
+          },
+          {
+            assertionKind: 'performer',
+            parentPeCode: '0609999A',
+            performerName: 'Out of scope',
+          },
+        ],
+        omissions: [],
+        warnings: [
+          { code: 'r3_duplicate_natural_key_conflict', severity: 'blocking' },
+          { code: 'informational_warning', severity: 'informational' },
+        ],
+      }),
+      'utf8',
+    );
+    const artifact = JSON.parse(artifactRawBytes.toString('utf8'));
+    const report = buildQualificationReport({
+      runId: 'run1',
+      decision: 'REJECT',
+      finalState: 'TERMINAL_REJECTED',
+      artifact,
+      artifactRawBytes,
+      manifestCycleId: 'x',
+      targetPeCode: '0604020A',
+      targetR3PeCode: '0604020A',
+      fiscalYear: 2024,
+      dbverify: { candidate: null, run: null, checks: [], discrepancies: [], proofSnapshots: [] },
+    });
+
+    expect(report.targetR3Performers).toEqual([
+      {
+        performerName: 'Various : Various',
+        performerNormalized: 'VARIOUS : VARIOUS',
+        costCategory: 'Olympus: Program Management and Capability Transition',
+        contractMethod: 'TBD',
+        fiscalYear: 2024,
+        totalCostMillions: '6.178',
+        naturalKey: 'key-olympus',
+        physicalPage: 399,
+      },
+      {
+        performerName: 'Various : Various.',
+        performerNormalized: 'VARIOUS : VARIOUS',
+        costCategory: 'SBIR & STTR Adjustment',
+        contractMethod: 'TBD',
+        fiscalYear: 2024,
+        totalCostMillions: '2.811',
+        naturalKey: 'key-sbir',
+        physicalPage: 399,
+      },
+    ]);
+    expect(report.targetR3PeCode).toBe('0604020A');
+    expect(report.r3DuplicateNaturalKeyConflictCount).toBe(1);
   });
 });
