@@ -1,0 +1,59 @@
+#0 building with "r4final" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.08kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker:base-v2026.9.14-arm64
+#2 DONE 0.3s
+
+#3 [auth] sharing credentials for 967807252336.dkr.ecr.us-east-1.amazonaws.com
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [1/6] FROM 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker:base-v2026.9.14-arm64@sha256:ae694fa22b874ab030e56888d24c5a787642c4700102ec96bf9c5b9bdeccae2e
+#6 resolve 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker:base-v2026.9.14-arm64@sha256:ae694fa22b874ab030e56888d24c5a787642c4700102ec96bf9c5b9bdeccae2e 0.0s done
+#6 ...
+
+#5 [internal] load build context
+#5 transferring context: 32.66kB 0.0s done
+#5 DONE 0.2s
+
+#6 [1/6] FROM 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker:base-v2026.9.14-arm64@sha256:ae694fa22b874ab030e56888d24c5a787642c4700102ec96bf9c5b9bdeccae2e
+#6 DONE 0.5s
+
+#7 [2/6] COPY --chmod=0755 entrypoint.sh /opt/meri/entrypoint.sh
+#7 DONE 0.1s
+
+#8 [3/6] COPY --chmod=0644 config.template.yaml /opt/meri/config.template.yaml
+#8 DONE 0.1s
+
+#9 [4/6] COPY --chmod=0644 SOUL.template.md /opt/meri/SOUL.template.md
+#9 DONE 0.1s
+
+#10 [5/6] COPY plugins/ /opt/meri/plugins/
+#10 DONE 0.2s
+
+#11 [6/6] RUN chmod -R a+rX /opt/meri
+#11 DONE 0.4s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 0.8s done
+#12 exporting manifest sha256:51b41a3b8002bb7524f71be303ebefef2bfeb3d7f0d56d6fc2b480a0181c454f 0.0s done
+#12 exporting config sha256:0d247884a24b27c42b6305b1aee0bbd12e1ce6e18333b0c144abc04b2ace04c6 0.0s done
+#12 exporting attestation manifest sha256:6df8734d5c9d12e5cbf704b31a28ba72275b82cad901a362b5acf106f0c91f22 0.1s done
+#12 exporting manifest list sha256:62ad9aef23f45e67d933a8016c456dea711dc42328727e43ad263fc2251a16ca
+#12 exporting manifest list sha256:62ad9aef23f45e67d933a8016c456dea711dc42328727e43ad263fc2251a16ca 0.0s done
+#12 pushing layers
+#12 pushing layers 1.1s done
+#12 pushing manifest for 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker:v2026.9.14-meri-arm64@sha256:62ad9aef23f45e67d933a8016c456dea711dc42328727e43ad263fc2251a16ca
+#12 pushing manifest for 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meri-hermes-worker:v2026.9.14-meri-arm64@sha256:62ad9aef23f45e67d933a8016c456dea711dc42328727e43ad263fc2251a16ca 0.8s done
+#12 DONE 2.9s
+layer_build_exit=0
