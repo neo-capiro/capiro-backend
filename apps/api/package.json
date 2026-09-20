@@ -181,6 +181,7 @@
     "backfill:sam-opportunity-fields": "tsx scripts/backfill-sam-opportunity-fields.ts",
     "sync:gao": "tsx scripts/sync-gao.ts",
     "sync:openstates": "tsx scripts/sync-openstates.ts",
+    "sync:openstates-events": "tsx scripts/sync-openstates-events.ts",
     "sync:crs": "tsx scripts/sync-crs.ts",
     "sync:rss": "tsx scripts/sync-rss-intel.ts",
     "sync:member-press": "tsx scripts/sync-member-press.ts",

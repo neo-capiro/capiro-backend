@@ -6,7 +6,7 @@ import { StreamCandidateRepository } from './stream-candidate.repository.js';
 import { runWithSyncRun } from '../ingestion/sync-run.helper.js';
 import type { LegislativeObservation } from './legislative-calendar.js';
 import { contentHash } from './hearing-identity.js';
-import { floridaSourceOutcome } from './florida-source-outcome.js';
+import { floridaDiscoveryRunCounts, floridaSourceOutcome } from './florida-source-outcome.js';
 import { findFloridaCanonicalBySharedEntry } from './florida-crosswalk.js';
 import {
   FL_CALENDAR_PARSER,
@@ -181,6 +181,7 @@ export async function discoverFloridaCalendar(
       if (chamber === 'senate') {
         const seenNotices = new Set<string>();
         const bodies = senateCommitteeLinks(await text(`${FL_SENATE}/Committees`), options.session);
+        let consecutiveBodyFailures = 0;
         pages++;
         if (!bodies.length)
           throw new Error(
@@ -190,6 +191,7 @@ export async function discoverFloridaCalendar(
           await pause();
           try {
             const parsed = senateNoticeRefs(await text(body.url), body.code, body.name, options);
+            consecutiveBodyFailures = 0;
             pages++;
             issues.push(...parsed.issues.map((issue) => `${body.code}: ${issue}`));
             const refs = parsed.notices.filter(
@@ -215,6 +217,19 @@ export async function discoverFloridaCalendar(
             }
           } catch (e) {
             sourceFailure(body.url, e);
+            consecutiveBodyFailures++;
+            // A publisher-wide 5xx/access block otherwise multiplies into
+            // dozens of identical page requests every scheduler tick. Three
+            // consecutive committee-page failures prove this pass cannot
+            // qualify complete Senate coverage; stop the fan-out, retain the
+            // partial work, and let the next bounded run retry.
+            if (consecutiveBodyFailures >= 3) {
+              sourceFailure(
+                'Senate committee fan-out stopped',
+                new Error('three consecutive committee pages were unavailable'),
+              );
+              break;
+            }
           }
         }
         for (
@@ -563,16 +578,7 @@ export async function runFloridaCalendarDiscovery(args: string[]) {
           ambiguous: res.archive.ambiguous,
         };
       }
-      return {
-        inserted: results.reduce((n, r) => n + r.inserted, 0) + archive.inserted,
-        updated: results.reduce((n, r) => n + r.updated, 0) + archive.updated,
-        skipped: results.reduce((n, r) => n + r.unchanged, 0) + archive.unchanged,
-        errors:
-          results.reduce((n, r) => n + r.issues.length, 0) +
-          archive.errors +
-          archive.issues +
-          archive.ambiguous.length,
-      };
+      return floridaDiscoveryRunCounts(results, archive);
     };
     if (prisma)
       await runWithSyncRun(prisma, 'discover-hearings-florida', run, { skipIfRunning: true });
@@ -627,9 +633,10 @@ export async function backfillFloridaWatchCandidates(
   const nextCursor = hasMore ? page[page.length - 1]!.id : null;
   for (const row of page) {
     scanned++;
-    const snap = row.calendarSnapshot as
-      | { watchUrl?: unknown; fields?: { watchUrl?: unknown } }
-      | null;
+    const snap = row.calendarSnapshot as {
+      watchUrl?: unknown;
+      fields?: { watchUrl?: unknown };
+    } | null;
     const watchUrl = snap?.watchUrl ?? snap?.fields?.watchUrl;
     if (typeof watchUrl !== 'string' || !watchUrl) continue;
     // Provider follows the watch URL's own host, not the chamber column: a

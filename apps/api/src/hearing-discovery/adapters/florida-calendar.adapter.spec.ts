@@ -83,6 +83,48 @@ describe('Florida first-party calendar contract', () => {
       await jest.advanceTimersByTimeAsync(1000);
       await expect(result).resolves.toEqual(bytes);
       expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Accept: expect.stringContaining('text/html'),
+            'User-Agent': expect.stringContaining('Capiro-LegiWatch'),
+          }),
+        }),
+      );
+    } finally {
+      fetchMock.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+  it('retries an intermittent publisher HTTP 500 and cancels the failed body', async () => {
+    jest.useFakeTimers();
+    const cancel = jest.fn().mockResolvedValue(undefined);
+    const bytes = new TextEncoder().encode('<html><body>Senate Committees</body></html>');
+    const read = jest
+      .fn()
+      .mockResolvedValueOnce({ done: false, value: bytes })
+      .mockResolvedValueOnce({ done: true });
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: { get: () => null },
+        body: { cancel },
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        body: { getReader: () => ({ read }) },
+      } as unknown as Response);
+    try {
+      const result = fetchFloridaSource('https://www.flsenate.gov/Committees');
+      await jest.advanceTimersByTimeAsync(1000);
+      await expect(result).resolves.toEqual(bytes);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(cancel).toHaveBeenCalledTimes(1);
     } finally {
       fetchMock.mockRestore();
       jest.useRealTimers();

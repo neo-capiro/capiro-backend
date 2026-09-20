@@ -332,6 +332,7 @@ function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initia
           <Route path="/legiwatch/feed" element={<FeedTab scope="" clients={[]} />} />
           <Route path="/legiwatch/hearings/:hearingId" element={<HearingDetailRoute />} />
           <Route path="/legiwatch/committees/:systemCode" element={<CommitteeRoomRoute />} />
+          <Route path="/directory/state-committees/:id" element={<div data-testid="state-committee-profile">State committee profile</div>} />
           <Route path="/intelligence/hearing-watch/:sessionId" element={<div data-testid="browser-hearing-room">Browser hearing room</div>} />
         </Routes>
       </Router>
@@ -1114,5 +1115,42 @@ describe('session 53 — tab lifecycle regressions', () => {
     // …and the REAL scroll restore fired once the calendar rendered.
     await waitFor(() => expect(scrollToSpy).toHaveBeenCalledWith(0, 432));
     scrollToSpy.mockRestore();
+  });
+
+  it('Florida hearing detail links to the state committee profile by stable identity', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001')
+        return Promise.resolve({
+          data: calRow({
+            geographicJurisdiction: 'FL',
+            legislativeSession: '2026',
+            stateCommitteeId: 'FL-upper-criminal-justice',
+            committeeName: 'Criminal Justice',
+            committeeSystemCode: null,
+          }),
+        });
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    fireEvent.click(screen.getByRole('button', { name: 'Criminal Justice' }));
+    await waitFor(() =>
+      expect(location.current.pathname).toBe('/directory/state-committees/FL-upper-criminal-justice'),
+    );
+    expect(screen.getByTestId('state-committee-profile')).toBeInTheDocument();
+  });
+
+  it('Florida hearing detail accepts a state committee profile as its safe Back target', async () => {
+    const returnTo = '/directory/state-committees/official-criminal-justice';
+    const { location } = renderRoutes(MemoryRouter, '', [
+      {
+        pathname: '/legiwatch/hearings/cm-119-9001',
+        state: { legiwatchReturnTo: returnTo },
+      },
+    ]);
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    fireEvent.click(screen.getByText('← Back to LegiWatch'));
+    await waitFor(() => expect(location.current.pathname).toBe(returnTo));
   });
 });

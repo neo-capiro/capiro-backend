@@ -790,6 +790,15 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     description:
       'Roster normalization (Phase 1 M2.2) — state_legislator.committees Json into state_committee/state_committee_membership rows, after sync-openstates',
   },
+  {
+    id: 'SyncOpenstatesEvents',
+    command: ['sync-openstates-events'],
+    cron: { minute: '0', hour: '9' },
+    tier: 'daily',
+    description:
+      'Florida committee-event corroboration from OpenStates (daily 09:00 UTC; after Monday roster normalization)',
+    environment: { OPENSTATES_EVENTS_STATES: 'FL' },
+  },
   // ── State Legislation Platform (Phase 0 S1) — LegiScan bill spine ─────────
   // Priority-state vs wide-sweep masterlist rules share `command`; the actual
   // LEGISCAN_STATES env split is applied on the rule's containerOverrides

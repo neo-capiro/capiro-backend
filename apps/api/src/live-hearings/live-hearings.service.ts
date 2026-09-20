@@ -105,6 +105,11 @@ export interface CalendarQuery {
   jurisdiction?: 'US' | 'FL' | 'ALL';
   session?: string;
   stateCommitteeId?: string;
+  /** Internal-only alias expansion used by the state committee room. The
+   * public DTO deliberately does not expose this field; callers may request
+   * one canonical committee id, while the service can read every verified
+   * source record that belongs to it without widening the HTTP contract. */
+  stateCommitteeIds?: string[];
   billIds?: string[];
   hearingIds?: string[];
   following?: boolean;
@@ -146,13 +151,21 @@ function isRetiredDirectoryRow(row: { sourceEvidence: unknown }): boolean {
   return directory?.active === false;
 }
 
-function verifiedDirectoryAliasIds(rows: Array<{ id: string; officialSourceKey: string | null; sourceEvidence: unknown }>): Set<string> {
+function verifiedDirectoryAliasIds(
+  rows: Array<{ id: string; officialSourceKey: string | null; sourceEvidence: unknown }>,
+): Set<string> {
   const aliases = new Set<string>();
   for (const row of rows) {
     // A retired official row no longer represents the directory. Its former
     // aliases must remain visible instead of being hidden by stale metadata.
     if (isRetiredDirectoryRow(row)) continue;
-    if (!row.officialSourceKey || !row.sourceEvidence || typeof row.sourceEvidence !== 'object' || Array.isArray(row.sourceEvidence)) continue;
+    if (
+      !row.officialSourceKey ||
+      !row.sourceEvidence ||
+      typeof row.sourceEvidence !== 'object' ||
+      Array.isArray(row.sourceEvidence)
+    )
+      continue;
     const directory = (row.sourceEvidence as { directory?: DirectoryEvidence }).directory;
     if (!directory || !Array.isArray(directory.aliasIds)) continue;
     for (const aliasId of directory.aliasIds) {
@@ -162,18 +175,151 @@ function verifiedDirectoryAliasIds(rows: Array<{ id: string; officialSourceKey: 
   return aliases;
 }
 
-export function filterVerifiedDirectoryAliases<T extends { id: string; officialSourceKey: string | null; sourceEvidence: unknown }>(rows: T[]): T[] {
+export function filterVerifiedDirectoryAliases<
+  T extends { id: string; officialSourceKey: string | null; sourceEvidence: unknown },
+>(rows: T[]): T[] {
   const aliases = verifiedDirectoryAliasIds(rows);
   return rows.filter((row) => !aliases.has(row.id) && !isRetiredDirectoryRow(row));
 }
 
+export function officialDirectoryBodyForAlias<
+  T extends { id: string; officialSourceKey: string | null; sourceEvidence: unknown },
+>(aliasId: string, rows: T[]): T | null {
+  return (
+    rows.find((row) => {
+      if (!row.officialSourceKey || isRetiredDirectoryRow(row)) return false;
+      const evidence = row.sourceEvidence;
+      if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) return false;
+      const aliases = (evidence as { directory?: DirectoryEvidence }).directory?.aliasIds;
+      return Array.isArray(aliases) && aliases.includes(aliasId);
+    }) ?? null
+  );
+}
+
 type LegacyCommitteeLink = { id: string; name: string; chamber: string | null };
+
+type StateCommitteeRosterRow = {
+  id: string;
+  memberships: Array<{
+    role: string | null;
+    lastSyncedAt: Date;
+    legislator: {
+      id: string;
+      name: string;
+      chamber: string | null;
+      district: string | null;
+      party: string | null;
+      email: string | null;
+      image: string | null;
+      url: string | null;
+      active: boolean;
+      legiscanPeopleId: number | null;
+      syncedAt: Date;
+    };
+  }>;
+};
+
+export interface StateCommitteeRoomMember {
+  id: string;
+  name: string;
+  chamber: string | null;
+  district: string | null;
+  party: string | null;
+  email: string | null;
+  image: string | null;
+  url: string | null;
+  active: boolean;
+  legiscanPeopleId: number | null;
+  role: string | null;
+  roles: string[];
+  sourceCommitteeIds: string[];
+  lastSyncedAt: string;
+}
+
+function rosterRoleRank(roles: string[]): number {
+  const value = roles.join(' ').toLowerCase();
+  if (/\b(chair|chairman|chairwoman|chairperson)\b/.test(value) && !/vice|deputy/.test(value))
+    return 0;
+  if (/vice\s+chair|deputy\s+chair/.test(value)) return 1;
+  if (/ranking|minority\s+(?:chair|leader)/.test(value)) return 2;
+  return 3;
+}
+
+/**
+ * Build one roster from the official Florida directory identity and every
+ * explicitly verified OpenStates/legacy alias. A person is keyed only by the
+ * provider's stable legislator id; display-name matching is never used. When
+ * two source rows carry different role labels, both are retained verbatim.
+ */
+export function mergeStateCommitteeMembers(
+  rows: StateCommitteeRosterRow[],
+): StateCommitteeRoomMember[] {
+  const byPerson = new Map<
+    string,
+    StateCommitteeRoomMember & { roleSet: Set<string>; sourceSet: Set<string>; syncedAtMs: number }
+  >();
+  for (const committee of rows) {
+    for (const membership of committee.memberships) {
+      const legislator = membership.legislator;
+      const existing = byPerson.get(legislator.id);
+      const role = membership.role?.trim() || null;
+      const syncedAtMs = Math.max(membership.lastSyncedAt.getTime(), legislator.syncedAt.getTime());
+      if (existing) {
+        if (role) existing.roleSet.add(role);
+        existing.sourceSet.add(committee.id);
+        existing.syncedAtMs = Math.max(existing.syncedAtMs, syncedAtMs);
+        continue;
+      }
+      const roleSet = new Set<string>();
+      if (role) roleSet.add(role);
+      byPerson.set(legislator.id, {
+        id: legislator.id,
+        name: legislator.name,
+        chamber: legislator.chamber,
+        district: legislator.district,
+        party: legislator.party,
+        email: legislator.email,
+        image: legislator.image,
+        url: legislator.url,
+        active: legislator.active,
+        legiscanPeopleId: legislator.legiscanPeopleId,
+        role: null,
+        roles: [],
+        sourceCommitteeIds: [],
+        lastSyncedAt: '',
+        roleSet,
+        sourceSet: new Set([committee.id]),
+        syncedAtMs,
+      });
+    }
+  }
+  return [...byPerson.values()]
+    .map(({ roleSet, sourceSet, syncedAtMs, ...member }) => {
+      const roles = [...roleSet];
+      return {
+        ...member,
+        role: roles.length ? roles.join(' · ') : null,
+        roles,
+        sourceCommitteeIds: [...sourceSet],
+        lastSyncedAt: new Date(syncedAtMs).toISOString(),
+      };
+    })
+    .sort(
+      (a, b) => rosterRoleRank(a.roles) - rosterRoleRank(b.roles) || a.name.localeCompare(b.name),
+    );
+}
 
 export function relatedLegacyBodiesForOfficial(
   body: { chamber: string | null; officialSourceKey: string | null; sourceEvidence: unknown },
   rows: LegacyCommitteeLink[],
 ): LegacyCommitteeLink[] {
-  if (!body.officialSourceKey || !body.sourceEvidence || typeof body.sourceEvidence !== 'object' || Array.isArray(body.sourceEvidence)) return [];
+  if (
+    !body.officialSourceKey ||
+    !body.sourceEvidence ||
+    typeof body.sourceEvidence !== 'object' ||
+    Array.isArray(body.sourceEvidence)
+  )
+    return [];
   const directory = (body.sourceEvidence as { directory?: DirectoryEvidence }).directory;
   if (!directory || !Array.isArray(directory.aliasIds)) return [];
   const ids = new Set(directory.aliasIds.filter((id): id is string => typeof id === 'string'));
@@ -260,7 +406,17 @@ export class LiveHearingsService {
   async stateBodies(ctx: TenantContext, session?: string) {
     await requireStateCalendar(this.prisma, ctx.tenantId);
     const rows = await this.prisma.stateCommittee.findMany({
-      where: { state: 'FL', ...(session ? { OR: [{ legislativeSession: session }, { chamber: 'joint', legislativeSession: null, officialSourceKey: { not: null } }] } : {}) },
+      where: {
+        state: 'FL',
+        ...(session
+          ? {
+              OR: [
+                { legislativeSession: session },
+                { chamber: 'joint', legislativeSession: null, officialSourceKey: { not: null } },
+              ],
+            }
+          : {}),
+      },
       orderBy: [{ chamber: 'asc' }, { name: 'asc' }, { id: 'asc' }],
       take: 1000,
       select: {
@@ -275,45 +431,200 @@ export class LiveHearingsService {
         lastSyncedAt: true,
       },
     });
-    return filterVerifiedDirectoryAliases(rows).map(({ sourceEvidence: _sourceEvidence, ...row }) => row);
+    return filterVerifiedDirectoryAliases(rows).map(
+      ({ sourceEvidence: _sourceEvidence, ...row }) => row,
+    );
   }
   async stateBody(ctx: TenantContext, id: string) {
     await requireStateCalendar(this.prisma, ctx.tenantId);
-    const body = await this.prisma.stateCommittee.findUnique({
+    const requestedBody = await this.prisma.stateCommittee.findUnique({
       where: { id },
       include: { memberships: { include: { legislator: true } } },
     });
-    if (!body || body.state !== 'FL') throw new NotFoundException('State committee not found');
-    const directoryAliases = body.officialSourceKey && body.sourceEvidence && typeof body.sourceEvidence === 'object' && !Array.isArray(body.sourceEvidence)
-      ? (body.sourceEvidence as { directory?: DirectoryEvidence }).directory?.aliasIds
-      : null;
+    if (!requestedBody || requestedBody.state !== 'FL')
+      throw new NotFoundException('State committee not found');
+    // Calendar events and LegiScan referrals often retain the normalized
+    // OpenStates/LegiScan alias. Resolve that exact, verified alias back to the
+    // official Florida directory identity so every entry point opens the same
+    // rich profile. Never match on committee name.
+    const officialCandidates = requestedBody.officialSourceKey
+      ? []
+      : await this.prisma.stateCommittee.findMany({
+          where: { state: 'FL', officialSourceKey: { not: null } },
+          include: { memberships: { include: { legislator: true } } },
+          take: 1000,
+        });
+    const body = requestedBody.officialSourceKey
+      ? requestedBody
+      : (officialDirectoryBodyForAlias(requestedBody.id, officialCandidates) ?? requestedBody);
+    const directoryAliases =
+      body.officialSourceKey &&
+      body.sourceEvidence &&
+      typeof body.sourceEvidence === 'object' &&
+      !Array.isArray(body.sourceEvidence)
+        ? (body.sourceEvidence as { directory?: DirectoryEvidence }).directory?.aliasIds
+        : null;
     const aliasIds = Array.isArray(directoryAliases)
       ? directoryAliases.filter((aliasId): aliasId is string => typeof aliasId === 'string')
       : [];
     const legacyRows = aliasIds.length
       ? await this.prisma.stateCommittee.findMany({
           where: { id: { in: aliasIds }, state: 'FL' },
-          select: { id: true, name: true, chamber: true },
+          include: { memberships: { include: { legislator: true } } },
         })
       : [];
     const relatedLegacyBodies = relatedLegacyBodiesForOfficial(body, legacyRows);
-    const events = await this.calendar(ctx, {
-      jurisdiction: 'FL',
-      stateCommitteeId: id,
-      pageSize: 200,
+    const sourceRecords = [body, ...legacyRows];
+    const sourceCommitteeIds = [...new Set(sourceRecords.map((row) => row.id))];
+    const members = mergeStateCommitteeMembers(sourceRecords);
+
+    // Match the federal room's explicit ±365-day proceedings windows. The
+    // old state endpoint returned the first 200 rows across all time, sorted
+    // oldest-first, which could hide every current hearing on a long-lived
+    // committee. Verified aliases are expanded inside the service so an
+    // official directory identity cannot strand proceedings on an older row.
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const future = new Date(today.getTime() + 365 * 86_400_000);
+    const past = new Date(today.getTime() - 365 * 86_400_000);
+    const yesterday = new Date(today.getTime() - 86_400_000);
+    const day = (value: Date) => value.toISOString().slice(0, 10);
+    const committeeChamber = body.chamber?.toLowerCase() ?? null;
+    const coverageChambers =
+      committeeChamber === 'lower' || committeeChamber === 'house'
+        ? ['house']
+        : committeeChamber === 'upper' || committeeChamber === 'senate'
+          ? ['senate']
+          : ['house', 'senate'];
+
+    const [upcomingEvents, recentEvents, coverageRows, referredBills, referredBillCount] =
+      await Promise.all([
+        this.calendar(ctx, {
+          jurisdiction: 'FL',
+          stateCommitteeIds: sourceCommitteeIds,
+          from: day(today),
+          to: day(future),
+          sort: 'asc',
+          pageSize: 200,
+        }),
+        this.calendar(ctx, {
+          jurisdiction: 'FL',
+          stateCommitteeIds: sourceCommitteeIds,
+          from: day(past),
+          to: day(yesterday),
+          sort: 'desc',
+          pageSize: 200,
+        }),
+        this.prisma.legislativeCalendarCoverage.findMany({
+          where: {
+            jurisdiction: 'FL',
+            chamber: { in: coverageChambers },
+            ...(body.legislativeSession
+              ? { OR: [{ session: body.legislativeSession }, { session: null }] }
+              : {}),
+          },
+          orderBy: [{ attemptedAt: 'desc' }],
+          // Keep the latest receipt for EACH provider/chamber pair. A
+          // first-party Florida calendar and the corroborating OpenStates
+          // event feed must both remain visible; distinct(chamber) hid one.
+          distinct: ['chamber', 'sourceId'],
+          take: coverageChambers.length * 8,
+        }),
+        this.prisma.stateBill.findMany({
+          where: { state: 'FL', currentCommitteeId: { in: sourceCommitteeIds } },
+          orderBy: [{ latestActionDate: 'desc' }, { identifier: 'asc' }],
+          take: 25,
+          select: {
+            id: true,
+            identifier: true,
+            title: true,
+            status: true,
+            latestActionDate: true,
+            latestActionText: true,
+            stateUrl: true,
+            url: true,
+            syncedAt: true,
+            currentCommitteeId: true,
+            calendarEvents: {
+              where: { present: true },
+              orderBy: [{ date: 'asc' }, { eventType: 'asc' }],
+              take: 5,
+              select: {
+                id: true,
+                eventType: true,
+                date: true,
+                time: true,
+                location: true,
+                description: true,
+                firstSeenAt: true,
+                lastSyncedAt: true,
+              },
+            },
+          },
+        }),
+        this.prisma.stateBill.count({
+          where: { state: 'FL', currentCommitteeId: { in: sourceCommitteeIds } },
+        }),
+      ]);
+
+    const sourceIds = [...new Set(coverageRows.map((row) => row.sourceId))];
+    const committeeSources = sourceIds.length
+      ? await this.prisma.committeeSource.findMany({ where: { id: { in: sourceIds } } })
+      : [];
+    const sourceById = new Map(committeeSources.map((source) => [source.id, source]));
+    const sourceCoverage = coverageRows.map((coverage) => {
+      const source = sourceById.get(coverage.sourceId);
+      return {
+        chamber: coverage.chamber,
+        status: coverage.status,
+        from: coverage.fromDate.toISOString().slice(0, 10),
+        to: coverage.toDate.toISOString().slice(0, 10),
+        attemptedAt: coverage.attemptedAt.toISOString(),
+        items: coverage.items,
+        sourceHealth: source?.sourceHealth ?? 'unknown',
+        lastCheckedAt: source?.lastCheckedAt?.toISOString() ?? null,
+        lastSuccessAt: source?.lastSuccessAt?.toISOString() ?? null,
+        lastErrorAt: source?.lastErrorAt?.toISOString() ?? null,
+        lastError: source?.lastError ?? null,
+        sourceUrl: source?.sourceUrl ?? null,
+        adapterKey: source?.adapterKey ?? null,
+      };
     });
+    const { memberships: _memberships, ...bodyRecord } = body;
     return {
-      body,
+      body: bodyRecord,
       relatedLegacyBodies,
-      members: body.memberships.map((m) => ({
-        id: m.legislator.id,
-        name: m.legislator.name,
-        role: m.role,
-        party: m.legislator.party,
-      })),
+      sourceRecords: sourceRecords.map(({ memberships: _sourceMemberships, ...row }) => row),
+      sourceCommitteeIds,
+      members,
       rosterStatus:
-        body.officialSourceKey && !body.memberships.length ? 'unqualified' : 'source_memberships',
-      events,
+        body.officialSourceKey && !members.length ? 'unqualified' : 'source_memberships',
+      upcomingEvents,
+      recentEvents,
+      // Compatibility envelope for the first state profile client. New rooms
+      // read the explicit windows above; keeping this avoids a flag-skew crash
+      // during a rolling web/API deployment.
+      events: {
+        rows: [...upcomingEvents.rows, ...recentEvents.rows],
+        total: upcomingEvents.total + recentEvents.total,
+        page: 1,
+        pageSize: 400,
+      },
+      sourceCoverage,
+      referredBills: {
+        rows: referredBills.map((bill) => ({
+          ...bill,
+          latestActionDate: bill.latestActionDate?.toISOString().slice(0, 10) ?? null,
+          syncedAt: bill.syncedAt.toISOString(),
+          calendarEvents: bill.calendarEvents.map((event) => ({
+            ...event,
+            date: event.date.toISOString().slice(0, 10),
+            firstSeenAt: event.firstSeenAt.toISOString(),
+            lastSyncedAt: event.lastSyncedAt.toISOString(),
+          })),
+        })),
+        total: referredBillCount,
+      },
     };
   }
 
@@ -788,7 +1099,9 @@ export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereIn
         ? [{ geographicJurisdiction: 'FL' }]
         : [{ OR: [{ geographicJurisdiction: 'US' }, { geographicJurisdiction: null }] }];
   if (query.session) where.legislativeSession = query.session;
-  if (query.stateCommitteeId) where.stateCommitteeId = query.stateCommitteeId;
+  if (query.stateCommitteeIds?.length)
+    where.stateCommitteeId = { in: [...new Set(query.stateCommitteeIds)] };
+  else if (query.stateCommitteeId) where.stateCommitteeId = query.stateCommitteeId;
   const date: Prisma.DateTimeFilter = {};
   if (query.from) {
     const from = parseDay(query.from);

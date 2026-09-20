@@ -540,6 +540,7 @@ case "${1:-serve}" in
   # job; a bare invocation is a dry run that writes nothing.
   sync-legistorm-trips) shift; exec ./node_modules/.bin/tsx scripts/sync-legistorm-trips.ts "$@" ;;
   sync-openstates)        exec ./node_modules/.bin/tsx scripts/sync-openstates.ts ;;
+  sync-openstates-events) exec ./node_modules/.bin/tsx scripts/sync-openstates-events.ts ;;
   # State Legislation Platform (Phase 0 S1) â€” LegiScan is the bill spine.
   # backfill = one-time dataset seed + quota-exhaustion fallback (accepts
   # LEGISCAN_STATES/LEGISCAN_SESSIONS via env, no CLI flags); masterlist =

@@ -11,7 +11,14 @@
  * the test double was permissive.
  */
 import type { TenantContext } from '@capiro/shared';
-import { LiveHearingsService, buildWhere, filterVerifiedDirectoryAliases, relatedLegacyBodiesForOfficial } from './live-hearings.service.js';
+import {
+  LiveHearingsService,
+  buildWhere,
+  filterVerifiedDirectoryAliases,
+  mergeStateCommitteeMembers,
+  relatedLegacyBodiesForOfficial,
+  officialDirectoryBodyForAlias,
+} from './live-hearings.service.js';
 
 const TENANT_A = '00000000-0000-0000-0000-00000000000a';
 const TENANT_B = '00000000-0000-0000-0000-00000000000b';
@@ -146,7 +153,9 @@ function makePrisma(seed: {
   const prisma = {
     __calls: calls,
     committeeHearing: {
-      findMany: async (args: { where?: Row; take?: number; skip?: number; orderBy?: unknown } = {}) => {
+      findMany: async (
+        args: { where?: Row; take?: number; skip?: number; orderBy?: unknown } = {},
+      ) => {
         if ('orderBy' in args) calls.orderBys.push(args.orderBy);
         const hits = store.hearings.filter((h) => matches(h, args.where));
         const skip = args.skip ?? 0;
@@ -447,6 +456,16 @@ describe('LiveHearingsService — explicit legacy child identity', () => {
 });
 
 describe('buildWhere', () => {
+  it('expands a canonical state body across only its verified source ids', () => {
+    const where = buildWhere({
+      jurisdiction: 'FL',
+      stateCommitteeIds: ['official-ap', 'FL-upper-appropriations', 'official-ap'],
+    });
+    expect(where.stateCommitteeId).toEqual({
+      in: ['official-ap', 'FL-upper-appropriations'],
+    });
+  });
+
   it('maps a lowercase chamber to the display case stored in the column', () => {
     expect(buildWhere({ chamber: 'senate' }).chamber).toBe('Senate');
   });
@@ -653,42 +672,93 @@ describe('LiveHearingsService#coverage', () => {
   });
 });
 
-
 describe('state committee directory aliases', () => {
+  test('resolves a normalized event/referral alias back to the official profile identity', () => {
+    const official = {
+      id: 'official-commerce',
+      officialSourceKey: 'FL:2026:fl:house:committee:3294',
+      sourceEvidence: { directory: { aliasIds: ['FL-lower-commerce'], active: true } },
+    };
+    const retired = {
+      id: 'official-old',
+      officialSourceKey: 'FL:2025:fl:house:committee:3294',
+      sourceEvidence: { directory: { aliasIds: ['FL-lower-commerce'], active: false } },
+    };
+    expect(officialDirectoryBodyForAlias('FL-lower-commerce', [retired, official])?.id).toBe(
+      'official-commerce',
+    );
+    expect(officialDirectoryBodyForAlias('FL-lower-unknown', [official])).toBeNull();
+  });
+
   test('filters only verified aliases and preserves unmatched rows', () => {
     const official = {
-      id: 'official-ap', officialSourceKey: 'FL:2026:fl:senate:AP',
+      id: 'official-ap',
+      officialSourceKey: 'FL:2026:fl:senate:AP',
       sourceEvidence: { directory: { aliasIds: ['FL-upper-appropriations'] } },
     };
     const alias = { id: 'FL-upper-appropriations', officialSourceKey: null, sourceEvidence: null };
-    const unmatched = { id: 'FL-special-order-calendar', officialSourceKey: null, sourceEvidence: null };
-    expect(filterVerifiedDirectoryAliases([official, alias, unmatched]).map((row) => row.id)).toEqual([
-      'official-ap', 'FL-special-order-calendar',
-    ]);
+    const unmatched = {
+      id: 'FL-special-order-calendar',
+      officialSourceKey: null,
+      sourceEvidence: null,
+    };
+    expect(
+      filterVerifiedDirectoryAliases([official, alias, unmatched]).map((row) => row.id),
+    ).toEqual(['official-ap', 'FL-special-order-calendar']);
   });
 
   test('returns only existing Florida chamber rows named by verified joint aliases', () => {
     const body = {
       chamber: 'joint',
       officialSourceKey: 'FL:2026:fl:joint:JAPC',
-      sourceEvidence: { directory: { aliasIds: ['FL-lower-administrative-procedures', 'FL-upper-administrative-procedures'] } },
+      sourceEvidence: {
+        directory: {
+          aliasIds: ['FL-lower-administrative-procedures', 'FL-upper-administrative-procedures'],
+        },
+      },
     };
-    expect(relatedLegacyBodiesForOfficial(body, [
-      { id: 'FL-lower-administrative-procedures', name: 'Administrative Procedures', chamber: 'lower' },
-      { id: 'FL-upper-administrative-procedures', name: 'Administrative Procedures', chamber: 'upper' },
-      { id: 'other-state-row', name: 'Other', chamber: 'lower' },
-    ])).toEqual([
-      { id: 'FL-lower-administrative-procedures', name: 'Administrative Procedures', chamber: 'lower' },
-      { id: 'FL-upper-administrative-procedures', name: 'Administrative Procedures', chamber: 'upper' },
+    expect(
+      relatedLegacyBodiesForOfficial(body, [
+        {
+          id: 'FL-lower-administrative-procedures',
+          name: 'Administrative Procedures',
+          chamber: 'lower',
+        },
+        {
+          id: 'FL-upper-administrative-procedures',
+          name: 'Administrative Procedures',
+          chamber: 'upper',
+        },
+        { id: 'other-state-row', name: 'Other', chamber: 'lower' },
+      ]),
+    ).toEqual([
+      {
+        id: 'FL-lower-administrative-procedures',
+        name: 'Administrative Procedures',
+        chamber: 'lower',
+      },
+      {
+        id: 'FL-upper-administrative-procedures',
+        name: 'Administrative Procedures',
+        chamber: 'upper',
+      },
     ]);
   });
 
   test('does not hide an unverified same-name or same-chamber row', () => {
     const rows = [
       { id: 'legacy', officialSourceKey: null, sourceEvidence: null, name: 'Budget Committee' },
-      { id: 'official', officialSourceKey: 'FL:2026:fl:house:committee:3276', sourceEvidence: { directory: { aliasIds: [] } }, name: 'Budget Committee' },
+      {
+        id: 'official',
+        officialSourceKey: 'FL:2026:fl:house:committee:3276',
+        sourceEvidence: { directory: { aliasIds: [] } },
+        name: 'Budget Committee',
+      },
     ];
-    expect(filterVerifiedDirectoryAliases(rows).map((row) => row.id)).toEqual(['legacy', 'official']);
+    expect(filterVerifiedDirectoryAliases(rows).map((row) => row.id)).toEqual([
+      'legacy',
+      'official',
+    ]);
   });
 
   test('keeps a retired official row addressable but removes it from directory lists', () => {
@@ -718,11 +788,60 @@ describe('state committee directory aliases', () => {
 
   test('preserves a Senate legacy record through the official detail link', () => {
     const official = {
-      chamber: 'upper', officialSourceKey: 'FL:2026:fl:senate:AP',
+      chamber: 'upper',
+      officialSourceKey: 'FL:2026:fl:senate:AP',
       sourceEvidence: { directory: { aliasIds: ['FL-upper-appropriations'] } },
     };
-    expect(relatedLegacyBodiesForOfficial(official, [
-      { id: 'FL-upper-appropriations', name: 'Appropriations', chamber: 'upper' },
-    ])).toEqual([{ id: 'FL-upper-appropriations', name: 'Appropriations', chamber: 'upper' }]);
+    expect(
+      relatedLegacyBodiesForOfficial(official, [
+        { id: 'FL-upper-appropriations', name: 'Appropriations', chamber: 'upper' },
+      ]),
+    ).toEqual([{ id: 'FL-upper-appropriations', name: 'Appropriations', chamber: 'upper' }]);
+  });
+
+  test('combines verified source rosters by stable person id and keeps every published role', () => {
+    const legislator = {
+      id: 'ocd-person/jane',
+      name: 'Jane Doe',
+      chamber: 'upper',
+      district: '7',
+      party: 'Democratic',
+      email: 'jane@example.test',
+      image: 'https://example.test/jane.jpg',
+      url: 'https://openstates.org/person/jane',
+      active: true,
+      legiscanPeopleId: 42,
+      syncedAt: new Date('2026-09-18T12:00:00Z'),
+    };
+    const members = mergeStateCommitteeMembers([
+      {
+        id: 'official-ap',
+        memberships: [
+          { role: 'Chair', lastSyncedAt: new Date('2026-09-18T12:00:00Z'), legislator },
+        ],
+      },
+      {
+        id: 'FL-upper-appropriations',
+        memberships: [
+          {
+            role: 'Presiding Chair',
+            lastSyncedAt: new Date('2026-09-19T12:00:00Z'),
+            legislator,
+          },
+        ],
+      },
+    ]);
+
+    expect(members).toEqual([
+      expect.objectContaining({
+        id: 'ocd-person/jane',
+        role: 'Chair · Presiding Chair',
+        roles: ['Chair', 'Presiding Chair'],
+        sourceCommitteeIds: ['official-ap', 'FL-upper-appropriations'],
+        district: '7',
+        image: 'https://example.test/jane.jpg',
+        lastSyncedAt: '2026-09-19T12:00:00.000Z',
+      }),
+    ]);
   });
 });
