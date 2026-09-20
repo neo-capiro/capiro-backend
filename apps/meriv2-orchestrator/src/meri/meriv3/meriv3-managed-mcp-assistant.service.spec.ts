@@ -238,6 +238,29 @@ describe('MeriV3ManagedMcpAssistantService', () => {
     ).toEqual({ input: { clientId: 'hubspot-object-client-id' } });
   });
 
+  test('warns that monday reads require an explicit board association', async () => {
+    jest
+      .spyOn(MeriV3AssistantService.prototype as never, 'fetchToolSchemas' as never)
+      .mockResolvedValue([] as never);
+    const schema = {
+      name: 'mcp__meriv3_monday__get_board_items_page',
+      appId: 'monday',
+      appName: 'monday.com',
+      readOnly: true,
+      source: 'managed_mcp',
+      description: 'Read board items',
+      input_schema: { type: 'object' },
+    };
+    const { service } = make({ schemas: jest.fn(async () => [schema]) });
+    const internals = service as unknown as {
+      fetchToolSchemas: () => Promise<Array<{ description: string }>>;
+    };
+
+    const [exposed] = await internals.fetchToolSchemas();
+    expect(exposed?.description).toContain('explicit server-authorized client-board mapping');
+    expect(exposed?.description).toContain('report monday.com as unmapped');
+  });
+
   test('routes managed reads through the API bridge but shows only the app name to users', async () => {
     const nativeInvoke = jest
       .spyOn(

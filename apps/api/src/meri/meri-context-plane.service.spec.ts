@@ -107,6 +107,123 @@ describe('MeriContextPlaneService Phase 19 planning', () => {
     }
   });
 
+  test.each([
+    'What has changed with the commitments and deliverables we owe this client?',
+    'Audit every commitment we promised and what needs follow-up.',
+  ])('commitments audit requests every governed evidence rail: %s', (task) => {
+    const plan = planMeriTurn({
+      task,
+      uiClientId: 'client-acme',
+      uiClientName: 'Acme Defense',
+    });
+
+    expect(plan).toMatchObject({
+      subjectScope: 'client',
+      queryClass: 'lookup',
+      requireComplete: true,
+      query: task,
+    });
+    expect(plan.requiredDomains).toEqual([
+      'mail',
+      'meetings',
+      'tasks',
+      'action_recommendations',
+      'monday',
+    ]);
+    expect(plan.requestedDomains).toEqual(
+      expect.arrayContaining([
+        'clients',
+        'mail',
+        'meetings',
+        'tasks',
+        'action_recommendations',
+        'monday',
+        'strategies_work',
+        'institutional_knowledge',
+      ]),
+    );
+  });
+
+  test('forwards a supplied monday board link without widening client scope', async () => {
+    const task =
+      'Audit our commitments for this client using https://example.monday.com/boards/18431248553';
+    const requestContext = jest.fn(async () => ({
+      kind: 'governed_packet',
+      context: {
+        resolution: {
+          status: 'resolved',
+          stopReason: 'resolved',
+          subjectScope: { kind: 'client', clientIds: ['client-acme'] },
+        },
+        retrieval: {
+          records: [],
+          coverage: {
+            requestedDomains: ['monday'],
+            searchedDomains: [],
+            requestedEntityCount: 1,
+            searchedEntityCount: 0,
+            recordsEvaluated: 0,
+            recordsReturned: 0,
+            paginationComplete: false,
+            unavailableSources: ['monday'],
+            sources: [
+              {
+                domain: 'monday',
+                sourceStatus: 'unavailable',
+                stopReason: 'monday_not_connected',
+                coverageComplete: false,
+                paginationComplete: false,
+                truncated: false,
+              },
+            ],
+            complete: false,
+            stopReason: 'source_unavailable',
+          },
+        },
+      },
+      packet: { persisted: false, items: [], exclusions: [], rendered: [] },
+    }));
+    const tx = {
+      clioConversation: { findFirst: jest.fn(async () => ({ clientId: 'client-acme' })) },
+      client: {
+        findFirst: jest.fn(async () => ({ name: 'Acme Defense' })),
+        findMany: jest.fn(async () => [{ id: 'client-acme' }]),
+      },
+      integrationConnection: { findMany: jest.fn(async () => []) },
+    };
+    const prisma = {
+      withTenant: jest.fn(async (_id: string, fn: (value: unknown) => unknown) => fn(tx)),
+      withTenantUser: jest.fn(
+        async (_id: string, _user: string, fn: (value: unknown) => unknown) => fn(tx),
+      ),
+    };
+    const service = new MeriContextPlaneService(
+      prisma as never,
+      { requestContext } as never,
+    );
+
+    const result = await service.resolveChat(
+      { tenantId: 'tenant-1', userId: 'user-1' } as never,
+      { conversationId: 'thread-1', task },
+    );
+    const call = requestContext.mock.calls[0]![0] as any;
+    const retrieval = call.resolverRequest.retrieval;
+    expect(call.resolverRequest).toMatchObject({
+      tenantId: 'tenant-1',
+      actorUserId: 'user-1',
+      clientId: 'client-acme',
+      subjectScope: 'client',
+    });
+    expect(retrieval.query).toBe(task);
+    expect(retrieval.requestedDomains).toContain('monday');
+    expect(retrieval.requestedDomains).toContain('tasks');
+    expect(result.retrieval.coverage.unavailableSources).toContainEqual({
+      source: 'monday',
+      reason: 'monday_not_connected',
+    });
+    expect(result.prompt).toContain('monday_not_connected');
+  });
+
   test('named external entity wins over an unrelated selected client', () => {
     const plan = planMeriTurn({
       task: 'Tell me everything we know about RTX',

@@ -1,4 +1,6 @@
 import type { MeriContext } from '@capiro/meriv2-core';
+import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
 import { MeriV3RetrievalAssistantService } from './meriv3-retrieval-assistant.service.js';
@@ -161,6 +163,7 @@ describe('MeriV3RetrievalAssistantService', () => {
     expect(output.retrieval?.coverage.complete).toBe(true);
     expect(output.reply).toBe('ok');
   });
+
 
   test('preserves the selected client as a deliberate comparison anchor', async () => {
     const downstream = jest

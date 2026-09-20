@@ -175,12 +175,21 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     const nativeInvoke = internals.invokeTool.bind(this);
 
     internals.fetchToolSchemas = async (control): Promise<ToolSchema[]> => {
-      const native = (await nativeFetch(control)).map(enhancedDescription);
+      const governed = currentGovernedMeriContext();
+      const native = (await nativeFetch(control))
+        // Governed Capiro turns must consume monday evidence only through the
+        // Context Plane's actor/client/board mapping. Raw personal-provider
+        // reads could otherwise mix unrelated work into a client answer.
+        .filter(
+          (schema) =>
+            !governed || !schema.name.startsWith('mcp__meriv3_monday__'),
+        )
+        .map(enhancedDescription);
       const seen = new Set(native.map((schema) => schema.name));
       // Phase 19 governed turns already ran Retrieval V2 upstream. Do not expose
       // the V3 recipe tools, otherwise the model can start a second retrieval
       // plan and manufacture a competing coverage manifest.
-      const recipes = currentGovernedMeriContext()
+      const recipes = governed
         ? []
         : MERI_RETRIEVAL_TOOL_SCHEMAS.filter((schema) => !seen.has(schema.name));
       const merged = [...native, ...recipes];

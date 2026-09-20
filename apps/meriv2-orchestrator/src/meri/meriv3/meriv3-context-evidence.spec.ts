@@ -57,6 +57,51 @@ describe('initial evidence stays in the same citation and grounding ledger', () 
       url: 'https://example.gov/meeting/5',
     });
   });
+
+  it('carries governed monday items into the actual answer citation ledger', () => {
+    const governed = context();
+    governed.evidence!.records = [
+      {
+        domain: 'monday',
+        recordId: '18431248553:13088410202',
+        payload: {
+          clientId: 'client-1',
+          sourceActorUserId: 'user-1',
+          title: 'Mapped client deliverable',
+          status: 'active',
+          origin: { provider: 'monday', boardId: '18431248553', itemId: '13088410202' },
+          url: 'https://example.monday.com/boards/18431248553/pulses/13088410202',
+        },
+        provenance: {
+          source: 'managed_monday_mcp',
+          boardId: '18431248553',
+          itemId: '13088410202',
+        },
+        projection: { truncated: false, originalCharacters: 200, returnedCharacters: 200 },
+      },
+    ];
+    governed.evidence!.sourceRecordCount = 1;
+    governed.evidence!.projectedRecordCount = 1;
+    governed.evidence!.truncated = false;
+
+    const seeded = seedMeriContextEvidence(governed);
+    expect(seeded.citations).toEqual([
+      expect.objectContaining({
+        id: '18431248553:13088410202',
+        title: 'Mapped client deliverable',
+        url: 'https://example.monday.com/boards/18431248553/pulses/13088410202',
+        tool: 'context_plane',
+      }),
+    ]);
+    expect(seeded.ledgerEntries[0]?.serialized).toContain('managed_monday_mcp');
+    expect(
+      validateFormBCitations(
+        'The mapped deliverable is active [S:context_plane:18431248553:13088410202].',
+        ledgerToToolResultMap(seeded.ledgerEntries),
+      ).invalid,
+    ).toEqual([]);
+  });
+
   it('retains inherited document identity, exact excerpt, numbering and limitations through JSON reload', () => {
     const governed = context();
     const citation = {

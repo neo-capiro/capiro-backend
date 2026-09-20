@@ -469,6 +469,29 @@ export function planMeriTurn(input: {
     };
   }
 
+  if (COMMITMENTS_AUDIT_RE.test(lower) && subjectScope === 'client') {
+    const requiredDomains: RetrievalDomain[] = [
+      'mail',
+      'meetings',
+      'tasks',
+      'action_recommendations',
+      'monday',
+    ];
+    return {
+      subjectScope,
+      targetHint: null,
+      queryClass: 'lookup',
+      requiredDomains,
+      requestedDomains: uniqueDomains([...CLIENT_ANALYSIS_DOMAINS, ...requiredDomains]),
+      // The monday adapter extracts an explicit board ID/link from the user's
+      // request. Keep the complete task intact rather than broadening to every
+      // personal board or asking the model to reconstruct provider selectors.
+      query: task,
+      requireComplete: true,
+      timeWindow: null,
+    };
+  }
+
   if (CHANGE_RE.test(lower)) {
     const window = inferWindow(task, now, 'last 30 days');
     return {
@@ -1165,4 +1188,6 @@ function isTrivialTurn(lower: string): boolean {
 const CLIENT_ANALYSIS_DOMAINS: readonly RetrievalDomain[] = ['clients', 'contacts', 'strategies_work', 'institutional_knowledge'];
 const PERSONAL_MEMORY_RE = /\b(remember|memory|nickname|preference|preferences|my voice|my tone|about me|about us|how i write|how we write)\b/i;
 const RELATIONSHIP_RE = /\b(history|relationship|relationships|communications|correspondence|interactions|engagement history)\b/i;
+const COMMITMENTS_AUDIT_RE =
+  /\bcommitments?\b.*\b(?:deliverables?|promis(?:e|ed)|owe|owner|follow[- ]?up|audit)\b|\b(?:audit|review|check|deliverables?|promis(?:e|ed)|owe)\b.*\bcommitments?\b/i;
 const CHANGE_RE = /\b(changed|changes|new since|since last|recent changes|what's new|what is new|last \d+ (?:days?|weeks?|months?))\b/i;

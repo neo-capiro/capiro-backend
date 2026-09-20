@@ -181,8 +181,13 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
             `[Connected app: ${appName}; optional external evidence source.]`,
             'Use this tool only when its data is materially relevant to the user request; never call it merely because the app is connected.',
             'In a client-scoped conversation, use external records only when they clearly concern the active client; ignore unrelated records and ask for clarification when identity is ambiguous.',
+            appName === 'monday.com'
+              ? 'Never treat all personal monday.com work as belonging to the active client. Use only a board ID/link supplied by the user or an explicit server-authorized client-board mapping; otherwise report monday.com as unmapped rather than searching broadly.'
+              : '',
             description,
-          ].join(' '),
+          ]
+            .filter(Boolean)
+            .join(' '),
         }));
       return [...native, ...extra];
     };

@@ -207,13 +207,14 @@ export const MERI_SKILL_REGISTRY = [
     requiresClient: true,
     permittedScopes: ['general', 'client'],
     starterPrompt:
-      'What has changed with the commitments and deliverables we owe this client? Audit every commitment we have made. List each commitment with: what was promised, when and where it was made, the internal owner, current status (completed, in progress, or no record of action), and what needs follow-up. Cross-check emails, meeting notes, debriefs, tasks and action items: explicitly flag any commitment found in an email or meeting summary that has no corresponding tracked task or action item. Do not mark anything complete without evidence, and identify sources you could not check.',
+      'What has changed with the commitments and deliverables we owe this client? Audit every commitment we have made. List each commitment with: what was promised, when and where it was made, the internal owner, current status (completed, in progress, or no record of action), and what needs follow-up. Cross-check emails, meeting notes, debriefs, native tasks, action items, and monday.com work from boards explicitly mapped to this client or a board ID/link I supplied: explicitly flag any commitment found in an email or meeting summary that has no corresponding tracked task or action item. Do not treat unrelated personal monday.com work as this client’s commitment, do not mark anything complete without evidence, cite the underlying records, and say whether monday.com was checked, disconnected, unavailable, or not mapped.',
     requiredEntitlements: [],
     semanticDomains: [
       'clients',
       'mail',
       'meetings',
       'tasks',
+      'monday',
       'action_items',
       'documents',
       'memory',
