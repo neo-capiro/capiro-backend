@@ -190,10 +190,10 @@ export function managedAppAvailable(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   if (!managedAppConfigured(appId, env)) return false;
-  const mondayCanary = appId === 'monday' && (
-    env.MERI_MCP_MONDAY_ALLOWED_USER_IDS !== undefined ||
-    env.MERI_MCP_MONDAY_ALLOWED_TENANT_IDS !== undefined
-  );
+  const mondayCanary =
+    appId === 'monday' &&
+    (env.MERI_MCP_MONDAY_ALLOWED_USER_IDS !== undefined ||
+      env.MERI_MCP_MONDAY_ALLOWED_TENANT_IDS !== undefined);
   if (appId !== 'google-drive' && !mondayCanary) return true;
   const prefix = mondayCanary ? 'MERI_MCP_MONDAY' : 'MERI_MCP_GOOGLE_DRIVE';
   const includes = (value: string | undefined, id: string | null | undefined) =>

@@ -121,7 +121,8 @@ export class MeriMcpOAuthService {
       tenantId: server.tenantId,
       serverId: server.id,
       redirectUri: this.redirectUri()!,
-      clientName: server.catalogId === 'meriv3-monday' ? 'Capiro Meri' : `Capiro Meri — ${server.name}`,
+      clientName:
+        server.catalogId === 'meriv3-monday' ? 'Capiro Meri' : `Capiro Meri — ${server.name}`,
       signedState,
       requestedScopes: managedAppDefinition(server.catalogId)?.oauthScopes ?? catalog?.oauthScopes,
       managed: Boolean(managedAppDefinition(server.catalogId)),
@@ -199,10 +200,13 @@ export class MeriMcpOAuthService {
     }
     // Bind the discovered issuer to this exact user/tenant/nonce before redirect.
     const authorization = provider.authorizationResponseRequirements;
-    url.searchParams.set('state', this.signState({
-      ...statePayload,
-      ...(authorization ? { i: authorization.issuer, ir: authorization.required } : {}),
-    }));
+    url.searchParams.set(
+      'state',
+      this.signState({
+        ...statePayload,
+        ...(authorization ? { i: authorization.issuer, ir: authorization.required } : {}),
+      }),
+    );
     // Persist the nonce so the callback can consume it exactly once (anti-replay
     // beyond the single-use PKCE code). The provider created the credential row
     // during auth(), so it exists by now.
@@ -275,12 +279,16 @@ export class MeriMcpOAuthService {
       throw new BadRequestException('Authorization state already used or invalid');
     }
 
-    const provider = this.buildProvider({
-      id: server.id,
-      tenantId: decoded.t,
-      name: server.name,
-      catalogId: server.catalogId,
-    }, undefined, decoded.i);
+    const provider = this.buildProvider(
+      {
+        id: server.id,
+        tenantId: decoded.t,
+        name: server.name,
+        catalogId: server.catalogId,
+      },
+      undefined,
+      decoded.i,
+    );
 
     try {
       const result = await auth(provider, {

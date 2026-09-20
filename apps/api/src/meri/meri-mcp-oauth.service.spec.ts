@@ -48,14 +48,19 @@ function make() {
 }
 
 describe('managed OAuth scopes and cancellation state', () => {
-  test.each([undefined, 'https://wrong.example'])('rejects missing or mismatched required issuer (%s) before code exchange', async (issuer) => {
-    const { service, tx, state } = make();
-    const signed = state({ i: 'https://auth.monday.com/mcp', ir: true });
-    await expect(service.handleCallback({ code: 'code', state: signed, issuer })).rejects.toThrow('issuer');
-    await expect(service.handleFailure(signed, true, issuer)).rejects.toThrow('issuer');
-    expect(tx.clioMcpServer.findFirst).not.toHaveBeenCalled();
-    expect(tx.clioMcpOAuthCredential.updateMany).not.toHaveBeenCalled();
-  });
+  test.each([undefined, 'https://wrong.example'])(
+    'rejects missing or mismatched required issuer (%s) before code exchange',
+    async (issuer) => {
+      const { service, tx, state } = make();
+      const signed = state({ i: 'https://auth.monday.com/mcp', ir: true });
+      await expect(service.handleCallback({ code: 'code', state: signed, issuer })).rejects.toThrow(
+        'issuer',
+      );
+      await expect(service.handleFailure(signed, true, issuer)).rejects.toThrow('issuer');
+      expect(tx.clioMcpServer.findFirst).not.toHaveBeenCalled();
+      expect(tx.clioMcpOAuthCredential.updateMany).not.toHaveBeenCalled();
+    },
+  );
 
   test.each(['owner', 'tenant'])(
     'Google rejects a revoked %s before OAuth start or callback exchange',

@@ -3,7 +3,11 @@ import { MeriMcpOAuthController } from './meri-mcp-oauth.controller.js';
 function make() {
   const oauth = {
     getSuccessRedirect: jest.fn(() => '/settings/integrations'),
-    handleCallback: jest.fn(async () => ({ tenantId: 'tenant', serverId: 'server', name: 'meriv3-hubspot' })),
+    handleCallback: jest.fn(async () => ({
+      tenantId: 'tenant',
+      serverId: 'server',
+      name: 'meriv3-hubspot',
+    })),
     handleFailure: jest.fn(async () => ({ tenantId: 'tenant', serverId: 'server' })),
   };
   const mcp = { discoverTools: jest.fn(async () => 1), invalidate: jest.fn() };
@@ -12,7 +16,8 @@ function make() {
     finalizeConnection: jest.fn(async () => 1),
   };
   const res = { status: jest.fn(), type: jest.fn(), send: jest.fn(), redirect: jest.fn() };
-  res.status.mockReturnValue(res); res.type.mockReturnValue(res);
+  res.status.mockReturnValue(res);
+  res.type.mockReturnValue(res);
   const controller = new MeriMcpOAuthController(oauth as never, mcp as never, managed as never);
   return { controller, oauth, mcp, managed, res };
 }
@@ -37,7 +42,13 @@ describe('managed OAuth completion', () => {
 
   test('cancellation consumes signed state and does not reflect provider error text', async () => {
     const { controller, oauth, mcp, res } = make();
-    await controller.callback(undefined, 'signed-state', 'access_denied', '<script>secret</script>', res as never);
+    await controller.callback(
+      undefined,
+      'signed-state',
+      'access_denied',
+      '<script>secret</script>',
+      res as never,
+    );
     expect(oauth.handleFailure).toHaveBeenCalledWith('signed-state', true, undefined);
     expect(mcp.discoverTools).not.toHaveBeenCalled();
     expect(res.send).toHaveBeenCalledWith(expect.stringContaining('Sign-in cancelled'));

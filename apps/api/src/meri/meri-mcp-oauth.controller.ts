@@ -17,12 +17,20 @@ import { MeriMcpService } from './meri-mcp.service.js';
 
 function completionHtml(title: string, message: string): string {
   // Both strings are controlled application copy, never provider query text.
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8" />' +
+  return (
+    '<!doctype html><html lang="en"><head><meta charset="utf-8" />' +
     '<meta name="viewport" content="width=device-width,initial-scale=1" />' +
-    '<title>' + title + ' — Capiro</title></head>' +
+    '<title>' +
+    title +
+    ' — Capiro</title></head>' +
     '<body style="font:16px system-ui;padding:32px;color:#344054">' +
-    '<main><h1>' + title + '</h1><p>' + message + '</p>' +
-    '<p>You can close this window and return to Meri.</p></main></body></html>';
+    '<main><h1>' +
+    title +
+    '</h1><p>' +
+    message +
+    '</p>' +
+    '<p>You can close this window and return to Meri.</p></main></body></html>'
+  );
 }
 
 @Controller('clio/mcp-oauth')
@@ -43,24 +51,38 @@ export class MeriMcpOAuthController {
     @Query('iss') issuer?: string,
   ): Promise<void> {
     const base = this.oauth.getSuccessRedirect();
-    const failure = () => res.status(400).type('html').send(
-      completionHtml('Sign-in did not complete', 'Return to Meri and try connecting again.'),
-    );
-    if (!state) { failure(); return; }
+    const failure = () =>
+      res
+        .status(400)
+        .type('html')
+        .send(
+          completionHtml('Sign-in did not complete', 'Return to Meri and try connecting again.'),
+        );
+    if (!state) {
+      failure();
+      return;
+    }
     if (error || !code) {
       try {
         const result = await this.oauth.handleFailure(state, error === 'access_denied', issuer);
         this.mcp.invalidate(result.tenantId);
         const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
         if (app) {
-          res.status(200).type('html').send(completionHtml(
-            error === 'access_denied' ? 'Sign-in cancelled' : 'Sign-in did not complete',
-            'Your conversation is saved. You can try connecting again in Meri.',
-          ));
+          res
+            .status(200)
+            .type('html')
+            .send(
+              completionHtml(
+                error === 'access_denied' ? 'Sign-in cancelled' : 'Sign-in did not complete',
+                'Your conversation is saved. You can try connecting again in Meri.',
+              ),
+            );
           return;
         }
         res.redirect(302, base + '?provider=mcp&mcp_error=Sign-in%20did%20not%20complete');
-      } catch { failure(); }
+      } catch {
+        failure();
+      }
       return;
     }
     try {
@@ -68,15 +90,25 @@ export class MeriMcpOAuthController {
       const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
       const count = await this.mcp.discoverTools(result.tenantId, result.serverId);
       if (app) {
-        if (!count) { failure(); return; }
+        if (!count) {
+          failure();
+          return;
+        }
         await this.managedMcp.finalizeConnection(result.tenantId, result.serverId);
-        res.status(200).type('html').send(completionHtml(
-          app.name + ' connected',
-          'Meri can now search and read the information you have authorized.',
-        ));
+        res
+          .status(200)
+          .type('html')
+          .send(
+            completionHtml(
+              app.name + ' connected',
+              'Meri can now search and read the information you have authorized.',
+            ),
+          );
         return;
       }
       res.redirect(302, base + '?provider=mcp&mcp_connected=' + encodeURIComponent(result.name));
-    } catch { failure(); }
+    } catch {
+      failure();
+    }
   }
 }

@@ -17,7 +17,10 @@
  * the browser. The signed `state` (carrying tenant + server + nonce) is
  * supplied via `state()` and embedded in that URL by the SDK.
  */
-import type { OAuthClientProvider, OAuthDiscoveryState } from '@modelcontextprotocol/sdk/client/auth.js';
+import type {
+  OAuthClientProvider,
+  OAuthDiscoveryState,
+} from '@modelcontextprotocol/sdk/client/auth.js';
 import type {
   OAuthClientInformationFull,
   OAuthClientInformationMixed,
@@ -73,11 +76,14 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
 
   get authorizationResponseRequirements(): { issuer: string; required: boolean } | undefined {
     const metadata = this.discoveredAuthorization;
-    return metadata ? {
-      issuer: metadata.issuer,
-      required: 'authorization_response_iss_parameter_supported' in metadata &&
-        metadata.authorization_response_iss_parameter_supported === true,
-    } : undefined;
+    return metadata
+      ? {
+          issuer: metadata.issuer,
+          required:
+            'authorization_response_iss_parameter_supported' in metadata &&
+            metadata.authorization_response_iss_parameter_supported === true,
+        }
+      : undefined;
   }
 
   get clientMetadata(): OAuthClientMetadata {
@@ -165,26 +171,33 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
     const access = this.enc(tokens.access_token);
     const refresh = tokens.refresh_token ? this.enc(tokens.refresh_token) : null;
     const scopes = tokens.scope ? tokens.scope.split(/\s+/).filter(Boolean) : undefined;
-    let expiresAt = tokens.expires_in !== undefined
-      ? new Date(Date.now() + tokens.expires_in * 1000)
-      : null;
+    let expiresAt =
+      tokens.expires_in !== undefined ? new Date(Date.now() + tokens.expires_in * 1000) : null;
     // monday may omit expires_in. Its JWT exp is a scheduling hint only;
     // the provider still authenticates every request and validates the token.
     if (!expiresAt && this.opts.tokenExpiryFromJwt) {
       try {
         const segments = tokens.access_token.split('.');
-        const exp = segments.length === 3 && segments[1]
-          ? JSON.parse(Buffer.from(segments[1], 'base64url').toString('utf8')).exp
-          : undefined;
+        const exp =
+          segments.length === 3 && segments[1]
+            ? JSON.parse(Buffer.from(segments[1], 'base64url').toString('utf8')).exp
+            : undefined;
         if (typeof exp === 'number' && Number.isFinite(exp) && exp > 0 && exp < 8640000000000)
           expiresAt = new Date(exp * 1000);
-      } catch { /* Opaque tokens refresh after the provider's 401 challenge. */ }
+      } catch {
+        /* Opaque tokens refresh after the provider's 401 challenge. */
+      }
     }
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
       // Take the server row lock first, in the same order as disconnect.
       // An in-flight refresh must never recreate credentials after disconnect.
       const active = await tx.clioMcpServer.updateMany({
-        where: { id: this.opts.serverId, tenantId: this.opts.tenantId, enabled: true, connectionStatus: { not: 'disconnected' } },
+        where: {
+          id: this.opts.serverId,
+          tenantId: this.opts.tenantId,
+          enabled: true,
+          connectionStatus: { not: 'disconnected' },
+        },
         data: { lastError: null, ...(!this.opts.managed ? { connectionStatus: 'connected' } : {}) },
       });
       if (active.count !== 1) throw new Error('This connection is no longer active.');
@@ -194,11 +207,13 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
           accessTokenCiphertext: access.ciphertext,
           accessTokenIv: access.iv,
           accessTokenAuthTag: access.authTag,
-          ...(refresh ? {
-            refreshTokenCiphertext: refresh.ciphertext,
-            refreshTokenIv: refresh.iv,
-            refreshTokenAuthTag: refresh.authTag,
-          } : {}),
+          ...(refresh
+            ? {
+                refreshTokenCiphertext: refresh.ciphertext,
+                refreshTokenIv: refresh.iv,
+                refreshTokenAuthTag: refresh.authTag,
+              }
+            : {}),
           tokenType: tokens.token_type,
           ...(scopes ? { scopes } : {}),
           tokenExpiresAt: expiresAt,
@@ -208,7 +223,8 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
           keyVersion: this.opts.keyVersion,
         },
       });
-      if (saved.count !== 1) throw new Error('This authorization is no longer active. Please reconnect.');
+      if (saved.count !== 1)
+        throw new Error('This authorization is no longer active. Please reconnect.');
     });
   }
 
@@ -303,7 +319,12 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
   ): Promise<void> {
     await this.opts.prisma.withTenant(this.opts.tenantId, async (tx) => {
       const active = await tx.clioMcpServer.updateMany({
-        where: { id: this.opts.serverId, tenantId: this.opts.tenantId, enabled: true, connectionStatus: { not: 'disconnected' } },
+        where: {
+          id: this.opts.serverId,
+          tenantId: this.opts.tenantId,
+          enabled: true,
+          connectionStatus: { not: 'disconnected' },
+        },
         data: { updatedAt: new Date() },
       });
       if (active.count !== 1) throw new Error('This authorization is no longer active.');
