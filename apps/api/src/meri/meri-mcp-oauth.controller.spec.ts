@@ -38,7 +38,7 @@ describe('managed OAuth completion', () => {
   test('cancellation consumes signed state and does not reflect provider error text', async () => {
     const { controller, oauth, mcp, res } = make();
     await controller.callback(undefined, 'signed-state', 'access_denied', '<script>secret</script>', res as never);
-    expect(oauth.handleFailure).toHaveBeenCalledWith('signed-state', true);
+    expect(oauth.handleFailure).toHaveBeenCalledWith('signed-state', true, undefined);
     expect(mcp.discoverTools).not.toHaveBeenCalled();
     expect(res.send).toHaveBeenCalledWith(expect.stringContaining('Sign-in cancelled'));
     expect(res.send.mock.calls[0][0]).not.toContain('<script>');

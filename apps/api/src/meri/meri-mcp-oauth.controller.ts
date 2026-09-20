@@ -40,6 +40,7 @@ export class MeriMcpOAuthController {
     @Query('error') error: string | undefined,
     @Query('error_description') errorDescription: string | undefined,
     @Res() res: Response,
+    @Query('iss') issuer?: string,
   ): Promise<void> {
     const base = this.oauth.getSuccessRedirect();
     const failure = () => res.status(400).type('html').send(
@@ -48,7 +49,7 @@ export class MeriMcpOAuthController {
     if (!state) { failure(); return; }
     if (error || !code) {
       try {
-        const result = await this.oauth.handleFailure(state, error === 'access_denied');
+        const result = await this.oauth.handleFailure(state, error === 'access_denied', issuer);
         this.mcp.invalidate(result.tenantId);
         const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
         if (app) {
@@ -63,7 +64,7 @@ export class MeriMcpOAuthController {
       return;
     }
     try {
-      const result = await this.oauth.handleCallback({ code, state });
+      const result = await this.oauth.handleCallback({ code, state, issuer });
       const app = await this.managedMcp.appForServer(result.tenantId, result.serverId);
       const count = await this.mcp.discoverTools(result.tenantId, result.serverId);
       if (app) {
