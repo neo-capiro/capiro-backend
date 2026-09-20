@@ -4,7 +4,9 @@
 
 **Phase 0: CLOSED.** **Phase 1: NOT CLOSED** — required gates remain FAILED, INCOMPLETE or BLOCKED.
 
-Production pilot activation status, reported separately as required: **not activated, not requested, and not authorized by anything in this closeout.** All three gate keys remain closed in every environment and no deployed resource was created, modified or configured at any point.
+Production pilot activation status, reported separately as required: **not activated.** All three gate keys remain closed in every environment.
+
+> **CORRECTION (2026-09-20).** This header previously read "no deployed resource was created, modified or configured at any point." **That is no longer true.** Under later explicit operator authorization, during a declared maintenance window, AWS resources WERE created in production account 967807252336 to execute platform gates V1–V3. Nothing pre-existing was modified and no migration has been applied to any deployed database. See `HANDOVER.md` §4 for the full resource inventory and `evidence/fargate-v1-v3/`. The matrix in §2 below predates that work and is stale — V1/V2/V3 now PASS, and C-12/C-13/C-14 were subsequently fixed. **Treat `HANDOVER.md` as the current state of record, not this file.**
 
 | | |
 |---|---|
