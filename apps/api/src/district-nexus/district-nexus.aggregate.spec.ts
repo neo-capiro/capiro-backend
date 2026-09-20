@@ -2,9 +2,16 @@ import { describe, expect, test } from '@jest/globals';
 import {
   buildClientNexusResponse,
   buildDistrictClientBreakdown,
+  createDistrictFoldState,
   districtKeyFor,
   evidenceForDistrict,
+  finishDistrictFold,
+  foldAssistance,
+  foldContracts,
   foldDistricts,
+  foldFacilities,
+  foldOpportunities,
+  foldRelationships,
   isStatewide,
   type ClientNexusInputs,
 } from './district-nexus.aggregate.js';
@@ -24,6 +31,105 @@ function inputs(partial: Partial<ClientNexusInputs> = {}): ClientNexusInputs {
     ...partial,
   };
 }
+
+describe('explicit rail folds preserve the foldDistricts contract', () => {
+  test('all five rail helpers share state without collapsing rail-specific semantics', () => {
+    const mixed = inputs({
+      contracts: [
+        { state: 'TX', district: '23', awardCount: 1, totalAmount: 100, matchBasis: 'uei' },
+        { state: 'TX', district: '90', awardCount: 1, totalAmount: 20 },
+      ],
+      assistance: [
+        {
+          state: 'TX',
+          district: '23',
+          basis: 'recipient_location',
+          matchBasis: 'recipient_name',
+          awardCount: 1,
+          totalObligated: 40,
+          totalOutlayed: 5,
+        },
+      ],
+      opportunities: [{ state: 'TX', district: '23', estimatedFunding: 0, awardCeiling: null }],
+      facilities: [
+        {
+          state: 'TX',
+          districtCode: '23',
+          employeeCount: null,
+          districtSource: 'geocoded',
+          congressionalDistrictCongress: 119,
+        },
+        {
+          state: 'VA',
+          districtCode: '11',
+          employeeCount: 9,
+          districtSource: 'geocoded',
+          congressionalDistrictCongress: 120,
+        },
+      ],
+      relationships: [
+        {
+          clientId: 'client-1',
+          state: 'TX',
+          district: '23',
+          component: 'partnerBeneficiary',
+          obligatedAmount: null,
+          outlayedAmount: null,
+          strength: 'userProvided',
+          geographyBasis: 'place_of_performance',
+        },
+        {
+          clientId: 'client-1',
+          state: null,
+          district: null,
+          component: 'grantPlaceOfPerformance',
+          obligatedAmount: 7,
+          outlayedAmount: null,
+          strength: 'verified',
+          geographyBasis: 'unknown',
+        },
+      ],
+      currentCongress: 119,
+    });
+
+    const state = createDistrictFoldState();
+    foldContracts(state, mixed.contracts);
+    foldAssistance(state, mixed.assistance);
+    foldOpportunities(state, mixed.opportunities);
+    foldFacilities(state, mixed.facilities, mixed.currentCongress);
+    foldRelationships(state, mixed.relationships ?? []);
+
+    const explicit = finishDistrictFold(state);
+    expect(explicit).toEqual(foldDistricts(mixed));
+    expect(explicit.districts).toEqual([
+      expect.objectContaining({
+        districtKey: 'TX-23',
+        contractObligations: 100,
+        grantObligations: 40,
+        grantOutlays: 5,
+        opportunityEstimatedFunding: 0,
+        opportunityAwardCeiling: null,
+        facilityCount: 1,
+        employeeCount: null,
+        facilitiesMissingEmployeeCount: 1,
+        assistanceBasis: 'recipient_location',
+        contractStrength: 'sourceAuthoritative',
+        grantStrength: 'compounded',
+        partnerStrength: 'userProvided',
+        partnerEvidenceCount: 1,
+      }),
+    ]);
+    expect(explicit.unmapped).toEqual({
+      unmappedContractAmount: 20,
+      unmappedGrantAmount: 7,
+    });
+    expect(explicit.warnings.map((warning) => warning.code)).toEqual([
+      'future_boundary_excluded',
+      'statewide_attribution',
+      'unmapped_amount',
+    ]);
+  });
+});
 
 describe('districtKeyFor', () => {
   test('resolves an ordinary numbered district', () => {
@@ -213,7 +319,10 @@ describe('opportunities never manufacture awarded funding', () => {
     // The forecast is reported, but contributes no awarded credit.
     expect(response.opportunities.opportunityEstimatedFunding).toBe(2_000_000);
     expect(response.awarded.grantObligations).toBeNull();
-    expect(response.districts[0]?.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(0);
+    expect(
+      response.districts[0]?.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')
+        ?.credit,
+    ).toBe(0);
   });
 });
 
@@ -562,7 +671,9 @@ describe('the score carries the verification tier the evidence table shows', () 
 
   test('a geocoded facility claim earns full verified strength and credit', () => {
     const acc = foldOne({
-      facilities: [{ state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' }],
+      facilities: [
+        { state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' },
+      ],
     });
     const evidence = evidenceForDistrict(acc);
     expect(evidence.verifiedFacility?.strength).toBe('verified');
@@ -593,7 +704,9 @@ describe('the score carries the verification tier the evidence table shows', () 
     const evidence = evidenceForDistrict(acc);
     expect(evidence.contractPlaceOfPerformance?.strength).toBe('inferred');
     const scored = scoreNexus({ components: evidence });
-    expect(scored.breakdown.find((b) => b.component === 'contractPlaceOfPerformance')?.credit).toBe(5);
+    expect(scored.breakdown.find((b) => b.component === 'contractPlaceOfPerformance')?.credit).toBe(
+      5,
+    );
   });
 
   test('a UEI-matched, place-of-performance assistance row earns full credit', () => {
@@ -613,7 +726,9 @@ describe('the score carries the verification tier the evidence table shows', () 
     const evidence = evidenceForDistrict(acc);
     expect(evidence.grantPlaceOfPerformance?.strength).toBe('sourceAuthoritative');
     const scored = scoreNexus({ components: evidence });
-    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(10);
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(
+      10,
+    );
   });
 
   test('a name-matched, place-of-performance assistance row is discounted to inferred', () => {
@@ -674,7 +789,9 @@ describe('the score carries the verification tier the evidence table shows', () 
     expect(evidence.grantPlaceOfPerformance?.strength).toBe('compounded');
     const scored = scoreNexus({ components: evidence });
     // Multiplied, not weakest-wins: 10 * 0.5 * 0.5 = 2.5, NOT 10 * 0.5.
-    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(2.5);
+    expect(scored.breakdown.find((b) => b.component === 'grantPlaceOfPerformance')?.credit).toBe(
+      2.5,
+    );
   });
 
   test('exactly one weakness does NOT get compound-discounted — a full-strength axis leaves the other axis unchanged', () => {
@@ -804,7 +921,9 @@ describe('reviewed client↔award relationships reach the numbers (audit F4)', (
   test('a beneficiary row populates partnerBeneficiary and raises coverage above the pre-F4 65% ceiling', () => {
     const { districts } = foldDistricts(
       inputs({
-        facilities: [{ state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' }],
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: 50, districtSource: 'geocoded' },
+        ],
         contracts: [{ state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000 }],
         assistance: [
           {
@@ -935,7 +1054,11 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
       'client-1',
       {
         clientName: 'Acme Defense',
-        contract: { basis: 'reviewed_name_fallback' as const, ueis: [], fallbackNames: ['acme defense llc'] },
+        contract: {
+          basis: 'reviewed_name_fallback' as const,
+          ueis: [],
+          fallbackNames: ['acme defense llc'],
+        },
         assistance: NONE_BASIS,
       },
     ],
@@ -947,13 +1070,23 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
       facilities: [],
       byClient,
       contractRows: [
-        { identifier: 'acme defense llc', matchBasis: 'contractor_name', state: 'TX', district: '23', totalAmount: 500_000 },
+        {
+          identifier: 'acme defense llc',
+          matchBasis: 'contractor_name',
+          state: 'TX',
+          district: '23',
+          totalAmount: 500_000,
+        },
       ],
       assistanceRows: [],
       relationships: [],
     });
     expect(clients).toHaveLength(1);
-    expect(clients[0]).toMatchObject({ clientId: 'client-1', clientName: 'Acme Defense', facilityCount: 0 });
+    expect(clients[0]).toMatchObject({
+      clientId: 'client-1',
+      clientName: 'Acme Defense',
+      facilityCount: 0,
+    });
     expect(clients[0]?.employeeCount).toBeNull();
     expect(clients[0]?.awarded.contractObligations).toBe(500_000);
   });
@@ -1037,7 +1170,13 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
         ],
       ]),
       contractRows: [
-        { identifier: 'epsilon inc', matchBasis: 'contractor_name', state: 'VA', district: '11', totalAmount: 1_000_000 },
+        {
+          identifier: 'epsilon inc',
+          matchBasis: 'contractor_name',
+          state: 'VA',
+          district: '11',
+          totalAmount: 1_000_000,
+        },
       ],
       assistanceRows: [],
       relationships: [],
@@ -1051,7 +1190,13 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
       facilities: [{ clientId: 'client-1', clientName: 'Acme Defense', employeeCount: 12 }],
       byClient,
       contractRows: [
-        { identifier: 'acme defense llc', matchBasis: 'contractor_name', state: 'TX', district: '23', totalAmount: 500_000 },
+        {
+          identifier: 'acme defense llc',
+          matchBasis: 'contractor_name',
+          state: 'TX',
+          district: '23',
+          totalAmount: 500_000,
+        },
       ],
       assistanceRows: [],
       relationships: [],
@@ -1156,7 +1301,13 @@ describe('contract rail identity (Release 1 — contracts now have a UEI path)',
       inputs({
         contracts: [
           { state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000, matchBasis: 'uei' },
-          { state: 'TX', district: '23', awardCount: 1, totalAmount: 500_000, matchBasis: 'contractor_name' },
+          {
+            state: 'TX',
+            district: '23',
+            awardCount: 1,
+            totalAmount: 500_000,
+            matchBasis: 'contractor_name',
+          },
         ],
       }),
     );
@@ -1170,7 +1321,12 @@ describe('future boundary exclusion (§12 — a not-yet-effective boundary is no
     const { districts, warnings } = foldDistricts(
       inputs({
         facilities: [
-          { state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: 120 },
+          {
+            state: 'TX',
+            districtCode: '23',
+            employeeCount: 40,
+            congressionalDistrictCongress: 120,
+          },
         ],
         currentCongress: 119,
       }),
@@ -1185,7 +1341,12 @@ describe('future boundary exclusion (§12 — a not-yet-effective boundary is no
     const { districts, warnings } = foldDistricts(
       inputs({
         facilities: [
-          { state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: 119 },
+          {
+            state: 'TX',
+            districtCode: '23',
+            employeeCount: 40,
+            congressionalDistrictCongress: 119,
+          },
         ],
         currentCongress: 119,
       }),
@@ -1198,7 +1359,14 @@ describe('future boundary exclusion (§12 — a not-yet-effective boundary is no
   test('an unknown boundary Congress (null) is never treated as future', () => {
     const { districts, warnings } = foldDistricts(
       inputs({
-        facilities: [{ state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: null }],
+        facilities: [
+          {
+            state: 'TX',
+            districtCode: '23',
+            employeeCount: 40,
+            congressionalDistrictCongress: null,
+          },
+        ],
         currentCongress: 119,
       }),
     );
@@ -1210,7 +1378,12 @@ describe('future boundary exclusion (§12 — a not-yet-effective boundary is no
     const { districts, warnings } = foldDistricts(
       inputs({
         facilities: [
-          { state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: 120 },
+          {
+            state: 'TX',
+            districtCode: '23',
+            employeeCount: 40,
+            congressionalDistrictCongress: 120,
+          },
         ],
       }),
     );

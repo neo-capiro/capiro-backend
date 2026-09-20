@@ -16,15 +16,27 @@ vi.mock('../../../lib/me.js', () => ({
   useMe: () => ({ data: { role: 'user_admin' } }),
 }));
 vi.mock('./tabs/OverviewTab.js', () => ({ ClientCrmOverviewProto: () => <div>overview</div> }));
-vi.mock('./tabs/CapabilitiesTab.js', () => ({ ClientCrmCapabilitiesProto: () => <div>capabilities</div> }));
-vi.mock('./tabs/RelationshipsOrgTab.js', () => ({ ClientCrmOrganizationProto: () => <div>organization</div> }));
-vi.mock('./tabs/RelationshipsGovTab.js', () => ({ ClientCrmGovernmentProto: () => <div>government</div> }));
-vi.mock('./tabs/RelationshipsHistoryTab.js', () => ({ ClientCrmHistoryProto: () => <div>history</div> }));
+vi.mock('./tabs/CapabilitiesTab.js', () => ({
+  ClientCrmCapabilitiesProto: () => <div>capabilities</div>,
+}));
+vi.mock('./tabs/RelationshipsOrgTab.js', () => ({
+  ClientCrmOrganizationProto: () => <div>organization</div>,
+}));
+vi.mock('./tabs/RelationshipsGovTab.js', () => ({
+  ClientCrmGovernmentProto: () => <div>government</div>,
+}));
+vi.mock('./tabs/RelationshipsHistoryTab.js', () => ({
+  ClientCrmHistoryProto: () => <div>history</div>,
+}));
 // This file tests header/drawer wiring, not AdvocacyMattersTab's own query
 // behavior, so every record surface remains mocked.
-vi.mock('./tabs/AdvocacyMattersTab.js', () => ({ ClientCrmAdvocacyMattersProto: () => <div>advocacy</div> }));
+vi.mock('./tabs/AdvocacyMattersTab.js', () => ({
+  ClientCrmAdvocacyMattersProto: () => <div>advocacy</div>,
+}));
 vi.mock('./tabs/WorkTab.js', () => ({ ClientCrmWorkProto: () => <div>work</div> }));
-vi.mock('./tabs/IntelligenceTab.js', () => ({ ClientCrmIntelligenceProto: () => <div>intelligence</div> }));
+vi.mock('./tabs/IntelligenceTab.js', () => ({
+  ClientCrmIntelligenceProto: () => <div>intelligence</div>,
+}));
 vi.mock('./tabs/FilesTab.js', () => ({ ClientCrmFilesProto: () => <div>files</div> }));
 
 const openMeriMock = vi.hoisted(() => vi.fn());
@@ -179,7 +191,10 @@ describe('ClientCrmPage header wiring', () => {
     // readContextRequest() drops a clientId that arrives without one.
     await waitFor(() =>
       expect(openMeriMock).toHaveBeenCalledWith(
-        expect.objectContaining({ clientId: 'client-1', prompt: expect.stringContaining('Overland AI') }),
+        expect.objectContaining({
+          clientId: 'client-1',
+          prompt: expect.stringContaining('Overland AI'),
+        }),
       ),
     );
   });
@@ -227,9 +242,13 @@ describe('ClientCrmPage — Archive client (item 9)', () => {
 
 describe('ClientCrmPage — Focus Add (item 10)', () => {
   it('appends the tag while preserving the rest of intakeData', async () => {
-    putMock.mockResolvedValue({ data: { ...client, intakeData: { city: 'Seattle', tags: ['Autonomy', 'Shipbuilding'] } } });
+    putMock.mockResolvedValue({
+      data: { ...client, intakeData: { city: 'Seattle', tags: ['Autonomy', 'Shipbuilding'] } },
+    });
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <MemoryRouter>
           <div className="capiro-vnext-root">
             <ClientCrmPage
@@ -255,7 +274,9 @@ describe('ClientCrmPage — Focus Add (item 10)', () => {
 
   it('refuses a focus that is already on the client', () => {
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <MemoryRouter>
           <div className="capiro-vnext-root">
             <ClientCrmPage client={{ ...client, intakeData: { tags: ['Autonomy'] } }} />
@@ -324,13 +345,11 @@ describe('ClientCrmPage — Sync', () => {
 
     // A real server-side recompute — the only per-client one this product has.
     await waitFor(() =>
-      expect(postMock).toHaveBeenCalledWith(
-        '/api/clients/client-1/target-recommendations/refresh',
-      ),
+      expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/target-recommendations/refresh'),
     );
     // And a real re-read of the sources, not a setTimeout.
     await waitFor(() => expect(sourceReads).toBeGreaterThan(initialReads));
-    expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/district-nexus-spend');
+    expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/district-nexus-v2');
     expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/fec-money-flow');
     expect(getMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/lda-filings');
 

@@ -50,6 +50,7 @@ RUN pnpm --filter @capiro/shared build
 # SPA bundle even though the image digest changed. Declared right before the
 # build so only the build (and copy) layers invalidate, not the dep install.
 ARG GIT_SHA=dev
+ARG CAPIRO_WEB_BUILD_SURFACE=canonical
 RUN echo "build for ${GIT_SHA}" > /workspace/.git_sha
 # Build with placeholder values; the real keys come from runtime-config.js
 # generated at container start. env.ts ignores VITE_* when window.__CAPIRO_CONFIG__ is set.
@@ -60,6 +61,8 @@ RUN echo "build for ${GIT_SHA}" > /workspace/.git_sha
 # and module transform both succeeded.
 RUN NODE_OPTIONS=--max-old-space-size=6144 \
     VITE_CLERK_PUBLISHABLE_KEY=runtime VITE_API_BASE_URL=runtime \
+    CAPIRO_WEB_BUILD_SURFACE=${CAPIRO_WEB_BUILD_SURFACE} \
+    VITE_BUILD_WEB_SURFACE=${CAPIRO_WEB_BUILD_SURFACE} \
     pnpm --filter @capiro/web build
 
 # -------- runtime -------------------------------------------------------------

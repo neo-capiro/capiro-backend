@@ -51,9 +51,9 @@ describe('district-nexus-strategic linking rules', () => {
     const awarded = nexus.breakdown.filter((b) =>
       ['contractPlaceOfPerformance', 'grantPlaceOfPerformance'].includes(b.component),
     );
-    expect(awarded.every((b) => b.credit === 0 || b.rationale.toLowerCase().includes('no evidence'))).toBe(
-      true,
-    );
+    expect(
+      awarded.every((b) => b.credit === 0 || b.rationale.toLowerCase().includes('no evidence')),
+    ).toBe(true);
   });
 
   test('irrelevant PE path: PE component absent when no committee bridge (fixture narrative)', () => {
@@ -164,7 +164,9 @@ describe('district-nexus-strategic linking rules', () => {
       },
       minCoveragePercent: 0,
     });
-    expect(freeText.breakdown.find((b) => b.component === 'activeStrategyTarget')?.credit).toBeNull();
+    expect(
+      freeText.breakdown.find((b) => b.component === 'activeStrategyTarget')?.credit,
+    ).toBeNull();
   });
 
   test('explicit engagement with district office scores; unrelated meeting does not', () => {
@@ -225,10 +227,7 @@ describe('district-nexus-strategic linking rules', () => {
   });
 
   test('service source enforces tenant_id on sp_* and engagement raw paths', () => {
-    const src = readFileSync(
-      join(__dirname, 'district-nexus-strategic.service.ts'),
-      'utf8',
-    );
+    const src = readFileSync(join(__dirname, 'district-nexus-strategic.service.ts'), 'utf8');
     // Every sp_strategy / sp_node read must mention tenant_id.
     expect(src).toMatch(/FROM sp_strategy s[\s\S]*tenant_id/);
     expect(src).toMatch(/s\.tenant_id = \$\{tenantId\}/);
@@ -237,17 +236,16 @@ describe('district-nexus-strategic linking rules', () => {
     expect(src).not.toMatch(/includes\(.*memberName/);
     expect(src).not.toMatch(/goal\.toLowerCase\(\)|meri_context\.toLowerCase\(\)/);
     // Archived clients contribute nothing.
-    expect(src).toMatch(/status === 'archived'|status: \{ not: 'archived' \}|status !== 'archived'/);
+    expect(src).toMatch(
+      /status === 'archived'|status: \{ not: 'archived' \}|status !== 'archived'/,
+    );
   });
 
   test('exact member/committee identifiers are preferred in strategy target_ref parser path', () => {
-    const src = readFileSync(
-      join(__dirname, 'district-nexus-strategic.service.ts'),
-      'utf8',
-    );
+    const src = readFileSync(join(__dirname, 'district-nexus-strategic.helpers.ts'), 'utf8');
     expect(src).toMatch(/memberId/);
     expect(src).toMatch(/systemCode|bioguideId/);
-    // Must reject free-text-only target_ref
+    // Must reject free-text-only target_ref in the extracted pure assembly path.
     expect(src).toMatch(/if \(!parsed\.memberId && !parsed\.systemCode\) continue/);
   });
 });

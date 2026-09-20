@@ -14,7 +14,12 @@ export interface DnxIconProps {
   style?: CSSProperties;
 }
 
-function Glyph({ size = 1, className = '', style, children }: DnxIconProps & { children: ReactNode }) {
+function Glyph({
+  size = 1,
+  className = '',
+  style,
+  children,
+}: DnxIconProps & { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -58,15 +63,6 @@ export function DnxClockIcon(props: DnxIconProps) {
     <Glyph {...props}>
       <circle cx="12" cy="12" r="8.75" />
       <path d="M12 7.5V12l3 2" />
-    </Glyph>
-  );
-}
-
-export function DnxMapPinIcon(props: DnxIconProps) {
-  return (
-    <Glyph {...props}>
-      <path d="M12 21s-6.75-5.2-6.75-10.25a6.75 6.75 0 0 1 13.5 0C18.75 15.8 12 21 12 21Z" />
-      <circle cx="12" cy="10.5" r="2.5" />
     </Glyph>
   );
 }

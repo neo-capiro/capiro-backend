@@ -12,21 +12,17 @@ import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
  */
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import {
   scoreStrategicRelevance,
   type StrategicComponentInput,
-  type StrategicEvidenceStrength,
 } from './district-nexus-strategic-scoring.js';
 import { buildGapsResponse, type DistrictGapInput } from './district-nexus-strategic-gaps.js';
 import {
-  DEFENSE_BUDGET_COMMITTEE_CODES,
   STRATEGIC_DEFAULT_MIN_COVERAGE_PERCENT,
   STRATEGIC_SCORE_VERSION,
-  type StrategicComponentKey,
 } from './district-nexus-strategic-weights.js';
 import type {
   ClientDistrictStrategicGapsResponse,
@@ -36,10 +32,17 @@ import type {
   StrategicEvidence,
 } from './district-nexus-strategic.types.js';
 import type { SourceFreshness } from './district-nexus.types.js';
+import { normalizeDistrictForCensus } from '../common/district-code.util.js';
 import {
-  districtCodeForHouseMatch,
-  normalizeDistrictForCensus,
-} from '../common/district-code.util.js';
+  STATE_CODE_TO_NAME,
+  STATE_NAME_TO_CODE,
+  assembleStrategicPostQuery,
+  buildDistrictStrategicComponents,
+  districtKeyOf,
+  type StrategicBuilderBundle,
+  type StrategicClientPeRow,
+  type StrategicMemberRow,
+} from './district-nexus-strategic.helpers.js';
 import { currentCongressNumber } from '../common/congress.util.js';
 import { loadPriorityMemberDirectory } from './priority-intelligence/priority-intelligence-member-directory.js';
 import {
@@ -50,195 +53,16 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** US state full name → 2-letter (congress_member.state stores full names). */
-const STATE_NAME_TO_CODE: Readonly<Record<string, string>> = Object.freeze({
-  Alabama: 'AL',
-  Alaska: 'AK',
-  Arizona: 'AZ',
-  Arkansas: 'AR',
-  California: 'CA',
-  Colorado: 'CO',
-  Connecticut: 'CT',
-  Delaware: 'DE',
-  Florida: 'FL',
-  Georgia: 'GA',
-  Hawaii: 'HI',
-  Idaho: 'ID',
-  Illinois: 'IL',
-  Indiana: 'IN',
-  Iowa: 'IA',
-  Kansas: 'KS',
-  Kentucky: 'KY',
-  Louisiana: 'LA',
-  Maine: 'ME',
-  Maryland: 'MD',
-  Massachusetts: 'MA',
-  Michigan: 'MI',
-  Minnesota: 'MN',
-  Mississippi: 'MS',
-  Missouri: 'MO',
-  Montana: 'MT',
-  Nebraska: 'NE',
-  Nevada: 'NV',
-  'New Hampshire': 'NH',
-  'New Jersey': 'NJ',
-  'New Mexico': 'NM',
-  'New York': 'NY',
-  'North Carolina': 'NC',
-  'North Dakota': 'ND',
-  Ohio: 'OH',
-  Oklahoma: 'OK',
-  Oregon: 'OR',
-  Pennsylvania: 'PA',
-  'Rhode Island': 'RI',
-  'South Carolina': 'SC',
-  'South Dakota': 'SD',
-  Tennessee: 'TN',
-  Texas: 'TX',
-  Utah: 'UT',
-  Vermont: 'VT',
-  Virginia: 'VA',
-  Washington: 'WA',
-  'West Virginia': 'WV',
-  Wisconsin: 'WI',
-  Wyoming: 'WY',
-  'District of Columbia': 'DC',
-  'Puerto Rico': 'PR',
-  Guam: 'GU',
-  'American Samoa': 'AS',
-  'Northern Mariana Islands': 'MP',
-  'Virgin Islands': 'VI',
-});
+type MemberRow = StrategicMemberRow;
 
-const STATE_CODE_TO_NAME: Readonly<Record<string, string>> = Object.freeze(
-  Object.fromEntries(Object.entries(STATE_NAME_TO_CODE).map(([n, c]) => [c, n])),
-);
-
-interface MemberRow {
-  bioguideId: string;
-  fullName: string;
-  party: string | null;
-  state: string | null;
-  district: number | null;
-  chamber: string;
-}
-
-interface MembershipRow {
-  bioguideId: string;
-  systemCode: string;
-  committeeName: string;
-  parentSystemCode: string | null;
-  title: string | null;
-}
-
-interface ClientPeRow {
-  peCode: string;
-  title: string | null;
-  score: number;
-  paths: Array<{ path: string; score: number; evidence: string[] }>;
-}
-
-interface CapabilityTargetRow {
-  targetSubcommittee: string | null;
-  peNumbers: string[];
-  peNumber: string | null;
-}
-
-interface TrackedBillLink {
-  billId: string;
-  title: string | null;
-  status: string | null;
-  sponsorBioguideId: string | null;
-  cosponsorBioguides: string[];
-  committeeCodes: string[];
-  latestActionDate: string | null;
-  peCodes: string[];
-}
-
-interface StrategyTargetRow {
-  strategyId: string;
-  strategyTitle: string;
-  nodeId: string;
-  nodeTitle: string;
-  subject: string;
-  memberId: string | null;
-  systemCode: string | null;
-}
-
-interface EngagementFact {
-  kind: 'client_target' | 'report_target' | 'shared_meeting' | 'outreach';
-  memberId: string;
-  label: string;
-  sourceRecordId: string;
-  observedAt: string | null;
-}
-
-interface HearingLink {
-  hearingId: string;
-  title: string;
-  committeeCode: string | null;
-  startsAt: string | null;
-  billId: string | null;
-}
-
-interface ClientBundle {
+interface ClientBundle extends StrategicBuilderBundle {
   clientId: string;
   clientName: string;
   archived: boolean;
-  relevantPes: ClientPeRow[];
-  capabilityTargets: CapabilityTargetRow[];
-  membershipsByBioguide: Map<string, MembershipRow[]>;
-  trackedBills: TrackedBillLink[];
-  strategyTargets: StrategyTargetRow[];
-  engagements: EngagementFact[];
-  hearings: HearingLink[];
   membersByDistrict: Map<string, MemberRow[]>;
-  allMembers: MemberRow[];
-  opportunityDistrictKeys: Set<string>;
   freshness: SourceFreshness[];
   conflicts: StrategicConflictWarning[];
   geographyVintageConflicts: Set<string>;
-}
-
-function districtKeyOf(stateCode: string, districtCode: string): string {
-  const d = normalizeDistrictForCensus(districtCode) || districtCode;
-  const padded = d === 'AL' || d === '' ? '00' : d.padStart(2, '0');
-  return `${stateCode.toUpperCase()}-${padded}`;
-}
-
-function memberDistrictKeys(m: MemberRow): string[] {
-  if (!m.state) return [];
-  const code = STATE_NAME_TO_CODE[m.state] ?? (m.state.length === 2 ? m.state.toUpperCase() : null);
-  if (!code) return [];
-  if (m.chamber === 'senate') {
-    // Senate represents the whole state — attach via bioguide at score time;
-    // district list is house-keyed.
-    return [];
-  }
-  const raw = m.district == null || m.district === 0 ? '00' : String(m.district).padStart(2, '0');
-  const houseCode = districtCodeForHouseMatch(raw);
-  if (!houseCode) return [];
-  return [districtKeyOf(code, houseCode)];
-}
-
-function parseTargetRef(raw: unknown): { memberId: string | null; systemCode: string | null } {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { memberId: null, systemCode: null };
-  }
-  const o = raw as Record<string, unknown>;
-  const memberId =
-    typeof o.memberId === 'string' && o.memberId.trim()
-      ? o.memberId.trim()
-      : typeof o.bioguideId === 'string' && o.bioguideId.trim()
-        ? o.bioguideId.trim()
-        : null;
-  const systemCode =
-    typeof o.systemCode === 'string' && o.systemCode.trim()
-      ? o.systemCode.trim().toLowerCase()
-      : typeof o.committeeSystemCode === 'string' && o.committeeSystemCode.trim()
-        ? o.committeeSystemCode.trim().toLowerCase()
-        : null;
-  return { memberId, systemCode };
 }
 
 @Injectable()
@@ -384,357 +208,16 @@ export class DistrictNexusStrategicService {
   // ── Scoring (pure over bundle) ────────────────────────────────────────────
 
   private async scoreDistrict(bundle: ClientBundle, districtKey: string, members: MemberRow[]) {
-    const bioguides = new Set(members.map((m) => m.bioguideId));
-    // Senators for the state also count for bill/strategy/engagement links.
-    const [stateCode] = districtKey.split('-');
-    for (const m of bundle.allMembers) {
-      if (
-        m.chamber === 'senate' &&
-        (STATE_NAME_TO_CODE[m.state ?? ''] === stateCode || m.state === stateCode)
-      ) {
-        bioguides.add(m.bioguideId);
-      }
-    }
-
-    const components: Partial<Record<StrategicComponentKey, StrategicComponentInput>> = {};
+    const { identity, components } = buildDistrictStrategicComponents(bundle, districtKey, members);
     const conflicts = [...bundle.conflicts];
 
-    // ── Committee jurisdiction ────────────────────────────────────────────
-    {
-      const evidence: StrategicEvidence[] = [];
-      let strength: StrategicEvidenceStrength = 'absent';
-      const targetSubs = new Set(
-        bundle.capabilityTargets
-          .map((c) => c.targetSubcommittee?.trim().toLowerCase())
-          .filter((s): s is string => Boolean(s)),
-      );
-      const defenseCodes = new Set<string>(Object.values(DEFENSE_BUDGET_COMMITTEE_CODES));
-
-      for (const bg of bioguides) {
-        const seats = bundle.membershipsByBioguide.get(bg) ?? [];
-        for (const seat of seats) {
-          const code = seat.systemCode.toLowerCase();
-          const parent = seat.parentSystemCode?.toLowerCase() ?? null;
-          const explicitTarget = targetSubs.has(code) || (parent != null && targetSubs.has(parent));
-          const peLinkedDefense =
-            bundle.relevantPes.length > 0 &&
-            (defenseCodes.has(code) || (parent != null && defenseCodes.has(parent)));
-
-          if (explicitTarget || peLinkedDefense) {
-            strength = explicitTarget
-              ? 'verified'
-              : strength === 'verified'
-                ? 'verified'
-                : 'sourceAuthoritative';
-            const member = members.find((m) => m.bioguideId === bg);
-            evidence.push({
-              component: 'committeeJurisdiction',
-              sourceType: 'congress_committee_membership',
-              label: `${member?.fullName ?? bg} · ${seat.committeeName}`,
-              sourceRecordId: `${seat.systemCode}:${bg}`,
-              observedAt: null,
-              summary: explicitTarget
-                ? `Member sits on client-targeted committee/subcommittee ${seat.systemCode}.`
-                : `Member sits on defense budget committee ${seat.systemCode} with client PE relevance.`,
-              refs: {
-                bioguideId: bg,
-                systemCode: seat.systemCode,
-                committeeName: seat.committeeName,
-                title: seat.title,
-              },
-            });
-          }
-        }
-      }
-
-      // Membership alone with no PE/target link does NOT score (and does not create nexus).
-      components.committeeJurisdiction = {
-        strength,
-        evidenceCount: evidence.length,
-        evidence,
-        rationale:
-          strength === 'absent'
-            ? 'No structured committee link to client PE relevance or capability targetSubcommittee.'
-            : `Structured committee membership linked to client strategic targets (${evidence.length}).`,
-      };
-    }
-
-    // ── Program Element / budget ──────────────────────────────────────────
-    {
-      const evidence: StrategicEvidence[] = [];
-      let strength: StrategicEvidenceStrength = 'absent';
-      const hasRelevantCommittee =
-        (components.committeeJurisdiction?.strength ?? 'absent') !== 'absent';
-
-      if (bundle.relevantPes.length === 0) {
-        strength = 'absent';
-      } else if (hasRelevantCommittee) {
-        // PE relevance + member on jurisdiction committee.
-        const top = bundle.relevantPes.slice(0, 5);
-        for (const pe of top) {
-          const direct = pe.paths.some((p) => p.path === 'capability_pe_direct');
-          strength = direct
-            ? 'verified'
-            : strength === 'verified'
-              ? 'verified'
-              : 'sourceAuthoritative';
-          evidence.push({
-            component: 'programElementBudget',
-            sourceType: 'client_pe_relevance',
-            label: `PE ${pe.peCode}${pe.title ? ` · ${pe.title}` : ''}`,
-            sourceRecordId: pe.peCode,
-            observedAt: null,
-            summary: `Client PE relevance ${pe.score.toFixed(2)} via ${pe.paths.map((p) => p.path).join(', ')}; member holds related committee seat.`,
-            refs: { peCode: pe.peCode, peScore: pe.score },
-          });
-        }
-      } else {
-        // Relevant PEs exist but no committee bridge for this district — missing, not zero-from-irrelevant.
-        strength = 'absent';
-      }
-
-      components.programElementBudget = {
-        strength,
-        evidenceCount: evidence.length,
-        evidence,
-        rationale:
-          strength === 'absent'
-            ? bundle.relevantPes.length === 0
-              ? 'No client PE relevance at the configured floor.'
-              : "Client has PE relevance, but this district's members lack a structured committee jurisdiction bridge."
-            : `Client PE relevance bridged through committee membership (${evidence.length} PE(s)).`,
-      };
-    }
-
-    // ── Active legislation (tracked bills) ────────────────────────────────
-    {
-      const evidence: StrategicEvidence[] = [];
-      let strength: StrategicEvidenceStrength = 'absent';
-
-      for (const bill of bundle.trackedBills) {
-        const isSponsor = bill.sponsorBioguideId != null && bioguides.has(bill.sponsorBioguideId);
-        const isCosponsor = bill.cosponsorBioguides.some((b) => bioguides.has(b));
-        const committeeOverlap = bill.committeeCodes.some((code) => {
-          for (const bg of bioguides) {
-            const seats = bundle.membershipsByBioguide.get(bg) ?? [];
-            if (seats.some((s) => s.systemCode.toLowerCase() === code.toLowerCase())) return true;
-          }
-          return false;
-        });
-
-        if (!isSponsor && !isCosponsor && !committeeOverlap) continue;
-
-        if (isSponsor) strength = 'verified';
-        else if (strength !== 'verified')
-          strength = isCosponsor ? 'sourceAuthoritative' : 'partial';
-
-        const role = isSponsor ? 'sponsor' : isCosponsor ? 'cosponsor' : 'committee referral';
-        evidence.push({
-          component: 'activeLegislation',
-          sourceType: 'tracked_bill',
-          label: bill.title ? `${bill.billId} · ${bill.title}` : bill.billId,
-          sourceRecordId: bill.billId,
-          observedAt: bill.latestActionDate,
-          summary: `Tracked bill linked as ${role}${bill.status ? ` (stage: ${bill.status})` : ''}.`,
-          refs: {
-            billId: bill.billId,
-            role,
-            status: bill.status,
-          },
-        });
-      }
-
-      components.activeLegislation = {
-        strength,
-        evidenceCount: evidence.length,
-        evidence,
-        rationale:
-          strength === 'absent'
-            ? "No tracked bill with sponsor/cosponsor/committee referral link to this district's members."
-            : `Tracked legislation with structured member links (${evidence.length}).`,
-      };
-    }
-
-    // ── Strategy / tactic targets ─────────────────────────────────────────
-    {
-      const evidence: StrategicEvidence[] = [];
-      let strength: StrategicEvidenceStrength = 'absent';
-
-      for (const s of bundle.strategyTargets) {
-        const memberHit = s.memberId != null && bioguides.has(s.memberId);
-        let committeeHit = false;
-        if (s.systemCode) {
-          for (const bg of bioguides) {
-            const seats = bundle.membershipsByBioguide.get(bg) ?? [];
-            if (seats.some((seat) => seat.systemCode.toLowerCase() === s.systemCode)) {
-              committeeHit = true;
-              break;
-            }
-          }
-        }
-        // subject === 'member' | 'committee' alone is not enough without target_ref ids.
-        if (!memberHit && !committeeHit) continue;
-
-        strength = memberHit ? 'verified' : 'sourceAuthoritative';
-        evidence.push({
-          component: 'activeStrategyTarget',
-          sourceType: 'sp_node',
-          label: `${s.strategyTitle} · ${s.nodeTitle}`,
-          sourceRecordId: s.nodeId,
-          observedAt: null,
-          summary: memberHit
-            ? `Live strategy node explicitly targets member ${s.memberId}.`
-            : `Live strategy node explicitly targets committee ${s.systemCode}.`,
-          refs: {
-            strategyId: s.strategyId,
-            nodeId: s.nodeId,
-            subject: s.subject,
-            memberId: s.memberId,
-            systemCode: s.systemCode,
-          },
-        });
-      }
-
-      components.activeStrategyTarget = {
-        strength,
-        evidenceCount: evidence.length,
-        evidence,
-        rationale:
-          strength === 'absent'
-            ? 'No live strategy/tactic node with structured target_ref to this member/committee.'
-            : `Explicit strategy targets (${evidence.length}).`,
-      };
-    }
-
-    // ── Engagement / relationship ─────────────────────────────────────────
-    {
-      const evidence: StrategicEvidence[] = [];
-      let strength: StrategicEvidenceStrength = 'absent';
-
-      for (const e of bundle.engagements) {
-        if (!bioguides.has(e.memberId)) continue;
-        if (e.kind === 'client_target')
-          strength = strength === 'partial' ? 'sourceAuthoritative' : 'verified';
-        else if (strength === 'absent')
-          strength = e.kind === 'shared_meeting' ? 'sourceAuthoritative' : 'partial';
-        else if (strength === 'partial') strength = 'sourceAuthoritative';
-
-        evidence.push({
-          component: 'relationshipEngagement',
-          sourceType: e.kind,
-          label: e.label,
-          sourceRecordId: e.sourceRecordId,
-          observedAt: e.observedAt,
-          summary:
-            e.kind === 'shared_meeting'
-              ? 'Shared meeting held with office (details redacted).'
-              : e.kind === 'client_target'
-                ? 'Client target saved for this member/office.'
-                : `Structured ${e.kind} linked to member office.`,
-          refs: { memberId: e.memberId, kind: e.kind },
-        });
-      }
-
-      components.relationshipEngagement = {
-        strength,
-        evidenceCount: evidence.length,
-        evidence,
-        rationale:
-          strength === 'absent'
-            ? "No structured engagement/target tied to this district's member office."
-            : `Relationship facts tied to member office (${evidence.length}).`,
-      };
-    }
-
-    // ── Hearings ──────────────────────────────────────────────────────────
-    {
-      const evidence: StrategicEvidence[] = [];
-      let strength: StrategicEvidenceStrength = 'absent';
-      const trackedBillIds = new Set(bundle.trackedBills.map((b) => b.billId));
-
-      for (const h of bundle.hearings) {
-        const billRelevant = h.billId != null && trackedBillIds.has(h.billId);
-        let committeeMember = false;
-        if (h.committeeCode) {
-          const code = h.committeeCode.toLowerCase();
-          for (const bg of bioguides) {
-            const seats = bundle.membershipsByBioguide.get(bg) ?? [];
-            if (seats.some((s) => s.systemCode.toLowerCase() === code)) {
-              committeeMember = true;
-              break;
-            }
-          }
-        }
-        // Hearing contributes only when tied to relevant tracked bill AND member committee link.
-        if (!billRelevant || !committeeMember) continue;
-        strength = 'sourceAuthoritative';
-        evidence.push({
-          component: 'hearingTiming',
-          sourceType: 'committee_hearing',
-          label: h.title,
-          sourceRecordId: h.hearingId,
-          observedAt: h.startsAt,
-          summary: `Hearing on tracked bill ${h.billId} before a committee this member sits on.`,
-          refs: {
-            hearingId: h.hearingId,
-            billId: h.billId,
-            committeeCode: h.committeeCode,
-          },
-        });
-      }
-
-      components.hearingTiming = {
-        strength,
-        evidenceCount: evidence.length,
-        evidence,
-        rationale:
-          strength === 'absent'
-            ? 'No hearing with both a client-tracked bill link and member committee participation.'
-            : `Strategic hearing timing (${evidence.length}).`,
-      };
-    }
-
-    // ── Opportunity / funding (reuse nexus opportunity separation — district keys only) ──
-    {
-      const hasOpp = bundle.opportunityDistrictKeys.has(districtKey);
-      components.opportunityFunding = {
-        strength: hasOpp ? 'partial' : 'absent',
-        evidenceCount: hasOpp ? 1 : 0,
-        evidence: hasOpp
-          ? [
-              {
-                component: 'opportunityFunding',
-                sourceType: 'grant_opportunity_candidate',
-                label: 'Client-linked grant opportunity in district',
-                sourceRecordId: districtKey,
-                observedAt: null,
-                summary:
-                  'Client has a structured opportunity candidate attributed to this district (forecast — not awarded).',
-              },
-            ]
-          : [],
-        rationale: hasOpp
-          ? 'Structured opportunity candidate present for this district.'
-          : 'No structured opportunity candidate for this district.',
-      };
-    }
-
-    // ── Member historical priorities / CPF-CDS (Release 4 wiring) ──────────
-    // Structured CPF/CDS evidence now exists in community_funding_request.
-    // Qualifying, deterministic evidence feeds full credit; the corpus being
-    // absent stays 'unavailable' (coverage gap, not zero). Requests attribute
-    // to members only when the source requester name resolves uniquely and
-    // the source geography is compatible with their representation. Requested dollars are
-    // member-priority CONTEXT — they never enter Nexus Strength and never
-    // count as awarded money.
-    {
-      const bundle3 = await this.loadMemberPriorityEvidence(
-        bioguides,
-        stateCode ?? '',
-        districtKey,
-      );
-      components.memberHistoricalPriorities = bundle3;
-    }
+    // Member-priority evidence is the only asynchronous component load. It
+    // remains in the service, and requested dollars never enter Nexus Strength.
+    components.memberHistoricalPriorities = await this.loadMemberPriorityEvidence(
+      identity.bioguides,
+      identity.stateCode ?? '',
+      districtKey,
+    );
 
     if (bundle.geographyVintageConflicts.has(districtKey)) {
       conflicts.push({
@@ -743,6 +226,7 @@ export class DistrictNexusStrategicService {
       });
     }
 
+    // Strategic Relevance is scored here and remains separate from Nexus Strength.
     return scoreStrategicRelevance({
       components,
       freshness: bundle.freshness,
@@ -778,7 +262,7 @@ export class DistrictNexusStrategicService {
       clientId,
       { minScore: 0.5, page: 1, limit: 100 },
     );
-    const relevantPes: ClientPeRow[] = pePage.data.map((r) => ({
+    const relevantPes: StrategicClientPeRow[] = pePage.data.map((r) => ({
       peCode: r.peCode,
       title: r.title,
       score: r.score,
@@ -978,139 +462,27 @@ export class DistrictNexusStrategicService {
         })
       : [];
 
-    const cosponsorsByBill = new Map<string, string[]>();
-    for (const c of cosponsors) {
-      const list = cosponsorsByBill.get(c.billId) ?? [];
-      list.push(c.bioguideId);
-      cosponsorsByBill.set(c.billId, list);
-    }
-    const committeesByBill = new Map<string, string[]>();
-    for (const c of billCommittees) {
-      if (!c.committeeCode) continue;
-      const list = committeesByBill.get(c.billId) ?? [];
-      list.push(c.committeeCode);
-      committeesByBill.set(c.billId, list);
-    }
-
-    const trackedBills: TrackedBillLink[] = bills.map((b) => ({
-      billId: b.id,
-      title: b.title,
-      status: b.status,
-      sponsorBioguideId: b.sponsorBioguideId,
-      cosponsorBioguides: cosponsorsByBill.get(b.id) ?? [],
-      committeeCodes: committeesByBill.get(b.id) ?? [],
-      latestActionDate: b.latestActionDate ? b.latestActionDate.toISOString() : null,
-      peCodes: b.peCodes ?? [],
-    }));
-
-    const membershipsByBioguide = new Map<string, MembershipRow[]>();
-    for (const m of memberships) {
-      if (m.committee && m.committee.isCurrent === false) continue;
-      const row: MembershipRow = {
-        bioguideId: m.bioguideId,
-        systemCode: m.systemCode,
-        committeeName: m.committee?.name ?? m.systemCode,
-        parentSystemCode: m.committee?.parentSystemCode ?? null,
-        title: m.title,
-      };
-      const list = membershipsByBioguide.get(m.bioguideId) ?? [];
-      list.push(row);
-      membershipsByBioguide.set(m.bioguideId, list);
-    }
-
-    const strategyTargets: StrategyTargetRow[] = [];
-    for (const s of tenantOwned.strategyRows) {
-      const parsed = parseTargetRef(s.targetRef);
-      // Free-text-only rows (no memberId/systemCode) earn nothing.
-      if (!parsed.memberId && !parsed.systemCode) continue;
-      strategyTargets.push({
-        strategyId: s.strategyId,
-        strategyTitle: s.strategyTitle,
-        nodeId: s.nodeId,
-        nodeTitle: s.nodeTitle,
-        subject: s.subject,
-        memberId: parsed.memberId,
-        systemCode: parsed.systemCode,
-      });
-    }
-
-    const engagements: EngagementFact[] = [];
-    for (const t of tenantOwned.targets) {
-      engagements.push({
-        kind: 'client_target',
-        memberId: t.memberId,
-        label: t.memberName ? `Target: ${t.memberName}` : `Target: ${t.memberId}`,
-        sourceRecordId: t.id,
-        observedAt: t.addedAt.toISOString(),
-      });
-    }
-    for (const r of tenantOwned.reportTargets) {
-      // memberPrincipal is the bioguide/directory id when structured.
-      if (!r.memberPrincipal?.trim()) continue;
-      engagements.push({
-        kind: 'report_target',
-        memberId: r.memberPrincipal.trim(),
-        label: `Engagement report office ${r.officeKey}`,
-        sourceRecordId: r.id,
-        observedAt: r.updatedAt.toISOString(),
-      });
-    }
-    // Shared meetings: only when attendee metadata carries a bioguide/member id.
-    for (const mtg of tenantOwned.sharedMeetings) {
-      for (const a of mtg.attendees) {
-        const meta = (a.metadata ?? {}) as Record<string, unknown>;
-        const memberId =
-          typeof meta.bioguideId === 'string'
-            ? meta.bioguideId
-            : typeof meta.memberId === 'string'
-              ? meta.memberId
-              : null;
-        if (!memberId) continue;
-        engagements.push({
-          kind: 'shared_meeting',
-          memberId,
-          label: 'Shared meeting with office',
-          sourceRecordId: mtg.id,
-          observedAt: mtg.startsAt.toISOString(),
-        });
-      }
-    }
-    for (const o of tenantOwned.outreach) {
-      const meta = (o.metadata ?? {}) as Record<string, unknown>;
-      const memberId =
-        typeof meta.bioguideId === 'string'
-          ? meta.bioguideId
-          : typeof meta.memberId === 'string'
-            ? meta.memberId
-            : null;
-      if (!memberId) continue;
-      engagements.push({
-        kind: 'outreach',
-        memberId,
-        label: o.title || 'Outreach to office',
-        sourceRecordId: o.id,
-        observedAt: o.sentAt ? o.sentAt.toISOString() : null,
-      });
-    }
-
-    const hearingBillByHearing = new Map<string, string>();
-    for (const hb of hearingBills) hearingBillByHearing.set(hb.hearingId, hb.billId);
-    const hearingLinks: HearingLink[] = hearings.map((h) => ({
-      hearingId: h.id,
-      title: h.title,
-      committeeCode: h.committeeCode,
-      startsAt: h.startsAt ? h.startsAt.toISOString() : h.date ? h.date.toISOString() : null,
-      billId: hearingBillByHearing.get(h.id) ?? null,
-    }));
-
-    const membersByDistrict = new Map<string, MemberRow[]>();
-    for (const m of allCurrentMembers) {
-      for (const key of memberDistrictKeys(m)) {
-        const list = membersByDistrict.get(key) ?? [];
-        list.push(m);
-        membersByDistrict.set(key, list);
-      }
-    }
+    const {
+      trackedBills,
+      membershipsByBioguide,
+      strategyTargets,
+      engagements,
+      hearingLinks,
+      membersByDistrict,
+    } = assembleStrategicPostQuery({
+      bills,
+      cosponsors,
+      billCommittees,
+      memberships,
+      strategyRows: tenantOwned.strategyRows,
+      targets: tenantOwned.targets,
+      reportTargets: tenantOwned.reportTargets,
+      sharedMeetings: tenantOwned.sharedMeetings,
+      outreach: tenantOwned.outreach,
+      hearingBills,
+      hearings,
+      allCurrentMembers,
+    });
 
     // Ensure districts that appear only via nexus (facilities/awards) are present
     // even if we will attach senators at score time — house map is the primary set.

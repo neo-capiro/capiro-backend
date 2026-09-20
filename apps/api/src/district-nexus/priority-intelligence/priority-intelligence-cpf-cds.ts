@@ -395,13 +395,4 @@ export function aggregateMemberPriorities(
   };
 }
 
-/** Severity decision for a CPF/CDS change — delegates to the central policy. */
-export function cpfCdsChangeKindFromRow(
-  previous: { requestedAmountUsd: string | null; finalAmountUsd: string | null } | null,
-  current: { requestedAmountUsd: string | null; finalAmountUsd: string | null },
-): 'cpf_cds_request_new' | 'cpf_cds_amount_stage_correction' {
-  if (previous == null) return 'cpf_cds_request_new';
-  return 'cpf_cds_amount_stage_correction';
-}
-
 export type { DistrictNexusChangeSeverity };

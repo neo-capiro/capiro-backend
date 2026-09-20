@@ -8,11 +8,14 @@ on:
       - 'apps/web/public/meri-icons/**'
       - 'apps/web/public/meri-manifest.json'
       - 'apps/web/src/main.tsx'
+      - 'apps/web/src/App.tsx'
       - 'apps/web/src/vnext/**'
+      - 'apps/web/src/pages/intelligence/district-nexus/**'
       - 'apps/web/src/components/chat/**'
       - 'apps/web/src/env.ts'
       - 'apps/web/nginx/**'
       - 'apps/web/Dockerfile'
+      - 'apps/web/vite.config.ts'
       - 'packages/shared/**'
       - 'packages/strategy-verifier/**'
       - 'pnpm-lock.yaml'
@@ -81,6 +84,7 @@ jobs:
           # Match the Docker build budget: Rollup chunk rendering exceeds
           # Node's default heap before the image/deploy steps can run.
           NODE_OPTIONS: --max-old-space-size=6144
+          CAPIRO_WEB_BUILD_SURFACE: vnext
         run: pnpm --filter @capiro/web build
 
       - name: Configure AWS credentials
@@ -209,6 +213,7 @@ jobs:
           no-cache-filters: build
           build-args: |
             GIT_SHA=${{ github.sha }}
+            CAPIRO_WEB_BUILD_SURFACE=vnext
           tags: |
             ${{ steps.target.outputs.repo_uri }}:${{ github.sha }}
             ${{ steps.target.outputs.repo_uri }}:latest
@@ -360,4 +365,3 @@ jobs:
           echo "- Port / health: \`$EXPECTED_CONTAINER_PORT$EXPECTED_HEALTH_PATH\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Release: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Image: \`${{ steps.deploy.outputs.image }}\`" >> "$GITHUB_STEP_SUMMARY"
-
