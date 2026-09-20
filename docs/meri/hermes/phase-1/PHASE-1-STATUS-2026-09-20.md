@@ -5,9 +5,11 @@ older document disagrees about V4, E-6, E-8, CI-4, C-11 or the production state,
 
 ## Verdict
 
-**Phase 1 is not complete, and the reason is now a decision rather than a backlog.** Of the seven
-items open at handover, **five are closed**, one is **partial**, and **V5–V7 are blocked by an
-architectural constraint the operator has explicitly declined to work around.**
+**Phase 1 is not complete, but what remains is precisely bounded rather than vague.** Of the seven
+items open at handover, six are closed or substantially achieved, plus P2-02 (the last authorization
+gap) fixed. **V5 is one correct worker token away, V7 is one throwaway pilot user away, and V6 is
+deliberately not being closed** — see the update section at the end of this file, which supersedes
+anything above it where they disagree.
 
 | # | Item | Was | Now |
 |---|---|---|---|
@@ -16,8 +18,11 @@ architectural constraint the operator has explicitly declined to work around.**
 | **E-6** | Artifact through the configured object store | open | **PASS** — real MinIO round-trip |
 | **E-8** | Rollback rehearsal | documented, never exercised | **PASS** — exercised on production |
 | **CI-4** | `app.module.spec.ts` can collect | open | **PASS** — collects and passes |
-| **E-7** | Browser evidence of the end-to-end experience | open | **PARTIAL** — see below |
-| **V5–V7** | Cancellation, orphan cleanup, isolation | open | **BLOCKED** — `v5-v7-blocked-on-resolver-binding.md` |
+| **E-7** | Browser evidence of the end-to-end experience | open | **SUBSTANTIALLY ACHIEVED** — a real production turn routed to `runtime: "hermes"` through a live browser session; gate observed transitioning 404 → 503 → 200. `evidence/pilot-window/` |
+| **P2-02** | `ContextPlaneRecallPort` ignored `authorizedClientIds` | open | **FIXED** — envelope is now the ceiling, 404-not-403, unscoped recalls post-filtered, count leak closed |
+| **V5** | Cancellation/revocation reaching the worker | open | **NOT DEMONSTRATED** — the run fenced in ~1.2 s so it was never live long enough to stop. See below |
+| **V7** | Isolation on real infrastructure | open | **NOT RUN** — needs a second identity that cannot be produced here |
+| **V6** | Failed-provisioning / orphan cleanup | open | **BLOCKED by design** — `v5-v7-blocked-on-resolver-binding.md` |
 
 ## Convergence run (one revision, `56d97272`)
 
@@ -99,9 +104,9 @@ Earlier resources (ECR repo, worker images, log group, the two `capiro-hermesval
 
 ## What the next session should do
 
-1. **Do not** try to close V5–V7 by granting the production API role `ecs:RegisterTaskDefinition`.
-   Read `v5-v7-blocked-on-resolver-binding.md` first; the recommended fix is a second binding for
-   `MERI_HERMES_WORKER_RESOLVER`, which is small and unblocks V5–V7 with zero new permissions.
+1. **Do not** try to close **V6** by granting the production API role `ecs:RegisterTaskDefinition` +
+   `iam:PassRole`. Read `v5-v7-blocked-on-resolver-binding.md` first. (V5 and V7 never needed that —
+   `MERI_HERMES_SCOPE_RUNTIMES` already bypasses the resolver; see the update section.)
 2. Re-run the ancestor check **through `describe-services`, twice**, immediately before any deploy.
    It changed three times in one session.
 3. `main`'s two failing `src/meri` suites are unrelated to this branch but will pollute any broad
@@ -117,3 +122,49 @@ the 50% ceiling). Every result was independently re-verified here before being c
 three reports omitted the non-vacuity evidence they were asked for, and E-6's report gave a test count
 that did not distinguish a real MinIO run from a silent skip. Both turned out fine on inspection, but
 only because they were checked rather than taken at face value.
+
+---
+
+# Update — after the live pilot window (2026-09-20, later the same day)
+
+The branch was **merged** (PR #1708, merge commit `fb6a2c58`, deliberately a merge and not a squash so
+the deployed commit `56d97272` is genuinely in `main`'s history and the ancestor check passes). The
+gate was then opened for `capiro-internal` only and closed again. Full detail in
+`evidence/pilot-window/`.
+
+## What the window proved
+
+- **The three-key gate is real.** With keys 1 and 2 open and the per-tenant flag false, the surface
+  still returned **404**. Two of three is closed.
+- **No silent fallback.** With all three open and the worker unreachable, the turn surfaced **503**
+  rather than quietly routing to legacy — the documented contract, confirmed in production.
+- **A genuine production turn ran on Hermes:** `{"type":"start","runtime":"hermes",…}`, reaching the
+  worker and creating a real `hermesRunId`.
+- **The authorization fencing fired on real infrastructure.** The worker held a deliberately
+  placeholder `authorizationVersion`; the broker refused it and the run ended `interrupted` /
+  `partial: true` — never silently to success. That is F-1/F-2 demonstrated outside a mock.
+- **P2-02 is fixed** — the last open authorization gap. The recall rail may now be called
+  envelope-enforced, which it could not be that morning.
+
+## What it did not prove, and why
+
+**V5** needs a worker token carrying the *correct* `authorizationVersion`, which is derived
+server-side from the live security envelope. Every route to one was refused, each correctly:
+recomputing it meant bulk-reading the tenant's client list (PII), and the ECS provisioning path that
+mints it automatically needs the production API role to gain `ecs:RegisterTaskDefinition` +
+`iam:PassRole`. **V6** is blocked by that same refusal. **V7** needs a second identity in
+`capiro-internal`; authenticating as another real person was refused and creating a substitute
+account is out of scope — an operator must supply a throwaway pilot user.
+
+## Honest verdict
+
+**Phase 1 is not complete**, and what remains is now *precisely* bounded rather than vague:
+
+1. **V5** — one correct worker token away. An operator with database access can compute the envelope
+   and mint it in minutes; the runbook has the formula.
+2. **V7** — one throwaway pilot user away.
+3. **V6** — deliberately not closing; fix it in Phase 2 by moving provisioning off the request path.
+
+Everything else that was open at the morning's handover is closed: V1–V4, C-11, E-6, E-8, CI-4,
+E-7 (substantially), the authorization ledger, and P2-02. The branch is merged and production is back
+on `capiro-dev-api:395` with the gate closed at every key.
