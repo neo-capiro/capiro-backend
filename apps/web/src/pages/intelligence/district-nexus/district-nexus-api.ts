@@ -93,10 +93,7 @@ export type GeographyBasis =
 /** How independently a piece of evidence has been confirmed. Distinct from
  * scoring weight — this is what a human reading one row should believe. */
 export type EvidenceVerificationStatus =
-  | 'source_verified'
-  | 'geocode_verified'
-  | 'user_provided'
-  | 'inferred';
+  'source_verified' | 'geocode_verified' | 'user_provided' | 'inferred';
 
 /** Which CD-geometry vintage a row's reported code reflects (plan §8.1).
  * 'unknown' when the source records none — federal_award has no vintage
@@ -578,17 +575,6 @@ export interface ClientDistrictStrategicGapsResponse {
   computedAt: IsoTimestamp;
   gaps: StrategicGapFinding[];
   counts: Record<StrategicGapType, number>;
-}
-
-export async function getClientDistrictStrategicMap(
-  api: AxiosInstance,
-  clientId: string,
-): Promise<ClientDistrictStrategicMapResponse> {
-  return (
-    await api.get<ClientDistrictStrategicMapResponse>(
-      `/api/intelligence/clients/${encodeURIComponent(clientId)}/district-nexus-v2/strategic`,
-    )
-  ).data;
 }
 
 export async function getClientDistrictStrategicGaps(

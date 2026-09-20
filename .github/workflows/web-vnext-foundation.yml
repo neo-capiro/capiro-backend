@@ -27,6 +27,8 @@ jobs:
   foundation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CAPIRO_WEB_BUILD_SURFACE: vnext
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

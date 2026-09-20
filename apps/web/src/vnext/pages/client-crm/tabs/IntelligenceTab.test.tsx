@@ -3,13 +3,48 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientCrmIntelligenceProto, facilityStatus } from './IntelligenceTab.js';
+import {
+  buildRealDistricts,
+  buildRepresentationByFacilityId,
+  buildRepresentativeByDistrict,
+  selectV2District,
+  sortV2Districts,
+} from './district-panel-model.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import type { ClientFacility } from '../../../../pages/clients/facilities-api.js';
+import type { DistrictNexusDistrictDetail } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
 
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api-scope.js', () => ({ useApiScope: () => 'test-tenant' }));
 vi.mock('../../../components/district-map/DistrictNexusMapLibre.js', () => ({
-  default: ({ facilities }: { facilities: unknown[] }) => <div data-testid="location-map" data-facilities={JSON.stringify(facilities)} />,
+  default: ({
+    facilities,
+    districts,
+    selectedDistrictKey,
+    onSelectDistrict,
+  }: {
+    facilities: unknown[];
+    districts: Array<{ districtKey: string }>;
+    selectedDistrictKey: string | null;
+    onSelectDistrict: (districtKey: string) => void;
+  }) => (
+    <div
+      data-testid="location-map"
+      data-facilities={JSON.stringify(facilities)}
+      data-selected-district={selectedDistrictKey ?? ''}
+    >
+      {districts.map((district) => (
+        <button
+          key={district.districtKey}
+          type="button"
+          onClick={() => onSelectDistrict(district.districtKey)}
+        >
+          Select {district.districtKey} on map
+        </button>
+      ))}
+    </div>
+  ),
 }));
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ get: getMock, post: postMock }),
@@ -80,7 +115,9 @@ describe('ClientCrmIntelligenceProto — legislative panel', () => {
 
     fireEvent.click(screen.getByText('Open full board →'));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=bills&client=client-1');
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/legiwatch?tab=bills&client=client-1',
+    );
   });
 });
 
@@ -104,7 +141,7 @@ function readBlob(blob: Blob): Promise<string> {
   });
 }
 
-const FACILITY = {
+const FACILITY: ClientFacility = {
   id: 'fac-1',
   clientId: 'client-1',
   name: 'Seattle HQ',
@@ -147,28 +184,139 @@ const NEXUS_LINKED = {
   disclaimer: 'Figures reflect confirmed contractor mappings only.',
 };
 
-const REPRESENTATION = [
-  {
-    facility: { id: 'fac-1', name: 'Seattle HQ', city: 'Seattle', state: 'WA' },
-    representation: {
-      unresolved: false,
-      federal: {
-        house: { bioguideId: 'X000000', fullName: 'Rep. Jamie Rivera', party: 'D', state: 'WA', district: 7, chamber: 'House' },
-        senate: [],
-      },
-      state: { lower: null, upper: null },
+const NEXUS_V2 = {
+  clientId: 'client-1',
+  districts: [
+    {
+      districtKey: 'WA-07',
+      state: 'WA',
+      districtCode: '07',
+      name: 'WA-07',
+      status: 'C',
+      score: 75,
+      coveragePercent: 80,
+      clientCount: 1,
+      employeeCount: 248,
+      employeesUnreported: false,
+      awarded: { contractObligations: 12_000_000, grantObligations: null, grantOutlays: null },
+      opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+      breakdown: [],
+      strongestDrivers: [],
+      evidence: [],
+      warnings: [],
     },
+  ],
+  representativesByFacility: [],
+  linkage: {
+    contractingLinked: true,
+    contractorNames: ['Overland AI Inc'],
+    assistanceLinked: false,
+    recipientNames: [],
+    ueiConfirmedCount: 1,
   },
-];
+  facilityFootprint: {
+    facilityCount: 1,
+    facilitiesWithoutDistrict: 0,
+    employeeCount: 248,
+    facilitiesMissingEmployeeCount: 0,
+  },
+  awarded: { contractObligations: 12_000_000, grantObligations: null, grantOutlays: null },
+  opportunities: { opportunityEstimatedFunding: null, opportunityAwardCeiling: null },
+  opportunitySummary: {
+    total: 0,
+    active: 0,
+    eligible: 0,
+    needsReview: 0,
+    ineligible: 0,
+    unknown: 0,
+    totalEstimatedFunding: null,
+    totalAwardCeiling: null,
+    items: [],
+  },
+  unmapped: {
+    unmappedContractAmount: null,
+    unmappedGrantAmount: null,
+    unmappedContractCount: 0,
+    unmappedGrantCount: 0,
+  },
+  score: 75,
+  bestDistrictKey: 'WA-07',
+  coveragePercent: 80,
+  breakdown: [],
+  strongestDrivers: [],
+  freshness: [],
+  warnings: [],
+  generatedAt: '2026-09-20T00:00:00.000Z',
+};
 
-function mockDistrictApis(overrides: { facilities?: unknown; nexus?: unknown; representation?: unknown } = {}) {
+const REPRESENTATION: import('../../../../pages/clients/intelligence-v1/representation-api.js').FacilityRepresentation[] =
+  [
+    {
+      facility: { id: 'fac-1', name: 'Seattle HQ', city: 'Seattle', state: 'WA' },
+      representation: {
+        unresolved: false,
+        federal: {
+          house: {
+            bioguideId: 'X000000',
+            fullName: 'Rep. Jamie Rivera',
+            party: 'D',
+            state: 'WA',
+            district: 7,
+            chamber: 'House',
+          },
+          senate: [],
+        },
+        state: { lower: null, upper: null },
+      },
+    },
+  ];
+
+describe('DistrictPanel pure selectors', () => {
+  it('derives facility fallback districts and representatives without inventing award values', () => {
+    const repByFacilityId = buildRepresentationByFacilityId(REPRESENTATION);
+    const districts = buildRealDistricts([FACILITY], new Map(), repByFacilityId);
+    const representatives = buildRepresentativeByDistrict([FACILITY], repByFacilityId);
+
+    expect(districts).toMatchObject([
+      {
+        code: 'WA-07',
+        totalAmount: null,
+        awardCount: null,
+        employeeCount: 248,
+        repName: 'Rep. Jamie Rivera',
+      },
+    ]);
+    expect(representatives.get('WA-07')).toEqual({
+      name: 'Rep. Jamie Rivera',
+      party: 'D',
+    });
+  });
+
+  it('uses a valid explicit v2 selection, then the best district, then sorted first', () => {
+    const base = NEXUS_V2.districts[0] as unknown as DistrictNexusDistrictDetail;
+    const districts = sortV2Districts([base, { ...base, districtKey: 'CA-12', score: 88 }]);
+
+    expect(selectV2District(districts, 'CA-12', 'WA-07').effectiveSelected).toBe('CA-12');
+    expect(selectV2District(districts, 'missing', 'WA-07').effectiveSelected).toBe('WA-07');
+    expect(selectV2District(districts, null, null).effectiveSelected).toBe('CA-12');
+  });
+});
+
+function mockDistrictApis(
+  overrides: { facilities?: unknown; nexusV2?: unknown; representation?: unknown } = {},
+) {
   const facilities = overrides.facilities ?? [FACILITY];
-  const nexus = overrides.nexus ?? NEXUS_LINKED;
+  const nexusV2 = overrides.nexusV2 ?? NEXUS_V2;
   const representation = overrides.representation ?? REPRESENTATION;
   getMock.mockImplementation((url: string) => {
     if (url === '/api/clients/client-1/facilities') return Promise.resolve({ data: facilities });
-    if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: nexus });
-    if (url === '/api/clients/client-1/representation') return Promise.resolve({ data: representation });
+    if (url === '/api/intelligence/clients/client-1/district-nexus-v2') {
+      return intelFlags.current.district_nexus_v2
+        ? Promise.resolve({ data: nexusV2 })
+        : Promise.reject({ response: { status: 404 } });
+    }
+    if (url === '/api/clients/client-1/representation')
+      return Promise.resolve({ data: representation });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -176,7 +324,10 @@ function mockDistrictApis(overrides: { facilities?: unknown; nexus?: unknown; re
 describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)', () => {
   it('supplies saved locations to the shared map even when District Nexus v2 is disabled', async () => {
     intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
-    const locations = [{ ...FACILITY, latitude: 47.6, longitude: -122.3 }, { ...FACILITY, id: 'fac-2', latitude: 47.5, longitude: -122.2 }];
+    const locations = [
+      { ...FACILITY, latitude: 47.6, longitude: -122.3 },
+      { ...FACILITY, id: 'fac-2', latitude: 47.5, longitude: -122.2 },
+    ];
     mockDistrictApis({ facilities: locations });
     renderDistrict();
     const map = await screen.findByTestId('location-map');
@@ -188,10 +339,13 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
   });
 
   it('binds the map, rail, and selected-district panel to real facilities/district-nexus/representation data', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
     mockDistrictApis();
     renderDistrict();
 
-    await waitFor(() => expect(screen.getByText('Rep. Jamie Rivera (Democrat) · House')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Rep. Jamie Rivera (Democrat) · House')).toBeInTheDocument(),
+    );
     // Compact money is the app-wide convention (district-nexus-format).
     expect(screen.getAllByText('$12.0M').length).toBeGreaterThan(0);
     expect(screen.getAllByText('WA-07').length).toBeGreaterThan(0);
@@ -200,6 +354,44 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     expect(screen.queryByText('Seattle headquarters')).not.toBeInTheDocument();
     expect(screen.queryByText('Rep. Jane Doe · House · HASC')).not.toBeInTheDocument();
     expect(screen.queryByText('8 districts · 92% coverage')).not.toBeInTheDocument();
+  });
+
+  it('renders successful v2 data and selects another scored district from the map', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
+    const secondDistrict = {
+      ...NEXUS_V2.districts[0],
+      districtKey: 'CA-12',
+      state: 'CA',
+      districtCode: '12',
+      name: 'CA-12',
+      score: 88,
+      coveragePercent: 92,
+      employeeCount: 75,
+      awarded: {
+        contractObligations: 3_500_000,
+        grantObligations: 250_000,
+        grantOutlays: null,
+      },
+    };
+    mockDistrictApis({
+      nexusV2: {
+        ...NEXUS_V2,
+        districts: [...NEXUS_V2.districts, secondDistrict],
+        bestDistrictKey: 'WA-07',
+      },
+    });
+    renderDistrict();
+
+    const map = await screen.findByTestId('location-map');
+    expect(map).toHaveAttribute('data-selected-district', 'WA-07');
+    expect(screen.getByText('Strong nexus · 75')).toBeInTheDocument();
+
+    fireEvent.click(within(map).getByRole('button', { name: 'Select CA-12 on map' }));
+
+    await waitFor(() => expect(map).toHaveAttribute('data-selected-district', 'CA-12'));
+    expect(screen.getByText('Strong nexus · 88')).toBeInTheDocument();
+    expect(screen.getByText('$3.5M')).toBeInTheDocument();
+    expect(screen.getByText('$250K')).toBeInTheDocument();
   });
 
   it('wires the facilities & representation table per-facility', async () => {
@@ -288,9 +480,10 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
   it('a failed representation fetch is named, not silently rendered as "every facility unmatched"', async () => {
     intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
     getMock.mockImplementation((url: string) => {
-      if (url === '/api/clients/client-1/facilities') return Promise.resolve({ data: [{ ...FACILITY, latitude: 47.6, longitude: -122.3 }] });
-      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: NEXUS_LINKED });
-      if (url === '/api/clients/client-1/representation') return Promise.reject({ response: { status: 500 }, message: 'representation down' });
+      if (url === '/api/clients/client-1/facilities')
+        return Promise.resolve({ data: [{ ...FACILITY, latitude: 47.6, longitude: -122.3 }] });
+      if (url === '/api/clients/client-1/representation')
+        return Promise.reject({ response: { status: 500 }, message: 'representation down' });
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
     renderDistrict();
@@ -300,19 +493,18 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
-  it('with the v2 flag OFF the stats strip falls back to real v1 counts instead of permanent dashes', async () => {
+  it('with the v2 flag OFF the stats strip stays unavailable instead of querying legacy spend', async () => {
     intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
     mockDistrictApis();
     renderDistrict();
 
-    // v1 strip: districts count from the linked nexus rows, not '—'.
     const label = await screen.findByText('Districts');
     const cell = label.closest('.capiro-intel-stats-cell');
     if (!cell) throw new Error('District count statistic not found');
-    // Wait for the request to settle and assert this statistic's value,
-    // rather than finding a coincidental "1" elsewhere in the whole panel.
-    await waitFor(() => expect(within(cell as HTMLElement).getByText('1', { exact: true })).toBeInTheDocument());
-    expect(cell.closest('section')).toHaveAttribute('data-source', 'live');
+    expect(within(cell as HTMLElement).getByText('—', { exact: true })).toBeInTheDocument();
+    expect(getMock).not.toHaveBeenCalledWith(
+      '/api/intelligence/clients/client-1/district-nexus-spend',
+    );
   });
 });
 
@@ -451,7 +643,11 @@ const PAC_GIVING_REAL = {
         totalAmount: 90_000,
         disbursementCount: 4,
         recipients: [
-          { recipientName: 'WHITFIELD FOR CONGRESS', candidateName: 'Dana Whitfield', totalAmount: 60_000 },
+          {
+            recipientName: 'WHITFIELD FOR CONGRESS',
+            candidateName: 'Dana Whitfield',
+            totalAmount: 60_000,
+          },
           { recipientName: 'REYES FOR SENATE', candidateName: 'Luis Reyes', totalAmount: 30_000 },
         ],
       },
@@ -460,23 +656,19 @@ const PAC_GIVING_REAL = {
   },
 };
 
-function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown; fec?: unknown } = {}) {
+function mockFootprintApis(overrides: { lda?: unknown; nexusV2?: unknown; fec?: unknown } = {}) {
   const lda = overrides.lda ?? LDA_FILINGS_REAL;
-  const nexus = overrides.nexus ?? {
-    linked: true,
-    contractorNames: ['Overland AI Inc'],
-    totalAwards: 3,
-    totalAmount: 12_000_000,
-    districtCount: 1,
-    unmappedAmount: 0,
-    districts: [],
-    disclaimer: 'Figures reflect confirmed contractor mappings only.',
-  };
+  const nexusV2 = overrides.nexusV2 ?? NEXUS_V2;
   const fec = overrides.fec ?? PAC_GIVING_REAL;
+  intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
   getMock.mockImplementation((url: string) => {
-    if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: lda });
-    if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: nexus });
-    if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: fec });
+    if (url === '/api/intelligence/clients/client-1/lda-filings')
+      return Promise.resolve({ data: lda });
+    if (url === '/api/intelligence/clients/client-1/district-nexus-v2') {
+      return Promise.resolve({ data: nexusV2 });
+    }
+    if (url === '/api/intelligence/clients/client-1/fec-money-flow')
+      return Promise.resolve({ data: fec });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -502,11 +694,32 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     mockFootprintApis();
     renderFootprint();
 
-    await waitFor(() => expect(screen.getByText('$12,000,000')).toBeInTheDocument());
-    expect(screen.getByText('3 awards')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText('$12.0M').length).toBeGreaterThan(0));
+    expect(getMock).not.toHaveBeenCalledWith(
+      '/api/intelligence/clients/client-1/district-nexus-spend',
+    );
 
     fireEvent.click(screen.getByText('View contracts'));
-    expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/federal-spending?tab=contracts&clientId=client-1');
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/intelligence/federal-spending?tab=contracts&clientId=client-1',
+    );
+  });
+
+  it('shows Federal contracts as unavailable instead of loading forever when v2 is disabled', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: false };
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/intelligence/clients/client-1/lda-filings')
+        return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow')
+        return Promise.resolve({ data: PAC_GIVING_REAL });
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderFootprint();
+
+    expect(
+      await screen.findByText(/District Nexus v2 is not enabled.*contract totals are unavailable/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Loading federal contracts…')).not.toBeInTheDocument();
   });
 
   it('shows loading states without invented financial values', () => {
@@ -528,13 +741,12 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
    * used to require ALL THREE to succeed before showing anything.
    */
   it('fills in LDA- and awards-derived stats immediately even while FEC is still loading', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
     getMock.mockImplementation((url: string) => {
-      if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: LDA_FILINGS_REAL });
-      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
-        return Promise.resolve({
-          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
-        });
-      }
+      if (url === '/api/intelligence/clients/client-1/lda-filings')
+        return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-v2')
+        return Promise.resolve({ data: NEXUS_V2 });
       if (url === '/api/intelligence/clients/client-1/fec-money-flow') return new Promise(() => {}); // never resolves
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
@@ -544,15 +756,21 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     // first paint in the dash state, so awaiting the label would resolve
     // before the district-nexus query settles and assert against a cell that
     // is still legitimately loading.
-    await screen.findByText('$12.0M');
-    const awardsCell = screen.getByText('Federal contracts', { selector: '.capiro-intel-stats-label' });
-    expect(within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M')).toBeInTheDocument();
+    await screen.findAllByText('$12.0M');
+    const awardsCell = screen.getByText('Federal contracts', {
+      selector: '.capiro-intel-stats-label',
+    });
+    expect(
+      within(awardsCell.closest('.capiro-intel-stats-cell') as HTMLElement).getByText('$12.0M'),
+    ).toBeInTheDocument();
 
     const ldaCell = screen.getByText('LDA filings').closest('.capiro-intel-stats-cell');
     expect(within(ldaCell as HTMLElement).getByText('1')).toBeInTheDocument();
 
     // FEC never answered — its own cell stays an honest dash, not $0 and not blank.
-    const pacCell = screen.getByText('PAC contributions', { selector: '.capiro-intel-stats-label' }).closest('.capiro-intel-stats-cell');
+    const pacCell = screen
+      .getByText('PAC contributions', { selector: '.capiro-intel-stats-label' })
+      .closest('.capiro-intel-stats-cell');
     expect(within(pacCell as HTMLElement).getByText('—')).toBeInTheDocument();
   });
 
@@ -563,18 +781,19 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
    * report-card export route, now rendering an actual .docx server-side.
    */
   it('downloads the report card .docx when "Export profile" is clicked', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
     const docxBlob = new Blob(['fake-docx-bytes'], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
     getMock.mockImplementation((url: string) => {
-      if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: LDA_FILINGS_REAL });
-      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
-        return Promise.resolve({
-          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
-        });
-      }
-      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: PAC_GIVING_REAL });
-      if (url === '/api/intelligence/clients/client-1/report-card/export') return Promise.resolve({ data: docxBlob });
+      if (url === '/api/intelligence/clients/client-1/lda-filings')
+        return Promise.resolve({ data: LDA_FILINGS_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-v2')
+        return Promise.resolve({ data: NEXUS_V2 });
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow')
+        return Promise.resolve({ data: PAC_GIVING_REAL });
+      if (url === '/api/intelligence/clients/client-1/report-card/export')
+        return Promise.resolve({ data: docxBlob });
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
 
@@ -586,7 +805,9 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
         return 'blob:report-card';
       });
     const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
 
     renderFootprint();
     await waitFor(() => expect(screen.getByText('Export profile')).toBeInTheDocument());
@@ -604,7 +825,6 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     clickSpy.mockRestore();
   });
 });
-
 
 describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)', () => {
   beforeEach(() => {
@@ -634,29 +854,63 @@ describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)'
     expect(screen.queryByText('Incumbent members')).not.toBeInTheDocument();
   });
 
-  it.each(['pending', 'partial', 'error'])('does not present incomplete %s ingestion as zero giving', async (status) => {
-    mockFootprintApis({ fec: { pacGiving: {
-      tracked: true,
-      committees: [{ committeeId: 'C00763623', committeeName: 'Example PAC', totalAmount: 0, disbursementCount: 0, recipients: [] }],
-      summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
-      coverage: { status, cycles: [2024, 2026], lastSyncedAt: null, message: 'The source import has not completed.' },
-    } } });
-    renderFootprint();
+  it.each(['pending', 'partial', 'error'])(
+    'does not present incomplete %s ingestion as zero giving',
+    async (status) => {
+      mockFootprintApis({
+        fec: {
+          pacGiving: {
+            tracked: true,
+            committees: [
+              {
+                committeeId: 'C00763623',
+                committeeName: 'Example PAC',
+                totalAmount: 0,
+                disbursementCount: 0,
+                recipients: [],
+              },
+            ],
+            summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
+            coverage: {
+              status,
+              cycles: [2024, 2026],
+              lastSyncedAt: null,
+              message: 'The source import has not completed.',
+            },
+          },
+        },
+      });
+      renderFootprint();
 
-    await screen.findByText(/The source import has not completed/);
-    expect(screen.queryByText('$0')).not.toBeInTheDocument();
-    expect(screen.getByText('2024, 2026 election cycles')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Example PAC on FEC' })).toHaveAttribute('href', 'https://www.fec.gov/data/committee/C00763623/');
-    expect(screen.queryByText(/No political contributions were reported/)).not.toBeInTheDocument();
-  });
+      await screen.findByText(/The source import has not completed/);
+      expect(screen.queryByText('$0')).not.toBeInTheDocument();
+      expect(screen.getByText('2024, 2026 election cycles')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Open Example PAC on FEC' })).toHaveAttribute(
+        'href',
+        'https://www.fec.gov/data/committee/C00763623/',
+      );
+      expect(
+        screen.queryByText(/No political contributions were reported/),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it('shows zero only when every mapped committee and cycle has a completed empty import', async () => {
-    mockFootprintApis({ fec: { pacGiving: {
-      tracked: true,
-      committees: [],
-      summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
-      coverage: { status: 'complete', cycles: [2026], lastSyncedAt: '2026-09-09T07:20:00Z', message: null },
-    } } });
+    mockFootprintApis({
+      fec: {
+        pacGiving: {
+          tracked: true,
+          committees: [],
+          summary: { totalAmount: 0, disbursementCount: 0, recipientCount: 0 },
+          coverage: {
+            status: 'complete',
+            cycles: [2026],
+            lastSyncedAt: '2026-09-09T07:20:00Z',
+            message: null,
+          },
+        },
+      },
+    });
     renderFootprint();
 
     await screen.findByText(/No political contributions were reported/);
@@ -665,16 +919,27 @@ describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)'
   });
 
   it('retains the available amount but labels incomplete source coverage when an update fails', async () => {
-    mockFootprintApis({ fec: { pacGiving: {
-      ...PAC_GIVING_REAL.pacGiving,
-      coverage: { status: 'error', cycles: [2026], lastSyncedAt: null, message: 'The source import failed.' },
-    } } });
+    mockFootprintApis({
+      fec: {
+        pacGiving: {
+          ...PAC_GIVING_REAL.pacGiving,
+          coverage: {
+            status: 'error',
+            cycles: [2026],
+            lastSyncedAt: null,
+            message: 'The source import failed.',
+          },
+        },
+      },
+    });
     renderFootprint();
 
     await screen.findByText('Source update failed.');
     expect(screen.getByText('$90,000')).toBeInTheDocument();
     expect(screen.getByText(/The amount shown reflects the available records/)).toBeInTheDocument();
-    expect(screen.getByText('PAC contributions · incomplete', { selector: '.capiro-intel-stats-label' })).toBeInTheDocument();
+    expect(
+      screen.getByText('PAC contributions · incomplete', { selector: '.capiro-intel-stats-label' }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -716,9 +981,12 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
     const payload = withheld == null ? board : { ...(board as object), withheld };
     getMock.mockImplementation((url: string) => {
       if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
-      if (url === '/api/intelligence/clients/client-1/tracker/board') return Promise.resolve({ data: payload });
+      if (url === '/api/intelligence/clients/client-1/tracker/board')
+        return Promise.resolve({ data: payload });
       if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
-        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+        return Promise.resolve({
+          data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 },
+        });
       }
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
@@ -728,7 +996,9 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
     mockBoardApis();
     renderLegislative();
 
-    await waitFor(() => expect(screen.getByText('Maritime Uncrewed Logistics Act')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Maritime Uncrewed Logistics Act')).toBeInTheDocument(),
+    );
     expect(screen.getByText('H.R. 5150')).toBeInTheDocument();
     expect(screen.getByText('62% pass')).toBeInTheDocument();
     expect(screen.getByText('Referred to House Armed Services')).toBeInTheDocument();
@@ -740,7 +1010,9 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
     mockBoardApis(BOARD, 7);
     renderLegislative();
 
-    await waitFor(() => expect(screen.getByText('7 more tracked bills not shown')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('7 more tracked bills not shown')).toBeInTheDocument(),
+    );
   });
 
   it('shows a real empty state when the board is genuinely empty', async () => {
@@ -748,7 +1020,11 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
     renderLegislative();
 
     await waitFor(() =>
-      expect(screen.getByText((content, el) => el?.tagName === 'P' && /No bills are on this client/.test(content))).toBeInTheDocument(),
+      expect(
+        screen.getByText(
+          (content, el) => el?.tagName === 'P' && /No bills are on this client/.test(content),
+        ),
+      ).toBeInTheDocument(),
     );
   });
 });
@@ -801,7 +1077,9 @@ describe('ClientCrmIntelligenceProto — Configure (item 4, "3 Compose extend")'
     // destination never actually opened a bills/watchlist view. LegiWatch's own
     // Bills tab is the real, still-live destination; ?client= keeps this client's
     // scope instead of landing on all clients.
-    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=bills&client=client-1');
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/legiwatch?tab=bills&client=client-1',
+    );
   });
 });
 
@@ -842,13 +1120,19 @@ const AGGREGATE_WITH_DEADLINES = {
 };
 
 function regulatoryResponse(data: any) {
-  return { clientId: client.id, generatedAt: data.generatedAt, partial: false, sources: [],
-    regulatoryLifecycle: data.sections?.legislativeRegulatory?.regulatoryLifecycle ?? { rails: [] } };
+  return {
+    clientId: client.id,
+    generatedAt: data.generatedAt,
+    partial: false,
+    sources: [],
+    regulatoryLifecycle: data.sections?.legislativeRegulatory?.regulatoryLifecycle ?? { rails: [] },
+  };
 }
 
 function mockAggregate(data: unknown) {
   getMock.mockImplementation((url: string) => {
-    if (url === '/api/intelligence/clients/client-1/regulatory-profile') return Promise.resolve({ data: regulatoryResponse(data) });
+    if (url === '/api/intelligence/clients/client-1/regulatory-profile')
+      return Promise.resolve({ data: regulatoryResponse(data) });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -865,12 +1149,16 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
 
     const deadlineRail = await screen.findByTestId('capiro-intel-deadline-rail');
     await waitFor(() =>
-      expect(within(deadlineRail).getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
+      expect(
+        within(deadlineRail).getByText('Unmanned Systems Cyber Baseline; Proposed Rule'),
+      ).toBeInTheDocument(),
     );
     // A rail with no deadline is not a deadline — it must not appear on the
     // deadline rail specifically (it legitimately appears in Active matters
     // below, which lists every rail regardless of whether it has a deadline).
-    expect(within(deadlineRail).queryByText('Rule with no comment deadline')).not.toBeInTheDocument();
+    expect(
+      within(deadlineRail).queryByText('Rule with no comment deadline'),
+    ).not.toBeInTheDocument();
     // The fixture's own deadlines must not leak through as if real.
     expect(screen.queryByText('Submit or approve comment strategy')).not.toBeInTheDocument();
     expect(screen.queryByText('Final rule becomes effective')).not.toBeInTheDocument();
@@ -880,7 +1168,9 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     // including the one with no deadline, and none of the MATTERS fixture's
     // own titles leak through as if real.
     const activeMatters = screen.getByTestId('capiro-intel-active-matters');
-    expect(within(activeMatters).getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument();
+    expect(
+      within(activeMatters).getByText('Unmanned Systems Cyber Baseline; Proposed Rule'),
+    ).toBeInTheDocument();
     expect(within(activeMatters).getByText('Rule with no comment deadline')).toBeInTheDocument();
     expect(screen.queryByText('Autonomous Vehicle Safety Framework')).not.toBeInTheDocument();
     expect(screen.queryByText('AI Assurance for Defense Systems')).not.toBeInTheDocument();
@@ -895,7 +1185,8 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
             ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle,
             rails: [
               {
-                ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle.rails[0],
+                ...AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle
+                  .rails[0],
                 htmlUrl: 'https://www.federalregister.gov/documents/2026/08/16/2026-17422',
               },
               AGGREGATE_WITH_DEADLINES.sections.legislativeRegulatory.regulatoryLifecycle.rails[1],
@@ -908,7 +1199,10 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
 
     const activeMatters = await screen.findByTestId('capiro-intel-active-matters');
     const link = await within(activeMatters).findByRole('link', { name: 'Open matter →' });
-    expect(link).toHaveAttribute('href', 'https://www.federalregister.gov/documents/2026/08/16/2026-17422');
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.federalregister.gov/documents/2026/08/16/2026-17422',
+    );
     expect(link).toHaveAttribute('target', '_blank');
     // Only ONE link: the second rail has no htmlUrl and must render no
     // control at all rather than a button with nowhere to go.
@@ -919,9 +1213,13 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     mockAggregate(AGGREGATE_WITH_DEADLINES);
     renderWithRoutes();
 
-    const activeMattersCard = (await screen.findByTestId('capiro-intel-active-matters')).closest('section');
+    const activeMattersCard = (await screen.findByTestId('capiro-intel-active-matters')).closest(
+      'section',
+    );
     expect(activeMattersCard).not.toBeNull();
-    expect(within(activeMattersCard as HTMLElement).queryByText('View all')).not.toBeInTheDocument();
+    expect(
+      within(activeMattersCard as HTMLElement).queryByText('View all'),
+    ).not.toBeInTheDocument();
   });
 
   it('downloads an .ics built from the real deadlines', async () => {
@@ -934,12 +1232,16 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
         return 'blob:ics';
       });
     const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
 
     renderWithRoutes();
     const deadlineRail = await screen.findByTestId('capiro-intel-deadline-rail');
     await waitFor(() =>
-      expect(within(deadlineRail).getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
+      expect(
+        within(deadlineRail).getByText('Unmanned Systems Cyber Baseline; Proposed Rule'),
+      ).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByText('Calendar'));
 
@@ -949,7 +1251,9 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     expect(ics).toContain('DTSTART;VALUE=DATE:20270211');
     // RFC 5545 escaping: the ';' inside the rule title must be escaped, or the
     // line parses as a property parameter and the event breaks.
-    expect(ics).toContain('SUMMARY:Comment deadline · Unmanned Systems Cyber Baseline\\; Proposed Rule');
+    expect(ics).toContain(
+      'SUMMARY:Comment deadline · Unmanned Systems Cyber Baseline\\; Proposed Rule',
+    );
     // One VEVENT — the deadline-less rail contributes nothing.
     expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
 
@@ -984,7 +1288,9 @@ describe('ClientCrmIntelligenceProto — Legislative & Regulatory (consolidated)
         return Promise.resolve({ data: { total: 4, withheld: 0, columns: [] } });
       }
       if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
-        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+        return Promise.resolve({
+          data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 },
+        });
       }
       if (url === '/api/intelligence/clients/client-1/regulatory-profile') {
         return Promise.resolve({ data: regulatoryResponse(AGGREGATE_WITH_DEADLINES) });
@@ -1001,7 +1307,9 @@ describe('ClientCrmIntelligenceProto — Legislative & Regulatory (consolidated)
     // segmented-tab views. (The same real rail title also now renders in the
     // Active-matters card beside it, so this is asserted with getAllByText
     // rather than a single-match query.)
-    expect((await screen.findAllByText('Unmanned Systems Cyber Baseline; Proposed Rule')).length).toBeGreaterThan(0);
+    expect(
+      (await screen.findAllByText('Unmanned Systems Cyber Baseline; Proposed Rule')).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Legislative & Regulatory' })).toBeInTheDocument();
     // No leftover standalone "Regulatory" domain heading/tab remains.
     expect(screen.queryByRole('heading', { name: 'Regulatory', level: 1 })).not.toBeInTheDocument();
@@ -1028,7 +1336,9 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
         return Promise.reject(new Error('board service unavailable'));
       }
       if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
-        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+        return Promise.resolve({
+          data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 },
+        });
       }
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
@@ -1052,7 +1362,9 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
         return Promise.resolve({ data: { total: 0, withheld: 0, columns: [] } });
       }
       if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
-        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+        return Promise.resolve({
+          data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 },
+        });
       }
       if (url === '/api/intelligence/clients/client-1/regulatory-profile') {
         return Promise.reject(new Error('aggregate service unavailable'));
@@ -1066,7 +1378,10 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
     // isError takes a real backoff delay, so the default 1000ms waitFor
     // window isn't enough.
     await waitFor(
-      () => expect(screen.getByText(/Active regulatory matters could not be loaded/)).toBeInTheDocument(),
+      () =>
+        expect(
+          screen.getByText(/Active regulatory matters could not be loaded/),
+        ).toBeInTheDocument(),
       { timeout: 5000 },
     );
     expect(screen.getByText(/The deadline rail could not be loaded/)).toBeInTheDocument();
@@ -1078,16 +1393,15 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
   });
 
   it('shows an honest error, not the $1.8M/Sparkline or LDA-rows fixtures, when the LDA request fails', async () => {
+    intelFlags.current = { tracker_v2: false, district_nexus_v2: true };
     getMock.mockImplementation((url: string) => {
       if (url === '/api/intelligence/clients/client-1/lda-filings') {
         return Promise.reject(new Error('lda service unavailable'));
       }
-      if (url === '/api/intelligence/clients/client-1/district-nexus-spend') {
-        return Promise.resolve({
-          data: { linked: true, contractorNames: [], totalAwards: 3, totalAmount: 12_000_000, districtCount: 1, unmappedAmount: 0, districts: [], disclaimer: '' },
-        });
-      }
-      if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: PAC_GIVING_REAL });
+      if (url === '/api/intelligence/clients/client-1/district-nexus-v2')
+        return Promise.resolve({ data: NEXUS_V2 });
+      if (url === '/api/intelligence/clients/client-1/fec-money-flow')
+        return Promise.resolve({ data: PAC_GIVING_REAL });
       return Promise.reject(new Error(`unexpected GET ${url}`));
     });
     renderFootprint();
@@ -1100,12 +1414,21 @@ describe('ClientCrmIntelligenceProto — honest error states (never a fixture on
     expect(screen.queryByText('$1.8M')).not.toBeInTheDocument();
     expect(screen.queryByText('Northwest Government Affairs')).not.toBeInTheDocument();
     // The unrelated Federal awards card still renders its real data.
-    expect(screen.getByText('$12,000,000')).toBeInTheDocument();
+    expect(screen.getAllByText('$12.0M').length).toBeGreaterThan(0);
   });
 });
 describe('facility verification evidence', () => {
   it('separates a Census match, manual district and representative match in the actual card', async () => {
-    mockDistrictApis({ facilities: [{ ...FACILITY, districtSource: 'user', stateHouseDistrict: 'WA', stateSenateDistrict: 'First Bristol and Plymouth' }] });
+    mockDistrictApis({
+      facilities: [
+        {
+          ...FACILITY,
+          districtSource: 'user',
+          stateHouseDistrict: 'WA',
+          stateSenateDistrict: 'First Bristol and Plymouth',
+        },
+      ],
+    });
     renderDistrict();
     expect(await screen.findByText('Geocoder: Matched')).toBeInTheDocument();
     expect(screen.getByText('U.S. House source: Manual')).toBeInTheDocument();
@@ -1117,7 +1440,16 @@ describe('facility verification evidence', () => {
   });
 
   it('does not turn a state-only facility into a district or a confirmed representative', async () => {
-    mockDistrictApis({ facilities: [{ ...FACILITY, congressionalDistrict: null, stateHouseDistrict: 'CA', stateSenateDistrict: 'FL' }] });
+    mockDistrictApis({
+      facilities: [
+        {
+          ...FACILITY,
+          congressionalDistrict: null,
+          stateHouseDistrict: 'CA',
+          stateSenateDistrict: 'FL',
+        },
+      ],
+    });
     renderDistrict();
     expect(await screen.findByText('U.S. House: Not resolved')).toBeInTheDocument();
     expect(screen.getByText('U.S. House district missing')).toBeInTheDocument();
@@ -1125,12 +1457,33 @@ describe('facility verification evidence', () => {
   });
 
   it('flags mismatched and missing representative district values, including at-large null', () => {
+    const resolved = REPRESENTATION[0]!.representation;
+    if (resolved.unresolved) throw new Error('fixture must carry resolved representation');
     for (const district of [8, null]) {
-      const representation = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, district }, senate: [] } };
-      expect(facilityStatus(FACILITY as any, representation as any).label).toBe('Representation mismatch');
+      const representation = {
+        ...resolved,
+        federal: {
+          house: { ...resolved.federal.house, district },
+          senate: [],
+        },
+      };
+      expect(facilityStatus(FACILITY as any, representation as any).label).toBe(
+        'Representation mismatch',
+      );
     }
-    const atLarge = { ...REPRESENTATION[0]!.representation, federal: { house: { ...REPRESENTATION[0]!.representation.federal.house, state: 'AK', district: null }, senate: [] } };
-    expect(facilityStatus({ ...FACILITY, state: 'AK', congressionalDistrict: '00' } as any, atLarge as any).label).toBe('Representation mismatch');
+    const atLarge = {
+      ...resolved,
+      federal: {
+        house: { ...resolved.federal.house, state: 'AK', district: null },
+        senate: [],
+      },
+    };
+    expect(
+      facilityStatus(
+        { ...FACILITY, state: 'AK', congressionalDistrict: '00' } as any,
+        atLarge as any,
+      ).label,
+    ).toBe('Representation mismatch');
   });
 
   it.each([
@@ -1138,9 +1491,26 @@ describe('facility verification evidence', () => {
     ['CA', 'California', '12', 12],
     ['WY', 'Wyoming', '00', 0],
     ['WA', ' washington ', '07', 7],
-  ])('compares postal state %s with the roster full name %s', (state, fullName, district, houseDistrict) => {
-    const representation = { unresolved: false, federal: { house: { state: fullName, district: houseDistrict }, senate: [] }, state: { lower: null, upper: null } };
-    expect(facilityStatus({ ...FACILITY, state, congressionalDistrict: district } as any, representation as any).label).toBe('Matches saved district');
-    expect(facilityStatus({ ...FACILITY, state: 'AZ', congressionalDistrict: '01' } as any, representation as any).label).toBe('Representation mismatch');
-  });
+  ])(
+    'compares postal state %s with the roster full name %s',
+    (state, fullName, district, houseDistrict) => {
+      const representation = {
+        unresolved: false,
+        federal: { house: { state: fullName, district: houseDistrict }, senate: [] },
+        state: { lower: null, upper: null },
+      };
+      expect(
+        facilityStatus(
+          { ...FACILITY, state, congressionalDistrict: district } as any,
+          representation as any,
+        ).label,
+      ).toBe('Matches saved district');
+      expect(
+        facilityStatus(
+          { ...FACILITY, state: 'AZ', congressionalDistrict: '01' } as any,
+          representation as any,
+        ).label,
+      ).toBe('Representation mismatch');
+    },
+  );
 });

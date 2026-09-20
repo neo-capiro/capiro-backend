@@ -1,4 +1,12 @@
-import { Navigate, Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
 import { TicketSignUpPage } from './pages/auth/TicketSignUpPage.js';
@@ -126,11 +134,14 @@ const StrategyRoutes = lazy(async () =>
 // chunk-splitting mechanism this repo has (same pattern as the other
 // heavy-dependency routes above). Gated in-page by district_nexus_v2
 // (HearingWatchPage precedent) — the route itself registers unconditionally.
-const DistrictNexusPage = lazy(async () =>
-  import('./pages/intelligence/district-nexus/DistrictNexusPage.js').then((m) => ({
-    default: m.DistrictNexusPage,
-  })),
-);
+const DistrictNexusPage =
+  import.meta.env.VITE_BUILD_WEB_SURFACE !== 'vnext'
+    ? lazy(async () =>
+        import('./pages/intelligence/district-nexus/DistrictNexusPage.js').then((m) => ({
+          default: m.DistrictNexusPage,
+        })),
+      )
+    : null;
 
 // Federal Spending & Market Intelligence. Kept in its own chunk because the
 // four explorer tables are independent from the generic Data Explorer and from
@@ -183,275 +194,306 @@ export function App() {
           session-wide — /settings/integrations is an Engagement consumer too. */}
       <EngagementPreviewBoundary />
       <Routes>
-      <Route path="/sign-in/*" element={<AuthPage mode="sign-in" />} />
-      <Route path="/sign-up/*" element={<AuthPage mode="sign-up" />} />
-      {/* Welcome / paywall. Signed-in but standalone (outside AppShell + the
+        <Route path="/sign-in/*" element={<AuthPage mode="sign-in" />} />
+        <Route path="/sign-up/*" element={<AuthPage mode="sign-up" />} />
+        {/* Welcome / paywall. Signed-in but standalone (outside AppShell + the
           BillingGate) so it never redirect-loops with the gate. */}
-      <Route
-        path="/onboarding/subscribe"
-        element={isSignedIn ? <SubscribePage /> : <Navigate to="/sign-in" replace />}
-      />
-      <Route element={isSignedIn ? <BillingGate /> : <Navigate to="/sign-in" replace />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/clients" element={<ClientWorkspacePage />} />
-        <Route path="/portfolio" element={<PortfolioIndexRedirect />} />
-        <Route path="/engagement/*" element={<EngagementPage />} />
-        {/* Workspace — standalone document-builder engine (own ECR/Fargate
-            service at /workspace-api/*; this is the SPA UI). */}
         <Route
-          path="/workspace/*"
-          element={
-            <Suspense
-              fallback={<PlaceholderPage title="Loading Workspace" description="Please wait..." />}
-            >
-              <WorkspaceRoutes />
-            </Suspense>
-          }
+          path="/onboarding/subscribe"
+          element={isSignedIn ? <SubscribePage /> : <Navigate to="/sign-in" replace />}
         />
-        {/* Strategy Planner (PPBE) — own ECR/Fargate service at /strategy-api/*;
+        <Route element={isSignedIn ? <BillingGate /> : <Navigate to="/sign-in" replace />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/clients" element={<ClientWorkspacePage />} />
+          <Route path="/portfolio" element={<PortfolioIndexRedirect />} />
+          <Route path="/engagement/*" element={<EngagementPage />} />
+          {/* Workspace — standalone document-builder engine (own ECR/Fargate
+            service at /workspace-api/*; this is the SPA UI). */}
+          <Route
+            path="/workspace/*"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage title="Loading Workspace" description="Please wait..." />
+                }
+              >
+                <WorkspaceRoutes />
+              </Suspense>
+            }
+          />
+          {/* Strategy Planner (PPBE) — own ECR/Fargate service at /strategy-api/*;
             gated per-tenant by /me features.strategyPlanner (StrategyRoutes
             redirects home when off, so deep-links respect the flag). */}
-        <Route
-          path="/strategies/*"
-          element={
-            <Suspense
-              fallback={<PlaceholderPage title="Loading Strategies" description="Please wait..." />}
-            >
-              <StrategyRoutes />
-            </Suspense>
-          }
-        />
-        <Route path="/explorer" element={<DataExplorerPage />} />
-        {/* LegiWatch (Radar renamed) — Feed · Bills · Hearings · Configure,
+          <Route
+            path="/strategies/*"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage title="Loading Strategies" description="Please wait..." />
+                }
+              >
+                <StrategyRoutes />
+              </Suspense>
+            }
+          />
+          <Route path="/explorer" element={<DataExplorerPage />} />
+          {/* LegiWatch (Radar renamed) — Feed · Bills · Hearings · Configure,
             unifying the Bill Tracker + Hearing Watch surfaces under one
             destination. Canonical path is /legiwatch; /radar is kept as a
             query-preserving redirect for live alert-email deep-links. */}
-        <Route path="/legiwatch" element={<RadarPage />} />
-        <Route path="/radar" element={<LegacyRadarRedirect />} />
-        {/* Bill 360 (R2 §2.2) — the one deep-linkable bill dossier. `?client=<id>`
+          <Route path="/legiwatch" element={<RadarPage />} />
+          <Route path="/radar" element={<LegacyRadarRedirect />} />
+          {/* Bill 360 (R2 §2.2) — the one deep-linkable bill dossier. `?client=<id>`
             adds that client's context; a bare URL is the public dossier. Every
             bill entry point (board card, feed, hearing, PE timeline, Explorer
             redirect, copied link) resolves here or to the same body in a drawer. */}
-        <Route path="/bills/:billId" element={<Bill360Page />} />
-        <Route path="/actions" element={<ActionBoardPage />} />
-        <Route path="/reviews" element={<ReviewQueuePage />} />
-        <Route
-          path="/program-elements"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage title="Loading program elements" description="Please wait..." />
-              }
-            >
-              <ProgramElementFinderGate />
-            </Suspense>
-          }
-        />
-        {/* Static segment must precede the dynamic :peCode route. */}
-        <Route
-          path="/program-elements/mark-up-monitor"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage title="Loading mark-up monitor" description="Please wait..." />
-              }
-            >
-              <MarkupMonitorPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/program-elements/contacts"
-          element={
-            <Suspense
-              fallback={<PlaceholderPage title="Loading contacts" description="Please wait..." />}
-            >
-              <PersonCandidatesPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/program-elements/:peCode"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage title="Loading program element" description="Please wait..." />
-              }
-            >
-              <ProgramElementWatchGate />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/admin/program-element/reconciliation"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage
-                  title="Loading reconciliation queue"
-                  description="Please wait..."
-                />
-              }
-            >
-              <PeReconciliationPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/admin/program-element/match-queue"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage title="Loading program match queue" description="Please wait..." />
-              }
-            >
-              <ProgramMatchQueuePage />
-            </Suspense>
-          }
-        />
-        {/* Step 3.5 — Unified analyst console (capiro_admin). Gated client-side by
+          <Route path="/bills/:billId" element={<Bill360Page />} />
+          <Route path="/actions" element={<ActionBoardPage />} />
+          <Route path="/reviews" element={<ReviewQueuePage />} />
+          <Route
+            path="/program-elements"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage title="Loading program elements" description="Please wait..." />
+                }
+              >
+                <ProgramElementFinderGate />
+              </Suspense>
+            }
+          />
+          {/* Static segment must precede the dynamic :peCode route. */}
+          <Route
+            path="/program-elements/mark-up-monitor"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage title="Loading mark-up monitor" description="Please wait..." />
+                }
+              >
+                <MarkupMonitorPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/program-elements/contacts"
+            element={
+              <Suspense
+                fallback={<PlaceholderPage title="Loading contacts" description="Please wait..." />}
+              >
+                <PersonCandidatesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/program-elements/:peCode"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage title="Loading program element" description="Please wait..." />
+                }
+              >
+                <ProgramElementWatchGate />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin/program-element/reconciliation"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage
+                    title="Loading reconciliation queue"
+                    description="Please wait..."
+                  />
+                }
+              >
+                <PeReconciliationPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin/program-element/match-queue"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage
+                    title="Loading program match queue"
+                    description="Please wait..."
+                  />
+                }
+              >
+                <ProgramMatchQueuePage />
+              </Suspense>
+            }
+          />
+          {/* Step 3.5 — Unified analyst console (capiro_admin). Gated client-side by
             the page itself; every endpoint it calls enforces RolesGuard server-side.
             Must precede the /admin/* catch-all redirect below. */}
-        <Route
-          path="/admin/analyst-console"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage title="Loading analyst console" description="Please wait..." />
-              }
-            >
-              <AnalystConsolePage />
-            </Suspense>
-          }
-        />
-        {/* Intelligence routes kept for legacy URLs, the page renames itself
+          <Route
+            path="/admin/analyst-console"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage title="Loading analyst console" description="Please wait..." />
+                }
+              >
+                <AnalystConsolePage />
+              </Suspense>
+            }
+          />
+          {/* Intelligence routes kept for legacy URLs, the page renames itself
             to "Intelligence Center" in the sidebar, but ChangesInbox + IssueLeaderboard
             stay reachable for now. The main /intelligence path redirects. */}
-        <Route path="/intelligence" element={<Navigate to="/explorer" replace />} />
-        <Route path="/intelligence/changes" element={<ChangesInboxPage />} />
-        <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
-        {/* District Nexus (WS-G) — feature-flagged (district_nexus_v2), gated
+          <Route path="/intelligence" element={<Navigate to="/explorer" replace />} />
+          <Route path="/intelligence/changes" element={<ChangesInboxPage />} />
+          <Route path="/intelligence/graph" element={<KnowledgeGraphPage />} />
+          {/* District Nexus (WS-G) — feature-flagged (district_nexus_v2), gated
             in-page; the route itself is registered unconditionally (house
             pattern) so a direct deep-link always resolves to the flag-off
             guide rather than a 404. */}
-        <Route
-          path="/intelligence/district-nexus"
-          element={
-            <Suspense
-              fallback={<PlaceholderPage title="Loading District Nexus" description="Loading map and district data..." />}
-            >
-              <DistrictNexusPage />
-            </Suspense>
-          }
-        />
-        {/* Federal Spending & Market Intelligence — local first-party awards and
+          {DistrictNexusPage ? (
+            <Route
+              path="/intelligence/district-nexus"
+              element={
+                <Suspense
+                  fallback={
+                    <PlaceholderPage
+                      title="Loading District Nexus"
+                      description="Loading map and district data..."
+                    />
+                  }
+                >
+                  <DistrictNexusPage />
+                </Suspense>
+              }
+            />
+          ) : null}
+          {/* Federal Spending & Market Intelligence — local first-party awards and
             provider-labelled Tango subawards, vehicles, and forecasts. This
             literal route must precede the `/intelligence/*` catch-all. */}
-        <Route
-          path="/intelligence/federal-spending"
-          element={
-            <Suspense
-              fallback={
-                <PlaceholderPage
-                  title="Loading Federal Spending"
-                  description="Loading awards, subawards, vehicles, and forecasts..."
-                />
-              }
-            >
-              <FederalSpendingPage />
-            </Suspense>
-          }
-        />
-        {/* Funding Opportunities — both canonical URLs resolve to the one v2
+          <Route
+            path="/intelligence/federal-spending"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage
+                    title="Loading Federal Spending"
+                    description="Loading awards, subawards, vehicles, and forecasts..."
+                  />
+                }
+              >
+                <FederalSpendingPage />
+              </Suspense>
+            }
+          />
+          {/* Funding Opportunities — both canonical URLs resolve to the one v2
             implementation. The vNext entry mode claims these paths through
             VNextRouter; classic mode reaches this child through AppShellUui. */}
-        <Route
-          path="/intelligence/opportunities"
-          element={
-            <Suspense fallback={<PlaceholderPage title="Loading Funding Opportunities" description="Loading grant and contract opportunities..." />}>
-              <FundingOpportunitiesPage />
-            </Suspense>
-          }
-        />
-        <Route
-          path="/intelligence/opportunities/:source/:sourceRecordId"
-          element={
-            <Suspense fallback={<PlaceholderPage title="Loading opportunity" description="Loading the opportunity detail..." />}>
-              <FundingOpportunitiesPage />
-            </Suspense>
-          }
-        />
-        {/* Hearing Watch's list surface moved into LegiWatch's Hearings tab; the
+          <Route
+            path="/intelligence/opportunities"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage
+                    title="Loading Funding Opportunities"
+                    description="Loading grant and contract opportunities..."
+                  />
+                }
+              >
+                <FundingOpportunitiesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/intelligence/opportunities/:source/:sourceRecordId"
+            element={
+              <Suspense
+                fallback={
+                  <PlaceholderPage
+                    title="Loading opportunity"
+                    description="Loading the opportunity detail..."
+                  />
+                }
+              >
+                <FundingOpportunitiesPage />
+              </Suspense>
+            }
+          />
+          {/* Hearing Watch's list surface moved into LegiWatch's Hearings tab; the
             live hearing room keeps its deep-linkable route. */}
-        <Route
-          path="/intelligence/hearing-watch"
-          element={<Navigate to="/legiwatch?tab=hearings" replace />}
-        />
-        <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
-        <Route path="/intelligence/issues/:code" element={<IssueLeaderboardPage />} />
-        <Route path="/intelligence/bills/:bill" element={<BillDetailRedirectRoute />} />
-        <Route path="/intelligence/client/:clientId" element={<Navigate to="/clients" replace />} />
-        <Route
-          path="/intelligence/client/:clientId/graph"
-          element={<Navigate to="/clients" replace />}
-        />
-        <Route path="/intelligence/*" element={<Navigate to="/explorer" replace />} />
-        <Route path="/intelligence-center" element={<ComingSoonIntelligence />} />
-        {/* `/directory` stays the backward-compatible entry point. The four
+          <Route
+            path="/intelligence/hearing-watch"
+            element={<Navigate to="/legiwatch?tab=hearings" replace />}
+          />
+          <Route path="/intelligence/hearing-watch/:id" element={<LiveHearingRoomPage />} />
+          <Route path="/intelligence/issues/:code" element={<IssueLeaderboardPage />} />
+          <Route path="/intelligence/bills/:bill" element={<BillDetailRedirectRoute />} />
+          <Route
+            path="/intelligence/client/:clientId"
+            element={<Navigate to="/clients" replace />}
+          />
+          <Route
+            path="/intelligence/client/:clientId/graph"
+            element={<Navigate to="/clients" replace />}
+          />
+          <Route path="/intelligence/*" element={<Navigate to="/explorer" replace />} />
+          <Route path="/intelligence-center" element={<ComingSoonIntelligence />} />
+          {/* `/directory` stays the backward-compatible entry point. The four
             first-class list surfaces (Figma 941:2860) are peer routes over the
             same canonical records — no new data model, no duplicated identity.
             The vNext presentation is substituted per-route by VNextRouter where
             an approved Figma implementation exists; otherwise these resolve to
             the canonical Directory page. */}
-        <Route path="/directory" element={<DirectoryPage />} />
-        <Route path="/directory/congressional-staff" element={<DirectoryPage />} />
-        <Route path="/directory/committee-staff" element={<DirectoryPage />} />
-        <Route path="/directory/department-of-war" element={<DirectoryPage />} />
-        <Route path="/directory/state-legislators" element={<DirectoryPage />} />
-        {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
-        {/* Keep older member-profile URLs compatible with the canonical page.
+          <Route path="/directory" element={<DirectoryPage />} />
+          <Route path="/directory/congressional-staff" element={<DirectoryPage />} />
+          <Route path="/directory/committee-staff" element={<DirectoryPage />} />
+          <Route path="/directory/department-of-war" element={<DirectoryPage />} />
+          <Route path="/directory/state-legislators" element={<DirectoryPage />} />
+          {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
+          {/* Keep older member-profile URLs compatible with the canonical page.
             New committee-room links use /directory/members and a person ID. */}
-        <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
-        <Route path="/directory/people/:memberId" element={<MemberDirectoryProfilePage />} />
-        <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
-        <Route path="/directory/committees/:committeeId" element={<CommitteeDirectoryPage />} />
-        <Route path="/directory/state-legislators/:id" element={<StateLegislatorProfilePage />} />
-        <Route path="/directory/districts/:state/:districtNo" element={<DistrictDetailPage />} />
-        <Route path="/help" element={<HelpPage />} />
-        <Route path="/portal/*" element={<Navigate to="/clients" replace />} />
+          <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
+          <Route path="/directory/people/:memberId" element={<MemberDirectoryProfilePage />} />
+          <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
+          <Route path="/directory/committees/:committeeId" element={<CommitteeDirectoryPage />} />
+          <Route path="/directory/state-legislators/:id" element={<StateLegislatorProfilePage />} />
+          <Route path="/directory/districts/:state/:districtNo" element={<DistrictDetailPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/portal/*" element={<Navigate to="/clients" replace />} />
 
-        {/* Settings hosts personal + admin + capiro-admin tabs. Tabs are
+          {/* Settings hosts personal + admin + capiro-admin tabs. Tabs are
             role-filtered in SettingsLayout; the API enforces RolesGuard
             on every endpoint as the security boundary. */}
-        <Route path="/settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="/settings/personal" replace />} />
-          <Route path="personal" element={<PersonalPage />} />
-          <Route path="contact" element={<ContactInfoPage />} />
-          <Route path="memory" element={<MemorySettingsPage />} />
-          <Route path="team" element={<TeamPage />} />
-          <Route path="branding" element={<BrandingPage />} />
-          <Route path="clients" element={<ClientsPage />} />
-          <Route path="integrations" element={<IntegrationsPage />} />
-          <Route path="billing" element={<BillingPage />} />
-          <Route path="customers" element={<CustomersPage />} />
-          <Route path="ai-usage" element={<AiUsagePage />} />
-          <Route path="intelligence-mappings" element={<IntelligenceMappingsPage />} />
-          <Route path="skills" element={<SkillsPage />} />
-          <Route path="tenants" element={<CapiroAdminPage />} />
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="/settings/personal" replace />} />
+            <Route path="personal" element={<PersonalPage />} />
+            <Route path="contact" element={<ContactInfoPage />} />
+            <Route path="memory" element={<MemorySettingsPage />} />
+            <Route path="team" element={<TeamPage />} />
+            <Route path="branding" element={<BrandingPage />} />
+            <Route path="clients" element={<ClientsPage />} />
+            <Route path="integrations" element={<IntegrationsPage />} />
+            <Route path="billing" element={<BillingPage />} />
+            <Route path="customers" element={<CustomersPage />} />
+            <Route path="ai-usage" element={<AiUsagePage />} />
+            <Route path="intelligence-mappings" element={<IntelligenceMappingsPage />} />
+            <Route path="skills" element={<SkillsPage />} />
+            <Route path="tenants" element={<CapiroAdminPage />} />
+          </Route>
+
+          {/* Back-compat: old /admin/* and /capiro-admin URLs redirect into Settings. */}
+          <Route path="/admin" element={<Navigate to="/settings/team" replace />} />
+          <Route path="/admin/*" element={<Navigate to="/settings/team" replace />} />
+          <Route path="/capiro-admin" element={<Navigate to="/settings/tenants" replace />} />
+
+          <Route
+            path="*"
+            element={
+              <PlaceholderPage title="Not found" description="404 - this page doesn't exist." />
+            }
+          />
         </Route>
-
-        {/* Back-compat: old /admin/* and /capiro-admin URLs redirect into Settings. */}
-        <Route path="/admin" element={<Navigate to="/settings/team" replace />} />
-        <Route path="/admin/*" element={<Navigate to="/settings/team" replace />} />
-        <Route path="/capiro-admin" element={<Navigate to="/settings/tenants" replace />} />
-
-        <Route
-          path="*"
-          element={
-            <PlaceholderPage title="Not found" description="404 - this page doesn't exist." />
-          }
-        />
-      </Route>
       </Routes>
     </>
   );
@@ -520,7 +562,14 @@ function BillingGate() {
   }
   if (isVNextSurface) {
     return (
-      <Suspense fallback={<PlaceholderPage title="Loading Capiro vNext" description="Preparing the vNext surface..." />}>
+      <Suspense
+        fallback={
+          <PlaceholderPage
+            title="Loading Capiro vNext"
+            description="Preparing the vNext surface..."
+          />
+        }
+      >
         <VNextApp />
       </Suspense>
     );
@@ -529,9 +578,19 @@ function BillingGate() {
   // the one canonical surface whose renderer is v2 in both entry modes; placing
   // UUI here (rather than inside the page) avoids a nested shell and keeps the
   // route child shared with VNextRouter.
-  if (location.pathname === '/intelligence/opportunities' || location.pathname.startsWith('/intelligence/opportunities/')) {
+  if (
+    location.pathname === '/intelligence/opportunities' ||
+    location.pathname.startsWith('/intelligence/opportunities/')
+  ) {
     return (
-      <Suspense fallback={<PlaceholderPage title="Loading Funding Opportunities" description="Loading grant and contract opportunities..." />}>
+      <Suspense
+        fallback={
+          <PlaceholderPage
+            title="Loading Funding Opportunities"
+            description="Loading grant and contract opportunities..."
+          />
+        }
+      >
         <FundingOpportunitiesClassicShell>
           <Outlet />
         </FundingOpportunitiesClassicShell>

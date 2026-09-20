@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  formatFacilityDistrict,
-  type ClientFacility,
-} from '../../../pages/clients/facilities-api.js';
+import type { ClientFacility } from '../../../pages/clients/facilities-api.js';
 import { useQuery } from '@tanstack/react-query';
 import {
   Map as MaplibreMap,
@@ -24,10 +21,15 @@ import {
   CHOROPLETH_RAMP,
   METRIC_SCALES,
   NO_NEXUS_FILL,
-  metricValue,
-  rampColorForValue,
   type ChoroplethMetric,
 } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
+import {
+  buildFacilityPoints,
+  buildStyledBoundaryGeoJson,
+  computeFootprintBounds,
+  districtKeyFromFeature,
+  hasClientFootprint,
+} from './district-map-model.js';
 import './district-map.css';
 
 /**
@@ -78,13 +80,6 @@ const REGION_BOUNDS: Record<'AK' | 'HI' | 'PR', [[number, number], [number, numb
 };
 
 let webglSupportCache: boolean | null = null;
-// All-districts coverage includes placeholder rows with no client evidence.
-// A known zero score or an unscored real client row still has footprint.
-function hasClientFootprint(
-  district: DistrictNexusDistrictSummary | undefined,
-): district is DistrictNexusDistrictSummary {
-  return district != null && (district.clientCount > 0 || district.score != null);
-}
 
 function supportsWebGL(): boolean {
   if (webglSupportCache != null) return webglSupportCache;
@@ -92,8 +87,8 @@ function supportsWebGL(): boolean {
     const canvas = document.createElement('canvas');
     webglSupportCache = Boolean(
       canvas.getContext('webgl2') ||
-        canvas.getContext('webgl') ||
-        canvas.getContext('experimental-webgl'),
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl'),
     );
   } catch {
     webglSupportCache = false;
@@ -195,116 +190,35 @@ export function DistrictNexusMapLibre({
 
   const byKey = useMemo(() => new Map(districts.map((d) => [d.districtKey, d])), [districts]);
 
-  const styledGeojson = useMemo<BoundaryFeatureCollection | null>(() => {
-    if (!geojson.data) return null;
-    return {
-      ...geojson.data,
-      features: geojson.data.features.map((feature) => {
-        const district = byKey.get(feature.id);
-        const hasFootprint = hasClientFootprint(district);
-        const color = hasFootprint
-          ? rampColorForValue(metricValue(district, metric), metric)
-          : NO_NEXUS_FILL;
-        return {
-          ...feature,
-          properties: {
-            ...feature.properties,
-            __districtKey: feature.id,
-            __color: color,
-            __hasNexus: hasFootprint,
-          },
-        };
-      }),
-    };
-  }, [geojson.data, byKey, metric]);
+  const styledGeojson = useMemo<BoundaryFeatureCollection | null>(
+    () => (geojson.data ? buildStyledBoundaryGeoJson(geojson.data, byKey, metric) : null),
+    [geojson.data, byKey, metric],
+  );
 
   /**
    * Client profiles supply saved coordinates, including locations without an
    * employee count or resolved district. The firm aggregate view instead uses
    * district centers and labels that layer explicitly as district aggregates.
    */
-  const facilityPoints = useMemo(() => {
-    if (facilities) {
-      return {
-        type: 'FeatureCollection' as const,
-        features: facilities.flatMap((facility) => {
-          const { latitude, longitude } = facility;
-          if (
-            latitude == null ||
-            longitude == null ||
-            !Number.isFinite(latitude) ||
-            !Number.isFinite(longitude) ||
-            Math.abs(latitude) > 90 ||
-            Math.abs(longitude) > 180
-          )
-            return [];
-          return [
-            {
-              type: 'Feature' as const,
-              id: facility.id,
-              properties: {
-                districtKey: formatFacilityDistrict(facility.state, facility.congressionalDistrict),
-                facilityName: facility.name,
-                radius:
-                  facility.employeeCount == null
-                    ? 6
-                    : Math.min(14, 5 + Math.sqrt(Math.max(0, facility.employeeCount)) / 10),
-              },
-              geometry: { type: 'Point' as const, coordinates: [longitude, latitude] },
-            },
-          ];
-        }),
-      };
-    }
-    if (!geojson.data) return { type: 'FeatureCollection' as const, features: [] };
-    const features = geojson.data.features
-      .map((feature) => {
-        const district = byKey.get(feature.id);
-        if (!district || (district.employeeCount == null && !district.employeesUnreported))
-          return null;
-        const radius = Math.min(13, 4 + Math.sqrt((district.employeeCount ?? 60) / 40));
-        return {
-          type: 'Feature' as const,
-          id: feature.id,
-          geometry: { type: 'Point' as const, coordinates: feature.properties.centroid },
-          properties: { districtKey: feature.id, radius },
-        };
-      })
-      .filter((f): f is NonNullable<typeof f> => f != null);
-    return { type: 'FeatureCollection' as const, features };
-  }, [facilities, geojson.data, byKey]);
+  const facilityPoints = useMemo(
+    () => buildFacilityPoints(facilities, geojson.data, byKey),
+    [facilities, geojson.data, byKey],
+  );
 
   const fitToFootprint = useCallback(() => {
     const map = mapRef.current;
     if (!map || !geojson.data) return;
-    const boxes = geojson.data.features
-      .filter((f) => hasClientFootprint(byKey.get(f.id)))
-      .map((f) => f.properties.bbox);
-    if (facilities)
-      for (const point of facilityPoints.features) {
-        const [lng, lat] = point.geometry.coordinates;
-        boxes.push([lng!, lat!, lng!, lat!]);
-      }
-    if (!boxes.length) {
+    const bounds = computeFootprintBounds(
+      geojson.data,
+      byKey,
+      facilityPoints,
+      facilities !== undefined,
+    );
+    if (!bounds) {
       map.fitBounds(CONUS_BOUNDS, { padding: 24, animate: false });
       return;
     }
-    const union = boxes.reduce<[number, number, number, number]>(
-      (acc, b) => [
-        Math.min(acc[0], b[0]),
-        Math.min(acc[1], b[1]),
-        Math.max(acc[2], b[2]),
-        Math.max(acc[3], b[3]),
-      ],
-      [Infinity, Infinity, -Infinity, -Infinity],
-    );
-    map.fitBounds(
-      [
-        [union[0], union[1]],
-        [union[2], union[3]],
-      ],
-      { padding: 48, maxZoom: 6.5, animate: false },
-    );
+    map.fitBounds(bounds, { padding: 48, maxZoom: 6.5, animate: false });
   }, [geojson.data, byKey, facilities, facilityPoints]);
 
   // Re-fit whenever the map finishes loading, the artifact arrives, or (in
@@ -381,12 +295,7 @@ export function DistrictNexusMapLibre({
             onHoverDistrict?.(null);
             return;
           }
-          const key = String(
-            feature.properties?.districtKey ??
-              feature.properties?.__districtKey ??
-              feature.id ??
-              '',
-          );
+          const key = districtKeyFromFeature(feature) ?? '';
           setHover({
             key,
             x: e.point.x,
@@ -400,15 +309,7 @@ export function DistrictNexusMapLibre({
           onHoverDistrict?.(null);
         }}
         onClick={(e: MapLayerMouseEvent) => {
-          const feature = e.features?.[0];
-          const key = feature
-            ? String(
-                feature.properties?.districtKey ??
-                  feature.properties?.__districtKey ??
-                  feature.id ??
-                  '',
-              )
-            : null;
+          const key = districtKeyFromFeature(e.features?.[0]);
           // Any boundary is selectable — zero-nexus seats open the public-intel
           // drawer. Requiring byKey hid the entire non-footprint map.
           if (key) onSelectDistrict(key);

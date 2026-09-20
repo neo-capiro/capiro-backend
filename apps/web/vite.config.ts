@@ -1,8 +1,61 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type OutputBundle, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 const phase19ApiTarget = process.env.PHASE19_API_TARGET?.trim();
+const buildSurface = process.env.CAPIRO_WEB_BUILD_SURFACE?.trim().toLowerCase() || 'universal';
+
+const LEGACY_DISTRICT_NEXUS_UI = [
+  'DistrictNexusPage.tsx',
+  'DistrictNexusMap.tsx',
+  'DistrictNexusDrawer.tsx',
+  'DistrictNexusFilters.tsx',
+  'DistrictNexusTable.tsx',
+  'DistrictFederalMarketPanel.tsx',
+];
+
+const SHARED_DISTRICT_NEXUS_MODULES = [
+  'district-nexus-api.ts',
+  'district-nexus-format.ts',
+  'priority-intelligence-api.ts',
+  'priority-intelligence-format.ts',
+  'supplier-footprint-api.ts',
+];
+
+function outputModuleIds(bundle: OutputBundle): string[] {
+  return Object.values(bundle).flatMap((output) =>
+    output.type === 'chunk'
+      ? Object.keys(output.modules).map((id) => id.replaceAll('\\', '/'))
+      : [],
+  );
+}
+
+export function districtNexusBuildSurfaceGuard(surface = buildSurface): Plugin {
+  return {
+    name: 'district-nexus-build-surface-guard',
+    generateBundle(_options, bundle) {
+      if (surface !== 'vnext') return;
+      const moduleIds = outputModuleIds(bundle);
+      const forbidden = moduleIds.filter((id) =>
+        LEGACY_DISTRICT_NEXUS_UI.some((file) =>
+          id.endsWith(`/pages/intelligence/district-nexus/${file}`),
+        ),
+      );
+      if (forbidden.length > 0) {
+        this.error(`Legacy District Nexus UI reached vNext output:\n${forbidden.join('\n')}`);
+      }
+      const missingShared = SHARED_DISTRICT_NEXUS_MODULES.filter(
+        (file) =>
+          !moduleIds.some((id) => id.endsWith(`/pages/intelligence/district-nexus/${file}`)),
+      );
+      if (missingShared.length > 0) {
+        this.error(
+          `Shared District Nexus modules missing from vNext output:\n${missingShared.join('\n')}`,
+        );
+      }
+    },
+  };
+}
 
 export default defineConfig({
   // tailwindcss() only generates utilities for classes it finds via the
@@ -12,7 +65,10 @@ export default defineConfig({
   // "tailwindcss" import), because the legacy `theme.css` this app already
   // loads on every non-vnext route has its own global resets on
   // body/html/.ant-typography that a second reset would fight.
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), districtNexusBuildSurfaceGuard()],
+  define: {
+    'import.meta.env.VITE_BUILD_WEB_SURFACE': JSON.stringify(buildSurface),
+  },
   server: {
     port: 5173,
     host: true,

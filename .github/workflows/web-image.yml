@@ -56,6 +56,7 @@ jobs:
           provenance: false
           build-args: |
             GIT_SHA=${{ github.sha }}
+            CAPIRO_WEB_BUILD_SURFACE=canonical
           tags: |
             ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/web:${{ github.sha }}
             ${{ steps.ecr.outputs.registry }}/capiro/${{ env.TARGET_ENV }}/web:latest

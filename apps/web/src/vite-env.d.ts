@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_CLERK_PUBLISHABLE_KEY?: string;
   readonly VITE_API_BASE_URL?: string;
+  readonly VITE_BUILD_WEB_SURFACE?: 'vnext' | 'canonical' | 'universal';
   readonly VITE_LEGIWATCH_LIVE_HEARINGS_V2?: string;
 }
 

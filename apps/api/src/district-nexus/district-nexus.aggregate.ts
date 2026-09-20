@@ -295,59 +295,67 @@ function addMoney(current: number | null, value: number | null): number | null {
   return (current ?? 0) + value;
 }
 
-/**
- * Fold every rail into per-district totals plus the amounts that could not be
- * attributed to any district.
- *
- * Unmapped money is returned rather than dropped: a district breakdown that
- * quietly omits 40% of the spend is a wrong answer delivered confidently, and
- * §8.2 requires statewide awards to be visible as statewide rather than
- * silently smeared across a state's districts.
- */
-export function foldDistricts(inputs: ClientNexusInputs): {
-  districts: DistrictAccumulator[];
-  unmapped: UnmappedFunding;
+/** Shared mutable state for the five intentionally distinct nexus rail folds. */
+export interface DistrictFoldState {
+  byKey: Map<DistrictKey, DistrictAccumulator>;
   warnings: DataQualityWarning[];
-} {
-  const byKey = new Map<DistrictKey, DistrictAccumulator>();
-  const warnings: DataQualityWarning[] = [];
-  let unmappedContractAmount: number | null = null;
-  let unmappedGrantAmount: number | null = null;
+  unmappedContractAmount: number | null;
+  unmappedGrantAmount: number | null;
+  sawStatewideContract: boolean;
+  sawStatewideGrant: boolean;
+}
 
-  const upsert = (key: DistrictKey): DistrictAccumulator => {
-    const existing = byKey.get(key);
-    if (existing) return existing;
-    const fresh = emptyAccumulator(key);
-    byKey.set(key, fresh);
-    return fresh;
+export function createDistrictFoldState(): DistrictFoldState {
+  return {
+    byKey: new Map(),
+    warnings: [],
+    unmappedContractAmount: null,
+    unmappedGrantAmount: null,
+    sawStatewideContract: false,
+    sawStatewideGrant: false,
   };
+}
 
-  let sawStatewideContract = false;
-  let sawStatewideGrant = false;
+function upsertDistrict(state: DistrictFoldState, key: DistrictKey): DistrictAccumulator {
+  const existing = state.byKey.get(key);
+  if (existing) return existing;
+  const fresh = emptyAccumulator(key);
+  state.byKey.set(key, fresh);
+  return fresh;
+}
 
-  for (const row of inputs.contracts) {
+export function foldContracts(
+  state: DistrictFoldState,
+  rows: readonly ContractDistrictRow[],
+): void {
+  for (const row of rows) {
     const key = districtKeyFor(row.state, row.district);
     if (!key) {
-      unmappedContractAmount = addMoney(unmappedContractAmount, row.totalAmount);
-      if (isStatewide(row.state, row.district)) sawStatewideContract = true;
+      state.unmappedContractAmount = addMoney(state.unmappedContractAmount, row.totalAmount);
+      if (isStatewide(row.state, row.district)) state.sawStatewideContract = true;
       continue;
     }
-    const acc = upsert(key);
+    const acc = upsertDistrict(state, key);
     acc.contractObligations = addMoney(acc.contractObligations, row.totalAmount);
     acc.contractStrength = weakerStrength(
       acc.contractStrength ?? 'verified',
       contractTier(row.matchBasis ?? 'contractor_name').strength,
     );
   }
+}
 
-  for (const row of inputs.assistance) {
+export function foldAssistance(
+  state: DistrictFoldState,
+  rows: readonly AssistanceDistrictRow[],
+): void {
+  for (const row of rows) {
     const key = districtKeyFor(row.state, row.district);
     if (!key) {
-      unmappedGrantAmount = addMoney(unmappedGrantAmount, row.totalObligated);
-      if (isStatewide(row.state, row.district)) sawStatewideGrant = true;
+      state.unmappedGrantAmount = addMoney(state.unmappedGrantAmount, row.totalObligated);
+      if (isStatewide(row.state, row.district)) state.sawStatewideGrant = true;
       continue;
     }
-    const acc = upsert(key);
+    const acc = upsertDistrict(state, key);
     acc.grantObligations = addMoney(acc.grantObligations, row.totalObligated);
     acc.grantOutlays = addMoney(acc.grantOutlays, row.totalOutlayed);
     // Keep the WEAKEST basis: one recipient-location row means the district
@@ -357,40 +365,45 @@ export function foldDistricts(inputs: ClientNexusInputs): {
     } else {
       acc.assistanceBasis = 'place_of_performance';
     }
-    // Two independent weaknesses on this ROW (name match, recipient location)
-    // multiply rather than collapsing to the weaker one alone (Neo, 2026-07-27
-    // calibration decision — see compoundStrength's docblock). rowStrength is
-    // then POOLED with other rows via weakerStrength, which is the separate,
-    // unchanged rule for combining across records.
+    // The identity and geography weaknesses compound within a row, while
+    // weakerStrength pools rows without laundering either weakness.
     const rowStrength = compoundStrength(
       assistanceTier(row.matchBasis ?? 'recipient_name').strength,
       row.basis === 'recipient_location' ? 'recipientLocation' : 'sourceAuthoritative',
     );
     acc.grantStrength = weakerStrength(acc.grantStrength ?? 'verified', rowStrength);
   }
+}
 
-  for (const row of inputs.opportunities) {
+export function foldOpportunities(state: DistrictFoldState, rows: readonly OpportunityRow[]): void {
+  for (const row of rows) {
     const key = districtKeyFor(row.state, row.district);
     if (!key) continue; // Opportunities are forecasts; unmapped ones are noise.
-    const acc = upsert(key);
-    acc.opportunityEstimatedFunding = addMoney(acc.opportunityEstimatedFunding, row.estimatedFunding);
+    const acc = upsertDistrict(state, key);
+    acc.opportunityEstimatedFunding = addMoney(
+      acc.opportunityEstimatedFunding,
+      row.estimatedFunding,
+    );
     acc.opportunityAwardCeiling = addMoney(acc.opportunityAwardCeiling, row.awardCeiling);
   }
+}
 
-  for (const row of inputs.facilities) {
+export function foldFacilities(
+  state: DistrictFoldState,
+  rows: readonly FacilityRow[],
+  currentCongress?: number,
+): void {
+  for (const row of rows) {
     const key = districtKeyFor(row.state, row.districtCode);
     if (!key) continue;
-    // A facility whose district was resolved against a boundary vintage
-    // (Congress) that has not yet taken effect must not be silently used as
-    // CURRENT representation geography (§12) — excluded from scoring, with a
-    // warning, rather than blended in as though it were an ordinary current
-    // facility. Unknown vintage (null) is never treated as future.
+    // A future boundary is excluded from current representation; an unknown
+    // boundary vintage remains eligible exactly as before.
     if (
-      inputs.currentCongress != null &&
+      currentCongress != null &&
       row.congressionalDistrictCongress != null &&
-      row.congressionalDistrictCongress > inputs.currentCongress
+      row.congressionalDistrictCongress > currentCongress
     ) {
-      warnings.push({
+      state.warnings.push({
         code: 'future_boundary_excluded',
         message:
           'A facility’s congressional district reflects a boundary not yet in effect and is excluded from current-view scoring.',
@@ -398,27 +411,35 @@ export function foldDistricts(inputs: ClientNexusInputs): {
       });
       continue;
     }
-    const acc = upsert(key);
+    const acc = upsertDistrict(state, key);
     acc.facilityCount += 1;
     acc.employeeCount = addMoney(acc.employeeCount, row.employeeCount);
     if (row.employeeCount == null) acc.facilitiesMissingEmployeeCount += 1;
     acc.facilityStrength = weakerStrength(
       acc.facilityStrength ?? 'verified',
-      facilityTier({ geocodeStatus: row.geocodeStatus ?? null, districtSource: row.districtSource ?? null }).strength,
+      facilityTier({
+        geocodeStatus: row.geocodeStatus ?? null,
+        districtSource: row.districtSource ?? null,
+      }).strength,
     );
   }
+}
 
-  for (const row of inputs.relationships ?? []) {
+export function foldRelationships(
+  state: DistrictFoldState,
+  rows: readonly RelationshipNexusRow[],
+): void {
+  for (const row of rows) {
     const key = districtKeyFor(row.state, row.district);
     if (!key) {
-      // A relationship with no resolvable district is real but unplaceable.
-      // Its money joins the unmapped bucket rather than vanishing.
+      // A grant-shaped relationship with no district remains real but
+      // unplaceable. Presence-only partner evidence has no unmapped dollars.
       if (row.component === 'grantPlaceOfPerformance') {
-        unmappedGrantAmount = addMoney(unmappedGrantAmount, row.obligatedAmount);
+        state.unmappedGrantAmount = addMoney(state.unmappedGrantAmount, row.obligatedAmount);
       }
       continue;
     }
-    const acc = upsert(key);
+    const acc = upsertDistrict(state, key);
     if (row.component === 'grantPlaceOfPerformance') {
       acc.grantObligations = addMoney(acc.grantObligations, row.obligatedAmount);
       acc.grantOutlays = addMoney(acc.grantOutlays, row.outlayedAmount);
@@ -428,30 +449,56 @@ export function foldDistricts(inputs: ClientNexusInputs): {
     } else {
       acc.partnerStrength = weakerStrength(acc.partnerStrength ?? 'verified', row.strength);
     }
-    // Presence counts even when no dollar share was stated — that is the whole
-    // point of a partial-role relationship.
+    // Presence counts even when no dollar share was stated.
     acc.partnerEvidenceCount += row.component === 'partnerBeneficiary' ? 1 : 0;
   }
+}
 
-  if (sawStatewideContract || sawStatewideGrant) {
-    warnings.push({
+export function finishDistrictFold(state: DistrictFoldState): {
+  districts: DistrictAccumulator[];
+  unmapped: UnmappedFunding;
+  warnings: DataQualityWarning[];
+} {
+  if (state.sawStatewideContract || state.sawStatewideGrant) {
+    state.warnings.push({
       code: 'statewide_attribution',
       message:
         'Some awards are recorded statewide and cannot be attributed to a single district. They are reported as unmapped rather than spread across districts.',
     });
   }
-  if (unmappedContractAmount != null || unmappedGrantAmount != null) {
-    warnings.push({
+  if (state.unmappedContractAmount != null || state.unmappedGrantAmount != null) {
+    state.warnings.push({
       code: 'unmapped_amount',
       message: 'Some funding could not be attributed to a district — see the unmapped totals.',
     });
   }
-
   return {
-    districts: [...byKey.values()],
-    unmapped: { unmappedContractAmount, unmappedGrantAmount },
-    warnings,
+    districts: [...state.byKey.values()],
+    unmapped: {
+      unmappedContractAmount: state.unmappedContractAmount,
+      unmappedGrantAmount: state.unmappedGrantAmount,
+    },
+    warnings: state.warnings,
   };
+}
+
+/**
+ * Fold every rail into per-district totals plus the amounts that could not be
+ * attributed to any district. Each rail remains explicit because its null,
+ * verification, statewide, and warning semantics differ.
+ */
+export function foldDistricts(inputs: ClientNexusInputs): {
+  districts: DistrictAccumulator[];
+  unmapped: UnmappedFunding;
+  warnings: DataQualityWarning[];
+} {
+  const state = createDistrictFoldState();
+  foldContracts(state, inputs.contracts);
+  foldAssistance(state, inputs.assistance);
+  foldOpportunities(state, inputs.opportunities);
+  foldFacilities(state, inputs.facilities, inputs.currentCongress);
+  foldRelationships(state, inputs.relationships ?? []);
+  return finishDistrictFold(state);
 }
 
 /**
@@ -571,7 +618,8 @@ export function poolEvidence(
       // Opportunity-only survives only while EVERY contributing district is
       // opportunity-only. One district with awarded money makes the client-level
       // claim awarded-backed.
-      existing.opportunityOnly = existing.opportunityOnly === true && evidence.opportunityOnly === true;
+      existing.opportunityOnly =
+        existing.opportunityOnly === true && evidence.opportunityOnly === true;
     }
   }
 
@@ -635,9 +683,7 @@ function facilityFootprintOf(facilities: FacilityRow[]): ClientFacilityFootprint
  * descending, so the widget's first row is the strongest claim rather than
  * whichever district the database happened to return first.
  */
-export function buildClientNexusResponse(
-  inputs: ClientNexusInputs,
-): ClientDistrictNexusResponse {
+export function buildClientNexusResponse(inputs: ClientNexusInputs): ClientDistrictNexusResponse {
   const { districts: accumulators, unmapped, warnings } = foldDistricts(inputs);
 
   const districts: DistrictNexusDistrictDetail[] = accumulators.map((acc) => {
@@ -691,7 +737,9 @@ export function buildClientNexusResponse(
       opportunityEstimatedFunding: sumMoney(
         districts.map((d) => d.opportunities.opportunityEstimatedFunding),
       ),
-      opportunityAwardCeiling: sumMoney(districts.map((d) => d.opportunities.opportunityAwardCeiling)),
+      opportunityAwardCeiling: sumMoney(
+        districts.map((d) => d.opportunities.opportunityAwardCeiling),
+      ),
     },
     unmapped,
     score: clientScore.score,
@@ -726,7 +774,11 @@ export interface DistrictClientBreakdownInputs {
    */
   byClient: ReadonlyMap<
     string,
-    { clientName: string; contract: DistrictClientIdentityBasis; assistance: DistrictClientIdentityBasis }
+    {
+      clientName: string;
+      contract: DistrictClientIdentityBasis;
+      assistance: DistrictClientIdentityBasis;
+    }
   >;
   /** Firm-wide contract rows carrying the identifier AND basis each group matched on. */
   contractRows: Array<{
@@ -808,7 +860,11 @@ export function buildDistrictClientBreakdown(
     const contractTotal = inputs.contractRows
       .filter((r) => {
         if (ids.contract.basis === 'exact_uei') {
-          return (r.matchBasis ?? 'contractor_name') === 'uei' && r.identifier != null && contractUeis.has(r.identifier);
+          return (
+            (r.matchBasis ?? 'contractor_name') === 'uei' &&
+            r.identifier != null &&
+            contractUeis.has(r.identifier)
+          );
         }
         if (ids.contract.basis === 'reviewed_name_fallback') {
           return (
@@ -825,7 +881,11 @@ export function buildDistrictClientBreakdown(
     const assistanceHere = inputs.assistanceRows
       .filter((r) => {
         if (ids.assistance.basis === 'exact_uei') {
-          return (r.matchBasis ?? 'recipient_name') === 'uei' && r.uei != null && assistanceUeis.has(r.uei);
+          return (
+            (r.matchBasis ?? 'recipient_name') === 'uei' &&
+            r.uei != null &&
+            assistanceUeis.has(r.uei)
+          );
         }
         if (ids.assistance.basis === 'reviewed_name_fallback') {
           return (
