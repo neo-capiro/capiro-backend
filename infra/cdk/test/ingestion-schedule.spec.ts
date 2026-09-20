@@ -38,6 +38,24 @@ describe('Funding Opportunities production ingestion schedules', () => {
   });
 });
 
+describe('Florida OpenStates committee-event coverage', () => {
+  test('runs daily after the Monday roster normalization and has a real dispatcher verb', () => {
+    const roster = INGESTION_JOBS.find((job) => job.id === 'NormalizeStateCommittees')!;
+    const events = INGESTION_JOBS.find((job) => job.id === 'SyncOpenstatesEvents')!;
+    expect(roster.cron).toMatchObject({ minute: '30', hour: '8', weekDay: 'MON' });
+    expect(events.command).toEqual(['sync-openstates-events']);
+    expect(events.cron).toMatchObject({ minute: '0', hour: '9' });
+    expect(events.environment).toEqual({ OPENSTATES_EVENTS_STATES: 'FL' });
+    const dispatcher = readFileSync(
+      resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'),
+      'utf8',
+    );
+    expect(dispatcher).toContain(
+      'sync-openstates-events) exec ./node_modules/.bin/tsx scripts/sync-openstates-events.ts',
+    );
+  });
+});
+
 test('renders optional scheduled environment into the ECS container override', () => {
   const app = new cdk.App();
   const stack = new cdk.Stack(app, 'ScheduleStack');

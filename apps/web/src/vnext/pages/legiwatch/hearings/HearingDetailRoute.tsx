@@ -85,7 +85,7 @@ export function HearingDetailRoute() {
   const goBack = () => {
     const target = navigationState?.legiwatchReturnTo;
     navigate(
-      typeof target === 'string' && /^\/(?:legiwatch(?:[/?#]|$)|bills\/)/.test(target)
+      typeof target === 'string' && /^\/(?:legiwatch(?:[/?#]|$)|bills\/|directory\/state-committees\/)/.test(target)
         ? target
         : '/legiwatch?tab=hearings',
       { state: { legiwatchScrollY: navigationState?.legiwatchScrollY } },
@@ -318,6 +318,11 @@ export function HearingDetailRoute() {
       (intelligence.data?.jobs?.tenant?.pending ?? 0) >
       0;
   const committeeCode = e.subcommittee?.systemCode ?? e.committee?.systemCode ?? null;
+  const committeeTarget = e.stateCommitteeId
+    ? `/directory/state-committees/${encodeURIComponent(e.stateCommitteeId)}`
+    : committeeCode
+      ? `/legiwatch/committees/${encodeURIComponent(committeeCode)}`
+      : null;
   const officialUrl = e.officialPageUrl ?? null;
 
   return (
@@ -385,14 +390,12 @@ export function HearingDetailRoute() {
               <dl className="lw-detail__facts">
                 <dt>Committee</dt>
                 <dd>
-                  {committeeCode ? (
+                  {committeeTarget ? (
                     <button
                       type="button"
                       className="lw-backlink"
                       style={{ padding: 0 }}
-                      onClick={() =>
-                        navigate(`/legiwatch/committees/${encodeURIComponent(committeeCode)}`)
-                      }
+                      onClick={() => navigate(committeeTarget)}
                     >
                       {e.subcommittee?.name ?? e.committee?.name ?? '—'}
                     </button>

@@ -850,7 +850,10 @@ export async function fetchFloridaChannelSource(
   if (!allowed(url)) throw new Error('Unsupported Florida Channel source URL');
   let current = url;
   for (let redirects = 0; redirects < 4; redirects++) {
-    const response = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+    const response = await fetch(current, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(30000),
+    });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       current = new URL(response.headers.get('location') ?? '', current).href;
       if (!allowed(current)) throw new Error('Florida Channel source redirected off-host');
@@ -890,13 +893,24 @@ export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
     let response: Response | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        response = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+        response = await fetch(current, {
+          redirect: 'manual',
+          signal: AbortSignal.timeout(30000),
+          headers: {
+            Accept: 'text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.5',
+            'User-Agent':
+              'Capiro-LegiWatch/1.0 (+https://capiro.ai; public legislative calendar monitor)',
+          },
+        });
       } catch (error) {
         if (attempt === 2) throw error;
         await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
         continue;
       }
-      if (![429, 502, 503, 504].includes(response.status) || attempt === 2) break;
+      // The Florida Senate edge intermittently answers 500 for otherwise
+      // healthy committee pages. Treat it like the other bounded upstream
+      // transients; three failures still surface as a real source error.
+      if (![429, 500, 502, 503, 504].includes(response.status) || attempt === 2) break;
       const retryAfter = Number(response.headers.get('retry-after'));
       await response.body?.cancel();
       await new Promise((resolve) =>
@@ -1013,18 +1027,20 @@ export function senateMediaArchive(html: string): {
     const date = floridaDate(clean(tds.eq(0).text()));
     // The thumbnail anchor and the title anchor share the href; the title
     // anchor is the one with text. Never read the empty thumbnail link.
-    const link = $(tr)
-      .find('a[href*="/media/VideoPlayer/"]')
-      .toArray()
-      .map((a) => $(a))
-      .find((a) => clean(a.text())) ?? $(tr).find('a[href*="/media/VideoPlayer/"]').first();
+    const link =
+      $(tr)
+        .find('a[href*="/media/VideoPlayer/"]')
+        .toArray()
+        .map((a) => $(a))
+        .find((a) => clean(a.text())) ?? $(tr).find('a[href*="/media/VideoPlayer/"]').first();
     const href = link.attr('href') ?? '';
     const videoId = /^\/media\/VideoPlayer\/(\d+)$/i.exec(href)?.[1];
     const title = clean(link.text());
     // The description text lives in the <th> AFTER the title anchor; strip the
     // title itself so "Kind … held at …" is measured from the tail only.
     const description = clean($(tr).find('th').text());
-    const tail = title && description.startsWith(title) ? description.slice(title.length) : description;
+    const tail =
+      title && description.startsWith(title) ? description.slice(title.length) : description;
     const held =
       /(.*?)\s+held at\s+(\d{1,2}:\d{2}\s*(?:a\.?m\.?|p\.?m\.?|noon)?)\s+on\s+\d{1,2}\/\d{1,2}\/\d{4}/i.exec(
         tail,
@@ -1111,7 +1127,9 @@ export function floridaChannelTitleDate(title: string): string | null {
   const m = TFC_DATE_PREFIX.exec(title.trim());
   if (!m) return null;
   const year = 2000 + Number(m[3]);
-  return floridaDate(`${year}-${String(Number(m[1])).padStart(2, '0')}-${String(Number(m[2])).padStart(2, '0')}`);
+  return floridaDate(
+    `${year}-${String(Number(m[1])).padStart(2, '0')}-${String(Number(m[2])).padStart(2, '0')}`,
+  );
 }
 
 /** The TFC "YYYY Legislative Session" taxonomy term id, or null when absent. */
@@ -1145,7 +1163,9 @@ export function floridaChannelObservation(record: {
   session: string;
 }): { observation: LegislativeObservation; kalturaEntryId: string } | { rejected: string } {
   if (!record.programIds.includes(record.sessionProgramId))
-    return { rejected: `video ${record.id} is not in the ${record.session} Legislative Session program` };
+    return {
+      rejected: `video ${record.id} is not in the ${record.session} Legislative Session program`,
+    };
   const date = floridaChannelTitleDate(record.title);
   if (!date) return { rejected: `video ${record.id} title carries no M/D/YY event date` };
   const cls = classifyFloridaChannelTitle(record.title);
@@ -1153,8 +1173,7 @@ export function floridaChannelObservation(record: {
   const kalturaEntryId =
     floridaKalturaEntryId(record.contentHtml) ??
     (record.pageHtml ? floridaKalturaEntryId(record.pageHtml) : null);
-  if (!kalturaEntryId)
-    return { rejected: `video ${record.id} page embeds no playable player` };
+  if (!kalturaEntryId) return { rejected: `video ${record.id} page embeds no playable player` };
   let link: URL;
   try {
     link = new URL(record.link);

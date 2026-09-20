@@ -8,8 +8,18 @@ describe('computeDesiredCommittees', () => {
     ]);
 
     expect(result).toEqual([
-      { committeeId: 'VA-lower-courts-of-justice', name: 'Courts of Justice', role: 'chair' },
-      { committeeId: 'VA-lower-rules', name: 'Rules', role: 'member' },
+      {
+        committeeId: 'VA-lower-courts-of-justice',
+        name: 'Courts of Justice',
+        role: 'chair',
+        openstates: null,
+      },
+      {
+        committeeId: 'VA-lower-rules',
+        name: 'Rules',
+        role: 'member',
+        openstates: null,
+      },
     ]);
   });
 
@@ -24,7 +34,9 @@ describe('computeDesiredCommittees', () => {
 
   it('treats a missing role as null', () => {
     const result = computeDesiredCommittees('VA', 'lower', [{ name: 'Rules' }]);
-    expect(result).toEqual([{ committeeId: 'VA-lower-rules', name: 'Rules', role: null }]);
+    expect(result).toEqual([
+      { committeeId: 'VA-lower-rules', name: 'Rules', role: null, openstates: null },
+    ]);
   });
 
   it('dedupes a committee listed twice into one entry', () => {
@@ -32,7 +44,9 @@ describe('computeDesiredCommittees', () => {
       { name: 'Rules', role: 'chair' },
       { name: 'Rules', role: 'chair' },
     ]);
-    expect(result).toEqual([{ committeeId: 'VA-lower-rules', name: 'Rules', role: 'chair' }]);
+    expect(result).toEqual([
+      { committeeId: 'VA-lower-rules', name: 'Rules', role: 'chair', openstates: null },
+    ]);
   });
 
   it('returns an empty list for a legislator with no committees — the exact input that must PRUNE, not skip, existing membership rows', () => {
@@ -48,5 +62,27 @@ describe('computeDesiredCommittees', () => {
     expect(lower).toHaveLength(1);
     expect(upper).toHaveLength(1);
     expect(lower[0]?.committeeId).not.toBe(upper[0]?.committeeId);
+  });
+
+  it('carries OpenStates identity and provenance into the normalized committee', () => {
+    const openstates = {
+      id: 'ocd-organization/fl-rules',
+      classification: 'committee',
+      parentId: null,
+      links: [{ url: 'https://www.flsenate.gov/Committees/Show/RC' }],
+      sources: [{ url: 'https://openstates.org/fl/committees/FLC000100/' }],
+      extras: { code: 'RC' },
+    };
+
+    expect(
+      computeDesiredCommittees('FL', 'upper', [{ name: 'Rules', role: 'Chair', openstates }]),
+    ).toEqual([
+      {
+        committeeId: 'FL-upper-rules',
+        name: 'Rules',
+        role: 'Chair',
+        openstates,
+      },
+    ]);
   });
 });
