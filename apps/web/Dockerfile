@@ -14,7 +14,12 @@ ARG NODE_VERSION=20.16.0
 ARG NGINX_VERSION=1.27.1-alpine
 
 # -------- base ----------------------------------------------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS base
+# The build emits browser-only static assets, so run Node on the builder's
+# native architecture. Keeping this stage on TARGETPLATFORM forces TypeScript
+# and Vite through QEMU during arm64 releases, which is both much slower and
+# prone to long-running qemu-user crashes. The runtime stage below still uses
+# TARGETPLATFORM, so the shipped nginx image remains arm64 for ECS.
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
