@@ -640,7 +640,13 @@ function ScopedBillsTab({ scope, clients }: { scope: string; clients: Client[] }
           // return zero rows). A specific client still gets the client overlay.
           clientId={isAllScope ? '' : clientId}
           onClose={() => setOpenBill(null)}
-          onOpenFull={() => navigate(`/bills/${encodeURIComponent(openBill)}`)}
+          onOpenFull={() =>
+            navigate(
+              `/bills/${encodeURIComponent(openBill)}${
+                isAllScope ? '' : `?client=${encodeURIComponent(clientId)}`
+              }`,
+            )
+          }
         />
       ) : null}
     </div>

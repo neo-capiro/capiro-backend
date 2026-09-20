@@ -162,6 +162,43 @@ export class OrgTenantResolverService {
       return null;
     }
   }
+
+  /**
+   * Resolve the caller's current, unexpired Capiro Admin impersonation target.
+   *
+   * This lookup is intentionally uncached: ending/replacing a session must take
+   * effect on the very next request. `impersonation_sessions` is owned by
+   * apps/api and is bypass-only under FORCE RLS, so resolution happens through
+   * the same trusted system scope used by the pre-tenant membership checks.
+   * The guard remains responsible for proving the caller is a `capiro_admin`
+   * and for comparing the returned slug with the request header.
+   */
+  async resolveActiveImpersonation(clerkUserId: string): Promise<ResolvedTenant | null> {
+    try {
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<TenantRow[]>`
+          SELECT t.id::text AS id,
+                 t.slug::text AS slug,
+                 t.clerk_org_id AS "clerkOrgId"
+          FROM impersonation_sessions s
+          JOIN users u ON u.id = s.actor_user_id
+          JOIN tenants t ON t.id = s.tenant_id
+          WHERE u.clerk_user_id = ${clerkUserId}
+            AND s.ended_at IS NULL
+            AND s.expires_at > NOW()
+          ORDER BY s.started_at DESC
+          LIMIT 1
+        `,
+      );
+      const row = rows[0];
+      return row ? { tenantId: row.id, slug: row.slug, clerkOrgId: row.clerkOrgId } : null;
+    } catch (err) {
+      // Fail CLOSED. A broken session lookup must never leave the header trusted.
+      this.logger.error(`resolveActiveImpersonation failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
 }
 
 function read<T>(map: Map<string, Entry<T>>, key: string, ttlMs: number): T | undefined {
