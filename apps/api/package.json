@@ -275,7 +275,7 @@
     "pptxgenjs": "^3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "sanitize-html": "^2.17.7",
+    "sanitize-html": "2.17.5",
     "shpjs": "^6.2.0",
     "simple-statistics": "^7.12.0",
     "stripe": "^17.5.0",

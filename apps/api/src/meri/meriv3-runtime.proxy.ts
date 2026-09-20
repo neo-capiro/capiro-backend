@@ -1,3 +1,51 @@
+// ---------------------------------------------------------------------------
+// LIVE RUNTIME STATE — verified 2026-09-18, read-only (aws ecs describe-services
+// + describe-task-definition on cluster capiro-dev). Routing matrix and the
+// legacy-retirement scoping live in docs/meri/legacy-stream-retirement-scope.md.
+//
+// This proxy is the FIRST routing decision for every full-chat turn
+// (POST /api/clio/conversations/:id/stream). `meriv3.shouldHandle(ctx)` is
+// MeriFeatureFlagsService.isMeriV3ChatEnabled(tenantId, tenantSlug): three keys,
+// all default-closed — env MERIV3_ENABLED === 'true', slug in
+// MERIV3_CANARY_TENANT_SLUGS, tenant clioFeatureFlags['meriv3.fullChat'] === true.
+// Only when it declines does the raw MeriService decide MeriV2-orchestrator vs
+// legacy in-process (shouldRouteMeriV2FullChat, meriv2-routing.helpers.ts).
+//
+//  * MERIV3_ENABLED=true on the live api task definition (capiro-dev-api:384;
+//    present since at least :382) and on capiro-dev-meriv2-orchestrator:65.
+//    The V3 canary is LIVE. The earlier Part-3 plan note "V3 dark in prod" was
+//    wrong and is superseded by this block.
+//  * MERIV3_CANARY_TENANT_SLUGS = all 9 tenants (c2-strategies, capiro-internal,
+//    dualsight, maven, prospering-solutions, revere, victory-six-advisors,
+//    rubin-turnbull, abramoff — abramoff appended 2026-09-18 on api:383/orch:65),
+//    and clioFeatureFlags['meriv3.fullChat']=true on all 9 (flag parity applied
+//    2026-09-18). Net effect: every turn on each of the 9 live tenants takes the
+//    `meriv3.streamMessage` branch below. The `target.streamMessage` branch
+//    (MeriV2 proxy / legacy V1) is reached only for a tenant outside the cohort
+//    or after one of the three keys is closed — it is the ROLLBACK path, not
+//    dead code.
+//  * This gate is bearer- and impersonation-blind: shouldHandle reads only
+//    ctx.tenantId / ctx.tenantSlug (the middleware-swapped ctx on impersonated
+//    turns), never the Authorization header or x-capiro-impersonate-tenant, so an
+//    impersonated turn on a cohort tenant also rides V3. The MeriV2 gate
+//    downstream DOES require a bearer and DOES exclude impersonation (264b351af
+//    containment) — a deliberate asymmetry, pinned by meriv2-routing.matrix.spec.ts
+//    and meri-feature-flags.matrix.spec.ts.
+//  * CDK DRIFT WARNING: MERIV3_ENABLED is ABSENT from infra/cdk/lib/compute-stack.ts
+//    (so is MERIV3_CANARY_TENANT_SLUGS); both were applied OUT-OF-BAND on the task
+//    definitions. The live TD env is the source of truth; a `cdk deploy` would
+//    silently DROP MERIV3_ENABLED and move every tenant from V3 to the MeriV2 proxy
+//    in one roll. The Capiro-dev-Compute stack has been wedged since 2026-05-27 —
+//    described as UPDATE_ROLLBACK_FAILED in compute-stack.ts and
+//    infra/cdk/DRIFT-FINDINGS.md; CloudFormation reported UPDATE_ROLLBACK_COMPLETE
+//    (last updated 2026-07-25) when re-read on 2026-09-18. Either way: do not
+//    `cdk deploy` this stack until these keys are codified there.
+//
+// The Phase-19 adapter installers below (installRawPhase19Adapters /
+// installV3Phase19Adapters) patch private seams of BOTH runtimes at construction
+// time and are intentionally left untouched; simplifying them is out of scope
+// until the runtime matrix proves the patched internals are exercised identically.
+// ---------------------------------------------------------------------------
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { MeriService } from './meri.service.js';
