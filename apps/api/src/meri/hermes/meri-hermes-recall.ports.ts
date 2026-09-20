@@ -17,7 +17,7 @@
  *    text filter. It is labelled `direct_memory_items_prototype` in every
  *    result so evidence can never be mistaken for the production path.
  */
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -35,7 +35,7 @@ export interface MeriHermesRecallInput {
   query: string;
   clientId?: string | null;
   limit: number;
-  /** Server-derived; used only by the prototype port (the Context Plane derives its own). */
+  /** Server-derived run-envelope ceiling; every recall implementation must enforce it. */
   authorizedClientIds: string[];
 }
 
@@ -81,6 +81,12 @@ export class ContextPlaneRecallPort implements MeriHermesRecallPort {
   constructor(private readonly contextPlane: MeriContextPlaneService) {}
 
   async recall(ctx: TenantContext, input: MeriHermesRecallInput): Promise<MeriHermesRecallResult> {
+    const authorized = new Set(input.authorizedClientIds);
+    if (input.clientId && !authorized.has(input.clientId)) {
+      // Match the controller/broker ownership precedent: do not reveal whether
+      // a client exists when it is outside this run's frozen authorization.
+      throw new NotFoundException('Client not found');
+    }
     const result = (await searchCapiroData(
       ctx,
       {
@@ -105,7 +111,13 @@ export class ContextPlaneRecallPort implements MeriHermesRecallPort {
         sources?: Array<{ sourceStatus?: string; total?: number; stopReason?: string }>;
       };
     };
-    const records = result.records ?? [];
+    const records = (result.records ?? []).filter((record) => {
+      const clientId = record.payload.clientId;
+      if (typeof clientId === 'string') return authorized.has(clientId);
+      // A malformed client-scoped record is not safe to reinterpret as firm
+      // scope merely because its client id is missing or has the wrong type.
+      return clientId == null && record.payload.scope !== 'client';
+    });
     const source = result.coverage?.sources?.[0];
     return {
       path: 'context_plane',
@@ -122,7 +134,9 @@ export class ContextPlaneRecallPort implements MeriHermesRecallPort {
       coverage: {
         requested: input.limit,
         returned: records.length,
-        total: source?.total ?? null,
+        // Context Plane's total may include rows removed by the envelope. Only
+        // expose a scoped total when its source scan was complete.
+        total: result.coverage?.complete === true ? records.length : null,
         sourceStatus: source?.sourceStatus ?? 'unknown',
         complete: result.coverage?.complete === true,
         detail: source?.stopReason ?? null,
