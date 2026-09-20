@@ -1,0 +1,15 @@
+=== TASK A (first boot, empty EFS) 313ce251fd9b4630a15aa5f447bdc6be ===
+    "Syncing bundled skills into ~/.hermes/skills/ ...",
+    "Done: 58 new, 0 updated, 0 unchanged. 58 total bundled.",
+    "cont-init: info: running /etc/cont-init.d/02-reconcile-profiles",
+    "reconcile: profile=default prior_state=None action=registered",
+    "cont-init: info: /etc/cont-init.d/02-reconcile-profiles exited 0",
+    "[meri-hermes-worker] HERMES_HOME=/opt/data scope=unset model=gpt-5.6-luna provider=auto",
+
+=== TASK B (replacement, same access point) 854e2f083f234d4097a19f535f6f6da8 ===
+    "Syncing bundled skills into ~/.hermes/skills/ ...",
+    "Done: 0 new, 0 updated, 58 unchanged. 58 total bundled.",
+    "cont-init: info: running /etc/cont-init.d/02-reconcile-profiles",
+    "reconcile: profile=default prior_state=running action=started",
+    "cont-init: info: /etc/cont-init.d/02-reconcile-profiles exited 0",
+    "[meri-hermes-worker] HERMES_HOME=/opt/data scope=unset model=gpt-5.6-luna provider=auto",

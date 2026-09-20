@@ -135,8 +135,10 @@ module.exports = {
     ],
   },
   // Default is to transform nothing in node_modules. This negative lookahead
-  // carves out exactly one package; adding to it is a deliberate act.
-  transformIgnorePatterns: ['/node_modules/(?!(?:\\.pnpm/)?@makegov[+/])'],
+  // carves out selected packages; adding to it is a deliberate act.
+  transformIgnorePatterns: [
+    '/node_modules/(?!(?:\\.pnpm/)?(?:@makegov[+/]|sanitize-html(?:@|/)|htmlparser2(?:@|/)|entities(?:@|/)|domhandler(?:@|/)|domelementtype(?:@|/)|domutils(?:@|/)|dom-serializer(?:@|/)))',
+  ],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     // Jest cannot resolve package-`imports` subpaths; map @clerk/backend's

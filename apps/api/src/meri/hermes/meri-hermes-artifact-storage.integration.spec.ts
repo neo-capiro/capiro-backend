@@ -102,7 +102,11 @@ describe('Phase 1 backlog #11 — artifact storage parity (real S3 upload path, 
     await prisma.$connect();
     runs = new MeriHermesRunStore();
     storage = new MeriHermesArtifactStorageService({
-      get: (key: string) => (key === 'ASSETS_BUCKET' ? 'meri-hermes-test-bucket' : 'us-east-1'),
+      get: (key: string) =>
+        ({
+          ASSETS_BUCKET: 'meri-hermes-test-bucket',
+          AWS_REGION_DEFAULT: 'us-east-1',
+        })[key],
     } as never);
     s3send = jest.fn();
     // Replace the real (mocked-class) S3Client instance with a send() spy.

@@ -27,7 +27,11 @@ export class MeriHermesArtifactStorageService {
 
   constructor(config: ConfigService<AppConfig, true>) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
-    this.s3 = new S3Client({ region: config.get('AWS_REGION_DEFAULT', { infer: true }) });
+    const endpoint = config.get('MERI_HERMES_ARTIFACT_S3_ENDPOINT', { infer: true });
+    this.s3 = new S3Client({
+      region: config.get('AWS_REGION_DEFAULT', { infer: true }),
+      ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
+    });
   }
 
   get configured(): boolean {
