@@ -746,14 +746,6 @@ export function HearingsTab({ scope }: { scope: string }) {
           </div>
         </>
       ) : null}
-      {sub === 'schedule' && jurisdiction === 'FL' ? (
-        <LegalDeadlineOverlay
-          from={rangeFrom}
-          to={rangeTo}
-          clientId={clientId || undefined}
-          folderId={selectedFolders.length === 1 ? selectedFolders[0] : undefined}
-        />
-      ) : null}
       {exportWeek.isError ? (
         <p role="alert">Calendar export failed. Refresh the selection and try again.</p>
       ) : null}
@@ -764,43 +756,6 @@ export function HearingsTab({ scope }: { scope: string }) {
             ? ` ${exportWeek.data.skipped.length} events were skipped: ${exportWeek.data.skipped.map((s) => s.reason).join('; ')}`
             : ''}
         </p>
-      ) : null}
-      {/* Latest-Florida action: shown ONLY when the Florida range is empty
-          and fully loaded. This is an explicit user action — the calendar
-          never changes the date window in response to a filter, and no date
-          moves until the user clicks. Honest states: a source error is
-          reported, a null hearing means no matching FL rows exist, and the
-          button is disabled until the lookup returns a real canonical date. */}
-      {sub === 'schedule' && floridaRangeEmpty ? (
-        <div className="lw-controls" aria-label="Latest Florida hearings">
-          {latestFlorida.isError ? (
-            <span role="alert" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-              The latest Florida hearings could not be checked.{' '}
-              <button onClick={() => void latestFlorida.refetch()}>Retry</button>
-            </span>
-          ) : latestFlorida.isPending ? (
-            <span role="status" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-              Checking for the latest Florida hearings…
-            </span>
-          ) : latestFlorida.data?.hearing && latestFlorida.data.hearing.calendarDate ? (
-            (() => {
-              // Narrow once for the callback — the guard above proves the
-              // hearing and its canonical date exist, but TS can't carry that
-              // into the onClick closure.
-              const hearing = latestFlorida.data.hearing;
-              const day = hearing.calendarDate!;
-              return (
-                <LwButton onClick={() => jumpToLatestFlorida(day)}>
-                  View latest Florida hearings
-                </LwButton>
-              );
-            })()
-          ) : latestFlorida.data?.answered ? (
-            <span style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-              No Florida hearings match this selection.
-            </span>
-          ) : null}
-        </div>
       ) : null}
       <div
         className={sub === 'sessions' ? 'lw-hearings-cols lw-hearings-cols--single' : 'lw-schedule'}
@@ -1324,6 +1279,52 @@ export function HearingsTab({ scope }: { scope: string }) {
           </section>
 
         </div>
+        ) : null}
+        {/* Latest-Florida is an empty-range aid, not an alternate schedule.
+            Keep it after the shared calendar/agenda so every jurisdiction has
+            the same primary surface immediately after the controls. */}
+        {sub === 'schedule' && floridaRangeEmpty ? (
+          <div className="lw-controls" aria-label="Latest Florida hearings">
+            {latestFlorida.isError ? (
+              <span role="alert" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+                The latest Florida hearings could not be checked.{' '}
+                <button onClick={() => void latestFlorida.refetch()}>Retry</button>
+              </span>
+            ) : latestFlorida.isPending ? (
+              <span role="status" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+                Checking for the latest Florida hearings…
+              </span>
+            ) : latestFlorida.data?.hearing && latestFlorida.data.hearing.calendarDate ? (
+              (() => {
+                // Narrow once for the callback — the guard above proves the
+                // hearing and its canonical date exist, but TS can't carry that
+                // into the onClick closure.
+                const hearing = latestFlorida.data.hearing;
+                const day = hearing.calendarDate!;
+                return (
+                  <LwButton onClick={() => jumpToLatestFlorida(day)}>
+                    View latest Florida hearings
+                  </LwButton>
+                );
+              })()
+            ) : latestFlorida.data?.answered ? (
+              <span style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
+                No Florida hearings match this selection.
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {/* Florida legal dates are supplemental research reminders. Keep the
+            shared proceedings calendar/agenda as the primary schedule surface,
+            then expose the source-stated dates after it rather than inserting
+            an unbounded notice list between the filters and calendar. */}
+        {sub === 'schedule' && jurisdiction === 'FL' && dateOnlyReminder ? (
+          <LegalDeadlineOverlay
+            from={rangeFrom}
+            to={rangeTo}
+            clientId={clientId || undefined}
+            folderId={selectedFolders.length === 1 ? selectedFolders[0] : undefined}
+          />
         ) : null}
         {sub === 'schedule' ? <CommitteeSourceStatus /> : null}
         {jurisdiction !== 'US' && sub === 'schedule' ? (
