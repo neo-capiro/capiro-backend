@@ -1,0 +1,12 @@
+PASS src/meri/meri-feature-flags.matrix.spec.ts (113.425 s)
+PASS src/meri/meriv2-routing.matrix.spec.ts
+PASS src/meri/meriv3-runtime.proxy.spec.ts
+PASS src/common/meri-hermes-flags.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       108 passed, 108 total
+Snapshots:   0 total
+Time:        119.508 s
+Ran all test suites matching /src\\meri\\meriv3-runtime.proxy.spec.ts|src\\meri\\meri-feature-flags.matrix.spec.ts|src\\meri\\meriv2-routing.matrix.spec.ts|src\\common\\meri-hermes-flags.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+routing exit=0
