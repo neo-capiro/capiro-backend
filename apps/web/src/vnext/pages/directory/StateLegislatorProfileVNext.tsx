@@ -3,7 +3,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { stateBillStatusLabel } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
 import { getStateLegislatorDetail } from '../../../pages/directory/directory-api.js';
-import type { StateLegislatorDetail } from '../../../pages/directory/StateLegislatorDirectory.js';
+import type {
+  StateLegislatorDetail,
+  StateLegislatorDirectoryProfile,
+} from '../../../pages/directory/StateLegislatorDirectory.js';
 import {
   NOT_PROVIDED,
   chamberLabel,
@@ -32,6 +35,100 @@ import {
  * never collapses `sponsoredBills: null` (never crosswalked to LegiScan) into
  * an empty list — that would fabricate a "sponsors nothing" claim.
  */
+
+function titleCase(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function officeTitle(office: StateLegislatorDirectoryProfile['offices'][number]): string {
+  if (office.label) return office.label;
+  if (!office.kind) return 'Official office';
+  const kind = titleCase(office.kind);
+  return /\boffice\b/i.test(kind) ? kind : `${kind} office`;
+}
+
+function DirectoryProfileFacts({ profile }: { profile: StateLegislatorDirectoryProfile }) {
+  const sourceLine = [
+    profile.source.document,
+    profile.source.asOfDate ? `as of ${profile.source.asOfDate}` : null,
+    profile.source.pages.length
+      ? `${profile.source.pages.length === 1 ? 'page' : 'pages'} ${profile.source.pages.join(', ')}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <>
+      <ProfileCard title="Official directory details">
+        <dl className="capiro-dirpage__desc" data-testid="state-legislator-directory-profile">
+          {profile.leadershipTitle ? (
+            <div className="capiro-dirpage__desc-item">
+              <dt>Leadership</dt>
+              <dd>{profile.leadershipTitle}</dd>
+            </div>
+          ) : null}
+          {profile.spouse ? (
+            <div className="capiro-dirpage__desc-item">
+              <dt>Spouse</dt>
+              <dd>{profile.spouse}</dd>
+            </div>
+          ) : null}
+        </dl>
+
+        {profile.offices.length ? (
+          <div className="capiro-dirpage__rows">
+            {profile.offices.map((office, index) => (
+              <div
+                className="capiro-dirpage__row"
+                key={`${office.kind ?? ''}-${office.label ?? ''}-${index}`}
+              >
+                <p className="capiro-dirpage__row-title">{officeTitle(office)}</p>
+                {office.addressLines.length ? (
+                  <p className="capiro-dirprofile__line">{office.addressLines.join(', ')}</p>
+                ) : null}
+                <p className="capiro-dirprofile__meta">
+                  {[
+                    office.phone,
+                    office.voip ? `VOIP ${office.voip}` : null,
+                    office.fax ? `Fax ${office.fax}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {sourceLine ? <p className="capiro-dirprofile__meta">{sourceLine}</p> : null}
+      </ProfileCard>
+
+      {profile.staff.length ? (
+        <ProfileCard title={`Legislative staff (${profile.staff.length})`}>
+          <div className="capiro-dirpage__rows" data-testid="state-legislator-directory-staff">
+            {profile.staff.map((staffer) => (
+              <div
+                className="capiro-dirpage__row"
+                key={`${staffer.name}-${staffer.role}-${staffer.sourcePage ?? ''}`}
+              >
+                <p className="capiro-dirpage__row-title">{staffer.name}</p>
+                <p className="capiro-dirprofile__meta">
+                  {[
+                    staffer.role,
+                    staffer.sourcePage ? `Directory page ${staffer.sourcePage}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </ProfileCard>
+      ) : null}
+    </>
+  );
+}
 
 export function StateLegislatorProfileViewVNext({
   legislator,
@@ -116,6 +213,10 @@ export function StateLegislatorProfileViewVNext({
           </div>
         </dl>
       </ProfileCard>
+
+      {legislator.directoryProfile ? (
+        <DirectoryProfileFacts profile={legislator.directoryProfile} />
+      ) : null}
 
       <ProfileCard title={`Committees (${legislator.committees.length})`}>
         {legislator.committees.length === 0 ? (

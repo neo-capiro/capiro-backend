@@ -114,6 +114,30 @@ type ReferredBill = {
   }>;
 };
 
+type CommitteeDirectoryProfile = {
+  contacts: Array<{
+    location: string | null;
+    mailingAddress: string | null;
+    phone: string | null;
+    voip: string | null;
+  }>;
+  jurisdiction: string | null;
+  leadership: Array<{ name: string; role: string }>;
+  staff: Array<{
+    name: string;
+    role: string;
+    email: string | null;
+    phone: string | null;
+    sourcePage: number | null;
+  }>;
+  sources: Array<{
+    document: string;
+    sha256: string;
+    asOfDate: string;
+    pages: number[];
+  }>;
+};
+
 export type StateCommitteeDetail = {
   body: Body;
   members: Member[];
@@ -127,6 +151,7 @@ export type StateCommitteeDetail = {
   events?: CalendarWindow;
   sourceCoverage?: SourceCoverage[];
   referredBills?: { rows: ReferredBill[]; total: number };
+  directoryProfile?: CommitteeDirectoryProfile | null;
 };
 
 export function chamberLabel(chamber: string | null): string {
@@ -225,6 +250,73 @@ function StateRoster({ members }: { members: Member[] }) {
   );
 }
 
+function CommitteeDirectoryFacts({ profile }: { profile: CommitteeDirectoryProfile }) {
+  return (
+    <>
+      <ProfileCard title="Official directory details">
+        {profile.jurisdiction ? (
+          <p className="capiro-dirprofile__line">{profile.jurisdiction}</p>
+        ) : null}
+        <div className="capiro-dirpage__rows">
+          {profile.contacts.map((contact, index) => (
+            <div className="capiro-dirpage__row" key={`${contact.location ?? ''}-${index}`}>
+              <p className="capiro-dirpage__row-title">{contact.location || 'Committee office'}</p>
+              <p className="capiro-dirprofile__meta">
+                {[
+                  contact.mailingAddress,
+                  contact.phone,
+                  contact.voip ? `VOIP ${contact.voip}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            </div>
+          ))}
+          {profile.leadership.map((leader) => (
+            <div className="capiro-dirpage__row" key={`${leader.name}-${leader.role}`}>
+              <p className="capiro-dirpage__row-title">{leader.name}</p>
+              <p className="capiro-dirprofile__meta">{leader.role}</p>
+            </div>
+          ))}
+        </div>
+        {profile.sources.map((source) => (
+          <p className="capiro-dirprofile__meta" key={`${source.sha256}-${source.pages.join('-')}`}>
+            {source.document} · as of {source.asOfDate} · pages {source.pages.join(', ')}
+          </p>
+        ))}
+      </ProfileCard>
+
+      <ProfileCard title={`Professional staff (${profile.staff.length})`}>
+        {profile.staff.length ? (
+          <div className="capiro-dirpage__rows" data-testid="state-committee-professional-staff">
+            {profile.staff.map((staffer) => (
+              <div className="capiro-dirpage__row" key={`${staffer.name}-${staffer.role}`}>
+                <p className="capiro-dirpage__row-title">{staffer.name}</p>
+                <p className="capiro-dirprofile__meta">
+                  {[
+                    staffer.role,
+                    staffer.phone,
+                    staffer.sourcePage ? `Directory page ${staffer.sourcePage}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+                {staffer.email ? (
+                  <a className="capiro-dirprofile__link" href={`mailto:${staffer.email}`}>
+                    {staffer.email}
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <CapiroEmptyState title="No professional staff listed in the directory source" />
+        )}
+      </ProfileCard>
+    </>
+  );
+}
+
 function Proceedings({
   title,
   window,
@@ -314,6 +406,7 @@ export function StateCommitteeProfile({ detail }: { detail: StateCommitteeDetail
   ];
   const upcoming = detail.upcomingEvents ?? { rows: [], total: 0 };
   const recent = detail.recentEvents ?? detail.events ?? { rows: [], total: 0 };
+  const primaryDirectoryContact = detail.directoryProfile?.contacts[0] ?? null;
   const members = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return detail.members.filter((member) => {
@@ -345,6 +438,17 @@ export function StateCommitteeProfile({ detail }: { detail: StateCommitteeDetail
           <p className="capiro-dirprofile__meta">
             {detail.members.length} members · {upcoming.total} upcoming · {recent.total} recent
           </p>
+          {primaryDirectoryContact ? (
+            <p className="capiro-dirprofile__meta">
+              {[
+                primaryDirectoryContact.location,
+                primaryDirectoryContact.phone ? `Phone: ${primaryDirectoryContact.phone}` : null,
+                primaryDirectoryContact.voip ? `VOIP ${primaryDirectoryContact.voip}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          ) : null}
           <p className="capiro-dirprofile__meta">
             {[
               body.officialSourceKey
@@ -367,6 +471,10 @@ export function StateCommitteeProfile({ detail }: { detail: StateCommitteeDetail
             ID. Capiro will not infer members from names alone.
           </p>
         </ProfileCard>
+      ) : null}
+
+      {detail.directoryProfile ? (
+        <CommitteeDirectoryFacts profile={detail.directoryProfile} />
       ) : null}
 
       <Proceedings title="Upcoming proceedings" window={upcoming} returnTo={currentPath} />

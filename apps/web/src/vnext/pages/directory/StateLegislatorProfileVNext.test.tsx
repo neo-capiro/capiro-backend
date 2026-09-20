@@ -76,6 +76,79 @@ describe('StateLegislatorProfileViewVNext', () => {
     expect(screen.getAllByText('Not provided by source').length).toBeGreaterThan(0);
   });
 
+  test('renders reviewed Florida directory facts without replacing canonical OpenStates fields', () => {
+    renderView(
+      legislator({
+        state: 'FL',
+        email: 'canonical@flsenate.gov',
+        image: 'https://openstates.example/senator.jpg',
+        committees: [
+          { id: 'com-1', name: 'Canonical Judiciary', chamber: 'upper', role: 'Member' },
+        ],
+        directoryProfile: {
+          source: {
+            document: 'SDIR.pdf',
+            sha256: 'f'.repeat(64),
+            asOfDate: '2026-08-26',
+            pages: [17],
+          },
+          email: 'directory@flsenate.gov',
+          portraitUrl: '/florida-directory/portraits/senator.jpg',
+          leadershipTitle: 'Minority Leader',
+          spouse: 'Jeffrey',
+          offices: [
+            {
+              kind: 'district',
+              label: 'District office',
+              addressLines: ['3475 Sheridan Street', 'Suite 211', 'Hollywood, FL 33021'],
+              phone: '(954) 893-5045',
+              voip: '43700',
+              fax: null,
+            },
+            {
+              kind: 'tallahassee',
+              label: null,
+              addressLines: ['304 Senate Building', '404 South Monroe Street'],
+              phone: '(850) 487-5037',
+              voip: '5037',
+              fax: '(850) 555-0100',
+            },
+          ],
+          staff: [
+            { name: 'Joanne Alvarez', role: 'Legislative Aide', sourcePage: 17 },
+            { name: 'Margarita Gerson', role: 'Legislative Aide', sourcePage: 17 },
+          ],
+          committeeAssignments: [{ name: 'Directory-only committee', role: 'Vice Chair' }],
+        },
+      }),
+    );
+
+    expect(screen.getByText('Official directory details')).toBeInTheDocument();
+    expect(screen.getByText('Minority Leader')).toBeInTheDocument();
+    expect(screen.getByText('Jeffrey')).toBeInTheDocument();
+    expect(screen.getByText('District office')).toBeInTheDocument();
+    expect(screen.getByText('Tallahassee office')).toBeInTheDocument();
+    expect(screen.getByText(/3475 Sheridan Street/)).toHaveTextContent(
+      '3475 Sheridan Street, Suite 211, Hollywood, FL 33021',
+    );
+    expect(screen.getByText(/\(954\) 893-5045/)).toHaveTextContent('(954) 893-5045 · VOIP 43700');
+    expect(screen.getByText(/\(850\) 487-5037/)).toHaveTextContent(
+      '(850) 487-5037 · VOIP 5037 · Fax (850) 555-0100',
+    );
+    expect(screen.getByText('Legislative staff (2)')).toBeInTheDocument();
+    expect(screen.getByText('Joanne Alvarez')).toBeInTheDocument();
+    expect(screen.getAllByText('Legislative Aide · Directory page 17')).toHaveLength(2);
+    expect(screen.getByText('SDIR.pdf · as of 2026-08-26 · page 17')).toBeInTheDocument();
+
+    expect(screen.getByRole('link', { name: 'canonical@flsenate.gov' })).toHaveAttribute(
+      'href',
+      'mailto:canonical@flsenate.gov',
+    );
+    expect(screen.queryByText('directory@flsenate.gov')).toBeNull();
+    expect(screen.getByText('Canonical Judiciary')).toBeInTheDocument();
+    expect(screen.queryByText('Directory-only committee')).toBeNull();
+  });
+
   test('null sponsoredBills = never crosswalked: says data unavailable, never "no bills", no count', () => {
     renderView(legislator({ sponsoredBills: null, sponsoredBillsTotal: 0 }));
     expect(

@@ -19,7 +19,7 @@
  * YouTube is not a first-party media transport, and conflating the two is how a
  * third-party stream gets mistaken for a capturable one.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type { CapturePolicy, ObservedStreamCandidate } from './hearing-discovery.types.js';
 
 /**
@@ -125,7 +125,7 @@ function strictest(a: CapturePolicy, b: CapturePolicy | undefined): CapturePolic
 }
 
 export class StreamCandidateRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient | Prisma.TransactionClient) {}
 
   /**
    * Record advertised candidates for a hearing. Idempotent on (hearing,

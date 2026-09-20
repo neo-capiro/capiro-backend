@@ -50,10 +50,42 @@ export interface StateLegislatorSponsoredBill {
   sponsorType: string;
 }
 
+export interface StateLegislatorDirectoryProfile {
+  source: {
+    document: string | null;
+    sha256: string;
+    asOfDate: string | null;
+    pages: number[];
+  };
+  email: string | null;
+  portraitUrl: string | null;
+  leadershipTitle: string | null;
+  spouse: string | null;
+  offices: Array<{
+    kind: string | null;
+    label: string | null;
+    addressLines: string[];
+    phone: string | null;
+    voip: string | null;
+    fax: string | null;
+  }>;
+  staff: Array<{
+    name: string;
+    role: string;
+    sourcePage: number | null;
+  }>;
+  committeeAssignments: Array<{
+    name: string;
+    role: string | null;
+  }>;
+}
+
 export interface StateLegislatorDetail extends StateLegislatorBase {
   active: boolean;
   legiscanPeopleId: number | null;
   syncedAt: string;
+  /** Reviewed, display-safe facts from an official Florida directory PDF. */
+  directoryProfile?: StateLegislatorDirectoryProfile | null;
   committees: StateLegislatorCommittee[];
   // null = this legislator has never been crosswalked to LegiScan bill data
   // (distinct from an empty array, which means "linked, but sponsors nothing

@@ -8,8 +8,10 @@ import {
   openstatesEventObservation,
   qualifiedCommitteeChamber,
   repairedOpenstatesSourceMetadata,
+  shouldProbeFloridaCrossProvider,
   type OpenstatesEvent,
 } from './sync-openstates-events.js';
+import { floridaOpenstatesEventLockIdentity } from '../src/hearing-discovery/florida-openstates-concurrency.js';
 
 const EVENT: OpenstatesEvent = {
   id: 'ocd-event/709f2430-b337-4039-a48b-15618e3c2576',
@@ -398,5 +400,17 @@ describe('OpenStates Florida event reconciliation', () => {
     expect(qualifiedCommitteeChamber('lower', 'fl:house:AG')).toBe('house');
     expect(qualifiedCommitteeChamber(null, 'fl:senate:CJ')).toBeNull();
     expect(qualifiedCommitteeChamber('upper', 'fl:house:CJ')).toBeNull();
+  });
+
+  it('preserves a durable provider-ledger link before cross-provider discovery', () => {
+    expect(shouldProbeFloridaCrossProvider('state-fl-existing')).toBe(false);
+    expect(shouldProbeFloridaCrossProvider(null)).toBe(true);
+    expect(shouldProbeFloridaCrossProvider(undefined)).toBe(true);
+  });
+
+  it('shares the calendar reconciler lock identity with follow-on media writes', () => {
+    expect(
+      floridaOpenstatesEventLockIdentity('ocd-event/709f2430-b337-4039-a48b-15618e3c2576'),
+    ).toBe('FL:openstates:event:ocd-event/709f2430-b337-4039-a48b-15618e3c2576');
   });
 });

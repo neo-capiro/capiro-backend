@@ -31,6 +31,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { TenantContext } from '@capiro/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  floridaCommitteeDirectoryProfile,
+  floridaLegislatorDirectoryProfile,
+  preferNonBlank,
+} from '../hearing-discovery/florida-directory-profile.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
 
 /** One canonical hearing as the master calendar renders it. */
@@ -212,6 +217,7 @@ type StateCommitteeRosterRow = {
       email: string | null;
       image: string | null;
       url: string | null;
+      sourceEvidence: unknown;
       active: boolean;
       legiscanPeopleId: number | null;
       syncedAt: Date;
@@ -261,6 +267,7 @@ export function mergeStateCommitteeMembers(
   for (const committee of rows) {
     for (const membership of committee.memberships) {
       const legislator = membership.legislator;
+      const directory = floridaLegislatorDirectoryProfile(legislator.sourceEvidence);
       const existing = byPerson.get(legislator.id);
       const role = membership.role?.trim() || null;
       const syncedAtMs = Math.max(membership.lastSyncedAt.getTime(), legislator.syncedAt.getTime());
@@ -278,8 +285,8 @@ export function mergeStateCommitteeMembers(
         chamber: legislator.chamber,
         district: legislator.district,
         party: legislator.party,
-        email: legislator.email,
-        image: legislator.image,
+        email: preferNonBlank(legislator.email, directory?.email ?? null),
+        image: preferNonBlank(legislator.image, directory?.portraitUrl ?? null),
         url: legislator.url,
         active: legislator.active,
         legiscanPeopleId: legislator.legiscanPeopleId,
@@ -477,6 +484,7 @@ export class LiveHearingsService {
     const sourceRecords = [body, ...legacyRows];
     const sourceCommitteeIds = [...new Set(sourceRecords.map((row) => row.id))];
     const members = mergeStateCommitteeMembers(sourceRecords);
+    const directoryProfile = floridaCommitteeDirectoryProfile(sourceRecords);
 
     // Match the federal room's explicit ±365-day proceedings windows. The
     // old state endpoint returned the first 200 rows across all time, sorted
@@ -597,6 +605,7 @@ export class LiveHearingsService {
       sourceRecords: sourceRecords.map(({ memberships: _sourceMemberships, ...row }) => row),
       sourceCommitteeIds,
       members,
+      directoryProfile,
       rosterStatus:
         body.officialSourceKey && !members.length ? 'unqualified' : 'source_memberships',
       upcomingEvents,

@@ -126,6 +126,35 @@ const DETAIL: StateCommitteeDetail = {
       adapterKey: 'florida-house',
     },
   ],
+  directoryProfile: {
+    jurisdiction: 'Considers commerce, tourism, banking, insurance, and regulated industries.',
+    contacts: [
+      {
+        location: '214 House Office Building',
+        mailingAddress: '402 South Monroe Street, Tallahassee, FL 32399-1300',
+        phone: '(850) 717-4870',
+        voip: null,
+      },
+    ],
+    leadership: [{ name: 'Rep. Buchanan', role: 'Chair' }],
+    staff: [
+      {
+        name: 'Kurt Hamon',
+        role: 'Staff Director',
+        email: null,
+        phone: null,
+        sourcePage: 47,
+      },
+    ],
+    sources: [
+      {
+        document: 'HouseDirectory.pdf',
+        sha256: 'a'.repeat(64),
+        asOfDate: '2026-06-04',
+        pages: [47],
+      },
+    ],
+  },
 };
 
 function LocationProbe() {
@@ -194,6 +223,12 @@ describe('StateCommitteeProfile', () => {
     expect(screen.getByText(/LegiScan bill calendar/)).toHaveTextContent(
       'Hearing · 2026-09-24 · 10:00 AM · Room 212',
     );
+    expect(screen.getByText('Official directory details')).toBeInTheDocument();
+    expect(screen.getByText(/Phone: \(850\) 717-4870/)).toBeInTheDocument();
+    expect(screen.getByText(/Considers commerce/)).toBeInTheDocument();
+    expect(screen.getByText('Professional staff (1)')).toBeInTheDocument();
+    expect(screen.getByText('Kurt Hamon')).toBeInTheDocument();
+    expect(screen.getByText(/HouseDirectory\.pdf · as of 2026-06-04/)).toBeInTheDocument();
   });
 
   test('filters the roster by leadership, current status, and search', () => {
