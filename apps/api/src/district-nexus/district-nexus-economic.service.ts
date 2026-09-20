@@ -146,6 +146,11 @@ function numberOrNull(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+function positiveNumberOrNull(value: unknown): number | null {
+  const number = numberOrNull(value);
+  return number != null && number > 0 ? number : null;
+}
+
 function iso(value: Date | string | null | undefined): string | null {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -614,7 +619,10 @@ export class DistrictNexusEconomicService {
       metricKey: row.metric_key,
       value: numberOrNull(row.metric_value),
       unit: row.unit,
-      marginOfError: numberOrNull(row.margin_of_error),
+      // Defensive read boundary for historical rows written before ACS
+      // special-value normalization. The point estimate stays independently
+      // usable; unavailable never becomes zero.
+      marginOfError: positiveNumberOrNull(row.margin_of_error),
       naicsCode: row.naics_code,
       sourceRecordId: row.source_record_id,
       sourceUrl: row.source_url,

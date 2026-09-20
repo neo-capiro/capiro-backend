@@ -355,7 +355,9 @@ function PublicContextBlock({ data }: { data: DistrictEconomicContextResponse })
               <div className="dnx-s">
                 {metric.source.toUpperCase()} {metric.sourceYear}
                 {metric.naicsCode ? ` · NAICS ${metric.naicsCode}` : ''}
-                {metric.marginOfError != null ? ` · ±${formatNumber(metric.marginOfError)}` : ''}
+                {metric.marginOfError != null && metric.marginOfError > 0
+                  ? ` · ±${formatNumber(metric.marginOfError)}`
+                  : ''}
               </div>
             </div>
           ))}
