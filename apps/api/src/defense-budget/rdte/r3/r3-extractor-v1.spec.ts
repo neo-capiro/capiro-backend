@@ -343,14 +343,17 @@ describe('r3-table-extractor-v1', () => {
 
   it('detects conflicting performer names under same natural key', () => {
     const cells: Cell[] = [
-      ...headerCells,
-      { rowIndex: 1, columnIndex: 0, text: 'Acme Inc' },
-      { rowIndex: 1, columnIndex: 1, text: 'Huntsville, AL' },
-      { rowIndex: 1, columnIndex: 2, text: 'C/CPFF' },
+      { rowIndex: 0, columnIndex: 0, text: 'Cost Category Item' },
+      { rowIndex: 0, columnIndex: 1, text: 'Contract Method & Type' },
+      { rowIndex: 0, columnIndex: 2, text: 'Performing Activity & Location' },
+      { rowIndex: 0, columnIndex: 3, text: 'Total Cost' },
+      { rowIndex: 1, columnIndex: 0, text: 'Integration Support' },
+      { rowIndex: 1, columnIndex: 1, text: 'C/CPFF' },
+      { rowIndex: 1, columnIndex: 2, text: 'Acme Inc' },
       { rowIndex: 1, columnIndex: 3, text: '4.000' },
-      { rowIndex: 2, columnIndex: 0, text: 'ACME INC.' },
-      { rowIndex: 2, columnIndex: 1, text: 'Huntsville, AL' },
-      { rowIndex: 2, columnIndex: 2, text: 'C/CPFF' },
+      { rowIndex: 2, columnIndex: 0, text: 'Integration Support' },
+      { rowIndex: 2, columnIndex: 1, text: 'C/CPFF' },
+      { rowIndex: 2, columnIndex: 2, text: 'ACME INC.' },
       { rowIndex: 2, columnIndex: 3, text: '4.000' },
     ];
     const page = makePage([makeTable(cells)], 1, 'R-3 RDT&E Cost Analysis $ in Millions');
@@ -360,9 +363,128 @@ describe('r3-table-extractor-v1', () => {
       cycleFiscalYear: 2027,
     });
 
-    /* Same normalized name, different raw casing → conflict, no last-win. */
-    expect(result.conflicts.length).toBeGreaterThanOrEqual(1);
+    /* Identical row identity plus a different raw name remains a conflict. */
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0]?.reason).toBe('conflicting_performer_name');
     expect(result.performers).toHaveLength(1);
+  });
+
+  it('keeps the distinct PE 0604020A page 399 rows keyed by Cost Category Item', () => {
+    /*
+     * FY2024 Army BA4A physical PDF page 399 (printed Volume 2a - 357)
+     * contains two legitimate Management Services rows with generic performer
+     * text that differs only by terminal punctuation. Their financial row
+     * identity comes from Cost Category Item; collapsing that header into the
+     * generic cost role creates the production r3_duplicate_natural_key_conflict.
+     */
+    const sourceRows = [
+      [
+        'Cost Category Item',
+        'Contract\nMethod\n& Type',
+        'Performing\nActivity & Location',
+        'Prior\nYears',
+        'Cost',
+        'Award\nDate',
+        'Cost',
+        '',
+        'Award\nDate',
+        'Cost',
+        'Award\nDate',
+        'Cost',
+        'Award\nDate',
+        'Cost',
+        '',
+        'Cost To\nComplete',
+        'Total\nCost',
+        'Target\nValue of\nContract',
+      ],
+      [
+        'Olympus: Program\nManagement and\nCapability Transition',
+        'TBD',
+        'Various : Various',
+        '-',
+        '-',
+        '',
+        '6.178',
+        '',
+        '',
+        '-',
+        '',
+        '-',
+        '',
+        '-',
+        '',
+        '0.000',
+        '6.178',
+        '-',
+      ],
+      [
+        'SBIR & STTR Adjustment',
+        'TBD',
+        'Various : Various.',
+        '-',
+        '-',
+        '',
+        '2.811',
+        '',
+        '',
+        '-',
+        '',
+        '-',
+        '',
+        '-',
+        '',
+        '0.000',
+        '2.811',
+        '-',
+      ],
+    ];
+    const cells: Cell[] = sourceRows.flatMap((row, rowIndex) =>
+      row.map((text, columnIndex) => ({ rowIndex, columnIndex, text })),
+    );
+    const page = makePage(
+      [makeTable(cells)],
+      399,
+      'Exhibit R-3, RDT&E Project Cost Analysis: PB 2024 Army $ in Millions',
+      'Volume 2a - 357',
+    );
+    const result = extractR3Performers({
+      pages: [page],
+      peContext: { peCode: '0604020A', pageStart: 399, pageEnd: 399 },
+      cycleFiscalYear: 2024,
+    });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.performers).toHaveLength(2);
+    expect(result.performers.map((row) => row.costCategory)).toEqual([
+      'Olympus: Program\nManagement and\nCapability Transition',
+      'SBIR & STTR Adjustment',
+    ]);
+    expect(result.performers.map((row) => row.totalCost?.valueMillions)).toEqual([
+      '6.178',
+      '2.811',
+    ]);
+    expect(result.performers.map((row) => row.fiscalYear)).toEqual([2024, 2024]);
+    expect(result.omissions.filter((row) => row.reason === 'invalid_cost_number')).toEqual([]);
+    expect(new Set(result.performers.map((row) => row.naturalKey)).size).toBe(2);
+  });
+
+  it('selects the exact Total Cost column instead of an annual cost column', () => {
+    const cells: Cell[] = [
+      { rowIndex: 0, columnIndex: 0, text: 'Performing Activity' },
+      { rowIndex: 0, columnIndex: 1, text: 'FY 2023 Cost' },
+      { rowIndex: 0, columnIndex: 2, text: 'Total Cost' },
+      { rowIndex: 1, columnIndex: 0, text: 'Acme Inc' },
+      { rowIndex: 1, columnIndex: 1, text: '1.250' },
+      { rowIndex: 1, columnIndex: 2, text: '9.750' },
+    ];
+    const page = makePage([makeTable(cells)], 1, 'R-3 RDT&E Cost Analysis $ in Millions');
+    const result = extractR3Performers({
+      pages: [page],
+      peContext: peContext(1, 1),
+    });
+
+    expect(result.performers[0]?.totalCost?.valueMillions).toBe('9.75');
   });
 
   it('never maps total cost to annual funding fields', () => {

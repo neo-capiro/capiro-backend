@@ -1,9 +1,11 @@
 import { describe, expect, test } from '@jest/globals';
 import {
+  BA4A_R3_REPAIR_RELEASE_GATE_POLICY,
   DEFAULT_RELEASE_GATE_POLICY,
   decimalStringsEqual,
   evaluateReleaseGate,
   parseReportInput,
+  releaseGatePolicyForProfile,
   type ReleaseGatePolicy,
 } from './verify-defense-budget-release-qualification-v1.js';
 import type { QualificationReport } from './qualify-defense-budget-drain-image-v1.js';
@@ -13,6 +15,8 @@ function reportFixture(overrides: Partial<QualificationReport> = {}): Qualificat
     runId: 'run1',
     decision: 'REVIEW',
     finalState: 'TERMINAL_REVIEW',
+    targetPeCode: '0601102A',
+    fiscalYear: 2024,
     totalAssertions: 522,
     assertionsByKind: { document_fact: 517, program_element_identity: 5 },
     identityCount: 5,
@@ -33,8 +37,67 @@ function reportFixture(overrides: Partial<QualificationReport> = {}): Qualificat
     dbCandidateId: 'candidate-1',
     dbRunDecision: 'REVIEW',
     dbverifyOk: true,
+    targetR3PeCode: null,
+    targetR3Performers: [],
+    r3DuplicateNaturalKeyConflictCount: 0,
     ...overrides,
   };
+}
+
+function ba4aReport(overrides: Partial<QualificationReport> = {}): QualificationReport {
+  const identityPeCodes = [
+    '0603305A',
+    '0603308A',
+    '0603327A',
+    '0603619A',
+    '0603639A',
+    '0603645A',
+    '0603747A',
+    '0603766A',
+    '0603774A',
+    '0603779A',
+    '0603790A',
+    '0603801A',
+    '0603804A',
+    '0603807A',
+    '0603827A',
+    '0604017A',
+    '0604019A',
+    '0604020A',
+    '0604035A',
+  ];
+  return reportFixture({
+    targetPeCode: '0604017A',
+    fiscalYear: 2024,
+    targetPeFiscalYearTotalMillions: '3.024',
+    identityCount: identityPeCodes.length,
+    identityPeCodes,
+    targetR3PeCode: '0604020A',
+    targetR3Performers: [
+      {
+        performerName: 'Various : Various',
+        performerNormalized: 'VARIOUS : VARIOUS',
+        costCategory: 'Olympus: Program Management and Capability Transition',
+        contractMethod: 'TBD',
+        fiscalYear: 2024,
+        totalCostMillions: '6.178',
+        naturalKey: '0604020A|olympus|VARIOUS : VARIOUS|TBD|2024',
+        physicalPage: 399,
+      },
+      {
+        performerName: 'Various : Various.',
+        performerNormalized: 'VARIOUS : VARIOUS',
+        costCategory: 'SBIR & STTR Adjustment',
+        contractMethod: 'TBD',
+        fiscalYear: 2024,
+        totalCostMillions: '2.811',
+        naturalKey: '0604020A|sbir|VARIOUS : VARIOUS|TBD|2024',
+        physicalPage: 399,
+      },
+    ],
+    r3DuplicateNaturalKeyConflictCount: 0,
+    ...overrides,
+  });
 }
 
 describe('decimalStringsEqual', () => {
@@ -46,6 +109,7 @@ describe('decimalStringsEqual', () => {
   test('treats a genuinely different amount as unequal', () => {
     expect(decimalStringsEqual('296.67', '296.68')).toBe(false);
     expect(decimalStringsEqual('5.459', '54.59')).toBe(false);
+    expect(decimalStringsEqual('3.024', '3.0244')).toBe(false);
   });
 
   test('falls back to exact string comparison for non-numeric input rather than silently passing', () => {
@@ -163,6 +227,74 @@ describe('evaluateReleaseGate', () => {
       '0601121A',
       '0601601A',
     ]);
+  });
+
+  test('passes the exact reviewed BA4A R-3 repair profile', () => {
+    const verdict = evaluateReleaseGate(ba4aReport(), BA4A_R3_REPAIR_RELEASE_GATE_POLICY);
+    expect(verdict.pass).toBe(true);
+    expect(verdict.findings).toEqual([]);
+  });
+
+  test('BA4A blocks when any duplicate natural-key conflict remains', () => {
+    const verdict = evaluateReleaseGate(
+      ba4aReport({ r3DuplicateNaturalKeyConflictCount: 1 }),
+      BA4A_R3_REPAIR_RELEASE_GATE_POLICY,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'r3_duplicate_natural_key_conflict_count_mismatch' }),
+      ]),
+    );
+  });
+
+  test('BA4A blocks when a reviewed page-399 row changes or disappears', () => {
+    const rows = ba4aReport().targetR3Performers;
+    const verdict = evaluateReleaseGate(
+      ba4aReport({
+        targetR3Performers: [
+          rows[0]!,
+          { ...rows[1]!, totalCostMillions: '2.8114' },
+        ],
+      }),
+      BA4A_R3_REPAIR_RELEASE_GATE_POLICY,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.findings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'r3_performer_missing' })]),
+    );
+  });
+
+  test('BA4A blocks when the reviewed rows collapse to one natural key', () => {
+    const rows = ba4aReport().targetR3Performers;
+    const verdict = evaluateReleaseGate(
+      ba4aReport({
+        targetR3Performers: [rows[0]!, { ...rows[1]!, naturalKey: rows[0]!.naturalKey }],
+      }),
+      BA4A_R3_REPAIR_RELEASE_GATE_POLICY,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.findings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'r3_natural_keys_not_distinct' })]),
+    );
+  });
+
+  test('BA4A blocks on an incomplete identity set', () => {
+    const verdict = evaluateReleaseGate(
+      ba4aReport({ identityCount: 18, identityPeCodes: ba4aReport().identityPeCodes.slice(1) }),
+      BA4A_R3_REPAIR_RELEASE_GATE_POLICY,
+    );
+    expect(verdict.pass).toBe(false);
+    expect(verdict.findings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'identity_set_mismatch' })]),
+    );
+  });
+
+  test('selects the BA4A profile explicitly and rejects unknown names', () => {
+    expect(releaseGatePolicyForProfile('ba4a-r3-repair')).toBe(
+      BA4A_R3_REPAIR_RELEASE_GATE_POLICY,
+    );
+    expect(() => releaseGatePolicyForProfile('unknown')).toThrow(/unknown release-gate profile/);
   });
 });
 

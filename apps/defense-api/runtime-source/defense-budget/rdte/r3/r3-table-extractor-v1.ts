@@ -106,6 +106,7 @@ type ColumnRole =
   | 'performer'
   | 'location'
   | 'contract_method'
+  | 'total_cost'
   | 'cost'
   | 'cost_category'
   | 'fiscal_year'
@@ -200,12 +201,16 @@ function analyzeR3Table(
       for (const cell of cells) {
         const t = cell.text.trim().toLowerCase();
         let role: ColumnRole = 'unknown';
-        if (/\b(performing|activity|performer|contractor|organization|name)\b/.test(t)) {
+        if (/\bcost\s+category(?:\s+item)?\b/.test(t)) {
+          role = 'cost_category';
+        } else if (/\b(performing|activity|performer|contractor|organization|name)\b/.test(t)) {
           role = 'performer';
         } else if (/\b(location|city|state|place)\b/.test(t)) {
           role = 'location';
         } else if (/\b(contract|method|type|award)\b/.test(t)) {
           role = 'contract_method';
+        } else if (/^total\s+cost$/.test(t)) {
+          role = 'total_cost';
         } else if (/\b(cost|total|amount|dollars)\b/.test(t)) {
           role = 'cost';
         } else if (/\b(category)\b/.test(t)) {
@@ -323,7 +328,7 @@ export function extractR3Performers(input: {
         const performerCell = getCell('performer') ?? row.cells[0];
         const locationCell = getCell('location');
         const methodCell = getCell('contract_method');
-        const costCell = getCell('cost');
+        const costCell = getCell('total_cost');
         const categoryCell = getCell('cost_category');
         const fyCell = getCell('fiscal_year');
 

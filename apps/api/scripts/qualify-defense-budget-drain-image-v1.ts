@@ -178,6 +178,7 @@ export interface QualificationConfig {
   readonly sourceBytes: number;
   readonly sourceUrl: string;
   readonly targetPeCode: string;
+  readonly targetR3PeCode?: string;
   readonly fiscalYear: number;
   readonly cycleId: string;
   readonly sourceDocumentId: string;
@@ -196,6 +197,24 @@ export interface QualificationConfig {
   readonly appsApiDir: string;
 }
 
+const SIGNED_SOURCE_QUERY_KEY_RE = /^(?:x-amz-|x-goog-|awsaccesskeyid$|signature$|expires$|key-pair-id$|policy$)/i;
+
+/** A durable source locator must never be a short-lived signed fetch credential. */
+export function assertCanonicalSourceUrl(sourceUrl: string, presignedGetUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(sourceUrl);
+  } catch {
+    throw new UsageError('QUAL_SOURCE_URL must be an absolute canonical http(s) URL');
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new UsageError('QUAL_SOURCE_URL must use http(s)');
+  }
+  if (sourceUrl === presignedGetUrl || [...parsed.searchParams.keys()].some((key) => SIGNED_SOURCE_QUERY_KEY_RE.test(key))) {
+    throw new UsageError('QUAL_SOURCE_URL must be a canonical public locator, not a signed fetch URL');
+  }
+}
+
 /** Resolve every knob from the environment, defaulting to the real fixture identity above. Pure -- takes env in, no I/O. */
 export function resolveQualificationConfig(env: NodeJS.ProcessEnv): QualificationConfig {
   const presignedGetUrl = env.QUAL_PRESIGNED_GET?.trim();
@@ -204,6 +223,8 @@ export function resolveQualificationConfig(env: NodeJS.ProcessEnv): Qualificatio
   }
   const runId = env.QUAL_RUN_ID?.trim() || 'run1';
   const outRoot = env.QUAL_OUT_ROOT?.trim() || '/tmp/qual';
+  const sourceUrl = env.QUAL_SOURCE_URL?.trim() || REAL_FIXTURE_DEFAULTS.sourceUrl;
+  assertCanonicalSourceUrl(sourceUrl, presignedGetUrl);
   // This script's own file location, not process.cwd() -- so it resolves
   // correctly whether invoked from the image's WORKDIR, a bare `tsx` call
   // from anywhere, or a local dev checkout, without depending on a shell
@@ -219,8 +240,9 @@ export function resolveQualificationConfig(env: NodeJS.ProcessEnv): Qualificatio
     presignedGetUrl,
     sourceSha256: env.QUAL_SOURCE_SHA256?.trim() || REAL_FIXTURE_DEFAULTS.sourceSha256,
     sourceBytes: Number(env.QUAL_SOURCE_BYTES?.trim() || REAL_FIXTURE_DEFAULTS.sourceBytes),
-    sourceUrl: env.QUAL_SOURCE_URL?.trim() || REAL_FIXTURE_DEFAULTS.sourceUrl,
+    sourceUrl,
     targetPeCode: env.QUAL_TARGET_PE?.trim() || REAL_FIXTURE_DEFAULTS.targetPeCode,
+    ...(env.QUAL_TARGET_R3_PE?.trim() ? { targetR3PeCode: env.QUAL_TARGET_R3_PE.trim() } : {}),
     fiscalYear: Number(env.QUAL_FISCAL_YEAR?.trim() || REAL_FIXTURE_DEFAULTS.fiscalYear),
     cycleId: env.QUAL_CYCLE_ID?.trim() || REAL_FIXTURE_DEFAULTS.cycleId,
     sourceDocumentId: env.QUAL_SOURCE_DOCUMENT_ID?.trim() || REAL_FIXTURE_DEFAULTS.sourceDocumentId,
@@ -324,15 +346,42 @@ export function stripRunIdentity(v: unknown): unknown {
 // many bounded lines than one very long one.
 const CHUNK_CHARS = 6000;
 
-function dumpChunked(tag: string, buf: Buffer, runId: string): void {
-  const b64 = buf.toString('base64');
-  const nChunks = Math.max(1, Math.ceil(b64.length / CHUNK_CHARS));
-  const sha256 = createHash('sha256').update(buf).digest('hex');
-  marker(`${tag}_META`, { run: runId, bytes: buf.length, sha256, chunks: nChunks });
-  for (let i = 0, o = 0; o < b64.length || i === 0; i++, o += CHUNK_CHARS) {
-    marker(tag, { run: runId, i, n: nChunks, part: b64.slice(o, o + CHUNK_CHARS) });
+export interface ChunkedPayloadV1 {
+  readonly bytes: number;
+  readonly sha256: string;
+  readonly parts: readonly string[];
+}
+
+/** Pure encoder used by every CloudWatch chunk contract. */
+export function encodeChunkedPayload(buf: Buffer, chunkChars = CHUNK_CHARS): ChunkedPayloadV1 {
+  if (!Number.isSafeInteger(chunkChars) || chunkChars <= 0) {
+    throw new RangeError('chunkChars must be a positive safe integer');
   }
-  marker(`${tag}_END`, { run: runId, chunks: nChunks, sha256 });
+  const b64 = buf.toString('base64');
+  const parts: string[] = [];
+  for (let offset = 0; offset < b64.length; offset += chunkChars) {
+    parts.push(b64.slice(offset, offset + chunkChars));
+  }
+  if (parts.length === 0) parts.push('');
+  return {
+    bytes: buf.length,
+    sha256: createHash('sha256').update(buf).digest('hex'),
+    parts,
+  };
+}
+
+function dumpChunked(tag: string, buf: Buffer, runId: string): void {
+  const encoded = encodeChunkedPayload(buf);
+  marker(`${tag}_META`, {
+    run: runId,
+    bytes: encoded.bytes,
+    sha256: encoded.sha256,
+    chunks: encoded.parts.length,
+  });
+  for (let i = 0; i < encoded.parts.length; i++) {
+    marker(tag, { run: runId, i, n: encoded.parts.length, part: encoded.parts[i] });
+  }
+  marker(`${tag}_END`, { run: runId, chunks: encoded.parts.length, sha256: encoded.sha256 });
 }
 
 function dumpJsonChunked(tag: string, obj: unknown, runId: string): void {
@@ -598,6 +647,8 @@ export interface QualificationReport {
   readonly runId: string;
   readonly decision: string;
   readonly finalState: string;
+  readonly targetPeCode: string;
+  readonly fiscalYear: number;
   readonly totalAssertions: number;
   readonly assertionsByKind: Record<string, number>;
   readonly identityCount: number;
@@ -621,6 +672,18 @@ export interface QualificationReport {
   readonly dbCandidateId: string | null;
   readonly dbRunDecision: string | null;
   readonly dbverifyOk: boolean;
+  readonly targetR3PeCode: string | null;
+  readonly targetR3Performers: ReadonlyArray<{
+    readonly performerName: string;
+    readonly performerNormalized: string | null;
+    readonly costCategory: string | null;
+    readonly contractMethod: string | null;
+    readonly fiscalYear: number | null;
+    readonly totalCostMillions: string | null;
+    readonly naturalKey: string | null;
+    readonly physicalPage: number | null;
+  }>;
+  readonly r3DuplicateNaturalKeyConflictCount: number;
 }
 
 interface ExtractionArtifactLike {
@@ -638,8 +701,22 @@ interface ExtractionArtifactLike {
     // never a JS number -- money values are never float-represented here.
     value?: { peCode?: string; fiscalYear?: number; rowKind?: string; valueMillions?: string };
     identity?: { peCode?: string };
+    parentPeCode?: string;
+    performerName?: string;
+    performerNormalized?: string;
+    costCategory?: string;
+    contractMethod?: string;
+    fiscalYear?: number;
+    totalCost?: { valueMillions?: string };
+    metadata?: { exhibit?: string; naturalKey?: string; physicalPage?: number };
   }>;
-  omissions: ReadonlyArray<{ omissionKind?: string; kind?: string; code?: string; reason?: string }>;
+  omissions: ReadonlyArray<{
+    omissionKind?: string;
+    kind?: string;
+    code?: string;
+    reason?: string;
+  }>;
+  warnings?: ReadonlyArray<{ code?: string; severity?: string }>;
 }
 
 /** Pure: assembles the printed report from the real artifact + real dbverify results. No I/O, fully unit-testable. */
@@ -651,6 +728,7 @@ export function buildQualificationReport(input: {
   artifactRawBytes: Buffer;
   manifestCycleId: string;
   targetPeCode: string;
+  targetR3PeCode?: string;
   fiscalYear: number;
   dbverify: DbverifyResult;
 }): QualificationReport {
@@ -688,10 +766,43 @@ export function buildQualificationReport(input: {
     .update(JSON.stringify(canonicalize(stripRunIdentity(JSON.parse(input.artifactRawBytes.toString('utf8'))))))
     .digest('hex');
 
+  const targetR3Performers = artifact.assertions
+    .filter(
+      (assertion) =>
+        assertion.assertionKind === 'performer' &&
+        input.targetR3PeCode != null &&
+        assertion.parentPeCode === input.targetR3PeCode &&
+        assertion.performerName != null &&
+        assertion.metadata?.exhibit === 'R-3' &&
+        typeof assertion.metadata.naturalKey === 'string' &&
+        assertion.metadata.naturalKey.length > 0 &&
+        Number.isInteger(assertion.metadata.physicalPage),
+    )
+    .map((assertion) => ({
+      performerName: assertion.performerName!,
+      performerNormalized: assertion.performerNormalized ?? null,
+      costCategory: assertion.costCategory ?? null,
+      contractMethod: assertion.contractMethod ?? null,
+      fiscalYear: assertion.fiscalYear ?? null,
+      totalCostMillions: assertion.totalCost?.valueMillions ?? null,
+      naturalKey: assertion.metadata?.naturalKey ?? null,
+      physicalPage: assertion.metadata?.physicalPage ?? null,
+    }))
+    .sort(
+      (left, right) =>
+        (left.physicalPage ?? Number.MAX_SAFE_INTEGER) -
+          (right.physicalPage ?? Number.MAX_SAFE_INTEGER) ||
+        (left.naturalKey ?? left.performerName).localeCompare(
+          right.naturalKey ?? right.performerName,
+        ),
+    );
+
   return {
     runId: input.runId,
     decision: input.decision,
     finalState: input.finalState,
+    targetPeCode: input.targetPeCode,
+    fiscalYear: input.fiscalYear,
     totalAssertions: artifact.assertions.length,
     assertionsByKind,
     identityCount: identities.length,
@@ -706,6 +817,11 @@ export function buildQualificationReport(input: {
     dbCandidateId: input.dbverify.candidate?.id ?? null,
     dbRunDecision: input.dbverify.run?.decision ?? null,
     dbverifyOk: input.dbverify.run != null,
+    targetR3PeCode: input.targetR3PeCode ?? null,
+    targetR3Performers,
+    r3DuplicateNaturalKeyConflictCount:
+      artifact.warnings?.filter((warning) => warning.code === 'r3_duplicate_natural_key_conflict')
+        .length ?? 0,
   };
 }
 
@@ -732,7 +848,7 @@ async function main(): Promise<void> {
   console.error('[qualify-defense-budget-drain-image-v1] applying isolated qualification DB migrations...');
   await runPrismaMigrateDeploy(config.appsApiDir);
 
-  marker('QUAL_FETCH_START', { run: config.runId, url: config.presignedGetUrl });
+  marker('QUAL_FETCH_START', { run: config.runId, source: 'presigned_get' });
   let identity: FetchedIdentity;
   try {
     identity = await fetchAndVerifySource(config.presignedGetUrl, config.sourcePath, {
@@ -812,6 +928,7 @@ async function main(): Promise<void> {
     }
 
     const artifactBytes = readFileSync(result.outputPath);
+    dumpChunked('QUAL_ARTIFACT', artifactBytes, config.runId);
     const artifact = JSON.parse(artifactBytes.toString('utf8')) as ExtractionArtifactLike;
     const manifestPath = join(dirname(result.outputPath), 'lifecycle-bridge-manifest.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { cycleId: string };
@@ -871,6 +988,7 @@ async function main(): Promise<void> {
       artifactRawBytes: artifactBytes,
       manifestCycleId: manifest.cycleId,
       targetPeCode: config.targetPeCode,
+      targetR3PeCode: config.targetR3PeCode,
       fiscalYear: config.fiscalYear,
       dbverify,
     });
