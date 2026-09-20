@@ -185,7 +185,7 @@ function surname(value: string): string {
   const parts = normalized(commaName || withoutNickname)
     .split(' ')
     .filter(Boolean)
-    .filter((part) => !['jr', 'sr', 'ii', 'iii', 'iv'].includes(part));
+    .filter((part) => !['jr', 'sr', 'i', 'ii', 'iii', 'iv'].includes(part));
   return parts.at(-1) ?? '';
 }
 
@@ -195,6 +195,17 @@ export function namesCompatible(databaseName: string, directoryName: string): bo
     directoryName.includes(',') ? directoryName.split(',').reverse().join(' ') : directoryName,
   );
   return left === right || (!!surname(left) && surname(left) === surname(right));
+}
+
+export function committeeNamesCompatible(databaseName: string, directoryName: string): boolean {
+  const identity = (value: string) =>
+    normalized(value)
+      .split(' ')
+      .filter(Boolean)
+      .filter((part) => !['and', 'committee', 'on'].includes(part))
+      .sort()
+      .join(' ');
+  return identity(databaseName) === identity(directoryName);
 }
 
 function sha256(value: Uint8Array | string): string {
@@ -607,7 +618,7 @@ export function buildPlan(
       continue;
     }
     const match = matches[0]!;
-    if (normalized(match.name) !== normalized(inventoryRow.name)) {
+    if (!committeeNamesCompatible(match.name, inventoryRow.name)) {
       unresolved.push(`committee ${key}: ${match.name} != ${inventoryRow.name}`);
       continue;
     }
