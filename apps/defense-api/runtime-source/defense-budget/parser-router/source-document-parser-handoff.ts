@@ -67,6 +67,7 @@ export interface SourceDocumentParserHandoffInput {
   readonly persistVerificationAudit?: boolean;
   readonly parserProjectDir?: string;
   readonly verificationPersistenceFence?: VerificationPersistenceFenceV1;
+  readonly abortSignal?: AbortSignal;
   /** Persist the router terminal before any fallible local artifact copy. */
   readonly onTerminal?: (output: ParserRouterTerminalOutputV1) => Promise<void>;
 }
@@ -326,6 +327,7 @@ export async function runParserHandoffForSourceDocument(
     cwd: parserProjectDir,
     workDir: runtimeWorkDir,
     timeoutMs: 15 * 60 * 1000,
+    ...(input.abortSignal ? { signal: input.abortSignal } : {}),
   });
   const versionInfo = await runtimeClient.getVersionInfo();
   const pdfplumberVersion = versionInfo.engines.deterministic_pdfplumber;

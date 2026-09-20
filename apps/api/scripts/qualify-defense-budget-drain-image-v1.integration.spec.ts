@@ -27,10 +27,19 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, copyFileSync 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 
 import { createBudgetVerificationS3Client, BUDGET_VERIFICATION_S3_ENDPOINT_ENV } from '../src/defense-budget/verification/trusted-proof/s3-proof-adapters.js';
 import { runParserHandoffForSourceDocument } from '../src/defense-budget/parser-router/source-document-parser-handoff.js';
+import { DocumentRegistrar } from '../src/defense-budget/document-registrar.js';
+import type { RawArchiveService } from '../src/defense-budget/raw-archive.service.js';
+import { PrismaObservationBridgeStore } from '../src/defense-budget/prisma-observation-bridge.store.js';
+import { S3SourceDocumentArchiveReadAdapter } from '../src/defense-budget/s3-source-document-archive-read.adapter.js';
+import { DefaultParserHandoffAdapter } from '../src/defense-budget/default-parser-handoff.adapter.js';
+import { ObservationIngestionBridgeService } from '../src/defense-budget/observation-ingestion-bridge.service.js';
+import { sealIngestionManifestV1 } from '../src/defense-budget/governed-ingestion-manifest/ingestion-manifest-contract-v1.js';
+import { createIngestionManifestRepositoryV1 } from '../src/defense-budget/governed-ingestion-manifest/ingestion-manifest-repository-v1.js';
+import { RunIngestionManifestV1 } from '../src/defense-budget/governed-ingestion-manifest/run-ingestion-manifest-v1.js';
 import {
   buildQualificationReport,
   dbverifyCandidate,
@@ -81,6 +90,12 @@ describeE2E('qualify-defense-budget-drain-image-v1 (Phase 10B-36) -- real isolat
     expect(actualSha256).toBe(REAL_R2_FIXTURE_SHA256);
   });
 
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe(
+      `TRUNCATE TABLE "source_document", "defense_budget_cycle" CASCADE`,
+    );
+  });
+
   afterAll(async () => {
     await prisma.$disconnect();
     rmSync(outRoot, { recursive: true, force: true });
@@ -113,6 +128,7 @@ describeE2E('qualify-defense-budget-drain-image-v1 (Phase 10B-36) -- real isolat
 
     mkdirSync(config.workDir, { recursive: true });
     process.env.BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT = config.workDir;
+    process.env.DEFENSE_BUDGET_PARSER_PROJECT_DIR = PARSER_PROJECT_DIR;
 
     const result = await runParserHandoffForSourceDocument({
       executionId: `qualify-it-${runId}`,
@@ -199,5 +215,267 @@ describeE2E('qualify-defense-budget-drain-image-v1 (Phase 10B-36) -- real isolat
     expect(report.identityPeCodes).toContain('0601102A');
 
     console.log('QUALIFICATION_REPORT (integration spec)', JSON.stringify(report, null, 2));
+  });
+
+  it('runs a pinned existing outbox row through the Package E controller, real bridge, real parser, fenced persistence, and ingestion-only finalization', async () => {
+    const runId = `manifest-it-${Date.now()}`;
+    const observationId = randomUUID();
+    const observationDedupKey = createHash('sha256').update(`package-e-observation:${runId}`).digest('hex');
+    const config = resolveQualificationConfig({
+      QUAL_PRESIGNED_GET: 'unused-in-this-spec://not-fetched',
+      QUAL_RUN_ID: runId,
+      QUAL_OUT_ROOT: outRoot,
+      QUAL_SOURCE_DOCUMENT_ID: randomUUID(),
+      QUAL_CYCLE_ID: randomUUID(),
+      QUAL_SOURCE_KEY: `defense-budget-observation-${observationDedupKey}`,
+      QUAL_ARCHIVE_BUCKET: `capiro-package-e-it-${Date.now()}`,
+    });
+    mkdirSync(dirname(config.sourcePath), { recursive: true });
+    copyFileSync(REAL_R2_FIXTURE_PATH, config.sourcePath);
+
+    const seed = await seedIsolatedFixtures(prisma, createBudgetVerificationS3Client(process.env), config);
+    const expectedSourceId = randomUUID();
+    const outboxRowId = randomUUID();
+    const now = new Date();
+    await prisma.defenseBudgetExpectedSource.create({ data: {
+      id: expectedSourceId,
+      cycleId: config.cycleId,
+      fiscalYear: config.fiscalYear,
+      authorityTrack: 'request',
+      stage: 'president_budget_request',
+      sourceFamily: 'pb_r2',
+      component: 'ARMY',
+      adapterId: 'package-e-real-parser-it',
+      label: config.title,
+      expectedState: 'published',
+      templateVersion: 'package-e-real-parser-it-v1',
+      expectedFrom: now,
+      expectedTo: now,
+      dedupKey: createHash('sha256').update(`package-e-expected:${runId}`).digest('hex'),
+    } });
+    await prisma.defenseBudgetSourceObservation.create({ data: {
+      id: observationId,
+      expectedSourceId,
+      cycleId: config.cycleId,
+      adapterId: 'package-e-real-parser-it',
+      discoveredUrl: config.sourceUrl,
+      contentSha256: config.sourceSha256,
+      byteSize: config.sourceBytes,
+      observationState: 'ingested',
+      revisionKind: 'first_discovery',
+      classifiedFiscalYear: config.fiscalYear,
+      classifiedAuthorityTrack: 'request',
+      classifiedStage: 'president_budget_request',
+      classifiedSourceFamily: 'pb_r2',
+      classificationConfidence: 1,
+      sourceDocumentId: config.sourceDocumentId,
+      dedupKey: observationDedupKey,
+    } });
+    const outbox = await prisma.defenseBudgetIngestionOutbox.create({ data: {
+      id: outboxRowId,
+      observationId,
+      observationState: 'ingested',
+      cycleId: config.cycleId,
+      jobKind: 'governed_source_ingestion',
+      state: 'pending',
+      attempts: 0,
+      availableAt: now,
+      dedupKey: createHash('sha256').update(`package-e-outbox:${runId}`).digest('hex'),
+    } });
+
+    const operationId = randomUUID();
+    const memberId = randomUUID();
+    const manifest = sealIngestionManifestV1({
+      schemaVersion: 'defense_budget_ingestion_manifest_v1',
+      operationId,
+      owner: 'package-e-real-parser-integration',
+      environment: 'capiro-dev',
+      runtime: {
+        releaseRevision: '1'.repeat(40),
+        apiImageDigest: `sha256:${'2'.repeat(64)}`,
+        drainImageDigest: `sha256:${'3'.repeat(64)}`,
+        runtimeConfigReference: 'evidence/package-e/real-parser-runtime-config.json',
+        runtimeConfigSha256: '4'.repeat(64),
+        taskDefinitionArn: 'arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-defense-budget-ingestion-drain:26',
+        taskDefinitionRevision: 26,
+        containerName: 'ingestion-drain',
+        command: ['run-defense-budget-ingestion-manifest-v1'],
+      },
+      members: [{
+        memberId,
+        ordinal: 1,
+        documentKey: 'fy2024-army-r2-vol1-ba1-real-parser-fixture',
+        component: 'ARMY',
+        agency: 'Department of the Army',
+        fiscalYear: config.fiscalYear,
+        authorityTrack: 'request',
+        lifecycleStage: 'president_budget_request',
+        sourceFamily: 'pb_r2',
+        exhibit: 'R-2',
+        volume: 'Volume 1 / BA1',
+        source: {
+          officialLocator: config.sourceUrl,
+          sourceVersion: seed.archiveVersionId,
+          sha256: config.sourceSha256,
+          byteSize: config.sourceBytes,
+        },
+        archive: {
+          bucket: config.archiveBucket,
+          objectKey: config.archiveKey,
+          versionId: seed.archiveVersionId,
+          sha256: config.sourceSha256,
+          byteSize: config.sourceBytes,
+        },
+        lifecycle: {
+          cycleId: config.cycleId,
+          sourceDocumentId: config.sourceDocumentId,
+          observationId,
+          outboxRowId,
+          jobKind: 'governed_source_ingestion',
+          expectedObservationState: 'ingested',
+          expectedOutboxState: 'pending',
+          expectedOutboxAttempts: 0,
+          expectedOutboxUpdatedAt: outbox.updatedAt.toISOString(),
+          expectedCandidateCount: 0,
+          expectedActiveApprovalCount: 0,
+          expectedCorrectionCount: 0,
+          intendedOperation: 'drain_existing_outbox',
+        },
+        qualification: {
+          status: 'qualified',
+          formatProfile: 'fy2024-army-r2-vol1-ba1',
+          evidenceReference: 'evidence/package-e/real-parser-qualification.json',
+          evidenceSha256: createHash('sha256').update('package-e-real-parser-qualification').digest('hex'),
+          qualifiedDrainImageDigest: `sha256:${'3'.repeat(64)}`,
+        },
+        timeoutSeconds: 3_600,
+        retry: { classification: 'transient_only', maxAttempts: 2, initialBackoffSeconds: 1 },
+        protection: {
+          baselineEvidenceReference: 'evidence/package-e/real-parser-baseline.json',
+          expectedApprovalWrites: 0,
+          expectedCorrectionWrites: 0,
+          expectedCanonicalWrites: 0,
+        },
+      }],
+      exclusions: [{
+        exclusionId: randomUUID(),
+        documentKey: 'fy2027-air-force-rdte-volume-i',
+        component: 'AF',
+        agency: 'Department of the Air Force',
+        officialLocator: 'https://www.saffm.hq.af.mil/FM-resources/Budget/',
+        sourceVersion: 'FY2027-RDTE-Volume-I',
+        sourceSha256: createHash('sha256').update('package-e-af-exclusion').digest('hex'),
+        byteSize: 9_504_933,
+        reasonCode: 'qualification_failed',
+        reason: 'Air Force document remains isolated after deterministic duplicate-evidence qualification failure.',
+        evidenceReference: 'evidence/package-e/air-force-qualification-failure.json',
+        permittedEffects: 'none',
+      }],
+      limits: {
+        maxDocuments: 5,
+        activeWorkers: 1,
+        maxAttemptsPerDocument: 2,
+        maxElapsedSeconds: 7_200,
+        defaultDocumentTimeoutSeconds: 3_600,
+        resourceShape: {
+          cpuUnits: 4_096,
+          memoryMiB: 8_192,
+          ephemeralStorageGiB: 20,
+          cpuArchitecture: 'ARM64',
+          operatingSystemFamily: 'LINUX',
+        },
+        costCeiling: { currency: 'USD', maximumAmount: '25.00', enforcement: 'operator_and_elapsed_limits' },
+      },
+      readiness: { policy: 'deferred', expectedOutcome: 'not_performed' },
+      permittedEffects: {
+        database: {
+          manifestLedgerWrites: true,
+          outboxLeaseAndDispositionWrites: true,
+          documentParseJobWrites: true,
+          verificationEvidenceWrites: true,
+          sourceRegistrationWrites: false,
+          lifecycleObservationWrites: false,
+          readinessWrites: false,
+          approvalWrites: false,
+          correctionWrites: false,
+          canonicalWrites: false,
+          outOfManifestEnqueueWrites: false,
+        },
+        storage: {
+          pinnedArchiveReads: true,
+          extractionArtifactWrites: true,
+          rawArchiveWrites: false,
+          objectDeletes: false,
+          durablePresignedUrlWrites: false,
+        },
+      },
+    });
+
+    mkdirSync(config.workDir, { recursive: true });
+    process.env.BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT = config.workDir;
+    process.env.DEFENSE_BUDGET_PARSER_PROJECT_DIR = PARSER_PROJECT_DIR;
+    const approvalCountBefore = await prisma.budgetScopedFactReviewV1.count();
+    const correctionCountBefore = await prisma.budgetCandidateCorrectionV1.count();
+    const promotionAuditBefore = await prisma.defenseBudgetPromotionAudit.count();
+    const sourceDocumentCountBefore = await prisma.sourceDocument.count();
+    const observationCountBefore = await prisma.defenseBudgetSourceObservation.count();
+    const outboxCountBefore = await prisma.defenseBudgetIngestionOutbox.count();
+    const archiveReader = new S3SourceDocumentArchiveReadAdapter();
+    try {
+      const neverArchive = {
+        archiveOriginal: async () => { throw new Error('replay path must not register or archive source bytes'); },
+      } as unknown as RawArchiveService;
+      const bridge = new ObservationIngestionBridgeService(
+        new PrismaObservationBridgeStore(prisma),
+        { fetchFullBytes: async () => { throw new Error('replay path must not fetch mutable source bytes'); } },
+        new DocumentRegistrar(neverArchive, prisma),
+        new DefaultParserHandoffAdapter({ workDir: config.workDir }),
+        archiveReader,
+      );
+      const repository = createIngestionManifestRepositoryV1(prisma, { leaseMs: 120_000 });
+      const result = await new RunIngestionManifestV1({
+        repository,
+        bridge,
+        heartbeatMs: 10_000,
+      }).run(manifest, { taskJobId: `package-e-real-parser-it:${runId}` });
+
+      expect(result.outcome).toBe('completed');
+      expect(result.summary).toMatchObject({
+        selected: 1,
+        pending: 0,
+        running: 0,
+        retryWait: 0,
+        evidenceReady: 0,
+        uncertain: 0,
+        approvals: 'not_performed',
+        readiness: 'not_performed',
+        canonicalPublication: 'not_performed',
+      });
+      expect((result.summary?.passed ?? 0) + (result.summary?.review ?? 0) + (result.summary?.rejected ?? 0)).toBe(1);
+      expect(result.summary?.items[0]?.candidateId).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(result.summary?.items[0]?.verificationRunId).toMatch(/^[0-9a-f-]{36}$/i);
+      const persisted = await dbverifyCandidate(prisma, config.cycleId, config.sourceDocumentId);
+      expect(persisted.candidate?.id).toBe(result.summary?.items[0]?.candidateId);
+      expect(persisted.run?.id).toBe(result.summary?.items[0]?.verificationRunId);
+      const finalizedOutbox = await prisma.defenseBudgetIngestionOutbox.findUniqueOrThrow({ where: { id: outboxRowId } });
+      expect(['succeeded', 'dead_letter']).toContain(finalizedOutbox.state);
+      expect(finalizedOutbox.metadata).toMatchObject({
+        manifestOperationId: operationId,
+        manifestItemId: memberId,
+        readinessPhase: 'not_requested_manifest_ingestion_only',
+        readinessInvoked: false,
+        approvalWrites: 0,
+        correctionWrites: 0,
+        canonicalWrites: 0,
+      });
+      expect(await prisma.budgetScopedFactReviewV1.count()).toBe(approvalCountBefore);
+      expect(await prisma.budgetCandidateCorrectionV1.count()).toBe(correctionCountBefore);
+      expect(await prisma.defenseBudgetPromotionAudit.count()).toBe(promotionAuditBefore);
+      expect(await prisma.sourceDocument.count()).toBe(sourceDocumentCountBefore);
+      expect(await prisma.defenseBudgetSourceObservation.count()).toBe(observationCountBefore);
+      expect(await prisma.defenseBudgetIngestionOutbox.count()).toBe(outboxCountBefore);
+    } finally {
+      await archiveReader.destroy();
+    }
   });
 });

@@ -17,6 +17,7 @@ export interface LocalParserRuntimeClientOptions {
   cwd?: string;
   workDir: string;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export interface ExecuteJobResult {
@@ -174,6 +175,7 @@ export class LocalParserRuntimeClient {
       const processHandle = spawn(this.command, [...this.commandArgs, ...args], {
         cwd: this.cwd,
         timeout: this.timeoutMs,
+        signal: this.options.signal,
         env: { ...process.env },
       });
       let stderr = '';

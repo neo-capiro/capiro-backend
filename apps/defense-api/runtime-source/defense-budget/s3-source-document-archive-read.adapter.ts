@@ -43,14 +43,20 @@ export class S3SourceDocumentArchiveReadAdapter implements SourceDocumentArchive
     }
   }
 
-  async readMaterializedBytes(locator: SourceDocumentArchiveLocator): Promise<ArchivedSourceBytes> {
+  async readMaterializedBytes(
+    locator: SourceDocumentArchiveLocator,
+    options: { readonly abortSignal?: AbortSignal } = {},
+  ): Promise<ArchivedSourceBytes> {
+    options.abortSignal?.throwIfAborted();
     const out = await this.client.send(
       new GetObjectCommand({
         Bucket: locator.bucket,
         Key: locator.key,
         ...(locator.versionId ? { VersionId: locator.versionId } : {}),
       }),
+      options.abortSignal ? { abortSignal: options.abortSignal } : undefined,
     );
+    options.abortSignal?.throwIfAborted();
     const body = out.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
     if (!body?.transformToByteArray) {
       throw new Error(
@@ -59,6 +65,7 @@ export class S3SourceDocumentArchiveReadAdapter implements SourceDocumentArchive
       );
     }
     const bytes = Buffer.from(await body.transformToByteArray());
+    options.abortSignal?.throwIfAborted();
     return { bytes, contentSha256: createHash('sha256').update(bytes).digest('hex') };
   }
 

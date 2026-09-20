@@ -1,0 +1,235 @@
+{
+  "schemaVersion": "package_e_qualification_pilot_proposal_v1",
+  "preparedOn": "2026-09-20",
+  "status": "PROPOSAL_ONLY_NO_RUNNABLE_PRODUCTION_MANIFEST",
+  "qualificationOnly": true,
+  "executionAuthorized": false,
+  "runnableProductionManifest": null,
+  "runnableProductionManifestCount": 0,
+  "selectionPolicy": {
+    "memberCount": 3,
+    "ordering": "lowest expected parser and layout risk first",
+    "exactImmutableSourceVersionsOnly": true,
+    "numericBatchSizeIsNotAWhitelist": true,
+    "productionLifecycleRegistrationAuthorized": false,
+    "productionOutboxDrainAuthorized": false
+  },
+  "protectedApprovalInvariant": {
+    "activeApprovalCount": 43,
+    "orderedSnapshotSha256": "a5804be1ce76db2290115950679058eaf63cc501780cfac6dc5c8d6837b93f0c",
+    "requiredBeforeAndAfterAnyFutureOperation": true,
+    "mutationAuthorized": false
+  },
+  "orderedCandidates": [
+    {
+      "order": 1,
+      "sourceVersionId": "src:6f447338-b243-453a-b554-69b96a2e565e",
+      "sourceDocumentId": "6f447338-b243-453a-b554-69b96a2e565e",
+      "sourceKey": "rdte_vol_1_budget_activity_1",
+      "expectedSourceId": null,
+      "observationId": null,
+      "outboxRowId": null,
+      "candidateId": null,
+      "currentState": {
+        "sourceRowOnly": true,
+        "archiveProven": true,
+        "supersededBySourceVersionId": null,
+        "governedExtractionObserved": false,
+        "runtimeQualified": false,
+        "activeApprovalCount": 0
+      },
+      "source": {
+        "sha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+        "byteSize": 4703360,
+        "archiveBucket": "capiro-defense-budget-raw-dev-967807252336",
+        "archiveKey": "raw/public/dod-budget/fiscal_year=2027/source_authority=dod-comptroller/family=rdte/document_id=rdte_vol_1_budget_activity_1/sha256=02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0/original.pdf",
+        "archiveVersionId": "AYkuYN8rbfTVPo9LeC0JaRnwGEhS_7Tl"
+      },
+      "identity": {
+        "fiscalYear": 2027,
+        "component": "ARMY",
+        "family": "rdte",
+        "documentType": "r2",
+        "exhibits": [
+          "R-2",
+          "R-2A"
+        ],
+        "volume": "1",
+        "budgetActivity": "1",
+        "persistedSourceComponent": null,
+        "persistedSourceFamily": "r2"
+      },
+      "qualificationEvidence": {
+        "representativeGoldEvidence": [
+          "docs/defense-budget/session5-gold-evidence/fy27-army-r2-pe-0601102a-p34.json",
+          "docs/defense-budget/session5-gold-evidence/fy27-army-r2a-pe-0601102a-aa4-p54.json"
+        ],
+        "officialIdentityObserved": true,
+        "officialByteBindingStatus": "REQUIRES_CURRENT_REBIND",
+        "reasonIsolatedQualificationRequired": "The exact archive has accepted R-2 and R-2A source-page evidence, but no current-release-image exact-source runtime qualification or governed lifecycle. The persisted component is null and must be reconciled to ARMY before registration."
+      }
+    },
+    {
+      "order": 2,
+      "sourceVersionId": "src:804f1477-033a-46d5-a958-6cd191cadb71",
+      "sourceDocumentId": "804f1477-033a-46d5-a958-6cd191cadb71",
+      "sourceKey": "fy2027_r1",
+      "expectedSourceId": null,
+      "observationId": null,
+      "outboxRowId": null,
+      "candidateId": null,
+      "currentState": {
+        "sourceRowOnly": true,
+        "archiveProven": true,
+        "supersededBySourceVersionId": null,
+        "governedExtractionObserved": false,
+        "runtimeQualified": false,
+        "activeApprovalCount": 0
+      },
+      "source": {
+        "sha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "byteSize": 3127023,
+        "archiveBucket": "capiro-defense-budget-raw-dev-967807252336",
+        "archiveKey": "raw/public/dod-budget/fiscal_year=2027/source_authority=dod-comptroller/family=rdte/document_id=fy2027_r1/sha256=1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a/original.pdf",
+        "archiveVersionId": "Co2I4fuNN3XZWiDAoiF1f.mFSLd3F2ki"
+      },
+      "identity": {
+        "fiscalYear": 2027,
+        "component": "CENTRAL_DOD_MULTI_COMPONENT",
+        "family": "rdte",
+        "documentType": "r1",
+        "exhibits": [
+          "R-1"
+        ],
+        "volume": null,
+        "budgetActivity": null,
+        "persistedSourceComponent": null,
+        "persistedSourceFamily": "r2"
+      },
+      "qualificationEvidence": {
+        "representativeGoldEvidence": [
+          "docs/defense-budget/session5-gold-evidence/fy27-r1-army-pe-0601102a-p10.json"
+        ],
+        "officialIdentityObserved": true,
+        "officialByteBindingStatus": "VERIFIED_EXACT_SHA256_AND_LENGTH",
+        "reasonIsolatedQualificationRequired": "The current official R-1 bytes match the immutable archive, but the persisted family/component metadata is stale and no current-release-image exact-source runtime qualification or governed lifecycle exists."
+      }
+    },
+    {
+      "order": 3,
+      "sourceVersionId": "src:17cf6ee9-5237-48a1-94b0-6515d99922ac",
+      "sourceDocumentId": "17cf6ee9-5237-48a1-94b0-6515d99922ac",
+      "sourceKey": "missile_procurement_army",
+      "expectedSourceId": null,
+      "observationId": null,
+      "outboxRowId": null,
+      "candidateId": null,
+      "currentState": {
+        "sourceRowOnly": true,
+        "archiveProven": true,
+        "supersededBySourceVersionId": null,
+        "governedExtractionObserved": false,
+        "runtimeQualified": false,
+        "activeApprovalCount": 0
+      },
+      "source": {
+        "sha256": "e47707f50d29ebf796a3db57877d104001c5679ce783f308ed1cd47cca1107f4",
+        "byteSize": 8933513,
+        "archiveBucket": "capiro-defense-budget-raw-dev-967807252336",
+        "archiveKey": "raw/public/dod-budget/fiscal_year=2027/source_authority=dod-comptroller/family=procurement/document_id=missile_procurement_army/sha256=e47707f50d29ebf796a3db57877d104001c5679ce783f308ed1cd47cca1107f4/original.pdf",
+        "archiveVersionId": "OV8rmOwkKHVZY8Sa5p.PvoMwPSzzTo6g"
+      },
+      "identity": {
+        "fiscalYear": 2027,
+        "component": "ARMY",
+        "family": "procurement",
+        "documentType": "p40",
+        "exhibits": [
+          "P-40"
+        ],
+        "representativeGoldEvidenceExhibit": "P-1",
+        "volume": "Missile Procurement, Army",
+        "budgetActivity": null,
+        "persistedSourceComponent": "ARMY",
+        "persistedSourceFamily": "p40"
+      },
+      "qualificationEvidence": {
+        "representativeGoldEvidence": [
+          "docs/defense-budget/session5-gold-evidence/fy27-scanned-missile-procurement-army-p7.json"
+        ],
+        "officialIdentityObserved": true,
+        "officialByteBindingStatus": "REQUIRES_CURRENT_REBIND",
+        "reasonIsolatedQualificationRequired": "The exact archived PDF includes image-only source material and has no current-release-image procurement/OCR qualification or governed lifecycle. The P-40 router identity and representative P-1 page evidence must be reconciled explicitly."
+      }
+    }
+  ],
+  "explicitExclusions": [
+    {
+      "sourceVersionId": "src:934c59bb-2c83-4015-96b5-5f69e70b78d6",
+      "sourceDocumentId": "934c59bb-2c83-4015-96b5-5f69e70b78d6",
+      "sourceKey": "af_rdte_vol1",
+      "sha256": "6666345286e16a60ed4d0d74fd788389eb7565b2225e9d51e262a9ee2a2b20fb",
+      "byteSize": 9504933,
+      "archiveBucket": "capiro-defense-budget-raw-dev-967807252336",
+      "archiveKey": "raw/public/dod-budget/fiscal_year=2027/source_authority=dod-comptroller/family=rdte/document_id=af_rdte_vol1/sha256=6666345286e16a60ed4d0d74fd788389eb7565b2225e9d51e262a9ee2a2b20fb/original.pdf",
+      "archiveVersionId": "9hPq5oTa9XFf6iejKWmf3qEUAAjFVhaQ",
+      "reason": "Explicitly excluded. Two exact-image qualification attempts failed deterministically during R-2 artifact finalization with duplicate evidenceId ev_1c2956e3bb656a6bcafce241ebf51dd99b599396a23b6c20fb176e47997f04a2."
+    },
+    {
+      "sourceDocumentId": "97a60bb1-1e2c-493f-b771-f84460cda1aa",
+      "observationId": "0c43e78d-90fd-4db6-a476-99565c740c0a",
+      "outboxRowId": "7bde93f5-544d-4816-9b2f-1c5453017dfb",
+      "reason": "FY2024 Army BA4A is an existing terminal review row and is not a NEW-document pilot member."
+    },
+    {
+      "class": "all_other_terminal_outbox_rows",
+      "reason": "Existing terminal work is not NEW-document qualification scope."
+    },
+    {
+      "class": "package_b_pending_outbox_set",
+      "reason": "The ten Package B pending rows remain excluded unless separately and exactly authorized; BA4A has since become terminal, leaving nine pending rows."
+    }
+  ],
+  "qualificationGates": [
+    {
+      "gate": "immutable_source_identity",
+      "requirement": "Reconfirm each exact SHA-256, byte size, archive bucket, key, and version ID immediately before qualification."
+    },
+    {
+      "gate": "official_publisher_byte_binding",
+      "requirement": "Bind the exact official publisher bytes to each immutable archive version. R-1 is already bound; Army R-2/R-2A and Missile Procurement require a current binding."
+    },
+    {
+      "gate": "document_identity_reconciliation",
+      "requirement": "Resolve and durably record component, parser family, document type, exhibit, volume, and budget-activity identity without inheriting stale null or misclassified source-row metadata."
+    },
+    {
+      "gate": "isolated_repeat_runtime_qualification",
+      "requirement": "Run each document alone at least twice on one exact image digest; verify source bytes, artifact finalization, source-oracle assertions, absence of blocking parser conflicts, and substantive output determinism."
+    },
+    {
+      "gate": "qualification_evidence_packet",
+      "requirement": "Record image digest, task definition, task/log IDs, parser/release identity, artifacts and hashes, verifier outcomes, resource measurements, and documented run-derived hash exclusions."
+    },
+    {
+      "gate": "separate_lifecycle_registration_authorization",
+      "requirement": "Only after qualification, obtain separate authorization before creating expected-source, observation, or outbox rows."
+    },
+    {
+      "gate": "separate_exact_row_execution_authorization",
+      "requirement": "After lifecycle registration, require a second authorization naming every exact outbox row ID; numeric batch-size or unrestricted queue sweeps are prohibited."
+    },
+    {
+      "gate": "before_after_invariants",
+      "requirement": "Prove the 43 protected approvals and their ordered hash are unchanged and that no unrelated candidate, observation, or outbox row changed."
+    }
+  ],
+  "authorization": {
+    "qualificationAuthorized": false,
+    "lifecycleRegistrationAuthorized": false,
+    "productionExecutionAuthorized": false,
+    "approvalOrCanonicalPublicationAuthorized": false,
+    "authorizedBy": null,
+    "authorizedAt": null
+  }
+}
