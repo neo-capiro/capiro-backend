@@ -1,0 +1,104 @@
+{
+  "_note": "Phase 0 LOCAL fixtures. These are NOT the production capiro-internal tenant; the pilot tenant's canonical id (17b63099-bc0f-4ac5-b596-496161e9481e) is recorded in docs/meri/hermes/phase-0/pilot-configuration.md. Fixture ids are deterministic so the seed is idempotent and evidence is comparable across runs.",
+  "tenants": {
+    "pilot": {
+      "id": "a0000000-0000-4000-8000-000000000001",
+      "slug": "phase0-pilot-fixture",
+      "name": "Phase 0 Pilot Fixture (stands in for capiro-internal locally)"
+    },
+    "outside": {
+      "id": "b0000000-0000-4000-8000-000000000002",
+      "slug": "phase0-outside-fixture",
+      "name": "Phase 0 Outside Tenant Fixture"
+    }
+  },
+  "users": {
+    "alice": {
+      "id": "a0000000-0000-4000-8000-0000000000a1",
+      "clerkUserId": "user_phase0_fixture_alice",
+      "email": "alice.phase0@fixture.invalid",
+      "tenant": "pilot",
+      "role": "standard_user"
+    },
+    "bob": {
+      "id": "a0000000-0000-4000-8000-0000000000b2",
+      "clerkUserId": "user_phase0_fixture_bob",
+      "email": "bob.phase0@fixture.invalid",
+      "tenant": "pilot",
+      "role": "standard_user"
+    },
+    "carol": {
+      "id": "b0000000-0000-4000-8000-0000000000c3",
+      "clerkUserId": "user_phase0_fixture_carol",
+      "email": "carol.phase0@fixture.invalid",
+      "tenant": "outside",
+      "role": "standard_user"
+    }
+  },
+  "clients": {
+    "open": { "id": "a0000000-0000-4000-8000-00000000c001", "name": "Fixture Client Open", "memoryWall": false },
+    "walled": { "id": "a0000000-0000-4000-8000-00000000c002", "name": "Fixture Client Walled", "memoryWall": true, "grants": ["alice"] }
+  },
+  "conversations": {
+    "alice": { "id": "a0000000-0000-4000-8000-00000000e001", "user": "alice", "tenant": "pilot" },
+    "aliceSecond": { "id": "a0000000-0000-4000-8000-00000000e011", "user": "alice", "tenant": "pilot" },
+    "bob": { "id": "a0000000-0000-4000-8000-00000000e002", "user": "bob", "tenant": "pilot" },
+    "carol": { "id": "b0000000-0000-4000-8000-00000000e003", "user": "carol", "tenant": "outside" }
+  },
+  "memoryItems": {
+    "firmPlaybook": {
+      "id": "a0000000-0000-4000-8000-00000000f001",
+      "type": "playbook",
+      "slug": "phase0-briefing-format",
+      "title": "Firm playbook: briefing format",
+      "visibility": "tenant",
+      "body": "PHASE0-FIRM-FACT: Every morning briefing leads with the three commitments due this week, then blockers, then a one-line recommendation. Keep it under 120 words."
+    },
+    "alicePrivate": {
+      "id": "a0000000-0000-4000-8000-00000000f002",
+      "type": "user-profile",
+      "slug": "phase0-alice-preference",
+      "title": "Alice preference: response format",
+      "visibility": "user",
+      "owner": "alice",
+      "body": "PHASE0-ALICE-PRIVATE-FACT: Alice prefers bullet summaries and wants Senate items listed before House items."
+    },
+    "bobPrivate": {
+      "id": "a0000000-0000-4000-8000-00000000f003",
+      "type": "user-profile",
+      "slug": "phase0-bob-preference",
+      "title": "Bob preference: response format",
+      "visibility": "user",
+      "owner": "bob",
+      "body": "PHASE0-BOB-PRIVATE-FACT: Bob wants paragraph form and never wants acronyms expanded."
+    },
+    "walledClient": {
+      "id": "a0000000-0000-4000-8000-00000000f004",
+      "type": "client-compass",
+      "slug": "phase0-walled-client-strategy",
+      "title": "Fixture Client Walled: strategy",
+      "visibility": "tenant",
+      "client": "walled",
+      "body": "PHASE0-WALLED-CLIENT-FACT: The walled client is pursuing a Section 809 carve-out in the FY27 NDAA."
+    },
+    "openClient": {
+      "id": "a0000000-0000-4000-8000-00000000f005",
+      "type": "client-compass",
+      "slug": "phase0-open-client-strategy",
+      "title": "Fixture Client Open: strategy",
+      "visibility": "tenant",
+      "client": "open",
+      "body": "PHASE0-OPEN-CLIENT-FACT: The open client is tracking the Sunbelt Water Resilience Act markup."
+    }
+  },
+  "attachments": {
+    "aliceDocx": {
+      "id": "a0000000-0000-4000-8000-00000000d001",
+      "user": "alice",
+      "tenant": "pilot",
+      "filename": "phase0-markup-notes.docx",
+      "uniqueSentence": "PHASE0-DOCX-SENTENCE: The Sunbelt Water Resilience Act markup moved to October 7 per Chair Delgado, and Section 4 now caps grants at 12 million dollars.",
+      "applicationExtractionMarker": "MERI-APP-EXTRACTION-MARKER: application-side extracted text placeholder (ClioAttachment.textContent)."
+    }
+  }
+}

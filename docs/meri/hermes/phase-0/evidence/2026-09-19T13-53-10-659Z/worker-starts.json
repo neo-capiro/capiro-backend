@@ -1,0 +1,10 @@
+{
+  "alice": {
+    "startMs": 17527,
+    "worker": "meri-hermes-p0-alice"
+  },
+  "bob": {
+    "startMs": 19129,
+    "worker": "meri-hermes-p0-bob"
+  }
+}

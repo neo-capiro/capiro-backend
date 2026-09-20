@@ -1,0 +1,75 @@
+PASS src/meri/hermes/meri-hermes-scaling-controls.spec.ts (153.197 s)
+[33m[Nest] 20792  - [39m09/19/2026, 9:18:42 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mrun ba66e7c6-982c-4b01-92d1-6fca0c7aebb6: consumer replica-a no longer owns this run (durable write rejected by the ownership fence); stopping consumption[39m
+[32m[Nest] 20792  - [39m09/19/2026, 9:18:42 PM [32m    LOG[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[32mrun ba66e7c6-982c-4b01-92d1-6fca0c7aebb6: consumption ended after takeover; leaving finalization to the current owner[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:18:42 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mstatus-poll draw failed for run 5f163de0-4b1f-4482-b00d-9be740b18839: Error: No Hermes budget reservation for run 5f163de0-4b1f-4482-b00d-9be740b18839[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:18:57 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mstatus-poll draw failed for run c7640a36-dc13-4950-9b4f-be23e1115f44: Error: No Hermes budget reservation for run c7640a36-dc13-4950-9b4f-be23e1115f44[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:18:57 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mstatus-poll draw failed for run 01ec0ec2-41ef-4829-9429-d3bed2cb5d7a: Error: No Hermes budget reservation for run 01ec0ec2-41ef-4829-9429-d3bed2cb5d7a[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:18:58 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mrecovered 2 orphaned Hermes run(s) for tenant eac9f1b8-da05-46e5-9de6-2e1a91faa3fd[39m
+PASS src/meri/hermes/meri-hermes-ownership-and-finalization.spec.ts (19.947 s)
+[32m[Nest] 20792  - [39m09/19/2026, 9:19:05 PM [32m    LOG[39m [38;5;3m[MeriHermesMaintenanceService] [39m[32mMeri/Hermes maintenance sweep started (every 250ms)[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:06 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mstatus-poll draw failed for run ccb90916-1138-4cf0-b834-e095690d72f4: Error: No Hermes budget reservation for run ccb90916-1138-4cf0-b834-e095690d72f4[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:07 PM [33m   WARN[39m [38;5;3m[MeriHermesMaintenanceService] [39m[33mrecovered 1 orphaned Hermes run(s) from a dead replica[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:07 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mstatus-poll draw failed for run 5fe5a9d1-171a-40e5-b2a2-8e28d0f02df1: Error: No Hermes budget reservation for run 5fe5a9d1-171a-40e5-b2a2-8e28d0f02df1[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:07 PM [33m   WARN[39m [38;5;3m[MeriHermesMaintenanceService] [39m[33mrecovered 1 orphaned Hermes run(s) from a dead replica[39m
+[32m[Nest] 20792  - [39m09/19/2026, 9:19:07 PM [32m    LOG[39m [38;5;3m[MeriHermesMaintenanceService] [39m[32mstopped 1 idle Hermes worker(s)[39m
+PASS src/meri/hermes/meri-hermes-maintenance.worker.spec.ts (7.941 s)
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:10 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 87bd3bb7-55ad-448e-961a-27b9e5e1753c admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:11 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun c9926230-aabd-4e79-9ce5-248e6f753306 admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:13 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun d1a42ede-a0b0-4044-985c-ef8f5d1180c0 admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:13 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mshared profile write skipped for run d1a42ede-a0b0-4044-985c-ef8f5d1180c0 (busy): Another conversation in this workspace has been writing to the shared Hermes profile for 0s (run 5efc9ea8-ab71-4e0a-98da-9e8cd7259187). This turn was not started so the two could not overwrite each other; please retry in a moment.[39m
+PASS src/meri/hermes/meri-hermes-profile-coordination.integration.spec.ts (6.526 s)
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:20 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33madmission rejected for conversation ad22732e-4068-4be9-a38d-141ed3abdbf2: This conversation already has an active turn in progress (run bade8c2f-f56e-43e4-8671-315bb0d9d670).[39m
+PASS src/meri/hermes/meri-hermes-cross-replica.spec.ts (7.188 s)
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:24 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 9c189cf6-a0f5-4da1-92e8-1c3e3f12c99f admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:25 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33madmission refused for tenant 1602e50b-6d53-429b-bc91-81f53741f5ec: This workspace has used 1,000 of its 1,000 Hermes tokens for 2026-09-20 (UTC) and a new run needs 1,000 more. Runs already in progress will finish normally. The allowance resets at 2026-09-21T00:00:00.000Z; an administrator can raise MERI_HERMES_TENANT_DAILY_TOKENS before then.[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:25 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mcapacity refused run 1a7e5d63-5b68-4fe3-883b-da46b0b1c6a5: Hermes cannot start this run right now: this workspace area already has 1 of 1 Hermes runs in progress, and the waiting queue for this workspace is full (1 of 1). Nothing was started and nothing was charged. Stop a run you no longer need, or try again once one of the runs in progress finishes.[39m
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:26 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 865d2235-b989-48c5-99df-b53405d615df admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:26 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 064e4531-3fc0-4e6c-9b91-5df2488d585d admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:26 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 9dd3bc5d-f5b5-439f-9774-8d64dfc6a278 admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+PASS src/meri/hermes/meri-hermes-scaling-adapter-wiring.integration.spec.ts (5.782 s)
+PASS src/meri/hermes/meri-hermes-citations.integration.spec.ts
+PASS src/meri/hermes/meri-hermes-worker-provisioning-fencing.spec.ts
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:45 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun e44230cd-fbac-4642-859a-3ab69f224aef admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:19:45 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33mshared profile write skipped for run e44230cd-fbac-4642-859a-3ab69f224aef (error): Unknown Hermes execution scope tenant:a7a14542-45da-4b49-938f-0e14f8e15fb0:user:13de0697-1d58-46f6-b2a1-9df3239e25d7[39m
+PASS src/meri/hermes/meri-hermes-isolation.spec.ts (13.506 s)
+PASS src/meri/hermes/meri-hermes-scaling-fairness.integration.spec.ts
+PASS src/meri/hermes/meri-hermes-scaling-budget.integration.spec.ts
+PASS src/meri/hermes/meri-hermes-prisma-run-repository.spec.ts
+PASS src/meri/hermes/meri-hermes-artifact-storage.integration.spec.ts
+[31m[Nest] 20792  - [39m09/19/2026, 9:19:59 PM [31m  ERROR[39m [38;5;3m[MeriHermesBrokerService] [39m[31mrun record 314f13ea-df5d-4dcb-8484-16dba9bf9074 disappeared before release; refusing to validate the entry-time snapshot[39m
+PASS src/meri/hermes/meri-hermes-broker-tool-gate.spec.ts
+[33m[Nest] 20792  - [39m09/19/2026, 9:20:01 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mbroker scope mismatch for run f39da0cc-46ae-4e74-85f6-e40856bfbb6e[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:20:01 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mauthorization version mismatch for run fb7c891e-035d-492c-b18d-3ba5babfb9ec (entry); stopping and fencing to interrupted[39m
+[33m[Nest] 20792  - [39m09/19/2026, 9:20:01 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mmembership revoked mid-run for run 003f1ddd-a1b3-49d8-bb11-072d345afd7e (entry); stopping and fencing to interrupted[39m
+PASS src/meri/hermes/meri-hermes-broker-isolation.spec.ts
+PASS src/meri/hermes/meri-hermes-governed-recall.integration.spec.ts
+PASS src/meri/hermes/meri-hermes-client-grant-liveness.spec.ts
+[31m[Nest] 20792  - [39m09/19/2026, 9:20:06 PM [31m  ERROR[39m [38;5;3m[MeriHermesWorkerLifecycleService] [39m[31mworker provisioning failed for scope tenant:tenant-1:user:alice: Timed out waiting for ECS task arn:aws:ecs:...:task/stuck to reach RUNNING[39m
+PASS src/meri/hermes/meri-hermes-worker-lifecycle.service.spec.ts
+  ● Console
+
+    console.error
+      {"event":"meri_hermes_worker_provisioning","failed":1,"executionScopeId":"tenant:tenant-1:user:alice","tenantId":"tenant-1","reason":"Timed out waiting for ECS task arn:aws:ecs:...:task/stuck to reach RUNNING"}
+
+    [0m [90m 464 |[39m       [90m// (MeriHermesWorkerFleet's optional apiLogGroup alarm) can find it.[39m
+     [90m 465 |[39m       [90m// eslint-disable-next-line no-console[39m
+    [31m[1m>[22m[39m[90m 466 |[39m       console[33m.[39merror(
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 467 |[39m         [33mJSON[39m[33m.[39mstringify({
+     [90m 468 |[39m           event[33m:[39m [32m'meri_hermes_worker_provisioning'[39m[33m,[39m
+     [90m 469 |[39m           failed[33m:[39m [35m1[39m[33m,[39m[0m
+
+      at MeriHermesWorkerLifecycleService.provision (src/meri/hermes/meri-hermes-worker-lifecycle.service.ts:466:15)
+      at Object.<anonymous> (src/meri/hermes/meri-hermes-worker-lifecycle.service.spec.ts:291:5)
+
+PASS src/meri/hermes/meri-hermes-run-store.spec.ts
+PASS src/meri/hermes/meri-hermes-event-translator.spec.ts
+PASS src/meri/hermes/meri-hermes-worker-token.spec.ts
+
+Test Suites: 21 passed, 21 total
+Tests:       206 passed, 206 total
+Snapshots:   0 total
+Time:        241.858 s
+Ran all test suites matching /src\\meri\\hermes/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+unit exit=0

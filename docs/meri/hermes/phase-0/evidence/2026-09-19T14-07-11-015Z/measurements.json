@@ -1,0 +1,108 @@
+{
+  "coldStartMs": null,
+  "harnessApiStartMs": 51491,
+  "runsObserved": 3,
+  "perRun": [
+    {
+      "runId": "e2cd8dd3-dbb5-47ca-aaad-a7cbda152dc8",
+      "status": "cancelled",
+      "createdAt": "2026-09-19T14:08:08.681Z",
+      "finishedAt": "2026-09-19T14:08:13.946Z",
+      "wallMs": 5265,
+      "usage": null,
+      "brokerCalls": 1
+    },
+    {
+      "runId": "2b6c08de-c37c-4ca8-a749-89e8bc9f6a05",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:08:14.005Z",
+      "finishedAt": "2026-09-19T14:08:16.643Z",
+      "wallMs": 2638,
+      "usage": {
+        "inputTokens": 11077,
+        "outputTokens": 148,
+        "totalTokens": 11225,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "4d9ff53b-8314-4f41-8cca-21dcdaaebdac",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:08:47.109Z",
+      "finishedAt": "2026-09-19T14:08:55.870Z",
+      "wallMs": 8761,
+      "usage": {
+        "inputTokens": 11256,
+        "outputTokens": 16,
+        "totalTokens": 11272,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    }
+  ],
+  "tokens": {
+    "input": 22333,
+    "output": 164
+  },
+  "toolLatencies": [
+    {
+      "tool": "terminal",
+      "seconds": 0.909,
+      "error": true
+    }
+  ],
+  "dockerStats": [
+    {
+      "label": "idle-after-start",
+      "at": "2026-09-19T14:08:06.090Z",
+      "BlockIO": "0B / 1.47MB",
+      "CPUPerc": "0.53%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "16b0a17efcde",
+      "MemPerc": "10.96%",
+      "MemUsage": "224.5MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "1.2MB / 213kB",
+      "PIDs": "31"
+    },
+    {
+      "label": "end",
+      "at": "2026-09-19T14:08:57.141Z",
+      "BlockIO": "0B / 647kB",
+      "CPUPerc": "0.28%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "a2d53cf94dd2",
+      "MemPerc": "10.67%",
+      "MemUsage": "218.4MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "213kB / 87kB",
+      "PIDs": "31"
+    }
+  ],
+  "cost": {
+    "workerComputeEstimateUsd": 0.0006,
+    "workerWallHours": 0.013,
+    "fargateRatePerHourUsd": 0.0494,
+    "modelCostUsd": null,
+    "modelPricingSource": "not supplied — tokens reported, dollar cost not asserted"
+  },
+  "hermesLogTail": [
+    "[stage2] API_SERVER_KEY provided via container environment — skipping generation",
+    "Syncing bundled skills into ~/.hermes/skills/ ...",
+    "",
+    "Done: 0 new, 0 updated, 58 unchanged. 58 total bundled.",
+    "[stage2] Found agent-browser Chromium binary: /opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "[stage2] Setup complete; starting user services",
+    "[supervise-perms] chowned supervise/ trees for static s6-rc services",
+    "reconcile: profile=default prior_state=running action=started",
+    "[meri-hermes-worker] HERMES_HOME=/opt/data scope=tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1 model=gpt-5.6-luna provider=custom",
+    "[meri-hermes-worker] broker=http://host.docker.internal:4450/api/internal/hermes/broker worker_token_present=yes",
+    "┌─────────────────────────────────────────────────────────┐",
+    "│           ☤ Hermes Gateway Starting...                 │",
+    "├─────────────────────────────────────────────────────────┤",
+    "│  Messaging platforms + cron scheduler                    │",
+    "│  Press Ctrl+C to stop                                   │",
+    "└─────────────────────────────────────────────────────────┘"
+  ]
+}

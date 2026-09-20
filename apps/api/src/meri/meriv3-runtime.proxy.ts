@@ -56,6 +56,7 @@ import {
 import { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { withMeriTurnProgress } from './meri-turn-progress.js';
+import type { MeriHermesRuntimeAdapter } from './hermes/meri-hermes-runtime.adapter.js';
 
 export const RAW_MERI_SERVICE = Symbol('RAW_MERI_SERVICE');
 const PHASE19_PATCHED = Symbol('phase19-governed-context-patched');
@@ -114,6 +115,7 @@ export function createMeriRuntimeService(
   meriv3: MeriV3ProxyService,
   visualAnalysis: MeriV3VisualAnalysisService,
   governedRuntime: MeriContextPlaneRuntimeService,
+  hermes?: Pick<MeriHermesRuntimeAdapter, 'shouldHandle' | 'streamMessage'>,
 ): MeriService {
   installRawPhase19Adapters(raw);
   installV3Phase19Adapters(meriv3);
@@ -134,6 +136,14 @@ export function createMeriRuntimeService(
               ctx,
               { conversationId, body, mode, signal },
               async () => {
+                signal?.throwIfAborted();
+                // Phase 0 Hermes pilot: a peer route with the strictest gate,
+                // checked first. When it is selected, its failures surface as
+                // its own error frames — never a silent fallback to V3/legacy.
+                if (hermes && (await hermes.shouldHandle(ctx))) {
+                  signal?.throwIfAborted();
+                  return hermes.streamMessage(...forwarded);
+                }
                 signal?.throwIfAborted();
                 const useV3 = await meriv3.shouldHandle(ctx);
                 signal?.throwIfAborted();

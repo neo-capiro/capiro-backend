@@ -1,0 +1,18 @@
+{
+  "id": "ISO5",
+  "title": "Feature flag off: pilot tenant immediately leaves Hermes (gate false, stream not routed, control surface 404)",
+  "status": "passed",
+  "at": "2026-09-19T13:43:32.191Z",
+  "gate": {
+    "tenantId": "a0000000-0000-4000-8000-000000000001",
+    "tenantSlug": "phase0-pilot-fixture",
+    "userId": "a0000000-0000-4000-8000-0000000000a1",
+    "role": "standard_user",
+    "hermes": false,
+    "env": {
+      "MERI_HERMES_ENABLED": "false"
+    }
+  },
+  "streamStatus": 409,
+  "capabilitiesStatus": 404
+}

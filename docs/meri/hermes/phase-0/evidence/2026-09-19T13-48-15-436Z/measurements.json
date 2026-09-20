@@ -1,0 +1,185 @@
+{
+  "coldStartMs": 18312,
+  "harnessApiStartMs": 19191,
+  "runsObserved": 3,
+  "perRun": [
+    {
+      "runId": "a8d349e8-c17b-48a4-955a-0d293413b3d7",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:19.487Z",
+      "finishedAt": "2026-09-19T13:49:25.984Z",
+      "wallMs": 6497,
+      "usage": {
+        "inputTokens": 21827,
+        "outputTokens": 146,
+        "totalTokens": 21973,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "f807399b-ad01-4801-bc38-6ee2a8b77f77",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:27.220Z",
+      "finishedAt": "2026-09-19T13:49:32.347Z",
+      "wallMs": 5127,
+      "usage": {
+        "inputTokens": 33765,
+        "outputTokens": 283,
+        "totalTokens": 34048,
+        "costUsd": null
+      },
+      "brokerCalls": 4
+    },
+    {
+      "runId": "adf94ece-c826-43db-bf1b-eab88a7e05af",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:32.388Z",
+      "finishedAt": "2026-09-19T13:49:35.585Z",
+      "wallMs": 3197,
+      "usage": {
+        "inputTokens": 23661,
+        "outputTokens": 93,
+        "totalTokens": 23754,
+        "costUsd": null
+      },
+      "brokerCalls": 3
+    }
+  ],
+  "tokens": {
+    "input": 79253,
+    "output": 522
+  },
+  "toolLatencies": [
+    {
+      "tool": "terminal",
+      "seconds": 0.189,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_search",
+      "seconds": 0.021,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_search",
+      "seconds": 0.023,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_propose",
+      "seconds": 0.027,
+      "error": false
+    }
+  ],
+  "dockerStats": [
+    {
+      "label": "idle-after-start",
+      "at": "2026-09-19T13:49:17.747Z",
+      "BlockIO": "123kB / 32.3MB",
+      "CPUPerc": "0.27%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "2b6c3914e9f1",
+      "MemPerc": "9.45%",
+      "MemUsage": "193.6MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "26.1MB / 795kB",
+      "PIDs": "27"
+    },
+    {
+      "label": "D1",
+      "at": "2026-09-19T13:49:27.179Z",
+      "BlockIO": "123kB / 44.9MB",
+      "CPUPerc": "24.39%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "2b6c3914e9f1",
+      "MemPerc": "13.42%",
+      "MemUsage": "274.8MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "42.5MB / 1.54MB",
+      "PIDs": "32"
+    },
+    {
+      "label": "end",
+      "at": "2026-09-19T13:49:47.256Z",
+      "BlockIO": "123kB / 100MB",
+      "CPUPerc": "0.24%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "2b6c3914e9f1",
+      "MemPerc": "13.63%",
+      "MemUsage": "279.2MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "44.5MB / 1.97MB",
+      "PIDs": "33"
+    }
+  ],
+  "cost": {
+    "workerComputeEstimateUsd": 0.0002,
+    "workerWallHours": 0.004,
+    "fargateRatePerHourUsd": 0.0494,
+    "modelCostUsd": null,
+    "modelPricingSource": "not supplied — tokens reported, dollar cost not asserted"
+  },
+  "hermesLogTail": [
+    "  + box",
+    "  + powerpoint",
+    "  + blocked-page-recovery",
+    "  + obsidian",
+    "  + xurl",
+    "  + llm-wiki",
+    "  + grounded-citations",
+    "  + competitor-news-monitor",
+    "  + arxiv",
+    "  + email-inbox-triage",
+    "  + himalaya",
+    "  + node-inspect-debugger",
+    "  + systematic-debugging",
+    "  + test-driven-development",
+    "  + spike",
+    "  + github",
+    "  + simplify-code",
+    "  + requesting-code-review",
+    "  + dogfood",
+    "  + inspecting-hermes-desktop-dom",
+    "  + python-debugpy",
+    "  + codebase-inspection",
+    "  + hermes-agent-skill-authoring",
+    "  + findmy",
+    "  + imessage",
+    "  + apple-reminders",
+    "  + apple-notes",
+    "  + sdlc-review",
+    "  + computer-use",
+    "  + claude-code",
+    "  + hermes-agent",
+    "  + opencode",
+    "  + codex",
+    "  + ascii-video",
+    "  + humanizer",
+    "  + manim-video",
+    "  + popular-web-designs",
+    "  + songwriting-and-ai-music",
+    "  + p5js",
+    "  + claude-design",
+    "  + architecture-diagram",
+    "  + baoyu-infographic",
+    "  + design-md",
+    "  + youtube-content",
+    "  + gif-search",
+    "  + songsee",
+    "",
+    "Done: 58 new, 0 updated, 0 unchanged. 58 total bundled.",
+    "[stage2] Found agent-browser Chromium binary: /opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "[stage2] Setup complete; starting user services",
+    "[supervise-perms] chowned supervise/ trees for static s6-rc services",
+    "reconcile: profile=default prior_state=None action=registered",
+    "[meri-hermes-worker] HERMES_HOME=/opt/data scope=tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1 model=gpt-5.6-luna provider=custom",
+    "[meri-hermes-worker] broker=http://host.docker.internal:4450/api/internal/hermes/broker worker_token_present=yes",
+    "┌─────────────────────────────────────────────────────────┐",
+    "│           ☤ Hermes Gateway Starting...                 │",
+    "├─────────────────────────────────────────────────────────┤",
+    "│  Messaging platforms + cron scheduler                    │",
+    "│  Press Ctrl+C to stop                                   │",
+    "└─────────────────────────────────────────────────────────┘"
+  ]
+}

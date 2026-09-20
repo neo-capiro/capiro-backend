@@ -1,0 +1,40 @@
+[31m[Nest] 47388  - [39m09/19/2026, 3:00:31 PM [31m  ERROR[39m [38;5;3m[MeriHermesWorkerLifecycleService] [39m[31mworker provisioning failed for scope tenant:tenant-1:user:alice: Timed out waiting for ECS task arn:aws:ecs:...:task/stuck to reach RUNNING[39m
+PASS src/meri/hermes/meri-hermes-worker-lifecycle.service.spec.ts (19.476 s)
+  ● Console
+
+    console.error
+      {"event":"meri_hermes_worker_provisioning","failed":1,"executionScopeId":"tenant:tenant-1:user:alice","tenantId":"tenant-1","reason":"Timed out waiting for ECS task arn:aws:ecs:...:task/stuck to reach RUNNING"}
+
+    [0m [90m 284 |[39m       [90m// (MeriHermesWorkerFleet's optional apiLogGroup alarm) can find it.[39m
+     [90m 285 |[39m       [90m// eslint-disable-next-line no-console[39m
+    [31m[1m>[22m[39m[90m 286 |[39m       console[33m.[39merror(
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 287 |[39m         [33mJSON[39m[33m.[39mstringify({
+     [90m 288 |[39m           event[33m:[39m [32m'meri_hermes_worker_provisioning'[39m[33m,[39m
+     [90m 289 |[39m           failed[33m:[39m [35m1[39m[33m,[39m[0m
+
+      at MeriHermesWorkerLifecycleService.provision (src/meri/hermes/meri-hermes-worker-lifecycle.service.ts:286:15)
+      at Object.<anonymous> (src/meri/hermes/meri-hermes-worker-lifecycle.service.spec.ts:283:5)
+
+[33m[Nest] 47388  - [39m09/19/2026, 3:00:38 PM [33m   WARN[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[33madmission rejected for conversation 7577160a-f9bd-417a-848e-f5a46e91cfb7: This conversation already has an active turn in progress (run 03034190-891f-4017-a9e6-fdb1e2287854).[39m
+PASS src/meri/hermes/meri-hermes-cross-replica.spec.ts (7.532 s)
+[31m[Nest] 47388  - [39m09/19/2026, 3:00:55 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 864ddd88-f930-4d2b-9b84-f3c4024fe15a admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+PASS src/meri/hermes/meri-hermes-isolation.spec.ts (16.58 s)
+PASS src/meri/hermes/meri-hermes-artifact-storage.integration.spec.ts
+PASS src/meri/hermes/meri-hermes-prisma-run-repository.spec.ts
+PASS src/meri/hermes/meri-hermes-governed-recall.integration.spec.ts
+[33m[Nest] 47388  - [39m09/19/2026, 3:00:59 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mbroker scope mismatch for run b5413ac7-3ee1-4c21-ad1a-9b7ffef8e8a0[39m
+[33m[Nest] 47388  - [39m09/19/2026, 3:00:59 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mauthorization version mismatch for run dbb127e1-4ac1-466c-a31d-2592f4b629c2; stopping and fencing to interrupted[39m
+[33m[Nest] 47388  - [39m09/19/2026, 3:00:59 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mmembership revoked mid-run for run 926aa1d2-434f-41e9-a125-e6fa4a6fc45f; stopping and fencing to interrupted[39m
+PASS src/meri/hermes/meri-hermes-broker-isolation.spec.ts
+PASS src/meri/hermes/meri-hermes-run-store.spec.ts
+PASS src/meri/hermes/meri-hermes-event-translator.spec.ts
+PASS src/meri/hermes/meri-hermes-worker-token.spec.ts
+
+Test Suites: 10 passed, 10 total
+Tests:       70 passed, 70 total
+Snapshots:   0 total
+Time:        49.152 s, estimated 60 s
+Ran all test suites matching /src\\meri\\hermes/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+jest exit=0

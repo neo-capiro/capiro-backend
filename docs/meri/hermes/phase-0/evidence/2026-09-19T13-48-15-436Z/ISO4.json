@@ -1,0 +1,11 @@
+{
+  "id": "ISO4",
+  "title": "Broker credential boundary: tampered token 401, other-user token on Alice run 403, unknown run 404, missing token 401, finished run 409",
+  "status": "passed",
+  "at": "2026-09-19T13:49:46.011Z",
+  "tampered": 401,
+  "otherScope": 403,
+  "unknownRun": 404,
+  "missing": 401,
+  "terminalRun": 409
+}

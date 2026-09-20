@@ -1,0 +1,11 @@
+{
+  "id": "D5c",
+  "title": "Native approval: approve_once resumes the live process and the command runs",
+  "status": "passed",
+  "at": "2026-09-19T14:00:40.701Z",
+  "runId": "92bad8c7-dcfd-4257-973b-ba71446d58c4",
+  "approveResponseStatus": 201,
+  "finalStatus": "completed",
+  "textPreview": "\n\nRAN",
+  "continuation": "live_process (worker blocked until decision)"
+}

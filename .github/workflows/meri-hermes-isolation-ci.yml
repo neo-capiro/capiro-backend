@@ -1,0 +1,148 @@
+# Meri/Hermes isolation acceptance suite (Phase 1 backlog #19).
+#
+# Promotes the Phase 0 manual harness's isolation checks (ISO1-ISO5, D2c —
+# docs/meri/hermes/phase-0/checks-report.md §A) into real jest specs
+# (apps/api/src/meri/hermes/meri-hermes-isolation.spec.ts and
+# meri-hermes-broker-isolation.spec.ts) that run automatically in CI on every
+# PR touching src/meri/hermes, instead of a script a human has to remember to
+# run against a live worker.
+#
+# Neither ci-pr.yml (the unconditional PR gate) nor meriv3-canary-ci.yml (whose
+# `paths:` filter DOES cover apps/api/src/meri/** but whose jest step lists an
+# unrelated, hand-picked set of MeriV3 files) actually execute
+# src/meri/hermes/*.spec.ts today — ci-pr.yml typechecks apps/api on every PR
+# but explicitly does not run its DB-backed jest suite at all (see that
+# workflow's "Follow-up: add an apps/api jest step" comment). This workflow
+# fills that gap for the Hermes isolation suite specifically, the same way
+# knowledge-phase10-ci.yml / district-nexus-release3-ci.yml / etc. each gate
+# their own slice of apps/api with a real Postgres service.
+name: meri-hermes-isolation-ci
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/src/meri/hermes/**'
+      - 'apps/api/src/common/meri-hermes-flags.ts'
+      - 'apps/api/src/common/meri-hermes-flags.spec.ts'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/jest.config.cjs'
+      - 'apps/api/jest.e2e.config.cjs'
+      - 'apps/api/jest.e2e.preflight.cjs'
+      - '.github/workflows/meri-hermes-isolation-ci.yml'
+      # Phase 1 fix 6b — the worker-fleet CDK construct is gated by the
+      # cdk-construct-suite job below, so a change to it must trigger this
+      # workflow. `paths:` is per-workflow, not per-job, so a CDK-only change
+      # also runs isolation-suite; that is a few wasted minutes, not a wrong
+      # signal, and it is cheaper than a second workflow duplicating the setup.
+      - 'infra/cdk/lib/constructs/meri-hermes-worker-fleet.ts'
+      - 'infra/cdk/test/meri-hermes-worker-fleet.spec.ts'
+      - 'infra/cdk/scripts/run-construct-tests.cjs'
+      - 'infra/cdk/scripts/cdk-spec-runners.cjs'
+      - 'infra/cdk/jest.jest-style.config.cjs'
+      - 'infra/cdk/package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meri-hermes-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolation-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Fresh-worktree gate prebuild: apps/api's TS project (and, transitively,
+      # its jest specs) pulls in types/values from these five workspace
+      # packages. Build order matters — later packages depend on earlier ones.
+      - name: Build workspace package prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Generate API Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Replay the complete API migration chain on a clean Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      # HERMETIC TIER ONLY (Phase 1 required fix 6a).
+      #
+      # `src/meri/hermes` also contains meri-hermes-full-application.e2e.spec.ts,
+      # a REAL-Hermes end-to-end gate that needs docker, the pinned
+      # meri-hermes-worker:v2026.9.14-meri image, a reference container holding
+      # the gateway/model credentials and a free host port. None of that exists
+      # on this runner, so while that spec was collected here this command was
+      # not reproducible on any machine without the container.
+      #
+      # apps/api/jest.config.cjs now ignores `*.e2e.spec.ts`, so this command
+      # collects 10 hermetic specs and no e2e spec. Proof:
+      #   pnpm --filter @capiro/api exec jest --listTests src/meri/hermes
+      # The e2e tier has its own provisioned workflow,
+      # .github/workflows/meri-hermes-e2e-ci.yml (workflow_dispatch-only until
+      # the worker image's ECR repository exists).
+      - name: Test the Hermes isolation acceptance suite (ISO1-ISO5, D2c)
+        run: pnpm --filter @capiro/api run test:meri-hermes
+
+  # Phase 1 required fix 6b — give the worker-fleet construct a runner that
+  # actually executes it.
+  #
+  # infra/cdk/test/meri-hermes-worker-fleet.spec.ts is written with node:test.
+  # infra/cdk's "test" script was `jest`, and jest collects the file, finds no
+  # jest-registered case and reports "Your test suite must contain at least one
+  # test" — exit 1 with all 9 assertions UNEXECUTED. Measured on this branch
+  # before the fix: `npx jest` in infra/cdk => 15 failed suites (every
+  # node:test-style spec), 6 passed, 29 tests, exit 1.
+  #
+  # `test:constructs:meri-hermes` runs the spec under `node --test` with
+  # ts-node's CommonJS require hook: 9/9 pass, exit 0. Synthesis is local —
+  # `Template.fromStack` never contacts AWS, so this job needs no credentials,
+  # no database and no Docker.
+  cdk-construct-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck infra/cdk (covers bin/, lib/ and test/)
+        run: pnpm --filter @capiro/infra-cdk typecheck
+
+      - name: Test the Meri/Hermes worker-fleet construct
+        run: pnpm --filter @capiro/infra-cdk run test:constructs:meri-hermes

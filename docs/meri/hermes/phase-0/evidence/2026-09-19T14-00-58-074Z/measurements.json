@@ -1,0 +1,705 @@
+{
+  "coldStartMs": null,
+  "harnessApiStartMs": 0,
+  "runsObserved": 26,
+  "perRun": [
+    {
+      "runId": "a8d349e8-c17b-48a4-955a-0d293413b3d7",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:19.487Z",
+      "finishedAt": "2026-09-19T13:49:25.984Z",
+      "wallMs": 6497,
+      "usage": {
+        "inputTokens": 21827,
+        "outputTokens": 146,
+        "totalTokens": 21973,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "f807399b-ad01-4801-bc38-6ee2a8b77f77",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:27.220Z",
+      "finishedAt": "2026-09-19T13:49:32.347Z",
+      "wallMs": 5127,
+      "usage": {
+        "inputTokens": 33765,
+        "outputTokens": 283,
+        "totalTokens": 34048,
+        "costUsd": null
+      },
+      "brokerCalls": 4
+    },
+    {
+      "runId": "adf94ece-c826-43db-bf1b-eab88a7e05af",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:32.388Z",
+      "finishedAt": "2026-09-19T13:49:35.585Z",
+      "wallMs": 3197,
+      "usage": {
+        "inputTokens": 23661,
+        "outputTokens": 93,
+        "totalTokens": 23754,
+        "costUsd": null
+      },
+      "brokerCalls": 3
+    },
+    {
+      "runId": "e41ab786-1a42-4b0e-a86b-b64917da437d",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:55:36.495Z",
+      "finishedAt": "2026-09-19T13:55:53.279Z",
+      "wallMs": 16784,
+      "usage": {
+        "inputTokens": 151291,
+        "outputTokens": 745,
+        "totalTokens": 152036,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "caf9947b-3bc3-4728-aeeb-6d15d34d09be",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:57:56.083Z",
+      "finishedAt": "2026-09-19T13:58:13.327Z",
+      "wallMs": 17244,
+      "usage": {
+        "inputTokens": 131291,
+        "outputTokens": 664,
+        "totalTokens": 131955,
+        "costUsd": null
+      },
+      "brokerCalls": 4
+    },
+    {
+      "runId": "cd41314a-cca0-4368-aa3f-ddaa7f00e866",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:58:42.516Z",
+      "finishedAt": "2026-09-19T13:58:48.297Z",
+      "wallMs": 5781,
+      "usage": {
+        "inputTokens": 65108,
+        "outputTokens": 180,
+        "totalTokens": 65288,
+        "costUsd": null
+      },
+      "brokerCalls": 3
+    },
+    {
+      "runId": "ab9bb175-e1ef-4fba-b8e5-b2da832121ae",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:58:48.350Z",
+      "finishedAt": "2026-09-19T13:58:49.778Z",
+      "wallMs": 1428,
+      "usage": {
+        "inputTokens": 16624,
+        "outputTokens": 35,
+        "totalTokens": 16659,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:58:49.816Z",
+      "finishedAt": "2026-09-19T13:58:56.343Z",
+      "wallMs": 6527,
+      "usage": {
+        "inputTokens": 50581,
+        "outputTokens": 160,
+        "totalTokens": 50741,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "3cb208c1-ddab-4732-a150-5cd0d1f040b3",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:58:56.417Z",
+      "finishedAt": "2026-09-19T13:59:01.542Z",
+      "wallMs": 5125,
+      "usage": {
+        "inputTokens": 51542,
+        "outputTokens": 136,
+        "totalTokens": 51678,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "ec70765b-53fc-4e6a-b61c-96e5f59d955b",
+      "status": "cancelled",
+      "createdAt": "2026-09-19T13:59:01.585Z",
+      "finishedAt": "2026-09-19T13:59:05.970Z",
+      "wallMs": 4385,
+      "usage": null,
+      "brokerCalls": 1
+    },
+    {
+      "runId": "9422176d-e3d8-4b35-b518-bb372ff09017",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:00:20.708Z",
+      "finishedAt": "2026-09-19T14:00:24.706Z",
+      "wallMs": 3998,
+      "usage": {
+        "inputTokens": 35421,
+        "outputTokens": 115,
+        "totalTokens": 35536,
+        "costUsd": null
+      },
+      "brokerCalls": 3
+    },
+    {
+      "runId": "b51fd2d2-b4ac-47dc-bf82-09fe5afe0912",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:00:24.762Z",
+      "finishedAt": "2026-09-19T14:00:25.955Z",
+      "wallMs": 1193,
+      "usage": {
+        "inputTokens": 17884,
+        "outputTokens": 14,
+        "totalTokens": 17898,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "7da0d509-a7c2-48c6-8972-be1d4d1481b8",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:00:26.005Z",
+      "finishedAt": "2026-09-19T14:00:31.430Z",
+      "wallMs": 5425,
+      "usage": {
+        "inputTokens": 54164,
+        "outputTokens": 93,
+        "totalTokens": 54257,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "92bad8c7-dcfd-4257-973b-ba71446d58c4",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:00:31.467Z",
+      "finishedAt": "2026-09-19T14:00:40.694Z",
+      "wallMs": 9227,
+      "usage": {
+        "inputTokens": 54966,
+        "outputTokens": 80,
+        "totalTokens": 55046,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "13c3da64-6402-4839-a736-80cd210b93ac",
+      "status": "cancelled",
+      "createdAt": "2026-09-19T14:00:40.731Z",
+      "finishedAt": "2026-09-19T14:00:44.955Z",
+      "wallMs": 4224,
+      "usage": null,
+      "brokerCalls": 1
+    },
+    {
+      "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+      "status": "cancelled",
+      "createdAt": "2026-09-19T14:01:00.767Z",
+      "finishedAt": "2026-09-19T14:01:05.506Z",
+      "wallMs": 4739,
+      "usage": null,
+      "brokerCalls": 1
+    },
+    {
+      "runId": "eebd774a-ec34-4277-a3bd-cd694ac554b4",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:01:05.545Z",
+      "finishedAt": "2026-09-19T14:01:15.619Z",
+      "wallMs": 10074,
+      "usage": {
+        "inputTokens": 60441,
+        "outputTokens": 347,
+        "totalTokens": 60788,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "a15849bd-3e5c-47a3-9693-04ad5f26a71f",
+      "status": "completed",
+      "createdAt": "2026-09-19T14:01:29.905Z",
+      "finishedAt": "2026-09-19T14:01:34.801Z",
+      "wallMs": 4896,
+      "usage": {
+        "inputTokens": 22671,
+        "outputTokens": 40,
+        "totalTokens": 22711,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "8a0564f4-a908-4d6f-9408-e232f456533a",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:50:42.562Z",
+      "finishedAt": "2026-09-19T13:50:44.015Z",
+      "wallMs": 1453,
+      "usage": {
+        "inputTokens": 11965,
+        "outputTokens": 37,
+        "totalTokens": 12002,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "0c237a37-6bde-4f02-8688-2eb3ff3ad6e7",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:50:44.271Z",
+      "finishedAt": "2026-09-19T13:50:57.438Z",
+      "wallMs": 13167,
+      "usage": {
+        "inputTokens": 114284,
+        "outputTokens": 687,
+        "totalTokens": 114971,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "9b71c685-1160-4b23-801a-d62fdb3ae4b8",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:51:12.941Z",
+      "finishedAt": "2026-09-19T13:51:19.361Z",
+      "wallMs": 6420,
+      "usage": {
+        "inputTokens": 36944,
+        "outputTokens": 172,
+        "totalTokens": 37116,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "098a735a-f512-467f-8616-19a406236778",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:51:19.392Z",
+      "finishedAt": "2026-09-19T13:51:28.081Z",
+      "wallMs": 8689,
+      "usage": {
+        "inputTokens": 76674,
+        "outputTokens": 367,
+        "totalTokens": 77041,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "d051063e-9830-4818-852e-d4f59a6ae112",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:53:54.917Z",
+      "finishedAt": "2026-09-19T13:53:57.941Z",
+      "wallMs": 3024,
+      "usage": {
+        "inputTokens": 10913,
+        "outputTokens": 28,
+        "totalTokens": 10941,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "2b31ca3d-b223-47bb-b906-caebce24aeb5",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:53:58.221Z",
+      "finishedAt": "2026-09-19T13:54:08.230Z",
+      "wallMs": 10009,
+      "usage": {
+        "inputTokens": 45886,
+        "outputTokens": 519,
+        "totalTokens": 46405,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "d03d89ba-86d2-49c5-94e9-151623c22f5e",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:54:33.810Z",
+      "finishedAt": "2026-09-19T13:54:42.070Z",
+      "wallMs": 8260,
+      "usage": {
+        "inputTokens": 24563,
+        "outputTokens": 211,
+        "totalTokens": 24774,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "28427d8e-0f50-48fe-848c-3c22badf9c36",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:54:42.103Z",
+      "finishedAt": "2026-09-19T13:54:51.003Z",
+      "wallMs": 8900,
+      "usage": {
+        "inputTokens": 51563,
+        "outputTokens": 286,
+        "totalTokens": 51849,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    }
+  ],
+  "tokens": {
+    "input": 1164029,
+    "output": 5438
+  },
+  "toolLatencies": [
+    {
+      "tool": "terminal",
+      "seconds": 0.189,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_search",
+      "seconds": 0.021,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_search",
+      "seconds": 0.023,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_propose",
+      "seconds": 0.027,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.033,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.033,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.027,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "tool_describe",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "meri_fetch_attachment",
+      "seconds": 0.008,
+      "error": true
+    },
+    {
+      "tool": "meri_fetch_attachment",
+      "seconds": 0.005,
+      "error": true
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.067,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.069,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.038,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.026,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.026,
+      "error": false
+    },
+    {
+      "tool": "tool_describe",
+      "seconds": 0.026,
+      "error": false
+    },
+    {
+      "tool": "meri_fetch_attachment",
+      "seconds": 0.022,
+      "error": false
+    },
+    {
+      "tool": "read_file",
+      "seconds": 0.085,
+      "error": false
+    },
+    {
+      "tool": "write_file",
+      "seconds": 0.084,
+      "error": false
+    },
+    {
+      "tool": "meri_publish_artifact",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "tool_describe",
+      "seconds": 0.023,
+      "error": false
+    },
+    {
+      "tool": "meri_request_clarification",
+      "seconds": 0.013,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.152,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.485,
+      "error": true
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.114,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.492,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.114,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 1.15,
+      "error": true
+    },
+    {
+      "tool": "meri_request_clarification",
+      "seconds": 0.012,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.117,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.752,
+      "error": true
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.175,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.961,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.133,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 1.154,
+      "error": true
+    },
+    {
+      "tool": "terminal",
+      "seconds": 2.523,
+      "error": true
+    },
+    {
+      "tool": "web_search",
+      "seconds": 0.696,
+      "error": false
+    },
+    {
+      "tool": "web_search",
+      "seconds": 0.929,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.039,
+      "error": false
+    },
+    {
+      "tool": "skill_manage",
+      "seconds": 0.041,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.041,
+      "error": true
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.137,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.033,
+      "error": false
+    },
+    {
+      "tool": "read_file",
+      "seconds": 0.005,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.041,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.166,
+      "error": false
+    },
+    {
+      "tool": "write_file",
+      "seconds": 0.147,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.092,
+      "error": false
+    },
+    {
+      "tool": "skill_manage",
+      "seconds": 0.05,
+      "error": true
+    },
+    {
+      "tool": "skill_manage",
+      "seconds": 0.101,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.078,
+      "error": true
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.052,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.043,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.233,
+      "error": false
+    },
+    {
+      "tool": "write_file",
+      "seconds": 0.171,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.106,
+      "error": false
+    }
+  ],
+  "dockerStats": [
+    {
+      "label": "idle-after-start",
+      "at": "2026-09-19T14:01:00.297Z",
+      "BlockIO": "65.5kB / 113MB",
+      "CPUPerc": "0.21%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "1bc666ea2391",
+      "MemPerc": "13.93%",
+      "MemUsage": "285.4MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "49MB / 5.05MB",
+      "PIDs": "32"
+    },
+    {
+      "label": "end",
+      "at": "2026-09-19T14:01:36.906Z",
+      "BlockIO": "0B / 684kB",
+      "CPUPerc": "0.22%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "16b0a17efcde",
+      "MemPerc": "10.85%",
+      "MemUsage": "222.1MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "242kB / 171kB",
+      "PIDs": "31"
+    }
+  ],
+  "cost": {
+    "workerComputeEstimateUsd": 0.0045,
+    "workerWallHours": 0.092,
+    "fargateRatePerHourUsd": 0.0494,
+    "modelCostUsd": null,
+    "modelPricingSource": "not supplied — tokens reported, dollar cost not asserted"
+  },
+  "hermesLogTail": [
+    "[stage2] API_SERVER_KEY provided via container environment — skipping generation",
+    "Syncing bundled skills into ~/.hermes/skills/ ...",
+    "",
+    "Done: 0 new, 0 updated, 58 unchanged. 58 total bundled.",
+    "[stage2] Found agent-browser Chromium binary: /opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "[stage2] Setup complete; starting user services",
+    "[supervise-perms] chowned supervise/ trees for static s6-rc services",
+    "reconcile: profile=default prior_state=running action=started",
+    "[meri-hermes-worker] HERMES_HOME=/opt/data scope=tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1 model=gpt-5.6-luna provider=custom",
+    "[meri-hermes-worker] broker=http://host.docker.internal:4450/api/internal/hermes/broker worker_token_present=yes",
+    "┌─────────────────────────────────────────────────────────┐",
+    "│           ☤ Hermes Gateway Starting...                 │",
+    "├─────────────────────────────────────────────────────────┤",
+    "│  Messaging platforms + cron scheduler                    │",
+    "│  Press Ctrl+C to stop                                   │",
+    "└─────────────────────────────────────────────────────────┘"
+  ]
+}

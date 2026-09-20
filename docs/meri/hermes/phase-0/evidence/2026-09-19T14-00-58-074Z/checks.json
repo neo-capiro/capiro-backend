@@ -1,0 +1,231 @@
+[
+  {
+    "id": "CAPS",
+    "title": "Pinned build capability inspection over /v1/capabilities, /v1/toolsets, /v1/skills",
+    "status": "passed",
+    "at": "2026-09-19T14:01:00.735Z",
+    "features": {
+      "chat_completions": true,
+      "chat_completions_streaming": true,
+      "responses_api": true,
+      "responses_streaming": true,
+      "run_submission": true,
+      "runs_idempotency": {
+        "supported": true,
+        "durable": true,
+        "retention_seconds": 86400
+      },
+      "run_status": true,
+      "run_events_sse": true,
+      "run_stop": true,
+      "run_steer": true,
+      "run_approval_response": true,
+      "tool_progress_events": true,
+      "approval_events": true,
+      "session_resources": true,
+      "model_options": true,
+      "session_chat": true,
+      "session_chat_streaming": true,
+      "session_fork": true,
+      "session_model_lock": true,
+      "admin_config_rw": false,
+      "jobs_admin": false,
+      "memory_write_api": false,
+      "skills_api": true,
+      "audio_api": false,
+      "realtime_voice": false,
+      "session_continuity_header": "X-Hermes-Session-Id",
+      "session_key_header": "X-Hermes-Session-Key",
+      "cors": false,
+      "browser_extension_control": {
+        "enabled": false,
+        "protocol_version": 1,
+        "capabilities": [
+          "browser_back",
+          "browser_click",
+          "browser_navigate",
+          "browser_press",
+          "browser_screenshot",
+          "browser_scroll",
+          "browser_snapshot",
+          "browser_tab_activate",
+          "browser_tabs",
+          "browser_type",
+          "controller.noop"
+        ],
+        "artifact_capabilities": [
+          "browser_artifact_download",
+          "browser_artifact_upload"
+        ],
+        "developer_capabilities": [
+          "browser_cdp",
+          "browser_evaluate"
+        ],
+        "developer_mode": false,
+        "artifact_transport": {
+          "upload": {
+            "method": "POST",
+            "path": "/v1/artifacts/upload"
+          },
+          "download": {
+            "method": "GET",
+            "path": "/v1/artifacts/download/{artifact_id}"
+          },
+          "max_bytes": 10485760,
+          "ttl_seconds": 300,
+          "allowed_mime_types": [
+            "application/json",
+            "application/pdf",
+            "image/gif",
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "text/plain"
+          ]
+        },
+        "real_browser_actions": true,
+        "transports": {
+          "local_vps": "websocket-subprotocol-ticket",
+          "cloud": "authenticated-gateway-rpc"
+        }
+      }
+    },
+    "toolsetNames": [
+      "web",
+      "browser",
+      "terminal",
+      "file",
+      "code_execution",
+      "vision",
+      "video",
+      "image_gen",
+      "video_gen",
+      "x_search",
+      "tts",
+      "stt",
+      "skills",
+      "todo",
+      "kanban",
+      "memory",
+      "context_engine",
+      "session_search",
+      "connections",
+      "clarify",
+      "delegation",
+      "cronjob",
+      "homeassistant",
+      "spotify",
+      "discord",
+      "discord_admin",
+      "yuanbao",
+      "computer_use",
+      "a2a",
+      "meri"
+    ],
+    "meriToolsetTools": [
+      "meri_fetch_attachment",
+      "meri_publish_artifact",
+      "meri_request_clarification"
+    ],
+    "skillsApiStatus": 500,
+    "skillsApiError": {
+      "error": {
+        "message": "Failed to enumerate skills",
+        "type": "server_error",
+        "param": null,
+        "code": null
+      }
+    },
+    "meriCapabilitiesStatus": 200,
+    "coldStartMs": null
+  },
+  {
+    "id": "D6a",
+    "title": "Explicit Stop cancels the Hermes run and yields an accurate terminal state",
+    "status": "passed",
+    "at": "2026-09-19T14:01:05.518Z",
+    "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+    "stopResponse": {
+      "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+      "status": "cancelling",
+      "conversationId": "a0000000-0000-4000-8000-00000000e001",
+      "executionScopeId": "tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1",
+      "audience": "private",
+      "hermesRunId": "run_1b163f3fffbe4222aeee20072a5a9eec",
+      "hermesSessionId": null,
+      "createdAt": "2026-09-19T14:01:00.767Z",
+      "updatedAt": "2026-09-19T14:01:05.289Z",
+      "finishedAt": null,
+      "lastSeq": 6,
+      "finishReason": null,
+      "partial": false,
+      "error": null,
+      "usage": null,
+      "detached": false,
+      "stopRequestedAt": "2026-09-19T14:01:05.289Z",
+      "userMessageId": "47313285-8273-4caf-826c-471323332106",
+      "assistantMessageId": null,
+      "brokerCalls": 1,
+      "pendingInteractions": []
+    },
+    "stopToTerminalMs": 225,
+    "finalStatus": "cancelled",
+    "doneFrame": {
+      "t": 4770,
+      "type": "done",
+      "runtime": "hermes",
+      "runId": "f51a3c94-12c1-4398-9f18-c6d6c1b92eef",
+      "model": "gpt-5.6-luna",
+      "finishReason": "aborted",
+      "partial": true,
+      "messageId": "f8e0d506-a7c8-415e-8c49-79be8ac62dfa"
+    },
+    "assistantMessageId": "f8e0d506-a7c8-415e-8c49-79be8ac62dfa"
+  },
+  {
+    "id": "D6b",
+    "title": "Browser disconnect detaches (run continues), assistant message persisted, reconnect replays events from cursor",
+    "status": "passed",
+    "at": "2026-09-19T14:01:16.074Z",
+    "runId": "eebd774a-ec34-4277-a3bd-cd694ac554b4",
+    "framesSeenBeforeDisconnect": 7,
+    "abortedAtMs": 9487,
+    "finalStatus": "completed",
+    "detachedFlag": true,
+    "replayFrameCount": 127,
+    "replayTextChars": 584,
+    "persistedMessagePreview": "1. The federal fiscal year begins October 1.\n2. It ends September 30 of the following calendar year.\n3. The President generally submits the budget request by the first Monday in February.\n4. Congress ",
+    "persistedMetadataKeys": [
+      "error",
+      "model",
+      "usage",
+      "partial",
+      "runtime",
+      "detached",
+      "servedBy",
+      "meriRunId",
+      "toolsUsed",
+      "trustSteps",
+      "hermesRunId",
+      "finishReason",
+      "hermesSessionId",
+      "executionScopeId",
+      "pendingInteractions"
+    ],
+    "lastSeq": 131,
+    "seqAtAbort": null
+  },
+  {
+    "id": "D6c",
+    "title": "Fresh worker start: native session history persists in the scope home; new turn continues the same Hermes session",
+    "status": "failed",
+    "at": "2026-09-19T14:01:34.802Z",
+    "restartMs": 13032,
+    "hermesSessionId": null,
+    "sessionMessagesStatus": null,
+    "sessionMessageCount": null,
+    "continuationText": "I listed 8 facts, and the last word was END.",
+    "continuationRunId": "a15849bd-3e5c-47a3-9693-04ad5f26a71f",
+    "note": "Session history is Hermes state.db on the scope volume; Meri retains the canonical transcript in clio_messages. Mid-turn process state is NOT restored (fresh-attempt contract)."
+  }
+]

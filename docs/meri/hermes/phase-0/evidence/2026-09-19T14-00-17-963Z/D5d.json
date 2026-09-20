@@ -1,0 +1,51 @@
+{
+  "id": "D5d",
+  "title": "Cancel while a native approval is pending → terminal cancelled, no success publication",
+  "status": "passed",
+  "at": "2026-09-19T14:00:44.967Z",
+  "runId": "13c3da64-6402-4839-a736-80cd210b93ac",
+  "stopResponse": {
+    "runId": "13c3da64-6402-4839-a736-80cd210b93ac",
+    "status": "cancelling",
+    "conversationId": "a0000000-0000-4000-8000-00000000e001",
+    "executionScopeId": "tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1",
+    "audience": "private",
+    "hermesRunId": "run_750f9a9278204bbb8d0ee3d0ce0ccfff",
+    "hermesSessionId": null,
+    "createdAt": "2026-09-19T14:00:40.731Z",
+    "updatedAt": "2026-09-19T14:00:44.739Z",
+    "finishedAt": null,
+    "lastSeq": 9,
+    "finishReason": null,
+    "partial": false,
+    "error": null,
+    "usage": null,
+    "detached": false,
+    "stopRequestedAt": "2026-09-19T14:00:44.739Z",
+    "userMessageId": "677b6ca4-3af9-42b5-b0ee-29482b9412ac",
+    "assistantMessageId": null,
+    "brokerCalls": 1,
+    "pendingInteractions": [
+      {
+        "requestId": "97246ae6619e45b5a0d1ff599494b1d3",
+        "kind": "approval",
+        "prompt": "world/other-writable permissions\n\nchmod -R 777 /opt/data/workspace/tmp-fixture",
+        "choices": [
+          "once",
+          "session",
+          "always",
+          "deny"
+        ],
+        "multiSelect": false,
+        "continuation": "live_process",
+        "createdAt": "2026-09-19T14:00:43.911Z",
+        "expiresAt": "2026-09-19T14:05:43.911Z",
+        "resolved": false,
+        "decision": null
+      }
+    ]
+  },
+  "finalStatus": "cancelled",
+  "finishReason": "aborted",
+  "textPreview": ""
+}

@@ -1,0 +1,288 @@
+{
+  "id": "D5b",
+  "title": "Native approval over /v1/runs: guarded command surfaces approval.request; Meri denies; command does not run",
+  "status": "failed",
+  "at": "2026-09-19T13:58:56.358Z",
+  "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+  "waitingSnapshot": {
+    "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+    "status": "waiting_for_approval",
+    "conversationId": "a0000000-0000-4000-8000-00000000e001",
+    "executionScopeId": "tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1",
+    "audience": "private",
+    "hermesRunId": "run_6f4f955d35bd4fbc97f933dd98ba3ad2",
+    "hermesSessionId": null,
+    "createdAt": "2026-09-19T13:58:49.816Z",
+    "updatedAt": "2026-09-19T13:58:54.559Z",
+    "finishedAt": null,
+    "lastSeq": 8,
+    "finishReason": null,
+    "partial": false,
+    "error": null,
+    "usage": null,
+    "detached": false,
+    "stopRequestedAt": null,
+    "userMessageId": "87123714-4548-4c06-bc91-8d43c56db139",
+    "assistantMessageId": null,
+    "brokerCalls": 1,
+    "pendingInteractions": [
+      {
+        "requestId": "4567aea8540845258dce47f8049b97e1",
+        "kind": "approval",
+        "prompt": "world/other-writable permissions\n\nchmod -R 777 /opt/data/workspace/tmp-fixture",
+        "choices": [
+          "once",
+          "session",
+          "always",
+          "deny"
+        ],
+        "multiSelect": false,
+        "continuation": "live_process",
+        "createdAt": "2026-09-19T13:58:54.559Z",
+        "expiresAt": "2026-09-19T14:03:54.559Z",
+        "resolved": false,
+        "decision": null
+      }
+    ]
+  },
+  "denyResponseStatus": 201,
+  "finalStatus": "completed",
+  "textPreview": "\n\nDENIED",
+  "approvalFrames": [
+    {
+      "t": 4768,
+      "type": "pending_approval",
+      "runtime": "hermes",
+      "tool": "terminal",
+      "label": "world/other-writable permissions",
+      "proposalId": "hermes:93484fe6-1e16-4d63-b5ce-3021f632261a:4567aea8540845258dce47f8049b97e1",
+      "status": "proposed",
+      "reason": "world/other-writable permissions",
+      "expiresAt": "2026-09-19T14:03:54.559Z",
+      "riskTier": "native_hermes_approval",
+      "policyCode": "HERMES_NATIVE_APPROVAL",
+      "ruleId": null,
+      "policy": {
+        "source": "hermes",
+        "mode": "native",
+        "packKey": "hermes-native",
+        "packVersion": "v2026.9.14",
+        "binding": "run",
+        "decisionHash": "",
+        "contextHash": "",
+        "decision": "WARN",
+        "jurisdiction": "worker",
+        "channel": "terminal",
+        "recipientType": null
+      },
+      "preview": {
+        "label": "world/other-writable permissions",
+        "riskTier": "native_hermes_approval",
+        "leavesFirm": false,
+        "reversible": false,
+        "fields": {
+          "command": "chmod -R 777 /opt/data/workspace/tmp-fixture"
+        },
+        "counts": {},
+        "reason": "world/other-writable permissions"
+      },
+      "interaction": {
+        "requestId": "4567aea8540845258dce47f8049b97e1",
+        "choices": [
+          "once",
+          "session",
+          "always",
+          "deny"
+        ],
+        "continuation": "live_process"
+      }
+    }
+  ],
+  "note": "approval.request observed over the API server platform",
+  "events": [
+    {
+      "seq": 5,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:52.977Z",
+      "kind": "tool.started",
+      "visibility": "public",
+      "payload": {
+        "tool": "terminal",
+        "preview": "mkdir -p /opt/data/workspace/tmp-fixture",
+        "frames": [
+          {
+            "type": "tool_call",
+            "tool": "terminal",
+            "label": "terminal"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 6,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:53.135Z",
+      "kind": "tool.completed",
+      "visibility": "public",
+      "payload": {
+        "tool": "terminal",
+        "durationSeconds": 0.152,
+        "error": false,
+        "preview": "",
+        "frames": [
+          {
+            "type": "sources",
+            "sources": [
+              {
+                "tool": "terminal",
+                "label": "terminal",
+                "count": null,
+                "summary": "Completed in 0.152s.",
+                "confidence": "high"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "seq": 7,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:54.401Z",
+      "kind": "tool.started",
+      "visibility": "public",
+      "payload": {
+        "tool": "terminal",
+        "preview": "chmod -R 777 /opt/data/workspace/tmp-fixture",
+        "frames": [
+          {
+            "type": "tool_call",
+            "tool": "terminal",
+            "label": "terminal"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 8,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:54.559Z",
+      "kind": "approval.requested",
+      "visibility": "public",
+      "payload": {
+        "requestId": "4567aea8540845258dce47f8049b97e1",
+        "description": "world/other-writable permissions",
+        "command": "chmod -R 777 /opt/data/workspace/tmp-fixture",
+        "choices": [
+          "once",
+          "session",
+          "always",
+          "deny"
+        ],
+        "expiresAt": "2026-09-19T14:03:54.559Z",
+        "frames": [
+          {
+            "type": "pending_approval",
+            "runtime": "hermes",
+            "tool": "terminal",
+            "label": "world/other-writable permissions",
+            "proposalId": "hermes:93484fe6-1e16-4d63-b5ce-3021f632261a:4567aea8540845258dce47f8049b97e1",
+            "status": "proposed",
+            "reason": "world/other-writable permissions",
+            "expiresAt": "2026-09-19T14:03:54.559Z",
+            "riskTier": "native_hermes_approval",
+            "policyCode": "HERMES_NATIVE_APPROVAL",
+            "ruleId": null,
+            "policy": {
+              "source": "hermes",
+              "mode": "native",
+              "packKey": "hermes-native",
+              "packVersion": "v2026.9.14",
+              "binding": "run",
+              "decisionHash": "",
+              "contextHash": "",
+              "decision": "WARN",
+              "jurisdiction": "worker",
+              "channel": "terminal",
+              "recipientType": null
+            },
+            "preview": {
+              "label": "world/other-writable permissions",
+              "riskTier": "native_hermes_approval",
+              "leavesFirm": false,
+              "reversible": false,
+              "fields": {
+                "command": "chmod -R 777 /opt/data/workspace/tmp-fixture"
+              },
+              "counts": {},
+              "reason": "world/other-writable permissions"
+            },
+            "interaction": {
+              "requestId": "4567aea8540845258dce47f8049b97e1",
+              "choices": [
+                "once",
+                "session",
+                "always",
+                "deny"
+              ],
+              "continuation": "live_process"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "seq": 9,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:54.889Z",
+      "kind": "approval.resolved",
+      "visibility": "public",
+      "payload": {
+        "requestId": "4567aea8540845258dce47f8049b97e1",
+        "decision": "deny",
+        "by": "meri",
+        "frames": []
+      }
+    },
+    {
+      "seq": 10,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:54.890Z",
+      "kind": "approval.resolved",
+      "visibility": "public",
+      "payload": {
+        "requestId": "4567aea8540845258dce47f8049b97e1",
+        "choice": "deny",
+        "resolved": 1,
+        "frames": []
+      }
+    },
+    {
+      "seq": 11,
+      "runId": "93484fe6-1e16-4d63-b5ce-3021f632261a",
+      "at": "2026-09-19T13:58:54.893Z",
+      "kind": "tool.completed",
+      "visibility": "public",
+      "payload": {
+        "tool": "terminal",
+        "durationSeconds": 0.485,
+        "error": true,
+        "preview": "",
+        "frames": [
+          {
+            "type": "sources",
+            "sources": [
+              {
+                "tool": "terminal",
+                "label": "terminal",
+                "count": null,
+                "summary": "Tool reported an error.",
+                "confidence": "low"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

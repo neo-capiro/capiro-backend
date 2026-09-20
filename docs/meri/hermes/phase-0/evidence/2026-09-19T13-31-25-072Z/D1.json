@@ -1,0 +1,22 @@
+{
+  "id": "D1",
+  "title": "Real Hermes turn: streamed text, native terminal tool, completion, usage",
+  "status": "failed",
+  "at": "2026-09-19T13:34:39.170Z",
+  "runId": null,
+  "timingsMs": {
+    "t0": 1789824850566,
+    "firstFrame": null,
+    "turnAccepted": null,
+    "start": null,
+    "firstText": null,
+    "firstTool": null,
+    "done": null,
+    "abortedAt": null
+  },
+  "toolCalls": [],
+  "textChars": 0,
+  "textPreview": "",
+  "usage": null,
+  "frameTypes": []
+}

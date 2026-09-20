@@ -1,0 +1,17 @@
+{
+  "id": "PROBE-session-isolation",
+  "label": "manual probe after the per-conversation session-key fix (not part of the runner)",
+  "at": "2026-09-19T14:10:50.013Z",
+  "status": "passed",
+  "httpStatus": 200,
+  "elapsedMs": 2233,
+  "runId": "c9779397-c2c2-47ca-8696-3999688ef47d",
+  "answer": "NO PREVIOUS ANSWER.",
+  "conversationA_sessions": [
+    "run_180fae92b04c47f5bc51ec465f1eaaed"
+  ],
+  "conversationA2_sessions": [
+    "run_1bca1e9a55b14f44b9b1d844337fa7d2"
+  ],
+  "note": "Same user (Alice), same worker/scope. Conversation e001 holds the D6b eight-fact answer ending \"END\"; conversation e011 must not see it and must be bound to a different Hermes session id."
+}
