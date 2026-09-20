@@ -95,7 +95,7 @@ Surfaced by the Phase 2 orchestration session's read-only review and each re-ver
 | W-2 | Worker lifecycle service: provision, readiness, heartbeat, idle teardown | **PASS (code)**, AWS SDK mocked |
 | W-3 | **Pinned ARM64 image built** | **INCOMPLETE** — build path fixed and demonstrably arm64, aborted at 200 MB free; image not produced |
 | W-4 | Repeatable image/registry CI | **PASS (authored)** — never executed; ECR repository does not exist |
-| W-5 | Bundled-skill license review (58 upstream skills) | **INCOMPLETE** |
+| W-5 | Bundled-skill license review (58 upstream skills) | **PASS** — `bundled-skill-license-review.md`. 58 skills: 53 under upstream MIT, 5 self-licensed MIT (one © a **third party**, Siqi Chen, whose notice must be retained). Also found outside the skill set: `plugins/security-guidance/` carries **Apache-2.0** work from Anthropic's `claude-plugins-official`, with NOTICE obligations MIT does not impose. No copyleft, no non-commercial terms. Explicitly **not** a full dependency/SBOM audit |
 | W-6 | **V1–V7 real-Fargate validation** | **BLOCKED** — no authorized isolated environment; `capiro-dev` is production |
 
 ### 2.5 Experience, capacity, CI
