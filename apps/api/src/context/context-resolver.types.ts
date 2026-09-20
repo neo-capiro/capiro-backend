@@ -71,6 +71,7 @@ export interface ContextCurrentObject {
  * this request; ContextPacket V2 and token compilation remain Phase 17 work.
  */
 export interface ContextRetrievalDirective {
+  mondayBoardContext?: RetrievalRequest['mondayBoardContext'];
   meetingBriefing?: RetrievalRequest['meetingBriefing'];
   deadlineAt?: number;
   queryClass: RetrievalQueryClass;

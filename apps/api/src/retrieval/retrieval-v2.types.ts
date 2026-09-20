@@ -124,6 +124,8 @@ export interface RetrievalCallerContext {
 }
 
 export interface RetrievalRequest {
+  /** Request text used only to extract explicit monday board selectors, never an authorization grant or a native-source search filter. */
+  mondayBoardContext?: string;
   /** Server-authored meeting-preparation policy, not a client-provided authorization grant. */
   meetingBriefing?: {
     meetingId: string;
