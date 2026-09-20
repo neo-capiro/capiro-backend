@@ -56,6 +56,29 @@ export function wallExclusionSql(deniedClientIds: readonly string[], column: str
  * (a path that never identified its user) denies every walled client —
  * fail-closed by construction. Runs on the caller's transaction so it
  * composes with the read it guards.
+ *
+ * GRANT LIFECYCLE — read this before "fixing" the predicate.
+ * `client_memory_access` (Prisma `ClientMemoryAccess`, the `Client
+ * .memoryAccessGrants` relation) has exactly six columns: id, tenant_id,
+ * client_id, user_id, granted_by, created_at — see migration
+ * 20260719220000_client_memory_walls. It has NO status, expires_at or
+ * revoked_at. Revocation is a hard DELETE, performed by
+ * `ClientsService.setMemoryAccess()`'s replace-set write, so a revoked grant
+ * stops matching this NOT EXISTS the moment that transaction commits. There
+ * is no soft-deleted, expired or dead row for this query to miss, and adding
+ * a `status`/`expires_at`/`revoked_at` filter here is not a hardening — it
+ * does not compile and the columns do not exist.
+ *
+ * The lifecycle-bearing model with `status` / `expires_at` / `revoked_at` is
+ * the DIFFERENT `memory_access_grant` table (Prisma `MemoryAccessGrant`, the
+ * `Client.governedMemoryGrants` relation). It grants governed-memory
+ * PERMISSIONS (read/propose/approve), not ethical-wall membership, and is
+ * read with its own liveness predicate in `MemoryAuthorizationService
+ * .evaluateInTx()`. The two are deliberately separate layers: that service
+ * calls `clientMemoryAllowed()` below for the wall AND queries
+ * memory_access_grant for permissions. Closeout finding A2 attributed
+ * memory_access_grant's columns to client_memory_access; they are not the
+ * same table.
  */
 export async function fetchDeniedClientIds(
   tx: Tx,

@@ -29,3 +29,35 @@ export function floridaSourceOutcome(input: {
     },
   };
 }
+
+export function floridaDiscoveryRunCounts(
+  results: ReadonlyArray<{
+    inserted: number;
+    updated: number;
+    unchanged: number;
+    issues: readonly string[];
+  }>,
+  archive: {
+    inserted: number;
+    updated: number;
+    unchanged: number;
+    errors: number;
+    issues: number;
+    ambiguous: readonly string[];
+  },
+) {
+  const sourceErrors = results.reduce((total, result) => total + result.issues.length, 0);
+  const errors = sourceErrors + archive.errors + archive.issues + archive.ambiguous.length;
+  return {
+    inserted: results.reduce((total, result) => total + result.inserted, 0) + archive.inserted,
+    updated: results.reduce((total, result) => total + result.updated, 0) + archive.updated,
+    skipped: results.reduce((total, result) => total + result.unchanged, 0) + archive.unchanged,
+    errors,
+    complete: errors === 0,
+    ...(errors
+      ? {
+          incompleteReason: `${sourceErrors} Florida calendar issue(s), ${archive.errors + archive.issues} archive issue(s), and ${archive.ambiguous.length} ambiguous archive match(es)`,
+        }
+      : {}),
+  };
+}

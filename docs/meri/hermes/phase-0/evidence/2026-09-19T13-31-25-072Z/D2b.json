@@ -1,0 +1,10 @@
+{
+  "id": "D2b",
+  "title": "Governed memory write path: proposal lands as a real memory_candidate (never a raw write)",
+  "status": "failed",
+  "at": "2026-09-19T13:34:46.871Z",
+  "runId": null,
+  "proposedEvents": [],
+  "candidateRow": null,
+  "textPreview": ""
+}

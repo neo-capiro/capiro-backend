@@ -38,7 +38,10 @@
  * (`include=memberships`, confirmed live against the same openapi.json),
  * whose `CommitteeMembership` rows carry an optional `person` (CompactPerson)
  * ref — optional because OpenStates doesn't always resolve a membership back
- * to a canonical person. A membership with no `person.id` is dropped rather
+ * to a canonical person. The same request includes `links` and `sources`, and
+ * the normalized membership retains the provider committee id,
+ * classification, parent, extras and provenance rather than collapsing it to
+ * a display name. A membership with no `person.id` is dropped rather
  * than matched by name (PD2 — never guess an identity match), and counted so
  * the gap is visible in logs, not silent.
  */
@@ -248,7 +251,7 @@ export function parseRetryAfterMs(header: string | null, nowMs: number): number 
 
 async function fetchOS<T>(
   path: string,
-  params: Record<string, string> = {},
+  params: Record<string, string | string[]> = {},
   options: FetchOSOptions = {},
 ): Promise<T | null> {
   const sleep = options.sleep ?? defaultSleep;
@@ -256,7 +259,10 @@ async function fetchOS<T>(
   const random = options.random ?? Math.random;
   const url = new URL(`${OS_BASE}${path}`);
   url.searchParams.set('apikey', OS_KEY);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  for (const [k, value] of Object.entries(params)) {
+    const values = Array.isArray(value) ? value : [value];
+    for (const item of values) url.searchParams.append(k, item);
+  }
   if (options.quotaExhausted?.current) {
     // A definitive hour/day 429 was already seen in THIS run — the window
     // is known-dead, so make zero further provider requests and let the
@@ -425,7 +431,7 @@ export interface FetchAllPagesOptions extends FetchOSOptions {}
  */
 export async function fetchAllPages<T>(
   path: string,
-  params: Record<string, string> = {},
+  params: Record<string, string | string[]> = {},
   maxPages: number = MAX_PAGES,
   options: FetchAllPagesOptions = {},
 ): Promise<PagedFetchResult<T>> {
@@ -476,16 +482,33 @@ export interface OpenstatesCommitteeMembership {
   person?: OpenstatesCompactPerson | null;
 }
 
+export interface OpenstatesLink {
+  url: string;
+  note?: string | null;
+}
+
 export interface OpenstatesCommittee {
   id: string;
   name: string;
   classification?: string;
+  parent_id?: string | null;
+  extras?: Record<string, unknown> | null;
+  links?: OpenstatesLink[] | null;
+  sources?: OpenstatesLink[] | null;
   memberships?: OpenstatesCommitteeMembership[] | null;
 }
 
 export interface OpenstatesCommitteeEntry {
   name: string;
   role: string | null;
+  openstates: {
+    id: string;
+    classification: string | null;
+    parentId: string | null;
+    links: OpenstatesLink[];
+    sources: OpenstatesLink[];
+    extras: Record<string, unknown>;
+  };
 }
 
 export interface InvertCommitteesResult {
@@ -514,7 +537,18 @@ export function invertOpenstatesCommittees(
         continue;
       }
       const entries = committeesByPerson.get(personId) ?? [];
-      entries.push({ name: committee.name, role: membership.role ?? null });
+      entries.push({
+        name: committee.name,
+        role: membership.role ?? null,
+        openstates: {
+          id: committee.id,
+          classification: committee.classification ?? null,
+          parentId: committee.parent_id ?? null,
+          links: committee.links ?? [],
+          sources: committee.sources ?? [],
+          extras: committee.extras ?? {},
+        },
+      });
       committeesByPerson.set(personId, entries);
     }
   }
@@ -641,7 +675,11 @@ export async function runOpenstatesSync(
         '/committees',
         {
           jurisdiction: state,
-          include: 'memberships',
+          // FastAPI's list parameter requires repeated include keys. Retain
+          // provider identity/provenance as well as the roster so the state
+          // committee room can link to the official source and describe the
+          // committee/subcommittee hierarchy OpenStates actually published.
+          include: ['memberships', 'links', 'sources'],
         },
         COMMITTEE_MAX_PAGES,
         fetchOptions,

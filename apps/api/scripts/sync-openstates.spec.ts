@@ -37,6 +37,18 @@ function fixtureCommittee(overrides: Partial<OpenstatesCommittee> = {}): Opensta
 }
 
 describe('invertOpenstatesCommittees', () => {
+  const evidence = (
+    id = 'ocd-organization/committee-1',
+    classification: string | null = 'committee',
+  ) => ({
+    id,
+    classification,
+    parentId: null,
+    links: [],
+    sources: [],
+    extras: {},
+  });
+
   it('links memberships with a resolvable person.id', () => {
     const result = invertOpenstatesCommittees([
       fixtureCommittee({
@@ -50,10 +62,10 @@ describe('invertOpenstatesCommittees', () => {
 
     expect(result.unlinkedCount).toBe(0);
     expect(result.committeesByPerson.get('ocd-person/jane')).toEqual([
-      { name: 'Committee on Rules', role: 'Chair' },
+      { name: 'Committee on Rules', role: 'Chair', openstates: evidence() },
     ]);
     expect(result.committeesByPerson.get('ocd-person/john')).toEqual([
-      { name: 'Committee on Rules', role: 'Member' },
+      { name: 'Committee on Rules', role: 'Member', openstates: evidence() },
     ]);
   });
 
@@ -91,8 +103,16 @@ describe('invertOpenstatesCommittees', () => {
     ]);
 
     expect(result.committeesByPerson.get('ocd-person/jane')).toEqual([
-      { name: 'Appropriations', role: 'Vice Chair' },
-      { name: 'Judiciary', role: 'Member' },
+      {
+        name: 'Appropriations',
+        role: 'Vice Chair',
+        openstates: evidence('ocd-organization/c1'),
+      },
+      {
+        name: 'Judiciary',
+        role: 'Member',
+        openstates: evidence('ocd-organization/c2', 'subcommittee'),
+      },
     ]);
   });
 
@@ -104,7 +124,7 @@ describe('invertOpenstatesCommittees', () => {
     ]);
 
     expect(result.committeesByPerson.get('ocd-person/jane')).toEqual([
-      { name: 'Committee on Rules', role: null },
+      { name: 'Committee on Rules', role: null, openstates: evidence() },
     ]);
   });
 
@@ -141,12 +161,54 @@ describe('invertOpenstatesCommittees', () => {
 
     expect(result.unlinkedCount).toBe(2);
     expect(result.committeesByPerson.get('ocd-person/jane')).toEqual([
-      { name: 'Rules', role: 'Chair' },
+      { name: 'Rules', role: 'Chair', openstates: evidence('ocd-organization/c1') },
     ]);
     expect(result.committeesByPerson.get('ocd-person/john')).toEqual([
-      { name: 'Finance', role: 'Member' },
+      { name: 'Finance', role: 'Member', openstates: evidence('ocd-organization/c2') },
     ]);
     expect(result.committeesByPerson.size).toBe(2);
+  });
+
+  it('preserves provider identity, hierarchy, links, sources, and extras for normalization', () => {
+    const result = invertOpenstatesCommittees([
+      fixtureCommittee({
+        id: 'ocd-organization/fl-appropriations-subcommittee',
+        name: 'Agriculture Appropriations Subcommittee',
+        classification: 'subcommittee',
+        parent_id: 'ocd-organization/fl-appropriations',
+        links: [
+          {
+            url: 'https://www.flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3294',
+            note: 'Homepage',
+          },
+        ],
+        sources: [{ url: 'https://openstates.org/fl/committees/FLC000001/', note: 'OpenStates' }],
+        extras: { legislativeOrganizationId: 3294 },
+        memberships: [
+          { person_name: 'Jane Doe', role: 'Chair', person: { id: 'ocd-person/jane' } },
+        ],
+      }),
+    ]);
+
+    expect(result.committeesByPerson.get('ocd-person/jane')).toEqual([
+      {
+        name: 'Agriculture Appropriations Subcommittee',
+        role: 'Chair',
+        openstates: {
+          id: 'ocd-organization/fl-appropriations-subcommittee',
+          classification: 'subcommittee',
+          parentId: 'ocd-organization/fl-appropriations',
+          links: [
+            {
+              url: 'https://www.flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3294',
+              note: 'Homepage',
+            },
+          ],
+          sources: [{ url: 'https://openstates.org/fl/committees/FLC000001/', note: 'OpenStates' }],
+          extras: { legislativeOrganizationId: 3294 },
+        },
+      },
+    ]);
   });
 });
 
@@ -1107,10 +1169,24 @@ describe('runOpenstatesSync (runtime level, mocked fetch + prisma)', () => {
       new URL(c[0]).pathname.endsWith('/committees'),
     );
     expect(committeeCalls).toHaveLength(6); // pages 1..6
+    for (const [rawUrl] of committeeCalls) {
+      expect(new URL(rawUrl).searchParams.getAll('include')).toEqual([
+        'memberships',
+        'links',
+        'sources',
+      ]);
+    }
     const upsertArg = stateLegislatorUpsert.mock.calls[0][0] as {
-      update: { committees: { name: string; role: string | null }[] };
+      update: {
+        committees: Array<{
+          name: string;
+          role: string | null;
+          openstates: { id: string };
+        }>;
+      };
     };
     expect(upsertArg.update.committees).toHaveLength(120);
+    expect(upsertArg.update.committees[0]?.openstates.id).toBe('committee-1-0');
   });
 
   it('marks the committee walk incomplete when the 25-page ceiling truncates a longer supplier tail', async () => {

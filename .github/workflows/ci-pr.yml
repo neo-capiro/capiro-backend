@@ -17,6 +17,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The migration timestamp guard below compares each NEW migration
+          # directory against the PR base commit, so it needs real history.
+          fetch-depth: 0
       # No `version:` — pnpm/action-setup reads it from package.json
       # `packageManager` (pnpm@9.12.0); pinning both errors with
       # "Multiple versions of pnpm specified".
@@ -25,6 +29,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      # Migration directory timestamps are hand-written, and the convention is
+      # "sorts after the current max on origin/main". That is a ratchet: with
+      # many parallel worktrees it outruns real time, and apps/api names drifted
+      # +730 days between 2026-07-19 and 2026-09-05. This guard bounds it. It
+      # checks only migrations ADDED by the PR — existing directories are
+      # grandfathered and must never be renamed, because renaming an applied
+      # migration causes Prisma drift against prod and the shared fixture DB.
+      - name: Migration timestamp guard (new migrations only)
+        run: >
+          node scripts/check-migration-timestamps.mjs
+          --base ${{ github.event.pull_request.base.sha }}
       - run: pnpm install --frozen-lockfile
 
       # Supply-chain (blocker #4): advisory dependency audit. `|| true` keeps it

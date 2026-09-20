@@ -1,0 +1,14 @@
+{
+  "id": "D3c",
+  "title": "Worker replacement preserves SOUL.md + skills; skill reused in a later task",
+  "status": "passed",
+  "at": "2026-09-19T13:54:42.071Z",
+  "warmStartMs": 23171,
+  "skillPersistedAfterReplace": true,
+  "soulIdentical": true,
+  "reuseToolCalls": [
+    "skill_view"
+  ],
+  "reuseTextPreview": "\n\nLoaded skill: meri-phase0-briefing.\n\nThis week’s commitments are the appropriations memo, client call prep, and Section 4 cap note. Blocker: missing committee staff confirmation. Recommendation: secure staff confirmation early this week to protect all three deliverables. PHASE0-SKILL-MARKER",
+  "runId": "d03d89ba-86d2-49c5-94e9-151623c22f5e"
+}

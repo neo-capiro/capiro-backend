@@ -1,0 +1,20 @@
+PASS src/meri/hermes/meri-hermes-prisma-run-repository.spec.ts (13.96 s)
+PASS src/meri/hermes/meri-hermes-artifact-storage.integration.spec.ts (42.345 s)
+PASS src/meri/hermes/meri-hermes-governed-recall.integration.spec.ts
+[31m[Nest] 40956  - [39m09/19/2026, 2:25:36 PM [31m  ERROR[39m [38;5;3m[MeriHermesRuntimeAdapter] [39m[31mrun 349fa462-58a3-4593-b81e-bc170afdb6c4 admission failed: Hermes runtime unavailable: no Hermes worker in this test[39m
+PASS src/meri/hermes/meri-hermes-isolation.spec.ts
+[33m[Nest] 40956  - [39m09/19/2026, 2:25:37 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mbroker scope mismatch for run b999e2ab-4d1e-44fd-9b79-5ee9e17ff730[39m
+[33m[Nest] 40956  - [39m09/19/2026, 2:25:37 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mauthorization version mismatch for run ad9d80f3-3f45-4b3a-aeda-e36d12690986; stopping and fencing to interrupted[39m
+[33m[Nest] 40956  - [39m09/19/2026, 2:25:37 PM [33m   WARN[39m [38;5;3m[MeriHermesBrokerService] [39m[33mmembership revoked mid-run for run 3f0141bd-92bd-4c97-bac9-b96d502a2b20; stopping and fencing to interrupted[39m
+PASS src/meri/hermes/meri-hermes-broker-isolation.spec.ts
+PASS src/meri/hermes/meri-hermes-run-store.spec.ts
+PASS src/meri/hermes/meri-hermes-worker-token.spec.ts
+PASS src/meri/hermes/meri-hermes-event-translator.spec.ts
+
+Test Suites: 8 passed, 8 total
+Tests:       54 passed, 54 total
+Snapshots:   0 total
+Time:        62.941 s
+Ran all test suites matching /src\\meri\\hermes/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+jest real exit=0

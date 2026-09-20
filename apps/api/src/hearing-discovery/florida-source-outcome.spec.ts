@@ -1,4 +1,4 @@
-import { floridaSourceOutcome } from './florida-source-outcome.js';
+import { floridaDiscoveryRunCounts, floridaSourceOutcome } from './florida-source-outcome.js';
 
 describe('Florida source availability versus event qualification', () => {
   it('retains a partial event gap without falsely reporting the publisher down', () => {
@@ -61,5 +61,33 @@ describe('Florida source availability versus event qualification', () => {
     });
     expect(result.coverage).toBe('failed');
     expect(result.health.ok).toBe(false);
+  });
+});
+
+describe('Florida aggregate ingestion receipt', () => {
+  const archive = {
+    inserted: 1,
+    updated: 2,
+    unchanged: 3,
+    errors: 0,
+    issues: 0,
+    ambiguous: [] as string[],
+  };
+
+  it('marks a clean source window complete', () => {
+    expect(
+      floridaDiscoveryRunCounts([{ inserted: 4, updated: 5, unchanged: 6, issues: [] }], archive),
+    ).toEqual({ inserted: 5, updated: 7, skipped: 9, errors: 0, complete: true });
+  });
+
+  it('never emits complete:true when any chamber or archive issue occurred', () => {
+    const result = floridaDiscoveryRunCounts(
+      [{ inserted: 4, updated: 5, unchanged: 6, issues: ['Senate source HTTP 500'] }],
+      { ...archive, ambiguous: ['video-1'] },
+    );
+    expect(result.complete).toBe(false);
+    expect(result.errors).toBe(2);
+    expect(result.incompleteReason).toContain('1 Florida calendar issue(s)');
+    expect(result.incompleteReason).toContain('1 ambiguous archive match(es)');
   });
 });

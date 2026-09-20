@@ -401,18 +401,21 @@ export function engagementApiTaskEnvironment(
     // the task definition, which is where every other generation-affecting
     // decision on this service already lives.
     //
-    // OUTREACH_V3_GENERATION_MODEL is what makes the effort above do anything:
+    // OUTREACH_V3_GENERATION_MODEL pins the model that effort is sent with:
     // reasoning-effort.ts sends a reasoning parameter only to a model positively
-    // known to accept one, and the credential default (OPENAI_MODEL =
-    // gpt-4.1-mini) accepts none, so without this the effort is inert.
+    // known to accept one. Since the GPT-6 upgrade (f78a2a07a) the platform
+    // default (OPENAI_MODEL) is itself gpt-6-astra, so this pin is no longer what
+    // makes the effort reachable at all — it holds the depth against a tenant
+    // credential that resolves to some other model, and keeps the model readable
+    // from the task definition instead of inherited.
     //
     // Scoped to V3 only — Classic outreach keeps the resolved credential's model,
     // so this cannot move drafting or COGS on the main API. Staying on OpenAI is
     // deliberate: it leaves the provider order, credential path and strict-JSON
-    // shape identical to what is running, and gpt-5 already matches
-    // STRICT_JSON_MODEL_PATTERNS so message-plan's model gate is unaffected.
-    // OpenAI's ladder tops out at reasoning.effort='high', which is where 'max'
-    // lands via openAiReasoningEffort().
+    // shape identical to what is running, and gpt-6-astra still matches
+    // STRICT_JSON_MODEL_PATTERNS (/^gpt-[56]/) so message-plan's model gate is
+    // unaffected. GPT-6 accepts the full effort ladder, so 'max' now reaches the
+    // provider as 'max'; on gpt-5 openAiReasoningEffort() clamped it to 'high'.
     OUTREACH_V3_GENERATION_EFFORT: 'max',
     OUTREACH_V3_GENERATION_MODEL: 'gpt-6-astra',
 

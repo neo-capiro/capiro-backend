@@ -4,13 +4,14 @@
  * tenant/RLS (same as `congress_committee`), so this runs as a plain scan, no
  * `bypassRls` needed.
  *
- * `StateLegislator.committees` is a Json array `[{name, role}]` written by
- * `sync-openstates.ts` — free-text committee names with no id, so a committee
+ * `StateLegislator.committees` is a Json array written by `sync-openstates.ts`.
+ * Each membership keeps `{name, role}` plus the OpenStates committee's stable
+ * id, classification, parent, links, sources and extras. The local committee
  * is deduped by `"<state>-<chamber>-<slug(name)>"` (StateCommittee.id's own
  * scheme — the SAME id a LegiScan bill-committee referral resolves to once
  * M2.2's ingestion wiring lands, so both sources converge on one row).
- * `chamber` is taken from the LEGISLATOR's own chamber, since OpenStates'
- * committee Json carries no chamber of its own — a documented limitation for
+ * `chamber` is still taken from the LEGISLATOR's own chamber, since the
+ * OpenStates Committee schema carries no chamber field — a documented limitation for
  * genuinely joint committees (they'll get an upper-chamber row AND a
  * lower-chamber row rather than one shared row); acceptable per PD2's "never
  * guess" standard, since guessing which of two real chambers a joint
@@ -34,7 +35,7 @@
  * Env: STATE_COMMITTEE_STATES (comma-separated 2-letter codes; default = all).
  */
 import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 dotenvConfig();
 
@@ -56,12 +57,21 @@ function slugify(s: string): string {
 export interface CommitteeJsonEntry {
   name?: string;
   role?: string;
+  openstates?: {
+    id?: string;
+    classification?: string | null;
+    parentId?: string | null;
+    links?: Array<{ url: string; note?: string | null }>;
+    sources?: Array<{ url: string; note?: string | null }>;
+    extras?: Record<string, unknown>;
+  };
 }
 
 export interface DesiredCommittee {
   committeeId: string;
   name: string;
   role: string | null;
+  openstates: CommitteeJsonEntry['openstates'] | null;
 }
 
 /**
@@ -83,9 +93,55 @@ export function computeDesiredCommittees(
     const committeeId = `${state}-${chamber}-${slugify(name)}`;
     if (seen.has(committeeId)) continue; // OpenStates listing the same committee twice -> one row
     seen.add(committeeId);
-    desired.push({ committeeId, name, role: entry.role ?? null });
+    desired.push({
+      committeeId,
+      name,
+      role: entry.role ?? null,
+      openstates: entry.openstates ?? null,
+    });
   }
   return desired;
+}
+
+function httpUrl(links: Array<{ url: string }> | undefined): string | null {
+  for (const link of links ?? []) {
+    try {
+      const parsed = new URL(link.url);
+      if (
+        (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        !parsed.username &&
+        !parsed.password
+      )
+        return parsed.href;
+    } catch {
+      // A malformed provider URL is retained nowhere and never becomes a UI link.
+    }
+  }
+  return null;
+}
+
+function rootEvidence(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function openstatesEvidence(
+  current: unknown,
+  desired: DesiredCommittee,
+): Prisma.InputJsonObject | undefined {
+  if (!desired.openstates?.id) return undefined;
+  return {
+    ...rootEvidence(current),
+    openstates: {
+      committeeId: desired.openstates.id,
+      classification: desired.openstates.classification ?? null,
+      parentId: desired.openstates.parentId ?? null,
+      links: desired.openstates.links ?? [],
+      sources: desired.openstates.sources ?? [],
+      extras: desired.openstates.extras ?? {},
+    },
+  } as unknown as Prisma.InputJsonObject;
 }
 
 async function main() {
@@ -99,6 +155,9 @@ async function main() {
     let membershipsUpserted = 0;
     let membershipsPruned = 0;
     let skippedNoChamber = 0;
+
+    const desiredByLegislator = new Map<string, DesiredCommittee[]>();
+    const committeeById = new Map<string, DesiredCommittee>();
 
     for (const leg of legislators) {
       if (!leg.chamber) {
@@ -114,14 +173,58 @@ async function main() {
       }
       const entries = Array.isArray(leg.committees) ? (leg.committees as CommitteeJsonEntry[]) : [];
       const desired = computeDesiredCommittees(leg.state, leg.chamber, entries);
+      desiredByLegislator.set(leg.id, desired);
+      for (const committee of desired) {
+        const existing = committeeById.get(committee.committeeId);
+        // Prefer the copy carrying provider identity/provenance. Role is
+        // membership-specific and is written from desiredByLegislator below.
+        if (!existing || (!existing.openstates?.id && committee.openstates?.id))
+          committeeById.set(committee.committeeId, committee);
+      }
+    }
 
+    // One committee write per provider identity, not once per member. Besides
+    // reducing a Florida normalization from hundreds of redundant writes to a
+    // few dozen, this lets us merge OpenStates evidence without overwriting
+    // the first-party Florida `directory` evidence on an already-qualified row.
+    const committeeIds = [...committeeById.keys()];
+    const existingCommittees = committeeIds.length
+      ? await prisma.stateCommittee.findMany({
+          where: { id: { in: committeeIds } },
+          select: { id: true, state: true, chamber: true, sourceUrl: true, sourceEvidence: true },
+        })
+      : [];
+    const existingById = new Map(existingCommittees.map((row) => [row.id, row]));
+    for (const d of committeeById.values()) {
+      const [state, chamber] = d.committeeId.split('-', 3);
+      if (!state || !chamber) continue;
+      const existing = existingById.get(d.committeeId);
+      const evidence = openstatesEvidence(existing?.sourceEvidence, d);
+      const providerUrl = httpUrl(d.openstates?.links) ?? httpUrl(d.openstates?.sources) ?? null;
+      await prisma.stateCommittee.upsert({
+        where: { id: d.committeeId },
+        create: {
+          id: d.committeeId,
+          state,
+          chamber,
+          name: d.name,
+          sourceUrl: providerUrl,
+          ...(evidence ? { sourceEvidence: evidence } : {}),
+        },
+        update: {
+          name: d.name,
+          sourceUrl: existing?.sourceUrl ?? providerUrl,
+          ...(evidence ? { sourceEvidence: evidence } : {}),
+          lastSyncedAt: new Date(),
+        },
+      });
+      committeesUpserted++;
+    }
+
+    for (const leg of legislators) {
+      if (!leg.chamber) continue;
+      const desired = desiredByLegislator.get(leg.id) ?? [];
       for (const d of desired) {
-        await prisma.stateCommittee.upsert({
-          where: { id: d.committeeId },
-          create: { id: d.committeeId, state: leg.state, chamber: leg.chamber, name: d.name },
-          update: { name: d.name },
-        });
-        committeesUpserted++;
         await prisma.stateCommitteeMembership.upsert({
           where: { committeeId_legislatorId: { committeeId: d.committeeId, legislatorId: leg.id } },
           create: { committeeId: d.committeeId, legislatorId: leg.id, role: d.role },

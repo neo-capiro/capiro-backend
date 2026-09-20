@@ -1,0 +1,22 @@
+{
+  "startMs": 56975,
+  "health": {
+    "ok": true,
+    "harness": "phase0",
+    "hermesConfigured": true,
+    "hermes": {
+      "ok": false,
+      "status": 0,
+      "body": {
+        "error": "TypeError: fetch failed"
+      }
+    },
+    "pilotEnv": {
+      "MERI_HERMES_ENABLED": "true",
+      "pilotTenantIds": [
+        "a0000000-0000-4000-8000-000000000001"
+      ],
+      "model": "gpt-5.6-luna"
+    }
+  }
+}

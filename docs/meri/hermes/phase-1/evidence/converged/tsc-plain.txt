@@ -1,0 +1,3 @@
+src/program-element/models/conference-probability.service.ts(3,21): error TS1479: The current file is a CommonJS module whose imports will produce 'require' calls; however, the referenced file is an ECMAScript module and cannot be imported with 'require'. Consider writing a dynamic 'import("simple-statistics")' call instead.
+  To convert this file to an ECMAScript module, change its file extension to '.mts', or add the field `"type": "module"` to 'C:/dev/main/meri-hermes-phase0-worktree/apps/api/package.json'.
+tsc --noEmit exit=1

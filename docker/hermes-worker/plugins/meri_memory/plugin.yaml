@@ -1,0 +1,14 @@
+name: meri_memory
+version: 0.1.0
+description: "Meri institutional memory provider — recall and governed candidate proposals through the Meri agent tool broker (Phase 0)."
+author: Capiro
+kind: exclusive
+requires_env:
+  - MERI_BROKER_URL
+  - MERI_WORKER_TOKEN
+provides_tools:
+  - meri_memory_search
+  - meri_memory_propose
+hooks:
+  - prefetch
+  - sync_turn

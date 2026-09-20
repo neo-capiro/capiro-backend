@@ -18,7 +18,10 @@
     "diff:web-vnext": "cdk diff --app \"ts-node --prefer-ts-exts bin/web-vnext.ts\"",
     "deploy:web-vnext": "cdk deploy --app \"ts-node --prefer-ts-exts bin/web-vnext.ts\"",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
+    "test": "pnpm run test:jest && pnpm run test:constructs",
+    "test:jest": "jest -c jest.jest-style.config.cjs",
+    "test:constructs": "node scripts/run-construct-tests.cjs",
+    "test:constructs:meri-hermes": "node scripts/run-construct-tests.cjs meri-hermes-worker-fleet",
     "test:engagement-api": "node scripts/run-engagement-api-tests.mjs",
     "synth:engagement-api:test": "node scripts/synth-engagement-api-test.mjs",
     "verify:engagement-api": "pnpm run typecheck && pnpm run test:engagement-api && pnpm run synth:engagement-api:test"

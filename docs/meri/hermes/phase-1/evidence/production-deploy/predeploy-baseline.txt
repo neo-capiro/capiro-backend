@@ -1,0 +1,7 @@
+=== PRE-DEPLOY BASELINE Sun Sep 20 11:46:54 UTC 2026 ===
+--- https://os.capiro.ai/api/health ---
+http=401 time=0.239422s
+--- https://app.capiro.ai/api/health ---
+http=401 time=0.224683s
+--- https://os.capiro.ai/api/clio/hermes/capabilities ---
+http=401 time=0.111513s

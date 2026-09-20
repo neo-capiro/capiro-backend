@@ -1,0 +1,18 @@
+{
+  "stamp": "2026-09-19T13-31-25-072Z",
+  "image": "meri-hermes-worker:v2026.9.14-meri",
+  "model": "gpt-5.6-luna",
+  "provider": "custom",
+  "baseUrl": "https://api.openai.com/v1",
+  "node": "v24.19.0",
+  "only": [
+    "D1",
+    "D2",
+    "ISO"
+  ],
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "cpus": 16
+  }
+}

@@ -1,0 +1,487 @@
+{
+  "coldStartMs": 17578,
+  "harnessApiStartMs": 0,
+  "runsObserved": 13,
+  "perRun": [
+    {
+      "runId": "a8d349e8-c17b-48a4-955a-0d293413b3d7",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:19.487Z",
+      "finishedAt": "2026-09-19T13:49:25.984Z",
+      "wallMs": 6497,
+      "usage": {
+        "inputTokens": 21827,
+        "outputTokens": 146,
+        "totalTokens": 21973,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "f807399b-ad01-4801-bc38-6ee2a8b77f77",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:27.220Z",
+      "finishedAt": "2026-09-19T13:49:32.347Z",
+      "wallMs": 5127,
+      "usage": {
+        "inputTokens": 33765,
+        "outputTokens": 283,
+        "totalTokens": 34048,
+        "costUsd": null
+      },
+      "brokerCalls": 4
+    },
+    {
+      "runId": "adf94ece-c826-43db-bf1b-eab88a7e05af",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:49:32.388Z",
+      "finishedAt": "2026-09-19T13:49:35.585Z",
+      "wallMs": 3197,
+      "usage": {
+        "inputTokens": 23661,
+        "outputTokens": 93,
+        "totalTokens": 23754,
+        "costUsd": null
+      },
+      "brokerCalls": 3
+    },
+    {
+      "runId": "e41ab786-1a42-4b0e-a86b-b64917da437d",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:55:36.495Z",
+      "finishedAt": "2026-09-19T13:55:53.279Z",
+      "wallMs": 16784,
+      "usage": {
+        "inputTokens": 151291,
+        "outputTokens": 745,
+        "totalTokens": 152036,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "caf9947b-3bc3-4728-aeeb-6d15d34d09be",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:57:56.083Z",
+      "finishedAt": "2026-09-19T13:58:13.327Z",
+      "wallMs": 17244,
+      "usage": {
+        "inputTokens": 131291,
+        "outputTokens": 664,
+        "totalTokens": 131955,
+        "costUsd": null
+      },
+      "brokerCalls": 4
+    },
+    {
+      "runId": "8a0564f4-a908-4d6f-9408-e232f456533a",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:50:42.562Z",
+      "finishedAt": "2026-09-19T13:50:44.015Z",
+      "wallMs": 1453,
+      "usage": {
+        "inputTokens": 11965,
+        "outputTokens": 37,
+        "totalTokens": 12002,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "0c237a37-6bde-4f02-8688-2eb3ff3ad6e7",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:50:44.271Z",
+      "finishedAt": "2026-09-19T13:50:57.438Z",
+      "wallMs": 13167,
+      "usage": {
+        "inputTokens": 114284,
+        "outputTokens": 687,
+        "totalTokens": 114971,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "9b71c685-1160-4b23-801a-d62fdb3ae4b8",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:51:12.941Z",
+      "finishedAt": "2026-09-19T13:51:19.361Z",
+      "wallMs": 6420,
+      "usage": {
+        "inputTokens": 36944,
+        "outputTokens": 172,
+        "totalTokens": 37116,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "098a735a-f512-467f-8616-19a406236778",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:51:19.392Z",
+      "finishedAt": "2026-09-19T13:51:28.081Z",
+      "wallMs": 8689,
+      "usage": {
+        "inputTokens": 76674,
+        "outputTokens": 367,
+        "totalTokens": 77041,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "d051063e-9830-4818-852e-d4f59a6ae112",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:53:54.917Z",
+      "finishedAt": "2026-09-19T13:53:57.941Z",
+      "wallMs": 3024,
+      "usage": {
+        "inputTokens": 10913,
+        "outputTokens": 28,
+        "totalTokens": 10941,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "2b31ca3d-b223-47bb-b906-caebce24aeb5",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:53:58.221Z",
+      "finishedAt": "2026-09-19T13:54:08.230Z",
+      "wallMs": 10009,
+      "usage": {
+        "inputTokens": 45886,
+        "outputTokens": 519,
+        "totalTokens": 46405,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "d03d89ba-86d2-49c5-94e9-151623c22f5e",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:54:33.810Z",
+      "finishedAt": "2026-09-19T13:54:42.070Z",
+      "wallMs": 8260,
+      "usage": {
+        "inputTokens": 24563,
+        "outputTokens": 211,
+        "totalTokens": 24774,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    },
+    {
+      "runId": "28427d8e-0f50-48fe-848c-3c22badf9c36",
+      "status": "completed",
+      "createdAt": "2026-09-19T13:54:42.103Z",
+      "finishedAt": "2026-09-19T13:54:51.003Z",
+      "wallMs": 8900,
+      "usage": {
+        "inputTokens": 51563,
+        "outputTokens": 286,
+        "totalTokens": 51849,
+        "costUsd": null
+      },
+      "brokerCalls": 2
+    }
+  ],
+  "tokens": {
+    "input": 734627,
+    "output": 4238
+  },
+  "toolLatencies": [
+    {
+      "tool": "terminal",
+      "seconds": 0.189,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_search",
+      "seconds": 0.021,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_search",
+      "seconds": 0.023,
+      "error": false
+    },
+    {
+      "tool": "meri_memory_propose",
+      "seconds": 0.027,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.033,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.033,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.027,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "tool_describe",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "meri_fetch_attachment",
+      "seconds": 0.008,
+      "error": true
+    },
+    {
+      "tool": "meri_fetch_attachment",
+      "seconds": 0.005,
+      "error": true
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.067,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.069,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.038,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.026,
+      "error": false
+    },
+    {
+      "tool": "tool_search",
+      "seconds": 0.026,
+      "error": false
+    },
+    {
+      "tool": "tool_describe",
+      "seconds": 0.026,
+      "error": false
+    },
+    {
+      "tool": "meri_fetch_attachment",
+      "seconds": 0.022,
+      "error": false
+    },
+    {
+      "tool": "read_file",
+      "seconds": 0.085,
+      "error": false
+    },
+    {
+      "tool": "write_file",
+      "seconds": 0.084,
+      "error": false
+    },
+    {
+      "tool": "meri_publish_artifact",
+      "seconds": 0.024,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.039,
+      "error": false
+    },
+    {
+      "tool": "skill_manage",
+      "seconds": 0.041,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.041,
+      "error": true
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.137,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.033,
+      "error": false
+    },
+    {
+      "tool": "read_file",
+      "seconds": 0.005,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.041,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.166,
+      "error": false
+    },
+    {
+      "tool": "write_file",
+      "seconds": 0.147,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.092,
+      "error": false
+    },
+    {
+      "tool": "skill_manage",
+      "seconds": 0.05,
+      "error": true
+    },
+    {
+      "tool": "skill_manage",
+      "seconds": 0.101,
+      "error": false
+    },
+    {
+      "tool": "search_files",
+      "seconds": 0.078,
+      "error": true
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.052,
+      "error": false
+    },
+    {
+      "tool": "skill_view",
+      "seconds": 0.043,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.233,
+      "error": false
+    },
+    {
+      "tool": "write_file",
+      "seconds": 0.171,
+      "error": false
+    },
+    {
+      "tool": "terminal",
+      "seconds": 0.106,
+      "error": false
+    }
+  ],
+  "dockerStats": [
+    {
+      "label": "idle-after-start",
+      "at": "2026-09-19T13:57:54.913Z",
+      "BlockIO": "0B / 37.1MB",
+      "CPUPerc": "0.77%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "1bc666ea2391",
+      "MemPerc": "9.43%",
+      "MemUsage": "193.2MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "26.4MB / 829kB",
+      "PIDs": "27"
+    },
+    {
+      "label": "end",
+      "at": "2026-09-19T13:58:14.832Z",
+      "BlockIO": "65.5kB / 58.5MB",
+      "CPUPerc": "0.56%",
+      "Container": "meri-hermes-p0-alice",
+      "ID": "1bc666ea2391",
+      "MemPerc": "12.46%",
+      "MemUsage": "255.3MiB / 2GiB",
+      "Name": "meri-hermes-p0-alice",
+      "NetIO": "29.5MB / 1.72MB",
+      "PIDs": "31"
+    }
+  ],
+  "cost": {
+    "workerComputeEstimateUsd": 0.0045,
+    "workerWallHours": 0.092,
+    "fargateRatePerHourUsd": 0.0494,
+    "modelCostUsd": null,
+    "modelPricingSource": "not supplied — tokens reported, dollar cost not asserted"
+  },
+  "hermesLogTail": [
+    "  + box",
+    "  + powerpoint",
+    "  + blocked-page-recovery",
+    "  + obsidian",
+    "  + xurl",
+    "  + llm-wiki",
+    "  + grounded-citations",
+    "  + competitor-news-monitor",
+    "  + arxiv",
+    "  + email-inbox-triage",
+    "  + himalaya",
+    "  + node-inspect-debugger",
+    "  + systematic-debugging",
+    "  + test-driven-development",
+    "  + spike",
+    "  + github",
+    "  + simplify-code",
+    "  + requesting-code-review",
+    "  + dogfood",
+    "  + inspecting-hermes-desktop-dom",
+    "  + python-debugpy",
+    "  + codebase-inspection",
+    "  + hermes-agent-skill-authoring",
+    "  + findmy",
+    "  + imessage",
+    "  + apple-reminders",
+    "  + apple-notes",
+    "  + sdlc-review",
+    "  + computer-use",
+    "  + claude-code",
+    "  + hermes-agent",
+    "  + opencode",
+    "  + codex",
+    "  + ascii-video",
+    "  + humanizer",
+    "  + manim-video",
+    "  + popular-web-designs",
+    "  + songwriting-and-ai-music",
+    "  + p5js",
+    "  + claude-design",
+    "  + architecture-diagram",
+    "  + baoyu-infographic",
+    "  + design-md",
+    "  + youtube-content",
+    "  + gif-search",
+    "  + songsee",
+    "",
+    "Done: 58 new, 0 updated, 0 unchanged. 58 total bundled.",
+    "[stage2] Found agent-browser Chromium binary: /opt/hermes/.playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "[stage2] Setup complete; starting user services",
+    "[supervise-perms] chowned supervise/ trees for static s6-rc services",
+    "reconcile: profile=default prior_state=None action=registered",
+    "[meri-hermes-worker] HERMES_HOME=/opt/data scope=tenant:a0000000-0000-4000-8000-000000000001:user:a0000000-0000-4000-8000-0000000000a1 model=gpt-5.6-luna provider=custom",
+    "[meri-hermes-worker] broker=http://host.docker.internal:4450/api/internal/hermes/broker worker_token_present=yes",
+    "┌─────────────────────────────────────────────────────────┐",
+    "│           ☤ Hermes Gateway Starting...                 │",
+    "├─────────────────────────────────────────────────────────┤",
+    "│  Messaging platforms + cron scheduler                    │",
+    "│  Press Ctrl+C to stop                                   │",
+    "└─────────────────────────────────────────────────────────┘"
+  ]
+}
