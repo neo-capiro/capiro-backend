@@ -13,6 +13,19 @@ import type { ReconcileOutcome } from './hearing-reconciler.service.js';
 
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value));
 
+/** State roster tables use upper/lower while canonical hearings use
+ * senate/house. Keep the qualification check strict after translating that
+ * vocabulary; an unknown non-empty chamber remains unqualified. */
+export function normalizeStateCommitteeChamber(
+  chamber: string | null | undefined,
+): LegislativeObservation['chamber'] | null {
+  const value = (chamber ?? '').trim().toLowerCase();
+  if (value === 'upper' || value === 'senate') return 'senate';
+  if (value === 'lower' || value === 'house') return 'house';
+  if (value === 'joint') return 'joint';
+  return null;
+}
+
 /** State extension of the canonical discovery owner. No private tables or
  * capture services participate. Observation, projection, agenda and transition
  * commit together; the transition ledger is the durable downstream checkpoint. */
@@ -90,9 +103,22 @@ export class LegislativeCalendarRepository {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 0))`;
         }
         const existing = await tx.committeeHearing.findUnique({ where: { id } });
+        // The first OpenStates events release wrote six provisional body
+        // keys as `openstates:*` before the explicit unresolved marker was
+        // added. Treat only those rows that still lack a canonical committee
+        // as transitional unresolved bodies so the corrected rerun can refine
+        // them without deleting provenance or weakening qualified mappings.
+        const legacyUnresolvedOpenstatesBody =
+          existing?.stateCommitteeId === null &&
+          existing.bodySourceKey?.startsWith('openstates:') === true;
         const qualifiedBodyRefinement =
-          existing?.bodySourceKey?.includes('unresolved-body') && observation.stateCommitteeId;
-        const unresolvedBody = observation.bodySourceKey.includes('unresolved-body');
+          (existing?.bodySourceKey?.includes('unresolved-body') ||
+            legacyUnresolvedOpenstatesBody) &&
+          observation.stateCommitteeId;
+        const unresolvedBody =
+          observation.bodySourceKey.includes('unresolved-body') ||
+          (observation.stateCommitteeId === null &&
+            observation.bodySourceKey.startsWith('openstates:'));
         // Narrow FL archive bridge: a TFC archive observation (fl:{ch}:tfc:*)
         // and a chamber notice's official roster key NEVER match, and only a
         // proven cross-source attachment (canonicalHearingId = the proof) may
@@ -137,10 +163,11 @@ export class LegislativeCalendarRepository {
             where: { id: observation.stateCommitteeId },
             select: { state: true, chamber: true, legislativeSession: true },
           });
+          const bodyChamber = normalizeStateCommitteeChamber(body?.chamber);
           if (
             !body ||
             body.state !== observation.jurisdiction ||
-            (body.chamber && body.chamber.toLowerCase() !== observation.chamber) ||
+            bodyChamber !== observation.chamber ||
             (body.legislativeSession && body.legislativeSession !== observation.session)
           )
             throw new Error('Unqualified state committee mapping');
