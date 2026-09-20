@@ -94,12 +94,12 @@ describe('EmailComposeModal', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
-    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
+    fireEvent.click(screen.getByRole('button', { name: "Browse this client's contacts" }));
     fireEvent.click(await screen.findByText('Adam Matherly'));
 
     expect(screen.getByText('Adam Matherly <adam@example.com>')).toBeInTheDocument();
     // Already-added contacts drop out of the picker so they can't be added twice.
-    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
+    fireEvent.click(screen.getByRole('button', { name: "Browse this client's contacts" }));
     expect(screen.queryByText('Adam Matherly')).not.toBeInTheDocument();
     expect(screen.getByText('Sam Rivera')).toBeInTheDocument();
 
@@ -129,7 +129,7 @@ describe('EmailComposeModal', () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
-    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
+    fireEvent.click(screen.getByRole('button', { name: "Browse this client's contacts" }));
     fireEvent.click(await screen.findByText('Adam Matherly'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Adam Matherly' }));
@@ -137,9 +137,113 @@ describe('EmailComposeModal', () => {
     expect(screen.getByText('Patrick Driscoll <patrick@example.com>')).toBeInTheDocument();
   });
 
-  it('does not offer "+ Add recipient" when no org roster was passed in (the Timeline reply flow)', async () => {
+  it('preserves manual email entry when no org roster was passed in (the Timeline reply flow)', async () => {
     renderModal({ orgContacts: undefined });
-    expect(screen.queryByRole('button', { name: '+ Add recipient' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email address' }), {
+      target: { value: 'manual@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByText('manual@example.com')).toBeInTheDocument();
+  });
+
+  it('finds teammates by name, shows the directory before typing, and deduplicates by email', async () => {
+    renderModal({
+      to: [],
+      recipientDirectory: 'team',
+      orgContacts: [
+        { id: 'u-1', name: 'Ryan Anderson', email: 'ryan@capiro.ai' },
+        { id: 'u-duplicate', name: 'Ryan Duplicate', email: 'RYAN@capiro.ai' },
+        { id: 'u-2', name: 'Maya Chen', email: 'maya@capiro.ai' },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Browse your Capiro team' }));
+    expect(await screen.findByText('Ryan Anderson')).toBeInTheDocument();
+    expect(screen.getByText('Maya Chen')).toBeInTheDocument();
+    expect(screen.queryByText('Ryan Duplicate')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search by name or email…' }), {
+      target: { value: 'maya' },
+    });
+    expect(screen.getByText('Maya Chen')).toBeInTheDocument();
+    expect(screen.queryByText('Ryan Anderson')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Maya Chen'));
+    expect(screen.getByText('Maya Chen <maya@capiro.ai>')).toBeInTheDocument();
+  });
+
+  it('rejects invalid or duplicate manual addresses without widening recipients', async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
+    const input = screen.getByRole('textbox', { name: 'Email address' });
+    fireEvent.change(input, { target: { value: 'not-an-email' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid email address.');
+    fireEvent.change(input, { target: { value: 'PATRICK@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('already in To');
+    expect(screen.getAllByText(/patrick@example.com/i)).toHaveLength(1);
+  });
+
+  it('preserves the draft while a required PDF finishes and blocks send until it is attached', async () => {
+    const props = {
+      open: true,
+      onClose: vi.fn(),
+      to: [{ email: 'ryan@capiro.ai', name: 'Ryan Anderson' }],
+      defaultSubject: 'Meeting prep',
+      requiredAttachmentState: { status: 'loading' as const, label: 'Meeting prep PDF' },
+      senderMailboxState: { status: 'ready' as const, label: 'neo@capiro.ai' },
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const rendered = render(
+      <QueryClientProvider client={queryClient}><EmailComposeModal {...props} /></QueryClientProvider>,
+    );
+    fireEvent.input(bodyEditor(), { target: { innerHTML: '<p>Please review.</p>' } });
+    expect(screen.getByText(/You can keep drafting while it loads/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+
+    rendered.rerender(
+      <QueryClientProvider client={queryClient}>
+        <EmailComposeModal
+          {...props}
+          initialAttachments={[{ id: 'att-prep', fileName: 'Meeting prep.pdf' }]}
+          requiredAttachmentState={{ status: 'ready', label: 'Meeting prep.pdf' }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(bodyEditor()).toHaveTextContent('Please review.');
+    expect(screen.getByText('Meeting prep.pdf')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).not.toBeDisabled());
+  });
+
+  it('shows a retryable PDF error inline and preserves the draft', async () => {
+    const retryPdf = vi.fn();
+    renderModal({
+      requiredAttachmentState: {
+        status: 'error',
+        label: 'Meeting prep PDF',
+        error: 'Could not prepare the meeting prep PDF.',
+        onRetry: retryPdf,
+      },
+      senderMailboxState: { status: 'ready', label: 'neo@capiro.ai' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Prep' } });
+    fireEvent.input(bodyEditor(), { target: { innerHTML: '<p>Draft stays.</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(retryPdf).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    expect(bodyEditor()).toHaveTextContent('Draft stays.');
+  });
+
+  it('does not close when the resolved send response is not confirmed', async () => {
+    postMock.mockResolvedValue({ data: { ok: false } });
+    const { onClose } = renderModal();
+    fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Following up' } });
+    fireEvent.input(bodyEditor(), { target: { innerHTML: '<p>Please review.</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not send this email');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(bodyEditor()).toHaveTextContent('Please review.');
   });
 
   it('replaces the body with a verified rewrite and offers Undo', async () => {
@@ -294,7 +398,7 @@ describe('EmailComposeModal', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
-    fireEvent.click(screen.getByRole('button', { name: "Search this client's contacts…" }));
+    fireEvent.click(screen.getByRole('button', { name: "Browse this client's contacts" }));
 
     // The To chip reads "Patrick Driscoll <patrick@example.com>", so an exact
     // match on the bare name can only come from the dropdown.
@@ -302,13 +406,13 @@ describe('EmailComposeModal', () => {
     expect(screen.queryByText('Patrick Driscoll')).not.toBeInTheDocument();
   });
 
-  it('offers no "+ Add recipient" when the addressee is the only contact on the roster', async () => {
+  it('keeps manual email entry available when the addressee is the only contact on the roster', async () => {
     renderModal({
       orgContacts: [{ id: 'p-1', name: 'Patrick Driscoll', email: 'patrick@example.com' }],
     });
     // Otherwise the button appears and can only ever say "everyone is already
     // added" — the roster is no longer the right thing to gate on.
-    expect(screen.queryByRole('button', { name: '+ Add recipient' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Add recipient' })).toBeInTheDocument();
   });
 
   it('offers only the attachment types the server allowlist accepts', async () => {

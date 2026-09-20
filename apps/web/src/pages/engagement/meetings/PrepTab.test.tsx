@@ -16,6 +16,10 @@ import type { Meeting, MeetingPrep } from './meetings-types.js';
 const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
 const apiPatchMock = vi.fn();
+const authState = vi.hoisted(() => ({ userId: 'clerk-u1', orgId: 'org-1' }));
+const impersonationState = vi.hoisted(() => ({ actAsTenantSlug: null as string | null }));
+vi.mock('@clerk/clerk-react', () => ({ useAuth: () => authState }));
+vi.mock('../../../state/impersonation.js', () => ({ useImpersonation: () => impersonationState }));
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({
     get: apiGetMock,
@@ -108,6 +112,9 @@ function buildTreeWithChrome(qc: QueryClient, props: Parameters<typeof PrepTab>[
 
 describe('PrepTab', () => {
   beforeEach(() => {
+    authState.userId = 'clerk-u1';
+    authState.orgId = 'org-1';
+    impersonationState.actAsTenantSlug = null;
     apiGetMock.mockReset();
     apiGetMock.mockResolvedValue({ data: null });
     apiPostMock.mockReset();
@@ -335,8 +342,10 @@ describe('PrepTab', () => {
   test('Email PDF renders the prep to an attachment and opens the compose window with teammates', async () => {
     apiPostMock.mockResolvedValue({ data: { id: 'att1', fileName: 'Prep - Budget sync.pdf' } });
     apiGetMock.mockImplementation(async (url: string) => ({
-      data: url.endsWith('/tenant-members')
+      data: url === '/api/tenant-members'
         ? [{ id: 'u2', email: 'ryan@capiro.ai', name: 'Ryan Anderson' }]
+        : url === '/api/engagement/integrations'
+          ? [{ id: 'mail-1', provider: 'microsoft_365', status: 'connected', accountEmail: 'neo@capiro.ai' }]
         : url.endsWith('/prep-jobs/latest')
           ? null
           : {},
@@ -350,6 +359,47 @@ describe('PrepTab', () => {
     expect(await screen.findByText('Prep - Budget sync.pdf')).toBeInTheDocument();
     expect(screen.getByText('New email')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '+ Add recipient' })).toBeInTheDocument();
+    expect(apiGetMock).toHaveBeenCalledWith('/api/tenant-members');
+    expect(apiGetMock).not.toHaveBeenCalledWith('/api/users/tenant-members');
     qc.clear();
+  });
+
+  test('opens immediately, preserves the draft through PDF failure, and retries the saved prep', async () => {
+    let rejectPdf!: (error: unknown) => void;
+    apiPostMock.mockImplementation(
+      (url: string) =>
+        url.endsWith('/pdf-attachment')
+          ? new Promise((_resolve, reject) => {
+              rejectPdf = reject;
+            })
+          : Promise.resolve({ data: {} }),
+    );
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data:
+        url === '/api/tenant-members'
+          ? []
+          : url === '/api/engagement/integrations'
+            ? [{ id: 'mail-1', provider: 'microsoft_365', status: 'connected', accountEmail: 'neo@capiro.ai' }]
+            : null,
+    }));
+    render(
+      buildTree(new QueryClient({ defaultOptions: { queries: { retry: false } } }), {
+        meeting: makeMeeting({ preps: [makePrep()] }),
+        aiConfigured: true,
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /email pdf/i }));
+    expect(await screen.findByText('New email')).toBeInTheDocument();
+    expect(screen.getByText(/You can keep drafting while it loads/)).toBeInTheDocument();
+    const editor = screen
+      .getAllByRole('textbox')
+      .find((element) => element.hasAttribute('data-placeholder'))!;
+    fireEvent.input(editor, { target: { innerHTML: '<p>My retained draft.</p>' } });
+    rejectPdf({ response: { data: { message: 'PDF renderer unavailable.' } } });
+    expect(await screen.findByText('PDF renderer unavailable.', { exact: false })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(apiPostMock).toHaveBeenCalledTimes(2);
+    expect(apiPostMock).toHaveBeenLastCalledWith('/api/engagement/meeting-preps/p1/pdf-attachment');
+    expect(screen.getByText('My retained draft.')).toBeInTheDocument();
   });
 });
