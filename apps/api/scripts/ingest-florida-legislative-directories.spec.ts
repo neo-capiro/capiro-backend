@@ -1,5 +1,6 @@
 import {
   buildPlan,
+  committeeNamesCompatible,
   mergeObservation,
   namesCompatible,
   officialKey,
@@ -103,7 +104,22 @@ describe('Florida directory PDF ingestion plan', () => {
   it('accepts formal/nickname variants only after the exact chamber+district match', () => {
     expect(namesCompatible('Alex Andrade', 'Robert Alexander “Alex” Andrade')).toBe(true);
     expect(namesCompatible('Jason Pizzo', 'PIZZO, Jason W. B.')).toBe(true);
+    expect(namesCompatible('Gallop Franklin', 'Gallop Franklin I')).toBe(true);
     expect(namesCompatible('Someone Else', 'Robert Alexander Andrade')).toBe(false);
+  });
+
+  it('accepts only presentation-equivalent committee names after the exact official-key match', () => {
+    expect(committeeNamesCompatible('Budget', 'Budget Committee')).toBe(true);
+    expect(
+      committeeNamesCompatible('Education and Employment', 'Education & Employment Committee'),
+    ).toBe(true);
+    expect(
+      committeeNamesCompatible(
+        'Congressional Redistricting Select',
+        'Select Committee on Congressional Redistricting',
+      ),
+    ).toBe(true);
+    expect(committeeNamesCompatible('Budget', 'Judiciary Committee')).toBe(false);
   });
 
   it('matches committees only through the reviewed official source key', () => {
