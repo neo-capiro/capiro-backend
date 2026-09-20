@@ -3,6 +3,7 @@ import {
   MeetingContextPlaneService,
 } from './meeting-context-plane.service.js';
 
+
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CLIENT = '33333333-3333-4333-8333-333333333333';
@@ -295,6 +296,7 @@ describe('MeetingContextPlaneService Phase 24', () => {
       }),
     );
   });
+
 
   test('debrief context is explicitly non-evidentiary for attendance, decisions, commitments and tasks', async () => {
     const h = harness();

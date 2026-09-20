@@ -95,4 +95,25 @@ describe('saved briefing native source authorization', () => {
       assertMeetingPrepSourceAccess(db as never, ctx as never, sources as never),
     ).rejects.toThrow('source access changed');
   });
+  test('request-scoped monday evidence remains authorized after saved defaults change', async () => {
+    const db = tx() as ReturnType<typeof tx> & {
+      $executeRaw: jest.Mock;
+      clioMcpServer: { count: jest.Mock };
+      meetingPrepMondayMapping: { count: jest.Mock };
+    };
+    db.$executeRaw = jest.fn().mockResolvedValue(1);
+    db.clioMcpServer = { count: jest.fn().mockResolvedValue(1) };
+    db.meetingPrepMondayMapping = { count: jest.fn().mockResolvedValue(0) };
+    await expect(
+      assertMeetingPrepSourceAccess(db as never, ctx as never, [
+        { access: { clients: ['client'], mondayUsers: ['actor'], mondayBoards: ['999'] } },
+      ] as never),
+    ).resolves.toBeUndefined();
+    expect(db.meetingPrepMondayMapping.count).not.toHaveBeenCalled();
+    expect(db.clioMcpServer.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant', ownerUserId: 'actor' }),
+      }),
+    );
+  });
 });

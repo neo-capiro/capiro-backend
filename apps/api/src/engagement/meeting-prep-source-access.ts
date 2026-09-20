@@ -7,7 +7,7 @@ import {
   ownMeetingWhere,
 } from './engagement-access.helpers.js';
 import type { PrepEvidenceSource } from './meeting-prep-grounding.js';
-import { managedAppConfigured } from '../meri/meri-managed-mcp.helpers.js';
+import { managedAppAvailable } from '../meri/meri-managed-mcp.helpers.js';
 
 /** Rechecks mutable native-source ACLs at persistence and artifact display. */
 export async function assertMeetingPrepSourceAccess(
@@ -31,7 +31,7 @@ export async function assertMeetingPrepSourceAccess(
   const mondayBoards = ids('mondayBoards');
   if (mondayUsers.length || mondayBoards.length) {
     if (
-      !managedAppConfigured('monday') ||
+      !managedAppAvailable('monday', { tenantId: ctx.tenantId, userId: ctx.userId }) ||
       mondayUsers.length !== 1 ||
       mondayUsers[0] !== ctx.userId ||
       !mondayBoards.length ||
@@ -39,9 +39,9 @@ export async function assertMeetingPrepSourceAccess(
     )
       throw new ForbiddenException('Monday.com source access changed.');
     // Some existing display callers open tenant-only transactions. Establish
-    // the authenticated actor for the mapping table's forced user-level RLS.
+    // the authenticated actor for the personal connector's user-level RLS.
     await tx.$executeRaw`SELECT set_config('app.current_user', ${ctx.userId}, true)`;
-    const [connected, mapped] = await Promise.all([
+    const [connected] = await Promise.all([
       tx.clioMcpServer.count({
         where: {
           tenantId: ctx.tenantId,
@@ -52,16 +52,13 @@ export async function assertMeetingPrepSourceAccess(
           connectionStatus: 'connected',
         },
       }),
-      tx.meetingPrepMondayMapping.count({
-        where: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          clientId: { in: clientIds },
-          boardIds: { hasEvery: mondayBoards },
-        },
-      }),
     ]);
-    if (!connected || !mapped) throw new ForbiddenException('Monday.com source access changed.');
+    // Board selection is durable in this artifact's immutable accessSources.
+    // Requiring the mutable saved default mapping here would make request-local
+    // explicit boards unreadable and would revoke old preps merely because the
+    // user's default board selection changed. The connector owner, tenant,
+    // requester and client wall remain rechecked on every display/export.
+    if (!connected) throw new ForbiddenException('Monday.com source access changed.');
   }
   const noteSelect = {
     id: true,

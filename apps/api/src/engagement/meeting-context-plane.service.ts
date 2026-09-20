@@ -23,6 +23,7 @@ import type {
   MeetingGovernedContext,
 } from './meeting-context-runtime.js';
 
+
 export const PHASE_24 = 24;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
 const RECORD_CHAR_BUDGET = 1_300;
@@ -468,7 +469,7 @@ function projectPayload(record: RetrievalRecord): Record<string, unknown> {
       return { ...common, ...pick(payload, ['startsAt', 'endsAt', 'organizerName', 'organizerEmail', 'location', 'description', 'notes', 'debriefs', 'contentCoverage']) };
     case 'tasks':
     case 'monday':
-      return { ...common, ...pick(payload, ['description', 'dueDate', 'ownerUserId', 'meetingId', 'mailThreadId', 'origin', 'updates', 'columns', 'url']) };
+      return { ...common, ...pick(payload, ['description', 'dueDate', 'owners', 'ownerUserId', 'meetingId', 'mailThreadId', 'origin', 'updates', 'columns', 'url']) };
     case 'outreach':
       return { ...common, ...pick(payload, ['sentAt', 'recipientNames', 'recipientEmails']) };
     case 'mail':

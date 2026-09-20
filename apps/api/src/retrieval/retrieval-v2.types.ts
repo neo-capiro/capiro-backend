@@ -144,6 +144,8 @@ export interface RetrievalRequest {
   requestedDomains: readonly RetrievalDomain[];
   caller: RetrievalCallerContext;
   query?: string;
+  /** Explicit user text from which the monday adapter may derive exact board IDs/URLs. */
+  mondayBoardContext?: string;
   /** Exact canonical item read for institutional_knowledge lookup/semantic recall. */
   memoryItemId?: string;
   /** Optional public hearing filters, also used by Meri's dedicated hearing reader. */
