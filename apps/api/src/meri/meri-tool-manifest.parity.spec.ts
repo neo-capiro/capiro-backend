@@ -42,7 +42,8 @@ jest.mock('../funding-opportunities/meri-opportunity-tools.adapter.js', () => ({
 // These contracts stub the domain ports; loading the unrelated mail/generation graph is unnecessary.
 jest.mock('../engagement/engagement.service.js', () => ({ EngagementService: jest.fn() }));
 
-import { MERI_TOOL_MANIFEST } from '@capiro/shared';
+import { MERI_CAPABILITY_REGISTRY, MERI_TOOL_MANIFEST } from '@capiro/shared';
+import type { MeriToolBackend } from '@capiro/shared';
 import { createGovernedMeriToolsService } from './governed-meri-tools.proxy.js';
 import { FederalMarketMeriToolsService } from '../federal-spending/federal-market-meri-tools.service.js';
 import { FEDERAL_MARKET_MERI_TOOL_DEFINITIONS } from '../federal-spending/federal-market-meri-tools.service.js';
@@ -72,7 +73,31 @@ describe('complete native API capability manifest', () => {
     );
     expect(actual).toEqual(MERI_TOOL_MANIFEST);
     expect(Object.keys(actual)).toHaveLength(definitions.length);
-    expect(TOOL_DEFINITIONS).toHaveLength(85);
-    expect(FEDERAL_MARKET_MERI_TOOL_DEFINITIONS).toHaveLength(5);
+  });
+
+  it('splits the registry between the two API owners exactly as the backend field says', () => {
+    // Deliberately NOT a hardcoded total. Both arrays are thin re-exports of
+    // MERI_CAPABILITY_REGISTRY projections (TOOL_DEFINITIONS =
+    // MERI_CORE_TOOL_DEFINITIONS, FEDERAL_MARKET_MERI_TOOL_DEFINITIONS =
+    // MERI_FEDERAL_MARKET_TOOL_DEFINITIONS), so there is no second list for a
+    // count to drift AGAINST: `toHaveLength(85)` could only ever fail because a
+    // tool was legitimately added, and it duly did — 14 additions after it was
+    // written, with nothing else wrong. What a count cannot catch is the two
+    // projections being filtered onto the WRONG owner: swap them and the union
+    // above still equals the manifest, while every call routes to a service
+    // that does not implement it. That is the invariant worth pinning.
+    const registryNames = (backend: MeriToolBackend) =>
+      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.backend === backend)
+        .map((tool) => tool.name)
+        .sort();
+    expect(TOOL_DEFINITIONS.map((tool) => tool.name).sort()).toEqual(registryNames('meri'));
+    expect(FEDERAL_MARKET_MERI_TOOL_DEFINITIONS.map((tool) => tool.name).sort()).toEqual(
+      registryNames('federal_market'),
+    );
+    // Neither owner may empty out. Both going to zero satisfies every equality
+    // above (an empty union against an empty manifest), so the one absolute
+    // bound here is the one that needs no maintenance.
+    expect(TOOL_DEFINITIONS.length).toBeGreaterThan(0);
+    expect(FEDERAL_MARKET_MERI_TOOL_DEFINITIONS.length).toBeGreaterThan(0);
   });
 });

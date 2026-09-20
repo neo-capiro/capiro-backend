@@ -26,11 +26,29 @@ import { join } from 'node:path';
  * private streaming methods that a unit test cannot reach without a live model,
  * a live DB, and an SSE socket. The behavioural proof is the browser walk; this
  * catches a silent revert.
+ *
+ * Follow the enforcement, do not just re-point at this directory: #1502 moved
+ * search_memory's client predicate out to the governed retrieval adapter, so
+ * the last describe below reads ../retrieval/adapters. An assertion deleted
+ * because the line it named moved is a guard that stopped being tested.
  */
 const MERI_ROOT = __dirname;
 
 function read(name: string): string {
   return readFileSync(join(MERI_ROOT, name), 'utf8');
+}
+
+/**
+ * The body of one `private async <name>(` method. Guards are asserted per
+ * reader rather than counted across the file: a total silently changes meaning
+ * when a method is renamed, split or given a differently-named local, whereas a
+ * per-reader assertion names the reader that lost its guard.
+ */
+function methodBody(source: string, method: string): string {
+  const start = source.indexOf(`private async ${method}(`);
+  if (start < 0) throw new Error(`meri-tools.service.ts no longer defines ${method}()`);
+  const end = source.indexOf('\n  private ', start + 1);
+  return source.slice(start, end < 0 ? undefined : end);
 }
 
 describe('Session client scope — the chat tool loop enforces, it does not default', () => {
@@ -102,22 +120,36 @@ describe('Session client scope — the Deep Research tool loop enforces the same
 
   it('short-circuits BEFORE the tool runs', () => {
     const guard = text.indexOf('if (scopeViolation) {');
-    const execute = text.indexOf('resultPayload = await this.tools.execute(ctx, t.name as never');
+    // Wrapper-agnostic on purpose. 2026-09-06 (#1507) moved the call inside
+    // withMeriToolExecutionControl(..., () => this.tools.execute(...)), which
+    // broke the old `resultPayload = await this.tools.execute(` literal without
+    // touching the guard — a red test for a refactor that changed nothing about
+    // scope. Match the call itself, and prove unreachability structurally.
+    const execute = text.indexOf('this.tools.execute(ctx, t.name as never');
     expect(guard).toBeGreaterThan(-1);
     expect(execute).toBeGreaterThan(guard);
+    // Ordering alone would also be satisfied by an unrelated later statement.
+    // What actually makes a blocked read impossible is that execution is an
+    // ELSE arm of this same branch, so no scopeViolation path can reach it.
+    expect(text.slice(guard, execute)).toContain('} else {');
   });
 });
 
 describe('Session client scope — the firm-wide tool readers honour the pinned client', () => {
   const text = read('meri-tools.service.ts');
 
-  it('search_memory filters memory_items by the session client', () => {
-    // Same predicate shape as meri.service.ts projectionRecall: firm-wide items
-    // (client_id NULL) stay visible; another client's items do not.
-    expect(text).toContain(
-      'AND ($3::uuid IS NULL OR mi.client_id IS NULL OR mi.client_id = $3::uuid)',
-    );
-    expect(text).toContain('scopeClientId ?? null,');
+  it('search_memory forwards the session client into governed retrieval', () => {
+    // The predicate this used to assert here is gone, not weakened: 2026-09-06
+    // (#1502) moved search_memory off its own raw SQL onto the shared governed
+    // retrieval adapter, which applies the SAME firm-wide-plus-this-client rule
+    // (pinned below in "governed memory retrieval"). What has to be pinned in
+    // THIS file is the half that stayed: the tool must still hand the scoped
+    // clientId to that adapter. Dropping it is one deleted line, it fails open
+    // to every client's memory, and nothing else here would notice.
+    const body = methodBody(text, 'searchMemory');
+    expect(body).toContain("const clientId = optionalString(input, 'clientId', 80);");
+    expect(body).toContain("domains: ['institutional_knowledge'],");
+    expect(body).toContain('...(clientId ? { clientId } : {}),');
   });
 
   it('query_knowledge_graph walks only the scoped client subgraph', () => {
@@ -135,8 +167,44 @@ describe('Session client scope — the firm-wide tool readers honour the pinned 
   });
 
   it('rejects a non-uuid clientId rather than silently ignoring the scope', () => {
-    const rejections =
-      text.match(/if \(scopeClientId && !CLIENT_ID_UUID_RE\.test\(scopeClientId\)\)/g) ?? [];
-    expect(rejections.length).toBe(3);
+    // Was a count of three identical `scopeClientId` guards. searchMemory's
+    // rewrite (#1502) named its local `clientId`, so the count read 2 — a red
+    // test for a rename that kept the guard. Assert the guard on each reader
+    // instead: that says WHICH reader failed open, and survives a local rename.
+    for (const reader of ['queryKnowledgeGraph', 'findPathTo', 'searchMemory'] as const) {
+      const body = methodBody(text, reader);
+      expect(body).toMatch(
+        new RegExp(String.raw`if \((scopeClientId|clientId) && !CLIENT_ID_UUID_RE\.test\(\1\)\)`),
+      );
+      expect(body).toContain("error: 'clientId must be a client UUID");
+    }
+  });
+});
+
+/**
+ * Where search_memory's client predicate lives since #1502. The tool no longer
+ * owns SQL; it calls searchCapiroData -> MeriContextPlaneService.searchToolData
+ * -> the governed retrieval gateway, which resolves subjectScope 'client' to
+ * caller.clientIds = [thatClient]. This adapter is the last hop before the rows.
+ */
+describe('Session client scope — governed memory retrieval keeps the firm-wide/other-client split', () => {
+  const text = read('../retrieval/adapters/institutional-knowledge-retrieval.adapter.ts');
+
+  it('reads firm-wide memory plus the scoped client, and no other client', () => {
+    expect(text).toContain(
+      'AND (mi.client_id IS NULL OR mi.client_id = ANY(${allowedClientIds}::uuid[]))',
+    );
+    // Re-checked in JS after the query, so a predicate edit alone cannot leak.
+    expect(text).toContain('(!row.clientId || allowedClientIds.includes(row.clientId)) &&');
+  });
+
+  it('refuses the read outright rather than widening when the scope is not allowed', () => {
+    // allowedClientIds is built by filtering the REQUESTED ids through the
+    // ethical wall. If any is dropped the whole read is refused — it must never
+    // continue with the narrowed-but-nonempty remainder, and an empty array
+    // must never be read as "unscoped".
+    expect(text).toContain('if (allowedClientIds.length !== requestedClientIds.length) {');
+    expect(text).toContain("'requested_client_scope_failed_ethical_wall'");
+    expect(text).toContain("'requested_client_scope_not_authorized'");
   });
 });
