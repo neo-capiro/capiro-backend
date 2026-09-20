@@ -7,12 +7,13 @@
  * an honest notice. Bill 360 never receives `_all` as a UUID client.
  */
 import { createElement } from 'react';
-import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiGet = vi.fn<(url: string) => Promise<{ data: unknown }>>();
+const { drawerProps } = vi.hoisted(() => ({ drawerProps: vi.fn() }));
 // Any transitive Clerk import stays inert (see the sibling scope-gate test).
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ getToken: async () => 'test-token', orgId: null, userId: 'u-1' }),
@@ -24,6 +25,18 @@ vi.mock('../../../../lib/use-api.js', () => ({
 vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ isLoading: false, data: undefined }) }));
 vi.mock('../../../../lib/intel-feature-flags.js', () => ({
   useIntelFeature: () => ({ ready: true, enabled: true }),
+}));
+vi.mock('./Bill360Drawer.js', () => ({
+  Bill360Drawer: (props: { clientId: string; onOpenFull: () => void }) => {
+    drawerProps(props);
+    return (
+      <div role="dialog">
+        <button type="button" onClick={props.onOpenFull}>
+          Open full page
+        </button>
+      </div>
+    );
+  },
 }));
 
 import { BillsTab } from './BillsTab.js';
@@ -74,12 +87,18 @@ function wireGet(url: string): { data: unknown } | null {
 
 beforeEach(() => {
   apiGet.mockReset();
+  drawerProps.mockReset();
   apiGet.mockImplementation((url: string) => {
     const hit = wireGet(url);
     if (!hit) return Promise.reject(new Error(`unexpected GET ${url}`));
     return Promise.resolve(hit);
   });
 });
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
+}
 
 afterEach(() => {
   cleanup();
@@ -92,6 +111,7 @@ function renderBills(scope: string, initialEntry = '/legiwatch?tab=bills') {
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/legiwatch" element={<BillsTab scope={scope} clients={CLIENTS as never} />} />
+          <Route path="/bills/:billId" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -192,17 +212,28 @@ describe('PR C §15 — Bills All-clients = real tenant roll-up', () => {
     expect(urls.some((u) => u.startsWith('/intel-api/clients/_all/tracker/board'))).toBe(false);
   });
 
-  it('Bill 360 drawer in _all uses the GLOBAL dossier route (never /clients/_all/...)', async () => {
+  it('Bill 360 drawer in _all receives global scope, never a literal _all client id', async () => {
     renderBills('');
     const card = await screen.findByText('H.R. 9001');
     fireEvent.click(card);
     await waitFor(() => {
-      const urls = apiGet.mock.calls.map((c) => c[0] as string);
-      void urls;
       expect(document.querySelector('[role="dialog"]')).toBeTruthy();
     });
-    const urls = apiGet.mock.calls.map((c) => c[0] as string);
-    expect(urls.some((u) => u.startsWith('/intel-api/clients/_all/bills/'))).toBe(false);
-    void within;
+    expect(drawerProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ billId: '119-hr-9001', clientId: '' }),
+    );
   });
+
+  it.each([
+    { scope: '', expected: '/bills/119-hr-9001' },
+    { scope: 'c-a', expected: '/bills/119-hr-9001?client=c-a' },
+  ])(
+    'opens the full Bill 360 page with the correct client scope: $expected',
+    async ({ scope, expected }) => {
+      renderBills(scope);
+      fireEvent.click(await screen.findByText('H.R. 9001'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Open full page' }));
+      expect(await screen.findByTestId('location')).toHaveTextContent(expected);
+    },
+  );
 });

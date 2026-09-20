@@ -19,6 +19,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { isClerkOrgAdminRole } from '@capiro/shared';
 import type { Request } from 'express';
 import { ClerkService, type ClerkSessionClaims } from './clerk.service.js';
 import { OrgTenantResolverService, type ResolvedTenant } from './org-tenant-resolver.service.js';
@@ -37,7 +38,10 @@ import type { WorkspaceTenantContext } from './tenant-context.js';
  *      tenants.id. Nothing resolvable → 403.
  *   5. Cross-check the remaining claims against that row; disagreement → 403.
  *   6. Require an ACTIVE local tenant_memberships row → else 403.
- *   7. Attach the context, with tenantId ALWAYS the canonical UUID.
+ *   7. For a `capiro_admin` carrying the impersonation header, require the
+ *      same active, unexpired session apps/api created, corroborate any signed
+ *      role claim, and switch safe read requests to the session tenant.
+ *   8. Attach the context, with tenantId ALWAYS the canonical UUID.
  *
  * WHAT CHANGED AND WHY
  * --------------------
@@ -155,7 +159,9 @@ export class TenantGuard implements CanActivate {
     // Only then use the server-maintained role for this verified tenant and
     // subject. An explicit signed member/custom role is never upgraded by a
     // stale local mirror, and no identity or role is taken from request headers.
-    let role = nonEmpty(claims.org_role) ?? nonEmpty(claims.capiro_org_role);
+    const signedRole = nonEmpty(claims.org_role) ?? nonEmpty(claims.capiro_org_role);
+    let role = signedRole;
+    let authoritativeMembershipRole: string | null | undefined;
     if (!role) {
       const membership = await this.tenants.activeMembershipRole(resolved.tenantId, claims.sub);
       if (!membership) {
@@ -165,7 +171,63 @@ export class TenantGuard implements CanActivate {
         });
         throw new ForbiddenException('No active membership for this tenant');
       }
+      authoritativeMembershipRole = membership.role;
       role = membership.role ?? undefined;
+    }
+
+    // Keep /intel-api tenant resolution in parity with apps/api. The browser
+    // sends this header to both services, while the signed Clerk token continues
+    // to name the admin's home (capiro-internal) tenant. Trust neither the header
+    // nor a bare admin role: the target comes only from the active server-created
+    // impersonation session, and its slug must exactly match the requested slug.
+    const wantsImpersonate = headerValue(req.headers['x-capiro-impersonate-tenant']);
+    if (wantsImpersonate) {
+      // A signed Clerk org role may legitimately be `org:admin`; it is not the
+      // Capiro platform-admin grant. Re-read the local membership without a
+      // cache before crossing the tenant boundary, just as apps/api does in its
+      // transaction. This also makes revocation/demotion effective immediately.
+      if (authoritativeMembershipRole === undefined) {
+        const membership = await this.tenants.activeMembershipRole(resolved.tenantId, claims.sub);
+        if (!membership) {
+          this.denied('no_active_membership', {
+            tenantId: resolved.tenantId,
+            clerkUserId: claims.sub,
+          });
+          throw new ForbiddenException('No active membership for this tenant');
+        }
+        authoritativeMembershipRole = membership.role;
+      }
+
+      if (authoritativeMembershipRole === 'capiro_admin') {
+        // A populated signed role is a second, independent privilege signal.
+        // Never let a stale local capiro_admin mirror upgrade a freshly signed
+        // member/custom role across tenant boundaries. Some Clerk templates
+        // omit the role entirely; only that absence may use local-only proof.
+        if (signedRole && !isClerkOrgAdminRole(signedRole)) {
+          throw new ForbiddenException('Signed organization role does not permit impersonation');
+        }
+
+        const target = await this.tenants.resolveActiveImpersonation(claims.sub);
+        if (!target) {
+          throw new ForbiddenException(
+            'No active impersonation session, start one via /capiro-admin/impersonate',
+          );
+        }
+        if (target.slug.toLowerCase() !== wantsImpersonate.toLowerCase()) {
+          throw new ForbiddenException(
+            `Impersonation session is for tenant ${target.slug}, header asks for ${wantsImpersonate}`,
+          );
+        }
+        if (!isSafeImpersonationMethod(req.method)) {
+          throw new ForbiddenException('Impersonation is read-only for Intel API requests');
+        }
+        req.tenantContext = {
+          tenantId: target.tenantId,
+          clerkUserId: claims.sub,
+          role: 'capiro_admin',
+        };
+        return true;
+      }
     }
 
     req.tenantContext = {
@@ -214,4 +276,14 @@ function nonEmpty(value: string | undefined): string | undefined {
   if (value === undefined || value === null) return undefined;
   const trimmed = value.trim();
   return trimmed === '' ? undefined : trimmed;
+}
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  return nonEmpty(Array.isArray(value) ? value[0] : value);
+}
+
+const SAFE_IMPERSONATION_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function isSafeImpersonationMethod(method: string): boolean {
+  return SAFE_IMPERSONATION_METHODS.has(method.toUpperCase());
 }
