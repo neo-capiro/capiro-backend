@@ -128,7 +128,33 @@ function mondayColumns(
         text: typeof raw === 'string' ? raw : null,
         value: raw,
       }));
-  let status: string | null = null;
+  // monday also represents Type and Priority as status columns. A known title
+  // takes precedence over the storage type; a blank workflow status stays blank.
+  const statusCandidates = columns
+    .map((raw) => {
+      const column = record(raw);
+      const title = String(column.title ?? '')
+        .trim()
+        .toLowerCase();
+      const id = String(column.id ?? '').toLowerCase();
+      const rank = title
+        ? /^(?:(?:task|item|workflow)\s+)?status$|^workflow$/.test(title)
+          ? 3
+          : /\bstatus\b/.test(title)
+            ? 2
+            : 0
+        : id.includes('status')
+          ? 2
+          : column.type === 'status'
+            ? 1
+            : 0;
+      return { column, rank };
+    })
+    .filter(({ rank }) => rank > 0);
+  const highestRank = Math.max(0, ...statusCandidates.map(({ rank }) => rank));
+  const workflowColumns = statusCandidates.filter(({ rank }) => rank === highestRank);
+  const statusText = workflowColumns.length === 1 ? workflowColumns[0]?.column.text : null;
+  const status = typeof statusText === 'string' && statusText.trim() ? statusText.trim() : null;
   let deadline: string | null = null;
   const owners: unknown[] = [];
   for (const raw of columns) {
@@ -144,7 +170,6 @@ function mondayColumns(
         return {};
       }
     })();
-    if (!status && (type === 'status' || id.includes('status'))) status = text;
     if (!deadline && (type === 'date' || /(?:date|due|deadline)/.test(id))) {
       deadline =
         (typeof parsed.date === 'string' && parsed.date) ||

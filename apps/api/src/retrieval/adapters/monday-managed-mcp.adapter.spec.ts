@@ -98,6 +98,7 @@ describe('Monday.com governed retrieval adapter', () => {
   function harness(
     options: {
       mapping?: string[];
+      columns?: unknown[];
       executeRead?: (name: string, args: Record<string, unknown>) => unknown;
     } = {},
   ) {
@@ -133,7 +134,7 @@ describe('Monday.com governed retrieval adapter', () => {
           ? {
               board: {
                 id: String(args.boardId),
-                columns: [
+                columns: options.columns ?? [
                   { id: 'status', type: 'status' },
                   { id: 'owner', type: 'people' },
                   { id: 'due_date', type: 'date' },
@@ -303,6 +304,76 @@ describe('Monday.com governed retrieval adapter', () => {
     expect(result.records[1]?.payload.updates).toEqual([
       expect.objectContaining({ body: 'Update for 13088412915' }),
     ]);
+  });
+
+  test.each(['', 'In Progress', 'Done'])(
+    'uses the actual workflow status %j instead of a Type or Priority label',
+    async (workflowStatus) => {
+      const h = harness({
+        columns: [
+          { id: 'status', title: 'Type', type: 'status' },
+          { id: 'priority', title: 'Priority', type: 'status' },
+          { id: 'task_state', title: 'Task Status', type: 'status' },
+        ],
+        executeRead: (name) =>
+          name.endsWith('get_updates')
+            ? { updates: [] }
+            : {
+                items: [
+                  {
+                    id: '234',
+                    name: 'Verification task',
+                    column_values: {
+                      status: 'Test',
+                      priority: 'High',
+                      task_state: workflowStatus,
+                    },
+                  },
+                ],
+                cursor: null,
+              },
+      });
+      const result = await h.adapter.retrieve(
+        {} as never,
+        { caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] } } as never,
+      );
+      expect(result.records[0]?.payload.status).toBe(workflowStatus || null);
+      expect(result.records[0]?.payload.columns).toEqual(
+        expect.arrayContaining([expect.objectContaining({ title: 'Type', text: 'Test' })]),
+      );
+    },
+  );
+
+  test('does not choose arbitrarily between ambiguous workflow status columns', async () => {
+    const h = harness({
+      executeRead: (name) =>
+        name.endsWith('get_updates')
+          ? { updates: [] }
+          : {
+              items: [
+                {
+                  id: '234',
+                  name: 'Ambiguous workflow',
+                  column_values: [
+                    { id: 'qa_status', title: 'QA Status', type: 'status', text: 'Done' },
+                    {
+                      id: 'review_status',
+                      title: 'Review Status',
+                      type: 'status',
+                      text: 'Blocked',
+                    },
+                  ],
+                },
+              ],
+              cursor: null,
+            },
+    });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      { caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] } } as never,
+    );
+    expect(result.records[0]?.payload.status).toBeNull();
+    expect(result.records[0]?.payload.columns).toHaveLength(2);
   });
 
   test('keeps retrieved task evidence but reports incomplete coverage when the shared budget expires', async () => {
