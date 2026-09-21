@@ -282,20 +282,23 @@ export async function reconcileFloridaJlbcAlias(
     )
       throw new Error(`Exact JLBC hearing facts changed for ${row.id}`);
   if (
-    alias.legislativeSession !== '2026' ||
-    alias.stateCommitteeId !== null ||
-    alias.bodySourceKey !== review.aliasBodySourceKey ||
+    alias.legislativeSession !== review.legislativeSession ||
+    alias.stateCommitteeId !== review.aliasStateCommitteeId ||
+    alias.bodySourceKey !== review.enrichedAliasBodySourceKey ||
     alias.location !== review.houseLocation ||
-    canonical.legislativeSession !== null ||
+    canonical.legislativeSession !== review.legislativeSession ||
+    canonical.stateCommitteeId !== null ||
     canonical.bodySourceKey !== review.bodySourceKey ||
     ![review.houseLocation, review.senateLocation].includes(canonical.location ?? '')
   )
     throw new Error('Exact JLBC provider/body qualification changed');
 
   const openstates = observations.filter(
-    (row) =>
-      row.source.adapterKey === 'openstates-florida-events' &&
-      row.externalEventId === review.externalEventId,
+    (row) => row.source.adapterKey === 'openstates-florida-events',
+  );
+  const rawOpenstates = openstates.filter((row) => row.externalEventId === review.externalEventId);
+  const enrichedOpenstates = openstates.filter(
+    (row) => row.externalEventId === review.enrichedExternalEventId,
   );
   const official = observations.filter(
     (row) =>
@@ -305,31 +308,50 @@ export async function reconcileFloridaJlbcAlias(
   const house = official.filter((row) => row.source.adapterKey === 'florida-house');
   const senate = official.filter((row) => row.source.adapterKey === 'florida-senate');
   const pending = alias.canonicalHearingId === null;
-  const openstatesNeedsMove = openstates[0]?.hearingId === review.aliasId;
+  const openstatesObservationIds = new Set(openstates.map((row) => row.id));
+  const openstatesMoveIds = openstates
+    .filter((row) => row.hearingId === review.aliasId)
+    .map((row) => row.id);
   if (
-    openstates.length !== 1 ||
-    ![review.aliasId, review.canonicalId].includes(openstates[0]!.hearingId ?? '') ||
+    openstates.length !== 2 ||
+    rawOpenstates.length !== 1 ||
+    enrichedOpenstates.length !== 1 ||
+    openstates.some((row) => ![review.aliasId, review.canonicalId].includes(row.hearingId ?? '')) ||
+    rawOpenstates[0]!.sourceId !== enrichedOpenstates[0]!.sourceId ||
     house.length !== 1 ||
     senate.length !== 1 ||
     official.some((row) => row.hearingId !== review.canonicalId) ||
-    observations.some((row) => row.hearingId === review.aliasId && row.id !== openstates[0]!.id)
+    observations.some(
+      (row) => row.hearingId === review.aliasId && !openstatesObservationIds.has(row.id),
+    )
   )
     throw new Error('Exact JLBC source-ledger ownership changed');
 
-  const openstatesMetadata = legislative(openstates[0]!.sourceMetadata);
+  const rawOpenstatesMetadata = legislative(rawOpenstates[0]!.sourceMetadata);
+  const enrichedOpenstatesMetadata = legislative(enrichedOpenstates[0]!.sourceMetadata);
   const houseMetadata = legislative(house[0]!.sourceMetadata);
   const senateMetadata = legislative(senate[0]!.sourceMetadata);
   if (
-    !exactObservationFacts(openstatesMetadata, {
+    !exactObservationFacts(rawOpenstatesMetadata, {
       review,
       officialIdentity: `openstates:event:${review.externalEventId}`,
       bodySourceKey: review.aliasBodySourceKey,
       sourceUrl: review.houseMonthlyUrl,
       location: review.houseLocation,
-      session: '2026',
+      session: review.legislativeSession,
     }) ||
-    openstatesMetadata?.stateCommitteeId !== null ||
-    agendaTitles(openstatesMetadata).length !== 0 ||
+    rawOpenstatesMetadata?.stateCommitteeId !== null ||
+    agendaTitles(rawOpenstatesMetadata).length !== 0 ||
+    !exactObservationFacts(enrichedOpenstatesMetadata, {
+      review,
+      officialIdentity: review.enrichedExternalEventId,
+      bodySourceKey: review.enrichedAliasBodySourceKey,
+      sourceUrl: review.houseMonthlyUrl,
+      location: review.houseLocation,
+      session: review.legislativeSession,
+    }) ||
+    enrichedOpenstatesMetadata?.stateCommitteeId !== review.aliasStateCommitteeId ||
+    agendaTitles(enrichedOpenstatesMetadata).length !== 0 ||
     !exactObservationFacts(houseMetadata, {
       review,
       officialIdentity: review.officialIdentity,
@@ -389,7 +411,8 @@ export async function reconcileFloridaJlbcAlias(
   const invalidRevisions = revisions.filter(
     (row) =>
       row.hearingId === review.aliasId &&
-      (row.sourceId !== openstates[0]!.sourceId || row.externalEventId !== review.externalEventId),
+      (row.sourceId !== rawOpenstates[0]!.sourceId ||
+        ![review.externalEventId, review.enrichedExternalEventId].includes(row.externalEventId)),
   );
   if (invalidRevisions.length)
     blockedOperations.push({
@@ -418,7 +441,7 @@ export async function reconcileFloridaJlbcAlias(
     .filter((row) => row.hearingId === review.aliasId)
     .map((row) => row.id);
   const hasMovableReferences =
-    openstatesNeedsMove ||
+    openstatesMoveIds.length > 0 ||
     revisionIds.length > 0 ||
     agenda.moved.length > 0 ||
     candidatesDisposition.moved.length > 0;
@@ -432,8 +455,8 @@ export async function reconcileFloridaJlbcAlias(
     canonical: await rowFingerprint(tx, 'committee_hearing', review.canonicalId),
   };
   const relocation = {
-    openstatesObservationId: openstates[0]!.id,
-    moveObservation: openstatesNeedsMove,
+    openstatesObservationIds: openstates.map((row) => row.id),
+    moveObservationIds: openstatesMoveIds,
     revisionIds,
     agenda,
     candidates: candidatesDisposition,
@@ -469,12 +492,13 @@ export async function reconcileFloridaJlbcAlias(
       throw new Error('JLBC data changed while acquiring repair locks; produce a new dry run');
 
     if (status !== 'already-applied') {
-      if (relocation.moveObservation) {
+      if (relocation.moveObservationIds.length) {
         const moved = await tx.hearingSourceObservation.updateMany({
-          where: { id: relocation.openstatesObservationId, hearingId: review.aliasId },
+          where: { id: { in: relocation.moveObservationIds }, hearingId: review.aliasId },
           data: { hearingId: review.canonicalId },
         });
-        if (moved.count !== 1) throw new Error('OpenStates JLBC observation changed during apply');
+        if (moved.count !== relocation.moveObservationIds.length)
+          throw new Error('OpenStates JLBC observations changed during apply');
       }
       if (relocation.revisionIds.length) {
         const moved = await tx.legislativeObservationRevision.updateMany({
@@ -535,16 +559,17 @@ export async function reconcileFloridaJlbcAlias(
     }
 
     const [
-      linkedObservation,
+      linkedObservations,
       aliasAfter,
       canonicalAfterFingerprint,
       revisionsLeft,
       agendaLeft,
       candidatesLeft,
     ] = await Promise.all([
-      tx.hearingSourceObservation.findUnique({
-        where: { id: relocation.openstatesObservationId },
+      tx.hearingSourceObservation.findMany({
+        where: { id: { in: relocation.openstatesObservationIds } },
         select: { hearingId: true, externalEventId: true },
+        orderBy: { externalEventId: 'asc' },
       }),
       tx.committeeHearing.findUniqueOrThrow({
         where: { id: review.aliasId },
@@ -568,8 +593,12 @@ export async function reconcileFloridaJlbcAlias(
         : 0,
     ]);
     if (
-      linkedObservation?.hearingId !== review.canonicalId ||
-      linkedObservation.externalEventId !== review.externalEventId ||
+      linkedObservations.length !== relocation.openstatesObservationIds.length ||
+      linkedObservations.some((row) => row.hearingId !== review.canonicalId) ||
+      !exactArray(
+        linkedObservations.map((row) => row.externalEventId),
+        [review.externalEventId, review.enrichedExternalEventId].sort(),
+      ) ||
       aliasAfter.canonicalHearingId !== review.canonicalId ||
       canonicalAfterFingerprint !== fingerprints.canonical ||
       revisionsLeft !== 0 ||

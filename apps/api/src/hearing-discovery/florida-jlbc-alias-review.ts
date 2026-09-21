@@ -15,11 +15,15 @@ export type FloridaJlbcAliasReview = {
   date: string;
   startsAt: string;
   endsAt: string;
+  legislativeSession: string;
   title: string;
   houseLocation: string;
   senateLocation: string;
   bodySourceKey: string;
   aliasBodySourceKey: string;
+  enrichedAliasBodySourceKey: string;
+  enrichedExternalEventId: string;
+  aliasStateCommitteeId: string;
   houseMonthlyUrl: string;
   houseNoticeUrl: string;
   senateNoticeUrl: string;
@@ -72,12 +76,16 @@ export const FLORIDA_JLBC_ALIAS_REVIEW: Readonly<FloridaJlbcAliasReview> = Objec
   date: '2026-09-11',
   startsAt: '2026-09-11T15:00:00.000Z',
   endsAt: '2026-09-11T18:00:00.000Z',
+  legislativeSession: '2026',
   title: 'Joint Legislative Budget Commission',
   houseLocation: '110 SOB',
   senateLocation: 'Toni Jennings Committee Room, 110 Senate Building',
   bodySourceKey: 'fl:joint:lbc',
   aliasBodySourceKey:
     'unresolved-body:openstates:ocd-organization/e779cf08-9f72-4663-a9e0-ad306359310a',
+  enrichedAliasBodySourceKey: 'openstates:ocd-organization/e779cf08-9f72-4663-a9e0-ad306359310a',
+  enrichedExternalEventId: 'openstates:event:ocd-event/a02f8006-d61c-436b-bd3b-e5080dad8f67',
+  aliasStateCommitteeId: 'official-203133a6dd941346b3a08cfec2a92ccc',
   houseMonthlyUrl:
     'https://www.flhouse.gov/Sections/HouseCalendar/finalizedmeetingnotice.aspx?mode=month',
   houseNoticeUrl: 'https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15223',
