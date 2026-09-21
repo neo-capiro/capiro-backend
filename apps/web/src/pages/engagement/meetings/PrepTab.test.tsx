@@ -209,6 +209,34 @@ describe('PrepTab', () => {
     expect(screen.getByText('Retry generation')).toBeInTheDocument();
   });
 
+  test('a failed prep retains the board settings so the user can fix context before retrying', async () => {
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data: url.endsWith('/capabilities')
+        ? { meetingPrepComprehensiveEnabled: true }
+        : url.endsWith('/prep-monday-mapping')
+          ? { clientId: 'client-a', boardIds: ['18431248553'] }
+          : null,
+    }));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      buildTree(qc, {
+        meeting: makeMeeting({
+          client: { id: 'client-a', name: 'Maven client' } as Meeting['client'],
+          preps: [makePrep({ status: 'failed' })],
+        }),
+        aiConfigured: true,
+      }),
+    );
+    const field = await screen.findByRole('textbox', {
+      name: 'Monday.com board IDs for this client',
+    });
+    await waitFor(() => expect(field).toHaveValue('18431248553'));
+    expect(field).toBeEnabled();
+    expect(field.closest('details')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Retry generation' })).toBeVisible();
+    qc.clear();
+  });
+
   test('a stale prep shows the "Stale" stage pill and the stale banner, not the freshly-drafted banner', () => {
     const qc = new QueryClient();
     render(
