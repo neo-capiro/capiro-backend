@@ -68,10 +68,16 @@ import {
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
 import { MeriDocumentCompletion } from './meriv3-document-completion.js';
+import { classifyMeriRetrievalIntent } from '../retrieval/meri-retrieval-intent.js';
+import {
+  elevateMeriResearchReasoningMode,
+  isComprehensiveFederalMarketResearch,
+} from '../retrieval/meri-research-director.js';
 import type {
   MeriV3ChatInput,
   MeriV3ChatResult,
   MeriV3ChatStreamEvent,
+  MeriV3ReasoningMode,
   OpenAiResponsesFunctionCall,
   MeriV3ProviderTelemetry,
   OpenAiResponsesResult,
@@ -197,12 +203,17 @@ export class MeriV3AssistantService {
     dto: MeriV3ChatInput,
     opts: MeriV3RunOptions = {},
   ): Promise<MeriV3ChatResult> {
+    const effectiveReasoningMode = this.resolveEffectiveReasoningMode(dto);
+    const effectiveDto: MeriV3ChatInput =
+      effectiveReasoningMode === (dto.reasoningMode ?? 'standard')
+        ? dto
+        : { ...dto, reasoningMode: effectiveReasoningMode };
     const control = createMeriExecutionControl(
       opts,
-      resolveMeriV3ReasoningProfile(dto.reasoningMode).turnBudgetMs,
+      resolveMeriV3ReasoningProfile(effectiveReasoningMode).turnBudgetMs,
     );
     try {
-      return await this.runTurn(ctx, dto, {
+      return await this.runTurn(ctx, effectiveDto, {
         ...opts,
         signal: control.signal,
         deadlineAt: control.deadlineAt,
@@ -210,6 +221,46 @@ export class MeriV3AssistantService {
     } finally {
       control.dispose();
     }
+  }
+
+  /**
+   * Auto-detect an exhaustive/comprehensive request ("audit every
+   * commitment", "cross-check every source", a federal-market capture
+   * strategy, ...) and float the reasoning mode up to at least Deep,
+   * regardless of what the composer's default (Standard) selected.
+   *
+   * Standard's budget (180s, 10 rounds) is tuned for a normal chat reply.
+   * A broad audit-everything ask legitimately needs dozens of tool calls
+   * and a large structured write — under Standard that gathers fine and
+   * then times out writing the answer (see synthesisReserveMs above). The
+   * user should not have to know to switch to Deep/Research mode first;
+   * Meri should recognize the shape of the request and just do it.
+   *
+   * Reuses the same exhaustive-request classifier and elevation rule the
+   * retrieval-assistant path already applies for federal-market-strategy
+   * research (meri-research-director.ts), generalized via
+   * classifyMeriRetrievalIntent's `requireCompleteCoverage` signal so it
+   * also covers non-federal-market comprehensive asks. Never downgrades a
+   * mode the user explicitly picked (Deep/Max pass through unchanged), and
+   * never escalates a request with no exhaustive/comprehensive signal.
+   */
+  private resolveEffectiveReasoningMode(dto: MeriV3ChatInput): MeriV3ReasoningMode {
+    const requestedMode = dto.reasoningMode ?? 'standard';
+    const lastUserText = this.lastUserText(dto);
+    if (!lastUserText.trim()) return requestedMode;
+
+    const retrievalIntent = classifyMeriRetrievalIntent(lastUserText, dto.clientId ?? null);
+    const comprehensive =
+      retrievalIntent.requireCompleteCoverage ||
+      isComprehensiveFederalMarketResearch(lastUserText, retrievalIntent.queryClass);
+    const elevated = elevateMeriResearchReasoningMode(requestedMode, comprehensive);
+    if (elevated !== requestedMode) {
+      this.logger.log(
+        `MeriV3 auto-escalating reasoning mode ${requestedMode} -> ${elevated} ` +
+          `(reasons: ${retrievalIntent.reasonCodes.join(',') || 'federal_market_pattern'})`,
+      );
+    }
+    return elevated;
   }
 
   private async runTurn(

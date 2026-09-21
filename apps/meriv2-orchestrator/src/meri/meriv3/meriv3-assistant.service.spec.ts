@@ -206,6 +206,49 @@ describe('MeriV3AssistantService', () => {
     expect(complete.mock.calls[0][0].instructions).toContain('does not supply note content');
   });
 
+  describe('reasoning mode auto-detection', () => {
+    test('escalates an audit-everything request past the default Standard mode', async () => {
+      const complete = jest.fn().mockResolvedValue(response({ outputText: 'Audit complete.' }));
+      const assistant = build(registry([]), complete);
+      const result = await assistant.run(context, {
+        toolPolicy: 'none',
+        clientId: 'client-1',
+        messages: [
+          {
+            role: 'user',
+            text:
+              'Audit every commitment we have made. List each commitment with status. ' +
+              'Do not mark anything complete without evidence, and identify sources you could not check.',
+          },
+        ],
+      });
+      expect(result.reasoningMode).toBe('deep');
+    });
+
+    test('leaves an ordinary lookup on the default Standard mode', async () => {
+      const complete = jest.fn().mockResolvedValue(response({ outputText: 'It is at 3pm.' }));
+      const assistant = build(registry([]), complete);
+      const result = await assistant.run(context, {
+        toolPolicy: 'none',
+        clientId: 'client-1',
+        messages: [{ role: 'user', text: 'What time is the meeting with Senator Wyden?' }],
+      });
+      expect(result.reasoningMode).toBe('standard');
+    });
+
+    test('never downgrades a mode the user explicitly selected', async () => {
+      const complete = jest.fn().mockResolvedValue(response({ outputText: 'On it.' }));
+      const assistant = build(registry([]), complete);
+      const result = await assistant.run(context, {
+        toolPolicy: 'none',
+        clientId: 'client-1',
+        reasoningMode: 'max',
+        messages: [{ role: 'user', text: 'What time is the meeting?' }],
+      });
+      expect(result.reasoningMode).toBe('max');
+    });
+  });
+
   test('saves inherited document evidence used only in the generated artifact, preserving [56]', async () => {
     const citation = {
       n: 56,
