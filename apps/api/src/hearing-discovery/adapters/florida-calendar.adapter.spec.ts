@@ -5,6 +5,7 @@ import {
   floridaBillNumberAliases,
   fetchFloridaSource,
   houseNoticeObservation,
+  senateCommitteeLinks,
   senateCommitteePageSession,
   senateNoticeObservation,
   senateNoticeRefs,
@@ -28,6 +29,49 @@ const ref: SenateNoticeRef = {
   canceled: false,
 };
 describe('Florida first-party calendar contract', () => {
+  it('decodes publisher text that is HTML-encoded twice before storing titles', () => {
+    const committees = senateCommitteeLinks(
+      '<a href="/Committees/Show/RE/2026">Rules &amp;amp; Ethics</a>',
+      '2026',
+    );
+    expect(committees).toEqual([
+      {
+        code: 'RE',
+        name: 'Rules & Ethics',
+        url: 'https://www.flsenate.gov/Committees/Show/RE/2026',
+      },
+    ]);
+
+    const notice = houseNoticeObservation(
+      `<main class="cm_contents">
+        <h1 class="ribbon">PreK &amp;#8211; 12 Appropriations Subcommittee</h1>
+        <dl aria-label="Meeting Information">
+          <dt>Start Date and Time:</dt><dd>Monday, February 23, 2026 3:00 PM</dd>
+          <dt>Location:</dt><dd>Reed Hall</dd>
+          <time datetime="2026-02-23T15:00:00-05:00"></time>
+        </dl>
+        <nav aria-label="Breadcrumb"><a href="?sessionId=105">Session</a></nav>
+        <select id="ddlBillFinderSession"><option value="105">2026</option></select>
+        <div id="meeting-summary"></div><div>Presentation &amp;amp; workshop</div>
+      </main>`,
+      'https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=99999',
+      null,
+    );
+    expect(notice.bodyName).toBe('PreK – 12 Appropriations Subcommittee');
+    expect(notice.fields.title).toBe('PreK – 12 Appropriations Subcommittee');
+    expect(notice.fields.agenda?.[0]?.title).toBe('Presentation & workshop');
+    expect(
+      legislativeEventId({
+        ...notice,
+        bodyName: 'PreK &#8211; 12 Appropriations Subcommittee',
+        fields: {
+          ...notice.fields,
+          title: 'PreK &#8211; 12 Appropriations Subcommittee',
+        },
+      }),
+    ).toBe(legislativeEventId(notice));
+  });
+
   it('reads the committee-scoped served session and rejects a conflicting page shell', () => {
     const page = (selected: string, hrefSession: string) => `
       <select id="session-name"><option value="${selected}" selected="selected">${selected}</option></select>
