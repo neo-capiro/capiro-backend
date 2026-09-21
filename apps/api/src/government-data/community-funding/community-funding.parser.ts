@@ -1,4 +1,5 @@
 import type { ExtractedFundingRow, FundingCandidate, ParseResult } from './community-funding.types.js';
+import { normalizeCommunityFundingGeography } from './community-funding.geography.js';
 
 export const US_STATE_CODES = new Set('AL AK AS AZ AR CA CO CT DE DC FL GA GU HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND MP OH OK OR PA PR RI SC SD TN TX UT VT VA VI WA WV WI WY'.split(' '));
 const clean = (v: string) => v.replace(/\s+/g, ' ').replace(/\s+([.,])/g, '$1').trim();
@@ -66,8 +67,11 @@ export function parseHouseXlsxRows(rows: Record<string, unknown>[], fiscalYear: 
     const recipient = clean(String(row.Recipient ?? '')), project = clean(String(row['Project Description'] ?? ''));
     const requester = clean(`${row['Member First Name'] ?? ''} ${row['Member Last Name'] ?? ''}`);
     if (!recipient || !project || !requester) { rejected.push({ page: null, row: index + 2, reason: 'missing required text field' }); return; }
-    candidates.push({ chamber: 'house', requestType: 'cpf', fiscalYear, requesterName: requester, requesterState: null,
-      requesterDistrict: clean(String(row.District ?? '')) || null, recipientName: recipient,
+    const rawDistrict = clean(String(row.District ?? '')) || null;
+    const geography = normalizeCommunityFundingGeography({ chamber: 'house', requesterState: null, requesterDistrict: rawDistrict, projectState: null });
+    if (geography.conflictReason) { rejected.push({ page: null, row: index + 2, reason: geography.conflictReason }); return; }
+    candidates.push({ chamber: 'house', requestType: 'cpf', fiscalYear, requesterName: requester, requesterState: geography.state,
+      requesterDistrict: rawDistrict, recipientName: recipient,
       recipientAddress: clean(String(row['Recipient Address'] ?? '')) || null, city: null, state: null, zip: null,
       projectTitle: project, projectDescription: null, requestedAmountUsd: amount, finalAmountUsd: null,
       amountStageRaw: 'amount_requested', appropriationsAccountRaw: null,

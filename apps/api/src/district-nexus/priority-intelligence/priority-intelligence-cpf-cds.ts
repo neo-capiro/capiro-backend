@@ -26,6 +26,7 @@
 
 import type { DistrictNexusChangeSeverity } from './priority-intelligence-change-policy.js';
 import { districtMatchesHouse } from '../../common/district-code.util.js';
+import { normalizeCommunityFundingGeography } from '../../government-data/community-funding/community-funding.geography.js';
 
 export type CommunityFundingChamber = 'house' | 'senate';
 
@@ -125,6 +126,11 @@ export function normalizeCpfCdsDistrict(value: string | null): string | null {
   const text = value.trim().toUpperCase();
   if (!text) return null;
   if (text === 'AL' || text === '00' || text === 'AT LARGE') return '00';
+  const stdd = /^([A-Z]{2})(\d{2}|AL)$/.exec(text);
+  if (stdd) {
+    const n = stdd[2] === 'AL' ? 0 : Number(stdd[2]);
+    return n < 90 ? String(n).padStart(2, '0') : null;
+  }
   if (!/^\d{1,2}$/.test(text)) return null;
   const n = Number(text);
   if (n === 0) return '00';
@@ -147,24 +153,37 @@ export function attributeGeography(
     'chamber' | 'requesterState' | 'requesterDistrict' | 'state'
   >,
 ): CommunityFundingGeographyAttribution {
-  const state = (row.requesterState ?? row.state ?? '').trim().toUpperCase();
+  const normalized = normalizeCommunityFundingGeography({
+    chamber: row.chamber,
+    requesterState: row.requesterState,
+    requesterDistrict: row.requesterDistrict,
+    projectState: row.state,
+  });
+  const state = normalized.state ?? '';
 
   if (row.chamber === 'house') {
-    const district = normalizeCpfCdsDistrict(row.requesterDistrict);
-    if (state.length === 2 && district) {
-      return { basis: 'house_district', state, district };
+    if (normalized.conflictReason) {
+      return { basis: 'unresolved', reason: normalized.conflictReason };
     }
-    if (state.length === 2 && !district) {
+    if (state.length === 2 && normalized.district) {
+      return { basis: 'house_district', state, district: normalized.district };
+    }
+    if (state.length === 2) {
       return { basis: 'unresolved', reason: 'house request without a source-backed district' };
     }
     return { basis: 'unresolved', reason: 'house request without a source-backed state' };
   }
 
-  // Senate: the request is a statewide CDS request. A project district may be
-  // recorded only when the request row itself carries one.
-  const projectDistrict = normalizeCpfCdsDistrict(row.requesterDistrict);
-  if (state.length === 2 && projectDistrict) {
-    return { basis: 'senate_project_district', state, district: projectDistrict };
+  // Senate requests stay statewide unless the row carries the existing strict
+  // numeric project-district form. STDD tokens identify House requester
+  // geography and must not manufacture a Senate project district.
+  const senateProjectDistrict = /^(?:\d{1,2}|AL|AT LARGE)$/i.test(
+    row.requesterDistrict?.trim() ?? '',
+  )
+    ? normalizeCpfCdsDistrict(row.requesterDistrict)
+    : null;
+  if (state.length === 2 && senateProjectDistrict) {
+    return { basis: 'senate_project_district', state, district: senateProjectDistrict };
   }
   if (state.length === 2) {
     return { basis: 'senate_statewide', state };

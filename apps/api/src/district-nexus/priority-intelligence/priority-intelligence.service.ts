@@ -370,32 +370,63 @@ export class DistrictNexusPriorityIntelligenceService {
       };
     }
 
-    // Canonical requests touching this state. Bounded; ordered deterministically.
-    const requestRows = await this.prisma.communityFundingRequest.findMany({
-      where: {
-        OR: [{ requesterState: stateCode }, { state: stateCode }],
-      },
-      orderBy: [{ fiscalYear: 'desc' }, { requesterName: 'asc' }, { id: 'asc' }],
-      take: 400,
-      select: {
-        id: true,
-        chamber: true,
-        fiscalYear: true,
-        requesterName: true,
-        requesterState: true,
-        requesterDistrict: true,
-        recipientName: true,
-        recipientNormalized: true,
-        city: true,
-        state: true,
-        projectTitle: true,
-        requestedAmountUsd: true,
-        finalAmountUsd: true,
-        amountStageRaw: true,
-        appropriationsAccountRaw: true,
-        _count: { select: { sources: true } },
-      },
-    });
+    // Apply geography in the DATABASE before either bounded display slice.
+    // House rows are district-keyed; Senate rows are state-keyed and remain
+    // statewide. Keeping the two queries separate prevents a large statewide
+    // Senate corpus from pushing a matching House request beyond the limit.
+    const sourceStdd = `${stateCode}${districtPadded}`;
+    const districtKeys = [districtPadded, String(Number(districtPadded)), sourceStdd];
+    const select = {
+      id: true,
+      chamber: true,
+      fiscalYear: true,
+      requesterName: true,
+      requesterState: true,
+      requesterDistrict: true,
+      recipientName: true,
+      recipientNormalized: true,
+      city: true,
+      state: true,
+      projectTitle: true,
+      requestedAmountUsd: true,
+      finalAmountUsd: true,
+      amountStageRaw: true,
+      appropriationsAccountRaw: true,
+      _count: { select: { sources: true } },
+    } as const;
+    const orderBy = [
+      { fiscalYear: 'desc' as const },
+      { requesterName: 'asc' as const },
+      { id: 'asc' as const },
+    ];
+    const [houseRows, senateRows] = await Promise.all([
+      this.prisma.communityFundingRequest.findMany({
+        where: {
+          chamber: 'house',
+          requesterDistrict: { in: districtKeys },
+          OR: [
+            { requesterState: stateCode },
+            { state: stateCode },
+            { requesterDistrict: sourceStdd },
+          ],
+        },
+        orderBy,
+        take: 400,
+        select,
+      }),
+      this.prisma.communityFundingRequest.findMany({
+        where: {
+          chamber: 'senate',
+          OR: [{ requesterState: stateCode }, { state: stateCode }],
+        },
+        orderBy,
+        take: 400,
+        select,
+      }),
+    ]);
+    const requestRows = [
+      ...new Map([...houseRows, ...senateRows].map((row) => [row.id, row])).values(),
+    ];
 
     const rows: CommunityFundingRequestRow[] = requestRows.map((r) => ({
       requestId: r.id,
