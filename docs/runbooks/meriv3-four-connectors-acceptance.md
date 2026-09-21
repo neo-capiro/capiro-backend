@@ -53,15 +53,15 @@ The read-only role may lack IAM policy inspection. A blocked result must remain 
 
 Complete provider console setup using the approved callback. Do not repurpose Google Workspace mail/calendar credentials without verifying the same project's Drive API, preview access and consent configuration.
 
-## Automated checks
-
-### Engagement meeting-prep worker configuration
+## Engagement meeting-prep worker configuration
 
 Inspect the active `capiro-dev-engagement-api` task definition as well as the main API when validating meeting-prep reads. The worker uses managed MCP authentication even though the main API owns the OAuth callback route. It requires `CLIO_MCP_OAUTH_REDIRECT_URI` with the **same provider-registered value as the main API**, matching OAuth state/encryption secret references, and the same intended provider availability flags and user/tenant allowlists. Do not derive an alternative callback from the worker's host.
 
 Run `python3 scripts/inspect-meri-connectors.py --service capiro-dev-engagement-api --output-file meri-engagement-connector-deployment.json` to preserve the worker's inspection separately. `missingManagedOAuthConfiguration` must be empty for managed reads to work. The report shows allowlist presence without publishing its members; compare the actual intended scope separately.
 
 On September 20, 2026, the live worker had the secrets and monday allowlists but lacked this callback setting. `MeriMcpOAuthService.isConfigured()` returned false, so authenticated schema discovery exposed no tools and prep reported monday unavailable. Engagement task revision 113 added the callback already in API revision 407, preserving the image and all other settings; rollback was revision 112. Future task-definition replacements must preserve these settings. A successful explicit-board prep then retrieved six actual monday items/subitems with citations. This is scoped meeting-prep verification, not acceptance of every provider or a public connector rollout.
+
+## Automated checks
 
 The meri-connectors-verify workflow runs focused API/OAuth, orchestrator and frontend tests, then API/web/orchestrator typechecks and builds. It also checks formatting. Fix failures and record the final tested commit and run URL before release.
 
