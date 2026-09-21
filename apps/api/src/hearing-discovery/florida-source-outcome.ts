@@ -36,6 +36,8 @@ export function floridaDiscoveryRunCounts(
     updated: number;
     unchanged: number;
     issues: readonly string[];
+    session?: string;
+    availability?: 'available' | 'unavailable';
   }>,
   archive: {
     inserted: number;
@@ -48,12 +50,21 @@ export function floridaDiscoveryRunCounts(
 ) {
   const sourceErrors = results.reduce((total, result) => total + result.issues.length, 0);
   const errors = sourceErrors + archive.errors + archive.issues + archive.ambiguous.length;
+  const unavailableSessions = [
+    ...new Set(
+      results
+        .filter((result) => result.availability === 'unavailable')
+        .map((result) => result.session)
+        .filter((session): session is string => Boolean(session)),
+    ),
+  ];
   return {
     inserted: results.reduce((total, result) => total + result.inserted, 0) + archive.inserted,
     updated: results.reduce((total, result) => total + result.updated, 0) + archive.updated,
     skipped: results.reduce((total, result) => total + result.unchanged, 0) + archive.unchanged,
     errors,
     complete: errors === 0,
+    ...(unavailableSessions.length ? { unavailableSessions } : {}),
     ...(errors
       ? {
           incompleteReason: `${sourceErrors} Florida calendar issue(s), ${archive.errors + archive.issues} archive issue(s), and ${archive.ambiguous.length} ambiguous archive match(es)`,

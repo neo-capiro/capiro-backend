@@ -1141,6 +1141,28 @@ describe('session 53 — tab lifecycle regressions', () => {
     expect(screen.getByTestId('state-committee-profile')).toBeInTheDocument();
   });
 
+  it('Florida hearing detail uses the same Live & Capture room contract as federal', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001')
+        return Promise.resolve({ data: calRow({
+          geographicJurisdiction: 'FL', legislativeSession: '2026',
+          stateCommitteeId: 'official-criminal-justice', committeeName: 'Criminal Justice',
+          committeeSystemCode: null, capture: null,
+          streamAvailability: 'live_only', coverageStatus: 'stream_ready',
+        }) });
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=live-capture');
+    await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
+    expect(screen.getByRole('tab', { name: 'Live & Capture' })).toHaveAttribute('aria-selected', 'true');
+    const panel = screen.getByRole('tabpanel', { name: 'Live and capture panel' });
+    expect(within(panel).getByRole('heading', { name: 'Live & Capture' })).toBeInTheDocument();
+    expect(within(panel).getByText('No automatic capture requested')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Follow' })).toBeInTheDocument();
+    expect(within(panel).getByText(/No capture mode is available/)).toBeInTheDocument();
+  });
+
   it('Florida hearing detail accepts a state committee profile as its safe Back target', async () => {
     const returnTo = '/directory/state-committees/official-criminal-justice';
     const { location } = renderRoutes(MemoryRouter, '', [

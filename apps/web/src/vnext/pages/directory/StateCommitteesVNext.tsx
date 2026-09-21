@@ -4,10 +4,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { useApiScope } from '../../../lib/use-api-scope.js';
 import { safeOfficialHttpUrl } from '../legiwatch/lib/canonical-hearings.js';
-import {
-  STATE_CALENDAR_FEATURE,
-  useIntelFeatureEnabled,
-} from '../../../lib/intel-feature-flags.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
@@ -135,6 +131,25 @@ type CommitteeDirectoryProfile = {
     sha256: string;
     asOfDate: string;
     pages: number[];
+  }>;
+};
+
+type FloridaDirectoryResources = {
+  jurisdiction: 'FL';
+  legislativeSession: string;
+  sources: Record<'house' | 'senate', { document: string; sha256: string; asOfDate: string }>;
+  officeDirectoryPages: Array<{
+    chamber: 'house' | 'senate';
+    pageNumber: number;
+    lines: string[];
+    phones: string[];
+    emails: string[];
+    source: { document: string; sha256: string; asOfDate: string; textSha256: string };
+  }>;
+  meetingRooms: Array<{
+    room: string;
+    description: string;
+    source: { document: string; sha256: string; asOfDate: string };
   }>;
 };
 
@@ -656,13 +671,127 @@ export function StateCommitteeProfile({ detail }: { detail: StateCommitteeDetail
   );
 }
 
+function FloridaDirectoryResourcesPanel() {
+  const api = useApi();
+  const actor = useApiScope();
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState('');
+  const resources = useQuery({
+    queryKey: ['state-directory-resources', actor, 'FL'],
+    enabled: expanded,
+    retry: false,
+    queryFn: async () =>
+      (
+        await api.get<FloridaDirectoryResources>(
+          '/api/legiwatch/live-hearings/state-directory/florida',
+        )
+      ).data,
+  });
+  const pages = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return resources.data?.officeDirectoryPages ?? [];
+    return (resources.data?.officeDirectoryPages ?? []).filter((page) =>
+      [page.chamber, String(page.pageNumber), ...page.lines, ...page.phones, ...page.emails]
+        .join(' ')
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [query, resources.data]);
+
+  return (
+    <ProfileCard title="Florida chamber directory">
+      <p className="capiro-dirprofile__line">
+        Reviewed House and Senate directory excerpts supplement the linked member and committee
+        profiles. Entries remain source excerpts where the PDFs do not publish stable person IDs.
+      </p>
+      <CapiroButton
+        size="compact"
+        variant="secondary"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        {expanded ? 'Hide chamber reference' : 'Browse chamber offices and meeting rooms'}
+      </CapiroButton>
+
+      {expanded && resources.isPending ? <p role="status">Loading chamber directory…</p> : null}
+      {expanded && resources.isError ? (
+        <ProfileErrorState
+          title="Chamber directory unavailable"
+          description="The reviewed Florida directory snapshot could not be loaded."
+        />
+      ) : null}
+      {expanded && resources.data ? (
+        <div data-testid="florida-chamber-directory">
+          <p className="capiro-dirprofile__meta">
+            House: {resources.data.sources.house.document} · as of{' '}
+            {resources.data.sources.house.asOfDate} · Senate:{' '}
+            {resources.data.sources.senate.document} · as of{' '}
+            {resources.data.sources.senate.asOfDate}
+          </p>
+
+          <h2 className="capiro-dirpage__row-title">
+            Senate meeting rooms ({resources.data.meetingRooms.length})
+          </h2>
+          <div className="capiro-dirpage__rows">
+            {resources.data.meetingRooms.map((room) => (
+              <div className="capiro-dirpage__row" key={`${room.room}-${room.description}`}>
+                <p className="capiro-dirpage__row-title">{room.room}</p>
+                <p className="capiro-dirprofile__meta">{room.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="capiro-dirpage__search">
+            <input
+              type="search"
+              className="capiro-dirpage__search-input"
+              aria-label="Search chamber directory excerpts"
+              placeholder="Search office, staff, phone or email"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {query ? (
+              <CapiroButton size="compact" variant="quiet" onClick={() => setQuery('')}>
+                Clear
+              </CapiroButton>
+            ) : null}
+          </div>
+          <p className="capiro-dirprofile__meta">
+            {pages.length} of {resources.data.officeDirectoryPages.length} source pages
+          </p>
+          <div className="capiro-dirpage__rows">
+            {pages.map((page) => (
+              <details
+                className="capiro-dirpage__row"
+                key={`${page.chamber}-${page.pageNumber}-${page.source.textSha256}`}
+              >
+                <summary className="capiro-dirpage__row-title">
+                  {chamberLabel(page.chamber)} directory · page {page.pageNumber}
+                </summary>
+                <p className="capiro-dirprofile__meta">{page.lines.join(' · ')}</p>
+                {page.phones.length ? (
+                  <p className="capiro-dirprofile__meta">Phones: {page.phones.join(' · ')}</p>
+                ) : null}
+                {page.emails.length ? (
+                  <p className="capiro-dirprofile__meta">Emails: {page.emails.join(' · ')}</p>
+                ) : null}
+              </details>
+            ))}
+          </div>
+          {!pages.length ? (
+            <CapiroEmptyState title="No chamber directory excerpts match this search" />
+          ) : null}
+        </div>
+      ) : null}
+    </ProfileCard>
+  );
+}
+
 export function StateCommitteesVNext({ id }: { id?: string }) {
   const api = useApi();
   const actor = useApiScope();
-  const enabled = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
   const data = useQuery({
-    queryKey: ['state-committees', actor, id, enabled],
-    enabled,
+    queryKey: ['state-committees', actor, id],
     retry: false,
     queryFn: async () =>
       (
@@ -673,12 +802,6 @@ export function StateCommitteesVNext({ id }: { id?: string }) {
   });
   const detail = id && data.data && !Array.isArray(data.data) ? data.data : null;
 
-  if (!enabled)
-    return (
-      <ProfilePage>
-        <CapiroEmptyState title="State committee calendars are not enabled for this workspace." />
-      </ProfilePage>
-    );
   if (data.isPending)
     return (
       <ProfilePage>
@@ -726,6 +849,7 @@ export function StateCommitteesVNext({ id }: { id?: string }) {
           </Link>
         ))}
       </div>
+      <FloridaDirectoryResourcesPanel />
     </DirectoryShell>
   );
 }

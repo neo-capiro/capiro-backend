@@ -199,6 +199,10 @@ export class LiveHearingsController {
   stateBodies(@CurrentTenant() ctx: TenantContext, @Query('session') session?: string) {
     return this.service.stateBodies(ctx, session);
   }
+  @Get('state-directory/florida')
+  floridaDirectoryResources(@CurrentTenant() ctx: TenantContext) {
+    return this.service.floridaDirectoryResources(ctx);
+  }
   @Get('calendar/coverage')
   calendarCoverage(@CurrentTenant() ctx: TenantContext, @Query() query: CalendarQueryDto) {
     return this.service.calendarCoverage(ctx, query);

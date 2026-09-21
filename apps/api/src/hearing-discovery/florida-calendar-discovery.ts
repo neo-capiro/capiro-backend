@@ -18,6 +18,7 @@ import {
   floridaOfficialWatchChamber,
   houseNoticeObservation,
   houseNoticeWatchPairs,
+  senateCommitteePageSession,
   senateCommitteeLinks,
   senateNoticeRefs,
   senateNoticeObservation,
@@ -60,6 +61,23 @@ export type FloridaDiscoveryOptions = {
   from: string;
   to: string;
   session: string;
+  /** Limit a pass to the requested official chamber sources. The recurring
+   *  rollover runner uses this to read shared House/date pages once while
+   *  still reading each session-specific Senate committee directory. */
+  chambers?: ReadonlyArray<'senate' | 'house'>;
+  /** Senate daily/date pages are shared across sessions. Additional-session
+   *  probes disable this so only `/Committees/Show/.../<session>` is read. */
+  includeSenateDaily?: boolean;
+  /** A future session may be official before its committee pages are
+   *  published. A verified fallback becomes an explicit unavailable marker,
+   *  not an error and never a coverage-complete assertion. */
+  optionalSession?: boolean;
+  /** Additional probes share the primary's source-registry row. They retain
+   *  their own coverage row but must not overwrite primary source health. */
+  recordSourceHealth?: boolean;
+  /** Shared across the primary and additional passes so one notice reached by
+   *  both a committee page and the shared daily page is projected once. */
+  seenSenateNoticeIds?: Set<string>;
   dryRun?: boolean;
   delayMs?: number;
   log?: (message: string) => void;
@@ -103,9 +121,12 @@ export async function discoverFloridaCalendar(
     sourceIssues: string[];
     skippedOutsideWindow: number;
     events: string[];
+    session: string;
+    availability: 'available' | 'unavailable';
   }> = [];
   const crosswalkCache = options.probeCache ?? new Map<string, string | null>();
-  for (const chamber of ['senate', 'house'] as const) {
+  const chambers = options.chambers ?? (['senate', 'house'] as const);
+  for (const chamber of chambers) {
     const now = new Date(),
       issues: string[] = [],
       sourceIssues: string[] = [],
@@ -121,6 +142,7 @@ export async function discoverFloridaCalendar(
       updated = 0,
       unchanged = 0,
       skippedOutsideWindow = 0;
+    let availability: 'available' | 'unavailable' = 'available';
     const source = repo
       ? await repo.ensureSource({
           committeeSystemCode: null,
@@ -157,6 +179,8 @@ export async function discoverFloridaCalendar(
         sourceIssues: [],
         skippedOutsideWindow: 0,
         events: [],
+        session: options.session,
+        availability,
       });
       continue;
     }
@@ -179,7 +203,7 @@ export async function discoverFloridaCalendar(
     if (source && repo) await repo.markChecked(source.id, now);
     try {
       if (chamber === 'senate') {
-        const seenNotices = new Set<string>();
+        const seenNotices = options.seenSenateNoticeIds ?? new Set<string>();
         const bodies = senateCommitteeLinks(await text(`${FL_SENATE}/Committees`), options.session);
         let consecutiveBodyFailures = 0;
         pages++;
@@ -190,16 +214,37 @@ export async function discoverFloridaCalendar(
         for (const body of bodies) {
           await pause();
           try {
-            const parsed = senateNoticeRefs(await text(body.url), body.code, body.name, options);
-            consecutiveBodyFailures = 0;
+            const html = await text(body.url);
             pages++;
+            const servedSession = senateCommitteePageSession(html);
+            if (servedSession !== options.session) {
+              const message =
+                `${body.url}: requested Senate session ${options.session}, ` +
+                `publisher served ${servedSession ?? 'an unqualified session'}`;
+              if (options.optionalSession) {
+                availability = 'unavailable';
+                sourceIssues.push(message);
+                log(
+                  JSON.stringify({
+                    marker: 'FLORIDA_SESSION_UNAVAILABLE',
+                    requestedSession: options.session,
+                    servedSession,
+                    sourceUrl: body.url,
+                  }),
+                );
+                break;
+              }
+              throw new Error(message);
+            }
+            const parsed = senateNoticeRefs(html, body.code, body.name, options);
+            consecutiveBodyFailures = 0;
             issues.push(...parsed.issues.map((issue) => `${body.code}: ${issue}`));
             const refs = parsed.notices.filter(
               (n) => n.date >= options.from && n.date <= options.to,
             );
-            expected += refs.length;
             for (const ref of refs) {
-              seenNotices.add(ref.id);
+              if (seenNotices.has(ref.id)) continue;
+              expected++;
               await pause();
               try {
                 const pdf = new PDFParse({ data: await fetchSource(ref.sourceUrl) });
@@ -209,8 +254,13 @@ export async function discoverFloridaCalendar(
                 } finally {
                   await pdf.destroy();
                 }
+                const observation = senateNoticeObservation(ref, noticeText, options.session);
+                // Mark only after a qualified observation exists. If one
+                // source path could not read the PDF, the shared daily or
+                // adjacent-session path may make the bounded retry.
+                seenNotices.add(ref.id);
                 pages++;
-                observations.push(senateNoticeObservation(ref, noticeText, options.session));
+                observations.push(observation);
               } catch (e) {
                 sourceFailure(ref.sourceUrl, e);
               }
@@ -232,46 +282,59 @@ export async function discoverFloridaCalendar(
             }
           }
         }
-        for (
-          let day = new Date(`${options.from}T00:00:00Z`);
-          day.toISOString().slice(0, 10) <= options.to;
-          day.setUTCDate(day.getUTCDate() + 1)
-        ) {
-          await pause();
-          const date = day.toISOString().slice(0, 10);
-          try {
-            const daily = senateDailyCalendar(
-              await text(
-                `${FL_SENATE}/Home/${date.slice(5, 7)}-${date.slice(8, 10)}-${date.slice(0, 4)}?ShowSlide=0`,
-              ),
-              date,
-              options.session,
-            );
-            pages++;
-            issues.push(...daily.issues);
-            expected += daily.floors.length + daily.unresolved;
-            observations.push(...daily.floors);
-            for (const ref of daily.notices) {
-              if (seenNotices.has(ref.id)) continue;
-              seenNotices.add(ref.id);
-              expected++;
-              await pause();
-              try {
-                const pdf = new PDFParse({ data: await fetchSource(ref.sourceUrl) });
+        if (options.includeSenateDaily !== false) {
+          for (
+            let day = new Date(`${options.from}T00:00:00Z`);
+            day.toISOString().slice(0, 10) <= options.to;
+            day.setUTCDate(day.getUTCDate() + 1)
+          ) {
+            await pause();
+            const date = day.toISOString().slice(0, 10);
+            try {
+              const daily = senateDailyCalendar(
+                await text(
+                  `${FL_SENATE}/Home/${date.slice(5, 7)}-${date.slice(8, 10)}-${date.slice(0, 4)}?ShowSlide=0`,
+                ),
+                date,
+                // A bounded window may cross Dec/Jan. Regular floor identity
+                // follows the published calendar day, not the worker's primary
+                // committee-session argument.
+                date.slice(0, 4),
+              );
+              pages++;
+              issues.push(...daily.issues);
+              expected += daily.floors.length + daily.unresolved;
+              observations.push(...daily.floors);
+              for (const ref of daily.notices) {
+                if (seenNotices.has(ref.id)) continue;
+                expected++;
+                await pause();
                 try {
-                  observations.push(
-                    senateNoticeObservation(ref, (await pdf.getText()).text, options.session),
-                  );
-                  pages++;
-                } finally {
-                  await pdf.destroy();
+                  const pdf = new PDFParse({ data: await fetchSource(ref.sourceUrl) });
+                  try {
+                    observations.push(
+                      senateNoticeObservation(
+                        ref,
+                        (await pdf.getText()).text,
+                        // If a shared daily page crosses Jan 1 and the notice
+                        // omits an explicit regular-session heading, retain the
+                        // daily page's calendar year rather than the primary
+                        // committee session.
+                        date.slice(0, 4),
+                      ),
+                    );
+                    seenNotices.add(ref.id);
+                    pages++;
+                  } finally {
+                    await pdf.destroy();
+                  }
+                } catch (e) {
+                  sourceFailure(ref.sourceUrl, e);
                 }
-              } catch (e) {
-                sourceFailure(ref.sourceUrl, e);
               }
+            } catch (e) {
+              sourceFailure(`Senate daily calendar ${date}`, e);
             }
-          } catch (e) {
-            sourceFailure(`Senate daily calendar ${date}`, e);
           }
         }
       } else {
@@ -301,7 +364,8 @@ export async function discoverFloridaCalendar(
             const daily = houseDailyCalendar(
               html,
               date.toISOString().slice(0, 10),
-              options.session,
+              // Same Dec/Jan rule as the Senate daily calendar above.
+              date.toISOString().slice(0, 4),
             );
             unresolved += daily.unresolved + daily.floors.length;
             observations.push(...daily.floors);
@@ -438,15 +502,26 @@ export async function discoverFloridaCalendar(
       sourceIssues,
       skippedOutsideWindow,
       events: observations.map((o) => o.officialIdentity),
+      session: options.session,
+      availability,
     };
     results.push(result);
     if (prisma && source && coverage && repo) {
-      const outcome = floridaSourceOutcome({
-        pages,
-        observations: observations.length,
-        issues,
-        sourceIssues,
-      });
+      const outcome =
+        availability === 'unavailable'
+          ? {
+              coverage: 'failed' as const,
+              // The publisher is up; only this not-yet-published session is
+              // unavailable. Keep global source health truthful while the
+              // coverage row and run marker preserve the gap.
+              health: { ok: true, observedEvents: 0, error: null },
+            }
+          : floridaSourceOutcome({
+              pages,
+              observations: observations.length,
+              issues,
+              sourceIssues,
+            });
       await prisma.legislativeCalendarCoverage.update({
         where: { id: coverage.id },
         data: {
@@ -456,7 +531,8 @@ export async function discoverFloridaCalendar(
           details: result as Prisma.InputJsonValue,
         },
       });
-      await repo.recordOutcome(source.id, outcome.health, new Date(), FL_CALENDAR_PARSER);
+      if (options.recordSourceHealth !== false)
+        await repo.recordOutcome(source.id, outcome.health, new Date(), FL_CALENDAR_PARSER);
     }
     log(JSON.stringify(result));
   }
@@ -534,51 +610,20 @@ export async function runFloridaCalendarDiscovery(args: string[]) {
   const to =
     value('to') ??
     new Date(Date.parse(from) + (explicitFrom ? 14 : 21) * 86400000).toISOString().slice(0, 10);
-  const session = value('session') ?? process.env.FL_CALENDAR_SESSION ?? '';
+  const sessions = floridaCalendarSessions(args);
   const dryRun = args.includes('--dry-run');
   if (!dryRun && process.env.FL_CALENDAR_INGEST_ENABLED !== 'true')
     throw new Error('Florida calendar ingestion is disabled');
   const prisma = dryRun ? null : new PrismaClient();
   try {
     const run = async () => {
-      const results = await discoverFloridaCalendar(prisma, {
+      return discoverFloridaCalendarSessions(prisma, {
         from,
         to,
-        session,
+        sessions,
         dryRun,
         log: console.log,
       });
-      // Recurring TFC archive sweep: same window as the chamber pass, bounded,
-      // idempotent — new archive recordings surface as calendar rows and exact
-      // watch candidates without waiting for a noticed meeting. Never crawls
-      // history here; the one-shot florida-archive backfill owns that.
-      let archive = {
-        inserted: 0,
-        updated: 0,
-        unchanged: 0,
-        errors: 0,
-        issues: 0,
-        ambiguous: [] as string[],
-      };
-      if (prisma) {
-        const { backfillFloridaArchive } = await import('./florida-archive-discovery.js');
-        const res = await backfillFloridaArchive(prisma, {
-          session,
-          from,
-          to,
-          delayMs: 400,
-          log: console.log,
-        });
-        archive = {
-          inserted: res.archive.inserted,
-          updated: res.archive.updated,
-          unchanged: res.archive.unchanged,
-          errors: res.archive.errors,
-          issues: res.archive.issues.length,
-          ambiguous: res.archive.ambiguous,
-        };
-      }
-      return floridaDiscoveryRunCounts(results, archive);
     };
     if (prisma)
       await runWithSyncRun(prisma, 'discover-hearings-florida', run, { skipIfRunning: true });
@@ -586,6 +631,148 @@ export async function runFloridaCalendarDiscovery(args: string[]) {
   } finally {
     await prisma?.$disconnect();
   }
+}
+
+type FloridaCalendarSessionRunOptions = {
+  from: string;
+  to: string;
+  sessions: readonly string[];
+  dryRun?: boolean;
+  log?: (message: string) => void;
+};
+
+type FloridaCalendarSessionDependencies = {
+  discover?: typeof discoverFloridaCalendar;
+  archive?: (
+    prisma: PrismaClient,
+    options: {
+      session: string;
+      from: string;
+      to: string;
+      delayMs: number;
+      log?: (message: string) => void;
+    },
+  ) => Promise<{
+    archive: {
+      inserted: number;
+      updated: number;
+      unchanged: number;
+      errors: number;
+      issues: readonly string[];
+      ambiguous: readonly string[];
+    };
+  }>;
+};
+
+/**
+ * Parse the bounded set of official Florida sessions requested by the worker.
+ *
+ * `--session=YYYY` remains supported for one-session repair/backfill commands.
+ * Recurring rollover jobs keep the existing primary `--session=YYYY` and may
+ * add one `--additional-session=YYYY`. The explicit primary remains the owner
+ * of shared daily/House/archive reads; this is never an open-ended crawl.
+ */
+export function floridaCalendarSessions(
+  args: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const value = (key: string) =>
+    args.find((candidate) => candidate.startsWith(`--${key}=`))?.slice(key.length + 3);
+  const primary = (value('session') ?? env.FL_CALENDAR_SESSION ?? '').trim();
+  const additional = (
+    value('additional-session') ??
+    env.FL_CALENDAR_ADDITIONAL_SESSION ??
+    ''
+  ).trim();
+  const sessions = [...new Set([primary, additional].filter(Boolean))];
+  if (
+    !primary ||
+    !sessions.length ||
+    sessions.length > 2 ||
+    sessions.some((session) => !/^\d{4}$/.test(session))
+  )
+    throw new Error('Florida source requires one or two explicit four-digit regular sessions');
+  return sessions;
+}
+
+/**
+ * Execute one bounded recurring Florida window across a session rollover.
+ *
+ * The explicit primary session keeps the established full pass: session-
+ * specific Senate committee pages plus shared Senate daily and House pages.
+ * An optional second session probes Senate committee pages only. House notice
+ * pages self-identify their session, daily floor parsing uses each date's year,
+ * and the TFC archive runs exactly once under the primary session.
+ */
+export async function discoverFloridaCalendarSessions(
+  prisma: PrismaClient | null,
+  options: FloridaCalendarSessionRunOptions,
+  dependencies: FloridaCalendarSessionDependencies = {},
+) {
+  const sessions = [...new Set(options.sessions)];
+  if (
+    !sessions.length ||
+    sessions.length > 2 ||
+    sessions.some((session) => !/^\d{4}$/.test(session))
+  )
+    throw new Error('Florida source requires one or two explicit four-digit regular sessions');
+  const discover = dependencies.discover ?? discoverFloridaCalendar;
+  const primarySession = sessions[0]!;
+  const results: Awaited<ReturnType<typeof discoverFloridaCalendar>> = [];
+  const seenSenateNoticeIds = new Set<string>();
+
+  for (const session of sessions) {
+    const primary = session === primarySession;
+    results.push(
+      ...(await discover(prisma, {
+        from: options.from,
+        to: options.to,
+        session,
+        chambers: primary ? ['senate', 'house'] : ['senate'],
+        includeSenateDaily: primary,
+        optionalSession: !primary,
+        recordSourceHealth: primary,
+        seenSenateNoticeIds,
+        dryRun: options.dryRun,
+        log: options.log,
+      })),
+    );
+  }
+
+  // Recurring TFC archive sweep: same window as the chamber pass, bounded and
+  // idempotent. Run it once under the EXPLICIT PRIMARY session. A future
+  // committee session can be official before TFC publishes that taxonomy;
+  // querying it would fail this otherwise healthy recurring pass, and querying
+  // both could project one multiply-tagged video with conflicting identity.
+  let archive = {
+    inserted: 0,
+    updated: 0,
+    unchanged: 0,
+    errors: 0,
+    issues: 0,
+    ambiguous: [] as readonly string[],
+  };
+  if (prisma) {
+    const backfill =
+      dependencies.archive ??
+      (await import('./florida-archive-discovery.js')).backfillFloridaArchive;
+    const result = await backfill(prisma, {
+      session: primarySession,
+      from: options.from,
+      to: options.to,
+      delayMs: 400,
+      log: options.log,
+    });
+    archive = {
+      inserted: result.archive.inserted,
+      updated: result.archive.updated,
+      unchanged: result.archive.unchanged,
+      errors: result.archive.errors,
+      issues: result.archive.issues.length,
+      ambiguous: result.archive.ambiguous,
+    };
+  }
+  return floridaDiscoveryRunCounts(results, archive);
 }
 
 /**

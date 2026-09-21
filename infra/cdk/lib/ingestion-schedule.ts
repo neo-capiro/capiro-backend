@@ -20,6 +20,20 @@ export interface ScheduledIngestionJob {
   command: string[];
   /** EventBridge cron. Use the 6-field AWS form via the `cron` helper below. */
   cron: { minute: string; hour: string; day?: string; month?: string; weekDay?: string };
+  /**
+   * Fixed EventBridge cadence in minutes. When present this is authoritative
+   * and `cron` is retained only as the human-readable wall-clock equivalent.
+   * This lets the matrix faithfully record out-of-band `rate(...)` rules
+   * without silently changing their scheduling semantics on a CDK deploy.
+   */
+  rateMinutes?: number;
+  /**
+   * Documents a live schedule that is intentionally owned outside this CDK
+   * stack. The construct skips these rows, preventing CloudFormation from
+   * colliding with an existing named EventBridge rule. Import the resource
+   * explicitly before ever removing this marker.
+   */
+  managedOutOfBand?: boolean;
   /** Human note for the rule description. */
   description: string;
   /** Optional environment variables applied only to this scheduled container invocation. */
@@ -334,6 +348,30 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description: 'LegiWatch: Senate central schedule discovery (every 15 min)',
     enabled: false,
+  },
+  {
+    // Record the enabled out-of-band rule under its existing physical name:
+    // `capiro-<env>-legiwatch-florida-calendar`. The deployed rule runs every
+    // 15 minutes (a fixed EventBridge rate, not a quarter-hour cron). Its live
+    // task definition supplies the guard/session environment; repeat those
+    // effective values here so any future explicit CFN import preserves them.
+    id: 'LegiwatchFloridaCalendar',
+    command: [
+      'discover-hearings',
+      '--source=florida',
+      '--session=2026',
+      '--additional-session=2027',
+    ],
+    cron: { minute: '0/15', hour: '*' },
+    rateMinutes: 15,
+    managedOutOfBand: true,
+    tier: 'daily',
+    description: 'LegiWatch Phase 3 bounded official Florida calendar ingestion',
+    environment: {
+      FL_CALENDAR_INGEST_ENABLED: 'true',
+      FL_CALENDAR_SESSION: '2026',
+      FL_CALENDAR_ADDITIONAL_SESSION: '2027',
+    },
   },
   {
     id: 'EnrichCommitteeHearings',

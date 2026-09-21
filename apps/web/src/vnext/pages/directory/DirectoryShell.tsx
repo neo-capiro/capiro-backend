@@ -2,10 +2,6 @@ import type { ReactNode } from 'react';
 import { CapiroTopNavItem } from '../../components/navigation/index.js';
 import { DIRECTORY_TABS } from './directory-routes.js';
 import './directory.css';
-import {
-  STATE_CALENDAR_FEATURE,
-  useIntelFeatureEnabled,
-} from '../../../lib/intel-feature-flags.js';
 
 export interface DirectoryMetric {
   label: string;
@@ -38,7 +34,6 @@ export function DirectoryShell({
   metrics,
   children,
 }: DirectoryShellProps) {
-  const stateCalendar = useIntelFeatureEnabled(STATE_CALENDAR_FEATURE);
   return (
     <>
       <header className="capiro-directory-header">
@@ -64,9 +59,6 @@ export function DirectoryShell({
         {DIRECTORY_TABS.map((tab) => (
           <CapiroTopNavItem key={tab.id} label={tab.label} to={tab.path} />
         ))}
-        {stateCalendar ? (
-          <CapiroTopNavItem label="State Committees" to="/directory/state-committees" />
-        ) : null}
       </nav>
 
       <div className="capiro-directory-body">{children}</div>

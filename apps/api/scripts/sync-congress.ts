@@ -41,6 +41,7 @@ import {
   type CongressSubjectsResponse,
   type NormalizedCongressCommittee,
 } from './lib/congress-classifications.js';
+import { fetchCongressJson as fetchJson } from './lib/congress-http.js';
 
 dotenvConfig();
 
@@ -241,49 +242,6 @@ function congressContinuationUrl(nextPageUrl: string, initialUrl: string): strin
   url.searchParams.set('api_key', CONGRESS_API_KEY);
   url.searchParams.set('format', 'json');
   return url.toString();
-}
-
-function redactKey(url: string): string {
-  return url.replace(/(api_key=)[^&]+/i, '$1[REDACTED]');
-}
-
-async function fetchJson<T>(url: string): Promise<T | null> {
-  const MAX_RETRIES = 5;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    let resp: Response;
-    try {
-      resp = await fetch(url);
-    } catch (err) {
-      // Transient network error: back off and retry, then give up.
-      if (attempt < MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
-        continue;
-      }
-      throw new Error(`GET ${redactKey(url)}: ${err instanceof Error ? err.message : err}`);
-    }
-
-    if (resp.status === 404) return null;
-
-    // Congress.gov throttles at ~5k req/hour, so a full (uncapped) backfill WILL
-    // hit 429. Honor Retry-After when present, else exponential backoff, so a long
-    // run self-paces and recovers instead of aborting the page loop.
-    if ((resp.status === 429 || resp.status >= 500) && attempt < MAX_RETRIES) {
-      const retryAfter = Number(resp.headers.get('retry-after'));
-      const waitMs =
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : 1000 * 2 ** (attempt - 1);
-      console.warn(
-        `[congress-sync] ${resp.status} on ${redactKey(url)} — retry ${attempt}/${MAX_RETRIES} in ${waitMs}ms`,
-      );
-      await new Promise((r) => setTimeout(r, waitMs));
-      continue;
-    }
-
-    if (!resp.ok) throw new Error(`GET ${redactKey(url)}: ${resp.status} ${resp.statusText}`);
-    return (await resp.json()) as T;
-  }
-  throw new Error(`GET ${redactKey(url)}: exhausted ${MAX_RETRIES} retries`);
 }
 
 function safeDate(v: string | null | undefined): Date | null {

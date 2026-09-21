@@ -5,8 +5,17 @@ describe('LiveHearingsController contract', () => {
 
   function fixture() {
     const service = {
-      calendar: jest.fn().mockResolvedValue({ rows: [{ id: 'h-1' }], total: 1, page: 1, pageSize: 25 }),
-      live: jest.fn().mockResolvedValue({ rows: [{ id: 'h-live' }], asOf: '2026-08-21T00:00:00.000Z' }),
+      calendar: jest
+        .fn()
+        .mockResolvedValue({ rows: [{ id: 'h-1' }], total: 1, page: 1, pageSize: 25 }),
+      live: jest
+        .fn()
+        .mockResolvedValue({ rows: [{ id: 'h-live' }], asOf: '2026-08-21T00:00:00.000Z' }),
+      floridaDirectoryResources: jest.fn().mockResolvedValue({
+        jurisdiction: 'FL',
+        officeDirectoryPages: [{ chamber: 'house', pageNumber: 7 }],
+        meetingRooms: [{ room: '110 Senate Building' }],
+      }),
       event: jest.fn(),
       updates: jest.fn(),
       coverage: jest.fn(),
@@ -76,6 +85,17 @@ describe('LiveHearingsController contract', () => {
 
     expect(committees.committees).toHaveBeenCalledWith(ctx);
     expect(result.rows).toEqual([{ systemCode: 'hsag00' }]);
+  });
+
+  it('returns the reviewed Florida chamber-directory projection through the authenticated service', async () => {
+    const { controller, service } = fixture();
+
+    await expect(controller.floridaDirectoryResources(ctx)).resolves.toEqual({
+      jurisdiction: 'FL',
+      officeDirectoryPages: [{ chamber: 'house', pageNumber: 7 }],
+      meetingRooms: [{ room: '110 Senate Building' }],
+    });
+    expect(service.floridaDirectoryResources).toHaveBeenCalledWith(ctx);
   });
 
   it('forwards the whitelisted sort direction to the calendar service', async () => {
