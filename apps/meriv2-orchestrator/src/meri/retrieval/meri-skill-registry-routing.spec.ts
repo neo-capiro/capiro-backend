@@ -100,6 +100,9 @@ describe('Meri Quick Action routing contract', () => {
 
     expect(plan.subjectScope).toBe('client');
     expect(plan.recipeTool).toBe(definition.canonicalRecipe);
+    expect(prompt).toContain('monday.com');
+    expect(prompt).toContain('explicitly mapped to this client');
+    expect(definition.semanticDomains).toContain('monday');
   });
 
   test('Funding Opportunity Match routes to the four-tool opportunity fan-out', () => {

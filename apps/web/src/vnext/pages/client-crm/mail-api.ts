@@ -137,7 +137,8 @@ export async function listMailThreads(
 }
 
 export async function getMailThread(api: AxiosInstance, threadId: string): Promise<MailThread> {
-  return (await api.get<MailThread>(`/api/engagement/mail-threads/${encodeURIComponent(threadId)}`)).data;
+  return (await api.get<MailThread>(`/api/engagement/mail-threads/${encodeURIComponent(threadId)}`))
+    .data;
 }
 
 export async function getEmailSignature(api: AxiosInstance): Promise<EmailSignature> {
@@ -148,7 +149,11 @@ export async function sendSingleMail(
   api: AxiosInstance,
   input: SendSingleMailInput,
 ): Promise<SendSingleMailResult> {
-  return (await api.post<SendSingleMailResult>('/api/engagement/mail/send', input)).data;
+  const result = (await api.post<SendSingleMailResult>('/api/engagement/mail/send', input)).data;
+  if (!result || result.ok !== true || !result.messageId || !result.threadId) {
+    throw new Error('The mail provider did not confirm that this email was sent.');
+  }
+  return result;
 }
 
 export async function rewriteEmail(

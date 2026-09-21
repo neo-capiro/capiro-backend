@@ -340,6 +340,7 @@ export class ContextResolverService {
 
     return {
       queryClass: directive.queryClass,
+      ...(directive.mondayBoardContext ? { mondayBoardContext: directive.mondayBoardContext } : {}),
       ...(directive.meetingBriefing ? { meetingBriefing: directive.meetingBriefing } : {}),
       ...(directive.deadlineAt ? { deadlineAt: directive.deadlineAt } : {}),
       requestedDomains,

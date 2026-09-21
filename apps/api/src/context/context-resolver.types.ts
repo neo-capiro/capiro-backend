@@ -37,8 +37,7 @@ export const CONTEXT_RESOLVER_ADDITIONAL_SURFACES = [
 ] as const;
 
 export type ContextSurface =
-  | CompilerContextSurface
-  | (typeof CONTEXT_RESOLVER_ADDITIONAL_SURFACES)[number];
+  CompilerContextSurface | (typeof CONTEXT_RESOLVER_ADDITIONAL_SURFACES)[number];
 
 /**
  * The proposed authorization envelope supplied to the resolver. It never
@@ -71,6 +70,7 @@ export interface ContextCurrentObject {
  * this request; ContextPacket V2 and token compilation remain Phase 17 work.
  */
 export interface ContextRetrievalDirective {
+  mondayBoardContext?: RetrievalRequest['mondayBoardContext'];
   meetingBriefing?: RetrievalRequest['meetingBriefing'];
   deadlineAt?: number;
   queryClass: RetrievalQueryClass;

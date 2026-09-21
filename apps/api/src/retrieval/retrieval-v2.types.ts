@@ -67,17 +67,10 @@ export interface ExactLexicalQuery {
 }
 
 export type RetrievalSourceStatus =
-  | 'healthy'
-  | 'degraded'
-  | 'unavailable'
-  | 'unauthorized'
-  | 'unsupported'
-  | 'error';
+  'healthy' | 'degraded' | 'unavailable' | 'unauthorized' | 'unsupported' | 'error';
 
 export type RetrievalAuthority =
-  | 'tenant_system_of_record'
-  | 'public_system_of_record'
-  | 'knowledge_plane';
+  'tenant_system_of_record' | 'public_system_of_record' | 'knowledge_plane';
 
 export type RetrievalTenantScope = 'tenant_private' | 'global_public' | 'mixed';
 
@@ -124,6 +117,8 @@ export interface RetrievalCallerContext {
 }
 
 export interface RetrievalRequest {
+  /** Request text used only to extract explicit monday board selectors, never an authorization grant or a native-source search filter. */
+  mondayBoardContext?: string;
   /** Server-authored meeting-preparation policy, not a client-provided authorization grant. */
   meetingBriefing?: {
     meetingId: string;
@@ -297,11 +292,7 @@ export const RETRIEVAL_SCORING_SIGNALS = [
 export type RetrievalScoringSignal = (typeof RETRIEVAL_SCORING_SIGNALS)[number];
 
 export type RetrievalScoringSignalClass =
-  | 'relevance'
-  | 'confidence'
-  | 'authority'
-  | 'freshness'
-  | 'validity';
+  'relevance' | 'confidence' | 'authority' | 'freshness' | 'validity';
 
 export interface RetrievalScoringComponent {
   signal: RetrievalScoringSignal;

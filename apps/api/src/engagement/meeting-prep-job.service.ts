@@ -22,6 +22,7 @@ import {
   type MeetingPrepDepth,
 } from './meeting-prep-policy.js';
 import { withMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import { mondayBoardScopeFromQuery } from '../retrieval/adapters/monday-board-scope.js';
 
 interface JobInput {
   additionalContext?: string;
@@ -57,17 +58,27 @@ export class MeetingPrepJobService {
       throw new BadRequestException('Invalid preparation depth.');
     if ((input.additionalContext?.length ?? 0) > 4_000)
       throw new BadRequestException('Preparation focus is too long.');
+    const mondayScope = mondayBoardScopeFromQuery(input.additionalContext);
+    if (mondayScope.invalid)
+      throw new BadRequestException('Supply valid Monday.com board IDs with at most 24 digits.');
+    if (mondayScope.boardIds.length > 20)
+      throw new BadRequestException('Supply up to 20 Monday.com board IDs.');
     const requestKey = input.requestKey ?? randomUUID();
     if (!/^[\w-]{8,128}$/.test(requestKey)) throw new BadRequestException('Invalid request key.');
     const requestHash = digest({
       meetingId,
       depth,
       additionalContext: input.additionalContext?.trim() ?? '',
+      mondayBoardIds: mondayScope.boardIds,
       policy: POLICY.version,
     });
     const create = () =>
       this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
-        const { assignment } = await this.authorize(tx, ctx, meetingId);
+        const { assignment, clientId } = await this.authorize(tx, ctx, meetingId);
+        if (mondayScope.boardIds.length && !clientId)
+          throw new BadRequestException(
+            'Assign this meeting to a client before using a Monday.com board.',
+          );
         const existing = await tx.meetingPrepJob.findUnique({
           where: {
             tenantId_userId_requestKey: { tenantId: ctx.tenantId, userId: ctx.userId, requestKey },

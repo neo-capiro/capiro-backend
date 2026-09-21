@@ -2,6 +2,7 @@ import {
   MEETING_CLIENT_CONTEXT_DOMAINS,
   MeetingContextPlaneService,
 } from './meeting-context-plane.service.js';
+import { withMeetingPrepExecution } from './meeting-prep-job-runtime.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -120,19 +121,22 @@ function context(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function harness(options: {
-  authorized?: boolean;
-  storedClientId?: string | null;
-  derivedClientId?: string | null;
-  isInternal?: boolean;
-  manuallyCleared?: boolean;
-  packetOverrides?: Record<string, unknown>;
-  contextOverrides?: Record<string, unknown>;
-} = {}) {
+function harness(
+  options: {
+    authorized?: boolean;
+    storedClientId?: string | null;
+    derivedClientId?: string | null;
+    isInternal?: boolean;
+    manuallyCleared?: boolean;
+    packetOverrides?: Record<string, unknown>;
+    contextOverrides?: Record<string, unknown>;
+  } = {},
+) {
   const storedClientId = options.storedClientId === undefined ? CLIENT : options.storedClientId;
   const isInternal = options.isInternal === true;
   const derivedClientId = options.derivedClientId === undefined ? null : options.derivedClientId;
-  const effectiveClientId = isInternal || options.manuallyCleared ? null : storedClientId ?? derivedClientId;
+  const effectiveClientId =
+    isInternal || options.manuallyCleared ? null : (storedClientId ?? derivedClientId);
   const tx = {
     meeting: {
       findFirst: jest.fn().mockResolvedValue({
@@ -156,12 +160,12 @@ function harness(options: {
       findFirst: jest.fn().mockResolvedValue({ user: { email: 'neo@capiro.ai' } }),
     },
     client: {
-      findMany: jest.fn().mockResolvedValue(
-        options.authorized === false || !effectiveClientId ? [] : [{ id: effectiveClientId }],
-      ),
-      findFirst: jest
+      findMany: jest
         .fn()
-        .mockResolvedValue(effectiveClientId ? { name: 'Acme Corp' } : null),
+        .mockResolvedValue(
+          options.authorized === false || !effectiveClientId ? [] : [{ id: effectiveClientId }],
+        ),
+      findFirst: jest.fn().mockResolvedValue(effectiveClientId ? { name: 'Acme Corp' } : null),
     },
     integrationConnection: {
       findMany: jest.fn().mockResolvedValue([{ id: MAILBOX }]),
@@ -205,6 +209,41 @@ function harness(options: {
 const ctx = { tenantId: TENANT, userId: USER } as never;
 
 describe('MeetingContextPlaneService Phase 24', () => {
+  test('passes an explicit board into durable prep without filtering native client history', async () => {
+    const h = harness();
+    await withMeetingPrepExecution(
+      {
+        jobId: 'job',
+        depth: 'standard',
+        deadlineAt: Date.now() + 60 * 60_000,
+        signal: new AbortController().signal,
+        checkpoint: jest.fn(),
+        loadCheckpoint: () => undefined,
+        commit: jest.fn(),
+      },
+      () =>
+        h.service.resolve(ctx, {
+          meetingId: MEETING,
+          mode: 'prep',
+          userInstruction: 'Use monday board 18431248553',
+        }),
+    );
+    expect(h.gateway.requestContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolverRequest: expect.objectContaining({
+          clientId: CLIENT,
+          actorUserId: USER,
+          tenantId: TENANT,
+          retrieval: expect.objectContaining({
+            query: null,
+            mondayBoardContext: 'Use monday board 18431248553',
+            requestedDomains: expect.arrayContaining(['monday', 'mail', 'meetings', 'tasks']),
+          }),
+        }),
+      }),
+    );
+  });
+
   test('prep crosses the shared gateway with server-owned scope, a client-side background lookup and record-only evidence', async () => {
     const h = harness();
     const result = await h.service.resolve(ctx, {
@@ -217,7 +256,9 @@ describe('MeetingContextPlaneService Phase 24', () => {
     expect(result.coverage.complete).toBe(true);
     expect(result.modelContextBlock).toContain('MODE: prep');
     expect(result.modelContextBlock).toContain('Prior follow-up');
-    expect(result.modelContextBlock).toContain('The office asked for a concise implementation timeline.');
+    expect(result.modelContextBlock).toContain(
+      'The office asked for a concise implementation timeline.',
+    );
     expect(result.modelContextBlock).not.toContain('PRIVATE FULL MAIL BODY MUST NOT PROPAGATE');
     // Steering and harvested memory frame the prompt but are never citable.
     expect(result.modelContextBlock).toContain('Protect the verified client objective');
@@ -226,7 +267,9 @@ describe('MeetingContextPlaneService Phase 24', () => {
       'mail:mail-1',
       'meetings:meeting-old',
     ]);
-    expect(JSON.stringify(result.evidenceSources)).not.toContain('PRIVATE FULL MAIL BODY MUST NOT PROPAGATE');
+    expect(JSON.stringify(result.evidenceSources)).not.toContain(
+      'PRIVATE FULL MAIL BODY MUST NOT PROPAGATE',
+    );
     expect(h.associations.associate).not.toHaveBeenCalled();
     expect(h.gateway.requestContext).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -362,47 +405,55 @@ describe('MeetingContextPlaneService Phase 24', () => {
     expect(result.modelContextBlock).toContain('complete=false');
   });
 
-  test.each(['internal', 'manually cleared'])('an explicitly %s meeting uses general scope and does not expose client layers or mailbox history', async (mode) => {
-    const h = harness({ storedClientId: null, isInternal: mode === 'internal', manuallyCleared: mode === 'manually cleared', derivedClientId: CLIENT });
-    h.gateway.requestContext.mockResolvedValue({
-      kind: 'governed_packet',
-      packet: packet({ clientId: null }),
-      context: {
-        resolution: {
-          ...context().resolution,
-          subjectScope: { kind: 'general', source: 'explicit', clientIds: [] },
-          uiContext: { currentObject: { type: 'meeting', id: MEETING } },
-        },
-        retrieval: {
-          records: [],
-          coverage: {
-            requestedDomains: ['institutional_knowledge'],
-            searchedDomains: ['institutional_knowledge'],
-            requestedEntityCount: 0,
-            searchedEntityCount: 0,
-            recordsEvaluated: 0,
-            recordsReturned: 0,
-            paginationComplete: true,
-            unavailableSources: [],
-            sources: [source('institutional_knowledge', { total: 0, returned: 0 })],
-            complete: true,
-            stopReason: 'complete',
+  test.each(['internal', 'manually cleared'])(
+    'an explicitly %s meeting uses general scope and does not expose client layers or mailbox history',
+    async (mode) => {
+      const h = harness({
+        storedClientId: null,
+        isInternal: mode === 'internal',
+        manuallyCleared: mode === 'manually cleared',
+        derivedClientId: CLIENT,
+      });
+      h.gateway.requestContext.mockResolvedValue({
+        kind: 'governed_packet',
+        packet: packet({ clientId: null }),
+        context: {
+          resolution: {
+            ...context().resolution,
+            subjectScope: { kind: 'general', source: 'explicit', clientIds: [] },
+            uiContext: { currentObject: { type: 'meeting', id: MEETING } },
           },
-          observability: {},
+          retrieval: {
+            records: [],
+            coverage: {
+              requestedDomains: ['institutional_knowledge'],
+              searchedDomains: ['institutional_knowledge'],
+              requestedEntityCount: 0,
+              searchedEntityCount: 0,
+              recordsEvaluated: 0,
+              recordsReturned: 0,
+              paginationComplete: true,
+              unavailableSources: [],
+              sources: [source('institutional_knowledge', { total: 0, returned: 0 })],
+              complete: true,
+              stopReason: 'complete',
+            },
+            observability: {},
+          },
         },
-      },
-    });
+      });
 
-    await h.service.resolve(ctx, { meetingId: MEETING, mode: 'prep' });
-    expect(h.associations.associate).not.toHaveBeenCalled();
-    const call = h.gateway.requestContext.mock.calls[0]![0] as {
-      resolverRequest: { subjectScope: string; retrieval: { requestedDomains: string[] } };
-      contextRequest: { clientId?: string; layers: string[] };
-    };
-    expect(call.resolverRequest.subjectScope).toBe('general');
-    expect(call.resolverRequest.retrieval.requestedDomains).toEqual(['institutional_knowledge']);
-    expect(call.contextRequest).not.toHaveProperty('clientId');
-    expect(call.contextRequest.layers).not.toContain('client-steering');
-    expect(call.contextRequest.layers).not.toContain('client-people');
-  });
+      await h.service.resolve(ctx, { meetingId: MEETING, mode: 'prep' });
+      expect(h.associations.associate).not.toHaveBeenCalled();
+      const call = h.gateway.requestContext.mock.calls[0]![0] as {
+        resolverRequest: { subjectScope: string; retrieval: { requestedDomains: string[] } };
+        contextRequest: { clientId?: string; layers: string[] };
+      };
+      expect(call.resolverRequest.subjectScope).toBe('general');
+      expect(call.resolverRequest.retrieval.requestedDomains).toEqual(['institutional_knowledge']);
+      expect(call.contextRequest).not.toHaveProperty('clientId');
+      expect(call.contextRequest.layers).not.toContain('client-steering');
+      expect(call.contextRequest.layers).not.toContain('client-people');
+    },
+  );
 });

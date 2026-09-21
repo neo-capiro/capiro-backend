@@ -1,4 +1,5 @@
 import { MeetingPrepJobService } from './meeting-prep-job.service.js';
+import { mondayBoardScopeFromQuery } from '../retrieval/adapters/monday-board-scope.js';
 
 describe('durable meeting prep jobs', () => {
   const ctx = {
@@ -14,19 +15,29 @@ describe('durable meeting prep jobs', () => {
   afterEach(() => {
     delete process.env.MEETING_PREP_COMPREHENSIVE_ENABLED;
   });
+  test('extracts explicit monday board scope without treating unrelated task numbers as boards', () => {
+    expect(
+      mondayBoardScopeFromQuery(
+        'Use https://firm.monday.com/boards/18431248553/pulses/13088410202 and ORBIT-4729.',
+      ),
+    ).toEqual({ explicit: true, invalid: false, boardIds: ['18431248553'] });
+    expect(mondayBoardScopeFromQuery('Focus on FY27 task 13088410202.')).toEqual({
+      explicit: false,
+      invalid: false,
+      boardIds: [],
+    });
+  });
   function harness() {
     let row: Record<string, unknown> | null = null;
     const tx = {
       tenantMembership: { findFirst: jest.fn().mockResolvedValue({ role: 'standard_user' }) },
       meeting: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValue({
-            clientId: null,
-            isInternal: true,
-            associationSignals: {},
-            status: 'confirmed',
-          }),
+        findFirst: jest.fn().mockResolvedValue({
+          clientId: null,
+          isInternal: true,
+          associationSignals: {},
+          status: 'confirmed',
+        }),
       },
       meetingPrepJob: {
         findUnique: jest.fn(async () => row),

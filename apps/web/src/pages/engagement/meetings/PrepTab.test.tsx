@@ -16,6 +16,10 @@ import type { Meeting, MeetingPrep } from './meetings-types.js';
 const apiGetMock = vi.fn();
 const apiPostMock = vi.fn();
 const apiPatchMock = vi.fn();
+const authState = vi.hoisted(() => ({ userId: 'clerk-u1', orgId: 'org-1' }));
+const impersonationState = vi.hoisted(() => ({ actAsTenantSlug: null as string | null }));
+vi.mock('@clerk/clerk-react', () => ({ useAuth: () => authState }));
+vi.mock('../../../state/impersonation.js', () => ({ useImpersonation: () => impersonationState }));
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({
     get: apiGetMock,
@@ -108,6 +112,9 @@ function buildTreeWithChrome(qc: QueryClient, props: Parameters<typeof PrepTab>[
 
 describe('PrepTab', () => {
   beforeEach(() => {
+    authState.userId = 'clerk-u1';
+    authState.orgId = 'org-1';
+    impersonationState.actAsTenantSlug = null;
     apiGetMock.mockReset();
     apiGetMock.mockResolvedValue({ data: null });
     apiPostMock.mockReset();
@@ -115,18 +122,64 @@ describe('PrepTab', () => {
   });
 
   test('shows restored job progress without hiding the previous briefing', async () => {
-    apiGetMock.mockImplementation(async (url: string) => ({ data: url.endsWith('/prep-jobs/latest') ? { jobId: 'job1', meetingId: 'm1', status: 'running', stage: 'reviewing', depth: 'deep', prepId: null, errorCode: null, deadlineAt: '2026-09-12T18:00:00Z' } : {} }));
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data: url.endsWith('/prep-jobs/latest')
+        ? {
+            jobId: 'job1',
+            meetingId: 'm1',
+            status: 'running',
+            stage: 'reviewing',
+            depth: 'deep',
+            prepId: null,
+            errorCode: null,
+            deadlineAt: '2026-09-12T18:00:00Z',
+          }
+        : {},
+    }));
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(buildTree(qc, { meeting: makeMeeting({ preps: [makePrep()] }), aiConfigured: true }));
-    await waitFor(() => expect(screen.getByText(/Preparing your briefing: reviewing/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Preparing your briefing: reviewing/)).toBeInTheDocument(),
+    );
     expect(screen.getByText('A short prep summary.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel preparation' })).toBeInTheDocument();
     qc.clear();
   });
 
   test('renders seven named sections and explicit evidence gaps', () => {
-    const sections = Object.fromEntries(['recentDevelopments', 'importantEmails', 'previousConversations', 'decisions', 'unresolvedIssues', 'upcomingDevelopments', 'commitments'].map(key => [key, { status: 'source_gap', items: [], gap: 'Source unavailable for ' + key }]));
-    const prep = makePrep({ generatedFrom: { briefing: { version: 2, takeaways: [{ text: 'Important client context', factIds: [] }], sections, facts: [], limitations: [], coverage: { extractedBatches: 1, totalBatches: 1, factCount: 12, reviewedFactCount: 12, selectedFactCount: 12, partial: true } } } });
+    const sections = Object.fromEntries(
+      [
+        'recentDevelopments',
+        'importantEmails',
+        'previousConversations',
+        'decisions',
+        'unresolvedIssues',
+        'upcomingDevelopments',
+        'commitments',
+      ].map((key) => [
+        key,
+        { status: 'source_gap', items: [], gap: 'Source unavailable for ' + key },
+      ]),
+    );
+    const prep = makePrep({
+      generatedFrom: {
+        briefing: {
+          version: 2,
+          takeaways: [{ text: 'Important client context', factIds: [] }],
+          sections,
+          facts: [],
+          limitations: [],
+          coverage: {
+            extractedBatches: 1,
+            totalBatches: 1,
+            factCount: 12,
+            reviewedFactCount: 12,
+            selectedFactCount: 12,
+            partial: true,
+          },
+        },
+      },
+    });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(buildTree(qc, { meeting: makeMeeting({ preps: [prep] }), aiConfigured: true }));
     expect(screen.getByRole('heading', { name: 'Decisions already made' })).toBeInTheDocument();
@@ -315,7 +368,9 @@ describe('PrepTab', () => {
   // to the user instead of disappearing.
   test('a failed Generate with Meri call surfaces the server error message, not a silent no-op', async () => {
     apiPostMock.mockRejectedValue({
-      response: { data: { message: 'Meeting prep returned incomplete content. Please retry generation.' } },
+      response: {
+        data: { message: 'Meeting prep returned incomplete content. Please retry generation.' },
+      },
     });
     render(
       buildTreeWithChrome(new QueryClient(), {
@@ -335,11 +390,21 @@ describe('PrepTab', () => {
   test('Email PDF renders the prep to an attachment and opens the compose window with teammates', async () => {
     apiPostMock.mockResolvedValue({ data: { id: 'att1', fileName: 'Prep - Budget sync.pdf' } });
     apiGetMock.mockImplementation(async (url: string) => ({
-      data: url.endsWith('/tenant-members')
-        ? [{ id: 'u2', email: 'ryan@capiro.ai', name: 'Ryan Anderson' }]
-        : url.endsWith('/prep-jobs/latest')
-          ? null
-          : {},
+      data:
+        url === '/api/tenant-members'
+          ? [{ id: 'u2', email: 'ryan@capiro.ai', name: 'Ryan Anderson' }]
+          : url === '/api/engagement/integrations'
+            ? [
+                {
+                  id: 'mail-1',
+                  provider: 'microsoft_365',
+                  status: 'connected',
+                  accountEmail: 'neo@capiro.ai',
+                },
+              ]
+            : url.endsWith('/prep-jobs/latest')
+              ? null
+              : {},
     }));
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(buildTree(qc, { meeting: makeMeeting({ preps: [makePrep()] }), aiConfigured: true }));
@@ -350,6 +415,100 @@ describe('PrepTab', () => {
     expect(await screen.findByText('Prep - Budget sync.pdf')).toBeInTheDocument();
     expect(screen.getByText('New email')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '+ Add recipient' })).toBeInTheDocument();
+    expect(apiGetMock).toHaveBeenCalledWith('/api/tenant-members');
+    expect(apiGetMock).not.toHaveBeenCalledWith('/api/users/tenant-members');
     qc.clear();
+  });
+
+  test('opens immediately, preserves the draft through PDF failure, and retries the saved prep', async () => {
+    let rejectPdf!: (error: unknown) => void;
+    apiPostMock.mockImplementation((url: string) =>
+      url.endsWith('/pdf-attachment')
+        ? new Promise((_resolve, reject) => {
+            rejectPdf = reject;
+          })
+        : Promise.resolve({ data: {} }),
+    );
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data:
+        url === '/api/tenant-members'
+          ? []
+          : url === '/api/engagement/integrations'
+            ? [
+                {
+                  id: 'mail-1',
+                  provider: 'microsoft_365',
+                  status: 'connected',
+                  accountEmail: 'neo@capiro.ai',
+                },
+              ]
+            : null,
+    }));
+    render(
+      buildTree(new QueryClient({ defaultOptions: { queries: { retry: false } } }), {
+        meeting: makeMeeting({ preps: [makePrep()] }),
+        aiConfigured: true,
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /email pdf/i }));
+    expect(await screen.findByText('New email')).toBeInTheDocument();
+    expect(screen.getByText(/You can keep drafting while it loads/)).toBeInTheDocument();
+    const editor = screen
+      .getAllByRole('textbox')
+      .find((element) => element.hasAttribute('data-placeholder'))!;
+    fireEvent.input(editor, { target: { innerHTML: '<p>My retained draft.</p>' } });
+    rejectPdf({ response: { data: { message: 'PDF renderer unavailable.' } } });
+    expect(
+      await screen.findByText('PDF renderer unavailable.', { exact: false }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalledTimes(2));
+    expect(apiPostMock).toHaveBeenLastCalledWith('/api/engagement/meeting-preps/p1/pdf-attachment');
+    expect(screen.getByText('My retained draft.')).toBeInTheDocument();
+  });
+
+  test('discards late PDF results and old drafts when the authenticated identity changes', async () => {
+    let resolveOld!: (value: unknown) => void;
+    let resolveNew!: (value: unknown) => void;
+    apiPostMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOld = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveNew = resolve;
+          }),
+      );
+    apiGetMock.mockImplementation(async (url: string) => ({
+      data:
+        url === '/api/tenant-members'
+          ? []
+          : url === '/api/engagement/integrations'
+            ? [{ id: 'mail', provider: 'microsoft_365', status: 'connected' }]
+            : null,
+    }));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const props = { meeting: makeMeeting({ preps: [makePrep()] }), aiConfigured: true };
+    const rendered = render(buildTree(client, props));
+    fireEvent.click(screen.getByRole('button', { name: /email pdf/i }));
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Subject' }), {
+      target: { value: 'Old identity draft' },
+    });
+    authState.userId = 'clerk-u2';
+    authState.orgId = 'org-2';
+    rendered.rerender(buildTree(client, props));
+    expect(screen.queryByText('New email')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /email pdf/i }));
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalledTimes(2));
+    resolveOld({ data: { id: 'old-pdf', fileName: 'Old identity.pdf' } });
+    resolveNew({ data: { id: 'new-pdf', fileName: 'New identity.pdf' } });
+    expect(await screen.findByText('New identity.pdf')).toBeInTheDocument();
+    expect(screen.queryByText('Old identity.pdf')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Subject' })).not.toHaveValue('Old identity draft');
   });
 });

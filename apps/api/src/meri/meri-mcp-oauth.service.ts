@@ -44,6 +44,8 @@ interface OAuthStatePayload {
   u: string; // user id that started the flow
   n: string; // nonce
   e: number; // expires at (unix seconds)
+  i?: string; // discovered authorization issuer, bound to this request
+  ir?: boolean; // provider requires an issuer in its callback
 }
 
 type OAuthServerRow = {
@@ -109,6 +111,7 @@ export class MeriMcpOAuthService {
   buildProvider(
     server: { id: string; tenantId: string; name: string; catalogId: string | null },
     signedState?: string,
+    expectedIssuer?: string,
   ): DbOAuthClientProvider {
     const catalog = server.catalogId ? getCatalogEntry(server.catalogId) : undefined;
     return new DbOAuthClientProvider({
@@ -118,11 +121,14 @@ export class MeriMcpOAuthService {
       tenantId: server.tenantId,
       serverId: server.id,
       redirectUri: this.redirectUri()!,
-      clientName: `Capiro Meri — ${server.name}`,
+      clientName:
+        server.catalogId === 'meriv3-monday' ? 'Capiro Meri' : `Capiro Meri — ${server.name}`,
       signedState,
       requestedScopes: managedAppDefinition(server.catalogId)?.oauthScopes ?? catalog?.oauthScopes,
       managed: Boolean(managedAppDefinition(server.catalogId)),
       offlineAccess: managedAppDefinition(server.catalogId)?.offlineAccess,
+      tokenExpiryFromJwt: server.catalogId === 'meriv3-monday',
+      expectedIssuer,
     });
   }
 
@@ -145,13 +151,14 @@ export class MeriMcpOAuthService {
     }
 
     const nonce = randomBytes(16).toString('base64url');
-    const signedState = this.signState({
+    const statePayload: OAuthStatePayload = {
       t: ctx.tenantId,
       s: server.id,
       u: ctx.userId,
       n: nonce,
       e: Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS,
-    });
+    };
+    const signedState = this.signState(statePayload);
     const provider = this.buildProvider(
       { id: server.id, tenantId: ctx.tenantId, name: server.name, catalogId: server.catalogId },
       signedState,
@@ -191,8 +198,15 @@ export class MeriMcpOAuthService {
       );
       return { authUrl: null, alreadyConnected: true };
     }
-    // Defensive: ensure our signed state rides along even if the SDK didn't add it.
-    if (!url.searchParams.get('state')) url.searchParams.set('state', signedState);
+    // Bind the discovered issuer to this exact user/tenant/nonce before redirect.
+    const authorization = provider.authorizationResponseRequirements;
+    url.searchParams.set(
+      'state',
+      this.signState({
+        ...statePayload,
+        ...(authorization ? { i: authorization.issuer, ir: authorization.required } : {}),
+      }),
+    );
     // Persist the nonce so the callback can consume it exactly once (anti-replay
     // beyond the single-use PKCE code). The provider created the credential row
     // during auth(), so it exists by now.
@@ -222,9 +236,11 @@ export class MeriMcpOAuthService {
   async handleCallback(params: {
     code: string;
     state: string;
+    issuer?: string;
   }): Promise<{ tenantId: string; serverId: string; name: string }> {
     this.assertConfigured();
     const decoded = this.verifyState(params.state);
+    this.verifyResponseIssuer(decoded, params.issuer);
 
     const server = await this.prisma.withTenant(decoded.t, (tx) =>
       tx.clioMcpServer.findFirst({
@@ -263,12 +279,16 @@ export class MeriMcpOAuthService {
       throw new BadRequestException('Authorization state already used or invalid');
     }
 
-    const provider = this.buildProvider({
-      id: server.id,
-      tenantId: decoded.t,
-      name: server.name,
-      catalogId: server.catalogId,
-    });
+    const provider = this.buildProvider(
+      {
+        id: server.id,
+        tenantId: decoded.t,
+        name: server.name,
+        catalogId: server.catalogId,
+      },
+      undefined,
+      decoded.i,
+    );
 
     try {
       const result = await auth(provider, {
@@ -295,8 +315,10 @@ export class MeriMcpOAuthService {
   async handleFailure(
     state: string,
     cancelled: boolean,
+    issuer?: string,
   ): Promise<{ tenantId: string; serverId: string }> {
     const decoded = this.verifyState(state);
+    this.verifyResponseIssuer(decoded, issuer);
     await this.prisma.withTenant(decoded.t, async (tx) => {
       const consumed = await tx.clioMcpOAuthCredential.updateMany({
         where: { serverId: decoded.s, stateNonce: decoded.n },
@@ -447,6 +469,12 @@ export class MeriMcpOAuthService {
         }),
       )
       .catch((err) => this.logger.warn(`Failed to set MCP status: ${(err as Error).message}`));
+  }
+
+  private verifyResponseIssuer(payload: OAuthStatePayload, issuer?: string): void {
+    if ((payload.ir && !issuer) || (issuer !== undefined && issuer !== payload.i)) {
+      throw new BadRequestException('Authorization issuer is invalid. Please restart sign-in.');
+    }
   }
 
   private signState(payload: OAuthStatePayload): string {

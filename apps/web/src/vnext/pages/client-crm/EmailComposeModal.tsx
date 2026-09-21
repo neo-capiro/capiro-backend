@@ -9,12 +9,7 @@ import { Combobox, type ComboboxOption } from '../../components/fields/index.js'
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { SettingsRichTextEditor } from '../settings/SettingsRichTextEditor.js';
-import {
-  getEmailSignature,
-  rewriteEmail,
-  sendSingleMail,
-  type MailRecipient,
-} from './mail-api.js';
+import { getEmailSignature, rewriteEmail, sendSingleMail, type MailRecipient } from './mail-api.js';
 import './email-compose-modal.css';
 
 /**
@@ -35,6 +30,21 @@ import './email-compose-modal.css';
  * its own ticket.
  */
 const MAX_EMAIL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface LoadableComposeResource {
+  status: 'loading' | 'error' | 'ready';
+  error?: string;
+  onRetry?: () => void;
+}
+
+export interface RequiredAttachmentState extends LoadableComposeResource {
+  label: string;
+}
+
+export interface SenderMailboxState extends LoadableComposeResource {
+  label?: string;
+}
 
 /**
  * Content types for the extensions the picker advertises, keyed to the exact
@@ -82,6 +92,8 @@ export interface EmailComposeContact {
 
 export interface EmailComposeModalProps {
   open: boolean;
+  /** Authenticated user/tenant scope for identity-bearing compose queries. */
+  cacheScope?: string;
   onClose: () => void;
   /** Pre-filled recipient(s) — who this compose was opened for. */
   to: MailRecipient[];
@@ -98,6 +110,7 @@ export interface EmailComposeModalProps {
   /** Reply within an existing thread instead of starting a new one. */
   threadId?: string;
   defaultSubject?: string;
+  defaultBodyHtml?: string;
   /**
    * Pre-filled Cc — e.g. everyone else who was on the message being replied
    * to. A pre-filled Cc is stated out loud in the window (see the reply-all
@@ -125,12 +138,16 @@ export interface EmailComposeModalProps {
    * ClientPerson record, so nothing is recorded and the copy says so.
    */
   recipientDirectory?: 'client' | 'team';
+  recipientDirectoryState?: LoadableComposeResource;
+  requiredAttachmentState?: RequiredAttachmentState;
+  senderMailboxState?: SenderMailboxState;
   /** Fires after a confirmed send so callers can invalidate their own queries. */
   onSent?: () => void;
 }
 
 export function EmailComposeModal({
   open,
+  cacheScope = 'default',
   onClose,
   to,
   recipientTitle,
@@ -139,10 +156,14 @@ export function EmailComposeModal({
   orgContacts,
   threadId,
   defaultSubject,
+  defaultBodyHtml,
   defaultCc,
   identityUnconfirmed = false,
   initialAttachments,
   recipientDirectory = 'client',
+  recipientDirectoryState,
+  requiredAttachmentState,
+  senderMailboxState,
   onSent,
 }: EmailComposeModalProps) {
   const api = useApi();
@@ -151,6 +172,8 @@ export function EmailComposeModal({
   const [selectedTo, setSelectedTo] = useState<MailRecipient[]>(to);
   const [addRecipientOpen, setAddRecipientOpen] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [manualRecipient, setManualRecipient] = useState('');
+  const [recipientError, setRecipientError] = useState<string | null>(null);
   const [ccOpen, setCcOpen] = useState(false);
   const [bccOpen, setBccOpen] = useState(false);
   const [cc, setCc] = useState('');
@@ -165,38 +188,57 @@ export function EmailComposeModal({
   // used — and so it is visible at all in the callers that render this modal
   // without a CapiroToastProvider above it.
   const [attachRefusal, setAttachRefusal] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toKey = to.map((r) => r.email).join(',');
   const defaultCcKey = (defaultCc ?? []).map((r) => r.email).join(',');
-  const initialAttachmentsKey = (initialAttachments ?? []).map((a) => a.id).join(',');
   useEffect(() => {
     if (open) {
       const ccEmails = (defaultCc ?? []).map((r) => r.email).join(', ');
       setSelectedTo(to);
       setAddRecipientOpen(false);
       setRecipientSearch('');
+      setManualRecipient('');
+      setRecipientError(null);
       setCcOpen(ccEmails.length > 0);
       setBccOpen(false);
       setCc(ccEmails);
       setBcc('');
       setSubject(defaultSubject ?? '');
-      setBodyHtml('');
+      setBodyHtml(defaultBodyHtml ?? '');
       setPreRewriteBodyHtml(null);
       setRewriteNote(null);
       setAttachments(initialAttachments ?? []);
       setAttachRefusal(null);
+      setSendError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, toKey, threadId, defaultCcKey, initialAttachmentsKey]);
+  }, [open, toKey, threadId, defaultCcKey]);
+
+  useEffect(() => {
+    if (!open || !initialAttachments?.length) return;
+    setAttachments((current) => {
+      const ids = new Set(current.map((attachment) => attachment.id));
+      const additions = initialAttachments.filter((attachment) => !ids.has(attachment.id));
+      return additions.length ? [...current, ...additions] : current;
+    });
+  }, [open, initialAttachments]);
 
   // Contacts not already selected — and searchable, since an org roster on a
   // large client account can run long.
   const addableContacts = useMemo<ComboboxOption[]>(() => {
     const selectedEmails = new Set(selectedTo.map((r) => r.email.toLowerCase()));
     const q = recipientSearch.trim().toLowerCase();
+    const seen = new Set<string>();
     return (orgContacts ?? [])
       .filter((c) => !selectedEmails.has(c.email.toLowerCase()))
+      .filter((c) => {
+        const email = c.email.trim().toLowerCase();
+        if (!email || seen.has(email)) return false;
+        seen.add(email);
+        return true;
+      })
       .filter((c) => !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q))
       .map((c) => ({ value: c.id, label: c.name, meta: c.email }));
   }, [orgContacts, selectedTo, recipientSearch]);
@@ -250,7 +292,7 @@ export function EmailComposeModal({
 
   const signatureQ = useQuery({
     enabled: open,
-    queryKey: ['me', 'email-signature'],
+    queryKey: ['me', 'email-signature', cacheScope],
     queryFn: () => getEmailSignature(api),
     staleTime: 60_000,
   });
@@ -283,7 +325,10 @@ export function EmailComposeModal({
         recipientDirectory === 'team'
           ? []
           : selectedTo
-              .map((r) => orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id)
+              .map(
+                (r) =>
+                  orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id,
+              )
               .filter((id): id is string => Boolean(id));
       return sendSingleMail(api, {
         clientId,
@@ -298,14 +343,50 @@ export function EmailComposeModal({
       });
     },
     onSuccess: () => {
+      setSendError(null);
       toast.success('Email sent');
       onSent?.();
       onClose();
     },
-    onError: (error) => toast.error(mailErrorMessage(error, 'Could not send this email')),
+    onError: (error) => {
+      const message = mailErrorMessage(error, 'Could not send this email');
+      setSendError(message);
+      toast.error(message);
+    },
   });
 
-  const canSend = selectedTo.length > 0 && subject.trim().length > 0 && stripHtml(bodyHtml).length > 0;
+  const parsedCc = parseRecipients(cc) ?? [];
+  const parsedBcc = parseRecipients(bcc) ?? [];
+  const invalidCopiedAddress = [...parsedCc, ...parsedBcc].find(
+    (recipient) => !EMAIL_RE.test(recipient.email),
+  );
+  const requiredAttachmentPresent =
+    !requiredAttachmentState ||
+    (requiredAttachmentState.status === 'ready' &&
+      attachments.some((attachment) => attachment.fileName === requiredAttachmentState.label));
+  const canSend =
+    selectedTo.length > 0 &&
+    selectedTo.every((recipient) => EMAIL_RE.test(recipient.email)) &&
+    !invalidCopiedAddress &&
+    subject.trim().length > 0 &&
+    stripHtml(bodyHtml).length > 0 &&
+    requiredAttachmentPresent &&
+    (!senderMailboxState || senderMailboxState.status === 'ready');
+
+  const addManualRecipient = () => {
+    const email = manualRecipient.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) {
+      setRecipientError('Enter a valid email address.');
+      return;
+    }
+    if (selectedTo.some((recipient) => recipient.email.toLowerCase() === email)) {
+      setRecipientError('That email address is already in To.');
+      return;
+    }
+    setSelectedTo((current) => [...current, { email }]);
+    setManualRecipient('');
+    setRecipientError(null);
+  };
 
   // A pre-filled Cc means this compose was opened as a reply-all. Who is being
   // copied gets said in words above the field: a widened audience must be
@@ -347,13 +428,17 @@ export function EmailComposeModal({
                 <span className="capiro-email-compose__chip-name">
                   {recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email}
                 </span>
-                {selectedTo.length > 1 ? (
+                {selectedTo.length > 0 ? (
                   <button
                     type="button"
                     className="capiro-email-compose__chip-remove"
                     aria-label={`Remove ${recipient.name ?? recipient.email}`}
                     onClick={() =>
-                      setSelectedTo((current) => current.filter((r) => r.email !== recipient.email))
+                      setSelectedTo((current) =>
+                        current.filter(
+                          (r) => r.email.toLowerCase() !== recipient.email.toLowerCase(),
+                        ),
+                      )
                     }
                   >
                     ×
@@ -361,22 +446,25 @@ export function EmailComposeModal({
                 ) : null}
               </span>
             ))}
-            {otherContacts.length > 0 ? (
-              <button
-                type="button"
-                className="capiro-email-compose__add-recipient"
-                onClick={() => setAddRecipientOpen((current) => !current)}
-              >
-                + Add recipient
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="capiro-email-compose__add-recipient"
+              aria-expanded={addRecipientOpen}
+              onClick={() => setAddRecipientOpen((current) => !current)}
+            >
+              + Add recipient
+            </button>
           </span>
           <span className="capiro-email-compose__ccbcc-links">
             {!ccOpen ? (
-              <button type="button" onClick={() => setCcOpen(true)}>Cc</button>
+              <button type="button" onClick={() => setCcOpen(true)}>
+                Cc
+              </button>
             ) : null}
             {!bccOpen ? (
-              <button type="button" onClick={() => setBccOpen(true)}>Bcc</button>
+              <button type="button" onClick={() => setBccOpen(true)}>
+                Bcc
+              </button>
             ) : null}
           </span>
         </div>
@@ -390,35 +478,80 @@ export function EmailComposeModal({
                 dropdown on select, same as everywhere else it's used) — one
                 more click on it reopens the list, already missing whoever
                 was just added, ready for the next. */}
-            <Combobox
-              value={undefined}
-              onChange={(option) => {
-                const contact = orgContacts?.find((c) => c.id === option.value);
-                if (!contact) return;
-                setSelectedTo((current) => [...current, { email: contact.email, name: contact.name }]);
-                setRecipientSearch('');
-              }}
-              options={addableContacts}
-              placeholder={
-                recipientDirectory === 'team'
-                  ? 'Search your teammates…'
-                  : "Search this client's contacts…"
-              }
-              searchValue={recipientSearch}
-              onSearchChange={setRecipientSearch}
-              searchPlaceholder="Search by name or email…"
-              emptyMessage={
-                otherContacts.length === 0
-                  ? recipientDirectory === 'team'
-                    ? 'No other teammates found'
-                    : 'No other contacts on file for this client'
-                  : recipientDirectory === 'team'
-                    ? 'Everyone on your team is already added'
-                    : 'Everyone on file is already added'
-              }
-              leadingIcon={<DashboardIcon name="Users01" size={16} />}
-            />
+            {orgContacts !== undefined || recipientDirectoryState ? (
+              <Combobox
+                value={undefined}
+                onChange={(option) => {
+                  const contact = orgContacts?.find((c) => c.id === option.value);
+                  if (!contact) return;
+                  setSelectedTo((current) =>
+                    current.some(
+                      (recipient) => recipient.email.toLowerCase() === contact.email.toLowerCase(),
+                    )
+                      ? current
+                      : [...current, { email: contact.email, name: contact.name }],
+                  );
+                  setRecipientSearch('');
+                  setRecipientError(null);
+                }}
+                options={addableContacts}
+                loading={recipientDirectoryState?.status === 'loading'}
+                placeholder={
+                  recipientDirectory === 'team'
+                    ? 'Browse your Capiro team'
+                    : "Browse this client's contacts"
+                }
+                searchValue={recipientSearch}
+                onSearchChange={setRecipientSearch}
+                searchPlaceholder="Search by name or email…"
+                emptyMessage={
+                  otherContacts.length === 0
+                    ? recipientDirectory === 'team'
+                      ? 'No other teammates found'
+                      : 'No other contacts on file for this client'
+                    : recipientDirectory === 'team'
+                      ? 'Everyone on your team is already added'
+                      : 'Everyone on file is already added'
+                }
+                leadingIcon={<DashboardIcon name="Users01" size={16} />}
+              />
+            ) : null}
+            <div className="capiro-email-compose__manual-recipient">
+              <input
+                className="capiro-email-compose__input"
+                value={manualRecipient}
+                aria-label="Email address"
+                placeholder="Or enter an email address"
+                onChange={(event) => {
+                  setManualRecipient(event.target.value);
+                  setRecipientError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  addManualRecipient();
+                }}
+              />
+              <button type="button" onClick={addManualRecipient} disabled={!manualRecipient.trim()}>
+                Add
+              </button>
+            </div>
           </div>
+        ) : null}
+
+        {recipientError ? (
+          <p
+            className="capiro-email-compose__notice capiro-email-compose__notice--warn"
+            role="alert"
+          >
+            {recipientError}
+          </p>
+        ) : null}
+        {recipientDirectoryState?.status === 'error' ? (
+          <ResourceError
+            message={recipientDirectoryState.error ?? 'Could not load recipients.'}
+            onRetry={recipientDirectoryState.onRetry}
+          />
         ) : null}
 
         {ccPrefilled ? (
@@ -452,11 +585,22 @@ export function EmailComposeModal({
 
         <label className="capiro-email-compose__field">
           <span className="capiro-email-compose__label">From</span>
-          {/* The exact connected address is only resolved server-side at
-              send time (findCampaignSendConnection) — there's no read
-              endpoint for it here, so this names the mechanism rather than
-              guessing an address the backend might resolve differently. */}
-          <span className="capiro-email-compose__static">Your connected mailbox (Settings → Personal)</span>
+          <span className="capiro-email-compose__static">
+            {senderMailboxState?.status === 'loading'
+              ? 'Checking your connected mailbox…'
+              : senderMailboxState?.status === 'ready'
+                ? (senderMailboxState.label ?? 'Your connected mailbox')
+                : (senderMailboxState?.error ?? 'Your connected mailbox (Settings → Personal)')}
+          </span>
+          {senderMailboxState?.status === 'error' && senderMailboxState.onRetry ? (
+            <button
+              type="button"
+              className="capiro-email-compose__retry"
+              onClick={senderMailboxState.onRetry}
+            >
+              Retry
+            </button>
+          ) : null}
         </label>
 
         <label className="capiro-email-compose__field">
@@ -532,19 +676,47 @@ export function EmailComposeModal({
             {attachments.map((attachment) => (
               <span key={attachment.id} className="stv-rte-attachment">
                 <span className="stv-rte-attachment-name">{attachment.fileName}</span>
-                <button
-                  type="button"
-                  className="stv-rte-attachment-remove"
-                  aria-label={`Remove ${attachment.fileName}`}
-                  onClick={() =>
-                    setAttachments((current) => current.filter((a) => a.id !== attachment.id))
-                  }
-                >
-                  ×
-                </button>
+                {requiredAttachmentState?.label !== attachment.fileName ? (
+                  <button
+                    type="button"
+                    className="stv-rte-attachment-remove"
+                    aria-label={`Remove ${attachment.fileName}`}
+                    onClick={() =>
+                      setAttachments((current) => current.filter((a) => a.id !== attachment.id))
+                    }
+                  >
+                    ×
+                  </button>
+                ) : null}
               </span>
             ))}
           </div>
+        ) : null}
+
+        {requiredAttachmentState?.status === 'loading' ? (
+          <p className="capiro-email-compose__notice" role="status">
+            Preparing {requiredAttachmentState.label}… You can keep drafting while it loads.
+          </p>
+        ) : null}
+        {requiredAttachmentState?.status === 'error' ? (
+          <ResourceError
+            message={
+              requiredAttachmentState.error ?? `Could not prepare ${requiredAttachmentState.label}.`
+            }
+            onRetry={requiredAttachmentState.onRetry}
+          />
+        ) : null}
+
+        {signatureQ.isPending ? (
+          <p className="capiro-email-compose__notice" role="status">
+            Loading your email signature…
+          </p>
+        ) : null}
+        {signatureQ.isError ? (
+          <ResourceError
+            message="Could not load your email signature."
+            onRetry={() => void signatureQ.refetch()}
+          />
         ) : null}
 
         {rewriteNote ? <p className="capiro-email-compose__rewrite-note">{rewriteNote}</p> : null}
@@ -561,6 +733,23 @@ export function EmailComposeModal({
           >
             Undo rewrite
           </button>
+        ) : null}
+
+        {invalidCopiedAddress ? (
+          <p
+            className="capiro-email-compose__notice capiro-email-compose__notice--warn"
+            role="alert"
+          >
+            “{invalidCopiedAddress.email}” is not a valid email address.
+          </p>
+        ) : null}
+        {sendError ? (
+          <p
+            className="capiro-email-compose__notice capiro-email-compose__notice--warn"
+            role="alert"
+          >
+            {sendError} Your draft is still here; review it and try again.
+          </p>
         ) : null}
 
         {signatureQ.data?.enabled && signatureQ.data.html ? (
@@ -587,15 +776,23 @@ export function EmailComposeModal({
           Rewrite with Meri
         </CapiroButton>
         <span className="capiro-email-compose__footer-spacer" />
-        <CapiroButton variant="secondary" size="standard" disabled={send.isPending} onClick={onClose}>
+        <CapiroButton
+          variant="secondary"
+          size="standard"
+          disabled={send.isPending}
+          onClick={onClose}
+        >
           Cancel
         </CapiroButton>
         <CapiroButton
           variant="primary"
           size="standard"
           loading={send.isPending}
-          disabled={!canSend || rewrite.isPending || upload.isPending}
-          onClick={() => send.mutate()}
+          disabled={!canSend || rewrite.isPending || upload.isPending || send.isPending}
+          onClick={() => {
+            setSendError(null);
+            send.mutate();
+          }}
         >
           Send
         </CapiroButton>
@@ -605,11 +802,31 @@ export function EmailComposeModal({
 }
 
 function parseRecipients(value: string): MailRecipient[] | undefined {
+  const seen = new Set<string>();
   const emails = value
-    .split(',')
+    .split(/[,;\n]/)
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((email) => {
+      const key = email.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   return emails.length ? emails.map((email) => ({ email })) : undefined;
+}
+
+function ResourceError({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <p className="capiro-email-compose__notice capiro-email-compose__notice--warn" role="alert">
+      {message}{' '}
+      {onRetry ? (
+        <button type="button" className="capiro-email-compose__retry" onClick={onRetry}>
+          Retry
+        </button>
+      ) : null}
+    </p>
+  );
 }
 
 function stripHtml(html: string): string {
