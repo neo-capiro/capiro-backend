@@ -22,6 +22,14 @@ describe('community funding pure parsers', () => {
     const result = parseHouseXlsxRows([{ 'Member First Name':'A','Member Last Name':'B',Recipient:'R','Project Description':'P','Amount Requested':'$2,000' }], 2026);
     expect(result.candidates[0]).toMatchObject({ sourceRow: 2, recipientAddress: null, requestedAmountUsd: '2000.00' });
   });
+  it('derives requester state from strict STDD while preserving the source district', () => {
+    const result = parseHouseXlsxRows([{ 'Member First Name':'A','Member Last Name':'B',District:'FL08',Recipient:'R','Project Description':'P','Amount Requested':'$2,000' }], 2026);
+    expect(result.candidates[0]).toMatchObject({ requesterState: 'FL', requesterDistrict: 'FL08' });
+  });
+  it('keeps invalid source districts unresolved rather than inventing geography', () => {
+    const result = parseHouseXlsxRows([{ 'Member First Name':'A','Member Last Name':'B',District:'AQ00',Recipient:'R','Project Description':'P','Amount Requested':'$2,000' }], 2026);
+    expect(result.candidates[0]).toMatchObject({ requesterState: null, requesterDistrict: 'AQ00' });
+  });
   it('preserves page breaks and multiple tables per page as independent provenance', () => {
     const rows = [
       { page: 8, row: 9, columns: ['A','B','R1','Wrapped title ending on this row','Austin, TX','100','One'] },

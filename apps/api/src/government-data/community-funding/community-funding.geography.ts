@@ -1,10 +1,5 @@
 import type { Chamber } from './community-funding.types.js';
-
-const US_STATE_CODES = new Set(
-  'AL AK AS AZ AR CA CO CT DE DC FL GA GU HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND MP OH OK OR PA PR RI SC SD TN TX UT VT VA VI WA WV WI WY'.split(
-    ' ',
-  ),
-);
+import { US_HOUSE_SEATS } from '../../common/us-congressional-districts.js';
 
 export interface CommunityFundingGeographyInput {
   chamber: Chamber;
@@ -21,7 +16,7 @@ export interface NormalizedCommunityFundingGeography {
 
 function stateCode(value: string | null): string | null {
   const normalized = value?.trim().toUpperCase() ?? '';
-  return US_STATE_CODES.has(normalized) ? normalized : null;
+  return US_HOUSE_SEATS[normalized] != null ? normalized : null;
 }
 
 /**
@@ -38,12 +33,13 @@ export function parseCommunityFundingStdd(
   if (!match) return null;
   const state = match[1]!;
   const districtToken = match[2]!;
-  if (!US_STATE_CODES.has(state) || ['AS', 'DC', 'GU', 'MP', 'PR', 'VI'].includes(state)) {
-    return null;
-  }
+  const seats = US_HOUSE_SEATS[state];
+  if (seats == null) return null;
   const district = districtToken === 'AL' ? '00' : districtToken;
   const numeric = Number(district);
-  if (!Number.isInteger(numeric) || numeric >= 90) return null;
+  if (!Number.isInteger(numeric)) return null;
+  if (seats === 1) return numeric === 0 ? { state, district: '00' } : null;
+  if (numeric < 1 || numeric > seats) return null;
   return { state, district };
 }
 
@@ -76,7 +72,13 @@ export function normalizeCommunityFundingGeography(
       ? '00'
       : String(Number(rawDistrict)).padStart(2, '0')
     : null;
-  if (numericDistrict && Number(numericDistrict) < 90) {
+  const seats = explicitState ? US_HOUSE_SEATS[explicitState] : null;
+  const numeric = numericDistrict == null ? null : Number(numericDistrict);
+  const validLegacyDistrict =
+    seats === 1
+      ? numeric === 0
+      : seats != null && numeric != null && numeric >= 1 && numeric <= seats;
+  if (numericDistrict && validLegacyDistrict) {
     return { state: explicitState, district: numericDistrict, conflictReason: null };
   }
   return { state: explicitState, district: null, conflictReason: null };
