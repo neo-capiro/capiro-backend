@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -23,6 +24,74 @@ const MAX_ITEMS = 3_000;
 const MAX_ITEM_PAGES = 30;
 const MAX_UPDATE_PAGES = 10;
 const GENERAL_RETRIEVAL_BUDGET_MS = 45_000;
+const CURSOR_PREFIX = 'monday:v1:';
+
+type MondayCursor = { offset: number; scope: string; snapshot: string };
+
+function mondayCursor(value: string | undefined): MondayCursor | null | undefined {
+  if (value === undefined) return undefined;
+  if (!value.startsWith(CURSOR_PREFIX) || value.length > 256) return null;
+  const encoded = value.slice(CURSOR_PREFIX.length);
+  if (!/^[A-Za-z0-9_-]+$/.test(encoded)) return null;
+  try {
+    const bytes = Buffer.from(encoded, 'base64url');
+    if (bytes.toString('base64url') !== encoded) return null;
+    const fields: unknown = JSON.parse(bytes.toString('utf8'));
+    if (!Array.isArray(fields) || fields.length !== 3) return null;
+    const [offset, scope, snapshot] = fields;
+    if (
+      !Number.isSafeInteger(offset) ||
+      offset < 1 ||
+      offset >= MAX_ITEMS ||
+      typeof scope !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(scope) ||
+      typeof snapshot !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(snapshot)
+    )
+      return null;
+    return { offset, scope, snapshot };
+  } catch {
+    return null;
+  }
+}
+
+function mondayHash(value: unknown): string {
+  // Object property order is not a provider version change. Array order and
+  // every task fact still participate, including parent identity and columns.
+  const canonical = (entry: unknown): unknown =>
+    Array.isArray(entry)
+      ? entry.map(canonical)
+      : entry && typeof entry === 'object'
+        ? Object.fromEntries(
+            Object.entries(entry)
+              .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+              .map(([key, child]) => [key, canonical(child)]),
+          )
+        : entry;
+  return createHash('sha256')
+    .update(JSON.stringify(canonical(value)))
+    .digest('hex');
+}
+
+function mondayTaskSnapshot(rows: readonly RetrievalRecord[]): string {
+  return mondayHash(
+    rows.map((row) => ({
+      ...row,
+      payload: {
+        ...row.payload,
+        // column_values may be an object or array, and provider key/UI column
+        // order can change without changing facts. Normalize only the hash;
+        // keep the full original columns in the returned evidence.
+        columns: Array.isArray(row.payload.columns)
+          ? row.payload.columns
+              .map((column) => ({ column, key: mondayHash(column) }))
+              .sort((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0))
+              .map(({ column }) => column)
+          : row.payload.columns,
+      },
+    })),
+  );
+}
 
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
@@ -128,7 +197,33 @@ function mondayColumns(
         text: typeof raw === 'string' ? raw : null,
         value: raw,
       }));
-  let status: string | null = null;
+  // monday also represents Type and Priority as status columns. A known title
+  // takes precedence over the storage type; a blank workflow status stays blank.
+  const statusCandidates = columns
+    .map((raw) => {
+      const column = record(raw);
+      const title = String(column.title ?? '')
+        .trim()
+        .toLowerCase();
+      const id = String(column.id ?? '').toLowerCase();
+      const rank = title
+        ? /^(?:(?:task|item|workflow)\s+)?status$|^workflow$/.test(title)
+          ? 3
+          : /\bstatus\b/.test(title)
+            ? 2
+            : 0
+        : id.includes('status')
+          ? 2
+          : column.type === 'status'
+            ? 1
+            : 0;
+      return { column, rank };
+    })
+    .filter(({ rank }) => rank > 0);
+  const highestRank = Math.max(0, ...statusCandidates.map(({ rank }) => rank));
+  const workflowColumns = statusCandidates.filter(({ rank }) => rank === highestRank);
+  const statusText = workflowColumns.length === 1 ? workflowColumns[0]?.column.text : null;
+  const status = typeof statusText === 'string' && statusText.trim() ? statusText.trim() : null;
   let deadline: string | null = null;
   const owners: unknown[] = [];
   for (const raw of columns) {
@@ -144,7 +239,6 @@ function mondayColumns(
         return {};
       }
     })();
-    if (!status && (type === 'status' || id.includes('status'))) status = text;
     if (!deadline && (type === 'date' || /(?:date|due|deadline)/.test(id))) {
       deadline =
         (typeof parsed.date === 'string' && parsed.date) ||
@@ -189,6 +283,7 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
   async retrieve(
     _dataset: SemanticDatasetDescriptor,
     request: RetrievalRequest,
+    cursor?: string,
   ): Promise<RetrievalSourceResult> {
     const result: RetrievalSourceResult = {
       domain: 'monday',
@@ -205,6 +300,17 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
       coverageComplete: false,
       stopReason: 'monday_mapping_required',
     };
+    const continuation = mondayCursor(cursor);
+    if (continuation === null)
+      return { ...result, sourceStatus: 'error', stopReason: 'monday_cursor_invalid' };
+    if (
+      request.pageSize !== undefined &&
+      (!Number.isSafeInteger(request.pageSize) || request.pageSize < 1)
+    )
+      return { ...result, sourceStatus: 'error', stopReason: 'monday_page_size_invalid' };
+    const paged = request.pageSize !== undefined || continuation !== undefined;
+    const pageSize = Math.min(request.pageSize ?? MAX_ITEMS, MAX_ITEMS);
+    const offset = continuation?.offset ?? 0;
     const clientId =
       request.caller.clientIds?.length === 1 ? request.caller.clientIds[0] : undefined;
     if (!clientId) return result;
@@ -272,6 +378,23 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
         stopReason: 'monday_client_scope_unauthorized',
       };
 
+    // This is a continuation hint, never an access grant. Membership, client
+    // walls, the current mapping and personal provider access are read anew.
+    const boardIds = [...new Set(scope.boardIds)].sort();
+    const scopeHash = mondayHash([
+      request.caller.tenantId,
+      request.caller.userId,
+      clientId,
+      scope.explicitBoardScope,
+      boardIds,
+    ]);
+    if (continuation && continuation.scope !== scopeHash)
+      return {
+        ...result,
+        sourceStatus: 'unauthorized',
+        stopReason: 'monday_cursor_scope_mismatch',
+      };
+
     const execution = currentMeetingPrepExecution();
     const retrievalDeadline = Math.min(
       request.deadlineAt ?? Date.now() + GENERAL_RETRIEVAL_BUDGET_MS,
@@ -280,6 +403,7 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
         : Date.now() + GENERAL_RETRIEVAL_BUDGET_MS,
     );
     const gaps: string[] = [];
+    let pagePrepared = false;
     try {
       const app = (await this.managed.listApps(scope.ctx)).find((app) => app.id === 'monday');
       if (!app?.available) return { ...result, stopReason: 'monday_disabled' };
@@ -455,7 +579,7 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
         updateTargets.push({ itemId, row });
       };
 
-      for (const boardId of scope.boardIds.slice(0, MAX_BOARDS)) {
+      for (const boardId of (paged ? boardIds : scope.boardIds).slice(0, MAX_BOARDS)) {
         const info = await call(infoTool, mondayReadArguments(infoTool, 'board', boardId));
         const board = record(info.board ?? record(info.data).board ?? info);
         if (String(board.id ?? '') !== boardId) throw new Error('monday_board_scope_mismatch');
@@ -507,8 +631,40 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           if (result.records.length >= MAX_ITEMS) break;
         }
       }
+      result.recordsEvaluated = result.records.length;
+      if (paged) {
+        // Re-scan task facts instead of caching personal source data. Sorting
+        // makes provider reordering harmless; a changed set or changed fact
+        // invalidates the continuation rather than skipping or duplicating it.
+        result.records.sort((left, right) =>
+          left.recordId < right.recordId ? -1 : left.recordId > right.recordId ? 1 : 0,
+        );
+        const snapshot = mondayTaskSnapshot(result.records);
+        result.evaluatedRecordSetId = `monday:${scopeHash}:${snapshot}`;
+        if (continuation && (continuation.snapshot !== snapshot || offset >= result.records.length))
+          return {
+            ...result,
+            records: [],
+            sourceStatus: 'degraded',
+            truncated: true,
+            stopReason: 'monday_source_changed_restart_search',
+          };
+        if (!gaps.length && result.records.length < MAX_ITEMS) result.total = result.records.length;
+        result.hasMore = offset + pageSize < result.records.length;
+        if (result.hasMore)
+          result.nextCursor =
+            CURSOR_PREFIX +
+            Buffer.from(JSON.stringify([offset + pageSize, scopeHash, snapshot])).toString(
+              'base64url',
+            );
+        result.records = result.records.slice(offset, offset + pageSize);
+      }
+      pagePrepared = true;
       // Fetch task facts first so a slow comments page cannot hide later tasks.
-      for (const target of updateTargets) {
+      // Paged reads enrich only the returned evidence; no credentials or prior
+      // page payloads are retained between calls.
+      const selected = new Set(result.records);
+      for (const target of updateTargets.filter((target) => selected.has(target.row))) {
         if (Date.now() >= retrievalDeadline) {
           gaps.push('monday_retrieval_deadline');
           break;
@@ -523,18 +679,26 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           );
         }
       }
-      if (result.records.length >= MAX_ITEMS) gaps.push('monday_item_cap');
+      if (result.recordsEvaluated >= MAX_ITEMS) gaps.push('monday_item_cap');
       result.sourceStatus = gaps.length ? 'degraded' : 'healthy';
       result.stopReason = gaps.length
         ? [...new Set(gaps)].join(',')
-        : scope.explicitBoardScope
-          ? 'monday_requested_boards_complete'
-          : 'monday_mapped_boards_complete';
-      result.coverageComplete = result.paginationComplete = !gaps.length;
+        : result.hasMore
+          ? 'monday_page_boundary_reached'
+          : scope.explicitBoardScope
+            ? 'monday_requested_boards_complete'
+            : 'monday_mapped_boards_complete';
+      result.coverageComplete = result.paginationComplete = !gaps.length && !result.hasMore;
       result.truncated = !!gaps.length;
       result.lastSyncAt = new Date();
       result.searchedEntityCount = 1;
     } catch (error) {
+      if (!pagePrepared) {
+        result.recordsEvaluated = result.records.length;
+        // A failed re-scan cannot validate a previous offset. Fresh searches
+        // may retain bounded partial evidence, but continuations fail closed.
+        result.records = continuation ? [] : result.records.slice(0, pageSize);
+      }
       result.sourceStatus = result.records.length ? 'degraded' : 'error';
       result.stopReason =
         error instanceof Error && /^monday_[a-z_]+$/.test(error.message)
@@ -545,7 +709,6 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
       result.coverageComplete = false;
     }
     result.returned = result.records.length;
-    result.recordsEvaluated = result.records.length;
     return result;
   }
 }

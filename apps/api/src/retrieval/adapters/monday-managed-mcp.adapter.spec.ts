@@ -4,6 +4,10 @@ import {
   MondayManagedMcpAdapter,
 } from './monday-managed-mcp.adapter.js';
 import { mondayBoardScopeFromQuery } from './monday-board-scope.js';
+import { SemanticDataCatalogService } from '../data-catalog/semantic-data-catalog.service.js';
+import { RetrievalPlannerV2Service } from '../retrieval-planner-v2.service.js';
+import { RetrievalV2Service } from '../retrieval-v2.service.js';
+import type { RetrievalRequest } from '../retrieval-v2.types.js';
 
 describe('Monday.com governed retrieval adapter', () => {
   const schema = {
@@ -98,6 +102,7 @@ describe('Monday.com governed retrieval adapter', () => {
   function harness(
     options: {
       mapping?: string[];
+      columns?: unknown[];
       executeRead?: (name: string, args: Record<string, unknown>) => unknown;
     } = {},
   ) {
@@ -133,7 +138,7 @@ describe('Monday.com governed retrieval adapter', () => {
           ? {
               board: {
                 id: String(args.boardId),
-                columns: [
+                columns: options.columns ?? [
                   { id: 'status', type: 'status' },
                   { id: 'owner', type: 'people' },
                   { id: 'due_date', type: 'date' },
@@ -305,6 +310,76 @@ describe('Monday.com governed retrieval adapter', () => {
     ]);
   });
 
+  test.each(['', 'In Progress', 'Done'])(
+    'uses the actual workflow status %j instead of a Type or Priority label',
+    async (workflowStatus) => {
+      const h = harness({
+        columns: [
+          { id: 'status', title: 'Type', type: 'status' },
+          { id: 'priority', title: 'Priority', type: 'status' },
+          { id: 'task_state', title: 'Task Status', type: 'status' },
+        ],
+        executeRead: (name) =>
+          name.endsWith('get_updates')
+            ? { updates: [] }
+            : {
+                items: [
+                  {
+                    id: '234',
+                    name: 'Verification task',
+                    column_values: {
+                      status: 'Test',
+                      priority: 'High',
+                      task_state: workflowStatus,
+                    },
+                  },
+                ],
+                cursor: null,
+              },
+      });
+      const result = await h.adapter.retrieve(
+        {} as never,
+        { caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] } } as never,
+      );
+      expect(result.records[0]?.payload.status).toBe(workflowStatus || null);
+      expect(result.records[0]?.payload.columns).toEqual(
+        expect.arrayContaining([expect.objectContaining({ title: 'Type', text: 'Test' })]),
+      );
+    },
+  );
+
+  test('does not choose arbitrarily between ambiguous workflow status columns', async () => {
+    const h = harness({
+      executeRead: (name) =>
+        name.endsWith('get_updates')
+          ? { updates: [] }
+          : {
+              items: [
+                {
+                  id: '234',
+                  name: 'Ambiguous workflow',
+                  column_values: [
+                    { id: 'qa_status', title: 'QA Status', type: 'status', text: 'Done' },
+                    {
+                      id: 'review_status',
+                      title: 'Review Status',
+                      type: 'status',
+                      text: 'Blocked',
+                    },
+                  ],
+                },
+              ],
+              cursor: null,
+            },
+    });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      { caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] } } as never,
+    );
+    expect(result.records[0]?.payload.status).toBeNull();
+    expect(result.records[0]?.payload.columns).toHaveLength(2);
+  });
+
   test('keeps retrieved task evidence but reports incomplete coverage when the shared budget expires', async () => {
     const h = harness({
       executeRead: (name, args) => {
@@ -433,5 +508,325 @@ describe('Monday.com governed retrieval adapter', () => {
     expect(result.stopReason).toBe('monday_board_scope_mismatch');
     expect(result.records).toEqual([]);
     expect(result.coverageComplete).toBe(false);
+  });
+
+  describe('governed evidence pagination', () => {
+    const request = (overrides: Partial<RetrievalRequest> = {}): RetrievalRequest => ({
+      caller: {
+        tenantId: 'tenant',
+        userId: 'actor',
+        clientIds: ['client'],
+        authorizedClientIds: ['client'],
+      },
+      queryClass: 'lookup',
+      requestedDomains: ['monday'],
+      pageSize: 1,
+      ...overrides,
+    });
+
+    function pagedHarness() {
+      let reads = 0;
+      const data = {
+        items: [
+          { id: '600', name: 'Later task' },
+          {
+            id: '100',
+            name: 'Parent',
+            subitems: [
+              { id: '300', name: 'Second subitem' },
+              { id: '200', name: 'First subitem' },
+            ],
+          },
+          { id: '500', name: 'Delivery', column_values: { status: 'Working on it' } },
+          { id: '400', name: 'Commitment' },
+        ],
+      };
+      const h = harness({
+        executeRead: (name) => {
+          if (name.endsWith('get_updates')) return { updates: [] };
+          reads++;
+          return {
+            items: reads % 2 ? data.items : [...data.items].reverse(),
+            cursor: null,
+          };
+        },
+      });
+      return { ...h, data };
+    }
+
+    test('returns all six tasks exactly once at page size one despite provider reordering', async () => {
+      const h = pagedHarness();
+      const pages = [];
+      let cursor: string | undefined;
+      for (let index = 0; index < 6; index++) {
+        const page = await h.adapter.retrieve({} as never, request(), cursor);
+        pages.push(page);
+        expect(page.returned).toBe(1);
+        expect(page.records).toHaveLength(1);
+        expect(page.recordsEvaluated).toBe(6);
+        expect(page.total).toBe(6);
+        expect(page.hasMore).toBe(index < 5);
+        expect(page.coverageComplete).toBe(index === 5);
+        expect(page.paginationComplete).toBe(index === 5);
+        expect(page.sourceStatus).toBe('healthy');
+        if (index < 5) {
+          expect(page.stopReason).toBe('monday_page_boundary_reached');
+          expect(page.nextCursor).toMatch(/^monday:v1:/);
+          expect(page.nextCursor!.length).toBeLessThanOrEqual(256);
+        }
+        cursor = page.nextCursor;
+      }
+      expect(cursor).toBeUndefined();
+      expect(pages.flatMap((page) => page.records.map((row) => row.recordId))).toEqual([
+        '123:100',
+        '123:200',
+        '123:300',
+        '123:400',
+        '123:500',
+        '123:600',
+      ]);
+      expect(pages[1]!.records[0]!.payload.origin).toMatchObject({
+        itemType: 'subitem',
+        parentItemId: '100',
+      });
+      expect(new Set(pages.map((page) => page.evaluatedRecordSetId)).size).toBe(1);
+      expect(h.tx.tenantMembership.findFirst).toHaveBeenCalledTimes(6);
+      expect(h.tx.client.findFirst).toHaveBeenCalledTimes(6);
+      expect(h.managed.listApps).toHaveBeenCalledTimes(6);
+      expect(h.managed.schemasForMeriV3).toHaveBeenCalledTimes(6);
+      expect(
+        h.managed.executeRead.mock.calls.filter(([, name]) => name.endsWith('get_updates')),
+      ).toHaveLength(6);
+    });
+
+    test('the real retrieval service drains all pages and counts the scanned set once', async () => {
+      const h = pagedHarness();
+      const service = new RetrievalV2Service(
+        new RetrievalPlannerV2Service(new SemanticDataCatalogService()),
+        [h.adapter],
+      );
+      const response = await service.retrieve(request({ requireComplete: true }));
+      expect(response.records).toHaveLength(6);
+      expect(new Set(response.records.map((row) => row.recordId)).size).toBe(6);
+      expect(response.coverage).toMatchObject({
+        complete: true,
+        recordsEvaluated: 6,
+        recordsReturned: 6,
+        paginationComplete: true,
+      });
+      expect(response.coverage.sources[0]).toMatchObject({
+        sourceStatus: 'healthy',
+        hasMore: false,
+        truncated: false,
+        coverageComplete: true,
+      });
+    });
+
+    test('ignores object property ordering when checking the task-facts snapshot', async () => {
+      let reads = 0;
+      const h = harness({
+        executeRead: (name) => {
+          if (name.endsWith('get_updates')) return { updates: [] };
+          reads++;
+          const column =
+            reads === 1
+              ? { id: 'due_date', type: 'date', value: { date: '2026-09-25', time: null } }
+              : { value: { time: null, date: '2026-09-25' }, type: 'date', id: 'due_date' };
+          return {
+            items: [
+              { id: '100', name: 'First', column_values: [column] },
+              { id: '200', name: 'Next', column_values: [column] },
+            ],
+            cursor: null,
+          };
+        },
+      });
+      const first = await h.adapter.retrieve({} as never, request());
+      const next = await h.adapter.retrieve({} as never, request(), first.nextCursor);
+      expect(next.records.map((row) => row.recordId)).toEqual(['123:200']);
+      expect(next.records[0]!.payload.dueDate).toBe('2026-09-25');
+      expect(next.evaluatedRecordSetId).toBe(first.evaluatedRecordSetId);
+      expect(next.coverageComplete).toBe(true);
+    });
+
+    test('ignores column_values key order without altering the returned column evidence', async () => {
+      let reads = 0;
+      const h = harness({
+        executeRead: (name) => {
+          if (name.endsWith('get_updates')) return { updates: [] };
+          reads++;
+          const columnValues =
+            reads === 1
+              ? { status: 'Done', owner: 'Neo', due_date: '2026-09-25' }
+              : { due_date: '2026-09-25', owner: 'Neo', status: 'Done' };
+          return {
+            items: [
+              { id: '100', name: 'First', column_values: columnValues },
+              { id: '200', name: 'Next', column_values: columnValues },
+            ],
+            cursor: null,
+          };
+        },
+      });
+      const first = await h.adapter.retrieve({} as never, request());
+      const next = await h.adapter.retrieve({} as never, request(), first.nextCursor);
+      expect(next.records.map((row) => row.recordId)).toEqual(['123:200']);
+      expect(next.records[0]!.payload).toMatchObject({ status: 'Done', owners: ['Neo'] });
+      expect(first.records[0]!.payload.columns).toEqual([
+        expect.objectContaining({ id: 'status' }),
+        expect.objectContaining({ id: 'owner' }),
+        expect.objectContaining({ id: 'due_date' }),
+      ]);
+      expect(next.records[0]!.payload.columns).toEqual([
+        expect.objectContaining({ id: 'due_date' }),
+        expect.objectContaining({ id: 'owner' }),
+        expect.objectContaining({ id: 'status' }),
+      ]);
+      expect(next.evaluatedRecordSetId).toBe(first.evaluatedRecordSetId);
+      expect(next.coverageComplete).toBe(true);
+    });
+
+    test('supports a smaller retry page size and cursors forwarded by Retrieval V2', async () => {
+      const h = pagedHarness();
+      const service = new RetrievalV2Service(
+        new RetrievalPlannerV2Service(new SemanticDataCatalogService()),
+        [h.adapter],
+      );
+      const first = await service.retrieve(request({ pageSize: 2 }));
+      const cursor = first.coverage.sources[0]!.nextCursor;
+      expect(cursor).toBeDefined();
+      const next = await service.retrieve(request({ cursors: { monday: cursor } }));
+      expect(first.records.map((row) => row.recordId)).toEqual(['123:100', '123:200']);
+      expect(next.records.map((row) => row.recordId)).toEqual(['123:300']);
+      expect(next.coverage.complete).toBe(false);
+    });
+
+    test.each(['', 'next', 'monday:v1:!!!', `monday:v1:${'a'.repeat(257)}`])(
+      'rejects malformed or oversized cursors before source access: %s',
+      async (cursor) => {
+        const h = pagedHarness();
+        const page = await h.adapter.retrieve({} as never, request(), cursor);
+        expect(page.stopReason).toBe('monday_cursor_invalid');
+        expect(page.records).toEqual([]);
+        expect(h.tx.client.findFirst).not.toHaveBeenCalled();
+        expect(h.managed.executeRead).not.toHaveBeenCalled();
+      },
+    );
+
+    test.each([0, -1, 1.5, 3000])('rejects an invalid cursor offset %s', async (offset) => {
+      const h = pagedHarness();
+      const cursor =
+        'monday:v1:' +
+        Buffer.from(JSON.stringify([offset, 'a'.repeat(64), 'b'.repeat(64)])).toString('base64url');
+      const page = await h.adapter.retrieve({} as never, request(), cursor);
+      expect(page.stopReason).toBe('monday_cursor_invalid');
+      expect(h.managed.executeRead).not.toHaveBeenCalled();
+    });
+
+    test.each([0, -1, 1.5, NaN])('rejects an invalid page size %s', async (pageSize) => {
+      const h = pagedHarness();
+      const page = await h.adapter.retrieve({} as never, request({ pageSize }));
+      expect(page.stopReason).toBe('monday_page_size_invalid');
+      expect(h.managed.executeRead).not.toHaveBeenCalled();
+    });
+
+    test.each(['tenant', 'user', 'client', 'boards', 'mapping'])(
+      'rejects a valid cursor reused outside its %s scope',
+      async (changed) => {
+        const h = pagedHarness();
+        const first = await h.adapter.retrieve({} as never, request());
+        h.managed.executeRead.mockClear();
+        const nextRequest = request();
+        if (changed === 'tenant') nextRequest.caller.tenantId = 'other-tenant';
+        if (changed === 'user') nextRequest.caller.userId = 'other-user';
+        if (changed === 'client') {
+          nextRequest.caller.clientIds = ['other-client'];
+          nextRequest.caller.authorizedClientIds = ['other-client'];
+        }
+        if (changed === 'boards') nextRequest.mondayBoardContext = 'Monday board 999';
+        if (changed === 'mapping')
+          h.tx.meetingPrepMondayMapping.findFirst.mockResolvedValue({ boardIds: ['999'] });
+        const page = await h.adapter.retrieve({} as never, nextRequest, first.nextCursor);
+        expect(page.records).toEqual([]);
+        expect(page.sourceStatus).toBe('unauthorized');
+        expect(page.stopReason).toBe('monday_cursor_scope_mismatch');
+        expect(page.coverageComplete).toBe(false);
+        expect(h.managed.executeRead).not.toHaveBeenCalled();
+      },
+    );
+
+    test.each(['disconnected', 'disabled', 'wall', 'membership', 'schema'])(
+      'rechecks %s before releasing a continuation page',
+      async (changed) => {
+        const h = pagedHarness();
+        const first = await h.adapter.retrieve({} as never, request());
+        h.managed.executeRead.mockClear();
+        if (changed === 'disconnected')
+          h.managed.listApps.mockResolvedValue([
+            { id: 'monday', available: true, connected: false },
+          ]);
+        if (changed === 'disabled')
+          h.managed.listApps.mockResolvedValue([
+            { id: 'monday', available: false, connected: true },
+          ]);
+        if (changed === 'wall') h.tx.client.findFirst.mockResolvedValue(null);
+        if (changed === 'membership') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+        if (changed === 'schema') h.managed.schemasForMeriV3.mockResolvedValue([]);
+        const page = await h.adapter.retrieve({} as never, request(), first.nextCursor);
+        expect(page.records).toEqual([]);
+        expect(page.hasMore).toBe(false);
+        expect(page.nextCursor).toBeUndefined();
+        expect(page.coverageComplete).toBe(false);
+        expect(h.managed.executeRead).not.toHaveBeenCalled();
+      },
+    );
+
+    test.each(['inserted', 'removed', 'modified'])(
+      'requires restarting when task facts are %s between pages',
+      async (change) => {
+        const h = pagedHarness();
+        const first = await h.adapter.retrieve({} as never, request());
+        if (change === 'inserted') h.data.items.push({ id: '250', name: 'New task' });
+        if (change === 'removed') h.data.items.shift();
+        if (change === 'modified') h.data.items[0]!.name = 'Changed task';
+        const page = await h.adapter.retrieve({} as never, request(), first.nextCursor);
+        expect(page.records).toEqual([]);
+        expect(page.sourceStatus).toBe('degraded');
+        expect(page.stopReason).toBe('monday_source_changed_restart_search');
+        expect(page.truncated).toBe(true);
+        expect(page.coverageComplete).toBe(false);
+        expect(page.nextCursor).toBeUndefined();
+      },
+    );
+
+    test('does not leak earlier records when a continuation re-scan fails partway', async () => {
+      const h = harness();
+      const first = await h.adapter.retrieve({} as never, request());
+      const execute = h.managed.executeRead.getMockImplementation()!;
+      h.managed.executeRead.mockImplementation(async (ctx, name, args) => {
+        if (name.endsWith('get_board_items_page') && args.cursor)
+          throw new Error('monday_retrieval_deadline');
+        return execute(ctx, name, args);
+      });
+      const page = await h.adapter.retrieve({} as never, request(), first.nextCursor);
+      expect(page.records).toEqual([]);
+      expect(page.returned).toBe(0);
+      expect(page.recordsEvaluated).toBe(1);
+      expect(page.coverageComplete).toBe(false);
+      expect(page.nextCursor).toBeUndefined();
+      expect(page.stopReason).toBe('monday_retrieval_deadline');
+    });
+
+    test('keeps unpaged meeting retrieval complete with every task and its updates', async () => {
+      const h = pagedHarness();
+      const page = await h.adapter.retrieve({} as never, request({ pageSize: undefined }));
+      expect(page.records).toHaveLength(6);
+      expect(page.coverageComplete).toBe(true);
+      expect(page.hasMore).toBe(false);
+      expect(page.nextCursor).toBeUndefined();
+      expect(
+        h.managed.executeRead.mock.calls.filter(([, name]) => name.endsWith('get_updates')),
+      ).toHaveLength(6);
+    });
   });
 });
