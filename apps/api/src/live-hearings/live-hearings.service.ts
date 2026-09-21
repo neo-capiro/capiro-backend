@@ -36,6 +36,7 @@ import {
   floridaLegislatorDirectoryProfile,
   preferNonBlank,
 } from '../hearing-discovery/florida-directory-profile.js';
+import { loadFloridaDirectoryResources } from '../hearing-discovery/florida-directory-resources.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
 
 /** One canonical hearing as the master calendar renders it. */
@@ -447,6 +448,12 @@ export class LiveHearingsService {
       ({ sourceEvidence: _sourceEvidence, ...row }) => row,
     );
   }
+
+  async floridaDirectoryResources(ctx: TenantContext) {
+    await requireStateCalendar(this.prisma, ctx.tenantId);
+    return loadFloridaDirectoryResources();
+  }
+
   async stateBody(ctx: TenantContext, id: string) {
     await requireStateCalendar(this.prisma, ctx.tenantId);
     const requestedBody = await this.prisma.stateCommittee.findUnique({
@@ -848,7 +855,11 @@ export class LiveHearingsService {
     const windowStart = new Date(now.getTime() - LIVE_WINDOW_MS);
     const rows = await this.prisma.committeeHearing.findMany({
       where: {
-        geographicJurisdiction: 'US',
+        // `committee_hearing` is the global public-record corpus. Do not
+        // silently turn the global Live rail back into a federal-only rail:
+        // authenticated users should see a live Florida/state proceeding next
+        // to a live federal one. Tenant-scoped subscriptions are still joined
+        // separately in `hydrate()` through `withTenant` and the calling user.
         canonicalHearingId: null,
         OR: [
           { eventStatus: 'in_progress' },

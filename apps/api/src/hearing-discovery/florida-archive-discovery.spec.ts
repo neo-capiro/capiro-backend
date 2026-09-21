@@ -143,7 +143,10 @@ function channelFetcherFor(records: unknown[]) {
    *  real notice link, which the senate adapter requires to discover it. */
   async function runJlbcNoticeDiscovery() {
     const senateJlbc = `<html><body><a href="/Committees/Show/JLBC">Joint Legislative Budget Commission</a></body></html>`;
-    const jlbcPage = `<html><body><table id="meetingsTbl"><tbody><tr>
+    const jlbcPage = `<html><body>
+      <select id="session-name"><option value="2026" selected="selected">2026</option></select>
+      <ul id="committeePageTabNavigation"><li><a href="/Committees/Show/JLBC/2026/Meetings">Meetings</a></li></ul>
+      <table id="meetingsTbl"><tbody><tr>
       <td>9/11/2026</td><td>11:00 AM</td><td></td>
       <td><a class="mtgrecord_notice" href="/Committees/Show/JLBC/MeetingNotice/6914">Notice</a>
           <a class="mtgrecord_video" href="/media/VideoPlayer/6382">Video</a></td>

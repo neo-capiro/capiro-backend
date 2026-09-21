@@ -1,7 +1,7 @@
 /**
  * Directory vNext route contract (Figma `941:2860`).
  *
- * Four first-class list routes plus the Department of War person profile. The
+ * Five first-class list routes plus the Department of War person profile. The
  * legacy `/directory` URL stays a backward-compatible Congressional Staff entry
  * point, and resolving it must preserve the query string so existing links,
  * bookmarks and shared searches keep working.
@@ -47,6 +47,7 @@ export const DIRECTORY_TABS: readonly DirectoryTab[] = [
   { id: 'committee-staff', label: 'Committee Staff', path: DIRECTORY_ROUTES.committeeStaff },
   { id: 'department-of-war', label: 'Department of War', path: DIRECTORY_ROUTES.departmentOfWar },
   { id: 'state-legislators', label: 'State Legislators', path: DIRECTORY_ROUTES.stateLegislators },
+  { id: 'state-committees', label: 'State Committees', path: DIRECTORY_ROUTES.stateCommittees },
 ];
 
 /**

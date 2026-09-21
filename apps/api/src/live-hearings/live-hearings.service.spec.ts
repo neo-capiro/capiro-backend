@@ -454,6 +454,70 @@ describe('LiveHearingsService — live view', () => {
     });
     expect((await service.live(ctxA)).rows).toHaveLength(0);
   });
+
+  it('shows live Florida proceedings alongside federal proceedings', async () => {
+    const { service } = makeService({
+      hearings: [
+        hearing({ id: 'federal-live', eventStatus: 'in_progress' }),
+        hearing({
+          id: 'florida-live',
+          geographicJurisdiction: 'FL',
+          congress: null,
+          legislativeSession: '2026',
+          stateCommitteeId: 'official-fl-commerce',
+          committeeName: 'Commerce Committee',
+          committeeCode: null,
+          committeeSystemCode: null,
+          eventStatus: 'in_progress',
+        }),
+      ],
+    });
+
+    const res = await service.live(ctxA);
+    expect(res.rows.map((row) => row.id)).toEqual(['federal-live', 'florida-live']);
+    expect(res.rows[1]).toMatchObject({
+      geographicJurisdiction: 'FL',
+      legislativeSession: '2026',
+      stateCommitteeId: 'official-fl-commerce',
+    });
+  });
+
+  it('keeps a state live hearing global while isolating its subscription overlay by tenant and user', async () => {
+    const florida = hearing({
+      id: 'florida-live',
+      geographicJurisdiction: 'FL',
+      eventStatus: 'in_progress',
+    });
+    const stateSubscription = {
+      id: 'state-sub-a',
+      tenantId: TENANT_A,
+      userId: USER_A1,
+      hearingId: 'florida-live',
+      notifyOnStart: true,
+      notifyOnMention: false,
+      scheduledByUser: true,
+      scheduledByRuleId: null,
+      clientIds: ['client-a'],
+      watchlistId: null,
+    };
+
+    const a1 = await makeService({
+      hearings: [florida],
+      subscriptions: [stateSubscription],
+    }).service.live(ctxA);
+    const a2 = await makeService({
+      hearings: [florida],
+      subscriptions: [stateSubscription],
+    }).service.live(ctxA2);
+    const b = await makeService({
+      hearings: [florida],
+      subscriptions: [stateSubscription],
+    }).service.live(ctxB);
+
+    expect(a1.rows[0]?.subscription?.clientIds).toEqual(['client-a']);
+    expect(a2.rows[0]?.subscription).toBeNull();
+    expect(b.rows[0]?.subscription).toBeNull();
+  });
 });
 
 describe('LiveHearingsService — event and updates', () => {

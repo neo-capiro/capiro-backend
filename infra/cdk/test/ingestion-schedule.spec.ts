@@ -56,6 +56,83 @@ describe('Florida OpenStates committee-event coverage', () => {
   });
 });
 
+describe('Florida official calendar discovery', () => {
+  test('records the deployed 15-minute EventBridge rate and guarded command', () => {
+    const florida = INGESTION_JOBS.find((job) => job.id === 'LegiwatchFloridaCalendar')!;
+    expect(florida.command).toEqual([
+      'discover-hearings',
+      '--source=florida',
+      '--session=2026',
+      '--additional-session=2027',
+    ]);
+    expect(florida.rateMinutes).toBe(15);
+    expect(florida.enabled ?? true).toBe(true);
+    expect(florida.managedOutOfBand).toBe(true);
+    expect(florida.environment).toEqual({
+      FL_CALENDAR_INGEST_ENABLED: 'true',
+      FL_CALENDAR_SESSION: '2026',
+      FL_CALENDAR_ADDITIONAL_SESSION: '2027',
+    });
+
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, 'FloridaCalendarScheduleStack');
+    const vpc = new ec2.Vpc(stack, 'Vpc', { maxAzs: 1, natGateways: 1 });
+    const cluster = new ecs.Cluster(stack, 'Cluster', { vpc });
+    const taskDefinition = new ecs.FargateTaskDefinition(stack, 'TaskDefinition', {
+      cpu: 256,
+      memoryLimitMiB: 512,
+    });
+    taskDefinition.addContainer('Api', {
+      image: ecs.ContainerImage.fromRegistry('public.ecr.aws/docker/library/node:22'),
+    });
+
+    new ScheduledIngestionJobs(stack, 'Schedules', {
+      envName: 'dev',
+      cluster,
+      taskDefinition,
+      containerName: 'Api',
+      securityGroup: new ec2.SecurityGroup(stack, 'SecurityGroup', { vpc }),
+      jobs: [florida],
+    });
+
+    const template = Template.fromStack(stack);
+    // The existing named rule is not owned by this stack. Keeping it in the
+    // matrix documents and tests the operational contract, while the construct
+    // must emit no colliding CloudFormation resource until an explicit import.
+    template.resourceCountIs('AWS::Events::Rule', 0);
+  });
+
+  test('retains the exact fixed-rate cadence after an explicit future import', () => {
+    const florida = INGESTION_JOBS.find((job) => job.id === 'LegiwatchFloridaCalendar')!;
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, 'ImportedFloridaCalendarScheduleStack');
+    const vpc = new ec2.Vpc(stack, 'Vpc', { maxAzs: 1, natGateways: 1 });
+    const cluster = new ecs.Cluster(stack, 'Cluster', { vpc });
+    const taskDefinition = new ecs.FargateTaskDefinition(stack, 'TaskDefinition', {
+      cpu: 256,
+      memoryLimitMiB: 512,
+    });
+    taskDefinition.addContainer('Api', {
+      image: ecs.ContainerImage.fromRegistry('public.ecr.aws/docker/library/node:22'),
+    });
+
+    new ScheduledIngestionJobs(stack, 'Schedules', {
+      envName: 'dev',
+      cluster,
+      taskDefinition,
+      containerName: 'Api',
+      securityGroup: new ec2.SecurityGroup(stack, 'SecurityGroup', { vpc }),
+      jobs: [{ ...florida, managedOutOfBand: false }],
+    });
+
+    Template.fromStack(stack).hasResourceProperties('AWS::Events::Rule', {
+      Name: 'capiro-dev-legiwatch-florida-calendar',
+      ScheduleExpression: 'rate(15 minutes)',
+      State: 'ENABLED',
+    });
+  });
+});
+
 test('renders optional scheduled environment into the ECS container override', () => {
   const app = new cdk.App();
   const stack = new cdk.Stack(app, 'ScheduleStack');

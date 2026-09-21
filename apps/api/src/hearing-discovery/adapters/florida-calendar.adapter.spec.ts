@@ -5,6 +5,7 @@ import {
   floridaBillNumberAliases,
   fetchFloridaSource,
   houseNoticeObservation,
+  senateCommitteePageSession,
   senateNoticeObservation,
   senateNoticeRefs,
   senateDailyCalendar,
@@ -27,6 +28,18 @@ const ref: SenateNoticeRef = {
   canceled: false,
 };
 describe('Florida first-party calendar contract', () => {
+  it('reads the committee-scoped served session and rejects a conflicting page shell', () => {
+    const page = (selected: string, hrefSession: string) => `
+      <select id="session-name"><option value="${selected}" selected="selected">${selected}</option></select>
+      <ul id="committeePageTabNavigation">
+        <li><a href="/Committees/Show/FP/${hrefSession}/Meetings">Meetings</a></li>
+      </ul>`;
+    expect(senateCommitteePageSession(page('2027', '2027'))).toBe('2027');
+    expect(senateCommitteePageSession(page('2026F', '2026F'))).toBe('2026F');
+    expect(senateCommitteePageSession(page('2027', '2026F'))).toBeNull();
+    expect(senateCommitteePageSession('<option value="2027" selected>2027</option>')).toBeNull();
+  });
+
   it('treats missing Senate meeting structure as a source failure but accepts explicit no-meetings', () => {
     expect(() => senateNoticeRefs('<main>Unrecognized page</main>', 'FP', 'Fiscal Policy')).toThrow(
       'Senate meeting table unavailable',

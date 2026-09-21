@@ -72,7 +72,7 @@ function ProfileRoute({ match }: { match: DirectoryProfileMatch }) {
 /**
  * Directory vNext module router (DIRECTORY-HANDOFF §6).
  *
- * The four list surfaces are peer routes over one canonical directory dataset;
+ * The five list surfaces are peer routes over one canonical directory dataset;
  * `/directory` is the backward-compatible entry point and redirects to
  * Congressional Staff with the query string preserved verbatim.
  *
@@ -147,7 +147,7 @@ export function VNextDirectoryRoutes() {
 /**
  * Whether vNext claims this directory pathname. `VNextRouter` uses this to
  * decide between rendering the vNext module and falling through to the
- * canonical page. Claimed: the legacy redirect, all four list surfaces, and
+ * canonical page. Claimed: the legacy redirect, all five list surfaces, and
  * the five deep-linkable profile routes (Phase 2 old-UI purge).
  */
 export function isVNextDirectoryPath(pathname: string): boolean {

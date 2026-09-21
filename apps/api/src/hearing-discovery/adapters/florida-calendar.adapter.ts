@@ -12,7 +12,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-14.1';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-21.1';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
@@ -135,6 +135,27 @@ export function senateCommitteeLinks(
   });
   if (!found.size) throw new Error('Senate committee directory did not expose its source links');
   return [...found.values()];
+}
+
+/**
+ * Session actually served by a Senate committee page.
+ *
+ * The publisher currently redirects an unpublished future-session URL (for
+ * example `/Committees/Show/FP/2027`) to the latest special session. The
+ * global site header can still show 2027, so only the committee page's own
+ * selected session and session-scoped tab URL qualify the response.
+ */
+export function senateCommitteePageSession(html: string): string | null {
+  const $ = load(html);
+  const selected = clean(
+    $('#session-name option[selected]').first().attr('value') ??
+      $('#session-name option[selected]').first().text(),
+  );
+  const tabHref = $('#committeePageTabNavigation a[href*="/Committees/Show/"]')
+    .first()
+    .attr('href');
+  const tabSession = /\/Committees\/Show\/[A-Za-z]+\/([^/]+)(?:\/|$)/i.exec(tabHref ?? '')?.[1];
+  return /^\d{4}[A-Z]?$/.test(selected) && selected === tabSession ? selected : null;
 }
 
 export function senateNoticeRefs(

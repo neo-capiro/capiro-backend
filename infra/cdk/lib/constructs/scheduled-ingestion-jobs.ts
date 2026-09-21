@@ -1,4 +1,5 @@
 import { Construct } from 'constructs';
+import { Duration } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as events from 'aws-cdk-lib/aws-events';
@@ -32,17 +33,27 @@ export class ScheduledIngestionJobs extends Construct {
     super(scope, id);
 
     for (const job of props.jobs) {
+      // A checked-in row may describe an existing operational rule without
+      // claiming CloudFormation ownership. Creating the same physical rule
+      // name would fail a Compute deploy (or, worse, tempt an unsafe delete /
+      // recreate). Such a rule must be explicitly imported before this marker
+      // is removed.
+      if (job.managedOutOfBand) continue;
+
       const rule = new events.Rule(this, `${job.id}Rule`, {
         ruleName: `capiro-${props.envName}-${kebab(job.id)}`,
         description: `[${job.tier}] ${job.description}`,
-        schedule: events.Schedule.cron({
-          minute: job.cron.minute,
-          hour: job.cron.hour,
-          day: job.cron.day ?? (job.cron.weekDay ? undefined : '*'),
-          month: job.cron.month ?? '*',
-          weekDay: job.cron.weekDay,
-          year: '*',
-        }),
+        schedule:
+          job.rateMinutes !== undefined
+            ? events.Schedule.rate(Duration.minutes(job.rateMinutes))
+            : events.Schedule.cron({
+                minute: job.cron.minute,
+                hour: job.cron.hour,
+                day: job.cron.day ?? (job.cron.weekDay ? undefined : '*'),
+                month: job.cron.month ?? '*',
+                weekDay: job.cron.weekDay,
+                year: '*',
+              }),
         // 2026-07-10 hot-fix (R7): a job may ship dark (enabled:false) while
         // its code-level guard is the primary safety mechanism — see
         // ScheduledIngestionJob.enabled's doc comment.

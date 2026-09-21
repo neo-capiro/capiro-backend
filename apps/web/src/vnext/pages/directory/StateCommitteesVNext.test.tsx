@@ -1,11 +1,23 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  StateCommitteesVNext,
   StateCommitteeProfile,
   chamberLabel,
   type StateCommitteeDetail,
 } from './StateCommitteesVNext.js';
+
+const get = vi.fn();
+vi.mock('../../../lib/use-api.js', () => ({ useApi: () => ({ get }) }));
+vi.mock('../../../lib/use-api-scope.js', () => ({ useApiScope: () => 'tenant:test-user' }));
+// Regression harness: authenticated state committee reads are public-record
+// access. Even a workspace whose legacy flag is false must render this route.
+vi.mock('../../../lib/intel-feature-flags.js', () => ({
+  STATE_CALENDAR_FEATURE: 'legiwatch_state_calendar_v1',
+  useIntelFeatureEnabled: () => false,
+}));
 
 const DETAIL: StateCommitteeDetail = {
   body: {
@@ -157,6 +169,50 @@ const DETAIL: StateCommitteeDetail = {
   },
 };
 
+const FLORIDA_DIRECTORY_RESOURCES = {
+  jurisdiction: 'FL' as const,
+  legislativeSession: '2026',
+  sources: {
+    house: { document: 'HouseDirectory.pdf', sha256: 'a'.repeat(64), asOfDate: '2026-06-04' },
+    senate: { document: 'SDIR.pdf', sha256: 'b'.repeat(64), asOfDate: '2026-08-26' },
+  },
+  officeDirectoryPages: [
+    {
+      chamber: 'senate' as const,
+      pageNumber: 2,
+      lines: ['General Counsel: Tom Thomas', 'Administrative Assistant: Michelle Zaleski'],
+      phones: ['(850) 487-5237'],
+      emails: [],
+      source: {
+        document: 'SDIR.pdf',
+        sha256: 'b'.repeat(64),
+        asOfDate: '2026-08-26',
+        textSha256: 'c'.repeat(64),
+      },
+    },
+    {
+      chamber: 'house' as const,
+      pageNumber: 7,
+      lines: ['The Leadership of the Florida House of Representatives'],
+      phones: [],
+      emails: [],
+      source: {
+        document: 'HouseDirectory.pdf',
+        sha256: 'a'.repeat(64),
+        asOfDate: '2026-06-04',
+        textSha256: 'd'.repeat(64),
+      },
+    },
+  ],
+  meetingRooms: [
+    {
+      room: '110 Senate Building',
+      description: 'Toni Jennings Committee Room, Entrance Level',
+      source: { document: 'SDIR.pdf', sha256: 'b'.repeat(64), asOfDate: '2026-08-26' },
+    },
+  ],
+};
+
 function LocationProbe() {
   const location = useLocation();
   return <pre data-testid="location-state">{JSON.stringify(location.state)}</pre>;
@@ -175,6 +231,82 @@ function renderProfile(detail = DETAIL) {
     </MemoryRouter>,
   );
 }
+
+function renderDirectory() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/directory/state-committees']}>
+        <Routes>
+          <Route path="/directory/state-committees" element={<StateCommitteesVNext />} />
+          <Route
+            path="/directory/state-committees/:id"
+            element={<StateCommitteesVNext id="official-commerce" />}
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe('StateCommitteesVNext authenticated routing', () => {
+  beforeEach(() => {
+    get.mockReset();
+    get.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/state-committees') {
+        return Promise.resolve({ data: [DETAIL.body] });
+      }
+      if (url === '/api/legiwatch/live-hearings/state-committees/official-commerce') {
+        return Promise.resolve({ data: DETAIL });
+      }
+      if (url === '/api/legiwatch/live-hearings/state-directory/florida') {
+        return Promise.resolve({ data: FLORIDA_DIRECTORY_RESOURCES });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+  });
+
+  test('shows the directory and navigates to a profile even when the legacy tenant flag is false', async () => {
+    renderDirectory();
+
+    const committee = await screen.findByRole('link', { name: /Commerce Committee/i });
+    expect(screen.getByRole('link', { name: 'State Committees' })).toHaveAttribute(
+      'href',
+      '/directory/state-committees',
+    );
+    fireEvent.click(committee);
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        '/api/legiwatch/live-hearings/state-committees/official-commerce',
+      ),
+    );
+    expect(await screen.findByRole('heading', { name: 'Commerce Committee' })).toBeInTheDocument();
+    expect(screen.queryByText(/not enabled for this workspace/i)).toBeNull();
+  });
+
+  test('loads reviewed chamber pages and Senate rooms only when the reference is opened', async () => {
+    renderDirectory();
+    await screen.findByRole('link', { name: /Commerce Committee/i });
+    expect(get).not.toHaveBeenCalledWith('/api/legiwatch/live-hearings/state-directory/florida');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Browse chamber offices and meeting rooms' }),
+    );
+
+    expect(await screen.findByText('110 Senate Building')).toBeInTheDocument();
+    expect(screen.getByText(/HouseDirectory\.pdf · as of 2026-06-04/)).toBeInTheDocument();
+    expect(screen.getByText('2 of 2 source pages')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tom Thomas' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Search chamber directory excerpts'), {
+      target: { value: 'General Counsel' },
+    });
+    expect(screen.getByText('1 of 2 source pages')).toBeInTheDocument();
+    expect(screen.getByText('Senate directory · page 2')).toBeInTheDocument();
+    expect(screen.queryByText('House directory · page 7')).toBeNull();
+  });
+});
 
 describe('state committee directory labels', () => {
   test.each([
