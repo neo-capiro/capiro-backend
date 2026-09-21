@@ -85,15 +85,14 @@ RUN groupadd --system --gid 1001 capiro \
  && apt-get install -y --no-install-recommends wget ca-certificates dumb-init openssl \
  && rm -rf /var/lib/apt/lists/*
 # tsx (used by entrypoint.sh to run scripts/sync-*.ts as ECS one-off tasks)
-# needs a writable scratch dir for its IPC server. Default os.tmpdir() = /tmp;
-# on Fargate the capiro user (uid 1001) hits ENOENT trying to create
-# /tmp/tsx-1001. Create an explicit /app/tmp owned by capiro and point TMPDIR
-# at it AFTER the apt install (TMPDIR set earlier would break ca-certificates'
-# post-install script, which uses mktemp against $TMPDIR).
+# needs writable scratch space for its IPC server. Keep image-local fallbacks for
+# writable-root deployments, but default to Fargate's writable /dev/shm tmpfs.
+# entrypoint.sh probes TMPDIR, /dev/shm, and /tmp before dispatch because a baked
+# /app/tmp becomes read-only when ECS enables readonlyRootFilesystem.
 RUN mkdir -p /app/tmp /tmp \
  && chmod 1777 /tmp \
  && chown capiro:capiro /app/tmp
-ENV TMPDIR=/app/tmp
+ENV TMPDIR=/dev/shm
 WORKDIR /app
 
 # Copy the entire workspace, pnpm's symlinked node_modules + the generated
