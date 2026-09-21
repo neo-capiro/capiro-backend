@@ -38,6 +38,7 @@ let calendarData: Record<string, unknown>;
 let latestCalendarData: Record<string, unknown>;
 let featureFlags: Record<string, boolean>;
 let deadlineData: { rows: Array<Record<string, string>> };
+let sourceCoverageData: { rows: Array<Record<string, unknown>>; asOf?: string };
 const clients: QueryClient[] = [];
 
 function JurisdictionProbe() {
@@ -51,7 +52,7 @@ function defaultResponse(url: string) {
   if (url === COVERAGE_URL)
     return Promise.resolve({ data: { summary: { total: 0, healthy: 0, degraded: 0, failing: 0, unknown: 0 }, sources: [] } });
   if (url.startsWith(CALENDAR_COVERAGE_PREFIX))
-    return Promise.resolve({ data: { rows: [] } });
+    return Promise.resolve({ data: sourceCoverageData });
   if (url.startsWith(DEADLINES_PREFIX)) return Promise.resolve({ data: deadlineData });
   if (url.startsWith(CALENDAR_PREFIX))
     return Promise.resolve({
@@ -67,6 +68,7 @@ beforeEach(() => {
   latestCalendarData = { items: [], total: 0 };
   featureFlags = {};
   deadlineData = { rows: [] };
+  sourceCoverageData = { rows: [] };
   apiGet.mockReset();
   apiPost.mockReset();
   apiGet.mockImplementation(defaultResponse);
@@ -172,6 +174,156 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
     fireEvent.click(within(screen.getByLabelText('Schedule view')).getByText('Agenda'));
     const agenda = await screen.findByLabelText('Schedule list');
     expect(within(agenda).getByText('Florida housing committee meeting')).toBeTruthy();
+  });
+
+  it('certifies a source-verified empty Florida week and keeps the latest proceeding inside the shared calendar', async () => {
+    const latestEvent = {
+      id: 'cm-fl-jlbc-2026-09-11',
+      title: 'Joint Legislative Budget Commission',
+      date: '2026-09-11',
+      geographicJurisdiction: 'FL',
+      eventType: 'committee',
+      committee: { name: 'Joint Legislative Budget Commission' },
+    };
+    latestCalendarData = { items: [latestEvent], total: 1 };
+    sourceCoverageData = {
+      asOf: '2026-09-20T18:00:00.000Z',
+      rows: ['house', 'senate'].map((chamber) => ({
+        chamber,
+        status: 'complete',
+        checkedAt: '2026-09-20T17:30:00.000Z',
+        from: '2026-09-14',
+        to: '2026-09-20',
+        items: 0,
+        details: { expected: 0, found: 0, issues: [] },
+      })),
+    };
+    apiGet.mockImplementation((url) => {
+      if (
+        url.startsWith(CALENDAR_PREFIX) &&
+        !url.includes('sort=desc') &&
+        url.includes('from=2026-09-07') &&
+        url.includes('to=2026-09-13')
+      )
+        return Promise.resolve({ data: { items: [latestEvent], total: 1 } });
+      return defaultResponse(url);
+    });
+
+    openSchedule('/legiwatch?jurisdiction=FL&calendarDate=2026-09-20');
+
+    const calendar = await screen.findByLabelText('Week calendar');
+    const availability = await within(calendar).findByLabelText('Florida calendar availability');
+    expect(availability.textContent).toContain(
+      'No Florida proceedings were published for Sep 14–20, 2026.',
+    );
+    expect(availability.textContent).toContain(
+      'Latest published proceeding: Joint Legislative Budget Commission · Sep 11, 2026',
+    );
+    expect(screen.getByText(/Florida calendar checks · Healthy/)).toBeTruthy();
+
+    fireEvent.click(
+      within(availability).getByRole('button', { name: 'View latest Florida hearings' }),
+    );
+    await waitFor(() =>
+      expect(
+        calendarCalls().some(
+          (url) => url.includes('from=2026-09-07') && url.includes('to=2026-09-13'),
+        ),
+      ).toBe(true),
+    );
+    expect(
+      await within(screen.getByLabelText('Week calendar')).findByRole('button', {
+        name: /Joint Legislative Budget Commission/i,
+      }),
+    ).toBeTruthy();
+  });
+
+  it.each([
+    {
+      state: 'partial',
+      summary: 'Partial check',
+      rows: [
+        { chamber: 'house', status: 'partial', checkedAt: '2026-09-20T17:30:00.000Z' },
+        { chamber: 'senate', status: 'complete', checkedAt: '2026-09-20T17:30:00.000Z' },
+      ],
+    },
+    {
+      state: 'stale',
+      summary: 'Stale check',
+      rows: [
+        { chamber: 'house', status: 'complete', checkedAt: '2026-09-18T17:30:00.000Z' },
+        { chamber: 'senate', status: 'complete', checkedAt: '2026-09-18T17:30:00.000Z' },
+      ],
+    },
+    {
+      state: 'failed',
+      summary: 'Failed check',
+      rows: [
+        { chamber: 'house', status: 'failed', checkedAt: '2026-09-20T17:30:00.000Z' },
+        { chamber: 'senate', status: 'complete', checkedAt: '2026-09-20T17:30:00.000Z' },
+      ],
+    },
+    {
+      state: 'missing one chamber',
+      summary: 'Coverage not verified',
+      rows: [{ chamber: 'house', status: 'complete', checkedAt: '2026-09-20T17:30:00.000Z' }],
+    },
+    {
+      state: 'not overlapping the full week',
+      summary: 'Coverage not verified',
+      rows: [
+        {
+          chamber: 'house',
+          status: 'complete',
+          checkedAt: '2026-09-20T17:30:00.000Z',
+          from: '2026-09-15',
+        },
+        { chamber: 'senate', status: 'complete', checkedAt: '2026-09-20T17:30:00.000Z' },
+      ],
+    },
+  ])('never claims an empty Florida week when coverage is $state', async ({ rows, summary }) => {
+    sourceCoverageData = {
+      asOf: '2026-09-20T18:00:00.000Z',
+      rows: rows.map((row) => ({
+        from: '2026-09-14',
+        to: '2026-09-20',
+        ...row,
+        items: 0,
+        details: { expected: 0, found: 0, issues: [] },
+      })),
+    };
+
+    openSchedule('/legiwatch?jurisdiction=FL&calendarDate=2026-09-20');
+
+    const availability = await screen.findByLabelText('Florida calendar availability');
+    expect(availability.textContent).toContain(
+      'Florida proceeding availability is not verified for Sep 14–20, 2026.',
+    );
+    expect(availability.textContent).not.toContain('No Florida proceedings were published');
+    expect(screen.getByText(new RegExp(`Florida calendar checks · ${summary}`))).toBeTruthy();
+  });
+
+  it('keeps a failed coverage request distinct from a verified empty Florida week', async () => {
+    apiGet.mockImplementation((url) =>
+      url.startsWith(CALENDAR_COVERAGE_PREFIX)
+        ? Promise.reject(new Error('coverage unavailable'))
+        : defaultResponse(url),
+    );
+
+    openSchedule('/legiwatch?jurisdiction=FL&calendarDate=2026-09-20');
+
+    const availability = await screen.findByLabelText('Florida calendar availability');
+    expect(availability.textContent).toContain('Florida proceeding availability is not verified');
+    expect(availability.textContent).toContain('The source coverage check could not be loaded.');
+    expect(availability.textContent).not.toContain('No Florida proceedings were published');
+    expect(screen.getByText(/Florida calendar checks · Check unavailable/)).toBeTruthy();
+  });
+
+  it('leaves the empty Federal calendar behavior unchanged', async () => {
+    openSchedule('/legiwatch?jurisdiction=US&calendarDate=2026-09-20');
+    const calendar = await screen.findByLabelText('Week calendar');
+    expect(within(calendar).queryByLabelText('Florida calendar availability')).toBeNull();
+    expect(within(calendar).getAllByText('No proceedings')).toHaveLength(7);
   });
 
   it('keeps Florida legal-date reminders after the shared calendar and agenda surface', async () => {

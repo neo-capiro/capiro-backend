@@ -44,9 +44,51 @@
   padding-top: 10px;
 }
 
+.capiro-vnext-root .lw .lw-hearings-empty-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--lw-line);
+  background: var(--lw-gray-bg);
+}
+
+.capiro-vnext-root .lw .lw-hearings-empty-range.is-verified {
+  background: var(--lw-selected);
+}
+
+.capiro-vnext-root .lw .lw-hearings-empty-range__copy {
+  min-width: 0;
+}
+
+.capiro-vnext-root .lw .lw-hearings-empty-range__title {
+  margin: 0 0 4px;
+  color: var(--lw-ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+}
+
+.capiro-vnext-root .lw .lw-hearings-empty-range__copy .lw-card__meta {
+  margin: 0;
+}
+
+.capiro-vnext-root .lw .lw-hearings-empty-range__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 779px) {
   .capiro-vnext-root .lw .lw-hearings-quick-filters {
     gap: 10px 16px;
+  }
+
+  .capiro-vnext-root .lw .lw-hearings-empty-range {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

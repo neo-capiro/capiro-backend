@@ -389,6 +389,11 @@ export class LiveHearingsService {
     const rows = await this.prisma.legislativeCalendarCoverage.findMany({
       where: {
         jurisdiction: 'FL',
+        // The public coverage panel reports the two first-party publisher
+        // chambers. OpenStates also records a `joint` coverage row; without
+        // this constraint the chamber-ordered `take: 2` can return house +
+        // joint and silently displace senate.
+        chamber: { in: ['house', 'senate'] },
         ...(query.session ? { session: query.session } : {}),
         ...(query.from ? { fromDate: { lte: new Date(`${query.from}T00:00:00Z`) } } : {}),
         ...(query.to ? { toDate: { gte: new Date(`${query.to}T00:00:00Z`) } } : {}),

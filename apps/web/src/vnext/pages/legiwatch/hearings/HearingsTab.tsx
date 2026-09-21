@@ -48,6 +48,7 @@ import {
 import {
   useCalendarFolderScope,
   useCalendarSourceCoverage,
+  type CalendarSourceCoverageRow,
 } from '../lib/calendar-preparation-api.js';
 import { easternDayOf } from '../lib/hearing-datetime.js';
 import './hearings.css';
@@ -64,6 +65,95 @@ import {
 type ViewMode = 'calendar' | 'list';
 
 const KIND_TONE: Record<string, Tone> = { HEARING: 'brand', MARKUP: 'gray' };
+const FLORIDA_COVERAGE_FRESH_MS = 24 * 60 * 60 * 1000;
+const FLORIDA_COVERAGE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+type FloridaCoverageState =
+  | 'checking'
+  | 'error'
+  | 'missing'
+  | 'failed'
+  | 'partial'
+  | 'stale'
+  | 'complete';
+
+const FLORIDA_COVERAGE_LABEL: Record<FloridaCoverageState, string> = {
+  checking: 'Checking',
+  error: 'Check unavailable',
+  missing: 'Coverage not verified',
+  failed: 'Failed check',
+  partial: 'Partial check',
+  stale: 'Stale check',
+  complete: 'Healthy',
+};
+
+function floridaCoverageState(
+  rows: CalendarSourceCoverageRow[],
+  from: string,
+  to: string,
+  asOf?: string,
+): Exclude<FloridaCoverageState, 'checking' | 'error'> {
+  const reference = Date.parse(asOf ?? '');
+  const referenceTime = Number.isFinite(reference) ? reference : Date.now();
+  const selected = ['house', 'senate']
+    .map((chamber) =>
+      rows
+        .filter((row) => row.chamber.toLowerCase() === chamber)
+        .sort((a, b) => Date.parse(b.checkedAt) - Date.parse(a.checkedAt))[0],
+    )
+    .filter((row): row is CalendarSourceCoverageRow => Boolean(row));
+
+  if (selected.length === 0) return 'missing';
+  if (selected.some((row) => row.status.toLowerCase() === 'failed')) return 'failed';
+
+  const stale = selected.some((row) => {
+    const checkedAt = Date.parse(row.checkedAt);
+    if (!Number.isFinite(checkedAt)) return true;
+    const age = referenceTime - checkedAt;
+    return age < -FLORIDA_COVERAGE_CLOCK_SKEW_MS || age >= FLORIDA_COVERAGE_FRESH_MS;
+  });
+  if (stale) return 'stale';
+  if (selected.some((row) => row.status.toLowerCase() === 'partial')) return 'partial';
+
+  // A verified negative requires BOTH chambers, a successful source check and
+  // a receipt whose inclusive window contains the entire displayed range.
+  if (
+    selected.length !== 2 ||
+    selected.some(
+      (row) =>
+        row.status.toLowerCase() !== 'complete' ||
+        !row.from ||
+        !row.to ||
+        row.from > from ||
+        row.to < to,
+    )
+  )
+    return 'missing';
+  return 'complete';
+}
+
+function dateOnlyParts(value: string) {
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  return { year, month, day };
+}
+
+function formatDateOnly(value: string) {
+  const { year, month, day } = dateOnlyParts(value);
+  return `${MONTHS[month - 1] ?? value} ${day}, ${year}`;
+}
+
+function formatDateOnlyRange(from: string, to: string) {
+  const start = dateOnlyParts(from);
+  const end = dateOnlyParts(to);
+  if (start.year === end.year && start.month === end.month)
+    return `${MONTHS[start.month - 1]} ${start.day}–${end.day}, ${start.year}`;
+  if (start.year === end.year)
+    return `${MONTHS[start.month - 1]} ${start.day}–${MONTHS[end.month - 1]} ${end.day}, ${start.year}`;
+  return `${formatDateOnly(from)}–${formatDateOnly(to)}`;
+}
 
 function sameDay(a: Date, b: Date) {
   return (
@@ -325,6 +415,27 @@ export function HearingsTab({ scope }: { scope: string }) {
    */
   const floridaRangeEmpty =
     jurisdiction === 'FL' && calendar.isSuccess && (calendar.data?.total ?? 0) === 0;
+  const floridaCoverage: FloridaCoverageState = sourceCoverage.isError
+    ? 'error'
+    : sourceCoverage.isPending
+      ? 'checking'
+      : floridaCoverageState(
+          sourceCoverage.data?.rows ?? [],
+          rangeFrom,
+          rangeTo,
+          sourceCoverage.data?.asOf,
+        );
+  const floridaRangeVerifiedEmpty = floridaRangeEmpty && floridaCoverage === 'complete';
+  const floridaSelectionNarrowed = Boolean(
+    committee ||
+      kind ||
+      search.trim() ||
+      session ||
+      following ||
+      chamber ||
+      eventStatus ||
+      privateSelection,
+  );
   const latestFloridaSelection = {
     committee: committee || undefined,
     q: search.trim() || undefined,
@@ -341,6 +452,8 @@ export function HearingsTab({ scope }: { scope: string }) {
     latestFloridaSelection,
     sub === 'schedule' && floridaRangeEmpty,
   );
+  const latestFloridaHearing = latestFlorida.data?.hearing ?? null;
+  const latestFloridaDay = latestFloridaHearing?.calendarDate ?? null;
   const jumpToLatestFlorida = (calendarDay: string) => {
     // Require a real canonical date — never fabricate one. The button is
     // disabled unless the returned event carries calendarDate, so this
@@ -354,6 +467,62 @@ export function HearingsTab({ scope }: { scope: string }) {
     }
     setWeekAnchor(anchor);
   };
+  const floridaRangeLabel = formatDateOnlyRange(rangeFrom, rangeTo);
+  const floridaEmptyRangeNotice = floridaRangeEmpty ? (
+    <div
+      className={`lw-hearings-empty-range${floridaRangeVerifiedEmpty ? ' is-verified' : ''}`}
+      role="status"
+      aria-label="Florida calendar availability"
+      data-coverage-state={floridaCoverage}
+    >
+      <div className="lw-hearings-empty-range__copy">
+        <p className="lw-hearings-empty-range__title">
+          {floridaRangeVerifiedEmpty
+            ? `No Florida proceedings${floridaSelectionNarrowed ? ' matching this selection' : ''} were published for ${floridaRangeLabel}.`
+            : `Florida proceeding availability is not verified for ${floridaRangeLabel}.`}
+        </p>
+        {!floridaRangeVerifiedEmpty ? (
+          <p className="lw-card__meta">
+            {floridaCoverage === 'checking'
+              ? 'The House and Senate source checks are still loading.'
+              : floridaCoverage === 'error'
+                ? 'The source coverage check could not be loaded.'
+                : floridaCoverage === 'failed'
+                  ? 'At least one chamber source check failed.'
+                  : floridaCoverage === 'partial'
+                    ? 'At least one chamber source check is partial.'
+                    : floridaCoverage === 'stale'
+                      ? 'At least one chamber source check is stale.'
+                      : 'Fresh, complete House and Senate checks do not cover this full date range.'}
+          </p>
+        ) : null}
+        {latestFlorida.isError ? (
+          <p className="lw-card__meta">The latest published Florida proceeding could not be loaded.</p>
+        ) : latestFlorida.isPending ? (
+          <p className="lw-card__meta">Checking the latest published Florida proceeding…</p>
+        ) : latestFloridaHearing && latestFloridaDay ? (
+          <p className="lw-card__meta">
+            Latest published proceeding: <strong>{latestFloridaHearing.title}</strong> ·{' '}
+            {formatDateOnly(latestFloridaDay)}
+          </p>
+        ) : latestFlorida.data?.answered ? (
+          <p className="lw-card__meta">No earlier Florida proceedings match this selection.</p>
+        ) : null}
+      </div>
+      <div className="lw-hearings-empty-range__actions">
+        {sourceCoverage.isError ? (
+          <LwButton onClick={() => void sourceCoverage.refetch()}>Retry source check</LwButton>
+        ) : null}
+        {latestFlorida.isError ? (
+          <LwButton onClick={() => void latestFlorida.refetch()}>Retry latest hearing</LwButton>
+        ) : latestFloridaDay ? (
+          <LwButton onClick={() => jumpToLatestFlorida(latestFloridaDay)}>
+            View latest Florida hearings
+          </LwButton>
+        ) : null}
+      </div>
+    </div>
+  ) : null;
 
   const rows = useMemo(() => calendar.data?.items ?? [], [calendar.data]);
   useEffect(() => {
@@ -836,6 +1005,8 @@ export function HearingsTab({ scope }: { scope: string }) {
                   </span>
                 </div>
 
+                {floridaEmptyRangeNotice}
+
                 <div className="lw-cal__grid">
                   {weekDays.map((day, i) => {
                     const list = byDay.get(i) ?? [];
@@ -944,6 +1115,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                   </h2>
                   <span className="lw-card__meta">{visibleCount} proceedings</span>
                 </div>
+                {floridaEmptyRangeNotice}
                 {filtered.length === 0 ? (
                   <div style={{ padding: 18 }}>
                     <LwStateEmpty
@@ -1280,40 +1452,6 @@ export function HearingsTab({ scope }: { scope: string }) {
 
         </div>
         ) : null}
-        {/* Latest-Florida is an empty-range aid, not an alternate schedule.
-            Keep it after the shared calendar/agenda so every jurisdiction has
-            the same primary surface immediately after the controls. */}
-        {sub === 'schedule' && floridaRangeEmpty ? (
-          <div className="lw-controls" aria-label="Latest Florida hearings">
-            {latestFlorida.isError ? (
-              <span role="alert" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-                The latest Florida hearings could not be checked.{' '}
-                <button onClick={() => void latestFlorida.refetch()}>Retry</button>
-              </span>
-            ) : latestFlorida.isPending ? (
-              <span role="status" style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-                Checking for the latest Florida hearings…
-              </span>
-            ) : latestFlorida.data?.hearing && latestFlorida.data.hearing.calendarDate ? (
-              (() => {
-                // Narrow once for the callback — the guard above proves the
-                // hearing and its canonical date exist, but TS can't carry that
-                // into the onClick closure.
-                const hearing = latestFlorida.data.hearing;
-                const day = hearing.calendarDate!;
-                return (
-                  <LwButton onClick={() => jumpToLatestFlorida(day)}>
-                    View latest Florida hearings
-                  </LwButton>
-                );
-              })()
-            ) : latestFlorida.data?.answered ? (
-              <span style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-                No Florida hearings match this selection.
-              </span>
-            ) : null}
-          </div>
-        ) : null}
         {/* Florida legal dates are supplemental research reminders. Keep the
             shared proceedings calendar/agenda as the primary schedule surface,
             then expose the source-stated dates after it rather than inserting
@@ -1333,12 +1471,12 @@ export function HearingsTab({ scope }: { scope: string }) {
           aria-label="Florida source coverage"
           style={{ padding: 16, marginBottom: 12 }}
         >
-          <details className="lw-hearings-source-health" open={sourceCoverage.isError}>
+          <details
+            className="lw-hearings-source-health"
+            open={sourceCoverage.isError || floridaCoverage === 'failed'}
+          >
             <summary className="lw-card__title">
-              Florida calendar checks
-              {!sourceCoverage.isError && !sourceCoverage.isPending && sourceCoverage.data?.rows
-                ? ` · ${sourceCoverage.data.rows.some((row) => Date.now() - Date.parse(row.checkedAt) >= 86400000) ? 'Stale check' : sourceCoverage.data.rows.some((row) => row.status === 'partial') ? 'Partial check' : 'Healthy'}`
-                : ''}{' '}
+              Florida calendar checks · {FLORIDA_COVERAGE_LABEL[floridaCoverage]}{' '}
               <span>View details</span>
             </summary>
             <div className="lw-hearings-source-health__body">
@@ -1352,17 +1490,36 @@ export function HearingsTab({ scope }: { scope: string }) {
             <p role="status">Checking source coverage…</p>
           ) : (
             ['house', 'senate'].map((chamber) => {
-              const source = sourceCoverage.data?.rows?.find((row) => row.chamber === chamber);
-              const fresh = source && Date.now() - Date.parse(source.checkedAt) < 86400000;
+              const source = sourceCoverage.data?.rows?.find(
+                (row) => row.chamber.toLowerCase() === chamber,
+              );
+              const asOf = Date.parse(sourceCoverage.data?.asOf ?? '');
+              const referenceTime = Number.isFinite(asOf) ? asOf : Date.now();
+              const checkedAt = source ? Date.parse(source.checkedAt) : Number.NaN;
+              const age = referenceTime - checkedAt;
+              const fresh =
+                source &&
+                Number.isFinite(checkedAt) &&
+                age >= -FLORIDA_COVERAGE_CLOCK_SKEW_MS &&
+                age < FLORIDA_COVERAGE_FRESH_MS;
+              const coversRange =
+                source?.from &&
+                source.to &&
+                source.from <= rangeFrom &&
+                source.to >= rangeTo;
               const sessionIssue = source?.details?.issues?.some((issue) => /session/i.test(issue));
               const status = source
-                ? source.status === 'partial' && fresh
+                ? source.status === 'failed'
+                  ? 'Failed check'
+                  : source.status === 'partial' && fresh
                   ? sessionIssue
                     ? 'Notice found, session unresolved'
                     : 'Partial check'
-                  : source.status === 'complete' && fresh
+                  : source.status === 'complete' && fresh && coversRange
                     ? 'Source checked'
-                    : 'Stale check'
+                    : !fresh
+                      ? 'Stale check'
+                      : 'No source check covers this full date selection.'
                 : 'No source check covers this full date selection.';
               return (
                 <div key={chamber}>

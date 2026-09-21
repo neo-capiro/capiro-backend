@@ -546,6 +546,11 @@ case "${1:-serve}" in
     echo "Running reviewed Florida OpenStates alias repair $*"
     exec ./node_modules/.bin/tsx scripts/repair-florida-openstates-aliases.ts "$@"
     ;;
+  repair-florida-jlbc-openstates-alias)
+    shift
+    echo "Running exact reviewed Florida JLBC alias repair $*"
+    exec ./node_modules/.bin/tsx scripts/repair-florida-jlbc-openstates-alias.ts "$@"
+    ;;
   # State Legislation Platform (Phase 0 S1) â€” LegiScan is the bill spine.
   # backfill = one-time dataset seed + quota-exhaustion fallback (accepts
   # LEGISCAN_STATES/LEGISCAN_SESSIONS via env, no CLI flags); masterlist =

@@ -59,7 +59,7 @@ export type OpenstatesEventParticipant = {
   note?: string;
   name?: string;
   entity_type?: string;
-  organization?: { id?: string; name?: string };
+  organization?: { id?: string; name?: string; classification?: string };
   person?: { id?: string; name?: string };
 };
 export type OpenstatesEventAgendaItem = {
@@ -98,6 +98,71 @@ export type OpenstatesEvent = {
   participants?: OpenstatesEventParticipant[];
   agenda?: OpenstatesEventAgendaItem[];
 };
+
+const REVIEWED_JLBC_OPENSTATES_EVENT_ID = 'ocd-event/a02f8006-d61c-436b-bd3b-e5080dad8f67';
+const REVIEWED_JLBC_MONTH_SOURCE =
+  'https://www.flhouse.gov/Sections/HouseCalendar/finalizedmeetingnotice.aspx?mode=month';
+const REVIEWED_JLBC_OFFICIAL_IDENTITY = 'fl:joint:lbc:notice:6914-15223';
+const REVIEWED_JLBC_SESSION_ISSUE =
+  'Joint notice publisher session conflict: House 2026, Senate 2027. Canonical session remains unknown.';
+
+type ReviewedFloridaEventProjection = {
+  officialIdentity: string;
+  session: null;
+  chamber: 'joint';
+  bodySourceKey: string;
+  bodyName: string;
+  stateCommitteeId: null;
+  eventType: 'joint';
+};
+
+/**
+ * One reviewed OpenStates row is the same proceeding as the two first-party
+ * JLBC notices. This is deliberately an assertion bundle, not a general
+ * title/time matcher: every stable publisher fact must still agree or the row
+ * remains in the provider identity namespace.
+ */
+function reviewedJlbcProjection(event: OpenstatesEvent): ReviewedFloridaEventProjection | null {
+  const organizationParticipants = (event.participants ?? []).filter((participant) =>
+    participant.organization?.id?.trim(),
+  );
+  const participant = organizationParticipants[0];
+  const sourceUrls = (event.sources ?? [])
+    .map((source) => source.url?.trim())
+    .filter((url): url is string => Boolean(url));
+  const exactSource = sourceUrls.length === 1 && sourceUrls[0] === REVIEWED_JLBC_MONTH_SOURCE;
+  if (
+    event.id !== REVIEWED_JLBC_OPENSTATES_EVENT_ID ||
+    event.name !== 'Joint Legislative Budget Commission' ||
+    event.jurisdiction?.id !== 'ocd-jurisdiction/country:us/state:fl/government' ||
+    event.jurisdiction?.name !== 'Florida' ||
+    event.jurisdiction?.classification !== 'state' ||
+    event.classification !== 'event' ||
+    event.status !== 'tentative' ||
+    event.deleted !== false ||
+    event.start_date !== '2026-09-11T11:00:00-04:00' ||
+    event.end_date !== '2026-09-11T14:00:00-04:00' ||
+    event.all_day !== false ||
+    event.location?.name?.trim() !== '110 SOB' ||
+    !exactSource ||
+    organizationParticipants.length !== 1 ||
+    participant?.entity_type !== 'organization' ||
+    participant.name !== 'Joint Legislative Budget Commission' ||
+    participant.organization?.id !== 'ocd-organization/e779cf08-9f72-4663-a9e0-ad306359310a' ||
+    participant.organization.name !== 'Legislative Budget Commission' ||
+    participant.organization.classification !== 'committee'
+  )
+    return null;
+  return {
+    officialIdentity: REVIEWED_JLBC_OFFICIAL_IDENTITY,
+    session: null,
+    chamber: 'joint',
+    bodySourceKey: 'fl:joint:lbc',
+    bodyName: 'Joint Legislative Budget Commission',
+    stateCommitteeId: null,
+    eventType: 'joint',
+  };
+}
 
 type CommitteeCrosswalk = {
   stateCommitteeId: string;
@@ -347,6 +412,7 @@ export function openstatesEventObservation(
   const publisherCommittee = officialCommittees.get(
     sessionIdentity(eventSession, publisherEvidence.key ?? ''),
   );
+  const reviewedProjection = reviewedJlbcProjection(event);
   // A lone successful lookup among multiple participant organizations is not
   // proof that the others refer to the same body. Multi-body events remain
   // unresolved rather than inheriting whichever organization happened to map.
@@ -365,6 +431,7 @@ export function openstatesEventObservation(
         ? (publisherCommittee ?? null)
         : null;
   const chamber =
+    reviewedProjection?.chamber ??
     exactCommittee?.chamber ??
     providerChamber(organizations.map((org) => org.name).join(' ')) ??
     providerChamber(event.name);
@@ -375,9 +442,10 @@ export function openstatesEventObservation(
   const allDay = Boolean(event.all_day);
   const sourceUrl = eventSourceUrl(event);
   const watchUrl = eventWatchUrl(event);
-  // The event window owns the session. Committee evidence may qualify that
-  // session, but must never rewrite a current event into a historical row.
-  const session = eventSession;
+  // The event window normally owns the session. The single reviewed joint
+  // crosswalk above intentionally preserves the first-party session-null
+  // posture because its House and Senate notices conflict.
+  const session = reviewedProjection ? reviewedProjection.session : eventSession;
   const bodyIdentity = organizations.length
     ? organizations
         .map((org) => org.id)
@@ -391,25 +459,36 @@ export function openstatesEventObservation(
     );
   if (publisherEvidence.ambiguous) issues.push(AMBIGUOUS_PUBLISHER_COMMITTEE_ISSUE);
   else if (conflictingCommitteeEvidence) issues.push(CONFLICTING_COMMITTEE_ISSUE);
-  if (organizations.length && !exactCommittee) issues.push(UNMAPPED_COMMITTEE_ISSUE);
+  if (organizations.length && !exactCommittee && !reviewedProjection)
+    issues.push(UNMAPPED_COMMITTEE_ISSUE);
+  if (reviewedProjection) issues.push(REVIEWED_JLBC_SESSION_ISSUE);
   if (event.deleted) issues.push('OpenStates marks this event record deleted.');
 
   return {
     jurisdiction: 'FL',
     session,
     chamber,
-    // The supplier event id is the only stable event identity OpenStates owns.
+    // The supplier event id is the default stable identity OpenStates owns.
     // Never key a proceeding from its Senate MeetingNotice documents: live
-    // payloads reuse those stale URLs across several real meeting dates.
-    officialIdentity: `openstates:event:${event.id}`,
+    // payloads reuse those stale URLs across several real meeting dates. The
+    // one reviewed assertion bundle above is the only explicit exception.
+    officialIdentity: reviewedProjection?.officialIdentity ?? `openstates:event:${event.id}`,
     // An OpenStates organization is stable provider evidence, but until it is
     // crosswalked it is not a canonical committee body. Mark it explicitly as
     // unresolved so a later exact roster crosswalk may refine the same
     // first-party meeting instead of conflicting with this provisional key.
-    bodySourceKey: exactCommittee?.bodySourceKey ?? `unresolved-body:openstates:${bodyIdentity}`,
-    bodyName: exactCommittee?.name ?? organizations[0]?.name ?? event.name,
-    stateCommitteeId: exactCommittee?.stateCommitteeId ?? null,
-    eventType: organizations.length > 1 || chamber === 'joint' ? 'joint' : 'committee',
+    bodySourceKey:
+      reviewedProjection?.bodySourceKey ??
+      exactCommittee?.bodySourceKey ??
+      `unresolved-body:openstates:${bodyIdentity}`,
+    bodyName:
+      reviewedProjection?.bodyName ?? exactCommittee?.name ?? organizations[0]?.name ?? event.name,
+    stateCommitteeId: reviewedProjection
+      ? reviewedProjection.stateCommitteeId
+      : (exactCommittee?.stateCommitteeId ?? null),
+    eventType:
+      reviewedProjection?.eventType ??
+      (organizations.length > 1 || chamber === 'joint' ? 'joint' : 'committee'),
     sourceUrl,
     publishedAt: null,
     fields: {
@@ -424,7 +503,10 @@ export function openstatesEventObservation(
         endsAt: !allDay && end && end > start ? end.toISOString() : null,
       },
       location: event.location?.name?.trim() || null,
-      agenda: agendaRows(event, sourceUrl, bills, session),
+      // The reviewed joint row intentionally carries session=null because its
+      // two publishers conflict. Do not attach a session-qualified bill to a
+      // session-unknown observation if OpenStates later adds agenda rows.
+      agenda: agendaRows(event, sourceUrl, bills, session ?? ''),
       documents: documentRows(event, sourceUrl),
       watchUrl,
     },
@@ -442,6 +524,23 @@ export function openstatesEventObservation(
     completeness: issues.length ? 'partial' : 'complete',
     issues,
   };
+}
+
+/** The source ledger always retains the raw OpenStates id, even when one exact
+ * reviewed event projects a shared first-party official identity. */
+export function openstatesProviderEventId(observation: LegislativeObservation): string {
+  const providerPrefix = 'openstates:event:';
+  if (observation.officialIdentity.startsWith(providerPrefix))
+    return observation.officialIdentity.slice(providerPrefix.length);
+  if (
+    observation.officialIdentity === REVIEWED_JLBC_OFFICIAL_IDENTITY &&
+    observation.jurisdiction === 'FL' &&
+    observation.session === null &&
+    observation.chamber === 'joint' &&
+    observation.bodySourceKey === 'fl:joint:lbc'
+  )
+    return REVIEWED_JLBC_OPENSTATES_EVENT_ID;
+  throw new Error('OpenStates observation is missing its raw provider event id');
 }
 
 function normalizeChamber(chamber: string | null): CommitteeCrosswalk['chamber'] {
@@ -792,17 +891,11 @@ export async function syncFloridaOpenstatesEvents(
   const identityRepairs = await repairLegacyOpenstatesEventIdentities(
     prisma,
     source.id,
-    new Set(
-      qualifiedObservations.map((observation) =>
-        observation.officialIdentity.slice('openstates:event:'.length),
-      ),
-    ),
+    new Set(qualifiedObservations.map(openstatesProviderEventId)),
     options.after.slice(0, 4),
     log,
   );
-  const rawEventIds = observations.map((observation) =>
-    observation.officialIdentity.slice('openstates:event:'.length),
-  );
+  const rawEventIds = observations.map(openstatesProviderEventId);
   const priorObservations = await prisma.hearingSourceObservation.findMany({
     where: { sourceId: source.id, externalEventId: { in: rawEventIds } },
     select: { externalEventId: true, hearingId: true },
@@ -828,7 +921,7 @@ export async function syncFloridaOpenstatesEvents(
         log(`[openstates-events] ${observation.officialIdentity}: ${committeeEvidenceError}`);
         continue;
       }
-      const externalEventId = observation.officialIdentity.slice('openstates:event:'.length);
+      const externalEventId = openstatesProviderEventId(observation);
       if (!externalEventId.startsWith('ocd-event/'))
         throw new Error('OpenStates observation is missing its raw provider event id');
       const watchUrl = observation.fields.watchUrl;

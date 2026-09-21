@@ -9,6 +9,25 @@ export interface CalendarFolderScope {
   jurisdiction?: string;
   session?: string;
 }
+
+export interface CalendarSourceCoverageRow {
+  chamber: string;
+  status: string;
+  checkedAt: string;
+  /** Inclusive source window returned by the canonical coverage endpoint. */
+  from?: string;
+  /** Inclusive source window returned by the canonical coverage endpoint. */
+  to?: string;
+  items: number;
+  details: { expected?: number; found?: number; issues?: string[] };
+}
+
+export interface CalendarSourceCoverageResponse {
+  rows: CalendarSourceCoverageRow[];
+  /** Server clock for freshness checks, avoiding claims based on a skewed browser clock. */
+  asOf?: string;
+}
+
 export function useCalendarSourceCoverage(
   input: { from: string; to: string; session?: string },
   enabled: boolean,
@@ -24,15 +43,9 @@ export function useCalendarSourceCoverage(
       const query = new URLSearchParams({ from: input.from, to: input.to });
       if (input.session) query.set('session', input.session);
       return (
-        await api.get<{
-          rows: Array<{
-            chamber: string;
-            status: string;
-            checkedAt: string;
-            items: number;
-            details: { expected?: number; found?: number; issues?: string[] };
-          }>;
-        }>(`/api/legiwatch/live-hearings/calendar/coverage?${query}`)
+        await api.get<CalendarSourceCoverageResponse>(
+          `/api/legiwatch/live-hearings/calendar/coverage?${query}`,
+        )
       ).data;
     },
   });

@@ -119,6 +119,7 @@ function matches(row: Row, where: Row | undefined): boolean {
 
 function makePrisma(seed: {
   hearings?: Row[];
+  coverage?: Row[];
   subscriptions?: Row[];
   captures?: Row[];
   candidates?: Row[];
@@ -129,6 +130,7 @@ function makePrisma(seed: {
 }) {
   const store = {
     hearings: seed.hearings ?? [],
+    coverage: seed.coverage ?? [],
     subscriptions: seed.subscriptions ?? [],
     captures: seed.captures ?? [],
     candidates: seed.candidates ?? [],
@@ -165,6 +167,38 @@ function makePrisma(seed: {
         store.hearings.filter((h) => matches(h, args.where)).length,
       findUnique: async (args: { where: { id: string } }) =>
         store.hearings.find((h) => h.id === args.where.id) ?? null,
+    },
+    legislativeCalendarCoverage: {
+      findMany: async (
+        args: { where?: Row; take?: number; distinct?: string[]; orderBy?: Row[] } = {},
+      ) => {
+        let rows = store.coverage.filter((row) => matches(row, args.where));
+        if (args.orderBy) {
+          rows = rows.slice().sort((a, b) => {
+            for (const ordering of args.orderBy ?? []) {
+              const [key, direction] = Object.entries(ordering)[0] ?? [];
+              if (!key) continue;
+              const av = a[key];
+              const bv = b[key];
+              const cmp =
+                av instanceof Date && bv instanceof Date
+                  ? av.getTime() - bv.getTime()
+                  : String(av).localeCompare(String(bv));
+              if (cmp !== 0) return direction === 'desc' ? -cmp : cmp;
+            }
+            return 0;
+          });
+        }
+        for (const key of args.distinct ?? []) {
+          const seen = new Set<unknown>();
+          rows = rows.filter((row) => {
+            if (seen.has(row[key])) return false;
+            seen.add(row[key]);
+            return true;
+          });
+        }
+        return rows.slice(0, args.take ?? rows.length);
+      },
     },
     publicHearingCapture: {
       findMany: async (args: { where?: Row } = {}) =>
@@ -303,6 +337,53 @@ describe('LiveHearingsService — tenant isolation', () => {
     const res = await service.calendar(ctxA, { followState: 'scheduled' });
     expect(res.rows).toEqual([]);
     expect(res.total).toBe(0);
+  });
+});
+
+describe('LiveHearingsService — Florida calendar coverage', () => {
+  it('returns both publisher chambers when a newer joint coverage row also exists', async () => {
+    const coverageWindow = {
+      jurisdiction: 'FL',
+      session: '2026',
+      fromDate: day('2026-09-13'),
+      toDate: day('2026-10-04'),
+      status: 'complete',
+      items: 0,
+      details: { expected: 0, found: 0 },
+    };
+    const { service } = makeService({
+      coverage: [
+        {
+          ...coverageWindow,
+          id: 'house-coverage',
+          chamber: 'house',
+          attemptedAt: new Date('2026-09-20T16:00:00.000Z'),
+        },
+        {
+          ...coverageWindow,
+          id: 'joint-openstates-coverage',
+          chamber: 'joint',
+          attemptedAt: new Date('2026-09-20T16:01:00.000Z'),
+        },
+        {
+          ...coverageWindow,
+          id: 'senate-coverage',
+          chamber: 'senate',
+          attemptedAt: new Date('2026-09-20T16:00:00.000Z'),
+        },
+      ],
+    });
+
+    const result = await service.calendarCoverage(ctxA, {
+      from: '2026-09-14',
+      to: '2026-09-20',
+    });
+
+    expect(result.rows.map((row) => row.chamber)).toEqual(['house', 'senate']);
+    expect(result.rows).toEqual([
+      expect.objectContaining({ chamber: 'house', status: 'complete', items: 0 }),
+      expect.objectContaining({ chamber: 'senate', status: 'complete', items: 0 }),
+    ]);
   });
 });
 
