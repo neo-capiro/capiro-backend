@@ -42,6 +42,7 @@ export type OpportunitySortV2 = (typeof OPPORTUNITY_SORTS_V2)[number];
 export type OpportunitySortDirectionV2 = 'asc' | 'desc';
 export const OPPORTUNITY_QUERY_MATCHES_V2 = ['keywords', 'phrase'] as const;
 export type OpportunityQueryMatchV2 = (typeof OPPORTUNITY_QUERY_MATCHES_V2)[number];
+export const MAX_OPPORTUNITY_KEYWORD_TERMS = 100;
 export type SearchVisibilityV2 = 'private' | 'tenant';
 export type OpportunityEligibilityV2 = 'eligible' | 'ineligible' | 'needs_review' | 'unknown';
 export interface OpportunityClientCapabilityV2 {
@@ -70,6 +71,8 @@ export interface OpportunitySearchCriteriaV2 {
   query: string;
   /** Explicit new-search semantics. Omitted preserves legacy literal phrase matching. */
   queryMatch?: OpportunityQueryMatchV2;
+  /** Independent search terms. An opportunity may match any one of these terms. */
+  keywordTerms?: string[];
   sources: OpportunitySourceV2[];
   types: OpportunityTypeV2[];
   lifecycle: OpportunityLifecycleV2[];
@@ -199,7 +202,7 @@ const DEFAULT_CRITERIA: OpportunitySearchCriteriaV2 = {
 };
 
 const SUPPORTED_KEYS = new Set([
-  'schemaVersion', 'mode', 'clientId', 'query', 'queryMatch', 'sources', 'types', 'lifecycle', 'agencies', 'sectors',
+  'schemaVersion', 'mode', 'clientId', 'query', 'queryMatch', 'keywordTerms', 'sources', 'types', 'lifecycle', 'agencies', 'sectors',
   'naicsCodes', 'pscCodes', 'setAsideCodes', 'eligibility', 'posted', 'geography', 'applicantTypes',
   'funding', 'costShare', 'methods', 'disbursement', 'grantPrerequisites', 'codes', 'deadlineFrom',
   'deadlineWindow', 'deadlineTo', 'sort', 'direction', 'page', 'pageSize',
@@ -231,6 +234,28 @@ function enumListWithWarnings<T extends string>(
   return raw.filter((item): item is T => allowedSet.has(item as T));
 }
 function codeList(value: unknown): string[] { return [...new Set(list(value).map((item) => item.toUpperCase()))]; }
+function keywordTerms(value: unknown, warnings: OpportunityCriteriaWarning[]): string[] {
+  const values = Array.isArray(value) ? value : value == null ? [] : [value];
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of values) {
+    if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > 120) {
+      warnings.push({ key: 'keywordTerms', reason: 'invalid' });
+      continue;
+    }
+    const term = text(raw);
+    const key = term.toLocaleLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      terms.push(term);
+    }
+  }
+  if (terms.length > MAX_OPPORTUNITY_KEYWORD_TERMS) {
+    warnings.push({ key: 'keywordTerms', reason: 'invalid' });
+    return terms.slice(0, MAX_OPPORTUNITY_KEYWORD_TERMS);
+  }
+  return terms;
+}
 function isoOrNull(value: unknown): string | null {
   const candidate = text(value);
   if (!candidate) return null;
@@ -270,6 +295,7 @@ export function normalizeOpportunitySearchCriteria(input: unknown): NormalizedOp
   const criteria: OpportunitySearchCriteriaV2 = {
     schemaVersion: 2, mode, clientId: client || null, query: text(raw.query),
     ...(queryMatch ? { queryMatch } : {}),
+    keywordTerms: keywordTerms(raw.keywordTerms, warnings),
     sources: enumListWithWarnings(raw.sources, OPPORTUNITY_SOURCES_V2, 'sources', warnings),
     types: enumListWithWarnings(raw.types, OPPORTUNITY_TYPES_V2, 'types', warnings),
     lifecycle: lifecycleProvided ? lifecycle : DEFAULT_CRITERIA.lifecycle, agencies: list(raw.agencies), sectors: list(raw.sectors),

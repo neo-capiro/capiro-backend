@@ -344,6 +344,7 @@ export function criteriaFromSearchParams(params: URLSearchParams): OpportunitySe
     mode,
     clientId,
     query: params.get('query') ?? params.get('q') ?? '',
+    keywordTerms: params.getAll('keyword'),
     ...(queryMatch === 'keywords' || queryMatch === 'phrase'
       ? { queryMatch: queryMatch as OpportunityQueryMatchV2 }
       : {}),
@@ -370,6 +371,7 @@ export function criteriaToSearchParams(criteria: OpportunitySearchCriteriaV2): U
   if (criteria.clientId) params.set('client', criteria.clientId);
   if (criteria.query) params.set('query', criteria.query);
   if (criteria.queryMatch) params.set('queryMatch', criteria.queryMatch);
+  for (const term of criteria.keywordTerms ?? []) params.append('keyword', term);
   for (const [parameter, key] of Object.entries(PARAM_TO_KEY)) {
     const value = csv(criteria[key as keyof OpportunitySearchCriteriaV2] as string[]);
     if (value) params.set(parameter, value);

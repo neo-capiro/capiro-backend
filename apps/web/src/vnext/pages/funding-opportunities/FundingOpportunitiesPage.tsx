@@ -9,6 +9,7 @@ import type {
   OpportunitySourceFreshnessV2,
   OpportunityQueryMatchV2,
 } from '@capiro/shared';
+import { MAX_OPPORTUNITY_KEYWORD_TERMS } from '@capiro/shared';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
@@ -61,6 +62,7 @@ import {
   criteriaToSearchParams,
   updateCriteria,
 } from './funding-opportunities-v2-state.js';
+import { clientProfileKeywordGroups, type ClientProfileKeywordSource, type CapabilityKeywordSource } from './client-profile-keywords.js';
 import './funding-opportunities-v2.css';
 
 type ClientLite = { id: string; name: string; status?: string; meta?: string };
@@ -111,6 +113,20 @@ function semanticCriteria(criteria: OpportunitySearchCriteriaV2): string {
   return JSON.stringify(value, Object.keys(value).sort());
 }
 
+export function mergeKeywordTerms(existing: readonly string[], incoming: readonly string[]): string[] {
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [...existing, ...incoming]) {
+    const term = raw.trim().replace(/\s+/g, ' ');
+    const key = term.toLocaleLowerCase();
+    if (!term || term.length > 120 || seen.has(key)) continue;
+    seen.add(key);
+    terms.push(term);
+    if (terms.length === MAX_OPPORTUNITY_KEYWORD_TERMS) break;
+  }
+  return terms;
+}
+
 export function FundingOpportunitiesPage() {
   const flag = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
   const me = useMe();
@@ -133,7 +149,11 @@ export function FundingOpportunitiesPage() {
   const isDetailRoute = Boolean(routeParams.source && routeParams.sourceRecordId);
   const routeSyncRef = useRef<string | null>(null);
   const [criteria, setCriteria] = useState<OpportunitySearchCriteriaV2>(routeCriteria);
+  const criteriaRef = useRef(criteria);
+  criteriaRef.current = criteria;
   const [queryInput, setQueryInput] = useState(criteria.query);
+  const [keywordDraft, setKeywordDraft] = useState('');
+  const [importingKeywords, setImportingKeywords] = useState(false);
   const [queryMatch, setQueryMatch] = useState<OpportunityQueryMatchV2>(
     routeCriteria.queryMatch ?? (routeCriteria.query ? 'phrase' : 'keywords'),
   );
@@ -178,6 +198,7 @@ export function FundingOpportunitiesPage() {
   useEffect(() => {
     setCriteria(routeCriteria);
     setQueryInput(routeCriteria.query);
+    setKeywordDraft('');
     setQueryMatch(routeCriteria.queryMatch ?? (routeCriteria.query ? 'phrase' : 'keywords'));
     setTab(routeTab);
     setBoardView(routeBoard);
@@ -350,12 +371,65 @@ export function FundingOpportunitiesPage() {
   function commitKeyword() {
     patch({ query: queryInput, queryMatch });
   }
+  function addKeywords() {
+    const incoming = keywordDraft.split(/[,\n]+/).map((term) => term.trim()).filter(Boolean);
+    if (!incoming.length) return;
+    if (incoming.some((term) => term.length > 120)) {
+      toast.error('Each keyword or phrase must be 120 characters or fewer.');
+      return;
+    }
+    const existing = criteria.keywordTerms ?? [];
+    const next = mergeKeywordTerms(existing, incoming);
+    if (next.length === existing.length) {
+      toast.error('These keywords are already in the search.');
+      return;
+    }
+    if (next.length < new Set([...existing, ...incoming].map((term) => term.toLocaleLowerCase())).size)
+      toast.error(`Only the first ${MAX_OPPORTUNITY_KEYWORD_TERMS} unique keywords were added.`);
+    patch({ keywordTerms: next });
+    setKeywordDraft('');
+  }
+  async function importClientKeywords() {
+    if (!criteria.clientId || importingKeywords) return;
+    const clientId = criteria.clientId;
+    setImportingKeywords(true);
+    try {
+      const encoded = encodeURIComponent(clientId);
+      const [clientResponse, capabilitiesResponse] = await Promise.all([
+        api.get<ClientProfileKeywordSource>(`/api/clients/${encoded}`),
+        api.get<CapabilityKeywordSource[]>(`/api/clients/${encoded}/capabilities`),
+      ]);
+      if (clientId !== criteriaRef.current.clientId) return;
+      const groups = clientProfileKeywordGroups(clientResponse.data, capabilitiesResponse.data);
+      const incoming = groups.flatMap((group) => group.terms);
+      if (!incoming.length) {
+        toast.error('This client profile has no saved tags to import.');
+        return;
+      }
+      const existing = criteriaRef.current.keywordTerms ?? [];
+      const next = mergeKeywordTerms(existing, incoming);
+      const added = next.length - existing.length;
+      if (!added) {
+        toast.error('All client profile tags are already in the search.');
+        return;
+      }
+      patch({ keywordTerms: next });
+      toast.success(`Imported ${added} keyword${added === 1 ? '' : 's'} from ${groups.length} client profile ${groups.length === 1 ? 'section' : 'sections'}.`);
+      if (next.length < new Set([...existing, ...incoming].map((term) => term.toLocaleLowerCase())).size)
+        toast.error(`Only the first ${MAX_OPPORTUNITY_KEYWORD_TERMS} unique keywords were added.`);
+    } catch {
+      toast.error('Client profile keywords could not be imported.');
+    } finally {
+      setImportingKeywords(false);
+    }
+  }
   function changeQueryMatch(next: OpportunityQueryMatchV2) {
     setQueryMatch(next);
   }
   function clearAll() {
     patch({
       query: '',
+      keywordTerms: [],
       sources: [],
       types: [],
       lifecycle: [],
@@ -410,6 +484,7 @@ export function FundingOpportunitiesPage() {
   function applySavedCriteria(next: OpportunitySearchCriteriaV2) {
     setCriteria(next);
     setQueryInput(next.query);
+    setKeywordDraft('');
     setQueryMatch(next.queryMatch ?? (next.query ? 'phrase' : 'keywords'));
   }
   function openDetail(row: OpportunityRecord) {
@@ -686,7 +761,8 @@ export function FundingOpportunitiesPage() {
             onClose={() => setClientModal(false)}
             onChoose={(clientId) => {
               setQueryInput('');
-              patch({ clientId, query: '', mode: clientId ? criteria.mode : 'all' });
+              setKeywordDraft('');
+              patch({ clientId, query: '', keywordTerms: [], mode: clientId ? criteria.mode : 'all' });
               setClientModal(false);
             }}
           />
@@ -959,9 +1035,45 @@ export function FundingOpportunitiesPage() {
                 </CapiroButton>
               </div>
               <p className="fo-v2-note">
-                Keywords find all words in any order. Use quotes to keep words together; Exact phrase
-                finds the full phrase. Press Enter or Search to apply.
+                Search applies the text above. Add several keywords below to find opportunities matching any of them. An exact phrase above narrows those results.
               </p>
+              <div className="fo-v2-keyword-import">
+                <label htmlFor="fo-v2-keyword-draft">Multiple keywords or phrases</label>
+                <div className="fo-v2-keyword-import-row">
+                  <input
+                    id="fo-v2-keyword-draft"
+                    value={keywordDraft}
+                    onChange={(event) => setKeywordDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addKeywords();
+                      }
+                    }}
+                    placeholder="e.g. robotics, battery storage, vehicle sustainment"
+                    aria-label="Multiple keywords or phrases"
+                  />
+                  <CapiroButton variant="secondary" onClick={addKeywords} disabled={!keywordDraft.trim()}>
+                    Add keywords
+                  </CapiroButton>
+                  <CapiroButton variant="secondary" onClick={() => void importClientKeywords()} disabled={!criteria.clientId || importingKeywords}>
+                    {importingKeywords ? 'Importing…' : 'Import client profile tags'}
+                  </CapiroButton>
+                </div>
+                <p className="fo-v2-note">Separate entries with commas. Imports sectors, saved tags, capabilities, funding priorities, program elements, and classification codes from the selected client.</p>
+                {(criteria.keywordTerms?.length ?? 0) > 0 ? (
+                  <div className="fo-v2-keyword-terms" aria-label="Selected keywords">
+                    {criteria.keywordTerms?.map((term) => (
+                      <span className="fo-v2-keyword-term" key={term}>
+                        {term}
+                        <button type="button" aria-label={`Remove keyword ${term}`} onClick={() => patch({ keywordTerms: (criteriaRef.current.keywordTerms ?? []).filter((item) => item !== term) })}>
+                          <Icon name="XClose" size={14} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </section>
           </section>
           <Toolbar
@@ -1058,7 +1170,9 @@ export function FundingOpportunitiesPage() {
             setPendingClientAction(null);
           }}
           onChoose={(clientId) => {
-            patch({ clientId, mode: clientId ? criteria.mode : 'all' });
+            patch({ clientId, query: '', keywordTerms: [], mode: clientId ? criteria.mode : 'all' });
+            setQueryInput('');
+            setKeywordDraft('');
             const pending = pendingClientAction;
             if (selectedRow && clientId) setSelectedRow({ ...selectedRow, clientId });
             setClientModal(false);
@@ -1874,6 +1988,7 @@ export function filterChips(
 ): FilterChip[] {
   const out: FilterChip[] = [];
   if (criteria.query) out.push({ key: 'query', label: `“${criteria.query}”` });
+  if (criteria.keywordTerms?.length) out.push({ key: 'keywordTerms', label: `${criteria.keywordTerms.length} selected keywords` });
   criteria.lifecycle
     .filter((v) => v !== 'active' || criteria.lifecycle.length > 1)
     .forEach((v) =>

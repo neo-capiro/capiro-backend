@@ -372,6 +372,12 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
     const nonAdjacent = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'hydrogen research', queryMatch: 'keywords' }), null);
     expect(nonAdjacent.count).toBe(205);
     expect(nonAdjacent.records.length).toBeGreaterThan(0);
+    const anyKeyword = await searchSourceSql(adapter, 'grants_gov', criteria({ keywordTerms: ['not-present-xyz', sourcePrefix] }), null);
+    expect(anyKeyword.count).toBe(205);
+    const combined = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'not-present-xyz', queryMatch: 'keywords', keywordTerms: [sourcePrefix] }), null);
+    expect(combined.count).toBe(205);
+    const phraseNarrowed = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'not-present-xyz', queryMatch: 'phrase', keywordTerms: [sourcePrefix] }), null);
+    expect(phraseNarrowed.count).toBe(0);
     const phrase = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'hydrogen research', queryMatch: 'phrase' }), null);
     expect(phrase.count).toBe(0);
     const quoted = await searchSourceSql(adapter, 'grants_gov', criteria({ query: '"hydrogen propulsion" research', queryMatch: 'keywords' }), null);
@@ -396,6 +402,26 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
     const forecast = await searchSourceSql(adapter, 'agency_forecast', criteria({ query: sourcePrefix }), null);
     expect(forecast.records[0]).toMatchObject({ deadline: null, closeOrArchiveDate: null });
     expect(forecast.records[0]?.sourceFacts).toMatchObject({ anticipatedAwardDate: expect.anything() });
+  });
+});
+
+describe('funding opportunity multi-keyword SQL shape', () => {
+  test('passes separate keyword patterns as one OR set and keeps exact phrase as a separate condition', async () => {
+    const queries: Array<{ sql: string; values: unknown[] }> = [];
+    const fake = {
+      withSystem: async <T>(fn: (tx: { $queryRaw: <R>(query: { sql: string; values: unknown[] }) => Promise<R> }) => Promise<T>) => fn({
+        $queryRaw: async <R>(query: { sql: string; values: unknown[] }) => {
+          queries.push(query);
+          return [] as R;
+        },
+      }),
+    };
+    await searchSourceSql(fake, 'grants_gov', criteria({ query: 'exact phrase', queryMatch: 'phrase', keywordTerms: ['Robot%', 'battery_storage'] }), null);
+    const query = queries[0]!;
+    expect(query.sql).toContain('EXISTS (SELECT 1 FROM unnest(');
+    expect(query.sql).toContain('AS wanted(pattern)');
+    expect(query.values).toEqual(expect.arrayContaining(['%exact phrase%', '%robot\\%%', '%battery\\_storage%']));
+    expect(query.sql).toMatch(/LIKE.*ESCAPE chr\(92\).*AND.*EXISTS/s);
   });
 });
 

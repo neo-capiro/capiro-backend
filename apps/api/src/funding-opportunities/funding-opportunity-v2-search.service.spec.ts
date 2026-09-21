@@ -268,6 +268,8 @@ describe('FundingOpportunityV2SearchService', () => {
     expect(parsed.query).toBe('radar, antenna');
     expect(parsed.sectors).toEqual(['defense']);
     expect(parsed.grantPrerequisites).toEqual(['registration']);
+    const multi = normalizeOpportunitySearchQuery({ keyword: ['Robot', 'battery storage', 'robot'] });
+    expect(multi.keywordTerms).toEqual(['Robot', 'battery storage']);
     const result = await service.search(context, parsed);
     expect(result.opportunities).toHaveLength(1);
 

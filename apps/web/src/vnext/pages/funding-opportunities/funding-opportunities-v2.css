@@ -2500,3 +2500,80 @@
 .fo-v2-client-options > button.selected {
   box-shadow: inset 0 0 0 1px #c3d5e1;
 }
+
+.fo-v2-keyword-import {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e7ec;
+}
+.fo-v2-keyword-import > label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--fo-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.fo-v2-keyword-import-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.fo-v2-keyword-import-row input {
+  flex: 1 1 280px;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  color: var(--fo-ink);
+  background: #fff;
+  font: inherit;
+}
+.fo-v2-keyword-import-row .capiro-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.fo-v2-keyword-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 164px;
+  margin-top: 12px;
+  overflow-y: auto;
+}
+.fo-v2-keyword-term {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid #c3d5e1;
+  border-radius: 999px;
+  color: #294e68;
+  background: #edf3f7;
+  font-size: 12px;
+  line-height: 18px;
+}
+.fo-v2-keyword-term button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.fo-v2-keyword-term button:hover,
+.fo-v2-keyword-term button:focus-visible {
+  background: #d9e8f1;
+}
+@media (max-width: 640px) {
+  .fo-v2-keyword-import-row input { flex-basis: 100%; }
+  .fo-v2-keyword-import-row .capiro-button { flex: 1 1 auto; }
+}

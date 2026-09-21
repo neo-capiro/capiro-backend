@@ -165,6 +165,7 @@ function changedCriteriaNote(
   current: OpportunitySearchCriteriaV2,
 ): string | null {
   const fields: Array<[keyof OpportunitySearchCriteriaV2, string]> = [
+    ['keywordTerms', 'keyword'],
     ['lifecycle', 'lifecycle'],
     ['types', 'type'],
     ['agencies', 'agency'],
@@ -198,6 +199,10 @@ function changedCriteriaNote(
   return additions.length
     ? `Current criteria differ: added ${additions.slice(0, 3).join(', ')}${additions.length > 3 ? ` and ${additions.length - 3} more` : ''}.`
     : 'Current criteria differ from this saved search.';
+}
+function keywordsLabel(criteria: OpportunitySearchCriteriaV2): string {
+  const terms = [...(criteria.query ? [`“${criteria.query}”`] : []), ...(criteria.keywordTerms ?? [])];
+  return terms.length ? terms.join(', ') : 'No keywords — filters only';
 }
 function warningText(search: SavedSearchRecordV2) {
   return search.warnings.length
@@ -497,9 +502,7 @@ export function FundingOpportunitiesV2SavedSearches({
                         <div className="fo-saved-keywords">
                           <span>KEYWORDS</span>
                           <code>
-                            {search.criteria.query
-                              ? `“${search.criteria.query}”`
-                              : 'No keywords — filters only'}
+                            {keywordsLabel(search.criteria)}
                           </code>
                         </div>
                         <div className="fo-saved-meta">
@@ -647,12 +650,12 @@ export function FundingOpportunitiesV2SavedSearches({
           onClient={(id) => {
             setSaveClientId(id);
             setSaveCriteria(
-              updateCriteria(saveCriteria, { clientId: id, mode: id ? saveCriteria.mode : 'all' }),
+              updateCriteria(saveCriteria, { clientId: id, mode: id ? saveCriteria.mode : 'all', ...(id !== saveCriteria.clientId ? { keywordTerms: [] } : {}) }),
             );
           }}
           onRemoveKeywords={() => {
             setKeywordRemoved(true);
-            setSaveCriteria(updateCriteria(saveCriteria, { query: '' }));
+            setSaveCriteria(updateCriteria(saveCriteria, { query: '', keywordTerms: [] }));
           }}
           onClose={() => onClose(true)}
           onSave={() => void save()}
@@ -732,6 +735,7 @@ function SaveDialog({
   const selectedClient = clients.find((client) => client.id === clientId);
   const chips = criteriaChips(criteria);
   if (criteria.query) chips.unshift(`“${criteria.query}”`);
+  chips.unshift(...(criteria.keywordTerms ?? []));
   return (
     <div
       ref={rootRef}
@@ -778,11 +782,9 @@ function SaveDialog({
             <div className="fo-saved-keywords">
               <span>KEYWORDS</span>
               <code>
-                {criteria.query
-                  ? `“${criteria.query}”`
-                  : 'None — this search would match on filters alone'}
+                {keywordsLabel(criteria)}
               </code>
-              {criteria.query ? (
+              {criteria.query || criteria.keywordTerms?.length ? (
                 <button onClick={onRemoveKeywords}>Save without keywords</button>
               ) : null}
             </div>
@@ -794,7 +796,7 @@ function SaveDialog({
             <p>
               {keywordRemoved
                 ? 'Saved without keywords. The current discovery query remains unchanged.'
-                : 'The keyword query is stored alongside the typed filter fields, sort and page size, under schema version 2. The sentence and the URL are generated from them.'}
+                : 'The text query and selected keyword chips are stored with the typed filters, sort and page size.'}
             </p>
           </section>
           <section className="fo-saved-client">

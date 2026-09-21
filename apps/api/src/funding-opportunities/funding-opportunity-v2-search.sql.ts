@@ -112,11 +112,23 @@ function queryTerms(query: string, queryMatch: OpportunitySearchCriteriaV2['quer
   return terms;
 }
 function queryFilter(criteria: OpportunitySearchCriteriaV2): Prisma.Sql | null {
-  if (!criteria.query) return null;
+  if (!criteria.query && !criteria.keywordTerms?.length) return null;
   const searchable = Prisma.sql`lower(concat_ws(' ', id, source_record_id, title, agency, summary, array_to_string(geography, ' '), array_to_string(codes, ' '), array_to_string(applicant_types, ' '), array_to_string(naics_codes, ' '), array_to_string(psc_codes, ' '), array_to_string(sectors, ' '), array_to_string(funding, ' '), array_to_string(methods, ' ')))`;
+  const contains = (term: string) => Prisma.sql`${searchable} LIKE ${`%${escapeLike(term.toLowerCase())}%`} ESCAPE chr(92)`;
   const terms = queryTerms(criteria.query, criteria.queryMatch);
-  if (!terms.length) return Prisma.sql`FALSE`;
-  return Prisma.sql`(${Prisma.join(terms.map((term) => Prisma.sql`${searchable} LIKE ${`%${escapeLike(term.toLowerCase())}%`} ESCAPE chr(92)`), ' AND ')})`;
+  const query = terms.length
+    ? Prisma.sql`(${Prisma.join(terms.map(contains), ' AND ')})`
+    : null;
+  const keywords = criteria.keywordTerms?.length
+    ? Prisma.sql`EXISTS (SELECT 1 FROM unnest(${list(criteria.keywordTerms.map((term) => `%${escapeLike(term.toLowerCase())}%`))}) AS wanted(pattern) WHERE ${searchable} LIKE wanted.pattern ESCAPE chr(92))`
+    : null;
+  if (!query) return keywords;
+  if (!keywords) return query;
+  // A keyword query joins the independent chips as alternatives. An exact phrase
+  // remains a separate narrowing condition when chips are also selected.
+  return criteria.queryMatch === 'keywords'
+    ? Prisma.sql`(${query} OR ${keywords})`
+    : Prisma.sql`(${query} AND ${keywords})`;
 }
 
 function anyValue(column: string, values: string[]): Prisma.Sql {

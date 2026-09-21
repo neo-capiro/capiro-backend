@@ -331,7 +331,7 @@ export function createPrismaOpportunityCatalogAdapters(prisma: PrismaService): O
 }
 
 export function normalizeOpportunitySearchQuery(query: Record<string, unknown>): OpportunitySearchCriteriaV2 {
-  const aliases: Record<string, string> = { source: 'sources', type: 'types', agency: 'agencies', sector: 'sectors', naics: 'naicsCodes', psc: 'pscCodes', setAside: 'setAsideCodes', applicantType: 'applicantTypes', method: 'methods', grantPrereq: 'grantPrerequisites', grantPrerequisite: 'grantPrerequisites', code: 'codes', q: 'query', size: 'pageSize', dir: 'direction' };
+  const aliases: Record<string, string> = { source: 'sources', type: 'types', agency: 'agencies', sector: 'sectors', naics: 'naicsCodes', psc: 'pscCodes', setAside: 'setAsideCodes', applicantType: 'applicantTypes', method: 'methods', grantPrereq: 'grantPrerequisites', grantPrerequisite: 'grantPrerequisites', code: 'codes', keyword: 'keywordTerms', q: 'query', size: 'pageSize', dir: 'direction' };
   const listKeys = new Set(['sources', 'types', 'lifecycle', 'agencies', 'sectors', 'naicsCodes', 'pscCodes', 'setAsideCodes', 'eligibility', 'posted', 'geography', 'applicantTypes', 'funding', 'costShare', 'methods', 'disbursement', 'grantPrerequisites', 'codes']);
   const input: Record<string, unknown> = {};
   for (const [rawKey, value] of Object.entries(query)) {

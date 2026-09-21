@@ -123,6 +123,36 @@ describe('mounted Funding Opportunities v2 integration', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('queryMatch=keywords');
   });
 
+  test('adds several independent keywords, preserves them in the URL, and removes one', async () => {
+    const api = createReferenceFixtureApi();
+    const get = vi.spyOn(api, 'get');
+    mount('/intelligence/opportunities?client=overland&mode=matched', api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Multiple keywords or phrases' }), { target: { value: 'robotics, battery storage, ROBOTICS' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add keywords' }));
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('keyword=robotics&keyword=battery+storage'));
+    expect(screen.getByRole('button', { name: 'Remove keyword robotics' })).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => String(url).includes('keyword=robotics&keyword=battery+storage'))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove keyword robotics' }));
+    await waitFor(() => expect(screen.getByTestId('location')).not.toHaveTextContent('keyword=robotics'));
+    expect(screen.getByTestId('location')).toHaveTextContent('keyword=battery+storage');
+  });
+
+  test('imports saved client sectors, profile tags, funding priorities, program elements and capability tags as keywords', async () => {
+    const api = createReferenceFixtureApi();
+    const get = vi.spyOn(api, 'get');
+    mount('/intelligence/opportunities?client=overland&mode=matched', api);
+    await screen.findByText(referenceOpportunityRows[0]!.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Import client profile tags' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove keyword 0605678B' })).toBeInTheDocument());
+    for (const term of ['Autonomous systems', 'Defense electronics', 'Robotics', 'Vehicle sustainment', '0601234A', 'AI navigation'])
+      expect(screen.getByRole('button', { name: `Remove keyword ${term}` })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Remove keyword Robotics' })).toHaveLength(1);
+    expect(get.mock.calls.some(([url]) => url === '/api/clients/overland')).toBe(true);
+    expect(get.mock.calls.some(([url]) => url === '/api/clients/overland/capabilities')).toBe(true);
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('keyword=0605678B'));
+  });
+
   test('keeps draft text when switching to exact phrase and commits once at page one', async () => {
     mount('/intelligence/opportunities?client=overland&mode=matched&page=2');
     await screen.findByText(referenceOpportunityRows[0]!.title);

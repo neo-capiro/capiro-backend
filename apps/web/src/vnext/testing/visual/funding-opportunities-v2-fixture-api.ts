@@ -903,6 +903,10 @@ export function createReferenceFixtureApi(): FixtureApi {
             count: client.count,
           })) as T,
         };
+      if (url === '/api/clients/overland')
+        return { data: { id: 'overland', sectorTag: 'Autonomous systems', naicsCodes: ['541715'], intakeData: { sectors: ['ENERGY'], sector: 'Defense electronics', tags: ['Robotics', 'Ground vehicles'], fundingPriorities: ['Vehicle sustainment'], peNumber: '0601234A' } } as T };
+      if (url === '/api/clients/overland/capabilities')
+        return { data: [{ name: 'Autonomy stack', sector: 'Autonomous systems', tags: ['AI navigation'], keywords: ['Robotics', 'Sensor fusion'], peNumbers: ['0605678B'], issueCodes: ['DEFENSE'] }] as T };
       if (url === '/api/tenant-members')
         return {
           data: [
