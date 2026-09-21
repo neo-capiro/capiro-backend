@@ -2,8 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
-import { useGeneratePrep, useUpdatePrep, useMeetingPrepJob, useCancelMeetingPrep, isMeetingPrepJob, type MeetingPrepDepth } from './meetings-api.js';
-import { ComprehensivePrep, PrepSearchSettings, briefingSectionLabels } from './ComprehensivePrep.js';
+import {
+  useGeneratePrep,
+  useUpdatePrep,
+  useMeetingPrepJob,
+  useCancelMeetingPrep,
+  isMeetingPrepJob,
+  type MeetingPrepDepth,
+} from './meetings-api.js';
+import {
+  ComprehensivePrep,
+  PrepSearchSettings,
+  briefingSectionLabels,
+} from './ComprehensivePrep.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatMeetingDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
@@ -55,7 +66,8 @@ function mailboxState(query: {
   if (sendable.length === 0) {
     return {
       status: 'error' as const,
-      error: 'No connected Outlook or Gmail mailbox is available. Connect one in Settings → Personal.',
+      error:
+        'No connected Outlook or Gmail mailbox is available. Connect one in Settings → Personal.',
       onRetry: () => void query.refetch(),
     };
   }
@@ -136,19 +148,19 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   const identity = JSON.stringify([userId, orgId, actAsTenantSlug]);
   const emailScope = `${identity}:${meeting.id}:${prep?.id ?? ''}`;
   const emailAttempt = useRef(0);
-  const [openEmailScope === emailScope, setEmailOpen] = useState(false);
-  const [emailAttachment, setEmailAttachment] = useState<{ id: string; fileName: string } | null>(null);
+  const [openEmailScope, setOpenEmailScope] = useState<string | null>(null);
+  const [emailAttachment, setEmailAttachment] = useState<{ id: string; fileName: string } | null>(
+    null,
+  );
   const teammates = useQuery({
     queryKey: ['tenant-members', identity],
-    queryFn: async () =>
-      (await api.get<TenantMember[]>('/api/tenant-members')).data,
+    queryFn: async () => (await api.get<TenantMember[]>('/api/tenant-members')).data,
     enabled: openEmailScope === emailScope,
     staleTime: 60_000,
   });
   const mailboxes = useQuery({
     queryKey: ['engagement-integrations', 'meeting-prep-email', identity],
-    queryFn: async () =>
-      (await api.get<MailboxConnection[]>('/api/engagement/integrations')).data,
+    queryFn: async () => (await api.get<MailboxConnection[]>('/api/engagement/integrations')).data,
     enabled: openEmailScope === emailScope,
     staleTime: 30_000,
   });
@@ -167,13 +179,41 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
       }
     },
   });
-  const briefing = !prep?.generatedFrom?.grounding?.contentEdited ? prep?.generatedFrom?.briefing : undefined;
-  const searchSettings = <PrepSearchSettings meetingId={meeting.id} clientId={meeting.client?.id ?? null} depth={depth} setDepth={setDepth} />;
-  const jobProgress = job.data && <div role={job.data.status === 'failed' ? 'alert' : 'status'} style={{ fontSize: 12 }}>
-    {jobActive ? `Preparing your briefing: ${job.data.stage.startsWith('extract_') ? 'reading evidence' : job.data.stage}. You can close this page; progress is saved.` : job.data.status === 'failed' ? 'The new briefing could not finish safely. Your previous briefing is unchanged. Retry or adjust the search focus.' : job.data.status === 'cancelled' ? 'Preparation cancelled. Your previous briefing is unchanged.' : null}
-    {jobActive && <button type="button" className="btn sm" disabled={cancelJob.isPending} onClick={() => cancelJob.mutate(job.data!)}>Cancel preparation</button>}
-    {cancelJob.isError && <p role="alert">Could not cancel. Refresh to check the current job status.</p>}
-  </div>;
+  const briefing = !prep?.generatedFrom?.grounding?.contentEdited
+    ? prep?.generatedFrom?.briefing
+    : undefined;
+  const searchSettings = (
+    <PrepSearchSettings
+      meetingId={meeting.id}
+      clientId={meeting.client?.id ?? null}
+      depth={depth}
+      setDepth={setDepth}
+    />
+  );
+  const jobProgress = job.data && (
+    <div role={job.data.status === 'failed' ? 'alert' : 'status'} style={{ fontSize: 12 }}>
+      {jobActive
+        ? `Preparing your briefing: ${job.data.stage.startsWith('extract_') ? 'reading evidence' : job.data.stage}. You can close this page; progress is saved.`
+        : job.data.status === 'failed'
+          ? 'The new briefing could not finish safely. Your previous briefing is unchanged. Retry or adjust the search focus.'
+          : job.data.status === 'cancelled'
+            ? 'Preparation cancelled. Your previous briefing is unchanged.'
+            : null}
+      {jobActive && (
+        <button
+          type="button"
+          className="btn sm"
+          disabled={cancelJob.isPending}
+          onClick={() => cancelJob.mutate(job.data!)}
+        >
+          Cancel preparation
+        </button>
+      )}
+      {cancelJob.isError && (
+        <p role="alert">Could not cancel. Refresh to check the current job status.</p>
+      )}
+    </div>
+  );
   const update = useUpdatePrep();
   const [refine, setRefine] = useState('');
   const [editOpen, setEditOpen] = useState(false);
@@ -193,7 +233,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     emailAttempt.current += 1;
     setRefine('');
     setEditOpen(false);
-    setEmailOpen(false);
+    setOpenEmailScope(null);
     setEmailAttachment(null);
   }, [emailScope]);
 
@@ -201,7 +241,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     const attempt = ++emailAttempt.current;
     setEmailAttachment(null);
     preparePdf.reset();
-    setEmailOpen(true);
+    setOpenEmailScope(emailScope);
     preparePdf.mutate({ prepId: prep!.id, attempt, scope: emailScope });
   };
 
@@ -213,15 +253,23 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   const closeEmail = () => {
     emailAttempt.current += 1;
-    setEmailOpen(false);
+    setOpenEmailScope(null);
     setEmailAttachment(null);
   };
 
   const runGenerate = async (additionalContext?: string) => {
     if (cancelled) return;
     try {
-      const result = await generate.mutateAsync({ meetingId: meeting.id, additionalContext, depth });
-      chrome.success(isMeetingPrepJob(result) ? 'Preparation queued. You can leave this page while it runs.' : 'Prep generated.');
+      const result = await generate.mutateAsync({
+        meetingId: meeting.id,
+        additionalContext,
+        depth,
+      });
+      chrome.success(
+        isMeetingPrepJob(result)
+          ? 'Preparation queued. You can leave this page while it runs.'
+          : 'Prep generated.',
+      );
     } catch (err) {
       // Without this catch, a rejected generate.mutateAsync (e.g. the source/attendee
       // review failing, or any other server-side error) propagated as an unhandled
@@ -315,23 +363,32 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
       `Prep — ${meeting.subject}`,
       formatMeetingDayTitle(meeting.startsAt, meeting.endsAt),
       [
-        ...(briefing ? [
-          { heading: 'Key takeaways', items: briefing.takeaways.map(item => item.text) },
-          ...Object.entries(briefingSectionLabels).map(([key, heading]) => ({ heading, items: briefing.sections[key]?.items.map(item => item.text) ?? [], body: briefing.sections[key]?.gap ?? '' })),
-        ] : [
-        { heading: 'Summary', body: prep.summary ?? '' },
-        { heading: 'Agenda', items: prep.agenda },
-        { heading: 'Talking Points', items: prep.talkingPoints, ordered: true },
-        { heading: 'Watch-outs', items: prep.risks },
-        { heading: 'Follow-ups', items: prep.followUps },
-        { heading: 'Email evidence', items: prep.emailEvidence },
-        ]),
+        ...(briefing
+          ? [
+              { heading: 'Key takeaways', items: briefing.takeaways.map((item) => item.text) },
+              ...Object.entries(briefingSectionLabels).map(([key, heading]) => ({
+                heading,
+                items: briefing.sections[key]?.items.map((item) => item.text) ?? [],
+                body: briefing.sections[key]?.gap ?? '',
+              })),
+            ]
+          : [
+              { heading: 'Summary', body: prep.summary ?? '' },
+              { heading: 'Agenda', items: prep.agenda },
+              { heading: 'Talking Points', items: prep.talkingPoints, ordered: true },
+              { heading: 'Watch-outs', items: prep.risks },
+              { heading: 'Follow-ups', items: prep.followUps },
+              { heading: 'Email evidence', items: prep.emailEvidence },
+            ]),
       ],
     );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <StagePill {...prepStage(prep, generate.isPending || jobActive)} style={{ marginBottom: 0 }} />
+      <StagePill
+        {...prepStage(prep, generate.isPending || jobActive)}
+        style={{ marginBottom: 0 }}
+      />
       {jobProgress}
       {searchSettings}
       {briefing && <ComprehensivePrep prep={prep} />}
@@ -557,11 +614,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
           recipientDirectory="team"
           orgContacts={(teammates.data ?? []).filter((member) => member.email)}
           recipientDirectoryState={{
-            status: teammates.isPending
-              ? 'loading'
-              : teammates.isError
-                ? 'error'
-                : 'ready',
+            status: teammates.isPending ? 'loading' : teammates.isError ? 'error' : 'ready',
             error: teammates.isError
               ? errorMessage(teammates.error, 'Could not load your Capiro team.')
               : undefined,
@@ -569,6 +622,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
           }}
           clientName={meeting.client?.name}
           defaultSubject={`Meeting prep — ${meeting.subject}`}
+          defaultBodyHtml="<p>Please find the meeting preparation attached.</p>"
           initialAttachments={emailAttachment ? [emailAttachment] : []}
           requiredAttachmentState={{
             label: emailAttachment?.fileName ?? 'Meeting prep PDF',

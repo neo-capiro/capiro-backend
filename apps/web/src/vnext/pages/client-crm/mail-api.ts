@@ -137,7 +137,8 @@ export async function listMailThreads(
 }
 
 export async function getMailThread(api: AxiosInstance, threadId: string): Promise<MailThread> {
-  return (await api.get<MailThread>(`/api/engagement/mail-threads/${encodeURIComponent(threadId)}`)).data;
+  return (await api.get<MailThread>(`/api/engagement/mail-threads/${encodeURIComponent(threadId)}`))
+    .data;
 }
 
 export async function getEmailSignature(api: AxiosInstance): Promise<EmailSignature> {

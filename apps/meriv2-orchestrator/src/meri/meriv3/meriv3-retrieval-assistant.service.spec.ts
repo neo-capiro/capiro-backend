@@ -3,6 +3,7 @@ import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
+import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { MeriV3RetrievalAssistantService } from './meriv3-retrieval-assistant.service.js';
 import type { MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
@@ -14,7 +15,7 @@ const result: MeriV3ChatResult = {
   reasoningEffort: 'medium',
 };
 
-function make() {
+function make(managedSchemas: unknown[] = []) {
   const registryService = { registry: { list: () => [], get: () => undefined } };
   const config = { get: jest.fn(() => 'http://api.test') };
   return new MeriV3RetrievalAssistantService(
@@ -23,8 +24,8 @@ function make() {
     {} as never,
     {} as never,
     config as never,
-    {} as never,
-    {} as never,
+    { schemas: jest.fn(async () => managedSchemas) } as never,
+    { available: jest.fn(async () => false) } as never,
     new MeriRetrievalCoordinator(),
   );
 }
@@ -164,6 +165,30 @@ describe('MeriV3RetrievalAssistantService', () => {
     expect(output.reply).toBe('ok');
   });
 
+  test('uses governed monday evidence for audits while preserving other managed-monday requests', async () => {
+    const schema = {
+      name: 'mcp__meriv3_monday__get_board_items_page',
+      appName: 'monday.com',
+      description: 'Read board items',
+      input_schema: { type: 'object' },
+    };
+    jest
+      .spyOn(MeriV3AssistantService.prototype as never, 'fetchToolSchemas' as never)
+      .mockResolvedValue([] as never);
+    const service = make([schema]) as unknown as {
+      fetchToolSchemas: () => Promise<Array<{ name: string }>>;
+    };
+    const governed = {
+      retrieval: { coverage: { requestedDomains: ['monday'] } },
+    } as MeriGovernedTurnContext;
+    await expect(
+      runWithGovernedMeriContext(governed, () => service.fetchToolSchemas()),
+    ).resolves.toEqual([]);
+    governed.retrieval.coverage.requestedDomains = ['clients'];
+    await expect(
+      runWithGovernedMeriContext(governed, () => service.fetchToolSchemas()),
+    ).resolves.toEqual([expect.objectContaining({ name: schema.name })]);
+  });
 
   test('preserves the selected client as a deliberate comparison anchor', async () => {
     const downstream = jest

@@ -32,14 +32,12 @@ describe('durable meeting prep jobs', () => {
     const tx = {
       tenantMembership: { findFirst: jest.fn().mockResolvedValue({ role: 'standard_user' }) },
       meeting: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValue({
-            clientId: null,
-            isInternal: true,
-            associationSignals: {},
-            status: 'confirmed',
-          }),
+        findFirst: jest.fn().mockResolvedValue({
+          clientId: null,
+          isInternal: true,
+          associationSignals: {},
+          status: 'confirmed',
+        }),
       },
       meetingPrepJob: {
         findUnique: jest.fn(async () => row),

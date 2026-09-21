@@ -63,7 +63,13 @@ describe('EmailComposeModal', () => {
 
   it('sends the composed email to the single-recipient endpoint with the right payload', async () => {
     postMock.mockResolvedValue({
-      data: { ok: true, threadId: 't1', messageId: 'm1', provider: 'microsoft_graph', senderEmail: 'jordan@capiro.ai' },
+      data: {
+        ok: true,
+        threadId: 't1',
+        messageId: 'm1',
+        provider: 'microsoft_graph',
+        senderEmail: 'jordan@capiro.ai',
+      },
     });
     renderModal();
 
@@ -84,7 +90,13 @@ describe('EmailComposeModal', () => {
 
   it('adds a second recipient from the client org roster and includes both on send', async () => {
     postMock.mockResolvedValue({
-      data: { ok: true, threadId: 't1', messageId: 'm1', provider: 'microsoft_graph', senderEmail: 'jordan@capiro.ai' },
+      data: {
+        ok: true,
+        threadId: 't1',
+        messageId: 'm1',
+        provider: 'microsoft_graph',
+        senderEmail: 'jordan@capiro.ai',
+      },
     });
     renderModal({
       orgContacts: [
@@ -118,15 +130,10 @@ describe('EmailComposeModal', () => {
     expect(body.personIds).toEqual(['person-2']);
   });
 
-  it('lets removing an added recipient, but not the last one left', async () => {
+  it('allows replacing every recipient and disables sending with an empty To list', async () => {
     renderModal({
       orgContacts: [{ id: 'person-2', name: 'Adam Matherly', email: 'adam@example.com' }],
     });
-
-    // The pre-filled recipient has no remove button while alone.
-    expect(
-      screen.queryByRole('button', { name: 'Remove Patrick Driscoll' }),
-    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add recipient' }));
     fireEvent.click(screen.getByRole('button', { name: "Browse this client's contacts" }));
@@ -135,6 +142,9 @@ describe('EmailComposeModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove Adam Matherly' }));
     expect(screen.queryByText('Adam Matherly <adam@example.com>')).not.toBeInTheDocument();
     expect(screen.getByText('Patrick Driscoll <patrick@example.com>')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Patrick Driscoll' }));
+    expect(screen.queryByText('Patrick Driscoll <patrick@example.com>')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
 
   it('preserves manual email entry when no org roster was passed in (the Timeline reply flow)', async () => {
@@ -196,7 +206,9 @@ describe('EmailComposeModal', () => {
     };
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const rendered = render(
-      <QueryClientProvider client={queryClient}><EmailComposeModal {...props} /></QueryClientProvider>,
+      <QueryClientProvider client={queryClient}>
+        <EmailComposeModal {...props} />
+      </QueryClientProvider>,
     );
     fireEvent.input(bodyEditor(), { target: { innerHTML: '<p>Please review.</p>' } });
     expect(screen.getByText(/You can keep drafting while it loads/)).toBeInTheDocument();
@@ -248,7 +260,13 @@ describe('EmailComposeModal', () => {
 
   it('replaces the body with a verified rewrite and offers Undo', async () => {
     postMock.mockResolvedValue({
-      data: { bodyHtml: '<p>Polished version.</p>', verified: true, unsupportedNumbers: [], unsupportedNames: [], provider: 'anthropic' },
+      data: {
+        bodyHtml: '<p>Polished version.</p>',
+        verified: true,
+        unsupportedNumbers: [],
+        unsupportedNames: [],
+        provider: 'anthropic',
+      },
     });
     renderModal();
 
@@ -257,9 +275,7 @@ describe('EmailComposeModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rewrite with Meri' }));
 
     await waitFor(() => expect(screen.getByText('Undo rewrite')).toBeInTheDocument());
-    expect(
-      screen.queryByText(/couldn't be fully verified/),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/couldn't be fully verified/)).not.toBeInTheDocument();
   });
 
   it('uploads an attached file via the existing attachments upload-url/confirm flow and includes it on send', async () => {
@@ -268,14 +284,26 @@ describe('EmailComposeModal', () => {
 
     postMock.mockImplementation((url: string) => {
       if (url === '/api/engagement/attachments/upload-url') {
-        return Promise.resolve({ data: { url: 'https://s3.example.com/upload', fields: { key: 'tenants/x' }, s3Key: 'tenants/x/file.pdf' } });
+        return Promise.resolve({
+          data: {
+            url: 'https://s3.example.com/upload',
+            fields: { key: 'tenants/x' },
+            s3Key: 'tenants/x/file.pdf',
+          },
+        });
       }
       if (url === '/api/engagement/attachments/confirm') {
         return Promise.resolve({ data: { id: 'att-1', fileName: 'brief.pdf' } });
       }
       if (url === '/api/engagement/mail/send') {
         return Promise.resolve({
-          data: { ok: true, threadId: 't1', messageId: 'm1', provider: 'microsoft_graph', senderEmail: 'jordan@capiro.ai' },
+          data: {
+            ok: true,
+            threadId: 't1',
+            messageId: 'm1',
+            provider: 'microsoft_graph',
+            senderEmail: 'jordan@capiro.ai',
+          },
         });
       }
       return Promise.reject(new Error(`unexpected POST ${url}`));
@@ -288,7 +316,10 @@ describe('EmailComposeModal', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     await waitFor(() => expect(screen.getByText('brief.pdf')).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith('https://s3.example.com/upload', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://s3.example.com/upload',
+      expect.objectContaining({ method: 'POST' }),
+    );
 
     fireEvent.change(screen.getByPlaceholderText('Subject'), { target: { value: 'Following up' } });
     const editor = bodyEditor();
@@ -311,7 +342,11 @@ describe('EmailComposeModal', () => {
     postMock.mockImplementation((url: string) => {
       if (url === '/api/engagement/attachments/upload-url') {
         return Promise.resolve({
-          data: { url: 'https://s3.example.com/upload', fields: { key: 'tenants/x' }, s3Key: 'tenants/x/file.pdf' },
+          data: {
+            url: 'https://s3.example.com/upload',
+            fields: { key: 'tenants/x' },
+            s3Key: 'tenants/x/file.pdf',
+          },
         });
       }
       if (url === '/api/engagement/attachments/confirm') {
@@ -319,7 +354,10 @@ describe('EmailComposeModal', () => {
       }
       return Promise.reject(new Error(`unexpected POST ${url}`));
     });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true })),
+    );
 
     const { container } = renderModal();
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -353,7 +391,7 @@ describe('EmailComposeModal', () => {
     expect(screen.queryByText(/copied on this reply/)).not.toBeInTheDocument();
   });
 
-  it('warns inline when the caller could not confirm the sender\'s own address', async () => {
+  it("warns inline when the caller could not confirm the sender's own address", async () => {
     renderModal({ identityUnconfirmed: true });
     // Inline, not a toast: renderModal mounts no CapiroToastProvider, and
     // neither do all of this modal's real callers, so useCapiroToast() falls
@@ -365,7 +403,13 @@ describe('EmailComposeModal', () => {
 
   it('records the primary addressee in personIds, not just the ones added from the picker', async () => {
     postMock.mockResolvedValue({
-      data: { ok: true, threadId: 't1', messageId: 'm1', provider: 'microsoft_graph', senderEmail: 'jordan@capiro.ai' },
+      data: {
+        ok: true,
+        threadId: 't1',
+        messageId: 'm1',
+        provider: 'microsoft_graph',
+        senderEmail: 'jordan@capiro.ai',
+      },
     });
     // The roster shape ClientPersonDrawer now passes: the whole org tree,
     // INCLUDING whoever the drawer was opened for.
@@ -440,11 +484,18 @@ describe('EmailComposeModal', () => {
   });
 
   it('uploads a file the browser reported no type for under its real content type', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true })),
+    );
     postMock.mockImplementation((url: string) => {
       if (url === '/api/engagement/attachments/upload-url') {
         return Promise.resolve({
-          data: { url: 'https://s3.example.com/upload', fields: { key: 'tenants/x' }, s3Key: 'tenants/x/roster.csv' },
+          data: {
+            url: 'https://s3.example.com/upload',
+            fields: { key: 'tenants/x' },
+            s3Key: 'tenants/x/roster.csv',
+          },
         });
       }
       if (url === '/api/engagement/attachments/confirm') {
@@ -475,7 +526,13 @@ describe('EmailComposeModal', () => {
 
   it('shows the honest fallback note when a rewrite fails verification', async () => {
     postMock.mockResolvedValue({
-      data: { bodyHtml: '<p>rough notes here</p>', verified: false, unsupportedNumbers: ['2000000'], unsupportedNames: [], provider: 'anthropic' },
+      data: {
+        bodyHtml: '<p>rough notes here</p>',
+        verified: false,
+        unsupportedNumbers: ['2000000'],
+        unsupportedNames: [],
+        provider: 'anthropic',
+      },
     });
     renderModal();
 

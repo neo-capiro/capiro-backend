@@ -76,9 +76,9 @@ export class MeetingPrepJobService {
       this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
         const { assignment, clientId } = await this.authorize(tx, ctx, meetingId);
         if (mondayScope.boardIds.length && !clientId)
-            throw new BadRequestException(
-              'Assign this meeting to a client before using a Monday.com board.',
-            );
+          throw new BadRequestException(
+            'Assign this meeting to a client before using a Monday.com board.',
+          );
         const existing = await tx.meetingPrepJob.findUnique({
           where: {
             tenantId_userId_requestKey: { tenantId: ctx.tenantId, userId: ctx.userId, requestKey },

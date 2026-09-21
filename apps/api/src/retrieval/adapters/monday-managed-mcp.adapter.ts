@@ -29,18 +29,27 @@ const record = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-export function mondayStructuredResult(raw: unknown): Record<string, unknown> {
+export function mondayStructuredResult(
+  raw: unknown,
+  emptyItemId?: string,
+): Record<string, unknown> {
   const result = record(record(raw).structuredResult ?? raw);
   if (result.isError === true) throw new Error('monday_provider_error');
   if (result.structuredContent) return record(result.structuredContent);
-  if (Array.isArray(result.content)) {
-    const text = result.content
-      .map((item) => record(item).text)
-      .filter((value) => typeof value === 'string')
-      .join('\n');
+  if (Array.isArray(result.content) || typeof result.content === 'string') {
+    const text =
+      typeof result.content === 'string'
+        ? result.content
+        : result.content
+            .map((item) => record(item).text)
+            .filter((value) => typeof value === 'string')
+            .join('\n');
     if (text.length > 2_000_000) throw new Error('monday_response_limit');
+    if (emptyItemId && text === `No updates found for item with id ${emptyItemId}`)
+      return { item_id: emptyItemId, updates: [], has_more: false };
     return record(JSON.parse(text));
   }
+  if (result.content && typeof result.content === 'object') return record(result.content);
   return result;
 }
 
@@ -53,7 +62,11 @@ export function mondayReadArguments(
   page?: number,
 ): Record<string, unknown> {
   const props = record(schema.input_schema.properties);
-  const key = [selector + 'Id', selector + '_id'].find((name) => props[name]);
+  const key = [
+    selector + 'Id',
+    selector + '_id',
+    ...(selector === 'item' ? ['objectId'] : []),
+  ].find((name) => props[name]);
   if (!key) throw new Error('monday_tool_schema_unsupported');
   const args: Record<string, unknown> = {
     [key]:
@@ -63,7 +76,26 @@ export function mondayReadArguments(
   };
   if (typeof args[key] === 'number' && !Number.isSafeInteger(args[key]))
     throw new Error('monday_unsafe_numeric_identifier');
-  if (props.limit) args.limit = 100;
+  if (key === 'objectId') {
+    const values = record(props.objectType).enum;
+    if (!Array.isArray(values) || !values.includes('Item'))
+      throw new Error('monday_tool_schema_unsupported');
+    args.objectType = 'Item';
+  }
+  const boundedLimit = (name: string) => {
+    const spec = record(props[name]);
+    const maximum = typeof spec.maximum === 'number' ? Math.min(100, spec.maximum) : 100;
+    if (maximum < 1 || (typeof spec.minimum === 'number' && spec.minimum > maximum))
+      throw new Error('monday_tool_schema_unsupported');
+    return maximum;
+  };
+  if (props.limit) args.limit = boundedLimit('limit');
+  if (parseBridgedToolName(schema.name)?.tool === 'get_board_items_page') {
+    for (const name of ['includeColumns', 'includeSubItems', 'includeItemDescription']) {
+      if (record(props[name]).type === 'boolean') args[name] = true;
+    }
+    if (props.subItemLimit) args.subItemLimit = boundedLimit('subItemLimit');
+  }
   if (cursor) {
     if (!props.cursor) throw new Error('monday_cursor_schema_unsupported');
     args.cursor = cursor;
@@ -79,13 +111,23 @@ export function mondayReadArguments(
   return args;
 }
 
-function mondayColumns(value: unknown): {
+function mondayColumns(
+  value: unknown,
+  metadata: unknown[] = [],
+): {
   columns: unknown[];
   status: string | null;
   owners: unknown[];
   deadline: string | null;
 } {
-  const columns = Array.isArray(value) ? value : [];
+  const columns = Array.isArray(value)
+    ? value
+    : Object.entries(record(value)).map(([id, raw]) => ({
+        ...record(metadata.find((entry) => record(entry).id === id)),
+        id,
+        text: typeof raw === 'string' ? raw : null,
+        value: raw,
+      }));
   let status: string | null = null;
   let deadline: string | null = null;
   const owners: unknown[] = [];
@@ -119,12 +161,15 @@ function mondayColumns(value: unknown): {
 
 function mondayItemsPage(raw: Record<string, unknown>, boardId: string): Record<string, unknown> {
   const data = record(raw.data ?? raw);
-  const board = Array.isArray(data.boards) ? record(data.boards[0]) : data;
+  const board = Array.isArray(data.boards) ? record(data.boards[0]) : record(data.board ?? data);
   if (board.id !== undefined && String(board.id) !== boardId)
     throw new Error('monday_board_scope_mismatch');
-  const itemsPage = record(board.items_page ?? board);
+  const itemsPage = record(board.items_page ?? (data.board ? data : board));
   if (!Array.isArray(itemsPage.items)) throw new Error('monday_items_response_unsupported');
-  return itemsPage;
+  const pagination = record(itemsPage.pagination);
+  return Object.keys(pagination).length
+    ? { ...itemsPage, cursor: pagination.nextCursor, has_more: pagination.has_more }
+    : itemsPage;
 }
 
 function mondayChildren(item: Record<string, unknown>): Record<string, unknown>[] {
@@ -163,8 +208,17 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
     const clientId =
       request.caller.clientIds?.length === 1 ? request.caller.clientIds[0] : undefined;
     if (!clientId) return result;
+    if (
+      request.caller.authorizedClientIds &&
+      !request.caller.authorizedClientIds.includes(clientId)
+    )
+      return {
+        ...result,
+        sourceStatus: 'unauthorized',
+        stopReason: 'monday_client_scope_unauthorized',
+      };
 
-    const queryScope = mondayBoardScopeFromQuery(request.query);
+    const queryScope = mondayBoardScopeFromQuery(request.mondayBoardContext ?? request.query);
     if (queryScope.invalid || queryScope.boardIds.length > MAX_BOARDS) {
       return { ...result, sourceStatus: 'error', stopReason: 'monday_board_scope_invalid' };
     }
@@ -206,7 +260,7 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
             tenantSlug: membership.tenant.slug,
             clerkUserId: membership.user.clerkUserId,
           } satisfies TenantContext,
-          boardIds: queryScope.explicit ? queryScope.boardIds : mapping?.boardIds ?? [],
+          boardIds: queryScope.explicit ? queryScope.boardIds : (mapping?.boardIds ?? []),
           explicitBoardScope: queryScope.explicit,
         };
       },
@@ -235,15 +289,23 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           stopReason: app.needsReauth ? 'monday_needs_reauth' : 'monday_not_connected',
         };
       if (!scope.boardIds.length) return result;
+      if (scope.boardIds.length > MAX_BOARDS) gaps.push('monday_board_cap');
       const schemas = (await this.managed.schemasForMeriV3(scope.ctx)).filter(
         (schema) => schema.appId === 'monday' && schema.readOnly,
       );
       const tool = (name: string) =>
         schemas.find((schema) => parseBridgedToolName(schema.name)?.tool === name);
       const itemsTool = tool('get_board_items_page');
+      const infoTool = tool('get_board_info');
       const updatesTool = tool('get_updates');
-      if (!itemsTool || !updatesTool)
+      if (!itemsTool || !infoTool)
         return { ...result, stopReason: 'monday_required_read_tools_unavailable' };
+      if (!updatesTool) gaps.push('monday_updates_unavailable');
+      const itemProperties = record(itemsTool.input_schema.properties);
+      if (record(itemProperties.includeColumns).type !== 'boolean')
+        gaps.push('monday_columns_unavailable');
+      if (record(itemProperties.includeSubItems).type !== 'boolean')
+        gaps.push('monday_subitems_unavailable');
 
       const call = async (schema: MeriV3ManagedMcpSchema, args: Record<string, unknown>) => {
         execution?.signal.throwIfAborted();
@@ -264,10 +326,16 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
             }),
         );
         result.pagesRead++;
-        return mondayStructuredResult(value);
+        return mondayStructuredResult(
+          value,
+          parseBridgedToolName(schema.name)?.tool === 'get_updates'
+            ? String(args.objectId ?? args.itemId ?? args.item_id ?? '')
+            : undefined,
+        );
       };
 
       const readUpdates = async (itemId: string): Promise<unknown[]> => {
+        if (!updatesTool) return [];
         const updates: unknown[] = [];
         let cursor: string | undefined;
         const seen = new Set<string>();
@@ -278,7 +346,10 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           );
           const data = record(raw.data ?? raw);
           const item = Array.isArray(data.items) ? record(data.items[0]) : data;
-          if (item.id !== undefined && String(item.id) !== itemId)
+          if (
+            (item.id !== undefined && String(item.id) !== itemId) ||
+            (item.item_id !== undefined && String(item.item_id) !== itemId)
+          )
             throw new Error('monday_update_scope_mismatch');
           if (!Array.isArray(item.updates)) {
             gaps.push('monday_updates_response_unsupported');
@@ -296,6 +367,15 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
             }),
           );
           if (!item.updates.length) break;
+          const pagination = record(item.pagination);
+          if (pagination.page !== undefined && pagination.page !== page)
+            throw new Error('monday_updates_pagination_mismatch');
+          if (
+            typeof pagination.limit === 'number' &&
+            pagination.count === item.updates.length &&
+            pagination.limit > item.updates.length
+          )
+            break;
           cursor = typeof item.cursor === 'string' && item.cursor ? item.cursor : undefined;
           if (cursor) {
             if (seen.has(cursor)) {
@@ -312,29 +392,30 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
         return updates;
       };
 
-      const addItem = async (
+      const boardMetadata = new Map<string, { columns: unknown[]; subItemColumns: unknown[] }>();
+      const seenItems = new Set<string>();
+      const updateTargets: Array<{ itemId: string; row: RetrievalRecord }> = [];
+      const addItem = (
         boardId: string,
         item: Record<string, unknown>,
         parentItemId?: string,
-      ): Promise<void> => {
+      ): void => {
         if (result.records.length >= MAX_ITEMS) {
           gaps.push('monday_item_cap');
           return;
         }
         const itemId = String(item.id ?? '');
         if (!/^\d+$/.test(itemId)) throw new Error('monday_item_identifier_missing');
-        const normalized = mondayColumns(item.column_values);
-        let updates: unknown[] = [];
-        try {
-          updates = await readUpdates(itemId);
-        } catch (error) {
-          gaps.push(
-            error instanceof Error && /^monday_[a-z_]+$/.test(error.message)
-              ? error.message
-              : 'monday_updates_unavailable',
-          );
-        }
-        result.records.push({
+        const identity = `${boardId}:${itemId}`;
+        if (seenItems.has(identity)) return;
+        seenItems.add(identity);
+        parentItemId ??= typeof item.parent_item_id === 'string' ? item.parent_item_id : undefined;
+        const metadata = boardMetadata.get(boardId);
+        const normalized = mondayColumns(
+          item.column_values,
+          parentItemId ? metadata?.subItemColumns : metadata?.columns,
+        );
+        const row = {
           domain: 'monday',
           recordId: `${boardId}:${itemId}`,
           payload: JSON.parse(
@@ -342,11 +423,11 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
               clientId,
               sourceActorUserId: request.caller.userId,
               title: item.name,
-              status: normalized.status ?? item.state ?? null,
+              status: normalized.status,
               owners: normalized.owners,
               dueDate: normalized.deadline,
               updatedAt: item.updated_at,
-              description: item.description,
+              description: item.item_description ?? item.description,
               origin: {
                 provider: 'monday',
                 boardId,
@@ -354,7 +435,7 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
                 ...(parentItemId ? { parentItemId, itemType: 'subitem' } : { itemType: 'item' }),
                 scope: scope.explicitBoardScope ? 'request' : 'saved_mapping',
               },
-              updates,
+              updates: [],
               columns: normalized.columns,
               url:
                 typeof item.url === 'string' &&
@@ -369,26 +450,48 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
             itemId,
             ...(parentItemId ? { parentItemId } : {}),
           },
-        } satisfies RetrievalRecord);
+        } satisfies RetrievalRecord;
+        result.records.push(row);
+        updateTargets.push({ itemId, row });
       };
 
       for (const boardId of scope.boardIds.slice(0, MAX_BOARDS)) {
+        const info = await call(infoTool, mondayReadArguments(infoTool, 'board', boardId));
+        const board = record(info.board ?? record(info.data).board ?? info);
+        if (String(board.id ?? '') !== boardId) throw new Error('monday_board_scope_mismatch');
+        const columns = Array.isArray(board.columns) ? board.columns : [];
+        boardMetadata.set(boardId, {
+          columns,
+          subItemColumns: Array.isArray(board.subItemColumns) ? board.subItemColumns : columns,
+        });
         let cursor: string | undefined;
         const seen = new Set<string>();
         for (let page = 0; page < MAX_ITEM_PAGES; page++) {
-          const itemsPage = mondayItemsPage(
-            await call(itemsTool, mondayReadArguments(itemsTool, 'board', boardId, cursor)),
-            boardId,
-          );
+          const itemArgs = mondayReadArguments(itemsTool, 'board', boardId, cursor);
+          const itemsPage = mondayItemsPage(await call(itemsTool, itemArgs), boardId);
           for (const raw of itemsPage.items as unknown[]) {
             const item = record(raw);
-            const itemId = String(item.id ?? '');
-            await addItem(boardId, item);
-            for (const child of mondayChildren(item)) await addItem(boardId, child, itemId);
+            const walk = (entry: Record<string, unknown>, parent?: string, depth = 0) => {
+              addItem(boardId, entry, parent);
+              const children = mondayChildren(entry);
+              if (depth >= 5 || result.records.length >= MAX_ITEMS) {
+                if (children.length) gaps.push('monday_subitems_cap');
+                return;
+              }
+              if (
+                typeof itemArgs.subItemLimit === 'number' &&
+                children.length >= itemArgs.subItemLimit
+              )
+                gaps.push('monday_subitems_cap');
+              for (const child of children) walk(child, String(entry.id), depth + 1);
+            };
+            walk(item);
             if (result.records.length >= MAX_ITEMS) break;
           }
           cursor =
             typeof itemsPage.cursor === 'string' && itemsPage.cursor ? itemsPage.cursor : undefined;
+          if (cursor && itemsPage.has_more === false)
+            throw new Error('monday_items_pagination_mismatch');
           if (!cursor) {
             if (itemsPage.has_more === true) gaps.push('monday_items_cursor_missing');
             if (!('cursor' in itemsPage) && typeof itemsPage.has_more !== 'boolean')
@@ -404,6 +507,23 @@ export class MondayManagedMcpAdapter implements RetrievalSourceAdapter {
           if (result.records.length >= MAX_ITEMS) break;
         }
       }
+      // Fetch task facts first so a slow comments page cannot hide later tasks.
+      for (const target of updateTargets) {
+        if (Date.now() >= retrievalDeadline) {
+          gaps.push('monday_retrieval_deadline');
+          break;
+        }
+        try {
+          target.row.payload.updates = JSON.parse(JSON.stringify(await readUpdates(target.itemId)));
+        } catch (error) {
+          gaps.push(
+            error instanceof Error && /^monday_[a-z_]+$/.test(error.message)
+              ? error.message
+              : 'monday_updates_unavailable',
+          );
+        }
+      }
+      if (result.records.length >= MAX_ITEMS) gaps.push('monday_item_cap');
       result.sourceStatus = gaps.length ? 'degraded' : 'healthy';
       result.stopReason = gaps.length
         ? [...new Set(gaps)].join(',')

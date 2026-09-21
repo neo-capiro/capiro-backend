@@ -67,17 +67,10 @@ export interface ExactLexicalQuery {
 }
 
 export type RetrievalSourceStatus =
-  | 'healthy'
-  | 'degraded'
-  | 'unavailable'
-  | 'unauthorized'
-  | 'unsupported'
-  | 'error';
+  'healthy' | 'degraded' | 'unavailable' | 'unauthorized' | 'unsupported' | 'error';
 
 export type RetrievalAuthority =
-  | 'tenant_system_of_record'
-  | 'public_system_of_record'
-  | 'knowledge_plane';
+  'tenant_system_of_record' | 'public_system_of_record' | 'knowledge_plane';
 
 export type RetrievalTenantScope = 'tenant_private' | 'global_public' | 'mixed';
 
@@ -144,8 +137,6 @@ export interface RetrievalRequest {
   requestedDomains: readonly RetrievalDomain[];
   caller: RetrievalCallerContext;
   query?: string;
-  /** Explicit user text from which the monday adapter may derive exact board IDs/URLs. */
-  mondayBoardContext?: string;
   /** Exact canonical item read for institutional_knowledge lookup/semantic recall. */
   memoryItemId?: string;
   /** Optional public hearing filters, also used by Meri's dedicated hearing reader. */
@@ -301,11 +292,7 @@ export const RETRIEVAL_SCORING_SIGNALS = [
 export type RetrievalScoringSignal = (typeof RETRIEVAL_SCORING_SIGNALS)[number];
 
 export type RetrievalScoringSignalClass =
-  | 'relevance'
-  | 'confidence'
-  | 'authority'
-  | 'freshness'
-  | 'validity';
+  'relevance' | 'confidence' | 'authority' | 'freshness' | 'validity';
 
 export interface RetrievalScoringComponent {
   signal: RetrievalScoringSignal;

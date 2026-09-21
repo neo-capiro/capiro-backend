@@ -23,7 +23,6 @@ import type {
   MeetingGovernedContext,
 } from './meeting-context-runtime.js';
 
-
 export const PHASE_24 = 24;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
 const RECORD_CHAR_BUDGET = 1_300;
@@ -39,9 +38,7 @@ export const MEETING_CLIENT_CONTEXT_DOMAINS: readonly RetrievalDomain[] = [
   'institutional_knowledge',
   'mail',
 ];
-const INTERNAL_MEETING_CONTEXT_DOMAINS: readonly RetrievalDomain[] = [
-  'institutional_knowledge',
-];
+const INTERNAL_MEETING_CONTEXT_DOMAINS: readonly RetrievalDomain[] = ['institutional_knowledge'];
 /**
  * Interactive prep already carries the firm's client record (client-linked
  * threads, prior meetings with notes/debriefs, open tasks) from
@@ -101,7 +98,9 @@ export class MeetingContextPlaneService {
     const security = await this.securityEnvelope(ctx, input.meetingId);
     const clientId = security.effectiveClientId;
     if (clientId && !security.authorizedClientIds.includes(clientId)) {
-      throw new ForbiddenException('Meeting client is outside the actor Context Plane security scope');
+      throw new ForbiddenException(
+        'Meeting client is outside the actor Context Plane security scope',
+      );
     }
 
     const execution = input.mode === 'prep' ? currentMeetingPrepExecution() : undefined;
@@ -144,21 +143,36 @@ export class MeetingContextPlaneService {
         queryClass: 'lookup',
         requestedDomains,
         query,
+        ...(input.userInstruction?.trim()
+          ? { mondayBoardContext: input.userInstruction.trim() }
+          : {}),
         pageSize: 50,
         requireComplete: false,
-        ...(execution ? {
-          requireComplete: true,
-          pageSize: 100,
-          deadlineAt: Date.now() + prepStageTimeout(execution.deadlineAt - Date.now(), PREP_POLICY.synthesisReserveMs),
-          meetingBriefing: {
-            meetingId: security.meeting.id, scope: clientId ? 'client' as const : 'internal' as const,
-            meetingLimit: policy.meetings, threadLimit: policy.threads, messageLimit: policy.messages,
-            meetingSince: new Date(Date.now() - policy.meetingDays * 86_400_000),
-            emailSince: new Date(Date.now() - policy.emailDays * 86_400_000),
-            asOf: new Date(),
-            upcomingThrough: new Date(Math.max(Date.now() + policy.upcomingDays * 86_400_000, security.meeting.startsAt.getTime() + 30 * 86_400_000)),
-          },
-        } : {}),
+        ...(execution
+          ? {
+              requireComplete: true,
+              pageSize: 100,
+              deadlineAt:
+                Date.now() +
+                prepStageTimeout(execution.deadlineAt - Date.now(), PREP_POLICY.synthesisReserveMs),
+              meetingBriefing: {
+                meetingId: security.meeting.id,
+                scope: clientId ? ('client' as const) : ('internal' as const),
+                meetingLimit: policy.meetings,
+                threadLimit: policy.threads,
+                messageLimit: policy.messages,
+                meetingSince: new Date(Date.now() - policy.meetingDays * 86_400_000),
+                emailSince: new Date(Date.now() - policy.emailDays * 86_400_000),
+                asOf: new Date(),
+                upcomingThrough: new Date(
+                  Math.max(
+                    Date.now() + policy.upcomingDays * 86_400_000,
+                    security.meeting.startsAt.getTime() + 30 * 86_400_000,
+                  ),
+                ),
+              },
+            }
+          : {}),
       },
     };
 
@@ -238,10 +252,7 @@ export class MeetingContextPlaneService {
     };
   }
 
-  private async securityEnvelope(
-    ctx: TenantContext,
-    meetingId: string,
-  ): Promise<SecurityEnvelope> {
+  private async securityEnvelope(ctx: TenantContext, meetingId: string): Promise<SecurityEnvelope> {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const meeting = await tx.meeting.findFirst({
         where: {
@@ -272,30 +283,32 @@ export class MeetingContextPlaneService {
       // manually cleared meetings stay unscoped; email inference is only for
       // meetings which have never been explicitly assigned/cleared.
       const signals = meeting.associationSignals;
-      const manuallyCleared = !meeting.clientId && signals && typeof signals === 'object'
-        && !Array.isArray(signals) && signals.manual === true;
-      const effectiveClientId = meeting.isInternal || manuallyCleared
-        ? null
-        : meeting.clientId ??
-          (
-            await this.associations.associate(tx, ctx.tenantId, {
-              subject: meeting.subject,
-              body: meeting.description,
-              attendeeEmails: meeting.attendees
-                .map((attendee) => attendee.email)
-                .filter((email): email is string => !!email),
-            })
-          ).clientId;
+      const manuallyCleared =
+        !meeting.clientId &&
+        signals &&
+        typeof signals === 'object' &&
+        !Array.isArray(signals) &&
+        signals.manual === true;
+      const effectiveClientId =
+        meeting.isInternal || manuallyCleared
+          ? null
+          : (meeting.clientId ??
+            (
+              await this.associations.associate(tx, ctx.tenantId, {
+                subject: meeting.subject,
+                body: meeting.description,
+                attendeeEmails: meeting.attendees
+                  .map((attendee) => attendee.email)
+                  .filter((email): email is string => !!email),
+              })
+            ).clientId);
 
       const [clients, mailboxes, client, membership] = await Promise.all([
         tx.client.findMany({
           where: {
             tenantId: ctx.tenantId,
             status: { not: 'archived' },
-            OR: [
-              { memoryWall: false },
-              { memoryAccessGrants: { some: { userId: ctx.userId } } },
-            ],
+            OR: [{ memoryWall: false }, { memoryAccessGrants: { some: { userId: ctx.userId } } }],
           },
           select: { id: true },
           orderBy: { id: 'asc' },
@@ -348,9 +361,13 @@ function buildTask(security: SecurityEnvelope, input: ResolveMeetingContextInput
   return [
     purpose,
     `Meeting: ${security.meeting.subject}.`,
-    security.clientName ? `Client: ${security.clientName}.` : 'This is an internal/unscoped meeting.',
+    security.clientName
+      ? `Client: ${security.clientName}.`
+      : 'This is an internal/unscoped meeting.',
     input.sourceMethod ? `Debrief source method: ${input.sourceMethod}.` : '',
-    input.userInstruction?.trim() ? `User focus: ${input.userInstruction.trim().slice(0, 500)}.` : '',
+    input.userInstruction?.trim()
+      ? `User focus: ${input.userInstruction.trim().slice(0, 500)}.`
+      : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -374,7 +391,12 @@ function meetingQuery(security: SecurityEnvelope): string {
 
 function emailDomain(value: string | null | undefined): string | null {
   const at = value?.lastIndexOf('@') ?? -1;
-  return at > 0 ? value!.slice(at + 1).trim().toLowerCase() || null : null;
+  return at > 0
+    ? value!
+        .slice(at + 1)
+        .trim()
+        .toLowerCase() || null
+    : null;
 }
 
 function isFirmAddress(email: string | null, firmDomain: string | null): boolean {
@@ -405,9 +427,16 @@ function validateResolvedScope(
   }
 }
 
-function projectRecords(records: RetrievalRecord[], comprehensive = false): { text: string; truncated: boolean; sources: PrepEvidenceSource[] } {
+function projectRecords(
+  records: RetrievalRecord[],
+  comprehensive = false,
+): { text: string; truncated: boolean; sources: PrepEvidenceSource[] } {
   if (records.length === 0) {
-    return { text: '(no supplemental institutional records returned)', truncated: false, sources: [] };
+    return {
+      text: '(no supplemental institutional records returned)',
+      truncated: false,
+      sources: [],
+    };
   }
   const blocks: string[] = [];
   const sources: PrepEvidenceSource[] = [];
@@ -431,26 +460,58 @@ function projectRecords(records: RetrievalRecord[], comprehensive = false): { te
     sources.push({
       id: `${record.domain}:${record.recordId}`,
       kind: record.domain,
-      title: stringField(payload, 'subject') ?? stringField(payload, 'title') ?? stringField(payload, 'name') ?? 'Context record',
+      title:
+        stringField(payload, 'subject') ??
+        stringField(payload, 'title') ??
+        stringField(payload, 'name') ??
+        'Context record',
       recordId: record.recordId,
-      observedAt: stringField(payload, 'updatedAt') ?? stringField(payload, 'sentAt') ?? stringField(payload, 'startsAt'),
+      observedAt:
+        stringField(payload, 'updatedAt') ??
+        stringField(payload, 'sentAt') ??
+        stringField(payload, 'startsAt'),
       excerpt,
-      ...(comprehensive ? { access: {
-        ...(typeof payload.clientId === 'string' ? { clients: [payload.clientId] } : {}),
-        ...(record.domain === 'meetings' ? { meetings: [record.recordId],
-          notes: (Array.isArray(payload.notes) ? payload.notes : []).flatMap(value => typeof asRecord(value).id === 'string' ? [String(asRecord(value).id)] : []),
-          debriefs: (Array.isArray(payload.debriefs) ? payload.debriefs : []).flatMap(value => typeof asRecord(value).id === 'string' ? [String(asRecord(value).id)] : []),
-        } : {}),
-        ...(record.domain === 'mail' ? { mail: [record.recordId] } : {}),
-        ...(record.domain === 'tasks' ? { tasks: [record.recordId] } : {}),
-        ...(record.domain === 'monday' ? { mondayUsers: typeof record.payload.sourceActorUserId === 'string' ? [record.payload.sourceActorUserId] : [], mondayBoards: typeof asRecord(record.payload.origin).boardId === 'string' ? [String(asRecord(record.payload.origin).boardId)] : [] } : {}),
-      } } : {}),
+      ...(comprehensive
+        ? {
+            access: {
+              ...(typeof payload.clientId === 'string' ? { clients: [payload.clientId] } : {}),
+              ...(record.domain === 'meetings'
+                ? {
+                    meetings: [record.recordId],
+                    notes: (Array.isArray(payload.notes) ? payload.notes : []).flatMap((value) =>
+                      typeof asRecord(value).id === 'string' ? [String(asRecord(value).id)] : [],
+                    ),
+                    debriefs: (Array.isArray(payload.debriefs) ? payload.debriefs : []).flatMap(
+                      (value) =>
+                        typeof asRecord(value).id === 'string' ? [String(asRecord(value).id)] : [],
+                    ),
+                  }
+                : {}),
+              ...(record.domain === 'mail' ? { mail: [record.recordId] } : {}),
+              ...(record.domain === 'tasks' ? { tasks: [record.recordId] } : {}),
+              ...(record.domain === 'monday'
+                ? {
+                    mondayUsers:
+                      typeof record.payload.sourceActorUserId === 'string'
+                        ? [record.payload.sourceActorUserId]
+                        : [],
+                    mondayBoards:
+                      typeof asRecord(record.payload.origin).boardId === 'string'
+                        ? [String(asRecord(record.payload.origin).boardId)]
+                        : [],
+                  }
+                : {}),
+            },
+          }
+        : {}),
     });
   }
   return {
     // Comprehensive runs batch the separate source registry into a fact ledger;
     // do not duplicate megabytes of evidence in the steering prompt.
-    text: comprehensive ? '(source records supplied separately for bounded evidence extraction)' : blocks.join('\n\n') || '(no supplemental institutional records returned)',
+    text: comprehensive
+      ? '(source records supplied separately for bounded evidence extraction)'
+      : blocks.join('\n\n') || '(no supplemental institutional records returned)',
     truncated,
     sources,
   };
@@ -462,24 +523,108 @@ function projectPayload(record: RetrievalRecord): Record<string, unknown> {
   const common = pick(payload, ['clientId', 'name', 'title', 'subject', 'status', 'updatedAt']);
   switch (record.domain) {
     case 'clients':
-      return { ...common, ...pick(payload, ['website', 'description', 'productDescription', 'profileStatus']) };
+      return {
+        ...common,
+        ...pick(payload, ['website', 'description', 'productDescription', 'profileStatus']),
+      };
     case 'contacts':
-      return { ...common, ...pick(payload, ['fullName', 'email', 'phone', 'organization', 'role']) };
+      return {
+        ...common,
+        ...pick(payload, ['fullName', 'email', 'phone', 'organization', 'role']),
+      };
     case 'meetings':
-      return { ...common, ...pick(payload, ['startsAt', 'endsAt', 'organizerName', 'organizerEmail', 'location', 'description', 'notes', 'debriefs', 'contentCoverage']) };
+      return {
+        ...common,
+        ...pick(payload, [
+          'startsAt',
+          'endsAt',
+          'organizerName',
+          'organizerEmail',
+          'location',
+          'description',
+          'notes',
+          'debriefs',
+          'contentCoverage',
+        ]),
+      };
     case 'tasks':
     case 'monday':
-      return { ...common, ...pick(payload, ['description', 'dueDate', 'owners', 'ownerUserId', 'meetingId', 'mailThreadId', 'origin', 'updates', 'columns', 'url']) };
+      return {
+        ...common,
+        ...pick(payload, [
+          'description',
+          'dueDate',
+          'owners',
+          'ownerUserId',
+          'meetingId',
+          'mailThreadId',
+          'origin',
+          'updates',
+          'columns',
+          'url',
+        ]),
+      };
     case 'outreach':
       return { ...common, ...pick(payload, ['sentAt', 'recipientNames', 'recipientEmails']) };
     case 'mail':
-      return { ...common, ...pick(payload, ['sentAt', 'receivedAt', 'fromEmail', 'fromName', 'toRecipients', 'ccRecipients', 'bodyText', 'threadId', 'messages', 'contentCoverage', 'from', 'to', 'snippet', 'bodyPreview']) };
+      return {
+        ...common,
+        ...pick(payload, [
+          'sentAt',
+          'receivedAt',
+          'fromEmail',
+          'fromName',
+          'toRecipients',
+          'ccRecipients',
+          'bodyText',
+          'threadId',
+          'messages',
+          'contentCoverage',
+          'from',
+          'to',
+          'snippet',
+          'bodyPreview',
+        ]),
+      };
     case 'institutional_knowledge':
       return { ...common, ...pick(payload, ['key', 'value', 'scope', 'asOf', 'confidence']) };
     case 'legiwatch_bills':
-      return { ...common, ...pick(payload, ['id', 'billType', 'billNumber', 'congress', 'state', 'identifier', 'latestActionDate', 'latestActionText', 'summary', 'url', 'lastSyncedAt', 'syncedAt']) };
+      return {
+        ...common,
+        ...pick(payload, [
+          'id',
+          'billType',
+          'billNumber',
+          'congress',
+          'state',
+          'identifier',
+          'latestActionDate',
+          'latestActionText',
+          'summary',
+          'url',
+          'lastSyncedAt',
+          'syncedAt',
+        ]),
+      };
     case 'hearings':
-      return { ...common, ...pick(payload, ['kind', 'date', 'startsAt', 'timezone', 'committee', 'chamber', 'eventStatus', 'coverageStatus', 'sourceUrl', 'witnesses', 'text', 'lastOfficialUpdateAt', 'syncedAt']) };
+      return {
+        ...common,
+        ...pick(payload, [
+          'kind',
+          'date',
+          'startsAt',
+          'timezone',
+          'committee',
+          'chamber',
+          'eventStatus',
+          'coverageStatus',
+          'sourceUrl',
+          'witnesses',
+          'text',
+          'lastOfficialUpdateAt',
+          'syncedAt',
+        ]),
+      };
     default:
       return common;
   }
@@ -550,7 +695,7 @@ function projectCoverage(
     truncated: projectionTruncated || coverage.sources.some((source) => source.truncated),
     stopReason: projectionTruncated
       ? 'model_context_projection_truncated'
-      : stringField(packetValue, 'retrievalStopReason') ?? coverage.stopReason,
+      : (stringField(packetValue, 'retrievalStopReason') ?? coverage.stopReason),
   };
 }
 
@@ -639,9 +784,7 @@ function uniqueDomains(values: readonly RetrievalDomain[]): RetrievalDomain[] {
 
 function pick(source: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
   return Object.fromEntries(
-    keys
-      .filter((key) => source[key] !== undefined)
-      .map((key) => [key, source[key]]),
+    keys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]),
   );
 }
 

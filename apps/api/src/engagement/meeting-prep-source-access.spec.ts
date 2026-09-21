@@ -96,6 +96,12 @@ describe('saved briefing native source authorization', () => {
     ).rejects.toThrow('source access changed');
   });
   test('request-scoped monday evidence remains authorized after saved defaults change', async () => {
+    const env = jest.replaceProperty(process, 'env', {
+      ...process.env,
+      MERI_MCP_MONDAY_ENABLED: 'true',
+      MERI_MCP_MONDAY_ALLOWED_USER_IDS: 'actor',
+      MERI_MCP_MONDAY_ALLOWED_TENANT_IDS: 'tenant',
+    });
     const db = tx() as ReturnType<typeof tx> & {
       $executeRaw: jest.Mock;
       clioMcpServer: { count: jest.Mock };
@@ -105,9 +111,13 @@ describe('saved briefing native source authorization', () => {
     db.clioMcpServer = { count: jest.fn().mockResolvedValue(1) };
     db.meetingPrepMondayMapping = { count: jest.fn().mockResolvedValue(0) };
     await expect(
-      assertMeetingPrepSourceAccess(db as never, ctx as never, [
-        { access: { clients: ['client'], mondayUsers: ['actor'], mondayBoards: ['999'] } },
-      ] as never),
+      assertMeetingPrepSourceAccess(
+        db as never,
+        ctx as never,
+        [
+          { access: { clients: ['client'], mondayUsers: ['actor'], mondayBoards: ['999'] } },
+        ] as never,
+      ),
     ).resolves.toBeUndefined();
     expect(db.meetingPrepMondayMapping.count).not.toHaveBeenCalled();
     expect(db.clioMcpServer.count).toHaveBeenCalledWith(
@@ -115,5 +125,6 @@ describe('saved briefing native source authorization', () => {
         where: expect.objectContaining({ tenantId: 'tenant', ownerUserId: 'actor' }),
       }),
     );
+    env.restore();
   });
 });

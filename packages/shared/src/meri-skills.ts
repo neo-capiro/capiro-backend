@@ -283,8 +283,7 @@ export const MERI_SKILL_REGISTRY = [
     lifecycle: 'permanent',
     canonicalRecipe: 'query_hearing_watch',
     permittedScopes: ['client', 'general'],
-    starterPrompt:
-      'What committee hearings are coming up that [client name] should care about?',
+    starterPrompt: 'What committee hearings are coming up that [client name] should care about?',
     requiredEntitlements: [],
     semanticDomains: ['identity', 'hearings'],
     requiresClient: true,
@@ -301,8 +300,7 @@ export const MERI_SKILL_REGISTRY = [
     lifecycle: 'permanent',
     canonicalRecipe: 'query_representation_lookup',
     permittedScopes: ['client', 'general'],
-    starterPrompt:
-      'Who represents [state or district], and which of them touch [client name]?',
+    starterPrompt: 'Who represents [state or district], and which of them touch [client name]?',
     requiredEntitlements: [],
     semanticDomains: ['identity', 'directory'],
     requiresClient: false,

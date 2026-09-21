@@ -160,18 +160,22 @@ describe('ContextResolverService', () => {
 
   test('keeps monday board selectors separate from native-source search filters', async () => {
     const { service } = harness();
-    const result = await service.resolve(request({
-      subjectScope: 'client',
-      clientId: 'client-1',
-      retrieval: {
-        queryClass: 'lookup',
-        requestedDomains: ['monday', 'mail', 'tasks'],
-        query: null,
-        mondayBoardContext: 'Audit commitments using monday board 18431248553',
-      },
-    }));
+    const result = await service.resolve(
+      request({
+        subjectScope: 'client',
+        clientId: 'client-1',
+        retrieval: {
+          queryClass: 'lookup',
+          requestedDomains: ['monday', 'mail', 'tasks'],
+          query: null,
+          mondayBoardContext: 'Audit commitments using monday board 18431248553',
+        },
+      }),
+    );
     expect(result.retrievalRequest?.query).toBeUndefined();
-    expect(result.retrievalRequest?.mondayBoardContext).toBe('Audit commitments using monday board 18431248553');
+    expect(result.retrievalRequest?.mondayBoardContext).toBe(
+      'Audit commitments using monday board 18431248553',
+    );
     expect(result.retrievalRequest?.caller.clientIds).toEqual(['client-1']);
   });
 

@@ -13,6 +13,9 @@ describe('Monday.com governed retrieval adapter', () => {
         boardId: { type: 'number' },
         limit: { type: 'number' },
         cursor: { type: 'string' },
+        includeColumns: { type: 'boolean' },
+        includeSubItems: { type: 'boolean' },
+        subItemLimit: { type: 'number', maximum: 100 },
       },
       required: ['boardId'],
     },
@@ -23,11 +26,12 @@ describe('Monday.com governed retrieval adapter', () => {
     readOnly: true,
     input_schema: {
       properties: {
-        itemId: { type: 'string' },
+        objectId: { type: 'string' },
+        objectType: { type: 'string', enum: ['Item', 'Board'] },
         page: { type: 'number' },
         limit: { type: 'number' },
       },
-      required: ['itemId'],
+      required: ['objectId', 'objectType'],
     },
   };
 
@@ -36,6 +40,9 @@ describe('Monday.com governed retrieval adapter', () => {
       boardId: 123,
       limit: 100,
       cursor: 'next',
+      includeColumns: true,
+      includeSubItems: true,
+      subItemLimit: 100,
     });
     expect(() => mondayReadArguments(schema as never, 'item', '123')).toThrow('schema_unsupported');
     expect(() => mondayReadArguments(schema as never, 'board', '999999999999999999999')).toThrow(
@@ -88,10 +95,12 @@ describe('Monday.com governed retrieval adapter', () => {
     });
   });
 
-  function harness(options: {
-    mapping?: string[];
-    executeRead?: (name: string, args: Record<string, unknown>) => unknown;
-  } = {}) {
+  function harness(
+    options: {
+      mapping?: string[];
+      executeRead?: (name: string, args: Record<string, unknown>) => unknown;
+    } = {},
+  ) {
     const tx = {
       tenantMembership: {
         findFirst: jest.fn().mockResolvedValue({
@@ -112,26 +121,51 @@ describe('Monday.com governed retrieval adapter', () => {
       schemasForMeriV3: jest.fn().mockResolvedValue([
         { ...schema, appId: 'monday', readOnly: true },
         updatesSchema,
+        {
+          name: 'mcp__monday__get_board_info',
+          appId: 'monday',
+          readOnly: true,
+          input_schema: { properties: { boardId: { type: 'number' } }, required: ['boardId'] },
+        },
       ]),
       executeRead: jest.fn(async (_ctx, name: string, args: Record<string, unknown>) => ({
-        structuredResult: options.executeRead
-          ? options.executeRead(name, args)
-          : name.endsWith('get_updates')
-            ? {
-                updates:
-                  args.page === 1
-                    ? [
-                        {
-                          id: String(args.itemId) + '01',
-                          text_body: 'We committed to Friday.',
-                          created_at: '2026-09-01',
-                        },
-                      ]
-                    : [],
-              }
-            : args.cursor
-              ? { items: [{ id: '456', name: 'Follow-up' }], cursor: null }
-              : { items: [{ id: '234', name: 'Memo' }], cursor: 'next' },
+        structuredResult: name.endsWith('get_board_info')
+          ? {
+              board: {
+                id: String(args.boardId),
+                columns: [
+                  { id: 'status', type: 'status' },
+                  { id: 'owner', type: 'people' },
+                  { id: 'due_date', type: 'date' },
+                ],
+              },
+            }
+          : options.executeRead
+            ? options.executeRead(name, args)
+            : name.endsWith('get_updates')
+              ? {
+                  updates:
+                    args.page === 1
+                      ? [
+                          {
+                            id: String(args.objectId) + '01',
+                            text_body: 'We committed to Friday.',
+                            created_at: '2026-09-01',
+                          },
+                        ]
+                      : [],
+                }
+              : args.cursor
+                ? {
+                    board: { id: String(args.boardId) },
+                    items: [{ id: '456', name: 'Follow-up' }],
+                    pagination: { has_more: false, nextCursor: null, count: 1 },
+                  }
+                : {
+                    board: { id: String(args.boardId) },
+                    items: [{ id: '234', name: 'Memo' }],
+                    pagination: { has_more: true, nextCursor: 'next', count: 1 },
+                  },
       })),
     };
     const adapter = new MondayManagedMcpAdapter(
@@ -178,7 +212,7 @@ describe('Monday.com governed retrieval adapter', () => {
     );
     expect(result.coverageComplete).toBe(true);
     expect(result.records.map((row) => row.recordId)).toEqual(['123:234', '123:456']);
-    expect(result.pagesRead).toBe(6);
+    expect(result.pagesRead).toBe(7);
     expect(result.records[0]?.payload.updates).toEqual([
       expect.objectContaining({ body: 'We committed to Friday.' }),
     ]);
@@ -192,7 +226,7 @@ describe('Monday.com governed retrieval adapter', () => {
         caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] },
         queryClass: 'lookup',
         requestedDomains: ['monday'],
-        query: 'Read Monday board https://firm.monday.com/boards/999/',
+        mondayBoardContext: 'Read Monday board https://firm.monday.com/boards/999/',
         deadlineAt: Date.now() + 60_000,
       } as never,
     );
@@ -214,23 +248,22 @@ describe('Monday.com governed retrieval adapter', () => {
       executeRead: (name, args) =>
         name.endsWith('get_updates')
           ? args.page === 1
-            ? { updates: [{ id: 'u1', text_body: `Update for ${String(args.itemId)}` }] }
+            ? {
+                item_id: String(args.objectId),
+                updates: [{ id: 'u1', text_body: `Update for ${String(args.objectId)}` }],
+              }
             : { updates: [] }
           : {
               items: [
                 {
                   id: '13088410202',
                   name: 'Meri MCP verification',
-                  column_values: [
-                    { id: 'status', type: 'status', text: 'Working on it' },
-                    { id: 'owner', type: 'people', text: 'Neo' },
-                    { id: 'due_date', type: 'date', value: '{"date":"2026-09-25"}' },
-                  ],
+                  column_values: { status: 'Working on it', owner: 'Neo', due_date: '2026-09-25' },
                   subitems: [
                     {
                       id: '13088412915',
                       name: 'Verify tenant isolation — ORBIT-4729',
-                      column_values: [{ id: 'status', type: 'status', text: 'Done' }],
+                      column_values: { status: 'Done' },
                     },
                     {
                       id: '13088393631',
@@ -277,7 +310,7 @@ describe('Monday.com governed retrieval adapter', () => {
       executeRead: (name, args) => {
         if (name.endsWith('get_updates'))
           return args.page === 1
-            ? { updates: [{ id: 'u1', text_body: `Partial ${String(args.itemId)}` }] }
+            ? { updates: [{ id: 'u1', text_body: `Partial ${String(args.objectId)}` }] }
             : { updates: [] };
         if (args.cursor) throw new Error('monday_retrieval_deadline');
         return { items: [{ id: '234', name: 'Retrieved before timeout' }], cursor: 'next' };
@@ -298,5 +331,107 @@ describe('Monday.com governed retrieval adapter', () => {
     expect(result.paginationComplete).toBe(false);
     expect(result.truncated).toBe(true);
     expect(result.stopReason).toBe('monday_retrieval_deadline');
+  });
+
+  test('supports the provider empty-update message only for the exact requested item', () => {
+    expect(
+      mondayStructuredResult(
+        { content: [{ type: 'text', text: 'No updates found for item with id 234' }] },
+        '234',
+      ),
+    ).toMatchObject({ item_id: '234', updates: [] });
+    expect(() =>
+      mondayStructuredResult(
+        { content: [{ text: 'No updates found for item with id 999' }] },
+        '234',
+      ),
+    ).toThrow();
+    expect(() =>
+      mondayStructuredResult(
+        { isError: true, content: [{ text: 'No updates found for item with id 234' }] },
+        '234',
+      ),
+    ).toThrow('provider_error');
+  });
+
+  test('calls the actual objectId/objectType update contract and includes columns and subitems', async () => {
+    const h = harness({
+      executeRead: (name, args) =>
+        name.endsWith('get_updates')
+          ? {
+              content: [
+                {
+                  type: 'text',
+                  text: `No updates found for item with id ${String(args.objectId)}`,
+                },
+              ],
+            }
+          : {
+              board: { id: String(args.boardId) },
+              items: [{ id: '234', name: 'Task', column_values: { status: 'Done' } }],
+              pagination: { has_more: false, nextCursor: null, count: 1 },
+            },
+    });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      { caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] } } as never,
+    );
+    expect(result.coverageComplete).toBe(true);
+    expect(result.records[0]?.payload).toMatchObject({ status: 'Done', updates: [] });
+    expect(h.managed.executeRead).toHaveBeenCalledWith(
+      expect.anything(),
+      schema.name,
+      expect.objectContaining({ boardId: 123, includeColumns: true, includeSubItems: true }),
+      expect.anything(),
+    );
+    expect(h.managed.executeRead).toHaveBeenCalledWith(
+      expect.anything(),
+      updatesSchema.name,
+      { objectId: '234', objectType: 'Item', page: 1, limit: 100 },
+      expect.anything(),
+    );
+  });
+
+  test.each(['disabled', 'disconnected', 'wrong_client', 'revoked_wall', 'revoked_membership'])(
+    'fails closed for %s',
+    async (failure) => {
+      const h = harness();
+      if (failure === 'disabled')
+        h.managed.listApps.mockResolvedValue([{ id: 'monday', available: false, connected: true }]);
+      if (failure === 'disconnected')
+        h.managed.listApps.mockResolvedValue([{ id: 'monday', available: true, connected: false }]);
+      if (failure === 'revoked_wall') h.tx.client.findFirst.mockResolvedValue(null);
+      if (failure === 'revoked_membership') h.tx.tenantMembership.findFirst.mockResolvedValue(null);
+      const result = await h.adapter.retrieve(
+        {} as never,
+        {
+          caller: {
+            tenantId: 'tenant',
+            userId: 'actor',
+            clientIds: ['client'],
+            authorizedClientIds: failure === 'wrong_client' ? ['other'] : ['client'],
+          },
+        } as never,
+      );
+      expect(result.coverageComplete).toBe(false);
+      expect(h.managed.executeRead).not.toHaveBeenCalled();
+    },
+  );
+
+  test('rejects a provider response for a different board', async () => {
+    const h = harness({
+      executeRead: () => ({
+        board: { id: 'other' },
+        items: [],
+        pagination: { has_more: false, nextCursor: null },
+      }),
+    });
+    const result = await h.adapter.retrieve(
+      {} as never,
+      { caller: { tenantId: 'tenant', userId: 'actor', clientIds: ['client'] } } as never,
+    );
+    expect(result.stopReason).toBe('monday_board_scope_mismatch');
+    expect(result.records).toEqual([]);
+    expect(result.coverageComplete).toBe(false);
   });
 });

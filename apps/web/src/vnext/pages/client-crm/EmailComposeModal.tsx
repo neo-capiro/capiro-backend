@@ -9,12 +9,7 @@ import { Combobox, type ComboboxOption } from '../../components/fields/index.js'
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { SettingsRichTextEditor } from '../settings/SettingsRichTextEditor.js';
-import {
-  getEmailSignature,
-  rewriteEmail,
-  sendSingleMail,
-  type MailRecipient,
-} from './mail-api.js';
+import { getEmailSignature, rewriteEmail, sendSingleMail, type MailRecipient } from './mail-api.js';
 import './email-compose-modal.css';
 
 /**
@@ -115,6 +110,7 @@ export interface EmailComposeModalProps {
   /** Reply within an existing thread instead of starting a new one. */
   threadId?: string;
   defaultSubject?: string;
+  defaultBodyHtml?: string;
   /**
    * Pre-filled Cc — e.g. everyone else who was on the message being replied
    * to. A pre-filled Cc is stated out loud in the window (see the reply-all
@@ -160,6 +156,7 @@ export function EmailComposeModal({
   orgContacts,
   threadId,
   defaultSubject,
+  defaultBodyHtml,
   defaultCc,
   identityUnconfirmed = false,
   initialAttachments,
@@ -209,7 +206,7 @@ export function EmailComposeModal({
       setCc(ccEmails);
       setBcc('');
       setSubject(defaultSubject ?? '');
-      setBodyHtml('');
+      setBodyHtml(defaultBodyHtml ?? '');
       setPreRewriteBodyHtml(null);
       setRewriteNote(null);
       setAttachments(initialAttachments ?? []);
@@ -328,7 +325,10 @@ export function EmailComposeModal({
         recipientDirectory === 'team'
           ? []
           : selectedTo
-              .map((r) => orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id)
+              .map(
+                (r) =>
+                  orgContacts?.find((c) => c.email.toLowerCase() === r.email.toLowerCase())?.id,
+              )
               .filter((id): id is string => Boolean(id));
       return sendSingleMail(api, {
         clientId,
@@ -435,7 +435,9 @@ export function EmailComposeModal({
                     aria-label={`Remove ${recipient.name ?? recipient.email}`}
                     onClick={() =>
                       setSelectedTo((current) =>
-                        current.filter((r) => r.email.toLowerCase() !== recipient.email.toLowerCase()),
+                        current.filter(
+                          (r) => r.email.toLowerCase() !== recipient.email.toLowerCase(),
+                        ),
                       )
                     }
                   >
@@ -455,10 +457,14 @@ export function EmailComposeModal({
           </span>
           <span className="capiro-email-compose__ccbcc-links">
             {!ccOpen ? (
-              <button type="button" onClick={() => setCcOpen(true)}>Cc</button>
+              <button type="button" onClick={() => setCcOpen(true)}>
+                Cc
+              </button>
             ) : null}
             {!bccOpen ? (
-              <button type="button" onClick={() => setBccOpen(true)}>Bcc</button>
+              <button type="button" onClick={() => setBccOpen(true)}>
+                Bcc
+              </button>
             ) : null}
           </span>
         </div>
@@ -479,7 +485,9 @@ export function EmailComposeModal({
                   const contact = orgContacts?.find((c) => c.id === option.value);
                   if (!contact) return;
                   setSelectedTo((current) =>
-                    current.some((recipient) => recipient.email.toLowerCase() === contact.email.toLowerCase())
+                    current.some(
+                      (recipient) => recipient.email.toLowerCase() === contact.email.toLowerCase(),
+                    )
                       ? current
                       : [...current, { email: contact.email, name: contact.name }],
                   );
@@ -532,7 +540,10 @@ export function EmailComposeModal({
         ) : null}
 
         {recipientError ? (
-          <p className="capiro-email-compose__notice capiro-email-compose__notice--warn" role="alert">
+          <p
+            className="capiro-email-compose__notice capiro-email-compose__notice--warn"
+            role="alert"
+          >
             {recipientError}
           </p>
         ) : null}
@@ -578,8 +589,8 @@ export function EmailComposeModal({
             {senderMailboxState?.status === 'loading'
               ? 'Checking your connected mailbox…'
               : senderMailboxState?.status === 'ready'
-                ? senderMailboxState.label ?? 'Your connected mailbox'
-                : senderMailboxState?.error ?? 'Your connected mailbox (Settings → Personal)'}
+                ? (senderMailboxState.label ?? 'Your connected mailbox')
+                : (senderMailboxState?.error ?? 'Your connected mailbox (Settings → Personal)')}
           </span>
           {senderMailboxState?.status === 'error' && senderMailboxState.onRetry ? (
             <button
@@ -689,13 +700,17 @@ export function EmailComposeModal({
         ) : null}
         {requiredAttachmentState?.status === 'error' ? (
           <ResourceError
-            message={requiredAttachmentState.error ?? `Could not prepare ${requiredAttachmentState.label}.`}
+            message={
+              requiredAttachmentState.error ?? `Could not prepare ${requiredAttachmentState.label}.`
+            }
             onRetry={requiredAttachmentState.onRetry}
           />
         ) : null}
 
         {signatureQ.isPending ? (
-          <p className="capiro-email-compose__notice" role="status">Loading your email signature…</p>
+          <p className="capiro-email-compose__notice" role="status">
+            Loading your email signature…
+          </p>
         ) : null}
         {signatureQ.isError ? (
           <ResourceError
@@ -721,12 +736,18 @@ export function EmailComposeModal({
         ) : null}
 
         {invalidCopiedAddress ? (
-          <p className="capiro-email-compose__notice capiro-email-compose__notice--warn" role="alert">
+          <p
+            className="capiro-email-compose__notice capiro-email-compose__notice--warn"
+            role="alert"
+          >
             “{invalidCopiedAddress.email}” is not a valid email address.
           </p>
         ) : null}
         {sendError ? (
-          <p className="capiro-email-compose__notice capiro-email-compose__notice--warn" role="alert">
+          <p
+            className="capiro-email-compose__notice capiro-email-compose__notice--warn"
+            role="alert"
+          >
             {sendError} Your draft is still here; review it and try again.
           </p>
         ) : null}
@@ -755,7 +776,12 @@ export function EmailComposeModal({
           Rewrite with Meri
         </CapiroButton>
         <span className="capiro-email-compose__footer-spacer" />
-        <CapiroButton variant="secondary" size="standard" disabled={send.isPending} onClick={onClose}>
+        <CapiroButton
+          variant="secondary"
+          size="standard"
+          disabled={send.isPending}
+          onClick={onClose}
+        >
           Cancel
         </CapiroButton>
         <CapiroButton

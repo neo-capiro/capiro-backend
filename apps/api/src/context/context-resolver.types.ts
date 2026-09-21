@@ -37,8 +37,7 @@ export const CONTEXT_RESOLVER_ADDITIONAL_SURFACES = [
 ] as const;
 
 export type ContextSurface =
-  | CompilerContextSurface
-  | (typeof CONTEXT_RESOLVER_ADDITIONAL_SURFACES)[number];
+  CompilerContextSurface | (typeof CONTEXT_RESOLVER_ADDITIONAL_SURFACES)[number];
 
 /**
  * The proposed authorization envelope supplied to the resolver. It never

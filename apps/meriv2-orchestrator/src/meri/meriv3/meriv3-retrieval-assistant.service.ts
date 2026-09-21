@@ -182,7 +182,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
         // reads could otherwise mix unrelated work into a client answer.
         .filter(
           (schema) =>
-            !governed || !schema.name.startsWith('mcp__meriv3_monday__'),
+            !governed?.retrieval.coverage?.requestedDomains.includes('monday') ||
+            !schema.name.startsWith('mcp__meriv3_monday__'),
         )
         .map(enhancedDescription);
       const seen = new Set(native.map((schema) => schema.name));
