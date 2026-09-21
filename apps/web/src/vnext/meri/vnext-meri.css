@@ -6068,6 +6068,28 @@ width: 30px;
   border-bottom: 1px solid #F2F4F7;
 }
 
+/* Inline citation marker injected by injectCitations() — a plain <button>
+   with no class styling otherwise renders with full native button chrome
+   (bold, boxed), which reads as a loud UI element instead of a footnote. */
+.capiro-vnext-root .chat-citation {
+  padding: 0 1px;
+  border: none;
+  background: none;
+  color: #667085;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  vertical-align: super;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.capiro-vnext-root .chat-citation:hover {
+  color: #344054;
+  text-decoration: underline;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .capiro-vnext-root .vnext-meri * {
     animation: none !important;

@@ -146,11 +146,21 @@ function finishInstructions(): string {
  * Hold back enough wall-clock for a no-tools synthesis pass so a long gather
  * loop cannot burn the entire turn budget and leave only a 15s writer window
  * (or an empty "runtime unavailable" failure). Scales with the mode budget.
+ *
+ * Standard mode's old 60s floor/ceiling was tuned for a normal chat reply. A
+ * broad "audit every commitment, cross-check every source" question gathers
+ * fine (up to maxToolRounds) but then needs to *write* a large structured
+ * table from everything it found — 60s repeatedly wasn't enough, forcing a
+ * second forced-synthesis attempt that also timed out and fell back to the
+ * "hit a model time limit" apology. Raised the sub-10-minute floor and
+ * loosened the ceiling to half the turn budget so Standard/Fast reserve more
+ * write time; Deep/Max are unaffected (their reserve is already governed by
+ * `scaled` or the unchanged >=600s floor, both still under the new ceiling).
  */
 function synthesisReserveMs(turnBudgetMs: number): number {
   const scaled = Math.floor(turnBudgetMs * 0.15);
-  const floor = turnBudgetMs >= 600_000 ? 180_000 : 60_000;
-  const ceiling = Math.floor(turnBudgetMs / 3);
+  const floor = turnBudgetMs >= 600_000 ? 180_000 : 90_000;
+  const ceiling = Math.floor(turnBudgetMs / 2);
   return Math.min(Math.max(floor, scaled), ceiling);
 }
 
