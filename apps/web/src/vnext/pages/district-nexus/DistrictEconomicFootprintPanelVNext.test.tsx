@@ -75,6 +75,7 @@ describe('DistrictEconomicFootprintPanelVNext Census margin of error', () => {
     renderPanel(-555555555);
 
     expect(await screen.findByText('576,851')).toBeInTheDocument();
+    expect(screen.getByText(/MOE unavailable/)).toBeInTheDocument();
     expect(screen.queryByText(/±-555,555,555/)).not.toBeInTheDocument();
   });
 

@@ -52,6 +52,11 @@ function finiteOrNull(value: number | null | undefined): number | null {
   return value != null && Number.isFinite(value) ? value : null;
 }
 
+export function positiveEconomicMarginOrNull(value: number | null | undefined): number | null {
+  const normalized = finiteOrNull(value);
+  return normalized != null && normalized > 0 ? normalized : null;
+}
+
 function normalizeDistrict(value: string): string | null {
   const text = value.trim();
   if (!/^\d{1,2}$/.test(text)) return null;
@@ -113,7 +118,7 @@ export async function writeEconomicFacts(
       districtCode,
       metricKey: fact.metricKey.trim(),
       metricValue: finiteOrNull(fact.metricValue),
-      marginOfError: finiteOrNull(fact.marginOfError),
+      marginOfError: positiveEconomicMarginOrNull(fact.marginOfError),
       naicsCode: fact.naicsCode?.trim() || null,
       unit: fact.unit?.trim() || null,
     });

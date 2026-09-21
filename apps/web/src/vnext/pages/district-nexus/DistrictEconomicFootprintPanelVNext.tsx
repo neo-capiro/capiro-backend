@@ -357,7 +357,9 @@ function PublicContextBlock({ data }: { data: DistrictEconomicContextResponse })
                 {metric.naicsCode ? ` · NAICS ${metric.naicsCode}` : ''}
                 {metric.marginOfError != null && metric.marginOfError > 0
                   ? ` · ±${formatNumber(metric.marginOfError)}`
-                  : ''}
+                  : metric.source === 'acs'
+                    ? ' · MOE unavailable'
+                    : ''}
               </div>
             </div>
           ))}

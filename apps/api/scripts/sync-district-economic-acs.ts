@@ -120,6 +120,8 @@ async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
     const districtCode = row[index.get('congressional district') ?? -1];
     if (!state || !districtCode) continue;
     for (const [metricKey, estimateVariable, marginVariable, unit] of METRICS) {
+      const rawEstimate = row[index.get(estimateVariable) ?? -1] ?? null;
+      const rawMarginOfError = row[index.get(marginVariable) ?? -1] ?? null;
       facts.push({
         source: 'acs',
         dataset,
@@ -128,8 +130,8 @@ async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
         districtCode,
         boundaryCongress,
         metricKey,
-        metricValue: normalizeAcsValue(row[index.get(estimateVariable) ?? -1]),
-        marginOfError: positiveMarginOfError(row[index.get(marginVariable) ?? -1]),
+        metricValue: normalizeAcsValue(rawEstimate),
+        marginOfError: positiveMarginOfError(rawMarginOfError),
         unit,
         sourceRecordId: `${stateFips}:${districtCode}:${estimateVariable}`,
         sourceUrl: url.toString(),
@@ -138,6 +140,8 @@ async function run(prisma: PrismaClient): Promise<EconomicSourceRunResult> {
           censusName: row[index.get('NAME') ?? -1] ?? null,
           estimateVariable,
           marginVariable,
+          rawEstimate,
+          rawMarginOfError,
           annualDataset: true,
         },
       });
