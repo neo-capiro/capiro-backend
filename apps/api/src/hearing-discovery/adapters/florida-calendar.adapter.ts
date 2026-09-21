@@ -2,6 +2,7 @@ import { load } from 'cheerio';
 import { contentHash } from '../hearing-identity.js';
 import { houseStartsAt } from '../hearing-time.js';
 import { calendarDayParts } from '../../live-hearings/legiwatch-calendar-export.js';
+import { decodeEntities } from './source-http.js';
 import type {
   AgendaItem,
   CalendarDocument,
@@ -12,7 +13,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-21.1';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-21.2';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
@@ -56,7 +57,12 @@ export function floridaBillNumberAliases(raw: string): string[] {
     ]),
   ];
 }
-const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
+// The Florida publishers sometimes HTML-encode text before their page template
+// encodes it again. Cheerio decodes the outer layer, leaving strings such as
+// `Rules &amp; Ethics` and `PreK &#8211; 12` in otherwise plain text. Decode that
+// remaining layer at the ingestion boundary so canonical hearing/body titles
+// are safe, readable text for every API/UI consumer.
+const clean = (s: string) => decodeEntities(s).replace(/\s+/g, ' ').trim();
 export type SenateNoticeRef = {
   id: string;
   bodyCode: string;
