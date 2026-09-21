@@ -25,6 +25,8 @@ describe('community funding pure parsers', () => {
   it('derives requester state from strict STDD while preserving the source district', () => {
     const result = parseHouseXlsxRows([{ 'Member First Name':'A','Member Last Name':'B',District:'FL08',Recipient:'R','Project Description':'P','Amount Requested':'$2,000' }], 2026);
     expect(result.candidates[0]).toMatchObject({ requesterState: 'FL', requesterDistrict: 'FL08' });
+    const lower = parseHouseXlsxRows([{ 'Member First Name':'A','Member Last Name':'B',District:'fl08',Recipient:'R','Project Description':'P','Amount Requested':'$2,000' }], 2026);
+    expect(lower.candidates[0]).toMatchObject({ requesterState: 'FL', requesterDistrict: 'FL08' });
   });
   it('keeps invalid source districts unresolved rather than inventing geography', () => {
     const result = parseHouseXlsxRows([{ 'Member First Name':'A','Member Last Name':'B',District:'AQ00',Recipient:'R','Project Description':'P','Amount Requested':'$2,000' }], 2026);

@@ -26,7 +26,10 @@
 
 import type { DistrictNexusChangeSeverity } from './priority-intelligence-change-policy.js';
 import { districtMatchesHouse } from '../../common/district-code.util.js';
-import { normalizeCommunityFundingGeography } from '../../government-data/community-funding/community-funding.geography.js';
+import {
+  normalizeCommunityFundingGeography,
+  parseCommunityFundingStdd,
+} from '../../government-data/community-funding/community-funding.geography.js';
 
 export type CommunityFundingChamber = 'house' | 'senate';
 
@@ -126,11 +129,9 @@ export function normalizeCpfCdsDistrict(value: string | null): string | null {
   const text = value.trim().toUpperCase();
   if (!text) return null;
   if (text === 'AL' || text === '00' || text === 'AT LARGE') return '00';
-  const stdd = /^([A-Z]{2})(\d{2}|AL)$/.exec(text);
-  if (stdd) {
-    const n = stdd[2] === 'AL' ? 0 : Number(stdd[2]);
-    return n < 90 ? String(n).padStart(2, '0') : null;
-  }
+  const stdd = parseCommunityFundingStdd(text);
+  if (stdd) return stdd.district;
+  if (/^[A-Z]{2}/.test(text)) return null;
   if (!/^\d{1,2}$/.test(text)) return null;
   const n = Number(text);
   if (n === 0) return '00';
@@ -174,17 +175,8 @@ export function attributeGeography(
     return { basis: 'unresolved', reason: 'house request without a source-backed state' };
   }
 
-  // Senate requests stay statewide unless the row carries the existing strict
-  // numeric project-district form. STDD tokens identify House requester
-  // geography and must not manufacture a Senate project district.
-  const senateProjectDistrict = /^(?:\d{1,2}|AL|AT LARGE)$/i.test(
-    row.requesterDistrict?.trim() ?? '',
-  )
-    ? normalizeCpfCdsDistrict(row.requesterDistrict)
-    : null;
-  if (state.length === 2 && senateProjectDistrict) {
-    return { basis: 'senate_project_district', state, district: senateProjectDistrict };
-  }
+  // This field is requester geography. Senate requests remain statewide until
+  // a distinct independently source-backed project-district field exists.
   if (state.length === 2) {
     return { basis: 'senate_statewide', state };
   }

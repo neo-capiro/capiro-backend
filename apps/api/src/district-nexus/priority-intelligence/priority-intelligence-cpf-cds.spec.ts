@@ -88,8 +88,8 @@ describe('attributeGeography — house vs senate semantics', () => {
     const withDistrict = attributeGeography(
       row({ chamber: 'senate', requesterState: 'VT', requesterDistrict: '3' }),
     );
-    expect(withDistrict).toEqual({ basis: 'senate_project_district', state: 'VT', district: '03' });
-    expect(districtKeyOf(withDistrict)).toBe('VT-03');
+    expect(withDistrict).toEqual({ basis: 'senate_statewide', state: 'VT' });
+    expect(districtKeyOf(withDistrict)).toBeNull();
   });
 });
 

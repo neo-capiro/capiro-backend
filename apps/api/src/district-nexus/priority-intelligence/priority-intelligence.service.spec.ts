@@ -660,7 +660,7 @@ describe('Priority Intelligence requester attribution at the public service boun
           take: 400,
           where: expect.objectContaining({
             chamber: 'house',
-            requesterDistrict: { in: ['08', '8', 'FL08'] },
+            requesterDistrict: { in: ['08', '8', 'FL08'], mode: 'insensitive' },
             OR: expect.arrayContaining([{ requesterDistrict: 'FL08' }]),
           }),
         }),

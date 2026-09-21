@@ -68,10 +68,11 @@ export function parseHouseXlsxRows(rows: Record<string, unknown>[], fiscalYear: 
     const requester = clean(`${row['Member First Name'] ?? ''} ${row['Member Last Name'] ?? ''}`);
     if (!recipient || !project || !requester) { rejected.push({ page: null, row: index + 2, reason: 'missing required text field' }); return; }
     const rawDistrict = clean(String(row.District ?? '')) || null;
-    const geography = normalizeCommunityFundingGeography({ chamber: 'house', requesterState: null, requesterDistrict: rawDistrict, projectState: null });
+    const normalizedDistrict = rawDistrict?.toUpperCase() ?? null;
+    const geography = normalizeCommunityFundingGeography({ chamber: 'house', requesterState: null, requesterDistrict: normalizedDistrict, projectState: null });
     if (geography.conflictReason) { rejected.push({ page: null, row: index + 2, reason: geography.conflictReason }); return; }
     candidates.push({ chamber: 'house', requestType: 'cpf', fiscalYear, requesterName: requester, requesterState: geography.state,
-      requesterDistrict: rawDistrict, recipientName: recipient,
+      requesterDistrict: normalizedDistrict, recipientName: recipient,
       recipientAddress: clean(String(row['Recipient Address'] ?? '')) || null, city: null, state: null, zip: null,
       projectTitle: project, projectDescription: null, requestedAmountUsd: amount, finalAmountUsd: null,
       amountStageRaw: 'amount_requested', appropriationsAccountRaw: null,

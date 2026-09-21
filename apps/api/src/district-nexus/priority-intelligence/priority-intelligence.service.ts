@@ -375,7 +375,10 @@ export class DistrictNexusPriorityIntelligenceService {
     // statewide. Keeping the two queries separate prevents a large statewide
     // Senate corpus from pushing a matching House request beyond the limit.
     const sourceStdd = `${stateCode}${districtPadded}`;
-    const districtKeys = [districtPadded, String(Number(districtPadded)), sourceStdd];
+    const districtKeys =
+      districtPadded === '00'
+        ? ['00', '0', sourceStdd, 'AL', 'AT LARGE', `${stateCode}AL`]
+        : [districtPadded, String(Number(districtPadded)), sourceStdd];
     const select = {
       id: true,
       chamber: true,
@@ -403,7 +406,7 @@ export class DistrictNexusPriorityIntelligenceService {
       this.prisma.communityFundingRequest.findMany({
         where: {
           chamber: 'house',
-          requesterDistrict: { in: districtKeys },
+          requesterDistrict: { in: districtKeys, mode: 'insensitive' },
           OR: [
             { requesterState: stateCode },
             { state: stateCode },
