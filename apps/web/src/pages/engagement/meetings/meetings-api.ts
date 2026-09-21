@@ -5,7 +5,9 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { useApi } from '../../../lib/use-api.js';
+import { useImpersonation } from '../../../state/impersonation.js';
 import type {
   Meeting,
   MeetingBotSession,
@@ -410,17 +412,72 @@ export function useCancelMeetingPrep() {
     onSuccess: job => qc.setQueryData(['meeting-prep-job', job.meetingId], job) });
 }
 
-export function usePrepMondayMapping(meetingId: string, enabled: boolean) {
-  const api = useApi(); const qc = useQueryClient(); const key = ['meeting-prep-monday-mapping', meetingId];
-  const query = useQuery({ queryKey: key, enabled, queryFn: async () => (await api.get<{ clientId: string; boardIds: string[] } | null>(`${BASE}/meetings/${meetingId}/prep-monday-mapping`)).data });
-  const save = useMutation({ mutationFn: async (boardIds: string[]) => (await api.put(`${BASE}/meetings/${meetingId}/prep-monday-mapping`, { boardIds })).data, onSuccess: () => qc.invalidateQueries({ queryKey: key }) });
+export function useMeetingPrepIdentity() {
+  const { userId, orgId } = useAuth();
+  const { actAsTenantSlug } = useImpersonation();
+  return JSON.stringify([userId, orgId, actAsTenantSlug]);
+}
+
+interface PrepMondayMapping {
+  clientId: string;
+  boardIds: string[];
+}
+
+export function usePrepMondayMapping(meetingId: string, clientId: string | null, enabled: boolean) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const identity = useMeetingPrepIdentity();
+  const key = ['meeting-prep-monday-mapping', identity, meetingId, clientId];
+  const checkClient = (mapping: PrepMondayMapping | null) => {
+    if (mapping && mapping.clientId !== clientId) {
+      throw new Error('The meeting client changed. Reopen this meeting before saving board IDs.');
+    }
+    return mapping;
+  };
+  const query = useQuery({
+    queryKey: key,
+    enabled,
+    queryFn: async () =>
+      checkClient(
+        (
+          await api.get<PrepMondayMapping | null>(
+            `${BASE}/meetings/${meetingId}/prep-monday-mapping`,
+          )
+        ).data,
+      ),
+  });
+  const save = useMutation({
+    mutationKey: key,
+    mutationFn: async (boardIds: string[]) => {
+      const mapping = checkClient(
+        (
+          await api.put<PrepMondayMapping | null>(
+            `${BASE}/meetings/${meetingId}/prep-monday-mapping`,
+            { boardIds },
+          )
+        ).data,
+      );
+      if (!mapping) throw new Error('Monday.com board settings are unavailable. Retry shortly.');
+      return mapping;
+    },
+    onSuccess: (mapping) => {
+      qc.setQueryData(key, mapping);
+      return qc.invalidateQueries({ queryKey: key });
+    },
+  });
   return { query, save };
 }
 
 export function useComprehensivePrepEnabled() {
   const api = useApi();
-  return useQuery({ queryKey: ['comprehensive-prep-capability'], staleTime: 60_000,
-    queryFn: async () => (await api.get<{ meetingPrepComprehensiveEnabled?: boolean }>(`${BASE}/capabilities`)).data?.meetingPrepComprehensiveEnabled === true });
+  const identity = useMeetingPrepIdentity();
+  return useQuery({
+    queryKey: ['comprehensive-prep-capability', identity],
+    staleTime: 60_000,
+    queryFn: async () =>
+      (await api.get<{ meetingPrepComprehensiveEnabled?: boolean }>(`${BASE}/capabilities`)).data
+        ?.meetingPrepComprehensiveEnabled === true,
+  });
 }
 
 export interface UpdatePrepInput {

@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useId, useState } from 'react';
 import type { MeetingPrep } from './meetings-types.js';
 import { PrepSourceLinks } from './PrepEvidence.js';
-import { usePrepMondayMapping, useComprehensivePrepEnabled, type MeetingPrepDepth } from './meetings-api.js';
+import { errorMessage } from '../../../lib/error-message.js';
+import {
+  usePrepMondayMapping,
+  useComprehensivePrepEnabled,
+  useMeetingPrepIdentity,
+  type MeetingPrepDepth,
+} from './meetings-api.js';
 
 export const briefingSectionLabels: Record<string, string> = {
   recentDevelopments: 'Recent developments',
@@ -60,74 +66,151 @@ export function ComprehensivePrep({ prep }: { prep: MeetingPrep }) {
   );
 }
 
-export function PrepSearchSettings({
-  meetingId,
-  clientId,
-  depth,
-  setDepth,
-}: {
+interface PrepSearchSettingsProps {
   meetingId: string;
   clientId: string | null;
   depth: MeetingPrepDepth;
   setDepth: (depth: MeetingPrepDepth) => void;
-}) {
-  const enabled = useComprehensivePrepEnabled();
-  const { query, save } = usePrepMondayMapping(meetingId, !!clientId && enabled.data === true);
-  const [boards, setBoards] = useState('');
-  useEffect(() => {
-    setBoards(query.data?.boardIds?.join(', ') ?? '');
-  }, [meetingId, query.data]);
-  if (!enabled.data) return null;
+}
+
+export function PrepSearchSettings(props: PrepSearchSettingsProps) {
+  const identity = useMeetingPrepIdentity();
+  // Reset drafts and mutation feedback synchronously when the person, tenant,
+  // meeting, or assigned client changes. Late responses stay in their old scope.
   return (
-    <details style={{ fontSize: 12, marginBlock: 12 }}>
-      <summary>Search depth and Monday.com context</summary>
-      <label>
-        Search depth{' '}
-        <select
-          value={depth}
-          onChange={(event) => setDepth(event.target.value as MeetingPrepDepth)}
-        >
-          <option value="standard">
-            Standard — 10 meetings / 90 days; 15 email threads / 30 days
-          </option>
-          <option value="deep">Deep — 25 meetings / 180 days; 100 email threads / 90 days</option>
-          <option value="max">Max — 100 meetings; 300 email threads / 365 days</option>
-        </select>
-      </label>
-      <p>
-        Open tasks have no age cutoff. Standard and deep searches have a 1-hour budget; max
-        searches have 2 hours. You can close this page while preparation runs.
-      </p>
-      {query.data && (
-        <>
-          <label>
-            Monday.com board IDs for this client{' '}
-            <input
-              value={boards}
-              onChange={(event) => setBoards(event.target.value)}
-              placeholder="123456789, 987654321"
-            />
-          </label>
-          <p>
-            Only boards you explicitly map here are searched through your connected Monday.com
-            account. Confirm each board belongs to this client.
+    <ScopedPrepSearchSettings
+      key={JSON.stringify([identity, props.meetingId, props.clientId])}
+      {...props}
+    />
+  );
+}
+
+function ScopedPrepSearchSettings({
+  meetingId,
+  clientId,
+  depth,
+  setDepth,
+}: PrepSearchSettingsProps) {
+  const helpId = useId();
+  const enabled = useComprehensivePrepEnabled();
+  const { query, save } = usePrepMondayMapping(
+    meetingId,
+    clientId,
+    !!clientId && enabled.data === true,
+  );
+  // A null draft follows server data. Once edited, background refreshes must
+  // not replace the user's input; a successful save adopts the saved response.
+  const [boards, setBoards] = useState<string | null>(null);
+  const canEdit =
+    !!clientId && enabled.data === true && query.isSuccess && !!query.data && !save.isPending;
+  const boardValue = boards ?? query.data?.boardIds.join(', ') ?? '';
+
+  return (
+    <section aria-label="Meeting preparation sources" style={{ fontSize: 12, marginBlock: 12 }}>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <label style={{ display: 'grid', gap: 6 }}>
+          Monday.com board IDs for this client
+          <input
+            value={boardValue}
+            disabled={!canEdit}
+            onChange={(event) => {
+              setBoards(event.target.value);
+              save.reset();
+            }}
+            placeholder="123456789, 987654321"
+            aria-describedby={helpId}
+          />
+        </label>
+        <p id={helpId} style={{ margin: 0 }}>
+          Enter the task board IDs to include in meeting prep, separated by commas. Meri reads these
+          boards through your own connected Monday.com account. Confirm each board belongs to this
+          client, then save before generating prep.
+        </p>
+        {!clientId ? (
+          <p role="note" style={{ margin: 0 }}>
+            Assign this meeting to a client to add Monday.com board IDs.
           </p>
+        ) : enabled.isPending ? (
+          <p role="status" style={{ margin: 0 }}>
+            Checking meeting preparation settings…
+          </p>
+        ) : enabled.isError ? (
+          <div role="alert">
+            Could not load meeting preparation settings.{' '}
+            <button type="button" className="btn sm" onClick={() => void enabled.refetch()}>
+              Retry preparation settings
+            </button>
+          </div>
+        ) : !enabled.data ? (
+          <p role="note" style={{ margin: 0 }}>
+            Monday.com meeting preparation is unavailable for this workspace.
+          </p>
+        ) : query.isPending ? (
+          <p role="status" style={{ margin: 0 }}>
+            Loading your Monday.com board IDs…
+          </p>
+        ) : query.isError || !query.data ? (
+          <div role="alert">
+            {query.isError
+              ? errorMessage(query.error, 'Could not load your Monday.com board IDs.')
+              : 'Monday.com board settings are currently unavailable.'}{' '}
+            <button type="button" className="btn sm" onClick={() => void query.refetch()}>
+              Retry board settings
+            </button>
+          </div>
+        ) : null}
+        <div>
           <button
             type="button"
             className="btn sm"
-            disabled={save.isPending}
-            onClick={() => save.mutate(boards.split(/[\s,]+/).filter(Boolean))}
+            disabled={!canEdit}
+            onClick={() =>
+              save.mutate(boardValue.split(/[\s,]+/).filter(Boolean), {
+                onSuccess: () => setBoards(null),
+              })
+            }
           >
-            Save board mapping
+            {save.isPending ? 'Saving board mapping…' : 'Save board mapping'}
           </button>
-          {save.isError && (
-            <p role="alert">
-              Could not save the board mapping. Check the IDs and your client access.
-            </p>
-          )}
-          {save.isSuccess && <p role="status">Board mapping saved.</p>}
-        </>
+        </div>
+        {save.isError && (
+          <p role="alert" style={{ margin: 0 }}>
+            {errorMessage(
+              save.error,
+              'Could not save the board mapping. Check the IDs and your client access.',
+            )}
+          </p>
+        )}
+        {save.isSuccess && (
+          <p role="status" style={{ margin: 0 }}>
+            Board mapping saved.
+          </p>
+        )}
+      </div>
+      {enabled.data === true && (
+        <details style={{ marginTop: 12 }}>
+          <summary>Search depth</summary>
+          <label>
+            Search depth{' '}
+            <select
+              value={depth}
+              onChange={(event) => setDepth(event.target.value as MeetingPrepDepth)}
+            >
+              <option value="standard">
+                Standard — 10 meetings / 90 days; 15 email threads / 30 days
+              </option>
+              <option value="deep">
+                Deep — 25 meetings / 180 days; 100 email threads / 90 days
+              </option>
+              <option value="max">Max — 100 meetings; 300 email threads / 365 days</option>
+            </select>
+          </label>
+          <p>
+            Open tasks have no age cutoff. Standard and deep searches have a 1-hour budget; max
+            searches have 2 hours. You can close this page while preparation runs.
+          </p>
+        </details>
       )}
-    </details>
+    </section>
   );
 }

@@ -337,6 +337,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     return (
       <>
         <StagePill {...prepStage(prep, false)} />
+        {searchSettings}
         <Empty
           icon={<TriangleAlert size={20} />}
           title="Prep generation failed"

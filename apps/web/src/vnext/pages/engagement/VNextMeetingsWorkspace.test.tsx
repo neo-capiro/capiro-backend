@@ -27,6 +27,11 @@ import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.
  * DebriefTab.test.tsx already use for the real components they exercise.
  */
 
+// The real PrepTab and board settings scope requests to the signed-in identity.
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ userId: 'workspace-user', orgId: 'workspace-org' }),
+}));
+
 const useMeetingsMock = vi.fn();
 const useMeetingMock = vi.fn();
 vi.mock('../../../pages/engagement/meetings/meetings-api.js', async (importOriginal) => {
