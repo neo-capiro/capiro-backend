@@ -50,6 +50,8 @@ export interface EnvConfig {
   // Hardening
   protectFromDestroy: boolean; // true for prod, false for dev to allow iteration
   logRetentionDays: number;
+  /** Opt in only after capiro/<env>/typesafe-api-key has been provisioned. */
+  typesafeApiKeySecretEnabled?: boolean;
   externalSecretArns?: {
     microsoftClientId: string;
     microsoftTenantId: string;
@@ -138,6 +140,7 @@ const BASE: Omit<EnvConfig, 'envName' | 'account' | 'region'> = {
   apiStrategyMaxCount: 4,
   protectFromDestroy: false,
   logRetentionDays: 90,
+  typesafeApiKeySecretEnabled: false,
 };
 
 export function loadConfig(app: cdk.App): EnvConfig {

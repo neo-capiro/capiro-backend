@@ -666,7 +666,7 @@ function ClientsSection({
   );
 }
 
-function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: string }) {
+export function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: string }) {
   if (!awards.length) {
     return (
       <div style={{ fontSize: 12.5 }} className="dnx-muted">
@@ -681,7 +681,7 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
           <tr>
             <CapiroTableHeaderCell>Award</CapiroTableHeaderCell>
             <CapiroTableHeaderCell className="dnx-right">Amount</CapiroTableHeaderCell>
-            <CapiroTableHeaderCell>Awarded</CapiroTableHeaderCell>
+            <CapiroTableHeaderCell>{awardDateHeader(awards)}</CapiroTableHeaderCell>
           </tr>
         </CapiroTableHead>
         <CapiroTableBody>
@@ -709,7 +709,7 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
                 {formatMoney(a.amount)}
               </CapiroTableCell>
               <CapiroTableCell className="dnx-sub">
-                {a.awardedAt ? new Date(a.awardedAt).toLocaleDateString('en-US') : '—'}
+                {formatAwardDate(a)}
               </CapiroTableCell>
             </tr>
           ))}
@@ -717,6 +717,22 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
       </CapiroTable>
     </CapiroTableWrap>
   );
+}
+
+function awardDateHeader(awards: TopAward[]): string {
+  if (awards.some((award) => award.awardedAtSemantics === 'base_award_signed')) {
+    return 'Awarded (base signed)';
+  }
+  return awards.some((award) => award.awardedAtSemantics === 'latest_action')
+    ? 'Latest action'
+    : 'Awarded';
+}
+
+function formatAwardDate(award: TopAward): string {
+  const value = award.awardedAtSemantics === 'base_award_signed'
+    ? award.baseAwardSignedDate
+    : award.awardedAt;
+  return value ? new Date(value).toLocaleDateString('en-US') : '—';
 }
 
 function DemographicsSection({

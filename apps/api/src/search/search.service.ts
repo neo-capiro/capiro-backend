@@ -1,6 +1,7 @@
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 
 /**
  * Global keyword search across all ingested reference datasets (bills, awards,
@@ -35,6 +36,8 @@ export interface SearchResult {
   title: string;
   subtitle?: string | null;
   date?: string | null;
+  dateSemantics?: 'base_award_signed' | 'latest_action' | 'legacy_unknown';
+  baseAwardSignedDate?: string | null;
   /** Relative app route the UI can navigate to for this record. */
   href?: string | null;
 }
@@ -55,7 +58,11 @@ export class SearchService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async search(rawQuery: string, perSource = PER_SOURCE_DEFAULT): Promise<SearchResponse> {
+  async search(
+    rawQuery: string,
+    perSource = PER_SOURCE_DEFAULT,
+    tenantId?: string,
+  ): Promise<SearchResponse> {
     const q = (rawQuery ?? '').trim();
     if (q.length < MIN_QUERY_LEN) {
       return { query: q, total: 0, results: [], byCategory: {} };
@@ -90,7 +97,7 @@ export class SearchService {
       programElements,
     ] = await Promise.all([
       safe(() => this.searchBills(contains, take)),
-      safe(() => this.searchAwards(contains, take)),
+      safe(() => this.searchAwards(contains, take, tenantId)),
       safe(() => this.searchLda(contains, take)),
       safe(() => this.searchHearings(contains, take)),
       safe(() => this.searchSec(contains, take)),
@@ -159,21 +166,44 @@ export class SearchService {
   private async searchAwards(
     c: { contains: string; mode: 'insensitive' },
     take: number,
+    tenantId?: string,
   ): Promise<SearchResult[]> {
+    const enforce = resolveEvidenceAccuracyModeForTenant(tenantId, 'chat') === 'enforce';
     const rows = await this.prisma.federalAward.findMany({
       where: { OR: [{ contractorName: c }, { awardingAgency: c }, { fundingTasTitle: c }] },
-      select: { id: true, contractorName: true, awardingAgency: true, awardedAt: true },
+      select: {
+        id: true,
+        contractorName: true,
+        awardingAgency: true,
+        awardedAt: true,
+        baseAwardSignedDate: true,
+        latestActionDate: true,
+      },
       take,
       orderBy: { awardedAt: 'desc' },
     });
-    return rows.map((r) => ({
-      category: 'award' as const,
-      id: r.id,
-      title: r.contractorName ?? 'Federal award',
-      subtitle: r.awardingAgency ? `Agency: ${r.awardingAgency}` : null,
-      date: this.iso(r.awardedAt),
-      href: `/explorer/contractors?q=${encodeURIComponent(r.contractorName ?? '')}`,
-    }));
+    return rows.map((r) => {
+      const legacy = {
+        category: 'award' as const,
+        id: r.id,
+        title: r.contractorName ?? 'Federal award',
+        subtitle: r.awardingAgency ? `Agency: ${r.awardingAgency}` : null,
+        date: this.iso(r.awardedAt),
+        href: `/explorer/contractors?q=${encodeURIComponent(r.contractorName ?? '')}`,
+      };
+      if (!enforce) return legacy;
+      return {
+        ...legacy,
+        // Stage 0 intentionally leaves the legacy sort and displayed date unchanged.
+        // Changing rank before backfill coverage is measured would reshuffle search results.
+        dateSemantics: r.baseAwardSignedDate
+          ? ('base_award_signed' as const)
+          : r.latestActionDate
+            ? ('latest_action' as const)
+            : ('legacy_unknown' as const),
+        baseAwardSignedDate: this.iso(r.baseAwardSignedDate),
+      };
+    });
   }
 
   private async searchLda(

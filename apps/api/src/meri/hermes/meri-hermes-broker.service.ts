@@ -52,6 +52,8 @@ import { MeriHermesRuntimeAdapter } from './meri-hermes-runtime.adapter.js';
 import { MeriHermesArtifactStorageService } from './meri-hermes-artifact-storage.service.js';
 import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './meri-hermes-db-governor.js';
 import { meriHermesBoundedPage, meriHermesScalingLimits } from './meri-hermes-scaling.config.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
+import { describeAttachmentContentState, retryAttachmentExtraction } from '../meri-attachment-content-state.js';
 
 export interface MeriHermesBrokerAuth {
   claims: MeriHermesWorkerTokenClaims;
@@ -452,13 +454,13 @@ export class MeriHermesBrokerService {
   }
 
   /** S-4: bounded slot + deadline; the body is `getAttachmentGoverned`. */
-  async getAttachment(auth: MeriHermesBrokerAuth, attachmentId: string) {
-    return this.dbGovernor.guard('meri_fetch_attachment', () => this.getAttachmentGoverned(auth, attachmentId));
+  async getAttachment(auth: MeriHermesBrokerAuth, attachmentId: string, retryExtraction = false) {
+    return this.dbGovernor.guard('meri_fetch_attachment', () => this.getAttachmentGoverned(auth, attachmentId, retryExtraction));
   }
 
-  private async getAttachmentGoverned(auth: MeriHermesBrokerAuth, attachmentId: string) {
+  private async getAttachmentGoverned(auth: MeriHermesBrokerAuth, attachmentId: string, retryExtraction: boolean) {
     await this.assertTool(auth, 'meri_fetch_attachment');
-    const row = await this.prisma.withTenant(auth.run.envelope.tenantId, (tx) =>
+    let row = await this.prisma.withTenant(auth.run.envelope.tenantId, (tx) =>
       tx.clioAttachment.findFirst({
         where: { id: attachmentId, tenantId: auth.run.envelope.tenantId, userId: auth.run.envelope.actorId },
         select: {
@@ -470,11 +472,25 @@ export class MeriHermesBrokerService {
           byteSize: true,
           pages: true,
           textContent: true,
+          reason: true,
           data: true,
         },
       }),
     );
     if (!row) throw new NotFoundException('Attachment not found');
+    const enforced = resolveEvidenceAccuracyModeForTenant(auth.run.envelope.tenantId, 'chat') === 'enforce';
+    let content = describeAttachmentContentState(row);
+    if (enforced && retryExtraction && !content.readable && row.data) {
+      await retryAttachmentExtraction(this.prisma, row.id, auth.run.envelope.tenantId,
+        auth.run.envelope.actorId, async () => null);
+      row = await this.prisma.withTenant(auth.run.envelope.tenantId, (tx) => tx.clioAttachment.findFirst({
+        where: { id: attachmentId, tenantId: auth.run.envelope.tenantId, userId: auth.run.envelope.actorId },
+        select: { id: true, filename: true, kind: true, status: true, mediaType: true, byteSize: true,
+          pages: true, textContent: true, reason: true, data: true },
+      }));
+      if (!row) throw new NotFoundException('Attachment not found');
+      content = describeAttachmentContentState(row);
+    }
     // F-1 release guard, same rule as `recall()`: the attachment bytes are
     // still only a local variable, and a revocation that landed while this
     // read was in flight must withhold them rather than hand them to the model.
@@ -485,7 +501,7 @@ export class MeriHermesBrokerService {
       { attachmentRead: row.id, bytes: row.byteSize, hasOriginalBytes: Boolean(row.data), frames: [] },
       'internal',
     );
-    return {
+    const legacy = {
       id: row.id,
       filename: row.filename,
       kind: row.kind,
@@ -497,6 +513,15 @@ export class MeriHermesBrokerService {
       textContent: row.textContent,
       /** Original bytes for native Hermes file handling; null for historical rows. */
       dataBase64: row.data ? Buffer.from(row.data).toString('base64') : null,
+    };
+    if (!enforced) return legacy;
+    return {
+      ...legacy,
+      contentState: content.state,
+      readable: content.readable,
+      extractedChars: content.extractedChars,
+      limitation: content.limitation,
+      ...(!content.readable ? { instruction: `This document could not be read (${content.limitation}). Do not describe, summarize, or quote its contents; say exactly what could not be read.` } : {}),
     };
   }
 

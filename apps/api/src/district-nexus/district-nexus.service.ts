@@ -38,6 +38,8 @@ import {
   normalizeDistrictForCensus,
 } from '../common/district-code.util.js';
 import { currentCongressNumber } from '../common/congress.util.js';
+import { federalAwardDates } from '../common/federal-award-date-serialization.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import {
   buildDistrictNexusIdentity,
   districtNexusContractorIdsToResolve,
@@ -92,6 +94,43 @@ interface FreshnessRail {
   /** null when the job writes no SyncRun, so freshness is unknowable here. */
   syncSource: string | null;
   label: string;
+}
+
+interface ContractTopAwardRow {
+  id: string;
+  contractor_name: string | null;
+  description: string | null;
+  amount: number | null;
+  action_date: Date | null;
+  award_unique_id: string | null;
+  base_award_signed_date?: Date | null;
+  latest_action_date?: Date | null;
+}
+
+export function contractTopAward(row: ContractTopAwardRow, enforceDateSemantics: boolean): TopAward {
+  const dates = federalAwardDates({
+    baseAwardSignedDate: row.base_award_signed_date,
+    latestActionDate: row.latest_action_date,
+  });
+  return {
+    id: row.id,
+    label: row.description ?? row.award_unique_id ?? 'Federal contract award',
+    counterparty: row.contractor_name,
+    amount: row.amount,
+    awardedAt: row.action_date ? row.action_date.toISOString() : null,
+    ...(enforceDateSemantics
+      ? {
+          awardedAt: dates.baseAwardSignedDate ?? dates.latestActionDate,
+          awardedAtSemantics: dates.baseAwardSignedDate
+            ? ('base_award_signed' as const)
+            : ('latest_action' as const),
+          baseAwardSignedDate: dates.baseAwardSignedDate,
+        }
+      : {}),
+    externalUrl: row.award_unique_id
+      ? `https://www.usaspending.gov/award/${row.award_unique_id}`
+      : null,
+  };
 }
 
 const FRESHNESS_RAILS: readonly FreshnessRail[] = [
@@ -1554,12 +1593,16 @@ export class DistrictNexusService {
     rail: { ueis: string[]; fallbackNames: string[] },
     stateCode: string,
     districtCode: string,
+    enforceDateSemantics: boolean,
   ): Promise<TopAward[]> {
+    const dateColumns = enforceDateSemantics
+      ? Prisma.sql`, base_award_signed_date, latest_action_date`
+      : Prisma.empty;
     const branches: Prisma.Sql[] = [];
     if (rail.ueis.length) {
       branches.push(Prisma.sql`
         SELECT id::text AS id, contractor_name, description,
-               amount::float8 AS amount, action_date, award_unique_id
+               amount::float8 AS amount, action_date, award_unique_id${dateColumns}
         FROM federal_award
         WHERE recipient_uei = ANY(${rail.ueis}::text[])
           AND pop_state = ${stateCode} AND pop_congressional_district = ${districtCode}
@@ -1568,31 +1611,17 @@ export class DistrictNexusService {
     if (rail.fallbackNames.length) {
       branches.push(Prisma.sql`
         SELECT id::text AS id, contractor_name, description,
-               amount::float8 AS amount, action_date, award_unique_id
+               amount::float8 AS amount, action_date, award_unique_id${dateColumns}
         FROM federal_award
         WHERE lower(contractor_name) = ANY(${rail.fallbackNames}::text[])
           AND pop_state = ${stateCode} AND pop_congressional_district = ${districtCode}
       `);
     }
     if (!branches.length) return [];
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        contractor_name: string | null;
-        description: string | null;
-        amount: number | null;
-        action_date: Date | null;
-        award_unique_id: string | null;
-      }>
-    >(Prisma.sql`${Prisma.join(branches, ' UNION ALL ')} ORDER BY amount DESC NULLS LAST LIMIT 10`);
-    return rows.map((r) => ({
-      id: r.id,
-      label: r.description ?? r.award_unique_id ?? 'Federal contract award',
-      counterparty: r.contractor_name,
-      amount: r.amount,
-      awardedAt: r.action_date ? r.action_date.toISOString() : null,
-      externalUrl: r.award_unique_id ? `https://www.usaspending.gov/award/${r.award_unique_id}` : null,
-    }));
+    const rows = await this.prisma.$queryRaw<ContractTopAwardRow[]>(
+      Prisma.sql`${Prisma.join(branches, ' UNION ALL ')} ORDER BY amount DESC NULLS LAST LIMIT 10`,
+    );
+    return rows.map((r) => contractTopAward(r, enforceDateSemantics));
   }
 
   /** Same shape as topGrantAwards, scoped to a client's confirmed identity rail. See clientScopedContractAwards. */
@@ -1668,6 +1697,9 @@ export class DistrictNexusService {
     if (!districtCode) return null;
     const districtKey = `${stateCode}-${districtCode}`;
     const currentCongress = currentCongressNumber(new Date());
+    // This authenticated REST response drives the district brief UI.
+    const enforceDateSemantics =
+      resolveEvidenceAccuracyModeForTenant(tenantId, 'district-brief') === 'enforce';
 
     const map = await this.getFirmDistrictNexusMap(tenantId, {
       view: options.view,
@@ -1730,7 +1762,7 @@ export class DistrictNexusService {
     ] = await Promise.all([
       this.resolveDistrictRepresentatives(stateCode, districtCode),
       this.readDemographics(stateCode, districtCode),
-      this.topContractAwards(stateCode, districtCode),
+      this.topContractAwards(stateCode, districtCode, enforceDateSemantics),
       this.topGrantAwards(stateCode, districtCode),
       // boundaryAvailable must describe THIS district under the REQUESTED
       // status, not "some house row in this state" — the previous unconstrained
@@ -1758,6 +1790,7 @@ export class DistrictNexusService {
         options.clientId ? identifiers.contract : EMPTY_IDENTIFIER_SET,
         stateCode,
         districtCode,
+        enforceDateSemantics,
       ),
       this.clientScopedGrantAwards(
         options.clientId ? identifiers.assistance : EMPTY_IDENTIFIER_SET,
@@ -1962,34 +1995,23 @@ export class DistrictNexusService {
    * evidence for a score. `federal_award`'s idempotency/display key is
    * `award_unique_id` — there is no `award_id` column on this table.
    */
-  private async topContractAwards(stateCode: string, districtCode: string): Promise<TopAward[]> {
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        contractor_name: string | null;
-        description: string | null;
-        amount: number | null;
-        action_date: Date | null;
-        award_unique_id: string | null;
-      }>
-    >`
+  private async topContractAwards(
+    stateCode: string,
+    districtCode: string,
+    enforceDateSemantics: boolean,
+  ): Promise<TopAward[]> {
+    const dateColumns = enforceDateSemantics
+      ? Prisma.sql`, base_award_signed_date, latest_action_date`
+      : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<ContractTopAwardRow[]>(Prisma.sql`
       SELECT id::text AS id, contractor_name, description,
-             amount::float8 AS amount, action_date, award_unique_id
+             amount::float8 AS amount, action_date, award_unique_id${dateColumns}
       FROM federal_award
       WHERE pop_state = ${stateCode} AND pop_congressional_district = ${districtCode}
       ORDER BY amount DESC NULLS LAST
       LIMIT 10
-    `;
-    return rows.map((r) => ({
-      id: r.id,
-      label: r.description ?? r.award_unique_id ?? 'Federal contract award',
-      counterparty: r.contractor_name,
-      amount: r.amount,
-      awardedAt: r.action_date ? r.action_date.toISOString() : null,
-      externalUrl: r.award_unique_id
-        ? `https://www.usaspending.gov/award/${r.award_unique_id}`
-        : null,
-    }));
+    `);
+    return rows.map((r) => contractTopAward(r, enforceDateSemantics));
   }
 
   /** Unscoped by client, same as topContractAwards — browsing, not evidence. */

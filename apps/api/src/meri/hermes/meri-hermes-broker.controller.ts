@@ -14,6 +14,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -115,8 +116,9 @@ export class MeriHermesBrokerController {
   }
 
   @Get('attachments/:attachmentId')
-  attachment(@Req() request: BrokerRequest, @Param('attachmentId', ParseUUIDPipe) attachmentId: string) {
-    return this.broker.getAttachment(authOf(request), attachmentId);
+  attachment(@Req() request: BrokerRequest, @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Query('retryExtraction') retryExtraction?: string) {
+    return this.broker.getAttachment(authOf(request), attachmentId, retryExtraction === 'true');
   }
 
   @Post('artifacts')

@@ -4,6 +4,8 @@ import { Type } from 'class-transformer';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { SearchService } from './search.service.js';
+import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import type { TenantContext } from '@capiro/shared';
 
 class SearchQueryDto {
   @IsOptional()
@@ -29,7 +31,7 @@ export class SearchController {
   constructor(private readonly search: SearchService) {}
 
   @Get()
-  async globalSearch(@Query() query: SearchQueryDto) {
-    return this.search.search(query.q ?? '', query.perSource);
+  async globalSearch(@Query() query: SearchQueryDto, @CurrentTenant() tenant: TenantContext) {
+    return this.search.search(query.q ?? '', query.perSource, tenant.tenantId);
   }
 }

@@ -92,6 +92,7 @@ function harness(options: {
   clientCapability?: Record<string, unknown> | null;
   clientFacility?: Record<string, unknown> | null;
   resolvedTarget?: Record<string, unknown> | null;
+  federalAward?: Record<string, unknown> | null;
 }) {
   const findFirstAttachment = jest.fn(async (args: { where: Record<string, unknown> }) => {
     if (!options.attachment) return null;
@@ -111,6 +112,7 @@ function harness(options: {
     meeting: { findFirst: findFirstMeeting },
     clientCapability: { findFirst: findFirstClientCapability },
     clientFacility: { findFirst: findFirstClientFacility },
+    federalAward: { findUnique: jest.fn(async () => options.federalAward ?? null) },
   } as unknown as Prisma.TransactionClient;
 
   const authorizeClientWithinTx = jest.fn(async (_tx: unknown, _c: unknown, clientId: string) => ({
@@ -456,5 +458,47 @@ describe('OutreachContextReferenceService — target_profile_fact career_backgro
     await expect(
       service.resolveOneWithinTx(tx, ctx, careerBackgroundSelection()),
     ).rejects.toBeInstanceOf(CapabilityError);
+  });
+});
+
+describe('OutreachContextReferenceService — award-date rollout', () => {
+  const selection: OutreachContextSelectionV1 = {
+    locator: { source: 'government_record', category: 'award', id: 'award-1' },
+    contextClass: 'campaign_fact',
+    scope: { kind: 'campaign' },
+  };
+  const award = {
+    contractorName: 'Acme Defense',
+    awardingAgency: 'Department of Defense',
+    awardedAt: new Date('2026-03-01T00:00:00Z'),
+    baseAwardSignedDate: new Date('2026-02-15T00:00:00Z'),
+    latestActionDate: new Date('2026-03-01T00:00:00Z'),
+  };
+
+  it('preserves the exact legacy summary when off', async () => {
+    const { service, tx } = harness({ federalAward: award });
+    const resolved = await service.resolveOneWithinTx(tx, ctx, selection);
+    expect(resolved.summary).toBe('Department of Defense\n2026-03-01');
+  });
+
+  it('uses and labels the base signed date when outreach enforcement is enabled', async () => {
+    const keys = ['MERI_EVIDENCE_ACCURACY_MODE', 'MERI_EVIDENCE_ACCURACY_TENANTS', 'MERI_EVIDENCE_ACCURACY_SURFACES'];
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    Object.assign(process.env, {
+      MERI_EVIDENCE_ACCURACY_MODE: 'enforce',
+      MERI_EVIDENCE_ACCURACY_TENANTS: tenantId,
+      MERI_EVIDENCE_ACCURACY_SURFACES: 'outreach',
+    });
+    try {
+      const { service, tx } = harness({ federalAward: award });
+      const resolved = await service.resolveOneWithinTx(tx, ctx, selection);
+      expect(resolved.summary).toBe('Department of Defense\nBase award signed: 2026-02-15');
+      expect(resolved.sourceSnapshot.lastVerifiedAt).toBe('2026-02-15T00:00:00.000Z');
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 });
