@@ -763,10 +763,11 @@ export const configSchema = z.object({
   MERI_CLAIM_ASSESSMENT_TENANTS: z.string().optional(),
   MERI_CLAIM_ASSESSMENT_SURFACES: z.string().optional(),
 
-  // Stage 1d automatic correction control. Replay-only; no live application caller.
+  // Stage 2c bounded live correction. Category promotion remains human-controlled and dark.
   MERI_AUTO_CORRECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
   MERI_AUTO_CORRECTION_TENANTS: z.string().optional(),
   MERI_AUTO_CORRECTION_SURFACES: z.string().optional(),
+  MERI_AUTO_CORRECTION_CATEGORIES: z.string().optional(),
 
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
   TYPESAFE_API_KEY: z.string().min(1).optional(),
