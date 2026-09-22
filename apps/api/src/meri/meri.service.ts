@@ -133,7 +133,7 @@ import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.clie
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { extractMeriDocument } from './meri-attachment-document.js';
-import { describeAttachmentContentState } from './meri-attachment-content-state.js';
+import { describeAttachmentContentState, retryAttachmentExtraction } from './meri-attachment-content-state.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -839,8 +839,22 @@ export class MeriService implements MeriTurnMaintenance {
       [];
     if (attachmentRefsByMessage.size) {
       const allRefIds = [...attachmentRefsByMessage.values()].flat().map((r) => r.id);
-      const docRows = await authorizedAttachmentSources(this.prisma, ctx, conversationId, allRefIds, sourceMessageIds);
+      const enforceContentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+      const docRows = await authorizedAttachmentSources(this.prisma, ctx, conversationId, allRefIds,
+        sourceMessageIds, enforceContentState);
       for (const row of docRows) {
+        const initial = describeAttachmentContentState(row);
+        if (enforceContentState &&
+          !initial.readable && row.data) {
+          await retryAttachmentExtraction(this.prisma, row.id, ctx.tenantId, ctx.userId,
+            () => this.aiCredentials.resolveProvider(ctx, 'openai'));
+          const refreshed = await this.prisma.withTenant(ctx.tenantId, tx => tx.clioAttachment.findFirst({
+            where: { id: row.id, tenantId: ctx.tenantId, userId: ctx.userId },
+            select: { id: true, filename: true, kind: true, textContent: true, status: true, reason: true,
+              messageId: true, pages: true, data: true, createdAt: true },
+          }));
+          if (refreshed) Object.assign(row, refreshed);
+        }
         filingSources.set(row.id, row);
         if (row.kind === 'image' || row.textContent == null) continue;
         docTextById.set(row.id, { id: row.id, filename: row.filename, text: row.textContent ?? '', status: row.status, reason: row.reason });
@@ -876,10 +890,12 @@ export class MeriService implements MeriTurnMaintenance {
       const parts = [m.body];
       for (const ref of refs) {
         const doc = docTextById.get(ref.id);
-        if (doc) parts.push(formatAttachmentContext(doc.filename, doc.text, undefined, doc));
+        const contentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce'
+          && filingSources.has(ref.id) ? describeAttachmentContentState(filingSources.get(ref.id)!).state : undefined;
+        if (doc) parts.push(formatAttachmentContext(doc.filename, doc.text, undefined, doc, contentState));
         else if (filingSources.has(ref.id)) {
           const imageVisible = m.id === lastUserMessage?.id && visibleImageIds.has(ref.id);
-          parts.push(formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible));
+          parts.push(formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible, contentState));
         } else {
           parts.push(`Attachment ${JSON.stringify(ref.filename)} (ID ${ref.id}) is unavailable for this turn. Ask for that file again; do not claim to have read it.`);
         }
