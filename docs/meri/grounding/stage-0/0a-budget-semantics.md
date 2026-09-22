@@ -2,6 +2,10 @@
 
 Stage 0 represents every model-facing Program Element (PE) dollar as a `FundingClaim`. Values are canonical USD millions; zero is present data, not missing data. User-visible additions are controlled by `MERI_EVIDENCE_ACCURACY_MODE` and tenant/surface enrollment.
 
+Program-line identity and lineage are separate from dollar semantics. See
+[`0a-lineage-dcgs-020400intl.md`](./0a-lineage-dcgs-020400intl.md) for the FY2027
+source verification showing why a stage change or narrative co-mention cannot establish consolidation.
+
 ## Fields
 
 | Field | Meaning |

@@ -82,6 +82,10 @@ import {
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
+import {
+  listBudgetLineLineage,
+  type BudgetLineLineage,
+} from '../program-element/budget-line-lineage.js';
 import { AcquisitionPersonnelReadService } from '../acquisition-personnel/acquisition-personnel-read.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import {
@@ -143,6 +147,8 @@ import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 
 const PRODUCT_NAME = 'Meri';
+const LINEAGE_NOTE =
+  'Candidate lineage is unverified. A changed stage label or a shared narrative does not establish that one line was consolidated into another.';
 
 /**
  * The three fields the Funding Opportunities adapter needs from a turn.
@@ -4093,8 +4099,12 @@ export class MeriToolsService {
       Number.isInteger(suppliedCurrentCycleFy) ? suppliedCurrentCycleFy : null,
       accuracyMode === 'enforce' ? 'enforce' : 'legacy',
     );
+    const lineageRows =
+      accuracyMode === 'off' ? [] : await listBudgetLineLineage(this.prisma, { peCode });
     if (accuracyMode === 'shadow') {
-      this.logBudgetSemanticsShadow('get_program_element', peCode, claims.years as unknown[]);
+      this.logBudgetSemanticsShadow(
+        'get_program_element', peCode, claims.years as unknown[], lineageRows,
+      );
     }
     return {
       tool: 'get_program_element',
@@ -4103,6 +4113,7 @@ export class MeriToolsService {
       currentCycleFy: claims.currentCycleFy,
       currentFundingClaim: claims.currentFundingClaim,
       programElement: { ...programElement, years: claims.years },
+      ...(accuracyMode === 'enforce' ? { lineage: this.lineageForOutput(lineageRows) } : {}),
     };
   }
 
@@ -4121,8 +4132,12 @@ export class MeriToolsService {
       timeline.currentCycleFy,
       accuracyMode === 'enforce' ? 'enforce' : 'legacy',
     );
+    const lineageRows =
+      accuracyMode === 'off' ? [] : await listBudgetLineLineage(this.prisma, { peCode });
     if (accuracyMode === 'shadow') {
-      this.logBudgetSemanticsShadow('get_pe_budget_timeline', peCode, timeline.years as unknown[]);
+      this.logBudgetSemanticsShadow(
+        'get_pe_budget_timeline', peCode, timeline.years as unknown[], lineageRows,
+      );
     }
     return {
       tool: 'get_pe_budget_timeline',
@@ -4132,6 +4147,15 @@ export class MeriToolsService {
       currentCycleFy: claims.currentCycleFy,
       currentFundingClaim: claims.currentFundingClaim,
       years: claims.years,
+      ...(accuracyMode === 'enforce' ? { lineage: this.lineageForOutput(lineageRows) } : {}),
+    };
+  }
+
+  private lineageForOutput(rows: BudgetLineLineage[]) {
+    return {
+      accepted: rows.filter((row) => row.status === 'accepted'),
+      candidates: rows.filter((row) => row.status === 'candidate'),
+      note: LINEAGE_NOTE,
     };
   }
 
@@ -4139,6 +4163,7 @@ export class MeriToolsService {
     tool: string,
     peCode: string,
     years: unknown[],
+    lineage: BudgetLineLineage[] = [],
   ): void {
     const claims = years
       .map((year) => (year as { fundingClaim?: unknown }).fundingClaim)
@@ -4149,6 +4174,8 @@ export class MeriToolsService {
       claims: claims.length,
       unknownEnactment: claims.filter((claim) => claim.enactmentStatus === 'unknown').length,
       withSource: claims.filter((claim) => claim.source != null).length,
+      lineageAccepted: lineage.filter((row) => row.status === 'accepted').length,
+      lineageCandidates: lineage.filter((row) => row.status === 'candidate').length,
     });
   }
 
