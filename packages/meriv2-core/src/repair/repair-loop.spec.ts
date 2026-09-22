@@ -76,6 +76,19 @@ describe('repair replay scenarios', () => {
     expect(result.reply).toContain(expected);
   });
 
+  it('preserves unrelated supported content while requesting the named document', async () => {
+    const c = claim('The transcript says the chair promised action.');
+    const result = await runRepairLoop(base({
+      reply: `${c.text} The bill passed the House.`,
+      claims: [c],
+      ledger: { ...ledger(), ledger: { ...ledger().ledger, claims: [c] } },
+      executor: executor({ ok: false, state: 'document_unavailable', reason: 'transcript unavailable' }),
+      missingDocumentName: 'hearing.txt',
+    }));
+    expect(result.reply).toContain("attach the 'hearing.txt' transcript");
+    expect(result.reply).toContain('The bill passed the House.');
+  });
+
   it('leaves supported unrelated claims untouched during an outage', async () => {
     const result = await runRepairLoop(base({ reply: 'The official total is 20. The bill passed the House.', executor: executor({ ok: false, state: 'retrieval_failed', reason: 'source outage' }) }));
     expect(result.reply).toContain('The bill passed the House.');

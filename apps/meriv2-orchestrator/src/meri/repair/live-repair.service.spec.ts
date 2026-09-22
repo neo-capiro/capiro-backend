@@ -10,6 +10,11 @@ const insufficient: EvidenceDecision = {
   ...supported, outcome: 'insufficient_evidence', confidence: 0.9,
   probabilities: { supported: 0.03, contradicted: 0.03, insufficient_evidence: 0.9, conflicting_evidence: 0.04 },
 };
+const lowConfidence: EvidenceDecision = { ...insufficient, confidence: 0.4 };
+const failed: EvidenceDecision = {
+  kind: 'failure', state: 'judge_unavailable', reasonCodes: ['failed'],
+  provider: { name: 'fake', model: 'fake', questionVersion: 'claim_support.v1' }, latencyMs: 1,
+};
 function provider(decision: EvidenceDecision): DecisionProvider {
   return { name: 'fake', available: () => true, assess: jest.fn(async () => decision) };
 }
@@ -69,5 +74,76 @@ describe('live bounded repair', () => {
     expect(values.filter(Boolean).length).toBeGreaterThan(70);
     expect(values.filter(Boolean).length).toBeLessThan(130);
     expect(values).toEqual(Array.from({ length: 1000 }, (_, index) => sampled('conversation', String(index))));
+  });
+
+  it.each([
+    ['low confidence', lowConfidence, false],
+    ['compound claim', insufficient, true],
+  ])('cascades %s assessments to the legacy provider', async (_label, jevDecision, compound) => {
+    const legacy = provider(supported);
+    await applyLiveRepair(base({
+      claims: [{ ...claim('promoted'), compound }],
+      providers: { jev: provider(jevDecision), legacy },
+    }));
+    expect(legacy.assess).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a high-risk category untouched when it is not promoted', async () => {
+    const executor = { execute: jest.fn() };
+    const result = await applyLiveRepair(base({ claims: [claim('bill', 'bill_status')], executor }));
+    expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
+    expect(result.outcomes).toEqual({});
+    expect(executor.execute).not.toHaveBeenCalled();
+  });
+
+  it('does not retrieve or change the reply when both providers fail', async () => {
+    const executor = { execute: jest.fn() };
+    const result = await applyLiveRepair(base({
+      providers: { jev: provider(failed), legacy: provider(failed) }, executor,
+    }));
+    expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
+    expect(executor.execute).not.toHaveBeenCalled();
+  });
+
+  it('uses document_unavailable without provider calls when exact-source eligibility fails', async () => {
+    const jev = provider(insufficient);
+    const legacy = provider(supported);
+    const executor = { execute: jest.fn(async () => ({ ok: false as const, state: 'document_unavailable' as const, reason: 'missing' })) };
+    const documentClaim = { ...claim('transcript'), text: 'The transcript says the chair promised action.', category: 'report_language' as const };
+    const result = await applyLiveRepair(base({
+      released: `${documentClaim.text} Unrelated content remains.`, claims: [documentClaim],
+      promotedCategories: new Set(['report_language' as const]), providers: { jev, legacy }, executor,
+      evidencePlan: { ...plan, requestCategories: ['report_language'], requirements: [{
+        ...plan.requirements[0], id: 'document', claimCategory: 'report_language',
+        toolFamilies: ['read_client_documents'],
+      }], requiredRequirementIds: ['document'] },
+      documentReferences: [{ kind: 'attachment', id: 'doc-1', filename: 'hearing.txt', version: null,
+        contentState: 'metadata_only', readable: false, relevantPassageIds: [], resolution: 'explicit_id' }],
+    }));
+    expect(jev.assess).not.toHaveBeenCalled();
+    expect(legacy.assess).not.toHaveBeenCalled();
+    expect(result.reply).toContain('attach the named transcript');
+  });
+
+  it('returns the original reply on external abort', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const result = await applyLiveRepair(base({ signal: controller.signal }));
+    expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
+    expect(result.toolCalls).toBe(0);
+  });
+
+  it('never retrieves or changes the reply in shadow mode', async () => {
+    const executor = { execute: jest.fn() };
+    const result = await applyLiveRepair(base({ mode: 'shadow', executor }));
+    expect(result.reply).toBe('TITAN is not in production. Unrelated content remains.');
+    expect(executor.execute).not.toHaveBeenCalled();
+  });
+
+  it('is an identity operation in off mode', async () => {
+    const executor = { execute: jest.fn() };
+    const result = await applyLiveRepair(base({ mode: 'off', executor }));
+    expect(result).toMatchObject({ reply: 'TITAN is not in production. Unrelated content remains.', changed: false, toolCalls: 0, passes: 0 });
+    expect(executor.execute).not.toHaveBeenCalled();
   });
 });

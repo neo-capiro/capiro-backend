@@ -36,9 +36,9 @@ Before:
 
 After the document route reports the transcript unavailable:
 
-> Evidence limitation for “The transcript says the chair promised action.”: the named transcript is unavailable. The bill passed the House.
+> To confirm “The transcript says the chair promised action.”, attach the 'hearing.txt' transcript. The bill passed the House.
 
-The document claim is narrowed locally; the independent supported bill sentence remains. A UI dialog or whole-answer refusal is never introduced. When an explicit document filename is available to the application adapter, the claim-local limitation may instead be the single specific request: `To confirm the chair's statement, attach the <name> transcript.`
+The document claim is narrowed locally; the independent supported bill sentence remains. A UI dialog or whole-answer refusal is never introduced. If no filename is available, the request falls back to `attach the named transcript`.
 
 ## Validation
 
