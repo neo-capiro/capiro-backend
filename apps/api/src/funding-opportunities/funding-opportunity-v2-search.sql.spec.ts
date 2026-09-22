@@ -374,6 +374,10 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
     expect(nonAdjacent.records.length).toBeGreaterThan(0);
     const anyKeyword = await searchSourceSql(adapter, 'grants_gov', criteria({ keywordTerms: ['not-present-xyz', sourcePrefix] }), null);
     expect(anyKeyword.count).toBe(205);
+    const fullProfileImport = await searchSourceSql(adapter, 'grants_gov', criteria({
+      keywordTerms: [...Array.from({ length: 99 }, (_, i) => `not-present-${i}`), sourcePrefix],
+    }), null);
+    expect(fullProfileImport.count).toBe(205);
     const combined = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'not-present-xyz', queryMatch: 'keywords', keywordTerms: [sourcePrefix] }), null);
     expect(combined.count).toBe(205);
     const phraseNarrowed = await searchSourceSql(adapter, 'grants_gov', criteria({ query: 'not-present-xyz', queryMatch: 'phrase', keywordTerms: [sourcePrefix] }), null);
@@ -387,6 +391,8 @@ describeDb('funding opportunity SQL source contract (isolated Postgres)', () => 
     const literal = await searchSourceSql(adapter, 'grants_gov', criteria({ query: '%_' + String.fromCharCode(92), queryMatch: 'phrase', pageSize: 1 }), null);
     expect(literal.count).toBe(1);
     expect(literal.records).toHaveLength(1);
+    const importedLiteral = await searchSourceSql(adapter, 'grants_gov', criteria({ keywordTerms: ['%_' + String.fromCharCode(92)] }), null);
+    expect(importedLiteral.count).toBe(1);
   });
 
   test('counts are computed before limits and forecast dates are not response deadlines', async () => {
@@ -416,12 +422,12 @@ describe('funding opportunity multi-keyword SQL shape', () => {
         },
       }),
     };
-    await searchSourceSql(fake, 'grants_gov', criteria({ query: 'exact phrase', queryMatch: 'phrase', keywordTerms: ['Robot%', 'battery_storage'] }), null);
+    await searchSourceSql(fake, 'grants_gov', criteria({ query: 'exact phrase', queryMatch: 'phrase', keywordTerms: ['Robot%', 'battery_storage', 'C++', 'a|b'] }), null);
     const query = queries[0]!;
-    expect(query.sql).toContain('EXISTS (SELECT 1 FROM unnest(');
-    expect(query.sql).toContain('AS wanted(pattern)');
-    expect(query.values).toEqual(expect.arrayContaining(['%exact phrase%', '%robot\\%%', '%battery\\_storage%']));
-    expect(query.sql).toMatch(/LIKE.*ESCAPE chr\(92\).*AND.*EXISTS/s);
+    expect(query.sql).toContain(' ~ ');
+    expect(query.sql).not.toContain('AS wanted(pattern)');
+    expect(query.values).toEqual(expect.arrayContaining(['%exact phrase%', 'robot%|battery_storage|c\\+\\+|a\\|b']));
+    expect(query.sql).toMatch(/LIKE.*ESCAPE chr\(92\).*AND.* ~/s);
   });
 });
 

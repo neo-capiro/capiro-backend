@@ -270,6 +270,10 @@ describe('FundingOpportunityV2SearchService', () => {
     expect(parsed.grantPrerequisites).toEqual(['registration']);
     const multi = normalizeOpportunitySearchQuery({ keyword: ['Robot', 'battery storage', 'robot'] });
     expect(multi.keywordTerms).toEqual(['Robot', 'battery storage']);
+    const parsedMany = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [String(i), `term-${i}`]));
+    expect(normalizeOpportunitySearchQuery({ keyword: parsedMany }).keywordTerms).toHaveLength(100);
+    expect(() => normalizeOpportunitySearchQuery({ keyword: { ...parsedMany, 100: 'too-many' } })).toThrow();
+    expect(() => normalizeOpportunitySearchQuery({ keyword: { 0: 'valid', unexpected: 'invalid' } })).toThrow();
     const result = await service.search(context, parsed);
     expect(result.opportunities).toHaveLength(1);
 
