@@ -24,6 +24,7 @@ export interface ClaimInventoryShadowInput {
   logger: ClaimInventoryShadowLogger;
   deadlineMs?: number;
   setTimer?: typeof setTimeout;
+  afterInventory?: () => void | Promise<void>;
 }
 
 /**
@@ -48,6 +49,13 @@ export function scheduleClaimInventoryShadow(input: ClaimInventoryShadowInput): 
           return;
         }
         input.logger.log('meri.claim_inventory', result);
+        if (input.afterInventory) void Promise.resolve(input.afterInventory()).catch((error: unknown) => {
+          input.logger.warn('meri.evidence_shadow.failed', {
+            conversationId: input.conversationId ?? null,
+            turnId: input.turnId ?? null,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        });
       })
       .catch((error: unknown) => {
         input.logger.warn('meri.claim_inventory.failed', {
@@ -60,7 +68,7 @@ export function scheduleClaimInventoryShadow(input: ClaimInventoryShadowInput): 
 }
 
 export function buildClaimInventoryEvent(
-  input: Omit<ClaimInventoryShadowInput, 'setTimer' | 'deadlineMs'>,
+  input: Omit<ClaimInventoryShadowInput, 'setTimer' | 'deadlineMs' | 'afterInventory'>,
   startedAt = Date.now(),
 ): Record<string, unknown> {
   const claims = extractMaterialClaims({

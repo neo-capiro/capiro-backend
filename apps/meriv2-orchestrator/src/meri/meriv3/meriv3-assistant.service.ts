@@ -20,6 +20,7 @@ import {
 import {
   buildAssurancePromptBlock,
   buildClaimLedgerFromToolResults,
+  extractMaterialClaims,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
   ledgerToToolResultMap,
@@ -86,11 +87,15 @@ import type {
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
+import { createChatDecisionProviders } from '../jev/jev-provider.factory.js';
+import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
   signal?: AbortSignal;
   deadlineAt?: number;
+  /** Original transport signal retained for post-release shadow cancellation. */
+  requestSignal?: AbortSignal;
 }
 
 const TOOL_RESULT_CHARS = 12_000;
@@ -187,6 +192,7 @@ function isModelTimeoutError(error: unknown): boolean {
 export class MeriV3AssistantService {
   private readonly logger = new Logger(MeriV3AssistantService.name);
   private readonly registry: ToolRegistry;
+  private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
 
   constructor(
@@ -197,6 +203,7 @@ export class MeriV3AssistantService {
     config: ConfigService,
   ) {
     this.registry = registryService.registry;
+    this.llm = registryService.llm;
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
@@ -221,6 +228,7 @@ export class MeriV3AssistantService {
         ...opts,
         signal: control.signal,
         deadlineAt: control.deadlineAt,
+        requestSignal: opts.signal,
       });
     } finally {
       control.dispose();
@@ -751,13 +759,55 @@ export class MeriV3AssistantService {
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
     if (resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat') !== 'off') {
+      const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
         turnId: undefined,
         replyText: released.reply,
         citations: released.citations,
-        asOf: new Date().toISOString(),
+        asOf,
         logger: this.logger,
+        afterInventory: async () => {
+          const claimLedger = buildClaimLedgerFromToolResults({
+            output: released.reply,
+            ledgerEntries,
+            citations: released.citations,
+            plan: evidencePlan,
+          });
+          const claims = extractMaterialClaims({
+            replyText: released.reply,
+            citations: released.citations,
+            ledger: claimLedger,
+            asOf,
+          }).filter((claim) => claim.material);
+          const passages = Object.fromEntries(claimLedger.evidence.map((evidence) => {
+            const citation = released.citations.find((item) => item.id === evidence.sourceId);
+            const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
+            return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
+          }));
+          const providers = createChatDecisionProviders({
+            env: process.env,
+            tenantId: ctx.tenantId,
+            surface: 'chat',
+            llm: this.llm,
+            logger: this.logger,
+          });
+          await assessReleasedClaims({
+            claims,
+            ledger: claimLedger,
+            citations: released.citations,
+            passages,
+            tenantId: ctx.tenantId,
+            clientId: dto.clientId,
+            conversationId: dto.conversationId,
+            turnId: undefined,
+            asOf,
+            providers,
+            budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
+            signal: opts.requestSignal ?? opts.signal,
+            logger: this.logger,
+          });
+        },
       });
     }
     if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {

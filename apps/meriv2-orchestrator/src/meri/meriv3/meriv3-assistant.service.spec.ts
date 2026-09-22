@@ -135,7 +135,16 @@ function response(overrides: Record<string, unknown> = {}) {
 }
 
 function build(registry: ToolRegistry, complete: jest.Mock, createProposal = jest.fn()) {
-  const registryService = { registry };
+  const registryService = {
+    registry,
+    llm: {
+      completeJson: jest.fn(),
+      completeWithSchema: jest.fn(async () => ({
+        input: { refuted: false, confidence: 'high', reason: 'Supported.' },
+        usage: { inputTokens: 10, outputTokens: 2 },
+      })),
+    },
+  };
   const openai = { complete };
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
@@ -174,6 +183,12 @@ describe('MeriV3AssistantService', () => {
     delete process.env.MERI_CLAIM_ASSESSMENT_MODE;
     delete process.env.MERI_CLAIM_ASSESSMENT_TENANTS;
     delete process.env.MERI_CLAIM_ASSESSMENT_SURFACES;
+    delete process.env.MERI_JEV_PROVIDER_MODE;
+    delete process.env.MERI_JEV_PROVIDER_TENANTS;
+    delete process.env.MERI_JEV_PROVIDER_SURFACES;
+    delete process.env.MERI_JEV_TASKS;
+    delete process.env.MERI_CHAT_EVIDENCE_JUDGE;
+    delete process.env.TYPESAFE_API_KEY;
     jest.restoreAllMocks();
   });
 
@@ -190,6 +205,29 @@ describe('MeriV3AssistantService', () => {
     expect(events).toContainEqual({ type: 'text', text: 'H.R. 1 passed.' });
     await new Promise((resolve) => setImmediate(resolve));
     expect(claimLog).not.toHaveBeenCalledWith('meri.claim_inventory', expect.anything());
+  });
+
+  test('emits the reply before legacy-only shadow provider work begins', async () => {
+    const tenantId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    process.env.MERI_CLAIM_ASSESSMENT_MODE = 'shadow';
+    process.env.MERI_CLAIM_ASSESSMENT_TENANTS = tenantId;
+    process.env.MERI_CLAIM_ASSESSMENT_SURFACES = 'chat';
+    process.env.MERI_CHAT_EVIDENCE_JUDGE = 'llm';
+    const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
+    const assistant = build(registry([]), complete);
+    const order: string[] = [];
+    const logger = (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger;
+    jest.spyOn(logger, 'log').mockImplementation((message: unknown) => {
+      if (message === 'meri.evidence_shadow') order.push('provider');
+    });
+    await assistant.run({ ...context, tenantId } as MeriContext, {
+      conversationId: 'thread-shadow',
+      messages: [{ role: 'user', text: 'What happened?' }],
+    }, { onEvent: (event) => { if (event.type === 'text') order.push('reply'); } });
+    expect(order).toEqual(['reply']);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(order[0]).toBe('reply');
+    expect(order).toContain('provider');
   });
 
   test('does not emit or persist a client note success before any write ran', async () => {
