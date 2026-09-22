@@ -17,17 +17,12 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { AwardPeExtractorService } from '../src/program-element/extractors/award-pe-extractor.service.js';
+import { type ContractAwardRecord, mapContractAwardRecord } from './federal-award-mapping.js';
 import { seedFederalContractorsFromAwards } from './seed-federal-contractors-from-awards.js';
 
-dotenvConfig();
+export { parseRecipientUei } from './federal-award-mapping.js';
 
-/** Normalize USAspending Recipient UEI for storage / tier-1 matching. */
-export function parseRecipientUei(raw: unknown): string | null {
-  const s = String(raw ?? '')
-    .trim()
-    .toUpperCase();
-  return /^[A-Z0-9]{12}$/.test(s) ? s : null;
-}
+dotenvConfig();
 
 const USASPENDING = 'https://api.usaspending.gov/api/v2/search/spending_by_award/';
 
@@ -44,25 +39,8 @@ function isoDaysAgo(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-interface AwardResult {
-  generatedInternalId: string;
-  piid: string | null;
-  fain: string | null;
-  recipientName: string | null;
-  recipientUei: string | null;
-  amount: number | null;
-  description: string | null;
-  awardingAgency: string | null;
-  awardingSubTier: string | null;
-  actionDate: string | null;
-  popState: string | null;
-  popCongressionalDistrict: string | null;
-  recipientState: string | null;
-  recipientCongressionalDistrict: string | null;
-}
-
 /** Fetch one page of DoD awards in [startDate, endDate] (action_date). */
-async function fetchPage(startDate: string, endDate: string, page: number): Promise<{ results: AwardResult[]; hasNext: boolean }> {
+async function fetchPage(startDate: string, endDate: string, page: number): Promise<{ results: ContractAwardRecord[]; hasNext: boolean }> {
   const body = {
     filters: {
       time_period: [{ start_date: startDate, end_date: endDate, date_type: 'action_date' }],
@@ -71,11 +49,10 @@ async function fetchPage(startDate: string, endDate: string, page: number): Prom
       agencies: [{ type: 'awarding', tier: 'toptier', name: 'Department of Defense' }],
       award_type_codes: ['A', 'B', 'C', 'D'], // contract award types
     },
-    // Only request fields the endpoint actually returns for contracts. 'Action Date'
-    // is requested but often null; fall back to 'Last Modified Date' for awarded_at.
     fields: [
       'Award ID', 'Recipient Name', 'Award Amount',
       'Description', 'Awarding Agency', 'Awarding Sub Agency', 'Action Date', 'Last Modified Date',
+      'Start Date', 'End Date', 'Base Obligation Date',
       // Location fields for district nexus. USAspending returns these for contracts.
       'Place of Performance State Code', 'Place of Performance Congressional District',
       'Recipient Location State Code', 'Recipient Location Congressional District',
@@ -96,23 +73,7 @@ async function fetchPage(startDate: string, endDate: string, page: number): Prom
   });
   if (!res.ok) throw new Error(`USAspending ${res.status}: ${await res.text().catch(() => '')}`);
   const json = (await res.json()) as { results?: Record<string, unknown>[]; page_metadata?: { hasNext?: boolean } };
-  const results: AwardResult[] = (json.results ?? []).map((r) => ({
-    // generated_internal_id is the stable idempotency key; internal_id is a fallback.
-    generatedInternalId: String(r.generated_internal_id ?? r.internal_id ?? ''),
-    piid: (r['Award ID'] as string) ?? null,
-    fain: null,
-    recipientName: (r['Recipient Name'] as string) ?? null,
-    recipientUei: parseRecipientUei(r['Recipient UEI']),
-    amount: r['Award Amount'] != null ? Number(r['Award Amount']) : null,
-    description: (r['Description'] as string) ?? null,
-    awardingAgency: (r['Awarding Agency'] as string) ?? null,
-    awardingSubTier: (r['Awarding Sub Agency'] as string) ?? null,
-    actionDate: (r['Action Date'] as string) ?? (r['Last Modified Date'] as string) ?? null,
-    popState: (r['Place of Performance State Code'] as string) ?? null,
-    popCongressionalDistrict: (r['Place of Performance Congressional District'] as string) ?? null,
-    recipientState: (r['Recipient Location State Code'] as string) ?? null,
-    recipientCongressionalDistrict: (r['Recipient Location Congressional District'] as string) ?? null,
-  }));
+  const results = (json.results ?? []) as ContractAwardRecord[];
   return { results, hasNext: Boolean(json.page_metadata?.hasNext) };
 }
 
@@ -134,6 +95,8 @@ async function main(): Promise<void> {
   let updated = 0;
   let errors = 0;
   let withPe = 0;
+  let withBaseSignedDate = 0;
+  let withoutBaseSignedDate = 0;
   let windowsProcessed = 0;
   let windowsSplit = 0;
 
@@ -148,8 +111,9 @@ async function main(): Promise<void> {
       const maxPages = backfill ? 1000 : 200; // circuit breaker
       for (; page <= maxPages; page += 1) {
         const { results, hasNext } = await fetchPage(winStart, winEnd, page);
-        for (const a of results) {
-          if (!a.generatedInternalId) {
+        for (const record of results) {
+          const mapped = mapContractAwardRecord(record, new Date().toISOString());
+          if (!mapped.awardUniqueId) {
             errors += 1;
             continue;
           }
@@ -157,39 +121,25 @@ async function main(): Promise<void> {
           // (explicit/description). The DoD-acquisition-program tier needs the
           // per-award detail call, so it runs in the enrich-award-pe backfill task,
           // not here. resolvePe still returns provenance so pe_code_source is set.
-          const resolved = extractor.resolvePe({ description: a.description }, knownPeCodes);
+          const resolved = extractor.resolvePe({ description: mapped.description }, knownPeCodes);
           const peCode = resolved?.peCode ?? null;
           const peCodeSource = resolved?.source ?? null;
           if (peCode) withPe += 1;
+          if (mapped.baseAwardSignedDate) withBaseSignedDate += 1;
+          else withoutBaseSignedDate += 1;
 
           const data = {
-            awardUniqueId: a.generatedInternalId,
-            piid: a.piid,
-            fain: a.fain,
-            awardingAgency: a.awardingAgency,
-            awardingSubTier: a.awardingSubTier,
-            contractorName: a.recipientName,
-            recipientUei: a.recipientUei,
-            amount: a.amount,
-            description: a.description,
+            ...mapped,
             peCode,
             peCodeSource,
-            popState: a.popState,
-            popCongressionalDistrict: a.popCongressionalDistrict,
-            recipientState: a.recipientState,
-            recipientCongressionalDistrict: a.recipientCongressionalDistrict,
-            actionDate: a.actionDate ? new Date(a.actionDate) : null,
-            awardedAt: a.actionDate ? new Date(a.actionDate) : null,
-            raw: a as object,
-            lastSyncedAt: new Date(),
           };
 
           const existing = await prisma.federalAward.findUnique({
-            where: { awardUniqueId: a.generatedInternalId },
+            where: { awardUniqueId: mapped.awardUniqueId },
             select: { id: true },
           });
           await prisma.federalAward.upsert({
-            where: { awardUniqueId: a.generatedInternalId },
+            where: { awardUniqueId: mapped.awardUniqueId },
             create: data,
             update: data,
           });
@@ -235,11 +185,29 @@ async function main(): Promise<void> {
 
     await prisma.syncRun.update({
       where: { id: run.id },
-      data: { finishedAt: new Date(), status: 'success', rowsInserted: inserted, rowsUpdated: updated, errorCount: errors },
+      data: {
+        finishedAt: new Date(),
+        status: 'success',
+        rowsInserted: inserted,
+        rowsUpdated: updated,
+        errorCount: errors,
+        stats: { withBaseSignedDate, withoutBaseSignedDate },
+      },
     });
     console.log(
       JSON.stringify(
-        { source, window: { startDate, endDate }, inserted, updated, withPe, errors, windowsProcessed, windowsSplit },
+        {
+          source,
+          window: { startDate, endDate },
+          inserted,
+          updated,
+          withPe,
+          withBaseSignedDate,
+          withoutBaseSignedDate,
+          errors,
+          windowsProcessed,
+          windowsSplit,
+        },
         null,
         2,
       ),
