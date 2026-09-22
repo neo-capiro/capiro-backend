@@ -12,6 +12,8 @@ export interface AssuredEvidence {
   title?: string;
   url?: string;
   asOf?: string;
+  publishedAt?: string;
+  effectiveAt?: string;
   retrievedAt?: string;
   primary: boolean;
   authoritative: boolean;
@@ -261,6 +263,8 @@ function normalizeEvidence(input: readonly AssuredEvidence[]): AssuredEvidence[]
       ...(raw.title ? { title: bounded(raw.title, 300) } : {}),
       ...(raw.url ? { url: bounded(raw.url, 1000) } : {}),
       ...(raw.asOf ? { asOf: safeIso(raw.asOf) } : {}),
+      ...(raw.publishedAt ? { publishedAt: safeIso(raw.publishedAt) } : {}),
+      ...(raw.effectiveAt ? { effectiveAt: safeIso(raw.effectiveAt) } : {}),
       ...(raw.retrievedAt ? { retrievedAt: safeIso(raw.retrievedAt) } : {}),
       primary: raw.primary === true,
       authoritative: raw.authoritative === true,

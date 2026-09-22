@@ -72,6 +72,8 @@ function envelopeFor(claim: AssuredClaim, input: RecheckInput): EvidenceEnvelope
         locator: null,
         passage: input.ledger.passages[id] ?? '',
         sourceDate: item.asOf ?? null,
+        publishedAt: item.publishedAt ?? null,
+        effectiveAt: item.effectiveAt ?? null,
         retrievedAt: item.retrievedAt ?? null,
       }];
     }),

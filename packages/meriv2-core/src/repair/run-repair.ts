@@ -161,7 +161,7 @@ function addEvidence(ledger: RepairLedgerVersion, evidence: import('./types').Re
 
 function envelopeFor(claim: AssuredClaim, ledger: RepairLedgerVersion, input: RunRepairLoopInput): EvidenceEnvelope {
   const byId = new Map(ledger.ledger.evidence.map((item) => [item.id, item]));
-  return { envelopeVersion: 'meri-evidence-envelope-v1', claimId: claim.id, claimText: claim.text, claimKind: claim.type, claimCategory: claim.category, tenantId: input.tenantId, clientId: input.clientId ?? null, scopeQualifiers: [...(input.scopeQualifiers ?? [])], asOf: claim.asOf ?? null, sources: claim.sourceIds.flatMap((id) => { const item = byId.get(id); return item ? [{ evidenceId: id, sourceType: item.evidenceClass, sourceId: item.sourceId, documentId: null, version: null, locator: null, passage: ledger.passages[id] ?? '', sourceDate: item.asOf ?? null, retrievedAt: item.retrievedAt ?? null }] : []; }) };
+  return { envelopeVersion: 'meri-evidence-envelope-v1', claimId: claim.id, claimText: claim.text, claimKind: claim.type, claimCategory: claim.category, tenantId: input.tenantId, clientId: input.clientId ?? null, scopeQualifiers: [...(input.scopeQualifiers ?? [])], asOf: claim.asOf ?? null, sources: claim.sourceIds.flatMap((id) => { const item = byId.get(id); return item ? [{ evidenceId: id, sourceType: item.evidenceClass, sourceId: item.sourceId, documentId: null, version: null, locator: null, passage: ledger.passages[id] ?? '', sourceDate: item.asOf ?? null, publishedAt: item.publishedAt ?? null, effectiveAt: item.effectiveAt ?? null, retrievedAt: item.retrievedAt ?? null }] : []; }) };
 }
 
 function event(at: number, type: RepairTraceEvent['type'], claimId: string | undefined, pass: number | undefined, detail: Record<string, unknown>): RepairTraceEvent {

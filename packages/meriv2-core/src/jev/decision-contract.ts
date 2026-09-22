@@ -57,6 +57,8 @@ const evidenceSourceSchema = z.object({
   locator: z.string().min(1).nullable(),
   passage: z.string(),
   sourceDate: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  effectiveAt: z.string().nullable(),
   retrievedAt: z.string().nullable(),
 });
 
@@ -103,6 +105,8 @@ export interface EvidenceEnvelope {
     locator: string | null;
     passage: string;
     sourceDate: string | null;
+    publishedAt: string | null;
+    effectiveAt: string | null;
     retrievedAt: string | null;
   }>;
   truncation?: {
