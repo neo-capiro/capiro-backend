@@ -51,6 +51,18 @@ describe('passage selector', () => {
     expect(candidates.every((item) => item.required && item.deterministicConflict)).toBe(true);
   });
 
+  it('retains a passage-precise satisfied essential coverage id despite low Jev scores', () => {
+    const ledgerEntries: LedgerEntry[] = [{ tool: 'budget', serialized: 'Essential House mark.' }];
+    const citations = [{ n: 1, type: 'web', id: 'house-mark', stableId: 'passage-house',
+      title: 'House mark', url: null, snippet: 'Essential House mark.', tool: 'budget' }] as MeriCitation[];
+    const candidates = buildPassageCandidates({
+      ledgerEntries, citations, requiredPassageIds: ['passage-house'],
+    });
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.required).toBe(true);
+    expect(selectPassages({ candidates, answers: answers(candidates, 0) }).kept).toEqual(candidates);
+  });
+
   it('batches one Jev request per batch with four Noul questions per passage', async () => {
     const candidates = [candidate('p0'), candidate('p1'), candidate('p2')];
     const fetchImpl = jest.fn(async (_url: string | URL | Request, init?: RequestInit) => {

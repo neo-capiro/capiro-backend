@@ -54,13 +54,33 @@ export interface LiveRepairResult {
   outcomes: Record<string, string>;
   toolCalls: number;
   passes: number;
+  metrics: {
+    repairs: {
+      attempted: number; corrected: number; qualified: number; omitted: number;
+      documentRequested: number; budgetExhausted: number;
+    };
+    assessmentMs: number;
+    repairMs: number;
+    inputTokens: number;
+    jevInputTokens: number;
+    legacyInputTokens: number;
+    estimatedCostUsd: number;
+    sampled: boolean;
+  };
 }
 
 const COST_PER_INPUT_TOKEN_USD = 0.042 / 1_000_000;
 
 export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepairResult> {
   if (input.mode === 'off') {
-    return { reply: input.released, citations: input.citations, changed: false, outcomes: {}, toolCalls: 0, passes: 0 };
+    return {
+      reply: input.released, citations: input.citations, changed: false, outcomes: {}, toolCalls: 0, passes: 0,
+      metrics: {
+        repairs: { attempted: 0, corrected: 0, qualified: 0, omitted: 0, documentRequested: 0, budgetExhausted: 0 },
+        assessmentMs: 0, repairMs: 0, inputTokens: 0, jevInputTokens: 0, legacyInputTokens: 0,
+        estimatedCostUsd: 0, sampled: false,
+      },
+    };
   }
   const now = input.now ?? Date.now;
   const startedAt = now();
@@ -75,6 +95,8 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   let sampledApprovals = 0;
   let sampledDisagreements = 0;
   let inputTokens = 0;
+  let jevInputTokens = 0;
+  let legacyInputTokens = 0;
   const assessmentStartedAt = now();
 
   for (const claim of promoted) {
@@ -101,6 +123,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       if (input.providers.jev?.available()) {
         jevCalls += 1;
         jev = await safeAssess(input.providers.jev, envelope, input.signal);
+        jevInputTokens += usage(jev);
         inputTokens += usage(jev);
       }
       const shouldCascade = !jev || jev.kind === 'failure' ||
@@ -110,6 +133,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
         if (jev?.kind === 'outcome' && jev.outcome === 'supported') sampledApprovals += 1;
         legacyCalls += 1;
         legacy = await safeAssess(input.providers.legacy, envelope, input.signal);
+        legacyInputTokens += usage(legacy);
         inputTokens += usage(legacy);
         if (jev?.kind === 'outcome' && legacy.kind === 'outcome' && jev.outcome !== legacy.outcome) {
           sampledDisagreements += 1;
@@ -184,7 +208,9 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     corrected: status === 'corrected' ? 1 : 0,
     qualified: status === 'qualified' ? 1 : 0,
     omitted: status === 'omitted' ? 1 : 0,
-    documentRequested: 0,
+    documentRequested: Object.values(decisions).filter(
+      (decision) => decision.kind === 'failure' && decision.state === 'document_unavailable',
+    ).length,
     budgetExhausted: status === 'budget_exhausted' ? 1 : 0,
     unresolved: status === 'unresolved' ? repairable.length : 0,
     cancelled: status === 'cancelled' ? 1 : 0,
@@ -208,7 +234,23 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     replyChanged: changed,
     timeToTextMs: totalMs,
   });
-  return { reply, citations: input.citations, changed, outcomes, toolCalls, passes };
+  return {
+    reply, citations: input.citations, changed, outcomes, toolCalls, passes,
+    metrics: {
+      repairs: {
+        attempted: repairs.attempted, corrected: repairs.corrected,
+        qualified: repairs.qualified, omitted: repairs.omitted,
+        documentRequested: repairs.documentRequested, budgetExhausted: repairs.budgetExhausted,
+      },
+      assessmentMs,
+      repairMs: Math.max(0, totalMs - assessmentMs),
+      inputTokens,
+      jevInputTokens,
+      legacyInputTokens,
+      estimatedCostUsd: inputTokens * COST_PER_INPUT_TOKEN_USD,
+      sampled: sampledApprovals > 0,
+    },
+  };
 }
 
 export function sampled(conversationId: string | undefined, claimId: string): boolean {

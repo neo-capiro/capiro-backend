@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import {
   extractCitationsFromToolResult,
   formatCitationsForPrompt,
+  computeAiCostUsd,
   recordAiUsageEvent,
   validateCitationMarkers,
   validateFormBCitations,
@@ -112,6 +113,7 @@ import {
   rebuildSynthesisEvidence,
   selectPassages,
 } from '../jev/passage-selector.js';
+import { CanaryTurnCollector, replyRequestsClarification } from '../canary/canary-turn-collector.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -351,6 +353,21 @@ export class MeriV3AssistantService {
       'chat',
     );
     const passageSelectionMode = resolvePassageSelectionMode(process.env, ctx.tenantId, 'chat');
+    const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat');
+    const canary = new CanaryTurnCollector({
+      conversationId: dto.conversationId ?? null,
+      tenantId: ctx.tenantId,
+      surface: 'chat',
+      modes: {
+        evidenceAccuracy: evidenceAccuracyMode,
+        claimAssessment: claimAssessmentMode,
+        coverageRetrieval: coverageRetrievalMode,
+        passageSelection: passageSelectionMode,
+        autoCorrection: autoCorrectionMode,
+        jevProvider: process.env.MERI_JEV_PROVIDER_MODE ?? 'off',
+        routing: process.env.MERI_CHAT_EVIDENCE_JUDGE ?? 'legacy',
+      },
+    });
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
 
@@ -515,6 +532,8 @@ export class MeriV3AssistantService {
     let completionRepairs = 0;
     let automaticReads = 0;
     let residualCoverageGaps: CoverageGap[] = [];
+    let latestCoverageGaps: CoverageGap[] = [];
+    let documentRequests = 0;
     const MAX_AUTOMATIC_DOCUMENT_READS = 24;
     const canReadDocuments =
       availableSchemas.some((schema) => schema.name === 'read_client_documents') &&
@@ -614,9 +633,23 @@ export class MeriV3AssistantService {
         const candidates = buildPassageCandidates({
           ledgerEntries,
           citations,
-          requiredToolFamilies: evidencePlan.requirements
-            .filter((requirement) => requirement.level === 'required')
-            .flatMap((requirement) => requirement.toolFamilies),
+          requiredToolFamilies: coverageRetrievalMode === 'off'
+            ? evidencePlan.requirements
+                .filter((requirement) => requirement.level === 'required')
+                .flatMap((requirement) => requirement.toolFamilies)
+            : [],
+          requiredPassageIds: latestCoverageGaps
+            .filter((gap) => gap.essential && gap.status === 'satisfied')
+            .flatMap((gap) => gap.evidenceIds),
+          documentReferencePassageIds: citations
+            .filter((citation) => {
+              const evidence = citation.documentEvidence;
+              if (!evidence) return false;
+              return dto.selectedDocumentIds?.includes(evidence.documentId)
+                || coverageRequirements.some((requirement) =>
+                  requirement.route?.documentId === evidence.documentId);
+            })
+            .flatMap((citation) => [citation.id, ...(citation.stableId ? [citation.stableId] : [])]),
           userSelectedDocumentIds: dto.selectedDocumentIds,
         });
         const provider = createPassageSelectionClient({
@@ -674,6 +707,18 @@ export class MeriV3AssistantService {
         });
         synthesisInput = selectedSynthesis.input;
         synthesisInstructions = selectedSynthesis.instructions;
+        canary.notePassageSelection({
+          candidates: candidates.length,
+          kept: selection.kept.length,
+          dropped: selection.dropped.length,
+          requiredCandidates: requiredCount,
+          requiredRetained: selection.retainedRequired,
+          contradictoryRetained: selection.retainedContradictory,
+          fallback: selection.fallback,
+          latencyMs: Date.now() - selectionStartedAt,
+          tokens: answers.inputTokens,
+          costUsd: answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+        });
       }
       const synthesis = await this.openai.complete({
         profile,
@@ -688,6 +733,10 @@ export class MeriV3AssistantService {
       });
       recordProviderResult(synthesis);
       addUsage(usage, synthesis.usage);
+      canary.noteSynthesis(
+        synthesis.usage.inputTokens + synthesis.usage.outputTokens,
+        computeAiCostUsd(synthesis.model, synthesis.usage.inputTokens, synthesis.usage.outputTokens),
+      );
       void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
       return synthesis.outputText;
     };
@@ -716,6 +765,10 @@ export class MeriV3AssistantService {
         recordProviderResult(response);
         assertToolExecutionActive(opts);
         addUsage(usage, response.usage);
+        canary.noteSynthesis(
+          response.usage.inputTokens + response.usage.outputTokens,
+          computeAiCostUsd(response.model, response.usage.inputTokens, response.usage.outputTokens),
+        );
         void this.meterRound(ctx, response.model, response.usage, response.usedTenantKey);
 
         // The Responses API requires reasoning/function-call output items to be
@@ -806,6 +859,13 @@ export class MeriV3AssistantService {
         );
         residualCoverageGaps =
           coverageRetrievalMode === 'enforce' ? essentialResiduals : [];
+        latestCoverageGaps = gaps;
+        canary.noteCoverage({
+          gaps: gaps.filter((gap) => gap.status !== 'satisfied').length,
+          followUps: executed,
+          residual: essentialResiduals.length,
+          latencyMs: Date.now() - coverageStartedAt,
+        });
         this.logger.log('meri.coverage.turn', {
           conversationId: dto.conversationId ?? null,
           requirements: coverageRequirements.map((requirement) => ({
@@ -829,6 +889,10 @@ export class MeriV3AssistantService {
           mode: coverageRetrievalMode,
         });
       }
+
+      // Coverage and its follow-up evidence must exist before enforce selection.
+      // Shadow remains output-identical and observes selection on forced-synthesis turns.
+      if (passageSelectionMode === 'enforce' && !opts.signal?.aborted) finalText = '';
 
       if (!finalText && !opts.signal?.aborted) {
         finalText = await runForcedSynthesis(
@@ -1032,6 +1096,16 @@ export class MeriV3AssistantService {
         logger: this.logger,
         mode: autoCorrectionMode,
       });
+      canary.noteRepair({
+        ...repair.metrics.repairs,
+        assessmentMs: repair.metrics.assessmentMs,
+        repairMs: repair.metrics.repairMs,
+        tokens: repair.metrics.inputTokens,
+        costUsd: repair.metrics.estimatedCostUsd,
+        sampled: repair.metrics.sampled,
+      });
+      documentRequests = repair.metrics.repairs.documentRequested;
+      canary.noteLegacy(repair.metrics.legacyInputTokens);
       if (autoCorrectionMode === 'enforce' && repair.changed) {
         const formA = validateCitationMarkers(repair.reply, repair.citations);
         const formB = validateFormBCitations(
@@ -1044,9 +1118,16 @@ export class MeriV3AssistantService {
 
     if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
       emit({ type: 'text', text: released.reply });
+    const canaryEvent = canary.build({
+      outcome: opts.signal?.aborted ? 'aborted' : released.held ? 'held'
+        : telemetry.finishReason === 'runtime_error' ? 'error' : 'released',
+      clarificationRequested: replyRequestsClarification(released.reply, documentRequests),
+      heldReason: released.held ? complianceOutcome ?? 'release_gate' : null,
+    });
+    this.logger.log('meri.canary.turn', canaryEvent);
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
-    if (resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat') !== 'off') {
+    if (claimAssessmentMode !== 'off') {
       const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
