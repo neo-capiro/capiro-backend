@@ -753,6 +753,11 @@ export const configSchema = z.object({
   MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
   MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
 
+  // Stage 1d automatic correction control. Replay-only; no live application caller.
+  MERI_AUTO_CORRECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_AUTO_CORRECTION_TENANTS: z.string().optional(),
+  MERI_AUTO_CORRECTION_SURFACES: z.string().optional(),
+
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
   TYPESAFE_API_KEY: z.string().min(1).optional(),
   MERI_JEV_MODEL: z.string().optional(),
