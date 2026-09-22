@@ -143,6 +143,16 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
   return schema;
 }
 
+export function finalizeMeriRetrievalReply(
+  reply: string,
+  citations: Parameters<typeof validateCitationMarkers>[1],
+  mode: ReturnType<typeof resolveEvidenceAccuracyMode>,
+  appendDisclosure: (text: string) => string,
+): string {
+  const appended = appendDisclosure(reply);
+  return mode === 'enforce' ? validateCitationMarkers(appended, citations).cleanedText : appended;
+}
+
 /**
  * Retrieval-aware adapter around the established MeriV3 runtime.
  *
@@ -459,11 +469,12 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           const schemasExposedButUnused = (semantic?.exposedNames ?? []).filter(
             (name) => !modelToolSet.has(name),
           );
-          const appendedReply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
-          const reply =
-            resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat') === 'enforce'
-              ? validateCitationMarkers(appendedReply, result.citations ?? []).cleanedText
-              : appendedReply;
+          const reply = finalizeMeriRetrievalReply(
+            result.reply,
+            result.citations ?? [],
+            resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat'),
+            (text) => appendMeriCoverageDisclosure(text, retrievalPlan, coverage),
+          );
           if (originalOnEvent && textEventSeen && !opts.signal?.aborted) {
             originalOnEvent({ type: 'text', text: reply });
           }

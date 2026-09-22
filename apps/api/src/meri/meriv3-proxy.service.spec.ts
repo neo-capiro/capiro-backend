@@ -155,6 +155,32 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     expect(saved.metadata.evidenceAccuracy).toBe('enforce');
   });
 
+  it('emits an empty enforce citations map when the answer is held', async () => {
+    const { service, client, sse, frames } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'done',
+        reply: 'Verification held this answer.',
+        citations: [],
+        evidenceAccuracy: 'enforce',
+        held: true,
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+
+    await service.streamMessage(CTX, CONVERSATION, 'Answer', sse, undefined, 'new', [], 'token');
+
+    expect(frames().find((frame) => frame.type === 'citations')).toEqual({
+      type: 'citations',
+      citations: [],
+      evidenceAccuracy: 'enforce',
+    });
+  });
+
   it('keeps the legacy empty-citation behavior when the enforce signal is absent', async () => {
     const { service, client, sse, frames } = buildHarness();
     client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {

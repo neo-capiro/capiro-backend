@@ -1574,17 +1574,14 @@ export class MeriResearchService {
     if (evidenceAccuracyMode === 'enforce' && reportBody.trim().length > 0) {
       const formA = validateCitationMarkers(reportBody, result.citations ?? []);
       if (formA.dropped.length) {
-        this.logger.warn(
-          JSON.stringify({
-            event: 'meri.citation_integrity',
-            conversationId: readResearchHandoff(session.metadata)?.conversationId ?? null,
-            turnId: session.id,
-            surface: 'research_report',
-            dropped: formA.dropped,
-            registered: result.citations?.length ?? 0,
-            mode: evidenceAccuracyMode,
-          }),
-        );
+        this.logger.warn('meri.citation_integrity', {
+          conversationId: readResearchHandoff(session.metadata)?.conversationId ?? null,
+          turnId: session.id,
+          surface: 'research_report',
+          dropped: formA.dropped,
+          registered: result.citations?.length ?? 0,
+          mode: evidenceAccuracyMode,
+        });
       }
       reportBody = formA.cleanedText;
     }

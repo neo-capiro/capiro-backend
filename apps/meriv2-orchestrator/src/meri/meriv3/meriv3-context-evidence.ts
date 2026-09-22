@@ -184,3 +184,45 @@ export function numberMeriEvidenceCitations(
   }
   return { citations, overflow };
 }
+
+export function compareMeriCitationNumbering(
+  candidates: readonly MeriCitation[],
+  existing: readonly MeriCitation[],
+): {
+  legacy: ReturnType<typeof numberMeriEvidenceCitations>;
+  stable: ReturnType<typeof numberMeriEvidenceCitations>;
+  collisions: number;
+  overflow: number;
+} {
+  const legacy = numberMeriEvidenceCitations(candidates, existing);
+  const stable = numberMeriEvidenceCitations(candidates, existing, { stableIdentity: true });
+  const legacyIdless = new Set(
+    legacy.citations.filter((source) => !source.id).map((source) => `${source.tool}:${source.n}`),
+  ).size;
+  const stableIdless = new Set(
+    stable.citations
+      .filter((source) => !source.id)
+      .map((source) => `${source.tool}:${source.stableId ?? source.n}`),
+  ).size;
+  return {
+    legacy,
+    stable,
+    collisions: Math.max(0, stableIdless - legacyIdless),
+    overflow: stable.overflow.length,
+  };
+}
+
+export function numberMeriEvidenceCitationsForMode(
+  candidates: readonly MeriCitation[],
+  existing: readonly MeriCitation[],
+  mode: 'off' | 'shadow' | 'enforce',
+  onShadowDifference?: (counts: { collisions: number; overflow: number }) => void,
+): ReturnType<typeof numberMeriEvidenceCitations> {
+  if (mode === 'enforce')
+    return numberMeriEvidenceCitations(candidates, existing, { stableIdentity: true });
+  if (mode === 'off') return numberMeriEvidenceCitations(candidates, existing);
+  const comparison = compareMeriCitationNumbering(candidates, existing);
+  if (comparison.collisions > 0 || comparison.overflow > 0)
+    onShadowDifference?.({ collisions: comparison.collisions, overflow: comparison.overflow });
+  return comparison.legacy;
+}

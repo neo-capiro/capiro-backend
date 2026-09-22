@@ -54,7 +54,7 @@ import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js'
 import {
   meriEvidenceManifest,
   seedMeriContextEvidence,
-  numberMeriEvidenceCitations,
+  numberMeriEvidenceCitationsForMode,
 } from './meriv3-context-evidence.js';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
@@ -959,10 +959,21 @@ export class MeriV3AssistantService {
       if (this.registry.get(call.name)?.readOnly === true) {
         args.toolCoverage.push(...observeMeriTurnToolCoverage(call.name, visibleResult));
       }
-      const { citations: cites } = numberMeriEvidenceCitations(
-        extractCitationsFromToolResult(call.name, visibleResult, 1),
+      const citationCandidates = extractCitationsFromToolResult(call.name, visibleResult, 1);
+      const { citations: cites } = numberMeriEvidenceCitationsForMode(
+        citationCandidates,
         args.citations,
-        { stableIdentity: args.evidenceAccuracyMode !== 'off' },
+        args.evidenceAccuracyMode,
+        ({ collisions, overflow }) => {
+          this.logger.warn('meri.citation_integrity', {
+            conversationId: args.dto.conversationId ?? null,
+            turnId: null,
+            surface: 'numbering',
+            collisions,
+            overflow,
+            mode: 'shadow',
+          });
+        },
       );
       for (const cite of cites) {
         const index = args.citations.findIndex((source) =>
@@ -1355,17 +1366,14 @@ export class MeriV3AssistantService {
     conversationId?: string,
   ): void {
     if (mode === 'off' || dropped.length === 0) return;
-    this.logger.warn(
-      JSON.stringify({
-        event: 'meri.citation_integrity',
-        conversationId: conversationId ?? null,
-        turnId: null,
-        surface,
-        dropped,
-        registered,
-        mode,
-      }),
-    );
+    this.logger.warn('meri.citation_integrity', {
+      conversationId: conversationId ?? null,
+      turnId: null,
+      surface,
+      dropped,
+      registered,
+      mode,
+    });
   }
 
   private async assertResearchRunActive(

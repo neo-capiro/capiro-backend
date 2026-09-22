@@ -2,7 +2,7 @@
 
 ## Pipeline
 
-MeriV3 extracts candidate sources from governed context and tool results, assigns markers in the range `[1]` through `[999]`, injects only numbered sources into the model prompt, and validates generated markers against that registry before release. In evidence-accuracy shadow/enforce mode, id-less sources use a deterministic SHA-1-derived `stableId`; overflow candidates are retained in the numbering result but are not prompt-visible.
+MeriV3 extracts candidate sources from governed context and tool results, assigns markers in the range `[1]` through `[999]`, injects only numbered sources into the model prompt, and validates generated markers against that registry before release. In evidence-accuracy enforce mode, id-less sources use a deterministic SHA-1-derived `stableId`; overflow candidates are retained in the numbering result but are not prompt-visible. Shadow preserves legacy numbering and separately computes the enforce result for observability.
 
 ## Exposure points
 
@@ -13,10 +13,12 @@ The reply is validated in `finalizeReply`. Artifact `bodyText` is validated befo
 Orphan markers produce `meri.citation_integrity` structured warnings with:
 
 - `conversationId` and `turnId` (nullable when no turn identifier exists)
-- `surface`: `reply`, `artifact`, `page_write`, or `research_report`
+- `surface`: `reply`, `artifact`, `page_write`, `research_report`, or `numbering`
 - `dropped`: unresolved marker numbers
 - `registered`: registered citation count
 - `mode`: `shadow` or `enforce`
+
+Warnings use the structured logger shape `logger.warn('meri.citation_integrity', fields)`. Numbering warnings are shadow-only and replace `dropped`/`registered` with `collisions` (distinct id-less rows legacy numbering collapsed) and `overflow` (stable candidates beyond `[999]`). They are omitted when both counts are zero.
 
 ## Web contract (T7)
 

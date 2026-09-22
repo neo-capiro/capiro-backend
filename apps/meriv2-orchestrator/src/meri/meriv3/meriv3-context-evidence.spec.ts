@@ -3,7 +3,9 @@ import { extractCitationsFromToolResult, validateFormBCitations } from '@capiro/
 import {
   seedMeriContextEvidence,
   meriEvidenceManifest,
+  compareMeriCitationNumbering,
   numberMeriEvidenceCitations,
+  numberMeriEvidenceCitationsForMode,
 } from './meriv3-context-evidence.js';
 import {
   buildMeriV3ReleaseCitations,
@@ -201,6 +203,50 @@ describe('initial evidence stays in the same citation and grounding ledger', () 
     ]);
     expect(result.citations[0]?.stableId).not.toBe(result.citations[1]?.stableId);
     expect(result.citations[0]?.stableId).toBe(result.citations[2]?.stableId);
+  });
+
+  it('keeps shadow numbering equal to legacy while measuring enforce collisions', () => {
+    const base = {
+      n: 1,
+      type: 'web',
+      id: '',
+      title: 'First result',
+      url: 'https://example.gov/first',
+      snippet: 'First snippet',
+      tool: 'search_public_web',
+    };
+    const rows = [base, { ...base, title: 'Second result', url: 'https://example.gov/second' }];
+
+    const comparison = compareMeriCitationNumbering(rows, []);
+
+    expect(comparison.legacy).toEqual(numberMeriEvidenceCitations(rows, []));
+    expect(comparison.legacy.citations.map(({ n }) => n)).toEqual([1, 1]);
+    expect(comparison.stable.citations.map(({ n }) => n)).toEqual([1, 2]);
+    expect(comparison.collisions).toBe(1);
+    expect(comparison.overflow).toBe(0);
+  });
+
+  it('returns off-identical shadow output, enforce differences, and reports shadow counts once', () => {
+    const base = {
+      n: 1,
+      type: 'web',
+      id: '',
+      title: 'First result',
+      url: 'https://example.gov/first',
+      snippet: 'First snippet',
+      tool: 'search_public_web',
+    };
+    const rows = [base, { ...base, title: 'Second result', url: 'https://example.gov/second' }];
+    const observe = jest.fn();
+
+    const off = numberMeriEvidenceCitationsForMode(rows, [], 'off');
+    const shadow = numberMeriEvidenceCitationsForMode(rows, [], 'shadow', observe);
+    const enforce = numberMeriEvidenceCitationsForMode(rows, [], 'enforce');
+
+    expect(shadow).toEqual(off);
+    expect(enforce).not.toEqual(off);
+    expect(observe).toHaveBeenCalledTimes(1);
+    expect(observe).toHaveBeenCalledWith({ collisions: 1, overflow: 0 });
   });
 
   it('records sources beyond marker 999 as overflow', () => {
