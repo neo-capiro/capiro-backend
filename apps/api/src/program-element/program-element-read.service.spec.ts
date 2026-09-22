@@ -774,6 +774,8 @@ describe('ProgramElementReadService', () => {
         ]),
       },
       programElementMilestone: { findMany: jest.fn(async () => []) },
+      programElementYearSourceValue: { findMany: jest.fn(async () => []) },
+      programElementSource: { findMany: jest.fn(async () => []) },
     };
 
     test('labels the live request FY current and the FYDP years outyear (no FY27↔FY31 swap)', async () => {
@@ -920,6 +922,8 @@ describe('ProgramElementReadService', () => {
           ]),
         },
         programElementMilestone: { findMany: jest.fn(async () => []) },
+        programElementYearSourceValue: { findMany: jest.fn(async () => []) },
+        programElementSource: { findMany: jest.fn(async () => []) },
       };
       const service = new ProgramElementReadService(
         prisma as never,
@@ -1131,6 +1135,99 @@ describe('ProgramElementReadService', () => {
       expect(row.currentClaim?.isProjection).toBe(true);
     });
   });
+
+  describe('getTimeline funding provenance', () => {
+    test('joins the deterministic winner and citation once per PE without inventing provenance', async () => {
+      const prisma = makePrisma({
+        queryRawQueue: [],
+        peYears: [
+          { fy: 2027, request: 12.5, enacted: null },
+          { fy: 2028, request: 13.5, enacted: null },
+        ],
+        sourceValues: [
+          {
+            fy: 2027,
+            fieldName: 'request',
+            sourceDocumentId: 'doc-new',
+            pageNumber: 14,
+            originalUnit: 'thousands',
+            originalValueDecimal: 12_500,
+            canonicalValueM: 12.5,
+            lastObservedAt: new Date('2026-04-02T00:00:00.000Z'),
+            sourceDocument: {
+              documentType: 'R-2',
+              budgetCycle: 'PB27',
+              sourceUrl: 'https://example.test/document.pdf',
+              downloadedAt: new Date('2026-04-01T00:00:00.000Z'),
+            },
+          },
+          // A corrupt duplicate winner is returned second; ordered query output wins deterministically.
+          {
+            fy: 2027,
+            fieldName: 'request',
+            sourceDocumentId: 'doc-old',
+            pageNumber: 2,
+            originalUnit: 'millions',
+            originalValueDecimal: 99,
+            canonicalValueM: 99,
+            lastObservedAt: new Date('2026-03-01T00:00:00.000Z'),
+            sourceDocument: null,
+          },
+        ],
+        peSources: [
+          {
+            fy: 2027,
+            sourceDocumentId: 'doc-new',
+            publisher: 'Department of the Air Force',
+            sourceUrl: 'https://example.test/citation',
+            pageNumber: 14,
+            observedAt: new Date('2026-04-03T00:00:00.000Z'),
+          },
+        ],
+      });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+
+      const timeline = await service.getTimeline('0603270A');
+      const first = timeline.years.find((year) => year.fy === 2027)?.fundingClaim;
+      expect(first).toMatchObject({
+        value: 12.5,
+        originalUnit: 'thousands',
+        originalValue: 12_500,
+        source: {
+          sourceDocumentId: 'doc-new',
+          documentType: 'R-2',
+          budgetCycle: 'PB27',
+          publisher: 'Department of the Air Force',
+          sourceUrl: 'https://example.test/citation',
+          pageNumber: 14,
+          observedAt: '2026-04-03T00:00:00.000Z',
+        },
+      });
+      expect(first?.value).toBe(12.5);
+      const absent = timeline.years.find((year) => year.fy === 2028)?.fundingClaim;
+      expect(absent).toMatchObject({
+        originalUnit: null,
+        originalValue: null,
+        source: {
+          sourceDocumentId: null,
+          documentType: null,
+          budgetCycle: null,
+          publisher: null,
+          sourceUrl: null,
+          pageNumber: null,
+          observedAt: null,
+        },
+      });
+      expect(prisma.programElementYearSourceValue.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.programElementSource.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.programElementYearSourceValue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { peCode: '0603270A', isWinner: true } }),
+      );
+    });
+  });
 });
 
 /** Phase 7 Workstream M — a fake `PeSnapshotGateService`, same shape as the real one. */
@@ -1219,6 +1316,8 @@ function makePrisma(options: {
   tenantCaps?: Array<{ peNumber: string | null }>;
   peFind?: Record<string, unknown>;
   peYears?: Array<Record<string, unknown>>;
+  sourceValues?: Array<Record<string, unknown>>;
+  peSources?: Array<Record<string, unknown>>;
 }) {
   const queue = [...options.queryRawQueue];
   const mock = {
@@ -1274,7 +1373,7 @@ function makePrisma(options: {
       }),
     },
     programElementYear: {
-      findMany: jest.fn(async () => [
+      findMany: jest.fn(async () => options.peYears ?? [
         {
           id: 'year-1',
           peCode: '0603270A',
@@ -1304,6 +1403,10 @@ function makePrisma(options: {
     },
     programElementSource: {
       count: jest.fn(async () => 0),
+      findMany: jest.fn(async () => options.peSources ?? []),
+    },
+    programElementYearSourceValue: {
+      findMany: jest.fn(async () => options.sourceValues ?? []),
     },
     // Step 1.3: budget positions (PB cycle + FYDP outyears).
     programElementBudgetPosition: {

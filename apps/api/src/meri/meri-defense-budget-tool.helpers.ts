@@ -100,6 +100,9 @@ function legacyFundingClaim(claim: FundingClaim): FundingClaim {
 }
 
 function semanticsForClaim(claim: FundingClaim): string {
+  if (claim.stage === 'none') {
+    return `stage=unmapped (unknown vehicle) FY${claim.fiscalYear ?? 'unknown'} ${claim.value == null ? 'amount unavailable' : `$${claim.value}M`} enactment=unknown source=unknown`;
+  }
   const amount = claim.value == null ? 'amount unavailable' : `$${claim.value}M`;
   const original = claim.originalUnit ? ` (source printed in ${claim.originalUnit})` : '';
   const source = claim.source
@@ -128,11 +131,14 @@ function normalizeSearchStage(stage: unknown): FundingClaimStage {
  * shared FundingClaim with cycleClass='unknown' rather than guessing that the
  * latest row is the current request or an outyear.
  */
-export function searchFundingClaimForModel(input: SearchFundingClaimInput): FundingClaim | null {
+export function searchFundingClaimForModel(
+  input: SearchFundingClaimInput,
+  outputMode: BudgetClaimOutputMode = 'legacy',
+): FundingClaim | null {
   const valueM = finiteNumber(input.valueM);
   const fy = finiteFy(input.fy);
   const stage = normalizeSearchStage(input.stage);
-  if (valueM == null || fy == null) return null;
+  if (valueM == null || fy == null || (stage === 'none' && outputMode === 'legacy')) return null;
   return buildFundingClaim({
     value: valueM,
     fiscalYear: fy,
@@ -185,12 +191,13 @@ export function fundingClaimsForModel<T extends ModelFundingYearLike>(
       return { ...row, fundingClaim: null };
     }
     const pick = currentFunding(stageValues(row));
-    const claim = row.fundingClaim ?? claimFromLadderPick({
+    const ladderClaim = claimFromLadderPick({
       value: pick.value,
       stage: pick.stage,
       fiscalYear: fy,
       currentCycleFy,
     });
+    const claim = outputMode === 'enforce' ? row.fundingClaim ?? ladderClaim : ladderClaim;
     return {
       ...row,
       fundingClaim: fundingClaimForOutput(claim, outputMode),

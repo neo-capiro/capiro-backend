@@ -1087,13 +1087,37 @@ export class ProgramElementReadService {
       this.prisma.programElementYearSourceValue.findMany({
         where: { peCode, isWinner: true },
         include: { sourceDocument: true },
+        orderBy: [
+          { fy: 'asc' },
+          { fieldName: 'asc' },
+          { lastObservedAt: 'desc' },
+          { sourceDocumentId: 'asc' },
+          { pageNumber: 'asc' },
+        ],
       }),
-      this.prisma.programElementSource.findMany({ where: { peCode } }),
+      this.prisma.programElementSource.findMany({
+        where: { peCode },
+        orderBy: [{ observedAt: 'desc' }, { sourceDocumentId: 'asc' }, { pageNumber: 'asc' }],
+      }),
     ]);
 
     const provenanceFor = (fy: number, fieldName: string): FundingClaimProvenance | undefined => {
       const value = sourceValues.find((row) => row.fy === fy && row.fieldName === fieldName);
-      if (!value) return undefined;
+      if (!value) {
+        return {
+          originalUnit: null,
+          originalValue: null,
+          source: {
+            sourceDocumentId: null,
+            documentType: null,
+            budgetCycle: null,
+            publisher: null,
+            sourceUrl: null,
+            pageNumber: null,
+            observedAt: null,
+          },
+        };
+      }
       const citation = peSources.find((row) =>
         row.sourceDocumentId === value.sourceDocumentId &&
         (row.fy == null || row.fy === fy) &&

@@ -4012,11 +4012,17 @@ export class MeriToolsService {
         // The finder has no trustworthy current-cycle FY. The shared claim is
         // still stage/vehicle labeled, but its cycleClass remains 'unknown'; the
         // model must call get_pe_budget_timeline before calling it current/outyear.
-        currentFundingClaim: fundingClaimForOutput(searchFundingClaimForModel({
-          valueM: latestCurrent,
-          fy: latestCurrentFy,
-          stage: latestCurrentStage,
-        }), accuracyMode === 'enforce' ? 'enforce' : 'legacy'),
+        currentFundingClaim: fundingClaimForOutput(
+          searchFundingClaimForModel(
+            {
+              valueM: latestCurrent,
+              fy: latestCurrentFy,
+              stage: latestCurrentStage,
+            },
+            accuracyMode === 'enforce' ? 'enforce' : 'legacy',
+          ),
+          accuracyMode === 'enforce' ? 'enforce' : 'legacy',
+        ),
         funding: buildSearchRowFundingForModel({
           latestCurrent,
           latestCurrentFy,
@@ -4032,11 +4038,16 @@ export class MeriToolsService {
 
     if (accuracyMode === 'shadow') {
       const shadowClaims = (result.data as FinderRowForModel[])
-        .map((row) => searchFundingClaimForModel({
-          valueM: row.latestCurrent,
-          fy: row.latestCurrentFy,
-          stage: row.latestCurrentStage,
-        }))
+        .map((row) =>
+          searchFundingClaimForModel(
+            {
+              valueM: row.latestCurrent,
+              fy: row.latestCurrentFy,
+              stage: row.latestCurrentStage,
+            },
+            'enforce',
+          ),
+        )
         .filter((claim) => claim != null);
       this.logger.warn('meri.evidence_accuracy.shadow', {
         tool: 'search_program_elements',
