@@ -13,6 +13,7 @@ import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 
 import {
   selectBrowserSource,
+  strictOfficialSourceUrl,
   type BrowserSourceCandidate,
 } from './live-hearings-browser-source.js';
 
@@ -565,9 +566,8 @@ export class LiveHearingsPhase7Service {
       return {
         mode: 'BLOCKED',
         hearingId,
-        reasonCode: 'STATE_BROWSER_CAPTURE_NOT_QUALIFIED',
-        message:
-          'Browser capture requires reviewed permission for this exact event and source. Use Watch original.',
+        reasonCode: permission.policy.reasonCode,
+        message: permission.policy.message,
       };
     }
     return plan;
@@ -1127,7 +1127,7 @@ function mapListRow(row: ListRow): Record<string, unknown> {
     time: row.time,
     timezone: row.timezone,
     location: row.location,
-    officialPageUrl: row.officialPageUrl,
+    officialPageUrl: strictOfficialSourceUrl(row.officialPageUrl),
     streamAvailability: row.streamAvailability,
     coverageStatus: row.coverageStatus,
     capture: row.captureId

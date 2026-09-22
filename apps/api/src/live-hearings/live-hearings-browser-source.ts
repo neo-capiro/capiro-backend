@@ -29,10 +29,13 @@
  */
 
 export interface BrowserSourceCandidate {
+  id?: string;
   provider: string;
   officialPageUrl: string;
   mediaUrl?: string | null;
   capturePolicy: string;
+  priority?: number;
+  updatedAt?: Date | string | null;
 }
 
 export interface BrowserSourceChoice {
@@ -76,7 +79,11 @@ function isPublicPageUrl(url: string): boolean {
   } catch {
     return false;
   }
-  return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  return (
+    (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+    !parsed.username &&
+    !parsed.password
+  );
 }
 
 function isListingUrl(url: string): boolean {
@@ -142,4 +149,182 @@ export function selectBrowserSource(input: {
   }
 
   return null;
+}
+
+
+const SIGNED_QUERY =
+  /^(?:token|sig|signature|expires?|policy|key-pair-id|x-amz-.+|auth|auth_token|access_token|jwt|hdnea|hdnts)$/i;
+const DIRECT_MEDIA_PATH = /\.(?:m3u8|mp[34]|m4a|aac|wav|webm|ts|mov|flv|mkv)(?:$|\/)/i;
+const RESERVED_FLORIDA_CHANNEL_SLUG = /^(?:feed|rss|page|category|tag|author|wp-json)$/i;
+
+function stripTrailingSlash(pathname: string): string {
+  if (pathname === '/') return pathname;
+  return pathname.replace(/\/+$/, '') || '/';
+}
+
+function isPrivateOrNonPublicHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.test')
+  )
+    return true;
+  if (host.includes(':')) return true;
+  const parts = host.split('.');
+  if (parts.length === 4 && parts.every((part) => /^\d+$/.test(part))) {
+    const octets = parts.map(Number);
+    if (octets.some((value) => value < 0 || value > 255)) return true;
+    const a = octets[0] ?? 256;
+    const b = octets[1] ?? 256;
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      a >= 224
+    );
+  }
+  return false;
+}
+
+/**
+ * Canonical identity for an external official page. It is intentionally
+ * conservative: HTTPS only, no credentials or non-standard port, no fragment,
+ * and one representation for trailing-slash equivalents.
+ */
+export function canonicalOfficialExternalUrl(value: string | null | undefined): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
+    if (isPrivateOrNonPublicHost(url.hostname)) return null;
+    url.hash = '';
+    url.pathname = stripTrailingSlash(url.pathname);
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function exactFloridaChannelEvent(url: URL): boolean {
+  if (url.hostname.toLowerCase() !== 'thefloridachannel.org') return false;
+  const match = /^\/videos\/([^/]+)\/?$/i.exec(url.pathname);
+  return Boolean(match?.[1] && !RESERVED_FLORIDA_CHANNEL_SLUG.test(match[1]));
+}
+
+function subdomainOf(host: string, domain: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+function providerHostAllowed(provider: string, url: URL): boolean {
+  const host = url.hostname.toLowerCase();
+  switch (provider.toLowerCase()) {
+    case 'senate-isvp':
+    case 'committee-site':
+    case 'committee-rss':
+    case 'committee-api':
+    case 'committee-headless':
+      return subdomainOf(host, 'senate.gov') || subdomainOf(host, 'house.gov');
+    case 'house-live':
+    case 'house-repository':
+      return subdomainOf(host, 'house.gov');
+    case 'florida-senate':
+      return subdomainOf(host, 'flsenate.gov') || exactFloridaChannelEvent(url);
+    case 'florida-house':
+      return subdomainOf(host, 'flhouse.gov') || exactFloridaChannelEvent(url);
+    case 'florida-channel':
+      return exactFloridaChannelEvent(url);
+    case 'youtube':
+    case 'youtube-live':
+      return host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com');
+    case 'congress-gov':
+      return subdomainOf(host, 'congress.gov') && !host.startsWith('api.');
+    default:
+      return false;
+  }
+}
+
+function fallbackOfficialHostAllowed(url: URL): boolean {
+  const host = url.hostname.toLowerCase();
+  return (
+    ['congress.gov', 'senate.gov', 'house.gov', 'flsenate.gov', 'flhouse.gov'].some((domain) =>
+      subdomainOf(host, domain),
+    ) || exactFloridaChannelEvent(url)
+  );
+}
+
+/**
+ * Public serialization boundary for official source/Watch/Replay links.
+ * Returns a stable publisher HTML page only; direct media, signed/authenticated
+ * links, local/private hosts and unknown providers are omitted.
+ */
+export function strictOfficialSourceUrl(
+  value: string | null | undefined,
+  provider: string | null = null,
+): string | null {
+  const canonical = canonicalOfficialExternalUrl(value);
+  if (!canonical) return null;
+  const url = new URL(canonical);
+  if (url.hostname.toLowerCase().startsWith('api.')) return null;
+  if (DIRECT_MEDIA_PATH.test(url.pathname)) return null;
+  if ([...url.searchParams.keys()].some((key) => SIGNED_QUERY.test(key))) return null;
+  if (provider ? !providerHostAllowed(provider, url) : !fallbackOfficialHostAllowed(url)) return null;
+  return canonical;
+}
+
+function deterministicCandidates(candidates: BrowserSourceCandidate[]): BrowserSourceCandidate[] {
+  const timestamp = (value: Date | string | null | undefined) => {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value !== 'string') return 0;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  return [...candidates].sort((left, right) => {
+    const priority = (left.priority ?? 100) - (right.priority ?? 100);
+    if (priority) return priority;
+    const updated = timestamp(right.updatedAt) - timestamp(left.updatedAt);
+    if (updated) return updated;
+    return (left.id ?? '').localeCompare(right.id ?? '');
+  });
+}
+
+export function officialUrlsEquivalent(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = canonicalOfficialExternalUrl(left);
+  const b = canonicalOfficialExternalUrl(right);
+  return Boolean(a && b && a === b);
+}
+
+/** Choose one safe external Watch/Replay link without exposing media URLs. */
+export function selectOfficialPlaybackSource(input: {
+  hearingUrl: string | null;
+  candidates: BrowserSourceCandidate[];
+}): BrowserSourceChoice | null {
+  for (const candidate of deterministicCandidates(input.candidates)) {
+    // Capture policy governs Capiro recording/transcription, not whether a user
+    // may open a stable public publisher page. Link visibility therefore stays
+    // independent of BLOCKED, LICENSE_REQUIRED, or any future capture policy.
+    const sourceUrl = strictOfficialSourceUrl(candidate.officialPageUrl, candidate.provider);
+    if (!sourceUrl) continue;
+    return {
+      sourceUrl,
+      sourceKind: isListingUrl(sourceUrl) ? 'official_listing_page' : 'official_player_page',
+      sourceProvider: candidate.provider,
+    };
+  }
+  const sourceUrl = strictOfficialSourceUrl(input.hearingUrl);
+  if (!sourceUrl) return null;
+  return {
+    sourceUrl,
+    sourceKind: 'official_listing_page',
+    sourceProvider: null,
+  };
 }

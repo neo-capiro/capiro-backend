@@ -20,7 +20,10 @@
  *  - no source is ever fabricated from a title; api.* URLs are never returned.
  */
 import {
+  officialUrlsEquivalent,
   selectBrowserSource,
+  selectOfficialPlaybackSource,
+  strictOfficialSourceUrl,
   type BrowserSourceCandidate,
 } from './live-hearings-browser-source.js';
 
@@ -211,4 +214,85 @@ describe('selectBrowserSource', () => {
     expect(chosen?.sourceUrl).toBe(CONGRESS_GOV_LISTING);
     expect(chosen?.sourceKind).toBe('official_listing_page');
   });
+});
+
+
+describe('strict official external links', () => {
+  it.each([
+    'http://www.flsenate.gov/watch',
+    'https://user:pw@www.flsenate.gov/watch',
+    'https://www.flsenate.gov:8443/watch',
+    'https://localhost/watch',
+    'https://127.0.0.1/watch',
+    'https://10.0.0.8/watch',
+    'https://www.flsenate.gov/live/master.m3u8',
+    'https://www.flsenate.gov/watch?token=secret',
+    'https://www.flsenate.gov/watch?auth=secret',
+    'https://www.flsenate.gov/watch?auth_token=secret',
+    'https://www.flsenate.gov/watch?access_token=secret',
+    'https://www.flsenate.gov/watch?jwt=secret',
+    'https://www.flsenate.gov/watch?hdnea=secret',
+    'https://www.flsenate.gov/watch?hdnts=secret',
+    'https://thefloridachannel.org/videos/feed/',
+    'https://api.congress.gov/v3/hearing/119/house/119504',
+  ])('omits unsafe or non-event URL %s', (url) => {
+    expect(strictOfficialSourceUrl(url, 'florida-senate')).toBeNull();
+  });
+
+  it('rejects unknown provider identities even on a known official host', () => {
+    expect(strictOfficialSourceUrl('https://www.flsenate.gov/watch', 'unknown')).toBeNull();
+  });
+
+  it('canonicalizes equivalent source identities for de-duplication', () => {
+    expect(
+      officialUrlsEquivalent(
+        'HTTPS://WWW.FLSENATE.GOV:443/Media/VideoPlayer/1/#player',
+        'https://www.flsenate.gov/Media/VideoPlayer/1',
+      ),
+    ).toBe(true);
+  });
+
+  it('selects a stable publisher page and never returns the stored media URL', () => {
+    const selected = selectOfficialPlaybackSource({
+      hearingUrl: 'https://www.flsenate.gov/Calendar/',
+      candidates: [
+        candidate({
+          id: 'fl-1',
+          provider: 'florida-senate',
+          officialPageUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382/',
+          mediaUrl: 'https://cdn.example/live/master.m3u8?token=secret',
+          capturePolicy: 'REVIEW_REQUIRED',
+          priority: 1,
+        }),
+      ],
+    });
+    expect(selected).toEqual({
+      sourceUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382',
+      sourceKind: 'official_player_page',
+      sourceProvider: 'florida-senate',
+    });
+    expect(JSON.stringify(selected)).not.toContain('m3u8');
+  });
+
+  it.each(['BLOCKED', 'LICENSE_REQUIRED'])(
+    'keeps a safe official playback link visible when capture policy is %s',
+    (capturePolicy) => {
+      expect(
+        selectOfficialPlaybackSource({
+          hearingUrl: 'https://www.flsenate.gov/Calendar/',
+          candidates: [
+            candidate({
+              provider: 'florida-senate',
+              officialPageUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382',
+              capturePolicy,
+            }),
+          ],
+        }),
+      ).toEqual({
+        sourceUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382',
+        sourceKind: 'official_player_page',
+        sourceProvider: 'florida-senate',
+      });
+    },
+  );
 });

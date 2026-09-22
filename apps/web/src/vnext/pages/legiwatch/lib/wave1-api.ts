@@ -146,6 +146,8 @@ export interface ArchiveResult {
   timeZone: string | null;
   location: string | null;
   officialPageUrl: string | null;
+  officialPlaybackUrl?: string | null;
+  officialPlaybackKind?: 'official_player_page' | 'official_listing_page' | null;
   eventStatus: string;
   eventType: string | null;
   witnesses: string[];

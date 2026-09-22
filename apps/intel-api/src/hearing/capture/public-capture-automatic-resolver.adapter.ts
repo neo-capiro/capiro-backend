@@ -4,7 +4,6 @@ import { StreamResolverService } from '../stream-resolver.service.js';
 import {
   approvedPublicCapture,
   publicAudioEnabled,
-  stateCaptureEnabled,
 } from './public-capture-permission.js';
 import {
   AutomaticStreamResolver,
@@ -17,6 +16,10 @@ import {
   type ResolverResultLike,
   type StreamResolutionState,
 } from './stream-resolution-policy.js';
+import {
+  isFloridaStatePublisherUrl,
+  STATE_CAPTURE_LINK_ONLY,
+} from '../state-capture-policy.js';
 
 interface HearingContextRow {
   id: string;
@@ -81,11 +84,33 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     hearingId?: string;
   }): Promise<AutomaticStreamResolutionResult> {
     const hearingId = input.hearingId?.trim();
+    if (isFloridaStatePublisherUrl(input.pageUrl)) {
+      return unresolvedShell({
+        status: 'unresolvable',
+        reference: safeReference(input.pageUrl),
+        note: STATE_CAPTURE_LINK_ONLY,
+      });
+    }
     if (!hearingId) {
       return unresolvedShell({
         status: 'unresolvable',
         reference: safeReference(input.pageUrl),
         note: 'Canonical hearing id is required for automatic capture resolution',
+      });
+    }
+
+    const state = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT id FROM committee_hearing
+       WHERE id=$1 AND geographic_jurisdiction IS NOT NULL
+         AND geographic_jurisdiction<>'US'
+       LIMIT 1`,
+      hearingId,
+    );
+    if (state.length) {
+      return unresolvedShell({
+        status: 'unresolvable',
+        reference: safeReference(input.pageUrl),
+        note: STATE_CAPTURE_LINK_ONLY,
       });
     }
 
@@ -101,7 +126,8 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     if (publicAudioEnabled() && (await approvedPublicCapture(this.prisma, hearingId)).length) {
       const attempts: AutomaticStreamResolutionResult['attempts'] = [];
       // Existing guarded provider resolution still validates every fetch/redirect.
-      // Permission enables this exact event; it does not relax the network guard.
+      // State hearings have already returned above, and approvedPublicCapture()
+      // independently refuses every non-US jurisdiction.
       for (const url of [
         ...new Set(
           [hearing.officialPageUrl, ...videos.map((v) => v.url)].filter((v): v is string =>
@@ -179,15 +205,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
        LIMIT 1`,
       hearingId,
     );
-    if (rows[0]) return rows[0];
-    if (!stateCaptureEnabled() || !(await approvedPublicCapture(this.prisma, hearingId)).length)
-      return null;
-    const state = await this.prisma.$queryRawUnsafe<HearingContextRow[]>(
-      `SELECT id,event_status AS "eventStatus",'PUBLIC' AS "publicAccess",starts_at AS "scheduledStart",url AS "officialPageUrl"
-      FROM committee_hearing WHERE id=$1 AND visibility='public' AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US' LIMIT 1`,
-      hearingId,
-    );
-    return state[0] ?? null;
+    return rows[0] ?? null;
   }
 
   private async loadVideoReferences(

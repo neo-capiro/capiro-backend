@@ -1,8 +1,8 @@
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type { Prisma } from '../../../generated/prisma-client/index.js';
 
-export const stateCaptureEnabled = () =>
-  process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED === 'true' && publicAudioEnabled();
+/** State capture is not released: official state video remains external link-only. */
+export const stateCaptureEnabled = () => false;
 export const publicAudioEnabled = () => process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED === 'true';
 
 /** An explicit source grant plus current tenant demand; never capture-all. */
@@ -11,15 +11,22 @@ export async function approvedPublicCapture(
   hearingId: string,
   transaction?: Prisma.TransactionClient,
 ) {
-  const read = (tx: Prisma.TransactionClient) => tx.$queryRaw<
-    Array<{
-      id: string;
-      tenantId: string;
-      sourceUrl: string;
-      expiresAt: Date;
-      retentionDays: number;
-    }>
-  >`
+  const read = async (tx: Prisma.TransactionClient) => {
+    const federal = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM federal_committee_hearing
+      WHERE id=${hearingId}
+      LIMIT 1`;
+    if (!federal.length) return [];
+    return tx.$queryRaw<
+      Array<{
+        id: string;
+        tenantId: string;
+        sourceUrl: string;
+        expiresAt: Date;
+        retentionDays: number;
+      }>
+    >`
     SELECT DISTINCT p.id,p.tenant_id AS "tenantId",p.source_url AS "sourceUrl",p.expires_at AS "expiresAt",p.retention_days AS "retentionDays"
     FROM committee_hearing h JOIN intel_hearing_media_permission p ON p.hearing_id=h.id AND p.source_url=h.url
     JOIN hearing_subscription s ON s.hearing_id=h.id AND s.tenant_id::text=p.tenant_id AND s.attendance_mode='automatic'
@@ -30,5 +37,6 @@ export async function approvedPublicCapture(
     WHERE h.id=${hearingId} AND h.visibility='public' AND h.event_status NOT IN ('canceled','cancelled','completed')
       AND p.mode='server' AND p.revoked_at IS NULL AND p.expires_at>clock_timestamp()
       AND p.operations @> ARRAY['capture','transcription','retention']::text[]`;
+  };
   return transaction ? read(transaction) : prisma.withSystem(read);
 }

@@ -34,7 +34,14 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
-import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
+import {
+  STATE_CAPTURE_LINK_ONLY,
+  stateCapturePolicy,
+} from './legiwatch-state-capture-policy.js';
+import {
+  selectOfficialPlaybackSource,
+  strictOfficialSourceUrl,
+} from './live-hearings-browser-source.js';
 import { LiveHearingsService, type CalendarQuery } from './live-hearings.service.js';
 import {
   assessAttendance,
@@ -402,6 +409,14 @@ export class LegiWatchWave1Service {
     const mode = input.mode ?? 'automatic';
     const assessment = await this.assess(ctx, hearing);
 
+    if (assessment.reasonCode === STATE_CAPTURE_LINK_ONLY) {
+      throw new ConflictException({
+        code: STATE_CAPTURE_LINK_ONLY,
+        message: assessment.message,
+        state: assessment.state,
+        availableModes: [],
+      });
+    }
     const refusal = refuseAttendanceRequest(assessment, mode);
     if (refusal) {
       throw new ConflictException({
@@ -560,8 +575,9 @@ export class LegiWatchWave1Service {
       this.transcriptSegmentCount(hearing.id),
     ]);
 
-    return assessAttendance({
-      statePermission: await stateCapturePolicy(this.prisma, ctx, hearing),
+    const statePermission = await stateCapturePolicy(this.prisma, ctx, hearing);
+    const assessment = assessAttendance({
+      statePermission,
       hearing: {
         id: hearing.id,
         visibility: hearing.visibility,
@@ -573,6 +589,19 @@ export class LegiWatchWave1Service {
       subscription,
       hasTranscript: transcriptCount > 0,
     });
+    if (!statePermission) return assessment;
+    return {
+      ...assessment,
+      state: 'NOT_ELIGIBLE',
+      reasonCode: STATE_CAPTURE_LINK_ONLY,
+      message: statePermission.policy.message,
+      canRequest: false,
+      availableModes: [],
+      consentRequired: false,
+      browserAvailable: false,
+      automaticAvailable: false,
+      policy: statePermission.policy,
+    };
   }
 
   // ── W1-3 · archive + global hearing research ─────────────────────────────
@@ -951,6 +980,45 @@ export class LegiWatchWave1Service {
       tx.$queryRawUnsafe<Array<Record<string, unknown>>>(rowSql, ...params),
     );
 
+    const archiveCandidates = rows.length
+      ? await this.prisma.hearingStreamCandidate.findMany({
+          where: { hearingId: { in: rows.map((row) => String(row.id)) } },
+          orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            hearingId: true,
+            provider: true,
+            officialPageUrl: true,
+            capturePolicy: true,
+            priority: true,
+            updatedAt: true,
+          },
+        })
+      : [];
+    const candidatesByHearing = new Map<string, typeof archiveCandidates>();
+    for (const candidate of archiveCandidates) {
+      const current = candidatesByHearing.get(candidate.hearingId) ?? [];
+      current.push(candidate);
+      candidatesByHearing.set(candidate.hearingId, current);
+    }
+    const playbackByHearing = new Map(
+      rows.map((row) => {
+        const hearingId = String(row.id);
+        const playback = selectOfficialPlaybackSource({
+          hearingUrl: typeof row.officialPageUrl === 'string' ? row.officialPageUrl : null,
+          candidates: (candidatesByHearing.get(hearingId) ?? []).map((candidate) => ({
+            id: candidate.id,
+            provider: candidate.provider,
+            officialPageUrl: candidate.officialPageUrl,
+            capturePolicy: candidate.capturePolicy,
+            priority: candidate.priority,
+            updatedAt: candidate.updatedAt,
+          })),
+        });
+        return [hearingId, playback] as const;
+      }),
+    );
+
     // Count and facets reuse only the params the shared WHERE references.
     // NOT `params.length - 2`: phrase-aware ranking (LW-QA-023) binds beyond the
     // LIMIT/OFFSET pair, so the count of FILTER params is the only safe slice.
@@ -996,6 +1064,8 @@ export class LegiWatchWave1Service {
     return {
       rows: rows.map((row) => ({
         ...this.toArchiveResult(row),
+        officialPlaybackUrl: playbackByHearing.get(String(row.id))?.sourceUrl ?? null,
+        officialPlaybackKind: playbackByHearing.get(String(row.id))?.sourceKind ?? null,
         savedSessions: saved.sessions.filter((session) => session.hearingId === row.id),
         savedTranscriptAvailable:
           saved.savedSessionsState === 'unavailable'
@@ -1037,7 +1107,10 @@ export class LegiWatchWave1Service {
       time: row.time,
       timeZone: row.timezone,
       location: row.location,
-      officialPageUrl: row.officialPageUrl,
+      officialPageUrl:
+        typeof row.officialPageUrl === 'string'
+          ? strictOfficialSourceUrl(row.officialPageUrl)
+          : null,
       eventStatus: row.eventStatus,
       eventType: row.eventType,
       witnesses: Array.isArray(row.witnesses) ? row.witnesses : [],
@@ -1801,7 +1874,7 @@ export class LegiWatchWave1Service {
         calendarDate: hearing.date.toISOString().slice(0, 10),
         scheduledStart: hearing.startsAt ? hearing.startsAt.toISOString() : null,
         eventStatus: hearing.eventStatus,
-        officialPageUrl: hearing.url,
+        officialPageUrl: strictOfficialSourceUrl(hearing.url),
         detailPath: `/legiwatch/hearings/${encodeURIComponent(hearing.id)}`,
       },
       client: client ? { id: client.id, name: client.name } : null,
@@ -1901,7 +1974,7 @@ export class LegiWatchWave1Service {
           eventStatus: hearing.eventStatus,
           witnesses: hearing.witnesses,
           detailPath,
-          officialPageUrl: hearing.url,
+          officialPageUrl: strictOfficialSourceUrl(hearing.url),
         },
         client: client ? { id: client.id, name: client.name } : null,
         findings,
@@ -1979,7 +2052,7 @@ export class LegiWatchWave1Service {
           chamber: hearing.chamber,
           calendarDate: hearing.date.toISOString().slice(0, 10),
           detailPath,
-          officialPageUrl: hearing.url,
+          officialPageUrl: strictOfficialSourceUrl(hearing.url),
         },
         finding: insight,
         transcriptMoment: segment,
@@ -2178,7 +2251,7 @@ export class LegiWatchWave1Service {
         time: hearing.time,
         timeZone: hearing.timezone,
         location: hearing.location,
-        officialPageUrl: hearing.url,
+        officialPageUrl: strictOfficialSourceUrl(hearing.url),
         eventStatus: hearing.eventStatus,
         eventType: hearing.eventType,
         visibility: hearing.visibility,

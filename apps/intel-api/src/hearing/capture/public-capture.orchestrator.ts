@@ -15,6 +15,7 @@ import {
   type StreamResolutionState,
 } from './stream-resolution-policy.js';
 import { nextStreamPreflightAt } from './stream-preflight-policy.js';
+import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
 
 export interface PublicHearingCaptureEvent {
   id: string;
@@ -478,6 +479,18 @@ export class PublicCaptureWorkerCoordinator {
 
     let capture = acquired.capture;
     let lease = acquired.lease;
+    if (capture.hearingId !== input.hearingId) {
+      try {
+        await this.store.releaseLease({
+          captureId: input.captureId,
+          ownerId: input.workerId,
+          fencingToken: lease.fencingToken,
+          now: this.now(),
+        });
+      } finally {
+        throw new Error(STATE_CAPTURE_LINK_ONLY);
+      }
+    }
     if (isTerminal(capture.status)) {
       try {
         await this.store.releaseLease({

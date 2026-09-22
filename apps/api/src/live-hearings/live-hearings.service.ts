@@ -39,6 +39,10 @@ import {
 import { loadFloridaDirectoryResources } from '../hearing-discovery/florida-directory-resources.js';
 import { stateCommitteeFollowKey } from '../hearing-discovery/florida-committee-alerts.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
+import {
+  selectOfficialPlaybackSource,
+  strictOfficialSourceUrl,
+} from './live-hearings-browser-source.js';
 
 /** One canonical hearing as the master calendar renders it. */
 export interface CalendarEvent {
@@ -70,6 +74,9 @@ export interface CalendarEvent {
   timezone: string;
   location: string | null;
   officialPageUrl: string | null;
+  /** Stable publisher page for external Watch/Replay; never direct media. */
+  officialPlaybackUrl: string | null;
+  officialPlaybackKind: 'official_player_page' | 'official_listing_page' | null;
   witnesses: string[];
   streamAvailability: string;
   coverageStatus: string;
@@ -89,7 +96,7 @@ export interface CalendarEvent {
   /** Advertised stream candidates, best priority first. */
   streamCandidates: Array<{
     provider: string;
-    officialPageUrl: string;
+    officialPageUrl: string | null;
     hasMediaUrl: boolean;
     mediaType: string | null;
     resolutionState: string;
@@ -1005,7 +1012,7 @@ export class LiveHearingsService {
       this.prisma.publicHearingCapture.findMany({ where: { hearingId: { in: ids } } }),
       this.prisma.hearingStreamCandidate.findMany({
         where: { hearingId: { in: ids } },
-        orderBy: [{ priority: 'asc' }],
+        orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
       }),
       this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.hearingSubscription.findMany({
@@ -1064,6 +1071,18 @@ export class LiveHearingsService {
       };
       const capture = captureByHearing.get(row.id) ?? null;
       const sub = subByHearing.get(row.id) ?? null;
+      const hearingCandidates = candidatesByHearing.get(row.id) ?? [];
+      const playback = selectOfficialPlaybackSource({
+        hearingUrl: row.url,
+        candidates: hearingCandidates.map((candidate) => ({
+          id: candidate.id,
+          provider: candidate.provider,
+          officialPageUrl: candidate.officialPageUrl,
+          capturePolicy: candidate.capturePolicy,
+          priority: candidate.priority,
+          updatedAt: candidate.updatedAt,
+        })),
+      });
       return {
         id: row.id,
         following: follows.some((f) => f.hearingId === row.id),
@@ -1100,7 +1119,9 @@ export class LiveHearingsService {
         time: row.time,
         timezone: row.timezone,
         location: row.location,
-        officialPageUrl: row.url,
+        officialPageUrl: strictOfficialSourceUrl(row.url),
+        officialPlaybackUrl: playback?.sourceUrl ?? null,
+        officialPlaybackKind: playback?.sourceKind ?? null,
         witnesses: row.witnesses ?? [],
         streamAvailability: row.streamAvailability,
         coverageStatus: row.coverageStatus,
@@ -1118,9 +1139,9 @@ export class LiveHearingsService {
               failureCode: capture.failureCode,
             }
           : null,
-        streamCandidates: (candidatesByHearing.get(row.id) ?? []).map((c) => ({
+        streamCandidates: hearingCandidates.map((c) => ({
           provider: c.provider,
-          officialPageUrl: c.officialPageUrl,
+          officialPageUrl: strictOfficialSourceUrl(c.officialPageUrl, c.provider),
           // The raw media URL is deliberately NOT exposed: it can be expiring,
           // IP-bound or licence-restricted, and a normal user has no reason to
           // hold one. The UI needs to know a stream EXISTS, not where it is.

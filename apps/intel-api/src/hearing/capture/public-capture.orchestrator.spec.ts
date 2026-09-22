@@ -279,6 +279,31 @@ describe('public capture orchestration', () => {
     expect(runtime.run).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects a job whose capture id belongs to a different hearing', async () => {
+    const h = storeHarness();
+    h.setRow({
+      ...h.getRow(),
+      status: 'READY',
+      resolutionState: 'READY_FOR_SERVER_CAPTURE',
+    });
+    const resolver = { resolve: jest.fn(async () => firstPartyResolution) };
+    const runtime = { run: jest.fn(async () => ({ capturedMs: 60_000, gaps: [] })) };
+    const worker = new PublicCaptureWorkerCoordinator(h.store, resolver, runtime, {
+      now: () => new Date('2026-08-20T14:00:00Z'),
+    });
+
+    await expect(
+      worker.run({
+        captureId: 'capture-1',
+        hearingId: 'substituted-hearing',
+        workerId: 'worker-a',
+      }),
+    ).rejects.toThrow('STATE_CAPTURE_LINK_ONLY');
+    expect(resolver.resolve).not.toHaveBeenCalled();
+    expect(runtime.run).not.toHaveBeenCalled();
+    expect(h.store.releaseLease).toHaveBeenCalled();
+  });
+
   it('records a runtime gap, schedules one bounded follow-on attempt, and resumes the same capture', async () => {
     const h = storeHarness();
     h.setRow({

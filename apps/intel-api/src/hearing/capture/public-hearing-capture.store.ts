@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import {
-  approvedPublicCapture,
-  publicAudioEnabled,
-  stateCaptureEnabled,
-} from './public-capture-permission.js';
+import { approvedPublicCapture, publicAudioEnabled } from './public-capture-permission.js';
 import type {
   CaptureLeaseAcquireResult,
   PublicCaptureDemand,
@@ -116,15 +112,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
        LIMIT 1`,
       hearingId,
     );
-    if (rows[0]) return rows[0];
-    if (!stateCaptureEnabled() || !(await approvedPublicCapture(this.prisma, hearingId)).length)
-      return null;
-    const state = await this.prisma.$queryRawUnsafe<PublicHearingCaptureEvent[]>(
-      `SELECT id,event_status AS "eventStatus",'PUBLIC' AS "publicAccess",starts_at AS "scheduledStart",url AS "officialPageUrl"
-      FROM committee_hearing WHERE id=$1 AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US' AND visibility='public' LIMIT 1`,
-      hearingId,
-    );
-    return state[0] ?? null;
+    return rows[0] ?? null;
   }
 
   async getDemand(hearingId: string): Promise<PublicCaptureDemand> {
@@ -132,13 +120,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
       Array<{ id: string }>
     >`SELECT id FROM committee_hearing WHERE id=${hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
     if (state.length)
-      return {
-        activeSubscriptionCount: stateCaptureEnabled()
-          ? new Set((await approvedPublicCapture(this.prisma, hearingId)).map((g) => g.tenantId))
-              .size
-          : 0,
-        globalCoverageRequested: false,
-      };
+      return { activeSubscriptionCount: 0, globalCoverageRequested: false };
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count
@@ -177,22 +159,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
         [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
       ),
     );
-    const result = rows.map((row) => row.hearingId);
-    if (stateCaptureEnabled()) {
-      const candidates = await this.prisma.$queryRaw<
-        Array<{ id: string }>
-      >`SELECT DISTINCT h.id FROM committee_hearing h
-        JOIN intel_hearing_media_permission p ON p.hearing_id=h.id
-        LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
-        WHERE h.geographic_jurisdiction IS NOT NULL AND h.geographic_jurisdiction<>'US' AND h.visibility='public'
-          AND h.event_status IN ('scheduled','in_progress') AND p.mode='server' AND p.revoked_at IS NULL AND p.expires_at>now()
-          AND (c.id IS NULL OR c.domain_status NOT IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED'))
-          AND (c.next_preflight_at IS NULL OR c.next_preflight_at<=${now}) ORDER BY h.id LIMIT 100`;
-      for (const candidate of candidates)
-        if ((await approvedPublicCapture(this.prisma, candidate.id)).length)
-          result.push(candidate.id);
-    }
-    return [...new Set(result)];
+    return rows.map((row) => row.hearingId);
   }
 
   async assertCaptureAllowed(hearingId: string): Promise<void> {

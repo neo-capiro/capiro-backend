@@ -203,6 +203,9 @@ export interface CanonicalHearingEvent {
   timeZone?: string;
   location?: string;
   officialPageUrl?: string;
+  /** Stable publisher page opened externally for Watch/Replay. */
+  officialPlaybackUrl?: string;
+  officialPlaybackKind?: 'official_player_page' | 'official_listing_page';
   lastOfficialUpdate?: string;
   streamState: HearingStreamState;
   coverageStatus?: string;

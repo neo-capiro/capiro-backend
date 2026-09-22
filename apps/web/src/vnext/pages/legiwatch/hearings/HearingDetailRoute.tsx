@@ -33,6 +33,7 @@ import {
   transcriptAvailability,
 } from '../lib/hearing-detail-states.js';
 import { LwPill, LwButton, LwSkeleton } from '../lib/primitives.js';
+import { OfficialHearingLinks } from './OfficialHearingLinks.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
 // Wave 1 surfaces. Each owns one workstream and reads a real Wave 1 endpoint.
 import { FollowDialog } from './FollowDialog.js';
@@ -323,7 +324,6 @@ export function HearingDetailRoute() {
     : committeeCode
       ? `/legiwatch/committees/${encodeURIComponent(committeeCode)}`
       : null;
-  const officialUrl = e.officialPageUrl ?? null;
 
   return (
     <div className="lw-body lw-detail" aria-label={`Hearing detail: ${e.title}`}>
@@ -407,21 +407,12 @@ export function HearingDetailRoute() {
                 <dd>{e.chamber ?? '—'}</dd>
                 <dt>Location</dt>
                 <dd>{e.location ?? '—'}</dd>
-                <dt>Official source</dt>
-                <dd>
-                  {officialUrl ? (
-                    <a
-                      className="lw-backlink"
-                      href={officialUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      Official event page ↗
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </dd>
+                <OfficialHearingLinks
+                  officialPageUrl={e.officialPageUrl}
+                  officialPlaybackUrl={e.officialPlaybackUrl}
+                  officialPlaybackKind={e.officialPlaybackKind}
+                  eventStatus={e.eventStatus}
+                />
                 <dt>Stream status</dt>
                 <dd>{e.streamState ?? 'NOT_CHECKED'}</dd>
                 <dt>Witnesses</dt>
@@ -811,7 +802,7 @@ export function HearingDetailRoute() {
         hidden={activeTab !== 'sources-documents'}
         style={activeTab !== 'sources-documents' ? { display: 'none' } : undefined}
       >
-          <SourcesAndDocumentsSection hearingId={hearingId} officialUrl={officialUrl} />
+          <SourcesAndDocumentsSection hearingId={hearingId} />
       </div>
 
       {/* Actions — always mounted so pendingAction state and dialogs survive tab switches */}
@@ -843,44 +834,15 @@ export function HearingDetailRoute() {
   );
 }
 
-/** Official event page, the real "what changed" timeline (`committee_site_update`
- *  rows for this hearing), and source confidence in plain language. There is
- *  no per-hearing document-availability model yet, so a document list beyond
- *  the official page is not fabricated — it is simply not shown. */
-function SourcesAndDocumentsSection({
-  hearingId,
-  officialUrl,
-}: {
-  hearingId: string;
-  officialUrl: string | null;
-}) {
+/** The real "what changed" timeline (`committee_site_update` rows). The
+ * canonical official source link is rendered once in the overview facts. */
+function SourcesAndDocumentsSection({ hearingId }: { hearingId: string }) {
   const updates = useHearingUpdates(hearingId);
   return (
     <section className="lw-card lw-detail__card" aria-label="Sources and documents">
       <div className="lw-card__head">
         <h2 className="lw-card__title">Sources & Documents</h2>
       </div>
-      <dl
-        style={{
-          margin: '10px 0 0',
-          display: 'grid',
-          gridTemplateColumns: '140px 1fr',
-          rowGap: 8,
-          fontSize: 13,
-        }}
-      >
-        <dt style={{ color: 'var(--lw-meta)' }}>Official source</dt>
-        <dd style={{ margin: 0 }}>
-          {officialUrl ? (
-            <a className="lw-backlink" href={officialUrl} target="_blank" rel="noreferrer noopener">
-              Official event page ↗
-            </a>
-          ) : (
-            '—'
-          )}
-        </dd>
-      </dl>
-
       <h3 className="lw-sect__title" style={{ marginTop: 16 }}>
         What changed
       </h3>

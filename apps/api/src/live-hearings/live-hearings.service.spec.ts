@@ -432,6 +432,71 @@ describe('LiveHearingsService — capture and candidate hydration', () => {
     expect(JSON.stringify(res)).not.toContain('secret-signed');
   });
 
+  it('omits unsafe official URLs from every canonical hearing field', async () => {
+    const secret = 'do-not-serialize';
+    const { service } = makeService({
+      hearings: [
+        hearing({
+          url: `https://www.congress.gov/event/119?auth_token=${secret}`,
+        }),
+      ],
+      candidates: [
+        {
+          id: 'unsafe',
+          hearingId: 'cm-119-119504',
+          provider: 'senate-isvp',
+          officialPageUrl: `https://localhost/watch?access_token=${secret}`,
+          mediaUrl: `https://cdn.example/live/master.m3u8?token=${secret}`,
+          mediaType: 'hls',
+          resolutionState: 'READY',
+          capturePolicy: 'REVIEW_REQUIRED',
+          priority: 1,
+          updatedAt: new Date('2026-09-21T00:00:00Z'),
+          failureReason: null,
+        },
+      ],
+    });
+
+    const row = (await service.calendar(ctxA, {})).rows[0]!;
+    expect(row.officialPageUrl).toBeNull();
+    expect(row.officialPlaybackUrl).toBeNull();
+    expect(row.streamCandidates[0]?.officialPageUrl).toBeNull();
+    expect(JSON.stringify(row)).not.toContain(secret);
+  });
+
+  it('serializes a canonical Watch/Replay page even when capture is blocked', async () => {
+    const { service } = makeService({
+      hearings: [
+        hearing({
+          url: 'HTTPS://WWW.CONGRESS.GOV:443/event/119th-Congress/house-event/119504/#source',
+        }),
+      ],
+      candidates: [
+        {
+          id: 'safe',
+          hearingId: 'cm-119-119504',
+          provider: 'house-live',
+          officialPageUrl: 'HTTPS://LIVE.HOUSE.GOV:443/watch/119504/#player',
+          mediaUrl: 'https://cdn.example/live/master.m3u8?token=secret',
+          mediaType: 'hls',
+          resolutionState: 'READY',
+          capturePolicy: 'BLOCKED',
+          priority: 1,
+          updatedAt: new Date('2026-09-21T00:00:00Z'),
+          failureReason: null,
+        },
+      ],
+    });
+
+    const row = (await service.calendar(ctxA, {})).rows[0]!;
+    expect(row.officialPageUrl).toBe(
+      'https://www.congress.gov/event/119th-Congress/house-event/119504',
+    );
+    expect(row.officialPlaybackUrl).toBe('https://live.house.gov/watch/119504');
+    expect(row.officialPlaybackKind).toBe('official_player_page');
+    expect(JSON.stringify(row)).not.toContain('master.m3u8');
+  });
+
   it('reports an absent capture as null', async () => {
     const { service } = makeService({ hearings: [hearing()] });
     expect((await service.calendar(ctxA, {})).rows[0]?.capture).toBeNull();

@@ -96,10 +96,14 @@ describe('Live Hearings API normalization', () => {
       title: 'Hearing',
       committeeName: 'Science',
       officialPageUrl: 'https://science.house.gov/hearings/1',
+      officialPlaybackUrl: 'https://science.house.gov/watch/1',
+      officialPlaybackKind: 'official_player_page',
       mediaUrl: 'https://googlevideo.com/private-token/master.m3u8',
       streamUrl: 'https://another.example/stream',
     });
     expect(event.officialPageUrl).toBe('https://science.house.gov/hearings/1');
+    expect(event.officialPlaybackUrl).toBe('https://science.house.gov/watch/1');
+    expect(event.officialPlaybackKind).toBe('official_player_page');
     expect(event).not.toHaveProperty('mediaUrl');
     expect(event).not.toHaveProperty('streamUrl');
   });
@@ -254,4 +258,16 @@ describe('Live Hearings API normalization', () => {
     expect(event.committee.name).toBe('Senate Judiciary');
     expect(event.subcommittee).toBeUndefined();
   });
+
+  it('does not promote an unfiltered row.url into the official source field', () => {
+    const event = normalizeCanonicalHearingEvent({
+      id: 'unsafe',
+      title: 'Unsafe source',
+      row: 'ignored',
+      url: 'https://localhost/watch?auth_token=secret',
+    });
+    expect(event.officialPageUrl).toBeUndefined();
+    expect(JSON.stringify(event)).not.toContain('secret');
+  });
+
 });

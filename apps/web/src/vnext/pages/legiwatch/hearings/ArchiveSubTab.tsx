@@ -22,6 +22,7 @@ import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
 import { isCanceled, useArchiveSearch, w1Error, type ArchiveResult } from '../lib/wave1-api.js';
 import { SavedSessionLinks } from './SavedHearingSessions.js';
+import { OfficialArchiveReplayLink } from './OfficialHearingLinks.js';
 
 const PAGE_SIZE = 20;
 
@@ -435,6 +436,11 @@ function ArchiveResultCard({
         {/* An unknown time stays unknown; no fabricated clock. */}
         {row.scheduledStart ? '' : ' · time not announced'}
       </div>
+
+      <OfficialArchiveReplayLink
+        url={row.officialPlaybackUrl}
+        kind={row.officialPlaybackKind}
+      />
 
       {row.transcriptHit ? (
         <button

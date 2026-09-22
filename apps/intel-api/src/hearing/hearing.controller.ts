@@ -61,7 +61,11 @@ export class HearingController {
    * links it, and the transcript comes from the tab audio the analyst shares.
    */
   @Post('resolve-stream')
-  resolveStream(@CurrentTenant() _ctx: WorkspaceTenantContext, @Body() dto: ResolveStreamDto) {
+  async resolveStream(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Body() dto: ResolveStreamDto,
+  ) {
+    await this.sessions.assertCaptureSourceAllowed(ctx.tenantId, dto.hearingId, dto.pageUrl);
     return this.resolver.resolve({ pageUrl: dto.pageUrl, hearingId: dto.hearingId });
   }
 

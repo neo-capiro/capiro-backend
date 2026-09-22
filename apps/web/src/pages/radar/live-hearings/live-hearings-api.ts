@@ -329,7 +329,12 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
       record(row.location).displayName,
       record(row.location).room,
     ),
-    officialPageUrl: stringValue(row.officialPageUrl, row.url),
+    officialPageUrl: stringValue(row.officialPageUrl),
+    officialPlaybackUrl: stringValue(row.officialPlaybackUrl),
+    officialPlaybackKind: stringValue(row.officialPlaybackKind) as
+      | 'official_player_page'
+      | 'official_listing_page'
+      | undefined,
     lastOfficialUpdate: isoValue(row.lastOfficialUpdate, row.sourceUpdatedAt, row.updatedAt),
     streamState:
       stringValue(row.streamState, row.streamAvailability, capture.streamState) ?? 'NOT_CHECKED',

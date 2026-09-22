@@ -1,4 +1,5 @@
 import { TranscriptionRecoveryWorker } from './transcription-recovery.worker.js';
+import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
 
 describe('transcript recovery cursor and recorded context', () => {
   const enabled = process.env.HEARING_TRANSCRIPTION_RECOVERY_ENABLED;
@@ -89,4 +90,124 @@ describe('transcript recovery cursor and recorded context', () => {
       ).toEqual([720000, 'pending']);
     },
   );
+
+  it('only seeds and claims recovery work with a federal canonical hearing', async () => {
+    const executed: string[] = [];
+    const queried: string[] = [];
+    const tx = {
+      $executeRaw: jest.fn(async (parts: TemplateStringsArray) => {
+        executed.push(parts.join('?'));
+        return 1;
+      }),
+      $queryRaw: jest.fn(async (parts: TemplateStringsArray) => {
+        queried.push(parts.join('?'));
+        return [];
+      }),
+    };
+    const transcribe = jest.fn().mockResolvedValue([]);
+    const worker = new TranscriptionRecoveryWorker(
+      { withSystem: (fn: (transaction: typeof tx) => unknown) => fn(tx) } as never,
+      {} as never,
+      {} as never,
+      transcribe,
+    );
+
+    await worker.seed();
+    expect(executed[0]).toContain('s.hearing_id IS NULL OR EXISTS');
+    expect(executed[0]).toContain('federal_committee_hearing');
+    expect(executed[1]).toContain('JOIN federal_committee_hearing');
+    await expect(worker.runOne()).resolves.toBe(false);
+    expect(queried[0]).toContain("j.kind='public'");
+    expect(queried[0]).toContain('JOIN federal_committee_hearing');
+    expect(transcribe).not.toHaveBeenCalled();
+  });
+
+  it('rechecks canonical federal identity before public segment insertion', async () => {
+    const publicAudio = process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED;
+    process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED = 'true';
+    try {
+      const job = {
+        id: 'job-state',
+        kind: 'public',
+        epoch_id: 'epoch-state',
+        cursor_ms: 0n,
+        attempts: 0,
+      };
+      const queries = jest
+        .fn()
+        .mockResolvedValueOnce([job])
+        .mockResolvedValueOnce([{ id: 'federal-at-start' }])
+        .mockResolvedValueOnce([{ id: 'legacy-grant' }])
+        .mockResolvedValueOnce([{ id: 'epoch-state' }])
+        .mockResolvedValueOnce([{ id: 'job-state' }])
+        // The canonical federal row disappeared before the commit transaction.
+        .mockResolvedValueOnce([]);
+      const writes: string[] = [];
+      const tx = {
+        $queryRaw: queries,
+        $executeRaw: jest.fn(async (parts: TemplateStringsArray) => {
+          writes.push(parts.join('?'));
+          return 1;
+        }),
+      };
+      const worker = new TranscriptionRecoveryWorker(
+        { withSystem: (fn: (transaction: typeof tx) => unknown) => fn(tx) } as never,
+        { enabled: true } as never,
+        {} as never,
+        async () => [{ word: 'blocked', start: 0, end: 0.5 }],
+      );
+      Object.assign(worker, {
+        source: async () => ({
+          kind: 'public',
+          epochId: 'epoch-state',
+          captureId: 'capture-state',
+          hearingId: 'hearing-state',
+          sourceUrl: 'https://example.gov/watch',
+          startMs: 0,
+          durationMs: 1000,
+          sampleRate: 16000,
+          channels: 1,
+        }),
+        readPcm: async () => Buffer.alloc(16),
+      });
+
+      await expect(worker.runOne()).resolves.toBe(true);
+      expect(writes.some((sql) => sql.includes('INSERT INTO public_hearing_transcript_segment'))).toBe(
+        false,
+      );
+      expect(
+        writes.find((sql) => sql.includes('last_error=')),
+      ).toBeDefined();
+      expect(queries).toHaveBeenCalledTimes(6);
+    } finally {
+      if (publicAudio === undefined) delete process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED;
+      else process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED = publicAudio;
+    }
+  });
+
+  it('rejects a known Florida publisher source before federal or grant lookups', async () => {
+    const worker = new TranscriptionRecoveryWorker(
+      {} as never,
+      { enabled: true } as never,
+      {} as never,
+    );
+    const query = jest.fn().mockResolvedValue([{ id: 'federal-substitute' }]);
+    await expect(
+      (worker as any).authorize(
+        { $queryRaw: query },
+        {
+          kind: 'public',
+          epochId: 'epoch-state',
+          captureId: 'capture-state',
+          hearingId: 'hearing-state',
+          sourceUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382',
+          startMs: 0,
+          durationMs: 1000,
+          sampleRate: 16000,
+          channels: 1,
+        },
+      ),
+    ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
+    expect(query).not.toHaveBeenCalled();
+  });
 });

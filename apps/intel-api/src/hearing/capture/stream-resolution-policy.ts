@@ -1,3 +1,5 @@
+import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
+
 /**
  * Pure policy boundary between the existing browser-oriented resolver and the
  * future background capture orchestrator. It makes every outcome explicit and
@@ -26,6 +28,7 @@ export const STREAM_CAPTURE_POLICIES = [
 export type StreamCapturePolicy = (typeof STREAM_CAPTURE_POLICIES)[number];
 
 export type StreamCoverageReasonCode =
+  | 'STATE_CAPTURE_LINK_ONLY'
   | 'SOURCE_PERMISSION_REVIEWED'
   | 'FIRST_PARTY_STREAM_READY'
   | 'STREAM_NOT_LIVE_YET'
@@ -91,6 +94,10 @@ export function classifyStreamResolution(
 ): ClassifiedStreamResolution {
   const eventStatus = (context.eventStatus ?? '').trim().toUpperCase();
   const publicAccess = (context.publicAccess ?? '').trim().toUpperCase();
+
+  if (result.note === STATE_CAPTURE_LINK_ONLY) {
+    return terminal('POLICY_BLOCKED', 'BLOCKED', 'STATE_CAPTURE_LINK_ONLY', result);
+  }
 
   if (eventStatus === 'CANCELED' || eventStatus === 'CANCELLED') {
     return terminal('CANCELED', 'BLOCKED', 'EVENT_CANCELED', result);
