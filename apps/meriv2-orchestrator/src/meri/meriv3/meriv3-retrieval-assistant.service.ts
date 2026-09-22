@@ -454,6 +454,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
                   forcedFirstTool: 'research_federal_market_strategy',
                   criticInstructions: meriResearchCriticInstructions(researchDirectorPlan),
                   synthesisInstructions: meriResearchSynthesisInstructions(researchDirectorPlan),
+                  scheduleMode: resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'research'),
+                  asOf: new Date().toISOString(),
                 },
                 runAssistant,
               )

@@ -395,6 +395,7 @@ export class GovernmentLandscapeService {
     source: string,
     sourceRecordId: string,
     asOf: Date = new Date(),
+    evidenceAccuracyMode: 'off' | 'shadow' | 'enforce' = 'off',
   ): Promise<ActionPlanResult> {
     if (source !== 'sam_gov' && source !== FORECAST_INBOX_SOURCE) {
       throw new BadRequestException(
@@ -457,6 +458,7 @@ export class GovernmentLandscapeService {
       hasRequirements: requirementCount > 0,
       hasVehicleAccess: vehiclePositions > 0,
       asOf,
+      evidenceAccuracyMode,
     });
 
     return {

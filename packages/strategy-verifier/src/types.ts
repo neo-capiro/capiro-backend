@@ -74,3 +74,8 @@ export interface VerifyPlanResult {
   errorCount: number;
   warningCount: number;
 }
+
+export interface VerifyPlanOptions {
+  /** Opt-in Stage 0 check; false preserves every existing caller's behavior. */
+  enforcePastDates?: boolean;
+}

@@ -76,6 +76,7 @@ const DEFAULT_HIGH_RISK_CATEGORIES = new Set<string>([
   'enactment',
   'report_language',
   'regulatory_deadline',
+  'schedule_commitment',
   'regulatory_stage',
   'district_representation',
   'grant_award',

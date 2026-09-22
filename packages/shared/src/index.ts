@@ -5219,3 +5219,4 @@ export {
 export * from './schedule/time-zone';
 export * from './schedule/deadline';
 export * from './schedule/validate';
+export * from './schedule/synthesis';

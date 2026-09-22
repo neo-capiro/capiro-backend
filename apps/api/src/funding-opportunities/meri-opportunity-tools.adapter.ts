@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { hasAtLeast, type TenantContext } from '@capiro/shared';
+import {
+  deadlineStatus,
+  daysUntil,
+  hasAtLeast,
+  normalizeDeadline,
+  type NormalizedDeadline,
+  type TenantContext,
+} from '@capiro/shared';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   FundingOpportunityV2SearchService,
@@ -330,6 +338,9 @@ export class MeriOpportunityToolsAdapter {
     );
     const hasMore = result.total == null ? result.opportunities.length === result.pageSize : result.page * result.pageSize < result.total;
     const opportunities = result.opportunities.map(v2RecordToFundingOpportunity);
+    const enforce = resolveEvidenceAccuracyModeForTenant(actor.tenantId, 'chat') === 'enforce';
+    const asOfIso = asOf.toISOString();
+    const deadlines = opportunities.map((row) => opportunityDeadline(row, asOfIso));
     return cap(
       envelope(
         tool,
@@ -342,13 +353,13 @@ export class MeriOpportunityToolsAdapter {
           totalIsCapped: result.totalIsCapped,
           page: result.page,
           pageSize: result.pageSize,
-          counts: { activeGrants: result.counts.grants, activeContracts: result.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: null },
+          counts: { activeGrants: result.counts.grants, activeContracts: result.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: enforce ? deadlines.filter((deadline) => deadline.status === 'open' && deadline.daysRemaining != null && deadline.daysRemaining <= 30).length : null },
           freshness: result.freshness,
           emptyReason: result.emptyReason === 'no_matches' ? 'no_results_for_filters' : result.emptyReason as OpportunitySearch['emptyReason'],
           emptyExplanation: result.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
           missingProfileFields: result.profileGaps?.items ?? null,
           generatedAt: result.generatedAt,
-          opportunities: opportunities.map((row) => toFacts(row)),
+          opportunities: opportunities.map((row) => toFacts(row, {}, enforce ? asOfIso : undefined)),
           clientId: input.clientId,
           hasMore,
           nextPage: hasMore ? result.page + 1 : null,
@@ -557,9 +568,15 @@ export class MeriOpportunityToolsAdapter {
       normalizeOpportunitySearchQuery({ mode: 'matched', clientId: input.clientId, sources: ['grants_gov', 'sam_gov'], lifecycle: ['active'], page: 1, pageSize: MERI_TOOL_CAPS.topOpportunities }),
     );
     const summaryRows = summarySearch.opportunities.map(v2RecordToFundingOpportunity);
+    const enforce = resolveEvidenceAccuracyModeForTenant(actor.tenantId, 'chat') === 'enforce';
+    const asOfIso = asOf.toISOString();
+    const deadlines = summaryRows.map((row) => opportunityDeadline(row, asOfIso));
+    const nextDeadline = deadlines
+      .filter((deadline) => deadline.status === 'open' && deadline.at != null)
+      .sort((a, b) => a.at!.localeCompare(b.at!))[0] ?? null;
     const summary = {
-      clientId: input.clientId, counts: { activeGrants: summarySearch.counts.grants, activeContracts: summarySearch.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: null },
-      nextDeadline: null, missingProfileFields: summarySearch.profileGaps?.items ?? null, freshness: summarySearch.freshness, emptyReason: summarySearch.emptyReason, emptyExplanation: summarySearch.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
+      clientId: input.clientId, counts: { activeGrants: summarySearch.counts.grants, activeContracts: summarySearch.counts.contracts, saved: null, pursuing: null, dismissed: null, deadlinesIn30Days: enforce ? deadlines.filter((deadline) => deadline.status === 'open' && deadline.daysRemaining != null && deadline.daysRemaining <= 30).length : null },
+      nextDeadline: enforce ? nextDeadline : null, missingProfileFields: summarySearch.profileGaps?.items ?? null, freshness: summarySearch.freshness, emptyReason: summarySearch.emptyReason, emptyExplanation: summarySearch.emptyReason ? 'The canonical v2 source returned no matched records.' : null,
       topGrants: summaryRows.filter((row) => row.source === 'grants_gov'), topContracts: summaryRows.filter((row) => row.source === 'sam_gov'),
     };
 
@@ -577,8 +594,8 @@ export class MeriOpportunityToolsAdapter {
       freshness: summary.freshness,
       emptyReason: summary.emptyReason,
       emptyExplanation: summary.emptyExplanation,
-      topGrants: summary.topGrants.slice(0, MERI_TOOL_CAPS.topOpportunities).map(toBrief),
-      topContracts: summary.topContracts.slice(0, MERI_TOOL_CAPS.topOpportunities).map(toBrief),
+      topGrants: summary.topGrants.slice(0, MERI_TOOL_CAPS.topOpportunities).map((row) => toBrief(row, enforce ? asOfIso : undefined)),
+      topContracts: summary.topContracts.slice(0, MERI_TOOL_CAPS.topOpportunities).map((row) => toBrief(row, enforce ? asOfIso : undefined)),
     };
 
     const out = envelope(tool, 'available', asOf, CLIENT_CONTEXT_NOTE, data);
@@ -767,6 +784,7 @@ export class MeriOpportunityToolsAdapter {
         source,
         input.sourceRecordId,
         asOf,
+        resolveEvidenceAccuracyModeForTenant(actor.tenantId, 'chat'),
       );
     } catch (error) {
       return envelope(tool, 'invalid_request', asOf, refusalMessage(error));
@@ -851,6 +869,13 @@ export interface OpportunityBrief {
   workflowStatus: string | null;
   sourceUrl: string | null;
   sourceUpdatedAt: string | null;
+  deadline?: StructuredOpportunityDeadline;
+}
+
+export interface StructuredOpportunityDeadline extends NormalizedDeadline {
+  daysRemaining: number | null;
+  status: 'open' | 'closed' | 'unknown';
+  rawText?: string;
 }
 
 export interface OpportunityFacts extends OpportunityBrief {
@@ -1084,7 +1109,10 @@ function refusalMessage(error: unknown): string {
   return 'Capiro refused this request. Check the source and record id.';
 }
 
-export function toBrief(row: FundingOpportunity | LegacyOpportunityProjection): OpportunityBrief {
+export function toBrief(
+  row: FundingOpportunity | LegacyOpportunityProjection,
+  asOfIso?: string,
+): OpportunityBrief {
   return {
     ref: { source: row.source, sourceRecordId: row.sourceRecordId },
     title: row.title,
@@ -1101,18 +1129,20 @@ export function toBrief(row: FundingOpportunity | LegacyOpportunityProjection): 
     workflowStatus: row.workflow?.status ?? null,
     sourceUrl: row.sourceUrl,
     sourceUpdatedAt: row.sourceUpdatedAt,
+    ...(asOfIso ? { deadline: opportunityDeadline(row, asOfIso) } : {}),
   };
 }
 
 export function toFacts(
   row: FundingOpportunity | LegacyOpportunityProjection,
   page: { offset?: number; limit?: number } = {},
+  asOfIso?: string,
 ): OpportunityFacts {
   const text = row.summary ?? '';
   const offset = Math.min(page.offset ?? 0, text.length);
   const end = Math.min(offset + (page.limit ?? MERI_TOOL_CAPS.summaryChars), text.length);
   return {
-    ...toBrief(row),
+    ...toBrief(row, asOfIso),
     clientId: row.clientId,
     sourceReference: row.sourceReference,
     subAgency: row.subAgency,
@@ -1173,6 +1203,29 @@ export function toFacts(
           ? { state: 'not_requested', tool: 'get_funding_opportunity_requirements' }
           : { state: 'notice_body', tool: 'get_funding_opportunity' },
     },
+  };
+}
+
+function opportunityDeadline(
+  row: FundingOpportunity | LegacyOpportunityProjection,
+  asOfIso: string,
+): StructuredOpportunityDeadline {
+  const rawText = row.responseDeadlineNote?.trim() || undefined;
+  const normalized = rawText
+    ? normalizeDeadline({ value: null, kind: 'date', source: row.source })
+    : normalizeDeadline({
+        value: row.responseDeadline,
+        kind:
+          row.responseDeadline && /^\d{4}-\d{2}-\d{2}$/.test(row.responseDeadline)
+            ? 'date'
+            : 'datetime',
+        source: row.source,
+      });
+  return {
+    ...normalized,
+    daysRemaining: daysUntil(asOfIso, normalized),
+    status: deadlineStatus(asOfIso, normalized),
+    ...(rawText ? { rawText } : {}),
   };
 }
 

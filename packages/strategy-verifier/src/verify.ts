@@ -4,6 +4,7 @@ import type {
   VerifierNode,
   VerifierRefRow,
   VerifyPlanInput,
+  VerifyPlanOptions,
   VerifyPlanResult,
   Violation,
 } from './types.js';
@@ -93,6 +94,20 @@ function checkDates(nodes: VerifierNode[]): Violation[] {
     }
   }
   return out;
+}
+
+/** Milestones before the caller-supplied current date are impossible to execute. */
+export function checkPastDates(nodes: VerifierNode[], fiscal: VerifierFiscal): Violation[] {
+  if (!validIso(fiscal.today)) return [];
+  return nodes
+    .filter((node) => node.kind === 'milestone' && validIso(node.startsOn) && node.startsOn < fiscal.today!)
+    .map((node) => ({
+      code: 'milestone-past-date',
+      severity: 'error' as const,
+      nodeIds: [node.id],
+      message: `Milestone "${node.title}" (${node.startsOn}) is before today (${fiscal.today}).`,
+      suggestion: `Move "${node.title}" to ${fiscal.today} or later, or mark completed work outside the future plan.`,
+    }));
 }
 
 /**
@@ -414,7 +429,7 @@ function checkAmendmentOffsetBeforeFiling(input: VerifyPlanInput): Violation[] {
  * violations, errors first. Pure — safe to call pre-persist (drafts) or
  * post-persist (assistant edits, Watcher).
  */
-export function verifyPlan(input: VerifyPlanInput): VerifyPlanResult {
+export function verifyPlan(input: VerifyPlanInput, options: VerifyPlanOptions = {}): VerifyPlanResult {
   const nodes = input.nodes ?? [];
   const congress = input.congress ?? [];
   const fiscal: VerifierFiscal = input.fiscal ?? {
@@ -425,6 +440,7 @@ export function verifyPlan(input: VerifyPlanInput): VerifyPlanResult {
   };
   const violations: Violation[] = [
     ...checkDates(nodes),
+    ...(options.enforcePastDates ? checkPastDates(nodes, fiscal) : []),
     ...checkFiscalCycle(nodes, input.objective),
     ...checkPlanDependencies(nodes),
     ...checkSubmissionMarkup(nodes, congress),

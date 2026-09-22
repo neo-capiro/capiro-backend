@@ -83,6 +83,7 @@ import type {
   MeriV3ProviderTelemetry,
   OpenAiResponsesResult,
 } from './meriv3.types.js';
+import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -489,6 +490,7 @@ export class MeriV3AssistantService {
       });
       gatheredToolOutput = gatheredToolOutput || executions.length > 0;
       for (const execution of executions) {
+        MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
         input.push({
           type: 'function_call_output',
           call_id: execution.call.call_id,
