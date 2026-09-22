@@ -56,7 +56,11 @@ export function createRevisionGenerator(
     const citedEvidenceIds = parsed.citedEvidenceIds.filter(
       (id): id is string => typeof id === 'string',
     );
-    return { replacementText: parsed.replacementText, citedEvidenceIds };
+    // The revision model's tokens are priced at the synthesis LLM rate, not Jev's.
+    const usage = result.usage && Number.isFinite(result.usage.inputTokens) && Number.isFinite(result.usage.outputTokens)
+      ? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }
+      : undefined;
+    return { replacementText: parsed.replacementText, citedEvidenceIds, ...(usage ? { usage } : {}) };
   };
 }
 

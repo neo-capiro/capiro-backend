@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { deriveEvidenceDates } from './evidence-dates';
 import { evaluateFreshness } from './freshness';
 import { compareExactValues, extractExactValues, houseSenateComparisonComplete } from './exact-comparison';
+import { evaluateClaimDeterministically } from './deterministic-evaluation';
 
 describe('deriveEvidenceDates', () => {
   it.each([
@@ -57,5 +58,32 @@ describe('exact comparison', () => {
     const claim = 'House HASC provided $42M versus Senate SASC at $43M.';
     expect(houseSenateComparisonComplete({ claimText: claim, evidence: ['HASC provided $42M.'] })).toBe(false);
     expect(houseSenateComparisonComplete({ claimText: claim, evidence: ['HASC provided $42M.', 'SASC provided $43M.'] })).toBe(true);
+  });
+});
+
+describe('evaluateClaimDeterministically freshness aggregation', () => {
+  const asOf = '2026-09-22';
+  const claim = { text: 'H.R. 1 passed the House.', category: 'bill_status' };
+  const source = (id: string, dates: { publishedAt?: string; effectiveAt?: string }) => ({
+    id, sourceType: 'official', sourceId: id, evidenceClass: 'official_government_data' as const,
+    primary: true, authoritative: true, requirementIds: [], ...dates,
+  });
+
+  it('keeps a claim fresh while any supporting source is current', () => {
+    const result = evaluateClaimDeterministically({
+      claim, asOf,
+      evidence: [source('old', { publishedAt: '2025-08-01' }), source('current', { effectiveAt: '2026-09-20' })],
+    });
+    expect(result.freshness).toMatchObject({ state: 'fresh', basis: 'effectiveAt', ageDays: 2 });
+  });
+
+  it('marks a claim stale only when no supporting source is fresh', () => {
+    expect(evaluateClaimDeterministically({
+      claim, asOf, evidence: [source('a', { publishedAt: '2025-08-01' }), source('b', { publishedAt: '2025-01-01' })],
+    }).freshness).toMatchObject({ state: 'stale', ageDays: 417 });
+    expect(evaluateClaimDeterministically({
+      claim, asOf, evidence: [source('a', { publishedAt: '2025-08-01' }), source('b', {})],
+    }).freshness.state).toBe('stale');
+    expect(evaluateClaimDeterministically({ claim, asOf, evidence: [source('b', {})] }).freshness.state).toBe('unknown');
   });
 });

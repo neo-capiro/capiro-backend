@@ -17,7 +17,7 @@ const generationInput = {
 };
 
 describe('revision generator', () => {
-  it('sends only affected text and listed evidence with remaining timeout', async () => {
+  it('sends only affected text and listed evidence with remaining timeout and reports token usage', async () => {
     const completeWithSchema = jest.fn(async (_input: Record<string, unknown>) => ({
       input: { replacementText: 'TITAN entered production [2].', citedEvidenceIds: ['e1'] },
       usage: { inputTokens: 20, outputTokens: 8 },
@@ -25,10 +25,21 @@ describe('revision generator', () => {
     const generate = createRevisionGenerator({ completeWithSchema } as never, () => 2_500);
     await expect(generate(generationInput, {})).resolves.toEqual({
       replacementText: 'TITAN entered production [2].', citedEvidenceIds: ['e1'],
+      usage: { inputTokens: 20, outputTokens: 8 },
     });
     expect(completeWithSchema).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 2_500 }));
     const prompt = JSON.parse(String(completeWithSchema.mock.calls[0]![0].prompt));
     expect(prompt.evidence).toEqual([expect.objectContaining({ id: 'e1', citationMarker: '[2]' })]);
+  });
+
+  it('omits usage when the provider does not report it', async () => {
+    const completeWithSchema = jest.fn(async () => ({
+      input: { replacementText: 'TITAN entered production [2].', citedEvidenceIds: ['e1'] },
+    }));
+    const generate = createRevisionGenerator({ completeWithSchema } as never, () => 2_500);
+    await expect(generate(generationInput, {})).resolves.toEqual({
+      replacementText: 'TITAN entered production [2].', citedEvidenceIds: ['e1'],
+    });
   });
 
   it('wins an abort race against a late provider result', async () => {
