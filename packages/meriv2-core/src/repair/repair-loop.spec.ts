@@ -3,7 +3,7 @@ import type { AssuredClaim, ClaimLedger } from '../assurance/claim-ledger';
 import type { DomainEvidencePlan } from '../assurance/evidence-plan';
 import type { DecisionProvider, EvidenceDecision, EvidenceOutcome } from '../jev/decision-contract';
 import { assembleAnswer } from './assemble';
-import { planRemedy } from './plan-remedy';
+import { deriveRequirement, planRemedy } from './plan-remedy';
 import { runRepairLoop } from './run-repair';
 import { ReplayToolExecutor, toolRecordingKey, type ToolExecutor } from './tool-executor';
 import type { RepairBudget, RepairEvidence, RepairToolResult } from './types';
@@ -18,6 +18,10 @@ const plan: DomainEvidencePlan = {
 };
 const registry = { get: (name: string) => name === 'search_official_sources' ? { readOnly: true } : undefined };
 const budget: RepairBudget = { maxPasses: 1, maxToolCalls: 2, maxMs: 5_000, maxInputTokens: 1_000 };
+const exactRequirementCases: Array<['mismatch' | 'absent', 'contradiction' | 'missing_evidence']> = [
+  ['mismatch', 'contradiction'],
+  ['absent', 'missing_evidence'],
+];
 
 function claim(text = 'The official total is 20.'): AssuredClaim {
   return { id: 'claim-1', text, type: 'fact', category: 'general_background', sourceIds: [], primarySourcePresent: false, confidence: 'low', unsupportedReason: 'missing' };
@@ -53,8 +57,36 @@ describe('repair replay scenarios', () => {
     const c = claim('The transcript says the chair promised action.');
     const result = await runRepairLoop(base({ reply: c.text, claims: [c], ledger: { ...ledger(), ledger: { ...ledger().ledger, claims: [c] } }, executor: executor({ ok: false, state: 'document_unavailable', reason: 'transcript unavailable' }) }));
     expect(result.status).toBe('qualified');
-    expect(result.reply).toContain('Evidence limitation');
+    expect(result.reply).toContain('attach the named transcript');
     expect(result.reply).not.toMatch(/re-?upload/i);
+  });
+
+  it.each([
+    ['known name', 'hearing-2026-09-21.txt', "attach the 'hearing-2026-09-21.txt' transcript"],
+    ['unknown name', undefined, 'attach the named transcript'],
+  ])('requests a specific unavailable document when its name is %s', async (_label, missingDocumentName, expected) => {
+    const c = claim('The transcript says the chair promised action.');
+    const result = await runRepairLoop(base({
+      reply: c.text,
+      claims: [c],
+      ledger: { ...ledger(), ledger: { ...ledger().ledger, claims: [c] } },
+      executor: executor({ ok: false, state: 'document_unavailable', reason: 'transcript unavailable' }),
+      missingDocumentName,
+    }));
+    expect(result.reply).toContain(expected);
+  });
+
+  it('preserves unrelated supported content while requesting the named document', async () => {
+    const c = claim('The transcript says the chair promised action.');
+    const result = await runRepairLoop(base({
+      reply: `${c.text} The bill passed the House.`,
+      claims: [c],
+      ledger: { ...ledger(), ledger: { ...ledger().ledger, claims: [c] } },
+      executor: executor({ ok: false, state: 'document_unavailable', reason: 'transcript unavailable' }),
+      missingDocumentName: 'hearing.txt',
+    }));
+    expect(result.reply).toContain("attach the 'hearing.txt' transcript");
+    expect(result.reply).toContain('The bill passed the House.');
   });
 
   it('leaves supported unrelated claims untouched during an outage', async () => {
@@ -97,6 +129,25 @@ describe('repair replay scenarios', () => {
 });
 
 describe('repair safety primitives', () => {
+  it.each(exactRequirementCases)('maps deterministic exact %s to %s', (result, kind) => {
+    const requirement = deriveRequirement({
+      decision: supported, claim: claim(), evidencePlan: plan,
+      envelope: { envelopeVersion: 'meri-evidence-envelope-v1', claimId: 'claim-1', claimText: claim().text,
+        claimKind: 'fact', claimCategory: 'general_background', tenantId: 't', clientId: null,
+        scopeQualifiers: [], asOf: null, sources: [] },
+      deterministic: { exact: { kind: 'amount', claimValue: null, evidenceValues: [], result, detail: '' },
+        freshness: { state: 'fresh', ageDays: 0, basis: 'publishedAt', reason: '' }, houseSenateComplete: true },
+    });
+    expect(requirement?.kind).toBe(kind);
+  });
+
+  it('routes stale deterministic evidence to a current-status refresh', () => {
+    const requirement = { claimId: 'c', kind: 'stale_status' as const, evidenceClass: 'official_government_data' as const,
+      toolFamilies: ['search_official_sources'], requiredFields: [], freshness: 'same_turn' as const };
+    expect(planRemedy(requirement, { tenantId: 't', evidencePlan: plan, toolRegistry: registry }).remedy)
+      .toEqual(expect.objectContaining({ kind: 'refresh_status', toolCall: expect.objectContaining({ args: expect.objectContaining({ route: 'current_status' }) }) }));
+  });
+
   it('fails closed for unknown and mutating tools', () => {
     const requirement = { claimId: 'c', kind: 'missing_evidence' as const, evidenceClass: 'official_government_data' as const, toolFamilies: ['write_record'], requiredFields: [] };
     expect(planRemedy(requirement, { tenantId: 't', evidencePlan: plan, toolRegistry: { get: () => ({ readOnly: false }) } }).reason).toBe('tool_not_read_only');

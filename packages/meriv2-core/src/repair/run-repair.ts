@@ -74,8 +74,25 @@ export async function runRepairLoop(input: RunRepairLoopInput): Promise<RepairOu
         failedDedupeKeys.add(remedy.dedupeKey);
         if (pass >= input.budget.maxPasses) {
           const fallback = proportionalFallback(claim);
-          revisions.push(fallbackRevision(claim, ledger.version, fallback, fallback === 'omitted' ? '' : limitationSentence(claim, result.reason)));
-          status = fallback;
+          if (result.state === 'document_unavailable') {
+            revisions.push(fallbackRevision(
+              claim,
+              ledger.version,
+              'qualified',
+              documentRequest(claim.text, input.missingDocumentName),
+            ));
+            status = 'qualified';
+          } else {
+            revisions.push(fallbackRevision(
+              claim,
+              ledger.version,
+              fallback,
+              fallback === 'omitted'
+                ? 'The unverified exact-value claim was omitted.'
+                : limitationSentence(claim, result.reason),
+            ));
+            status = fallback;
+          }
         }
         continue;
       }
@@ -134,6 +151,12 @@ export async function runRepairLoop(input: RunRepairLoopInput): Promise<RepairOu
   }
 }
 
+function documentRequest(claimText: string, documentName?: string): string {
+  return documentName?.trim()
+    ? `To confirm “${claimText}”, attach the '${documentName.trim()}' transcript.`
+    : `To confirm “${claimText}”, attach the named transcript.`;
+}
+
 function fallbackRevision(claim: AssuredClaim, ledgerVersion: number, outcome: 'qualified' | 'omitted', replacementText: string): ClaimRevision {
   return { claimId: claim.id, originalText: claim.text, replacementText, sourceIds: [], ledgerVersion, dependentSentences: [], outcome };
 }
@@ -161,7 +184,7 @@ function addEvidence(ledger: RepairLedgerVersion, evidence: import('./types').Re
 
 function envelopeFor(claim: AssuredClaim, ledger: RepairLedgerVersion, input: RunRepairLoopInput): EvidenceEnvelope {
   const byId = new Map(ledger.ledger.evidence.map((item) => [item.id, item]));
-  return { envelopeVersion: 'meri-evidence-envelope-v1', claimId: claim.id, claimText: claim.text, claimKind: claim.type, claimCategory: claim.category, tenantId: input.tenantId, clientId: input.clientId ?? null, scopeQualifiers: [...(input.scopeQualifiers ?? [])], asOf: claim.asOf ?? null, sources: claim.sourceIds.flatMap((id) => { const item = byId.get(id); return item ? [{ evidenceId: id, sourceType: item.evidenceClass, sourceId: item.sourceId, documentId: null, version: null, locator: null, passage: ledger.passages[id] ?? '', sourceDate: item.asOf ?? null, retrievedAt: item.retrievedAt ?? null }] : []; }) };
+  return { envelopeVersion: 'meri-evidence-envelope-v1', claimId: claim.id, claimText: claim.text, claimKind: claim.type, claimCategory: claim.category, tenantId: input.tenantId, clientId: input.clientId ?? null, scopeQualifiers: [...(input.scopeQualifiers ?? [])], asOf: claim.asOf ?? null, sources: claim.sourceIds.flatMap((id) => { const item = byId.get(id); return item ? [{ evidenceId: id, sourceType: item.evidenceClass, sourceId: item.sourceId, documentId: null, version: null, locator: null, passage: ledger.passages[id] ?? '', sourceDate: item.asOf ?? null, publishedAt: item.publishedAt ?? null, effectiveAt: item.effectiveAt ?? null, retrievedAt: item.retrievedAt ?? null }] : []; }) };
 }
 
 function event(at: number, type: RepairTraceEvent['type'], claimId: string | undefined, pass: number | undefined, detail: Record<string, unknown>): RepairTraceEvent {

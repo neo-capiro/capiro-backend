@@ -15,12 +15,18 @@ export interface RemedyPlanResult {
 
 export function deriveRequirement(input: DerivedRequirementInput): RepairRequirement | null {
   const { decision, claim, envelope, evidencePlan } = input;
-  if (decision.kind === 'outcome' && decision.outcome === 'supported') return null;
+  const exactResult = input.deterministic?.exact.result;
+  const freshnessState = input.deterministic?.freshness.state;
+  if (decision.kind === 'outcome' && decision.outcome === 'supported'
+    && exactResult !== 'mismatch' && exactResult !== 'absent' && freshnessState !== 'stale') return null;
 
   const requirement = selectRequirement(evidencePlan.requirements, claim.category, envelope);
   if (!requirement) return null;
   let kind: RepairRequirement['kind'] = 'missing_evidence';
-  if (decision.kind === 'failure' && decision.state === 'document_unavailable') kind = 'document_unavailable';
+  if (freshnessState === 'stale') kind = 'stale_status';
+  else if (exactResult === 'mismatch') kind = 'contradiction';
+  else if (exactResult === 'absent') kind = 'missing_evidence';
+  else if (decision.kind === 'failure' && decision.state === 'document_unavailable') kind = 'document_unavailable';
   else if (decision.kind === 'outcome' && decision.outcome === 'contradicted') kind = 'contradiction';
   else if (decision.kind === 'outcome' && decision.outcome === 'conflicting_evidence') kind = 'conflict';
   else if (claim.asOf && requirement.freshness === 'same_turn') kind = 'stale_status';
@@ -74,6 +80,7 @@ function combinedArgs(requirement: RepairRequirement, context: RepairContext): R
     evidenceClass: requirement.evidenceClass,
     requiredFields: [...new Set(requirement.requiredFields)].sort(),
     freshness: requirement.freshness ?? null,
+    ...(requirement.kind === 'stale_status' ? { route: 'current_status' } : {}),
     tenantId: context.tenantId,
     ...(context.clientId ? { clientId: context.clientId } : {}),
   };

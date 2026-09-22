@@ -48,7 +48,22 @@ export * from './rollout/capability-rollout';
 export * from './rollout/evidence-accuracy';
 export * from './rollout/claim-assessment';
 export * from './rollout/auto-correction';
+export * from './rollout/coverage-retrieval';
+export * from './rollout/passage-selection';
 export * from './jev/index';
+export * from './repair/types';
+export {
+  DeduplicatingToolExecutor,
+  RecordingToolExecutor,
+  ReplayToolExecutor,
+  toolRecordingKey,
+  type RecordedToolResult,
+  type ToolExecutor as RepairToolExecutor,
+} from './repair/tool-executor';
+export * from './repair/revise';
+export * from './repair/run-repair';
+export * from './canary/limits';
+export * from './canary/canary-report';
 export * from './llm/llm-client';
 export * from './tools/client/get-client-context';
 export * from './tools/delegated/delegated-tool';

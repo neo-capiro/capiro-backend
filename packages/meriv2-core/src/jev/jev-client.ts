@@ -18,9 +18,17 @@ export interface JevChoiceAnswer {
   confidence: number;
 }
 
+export interface JevNoulAnswer {
+  type: 'noul';
+  /** Probability that the answer is yes. */
+  noul: number;
+}
+
+export type JevAnswer = JevChoiceAnswer | JevNoulAnswer;
+
 export interface JevSystemOneResponse {
   model: string;
-  answers: Record<string, JevChoiceAnswer>;
+  answers: Record<string, JevAnswer>;
   usage: { input_tokens: number; output_tokens: number };
 }
 
@@ -117,10 +125,19 @@ function validateResponse(
   if (JSON.stringify(Object.keys(root.data.answers).sort()) !== JSON.stringify(questionIds)) {
     throw new JevMalformedResponseError();
   }
-  const answers: Record<string, JevChoiceAnswer> = {};
+  const answers: Record<string, JevAnswer> = {};
   for (const id of questionIds) {
     const question = questions[id];
     if (!question) throw new JevMalformedResponseError();
+    if (question.type === 'noul') {
+      const parsed = z.object({
+        type: z.literal('noul'),
+        noul: z.number().finite().min(0).max(1),
+      }).safeParse(root.data.answers[id]);
+      if (!parsed.success) throw new JevMalformedResponseError();
+      answers[id] = parsed.data;
+      continue;
+    }
     const criteria = Object.keys(question.criteria).sort();
     const parsed = z
       .object({

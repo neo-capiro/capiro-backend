@@ -73,6 +73,8 @@ export interface ChatInput {
    * Each is a base64 payload + its media type (e.g. image/png).
    */
   currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
+  /** Canonical document ids explicitly selected/attached for this turn. */
+  selectedDocumentIds?: string[];
 }
 
 export interface ChatStep {

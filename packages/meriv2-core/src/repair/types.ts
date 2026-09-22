@@ -1,6 +1,7 @@
 import type { AssuredClaim, AssuredEvidence, ClaimLedger } from '../assurance/claim-ledger';
 import type { DomainEvidencePlan, EvidenceClass, EvidenceRequirement } from '../assurance/evidence-plan';
 import type { EvidenceDecision, EvidenceEnvelope } from '../jev/decision-contract';
+import type { DeterministicClaimEvaluation } from '../assurance/deterministic-evaluation';
 
 export type RepairRequirementKind =
   | 'missing_evidence'
@@ -141,6 +142,8 @@ export interface RunRepairLoopInput {
   tenantId: string;
   clientId?: string | null;
   scopeQualifiers?: string[];
+  /** Human-visible name of an exact source the user must provide, when known. */
+  missingDocumentName?: string;
   signal?: AbortSignal;
   now?: () => number;
 }
@@ -150,4 +153,5 @@ export interface DerivedRequirementInput {
   claim: AssuredClaim;
   envelope: EvidenceEnvelope;
   evidencePlan: DomainEvidencePlan;
+  deterministic?: DeterministicClaimEvaluation;
 }

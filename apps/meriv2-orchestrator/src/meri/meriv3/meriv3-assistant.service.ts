@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import {
   extractCitationsFromToolResult,
   formatCitationsForPrompt,
+  computeAiCostUsd,
   recordAiUsageEvent,
   validateCitationMarkers,
   validateFormBCitations,
@@ -26,8 +27,12 @@ import {
   ledgerToToolResultMap,
   planGovernmentAffairsEvidence,
   resolveAssuranceRolloutMode,
+  resolveAutoCorrectionCategories,
+  resolveAutoCorrectionMode,
   resolveClaimAssessmentMode,
+  resolveCoverageRetrievalMode,
   resolveEvidenceAccuracyMode,
+  resolvePassageSelectionMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -39,6 +44,7 @@ import {
   type ToolRegistry,
   assertToolExecutionActive,
   type ToolExecutionControl,
+  ReplayToolExecutor,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -87,8 +93,27 @@ import type {
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
-import { createChatDecisionProviders } from '../jev/jev-provider.factory.js';
+import { createChatDecisionProviders, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
+import {
+  appendClaimTiedCoverageDisclosure,
+  buildCoverageRequirements,
+  compareCoverage,
+  planFollowUp,
+  type CoverageGap,
+} from '../retrieval/meri-evidence-requirements.js';
+import { applyLiveRepair } from '../repair/live-repair.service.js';
+import { createOrchestratorToolExecutor } from '../repair/orchestrator-tool-executor.js';
+import { createRevisionGenerator } from '../repair/revision-generator.js';
+import {
+  askPassageQuestions,
+  applyPassageSelectionToSynthesis,
+  buildPassageCandidates,
+  PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+  rebuildSynthesisEvidence,
+  selectPassages,
+} from '../jev/passage-selector.js';
+import { CanaryTurnCollector, replyRequestsClarification } from '../canary/canary-turn-collector.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -320,6 +345,29 @@ export class MeriV3AssistantService {
       surface: 'chat',
     });
     const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat');
+    const autoCorrectionMode = resolveAutoCorrectionMode(process.env, ctx.tenantId, 'chat');
+    const autoCorrectionCategories = resolveAutoCorrectionCategories(process.env);
+    const coverageRetrievalMode = resolveCoverageRetrievalMode(
+      process.env,
+      ctx.tenantId,
+      'chat',
+    );
+    const passageSelectionMode = resolvePassageSelectionMode(process.env, ctx.tenantId, 'chat');
+    const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat');
+    const canary = new CanaryTurnCollector({
+      conversationId: dto.conversationId ?? null,
+      tenantId: ctx.tenantId,
+      surface: 'chat',
+      modes: {
+        evidenceAccuracy: evidenceAccuracyMode,
+        claimAssessment: claimAssessmentMode,
+        coverageRetrieval: coverageRetrievalMode,
+        passageSelection: passageSelectionMode,
+        autoCorrection: autoCorrectionMode,
+        jevProvider: process.env.MERI_JEV_PROVIDER_MODE ?? 'off',
+        routing: process.env.MERI_CHAT_EVIDENCE_JUDGE ?? 'legacy',
+      },
+    });
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
 
@@ -354,6 +402,15 @@ export class MeriV3AssistantService {
     const availableSchemas = toolSchemas.filter(
       (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
     );
+    const coverageRequirements =
+      coverageRetrievalMode === 'off'
+        ? []
+        : buildCoverageRequirements({
+            plan: evidencePlan,
+            request: lastUserText,
+            frame: operatingFrame,
+            clientId: dto.clientId,
+          });
 
     const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
     const verificationAvailable = availableSchemas.length > 0;
@@ -474,6 +531,9 @@ export class MeriV3AssistantService {
     let gatheredToolOutput = false;
     let completionRepairs = 0;
     let automaticReads = 0;
+    let residualCoverageGaps: CoverageGap[] = [];
+    let latestCoverageGaps: CoverageGap[] = [];
+    let documentRequests = 0;
     const MAX_AUTOMATIC_DOCUMENT_READS = 24;
     const canReadDocuments =
       availableSchemas.some((schema) => schema.name === 'read_client_documents') &&
@@ -566,10 +626,104 @@ export class MeriV3AssistantService {
         status: 'done',
         detail: reason,
       });
+      let synthesisInput = input;
+      let synthesisInstructions = instructions;
+      if (passageSelectionMode !== 'off') {
+        const selectionStartedAt = Date.now();
+        const candidates = buildPassageCandidates({
+          ledgerEntries,
+          citations,
+          requiredToolFamilies: coverageRetrievalMode === 'off'
+            ? evidencePlan.requirements
+                .filter((requirement) => requirement.level === 'required')
+                .flatMap((requirement) => requirement.toolFamilies)
+            : [],
+          requiredPassageIds: latestCoverageGaps
+            .filter((gap) => gap.essential && gap.status === 'satisfied')
+            .flatMap((gap) => gap.evidenceIds),
+          documentReferencePassageIds: citations
+            .filter((citation) => {
+              const evidence = citation.documentEvidence;
+              if (!evidence) return false;
+              return dto.selectedDocumentIds?.includes(evidence.documentId)
+                || coverageRequirements.some((requirement) =>
+                  requirement.route?.documentId === evidence.documentId);
+            })
+            .flatMap((citation) => [citation.id, ...(citation.stableId ? [citation.stableId] : [])]),
+          userSelectedDocumentIds: dto.selectedDocumentIds,
+        });
+        const provider = createPassageSelectionClient({
+          env: process.env, tenantId: ctx.tenantId, surface: 'chat',
+        });
+        const answers = await askPassageQuestions({
+          question: lastUserText,
+          clientId: dto.clientId,
+          candidates,
+          provider: provider.client,
+          signal: opts.signal,
+          deadlineAt: Math.min(opts.deadlineAt ?? Infinity, Date.now() + Math.max(0, remainingMs - 1_000)),
+        });
+        const selection = selectPassages({ candidates, answers });
+        const rebuilt = rebuildSynthesisEvidence({
+          input,
+          baseInstructions: instructions,
+          citationPrompt: initialEvidence.citationPrompt,
+          candidates,
+          kept: selection.kept,
+          citations,
+        });
+        const promptCharsBefore = instructions.length + JSON.stringify(input).length;
+        const promptCharsAfter = rebuilt.instructions.length + JSON.stringify(rebuilt.input).length;
+        const requiredCount = candidates.filter((candidate) => candidate.required).length;
+        const evidenceRecall = requiredCount ? selection.retainedRequired / requiredCount : 1;
+        if (evidenceRecall !== 1) throw new Error('Passage selection required-evidence recall invariant failed');
+        this.logger.log('meri.passage_selection', {
+          conversationId: dto.conversationId ?? null,
+          candidates: candidates.length,
+          kept: selection.kept.length,
+          dropped: selection.dropped.length,
+          retainedRequired: selection.retainedRequired,
+          retainedUserSelected: selection.retainedUserSelected,
+          retainedContradictory: selection.retainedContradictory,
+          evidenceRecall,
+          conflictRetention: candidates.some((candidate) => candidate.deterministicConflict)
+            ? selection.retainedContradictory / candidates.filter((candidate) => candidate.deterministicConflict).length
+            : 1,
+          fallback: selection.fallback,
+          promptCharsBefore,
+          promptCharsAfter,
+          latencyMs: Date.now() - selectionStartedAt,
+          inputTokens: answers.inputTokens,
+          estimatedCostUsd: answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+          questionVersion: answers.questionVersion,
+          model: answers.model || provider.model,
+        });
+        const selectedSynthesis = applyPassageSelectionToSynthesis({
+          mode: passageSelectionMode,
+          originalInput: input,
+          originalInstructions: instructions,
+          rebuilt,
+          fallback: selection.fallback,
+        });
+        synthesisInput = selectedSynthesis.input;
+        synthesisInstructions = selectedSynthesis.instructions;
+        canary.notePassageSelection({
+          candidates: candidates.length,
+          kept: selection.kept.length,
+          dropped: selection.dropped.length,
+          requiredCandidates: requiredCount,
+          requiredRetained: selection.retainedRequired,
+          contradictoryRetained: selection.retainedContradictory,
+          fallback: selection.fallback,
+          latencyMs: Date.now() - selectionStartedAt,
+          tokens: answers.inputTokens,
+          costUsd: answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+        });
+      }
       const synthesis = await this.openai.complete({
         profile,
-        instructions: `${instructions}\n\n${finishInstructions()}`,
-        input,
+        instructions: `${synthesisInstructions}\n\n${finishInstructions()}`,
+        input: synthesisInput,
         tools: [],
         toolChoice: 'none',
         timeoutMs,
@@ -579,6 +733,10 @@ export class MeriV3AssistantService {
       });
       recordProviderResult(synthesis);
       addUsage(usage, synthesis.usage);
+      canary.noteSynthesis(
+        synthesis.usage.inputTokens + synthesis.usage.outputTokens,
+        computeAiCostUsd(synthesis.model, synthesis.usage.inputTokens, synthesis.usage.outputTokens),
+      );
       void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
       return synthesis.outputText;
     };
@@ -607,6 +765,10 @@ export class MeriV3AssistantService {
         recordProviderResult(response);
         assertToolExecutionActive(opts);
         addUsage(usage, response.usage);
+        canary.noteSynthesis(
+          response.usage.inputTokens + response.usage.outputTokens,
+          computeAiCostUsd(response.model, response.usage.inputTokens, response.usage.outputTokens),
+        );
         void this.meterRound(ctx, response.model, response.usage, response.usedTenantKey);
 
         // The Responses API requires reasoning/function-call output items to be
@@ -639,6 +801,98 @@ export class MeriV3AssistantService {
         await executeCalls(response.functionCalls);
         await continueDocumentReads();
       }
+
+      if (coverageRetrievalMode !== 'off') {
+        const coverageStartedAt = Date.now();
+        let gaps = compareCoverage({
+          requirements: coverageRequirements,
+          toolsUsed,
+          receipts: toolCoverage,
+          ledgerEntries,
+          citations,
+        });
+        const readOnlySchemas = availableSchemas.flatMap((schema) => {
+          const metadata = this.registry.executionMetadata?.(schema.name);
+          return metadata?.readOnly === true && metadata.executionMode === 'read'
+            ? [{ ...schema, readOnly: true }]
+            : [];
+        });
+        const followUp = planFollowUp({
+          gaps,
+          requirements: coverageRequirements,
+          toolSchemas: readOnlySchemas,
+          request: lastUserText,
+          frame: operatingFrame,
+        });
+        let executed = 0;
+        const attempted = new Set<string>();
+        if (coverageRetrievalMode === 'enforce' && followUp) {
+          for (const planned of followUp.calls.slice(0, 2)) {
+            const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
+            if (remainingMs <= reserveMs) break;
+            const key = `${planned.name}:${JSON.stringify(planned.arguments)}`;
+            if (attempted.has(key)) continue;
+            attempted.add(key);
+            const call: OpenAiResponsesFunctionCall = {
+              type: 'function_call',
+              call_id: `coverage_follow_up_${executed}`,
+              name: planned.name,
+              arguments: JSON.stringify(planned.arguments),
+            };
+            input.push(call as unknown as Record<string, unknown>);
+            await executeCalls([call]);
+            executed++;
+          }
+          gaps = compareCoverage({
+            requirements: coverageRequirements,
+            toolsUsed,
+            receipts: toolCoverage,
+            ledgerEntries,
+            citations,
+          });
+          // The prior prose was produced before the server-coordinated evidence
+          // arrived. Force one no-tools synthesis over the augmented input.
+          if (executed > 0) finalText = '';
+        }
+        const essentialResiduals = gaps.filter(
+          (gap) => gap.essential && gap.status !== 'satisfied',
+        );
+        residualCoverageGaps =
+          coverageRetrievalMode === 'enforce' ? essentialResiduals : [];
+        latestCoverageGaps = gaps;
+        canary.noteCoverage({
+          gaps: gaps.filter((gap) => gap.status !== 'satisfied').length,
+          followUps: executed,
+          residual: essentialResiduals.length,
+          latencyMs: Date.now() - coverageStartedAt,
+        });
+        this.logger.log('meri.coverage.turn', {
+          conversationId: dto.conversationId ?? null,
+          requirements: coverageRequirements.map((requirement) => ({
+            requirementId: requirement.requirementId,
+            essential: requirement.essential,
+            template: requirement.template ?? null,
+          })),
+          gaps: gaps.map((gap) => ({
+            requirementId: gap.requirementId,
+            status: gap.status,
+            essential: gap.essential,
+            materiality: gap.materiality,
+          })),
+          followUpPlanned: followUp?.calls.length ?? 0,
+          executed,
+          satisfiedAfter: gaps.filter((gap) => gap.status === 'satisfied').length,
+          changedAnswer:
+            coverageRetrievalMode === 'enforce' &&
+            essentialResiduals.some((gap) => gap.materiality === 'changes_answer'),
+          durationMs: Date.now() - coverageStartedAt,
+          mode: coverageRetrievalMode,
+        });
+      }
+
+      // Coverage and its follow-up evidence must exist before enforce selection.
+      // Shadow remains output-identical and observes selection on forced-synthesis turns.
+      if (passageSelectionMode === 'enforce' && !opts.signal?.aborted) finalText = '';
 
       if (!finalText && !opts.signal?.aborted) {
         finalText = await runForcedSynthesis(
@@ -734,7 +988,7 @@ export class MeriV3AssistantService {
       finalText = documentCompletion!.partialReply(finalText);
     }
 
-    const released = this.finalizeReply({
+    let released = this.finalizeReply({
       ctx,
       dto,
       reply: enforceClientFilingConfirmation({
@@ -751,14 +1005,129 @@ export class MeriV3AssistantService {
       evidenceAccuracyMode,
       complianceOutcome,
       verificationAvailable,
+      coverageRequirements,
+      residualCoverageGaps,
       emit,
     });
 
+    if (autoCorrectionMode !== 'off' && released.reply && autoCorrectionCategories.categories.size) {
+      if (autoCorrectionCategories.unknownTokens.length) {
+        this.logger.warn('meri.auto_correction.unknown_categories', {
+          tokens: autoCorrectionCategories.unknownTokens,
+        });
+      }
+      const asOf = new Date().toISOString();
+      const claimLedger = buildClaimLedgerFromToolResults({
+        output: released.reply,
+        ledgerEntries,
+        citations: released.citations,
+        plan: evidencePlan,
+      });
+      const claims = extractMaterialClaims({
+        replyText: released.reply,
+        citations: released.citations,
+        ledger: claimLedger,
+        asOf,
+      });
+      const passages = Object.fromEntries(claimLedger.evidence.map((evidence) => {
+        const citation = released.citations.find((item) =>
+          item.id === evidence.sourceId || item.stableId === evidence.id,
+        );
+        const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
+        return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
+      }));
+      const providers = createChatDecisionProviders({
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface: 'chat',
+        llm: this.llm,
+        logger: this.logger,
+      });
+      const repairStartedAt = Date.now();
+      const executor = autoCorrectionMode === 'enforce'
+        ? createOrchestratorToolExecutor({
+            registry: this.registry,
+            schemas: availableSchemas,
+            context: {
+              tenantId: ctx.tenantId,
+              clientId: dto.clientId,
+              conversationId: dto.conversationId,
+              request: lastUserText,
+            },
+            citations: released.citations,
+            ledgerEntries,
+            invoke: (name, input) => this.registry.invoke(name, input, ctx),
+          })
+        : new ReplayToolExecutor([]);
+      const repair = await applyLiveRepair({
+        released: released.reply,
+        claims,
+        ledger: claimLedger,
+        citations: released.citations,
+        passages,
+        evidencePlan,
+        residualGaps: residualCoverageGaps,
+        documentReferences: coverageRequirements.flatMap((requirement) => {
+          const id = requirement.route?.documentId;
+          const filename = requirement.route?.documentName;
+          if (typeof id !== 'string' || typeof filename !== 'string') return [];
+          return [{
+            kind: 'attachment' as const,
+            id,
+            filename,
+            version: null,
+            contentState: 'metadata_only' as const,
+            readable: false,
+            relevantPassageIds: [],
+            resolution: 'explicit_id' as const,
+          }];
+        }),
+        tenantId: ctx.tenantId,
+        clientId: dto.clientId,
+        conversationId: dto.conversationId,
+        providers,
+        executor,
+        generate: autoCorrectionMode === 'enforce'
+          ? createRevisionGenerator(this.llm, () => Math.max(1, 8_000 - (Date.now() - repairStartedAt)))
+          : async ({ affectedText }) => ({ replacementText: affectedText, citedEvidenceIds: [] }),
+        promotedCategories: autoCorrectionCategories.categories,
+        budget: { maxPasses: 1, maxToolCalls: 3, maxMs: 8_000, maxInputTokens: 60_000 },
+        signal: opts.requestSignal ?? opts.signal,
+        logger: this.logger,
+        mode: autoCorrectionMode,
+      });
+      canary.noteRepair({
+        ...repair.metrics.repairs,
+        assessmentMs: repair.metrics.assessmentMs,
+        repairMs: repair.metrics.repairMs,
+        tokens: repair.metrics.inputTokens,
+        costUsd: repair.metrics.estimatedCostUsd,
+        sampled: repair.metrics.sampled,
+      });
+      documentRequests = repair.metrics.repairs.documentRequested;
+      canary.noteLegacy(repair.metrics.legacyInputTokens);
+      if (autoCorrectionMode === 'enforce' && repair.changed) {
+        const formA = validateCitationMarkers(repair.reply, repair.citations);
+        const formB = validateFormBCitations(
+          formA.cleanedText,
+          ledgerToToolResultMap(ledgerEntries),
+        );
+        released = { ...released, reply: formB.sanitizedText, citations: [...formA.used] };
+      }
+    }
+
     if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
       emit({ type: 'text', text: released.reply });
+    const canaryEvent = canary.build({
+      outcome: opts.signal?.aborted ? 'aborted' : released.held ? 'held'
+        : telemetry.finishReason === 'runtime_error' ? 'error' : 'released',
+      clarificationRequested: replyRequestsClarification(released.reply, documentRequests),
+      heldReason: released.held ? complianceOutcome ?? 'release_gate' : null,
+    });
+    this.logger.log('meri.canary.turn', canaryEvent);
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
-    if (resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat') !== 'off') {
+    if (claimAssessmentMode !== 'off') {
       const asOf = new Date().toISOString();
       scheduleClaimInventoryShadow({
         conversationId: dto.conversationId,
@@ -1273,6 +1642,8 @@ export class MeriV3AssistantService {
     evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
     complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
     verificationAvailable: boolean;
+    coverageRequirements: ReturnType<typeof buildCoverageRequirements>;
+    residualCoverageGaps?: CoverageGap[];
     emit: (event: MeriV3ChatStreamEvent) => void;
   }): { reply: string; citations: MeriCitation[]; held: boolean } {
     const formA = validateCitationMarkers(args.reply, args.citations);
@@ -1388,6 +1759,14 @@ export class MeriV3AssistantService {
       }
     }
 
+    const residualCoverageGaps = args.residualCoverageGaps ?? [];
+    if (residualCoverageGaps.length) {
+      released = appendClaimTiedCoverageDisclosure(
+        released,
+        residualCoverageGaps,
+        args.coverageRequirements,
+      );
+    }
     return { reply: released, citations: usedCitations, held };
   }
 

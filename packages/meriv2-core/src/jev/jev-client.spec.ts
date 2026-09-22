@@ -30,6 +30,8 @@ const envelope: EvidenceEnvelope = {
       locator: 'p. 2',
       passage: 'The program received $1 million.',
       sourceDate: '2026-09-20',
+      publishedAt: null,
+      effectiveAt: null,
       retrievedAt: '2026-09-21T00:00:00Z',
     },
   ],

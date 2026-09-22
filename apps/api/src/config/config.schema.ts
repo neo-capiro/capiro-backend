@@ -753,15 +753,26 @@ export const configSchema = z.object({
   MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
   MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
 
+  // Stage 2a coverage-driven follow-up retrieval. Dark unless independently enrolled.
+  MERI_COVERAGE_RETRIEVAL_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_COVERAGE_RETRIEVAL_TENANTS: z.string().optional(),
+  MERI_COVERAGE_RETRIEVAL_SURFACES: z.string().optional(),
+
   // Stage 1 claim inventory. Enforce remains shadow-only until a later stage.
   MERI_CLAIM_ASSESSMENT_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
   MERI_CLAIM_ASSESSMENT_TENANTS: z.string().optional(),
   MERI_CLAIM_ASSESSMENT_SURFACES: z.string().optional(),
 
-  // Stage 1d automatic correction control. Replay-only; no live application caller.
+  // Stage 2c bounded live correction. Category promotion remains human-controlled and dark.
   MERI_AUTO_CORRECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
   MERI_AUTO_CORRECTION_TENANTS: z.string().optional(),
   MERI_AUTO_CORRECTION_SURFACES: z.string().optional(),
+  MERI_AUTO_CORRECTION_CATEGORIES: z.string().optional(),
+
+  // Stage 2b Jev passage selection. Effective mode also requires Jev enrollment/task availability.
+  MERI_PASSAGE_SELECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_PASSAGE_SELECTION_TENANTS: z.string().optional(),
+  MERI_PASSAGE_SELECTION_SURFACES: z.string().optional(),
 
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
   TYPESAFE_API_KEY: z.string().min(1).optional(),

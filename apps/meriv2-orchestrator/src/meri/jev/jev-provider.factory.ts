@@ -10,6 +10,7 @@ import {
   resolveJevProviderMode,
   type CapabilityRolloutEnvironment,
   type DecisionProvider,
+  type JevClient,
   type JevRouting,
   type LlmClient,
 } from '@capiro/meriv2-core';
@@ -34,6 +35,32 @@ export interface ChatDecisionProviders {
   jev: DecisionProvider | null;
   legacy: DecisionProvider;
   routing: JevRouting;
+}
+
+export function createPassageSelectionClient(input: Omit<CreateChatDecisionProvidersInput, 'llm'>): {
+  client: JevClient | null;
+  model: string;
+  reason: string | null;
+} {
+  const config = resolveJevConfig(input.env);
+  const providerMode = resolveJevProviderMode(input.env, input.tenantId, input.surface);
+  const reason = !config.available
+    ? config.reasons.join(',') || 'config_unavailable'
+    : providerMode === 'off'
+      ? 'rollout_off'
+      : !config.tasks.includes('passage_relevance')
+        ? 'task_not_enabled:passage_relevance'
+        : null;
+  if (reason) return { client: null, model: config.model, reason };
+  return {
+    client: createJevClient({
+      apiKey: input.env.TYPESAFE_API_KEY!, model: config.model, baseUrl: config.baseUrl,
+      timeoutMs: config.timeoutMs, maxAttempts: config.maxAttempts,
+      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+    }),
+    model: config.model,
+    reason: null,
+  };
 }
 
 function logUnavailableOnce(logger: ChatDecisionProviderLogger, reason: string): void {
