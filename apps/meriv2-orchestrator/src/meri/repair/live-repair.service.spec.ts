@@ -122,7 +122,7 @@ describe('live bounded repair', () => {
     }));
     expect(jev.assess).not.toHaveBeenCalled();
     expect(legacy.assess).not.toHaveBeenCalled();
-    expect(result.reply).toContain('attach the named transcript');
+    expect(result.reply).toContain("attach the 'hearing.txt' transcript");
   });
 
   it('returns the original reply on external abort', async () => {
