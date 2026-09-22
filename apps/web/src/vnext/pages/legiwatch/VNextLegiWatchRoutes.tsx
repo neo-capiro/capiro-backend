@@ -24,6 +24,9 @@ const HearingDetailRoute = lazy(async () => ({
 const CommitteeRoomRoute = lazy(async () => ({
   default: (await import('./hearings/CommitteeRoomRoute.js')).CommitteeRoomRoute,
 }));
+const StateCommitteeRoomRoute = lazy(async () => ({
+  default: (await import('./hearings/StateCommitteeRoomRoute.js')).StateCommitteeRoomRoute,
+}));
 
 function LiveRoomRoute() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -52,7 +55,9 @@ function HearingDetailRouteWrapped() {
         </div>
       }
     >
-      <div className="lw"><HearingDetailRoute /></div>
+      <div className="lw">
+        <HearingDetailRoute />
+      </div>
     </Suspense>
   );
 }
@@ -68,7 +73,27 @@ function CommitteeRoomRouteWrapped() {
         </div>
       }
     >
-      <div className="lw"><CommitteeRoomRoute /></div>
+      <div className="lw">
+        <CommitteeRoomRoute />
+      </div>
+    </Suspense>
+  );
+}
+
+function StateCommitteeRoomRouteWrapped() {
+  const { stateCommitteeId } = useParams<{ stateCommitteeId: string }>();
+  if (!stateCommitteeId) return <Navigate to="/legiwatch?tab=committees&jurisdiction=FL" replace />;
+  return (
+    <Suspense
+      fallback={
+        <div className="lw" style={{ padding: 24 }}>
+          <LwStateLoading rows={4} />
+        </div>
+      }
+    >
+      <div className="lw">
+        <StateCommitteeRoomRoute />
+      </div>
     </Suspense>
   );
 }
@@ -86,6 +111,10 @@ export function VNextLegiWatchRoutes() {
       {/* PR B — canonical hearing detail (LW-QA-003/004). */}
       <Route path="/legiwatch/hearings/:hearingId" element={<HearingDetailRouteWrapped />} />
       {/* PR B — committee room (LW-QA-013). */}
+      <Route
+        path="/legiwatch/committees/FL/:stateCommitteeId"
+        element={<StateCommitteeRoomRouteWrapped />}
+      />
       <Route path="/legiwatch/committees/:systemCode" element={<CommitteeRoomRouteWrapped />} />
       {/* §7.8 — the live hearing room is a full-width route. */}
       <Route path="/intelligence/hearing-watch/:sessionId" element={<LiveRoomRoute />} />
