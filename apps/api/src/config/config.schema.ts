@@ -753,6 +753,17 @@ export const configSchema = z.object({
   MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
   MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
 
+  // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
+  TYPESAFE_API_KEY: z.string().min(1).optional(),
+  MERI_JEV_MODEL: z.string().optional(),
+  MERI_JEV_TIMEOUT_MS: z.string().optional(),
+  MERI_JEV_MAX_ATTEMPTS: z.string().optional(),
+  MERI_JEV_PROVIDER_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_JEV_PROVIDER_TENANTS: z.string().optional(),
+  MERI_JEV_PROVIDER_SURFACES: z.string().optional(),
+  MERI_CHAT_EVIDENCE_JUDGE: z.enum(['llm', 'jev', 'paired', 'cascade']).optional(),
+  MERI_JEV_TASKS: z.string().optional(),
+
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the
   // `Authorization: Token <key>` scheme, NOT Bearer). RECALL_WEBHOOK_SECRET

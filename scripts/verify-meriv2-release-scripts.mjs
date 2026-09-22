@@ -42,6 +42,12 @@ async function main() {
     "MERI_EVIDENCE_ACCURACY_MODE: 'off'",
     "MERI_EVIDENCE_ACCURACY_TENANTS: ''",
     "MERI_EVIDENCE_ACCURACY_SURFACES: ''",
+    "MERI_JEV_PROVIDER_MODE: 'off'",
+    "MERI_JEV_PROVIDER_TENANTS: ''",
+    "MERI_JEV_PROVIDER_SURFACES: ''",
+    "MERI_JEV_MODEL: 'jev-1.13.0'",
+    "MERI_CHAT_EVIDENCE_JUDGE: 'llm'",
+    "MERI_JEV_TASKS: ''",
     "MEMORY_AUTOLEARN_GOVERNED: 'false'",
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);
