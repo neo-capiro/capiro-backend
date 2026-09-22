@@ -1713,6 +1713,8 @@
 .capiro-vnext-root .lw .lw-modal__foot { padding: 18px 26px; border-top: 1px solid var(--lw-line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-modal__note { font-size: 12px; color: var(--lw-meta); flex: 1 1 200px; min-width: 0; }
 .capiro-vnext-root .lw .lw-modal--how { width: 640px; }
+/* Create brief: the draft and the Meri chat sit side by side. */
+.capiro-vnext-root .lw .lw-modal--brief { width: 960px; }
 @media (max-width: 1179px) {
 }
 
@@ -1730,7 +1732,8 @@
 @media (max-width: 779px) {
   .capiro-vnext-root .lw .lw-modal-scrim { padding: 0; align-items: stretch; justify-content: stretch; }
   .capiro-vnext-root .lw .lw-modal,
-  .capiro-vnext-root .lw .lw-modal--how {
+  .capiro-vnext-root .lw .lw-modal--how,
+  .capiro-vnext-root .lw .lw-modal--brief {
     width: 100%;
     max-width: none;
     height: 100%;
@@ -2736,4 +2739,102 @@
 .capiro-vnext-root .lw .lw-detail select[multiple] option {
   padding: 4px 6px;
   border-radius: 4px;
+}
+
+/* ============================================================================
+   Create brief dialog — the draft on the left, Meri on the right. Stacks
+   below 780 with the rest of the modal sheet.
+   ========================================================================== */
+.capiro-vnext-root .lw .lw-brief__review {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.capiro-vnext-root .lw .lw-brief__doc { min-width: 0; }
+.capiro-vnext-root .lw .lw-brief__doc h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-brief__doc h4 {
+  margin: 18px 0 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-brief__section {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--lw-body);
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .lw .lw-brief__section p { margin: 0 0 8px; }
+.capiro-vnext-root .lw .lw-brief__section h3 { margin: 12px 0 4px; font-size: 14px; line-height: 20px; }
+.capiro-vnext-root .lw .lw-brief__section ul,
+.capiro-vnext-root .lw .lw-brief__section ol { margin: 0 0 8px; padding-left: 20px; }
+.capiro-vnext-root .lw .lw-brief__chat {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--lw-page);
+  border: 1px solid var(--lw-line);
+}
+.capiro-vnext-root .lw .lw-brief__log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.capiro-vnext-root .lw .lw-brief__msg {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--lw-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .lw .lw-brief__msg--assistant {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--lw-surface);
+  border: 1px solid var(--lw-line);
+}
+.capiro-vnext-root .lw .lw-brief__chip {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: normal;
+  text-align: left;
+}
+.capiro-vnext-root .lw .lw-brief__field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--lw-control);
+  border-radius: 8px;
+  background: var(--lw-surface);
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--lw-ink);
+  resize: vertical;
+}
+.capiro-vnext-root .lw .lw-brief__field:focus {
+  outline: 2px solid var(--lw-ink);
+  outline-offset: 1px;
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-brief__review { grid-template-columns: 1fr; }
+  .capiro-vnext-root .lw .lw-brief__chat { position: static; }
 }

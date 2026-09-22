@@ -31,12 +31,14 @@ import {
   parseFloridaHouseVideoPlayerPageUrl,
   parseFloridaSenateVideoPlayerUrl,
   parseGooglevideoExpiry,
+  parseKalturaHlsManifestUrl,
   parseHearingRowId,
   parseIsvpParams,
   senateIsvpFallbackUrls,
   youtubeWatchUrl,
   type ResolvedMedia,
 } from './stream-extractors.js';
+import { stateCaptureEnabled } from './state-capture-policy.js';
 
 /**
  * Hearing stream RESOLVER — the one-click "turn a hearing/page into a
@@ -222,7 +224,8 @@ export class StreamResolverService {
       return this.resolveFloridaHouseNotice(pageUrl, depth);
     }
     // (8) Florida Senate media player — the page itself is the stable
-    // first-party reference; no network needed and no media URL is invented.
+    // first-party reference; with state capture on, its embedded Florida
+    // Channel HLS master is extracted, otherwise no network is touched.
     if (/(^|\.)flsenate\.gov$/i.test(host)) {
       return this.resolveFloridaSenatePlayer(pageUrl);
     }
@@ -801,14 +804,14 @@ export class StreamResolverService {
   private async resolveFloridaHouseNotice(pageUrl: string, depth: number): Promise<ResolveResult> {
     if (depth > 3) return { status: 'unresolvable', note: 'Resolution recursion limit reached' };
     // A direct VideoPlayer page URL is itself the stable first-party
-    // reference — validated structurally, no network, no invented media.
+    // reference — validated structurally, no invented media.
     const directPlayer = parseFloridaHouseVideoPlayerPageUrl(pageUrl);
     if (directPlayer) {
-      return {
-        status: 'unresolvable',
-        reference: pageUrl,
-        note: `Verified Florida House VideoPlayer event ${directPlayer.eventId} — open the official player and share its tab audio`,
-      };
+      return this.resolveFloridaPlayerPage(
+        pageUrl,
+        `Verified Florida House VideoPlayer event ${directPlayer.eventId} — open the official player and share its tab audio`,
+        'florida-house-player',
+      );
     }
     const notice = parseFloridaHouseNoticeUrl(pageUrl);
     if (!notice) {
@@ -861,14 +864,13 @@ export class StreamResolverService {
         note: `No VideoPlayer paired with Florida House notice ${notice.meetingId} on ${date}`,
       };
     }
-    // The player page is a browser playback page; return it as a verified
-    // reference so the frontend can open it directly and share its tab audio
-    // (direct HLS extraction is not available from the Florida House player).
-    return {
-      status: 'unresolvable',
-      reference: playerUrl,
-      note: `Verified Florida House VideoPlayer for notice ${notice.meetingId} — open the official player and share its tab audio`,
-    };
+    // The player page is the verified reference; with state capture on its
+    // embedded Florida Channel HLS master becomes the ingestible media.
+    return this.resolveFloridaPlayerPage(
+      playerUrl,
+      `Verified Florida House VideoPlayer for notice ${notice.meetingId} — open the official player and share its tab audio`,
+      'florida-house-player',
+    );
   }
 
   // ── (8) Florida Senate media player ────────────────────────────────────────
@@ -876,10 +878,10 @@ export class StreamResolverService {
   /**
    * A known Florida Senate media player URL (`/media/VideoPlayer/{id}`) is
    * itself the stable first-party reference. The exact numeric id is validated
-   * structurally; no network is needed and no media URL is invented — the
-   * analyst opens the official player and shares its tab audio.
+   * structurally; with state capture off no network is needed and no media URL
+   * is invented — the analyst opens the official player and shares its tab audio.
    */
-  private resolveFloridaSenatePlayer(pageUrl: string): ResolveResult {
+  private async resolveFloridaSenatePlayer(pageUrl: string): Promise<ResolveResult> {
     const player = parseFloridaSenateVideoPlayerUrl(pageUrl);
     if (!player) {
       return {
@@ -888,10 +890,48 @@ export class StreamResolverService {
         note: 'Unrecognized Florida Senate media player URL',
       };
     }
+    return this.resolveFloridaPlayerPage(
+      pageUrl,
+      `Verified Florida Senate VideoPlayer event ${player.eventId} — open the official player and share its tab audio`,
+      'florida-senate-player',
+    );
+  }
+
+  /**
+   * Shared Florida player-page step. Off (default): the player page is returned
+   * as the browser-only reference, exactly as before. On: fetch the official
+   * player page (guarded, node UA) and return The Florida Channel's Kaltura HLS
+   * master when the page carries one; a WAF rejection or a page without a
+   * manifest still yields the honest reference result.
+   */
+  private async resolveFloridaPlayerPage(
+    playerUrl: string,
+    referenceNote: string,
+    provider: string,
+  ): Promise<ResolveResult> {
+    const reference: ResolveResult = { status: 'unresolvable', reference: playerUrl, note: referenceNote };
+    if (!stateCaptureEnabled()) return reference;
+    let res: { status: number; url: string; text: string };
+    try {
+      res = await this.fetchFloridaGovText(playerUrl);
+    } catch (err) {
+      return this.unresolvableFrom(err, playerUrl, provider);
+    }
+    if (isRequestRejectedPage(res.text, res.status)) {
+      return {
+        status: 'unresolvable',
+        reference: playerUrl,
+        note: 'Florida publisher rejected the automated player fetch (publisher bot policy) — open the official player directly',
+      };
+    }
+    const manifest = parseKalturaHlsManifestUrl(res.text);
+    if (!manifest) return reference;
     return {
-      status: 'unresolvable',
-      reference: pageUrl,
-      note: `Verified Florida Senate VideoPlayer event ${player.eventId} — open the official player and share its tab audio`,
+      status: 'resolved',
+      media: { url: manifest, kind: 'hls', provider: 'florida-channel-kaltura', ipBound: false },
+      meta: { title: firstTitle(res.text) },
+      reference: playerUrl,
+      note: 'The Florida Channel HLS master read from the official player page',
     };
   }
 

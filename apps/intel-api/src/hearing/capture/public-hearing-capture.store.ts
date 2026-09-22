@@ -15,6 +15,14 @@ import type {
   PublicHearingCaptureStatus,
 } from './public-hearing-capture-state.js';
 import type { ClassifiedStreamResolution } from './stream-resolution-policy.js';
+import {
+  capturableHearingView,
+  isEnabledFlagValue,
+  stateCaptureEnabled,
+} from '../state-capture-policy.js';
+
+/** Planner/worker agreement window for the DB capture-all switch. */
+const CAPTURE_ALL_CACHE_MS = 30_000;
 
 type CaptureRow = Omit<PublicCaptureRecord, 'status' | 'lease' | 'gaps'> & {
   status: string;
@@ -96,7 +104,7 @@ export class StaleCaptureFencingTokenError extends Error {
 
 @Injectable()
 export class PublicHearingCaptureStore implements PublicCaptureStorePort {
-  private readonly captureAllPublicEvents = captureAllPublicEventsEnabled();
+  private captureAllCache?: { value: boolean; expiresAt: number };
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -107,7 +115,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
               CASE WHEN visibility='private' THEN 'CLOSED' ELSE 'PUBLIC' END AS "publicAccess",
               starts_at AS "scheduledStart",
               url AS "officialPageUrl"
-       FROM federal_committee_hearing
+       FROM ${capturableHearingView()}
        WHERE id = $1
        LIMIT 1`,
       hearingId,
@@ -116,11 +124,13 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
   }
 
   async getDemand(hearingId: string): Promise<PublicCaptureDemand> {
-    const state = await this.prisma.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT id FROM committee_hearing WHERE id=${hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
-    if (state.length)
-      return { activeSubscriptionCount: 0, globalCoverageRequested: false };
+    if (!stateCaptureEnabled()) {
+      const state = await this.prisma.$queryRaw<
+        Array<{ id: string }>
+      >`SELECT id FROM committee_hearing WHERE id=${hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
+      if (state.length)
+        return { activeSubscriptionCount: 0, globalCoverageRequested: false };
+    }
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count
@@ -131,15 +141,43 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     );
     return {
       activeSubscriptionCount: rows[0]?.count ?? 0,
-      globalCoverageRequested: this.captureAllPublicEvents,
+      globalCoverageRequested: await this.captureAllPublicEvents(),
     };
   }
 
+  /**
+   * The API planner flips capture-all in legiwatch_cutover_state; the worker
+   * reads the same row (env stays as the fallback) so both sides agree, cached
+   * briefly so a due scan does not re-query it per hearing.
+   */
+  private async captureAllPublicEvents(): Promise<boolean> {
+    const now = Date.now();
+    if (this.captureAllCache && this.captureAllCache.expiresAt > now) {
+      return this.captureAllCache.value;
+    }
+    let fromDb = false;
+    try {
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<
+            Array<{ enabled: boolean | null }>
+          >`SELECT capture_all_public_events AS enabled FROM legiwatch_cutover_state WHERE id='global' LIMIT 1`,
+      );
+      fromDb = rows[0]?.enabled === true;
+    } catch {
+      // A schema without the planner row must not stall the worker; env decides.
+    }
+    const value = fromDb || captureAllPublicEventsEnabled();
+    this.captureAllCache = { value, expiresAt: now + CAPTURE_ALL_CACHE_MS };
+    return value;
+  }
+
   async listDueHearingIds(now: Date): Promise<string[]> {
+    const captureAll = await this.captureAllPublicEvents();
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ hearingId: string }>>(
         `SELECT DISTINCT h.id AS "hearingId"
-         FROM federal_committee_hearing h
+         FROM ${capturableHearingView()} h
          LEFT JOIN hearing_subscription s ON s.hearing_id = h.id
          LEFT JOIN public_hearing_capture c ON c.hearing_id = h.id
          WHERE h.event_status IN ('scheduled','postponed','in_progress')
@@ -155,7 +193,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
            AND (c.id IS NULL OR c.next_preflight_at IS NULL OR c.next_preflight_at <= $1)
          ORDER BY h.id`,
         now,
-        this.captureAllPublicEvents,
+        captureAll,
         [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
       ),
     );
@@ -474,10 +512,11 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
   }
 }
 
+/** Env half of the capture-all switch; the DB row in legiwatch_cutover_state takes precedence. */
 export function captureAllPublicEventsEnabled(
   value = process.env.LEGIWATCH_CAPTURE_ALL_PUBLIC_EVENTS,
 ): boolean {
-  return ['1', 'true', 'on', 'enabled', 'yes'].includes((value ?? '').trim().toLowerCase());
+  return isEnabledFlagValue(value);
 }
 
 function mapCapture(row: CaptureRow): PublicCaptureRecord {

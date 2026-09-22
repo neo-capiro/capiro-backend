@@ -1,6 +1,22 @@
 /** Stable denial surfaced whenever a state proceeding reaches a capture boundary. */
 export const STATE_CAPTURE_LINK_ONLY = 'STATE_CAPTURE_LINK_ONLY';
 
+/** Shared truthy parse for LEGIWATCH_* runtime switches. */
+export function isEnabledFlagValue(value: string | null | undefined): boolean {
+  return ['1', 'true', 'on', 'enabled', 'yes'].includes((value ?? '').trim().toLowerCase());
+}
+
+/**
+ * State (Florida) server capture switch, read per call so it can be toggled at
+ * runtime and in specs. Off (default) keeps every state boundary fail-closed.
+ */
+export const stateCaptureEnabled = () =>
+  isEnabledFlagValue(process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED);
+
+/** Capture-eligible canonical hearings: federal only until state server capture is enabled. */
+export const capturableHearingView = () =>
+  stateCaptureEnabled() ? 'capturable_committee_hearing' : 'federal_committee_hearing';
+
 /**
  * Florida proceedings stay link-only until Capiro has a separately reviewed
  * publisher agreement and a source-specific capture implementation.

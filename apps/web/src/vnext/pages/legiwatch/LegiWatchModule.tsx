@@ -27,6 +27,7 @@ import {
   LEGIWATCH_TABS,
   LEGIWATCH_PRIMARY_TABS,
   LEGIWATCH_SECONDARY_TABS,
+  LEGIWATCH_HIDDEN_TABS,
   REMOVED_TABS,
   TAB_ALIASES,
   type LegiWatchTab,
@@ -278,12 +279,13 @@ export function LegiWatchModule() {
   // below shows NO badge rather than a fabricated 0.
   const tabCount: Partial<Record<LegiWatchTab, number>> =
     activeCount != null ? { feed: activeCount } : {};
-  const primaryTab =
-    tab === 'news' || tab === 'budget' || tab === 'committees'
-      ? 'research'
-      : tab === 'analytics'
-        ? 'feed'
-        : tab;
+  // A hidden tab reached by deep link joins the strip as its own active tab so
+  // the navigation never claims a different section is open.
+  const primaryTabs: readonly LegiWatchTab[] = LEGIWATCH_HIDDEN_TABS.includes(tab)
+    ? [...LEGIWATCH_PRIMARY_TABS, tab]
+    : LEGIWATCH_PRIMARY_TABS;
+  const primaryTab: LegiWatchTab | null =
+    tab === 'analytics' ? 'feed' : LEGIWATCH_SECONDARY_TABS.includes(tab) ? null : tab;
 
   return (
     <div className="lw" data-module="legiwatch">
@@ -393,10 +395,15 @@ export function LegiWatchModule() {
           <span>Section</span>
           <select
             aria-label="LegiWatch section"
-            value={primaryTab}
-            onChange={(event) => setTab(event.target.value as LegiWatchTab)}
+            value={primaryTab ?? ''}
+            onChange={(event) => {
+              if (event.target.value) setTab(event.target.value as LegiWatchTab);
+            }}
           >
-            {LEGIWATCH_PRIMARY_TABS.map((t) => (
+            <option value="" disabled hidden>
+              —
+            </option>
+            {primaryTabs.map((t) => (
               <option key={t} value={t}>
                 {TAB_HEAD[t].title}
               </option>
@@ -425,7 +432,7 @@ export function LegiWatchModule() {
 
       <nav className="lw-tabs" aria-label="LegiWatch sections">
         <div className="lw-tabs__primary" role="tablist" aria-label="Primary sections">
-          {LEGIWATCH_PRIMARY_TABS.map((t) => (
+          {primaryTabs.map((t) => (
             <button key={t} type="button" role="tab" aria-selected={primaryTab === t} className={`lw-tab${primaryTab === t ? ' is-active' : ''}`} onClick={() => setTab(t)}>
               <span>{TAB_HEAD[t].title}</span>
               {tabCount[t] != null && tabCount[t]! > 0 ? <span className="lw-tab__count">{tabCount[t]! > 999 ? '999+' : tabCount[t]}</span> : null}

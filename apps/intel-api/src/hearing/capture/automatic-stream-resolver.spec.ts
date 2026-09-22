@@ -76,4 +76,62 @@ describe('automatic stream resolver', () => {
     expect(target?.automaticProbeAllowed).toBe(false);
   });
 
+  describe('Florida publisher pages (discovery writes them as hearing_stream_candidate rows)', () => {
+    const FLAG = 'LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED';
+    const previous = process.env[FLAG];
+    afterEach(() => {
+      if (previous === undefined) delete process.env[FLAG];
+      else process.env[FLAG] = previous;
+    });
+    const florida = [
+      { url: 'https://www.flsenate.gov/media/VideoPlayer/6382', providerHint: 'flsenate' },
+      { url: 'https://www.flhouse.gov/VideoPlayer.aspx?eventID=11179', providerHint: 'flhouse' },
+    ];
+
+    it('holds them as review evidence while the state switch is off', () => {
+      delete process.env[FLAG];
+      for (const target of buildStreamResolutionTargets({ videos: florida })) {
+        expect(target.policyHint).toBe('REVIEW_REQUIRED');
+        expect(target.automaticProbeAllowed).toBe(false);
+      }
+    });
+
+    it('probes them as first-party candidates once the state switch is on', async () => {
+      process.env[FLAG] = 'true';
+      for (const target of buildStreamResolutionTargets({ videos: florida })) {
+        expect(target.policyHint).toBe('FIRST_PARTY_CANDIDATE');
+        expect(target.automaticProbeAllowed).toBe(true);
+      }
+      const resolve = jest.fn(async ({ pageUrl }: { pageUrl?: string }) => ({
+        status: 'resolved' as const,
+        reference: pageUrl,
+        media: {
+          url: 'https://cdnapi.kaltura.com/p/2593311/sp/259331100/playManifest/entryId/1_abohhovv/protocol/https/format/applehttp/a.m3u8',
+          kind: 'hls' as const,
+          provider: 'florida-channel-kaltura',
+          ipBound: false,
+        },
+      }));
+      const result = await new AutomaticStreamResolver({ resolve }).resolve({
+        hearingId: 'hearing-fl',
+        videos: [florida[0]!],
+        context: { now: new Date('2026-09-22T14:00:00Z'), publicAccess: 'PUBLIC' },
+      });
+      expect(resolve).toHaveBeenCalledWith({ pageUrl: florida[0]!.url, hearingId: 'hearing-fl' });
+      expect(result.selected.state).toBe('READY_FOR_SERVER_CAPTURE');
+      expect(result.selected.mayPersistResolvedMediaUrl).toBe(false);
+    });
+
+    it('never auto-probes a Kaltura media reference directly, even when the switch is on', () => {
+      process.env[FLAG] = 'true';
+      const target = buildStreamResolutionTargets({
+        videos: [
+          {
+            url: 'https://cdnapisec.kaltura.com/p/2593311/sp/259331100/playManifest/entryId/1_q58g4s8q/format/applehttp/protocol/https/a.m3u8',
+          },
+        ],
+      })[0];
+      expect(target?.automaticProbeAllowed).toBe(false);
+    });
+  });
 });

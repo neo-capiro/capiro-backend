@@ -5,6 +5,7 @@ import {
   classifyPublicAccess,
   hearingNavigationTarget,
   isClosedSession,
+  speakerDisplay,
   transcriptAvailability,
 } from './hearing-detail-states.js';
 
@@ -171,5 +172,22 @@ describe('hearingNavigationTarget — reachability contracts (§11)', () => {
   });
   it('IN_PROGRESS uppercase does not false-route to live (matches HearingsTab wire form)', () => {
     expect(hearingNavigationTarget({ id: 'x', eventStatus: 'IN_PROGRESS' }).kind).toBe('detail');
+  });
+});
+
+describe('speakerDisplay — transcript speaker labels', () => {
+  it('prefers the resolved name over the raw label', () => {
+    expect(speakerDisplay({ speakerName: 'Rep. Alice Smith', speakerLabel: '0' })).toBe(
+      'Rep. Alice Smith',
+    );
+  });
+  it('turns an unresolved diarization index into a 1-based ordinal', () => {
+    expect(speakerDisplay({ speakerName: null, speakerLabel: '0' })).toBe('Speaker 1');
+    expect(speakerDisplay({ speakerLabel: '12' })).toBe('Speaker 13');
+  });
+  it('keeps a named label verbatim and returns null when nothing is known', () => {
+    expect(speakerDisplay({ speakerLabel: 'Chair' })).toBe('Chair');
+    expect(speakerDisplay({ speakerName: '  ', speakerLabel: '' })).toBeNull();
+    expect(speakerDisplay({})).toBeNull();
   });
 });

@@ -761,6 +761,58 @@ export function parseFloridaSenateVideoPlayerUrl(rawUrl: string): { eventId: str
   return { eventId: m[1]! };
 }
 
+// ── The Florida Channel (Kaltura) HLS manifest ───────────────────────────────
+
+/** The Florida Channel's Kaltura partner id (both flsenate.gov and flhouse.gov players embed it). */
+export const FLORIDA_CHANNEL_KALTURA_PARTNER_ID = '2593311';
+
+/** Kaltura API hosts that serve The Florida Channel's `playManifest` HLS masters. */
+export const FLORIDA_CHANNEL_KALTURA_HOSTS: readonly string[] = Object.freeze([
+  'cdnapi.kaltura.com',
+  'cdnapisec.kaltura.com',
+]);
+
+/**
+ * True for an https Kaltura `playManifest` HLS master owned by The Florida
+ * Channel's partner account: `https://cdnapi(sec).kaltura.com/p/2593311/…/
+ * playManifest/…/format/applehttp/…/a.m3u8`. Segment order after playManifest
+ * varies between the Senate and House players, so segments are matched as
+ * pairs, not by position. Any other partner id, format or host is rejected. Pure.
+ */
+export function isKalturaFloridaChannelMediaUrl(rawUrl: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.username || u.password) return false;
+  if (!FLORIDA_CHANNEL_KALTURA_HOSTS.includes(u.hostname.toLowerCase())) return false;
+  const segments = u.pathname.split('/').filter(Boolean);
+  if (segments[0] !== 'p' || segments[1] !== FLORIDA_CHANNEL_KALTURA_PARTNER_ID) return false;
+  const manifestIdx = segments.indexOf('playManifest');
+  if (manifestIdx < 2) return false;
+  const formatIdx = segments.indexOf('format', manifestIdx);
+  if (formatIdx < 0 || segments[formatIdx + 1]?.toLowerCase() !== 'applehttp') return false;
+  return segments.at(-1)?.toLowerCase() === 'a.m3u8';
+}
+
+/**
+ * First literal The Florida Channel Kaltura HLS master in a player page's HTML
+ * (the flsenate.gov and flhouse.gov VideoPlayer pages carry it verbatim), or
+ * null. Every match is re-validated by isKalturaFloridaChannelMediaUrl so a
+ * foreign partner id or a non-HLS playManifest never resolves. Pure.
+ */
+export function parseKalturaHlsManifestUrl(html: string): string | null {
+  const re = /https:\/\/cdnapi(?:sec)?\.kaltura\.com\/p\/\d+\/[^"'\s<>\\]*?\/a\.m3u8(?:\?[^"'\s<>\\]*)?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const candidate = m[0].replace(/&amp;/gi, '&');
+    if (isKalturaFloridaChannelMediaUrl(candidate)) return candidate;
+  }
+  return null;
+}
+
 // ── Bounded first-party House fallback (event119529 regression) ─────────────
 //
 // A Congress.gov House event with an empty videos[] used to dead-end at

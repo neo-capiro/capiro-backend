@@ -938,11 +938,14 @@ export class LegiWatchWave1Service {
                SELECT json_build_object(
                  'segmentId', s4.id,
                  'startMs',  s4.start_ms,
-                 'speakerName', s4.speaker_label,
+                 'speakerName', COALESCE(sp4.display_name,
+                                         CASE WHEN s4.speaker_label ~ '^[0-9]+$' THEN NULL ELSE s4.speaker_label END),
                  'snippet', ts_headline('english', s4.text, websearch_to_tsquery('english', $1),
                                         'MaxFragments=1, MaxWords=28, MinWords=8, StartSel=<mark>, StopSel=</mark>')
                )
                FROM public_hearing_transcript_segment s4
+               LEFT JOIN public_hearing_speaker sp4
+                 ON sp4.capture_id = s4.capture_id AND sp4.speaker_label = s4.speaker_label
                WHERE s4.capture_id = c.id
                  AND to_tsvector('english', s4.text) @@ websearch_to_tsquery('english', $1)
                ORDER BY ts_rank(to_tsvector('english', s4.text), websearch_to_tsquery('english', $1)) DESC, s4.sequence ASC

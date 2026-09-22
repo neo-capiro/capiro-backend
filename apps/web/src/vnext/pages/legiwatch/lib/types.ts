@@ -130,18 +130,17 @@ export const LEGIWATCH_TABS: readonly LegiWatchTab[] = [
 export const LEGIWATCH_PRIMARY_TABS: readonly LegiWatchTab[] = [
   'feed',
   'bills',
-  'research',
   'hearings',
+  'committees',
   'digest',
 ];
 
 /** Secondary links preserve direct access without competing with primary groups. */
-export const LEGIWATCH_SECONDARY_TABS: readonly LegiWatchTab[] = [
-  'news',
-  'budget',
-  'committees',
-  'analytics',
-];
+export const LEGIWATCH_SECONDARY_TABS: readonly LegiWatchTab[] = ['budget', 'analytics'];
+
+/** URL-addressable but absent from the tab strip; a `tab=` deep link still
+ *  renders them (and the module shows them as an extra active tab). */
+export const LEGIWATCH_HIDDEN_TABS: readonly LegiWatchTab[] = ['research', 'news'];
 
 /** Removed tabs redirect to hearings. Legacy watchlist names remain reachable
  * through the canonical client targeting subview under Settings. */

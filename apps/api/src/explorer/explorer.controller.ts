@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -12,6 +12,7 @@ import {
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { ExplorerService } from './explorer.service.js';
+import { NewsEvidenceService } from '../intelligence/news/news-evidence.service.js';
 
 /**
  * Coerce a CSV string OR repeated query param into an array of strings.
@@ -155,7 +156,10 @@ class FedRegQuery extends CommonPagingDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class ExplorerController {
-  constructor(private readonly service: ExplorerService) {}
+  constructor(
+    private readonly service: ExplorerService,
+    private readonly news: NewsEvidenceService,
+  ) {}
 
   @Get('lda-filings')
   ldaFilings(@Query() q: LdaFilingsQuery) {
@@ -581,6 +585,14 @@ export class ExplorerController {
   @Get('intel-articles/:id')
   intelArticleDetail(@Param('id') id: string) {
     return this.service.intelArticleDetail(id);
+  }
+
+  /** Saving an Explorer article into a LegiWatch folder needs its news observation id. */
+  @Post('intel-articles/:id/legiwatch-observation')
+  async ensureLegiWatchObservation(@Param('id') id: string) {
+    const result = await this.news.ensureObservationForArticle(id);
+    if (!result) throw new NotFoundException('Article not found');
+    return result;
   }
 
   @Get('state-bills/:id')

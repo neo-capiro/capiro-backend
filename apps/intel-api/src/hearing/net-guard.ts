@@ -1,5 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import { stateCaptureEnabled } from './state-capture-policy.js';
+import { FLORIDA_CHANNEL_KALTURA_HOSTS } from './stream-extractors.js';
 
 /**
  * SSRF guard for the hearing stream resolver.
@@ -172,6 +174,10 @@ export function isHostAllowed(host: string): boolean {
   // C-SPAN is gated behind the cspan flag (default OFF). See CSPAN_HOST_SUFFIXES
   // for why this cannot be left to the resolver's own flag checks.
   if (cspanEnabled() && CSPAN_HOST_SUFFIXES.some(matches)) return true;
+  // The Florida Channel's Kaltura manifest hosts (exact, no subdomains) are a
+  // multi-tenant CDN, so they are admitted only while state server capture is
+  // on; stream-resolution-policy still requires The Florida Channel's partner id.
+  if (stateCaptureEnabled() && FLORIDA_CHANNEL_KALTURA_HOSTS.includes(h)) return true;
   return false;
 }
 

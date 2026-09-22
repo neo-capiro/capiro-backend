@@ -5,6 +5,13 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 
 export const newsHash = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const hostOf = (url: string): string | null => {
+  try {
+    return new URL(url).hostname.toLowerCase() || null;
+  } catch {
+    return null;
+  }
+};
 export type NewsObservationInput = {
   provider: string;
   providerId?: string;
@@ -104,6 +111,41 @@ export class NewsEvidenceService {
       return rows[0]!;
     });
   }
+  /**
+   * Data Explorer rows are intel_article ids; LegiWatch evidence tracking needs a
+   * news observation id. Ensure one exists without re-upserting the article row
+   * (its stored URL may predate canonicalization and would fork a duplicate).
+   */
+  async ensureObservationForArticle(articleId: string): Promise<{ observationId: string } | null> {
+    const current = await this.prisma.$queryRaw<Array<{ observationId: string }>>`
+      SELECT observation_id AS "observationId" FROM legiwatch_news_current WHERE article_id=${articleId}`;
+    if (current[0]) return current[0];
+    const article = await this.prisma.intelArticle.findUnique({ where: { id: articleId } });
+    if (!article) return null;
+    const canonical = canonicalNewsUrl(article.url);
+    const publisher = hostOf(article.url) ?? article.source;
+    const title = article.title.slice(0, 2000);
+    const author = article.author?.slice(0, 200) ?? null;
+    const revision = newsHash({
+      title,
+      summary: null,
+      body: null,
+      publishedAt: article.publishedAt,
+      publisher,
+      rights: 'headline_link',
+      author,
+    });
+    const id = newsHash([article.id, revision]);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${canonical},0))`;
+      await tx.$executeRaw`INSERT INTO legiwatch_news_observation(id,article_id,revision,provider,provider_id,original_url,canonical_url,publisher,author,provider_parsed_at,title,summary,body,body_complete,language,publisher_country,published_at,publication_precision,source_url,rights) VALUES(${id},${article.id},${revision},'intel_article',${article.id},${article.url},${canonical},${publisher},${author},NULL,${title},NULL,NULL,false,NULL,NULL,${article.publishedAt},'instant',${article.url},'headline_link') ON CONFLICT(article_id,revision) DO NOTHING`;
+      await tx.$executeRaw`INSERT INTO legiwatch_news_current(article_id,observation_id) VALUES(${article.id},${id}) ON CONFLICT(article_id) DO NOTHING`;
+      const rows = await tx.$queryRaw<Array<{ observationId: string }>>`
+        SELECT observation_id AS "observationId" FROM legiwatch_news_current WHERE article_id=${article.id}`;
+      return rows[0] ?? { observationId: id };
+    });
+  }
+
   async chargeProviderRequest() {
     const cap = Math.min(
       1000,

@@ -1,4 +1,9 @@
-import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
+import {
+  isFloridaStatePublisherUrl,
+  STATE_CAPTURE_LINK_ONLY,
+  stateCaptureEnabled,
+} from '../state-capture-policy.js';
+import { isKalturaFloridaChannelMediaUrl } from '../stream-extractors.js';
 
 /**
  * Pure policy boundary between the existing browser-oriented resolver and the
@@ -132,6 +137,15 @@ export function classifyStreamResolution(
     }
     if (provider === 'senate-isvp' || isApprovedCongressionalMediaUrl(result.media.url)) {
       return ready(result, result.media, 'FIRST_PARTY_STREAM_READY');
+    }
+    if (stateCaptureEnabled() && isKalturaFloridaChannelMediaUrl(result.media.url)) {
+      // Kaltura masters are per-event and hand out signed, expiring variant
+      // playlists: re-read them from the official player page at ingest time
+      // instead of persisting the manifest as durable source truth.
+      return {
+        ...ready(result, result.media, 'FIRST_PARTY_STREAM_READY'),
+        mayPersistResolvedMediaUrl: false,
+      };
     }
     return terminal(
       'POLICY_BLOCKED',
@@ -287,7 +301,9 @@ function delayedStartGraceExpired(context: StreamResolutionContext): boolean {
 }
 
 function capturePolicyForReference(reference: string | undefined): StreamCapturePolicy {
-  return reference && isApprovedCongressionalPageUrl(reference)
+  return reference &&
+    (isApprovedCongressionalPageUrl(reference) ||
+      (stateCaptureEnabled() && isFloridaStatePublisherUrl(reference)))
     ? 'SERVER_CAPTURE_ALLOWED'
     : 'REVIEW_REQUIRED';
 }

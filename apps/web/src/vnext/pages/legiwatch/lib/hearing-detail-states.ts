@@ -131,3 +131,18 @@ export function hearingNavigationTarget(
   if ((e.eventStatus ?? '') === 'in_progress') return { kind: 'live-room' };
   return { kind: 'detail', hearingId: e.id };
 }
+
+/**
+ * Transcript speaker as shown to the user: the resolved name, else a 1-based
+ * ordinal for a raw diarization index ("0" → "Speaker 1"), else the label.
+ */
+export function speakerDisplay(segment: {
+  speakerName?: string | null;
+  speakerLabel?: string | null;
+}): string | null {
+  const name = segment.speakerName?.trim();
+  if (name) return name;
+  const label = segment.speakerLabel?.trim();
+  if (!label) return null;
+  return /^\d+$/.test(label) ? `Speaker ${Number(label) + 1}` : label;
+}

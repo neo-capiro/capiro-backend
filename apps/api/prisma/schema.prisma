@@ -7416,12 +7416,15 @@ model PublicHearingCapture {
   gaps                      Json      @default("[]")
   failureCode               String?   @map("failure_code")
   failureDetail             String?   @map("failure_detail") @db.Text
+  speakersResolvedAt              DateTime? @map("speakers_resolved_at") @db.Timestamptz(6)
+  speakersResolvedThroughSequence Int?      @map("speakers_resolved_through_sequence")
   createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   attempts PublicHearingCaptureAttempt[]
   segments PublicHearingTranscriptSegment[]
   insights PublicHearingInsight[]
+  speakers PublicHearingSpeaker[]
 
   @@index([status])
   @@index([workerLeaseOwner])
@@ -7480,6 +7483,29 @@ model PublicHearingTranscriptSegment {
   @@unique([captureId, startMs, endMs])
   @@index([captureId, sequence])
   @@map("public_hearing_transcript_segment")
+}
+
+// Resolved speaker identities for the canonical public transcript — one row per
+// (capture, diarization label), so a name applies to every segment with that
+// label. GLOBAL, no tenant_id, no RLS.
+model PublicHearingSpeaker {
+  id           String   @id @default(uuid())
+  captureId    String   @map("capture_id")
+  speakerLabel String   @map("speaker_label")
+  displayName  String   @map("display_name")
+  role         String?
+  personRef    String?  @map("person_ref")
+  confidence   Float?
+  /// 'llm' | 'manual'
+  source       String
+  updatedBy    String?  @map("updated_by")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  capture PublicHearingCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+
+  @@unique([captureId, speakerLabel])
+  @@map("public_hearing_speaker")
 }
 
 // Normalized committee-site change feed that will power Committee Rooms.

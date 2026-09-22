@@ -672,6 +672,32 @@
   background: var(--capiro-color-bg-subtle);
   text-decoration: underline;
 }
+.capiro-vnext-root .xp-news-actions {
+  flex: 0 0 auto;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.capiro-vnext-root .xp-news-actions .xp-news-read {
+  align-self: flex-end;
+}
+.capiro-vnext-root .xp-news-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-news-save .capiro-select {
+  width: auto;
+  min-width: 160px;
+  max-width: 220px;
+  min-height: var(--capiro-control-height-compact);
+}
 
 /* ── Drill-in drawer ─────────────────────────────────────────────────────── */
 

@@ -1,4 +1,5 @@
 import { normalizeOfficialUrl, type HearingVideoReference } from './hearing-video-reference.js';
+import { isFloridaStatePublisherUrl, stateCaptureEnabled } from '../state-capture-policy.js';
 import {
   classifyStreamResolution,
   type ClassifiedStreamResolution,
@@ -191,7 +192,7 @@ function classifyTarget(
       policyHint: 'LICENSE_REQUIRED',
     };
   }
-  if (isApprovedOfficialHost(host)) {
+  if (isApprovedOfficialHost(host) || (stateCaptureEnabled() && isFloridaStatePublisherUrl(url))) {
     return {
       url,
       kind,

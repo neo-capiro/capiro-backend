@@ -91,36 +91,50 @@ describe('transcript recovery cursor and recorded context', () => {
     },
   );
 
-  it('only seeds and claims recovery work with a federal canonical hearing', async () => {
-    const executed: string[] = [];
-    const queried: string[] = [];
-    const tx = {
-      $executeRaw: jest.fn(async (parts: TemplateStringsArray) => {
-        executed.push(parts.join('?'));
-        return 1;
-      }),
-      $queryRaw: jest.fn(async (parts: TemplateStringsArray) => {
-        queried.push(parts.join('?'));
-        return [];
-      }),
-    };
-    const transcribe = jest.fn().mockResolvedValue([]);
-    const worker = new TranscriptionRecoveryWorker(
-      { withSystem: (fn: (transaction: typeof tx) => unknown) => fn(tx) } as never,
-      {} as never,
-      {} as never,
-      transcribe,
-    );
+  it.each([
+    [undefined, 'federal_committee_hearing'],
+    ['true', 'capturable_committee_hearing'],
+  ])(
+    'only seeds and claims recovery work with a canonical hearing (state switch=%s → %s)',
+    async (stateFlag, view) => {
+      const previousFlag = process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+      if (stateFlag === undefined) delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+      else process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = stateFlag;
+      try {
+        const executed: string[] = [];
+        const queried: string[] = [];
+        const tx = {
+          $executeRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+            executed.push(renderSql(parts, values));
+            return 1;
+          }),
+          $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+            queried.push(renderSql(parts, values));
+            return [];
+          }),
+        };
+        const transcribe = jest.fn().mockResolvedValue([]);
+        const worker = new TranscriptionRecoveryWorker(
+          { withSystem: (fn: (transaction: typeof tx) => unknown) => fn(tx) } as never,
+          {} as never,
+          {} as never,
+          transcribe,
+        );
 
-    await worker.seed();
-    expect(executed[0]).toContain('s.hearing_id IS NULL OR EXISTS');
-    expect(executed[0]).toContain('federal_committee_hearing');
-    expect(executed[1]).toContain('JOIN federal_committee_hearing');
-    await expect(worker.runOne()).resolves.toBe(false);
-    expect(queried[0]).toContain("j.kind='public'");
-    expect(queried[0]).toContain('JOIN federal_committee_hearing');
-    expect(transcribe).not.toHaveBeenCalled();
-  });
+        await worker.seed();
+        expect(executed[0]).toContain('s.hearing_id IS NULL OR EXISTS');
+        expect(executed[0]).toContain(`FROM ${view} f`);
+        expect(executed[1]).toContain(`JOIN ${view} f`);
+        await expect(worker.runOne()).resolves.toBe(false);
+        expect(queried[0]).toContain("j.kind='public'");
+        expect(queried[0]).toContain(`JOIN ${view} f`);
+        expect(transcribe).not.toHaveBeenCalled();
+      } finally {
+        if (previousFlag === undefined) delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+        else process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = previousFlag;
+      }
+    },
+  );
 
   it('rechecks canonical federal identity before public segment insertion', async () => {
     const publicAudio = process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED;
@@ -185,7 +199,20 @@ describe('transcript recovery cursor and recorded context', () => {
     }
   });
 
-  it('rejects a known Florida publisher source before federal or grant lookups', async () => {
+  const floridaSource = {
+    kind: 'public',
+    epochId: 'epoch-state',
+    captureId: 'capture-state',
+    hearingId: 'hearing-state',
+    sourceUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382',
+    startMs: 0,
+    durationMs: 1000,
+    sampleRate: 16000,
+    channels: 1,
+  };
+
+  it('rejects a known Florida publisher source before federal or grant lookups (switch off)', async () => {
+    delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
     const worker = new TranscriptionRecoveryWorker(
       {} as never,
       { enabled: true } as never,
@@ -193,21 +220,49 @@ describe('transcript recovery cursor and recorded context', () => {
     );
     const query = jest.fn().mockResolvedValue([{ id: 'federal-substitute' }]);
     await expect(
-      (worker as any).authorize(
-        { $queryRaw: query },
-        {
-          kind: 'public',
-          epochId: 'epoch-state',
-          captureId: 'capture-state',
-          hearingId: 'hearing-state',
-          sourceUrl: 'https://www.flsenate.gov/Media/VideoPlayer/6382',
-          startMs: 0,
-          durationMs: 1000,
-          sampleRate: 16000,
-          channels: 1,
-        },
-      ),
+      (worker as any).authorize({ $queryRaw: query }, floridaSource),
     ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
     expect(query).not.toHaveBeenCalled();
   });
+
+  it('authorizes a Florida publisher source against the capturable view once the switch is on', async () => {
+    const previousEnv = {
+      state: process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED,
+      publicAudio: process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED,
+    };
+    process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = 'true';
+    process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED = 'true';
+    try {
+      const worker = new TranscriptionRecoveryWorker(
+        {} as never,
+        { enabled: true } as never,
+        {} as never,
+      );
+      const query = jest.fn(async () => [{ id: 'row' }]);
+      await expect(
+        (worker as any).authorize({ $queryRaw: query }, floridaSource),
+      ).resolves.toBeUndefined();
+      const [parts, ...values] = query.mock.calls[0]! as unknown as [TemplateStringsArray, ...unknown[]];
+      expect(renderSql(parts, values)).toContain('FROM capturable_committee_hearing');
+    } finally {
+      for (const [key, value] of [
+        ['LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED', previousEnv.state],
+        ['HEARING_PUBLIC_AUDIO_STORAGE_ENABLED', previousEnv.publicAudio],
+      ] as const) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 });
+
+/** Render a tagged-template call, inlining Prisma.raw fragments (view names). */
+function renderSql(parts: TemplateStringsArray, values: unknown[]): string {
+  return parts.reduce(
+    (sql, part, index) =>
+      sql +
+      part +
+      (index < values.length ? ((values[index] as { sql?: string })?.sql ?? '?') : ''),
+    '',
+  );
+}

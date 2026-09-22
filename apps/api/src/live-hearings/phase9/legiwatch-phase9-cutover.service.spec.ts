@@ -8,6 +8,8 @@ import {
 interface HarnessOptions {
   state?: Partial<StateRow>;
   run?: Partial<RunRow> | null;
+  /** legiwatch_runtime_heartbeat(job_key='capture-worker').enabled AND schedule_enabled */
+  captureWorkerRunnable?: boolean;
 }
 
 function stateRow(): StateRow {
@@ -87,6 +89,9 @@ function harness(options: HarnessOptions = {}) {
   });
   const query = jest.fn(async (sql: string, ..._values: unknown[]) => {
     if (sql.includes('FROM legiwatch_cutover_state')) return [current];
+    if (sql.includes('FROM legiwatch_runtime_heartbeat')) {
+      return [{ runnable: options.captureWorkerRunnable ?? true }];
+    }
     if (sql.includes('FROM legiwatch_cutover_run')) return run ? [run] : [];
     if (sql.includes('INSERT INTO legiwatch_verification_evidence')) {
       return [
@@ -258,6 +263,76 @@ describe('LegiWatchPhase9CutoverService', () => {
     expect(execute).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE legiwatch_runtime_heartbeat'),
       expect.any(String),
+    );
+  });
+
+  it('enables capture-all system-wide from any phase (still SHADOW, kill switch still engaged) once the capture worker runtime is enabled and the operator environment allows it', async () => {
+    process.env.LEGIWATCH_ALLOW_CAPTURE_ALL = 'true';
+    // Deliberately still SHADOW / killSwitchEngaged:true (the ladder default) —
+    // capture-all is independent of that singleton by design; only the REAL
+    // runtime kill switch (legiwatch_runtime_heartbeat) gates it.
+    const { service, execute } = harness({ captureWorkerRunnable: true });
+    await service.setCaptureAll({
+      enabled: true,
+      actor: 'admin-user',
+      confirmation: 'ENABLE LEGIWATCH CAPTURE ALL',
+    });
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('SET capture_all_public_events=$1'),
+      true,
+      'admin-user',
+    );
+  });
+
+  it('refuses to enable capture-all while the capture-worker runtime is disabled, even with the operator environment and exact confirmation', async () => {
+    process.env.LEGIWATCH_ALLOW_CAPTURE_ALL = 'true';
+    const { service, execute } = harness({ captureWorkerRunnable: false });
+    await expect(
+      service.setCaptureAll({
+        enabled: true,
+        actor: 'admin-user',
+        confirmation: 'ENABLE LEGIWATCH CAPTURE ALL',
+      }),
+    ).rejects.toThrow(/capture-worker runtime is disabled/);
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('SET capture_all_public_events=$1'),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('rejects setCaptureAll with a wrong or blank confirmation string', async () => {
+    process.env.LEGIWATCH_ALLOW_CAPTURE_ALL = 'true';
+    const { service, execute } = harness();
+    await expect(
+      service.setCaptureAll({ enabled: true, actor: 'admin-user', confirmation: '' }),
+    ).rejects.toThrow(/Exact confirmation required/);
+    await expect(
+      service.setCaptureAll({
+        enabled: true,
+        actor: 'admin-user',
+        confirmation: 'enable legiwatch capture all',
+      }),
+    ).rejects.toThrow(/Exact confirmation required/);
+    expect(execute).not.toHaveBeenCalledWith(
+      expect.stringContaining('SET capture_all_public_events=$1'),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('disables capture-all without requiring the operator environment or a released kill switch', async () => {
+    delete process.env.LEGIWATCH_ALLOW_CAPTURE_ALL;
+    const { service, execute } = harness();
+    await service.setCaptureAll({
+      enabled: false,
+      actor: 'admin-user',
+      confirmation: 'DISABLE LEGIWATCH CAPTURE ALL',
+    });
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining('SET capture_all_public_events=$1'),
+      false,
+      'admin-user',
     );
   });
 

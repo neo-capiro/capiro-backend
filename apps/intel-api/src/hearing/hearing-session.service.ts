@@ -16,6 +16,7 @@ import {
 import {
   isFloridaStatePublisherUrl,
   STATE_CAPTURE_LINK_ONLY,
+  stateCaptureEnabled,
 } from './state-capture-policy.js';
 
 export const CAPTURE_LEASE_STALE_MS = Number.parseInt(
@@ -124,12 +125,13 @@ export class HearingSessionService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Capture and resolver surfaces are federal-only in this release. */
+  /** Capture and resolver surfaces are federal-only until state server capture is enabled. */
   async assertCaptureSourceAllowed(
     tenantId: string,
     hearingId?: string | null,
     sourceUrl?: string | null,
   ): Promise<void> {
+    if (stateCaptureEnabled()) return;
     if (isFloridaStatePublisherUrl(sourceUrl)) {
       throw new ForbiddenException(STATE_CAPTURE_LINK_ONLY);
     }

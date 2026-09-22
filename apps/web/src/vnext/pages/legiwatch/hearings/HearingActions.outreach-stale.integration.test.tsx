@@ -17,7 +17,7 @@ vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => ({
 }) }));
 vi.mock('../../../../lib/me.js', () => ({ useMe: () => ({ data: undefined }) }));
 import { HearingActions } from './HearingActions.js';
-const defaults = { hearingId: 'hearing-1', hearingTitle: 'Hearing one', clientId: 'client-1', canCreateBrief: true, canSaveMoment: true, pendingAction: null, onPendingHandled: vi.fn() };
+const defaults = { hearingId: 'hearing-1', hearingTitle: 'Hearing one', clientId: 'client-1', hasTranscript: true, canSaveMoment: true, pendingAction: null, onPendingHandled: vi.fn() };
 function Location() { const location = useLocation(); return <output data-testid="location">{location.pathname + location.search}</output>; }
 function mount(initial: Partial<Parameters<typeof HearingActions>[0]> = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });

@@ -368,7 +368,8 @@ function toSegment(row: SegmentSourceRow): PublicTranscriptSegmentInput {
     startMs: row.startMs,
     endMs: row.endMs,
     text: row.text,
-    speakerName: row.speakerLabel ?? undefined,
+    // speaker_label is the diarization index ("0", "1"), never a name.
+    speakerName: undefined,
     speakerLabel: row.speakerLabel ?? undefined,
     confidence: row.transcriptionConfidence ?? row.speakerConfidence ?? undefined,
     isFinal: row.isFinal,

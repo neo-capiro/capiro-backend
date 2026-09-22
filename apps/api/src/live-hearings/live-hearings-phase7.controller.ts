@@ -1,5 +1,5 @@
 import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
-import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Optional, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
@@ -10,6 +10,7 @@ import { LiveHearingsPhase7PublicGuard } from './live-hearings-phase7-public.gua
 import { LiveHearingsPhase7ScheduleGuard } from './live-hearings-phase7-schedule.guard.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LiveHearingsPhase8Service } from './live-hearings-phase8.service.js';
+import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 
 class TranscriptQueryDto {
   @IsOptional()
@@ -100,6 +101,7 @@ export class LiveHearingsPhase7Controller {
     private readonly scheduleGuard: LiveHearingsPhase7ScheduleGuard,
     private readonly publicGuard: LiveHearingsPhase7PublicGuard,
     private readonly phase8: LiveHearingsPhase8Service,
+    @Optional() private readonly speakers?: HearingSpeakerAttributionService,
   ) {}
 
   @Get('events/:id/room')
@@ -113,6 +115,8 @@ export class LiveHearingsPhase7Controller {
     @Query() query: TranscriptQueryDto,
   ) {
     await this.publicGuard.assertPublic(id);
+    // Names are resolved in the background; this read never waits on the model.
+    this.speakers?.resolveIfDue(id);
     return this.phase7.transcript(id, query);
   }
 

@@ -13,11 +13,28 @@ export interface StateCaptureHearing {
 
 export const STATE_CAPTURE_LINK_ONLY = 'STATE_CAPTURE_LINK_ONLY';
 
+/** Same switch the intel capture worker reads; both sides must agree. */
+export function stateCaptureEnabled(
+  value = process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED,
+): boolean {
+  return ['1', 'true', 'on', 'enabled', 'yes'].includes((value ?? '').trim().toLowerCase());
+}
+
 /**
- * State calendars and official Watch/Replay links are readable, but this API
- * does not advertise or create browser/server capture for non-federal events.
- * Media rights must be enabled through a separately reviewed source-specific
- * release; a legacy grant or runtime flag cannot widen this boundary.
+ * Capture-eligible canonical hearings: federal only until state server capture
+ * is enabled. Mirrors apps/intel-api's capturableHearingView() — every
+ * capture-eligibility read on either side must select through this, not the
+ * raw view name, so the two sides can never disagree about jurisdiction.
+ */
+export function capturableHearingView(): 'capturable_committee_hearing' | 'federal_committee_hearing' {
+  return stateCaptureEnabled() ? 'capturable_committee_hearing' : 'federal_committee_hearing';
+}
+
+/**
+ * State calendars and official Watch/Replay links are always readable. Capture
+ * for non-federal events is a system-wide release switch: off, every state
+ * proceeding is link-only; on, state hearings go through the normal capture
+ * assessment like federal ones.
  */
 export async function stateCapturePolicy(
   prisma: PrismaService,
@@ -29,6 +46,7 @@ export async function stateCapturePolicy(
     hearing.geographicJurisdiction.trim().toUpperCase() === 'US'
   )
     return undefined;
+  if (stateCaptureEnabled()) return undefined;
   await requireStateCalendar(prisma, ctx.tenantId);
   return {
     browserAllowed: false,

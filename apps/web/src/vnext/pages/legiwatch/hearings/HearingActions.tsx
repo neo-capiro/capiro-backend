@@ -3,9 +3,10 @@
  *
  * Every action routes into an EXISTING Capiro workflow rather than a new one:
  *
- *   Ask Meri       → the grounded context packet, handed to the Meri surface
- *   Create brief   → apps/api assembles grounded context, Workspace creates the
- *                    document at its own `POST /workspace-api/drafts`
+ *   Create brief   → Meri drafts a grounded brief from the hearing record
+ *                    (apps/api); the user refines it with the in-editor Meri
+ *                    assistant and Workspace stores it through its own
+ *                    `POST /workspace-api/drafts` (CreateBriefDialog)
  *   Stage outreach → the Engagement outreach surface, resumed with the prefill
  *   Save moment /
  *   Save to client → tenant-scoped saved references
@@ -17,18 +18,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { useImpersonation } from '../../../../state/impersonation.js';
 import { meriEffectiveIdentityKey } from '../../../../components/chat/meri-route-guards.js';
-import { writeMeriHandoffPacket } from '../../../meri/meri-legiwatch-handoff.js';
 import { useNavigate } from 'react-router-dom';
 import { LwButton } from '../lib/primitives.js';
 import {
   downloadIcs,
-  useAskMeri,
   useCalendarExport,
-  useCreateBrief,
   useSaveItem,
   useStageOutreach,
   w1Error,
 } from '../lib/wave1-api.js';
+import { CreateBriefDialog } from './CreateBriefDialog.js';
 
 export type ActionStatus =
   | { kind: 'idle' }
@@ -53,7 +52,7 @@ export function HearingActions({
   hearingId,
   hearingTitle,
   clientId,
-  canCreateBrief,
+  hasTranscript,
   canSaveMoment,
   pendingAction,
   onPendingHandled,
@@ -62,7 +61,8 @@ export function HearingActions({
   hearingTitle: string;
   /** '' when the lens is All Clients. */
   clientId: string;
-  canCreateBrief: boolean;
+  /** Decides whether a brief is a recap (transcript) or a preparation (none yet). */
+  hasTranscript: boolean;
   canSaveMoment: boolean;
   pendingAction: { action: string; refs: ActionRefs } | null;
   onPendingHandled: () => void;
@@ -82,11 +82,16 @@ export function HearingActions({
       currentSelectionRef.current = null;
     };
   }, [selectionToken]);
-  const askMeri = useAskMeri(hearingId);
-  const createBrief = useCreateBrief(hearingId);
   const stageOutreach = useStageOutreach(hearingId);
   const saveItem = useSaveItem(hearingId);
   const [status, setStatus] = useState<ActionStatus>({ kind: 'idle' });
+  const [briefDialog, setBriefDialog] = useState<{ clientId: string } | null>(null);
+  // Mirrors `briefDialog` for a stale in-flight save to check against: closing
+  // the dialog (Cancel, hearing/identity change) or opening a new one changes
+  // this before a still-running save's `onSaved` can fire, so that closure's
+  // own captured `briefDialog` reference no longer matches and it is ignored.
+  const briefDialogRef = useRef(briefDialog);
+  briefDialogRef.current = briefDialog;
   const actionGenerationRef = useRef(0);
   const statusSelectionRef = useRef(selectionToken);
   useEffect(() => {
@@ -94,12 +99,21 @@ export function HearingActions({
     statusSelectionRef.current = selectionToken;
     setStatus({ kind: 'idle' });
   }, [selectionToken]);
+  // A brief drafted under one hearing or identity must never be saved under another.
+  useEffect(() => {
+    setBriefDialog(null);
+  }, [hearingId, identityKey]);
 
   const run = (action: string, refs: ActionRefs) => {
+    const effectiveClientId = refs.clientId || clientId;
+    // A server-recommended `ask_meri` lands in the same dialog: Meri is inside it.
+    if (action === 'ask_meri' || action === 'create_brief') {
+      setBriefDialog({ clientId: effectiveClientId || '' });
+      return;
+    }
     const generation = ++actionGenerationRef.current;
     const isCurrentAction = () =>
       currentSelectionRef.current === selectionToken && generation === actionGenerationRef.current;
-    const effectiveClientId = refs.clientId || clientId;
     setStatus({ kind: 'submitting', action });
 
     const fail = (err: unknown) => {
@@ -107,74 +121,6 @@ export function HearingActions({
     };
 
     switch (action) {
-      case 'ask_meri':
-        askMeri.mutate(
-          {
-            insightId: refs.insightId,
-            segmentId: refs.segmentId,
-            clientId: effectiveClientId || undefined,
-          },
-          {
-            onSuccess: (packet) => {
-              // An old request must not publish another identity or hearing's
-              // private client relevance after the user changes selection.
-              if (!isCurrentAction()) return;
-              const handoffId = crypto.randomUUID();
-              try {
-                writeMeriHandoffPacket({
-                  hearingId,
-                  identityKey,
-                  handoffId,
-                  packet,
-                  createdAt: Date.now(),
-                });
-              } catch {
-                fail(
-                  new Error('The hearing context could not be saved for Meri. Please try again.'),
-                );
-                return;
-              }
-              const qs = new URLSearchParams({
-                source: 'legiwatch',
-                hearingId,
-                handoffId,
-                ...(refs.insightId ? { insightId: refs.insightId } : {}),
-                ...(refs.segmentId ? { segmentId: refs.segmentId } : {}),
-                ...(effectiveClientId ? { client: effectiveClientId } : {}),
-              });
-              setStatus({
-                kind: 'done',
-                action,
-                message: 'Hearing context prepared. Finish opening Meri to continue.',
-                href: `/meri?${qs.toString()}`,
-              });
-            },
-            onError: fail,
-          },
-        );
-        return;
-
-      case 'create_brief':
-        createBrief.mutate(
-          {
-            clientId: effectiveClientId || undefined,
-            ...(refs.insightId ? { insightIds: [refs.insightId] } : {}),
-          },
-          {
-            onSuccess: ({ draftId }) => {
-              if (!isCurrentAction()) return;
-              setStatus({
-                kind: 'done',
-                action,
-                message: 'Brief created in Workspace with its hearing sources attached.',
-                href: `/workspace/draft/${encodeURIComponent(draftId)}`,
-              });
-            },
-            onError: fail,
-          },
-        );
-        return;
-
       case 'stage_outreach':
         if (!effectiveClientId) {
           setStatus({
@@ -289,18 +235,7 @@ export function HearingActions({
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <LwButton onClick={() => run('ask_meri', {})}>Ask Meri</LwButton>
-        <LwButton
-          onClick={() => run('create_brief', {})}
-          disabled={!canCreateBrief}
-          title={
-            canCreateBrief
-              ? undefined
-              : 'A brief needs a transcript; none is available for this proceeding.'
-          }
-        >
-          Create brief
-        </LwButton>
+        <LwButton onClick={() => run('create_brief', {})}>Create brief</LwButton>
         <LwButton
           onClick={() => run('stage_outreach', {})}
           disabled={!clientId}
@@ -352,6 +287,31 @@ export function HearingActions({
           Saving a transcript moment needs a transcript; none is available for this proceeding.
         </p>
       )}
+
+      {briefDialog ? (
+        <CreateBriefDialog
+          hearingId={hearingId}
+          hearingTitle={hearingTitle}
+          initialClientId={briefDialog.clientId}
+          hasTranscript={hasTranscript}
+          onClose={() => setBriefDialog(null)}
+          onSaved={(draftId) => {
+            // A save that resolves after this exact dialog session was closed
+            // or superseded (hearing/identity change, Cancel, or a new
+            // Create-brief) must not clobber whatever status is now current.
+            if (currentSelectionRef.current !== selectionToken || briefDialogRef.current !== briefDialog) {
+              return;
+            }
+            setBriefDialog(null);
+            setStatus({
+              kind: 'done',
+              action: 'create_brief',
+              message: 'Brief saved to Workspace.',
+              href: `/workspace/draft/${encodeURIComponent(draftId)}`,
+            });
+          }}
+        />
+      ) : null}
     </section>
   );
 }

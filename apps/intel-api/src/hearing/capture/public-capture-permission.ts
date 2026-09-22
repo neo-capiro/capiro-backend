@@ -1,8 +1,8 @@
 import type { PrismaService } from '../../prisma/prisma.service.js';
-import type { Prisma } from '../../../generated/prisma-client/index.js';
+import { Prisma } from '../../../generated/prisma-client/index.js';
+import { capturableHearingView } from '../state-capture-policy.js';
 
-/** State capture is not released: official state video remains external link-only. */
-export const stateCaptureEnabled = () => false;
+export { stateCaptureEnabled } from '../state-capture-policy.js';
 export const publicAudioEnabled = () => process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED === 'true';
 
 /** An explicit source grant plus current tenant demand; never capture-all. */
@@ -12,12 +12,12 @@ export async function approvedPublicCapture(
   transaction?: Prisma.TransactionClient,
 ) {
   const read = async (tx: Prisma.TransactionClient) => {
-    const federal = await tx.$queryRaw<Array<{ id: string }>>`
+    const canonical = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id
-      FROM federal_committee_hearing
+      FROM ${Prisma.raw(capturableHearingView())}
       WHERE id=${hearingId}
       LIMIT 1`;
-    if (!federal.length) return [];
+    if (!canonical.length) return [];
     return tx.$queryRaw<
       Array<{
         id: string;

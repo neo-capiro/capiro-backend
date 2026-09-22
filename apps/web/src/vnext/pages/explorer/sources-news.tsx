@@ -15,6 +15,7 @@ import type {
 import { XpFilterBar, XpMultiSelect } from './explorer-controls.js';
 import { MonoTag, PlainTag, XpEmpty, XpPagination, XpSkeletonRows } from './explorer-table.js';
 import { PAGE_SIZE, relativeTime, sourceBrand, type SourceBrand } from './explorer-format.js';
+import { SaveToLegiWatchFolder } from './SaveToLegiWatchFolder.js';
 
 export function ArticlesExplorer({ onRowClick }: { onRowClick: (id: string, row: ExplorerIntelArticleRow) => void }) {
   const api = useApi();
@@ -184,15 +185,18 @@ function NewsItem({
           </div>
         ) : null}
       </div>
-      <a
-        className="xp-news-read"
-        href={row.url}
-        target="_blank"
-        rel="noreferrer"
-        onClick={(e) => e.stopPropagation()}
-      >
-        Read <GlobeGlyph />
-      </a>
+      <div className="xp-news-actions">
+        <a
+          className="xp-news-read"
+          href={row.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Read <GlobeGlyph />
+        </a>
+        <SaveToLegiWatchFolder articleId={row.id} />
+      </div>
     </article>
   );
 }

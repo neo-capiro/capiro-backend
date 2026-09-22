@@ -20,6 +20,7 @@ import {
   usePhase7BrowserJoin,
   type Phase7BrowserJoinPlan,
 } from '../../../../pages/radar/live-hearings/live-hearings-phase7-api.js';
+import type { PublicTranscriptSegment } from '../../../../pages/radar/live-hearings/live-hearings.types.js';
 
 const BASE = '/api/legiwatch/live-hearings';
 const enc = encodeURIComponent;
@@ -883,36 +884,118 @@ export interface BriefPrefill {
   sources: Array<Record<string, unknown>>;
 }
 
+export interface HearingBrief {
+  title: string;
+  mode: 'preparation' | 'recap';
+  /** Plain text with light markdown; `briefToSectionState` turns it into Workspace HTML. */
+  sections: Array<{ name: string; content: string }>;
+  keyMoments: Array<{ startMs?: number; speaker?: string; summary: string }>;
+  sources: Array<Record<string, unknown>>;
+  contextPacket: Record<string, unknown>;
+  lowConfidence: boolean;
+}
+
 /**
- * Create a brief.
- *
- * Two steps on purpose: apps/api assembles the grounded context (it is where
- * the canonical data lives) and Workspace still owns document creation via its
- * own `POST /workspace-api/drafts`. That keeps ONE document path rather than a
- * second editor, and the created draft carries the source references it needs
- * for traceability.
+ * Meri drafts the brief server-side from the grounded hearing context. Takes
+ * 10–60 s; the api client's generation timeout already covers `/generate` URLs.
+ * 503 means the tenant has no AI credential configured.
+ */
+export function useGenerateBrief(hearingId: string) {
+  const api = useApi();
+  return useMutation<HearingBrief, Error, { clientId?: string; focus?: string }>({
+    mutationFn: async (input) =>
+      (
+        await api.post<HearingBrief>(
+          `${BASE}/events/${enc(hearingId)}/actions/brief/generate`,
+          input,
+        )
+      ).data,
+  });
+}
+
+export interface CreateBriefInput {
+  docTitle: string;
+  /** Client NAME — the field Workspace's CreateDraftDto stores. */
+  client?: string;
+  config: Record<string, unknown>;
+  contextText: string;
+}
+
+/**
+ * Save a reviewed brief as a Workspace document. Three calls on purpose:
+ * Workspace's `CreateDraftDto` whitelist rejects `config`, so the draft is
+ * created bare, its config is PATCHed, then the grounding context is attached
+ * — the same path `useCreatePreparation` already takes.
  */
 export function useCreateBrief(hearingId: string) {
   const api = useApi();
-  return useMutation<
-    { draftId: string; prefill: BriefPrefill },
-    Error,
-    { clientId?: string; insightIds?: string[] }
-  >({
-    mutationFn: async (input) => {
-      const prefill = (
-        await api.post<BriefPrefill>(
-          `${BASE}/events/${enc(hearingId)}/actions/brief-prefill`,
-          input,
-        )
-      ).data;
-      const created = (
+  return useMutation<{ draftId: string }, Error, CreateBriefInput>({
+    mutationFn: async ({ docTitle, client, config, contextText }) => {
+      const draft = (
         await api.post<{ id: string }>('/workspace-api/drafts', {
-          ...prefill.draft,
-          config: { legiwatch: prefill.context, sources: prefill.sources },
+          docTitle,
+          ...(client ? { client } : {}),
         })
       ).data;
-      return { draftId: created.id, prefill };
+      const path = `/workspace-api/drafts/${enc(draft.id)}`;
+      await api.patch(path, { config });
+      await api.post(`${path}/context`, {
+        kind: 'free-text',
+        payload: {
+          text: contextText,
+          sourceType: 'internal',
+          source: 'legiwatch-hearing-brief',
+          hearingId,
+        },
+      });
+      return { draftId: draft.id };
+    },
+  });
+}
+
+export interface SpeakerRename {
+  speakerLabel: string;
+  displayName: string;
+  source: 'manual';
+}
+
+interface CachedTranscript {
+  pages: Array<{ items: PublicTranscriptSegment[] }>;
+}
+
+/**
+ * Rename a diarized speaker. The name map is per label, so every cached segment
+ * with that label takes the server-confirmed name at once; the transcript's
+ * periodic full reconcile stays the source of truth. (Resetting the query would
+ * drop a long transcript to a skeleton mid-read for the same end result.)
+ */
+export function useRenameSpeaker(hearingId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation<SpeakerRename, Error, { label: string; displayName: string }>({
+    mutationFn: async ({ label, displayName }) =>
+      (
+        await api.put<SpeakerRename>(
+          `${BASE}/events/${enc(hearingId)}/speakers/${enc(label)}`,
+          { displayName },
+        )
+      ).data,
+    onSuccess: (renamed, { label }) => {
+      qc.setQueryData<CachedTranscript>(
+        ['legiwatch', 'live-hearings', 'event', hearingId, 'transcript'],
+        (prev) =>
+          prev && {
+            ...prev,
+            pages: prev.pages.map((page) => ({
+              ...page,
+              items: page.items.map((segment) =>
+                segment.speakerLabel === label
+                  ? { ...segment, speakerName: renamed.displayName }
+                  : segment,
+              ),
+            })),
+          },
+      );
     },
   });
 }

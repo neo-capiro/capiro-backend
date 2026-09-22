@@ -20,6 +20,7 @@ import { PublicHearingTranscriptStore } from './public-hearing-transcript.store.
 import { PublicHearingAudioStore } from './public-hearing-audio.store.js';
 import { RecordingStorageService } from '../recording/recording-storage.service.js';
 import { assertPublicCaptureRuntimeEnabled } from './public-capture-runtime-control.js';
+import { capturableHearingView } from '../state-capture-policy.js';
 
 export type PublicCaptureTaskMode =
   | 'preflight'
@@ -469,7 +470,7 @@ async function runDispositionBackfill(
   const candidates = await prisma.$queryRawUnsafe<BackfillCandidateRow[]>(
     `SELECT h.id AS "hearingId",
             COALESCE(h.starts_at, h.date::timestamp) AS "effectiveStart"
-     FROM federal_committee_hearing h
+     FROM ${capturableHearingView()} h
      LEFT JOIN hearing_stream_candidate sc ON sc.hearing_id = h.id
      LEFT JOIN public_hearing_capture phc ON phc.hearing_id = h.id
      WHERE h.visibility = 'public'
@@ -525,7 +526,7 @@ async function runDispositionBackfill(
                 false
               ) AS "hasCaptureOutcome",
               MIN(h.coverage_status) AS "coverageStatus"
-       FROM federal_committee_hearing h
+       FROM ${capturableHearingView()} h
        LEFT JOIN hearing_stream_candidate sc ON sc.hearing_id = h.id
        LEFT JOIN public_hearing_capture phc ON phc.hearing_id = h.id
        WHERE h.id = $1

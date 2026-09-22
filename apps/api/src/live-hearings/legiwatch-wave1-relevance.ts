@@ -110,7 +110,7 @@ export interface ClientRelevanceResult {
 
 export interface RecommendedAction {
   /** Matches the Wave 1 action endpoints, so the UI can wire directly. */
-  action: 'ask_meri' | 'create_brief' | 'stage_outreach' | 'save_moment' | 'save_to_client';
+  action: 'create_brief' | 'stage_outreach' | 'save_moment' | 'save_to_client';
   label: string;
   /** Why this action is offered for this result. */
   rationale: string;
@@ -267,21 +267,11 @@ function buildRecommendedActions(
   const top = rows[0]!;
 
   out.push({
-    action: 'ask_meri',
-    label: 'Ask Meri about this finding',
-    rationale: 'Explore the finding with the hearing, transcript segment and client already in context.',
+    action: 'create_brief',
+    label: 'Create a client brief',
+    rationale: `Draft a brief grounded in the ${rows.length} matched finding${rows.length === 1 ? '' : 's'} from this proceeding.`,
     insightId: top.insightId,
-    ...(top.segmentId ? { segmentId: top.segmentId } : {}),
   });
-
-  // A brief is worth offering once there is more than a single data point.
-  if (rows.length > 1 || band === 'HIGH') {
-    out.push({
-      action: 'create_brief',
-      label: 'Create a client brief',
-      rationale: `Draft a brief grounded in the ${rows.length} matched finding${rows.length === 1 ? '' : 's'} from this proceeding.`,
-    });
-  }
 
   // Outreach is only recommended when something actionable is on the record —
   // a commitment, a deadline, an open question or a stated position.

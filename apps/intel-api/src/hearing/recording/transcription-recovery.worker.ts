@@ -5,11 +5,13 @@ import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type { Prisma } from '../../../generated/prisma-client/index.js';
+import { Prisma } from '../../../generated/prisma-client/index.js';
 import { HearingCryptoService } from '../hearing-crypto.service.js';
 import {
+  capturableHearingView,
   isFloridaStatePublisherUrl,
   STATE_CAPTURE_LINK_ONLY,
+  stateCaptureEnabled,
 } from '../state-capture-policy.js';
 import { RecordingStorageService } from './recording-storage.service.js';
 import { pcmWave } from '../capture/public-hearing-audio.store.js';
@@ -69,13 +71,13 @@ export class TranscriptionRecoveryWorker {
         JOIN intel_live_hearing_session s ON s.id=r.session_id AND s.tenant_id=r.tenant_id
         WHERE e.state='ready' AND e.transcript_state='partial' AND e.artifact_key IS NOT NULL AND r.expires_at>now()
           AND (s.hearing_id IS NULL OR EXISTS(
-            SELECT 1 FROM federal_committee_hearing f WHERE f.id=s.hearing_id
+            SELECT 1 FROM ${Prisma.raw(capturableHearingView())} f WHERE f.id=s.hearing_id
           ))
           AND (${epochId ?? null}::text IS NULL OR e.id=${epochId ?? null}) ON CONFLICT(kind,epoch_id) DO NOTHING`;
       await tx.$executeRaw`INSERT INTO intel_hearing_transcription_recovery(kind,epoch_id)
         SELECT 'public',e.id
         FROM intel_public_hearing_audio_epoch e
-        JOIN federal_committee_hearing f ON f.id=e.hearing_id
+        JOIN ${Prisma.raw(capturableHearingView())} f ON f.id=e.hearing_id
         WHERE e.state IN ('ready','partial') AND e.transcript_state='partial'
           AND e.durable_bytes>0 AND e.expires_at>now() AND (${epochId ?? null}::text IS NULL OR e.id=${epochId ?? null})
         ON CONFLICT(kind,epoch_id) DO NOTHING`;
@@ -148,30 +150,31 @@ export class TranscriptionRecoveryWorker {
     };
   }
 
-  private async assertFederalRecoverySource(
+  private async assertCanonicalRecoverySource(
     tx: Prisma.TransactionClient,
     source: Source,
   ): Promise<void> {
-    // A legacy/substituted federal id must not make a known Florida publisher
-    // source recoverable. New sessions are blocked at admission; this closes the
-    // same boundary for already-saved audio and historical recovery jobs.
-    if (isFloridaStatePublisherUrl(source.sourceUrl)) {
+    // With state capture off, a legacy/substituted federal id must not make a
+    // known Florida publisher source recoverable. New sessions are blocked at
+    // admission; this closes the same boundary for already-saved audio and
+    // historical recovery jobs.
+    if (!stateCaptureEnabled() && isFloridaStatePublisherUrl(source.sourceUrl)) {
       throw Error(STATE_CAPTURE_LINK_ONLY);
     }
     if (!source.hearingId) {
       if (source.kind === 'public') throw Error(STATE_CAPTURE_LINK_ONLY);
       return;
     }
-    const federal = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM federal_committee_hearing
+    const canonical = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM ${Prisma.raw(capturableHearingView())}
       WHERE id=${source.hearingId}
       LIMIT 1
       FOR SHARE`;
-    if (!federal.length) throw Error(STATE_CAPTURE_LINK_ONLY);
+    if (!canonical.length) throw Error(STATE_CAPTURE_LINK_ONLY);
   }
 
   private async authorize(tx: Prisma.TransactionClient, source: Source) {
-    await this.assertFederalRecoverySource(tx, source);
+    await this.assertCanonicalRecoverySource(tx, source);
     if (process.env.HEARING_TRANSCRIPTION_RECOVERY_ENABLED !== 'true' || !this.storage.enabled)
       throw Error('recovery_disabled');
     if (source.kind === 'public' && process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED !== 'true')
@@ -220,7 +223,7 @@ export class TranscriptionRecoveryWorker {
               JOIN intel_live_hearing_session s ON s.id=r.session_id AND s.tenant_id=r.tenant_id
               WHERE e.id=j.epoch_id AND (
                 s.hearing_id IS NULL OR EXISTS(
-                  SELECT 1 FROM federal_committee_hearing f WHERE f.id=s.hearing_id
+                  SELECT 1 FROM ${Prisma.raw(capturableHearingView())} f WHERE f.id=s.hearing_id
                 )
               )
             ))
@@ -228,7 +231,7 @@ export class TranscriptionRecoveryWorker {
             (j.kind='public' AND EXISTS(
               SELECT 1
               FROM intel_public_hearing_audio_epoch e
-              JOIN federal_committee_hearing f ON f.id=e.hearing_id
+              JOIN ${Prisma.raw(capturableHearingView())} f ON f.id=e.hearing_id
               WHERE e.id=j.epoch_id
             ))
           )

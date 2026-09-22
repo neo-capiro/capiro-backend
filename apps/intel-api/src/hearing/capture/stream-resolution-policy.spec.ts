@@ -143,4 +143,95 @@ describe('stream resolution policy', () => {
     expect(result.retryable).toBe(true);
   });
 
+  describe('The Florida Channel Kaltura manifests (LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED)', () => {
+    const FLAG = 'LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED';
+    const previous = process.env[FLAG];
+    afterEach(() => {
+      if (previous === undefined) delete process.env[FLAG];
+      else process.env[FLAG] = previous;
+    });
+    const manifest = (partner = '2593311') => ({
+      status: 'resolved' as const,
+      reference: 'https://www.flsenate.gov/media/VideoPlayer/6382',
+      media: {
+        url: `https://cdnapi.kaltura.com/p/${partner}/sp/${partner}00/playManifest/entryId/1_abohhovv/protocol/https/format/applehttp/a.m3u8`,
+        kind: 'hls' as const,
+        provider: 'florida-channel-kaltura',
+        ipBound: false,
+      },
+    });
+
+    it('allows server capture of a Florida Channel manifest once the switch is on, without persisting it', () => {
+      process.env[FLAG] = 'true';
+      expect(
+        classifyStreamResolution(manifest(), { now, scheduledStart, publicAccess: 'PUBLIC' }),
+      ).toEqual(
+        expect.objectContaining({
+          state: 'READY_FOR_SERVER_CAPTURE',
+          capturePolicy: 'SERVER_CAPTURE_ALLOWED',
+          reasonCode: 'FIRST_PARTY_STREAM_READY',
+          provider: 'florida-channel-kaltura',
+          requiresJustInTimeReresolution: true,
+          mayPersistResolvedMediaUrl: false,
+        }),
+      );
+    });
+
+    it.each([undefined, 'false'])('holds the same manifest for review while the switch is %s', (value) => {
+      if (value === undefined) delete process.env[FLAG];
+      else process.env[FLAG] = value;
+      expect(
+        classifyStreamResolution(manifest(), { now, scheduledStart, publicAccess: 'PUBLIC' }),
+      ).toEqual(
+        expect.objectContaining({
+          state: 'POLICY_BLOCKED',
+          capturePolicy: 'REVIEW_REQUIRED',
+          reasonCode: 'UNKNOWN_PROVIDER_REVIEW_REQUIRED',
+        }),
+      );
+    });
+
+    it('never approves another Kaltura partner, even when the switch is on', () => {
+      process.env[FLAG] = 'true';
+      expect(
+        classifyStreamResolution(manifest('1234567'), { now, scheduledStart, publicAccess: 'PUBLIC' })
+          .capturePolicy,
+      ).toBe('REVIEW_REQUIRED');
+    });
+
+    it('keeps an explicit STATE_CAPTURE_LINK_ONLY note terminal regardless of the switch', () => {
+      process.env[FLAG] = 'true';
+      const result = classifyStreamResolution(
+        { status: 'unresolvable', note: 'STATE_CAPTURE_LINK_ONLY' },
+        { now, scheduledStart },
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          state: 'POLICY_BLOCKED',
+          capturePolicy: 'BLOCKED',
+          reasonCode: 'STATE_CAPTURE_LINK_ONLY',
+          terminal: true,
+        }),
+      );
+    });
+
+    it('treats a waiting Florida player reference as a server-capture candidate only when on', () => {
+      const waiting = () =>
+        classifyStreamResolution(
+          {
+            status: 'unresolvable',
+            reference: 'https://www.flhouse.gov/VideoPlayer.aspx?eventID=11179',
+            note: 'Verified Florida House VideoPlayer event 11179',
+          },
+          { now: new Date('2026-08-20T13:55:00Z'), scheduledStart, publicAccess: 'PUBLIC' },
+        );
+      delete process.env[FLAG];
+      expect(waiting()).toMatchObject({ state: 'WAITING_FOR_STREAM', capturePolicy: 'REVIEW_REQUIRED' });
+      process.env[FLAG] = 'true';
+      expect(waiting()).toMatchObject({
+        state: 'WAITING_FOR_STREAM',
+        capturePolicy: 'SERVER_CAPTURE_ALLOWED',
+      });
+    });
+  });
 });

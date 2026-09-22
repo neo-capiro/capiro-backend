@@ -3,7 +3,7 @@ import type { Prisma } from '../../../generated/prisma-client/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { PublicTranscriptSinkPort } from './ffmpeg-deepgram-capture.runtime.js';
 import { StaleCaptureFencingTokenError } from './public-hearing-capture.store.js';
-import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
+import { capturableHearingView, STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
 
 @Injectable()
 export class PublicHearingTranscriptStore implements PublicTranscriptSinkPort {
@@ -11,7 +11,7 @@ export class PublicHearingTranscriptStore implements PublicTranscriptSinkPort {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async assertFederalCaptureOwned(
+  private async assertCanonicalCaptureOwned(
     tx: Prisma.TransactionClient,
     input: {
       captureId: string;
@@ -20,11 +20,11 @@ export class PublicHearingTranscriptStore implements PublicTranscriptSinkPort {
     },
   ): Promise<void> {
     const owned = await tx.$queryRawUnsafe<
-      Array<{ id: string; federalHearingId: string | null }>
+      Array<{ id: string; canonicalHearingId: string | null }>
     >(
-      `SELECT c.id,f.id AS "federalHearingId"
+      `SELECT c.id,h.id AS "canonicalHearingId"
        FROM public_hearing_capture c
-       LEFT JOIN federal_committee_hearing f ON f.id=c.hearing_id
+       LEFT JOIN ${capturableHearingView()} h ON h.id=c.hearing_id
        WHERE c.id=$1 AND c.hearing_id=$2
          AND c.worker_lease_owner=$3 AND c.fencing_token=$4
          AND c.lease_expires_at > clock_timestamp()
@@ -37,15 +37,16 @@ export class PublicHearingTranscriptStore implements PublicTranscriptSinkPort {
     const capture = owned[0];
     if (!capture) throw new StaleCaptureFencingTokenError();
     // A valid lease is insufficient: transcript persistence is released only
-    // for a positively matched canonical federal hearing. State and orphaned
-    // captures both fail closed before any segment/gap write.
-    if (!capture.federalHearingId) throw new Error(STATE_CAPTURE_LINK_ONLY);
+    // for a positively matched capturable canonical hearing (federal, plus
+    // state once enabled). Ineligible and orphaned captures fail closed before
+    // any segment/gap write.
+    if (!capture.canonicalHearingId) throw new Error(STATE_CAPTURE_LINK_ONLY);
   }
 
   async appendFinal(input: Parameters<PublicTranscriptSinkPort['appendFinal']>[0]): Promise<void> {
     const hasGap = this.pendingGaps.get(input.captureId) === true;
     const count = await this.prisma.$transaction(async (tx) => {
-      await this.assertFederalCaptureOwned(tx, input);
+      await this.assertCanonicalCaptureOwned(tx, input);
       const inserted = await tx.$executeRawUnsafe(
         `INSERT INTO public_hearing_transcript_segment
        (id,capture_id,sequence,start_ms,end_ms,text,speaker_label,transcription_confidence,is_final,has_gap_before)
@@ -73,7 +74,7 @@ export class PublicHearingTranscriptStore implements PublicTranscriptSinkPort {
   async appendGap(input: Parameters<PublicTranscriptSinkPort['appendGap']>[0]): Promise<void> {
     const durationSeconds = Math.max(0, Math.ceil((input.gap.endMs - input.gap.startMs) / 1000));
     const count = await this.prisma.$transaction(async (tx) => {
-      await this.assertFederalCaptureOwned(tx, input);
+      await this.assertCanonicalCaptureOwned(tx, input);
       return tx.$executeRawUnsafe(
         `UPDATE public_hearing_capture SET transcript_gap_seconds=transcript_gap_seconds+$2,
        gaps=gaps || $3::jsonb, captured_ms=GREATEST(captured_ms,$6),

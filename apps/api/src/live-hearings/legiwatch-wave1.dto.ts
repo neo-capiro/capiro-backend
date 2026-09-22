@@ -348,6 +348,23 @@ export class BriefPrefillDto {
   insightIds?: string[];
 }
 
+export class BriefGenerateDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  focus?: string;
+}
+
+export class SpeakerRenameDto {
+  @IsString()
+  @MaxLength(120)
+  displayName!: string;
+}
+
 export class OutreachPrefillDto {
   /** Outreach is always client-scoped, so this is required. */
   @IsUUID()

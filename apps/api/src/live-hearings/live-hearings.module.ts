@@ -10,6 +10,10 @@
 import { Module } from '@nestjs/common';
 import { CanonicalHearingIdPipe } from './canonical-hearing-id.pipe.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
+import { LlmCompletionService } from '../engagement/llm-completion.service.js';
+import { HearingBriefGenerationService } from './hearing-brief-generation.service.js';
+import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 import { TrackerEmailService } from '../tracker/notifications/tracker-email.service.js';
 import { LegiWatchLifecycleNotificationService } from './legiwatch-lifecycle-notification.service.js';
 import { LegiWatchWave1Controller } from './legiwatch-wave1.controller.js';
@@ -46,7 +50,7 @@ import { LegiWatchPhase9ReadinessService } from './phase9/legiwatch-phase9-readi
 import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime.service.js';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AiCredentialsModule],
   controllers: [
     LiveHearingsController,
     LiveHearingsPhase7Controller,
@@ -83,6 +87,10 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchPhase9ProvenanceDispositionService,
     LegiWatchPhase9MetricsService,
     LegiWatchPhase9JobsService,
+    // EngagementModule provides but does not export it; a fresh instance is stateless.
+    { provide: LlmCompletionService, useFactory: () => new LlmCompletionService() },
+    HearingSpeakerAttributionService,
+    HearingBriefGenerationService,
   ],
   exports: [
     LiveHearingsService,

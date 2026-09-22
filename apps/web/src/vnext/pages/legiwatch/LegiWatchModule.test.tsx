@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,14 +61,56 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     expect(screen.getByRole('tab', { name: /Updates/ })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it.each(['news', 'budget', 'committees'])(
-    'marks Research selected while preserving the %s secondary route',
-    async (secondaryTab) => {
-      mount(`/legiwatch?tab=${secondaryTab}`);
-      await waitFor(() => expect(screen.getByRole('tab', { name: 'Research' })).toHaveAttribute('aria-selected', 'true'));
-      expect(screen.getByRole('button', { name: new RegExp(`^${secondaryTab === 'budget' ? 'Florida Budget' : secondaryTab}$`, 'i') })).toHaveClass('is-active');
-    },
-  );
+  const strip = () => within(screen.getByRole('tablist', { name: 'Primary sections' }));
+
+  it('renders Committees as a primary tab and selects it on tab=committees', async () => {
+    mount('/legiwatch?tab=committees');
+    await waitFor(() =>
+      expect(strip().getByRole('tab', { name: 'Committees' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    const names = strip().getAllByRole('tab').map((t) => t.textContent ?? '');
+    expect(names).toHaveLength(5);
+    expect(names[3]).toBe('Committees');
+    expect(screen.getByRole('combobox', { name: 'LegiWatch section' })).toHaveValue('committees');
+  });
+
+  it('keeps Research and News out of both tab strips', async () => {
+    const { container } = mount('/legiwatch');
+    await waitFor(() => expect(strip().getByRole('tab', { name: /Updates/ })).toBeTruthy());
+    expect(strip().queryByRole('tab', { name: 'Research' })).toBeNull();
+    expect(strip().queryByRole('tab', { name: 'News' })).toBeNull();
+    expect(
+      Array.from(container.querySelectorAll('.lw-tab--secondary')).map((b) => b.textContent),
+    ).toEqual(['Florida Budget', 'Trends / Analytics']);
+  });
+
+  it('marks the secondary Florida Budget button active on tab=budget with no primary selected', async () => {
+    mount('/legiwatch?tab=budget');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Florida Budget' })).toHaveClass('is-active'),
+    );
+    expect(strip().queryAllByRole('tab', { selected: true })).toHaveLength(0);
+    expect(screen.getByRole('combobox', { name: 'More LegiWatch sections' })).toHaveValue('budget');
+    expect(screen.getByRole('combobox', { name: 'LegiWatch section' })).toHaveValue('');
+  });
+
+  it('renders a tab=research deep link with ResearchTab and an extra active Research tab', async () => {
+    mount('/legiwatch?tab=research');
+    await waitFor(() =>
+      expect(strip().getByRole('tab', { name: 'Research' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    expect(strip().getAllByRole('tab')).toHaveLength(6);
+    expect(await screen.findByRole('heading', { name: 'Research setup' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'LegiWatch section' })).toHaveValue('research');
+  });
+
+  it('renders a tab=news deep link with its content and an extra active News tab', async () => {
+    mount('/legiwatch?tab=news');
+    await waitFor(() =>
+      expect(strip().getByRole('tab', { name: 'News' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    expect(await screen.findByText(/News monitoring is not enabled/)).toBeTruthy();
+  });
 
   it('marks Updates selected for analytics without changing the analytics route', async () => {
     mount('/legiwatch?tab=analytics');

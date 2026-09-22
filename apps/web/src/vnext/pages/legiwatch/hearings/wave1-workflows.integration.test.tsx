@@ -11,7 +11,7 @@
  * Workspace/Engagement path" assertions are made — they check the URL that was
  * actually requested.
  */
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -21,7 +21,7 @@ vi.mock('@clerk/clerk-react', () => ({
 }));
 
 interface Call {
-  method: 'get' | 'put' | 'post' | 'delete';
+  method: 'get' | 'put' | 'post' | 'patch' | 'delete';
   url: string;
   body?: unknown;
 }
@@ -31,6 +31,7 @@ const handlers = {
   get: vi.fn<(url: string) => unknown>(),
   put: vi.fn<(url: string, body?: unknown) => unknown>(),
   post: vi.fn<(url: string, body?: unknown) => unknown>(),
+  patch: vi.fn<(url: string, body?: unknown) => unknown>(),
   delete: vi.fn<(url: string) => unknown>(),
 };
 
@@ -47,6 +48,10 @@ vi.mock('../../../../lib/use-api.js', () => ({
     post: async (url: string, body?: unknown) => {
       calls.push({ method: 'post', url, body });
       return { data: handlers.post(url, body) };
+    },
+    patch: async (url: string, body?: unknown) => {
+      calls.push({ method: 'patch', url, body });
+      return { data: handlers.patch(url, body) };
     },
     delete: async (url: string) => {
       calls.push({ method: 'delete', url });
@@ -225,6 +230,7 @@ beforeEach(() => {
   handlers.get.mockReset();
   handlers.put.mockReset();
   handlers.post.mockReset();
+  handlers.patch.mockReset();
   handlers.delete.mockReset();
   handlers.get.mockImplementation((url: string) => {
     if (url.startsWith('/api/clients')) return CLIENTS;
@@ -1048,7 +1054,7 @@ describe('W1-7 actions and W1-8 export', () => {
         hearingId={HEARING_ID}
         hearingTitle="Shipbuilding"
         clientId={clientId}
-        canCreateBrief
+        hasTranscript
         canSaveMoment
         pendingAction={null}
         onPendingHandled={vi.fn()}
@@ -1056,41 +1062,80 @@ describe('W1-7 actions and W1-8 export', () => {
     );
   }
 
-  it('Ask Meri calls the real action endpoint and prepares grounded context', async () => {
-    handlers.post.mockImplementation(() => ({
-      source: 'legiwatch-hearing',
-      hearing: { id: HEARING_ID },
-      client: { id: CLIENT_A, name: 'Aperture Defense' },
-      transcriptSegment: null,
-      intelligenceFinding: null,
-      clientRelevance: [],
-      question: null,
-      evidenceReferences: { hearingId: HEARING_ID, segmentIds: [], insightIds: [] },
-    }));
-    renderActions();
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Meri' }));
+  const BRIEF = {
+    title: 'Hearing brief — Shipbuilding',
+    mode: 'recap',
+    sections: [
+      {
+        name: 'Executive summary',
+        content: 'The chair tied **multiyear** funding to workforce stability.',
+      },
+      {
+        name: 'What it means for Aperture Defense',
+        content: '- Funding stability matters\n- Watch the markup',
+      },
+    ],
+    keyMoments: [{ startMs: 65_000, speaker: 'CHAIR', summary: 'Multiyear procurement.' }],
+    sources: [{ kind: 'hearing', id: HEARING_ID }],
+    contextPacket: { hearing: { id: HEARING_ID } },
+    lowConfidence: false,
+  };
 
-    expect(await screen.findByText(/Hearing context prepared\. Finish opening Meri/)).toBeTruthy();
-    expect(
-      calls.some((c) => c.method === 'post' && c.url.endsWith('/actions/ask-meri')),
-    ).toBe(true);
-  });
-
-  it('Create brief calls the REAL Workspace drafts path', async () => {
+  it('Create brief drafts with Meri, then saves through the REAL Workspace drafts path', async () => {
     handlers.post.mockImplementation((url: string) => {
-      if (url.endsWith('/actions/brief-prefill')) {
-        return { draft: { docTitle: 'Hearing brief' }, context: {}, sources: [] };
-      }
+      if (url.endsWith('/actions/brief/generate')) return BRIEF;
       if (url === '/workspace-api/drafts') return { id: 'draft-1' };
       return {};
     });
+    handlers.patch.mockImplementation(() => ({ id: 'draft-1' }));
     renderActions();
     fireEvent.click(screen.getByRole('button', { name: 'Create brief' }));
 
-    expect(await screen.findByText(/Brief created in Workspace/)).toBeTruthy();
-    // The grounded context comes from apps/api; Workspace still creates it.
-    expect(calls.some((c) => c.url.endsWith('/actions/brief-prefill'))).toBe(true);
-    expect(calls.some((c) => c.url === '/workspace-api/drafts')).toBe(true);
+    const dialog = await screen.findByRole('dialog', { name: 'Create a brief' });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    fireEvent.change(within(dialog).getByLabelText('Client'), { target: { value: CLIENT_A } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Generate brief' }));
+
+    // The draft is reviewed BEFORE anything is saved.
+    await within(dialog).findByText('Executive summary');
+    expect(within(dialog).getByText('multiyear').tagName).toBe('STRONG');
+    expect(calls.find((c) => c.url.endsWith('/actions/brief/generate'))!.body).toEqual({
+      clientId: CLIENT_A,
+    });
+    expect(calls.some((c) => c.url.startsWith('/workspace-api/'))).toBe(false);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save to Workspace' }));
+    expect(await screen.findByText('Brief saved to Workspace.')).toBeTruthy();
+
+    // Workspace's CreateDraftDto rejects `config`: create bare, PATCH the
+    // config, then attach the grounding context — in that order.
+    const workspace = calls.filter((c) => c.url.startsWith('/workspace-api/'));
+    expect(workspace.map((c) => [c.method, c.url])).toEqual([
+      ['post', '/workspace-api/drafts'],
+      ['patch', '/workspace-api/drafts/draft-1'],
+      ['post', '/workspace-api/drafts/draft-1/context'],
+    ]);
+    expect(workspace[0]!.body).toEqual({
+      docTitle: 'Hearing brief — Shipbuilding',
+      client: 'Aperture Defense',
+    });
+    const { config } = workspace[1]!.body as { config: Record<string, unknown> };
+    expect(config.legiwatch).toEqual({
+      mode: 'hearing-brief',
+      hearingId: HEARING_ID,
+      clientId: CLIENT_A,
+      briefMode: 'recap',
+    });
+    expect(config.sections).toEqual(['Executive summary', 'What it means for Aperture Defense']);
+    expect(config.sectionContent).toMatchObject({
+      'Executive summary': expect.stringContaining('<strong>multiyear</strong>'),
+      'What it means for Aperture Defense': '<ul><li>Funding stability matters</li><li>Watch the markup</li></ul>',
+    });
+    expect(workspace[2]!.body).toMatchObject({
+      kind: 'free-text',
+      payload: { sourceType: 'internal', source: 'legiwatch-hearing-brief', hearingId: HEARING_ID },
+    });
+
     fireEvent.click(screen.getByRole('button', { name: 'Open →' }));
     expect(screen.getByTestId('current-location')).toHaveTextContent('/workspace/draft/draft-1');
   });
@@ -1125,6 +1170,10 @@ describe('W1-7 actions and W1-8 export', () => {
 
   it('disables client-scoped actions until a client lens is chosen', () => {
     renderActions('');
+    // A brief picks its client inside the dialog, so it never waits on the lens.
+    expect(
+      (screen.getByRole('button', { name: 'Create brief' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
     expect(
       (screen.getByRole('button', { name: 'Stage outreach' }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -1193,32 +1242,28 @@ describe('W1-7 actions and W1-8 export', () => {
     expect(await screen.findByText(/No start time has been announced/)).toBeTruthy();
   });
 
-  it('a recommended action dispatches through the same handler as the button', async () => {
-    handlers.post.mockImplementation(() => ({
-      source: 'legiwatch-hearing',
-      hearing: { id: HEARING_ID },
-      client: null,
-      transcriptSegment: null,
-      intelligenceFinding: null,
-      clientRelevance: [],
-      question: null,
-      evidenceReferences: { hearingId: HEARING_ID, segmentIds: [], insightIds: ['insight-1'] },
-    }));
+  it('a recommended Ask Meri action opens the brief dialog for the recommended client', async () => {
     const onPendingHandled = vi.fn();
     renderIn(
       <HearingActions
         hearingId={HEARING_ID}
         hearingTitle="Shipbuilding"
-        clientId={CLIENT_A}
-        canCreateBrief
+        clientId=""
+        hasTranscript
         canSaveMoment
-        pendingAction={{ action: 'ask_meri', refs: { insightId: 'insight-1' } }}
+        pendingAction={{
+          action: 'ask_meri',
+          refs: { insightId: 'insight-1', clientId: CLIENT_A },
+        }}
         onPendingHandled={onPendingHandled}
       />,
     );
     await waitFor(() => expect(onPendingHandled).toHaveBeenCalled());
-    const post = calls.find((c) => c.url.endsWith('/actions/ask-meri'));
-    expect(post!.body).toMatchObject({ insightId: 'insight-1', clientId: CLIENT_A });
+    const dialog = await screen.findByRole('dialog', { name: 'Create a brief' });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    expect(within(dialog).getByLabelText('Client')).toHaveValue(CLIENT_A);
+    // Nothing leaves the browser until the user asks Meri to draft.
+    expect(calls.some((c) => c.method === 'post')).toBe(false);
   });
 });
 
@@ -1284,7 +1329,7 @@ describe('request behavior', () => {
         hearingId={HEARING_ID}
         hearingTitle="Shipbuilding"
         clientId={CLIENT_A}
-        canCreateBrief
+        hasTranscript
         canSaveMoment
         pendingAction={null}
         onPendingHandled={vi.fn()}
@@ -1298,16 +1343,14 @@ describe('request behavior', () => {
 
   it('handles a repeated pendingAction exactly once', async () => {
     handlers.post.mockImplementation(() => ({
-      source: 'legiwatch-hearing',
-      hearing: { id: HEARING_ID },
-      client: null,
-      transcriptSegment: null,
-      intelligenceFinding: null,
-      clientRelevance: [],
-      question: null,
-      evidenceReferences: { hearingId: HEARING_ID, segmentIds: [], insightIds: [] },
+      clientId: CLIENT_A,
+      clientName: 'Aperture Defense',
+      status: 'staged',
+      autoSend: false,
+      context: {},
+      sources: [],
     }));
-    const pendingAction = { action: 'ask_meri', refs: {} };
+    const pendingAction = { action: 'stage_outreach', refs: {} };
     // Re-render the SAME mounted instance. Remounting would legitimately fire
     // again (a new instance has no memory of what it handled), so building a
     // fresh provider tree here would test nothing.
@@ -1319,7 +1362,7 @@ describe('request behavior', () => {
             hearingId={HEARING_ID}
             hearingTitle="Shipbuilding"
             clientId={CLIENT_A}
-            canCreateBrief
+            hasTranscript
             canSaveMoment
             pendingAction={pendingAction}
             onPendingHandled={vi.fn()}
@@ -1329,9 +1372,9 @@ describe('request behavior', () => {
       </QueryClientProvider>
     );
     const { rerender } = render(tree({ key: 'stable' }));
-    await screen.findByText(/Hearing context prepared\. Finish opening Meri/);
+    await screen.findByText(/Nothing has been sent/);
     rerender(tree({ key: 'stable' }));
     await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(calls.filter((c) => c.url.endsWith('/actions/ask-meri')).length).toBe(1);
+    expect(calls.filter((c) => c.url.endsWith('/actions/outreach-prefill')).length).toBe(1);
   });
 });

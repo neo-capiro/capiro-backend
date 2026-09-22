@@ -22,12 +22,15 @@ export function LwModal({
   onPrimary,
   primaryDisabled,
   primaryTitle,
+  secondaryLabel,
+  onSecondary,
+  secondaryDisabled,
   onClose,
   dirty,
   children,
   width,
 }: {
-  kind: 'transcription' | 'follow' | 'search';
+  kind: 'transcription' | 'follow' | 'search' | 'brief';
   eyebrow: string;
   title: string;
   subtitle: string;
@@ -36,6 +39,10 @@ export function LwModal({
   onPrimary?: () => void;
   primaryDisabled?: boolean;
   primaryTitle?: string;
+  /** Optional plain action beside Cancel (e.g. "Back" in a multi-step dialog). */
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  secondaryDisabled?: boolean;
   onClose: () => void;
   dirty?: boolean;
   children: ReactNode;
@@ -110,6 +117,16 @@ export function LwModal({
         <div className="lw-modal__body">{children}</div>
         <div className="lw-modal__foot">
           <span className="lw-modal__note">{note}</span>
+          {secondaryLabel ? (
+            <button
+              type="button"
+              className="lw-btn"
+              onClick={onSecondary}
+              disabled={secondaryDisabled}
+            >
+              {secondaryLabel}
+            </button>
+          ) : null}
           <button type="button" className="lw-btn" onClick={onClose}>
             Cancel
           </button>

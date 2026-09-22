@@ -46,7 +46,7 @@ function harness(
     if (sql.includes('FROM legiwatch_cutover_state')) {
       return [{ captureAllPublicEvents: input.captureAll ?? false }];
     }
-    if (sql.includes('FROM federal_committee_hearing h')) return rows;
+    if (/FROM (capturable|federal)_committee_hearing h/.test(sql)) return rows;
     if (sql.includes('INSERT INTO public_hearing_capture_job')) {
       if (input.checkpoint === 'active') return [];
       return [
@@ -215,7 +215,7 @@ describe('LegiWatchPhase9PreflightService', () => {
     let captureCalls = 0;
     query.mockImplementation(async (sql: string) => {
       if (sql.includes('FROM legiwatch_cutover_state')) return [{ captureAllPublicEvents: false }];
-      if (sql.includes('FROM federal_committee_hearing h')) return rows;
+      if (/FROM (capturable|federal)_committee_hearing h/.test(sql)) return rows;
       if (sql.includes('INSERT INTO public_hearing_capture_job')) {
         return [{ id: 'job', inserted: true, rearmed: false }];
       }
@@ -237,7 +237,7 @@ describe('LegiWatchPhase9PreflightService', () => {
     const { service, query } = harness({ rows: [plannerRow({ demandCount: 0 })] });
     await service.plan({ now });
     const scanSql = query.mock.calls.find(([sql]) =>
-      String(sql).includes('FROM federal_committee_hearing h'),
+      /FROM (capturable|federal)_committee_hearing h/.test(String(sql)),
     )?.[0] as string;
     // REGRESSION (hearing-demand-08): previously COUNT(DISTINCT s.id) counted
     // every hearing_subscription — browser-only attendance and notification-only
@@ -254,5 +254,29 @@ describe('LegiWatchPhase9PreflightService', () => {
     // predicate is applied by the real database).
     const result = await service.plan({ now });
     expect(result.skippedNoDemand).toBeGreaterThan(0);
+  });
+
+  it('only scans federal hearings for capture eligibility until state server capture is enabled', async () => {
+    delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+    const { service, query } = harness();
+    await service.plan({ now });
+    const scanSql = query.mock.calls.find(([sql]) =>
+      /FROM (capturable|federal)_committee_hearing h/.test(String(sql)),
+    )?.[0] as string;
+    expect(scanSql).toContain('FROM federal_committee_hearing h');
+  });
+
+  it('scans all jurisdictions once state server capture is enabled', async () => {
+    process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = 'true';
+    try {
+      const { service, query } = harness();
+      await service.plan({ now });
+      const scanSql = query.mock.calls.find(([sql]) =>
+        /FROM (capturable|federal)_committee_hearing h/.test(String(sql)),
+      )?.[0] as string;
+      expect(scanSql).toContain('FROM capturable_committee_hearing h');
+    } finally {
+      delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
+    }
   });
 });

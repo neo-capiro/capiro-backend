@@ -578,6 +578,120 @@ describe('florida Senate media player (event 6382)', () => {
   });
 });
 
+// ── Florida players with state server capture ON ────────────────────────────
+
+describe('florida players with LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED=true', () => {
+  const FLAG = 'LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED';
+  const previous = process.env[FLAG];
+  const SENATE_PLAYER = 'https://www.flsenate.gov/media/VideoPlayer/6382';
+  const SENATE_MANIFEST =
+    'https://cdnapi.kaltura.com/p/2593311/sp/259331100/playManifest/entryId/1_abohhovv/protocol/https/format/applehttp/a.m3u8';
+  const HOUSE_PLAYER = 'https://www.flhouse.gov/VideoPlayer.aspx?eventID=11179';
+  const HOUSE_MANIFEST =
+    'https://cdnapisec.kaltura.com/p/2593311/sp/259331100/playManifest/entryId/1_q58g4s8q/format/applehttp/protocol/https/a.m3u8';
+  const playerHtml = (manifest: string) =>
+    `<html><head><title>Video Player</title></head><body><script>var src = "${manifest}";</script></body></html>`;
+  const FLORIDA_MEDIA = (url: string) => ({
+    url,
+    kind: 'hls',
+    provider: 'florida-channel-kaltura',
+    ipBound: false,
+  });
+
+  beforeEach(() => {
+    process.env[FLAG] = 'true';
+  });
+  afterAll(() => {
+    if (previous === undefined) delete process.env[FLAG];
+    else process.env[FLAG] = previous;
+  });
+
+  it('resolves the Senate player page to The Florida Channel HLS master via the guarded node-UA fetch', async () => {
+    const svc = makeService();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === SENATE_PLAYER) return okHtml(url, playerHtml(SENATE_MANIFEST));
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const r = await svc.resolve({ pageUrl: SENATE_PLAYER });
+    expect(r.status).toBe('resolved');
+    expect(r.media).toEqual(FLORIDA_MEDIA(SENATE_MANIFEST));
+    expect(r.reference).toBe(SENATE_PLAYER);
+    expect(r.meta?.title).toBe('Video Player');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![1]?.headers?.['user-agent']).toBe('node');
+    expect(probeMock).not.toHaveBeenCalled();
+  });
+
+  it('resolves a direct House VideoPlayer page the same way', async () => {
+    const svc = makeService();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === HOUSE_PLAYER) return okHtml(url, playerHtml(HOUSE_MANIFEST));
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const r = await svc.resolve({ pageUrl: HOUSE_PLAYER });
+    expect(r.status).toBe('resolved');
+    expect(r.media).toEqual(FLORIDA_MEDIA(HOUSE_MANIFEST));
+    expect(r.reference).toBe(HOUSE_PLAYER);
+  });
+
+  it('follows the House notice chain to the paired player and extracts its manifest (three fetches)', async () => {
+    const svc = makeService();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === FL_NOTICE_URL) return okHtml(url, FL_NOTICE_HTML);
+      if (url === FL_SCHEDULE_URL) return okHtml(url, FL_SCHEDULE_HTML);
+      if (url === HOUSE_PLAYER) return okHtml(url, playerHtml(HOUSE_MANIFEST));
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    const r = await svc.resolve({ pageUrl: FL_NOTICE_URL });
+    expect(r.status).toBe('resolved');
+    expect(r.media?.url).toBe(HOUSE_MANIFEST);
+    expect(r.reference).toBe(HOUSE_PLAYER);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('falls back to the verified player reference when the page carries no Florida Channel manifest', async () => {
+    const svc = makeService();
+    const foreign = SENATE_MANIFEST.replace('/p/2593311/', '/p/1234567/');
+    fetchMock.mockImplementation(async (url: string) => okHtml(url, playerHtml(foreign)));
+    const r = await svc.resolve({ pageUrl: SENATE_PLAYER });
+    expect(r.status).toBe('unresolvable');
+    expect(r.media).toBeUndefined();
+    expect(r.reference).toBe(SENATE_PLAYER);
+    expect(r.note).toContain('official player');
+  });
+
+  it('reports a publisher "Request Rejected" player page truthfully', async () => {
+    const svc = makeService();
+    fetchMock.mockImplementation(async (url: string) =>
+      okHtml(url, '<html><head><title>Request Rejected</title></head><body>Request Rejected</body></html>'),
+    );
+    const r = await svc.resolve({ pageUrl: SENATE_PLAYER });
+    expect(r.status).toBe('unresolvable');
+    expect(r.note).toContain('publisher bot policy');
+    expect(r.reference).toBe(SENATE_PLAYER);
+  });
+
+  it('reports a network-policy block honestly instead of inventing media', async () => {
+    const svc = makeService();
+    fetchMock.mockRejectedValue(new netGuard.SsrfError('Host not allowed: www.flsenate.gov'));
+    const r = await svc.resolve({ pageUrl: SENATE_PLAYER });
+    expect(r.status).toBe('unresolvable');
+    expect(r.note).toContain('Blocked by network policy');
+  });
+
+  it('keeps the reference-only behaviour (no network) when the switch is off', async () => {
+    delete process.env[FLAG];
+    const svc = makeService();
+    for (const pageUrl of [SENATE_PLAYER, HOUSE_PLAYER]) {
+      const r = await svc.resolve({ pageUrl });
+      expect(r.status).toBe('unresolvable');
+      expect(r.reference).toBe(pageUrl);
+      expect(r.note).toContain('tab audio');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 // ── The Florida Channel per-event page ──────────────────────────────────────
 
 describe('the Florida Channel per-event page', () => {

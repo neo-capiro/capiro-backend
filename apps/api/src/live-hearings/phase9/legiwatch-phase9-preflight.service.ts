@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { capturableHearingView } from '../legiwatch-state-capture-policy.js';
 
 /**
  * Automatic server-capture demand — the same predicate the Intel capture worker
@@ -106,7 +107,7 @@ export class LegiWatchPhase9PreflightService {
                     'NO_PUBLIC_STREAM', 'POLICY_BLOCKED', 'ENDED'
                   )
               )::int AS "terminalNonServerCount"
-       FROM federal_committee_hearing h
+       FROM ${capturableHearingView()} h
        LEFT JOIN hearing_subscription s ON s.hearing_id=h.id
        LEFT JOIN public_hearing_capture c ON c.hearing_id=h.id
        LEFT JOIN hearing_stream_candidate candidate ON candidate.hearing_id=h.id

@@ -30,6 +30,7 @@ import {
 import {
   accessPillLabel,
   isClosedSession,
+  speakerDisplay,
   transcriptAvailability,
 } from '../lib/hearing-detail-states.js';
 import { LwPill, LwButton, LwSkeleton } from '../lib/primitives.js';
@@ -41,7 +42,13 @@ import { AttendDialog, ATTENDANCE_LABEL } from './AttendDialog.js';
 import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { HearingActions, type ActionRefs } from './HearingActions.js';
 import { SavedHearingSessions } from './SavedHearingSessions.js';
-import { useAttendance, useFollowConfig, useHearingUpdates } from '../lib/wave1-api.js';
+import { SpeakerName } from './SpeakerName.js';
+import {
+  useAttendance,
+  useFollowConfig,
+  useHearingUpdates,
+  useRenameSpeaker,
+} from '../lib/wave1-api.js';
 import { useHearingWakeLock } from '../../../../lib/use-hearing-wake-lock.js';
 import { PreparationPanel } from './PreparationPanel.js';
 import { useIntelFeatureEnabled } from '../../../../lib/intel-feature-flags.js';
@@ -111,6 +118,7 @@ export function HearingDetailRoute() {
   // real persisted state rather than a local guess.
   const follow = useFollowConfig(hearingId);
   const attendance = useAttendance(hearingId);
+  const renameSpeaker = useRenameSpeaker(hearingId);
   const [dialog, setDialog] = useState<'follow' | 'attend' | null>(null);
   const [pendingAction, setPendingAction] = useState<{ action: string; refs: ActionRefs } | null>(
     null,
@@ -181,7 +189,7 @@ export function HearingDetailRoute() {
     if (!q) return segments;
     return segments.filter(
       (s: PublicTranscriptSegment) =>
-        s.text.toLowerCase().includes(q) || (s.speakerName ?? '').toLowerCase().includes(q),
+        s.text.toLowerCase().includes(q) || (speakerDisplay(s) ?? '').toLowerCase().includes(q),
     );
   }, [segments, transcriptQuery]);
 
@@ -649,9 +657,12 @@ export function HearingDetailRoute() {
                               Play audio
                             </button>
                           ) : null}
-                          {s.speakerName || s.speakerLabel ? (
-                            <strong style={{ fontSize: 13 }}>{s.speakerName ?? s.speakerLabel}</strong>
-                          ) : null}
+                          <SpeakerName
+                            segment={s}
+                            onRename={(label, displayName) =>
+                              renameSpeaker.mutateAsync({ label, displayName })
+                            }
+                          />
                           {s.gapBefore ? (
                             <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>· gap</span>
                           ) : null}
@@ -810,7 +821,7 @@ export function HearingDetailRoute() {
         hearingId={hearingId}
         hearingTitle={e.title}
         clientId={clientId}
-        canCreateBrief={availability.available && segments.length > 0}
+        hasTranscript={availability.available && segments.length > 0}
         canSaveMoment={availability.available && segments.length > 0}
         pendingAction={pendingAction}
         onPendingHandled={() => setPendingAction(null)}

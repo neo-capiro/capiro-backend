@@ -103,6 +103,7 @@ interface TranscriptSegmentRow {
   endMs: number;
   text: string;
   speakerLabel: string | null;
+  resolvedSpeakerName: string | null;
   speakerConfidence: number | null;
   transcriptionConfidence: number | null;
   isFinal: boolean;
@@ -303,25 +304,28 @@ export class LiveHearingsPhase7Service {
     const decoded = decodeTranscriptCursor(input.cursor);
     const limit = clamp(input.limit ?? 250, 1, TRANSCRIPT_MAX_PAGE_SIZE);
     const rows = await this.prisma.$queryRawUnsafe<TranscriptSegmentRow[]>(
-      `SELECT id,
-              sequence,
-              start_ms AS "startMs",
-              end_ms AS "endMs",
-              text,
-              speaker_label AS "speakerLabel",
-              speaker_confidence AS "speakerConfidence",
-              transcription_confidence AS "transcriptionConfidence",
-              is_final AS "isFinal",
-              has_gap_before AS "hasGapBefore",
-              revision
-       FROM public_hearing_transcript_segment
-       WHERE capture_id=$1
+      `SELECT s.id,
+              s.sequence,
+              s.start_ms AS "startMs",
+              s.end_ms AS "endMs",
+              s.text,
+              s.speaker_label AS "speakerLabel",
+              sp.display_name AS "resolvedSpeakerName",
+              s.speaker_confidence AS "speakerConfidence",
+              s.transcription_confidence AS "transcriptionConfidence",
+              s.is_final AS "isFinal",
+              s.has_gap_before AS "hasGapBefore",
+              s.revision
+       FROM public_hearing_transcript_segment s
+       LEFT JOIN public_hearing_speaker sp
+         ON sp.capture_id = s.capture_id AND sp.speaker_label = s.speaker_label
+       WHERE s.capture_id=$1
          AND (
            $2::int IS NULL OR
-           sequence > $2 OR
-           (sequence = $2 AND id > $3)
+           s.sequence > $2 OR
+           (s.sequence = $2 AND s.id > $3)
          )
-       ORDER BY sequence ASC, id ASC
+       ORDER BY s.sequence ASC, s.id ASC
        LIMIT $4`,
       capture.id,
       decoded?.sequence ?? null,
@@ -348,7 +352,10 @@ export class LiveHearingsPhase7Service {
         endMs: row.endMs,
         text: row.text,
         speakerLabel: row.speakerLabel,
-        speakerName: row.speakerLabel,
+        // A bare diarization index is not a name; older rails stored real labels.
+        speakerName:
+          row.resolvedSpeakerName ??
+          (row.speakerLabel && !/^\d+$/.test(row.speakerLabel.trim()) ? row.speakerLabel : null),
         confidence: row.transcriptionConfidence ?? row.speakerConfidence,
         transcriptionConfidence: row.transcriptionConfidence,
         speakerConfidence: row.speakerConfidence,

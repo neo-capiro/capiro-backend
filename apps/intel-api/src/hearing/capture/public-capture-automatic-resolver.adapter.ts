@@ -17,8 +17,10 @@ import {
   type StreamResolutionState,
 } from './stream-resolution-policy.js';
 import {
+  capturableHearingView,
   isFloridaStatePublisherUrl,
   STATE_CAPTURE_LINK_ONLY,
+  stateCaptureEnabled,
 } from '../state-capture-policy.js';
 
 interface HearingContextRow {
@@ -84,7 +86,8 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     hearingId?: string;
   }): Promise<AutomaticStreamResolutionResult> {
     const hearingId = input.hearingId?.trim();
-    if (isFloridaStatePublisherUrl(input.pageUrl)) {
+    const stateCapture = stateCaptureEnabled();
+    if (!stateCapture && isFloridaStatePublisherUrl(input.pageUrl)) {
       return unresolvedShell({
         status: 'unresolvable',
         reference: safeReference(input.pageUrl),
@@ -99,19 +102,21 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
       });
     }
 
-    const state = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
-      `SELECT id FROM committee_hearing
-       WHERE id=$1 AND geographic_jurisdiction IS NOT NULL
-         AND geographic_jurisdiction<>'US'
-       LIMIT 1`,
-      hearingId,
-    );
-    if (state.length) {
-      return unresolvedShell({
-        status: 'unresolvable',
-        reference: safeReference(input.pageUrl),
-        note: STATE_CAPTURE_LINK_ONLY,
-      });
+    if (!stateCapture) {
+      const state = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM committee_hearing
+         WHERE id=$1 AND geographic_jurisdiction IS NOT NULL
+           AND geographic_jurisdiction<>'US'
+         LIMIT 1`,
+        hearingId,
+      );
+      if (state.length) {
+        return unresolvedShell({
+          status: 'unresolvable',
+          reference: safeReference(input.pageUrl),
+          note: STATE_CAPTURE_LINK_ONLY,
+        });
+      }
     }
 
     const hearing = await this.loadHearing(hearingId);
@@ -126,8 +131,8 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
     if (publicAudioEnabled() && (await approvedPublicCapture(this.prisma, hearingId)).length) {
       const attempts: AutomaticStreamResolutionResult['attempts'] = [];
       // Existing guarded provider resolution still validates every fetch/redirect.
-      // State hearings have already returned above, and approvedPublicCapture()
-      // independently refuses every non-US jurisdiction.
+      // With state capture off, state hearings have already returned above and
+      // approvedPublicCapture() independently refuses every non-US jurisdiction.
       for (const url of [
         ...new Set(
           [hearing.officialPageUrl, ...videos.map((v) => v.url)].filter((v): v is string =>
@@ -200,7 +205,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
               CASE WHEN visibility='private' THEN 'CLOSED' ELSE 'PUBLIC' END AS "publicAccess",
               COALESCE(starts_at, date::timestamptz) AS "scheduledStart",
               url AS "officialPageUrl"
-       FROM federal_committee_hearing
+       FROM ${capturableHearingView()}
        WHERE id=$1
        LIMIT 1`,
       hearingId,

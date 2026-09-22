@@ -299,10 +299,21 @@ export class LegiWatchPhase9CutoverService {
     if (input.confirmation !== expected) {
       throw new ConflictException(`Exact confirmation required: ${expected}`);
     }
-    const state = await this.state();
     if (input.enabled) {
-      if (state.phase !== 'CUTOVER' || !state.productionDefault || state.killSwitchEngaged) {
-        throw new ConflictException('Capture-all is permitted only after a successful CUTOVER');
+      // Not gated to CUTOVER or legiwatch_cutover_state.kill_switch_engaged —
+      // that field is ladder-only bookkeeping (releasable solely at CUTOVER)
+      // and, by design, is never read by the capture worker. The REAL kill
+      // switch the worker actually checks every 20s is this heartbeat row
+      // (public-capture-runtime-control.ts); capture-all must never be able
+      // to outrun it, so it is gated on the same row instead.
+      const [runtime] = await this.prisma.$queryRawUnsafe<Array<{ runnable: boolean }>>(
+        `SELECT (enabled AND schedule_enabled) AS runnable
+         FROM legiwatch_runtime_heartbeat WHERE job_key='capture-worker'`,
+      );
+      if (!runtime?.runnable) {
+        throw new ConflictException(
+          'Capture-all cannot be enabled while the capture-worker runtime is disabled',
+        );
       }
       if (process.env.LEGIWATCH_ALLOW_CAPTURE_ALL !== 'true') {
         throw new ConflictException(

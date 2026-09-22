@@ -43,11 +43,15 @@ class CalendarReminderDto {
 class CalendarExportSelectionDto extends CalendarQueryDto {
   @IsOptional() @IsBoolean() dateOnlyReminder?: boolean;
 }
+import { HearingBriefGenerationService } from './hearing-brief-generation.service.js';
+import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 import {
   ArchiveSearchQueryDto,
   AskMeriDto,
   AttendanceRequestDto,
+  BriefGenerateDto,
   BriefPrefillDto,
+  SpeakerRenameDto,
   ClientRelevanceQueryDto,
   CommitteeEmailPreferenceDto,
   CommitteeFollowDto,
@@ -67,6 +71,8 @@ export class LegiWatchWave1Controller {
   constructor(
     private readonly wave1: LegiWatchWave1Service,
     private readonly config: ConfigService<AppConfig, true>,
+    private readonly briefs: HearingBriefGenerationService,
+    private readonly speakers: HearingSpeakerAttributionService,
   ) {}
 
   // ── W1-1 · configurable hearing following ────────────────────────────────
@@ -211,6 +217,38 @@ export class LegiWatchWave1Controller {
     @Body() body: BriefPrefillDto,
   ) {
     return this.wave1.buildBriefPrefill(ctx, id, body);
+  }
+
+  /** Client-specific brief written by the model from the grounded packet. */
+  @Post('events/:id/actions/brief/generate')
+  @Header('Cache-Control', 'no-store')
+  generateBrief(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+    @Body() body: BriefGenerateDto,
+  ) {
+    return this.briefs.generate(ctx, id, body);
+  }
+
+  @Post('events/:id/speakers/resolve')
+  @Header('Cache-Control', 'no-store')
+  resolveSpeakers(@CurrentTenant() ctx: TenantContext, @Param('id', CanonicalHearingIdPipe) id: string) {
+    return this.speakers.resolve(id, { force: true, ctx });
+  }
+
+  /** Manual correction; applies to every segment carrying this label. */
+  @Put('events/:id/speakers/:label')
+  @Header('Cache-Control', 'no-store')
+  renameSpeaker(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id', CanonicalHearingIdPipe) id: string,
+    @Param('label') label: string,
+    @Body() body: SpeakerRenameDto,
+  ) {
+    return this.speakers.rename(id, label, body.displayName, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+    });
   }
 
   /** Grounded prefill for outreach. Nothing is sent and nothing auto-created. */

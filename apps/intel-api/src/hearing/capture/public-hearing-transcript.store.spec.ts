@@ -3,10 +3,11 @@ import { StaleCaptureFencingTokenError } from './public-hearing-capture.store.js
 import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
 
 const lease = { ownerId: 'worker-a', fencingToken: 7 };
+const FLAG = 'LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED';
 
-function harness(federalHearingId: string | null = 'h') {
+function harness(canonicalHearingId: string | null = 'h') {
   const execute = jest.fn().mockResolvedValue(1);
-  const query = jest.fn().mockResolvedValue([{ id: 'c', federalHearingId }]);
+  const query = jest.fn().mockResolvedValue([{ id: 'c', canonicalHearingId }]);
   const tx = { $executeRawUnsafe: execute, $queryRawUnsafe: query };
   const store = new PublicHearingTranscriptStore({
     ...tx,
@@ -14,6 +15,15 @@ function harness(federalHearingId: string | null = 'h') {
   } as never);
   return { store, execute, query };
 }
+
+const previous = process.env[FLAG];
+beforeEach(() => {
+  delete process.env[FLAG];
+});
+afterAll(() => {
+  if (previous === undefined) delete process.env[FLAG];
+  else process.env[FLAG] = previous;
+});
 
 describe('PublicHearingTranscriptStore', () => {
   it('deduplicates federal finals, marks the segment after a gap, and checkpoints under lease', async () => {
@@ -37,6 +47,7 @@ describe('PublicHearingTranscriptStore', () => {
       'worker-a',
       7,
     );
+    expect(query.mock.calls[0]![0]).toContain('LEFT JOIN federal_committee_hearing');
     expect(execute.mock.calls[1]![0]).toContain(
       'ON CONFLICT (capture_id,start_ms,end_ms) DO NOTHING',
     );
@@ -57,7 +68,7 @@ describe('PublicHearingTranscriptStore', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it('rejects an owned capture when its canonical federal hearing row is missing', async () => {
+  it('rejects an owned capture when its canonical hearing row is missing', async () => {
     const { store, execute } = harness(null);
     await expect(
       store.appendFinal({
@@ -71,7 +82,7 @@ describe('PublicHearingTranscriptStore', () => {
   });
 
   it.each(['appendFinal', 'appendGap'] as const)(
-    'hard-blocks state transcript persistence through %s',
+    'hard-blocks ineligible transcript persistence through %s',
     async (method) => {
       const { store, execute } = harness(null);
       const operation =
@@ -92,4 +103,28 @@ describe('PublicHearingTranscriptStore', () => {
       expect(execute).not.toHaveBeenCalled();
     },
   );
+
+  it('joins the capturable (federal + state) view once state capture is enabled, still failing closed on null', async () => {
+    process.env[FLAG] = 'true';
+    const { store, execute, query } = harness();
+    await store.appendFinal({
+      captureId: 'c',
+      hearingId: 'h',
+      lease,
+      segment: { startMs: 0, endMs: 1000, text: 'state words' },
+    });
+    expect(query.mock.calls[0]![0]).toContain('LEFT JOIN capturable_committee_hearing');
+    expect(execute).toHaveBeenCalled();
+
+    const orphan = harness(null);
+    await expect(
+      orphan.store.appendFinal({
+        captureId: 'c',
+        hearingId: 'h',
+        lease,
+        segment: { startMs: 0, endMs: 1000, text: 'orphan words' },
+      }),
+    ).rejects.toThrow(STATE_CAPTURE_LINK_ONLY);
+    expect(orphan.execute).not.toHaveBeenCalled();
+  });
 });

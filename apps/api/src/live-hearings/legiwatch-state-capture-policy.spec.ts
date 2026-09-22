@@ -4,7 +4,7 @@ import {
 } from './legiwatch-state-capture-policy.js';
 import { assessAttendance } from './legiwatch-wave1-attendance.js';
 
-describe('state capture is link-only', () => {
+describe('state capture is link-only until the system-wide switch is on', () => {
   const ctx = { tenantId: 'tenant', userId: 'internal-user' } as any;
   const prisma = { withSystem: jest.fn() } as any;
   const hearing = {
@@ -17,7 +17,7 @@ describe('state capture is link-only', () => {
 
   beforeEach(() => {
     prisma.withSystem.mockClear();
-    process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = 'true';
+    delete process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED;
     process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED = 'true';
   });
 
@@ -50,11 +50,30 @@ describe('state capture is link-only', () => {
     });
   });
 
-  it('never widens state capture because runtime flags or legacy grants exist', async () => {
+  it('never widens state capture because legacy grants exist while the switch is off', async () => {
+    // requireStateCalendar is the only prisma use on this path and is a
+    // documented no-op (legiwatch-calendar-access.ts) — asserting on
+    // `prisma.withSystem` specifically proves nothing about widening through a
+    // different query, so this only checks the actual denial outcome.
     const permission = await stateCapturePolicy(prisma, ctx, hearing);
-    expect(prisma.withSystem).not.toHaveBeenCalled();
     expect(permission?.browserAllowed).toBe(false);
     expect(permission?.policy.allowed).toBe(false);
+    expect(permission?.policy.reasonCode).toBe(STATE_CAPTURE_LINK_ONLY);
+  });
+
+  it.each(['true', '1', 'on', 'enabled', 'yes'])(
+    'defers state proceedings to the normal capture assessment when the switch is %s',
+    async (value) => {
+      process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = value;
+      expect(await stateCapturePolicy(prisma, ctx, hearing)).toBeUndefined();
+    },
+  );
+
+  it('treats unrecognized switch values as off', async () => {
+    process.env.LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED = 'maybe';
+    expect((await stateCapturePolicy(prisma, ctx, hearing))?.policy.reasonCode).toBe(
+      STATE_CAPTURE_LINK_ONLY,
+    );
   });
 
   it('publishes no browser or automatic attendance mode', async () => {
