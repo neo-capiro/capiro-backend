@@ -26,6 +26,8 @@ import {
   ledgerToToolResultMap,
   planGovernmentAffairsEvidence,
   resolveAssuranceRolloutMode,
+  resolveAutoCorrectionCategories,
+  resolveAutoCorrectionMode,
   resolveClaimAssessmentMode,
   resolveCoverageRetrievalMode,
   resolveEvidenceAccuracyMode,
@@ -40,6 +42,7 @@ import {
   type ToolRegistry,
   assertToolExecutionActive,
   type ToolExecutionControl,
+  ReplayToolExecutor,
 } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -97,6 +100,9 @@ import {
   planFollowUp,
   type CoverageGap,
 } from '../retrieval/meri-evidence-requirements.js';
+import { applyLiveRepair } from '../repair/live-repair.service.js';
+import { createOrchestratorToolExecutor } from '../repair/orchestrator-tool-executor.js';
+import { createRevisionGenerator } from '../repair/revision-generator.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -328,6 +334,8 @@ export class MeriV3AssistantService {
       surface: 'chat',
     });
     const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat');
+    const autoCorrectionMode = resolveAutoCorrectionMode(process.env, ctx.tenantId, 'chat');
+    const autoCorrectionCategories = resolveAutoCorrectionCategories(process.env);
     const coverageRetrievalMode = resolveCoverageRetrievalMode(
       process.env,
       ctx.tenantId,
@@ -838,7 +846,7 @@ export class MeriV3AssistantService {
       finalText = documentCompletion!.partialReply(finalText);
     }
 
-    const released = this.finalizeReply({
+    let released = this.finalizeReply({
       ctx,
       dto,
       reply: enforceClientFilingConfirmation({
@@ -859,6 +867,86 @@ export class MeriV3AssistantService {
       residualCoverageGaps,
       emit,
     });
+
+    if (autoCorrectionMode !== 'off' && released.reply && autoCorrectionCategories.categories.size) {
+      if (autoCorrectionCategories.unknownTokens.length) {
+        this.logger.warn('meri.auto_correction.unknown_categories', {
+          tokens: autoCorrectionCategories.unknownTokens,
+        });
+      }
+      const asOf = new Date().toISOString();
+      const claimLedger = buildClaimLedgerFromToolResults({
+        output: released.reply,
+        ledgerEntries,
+        citations: released.citations,
+        plan: evidencePlan,
+      });
+      const claims = extractMaterialClaims({
+        replyText: released.reply,
+        citations: released.citations,
+        ledger: claimLedger,
+        asOf,
+      });
+      const passages = Object.fromEntries(claimLedger.evidence.map((evidence) => {
+        const citation = released.citations.find((item) =>
+          item.id === evidence.sourceId || item.stableId === evidence.id,
+        );
+        const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
+        return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
+      }));
+      const providers = createChatDecisionProviders({
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface: 'chat',
+        llm: this.llm,
+        logger: this.logger,
+      });
+      const repairStartedAt = Date.now();
+      const executor = autoCorrectionMode === 'enforce'
+        ? createOrchestratorToolExecutor({
+            registry: this.registry,
+            schemas: availableSchemas,
+            context: {
+              tenantId: ctx.tenantId,
+              clientId: dto.clientId,
+              conversationId: dto.conversationId,
+              request: lastUserText,
+            },
+            citations: released.citations,
+            invoke: (name, input) => this.registry.invoke(name, input, ctx),
+          })
+        : new ReplayToolExecutor([]);
+      const repair = await applyLiveRepair({
+        released: released.reply,
+        claims,
+        ledger: claimLedger,
+        citations: released.citations,
+        passages,
+        evidencePlan,
+        residualGaps: residualCoverageGaps,
+        tenantId: ctx.tenantId,
+        clientId: dto.clientId,
+        conversationId: dto.conversationId,
+        providers,
+        executor,
+        generate: autoCorrectionMode === 'enforce'
+          ? createRevisionGenerator(this.llm, () => Math.max(1, 8_000 - (Date.now() - repairStartedAt)))
+          : async ({ affectedText }) => ({ replacementText: affectedText, citedEvidenceIds: [] }),
+        promotedCategories: autoCorrectionCategories.categories,
+        budget: { maxPasses: 1, maxToolCalls: 3, maxMs: 8_000, maxInputTokens: 60_000 },
+        signal: opts.requestSignal ?? opts.signal,
+        logger: this.logger,
+        mode: autoCorrectionMode,
+      });
+      if (autoCorrectionMode === 'enforce' && repair.changed) {
+        const formA = validateCitationMarkers(repair.reply, repair.citations);
+        const formB = validateFormBCitations(
+          formA.cleanedText,
+          ledgerToToolResultMap(ledgerEntries),
+        );
+        released = { ...released, reply: formB.sanitizedText, citations: [...formA.used] };
+      }
+    }
 
     if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
       emit({ type: 'text', text: released.reply });

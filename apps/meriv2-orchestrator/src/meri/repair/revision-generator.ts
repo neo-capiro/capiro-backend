@@ -26,12 +26,13 @@ export function createRevisionGenerator(
       publishedAt: item.publishedAt ?? null,
       effectiveAt: item.effectiveAt ?? null,
       retrievedAt: item.retrievedAt ?? null,
+      citationMarker: item.locator ?? null,
     }));
     const completion = llm.completeWithSchema({
       system: [
         'Revise only the affected claim and its listed dependent sentences.',
         'Use only the evidence passages supplied. Never invent a value.',
-        'Cite only listed evidence ids and preserve unrelated text byte-for-byte.',
+        'Return cited evidence ids separately. In replacementText, cite facts only with the corresponding citationMarker; never print an evidence id as a citation. Preserve unrelated text byte-for-byte.',
       ].join(' '),
       prompt: JSON.stringify({
         affectedText: input.affectedText,

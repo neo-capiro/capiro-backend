@@ -57,7 +57,7 @@ describe('repair replay scenarios', () => {
     const c = claim('The transcript says the chair promised action.');
     const result = await runRepairLoop(base({ reply: c.text, claims: [c], ledger: { ...ledger(), ledger: { ...ledger().ledger, claims: [c] } }, executor: executor({ ok: false, state: 'document_unavailable', reason: 'transcript unavailable' }) }));
     expect(result.status).toBe('qualified');
-    expect(result.reply).toContain('Evidence limitation');
+    expect(result.reply).toContain('attach the named transcript');
     expect(result.reply).not.toMatch(/re-?upload/i);
   });
 

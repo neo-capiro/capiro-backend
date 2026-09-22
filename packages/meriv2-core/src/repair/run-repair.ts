@@ -74,8 +74,25 @@ export async function runRepairLoop(input: RunRepairLoopInput): Promise<RepairOu
         failedDedupeKeys.add(remedy.dedupeKey);
         if (pass >= input.budget.maxPasses) {
           const fallback = proportionalFallback(claim);
-          revisions.push(fallbackRevision(claim, ledger.version, fallback, fallback === 'omitted' ? '' : limitationSentence(claim, result.reason)));
-          status = fallback;
+          if (result.state === 'document_unavailable') {
+            revisions.push(fallbackRevision(
+              claim,
+              ledger.version,
+              'qualified',
+              `To confirm “${claim.text}”, attach the named transcript.`,
+            ));
+            status = 'qualified';
+          } else {
+            revisions.push(fallbackRevision(
+              claim,
+              ledger.version,
+              fallback,
+              fallback === 'omitted'
+                ? 'The unverified exact-value claim was omitted.'
+                : limitationSentence(claim, result.reason),
+            ));
+            status = fallback;
+          }
         }
         continue;
       }

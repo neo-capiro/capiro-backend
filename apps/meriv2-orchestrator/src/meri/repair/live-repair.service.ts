@@ -40,6 +40,7 @@ export interface LiveRepairInput {
   budget: RepairBudget;
   signal?: AbortSignal;
   logger: LiveRepairLogger;
+  mode?: 'shadow' | 'enforce';
   now?: () => number;
 }
 
@@ -175,7 +176,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   };
   input.logger.log('meri.auto_correction.turn', {
     conversationId: input.conversationId ?? null,
-    mode: 'enforce',
+    mode: input.mode ?? 'enforce',
     promotedCategories: [...input.promotedCategories],
     claimsAssessed: assured.length,
     byOutcome: countValues(outcomes),

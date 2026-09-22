@@ -103,6 +103,7 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
           authoritative: true,
           requirementIds: [],
           retrievedAt: new Date().toISOString(),
+          locator: `[${citation.n}]`,
         };
         return item;
       });
