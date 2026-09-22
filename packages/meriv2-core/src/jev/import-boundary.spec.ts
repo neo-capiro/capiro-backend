@@ -18,4 +18,14 @@ describe('Jev import boundary', () => {
       .filter((file) => /(?:from\s+|require\()['"][^'"]*jev(?:\/|['"])/.test(readFileSync(file, 'utf8')));
     expect(offenders).toEqual([]);
   });
+
+  it('keeps all apps free of direct Jev source imports', () => {
+    const repository = path.resolve(__dirname, '../../../..');
+    const offenders = sourceFiles(path.join(repository, 'apps')).filter((file) =>
+      /packages[\\/]meriv2-core[\\/]src[\\/]jev|@capiro\/meriv2-core\/jev/.test(
+        readFileSync(file, 'utf8'),
+      ),
+    );
+    expect(offenders).toEqual([]);
+  });
 });

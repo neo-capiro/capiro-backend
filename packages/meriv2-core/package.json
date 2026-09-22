@@ -72,6 +72,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest --detectOpenHandles --forceExit",
     "eval:meriv2": "tsx test/evals/run-evals.ts",
+    "eval:jev-replay": "tsx scripts/jev-replay-eval.ts",
     "parity": "tsx test/parity/parity.ts",
     "clean": "rm -rf dist"
   },

@@ -77,6 +77,9 @@ export const evidenceEnvelopeSchema = z.object({
       originalSourceCount: z.number().int().nonnegative(),
       includedSourceCount: z.number().int().nonnegative(),
       reason: z.string().min(1),
+      droppedEvidenceIds: z.array(z.string()),
+      truncatedEvidenceIds: z.array(z.string()),
+      estimatedTokens: z.number().int().nonnegative(),
     })
     .optional(),
 });
@@ -107,6 +110,9 @@ export interface EvidenceEnvelope {
     originalSourceCount: number;
     includedSourceCount: number;
     reason: string;
+    droppedEvidenceIds: string[];
+    truncatedEvidenceIds: string[];
+    estimatedTokens: number;
   };
 }
 

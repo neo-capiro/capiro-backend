@@ -30,6 +30,29 @@ Stage 0e adds a dependency-injected TypeSafe/Jev client and a provider-neutral e
 
 Authentication, request rejection, exhausted rate/overload/network failures map to `judge_unavailable` with stable reason codes. Timeouts map to `timeout`, caller aborts to `cancelled`, response/schema errors to `malformed_response`, and tenant mismatch to `scope_refused` without a network call.
 
-## Next step
+## Evidence envelopes
 
-T12 adds deterministic envelope construction, replay tooling, and fixture generation. It does not make this provider user-visible by itself.
+`buildEvidenceEnvelope` selects only ledger evidence named in the claim's `sourceIds`. It copies bounded passages, never documents: each passage is capped at 2,000 characters and the envelope at approximately 24,000 tokens using the conservative characters/4 estimate. Category, as-of date, and caller qualifiers are sorted deterministically. Any dropped or shortened evidence is listed explicitly in truncation metadata, and the schema-validated envelope receives a deterministic content hash.
+
+## Recorded replay and paired evaluation
+
+The JSONL replay store is append-only and keyed by envelope hash, question version, model, and provider. Each line contains the bounded request state/questions, raw response, latency, usage, and recording date; credentials and header-like key material are rejected. Replay misses are operational `not_checked` failures with reason `no_recording`, never network calls.
+
+Run offline from the repository root:
+
+`pnpm --filter @capiro/meriv2-core eval:jev-replay -- --store <recordings.jsonl> --output <directory>`
+
+This writes deterministic `results.json` and a short Markdown summary. Live recording is intentionally restricted to an explicit `--live` invocation with both `TYPESAFE_API_KEY` and `MERI_JEV_PROVIDER_MODE=shadow`; no live run was performed in Stage 0.
+
+## Fixture review
+
+`stage0-claim-evidence-v1.json` contains synthetic, non-sensitive tuning and held-out cases. All enter as `humanReview.status: proposed`. A designated grounding/product reviewer must compare the claim, bounded passages, expected outcome, operational state, and one-sentence rationale; approval records the reviewer and review time and changes status to `approved` in a reviewed dataset revision. Fixture labels are evidence for evaluation, not automatic production policy. Thresholds are not selected until Stage 1.
+
+## Stage 1 handoff
+
+- Obtain human approval for fixture labels while preserving the tuning/held-out boundary.
+- Perform an authorized shadow-only recording run and review the JSONL for data minimization.
+- Compare Jev and legacy category/claim-kind results, latency, token use, and estimated cost.
+- Select and document calibrated thresholds only after reviewing held-out results.
+- Add application factories and rollout telemetry separately; the Stage 0 package remains outside all app answer paths.
+- Provision `capiro/<env>/typesafe-api-key` before enabling `typesafeApiKeySecretEnabled` and deploying.

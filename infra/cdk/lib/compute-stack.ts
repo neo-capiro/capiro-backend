@@ -258,12 +258,15 @@ export class ComputeStack extends cdk.Stack {
       cfg.externalSecretArns?.anthropicApiKey,
     );
     // Jev remains dark until rollout config and an app-side factory exist. The
-    // credential follows the established Secrets Manager naming convention.
-    const typeSafeApiKeySecret = importExternalSecret(
-      this,
-      'ImportedTypeSafeApiKey',
-      `capiro/${cfg.envName}/typesafe-api-key`,
-    );
+    // Provision the secret first, then enable this config flag and deploy. The
+    // default has no reference because ECS cannot start with a missing secret.
+    const typeSafeApiKeySecret = cfg.typesafeApiKeySecretEnabled
+      ? importExternalSecret(
+          this,
+          'ImportedTypeSafeApiKey',
+          `capiro/${cfg.envName}/typesafe-api-key`,
+        )
+      : undefined;
     // SAM.gov API key for Step 33 DoD solicitation personnel sync
     // (sync-sam-personnel). Provisioned out-of-band at
     // capiro/<env>/sam-gov-api-key (no leading slash; covered by the existing
@@ -605,7 +608,9 @@ export class ComputeStack extends cdk.Stack {
       ),
       OPENAI_API_KEY: ecs.Secret.fromSecretsManager(openaiApiKeySecret),
       ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
-      TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret),
+      ...(typeSafeApiKeySecret
+        ? { TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret) }
+        : {}),
       GOVINFO_API_KEY: ecs.Secret.fromSecretsManager(govInfoApiKeyImported),
       // Meeting notetaker (serve only — see the import above for the gating).
       RECALL_API_KEY: ecs.Secret.fromSecretsManager(recallApiKeySecret),
@@ -1129,7 +1134,9 @@ export class ComputeStack extends cdk.Stack {
       ),
       OPENAI_API_KEY: ecs.Secret.fromSecretsManager(openaiApiKeySecret),
       ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
-      TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret),
+      ...(typeSafeApiKeySecret
+        ? { TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret) }
+        : {}),
       // Tenant-scoped AI keys: decrypt BYO Anthropic keys from
       // tenant_ai_credentials (same envelope scheme + key as the API).
       AI_CREDENTIAL_ENCRYPTION_KEY: ecs.Secret.fromSecretsManager(
@@ -1288,7 +1295,9 @@ export class ComputeStack extends cdk.Stack {
       // meriv2-orchestrator-taskdef.with-anthropic.json — a `cdk deploy` would
       // otherwise ship the orchestrator keyless and 500 every LLM tool. (H2.)
       ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret),
-      TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret),
+      ...(typeSafeApiKeySecret
+        ? { TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret) }
+        : {}),
     };
     const meriv2OrchestratorSharedEnv: Record<string, string> = {
       NODE_ENV: cfg.envName === 'dev' ? 'development' : 'production',
@@ -1437,7 +1446,9 @@ export class ComputeStack extends cdk.Stack {
     // Serve: app DB role (least-privilege) + host/port from the master secret.
     const apiStrategyServeSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
-      TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret),
+      ...(typeSafeApiKeySecret
+        ? { TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret) }
+        : {}),
       DB_HOST: ecs.Secret.fromSecretsManager(dbSecretImported, 'host'),
       DB_PORT: ecs.Secret.fromSecretsManager(dbSecretImported, 'port'),
       DB_USER: ecs.Secret.fromSecretsManager(appDbSecretImported, 'username'),
