@@ -20,6 +20,7 @@ function item(over: Partial<DigestItem>): DigestItem {
     label: 'Update',
     severity: 'notable', // SAME severity on every fixture below — isolates the stage key
     detail: 'Some action.',
+    narrative: 'Grounded narrative. Next step: not verified.',
     actionDate: null,
     deadline: null,
     recommendedAction: null,

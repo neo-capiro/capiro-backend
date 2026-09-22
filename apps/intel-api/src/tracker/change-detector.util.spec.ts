@@ -6,6 +6,7 @@ import {
   STATE_COMPANION_MOVED_CLASS,
   cosponsorMomentumClass,
   stateDeadlineClass,
+  selectMaterialEvents,
 } from './change-detector.util.js';
 
 describe('classifyStateStatusChange (State Legislation Platform S4.3)', () => {
@@ -80,5 +81,21 @@ describe('cross-rail reuse — state events lean on federal factories unmodified
     expect(classifyChange('Became Public Law No: 119-42.')?.changeType).toBe('bill_enacted');
     expect(classifyStatusChange('rule_failed')?.changeType).toBe('bill_rule_failed');
     expect(classifyStatusChange('committee')).toBeNull();
+  });
+});
+
+describe('selectMaterialEvents chamber evidence', () => {
+  it('carries a sourced action chamber into the material event', () => {
+    const [event] = selectMaterialEvents(
+      [
+        {
+          date: new Date('2026-07-22T00:00:00Z'),
+          text: 'On passage Passed by recorded vote: 216 - 212.',
+          chamber: 'House',
+        },
+      ],
+      null,
+    );
+    expect(event?.chamber).toBe('House');
   });
 });

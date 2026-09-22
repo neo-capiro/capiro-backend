@@ -41,6 +41,11 @@ describe('InternalTrackerController', () => {
       billTitle: '',
       label: 'Passed a chamber',
       actionText: 'On passage Passed by recorded vote: 219 - 210.',
+      jurisdiction: null,
+      chamber: null,
+      actionDate: null,
+      why: null,
+      matchedTags: [],
       // §4.3 (Gate D): always forwarded, empty when the caller sends neither.
       allowedNextSteps: [],
       blockedBy: [],
@@ -65,6 +70,11 @@ describe('InternalTrackerController', () => {
       billTitle: 'A bill',
       label: 'Passed a chamber',
       actionText: 'On passage...',
+      jurisdiction: null,
+      chamber: null,
+      actionDate: null,
+      why: null,
+      matchedTags: [],
       // §4.3 (Gate D): always forwarded, empty when the caller sends neither.
       allowedNextSteps: [],
       blockedBy: [],
@@ -72,7 +82,7 @@ describe('InternalTrackerController', () => {
     expect(result).toEqual({ summary: 'The House passed it 219-210.' });
   });
 
-  it('propagates a null summary (fail-safe: disabled flag / no key / provider error)', async () => {
+  it('propagates a null response for backward compatibility with a summary implementation', async () => {
     const summaries = {
       summarize: jest.fn().mockResolvedValue(null),
     } as unknown as TrackerSummaryService;
@@ -139,6 +149,22 @@ describe('InternalTrackerController', () => {
       ).resolves.toBeInstanceOf(SummarizeAlertDto);
     });
 
+    it('accepts the public fact and local relevance narrative fields', async () => {
+      await expect(
+        pipe.transform(
+          {
+            ...validBody,
+            jurisdiction: 'US',
+            chamber: 'House',
+            actionDate: '2026-07-22',
+            why: 'Matches the client defense authorization watchlist.',
+            matchedTags: ['defense', 'authorization'],
+          },
+          meta,
+        ),
+      ).resolves.toBeInstanceOf(SummarizeAlertDto);
+    });
+
     it('accepts empty §4.3 arrays (the "not established" case)', async () => {
       await expect(
         pipe.transform({ ...validBody, allowedNextSteps: [], blockedBy: [] }, meta),
@@ -170,6 +196,29 @@ describe('InternalTrackerController', () => {
         blockedBy: [
           'The governing rule was rejected, so floor consideration cannot proceed under it',
         ],
+      }),
+    );
+  });
+
+  it('trims and passes sourced context and local relevance fields', async () => {
+    const summarize = jest.fn().mockResolvedValue('Narrative.');
+    const summaries = { summarize } as unknown as TrackerSummaryService;
+    const controller = new InternalTrackerController(summaries);
+    await controller.summarize({
+      ...validBody,
+      jurisdiction: ' US ',
+      chamber: ' House ',
+      actionDate: ' 2026-07-22 ',
+      why: ' Client relevance ',
+      matchedTags: [' defense ', '', ' authorization '],
+    });
+    expect(summarize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jurisdiction: 'US',
+        chamber: 'House',
+        actionDate: '2026-07-22',
+        why: 'Client relevance',
+        matchedTags: ['defense', 'authorization'],
       }),
     );
   });

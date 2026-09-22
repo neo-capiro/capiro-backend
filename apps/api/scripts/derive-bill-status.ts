@@ -42,6 +42,89 @@ export function isPassageQuestion(question: string | null | undefined): boolean 
   );
 }
 
+export interface StatusActionEvidence {
+  date: Date;
+  text: string;
+}
+
+export interface PassageVoteEvidence {
+  id: string;
+  billId: string | null;
+  result: string | null;
+  question: string | null;
+  voteDate: Date;
+  rollNumber: number;
+}
+
+export interface LatestPassageOutcome {
+  outcome: 'pass' | 'fail';
+  date: Date;
+  rollNumber: number;
+  voteId: string;
+}
+
+/**
+ * Keep exactly one current passage verdict per bill. An earlier chamber pass
+ * must not mask a later failed final-passage vote (and a later successful
+ * reconsideration must likewise supersede an earlier failure).
+ */
+export function latestPassageOutcomes(
+  votes: PassageVoteEvidence[],
+): Map<string, LatestPassageOutcome> {
+  const latestByBill = new Map<string, LatestPassageOutcome>();
+  for (const vote of votes) {
+    if (!vote.billId || !isPassageQuestion(vote.question)) continue;
+    const outcome = classifyVoteResult(vote.result);
+    if (!outcome) continue;
+    const candidate: LatestPassageOutcome = {
+      outcome,
+      date: vote.voteDate,
+      rollNumber: vote.rollNumber,
+      voteId: vote.id,
+    };
+    const prior = latestByBill.get(vote.billId);
+    const isNewer =
+      !prior ||
+      candidate.date.getTime() > prior.date.getTime() ||
+      (candidate.date.getTime() === prior.date.getTime() &&
+        (candidate.rollNumber > prior.rollNumber ||
+          (candidate.rollNumber === prior.rollNumber && candidate.voteId > prior.voteId)));
+    if (isNewer) latestByBill.set(vote.billId, candidate);
+  }
+  return latestByBill;
+}
+
+/**
+ * The canonical status timestamp is the event that established the status, not
+ * simply the newest action on the bill. A later receipt/referral therefore does
+ * not move a House-passage date forward.
+ */
+export function statusEventDate(input: {
+  status: string;
+  latestActionDate: Date | null;
+  updateDate: Date | null;
+  passageVoteDate: Date | null;
+  actions: StatusActionEvidence[];
+  fallbackNow?: Date;
+}): Date {
+  if (input.status === 'passed_chamber') {
+    if (input.passageVoteDate) return input.passageVoteDate;
+    const passageAction = input.actions
+      .filter((action) => isPassageActionText(action.text))
+      .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+    if (passageAction) return passageAction.date;
+  }
+  return input.latestActionDate ?? input.updateDate ?? input.fallbackNow ?? new Date();
+}
+
+function isPassageActionText(text: string): boolean {
+  const t = text.toLowerCase();
+  if (/motion to (recommit|reconsider|table)|cloture|previous question/.test(t)) return false;
+  return /\bon passage\b.*\b(pass|agree)|passed\/agreed to in (the )?(house|senate)|\bpassed (the )?(house|senate)\b|passage of the bill|third reading.*\b(pass|agree)/.test(
+    t,
+  );
+}
+
 async function main() {
   await runWithSyncRun(prisma as never, 'derive-bill-status', async () => {
     let updated = 0;
@@ -99,21 +182,37 @@ async function main() {
     // latest action text is procedural (e.g. a rule hres whose vote failed).
     const passageVotes = await prisma.rollCallVote.findMany({
       where: { result: { not: null } },
-      select: { billId: true, result: true, question: true },
+      select: {
+        id: true,
+        billId: true,
+        result: true,
+        question: true,
+        voteDate: true,
+        rollNumber: true,
+      },
     });
     const passedChamber = new Set<string>();
+    const passedChamberAt = new Map<string, Date>();
     const failedChamber = new Set<string>();
-    for (const v of passageVotes) {
-      if (!v.billId || !isPassageQuestion(v.question)) continue;
-      const c = classifyVoteResult(v.result);
-      if (c === 'pass') passedChamber.add(v.billId);
-      else if (c === 'fail') failedChamber.add(v.billId);
+    for (const [billId, verdict] of latestPassageOutcomes(passageVotes)) {
+      if (verdict.outcome === 'pass') {
+        passedChamber.add(billId);
+        passedChamberAt.set(billId, verdict.date);
+      } else {
+        failedChamber.add(billId);
+      }
     }
 
     // 3. Recompute status for every bill in scope.
     const bills = await prisma.congressBill.findMany({
       where: { congress: { in: CONGRESSES } },
-      select: { id: true, latestActionText: true, latestActionDate: true, updateDate: true, actions: { select: { text: true } } },
+      select: {
+        id: true,
+        latestActionText: true,
+        latestActionDate: true,
+        updateDate: true,
+        actions: { select: { text: true, date: true } },
+      },
     });
     for (const b of bills) {
       try {
@@ -126,7 +225,16 @@ async function main() {
         });
         await prisma.congressBill.update({
           where: { id: b.id },
-          data: { status: res.status, statusAt: b.latestActionDate ?? b.updateDate ?? new Date() },
+          data: {
+            status: res.status,
+            statusAt: statusEventDate({
+              status: res.status,
+              latestActionDate: b.latestActionDate,
+              updateDate: b.updateDate,
+              passageVoteDate: passedChamberAt.get(b.id) ?? null,
+              actions: b.actions,
+            }),
+          },
         });
         updated++;
       } catch (err) {

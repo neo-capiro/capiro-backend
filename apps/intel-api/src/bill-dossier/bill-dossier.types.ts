@@ -117,6 +117,13 @@ export interface BillKpi {
   sub: string | null;
   /** Non-null exactly when `value` is null. */
   unavailableReason: string | null;
+  /**
+   * Optional copy for the value line when the underlying value is null. This
+   * lets a sourced-but-unverified figure read "Analysis pending" instead of
+   * being conflated with a genuinely unavailable figure. The reason remains
+   * the grounded supporting text below the value.
+   */
+  unavailableLabel?: string | null;
 }
 
 /** Four fixed, keyed overview cards (each optional). Titles are hard-coded UI-side. */
@@ -135,9 +142,15 @@ export interface LegislativeMilestone {
   detail: string | null;
   state: MilestoneState;
   sev?: DossierSeverity;
+  /** Explicit result so a failed procedural motion never resembles passage. */
+  outcome?: string | null;
+  outcomeSev?: DossierSeverity;
+  /** Raw official rows represented by this display event (rows are not deleted). */
+  sourceIds?: string[];
+  sourceCount?: number;
 }
 
-export type VoteTarget = 'rule' | 'committee' | 'passage';
+export type VoteTarget = 'rule' | 'committee' | 'passage' | 'procedural';
 
 export interface VotePartyBreakdown {
   gopYea: number;
@@ -173,15 +186,26 @@ export interface GoverningRule {
 }
 
 export interface FundingPositionView {
+  /** Exact budget-package vehicle this amount belongs to; null means package-level only. */
+  vehicleId: string | null;
+  fiscalYear: number;
   scope: FundingScope;
   stage: BudgetFundingStage;
   vehicleClass: BudgetVehicleClass;
+  vehicleTrack: BudgetVehicleClass | null;
+  vehicleStatus: string | null;
+  amountTreatment: FundingAmountTreatment;
   amountMillions: number;
   effectiveDate: string | null;
   source: string | null;
   sourceUrl: string | null;
   /** Page in the source document the figure was read from (R4 §4.1). */
   sourcePage: number | null;
+  sourceDocumentTitle: string | null;
+  sourceDocumentKey: string | null;
+  /** SHA-256 content identity of the exact source version, when registered. */
+  sourceDocumentVersion: string | null;
+  sourceDocumentCurrent: boolean | null;
   verification: FundingVerificationStatus;
   primary: boolean;
   note: string | null;
@@ -198,13 +222,29 @@ export interface FundingComparison {
 }
 
 export type ProgramElementMatchBasis = 'explicit' | 'inferred';
+export type FundingAmountTreatment =
+  | 'request'
+  | 'proposed_authorization'
+  | 'appropriated_funding'
+  | 'interim_funding'
+  | 'supplemental'
+  | 'reconciliation'
+  | 'unknown';
+export type FundingAnalysisStatus = 'unavailable' | 'analysis_pending' | 'reviewed' | 'verified';
 
 export interface ProgramElementImpact {
   pe: string;
   name: string | null;
+  fiscalYear: number | null;
+  vehicleTrack: BudgetVehicleClass | null;
+  houseLabel: string;
+  senateLabel: string;
+  conferenceLabel: string;
   requestMillions: number | null;
   houseMillions: number | null;
   senateMillions: number | null;
+  conferenceMillions: number | null;
+  enactedMillions: number | null;
   deltaVsRequestMillions: number | null;
   pct: number | null;
   basis: ProgramElementMatchBasis;
@@ -217,13 +257,39 @@ export interface FundingProvision {
   summary: string | null;
   origin: EvidenceOrigin;
   source: string | null;
+  actionType: string | null;
+  reviewStatus: string;
+  billLinkStatus: string;
+  reconciliationRequired: boolean;
+}
+
+export interface FundingVehicleContext {
+  id: string;
+  label: string;
+  track: BudgetVehicleClass;
+  stage: BudgetFundingStage;
+  status: string;
+  chamber: string | null;
+  fiscalYear: number;
+  amountTreatment: FundingAmountTreatment;
+  sourceDocumentTitle: string | null;
+  sourceDocumentKey: string | null;
+  /** SHA-256 content identity of the exact bill/table source version. */
+  sourceDocumentVersion: string | null;
+  sourceDocumentUrl: string | null;
+  sourceDocumentCurrent: boolean | null;
 }
 
 export interface FundingBlock {
   /** False in R1 (defense_funding_intel disabled) or when a bill is not a funding vehicle. */
   available: boolean;
-  /** Grounded empty-state message when `available` is false (never renders "$0"). */
+  /** Grounded unavailable or analysis-pending message (never renders "$0"). */
   status: string | null;
+  /** True when source tables/line items exist even if Capiro review is incomplete. */
+  tablesAvailable: boolean;
+  analysisStatus: FundingAnalysisStatus;
+  vehicle: FundingVehicleContext | null;
+  overrideReconciliation: 'not_required' | 'verification_required' | 'reconciled';
   positions: FundingPositionView[];
   reqCompare: FundingComparison | null;
   senateCompare: FundingComparison | null;

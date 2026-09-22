@@ -24,7 +24,10 @@ export function BillFundingTab({
   onOpenPe: (pe: string) => void;
   onOpenBill: (billId: string) => void;
 }) {
-  const pos = funding.positions.find((p) => p.primary) ?? funding.positions[0] ?? null;
+  const pending = funding.analysisStatus === 'analysis_pending';
+  const pos =
+    funding.positions.find((p) => p.primary) ??
+    (funding.analysisStatus == null ? funding.positions[0] ?? null : null);
   const hasAny = funding.positions.length > 0 || funding.programElementImpacts.length > 0;
   // Prefer the full like-for-like set; fall back to the single senate comparison so a
   // cached pre-R4 response still renders (§5 edge case 12).
@@ -50,11 +53,39 @@ export function BillFundingTab({
   const req = funding.reqCompare;
   return (
     <>
+      {pending && !pos ? (
+        <div className="b360-fund-card">
+          <div className="b360-fund-row">
+            <div>
+              <div className="b360-fund-line b360-fund-line--eyebrow">
+                {funding.vehicle
+                  ? fundingStageTrackLabel(funding.vehicle.stage, funding.vehicle.track)
+                  : 'Funding analysis'}
+              </div>
+              <div className="b360-fund-amount">Analysis pending</div>
+            </div>
+            {funding.vehicle ? (
+              <div className="b360-fund-metacol">
+                <Pill sev="accent">FY{funding.vehicle.fiscalYear}</Pill>
+                <div className="b360-fund-line">
+                  {amountTreatmentLabel(funding.vehicle.amountTreatment)}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="b360-fund-source">
+            {funding.status ?? 'Funding tables are available; amounts await verification.'}
+            {funding.vehicle ? ` · Source: ${vehicleSourceCitation(funding.vehicle)}` : ''}
+          </div>
+        </div>
+      ) : null}
       {pos ? (
         <div className="b360-fund-card">
           <div className="b360-fund-row">
             <div>
-              <div className="b360-fund-line b360-fund-line--eyebrow">Funding position</div>
+              <div className="b360-fund-line b360-fund-line--eyebrow">
+                {fundingStageTrackLabel(pos.stage, pos.vehicleClass)}
+              </div>
               <div className="b360-fund-amount">{fmtAmt(pos.amountMillions)}</div>
             </div>
             <div className="b360-fund-metacol">
@@ -63,6 +94,8 @@ export function BillFundingTab({
                 {[
                   FUNDING_STAGE_LABELS[pos.stage],
                   BUDGET_VEHICLE_CLASS_LABELS[pos.vehicleClass],
+                  `FY${pos.fiscalYear ?? funding.vehicle?.fiscalYear ?? '—'}`,
+                  amountTreatmentLabel(pos.amountTreatment),
                   FUNDING_VERIFICATION_STATUS_LABELS[pos.verification],
                 ].join(' · ')}
               </div>
@@ -90,6 +123,17 @@ export function BillFundingTab({
               {pos.note ? ` · ${pos.note}` : ''}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {funding.overrideReconciliation === 'reconciled' ? (
+        <div className="dsr-guardrail">
+          <div>
+            <div className="dsr-guardrail-eyebrow">Override reconciliation</div>
+            <span className="dsr-guardrail-text">
+              Verified against the bill&apos;s amount-changing provisions.
+            </span>
+          </div>
         </div>
       ) : null}
 
@@ -163,8 +207,50 @@ export function BillFundingTab({
 function sourceCitation(pos: {
   source: string | null;
   sourcePage: number | null;
+  sourceDocumentTitle?: string | null;
+  sourceDocumentKey?: string | null;
+  sourceDocumentVersion?: string | null;
+  sourceDocumentCurrent?: boolean | null;
 }): string {
-  const parts = [pos.source ?? '—'];
+  const parts = [pos.sourceDocumentTitle ?? pos.source ?? '—'];
+  if (pos.sourceDocumentKey) parts.push(pos.sourceDocumentKey);
+  if (pos.sourceDocumentVersion) parts.push(`version ${pos.sourceDocumentVersion.slice(0, 12)}`);
+  if (pos.sourceDocumentCurrent === true) parts.push('current source version');
+  if (pos.sourceDocumentCurrent === false) parts.push('superseded source version');
   if (pos.sourcePage != null) parts.push(`p. ${pos.sourcePage}`);
+  return parts.join(' · ');
+}
+
+function fundingStageTrackLabel(stage: string, track: string): string {
+  const stageLabel = FUNDING_STAGE_LABELS[stage as keyof typeof FUNDING_STAGE_LABELS] ?? stage;
+  const trackLabel =
+    BUDGET_VEHICLE_CLASS_LABELS[track as keyof typeof BUDGET_VEHICLE_CLASS_LABELS] ??
+    track.replaceAll('_', ' ');
+  return `${stageLabel} ${trackLabel.toLowerCase()}`;
+}
+
+function amountTreatmentLabel(treatment: string | null | undefined): string {
+  switch (treatment) {
+    case 'proposed_authorization':
+      return 'Proposed authorization level — not appropriated funding';
+    case 'appropriated_funding':
+      return 'Appropriated funding';
+    case 'request':
+      return 'Executive budget request';
+    case 'unknown':
+    case null:
+    case undefined:
+      return 'Funding treatment not verified';
+    default:
+      return treatment.replaceAll('_', ' ');
+  }
+}
+
+function vehicleSourceCitation(vehicle: NonNullable<FundingBlock['vehicle']>): string {
+  const parts = [vehicle.sourceDocumentTitle ?? vehicle.label];
+  if (vehicle.sourceDocumentKey) parts.push(vehicle.sourceDocumentKey);
+  if (vehicle.sourceDocumentVersion) parts.push(`version ${vehicle.sourceDocumentVersion.slice(0, 12)}`);
+  if (vehicle.sourceDocumentCurrent === true) parts.push('current source version');
+  if (vehicle.sourceDocumentCurrent === false) parts.push('superseded source version');
   return parts.join(' · ');
 }

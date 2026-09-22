@@ -40,7 +40,13 @@ export interface PassageVoteInput {
   billKey: string | null;
   motion: string | null;
   passed: boolean | null;
-  date: Date;
+  date: Date | null;
+  legiscanRollCallId: number;
+}
+
+export interface PassageOutcome {
+  passed: boolean;
+  date: Date | null;
   legiscanRollCallId: number;
 }
 
@@ -58,18 +64,18 @@ export interface PassageVoteInput {
 export function buildPassageOutcomeSets(votes: PassageVoteInput[]): {
   passedChamber: Set<string>;
   failedChamber: Set<string>;
+  latestByBill: Map<string, PassageOutcome>;
 } {
-  const latestByBill = new Map<
-    string,
-    { passed: boolean; date: Date; legiscanRollCallId: number }
-  >();
+  const latestByBill = new Map<string, PassageOutcome>();
   for (const v of votes) {
     if (!v.billKey || v.passed === null || !classifyStateVoteMotion(v.motion)) continue;
     const prev = latestByBill.get(v.billKey);
+    const currentTime = v.date?.getTime() ?? Number.NEGATIVE_INFINITY;
+    const previousTime = prev?.date?.getTime() ?? Number.NEGATIVE_INFINITY;
     const isNewer =
       !prev ||
-      v.date.getTime() > prev.date.getTime() ||
-      (v.date.getTime() === prev.date.getTime() && v.legiscanRollCallId > prev.legiscanRollCallId);
+      currentTime > previousTime ||
+      (currentTime === previousTime && v.legiscanRollCallId > prev.legiscanRollCallId);
     if (isNewer) {
       latestByBill.set(v.billKey, {
         passed: v.passed,
@@ -84,7 +90,7 @@ export function buildPassageOutcomeSets(votes: PassageVoteInput[]): {
     if (outcome.passed) passedChamber.add(billKey);
     else failedChamber.add(billKey);
   }
-  return { passedChamber, failedChamber };
+  return { passedChamber, failedChamber, latestByBill };
 }
 
 /** DD1 join key for a bill's session (state_session is keyed the same way). */
@@ -94,9 +100,155 @@ export function sineDieKey(state: string, sessionKey: string): string {
 
 export interface StatusUpdateData {
   status: string;
-  statusAt: Date;
+  statusAt: Date | null;
   statusSource: 'derived';
   statusDerivedAt: Date;
+}
+
+export interface StateStatusActionEvidence {
+  date: Date;
+  text: string;
+  orderKey?: number;
+}
+
+export interface StateStatusDateInput {
+  status: string;
+  progressEvents?: Array<{ event: number; date: string }> | null;
+  actions?: StateStatusActionEvidence[] | null;
+  latestActionDate?: Date | null;
+  latestActionText?: string | null;
+  passageVoteDate?: Date | null;
+  sessionSineDie?: string | null;
+}
+
+/**
+ * Strictly parse LegiScan's date-only facts. `new Date(raw)` is intentionally
+ * not used: it accepts rollover dates such as 2025-02-30 and would manufacture
+ * a plausible-looking legislative date from malformed provider evidence.
+ */
+function parseEvidenceDate(raw: string | null | undefined): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec((raw ?? '').trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+    ? date
+    : null;
+}
+
+const STATUS_PROGRESS_EVENTS: Readonly<Record<string, readonly number[]>> = {
+  introduced: [1],
+  passed_chamber: [2],
+  to_governor: [3],
+  enacted: [4, 8],
+  vetoed: [5],
+  failed: [6, 11],
+  veto_overridden: [7],
+  committee: [9],
+  reported: [10],
+};
+
+function actionEstablishesStatus(status: string, text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  switch (status) {
+    case 'enacted':
+      return /\b(chaptered|enacted|became law|signed by (?:the )?governor|governor (?:signed|approved))\b/i.test(
+        value,
+      );
+    case 'veto_overridden':
+      return OVERRIDDEN_TEXT.test(value);
+    case 'vetoed':
+      return VETOED_TEXT.test(value) && !OVERRIDDEN_TEXT.test(value);
+    case 'failed':
+      return /\b(failed (?:final )?passage|did not pass|defeated|report(?:ed)? do not pass)\b/i.test(
+        value,
+      );
+    case 'to_governor':
+      return (
+        /\benrolled\b/i.test(value) ||
+        /\b(sent|transmitted|presented|delivered)\b.*\b(governor|executive)\b/i.test(value)
+      );
+    case 'resolving':
+      return /amendments? (?:between|from)|\bconcur|conference committee|refuse[sd] to concur/i.test(
+        value,
+      );
+    case 'passed_chamber':
+      return (
+        !/\b(fail|defeat|not pass|committee|amendment|motion)\b/i.test(value) &&
+        /(?:\bpassed\b|\badopted\b).*(?:\bhouse\b|\bsenate\b|\bassembly\b|\bchamber\b|third reading|final passage|on passage)|(?:\bhouse\b|\bsenate\b|\bassembly\b).*\bpassed\b/i.test(
+          value,
+        )
+      );
+    case 'reported':
+      return /reported (?:favorably|out of committee)|\bdo pass\b/i.test(value);
+    case 'committee':
+      return /referred|committee|hearing|markup/i.test(value);
+    case 'floor':
+      return /calendar|second reading|third reading|floor/i.test(value);
+    case 'introduced':
+      return /\b(?:introduced|prefiled|filed|first reading)\b/i.test(value);
+    default:
+      return false;
+  }
+}
+
+function latestDate(dates: Array<Date | null | undefined>): Date | null {
+  let latest: Date | null = null;
+  for (const date of dates) {
+    if (!date || Number.isNaN(date.getTime())) continue;
+    if (!latest || date.getTime() > latest.getTime()) latest = date;
+  }
+  return latest;
+}
+
+/** Nullable date equality for historical statusAt repair. */
+export function statusDateNeedsRepair(next: Date | null, current: Date | null): boolean {
+  return (next?.getTime() ?? null) !== (current?.getTime() ?? null);
+}
+
+/**
+ * Resolve the date of the fact that established the derived canonical state.
+ * Evidence is deliberately status-specific: a later receiving-chamber
+ * referral must not move a passed-origin-chamber date forward. When the feed
+ * carries only a coded status and no dated progress/action/vote fact, return
+ * null instead of inventing a date from ingestion time or bill text metadata.
+ */
+export function deriveStateStatusAt(input: StateStatusDateInput): Date | null {
+  if (input.status === 'dead_by_deadline') return parseEvidenceDate(input.sessionSineDie);
+
+  const progressEventSet = new Set(STATUS_PROGRESS_EVENTS[input.status] ?? []);
+  const progressDates = (input.progressEvents ?? [])
+    .filter((event) => progressEventSet.has(event.event))
+    .map((event) => parseEvidenceDate(event.date));
+  const actionDates = (input.actions ?? [])
+    .filter((action) => actionEstablishesStatus(input.status, action.text))
+    .map((action) => action.date);
+  const latestActionDate = actionEstablishesStatus(
+    input.status,
+    input.latestActionText ?? '',
+  )
+    ? input.latestActionDate
+    : null;
+  // A classified passage vote is the strongest evidence for the
+  // passed-origin-chamber state. Do not let a later receiving-chamber action
+  // that merely recites the earlier passage move the transition date.
+  if (input.status === 'passed_chamber') {
+    const passageDate = latestDate([input.passageVoteDate]);
+    if (passageDate) return passageDate;
+  }
+  const progressDate = latestDate(progressDates);
+  if (progressDate) return progressDate;
+  if (input.status === 'failed') {
+    const failedVoteDate = latestDate([input.passageVoteDate]);
+    if (failedVoteDate) return failedVoteDate;
+  }
+  return latestDate([...actionDates, latestActionDate]);
 }
 
 /**
@@ -109,10 +261,14 @@ export function buildStatusUpdateData(
   bill: { latestActionDate: Date | null; textDate: Date | null },
   status: string,
   now: Date = new Date(),
+  statusAt: Date | null = null,
 ): StatusUpdateData {
   return {
     status,
-    statusAt: bill.latestActionDate ?? bill.textDate ?? now,
+    // `latestActionDate`, `textDate`, and `now` are not necessarily the date
+    // on which this status was established. Keep the date unknown unless the
+    // caller supplies status-specific legislative evidence.
+    statusAt,
     statusSource: 'derived',
     // Ingestion-time anchor, distinct from statusAt's legislative event
     // date, so emit-state-changes can window on when the change was
@@ -134,7 +290,7 @@ async function main() {
       where: { passed: { not: null }, billKey: { not: null } },
       select: { billKey: true, motion: true, passed: true, date: true, legiscanRollCallId: true },
     });
-    const { passedChamber, failedChamber } = buildPassageOutcomeSets(votes);
+    const { passedChamber, failedChamber, latestByBill } = buildPassageOutcomeSets(votes);
 
     // 2. Session sine-die map, keyed by (state, sessionKey) — the DD1 join.
     const sessions = await prisma.stateSession.findMany({
@@ -169,6 +325,10 @@ async function main() {
           latestActionText: true,
           latestActionDate: true,
           textDate: true,
+          statusAt: true,
+          actions: {
+            select: { date: true, text: true, orderKey: true },
+          },
         },
       });
       if (bills.length === 0) break;
@@ -190,13 +350,35 @@ async function main() {
             sessionSineDie: sineDieByKey.get(sineDieKey(b.state, b.sessionKey)) ?? null,
             today,
           });
-          if (res.status === b.status) {
+          const passageOutcome = latestByBill.get(b.id);
+          const statusAt = deriveStateStatusAt({
+            status: res.status,
+            progressEvents,
+            actions: b.actions,
+            latestActionDate: b.latestActionDate,
+            latestActionText: b.latestActionText,
+            passageVoteDate: passageOutcome?.date ?? null,
+            sessionSineDie: sineDieByKey.get(sineDieKey(b.state, b.sessionKey)) ?? null,
+          });
+          const statusChanged = res.status !== b.status;
+          // Null is meaningful: the fail-closed resolver must be able to clear
+          // a legacy date that was manufactured from latestAction/textDate/now.
+          const statusDateChanged = statusDateNeedsRepair(statusAt, b.statusAt);
+          if (!statusChanged && !statusDateChanged) {
             skipped++;
             continue;
           }
           await prisma.stateBill.update({
             where: { id: b.id },
-            data: buildStatusUpdateData(b, res.status),
+            data: statusChanged
+              ? buildStatusUpdateData(b, res.status, new Date(), statusAt)
+              : {
+                  // Historical date repair only: do not advance
+                  // statusDerivedAt and emit a false state-change alert when
+                  // the canonical status itself did not change.
+                  statusAt,
+                  statusSource: 'derived',
+                },
           });
           updated++;
         } catch (err) {

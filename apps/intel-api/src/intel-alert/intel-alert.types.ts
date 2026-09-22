@@ -49,10 +49,15 @@ export interface IntelAlertEvent {
   band?: string;
   /** 'US' | <state code> (State Legislation Platform, DD5). Defaults to 'US' when absent — every pre-Phase-0 event stays federal-only. */
   jurisdiction?: string;
-  /** LLM "what happened" paraphrase. Populated at emit time by `fanOut` (for
-   *  deliverable events only) via `AlertSummaryClient`, which delegates to
-   *  apps/api's TrackerSummaryService. Null/absent when disabled, unresolved, or
-   *  on any failure — the email simply omits the "What happened" line. */
+  /** Originating/action chamber when the source explicitly supplied it. */
+  chamber?: string | null;
+  /** Stored canonical bill status, used only to refine deterministic procedure. */
+  canonicalStatus?: string | null;
+  cutoffType?: string | null;
+  hasCompanion?: boolean;
+  /** LLM narrative (or deterministic fallback). Generated once for a
+   *  deliverable event, persisted in evidence, and reused by realtime retries
+   *  and daily/weekly digests. */
   summary?: string | null;
   /** The in-app LegiWatch deep link. Distinct from `url`, which is the OFFICIAL source (P1-06). */
   appUrl?: string;

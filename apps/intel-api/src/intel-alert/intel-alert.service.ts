@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   FeatureFlagService,
@@ -19,7 +20,10 @@ import {
   appBaseUrl,
   type DigestItem,
 } from '../tracker/tracker-email.templates.js';
-import { AlertSummaryClient } from './alert-summary.client.js';
+import {
+  AlertSummaryClient,
+  buildDeterministicAlertNarrative,
+} from './alert-summary.client.js';
 import { proceduralOutlook, proceduralStateFromAlert } from '../tracker/procedural-steps.js';
 
 type Channel = 'email' | 'sms' | 'in_app';
@@ -193,6 +197,7 @@ export class IntelAlertService {
   async fanOut(
     event: IntelAlertEvent,
     summaryCache?: Map<string, string | null>,
+    persistNarrative?: (narrative: string) => Promise<void>,
   ): Promise<{
     suppressed: number;
     sent: number;
@@ -240,16 +245,15 @@ export class IntelAlertService {
         pref.jurisdictions.includes(event.jurisdiction ?? 'US')) &&
       Boolean(pref.emailEnabled && pref.emailAddress);
 
-    // "What happened" summary — generated ONLY when this event will actually be
+    // Narrative — generated ONLY when this event will actually be
     // delivered: canSend (owned + kill-switch on, so shadow tenants never burn
     // tokens) AND at least one recipient clears every filter. Delegated to
-    // apps/api (intel-api has no in-process LLM); fail-soft (null → the email
-    // just omits the line). apps/api owns the TRACKER_ALERT_SUMMARY flag + BYOK
-    // key, so there's no flag here. The per-sweep cache dedupes IDENTICAL actions
+    // apps/api (intel-api has no in-process LLM); its client always supplies a
+    // deterministic fallback when unavailable. The per-sweep cache dedupes IDENTICAL actions
     // (same summarize inputs) across clients tracking the same move; its key is
     // the FULL input signature — NOT (tenant,bill,changeType) — so two DISTINCT
     // actions that happen to share a changeType never reuse each other's text.
-    if (canSend && this.summaryClient.configured && !event.summary && prefs.some(eligible)) {
+    if (canSend && !event.summary && prefs.some(eligible)) {
       // §4.3: derive the allowed next steps DETERMINISTICALLY before asking the
       // model anything. An empty set is a real answer — the prompt then forbids
       // naming a next step at all, and apps/api drops a summary that names one
@@ -259,6 +263,10 @@ export class IntelAlertService {
         proceduralStateFromAlert({
           changeType: event.changeType,
           jurisdiction: event.jurisdiction,
+          canonicalStatus: event.canonicalStatus,
+          chamber: event.chamber,
+          cutoffType: event.cutoffType,
+          hasCompanion: event.hasCompanion,
         }),
       );
       const summaryInput = {
@@ -267,27 +275,42 @@ export class IntelAlertService {
         billTitle: event.billTitle,
         label: event.label,
         actionText: event.detail,
+        jurisdiction: event.jurisdiction ?? 'US',
+        chamber: event.chamber ?? null,
+        actionDate: event.actionDate,
+        why: event.why ?? null,
+        matchedTags: event.matchedTags ?? [],
         allowedNextSteps: outlook.nextPossibleSteps,
         blockedBy: outlook.blockedBy,
       };
-      const key = [
-        summaryInput.tenantId,
-        summaryInput.displayNum,
-        summaryInput.billTitle,
-        summaryInput.label,
-        summaryInput.actionText,
-        // The outlook is part of the prompt, so it is part of the cache
-        // identity: two events with identical text but different allowed steps
-        // must not reuse each other's summary.
-        summaryInput.allowedNextSteps.join('|'),
-        summaryInput.blockedBy.join('|'),
-      ].join('\u0000'); // NUL delimiter -> collision-free even if a field value contains it
+      // Serialize the complete structured input instead of joining arrays with a
+      // printable delimiter. Watchlist labels are tenant-authored and may contain
+      // characters such as "|"; a delimiter collision must never reuse one
+      // client's relevance narrative for another client.
+      const key = JSON.stringify(summaryInput);
       if (summaryCache?.has(key)) {
-        event.summary = summaryCache.get(key) ?? null;
+        event.summary =
+          summaryCache.get(key) ?? buildDeterministicAlertNarrative(summaryInput);
       } else {
-        const summary = await this.summaryClient.summarize(summaryInput);
-        event.summary = summary;
-        summaryCache?.set(key, summary);
+        const summary = this.summaryClient.configured
+          ? await this.summaryClient.summarize(summaryInput)
+          : buildDeterministicAlertNarrative(summaryInput);
+        event.summary = summary ?? buildDeterministicAlertNarrative(summaryInput);
+        summaryCache?.set(key, event.summary);
+      }
+      // Persist before enqueue/send. Digest flushes and realtime retries reuse
+      // this exact text rather than spending tokens or producing copy drift.
+      if (event.summary && persistNarrative) {
+        try {
+          await persistNarrative(event.summary);
+        } catch (error) {
+          // Evidence persistence is an optimization for stable retries/digests,
+          // never a new delivery gate. The current email still uses the
+          // in-memory narrative; a later digest can build the source-only copy.
+          this.logger.warn(
+            `Narrative persistence failed for alert ${alertId}; continuing delivery: ${(error as Error).message}`,
+          );
+        }
       }
     }
 
@@ -413,13 +436,14 @@ export class IntelAlertService {
     // Cross-tenant emit sweep: reads NEW alerts across ALL tenants, then fanOut
     // re-scopes each to its own tenant. Under RLS this MUST bypass.
     //
-    // Source-type scope is env-driven (default `bill` = historical behavior).
+    // Source-type scope is env-driven. Both legislative rails ship by default;
+    // hearing/combined/regulation/program-element remain explicit opt-ins.
     // Widening to `bill,hearing,combined` sweeps the Phase-6 hearing/combined
     // alerts into the same delivery path — plan §8 decision 3 (Ninja's call at
     // cutover), a config flip, not a code change. Only bill alerts carry the full
     // evidence the fanOut event-map expects today; hearing/combined without a
     // valid `evidence.triggerKey` fall through the pref filter harmlessly.
-    const sourceTypes = (process.env.LEGIWATCH_EMIT_SOURCE_TYPES ?? 'bill')
+    const sourceTypes = (process.env.LEGIWATCH_EMIT_SOURCE_TYPES ?? 'bill,state_bill')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
@@ -512,10 +536,22 @@ export class IntelAlertService {
         actionDate: (ev.actionDate as string) ?? evBill?.actionDate ?? null,
         url: (ev.url as string) ?? evBill?.url ?? '',
         why: a.whyItMatters,
-        matchedTags: (ev.matchedTags as string[]) ?? [],
+        matchedTags: Array.isArray(ev.matchedTags)
+          ? ev.matchedTags.filter((tag): tag is string => typeof tag === 'string')
+          : [],
         score: a.score,
         band: (ev.band as string) ?? undefined,
         jurisdiction: (ev.jurisdiction as string) ?? 'US',
+        chamber: typeof ev.chamber === 'string' ? ev.chamber : null,
+        canonicalStatus: typeof ev.canonicalStatus === 'string' ? ev.canonicalStatus : null,
+        cutoffType: typeof ev.cutoffType === 'string' ? ev.cutoffType : null,
+        hasCompanion: typeof ev.relatedBillKey === 'string' && Boolean(ev.relatedBillKey),
+        summary:
+          typeof ev.narrative === 'string' && ev.narrative.trim()
+            ? ev.narrative
+            : typeof ev.summary === 'string' && ev.summary.trim()
+              ? ev.summary
+              : null,
         sourceType: a.sourceType,
         // g-7: `&alert=` now that RadarPage READS it — the Feed scrolls to and
         // expands this exact card instead of dropping the reader at the top of
@@ -576,7 +612,17 @@ export class IntelAlertService {
           : {}),
       };
       try {
-        const r = await this.fanOut(event, summaryCache);
+        const r = await this.fanOut(event, summaryCache, async (narrative) => {
+          ev.narrative = narrative;
+          await this.prisma.withTenant(a.tenantId, (tx) =>
+            tx.intelAlert.update({
+              where: { id: a.id },
+              data: {
+                evidence: { ...ev, narrative } as Prisma.InputJsonValue,
+              },
+            }),
+          );
+        });
         suppressed += r.suppressed;
         sent += r.sent;
         failed += r.failed;
@@ -891,6 +937,35 @@ export class IntelAlertService {
           const a = alertById.get(row.alertId)!;
           const ev = (a.evidence ?? {}) as Record<string, unknown>;
           const actionDate = (ev.actionDate as string) ?? null;
+          const chamber = typeof ev.chamber === 'string' ? ev.chamber : null;
+          const outlook = proceduralOutlook(
+            proceduralStateFromAlert({
+              changeType: a.changeType ?? a.kind,
+              jurisdiction: (ev.jurisdiction as string) ?? 'US',
+              canonicalStatus:
+                typeof ev.canonicalStatus === 'string' ? ev.canonicalStatus : null,
+              chamber,
+              cutoffType: typeof ev.cutoffType === 'string' ? ev.cutoffType : null,
+              hasCompanion:
+                typeof ev.relatedBillKey === 'string' && Boolean(ev.relatedBillKey),
+            }),
+          );
+          const narrativeInput = {
+            tenantId: a.tenantId,
+            displayNum: (ev.displayNum as string) ?? a.sourceRef,
+            billTitle: (ev.billTitle as string) ?? a.title,
+            label: (ev.stage as string) ?? a.title,
+            actionText: (ev.actionText as string) ?? a.title,
+            jurisdiction: (ev.jurisdiction as string) ?? 'US',
+            chamber,
+            actionDate,
+            why: a.whyItMatters,
+            matchedTags: Array.isArray(ev.matchedTags)
+              ? ev.matchedTags.filter((tag): tag is string => typeof tag === 'string')
+              : [],
+            allowedNextSteps: outlook.nextPossibleSteps,
+            blockedBy: outlook.blockedBy,
+          };
           return {
             clientName: clientNames.get(a.clientId) ?? null,
             displayNum: (ev.displayNum as string) ?? a.sourceRef,
@@ -898,6 +973,12 @@ export class IntelAlertService {
             label: (ev.stage as string) ?? a.title,
             severity: a.severity,
             detail: (ev.actionText as string) ?? a.title,
+            narrative:
+              typeof ev.narrative === 'string' && ev.narrative.trim()
+                ? ev.narrative
+                : typeof ev.summary === 'string' && ev.summary.trim()
+                  ? ev.summary
+                  : buildDeterministicAlertNarrative(narrativeInput),
             actionDate,
             // "deadline ← actionDate" mirrors the existing canonical-alert.adapter.ts convention.
             deadline: actionDate,

@@ -197,7 +197,7 @@ export class BillChangeDetectorService {
       const actions = await this.source.getBillActionsByIds(billIds);
       for (const a of actions) {
         const arr = actionsByBill.get(a.billId) ?? [];
-        arr.push({ date: a.date, text: a.text });
+        arr.push({ date: a.date, text: a.text, chamber: a.chamber });
         actionsByBill.set(a.billId, arr);
       }
     }
@@ -446,7 +446,7 @@ export class BillChangeDetectorService {
       const actions = await this.stateSource.getStateBillActionsByIds(billKeys);
       for (const a of actions) {
         const arr = actionsByBill.get(a.billId) ?? [];
-        arr.push({ date: a.date, text: a.text });
+        arr.push({ date: a.date, text: a.text, chamber: a.chamber });
         actionsByBill.set(a.billId, arr);
       }
     }
@@ -785,6 +785,7 @@ export class BillChangeDetectorService {
         extra: {
           eventType: soonestEvent.title,
           eventDate: soonestEvent.date ? soonestEvent.date.toISOString().slice(0, 10) : null,
+          chamber: soonestEvent.chamber,
         },
       });
     }
@@ -985,7 +986,7 @@ export class BillChangeDetectorService {
    */
   private async writeShadowAlert(
     row: TrackedRow,
-    bill: { url: string | null; title: string | null },
+    bill: { url: string | null; title: string | null; status?: string | null },
     ev: MaterialEvent,
     detail: string,
     actionDate: string | null,
@@ -1045,6 +1046,10 @@ export class BillChangeDetectorService {
     const displayNum = opts.displayNum ?? humanizeBillId(row.billId);
     const jurisdiction = opts.jurisdiction ?? 'US';
     const session = opts.session ?? null;
+    const chamber =
+      typeof ev.extra?.chamber === 'string' && ev.extra.chamber.trim()
+        ? ev.extra.chamber.trim()
+        : ev.chamber?.trim() || null;
     const dedupeSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     // Dedup is PER CLIENT: the alert is client-specific (its own board/feed row,
     // its own subscribers), and legacy emits one intelligence_change per client
@@ -1168,6 +1173,8 @@ export class BillChangeDetectorService {
             billTitle: bill.title,
             displayNum,
             jurisdiction,
+            canonicalStatus: bill.status ?? null,
+            ...(chamber ? { chamber } : {}),
             // Gate L (HP-03) followup: same optional-flat-key treatment as
             // jurisdiction — undefined for federal, the session display name
             // for state. normalize-evidence.ts reads it into provenance.session.

@@ -146,6 +146,63 @@ describe('normalizeLegiscanBill', () => {
     expect(n?.calendarEvents[0]?.eventKey).toMatch(/^tx-2025-hb1234:calendar:[a-f0-9]{64}$/);
   });
 
+  it('selects the latest valid action by date when provider history is out of order', () => {
+    const n = normalizeLegiscanBill(
+      fixtureBill({
+        history: [
+          { date: '2025-03-04', action: 'Passed lower chamber', chamber: 'H' },
+          { date: '2025-01-15', action: 'Filed', chamber: 'H' },
+          { date: '2025-02-01', action: 'Referred to committee', chamber: 'H' },
+        ],
+      }),
+      'TX',
+    );
+
+    expect(n?.latestActionText).toBe('Passed lower chamber');
+    expect(n?.latestActionDate?.toISOString()).toBe('2025-03-04T00:00:00.000Z');
+    expect(n?.actions.map((a) => a.orderKey)).toEqual([0, 1, 2]);
+  });
+
+  it('does not fabricate 1970 action or version facts from malformed dates', () => {
+    const n = normalizeLegiscanBill(
+      fixtureBill({
+        history: [
+          { date: 'not-a-date', action: 'Malformed provider action', chamber: 'H' },
+          { date: '2025-02-30', action: 'Rolled-over provider action', chamber: 'H' },
+          { date: '2025-01-20', action: 'Valid action', chamber: 'H' },
+        ],
+        texts: [
+          {
+            doc_id: 998,
+            date: 'invalid',
+            type: 'Malformed version',
+            state_link: 'https://example.com/bad.pdf',
+          },
+          {
+            doc_id: 997,
+            date: '2025-13-01',
+            type: 'Rolled-over version',
+            state_link: 'https://example.com/rollover.pdf',
+          },
+          {
+            doc_id: 999,
+            date: '2025-01-15',
+            type: 'Introduced',
+            state_link: 'https://example.com/good.pdf',
+          },
+        ],
+      }),
+      'TX',
+    );
+
+    expect(n?.actions.map((a) => a.text)).toEqual(['Valid action']);
+    expect(n?.versions.map((v) => v.legiscanDocId)).toEqual([999]);
+    expect(n?.latestActionText).toBe('Valid action');
+    expect(n?.textDate?.getUTCFullYear()).toBe(2025);
+    expect(n?.actions.some((a) => a.date.getTime() === 0)).toBe(false);
+    expect(n?.versions.some((v) => v.date.getTime() === 0)).toBe(false);
+  });
+
   it('reads bill_number (getBill/dataset shape) — regression for the 2026-07-11 0-bill backfill', () => {
     // getBill + bulk-dataset put the number in bill_number with `number` null.
     // Reading `number` alone produced an invalid key → null → every bill dropped.

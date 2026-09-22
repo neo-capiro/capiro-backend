@@ -221,6 +221,7 @@ function makeFlushService(opts: {
     html: string,
     text: string,
   ) => Promise<{ sent: boolean; outcome?: 'accepted' | 'retryable' | 'terminal' | 'uncertain'; error?: string; messageId?: string }>;
+  summaryClient?: unknown;
 }) {
   const store = makeDigestStore(opts.digestRows);
   const notificationLogUpdates: Array<{ where: unknown; data: unknown }> = [];
@@ -266,7 +267,7 @@ function makeFlushService(opts: {
     flags as never,
     email as never,
     sourceData as never,
-    { configured: false } as never,
+    (opts.summaryClient ?? { configured: false }) as never,
   );
   return { svc, store, sendCalls, notificationLogUpdates };
 }
@@ -298,7 +299,13 @@ function alertRow(overrides: Partial<AlertRow>): AlertRow {
     severity: 'notable',
     whyItMatters: null,
     recommendedAction: null,
-    evidence: { displayNum: 'H.R. 1', billTitle: 'Test Act', stage: 'Amended', actionText: 'Amended' },
+    evidence: {
+      displayNum: 'H.R. 1',
+      billTitle: 'Test Act',
+      stage: 'Amended',
+      actionText: 'Amended',
+      narrative: 'Persisted grounded narrative. Next step: not verified.',
+    },
     ...overrides,
   };
 }
@@ -365,15 +372,16 @@ describe('IntelAlertService.flushDigests — lifecycle (P0-02, cases 6-12)', () 
   });
 
   it('6. one digest contains every eligible alert exactly once', async () => {
+    const summarize = jest.fn();
     const rows = [
       queueRow({ id: 'q1', alert_id: 'a1' }),
       queueRow({ id: 'q2', alert_id: 'a2' }),
       queueRow({ id: 'q3', alert_id: 'a3' }),
     ];
     const alerts = [
-      alertRow({ id: 'a1', evidence: { displayNum: 'H.R. 1', billTitle: 'Act One', stage: 'Amended' } }),
-      alertRow({ id: 'a2', evidence: { displayNum: 'H.R. 2', billTitle: 'Act Two', stage: 'Amended' } }),
-      alertRow({ id: 'a3', evidence: { displayNum: 'H.R. 3', billTitle: 'Act Three', stage: 'Amended' } }),
+      alertRow({ id: 'a1', evidence: { displayNum: 'H.R. 1', billTitle: 'Act One', stage: 'Amended', narrative: 'Narrative one.' } }),
+      alertRow({ id: 'a2', evidence: { displayNum: 'H.R. 2', billTitle: 'Act Two', stage: 'Amended', narrative: 'Narrative two.' } }),
+      alertRow({ id: 'a3', evidence: { displayNum: 'H.R. 3', billTitle: 'Act Three', stage: 'Amended', narrative: 'Narrative three.' } }),
     ];
     const { svc, sendCalls } = makeFlushService({
       digestRows: rows,
@@ -381,6 +389,7 @@ describe('IntelAlertService.flushDigests — lifecycle (P0-02, cases 6-12)', () 
       prefs: [{ tenantId: 't1', userId: 'u1', clientId: 'c1', emailEnabled: true, emailAddress: 'u1@x.com' }],
       owned: true,
       killSwitchOn: true,
+      summaryClient: { configured: true, summarize },
     });
     const r = await svc.flushDigests('daily');
     expect(sendCalls).toHaveLength(1);
@@ -389,6 +398,52 @@ describe('IntelAlertService.flushDigests — lifecycle (P0-02, cases 6-12)', () 
       expect(occurrences).toBe(1);
     }
     expect(r.sent).toBe(1);
+    expect(sendCalls[0]!.html).toContain('Narrative one.');
+    expect(sendCalls[0]!.text).toContain('Capiro analysis: Narrative two.');
+    expect(summarize).not.toHaveBeenCalled();
+  });
+
+  it('renders a persisted state-bill narrative in a weekly digest without regeneration', async () => {
+    const summarize = jest.fn();
+    const { svc, sendCalls } = makeFlushService({
+      digestRows: [queueRow({ cadence: 'weekly', alert_id: 'state-a1' })],
+      alerts: [
+        alertRow({
+          id: 'state-a1',
+          sourceRef: 'ca-2026-ab-1',
+          title: 'Housing Act',
+          evidence: {
+            displayNum: 'AB 1',
+            billTitle: 'Housing Act',
+            stage: 'Passed a chamber',
+            actionText: 'Passed Assembly 50-20.',
+            jurisdiction: 'CA',
+            chamber: 'Assembly',
+            narrative:
+              'The Assembly passed the measure 50-20. Expected next step: Senate action.',
+          },
+        }),
+      ],
+      prefs: [
+        {
+          tenantId: 't1',
+          userId: 'u1',
+          clientId: 'c1',
+          emailEnabled: true,
+          emailAddress: 'u1@x.com',
+        },
+      ],
+      owned: true,
+      killSwitchOn: true,
+      summaryClient: { configured: true, summarize },
+    });
+
+    const result = await svc.flushDigests('weekly');
+    expect(result.sent).toBe(1);
+    expect(sendCalls[0]!.html).toContain('AB 1');
+    expect(sendCalls[0]!.html).toContain('Expected next step: Senate action.');
+    expect(sendCalls[0]!.text).toContain('Capiro analysis: The Assembly passed');
+    expect(summarize).not.toHaveBeenCalled();
   });
 
   it('7. a failed digest stays retryable: flushed=false, attempts=1, last_error set, delivered_at null; a second flush re-claims it', async () => {

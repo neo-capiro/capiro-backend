@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   EXPECTED_MILESTONE_TYPE_LABELS,
   billStatusLabel,
+  classifyVoteResult,
   humanizeBillId,
   humanizeStateBillKey,
   isStateBillKey,
@@ -32,10 +33,12 @@ import type {
   DossierOverview,
   DossierSeverity,
   ExpectedMilestone,
+  FundingAmountTreatment,
   FundingBlock,
   FundingComparison,
   FundingPositionView,
   FundingProvision,
+  FundingVehicleContext,
   GoverningRule,
   LatestAction,
   LegislativeMilestone,
@@ -78,11 +81,18 @@ const STATE_FUNDING_UNSUPPORTED =
  * FUNDING_NO_DATA, which means nothing at all is linked (LW-QA-021).
  */
 const FUNDING_NO_PRIMARY_POSITION =
-  'This bill has program-element impacts but no reviewed funding position, so no amount is shown. No $0 is shown unless a source states zero.';
+  'Program-element links are available, but no reviewed funding position can be shown. No $0 is shown unless a source states zero.';
+const FUNDING_TABLES_PENDING =
+  'Funding tables are available; amounts await verification.';
+const OVERRIDE_RECONCILIATION_GUARDRAIL =
+  'Official provisions explicitly change table amounts, but those overrides have not been numerically reconciled. No topline amount or comparison is shown until verification is complete.';
+/** Explicit analyst attestation stored on a VERIFIED position note. */
+const OVERRIDE_RECONCILIATION_MARKER = '[overrides-reconciled]';
 const NO_REQUEST_COMPARISON =
   "No President's request figure on the same fiscal year and the same funding scope is available to compare against.";
 const NO_OFFICIAL_ACTION = 'No dated official action has been recorded on this bill.';
-const NO_EXPECTED_MILESTONE = 'No analyst has recorded an expected next milestone for this bill.';
+const NO_EXPECTED_MILESTONE =
+  'An expected next step cannot be verified from the current official status.';
 /** Shown whenever positions span more than one measurement basis. */
 const SCOPE_GUARDRAIL =
   'This bill carries figures on more than one funding scope. Amounts are only compared within the same fiscal year and the same scope, so no cross-scope delta is shown.';
@@ -235,6 +245,7 @@ export class BillDossierService {
       kpis: this.buildKpis(
         core.bill.statusLabel,
         core.bill.statusAt,
+        core.bill.stage,
         core.latest,
         core.votes,
         tracking,
@@ -252,7 +263,7 @@ export class BillDossierService {
     const identity = await this.sourceData.getBillDossierIdentity(billId);
     if (!identity) throw new NotFoundException('BILL_NOT_FOUND');
 
-    const [actions, passageVoteRows, ruleRows, committees, fiscalNotes, freshness, upcoming] =
+    const [actions, billVoteRows, ruleRows, committees, fiscalNotes, freshness, upcoming] =
       await Promise.all([
         this.sourceData.getBillActions(billId, MAX_ACTIONS),
         this.sourceData.getBillVotes(billId, MAX_VOTES),
@@ -270,7 +281,7 @@ export class BillDossierService {
 
     // Batched member-vote tallies for every vote id in one query (no N+1).
     const voteIds = [
-      ...passageVoteRows.map((v) => v.id),
+      ...billVoteRows.map((v) => v.id),
       ...ruleRows.map((r) => r.voteId).filter((x): x is string => Boolean(x)),
     ];
     const tallies = await this.sourceData.getBillMemberVoteSummary(voteIds);
@@ -279,10 +290,11 @@ export class BillDossierService {
     const ruleVotes: BillVote[] = ruleRows
       .filter((r) => r.result || r.voteId)
       .map((r) => this.ruleVoteToBillVote(r, partyByVote));
-    const passageVotes: BillVote[] = passageVoteRows.map((v) =>
+    const billVotes: BillVote[] = billVoteRows.map((v) =>
       this.passageVoteToBillVote(v, partyByVote),
     );
-    const votes = [...ruleVotes, ...passageVotes].sort(byDateDesc);
+    const passageVotes = billVotes.filter((v) => v.target === 'passage');
+    const votes = [...ruleVotes, ...billVotes].sort(byDateDesc);
     const noVote = passageVotes.length === 0 ? NO_TARGET_VOTE : null;
 
     const ruleFailed = ruleRows.some((r) => isFailedResult(r.result));
@@ -307,7 +319,16 @@ export class BillDossierService {
 
     const milestones = this.buildFederalMilestones(actions, ruleRows);
 
-    const statusLabel = billStatusLabel(identity.status);
+    const canonicalStatusLabel = billStatusLabel(identity.status);
+    const statusPresentation = federalStatusPresentation({
+      status: identity.status,
+      fallbackLabel: canonicalStatusLabel,
+      fallbackAt: toIso(identity.statusAt),
+      originChamber: identity.originChamber,
+      actions,
+      votes: billVotes,
+    });
+    const statusLabel = statusPresentation.label;
     const statusSev = sevForStatus(identity.status);
 
     const sources: SourceRef[] = [];
@@ -341,11 +362,12 @@ export class BillDossierService {
         : null,
       whyItMatters: null,
       officialNextStep: {
-        origin: 'official',
+        // This is deterministic procedural guidance derived from the canonical
+        // status, not an officially scheduled event.
+        origin: 'derived',
         text: officialNextStepText(identity.status, ruleFailed),
-        asOf: toIso(identity.statusAt),
-        source: 'Congress.gov',
-        sourceUrl: identity.url,
+        asOf: statusPresentation.at,
+        source: 'Capiro status model',
       },
       analystOutlook: null,
     };
@@ -361,7 +383,7 @@ export class BillDossierService {
       introduced: toIso(identity.introducedDate),
       statusLabel,
       statusSev,
-      statusAt: toIso(identity.statusAt),
+      statusAt: statusPresentation.at,
       stage: identity.status,
       jurisdiction: 'US',
       isState: false,
@@ -373,7 +395,15 @@ export class BillDossierService {
       latest,
       context: null,
       tracking: null,
-      kpis: this.buildKpis(statusLabel, bill.statusAt, latest, votes, null, funding.block),
+      kpis: this.buildKpis(
+        statusLabel,
+        bill.statusAt,
+        bill.stage,
+        latest,
+        votes,
+        null,
+        funding.block,
+      ),
       overview,
       milestones,
       votes,
@@ -399,15 +429,16 @@ export class BillDossierService {
   }
 
   private buildFederalMilestones(
-    actions: Array<{ date: Date; text: string; type: string | null; chamber: string | null }>,
+    actions: Array<{
+      id: string;
+      date: Date;
+      text: string;
+      type: string | null;
+      chamber: string | null;
+    }>,
     ruleRows: SourceGoverningRule[],
   ): LegislativeMilestone[] {
-    const fromActions: LegislativeMilestone[] = actions.slice(0, 10).map((a, i) => ({
-      date: toIso(a.date),
-      label: truncate(a.text, 90),
-      detail: a.chamber ? `${a.chamber}${a.type ? ` · ${a.type}` : ''}` : a.type,
-      state: i === 0 ? 'current' : 'done',
-    }));
+    const fromActions = buildActionMilestones(actions, 10);
     const failedRules: LegislativeMilestone[] = ruleRows
       .filter((r) => isFailedResult(r.result))
       .map((r) => ({
@@ -416,6 +447,10 @@ export class BillDossierService {
         detail: r.question,
         state: 'failed' as const,
         sev: 'critical' as DossierSeverity,
+        outcome: 'Failed',
+        outcomeSev: 'critical' as DossierSeverity,
+        sourceIds: [r.voteId ?? `rule:${r.ruleBillId}`],
+        sourceCount: 1,
       }));
     return [...failedRules, ...fromActions].sort(byDateDesc);
   }
@@ -442,10 +477,11 @@ export class BillDossierService {
     v: SourceBillVote,
     party: Map<string, VotePartyBreakdown>,
   ): BillVote {
+    const passage = isPassageVoteQuestion(v.question);
     return {
       id: v.id,
-      label: v.question ?? `${capitalize(v.chamber)} passage vote`,
-      target: 'passage',
+      label: v.question ?? `${capitalize(v.chamber)} ${passage ? 'passage' : 'procedural'} vote`,
+      target: passage ? 'passage' : 'procedural',
       chamber: v.chamber,
       date: toIso(v.voteDate),
       result: v.result,
@@ -486,12 +522,7 @@ export class BillDossierService {
 
     const statusLabel = b.status ? prettifyStatus(b.status) : 'Status unavailable';
     const latest: LatestAction = { text: b.latestActionText, date: toIso(b.latestActionDate) };
-    const milestones: LegislativeMilestone[] = actions.slice(0, 10).map((a, i) => ({
-      date: toIso(a.date),
-      label: truncate(a.text, 90),
-      detail: a.chamber,
-      state: i === 0 ? 'current' : 'done',
-    }));
+    const milestones = buildActionMilestones(actions, 10);
 
     const bill = {
       id: b.id,
@@ -519,7 +550,7 @@ export class BillDossierService {
       latest,
       context: null,
       tracking: null,
-      kpis: this.buildKpis(statusLabel, bill.statusAt, latest, votes, null, funding),
+      kpis: this.buildKpis(statusLabel, bill.statusAt, bill.stage, latest, votes, null, funding),
       overview: {
         whatChanged: b.latestActionText
           ? {
@@ -585,12 +616,14 @@ export class BillDossierService {
    * Load this bill's funding picture from the R3 budget-package substrate.
    *
    * Rules encoded here:
-   *  - the PRIMARY position is the one on this bill's own vehicle at the furthest
-   *    stage; it is what the KPI strip shows;
+   *  - the PRIMARY position is reviewed/verified, on this bill vehicle's own track,
+   *    and at the furthest stage; extracted figures remain evidence, not headlines;
    *  - a delta is only computed against a request row with the SAME fiscal year AND
    *    the SAME scope. Otherwise the delta is null and the guardrail explains why;
    *  - authorization and appropriation rows both appear, separately labelled, and
    *    are never merged into one "current" figure;
+   *  - accepted add/cut/transfer provisions suppress the topline until their
+   *    numerical effect has been reconciled with the table;
    *  - when nothing is linked, the block returns `available: false` with a grounded
    *    status string and EMPTY arrays — never a fabricated $0.
    */
@@ -607,6 +640,7 @@ export class BillDossierService {
     const impactViews = peImpacts.map(toPeImpactView);
     const provisionViews = provisions.map(toFundingProvisionView);
     const relatedVehicles = related.map(toRelatedVehicleView);
+    const vehicle = toFundingVehicleContext(parent, positions);
 
     if (!positionViews.length && !impactViews.length) {
       return {
@@ -614,12 +648,28 @@ export class BillDossierService {
           ...emptyFunding(FUNDING_NO_DATA),
           provisions: provisionViews,
           parentPackageLabel: parent ? parent.name : null,
+          vehicle,
         },
         relatedVehicles,
       };
     }
 
-    const primary = pickPrimaryPosition(positionViews);
+    const tablesAvailable =
+      positionViews.some(
+        (position) => !vehicle || (position.vehicleId === vehicle.id && position.fiscalYear === vehicle.fiscalYear),
+      ) || impactViews.some((impact) => hasFundingTableValues(impact));
+    const overrideReconciliationRequired = provisions.some(
+      (provision) =>
+        provision.reviewStatus === 'accepted' &&
+        provision.billLinkStatus === 'accepted' &&
+        ['adds', 'cuts', 'transfers'].includes(provision.actionType ?? ''),
+    );
+    const primaryCandidate = pickPrimaryPosition(positionViews, vehicle);
+    const overrideReconciled =
+      overrideReconciliationRequired &&
+      primaryCandidate != null &&
+      isOverrideReconciled(primaryCandidate);
+    const primary = overrideReconciliationRequired && !overrideReconciled ? null : primaryCandidate;
     const withPrimary = positionViews.map((p) => ({ ...p, primary: primary?.id === p.id }));
 
     const reqCompare = primary ? buildRequestComparison(primary, positions) : null;
@@ -630,14 +680,35 @@ export class BillDossierService {
     return {
       block: {
         available: true,
-        status: null,
+        status: primary
+          ? null
+          : tablesAvailable
+            ? FUNDING_TABLES_PENDING
+            : FUNDING_NO_PRIMARY_POSITION,
+        tablesAvailable,
+        analysisStatus:
+          primary?.verification === 'verified'
+            ? 'verified'
+            : primary
+              ? 'reviewed'
+              : 'analysis_pending',
+        vehicle,
+        overrideReconciliation: overrideReconciliationRequired
+          ? overrideReconciled
+            ? 'reconciled'
+            : 'verification_required'
+          : 'not_required',
         positions: withPrimary,
         reqCompare,
         senateCompare,
         comparisons,
         // Only warn when there is genuinely more than one basis in play — a
         // single-scope bill needs no caveat.
-        guardrail: scopes.size > 1 ? SCOPE_GUARDRAIL : null,
+        guardrail: overrideReconciliationRequired && !overrideReconciled
+          ? OVERRIDE_RECONCILIATION_GUARDRAIL
+          : scopes.size > 1
+            ? SCOPE_GUARDRAIL
+            : null,
         programElementImpacts: impactViews,
         provisions: provisionViews,
         parentPackageLabel: parent ? parent.name : null,
@@ -849,18 +920,33 @@ export class BillDossierService {
   private buildKpis(
     statusLabel: string,
     statusAt: string | null,
+    stage: string | null,
     latest: LatestAction,
     votes: BillVote[],
     tracking: BillContext | null,
     funding: FundingBlock | null,
   ): BillKpi[] {
-    const v0 = votes[0] ?? null;
+    // A later procedural roll call (for example a failed recommit motion) must
+    // not displace the bill's actual passage vote in the headline KPI.
+    const v0 = votes.find((v) => v.target === 'passage') ?? votes[0] ?? null;
     const expected = tracking?.expected ?? null;
+    const inferredNextStep = expected?.milestoneType
+      ? EXPECTED_MILESTONE_TYPE_LABELS[expected.milestoneType]
+      : expectedNextStep(stage, statusLabel);
     // R3: the funding cells show the primary position and its same-scope delta once
     // funding data exists. Otherwise they say WHY there is no figure (§3.6).
     const primary = funding?.positions.find((p) => p.primary) ?? null;
     const delta = funding?.reqCompare?.deltaMillions ?? null;
     const noFundingReason = fundingUnavailableReason(funding);
+    const fundingPending =
+      !primary && funding?.tablesAvailable === true && funding.analysisStatus === 'analysis_pending';
+    const fundingLabel =
+      fundingPending && funding.vehicle
+        ? fundingStageTrackLabel(funding.vehicle.stage, funding.vehicle.track)
+        : 'Funding position';
+    const requestLabel = funding?.vehicle?.fiscalYear
+      ? `Change vs. FY${funding.vehicle.fiscalYear} request`
+      : 'Δ from request';
     return [
       {
         id: 'current_status',
@@ -882,20 +968,24 @@ export class BillDossierService {
       },
       {
         id: 'funding_position',
-        label: 'Funding position',
+        label: fundingLabel,
         value: primary ? fmtMillions(primary.amountMillions) : null,
         valueType: 'money',
         asOf: primary?.effectiveDate ?? null,
-        sub: primary ? `${primary.scope} · ${primary.stage}` : null,
+        sub: primary
+          ? `${primary.scope} · ${fundingStageTrackLabel(primary.stage, primary.vehicleClass)}`
+          : null,
+        unavailableLabel: fundingPending ? 'Analysis pending' : null,
         unavailableReason: primary ? null : noFundingReason,
       },
       {
         id: 'delta_from_request',
-        label: 'Δ from request',
+        label: requestLabel,
         value: delta != null ? fmtSignedMillions(delta) : null,
         valueType: 'signed_money',
         asOf: null,
         sub: delta != null ? 'same scope only' : null,
+        unavailableLabel: fundingPending ? 'Comparison pending' : null,
         unavailableReason:
           delta != null
             ? null
@@ -905,7 +995,7 @@ export class BillDossierService {
       },
       {
         id: 'last_official_action',
-        label: 'Last official action',
+        label: 'Latest action',
         value: latest.date,
         valueType: 'date',
         asOf: latest.date,
@@ -914,14 +1004,16 @@ export class BillDossierService {
       },
       {
         id: 'next_milestone',
-        label: 'Next milestone',
-        value: expected?.milestoneType
-          ? EXPECTED_MILESTONE_TYPE_LABELS[expected.milestoneType]
-          : null,
+        label: 'Expected next step',
+        value: inferredNextStep,
         valueType: 'text',
         asOf: expected?.windowStart ?? null,
-        sub: expected?.windowStart ? 'Expected window opens' : null,
-        unavailableReason: expected?.milestoneType ? null : NO_EXPECTED_MILESTONE,
+        sub: inferredNextStep
+          ? expected?.windowStart
+            ? 'Expected window opens'
+            : 'Date not verified'
+          : null,
+        unavailableReason: inferredNextStep ? null : NO_EXPECTED_MILESTONE,
       },
     ];
   }
@@ -998,6 +1090,17 @@ function num(v: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function versionedValueSource(
+  label: string,
+  value: number | null,
+  sourceKey: string | null | undefined,
+  sha256: string | null | undefined,
+): string | null {
+  if (value == null) return null;
+  if (!sourceKey && !sha256) return `${label} source version not verified`;
+  return `${label} source ${sourceKey ?? 'document'}${sha256 ? `@${sha256.slice(0, 12)}` : ''}`;
+}
+
 /** $X.XB at >= 1000M, else $XM. Mirrors the web formatter so KPI text agrees. */
 function fmtMillions(m: number): string {
   if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(1)}B`;
@@ -1010,17 +1113,69 @@ function fmtSignedMillions(m: number): string {
   return `${m > 0 ? '+' : '−'}${fmtMillions(Math.abs(m))}`;
 }
 
+function amountTreatmentFor(track: string | null | undefined): FundingAmountTreatment {
+  switch (track) {
+    case 'request':
+      return 'request';
+    case 'authorization':
+      return 'proposed_authorization';
+    case 'appropriation':
+      return 'appropriated_funding';
+    case 'interim_funding':
+      return 'interim_funding';
+    case 'supplemental':
+      return 'supplemental';
+    case 'reconciliation':
+      return 'reconciliation';
+    default:
+      return 'unknown';
+  }
+}
+
+function fundingStageTrackLabel(stage: string, track: string): string {
+  const stageLabel =
+    stage === 'president'
+      ? 'President\'s'
+      : stage === 'house'
+        ? 'House'
+        : stage === 'senate'
+          ? 'Senate'
+          : stage === 'conference'
+            ? 'Conference'
+            : stage === 'enacted'
+              ? 'Enacted'
+              : stage;
+  const trackLabel =
+    track === 'authorization'
+      ? 'authorization'
+      : track === 'appropriation'
+        ? 'appropriation'
+        : track === 'request'
+          ? 'request'
+          : track.replaceAll('_', ' ');
+  return `${stageLabel} ${trackLabel}`;
+}
+
 function toFundingPositionView(p: SourceFundingPosition): FundingPositionView & { id: string } {
   return {
     id: p.id,
+    vehicleId: p.vehicleId,
+    fiscalYear: p.fiscalYear,
     scope: p.scope as FundingPositionView['scope'],
     stage: p.stage as FundingPositionView['stage'],
     vehicleClass: p.vehicleClass as FundingPositionView['vehicleClass'],
+    vehicleTrack: (p.vehicleTrack as FundingPositionView['vehicleTrack']) ?? null,
+    vehicleStatus: p.vehicleStatus,
+    amountTreatment: amountTreatmentFor(p.vehicleTrack ?? p.vehicleClass),
     amountMillions: Number(p.amountMillions),
     effectiveDate: toIso(p.effectiveDate),
     source: p.vehicleLabel ?? p.packageName,
     sourceUrl: p.sourceUrl,
     sourcePage: p.sourcePage,
+    sourceDocumentTitle: p.sourceDocumentTitle,
+    sourceDocumentKey: p.sourceDocumentKey,
+    sourceDocumentVersion: p.sourceDocumentSha256,
+    sourceDocumentCurrent: p.sourceDocumentCurrent,
     verification: p.verificationStatus as FundingPositionView['verification'],
     primary: false,
     note: p.note,
@@ -1028,19 +1183,48 @@ function toFundingPositionView(p: SourceFundingPosition): FundingPositionView & 
 }
 
 function toPeImpactView(p: SourceBillPeImpact): ProgramElementImpact {
+  const vehicleTrack = (p.vehicleTrack as ProgramElementImpact['vehicleTrack']) ?? null;
+  const stageRank = STAGE_ORDER[p.vehicleStage ?? ''] ?? -1;
   const request = num(p.requestMillions);
-  const house = num(p.houseMillions);
-  const senate = num(p.senateMillions);
-  const enacted = num(p.enactedMillions);
+  const house = stageRank >= (STAGE_ORDER.house ?? 2) ? num(p.houseMillions) : null;
+  const senate = stageRank >= (STAGE_ORDER.senate ?? 3) ? num(p.senateMillions) : null;
+  const conference =
+    stageRank >= (STAGE_ORDER.conference ?? 4) ? num(p.conferenceMillions) : null;
+  // Enacted is the appropriations/public-law rung. Never let a malformed or
+  // legacy row append it to an authorization ladder.
+  const enacted =
+    vehicleTrack === 'appropriation' && stageRank >= (STAGE_ORDER.enacted ?? 5)
+      ? num(p.enactedMillions)
+      : null;
   // Same fiscal year by construction (the query pins the PE year to the package FY).
-  const latest = enacted ?? senate ?? house;
+  const latest = enacted ?? conference ?? senate ?? house;
   const delta = request != null && latest != null ? latest - request : null;
+  const isAuthorization = vehicleTrack === 'authorization';
   return {
     pe: p.peCode,
     name: p.title,
+    fiscalYear: p.fiscalYear,
+    vehicleTrack,
+    houseLabel: isAuthorization
+      ? 'House authorization (HASC)'
+      : vehicleTrack === 'appropriation'
+        ? 'House appropriation (HAC-D)'
+        : 'House amount (track not verified)',
+    senateLabel: isAuthorization
+      ? 'Senate authorization (SASC)'
+      : vehicleTrack === 'appropriation'
+        ? 'Senate appropriation (SAC-D)'
+        : 'Senate amount (track not verified)',
+    conferenceLabel: isAuthorization
+      ? 'NDAA conference authorization'
+      : vehicleTrack === 'appropriation'
+        ? 'Appropriations conference'
+        : 'Conference amount (track not verified)',
     requestMillions: request,
     houseMillions: house,
     senateMillions: senate,
+    conferenceMillions: conference,
+    enactedMillions: enacted,
     deltaVsRequestMillions: delta,
     pct:
       delta != null && request != null && request !== 0
@@ -1049,7 +1233,45 @@ function toPeImpactView(p: SourceBillPeImpact): ProgramElementImpact {
     // A verbatim PE-code link is explicit; everything fuzzier is inferred and the UI
     // must label it as such (§5 edge cases 23-24).
     basis: p.matchBasis === 'explicit_pe_code' ? 'explicit' : 'inferred',
-    source: `${p.matchBasis} · ${p.reviewStatus} · confidence ${p.confidence}`,
+    source: [
+      p.fiscalYear ? `FY${p.fiscalYear}` : null,
+      p.vehicleTrack ? `${p.vehicleTrack} track` : 'track not verified',
+      p.matchBasis,
+      p.reviewStatus,
+      `confidence ${p.confidence}`,
+      versionedValueSource(
+        'request',
+        request,
+        p.requestSourceDocumentKey,
+        p.requestSourceDocumentSha256,
+      ),
+      versionedValueSource(
+        'house',
+        house,
+        p.houseSourceDocumentKey,
+        p.houseSourceDocumentSha256,
+      ),
+      versionedValueSource(
+        'senate',
+        senate,
+        p.senateSourceDocumentKey,
+        p.senateSourceDocumentSha256,
+      ),
+      versionedValueSource(
+        'conference',
+        conference,
+        p.conferenceSourceDocumentKey,
+        p.conferenceSourceDocumentSha256,
+      ),
+      versionedValueSource(
+        'enacted',
+        enacted,
+        p.enactedSourceDocumentKey,
+        p.enactedSourceDocumentSha256,
+      ),
+    ]
+      .filter(Boolean)
+      .join(' · '),
   };
 }
 
@@ -1063,7 +1285,66 @@ function toFundingProvisionView(p: SourceBillProvision): FundingProvision {
     source: [p.committee, `FY${p.fy}`, p.pageStart != null ? `p.${p.pageStart}` : null]
       .filter(Boolean)
       .join(' · '),
+    actionType: p.actionType,
+    reviewStatus: p.reviewStatus,
+    billLinkStatus: p.billLinkStatus,
+    reconciliationRequired:
+      p.reviewStatus === 'accepted' &&
+      p.billLinkStatus === 'accepted' &&
+      ['adds', 'cuts', 'transfers'].includes(p.actionType ?? ''),
   };
+}
+
+function toFundingVehicleContext(
+  parent: SourceParentPackage | null,
+  positions: SourceFundingPosition[],
+): FundingVehicleContext | null {
+  if (parent) {
+    return {
+      id: parent.vehicleId,
+      label: parent.vehicleLabel,
+      track: parent.vehicleTrack as FundingVehicleContext['track'],
+      stage: parent.vehicleStage as FundingVehicleContext['stage'],
+      status: parent.vehicleStatus,
+      chamber: parent.vehicleChamber,
+      fiscalYear: parent.fiscalYear,
+      amountTreatment: amountTreatmentFor(parent.vehicleTrack),
+      sourceDocumentTitle: parent.sourceDocumentTitle,
+      sourceDocumentKey: parent.sourceDocumentKey,
+      sourceDocumentVersion: parent.sourceDocumentSha256,
+      sourceDocumentUrl: parent.sourceDocumentUrl,
+      sourceDocumentCurrent: parent.sourceDocumentCurrent,
+    };
+  }
+  const position = positions[0];
+  if (!position || !position.vehicleId || !position.vehicleTrack || !position.vehicleLabel) {
+    return null;
+  }
+  return {
+    id: position.vehicleId,
+    label: position.vehicleLabel,
+    track: position.vehicleTrack as FundingVehicleContext['track'],
+    stage: position.stage as FundingVehicleContext['stage'],
+    status: position.vehicleStatus ?? 'unknown',
+    chamber: null,
+    fiscalYear: position.fiscalYear,
+    amountTreatment: amountTreatmentFor(position.vehicleTrack),
+    sourceDocumentTitle: position.sourceDocumentTitle,
+    sourceDocumentKey: position.sourceDocumentKey,
+    sourceDocumentVersion: position.sourceDocumentSha256,
+    sourceDocumentUrl: position.sourceUrl,
+    sourceDocumentCurrent: position.sourceDocumentCurrent,
+  };
+}
+
+function hasFundingTableValues(impact: ProgramElementImpact): boolean {
+  return [
+    impact.requestMillions,
+    impact.houseMillions,
+    impact.senateMillions,
+    impact.conferenceMillions,
+    impact.enactedMillions,
+  ].some((value) => value != null);
 }
 
 function toRelatedVehicleView(v: SourceRelatedVehicle): RelatedVehicle {
@@ -1076,19 +1357,42 @@ function toRelatedVehicleView(v: SourceRelatedVehicle): RelatedVehicle {
 }
 
 /**
- * The position the KPI strip shows: the furthest-progressed stage, preferring an
- * appropriation over an authorization at the same stage (an appropriation is the
- * money), and a verified figure over an unreviewed one.
+ * The position the KPI strip shows: reviewed/verified only, on the bill vehicle's
+ * own track, at the furthest-progressed stage. Extracted rows remain visible as
+ * evidence but can never become a headline amount.
  */
 function pickPrimaryPosition(
   positions: Array<FundingPositionView & { id: string }>,
+  vehicle: FundingVehicleContext | null,
 ): (FundingPositionView & { id: string }) | null {
-  if (!positions.length) return null;
+  if (!vehicle) return null;
+  const eligible = positions.filter(
+    (position) =>
+      isReviewedVerification(position.verification) &&
+      position.vehicleId === vehicle.id &&
+      position.fiscalYear === vehicle.fiscalYear &&
+      position.stage === vehicle.stage &&
+      position.vehicleClass === vehicle.track &&
+      position.vehicleTrack === vehicle.track &&
+      position.sourceDocumentCurrent !== false,
+  );
+  if (!eligible.length) return null;
   const rank = (p: FundingPositionView) =>
     (STAGE_ORDER[p.stage] ?? -1) * 100 +
     (p.vehicleClass === 'appropriation' ? 20 : p.vehicleClass === 'authorization' ? 10 : 0) +
     (p.verification === 'verified' ? 5 : p.verification === 'reviewed' ? 3 : 0);
-  return [...positions].sort((a, b) => rank(b) - rank(a))[0] ?? null;
+  return [...eligible].sort((a, b) => rank(b) - rank(a))[0] ?? null;
+}
+
+function isOverrideReconciled(position: FundingPositionView): boolean {
+  return (
+    position.verification === 'verified' &&
+    (position.note ?? '').toLowerCase().includes(OVERRIDE_RECONCILIATION_MARKER)
+  );
+}
+
+function isReviewedVerification(verification: string): boolean {
+  return verification === 'reviewed' || verification === 'verified';
 }
 
 /**
@@ -1103,6 +1407,9 @@ function buildRequestComparison(
   const request = raw.find(
     (r) =>
       r.stage === 'president' &&
+      r.vehicleClass === 'request' &&
+      isReviewedVerification(r.verificationStatus) &&
+      r.sourceDocumentCurrent !== false &&
       r.scope === primary.scope &&
       r.fiscalYear === fiscalYearOf(raw, primary.id),
   );
@@ -1127,7 +1434,13 @@ function buildSenateComparison(
 ): FundingComparison | null {
   const fy = fiscalYearOf(raw, primary.id);
   const senate = raw.find(
-    (r) => r.stage === 'senate' && r.scope === primary.scope && r.fiscalYear === fy,
+    (r) =>
+      r.stage === 'senate' &&
+      r.vehicleClass === primary.vehicleClass &&
+      isReviewedVerification(r.verificationStatus) &&
+      r.sourceDocumentCurrent !== false &&
+      r.scope === primary.scope &&
+      r.fiscalYear === fy,
   );
   if (!senate || senate.id === primary.id) return null;
   return {
@@ -1155,7 +1468,15 @@ function buildLikeForLikeComparisons(
 ): FundingComparison[] {
   const fy = fiscalYearOf(raw, primary.id);
   return raw
-    .filter((r) => r.id !== primary.id && r.scope === primary.scope && r.fiscalYear === fy)
+    .filter(
+      (r) =>
+        r.id !== primary.id &&
+        (r.vehicleClass === 'request' || r.vehicleClass === primary.vehicleClass) &&
+        isReviewedVerification(r.verificationStatus) &&
+        r.sourceDocumentCurrent !== false &&
+        r.scope === primary.scope &&
+        r.fiscalYear === fy,
+    )
     .sort((a, b) => (STAGE_ORDER[a.stage] ?? 99) - (STAGE_ORDER[b.stage] ?? 99))
     .map((r) => {
       const amount = Number(r.amountMillions);
@@ -1194,6 +1515,10 @@ function emptyFunding(status: string): FundingBlock {
   return {
     available: false,
     status,
+    tablesAvailable: false,
+    analysisStatus: 'unavailable',
+    vehicle: null,
+    overrideReconciliation: 'not_required',
     positions: [],
     reqCompare: null,
     senateCompare: null,
@@ -1232,6 +1557,226 @@ function truncate(s: string, n: number): string {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }
 
+interface ActionMilestoneSource {
+  id: string;
+  date: Date;
+  text: string;
+  type: string | null;
+  chamber: string | null;
+}
+
+/**
+ * Congressional roll-call questions are not interchangeable. In particular,
+ * recommit/reconsider motions are bill-linked votes but are not passage votes.
+ */
+function isPassageVoteQuestion(question: string | null | undefined): boolean {
+  const q = (question ?? '').toLowerCase();
+  return /on passage|passage of the bill|suspend the rules and pass|suspend the rules and agree|third reading|to concur|concur in the senate amendment|on agreeing to the resolution|on agreeing to the (conference|senate|house) amendment/.test(
+    q,
+  );
+}
+
+function isPassageActionText(text: string): boolean {
+  const t = text.toLowerCase();
+  if (/motion to (recommit|reconsider|table)|cloture|previous question/.test(t)) return false;
+  return /\bon passage\b.*\b(pass|agree)|passed\/agreed to in (the )?(house|senate)|\bpassed (the )?(house|senate)\b|passage of the bill|third reading.*\b(pass|agree)/.test(
+    t,
+  );
+}
+
+function readableChamber(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/house|lower/i.test(value)) return /lower/i.test(value) ? 'Lower chamber' : 'House';
+  if (/senate|upper/i.test(value)) return /upper/i.test(value) ? 'Upper chamber' : 'Senate';
+  return capitalize(value);
+}
+
+function chamberFromAction(text: string, fallback: string | null): string | null {
+  if (/\bhouse\b/i.test(text)) return 'House';
+  if (/\bsenate\b/i.test(text)) return 'Senate';
+  return readableChamber(fallback);
+}
+
+function actionOutcome(text: string): { label: string; sev: DossierSeverity } | null {
+  const result = classifyVoteResult(text);
+  if (result === 'fail') {
+    return { label: /\breject(?:ed|ion)\b/i.test(text) ? 'Rejected' : 'Failed', sev: 'critical' };
+  }
+  if (result === 'pass') {
+    if (/\bpassed\b/i.test(text)) return { label: 'Passed', sev: 'success' };
+    if (/\badopted\b/i.test(text)) return { label: 'Adopted', sev: 'success' };
+    return { label: 'Agreed', sev: 'success' };
+  }
+  return null;
+}
+
+function readableActionType(type: string | null, text: string): string | null {
+  if (/received in (the )?senate/i.test(text)) return 'Senate receipt';
+  if (/received in (the )?house/i.test(text)) return 'House receipt';
+  switch ((type ?? '').toLowerCase()) {
+    case 'introreferral':
+      return 'Chamber referral';
+    case 'floor':
+      return 'Floor action';
+    case 'committee':
+      return 'Committee action';
+    case 'president':
+      return 'Presidential action';
+    default: {
+      const clean = (type ?? '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+      return clean ? capitalize(clean) : null;
+    }
+  }
+}
+
+function passageDetail(text: string): string {
+  const parts = ['On passage'];
+  const tally = text.match(/\b(\d{1,3})\s*[-–]\s*(\d{1,3})\b/);
+  if (tally) parts.push(`${tally[1]}–${tally[2]}`);
+  const roll = text.match(/roll\s+(?:no\.?|number)\s*(\d+)/i);
+  if (roll) parts.push(`Roll no. ${roll[1]}`);
+  return parts.join(' · ');
+}
+
+function actionSemanticKey(action: ActionMilestoneSource): string {
+  const day = action.date.toISOString().slice(0, 10);
+  if (isPassageActionText(action.text)) {
+    const chamber = chamberFromAction(action.text, action.chamber) ?? '';
+    const tally = action.text.match(/\b(\d{1,3})\s*[-–]\s*(\d{1,3})\b/);
+    if (tally) {
+      // Tally is shared by Congress.gov's detailed and summary rows even when
+      // only one of them carries the roll number.
+      return `${day}|passage:${chamber.toLowerCase()}:tally:${tally[1]}-${tally[2]}`;
+    }
+    const roll = action.text.match(/roll\s+(?:no\.?|number)\s*(\d+)/i)?.[1];
+    return `${day}|passage:${chamber.toLowerCase()}:roll:${roll ?? 'unknown'}`;
+  }
+  const roll = action.text.match(/roll\s+(?:no\.?|number)\s*(\d+)/i)?.[1];
+  if (roll) {
+    // Roll numbers are chamber-scoped; House and Senate can use the same one.
+    const chamber = chamberFromAction(action.text, action.chamber) ?? '';
+    return `${day}|roll:${chamber.toLowerCase()}:${roll}`;
+  }
+  if (/received in (the )?(house|senate)/i.test(action.text)) {
+    return `${day}|receipt:${chamberFromAction(action.text, action.chamber)?.toLowerCase() ?? ''}`;
+  }
+  const normalized = action.text
+    .replace(/^passed\/agreed to in (the )?(house|senate):\s*/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  return `${day}|${normalized}`;
+}
+
+/**
+ * Builds a display projection only. Duplicate official rows are aggregated by
+ * legislative event while every underlying row id remains available for drill-
+ * through/audit in `sourceIds`.
+ */
+function buildActionMilestones(
+  actions: ActionMilestoneSource[],
+  limit: number,
+): LegislativeMilestone[] {
+  const grouped = new Map<string, LegislativeMilestone>();
+  for (const action of actions) {
+    const key = actionSemanticKey(action);
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.sourceIds = [...(existing.sourceIds ?? []), action.id];
+      existing.sourceCount = existing.sourceIds.length;
+      continue;
+    }
+
+    const passage = isPassageActionText(action.text);
+    const chamber = chamberFromAction(action.text, action.chamber);
+    const receipt = /received in (the )?(house|senate)/i.test(action.text);
+    // Receipt/referral rows describe routing, not a vote outcome. Some official
+    // copy recites that the originating chamber passed the bill; do not attach
+    // that historical result to the receipt event itself.
+    const outcome = receipt ? null : actionOutcome(action.text);
+    const readableType = readableActionType(action.type, action.text);
+    const label = passage
+      ? `Passed${chamber ? ` ${chamber}` : ''}`
+      : receipt
+        ? `Received in${chamber ? ` ${chamber}` : ''}`
+        : truncate(action.text, 90);
+    const detail = passage
+      ? passageDetail(action.text)
+      : [chamber, readableType].filter((part, index, all) => part && all.indexOf(part) === index).join(' · ') ||
+        null;
+    grouped.set(key, {
+      date: toIso(action.date),
+      label,
+      detail,
+      state: outcome?.sev === 'critical' ? 'failed' : 'done',
+      sev: outcome?.sev,
+      outcome: outcome?.label ?? null,
+      outcomeSev: outcome?.sev ?? 'neutral',
+      sourceIds: [action.id],
+      sourceCount: 1,
+    });
+  }
+
+  const result = [...grouped.values()].slice(0, limit);
+  if (result[0]?.state === 'done') result[0].state = 'current';
+  return result;
+}
+
+function federalStatusPresentation(input: {
+  status: string | null;
+  fallbackLabel: string;
+  fallbackAt: string | null;
+  originChamber: string | null;
+  actions: ActionMilestoneSource[];
+  votes: BillVote[];
+}): { label: string; at: string | null } {
+  if (input.status !== 'passed_chamber') {
+    return { label: input.fallbackLabel, at: input.fallbackAt };
+  }
+
+  const vote = input.votes
+    .filter((v) => v.target === 'passage' && sevForResult(v.result) === 'success')
+    .sort(byDateDesc)[0];
+  const passageAction = input.actions.find(
+    (action) => isPassageActionText(action.text) && !isFailedResult(action.text),
+  );
+  const chamber =
+    readableChamber(vote?.chamber) ??
+    (passageAction
+      ? chamberFromAction(passageAction.text, passageAction.chamber)
+      : readableChamber(input.originChamber));
+  return {
+    label: chamber ? `Passed ${chamber}` : input.fallbackLabel,
+    at: vote?.date ?? toIso(passageAction?.date) ?? input.fallbackAt,
+  };
+}
+
+function expectedNextStep(stage: string | null, statusLabel: string): string | null {
+  if (stage === 'passed_chamber') {
+    if (/house/i.test(statusLabel)) return 'Senate action';
+    if (/senate/i.test(statusLabel)) return 'House action';
+    return 'Action in the other chamber';
+  }
+  switch (stage) {
+    case 'introduced':
+    case 'committee':
+      return 'Committee action';
+    case 'reported':
+    case 'rule_pending':
+    case 'floor':
+      return 'Floor action';
+    case 'resolving':
+      return 'Resolution of chamber differences';
+    case 'to_president':
+      return 'Presidential action';
+    default:
+      return null;
+  }
+}
+
 function capitalize(s: string | null): string {
   if (!s) return '';
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -1245,13 +1790,13 @@ function prettifyStatus(status: string): string {
 }
 
 function isFailedResult(result: string | null): boolean {
-  return /fail|reject|defeat/i.test(result ?? '');
+  return classifyVoteResult(result) === 'fail';
 }
 
 function sevForResult(result: string | null): DossierSeverity {
-  if (!result) return 'neutral';
-  if (/pass|agree|adopt/i.test(result)) return 'success';
-  if (isFailedResult(result)) return 'critical';
+  const classified = classifyVoteResult(result);
+  if (classified === 'pass') return 'success';
+  if (classified === 'fail') return 'critical';
   return 'neutral';
 }
 

@@ -15,7 +15,7 @@ function evMeta(v: EvidenceValue): string {
 const CARD_DEFS: Array<[string, keyof DossierOverview]> = [
   ['What changed', 'whatChanged'],
   ['Why it matters', 'whyItMatters'],
-  ['Official next step', 'officialNextStep'],
+  ['Procedural posture', 'officialNextStep'],
   ['Analyst outlook', 'analystOutlook'],
 ];
 

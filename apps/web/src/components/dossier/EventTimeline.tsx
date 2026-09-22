@@ -10,6 +10,10 @@ export interface TimelineMilestone {
   detail: string | null;
   state: TimelineMilestoneState;
   sev?: PillSev;
+  outcome?: string | null;
+  outcomeSev?: PillSev;
+  sourceIds?: string[];
+  sourceCount?: number;
 }
 
 function sevForState(m: TimelineMilestone): PillSev {
@@ -34,7 +38,7 @@ export function EventTimeline({ milestones }: { milestones: TimelineMilestone[] 
         const filled = m.state !== 'upcoming';
         const last = i === milestones.length - 1;
         return (
-          <div className="dsr-timeline-row" key={`${m.label}-${i}`}>
+          <div className="dsr-timeline-row" key={m.sourceIds?.join(':') ?? `${m.label}-${i}`}>
             <div className="dsr-rail">
               <span
                 className="dsr-dot"
@@ -53,11 +57,18 @@ export function EventTimeline({ milestones }: { milestones: TimelineMilestone[] 
                 >
                   {m.label}
                 </span>
-                {m.state === 'failed' ? <Pill sev="critical">Failed</Pill> : null}
+                {m.outcome ? (
+                  <Pill sev={m.outcomeSev ?? sev}>{m.outcome}</Pill>
+                ) : m.state === 'failed' ? (
+                  <Pill sev="critical">Failed</Pill>
+                ) : null}
                 {m.state === 'current' ? <Pill sev={sev}>Current</Pill> : null}
                 <span className="dsr-ms-date">{fmtDate(m.date) || '—'}</span>
               </div>
               {m.detail ? <div className="dsr-ms-detail">{m.detail}</div> : null}
+              {(m.sourceCount ?? 0) > 1 ? (
+                <div className="dsr-ms-detail">{m.sourceCount} official source records</div>
+              ) : null}
             </div>
           </div>
         );

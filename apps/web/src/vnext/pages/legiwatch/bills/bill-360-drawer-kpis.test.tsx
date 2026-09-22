@@ -9,7 +9,7 @@
  * blank. This suite pins the fixed contract.
  */
 import { createElement } from 'react';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,7 +42,7 @@ function hr8800(): BillDossierResponse {
       congress: 119,
       sponsor: 'Rep. Example',
       introduced: '2026-05-01T00:00:00.000Z',
-      statusLabel: 'Passed a chamber',
+      statusLabel: 'Passed House',
       statusSev: 'success',
       statusAt: '2026-07-22T00:00:00.000Z',
       stage: 'passed_chamber',
@@ -51,21 +51,51 @@ function hr8800(): BillDossierResponse {
       url: null,
     },
     latest: {
-      text: 'Motion to reconsider laid on the table Agreed to without objection.',
-      date: '2026-07-22T00:00:00.000Z',
+      text: 'Received in the Senate.',
+      date: '2026-09-14T00:00:00.000Z',
     },
     context: null,
     tracking: null,
     kpis: [
-      { id: 'current_status', label: 'Current status', value: 'Passed a chamber', valueType: 'status', asOf: '2026-07-22T00:00:00.000Z', sub: null, unavailableReason: null },
+      { id: 'current_status', label: 'Current status', value: 'Passed House', valueType: 'status', asOf: '2026-07-22T00:00:00.000Z', sub: null, unavailableReason: null },
       { id: 'latest_vote', label: 'Latest recorded vote', value: 'Passed 216-212', valueType: 'text', asOf: '2026-07-22T00:00:00.000Z', sub: 'On Passage', unavailableReason: null },
       { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
       { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'last_official_action', label: 'Last official action', value: '2026-07-22T00:00:00.000Z', valueType: 'date', asOf: '2026-07-22T00:00:00.000Z', sub: 'Motion to reconsider laid on the table Agreed to without objection.', unavailableReason: null },
-      { id: 'next_milestone', label: 'Next milestone', value: null, valueType: 'text', asOf: null, sub: null, unavailableReason: 'No analyst has recorded an expected next milestone for this bill.' },
+      { id: 'last_official_action', label: 'Latest action', value: '2026-09-14T00:00:00.000Z', valueType: 'date', asOf: '2026-09-14T00:00:00.000Z', sub: 'Received in the Senate.', unavailableReason: null },
+      { id: 'next_milestone', label: 'Expected next step', value: 'Senate action', valueType: 'text', asOf: null, sub: 'Date not verified', unavailableReason: null },
     ],
     overview: { whatChanged: null, whyItMatters: null, officialNextStep: null, analystOutlook: null },
-    milestones: [],
+    milestones: [
+      {
+        date: '2026-09-14T00:00:00.000Z',
+        label: 'Received in Senate',
+        detail: 'Senate receipt',
+        state: 'current',
+        outcome: null,
+        sourceIds: ['receipt'],
+        sourceCount: 1,
+      },
+      {
+        date: '2026-07-22T00:00:00.000Z',
+        label: 'Passed House',
+        detail: 'On passage · 216–212 · Roll no. 278',
+        state: 'done',
+        outcome: 'Passed',
+        outcomeSev: 'success',
+        sourceIds: ['passage-primary', 'passage-summary'],
+        sourceCount: 2,
+      },
+      {
+        date: '2026-07-22T00:00:00.000Z',
+        label: 'On motion to recommit Failed by the Yeas and Nays: 213 - 216',
+        detail: 'House · Floor action',
+        state: 'failed',
+        outcome: 'Failed',
+        outcomeSev: 'critical',
+        sourceIds: ['recommit'],
+        sourceCount: 1,
+      },
+    ],
     votes: [],
     governingRules: [],
     noVote: null,
@@ -137,18 +167,18 @@ describe('LW-QA-021 — Bill 360 drawer KPI strip', () => {
       'Latest recorded vote',
       'Funding position',
       'Δ from request',
-      'Last official action',
-      'Next milestone',
+      'Latest action',
+      'Expected next step',
     ]);
   });
 
   it('never paints a raw ISO instant — the last-action tile shows a calendar date', async () => {
     renderDrawer();
-    const t = await tile('Last official action');
-    expect(t.textContent).toContain('2026-07-22');
+    const t = await tile('Latest action');
+    expect(t.textContent).toContain('2026-09-14');
     expect(t.textContent).not.toContain('T00:00:00.000Z');
     // …and the action itself rides along, so the tile is meaningful.
-    expect(t.textContent).toMatch(/Motion to reconsider/);
+    expect(t.textContent).toMatch(/Received in the Senate/);
   });
 
   it('shows the real recorded vote where one exists', async () => {
@@ -185,11 +215,119 @@ describe('LW-QA-021 — Bill 360 drawer KPI strip', () => {
     }
   });
 
-  it('formats the drawer header timestamp too', async () => {
+  it('keeps the passage status date separate from the later latest-action date', async () => {
     renderDrawer();
     await screen.findByText(/H\.R\. 8800/);
     const head = document.querySelector('.lw-b360__head')!;
-    expect(head.textContent).toContain('updated 2026-07-22');
+    expect(head.textContent).toContain('Passed House · 2026-07-22');
+    expect(head.textContent).toContain('Latest action 2026-09-14');
     expect(head.textContent).not.toContain('T00:00:00.000Z');
+  });
+
+  it('shows an external expected step without implying an official schedule', async () => {
+    renderDrawer();
+    const t = await tile('Expected next step');
+    expect(t.querySelector('.lw-stat__value')?.textContent).toBe('Senate action');
+    expect(t.textContent).toContain('Date not verified');
+    expect(t.textContent).not.toContain('No analyst has recorded');
+  });
+
+  it('shows one aggregated passage event, readable receipt copy, and explicit outcomes', async () => {
+    renderDrawer();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Path & Votes' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('Received in Senate');
+    expect(dialog.textContent).toContain('Senate receipt');
+    expect(dialog.textContent).not.toContain('IntroReferral');
+    expect(dialog.textContent).toContain('2 official source records');
+    expect(dialog.textContent).toContain('Passed');
+    expect(dialog.textContent).toContain('Failed');
+    expect(screen.getAllByText('Passed')).toHaveLength(1);
+    expect(screen.getAllByText('Failed')).toHaveLength(1);
+  });
+
+  it('shows House authorization tables as pending analysis with exact track and source context', async () => {
+    const d = hr8800();
+    d.kpis = d.kpis.map((cell) => {
+      if (cell.id === 'funding_position') {
+        return {
+          ...cell,
+          label: 'House authorization',
+          unavailableLabel: 'Analysis pending',
+          unavailableReason: 'Funding tables are available; amounts await verification.',
+        };
+      }
+      if (cell.id === 'delta_from_request') {
+        return {
+          ...cell,
+          label: 'Change vs. FY2027 request',
+          unavailableLabel: 'Comparison pending',
+          unavailableReason: 'Funding tables are available; amounts await verification.',
+        };
+      }
+      return cell;
+    });
+    d.funding = {
+      ...d.funding,
+      available: true,
+      status: 'Funding tables are available; amounts await verification.',
+      tablesAvailable: true,
+      analysisStatus: 'analysis_pending',
+      overrideReconciliation: 'not_required',
+      vehicle: {
+        id: 'veh-hr8800-house',
+        label: 'House-passed H.R. 8800',
+        track: 'authorization',
+        stage: 'house',
+        status: 'passed',
+        chamber: 'house',
+        fiscalYear: 2027,
+        amountTreatment: 'proposed_authorization',
+        sourceDocumentTitle: 'House-passed H.R. 8800 funding tables',
+        sourceDocumentKey: 'hr8800_house_passed_fy2027',
+        sourceDocumentVersion:
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        sourceDocumentUrl: 'https://example.invalid/hr8800',
+        sourceDocumentCurrent: true,
+      },
+      programElementImpacts: [
+        {
+          pe: '0603270A',
+          name: 'Electronic Warfare Technology',
+          fiscalYear: 2027,
+          vehicleTrack: 'authorization',
+          houseLabel: 'House authorization (HASC)',
+          senateLabel: 'Senate authorization (SASC)',
+          conferenceLabel: 'NDAA conference authorization',
+          requestMillions: 100,
+          houseMillions: 120,
+          senateMillions: null,
+          conferenceMillions: null,
+          enactedMillions: null,
+          deltaVsRequestMillions: 20,
+          pct: 20,
+          basis: 'explicit',
+          source: 'FY2027 · authorization track · accepted',
+        },
+      ],
+    };
+    apiGet.mockImplementation((url: string) => {
+      if (url.includes('/dossier')) return Promise.resolve({ data: d });
+      return Promise.resolve({ data: { hearings: [] } });
+    });
+
+    renderDrawer();
+    expect((await tile('House authorization')).textContent).toContain('Analysis pending');
+    expect((await tile('Change vs. FY2027 request')).textContent).toContain('Comparison pending');
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Funding' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain('Funding tables are available; amounts await verification.');
+    expect(dialog.textContent).toContain('Proposed authorization level — not appropriated funding');
+    expect(dialog.textContent).toContain('House-passed H.R. 8800 funding tables');
+    expect(dialog.textContent).toContain('version 0123456789ab');
+    expect(dialog.textContent).toContain('House authorization (HASC)');
+    expect(dialog.textContent).toContain('Senate authorization (SASC)');
+    expect(dialog.textContent).not.toContain('No funding lines are carried by this vehicle');
   });
 });

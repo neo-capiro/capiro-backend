@@ -33,6 +33,33 @@ export class SummarizeAlertDto {
   actionText!: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  jurisdiction?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  chamber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  actionDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  why?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  matchedTags?: string[];
+
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(12)
   @IsString({ each: true })
@@ -60,9 +87,9 @@ export class SummarizeAlertDto {
  * pipeline uses, so the "what happened" line is identical no matter which
  * pipeline sends the email — the property you want during the tracker cutover.
  * TrackerSummaryService is fail-safe by contract (disabled flag / no key /
- * provider error / timeout all return null), so a null summary just means the
- * caller omits the line and still sends. The TRACKER_ALERT_SUMMARY flag and the
- * per-tenant BYOK Anthropic key stay single-sourced here on the apps/api side.
+ * provider error / timeout all return deterministic source-grounded copy).
+ * The TRACKER_ALERT_SUMMARY flag and per-tenant BYOK Anthropic key stay
+ * single-sourced here on the apps/api side.
  *
  * NOT reachable by an ordinary user JWT (InternalServiceGuard, not RolesGuard).
  */
@@ -100,6 +127,11 @@ export class InternalTrackerController {
       billTitle,
       label,
       actionText,
+      jurisdiction: str(dto?.jurisdiction) || null,
+      chamber: str(dto?.chamber) || null,
+      actionDate: str(dto?.actionDate) || null,
+      why: str(dto?.why) || null,
+      matchedTags: strArray(dto?.matchedTags),
       allowedNextSteps: strArray(dto?.allowedNextSteps),
       blockedBy: strArray(dto?.blockedBy),
     });

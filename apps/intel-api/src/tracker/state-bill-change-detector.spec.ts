@@ -214,6 +214,56 @@ describe('BillChangeDetectorService — state partition (DD3)', () => {
     expect(tracked[0]?.lastSeenStatus).toBe('introduced');
   });
 
+  it('preserves the sourced chamber on a material state action-history event', async () => {
+    const previous = process.env.TRACKER_SCAN_ACTION_HISTORY;
+    process.env.TRACKER_SCAN_ACTION_HISTORY = 'true';
+    try {
+      const actionDate = new Date('2025-02-01T00:00:00Z');
+      const movedBill = {
+        ...BASE_BILL,
+        latestActionText: 'Passed/agreed to in House',
+        latestActionDate: actionDate,
+      };
+      const stateSource = makeStateSourceRepo(movedBill);
+      (stateSource.getStateBillActionsByIds as jest.Mock).mockResolvedValue([
+        {
+          id: 'state-action-house-passage',
+          billId: movedBill.id,
+          date: actionDate,
+          text: 'Passed/agreed to in House',
+          type: null,
+          chamber: 'H',
+        },
+      ]);
+      const alreadySeen: TrackedBillRow = {
+        id: 'tb-state-history-chamber',
+        tenantId: 't1',
+        clientId: 'c1',
+        billId: BASE_BILL.id,
+        source: 'state',
+        lastSeenActionText: 'Filed',
+        lastSeenActionDate: new Date('2025-01-15T00:00:00Z'),
+        lastSeenAt: new Date('2025-01-16T00:00:00Z'),
+        lastSeenStatus: 'introduced',
+        lastSeenCosponsors: 2,
+        lastSeenTextDate: null,
+        lastSeenFiscalId: null,
+        lastSeenHearingKey: null,
+      };
+      const { prisma, alerts } = makeHarness([alreadySeen]);
+      const svc = new BillChangeDetectorService(prisma, FAKE_CONGRESS_SOURCE, stateSource);
+
+      await svc.runDetectionCycle();
+
+      const alert = alerts[0] as { sourceType: string; evidence: Record<string, unknown> };
+      expect(alert.sourceType).toBe('state_bill');
+      expect(alert.evidence.chamber).toBe('H');
+    } finally {
+      if (previous === undefined) delete process.env.TRACKER_SCAN_ACTION_HISTORY;
+      else process.env.TRACKER_SCAN_ACTION_HISTORY = previous;
+    }
+  });
+
   it('fires exactly once on a status transition, stamps jurisdiction + state displayNum, and dedups a re-run', async () => {
     const alreadySeen: TrackedBillRow = {
       id: 'tb-2',

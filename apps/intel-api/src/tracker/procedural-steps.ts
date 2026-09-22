@@ -58,7 +58,6 @@ export const STEPS_RULE_FAILED = [
 export const STEPS_PASSED_ONE_CHAMBER = [
   'Referral in the other chamber',
   'Companion bill consideration',
-  'Conference to resolve differences',
 ];
 export const STEPS_IN_CONFERENCE = [
   'Conference report filed',
@@ -242,16 +241,24 @@ export function proceduralStateFromAlert(input: {
   changeType: string;
   jurisdiction?: string | null;
   canonicalStatus?: string | null;
+  /** Sourced action/originating chamber; never inferred from bill number. */
+  chamber?: string | null;
   /** From the alert's stored evidence (`extra.cutoffType`), when present. */
   cutoffType?: string | null;
   /** From the alert's stored evidence (`extra.relatedBillKey`), when present. */
   hasCompanion?: boolean;
 }): ProceduralState {
   const ct = input.changeType;
+  const chamberValue = input.chamber?.trim().toLowerCase() ?? '';
+  const chamber =
+    /^(h|house|lower|assembly)$/.test(chamberValue)
+      ? 'house'
+      : /^(s|senate|upper)$/.test(chamberValue)
+        ? 'senate'
+        : null;
   return {
     canonicalStatus: input.canonicalStatus ?? null,
-    // No emitted alert carries the chamber today; naming one would be a guess.
-    chamber: null,
+    chamber,
     changeType: ct,
     ruleOutcome:
       ct === 'bill_rule_failed'

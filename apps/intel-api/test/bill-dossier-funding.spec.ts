@@ -5,6 +5,7 @@ import type {
   SourceBillPeImpact,
   SourceFundingPosition,
 } from '../src/sourcedata/source-data.repository.js';
+import { SourceDataRepository } from '../src/sourcedata/source-data.repository.js';
 
 /** LW-QA-021: cells are addressed by SEMANTIC id, never by index or by label. */
 function kpi(d: BillDossierResponse, id: BillKpiId) {
@@ -25,7 +26,24 @@ function kpi(d: BillDossierResponse, id: BillKpiId) {
  */
 
 const BILL = '119-hr-9100';
-const PACKAGE = { packageId: 'pkg-1', domain: 'defense', fiscalYear: 2027, name: 'FY27 Defense Budget', status: 'open' };
+const PACKAGE = {
+  packageId: 'pkg-1',
+  domain: 'defense',
+  fiscalYear: 2027,
+  name: 'FY27 Defense Budget',
+  status: 'open',
+  vehicleId: 'veh-house',
+  vehicleLabel: 'House defense appropriations',
+  vehicleTrack: 'appropriation',
+  vehicleStage: 'house',
+  vehicleStatus: 'passed',
+  vehicleChamber: 'house',
+  sourceDocumentTitle: 'House Defense Appropriations Report, FY2027',
+  sourceDocumentKey: 'hac_d_fy2027_house',
+  sourceDocumentSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  sourceDocumentUrl: 'https://example.invalid/hac-d',
+  sourceDocumentCurrent: true,
+};
 
 const identity: SourceBillIdentity = {
   id: BILL,
@@ -56,6 +74,7 @@ function position(over: Partial<SourceFundingPosition> = {}): SourceFundingPosit
     vehicleId: 'veh-house',
     vehicleLabel: 'House defense appropriations',
     vehicleTrack: 'appropriation',
+    vehicleStatus: 'passed',
     fiscalYear: 2027,
     vehicleClass: 'appropriation',
     stage: 'house',
@@ -64,6 +83,10 @@ function position(over: Partial<SourceFundingPosition> = {}): SourceFundingPosit
     effectiveDate: new Date('2026-07-10T00:00:00Z'),
     sourceUrl: 'https://example.invalid/hac-d',
     sourcePage: 4,
+    sourceDocumentTitle: 'House Defense Appropriations Report, FY2027',
+    sourceDocumentKey: 'hac_d_fy2027_house',
+    sourceDocumentSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    sourceDocumentCurrent: true,
     note: null,
     verificationStatus: 'reviewed',
     ...over,
@@ -75,10 +98,22 @@ function peImpact(over: Partial<SourceBillPeImpact> = {}): SourceBillPeImpact {
     peCode: '0603270A',
     title: 'Electronic Warfare Technology',
     fiscalYear: 2027,
+    vehicleTrack: 'appropriation',
+    vehicleStage: 'house',
     requestMillions: '100.00',
     houseMillions: '120.00',
     senateMillions: '110.00',
+    conferenceMillions: null,
     enactedMillions: null,
+    requestSourceDocumentKey: 'pb_fy2027',
+    requestSourceDocumentSha256:
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    houseSourceDocumentKey: 'hac_d_fy2027_house',
+    houseSourceDocumentSha256:
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    senateSourceDocumentKey: 'sac_d_fy2027_senate',
+    senateSourceDocumentSha256:
+      'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     matchBasis: 'explicit_pe_code',
     reviewStatus: 'accepted',
     confidence: 1,
@@ -345,16 +380,41 @@ describe('funding ON with data', () => {
     expect(primary.vehicleClass).toBe('appropriation');
   });
 
-  it('picks the furthest-progressed stage as the primary figure', async () => {
+  it('picks the reviewed amount on the exact selected vehicle stage', async () => {
     const { svc } = svcWith({
       getBillFundingPositions: async () => [
         position(),
         position({ id: 'p-enacted', stage: 'enacted', amountMillions: '845000.00' }),
       ],
+      getParentBudgetPackage: async () => ({ ...PACKAGE, vehicleStage: 'enacted' }),
     });
     const d = await svc.getGlobalDossier(BILL, { funding: true });
     expect(d.funding.positions.find((p) => p.primary)!.stage).toBe('enacted');
     expect(kpi(d, 'funding_position').value).toBe('$845.0B');
+  });
+
+  it('does not promote a later-stage or older-FY row from a different bill vehicle', async () => {
+    const { svc } = svcWith({
+      getBillFundingPositions: async () => [
+        position(),
+        position({
+          id: 'p-other-vehicle',
+          vehicleId: 'veh-other',
+          stage: 'enacted',
+          amountMillions: '999999.00',
+        }),
+        position({
+          id: 'p-prior-fy',
+          fiscalYear: 2026,
+          stage: 'enacted',
+          amountMillions: '777777.00',
+        }),
+      ],
+    });
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.positions.find((p) => p.primary)).toEqual(
+      expect.objectContaining({ amountMillions: 850000, stage: 'house', fiscalYear: 2027 }),
+    );
   });
 
   it('surfaces a like-for-like Senate comparison on the same scope with no delta claimed', async () => {
@@ -395,6 +455,7 @@ describe('funding ON with data', () => {
           amountMillions: '840000.00',
         }),
       ],
+      getParentBudgetPackage: async () => ({ ...PACKAGE, vehicleStage: 'conference' }),
     });
     const d = await svc.getGlobalDossier(BILL, { funding: true });
     // Primary is the furthest stage (conference); the set is every OTHER same-scope,
@@ -465,15 +526,17 @@ describe('funding ON with data', () => {
     expect(inferred!.source).toMatch(/candidate/);
   });
 
-  it('computes a PE delta vs request from the furthest appropriations stage', async () => {
+  it('computes a House-version PE delta without leaking later Senate values', async () => {
     const { svc } = svcWith();
     const d = await svc.getGlobalDossier(BILL, { funding: true });
     const pe = d.funding.programElementImpacts[0]!;
     expect(pe.requestMillions).toBe(100);
     expect(pe.houseMillions).toBe(120);
-    expect(pe.senateMillions).toBe(110);
-    expect(pe.deltaVsRequestMillions).toBe(10); // senate (110) − request (100)
-    expect(pe.pct).toBe(10);
+    expect(pe.senateMillions).toBeNull();
+    expect(pe.deltaVsRequestMillions).toBe(20); // House (120) − request (100)
+    expect(pe.pct).toBe(20);
+    expect(pe.source).toMatch(/request source pb_fy2027@aaaaaaaaaaaa/);
+    expect(pe.source).toMatch(/house source hac_d_fy2027_house@0123456789ab/);
   });
 
   it('leaves a PE delta null when the PE has no request that year', async () => {
@@ -501,6 +564,7 @@ describe('funding ON with data', () => {
           matchBasis: 'pe_code',
           confidence: 1,
           reviewStatus: 'accepted',
+          billLinkStatus: 'accepted',
         },
       ],
     });
@@ -513,6 +577,308 @@ describe('funding ON with data', () => {
         source: 'HAC-D · FY2027 · p.88',
       }),
     );
+  });
+
+  it('treats linked House authorization tables as pending analysis, not unavailable', async () => {
+    const { svc } = svcWith({
+      getBillFundingPositions: async () => [],
+      getBillProgramElementImpacts: async () => [
+        peImpact({
+          vehicleTrack: 'authorization',
+          houseMillions: '125.00',
+          senateMillions: null,
+          conferenceMillions: null,
+          enactedMillions: null,
+        }),
+      ],
+      getParentBudgetPackage: async () => ({
+        ...PACKAGE,
+        vehicleId: 'veh-ndaa-house',
+        vehicleLabel: 'House-passed FY2027 NDAA',
+        vehicleTrack: 'authorization',
+        vehicleStage: 'house',
+        sourceDocumentTitle: 'House-passed H.R. 8800 funding tables',
+        sourceDocumentKey: 'hr8800_house_passed_fy2027',
+      }),
+    });
+
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.available).toBe(true);
+    expect(d.funding.tablesAvailable).toBe(true);
+    expect(d.funding.analysisStatus).toBe('analysis_pending');
+    expect(d.funding.status).toBe('Funding tables are available; amounts await verification.');
+    expect(d.funding.vehicle).toEqual(
+      expect.objectContaining({
+        track: 'authorization',
+        stage: 'house',
+        fiscalYear: 2027,
+        amountTreatment: 'proposed_authorization',
+        sourceDocumentKey: 'hr8800_house_passed_fy2027',
+      }),
+    );
+    expect(kpi(d, 'funding_position')).toEqual(
+      expect.objectContaining({
+        label: 'House authorization',
+        value: null,
+        unavailableLabel: 'Analysis pending',
+        unavailableReason: 'Funding tables are available; amounts await verification.',
+      }),
+    );
+    expect(kpi(d, 'delta_from_request')).toEqual(
+      expect.objectContaining({
+        label: 'Change vs. FY2027 request',
+        value: null,
+        unavailableLabel: 'Comparison pending',
+      }),
+    );
+  });
+
+  it('never promotes an extracted amount to the primary position', async () => {
+    const { svc } = svcWith({
+      getBillFundingPositions: async () => [
+        position({ verificationStatus: 'extracted', amountMillions: '999999.00' }),
+      ],
+    });
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.positions).toEqual([
+      expect.objectContaining({ amountMillions: 999999, verification: 'extracted', primary: false }),
+    ]);
+    expect(d.funding.analysisStatus).toBe('analysis_pending');
+    expect(kpi(d, 'funding_position').value).toBeNull();
+    expect(kpi(d, 'funding_position').unavailableLabel).toBe('Analysis pending');
+  });
+
+  it('fails closed when accepted provisions change amounts but are not numerically reconciled', async () => {
+    const { svc } = svcWith({
+      getBillFundingProvisions: async () => [
+        {
+          provisionId: 'prov-override',
+          committee: 'HAC-D',
+          fy: 2027,
+          heading: 'Program increase',
+          text: 'The Committee recommends an increase for the program.',
+          pageStart: 88,
+          pageEnd: 88,
+          actionType: 'adds',
+          peCode: '0603270A',
+          matchBasis: 'pe_code',
+          confidence: 1,
+          reviewStatus: 'accepted',
+          billLinkStatus: 'accepted',
+        },
+      ],
+    });
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.overrideReconciliation).toBe('verification_required');
+    expect(d.funding.positions.every((item) => !item.primary)).toBe(true);
+    expect(d.funding.reqCompare).toBeNull();
+    expect(d.funding.comparisons).toEqual([]);
+    expect(d.funding.guardrail).toMatch(/not been numerically reconciled/i);
+    expect(d.funding.provisions[0]).toEqual(
+      expect.objectContaining({ actionType: 'adds', reconciliationRequired: true }),
+    );
+  });
+
+  it('allows a verified, explicitly attested override reconciliation to become primary', async () => {
+    const { svc } = svcWith({
+      getBillFundingPositions: async () => [
+        position({
+          verificationStatus: 'verified',
+          note: 'Analyst checked section overrides. [overrides-reconciled]',
+        }),
+      ],
+      getBillFundingProvisions: async () => [
+        {
+          provisionId: 'prov-reconciled',
+          committee: 'HAC-D',
+          fy: 2027,
+          heading: 'Program increase',
+          text: 'The Committee recommends an increase for the program.',
+          pageStart: 88,
+          pageEnd: 88,
+          actionType: 'adds',
+          peCode: '0603270A',
+          matchBasis: 'pe_code',
+          confidence: 1,
+          reviewStatus: 'accepted',
+          billLinkStatus: 'accepted',
+        },
+      ],
+    });
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.overrideReconciliation).toBe('reconciled');
+    expect(d.funding.positions.find((item) => item.primary)).toEqual(
+      expect.objectContaining({ verification: 'verified', amountMillions: 850000 }),
+    );
+    expect(d.funding.guardrail).toBeNull();
+  });
+
+  it('does not let a candidate bill-to-PE link suppress a verified amount', async () => {
+    const { svc } = svcWith({
+      getBillFundingPositions: async () => [position({ verificationStatus: 'verified' })],
+      getBillFundingProvisions: async () => [
+        {
+          provisionId: 'prov-candidate-edge',
+          committee: 'HAC-D',
+          fy: 2027,
+          heading: 'Possible program increase',
+          text: 'The Committee recommends an increase for the program.',
+          pageStart: 89,
+          pageEnd: 89,
+          actionType: 'adds',
+          peCode: '0603270A',
+          matchBasis: 'pe_code',
+          confidence: 0.5,
+          reviewStatus: 'accepted',
+          billLinkStatus: 'candidate',
+        },
+      ],
+    });
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.overrideReconciliation).toBe('not_required');
+    expect(d.funding.positions.find((item) => item.primary)).toBeTruthy();
+    expect(d.funding.provisions[0]).toEqual(
+      expect.objectContaining({ billLinkStatus: 'candidate', reconciliationRequired: false }),
+    );
+  });
+
+  it('exposes exact amount source/version metadata and the funding treatment', async () => {
+    const { svc } = svcWith();
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.positions[0]).toEqual(
+      expect.objectContaining({
+        fiscalYear: 2027,
+        vehicleTrack: 'appropriation',
+        amountTreatment: 'appropriated_funding',
+        sourceDocumentTitle: 'House Defense Appropriations Report, FY2027',
+        sourceDocumentKey: 'hac_d_fy2027_house',
+        sourceDocumentVersion:
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        sourceDocumentCurrent: true,
+      }),
+    );
+  });
+
+  it('uses the authorization conference rung and labels every chamber amount explicitly', async () => {
+    const { svc } = svcWith({
+      getBillFundingPositions: async () => [],
+      getBillProgramElementImpacts: async () => [
+        peImpact({
+          vehicleTrack: 'authorization',
+          vehicleStage: 'conference',
+          houseMillions: '120.00',
+          senateMillions: '110.00',
+          conferenceMillions: '130.00',
+          // A malformed legacy value cannot become the final authorization amount.
+          enactedMillions: '999.00',
+        }),
+      ],
+      getParentBudgetPackage: async () => ({
+        ...PACKAGE,
+        vehicleTrack: 'authorization',
+        vehicleStage: 'conference',
+      }),
+    });
+    const d = await svc.getGlobalDossier(BILL, { funding: true });
+    expect(d.funding.programElementImpacts[0]).toEqual(
+      expect.objectContaining({
+        vehicleTrack: 'authorization',
+        houseLabel: 'House authorization (HASC)',
+        senateLabel: 'Senate authorization (SASC)',
+        conferenceLabel: 'NDAA conference authorization',
+        conferenceMillions: 130,
+        enactedMillions: null,
+        deltaVsRequestMillions: 30,
+      }),
+    );
+  });
+});
+
+describe('funding source SQL — track and version safety', () => {
+  it('selects the authorization and appropriation ladders independently', async () => {
+    let sql = '';
+    const repo = new SourceDataRepository({
+      $queryRawUnsafe: async (query: string) => {
+        sql = query;
+        return [];
+      },
+    } as never);
+    await repo.getBillProgramElementImpacts(BILL);
+    expect(sql).toContain("WHEN 'authorization' THEN 'hascMark'");
+    expect(sql).toContain("WHEN 'authorization' THEN 'sascMark'");
+    expect(sql).toContain("WHEN 'authorization' THEN 'ndaaConference'");
+    expect(sql).toContain("WHEN 'appropriation' THEN 'hacDMark'");
+    expect(sql).toContain("WHEN 'appropriation' THEN 'sacDMark'");
+    expect(sql).toContain("WHEN 'appropriation' THEN 'conference'");
+    expect(sql).toContain("cv.track = 'appropriation'");
+    expect(sql).toContain("cv.stage = 'enacted'");
+    expect(sql).toContain("cv.stage IN ('house', 'senate', 'conference', 'enacted')");
+    expect(sql).toContain("cv.stage IN ('senate', 'conference', 'enacted')");
+    expect(sql).toContain("cv.stage IN ('conference', 'enacted')");
+  });
+
+  it('reads PE amounts from exact versioned source observations, not the global winner row', async () => {
+    let sql = '';
+    const repo = new SourceDataRepository({
+      $queryRawUnsafe: async (query: string) => {
+        sql = query;
+        return [];
+      },
+    } as never);
+    await repo.getBillProgramElementImpacts(BILL);
+    expect(sql).toContain('program_element_year_source_value');
+    expect(sql).toContain('v.source_document_id = hv.source_document_id');
+    expect(sql).toContain('v.source_document_id IN (cv.source_document_id, rv.source_document_id)');
+    expect(sql).not.toContain('LEFT JOIN program_element_year y');
+    expect(sql).toContain('AS "houseSourceDocumentSha256"');
+  });
+
+  it('loads the selected bill vehicle plus same-package request rows for FY comparisons', async () => {
+    let sql = '';
+    const repo = new SourceDataRepository({
+      $queryRawUnsafe: async (query: string) => {
+        sql = query;
+        return [];
+      },
+    } as never);
+    await repo.getBillFundingPositions(BILL);
+    expect(sql).toContain('fp.package_id = cv.package_id');
+    expect(sql).toContain('fp.fiscal_year = cv.fiscal_year');
+    expect(sql).toContain("fp.vehicle_class = 'request'");
+    expect(sql).toContain('fp.vehicle_id = cv.id');
+  });
+
+  it('joins funding positions and the bill vehicle to immutable source-document versions', async () => {
+    const statements: string[] = [];
+    const repo = new SourceDataRepository({
+      $queryRawUnsafe: async (query: string) => {
+        statements.push(query);
+        return [];
+      },
+    } as never);
+    await repo.getBillFundingPositions(BILL);
+    await repo.getParentBudgetPackage(BILL);
+    expect(statements[0]).toContain('COALESCE(fp.source_document_id, v.source_document_id)');
+    expect(statements[0]).toContain('AS "sourceDocumentSha256"');
+    expect(statements[1]).toContain('LEFT JOIN source_document sd ON sd.id = v.source_document_id');
+    expect(statements[1]).toContain('AS "sourceDocumentCurrent"');
+  });
+
+  it('limits override provisions to the bill vehicle FY, track, stage, and source document', async () => {
+    let sql = '';
+    const repo = new SourceDataRepository({
+      $queryRawUnsafe: async (query: string) => {
+        sql = query;
+        return [];
+      },
+    } as never);
+    await repo.getBillFundingProvisions(BILL);
+    expect(sql).toContain('p.fy = cv.fiscal_year');
+    expect(sql).toContain("cv.stage = 'house' AND p.committee = 'HASC'");
+    expect(sql).toContain("cv.stage = 'house' AND p.committee = 'HAC-D'");
+    expect(sql).toContain('p.source_document_id = cv.source_document_id');
+    expect(sql).toContain("bll.status <> 'rejected'");
+    expect(sql).toContain('bll.status        AS "billLinkStatus"');
   });
 });
 

@@ -138,8 +138,18 @@ export interface NormalizedStateBill {
 
 function safeDate(v: string | null | undefined): Date | null {
   if (!v) return null;
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+    ? date
+    : null;
 }
 
 /**
@@ -235,13 +245,22 @@ export function normalizeLegiscanBill(
   if (!billKey) return null;
 
   const history = raw.history ?? [];
-  const actions = history.map((h, idx) => ({
-    date: safeDate(h.date) ?? new Date(0),
-    text: h.action,
-    chamber: h.chamber ?? null,
-    importance: typeof h.importance === 'number' ? h.importance : null,
-    orderKey: idx,
-  }));
+  // Invalid provider dates must never become real legislative history. The raw
+  // published payload remains available in the revision substrate for diagnosis.
+  const actions = history.flatMap((h, idx) => {
+    const date = safeDate(h.date);
+    return date
+      ? [
+          {
+            date,
+            text: h.action,
+            chamber: h.chamber ?? null,
+            importance: typeof h.importance === 'number' ? h.importance : null,
+            orderKey: idx,
+          },
+        ]
+      : [];
+  });
 
   const sponsors = (raw.sponsors ?? []).map((s, idx) => ({
     legiscanPeopleId: s.people_id,
@@ -251,14 +270,24 @@ export function normalizeLegiscanBill(
     sponsorOrder: s.sponsor_order ?? idx,
   }));
 
-  const versions = (raw.texts ?? []).map((t) => ({
-    legiscanDocId: t.doc_id,
-    versionType: t.type,
-    date: safeDate(t.date) ?? new Date(0),
-    stateUrl: t.state_link ?? t.url ?? null,
-    mime: t.mime ?? null,
-  }));
-  const textDates = versions.map((v) => v.date.getTime()).filter((t) => t > 0);
+  // As with actions, fail closed on malformed version dates instead of creating
+  // a plausible-looking 1970 record. A later clean provider observation can
+  // promote the document into the canonical projection.
+  const versions = (raw.texts ?? []).flatMap((t) => {
+    const date = safeDate(t.date);
+    return date
+      ? [
+          {
+            legiscanDocId: t.doc_id,
+            versionType: t.type,
+            date,
+            stateUrl: t.state_link ?? t.url ?? null,
+            mime: t.mime ?? null,
+          },
+        ]
+      : [];
+  });
+  const textDates = versions.map((v) => v.date.getTime());
   const textDate = textDates.length ? new Date(Math.max(...textDates)) : null;
 
   const links = (raw.sasts ?? [])
@@ -271,7 +300,13 @@ export function normalizeLegiscanBill(
   const calendarSnapshot = normalizeLegiscanCalendar(billKey, raw.calendar);
   const calendarEvents = calendarSnapshot.rows;
 
-  const latestAction = history.length ? history[history.length - 1] : null;
+  // Provider corrections and inserted rows can reorder history. Select the
+  // newest valid fact by date and use provider order only as a same-day tie-break.
+  const latestAction = actions.reduce<(typeof actions)[number] | null>((latest, action) => {
+    if (!latest) return action;
+    const delta = action.date.getTime() - latest.date.getTime();
+    return delta > 0 || (delta === 0 && action.orderKey > latest.orderKey) ? action : latest;
+  }, null);
 
   return {
     billKey,
@@ -293,8 +328,8 @@ export function normalizeLegiscanBill(
     legiscanStatus: raw.status,
     legiscanProgress: (raw.progress ?? []).map((p) => ({ date: p.date, event: p.event })),
     textDate,
-    latestActionDate: latestAction ? safeDate(latestAction.date) : null,
-    latestActionText: latestAction?.action ?? null,
+    latestActionDate: latestAction?.date ?? null,
+    latestActionText: latestAction?.text ?? null,
     url: raw.url ?? null,
     stateUrl: raw.state_link ?? raw.url ?? null,
     legiscanBillId: raw.bill_id,

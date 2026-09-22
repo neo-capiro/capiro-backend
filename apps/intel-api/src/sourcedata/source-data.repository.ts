@@ -263,6 +263,8 @@ export interface SourceBillProvision {
   matchBasis: string | null;
   confidence: number | null;
   reviewStatus: string;
+  /** Review state of the bill-to-PE edge that made this provision reachable. */
+  billLinkStatus: string;
 }
 
 // ── Defense funding reads (Release R3, §3.5) — GLOBAL, read-only, bound params ──
@@ -276,6 +278,7 @@ export interface SourceFundingPosition {
   vehicleId: string | null;
   vehicleLabel: string | null;
   vehicleTrack: string | null;
+  vehicleStatus: string | null;
   fiscalYear: number;
   vehicleClass: string;
   stage: string;
@@ -284,6 +287,10 @@ export interface SourceFundingPosition {
   effectiveDate: Date | null;
   sourceUrl: string | null;
   sourcePage: number | null;
+  sourceDocumentTitle: string | null;
+  sourceDocumentKey: string | null;
+  sourceDocumentSha256: string | null;
+  sourceDocumentCurrent: boolean | null;
   note: string | null;
   verificationStatus: string;
 }
@@ -293,10 +300,23 @@ export interface SourceBillPeImpact {
   peCode: string;
   title: string | null;
   fiscalYear: number | null;
+  vehicleTrack: string | null;
+  vehicleStage: string | null;
   requestMillions: string | null;
   houseMillions: string | null;
   senateMillions: string | null;
+  conferenceMillions: string | null;
   enactedMillions: string | null;
+  requestSourceDocumentKey?: string | null;
+  requestSourceDocumentSha256?: string | null;
+  houseSourceDocumentKey?: string | null;
+  houseSourceDocumentSha256?: string | null;
+  senateSourceDocumentKey?: string | null;
+  senateSourceDocumentSha256?: string | null;
+  conferenceSourceDocumentKey?: string | null;
+  conferenceSourceDocumentSha256?: string | null;
+  enactedSourceDocumentKey?: string | null;
+  enactedSourceDocumentSha256?: string | null;
   matchBasis: string;
   reviewStatus: string;
   confidence: number;
@@ -321,6 +341,17 @@ export interface SourceParentPackage {
   fiscalYear: number;
   name: string;
   status: string;
+  vehicleId: string;
+  vehicleLabel: string;
+  vehicleTrack: string;
+  vehicleStage: string;
+  vehicleStatus: string;
+  vehicleChamber: string | null;
+  sourceDocumentTitle: string | null;
+  sourceDocumentKey: string | null;
+  sourceDocumentSha256: string | null;
+  sourceDocumentUrl: string | null;
+  sourceDocumentCurrent: boolean | null;
 }
 
 /**
@@ -603,29 +634,68 @@ export class SourceDataRepository {
   async getBillFundingPositions(billId: string, limit = 50): Promise<SourceFundingPosition[]> {
     const cap = Math.min(Math.max(Math.floor(limit), 1), 200);
     return this.prisma.$queryRawUnsafe<SourceFundingPosition[]>(
-      `SELECT fp.id,
+      `WITH current_vehicle AS (
+              SELECT v.id,
+                     v.package_id,
+                     bp.fiscal_year
+                FROM budget_package_vehicle v
+                JOIN budget_package bp ON bp.id = v.package_id
+               WHERE v.bill_id = $1
+               ORDER BY bp.fiscal_year DESC,
+                        CASE v.stage
+                          WHEN 'enacted' THEN 5
+                          WHEN 'conference' THEN 4
+                          WHEN 'senate' THEN 3
+                          WHEN 'house' THEN 2
+                          WHEN 'president' THEN 1
+                          ELSE 0
+                        END DESC,
+                        v.updated_at DESC
+               LIMIT 1
+            )
+       SELECT fp.id,
               fp.package_id          AS "packageId",
               bp.name                AS "packageName",
               bp.domain,
               fp.vehicle_id          AS "vehicleId",
               v.label                AS "vehicleLabel",
               v.track                AS "vehicleTrack",
+              v.status               AS "vehicleStatus",
               fp.fiscal_year         AS "fiscalYear",
               fp.vehicle_class       AS "vehicleClass",
               fp.stage,
               fp.scope,
               fp.amount_millions::text AS "amountMillions",
               fp.effective_date      AS "effectiveDate",
-              fp.source_url          AS "sourceUrl",
+              COALESCE(fp.source_url, v.source_url, sd.source_url) AS "sourceUrl",
               fp.source_page         AS "sourcePage",
+              sd.title               AS "sourceDocumentTitle",
+              sd.source_key          AS "sourceDocumentKey",
+              sd.sha256              AS "sourceDocumentSha256",
+              CASE
+                WHEN sd.id IS NULL THEN NULL
+                ELSE sd.superseded_by_document_id IS NULL
+              END                    AS "sourceDocumentCurrent",
               fp.note,
               fp.verification_status AS "verificationStatus"
-         FROM funding_position fp
+         FROM current_vehicle cv
+         JOIN funding_position fp
+           ON fp.package_id = cv.package_id
+          AND fp.fiscal_year = cv.fiscal_year
          JOIN budget_package bp ON bp.id = fp.package_id
          LEFT JOIN budget_package_vehicle v ON v.id = fp.vehicle_id
-        WHERE fp.bill_id = $1
-          AND fp.verification_status <> 'superseded'
-        ORDER BY fp.fiscal_year DESC, fp.scope, fp.stage
+         LEFT JOIN source_document sd
+                ON sd.id = COALESCE(fp.source_document_id, v.source_document_id)
+        WHERE fp.verification_status <> 'superseded'
+          AND (
+            fp.vehicle_id = cv.id OR
+            fp.bill_id = $1 OR
+            fp.vehicle_class = 'request'
+          )
+        ORDER BY fp.fiscal_year DESC,
+                 CASE WHEN fp.vehicle_id = cv.id THEN 0 WHEN fp.vehicle_class = 'request' THEN 1 ELSE 2 END,
+                 fp.scope,
+                 fp.stage
         LIMIT $2`,
       billId,
       cap,
@@ -634,11 +704,10 @@ export class SourceDataRepository {
 
   /**
    * Program Element / procurement lines this bill touches, with the PE ladder for
-   * the fiscal year of the bill's own budget package.
-   *
-   * House/Senate read the APPROPRIATIONS marks (hac_d_mark / sac_d_mark). The
-   * authorization marks (hasc/sasc) are a different track and are deliberately NOT
-   * substituted — §5 edge case 14.
+   * the fiscal year AND track of the bill's own budget-package vehicle. An NDAA
+   * vehicle reads request/HASC/SASC/NDAA-conference; an appropriations vehicle reads
+   * request/HAC-D/SAC-D/appropriations-conference/enacted. Unknown tracks fail
+   * closed with null chamber marks instead of silently substituting another track.
    *
    * Rejected links are excluded; candidate links are returned WITH their review
    * status so the UI can label an inferred match rather than present it as fact.
@@ -646,29 +715,187 @@ export class SourceDataRepository {
   async getBillProgramElementImpacts(billId: string, limit = 100): Promise<SourceBillPeImpact[]> {
     const cap = Math.min(Math.max(Math.floor(limit), 1), 300);
     return this.prisma.$queryRawUnsafe<SourceBillPeImpact[]>(
-      `WITH fy AS (
-              SELECT bp.fiscal_year
+      `WITH current_vehicle AS (
+              SELECT v.id,
+                     v.package_id,
+                     bp.fiscal_year,
+                     v.track,
+                     v.stage,
+                     v.source_document_id
                 FROM budget_package_vehicle v
                 JOIN budget_package bp ON bp.id = v.package_id
                WHERE v.bill_id = $1
-               ORDER BY bp.fiscal_year DESC
+               ORDER BY bp.fiscal_year DESC,
+                        CASE v.stage
+                          WHEN 'enacted' THEN 5
+                          WHEN 'conference' THEN 4
+                          WHEN 'senate' THEN 3
+                          WHEN 'house' THEN 2
+                          WHEN 'president' THEN 1
+                          ELSE 0
+                        END DESC,
+                        v.updated_at DESC
+               LIMIT 1
+            ),
+            request_vehicle AS (
+              SELECT v.source_document_id
+                FROM current_vehicle cv
+                JOIN budget_package_vehicle v ON v.package_id = cv.package_id
+               WHERE v.track = 'request'
+                 AND v.stage = 'president'
+               ORDER BY v.updated_at DESC
+               LIMIT 1
+            ),
+            house_vehicle AS (
+              SELECT v.source_document_id
+                FROM current_vehicle cv
+                JOIN budget_package_vehicle v ON v.package_id = cv.package_id
+               WHERE v.track = cv.track
+                 AND v.stage = 'house'
+               ORDER BY CASE WHEN v.id = cv.id THEN 0 ELSE 1 END, v.updated_at DESC
+               LIMIT 1
+            ),
+            senate_vehicle AS (
+              SELECT v.source_document_id
+                FROM current_vehicle cv
+                JOIN budget_package_vehicle v ON v.package_id = cv.package_id
+               WHERE v.track = cv.track
+                 AND v.stage = 'senate'
+               ORDER BY CASE WHEN v.id = cv.id THEN 0 ELSE 1 END, v.updated_at DESC
+               LIMIT 1
+            ),
+            conference_vehicle AS (
+              SELECT v.source_document_id
+                FROM current_vehicle cv
+                JOIN budget_package_vehicle v ON v.package_id = cv.package_id
+               WHERE v.track = cv.track
+                 AND v.stage = 'conference'
+               ORDER BY CASE WHEN v.id = cv.id THEN 0 ELSE 1 END, v.updated_at DESC
+               LIMIT 1
+            ),
+            enacted_vehicle AS (
+              SELECT v.source_document_id
+                FROM current_vehicle cv
+                JOIN budget_package_vehicle v ON v.package_id = cv.package_id
+               WHERE v.track = cv.track
+                 AND v.stage = 'enacted'
+               ORDER BY CASE WHEN v.id = cv.id THEN 0 ELSE 1 END, v.updated_at DESC
                LIMIT 1
             )
        SELECT l.pe_code                 AS "peCode",
               pe.title,
-              y.fy                      AS "fiscalYear",
-              y.request::text           AS "requestMillions",
-              y.hac_d_mark::text        AS "houseMillions",
-              y.sac_d_mark::text        AS "senateMillions",
-              y.enacted::text           AS "enactedMillions",
+              cv.fiscal_year             AS "fiscalYear",
+              cv.track                  AS "vehicleTrack",
+              cv.stage                  AS "vehicleStage",
+              req.amount                 AS "requestMillions",
+              house.amount               AS "houseMillions",
+              senate.amount              AS "senateMillions",
+              conference.amount          AS "conferenceMillions",
+              enacted.amount             AS "enactedMillions",
+              req.source_key              AS "requestSourceDocumentKey",
+              req.sha256                  AS "requestSourceDocumentSha256",
+              house.source_key            AS "houseSourceDocumentKey",
+              house.sha256                AS "houseSourceDocumentSha256",
+              senate.source_key           AS "senateSourceDocumentKey",
+              senate.sha256               AS "senateSourceDocumentSha256",
+              conference.source_key       AS "conferenceSourceDocumentKey",
+              conference.sha256           AS "conferenceSourceDocumentSha256",
+              enacted.source_key          AS "enactedSourceDocumentKey",
+              enacted.sha256              AS "enactedSourceDocumentSha256",
               l.link_type               AS "matchBasis",
               l.status                  AS "reviewStatus",
               l.confidence
          FROM bill_budget_line_link l
+         LEFT JOIN current_vehicle cv ON TRUE
+         LEFT JOIN request_vehicle rv ON TRUE
+         LEFT JOIN house_vehicle hv ON TRUE
+         LEFT JOIN senate_vehicle sv ON TRUE
+         LEFT JOIN conference_vehicle cfv ON TRUE
+         LEFT JOIN enacted_vehicle ev ON TRUE
          LEFT JOIN program_element pe ON pe.pe_code = l.pe_code
-         LEFT JOIN program_element_year y
-                ON y.pe_code = l.pe_code
-               AND y.fy = (SELECT fiscal_year FROM fy)
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(v.canonical_value_m, v.value_decimal)::text AS amount,
+                  sd.source_key,
+                  sd.sha256
+             FROM program_element_year_source_value v
+             JOIN source_document sd ON sd.id = v.source_document_id
+            WHERE v.pe_code = l.pe_code
+              AND v.fy = cv.fiscal_year
+              AND v.field_name = 'request'
+              AND v.source_document_id IN (cv.source_document_id, rv.source_document_id)
+            ORDER BY CASE WHEN v.source_document_id = cv.source_document_id THEN 0 ELSE 1 END,
+                     v.last_observed_at DESC
+            LIMIT 1
+         ) req ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(v.canonical_value_m, v.value_decimal)::text AS amount,
+                  sd.source_key,
+                  sd.sha256
+             FROM program_element_year_source_value v
+             JOIN source_document sd ON sd.id = v.source_document_id
+            WHERE v.pe_code = l.pe_code
+              AND v.fy = cv.fiscal_year
+              AND v.field_name = CASE cv.track
+                    WHEN 'authorization' THEN 'hascMark'
+                    WHEN 'appropriation' THEN 'hacDMark'
+                    ELSE '__unsupported__'
+                  END
+              AND v.source_document_id = hv.source_document_id
+              AND cv.stage IN ('house', 'senate', 'conference', 'enacted')
+            ORDER BY v.last_observed_at DESC
+            LIMIT 1
+         ) house ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(v.canonical_value_m, v.value_decimal)::text AS amount,
+                  sd.source_key,
+                  sd.sha256
+             FROM program_element_year_source_value v
+             JOIN source_document sd ON sd.id = v.source_document_id
+            WHERE v.pe_code = l.pe_code
+              AND v.fy = cv.fiscal_year
+              AND v.field_name = CASE cv.track
+                    WHEN 'authorization' THEN 'sascMark'
+                    WHEN 'appropriation' THEN 'sacDMark'
+                    ELSE '__unsupported__'
+                  END
+              AND v.source_document_id = sv.source_document_id
+              AND cv.stage IN ('senate', 'conference', 'enacted')
+            ORDER BY v.last_observed_at DESC
+            LIMIT 1
+         ) senate ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(v.canonical_value_m, v.value_decimal)::text AS amount,
+                  sd.source_key,
+                  sd.sha256
+             FROM program_element_year_source_value v
+             JOIN source_document sd ON sd.id = v.source_document_id
+            WHERE v.pe_code = l.pe_code
+              AND v.fy = cv.fiscal_year
+              AND v.field_name = CASE cv.track
+                    WHEN 'authorization' THEN 'ndaaConference'
+                    WHEN 'appropriation' THEN 'conference'
+                    ELSE '__unsupported__'
+                  END
+              AND v.source_document_id = cfv.source_document_id
+              AND cv.stage IN ('conference', 'enacted')
+            ORDER BY v.last_observed_at DESC
+            LIMIT 1
+         ) conference ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(v.canonical_value_m, v.value_decimal)::text AS amount,
+                  sd.source_key,
+                  sd.sha256
+             FROM program_element_year_source_value v
+             JOIN source_document sd ON sd.id = v.source_document_id
+            WHERE v.pe_code = l.pe_code
+              AND v.fy = cv.fiscal_year
+              AND v.field_name = 'enacted'
+              AND v.source_document_id = ev.source_document_id
+              AND cv.track = 'appropriation'
+              AND cv.stage = 'enacted'
+            ORDER BY v.last_observed_at DESC
+            LIMIT 1
+         ) enacted ON TRUE
         WHERE l.bill_id = $1
           AND l.status <> 'rejected'
         ORDER BY l.confidence DESC, l.pe_code
@@ -714,7 +941,27 @@ export class SourceDataRepository {
   async getBillFundingProvisions(billId: string, limit = 50): Promise<SourceBillProvision[]> {
     const cap = Math.min(Math.max(Math.floor(limit), 1), 200);
     return this.prisma.$queryRawUnsafe<SourceBillProvision[]>(
-      `SELECT DISTINCT
+      `WITH current_vehicle AS (
+              SELECT bp.fiscal_year,
+                     v.track,
+                     v.stage,
+                     v.source_document_id
+                FROM budget_package_vehicle v
+                JOIN budget_package bp ON bp.id = v.package_id
+               WHERE v.bill_id = $1
+               ORDER BY bp.fiscal_year DESC,
+                        CASE v.stage
+                          WHEN 'enacted' THEN 5
+                          WHEN 'conference' THEN 4
+                          WHEN 'senate' THEN 3
+                          WHEN 'house' THEN 2
+                          WHEN 'president' THEN 1
+                          ELSE 0
+                        END DESC,
+                        v.updated_at DESC
+               LIMIT 1
+            )
+       SELECT DISTINCT
               p.id::text        AS "provisionId",
               p.committee,
               p.fy,
@@ -726,11 +973,32 @@ export class SourceDataRepository {
               ppl.pe_code       AS "peCode",
               ppl.match_basis   AS "matchBasis",
               ppl.confidence,
-              ppl.review_status AS "reviewStatus"
+              ppl.review_status AS "reviewStatus",
+              bll.status        AS "billLinkStatus"
          FROM bill_budget_line_link bll
          JOIN provision_pe_link ppl ON ppl.pe_code = bll.pe_code
          JOIN committee_report_provision p ON p.id = ppl.provision_id
+         JOIN current_vehicle cv ON TRUE
         WHERE bll.bill_id = $1
+          AND p.fy = cv.fiscal_year
+          AND (
+            (cv.track = 'authorization' AND (
+              (cv.stage = 'house' AND p.committee = 'HASC') OR
+              (cv.stage = 'senate' AND p.committee = 'SASC') OR
+              (cv.stage IN ('conference', 'enacted') AND p.committee = 'CONF')
+            )) OR
+            (cv.track = 'appropriation' AND (
+              (cv.stage = 'house' AND p.committee = 'HAC-D') OR
+              (cv.stage = 'senate' AND p.committee = 'SAC-D') OR
+              (cv.stage IN ('conference', 'enacted') AND p.committee = 'CONF')
+            ))
+          )
+          AND (
+            cv.source_document_id IS NULL OR
+            p.source_document_id IS NULL OR
+            p.source_document_id = cv.source_document_id
+          )
+          AND bll.status <> 'rejected'
           AND p.action_type IN ('adds', 'cuts', 'transfers', 'restricts')
         ORDER BY p.fy DESC, p.committee
         LIMIT $2`,
@@ -786,11 +1054,35 @@ export class SourceDataRepository {
               bp.domain,
               bp.fiscal_year AS "fiscalYear",
               bp.name,
-              bp.status
+              bp.status,
+              v.id           AS "vehicleId",
+              v.label        AS "vehicleLabel",
+              v.track        AS "vehicleTrack",
+              v.stage        AS "vehicleStage",
+              v.status       AS "vehicleStatus",
+              v.chamber      AS "vehicleChamber",
+              sd.title       AS "sourceDocumentTitle",
+              sd.source_key  AS "sourceDocumentKey",
+              sd.sha256      AS "sourceDocumentSha256",
+              COALESCE(v.source_url, sd.source_url) AS "sourceDocumentUrl",
+              CASE
+                WHEN sd.id IS NULL THEN NULL
+                ELSE sd.superseded_by_document_id IS NULL
+              END            AS "sourceDocumentCurrent"
          FROM budget_package_vehicle v
          JOIN budget_package bp ON bp.id = v.package_id
+         LEFT JOIN source_document sd ON sd.id = v.source_document_id
         WHERE v.bill_id = $1
-        ORDER BY bp.fiscal_year DESC
+        ORDER BY bp.fiscal_year DESC,
+                 CASE v.stage
+                   WHEN 'enacted' THEN 5
+                   WHEN 'conference' THEN 4
+                   WHEN 'senate' THEN 3
+                   WHEN 'house' THEN 2
+                   WHEN 'president' THEN 1
+                   ELSE 0
+                 END DESC,
+                 v.updated_at DESC
         LIMIT 1`,
       billId,
     );

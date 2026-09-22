@@ -84,6 +84,8 @@ export interface BillKpi {
   sub: string | null;
   /** Non-null exactly when `value` is null. */
   unavailableReason: string | null;
+  /** Value-line copy for a null-but-pending value, e.g. "Analysis pending". */
+  unavailableLabel?: string | null;
 }
 
 export interface DossierOverview {
@@ -101,9 +103,13 @@ export interface LegislativeMilestone {
   detail: string | null;
   state: MilestoneState;
   sev?: DossierSeverity;
+  outcome?: string | null;
+  outcomeSev?: DossierSeverity;
+  sourceIds?: string[];
+  sourceCount?: number;
 }
 
-export type VoteTarget = 'rule' | 'committee' | 'passage';
+export type VoteTarget = 'rule' | 'committee' | 'passage' | 'procedural';
 
 export interface VotePartyBreakdown {
   gopYea: number;
@@ -138,15 +144,24 @@ export interface GoverningRule {
 }
 
 export interface FundingPositionView {
+  vehicleId?: string | null;
+  fiscalYear?: number;
   scope: FundingScope;
   stage: BudgetFundingStage;
   vehicleClass: BudgetVehicleClass;
+  vehicleTrack?: BudgetVehicleClass | null;
+  vehicleStatus?: string | null;
+  amountTreatment?: FundingAmountTreatment;
   amountMillions: number;
   effectiveDate: string | null;
   source: string | null;
   sourceUrl: string | null;
   /** Page in the source document the figure was read from (R4 §4.1). */
   sourcePage: number | null;
+  sourceDocumentTitle?: string | null;
+  sourceDocumentKey?: string | null;
+  sourceDocumentVersion?: string | null;
+  sourceDocumentCurrent?: boolean | null;
   verification: FundingVerificationStatus;
   primary: boolean;
   note: string | null;
@@ -163,13 +178,29 @@ export interface FundingComparison {
 }
 
 export type ProgramElementMatchBasis = 'explicit' | 'inferred';
+export type FundingAmountTreatment =
+  | 'request'
+  | 'proposed_authorization'
+  | 'appropriated_funding'
+  | 'interim_funding'
+  | 'supplemental'
+  | 'reconciliation'
+  | 'unknown';
+export type FundingAnalysisStatus = 'unavailable' | 'analysis_pending' | 'reviewed' | 'verified';
 
 export interface ProgramElementImpact {
   pe: string;
   name: string | null;
+  fiscalYear?: number | null;
+  vehicleTrack?: BudgetVehicleClass | null;
+  houseLabel?: string;
+  senateLabel?: string;
+  conferenceLabel?: string;
   requestMillions: number | null;
   houseMillions: number | null;
   senateMillions: number | null;
+  conferenceMillions?: number | null;
+  enactedMillions?: number | null;
   deltaVsRequestMillions: number | null;
   pct: number | null;
   basis: ProgramElementMatchBasis;
@@ -182,11 +213,36 @@ export interface FundingProvision {
   summary: string | null;
   origin: EvidenceOrigin;
   source: string | null;
+  actionType?: string | null;
+  reviewStatus?: string;
+  billLinkStatus?: string;
+  reconciliationRequired?: boolean;
+}
+
+export interface FundingVehicleContext {
+  id: string;
+  label: string;
+  track: BudgetVehicleClass;
+  stage: BudgetFundingStage;
+  status: string;
+  chamber: string | null;
+  fiscalYear: number;
+  amountTreatment: FundingAmountTreatment;
+  sourceDocumentTitle: string | null;
+  sourceDocumentKey: string | null;
+  sourceDocumentVersion: string | null;
+  sourceDocumentUrl: string | null;
+  sourceDocumentCurrent: boolean | null;
 }
 
 export interface FundingBlock {
   available: boolean;
   status: string | null;
+  /** Optional only for compatibility with pre-upgrade cached responses. */
+  tablesAvailable?: boolean;
+  analysisStatus?: FundingAnalysisStatus;
+  vehicle?: FundingVehicleContext | null;
+  overrideReconciliation?: 'not_required' | 'verification_required' | 'reconciled';
   positions: FundingPositionView[];
   reqCompare: FundingComparison | null;
   senateCompare: FundingComparison | null;

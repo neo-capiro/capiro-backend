@@ -181,6 +181,40 @@ describe('BillChangeDetectorService — federal rail, P0-04 explainMatch integra
     expect(tx.trackedBill.update).not.toHaveBeenCalled();
   });
 
+  it('preserves the sourced chamber on a material federal action-history event', async () => {
+    const previous = process.env.TRACKER_SCAN_ACTION_HISTORY;
+    process.env.TRACKER_SCAN_ACTION_HISTORY = 'true';
+    try {
+      const actionDate = new Date('2025-02-01T00:00:00Z');
+      const movedBill: SourceBill = {
+        ...BASE_BILL,
+        latestActionText: 'Passed/agreed to in House',
+        latestActionDate: actionDate,
+      };
+      const source = makeFederalSourceRepo(movedBill);
+      (source.getBillActionsByIds as jest.Mock).mockResolvedValue([
+        {
+          id: 'action-house-passage',
+          billId: movedBill.id,
+          date: actionDate,
+          text: 'Passed/agreed to in House',
+          type: 'Floor',
+          chamber: 'House',
+        },
+      ]);
+      const { prisma, alerts } = makeHarness([{ ...BASELINED_ROW }], null);
+      const svc = new BillChangeDetectorService(prisma, source, NO_STATE_REPO);
+
+      await svc.runDetectionCycle();
+
+      const alert = alerts[0] as { evidence: Record<string, unknown> };
+      expect(alert.evidence.chamber).toBe('House');
+    } finally {
+      if (previous === undefined) delete process.env.TRACKER_SCAN_ACTION_HISTORY;
+      else process.env.TRACKER_SCAN_ACTION_HISTORY = previous;
+    }
+  });
+
   it('19. a program_element-only watchlist link produces a non-null whyItMatters and includes the topic label in matchedTags', async () => {
     const movedBill: SourceBill = {
       ...BASE_BILL,

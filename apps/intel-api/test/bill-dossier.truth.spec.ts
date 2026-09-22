@@ -57,8 +57,10 @@ describe('Bill 360 truth layer — H.R. 8800 failed governing rule', () => {
     const d = await buildService().getGlobalDossier(HR_8800_ID);
     const blob = JSON.stringify(d).toLowerCase();
     expect(blob).not.toContain('pending floor vote');
-    // The official next step reflects the stalled rule, not an imagined vote.
+    // Derived procedural posture reflects the stalled rule, not an imagined vote
+    // or an officially scheduled event.
     expect(d.overview.officialNextStep?.text ?? '').toMatch(/rule failed/i);
+    expect(d.overview.officialNextStep?.origin).toBe('derived');
   });
 
   it('computes the party breakdown for the rule vote from member tallies', async () => {

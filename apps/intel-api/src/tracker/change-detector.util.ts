@@ -360,11 +360,14 @@ export function parseTally(text: string | null | undefined): { yeas: number; nay
 export interface ActionLike {
   date: Date | null;
   text: string | null;
+  /** Chamber is optional because latest-action rollups do not always carry it. */
+  chamber?: string | null;
 }
 export interface MaterialEvent {
   cls: ChangeClass;
   text: string;
   date: Date | null;
+  chamber?: string | null;
   // Optional per-event deep link (rule-vote clerk page, CBO publication, …).
   // When set, the writer cites it over the bill's generic congress.gov url.
   sourceUrl?: string | null;
@@ -400,7 +403,7 @@ export function selectMaterialEvents(
     if (!cls) continue;
     if (seen.has(cls.changeType)) continue;
     seen.add(cls.changeType);
-    out.push({ cls, text: a.text ?? '', date: a.date });
+    out.push({ cls, text: a.text ?? '', date: a.date, chamber: a.chamber ?? null });
   }
   return out;
 }

@@ -4,7 +4,7 @@ import { EvidenceBadge } from './dossier-primitives.js';
 
 /**
  * Overview tab — vNext re-skin of pages/bills/BillOverviewTab.tsx: the four
- * evidence cards (What changed / Why it matters / Official next step / Analyst
+ * evidence cards (What changed / Why it matters / Procedural posture / Analyst
  * outlook, absent cards skipped) and the related-vehicles list.
  */
 
@@ -21,7 +21,7 @@ function evMeta(v: EvidenceValue): string {
 const CARD_DEFS: Array<[string, keyof DossierOverview]> = [
   ['What changed', 'whatChanged'],
   ['Why it matters', 'whyItMatters'],
-  ['Official next step', 'officialNextStep'],
+  ['Procedural posture', 'officialNextStep'],
   ['Analyst outlook', 'analystOutlook'],
 ];
 

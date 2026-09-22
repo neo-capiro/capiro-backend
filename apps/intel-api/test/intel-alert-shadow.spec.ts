@@ -269,9 +269,16 @@ describe('IntelAlertService real-send delivery (finding #1/#6)', () => {
     const inner = {
       intelAlert: {
         findMany: async () => store.filter((r) => r.status === 'new' && r.deliveredAt == null),
-        update: async ({ where, data }: { where: { id: string }; data: { deliveredAt: Date } }) => {
+        update: async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: { deliveredAt?: Date; evidence?: Record<string, unknown> };
+        }) => {
           const row = store.find((r) => r.id === where.id)!;
-          row.deliveredAt = data.deliveredAt;
+          if (data.evidence) row.evidence = data.evidence as typeof row.evidence;
+          if (data.deliveredAt) row.deliveredAt = data.deliveredAt;
           return row;
         },
       },
@@ -341,11 +348,11 @@ describe('IntelAlertService real-send delivery (finding #1/#6)', () => {
 });
 
 /**
- * "What happened" LLM summary (delegated to apps/api): generated ONLY on real
+ * Grounded narrative (delegated to apps/api): generated ONLY on real
  * sends (canSend), rendered into the email body, deduped across clients of the
  * same (tenant,bill,changeType) within one sweep, and never fatal to delivery.
  */
-describe('IntelAlertService "what happened" summary delegation', () => {
+describe('IntelAlertService narrative generation and persistence', () => {
   afterEach(() => {
     delete process.env.TRACKER_ALERTS_ENABLED;
   });
@@ -370,21 +377,39 @@ describe('IntelAlertService "what happened" summary delegation', () => {
         displayNum: 'H.R. 1',
         stage: 'Passed a chamber',
         actionText: 'On passage Passed by recorded vote: 219 - 210.',
+        actionDate: '2026-07-22',
         billTitle: 'A bill to do things',
+        jurisdiction: 'US',
+        chamber: 'House',
+        matchedTags: ['defense'],
         tone: 'success',
       },
     };
   }
 
-  function makeService(rows: ReturnType<typeof alertRow>[], summaryClient: unknown) {
+  function makeService(
+    rows: ReturnType<typeof alertRow>[],
+    summaryClient: unknown,
+    options: { failNarrativePersistence?: boolean } = {},
+  ) {
     const store = [...rows];
     const sent: Array<{ to: string; html: string; text: string }> = [];
     const inner = {
       intelAlert: {
         findMany: async () => store.filter((r) => r.status === 'new' && r.deliveredAt == null),
-        update: async ({ where, data }: { where: { id: string }; data: { deliveredAt: Date } }) => {
+        update: async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: { deliveredAt?: Date; evidence?: Record<string, unknown> };
+        }) => {
           const row = store.find((r) => r.id === where.id)!;
-          row.deliveredAt = data.deliveredAt;
+          if (data.evidence) {
+            if (options.failNarrativePersistence) throw new Error('evidence write unavailable');
+            row.evidence = data.evidence as typeof row.evidence;
+          }
+          if (data.deliveredAt) row.deliveredAt = data.deliveredAt;
           return row;
         },
       },
@@ -424,7 +449,7 @@ describe('IntelAlertService "what happened" summary delegation', () => {
       { getClientNames: async () => new Map() } as never,
       summaryClient as never,
     );
-    return { svc, sent };
+    return { svc, sent, store };
   }
 
   it('generates the summary on a real send and renders it into the email body', async () => {
@@ -434,17 +459,21 @@ describe('IntelAlertService "what happened" summary delegation', () => {
       configured: true,
       summarize: async () => {
         calls += 1;
-        return 'The House passed this bill 219-210; it now heads to the Senate.';
+        return 'The House passed this bill 219-210. Why it matters: Matches your watchlist term "defense". Expected next step: Senate action.';
       },
     };
-    const { svc, sent } = makeService([alertRow('a1', 'c1')], summaryClient);
+    const { svc, sent, store } = makeService([alertRow('a1', 'c1')], summaryClient);
     const r = await svc.emitNewBillAlerts();
     expect(r.sent).toBe(1);
     expect(calls).toBe(1);
     expect(sent).toHaveLength(1);
-    expect(sent[0].html).toContain('What happened');
-    expect(sent[0].html).toContain('now heads to the Senate');
-    expect(sent[0].text).toContain('What happened: The House passed this bill 219-210');
+    expect(sent[0].html).toContain('Capiro analysis');
+    expect(sent[0].html).toContain('Expected next step: Senate action');
+    expect(sent[0].text).toContain('Capiro analysis: The House passed this bill 219-210');
+    expect(sent[0].text.split('Matches your watchlist term "defense".').length - 1).toBe(1);
+    expect((store[0].evidence as Record<string, unknown>).narrative).toContain(
+      'Expected next step: Senate action',
+    );
   });
 
   it('deduping: two clients tracking the same bill share ONE summary generation', async () => {
@@ -465,7 +494,34 @@ describe('IntelAlertService "what happened" summary delegation', () => {
     expect(sent.every((s) => s.html.includes('Shared summary.'))).toBe(true);
   });
 
-  it('does NOT generate a summary when the client is not configured (no shared secret)', async () => {
+  it('does not share narratives when structured client relevance only looks delimiter-equal', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    const first = alertRow('a1', 'c1');
+    const second = alertRow('a2', 'c2');
+    first.whyItMatters = null;
+    second.whyItMatters = null;
+    first.evidence.matchedTags = ['defense|space'];
+    second.evidence.matchedTags = ['defense', 'space'];
+    const calls: string[][] = [];
+    const summaryClient = {
+      configured: true,
+      summarize: async (input: { matchedTags?: string[] }) => {
+        const tags = input.matchedTags ?? [];
+        calls.push(tags);
+        return `Topics: ${tags.join(', ')}.`;
+      },
+    };
+    const { svc, sent } = makeService([first, second], summaryClient);
+
+    const r = await svc.emitNewBillAlerts();
+
+    expect(r.sent).toBe(2);
+    expect(calls).toEqual([['defense|space'], ['defense', 'space']]);
+    expect(sent[0].html).toContain('Topics: defense|space.');
+    expect(sent[1].html).toContain('Topics: defense, space.');
+  });
+
+  it('uses deterministic narrative copy when the client is not configured', async () => {
     process.env.TRACKER_ALERTS_ENABLED = 'true';
     let calls = 0;
     const summaryClient = {
@@ -479,10 +535,11 @@ describe('IntelAlertService "what happened" summary delegation', () => {
     const r = await svc.emitNewBillAlerts();
     expect(r.sent).toBe(1); // still delivers
     expect(calls).toBe(0); // never called
-    expect(sent[0].html).not.toContain('What happened');
+    expect(sent[0].html).toContain('Capiro analysis');
+    expect(sent[0].html).toContain('Expected next step: Senate action');
   });
 
-  it('a summary failure (null) never blocks delivery', async () => {
+  it('a summary failure (null) falls back and never blocks delivery', async () => {
     process.env.TRACKER_ALERTS_ENABLED = 'true';
     const summaryClient = {
       configured: true,
@@ -491,7 +548,42 @@ describe('IntelAlertService "what happened" summary delegation', () => {
     const { svc, sent } = makeService([alertRow('a1', 'c1')], summaryClient);
     const r = await svc.emitNewBillAlerts();
     expect(r.sent).toBe(1);
-    expect(sent[0].html).not.toContain('What happened');
+    expect(sent[0].html).toContain('Capiro analysis');
+    expect(sent[0].html).toContain('H.R. 1 — Passed a chamber');
+  });
+
+  it('reuses a persisted narrative on a retry without regenerating it', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    let calls = 0;
+    const summaryClient = {
+      configured: true,
+      summarize: async () => {
+        calls += 1;
+        return 'Stable narrative. Expected next step: Senate action.';
+      },
+    };
+    const { svc, store } = makeService([alertRow('a1', 'c1')], summaryClient);
+    await svc.emitNewBillAlerts();
+    expect(calls).toBe(1);
+    store[0].deliveredAt = null;
+    await svc.emitNewBillAlerts();
+    expect(calls).toBe(1);
+  });
+
+  it('logs but still sends when narrative evidence persistence fails', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    const summaryClient = {
+      configured: true,
+      summarize: async () => 'Grounded narrative.',
+    };
+    const { svc, sent } = makeService(
+      [alertRow('a1', 'c1')],
+      summaryClient,
+      { failNarrativePersistence: true },
+    );
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).toContain('Grounded narrative.');
   });
 });
 
@@ -502,9 +594,8 @@ describe('IntelAlertService "what happened" summary delegation', () => {
  * by asserting on the ACTUAL rendered email content each source type's real
  * writer shape produces (fixtures copied verbatim from the writers'
  * evidence, per the research that preceded this change), not just that
- * construction doesn't throw. LEGIWATCH_EMIT_SOURCE_TYPES defaults to 'bill'
- * only, so each test sets it explicitly — this is exactly the pre-work that
- * default leaves inert in production.
+ * construction doesn't throw. Federal and state bills are default-on; other
+ * source types remain explicit opt-ins.
  */
 describe('IntelAlertService.emitNewBillAlerts — per-source evidence mapping (HP-07, Gate G phase e)', () => {
   afterEach(() => {
@@ -558,6 +649,40 @@ describe('IntelAlertService.emitNewBillAlerts — per-source evidence mapping (H
     );
     return { svc, sent };
   }
+
+  it('state_bill is included in the default source-type scope and receives narrative copy', async () => {
+    process.env.TRACKER_ALERTS_ENABLED = 'true';
+    const row = {
+      id: 'state-a1',
+      tenantId: 't1',
+      clientId: 'c1',
+      sourceType: 'state_bill',
+      sourceRef: 'ca-2026-ab-1',
+      status: 'new',
+      deliveredAt: null,
+      changeType: 'state_bill_passed_chamber',
+      kind: 'state_bill_passed_chamber',
+      severity: 'notable',
+      score: 0.6,
+      title: 'AB 1: Passed a chamber',
+      whyItMatters: 'Matches the housing watchlist.',
+      evidence: {
+        triggerKey: 'floorVote',
+        displayNum: 'AB 1',
+        billTitle: 'Housing Act',
+        stage: 'Passed a chamber',
+        actionText: 'Passed Assembly 50-20.',
+        actionDate: '2026-08-01',
+        jurisdiction: 'CA',
+        chamber: 'Assembly',
+      },
+    };
+    const { svc, sent } = makeSourceTypeService(row, 'floorVote');
+    const r = await svc.emitNewBillAlerts();
+    expect(r.sent).toBe(1);
+    expect(sent[0].html).toContain('Capiro analysis');
+    expect(sent[0].html).toContain('Expected next step: Senate action');
+  });
 
   it('hearing: mentions and committee reach the rendered email; no official-source link', async () => {
     process.env.TRACKER_ALERTS_ENABLED = 'true';

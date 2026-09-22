@@ -39,6 +39,23 @@ function labelOf(map: Record<string, string>, key: string): string {
   return map[key] ?? key;
 }
 
+function amountTreatmentLabel(treatment: string | null | undefined): string {
+  switch (treatment) {
+    case 'proposed_authorization':
+      return 'Proposed authorization level — not appropriated funding';
+    case 'appropriated_funding':
+      return 'Appropriated funding';
+    case 'request':
+      return 'Executive budget request';
+    case 'unknown':
+    case null:
+    case undefined:
+      return 'Funding treatment not verified';
+    default:
+      return treatment.replaceAll('_', ' ');
+  }
+}
+
 /** RFC-4180 CSV cell: always quoted, embedded quotes doubled. */
 function csvCell(v: unknown): string {
   const s = v == null ? '' : String(v);
@@ -88,6 +105,14 @@ export function buildFundingCsv(d: BillDossierResponse, generatedAt: string): st
       'Amounts are only comparable within the same fiscal year AND the same funding scope. Rows on different scopes are different measurements and must not be subtracted.',
     ]),
   );
+  if (d.funding.overrideReconciliation === 'reconciled') {
+    lines.push(
+      csvRow([
+        'Override reconciliation',
+        "Verified against the bill's amount-changing provisions",
+      ]),
+    );
+  }
   if (!d.funding.available) {
     lines.push(csvRow([]));
     lines.push(csvRow(['Funding data', d.funding.status ?? 'Not available']));
@@ -99,12 +124,18 @@ export function buildFundingCsv(d: BillDossierResponse, generatedAt: string): st
       'Fiscal year',
       'Stage',
       'Vehicle class',
+      'Vehicle track',
+      'Amount treatment',
       'Funding scope',
       'Amount ($M)',
       'Primary',
       'Verification',
       'Effective date',
       'Source',
+      'Source document',
+      'Source key',
+      'Source version (SHA-256)',
+      'Current source version',
       'Source page',
       'Source URL',
       'Note',
@@ -113,17 +144,23 @@ export function buildFundingCsv(d: BillDossierResponse, generatedAt: string): st
   for (const p of d.funding.positions) {
     lines.push(
       csvRow([
-        // The API returns one fiscal year per bill's package; the label set carries
-        // the rest of the required dimensions.
-        d.funding.parentPackageLabel ?? '',
+        p.fiscalYear ?? d.funding.vehicle?.fiscalYear ?? '',
         labelOf(FUNDING_STAGE_LABELS, p.stage),
         labelOf(BUDGET_VEHICLE_CLASS_LABELS, p.vehicleClass),
+        p.vehicleTrack
+          ? labelOf(BUDGET_VEHICLE_CLASS_LABELS, p.vehicleTrack)
+          : 'Not verified',
+        amountTreatmentLabel(p.amountTreatment),
         labelOf(FUNDING_SCOPE_LABELS, p.scope),
         p.amountMillions,
         p.primary ? 'yes' : 'no',
         labelOf(FUNDING_VERIFICATION_STATUS_LABELS, p.verification),
         fmtDate(p.effectiveDate),
         p.source ?? '',
+        p.sourceDocumentTitle ?? '',
+        p.sourceDocumentKey ?? '',
+        p.sourceDocumentVersion ?? '',
+        p.sourceDocumentCurrent == null ? '' : p.sourceDocumentCurrent ? 'yes' : 'no',
         p.sourcePage ?? '',
         p.sourceUrl ?? '',
         p.note ?? '',
@@ -146,13 +183,39 @@ export function buildFundingCsv(d: BillDossierResponse, generatedAt: string): st
   if (d.funding.programElementImpacts.length) {
     lines.push(csvRow([]));
     lines.push(csvRow(['Program Element impacts']));
+    const track = d.funding.programElementImpacts[0]?.vehicleTrack;
+    const houseLabel =
+      d.funding.programElementImpacts[0]?.houseLabel ??
+      (track === 'authorization'
+        ? 'House authorization (HASC)'
+        : track === 'appropriation'
+          ? 'House appropriation (HAC-D)'
+          : 'House amount (track not verified)');
+    const senateLabel =
+      d.funding.programElementImpacts[0]?.senateLabel ??
+      (track === 'authorization'
+        ? 'Senate authorization (SASC)'
+        : track === 'appropriation'
+          ? 'Senate appropriation (SAC-D)'
+          : 'Senate amount (track not verified)');
+    const conferenceLabel =
+      d.funding.programElementImpacts[0]?.conferenceLabel ??
+      (track === 'authorization'
+        ? 'NDAA conference authorization'
+        : track === 'appropriation'
+          ? 'Appropriations conference'
+          : 'Conference amount (track not verified)');
     lines.push(
       csvRow([
         'PE code',
         'Title',
+        'Fiscal year',
+        'Track',
         'Request ($M)',
-        'House ($M)',
-        'Senate ($M)',
+        `${houseLabel} ($M)`,
+        `${senateLabel} ($M)`,
+        `${conferenceLabel} ($M)`,
+        'Enacted appropriation ($M)',
         'Delta vs request ($M)',
         'Delta %',
         'Match basis',
@@ -164,9 +227,13 @@ export function buildFundingCsv(d: BillDossierResponse, generatedAt: string): st
         csvRow([
           pe.pe,
           pe.name ?? '',
+          pe.fiscalYear ?? '',
+          pe.vehicleTrack ?? 'Not verified',
           pe.requestMillions ?? '',
           pe.houseMillions ?? '',
           pe.senateMillions ?? '',
+          pe.conferenceMillions ?? '',
+          pe.enactedMillions ?? '',
           pe.deltaVsRequestMillions ?? '',
           pe.pct ?? '',
           pe.basis === 'explicit' ? 'Explicit PE match' : 'Inferred match',
@@ -231,7 +298,7 @@ export function buildFactSheetLines(
   const cards: Array<[string, (typeof d.overview)['whatChanged']]> = [
     ['What changed', d.overview.whatChanged],
     ['Why it matters', d.overview.whyItMatters],
-    ['Official next step', d.overview.officialNextStep],
+    ['Procedural posture', d.overview.officialNextStep],
     ['Analyst outlook', d.overview.analystOutlook],
   ];
   for (const [title, v] of cards) {
@@ -280,11 +347,36 @@ export function buildFactSheetLines(
     p(
       'Amounts are only comparable within the same fiscal year AND the same funding scope.',
     );
+    if (d.funding.analysisStatus === 'analysis_pending') {
+      const vehicle = d.funding.vehicle;
+      p(
+        `${vehicle ? `${labelOf(FUNDING_STAGE_LABELS, vehicle.stage)} ${labelOf(BUDGET_VEHICLE_CLASS_LABELS, vehicle.track).toLowerCase()}` : 'Funding analysis'}: Analysis pending`,
+      );
+      p(d.funding.status ?? 'Funding tables are available; amounts await verification.');
+      if (vehicle) {
+        p(
+          `    FY${vehicle.fiscalYear} · ${amountTreatmentLabel(vehicle.amountTreatment)} · Source: ${[
+            vehicle.sourceDocumentTitle ?? vehicle.label,
+            vehicle.sourceDocumentKey,
+            vehicle.sourceDocumentVersion
+              ? `version ${vehicle.sourceDocumentVersion.slice(0, 12)}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}`,
+        );
+      }
+    }
     for (const pos of d.funding.positions) {
       p(
-        `${labelOf(FUNDING_STAGE_LABELS, pos.stage)} · ${labelOf(BUDGET_VEHICLE_CLASS_LABELS, pos.vehicleClass)} · ${labelOf(FUNDING_SCOPE_LABELS, pos.scope)}: ${fmtAmt(pos.amountMillions)} [${labelOf(FUNDING_VERIFICATION_STATUS_LABELS, pos.verification)}]${pos.primary ? ' (primary)' : ''}`,
+        `${labelOf(FUNDING_STAGE_LABELS, pos.stage)} · ${labelOf(BUDGET_VEHICLE_CLASS_LABELS, pos.vehicleClass)} · ${labelOf(FUNDING_SCOPE_LABELS, pos.scope)}: ${fmtAmt(pos.amountMillions)} [${labelOf(FUNDING_VERIFICATION_STATUS_LABELS, pos.verification)}]${pos.primary ? ' (primary)' : ''} — ${amountTreatmentLabel(pos.amountTreatment)}`,
       );
-      const src = [pos.source, pos.sourcePage != null ? `p. ${pos.sourcePage}` : null]
+      const src = [
+        pos.sourceDocumentTitle ?? pos.source,
+        pos.sourceDocumentKey,
+        pos.sourceDocumentVersion ? `version ${pos.sourceDocumentVersion.slice(0, 12)}` : null,
+        pos.sourcePage != null ? `p. ${pos.sourcePage}` : null,
+      ]
         .filter(Boolean)
         .join(' · ');
       if (src) p(`    Source: ${src}`);
@@ -295,6 +387,9 @@ export function buildFactSheetLines(
       );
     }
     if (d.funding.guardrail) p(d.funding.guardrail);
+    if (d.funding.overrideReconciliation === 'reconciled') {
+      p("Override reconciliation: Verified against the bill's amount-changing provisions.");
+    }
     if (d.funding.parentPackageLabel) p(`Part of ${d.funding.parentPackageLabel}`);
   }
 

@@ -134,6 +134,10 @@ describe('BillDossierService.getGlobalDossier', () => {
     expect(d.votes[0]?.result).toBe('Passed');
     expect(d.noVote).toBeNull(); // a passage vote exists
     expect(d.kpis).toHaveLength(6);
+    expect(d.overview.officialNextStep).toMatchObject({
+      origin: 'derived',
+      source: 'Capiro status model',
+    });
   });
 
   it('caps action reads at 50 (bounded)', async () => {
@@ -147,6 +151,229 @@ describe('BillDossierService.getGlobalDossier', () => {
     const { src } = makeSource({ getBillDossierIdentity: async () => null });
     const svc = new BillDossierService({} as never, src as never, {} as never);
     await expect(svc.getGlobalDossier('119-hr-999999')).rejects.toThrow(/BILL_NOT_FOUND/);
+  });
+
+  it('keeps House passage distinct from a later Senate receipt and deduplicates display events', async () => {
+    const receiptDate = new Date('2026-09-14T00:00:00Z');
+    const passageDate = new Date('2026-07-22T20:00:00Z');
+    const receiptIdentity: SourceBillIdentity = {
+      ...identity,
+      id: BILL,
+      status: 'passed_chamber',
+      // Simulates the pre-fix persisted value: latest receipt incorrectly won.
+      statusAt: receiptDate,
+      latestActionText: 'Received in the Senate.',
+      latestActionDate: receiptDate,
+    };
+    const failedRecommit: SourceBillVote = {
+      ...passageVote,
+      id: 'house-119-2-277',
+      question: 'On Motion to Recommit',
+      result: 'Failed',
+      voteDate: new Date('2026-07-22T20:30:00Z'),
+      yeas: 213,
+      nays: 216,
+    };
+    const actualPassage: SourceBillVote = {
+      ...passageVote,
+      id: 'house-119-2-278',
+      voteDate: passageDate,
+      yeas: 216,
+      nays: 212,
+    };
+    const { src } = makeSource({
+      getBillDossierIdentity: async () => receiptIdentity,
+      getBillVotes: async () => [failedRecommit, actualPassage],
+      getBillActions: async () => [
+        {
+          id: 'receipt',
+          billId: BILL,
+          date: receiptDate,
+          text: 'Received in the Senate.',
+          type: 'IntroReferral',
+          chamber: 'Senate',
+        },
+        {
+          id: 'recommit',
+          billId: BILL,
+          date: passageDate,
+          text: 'On motion to recommit Failed by the Yeas and Nays: 213 - 216 (Roll no. 277).',
+          type: 'Floor',
+          chamber: 'House',
+        },
+        {
+          id: 'passage-primary',
+          billId: BILL,
+          date: passageDate,
+          text: 'On passage Passed by the Yeas and Nays: 216 - 212 (Roll no. 278).',
+          type: 'Floor',
+          chamber: 'House',
+        },
+        {
+          id: 'passage-summary',
+          billId: BILL,
+          date: passageDate,
+          // Congress.gov summary rows do not always repeat the roll number.
+          text: 'Passed/agreed to in House: On passage Passed by the Yeas and Nays: 216 - 212.',
+          type: 'Floor',
+          chamber: 'House',
+        },
+      ],
+    });
+
+    const d = await new BillDossierService({} as never, src as never, {} as never).getGlobalDossier(
+      BILL,
+    );
+
+    expect(d.bill.statusLabel).toBe('Passed House');
+    expect(d.bill.statusAt).toBe(passageDate.toISOString());
+    expect(d.latest).toEqual({ text: 'Received in the Senate.', date: receiptDate.toISOString() });
+
+    const status = d.kpis.find((k) => k.id === 'current_status')!;
+    const latestAction = d.kpis.find((k) => k.id === 'last_official_action')!;
+    const latestVote = d.kpis.find((k) => k.id === 'latest_vote')!;
+    const next = d.kpis.find((k) => k.id === 'next_milestone')!;
+    expect(status).toMatchObject({ value: 'Passed House', asOf: passageDate.toISOString() });
+    expect(latestAction).toMatchObject({
+      label: 'Latest action',
+      value: receiptDate.toISOString(),
+      sub: 'Received in the Senate.',
+    });
+    expect(latestVote.value).toBe('Passed 216-212');
+    expect(latestVote.sub).toBe('On Passage');
+    expect(next).toMatchObject({
+      label: 'Expected next step',
+      value: 'Senate action',
+      asOf: null,
+      sub: 'Date not verified',
+      unavailableReason: null,
+    });
+
+    const passageEvents = d.milestones.filter((m) => m.label === 'Passed House');
+    expect(passageEvents).toHaveLength(1);
+    expect(passageEvents[0]).toMatchObject({
+      outcome: 'Passed',
+      outcomeSev: 'success',
+      sourceCount: 2,
+      sourceIds: ['passage-primary', 'passage-summary'],
+    });
+    expect(d.milestones.find((m) => m.label === 'Received in Senate')).toMatchObject({
+      detail: expect.stringContaining('Senate receipt'),
+      outcome: null,
+    });
+    expect(d.milestones.find((m) => /recommit/i.test(m.label))).toMatchObject({
+      state: 'failed',
+      outcome: 'Failed',
+      outcomeSev: 'critical',
+    });
+    expect(JSON.stringify(d.milestones)).not.toContain('IntroReferral');
+  });
+
+  it('uses an explicit passage action when a bill-linked vote has no question', async () => {
+    const actionDate = new Date('2026-07-22T00:00:00Z');
+    const { src } = makeSource({
+      getBillDossierIdentity: async () => ({
+        ...identity,
+        statusAt: new Date('2026-09-14T00:00:00Z'),
+        latestActionText: 'Received in the Senate.',
+        latestActionDate: new Date('2026-09-14T00:00:00Z'),
+      }),
+      getBillVotes: async () => [{ ...passageVote, question: null, result: 'Passed' }],
+      getBillActions: async () => [
+        {
+          id: 'receipt',
+          billId: BILL,
+          date: new Date('2026-09-14T00:00:00Z'),
+          text: 'Received in the Senate.',
+          type: 'IntroReferral',
+          chamber: 'Senate',
+        },
+        {
+          id: 'passage',
+          billId: BILL,
+          date: actionDate,
+          text: 'Passed/agreed to in House: On passage Passed by recorded vote.',
+          type: 'Floor',
+          chamber: 'House',
+        },
+      ],
+    });
+    const d = await new BillDossierService({} as never, src as never, {} as never).getGlobalDossier(
+      BILL,
+    );
+    expect(d.bill).toMatchObject({
+      statusLabel: 'Passed House',
+      statusAt: actionDate.toISOString(),
+    });
+    expect(d.votes[0]).toMatchObject({ target: 'procedural', label: 'House procedural vote' });
+  });
+
+  it('classifies negative vote language before success substrings', async () => {
+    const voteDate = new Date('2026-06-01T18:00:00Z');
+    const { src } = makeSource({
+      getBillVotes: async () => [
+        {
+          ...passageVote,
+          id: 'house-119-1-301',
+          question: 'On Motion to Suspend the Rules and Pass',
+          result: 'Not Agreed to',
+          voteDate,
+          yeas: 190,
+          nays: 230,
+        },
+      ],
+      getBillActions: async () => [
+        {
+          id: 'negative-passage',
+          billId: BILL,
+          date: voteDate,
+          text: 'On motion to suspend the rules and pass Not Agreed to by the Yeas and Nays: 190 - 230 (Roll no. 301).',
+          type: 'Floor',
+          chamber: 'House',
+        },
+      ],
+    });
+
+    const d = await new BillDossierService({} as never, src as never, {} as never).getGlobalDossier(
+      BILL,
+    );
+    expect(d.votes[0]).toMatchObject({ target: 'passage', resultSev: 'critical' });
+    expect(d.milestones[0]).toMatchObject({
+      outcome: 'Failed',
+      outcomeSev: 'critical',
+      state: 'failed',
+    });
+  });
+
+  it('does not merge equal roll numbers from different chambers on the same day', async () => {
+    const date = new Date('2026-06-01T00:00:00Z');
+    const { src } = makeSource({
+      getBillActions: async () => [
+        {
+          id: 'house-roll-50',
+          billId: BILL,
+          date,
+          text: 'On motion to recommit Failed by recorded vote (Roll no. 50).',
+          type: 'Floor',
+          chamber: 'House',
+        },
+        {
+          id: 'senate-roll-50',
+          billId: BILL,
+          date,
+          text: 'On the motion to proceed Agreed to by recorded vote (Roll no. 50).',
+          type: 'Floor',
+          chamber: 'Senate',
+        },
+      ],
+    });
+
+    const d = await new BillDossierService({} as never, src as never, {} as never).getGlobalDossier(
+      BILL,
+    );
+    expect(d.milestones.filter((m) => m.sourceIds?.includes('house-roll-50'))).toHaveLength(1);
+    expect(d.milestones.filter((m) => m.sourceIds?.includes('senate-roll-50'))).toHaveLength(1);
+    expect(d.milestones).toHaveLength(2);
   });
 });
 

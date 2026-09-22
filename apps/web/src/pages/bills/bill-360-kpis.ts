@@ -46,7 +46,7 @@ export function kpiUnavailable(k: BillKpi): boolean {
 
 /** The string the cell's value line paints. */
 export function kpiValueText(k: BillKpi): string {
-  if (k.value == null) return KPI_UNAVAILABLE;
+  if (k.value == null) return k.unavailableLabel?.trim() || KPI_UNAVAILABLE;
   return k.valueType === 'date' ? fmtDate(k.value) : k.value;
 }
 

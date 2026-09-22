@@ -74,10 +74,7 @@ describe('proceduralOutlook — the transition table', () => {
 
     const without = proceduralOutlook(base({ changeType: 'bill_passed_chamber' }));
     expect(without.nextPossibleSteps).not.toContain('Companion bill consideration');
-    expect(without.nextPossibleSteps).toEqual([
-      'Referral in the other chamber',
-      'Conference to resolve differences',
-    ]);
+    expect(without.nextPossibleSteps).toEqual(['Referral in the other chamber']);
   });
 
   it('in conference → conference report steps', () => {
@@ -188,8 +185,24 @@ describe('proceduralStateFromAlert', () => {
     expect(proceduralStateFromAlert({ changeType: 'bill_amendment' }).ruleOutcome).toBeNull();
   });
 
-  it('never invents a chamber (no emitted alert carries one)', () => {
+  it('never invents a chamber when evidence does not carry one', () => {
     expect(proceduralStateFromAlert({ changeType: 'bill_passed_chamber' }).chamber).toBeNull();
+  });
+
+  it('normalizes an explicitly sourced federal or state chamber', () => {
+    expect(
+      proceduralStateFromAlert({ changeType: 'bill_passed_chamber', chamber: 'House' }).chamber,
+    ).toBe('house');
+    expect(
+      proceduralStateFromAlert({ changeType: 'state_bill_passed_chamber', chamber: 'Assembly' })
+        .chamber,
+    ).toBe('house');
+    expect(
+      proceduralStateFromAlert({ changeType: 'state_bill_passed_chamber', chamber: 'S' }).chamber,
+    ).toBe('senate');
+    expect(
+      proceduralStateFromAlert({ changeType: 'bill_passed_chamber', chamber: 'unknown' }).chamber,
+    ).toBeNull();
   });
 
   it('defaults jurisdiction to US and carries a state code through', () => {

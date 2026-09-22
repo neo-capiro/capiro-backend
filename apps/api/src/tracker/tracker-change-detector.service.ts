@@ -144,6 +144,7 @@ export function classifyChange(nextText: string | null): ChangeClass | null {
 export interface ActionLike {
   date: Date | null;
   text: string | null;
+  chamber?: string | null;
 }
 
 /** A distinct material change selected for one detection cycle. */
@@ -151,6 +152,7 @@ export interface MaterialEvent {
   cls: ChangeClass;
   text: string;
   date: Date | null;
+  chamber?: string | null;
 }
 
 /**
@@ -187,7 +189,7 @@ export function selectMaterialEvents(
     if (!cls) continue;
     if (seen.has(cls.changeType)) continue;
     seen.add(cls.changeType);
-    out.push({ cls, text: a.text ?? '', date: a.date });
+    out.push({ cls, text: a.text ?? '', date: a.date, chamber: a.chamber ?? null });
   }
   return out;
 }
@@ -281,12 +283,12 @@ export class TrackerChangeDetectorService {
     if (scanHistory) {
       const actions = await this.prisma.congressBillAction.findMany({
         where: { billId: { in: billIds } },
-        select: { billId: true, date: true, text: true },
+        select: { billId: true, date: true, text: true, chamber: true },
         orderBy: { date: 'asc' },
       });
       for (const a of actions) {
         const arr = actionsByBill.get(a.billId) ?? [];
-        arr.push({ date: a.date, text: a.text });
+        arr.push({ date: a.date, text: a.text, chamber: a.chamber });
         actionsByBill.set(a.billId, arr);
       }
     }
@@ -294,8 +296,8 @@ export class TrackerChangeDetectorService {
     // Per-tenant caches for nicer copy + enrichment (one lookup per client).
     const clientNameById = new Map<string, string>();
     const watchlistByClient = new Map<string, WatchlistLike>();
-    // One LLM summary per tenant+bill+changeType per run (multiple clients in a
-    // tenant tracking the same bill reuse it — don't re-spend the tenant's key).
+    // One LLM summary per exact input per run. Relevance is part of the key so
+    // one client's why/tags can never leak into another client's narrative.
     const summaryByEvent = new Map<string, string | null>();
 
     let baseline = 0;
@@ -392,18 +394,39 @@ export class TrackerChangeDetectorService {
           const actionDate = ev.date ? ev.date.toISOString().slice(0, 10) : null;
           const detail = ev.text || `${displayNum} — ${bill.title}`;
 
-          // LLM "what happened" summary on the tenant's own Anthropic key
-          // (cached per tenant+bill+changeType for this run). Fail-safe → null.
-          const summaryKey = `${row.tenantId}:${row.billId}:${ev.cls.changeType}`;
+          // LLM narrative on the tenant's own Anthropic key. Provider failure
+          // returns deterministic source-grounded copy from the service.
+          const explicitChamber =
+            ev.chamber ??
+            (/\bhouse\b/i.test(detail)
+              ? 'House'
+              : /\bsenate\b/i.test(detail)
+                ? 'Senate'
+                : null);
+          const summaryInput = {
+            tenantId: row.tenantId,
+            displayNum,
+            billTitle: bill.title,
+            label: ev.cls.label,
+            actionText: detail,
+            jurisdiction: 'US',
+            chamber: explicitChamber,
+            actionDate,
+            why,
+            matchedTags,
+            allowedNextSteps:
+              ev.cls.changeType === 'bill_passed_chamber'
+                ? ['Referral in the other chamber']
+                : [],
+            blockedBy: [] as string[],
+          };
+          // Preserve the structured arrays in the cache identity. Client-authored
+          // watchlist labels may contain delimiters, so a joined string can
+          // collide and leak one client's relevance wording into another alert.
+          const summaryKey = JSON.stringify(summaryInput);
           let summary = summaryByEvent.get(summaryKey) ?? null;
           if (!summaryByEvent.has(summaryKey)) {
-            summary = await this.summaries.summarize({
-              tenantId: row.tenantId,
-              displayNum,
-              billTitle: bill.title,
-              label: ev.cls.label,
-              actionText: detail,
-            });
+            summary = await this.summaries.summarize(summaryInput);
             summaryByEvent.set(summaryKey, summary);
           }
 

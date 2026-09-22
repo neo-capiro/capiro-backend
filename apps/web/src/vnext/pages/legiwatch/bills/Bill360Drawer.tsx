@@ -21,7 +21,7 @@ import {
   kpiValueText,
   orderedKpis,
 } from '../../../../pages/bills/bill-360-kpis.js';
-import { fmtDate } from '../../../../components/dossier/dossier-format.js';
+import { fmtAmt, fmtDate, fmtDelta } from '../../../../components/dossier/dossier-format.js';
 import { useBillHearings } from '../../../../pages/clients/tracker/bill-hearings-api.js';
 import { LwPill, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateUnavailable } from '../states/SystemStates.js';
@@ -147,9 +147,10 @@ export function Bill360Drawer({
                   className="lw-mono"
                   style={{ marginTop: 4, fontSize: 11, color: 'var(--lw-meta)' }}
                 >
-                  {d.bill.chamber ?? ''}
+                  {d.bill.statusLabel}
+                  {d.bill.statusAt ? ` · ${fmtDate(d.bill.statusAt)}` : ''}
+                  {d.latest.date ? ` · Latest action ${fmtDate(d.latest.date)}` : ''}
                   {d.bill.sponsor ? ` · ${d.bill.sponsor}` : ''}
-                  {d.bill.statusAt ? ` · updated ${fmtDate(d.bill.statusAt)}` : ''}
                 </div>
                 {d.bill.isState && d.bill.sponsorLegislatorId && (
                   <a
@@ -319,7 +320,10 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
         <h3 className="lw-sect__title">Procedural timeline</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {(d.milestones ?? []).map((m, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div
+              key={m.sourceIds?.join(':') ?? i}
+              style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}
+            >
               <span
                 aria-hidden="true"
                 style={{
@@ -345,9 +349,34 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
                 }}
               />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</span>
+                  {m.outcome ? (
+                    <LwPill
+                      tone={
+                        m.outcomeSev === 'critical'
+                          ? 'error'
+                          : m.outcomeSev === 'success'
+                            ? 'success'
+                            : 'gray'
+                      }
+                      size="22"
+                    >
+                      {m.outcome}
+                    </LwPill>
+                  ) : m.state === 'failed' ? (
+                    <LwPill tone="error" size="22">
+                      Failed
+                    </LwPill>
+                  ) : null}
+                </div>
                 {m.detail ? (
                   <div style={{ fontSize: 12, color: 'var(--lw-meta)' }}>{m.detail}</div>
+                ) : null}
+                {(m.sourceCount ?? 0) > 1 ? (
+                  <div style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
+                    {m.sourceCount} official source records
+                  </div>
                 ) : null}
                 {m.date ? (
                   <div className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
@@ -396,23 +425,116 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
 }
 
 function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['data']> }) {
-  // §8.3/§8.4: authorization and appropriations are parallel tracks, never
-  // summed; every number carries its stage; unfiled reads `Not filed`, never 0.
-  const lines = (d.funding as { lines?: Array<Record<string, unknown>> })?.lines ?? [];
+  const funding = d.funding;
+  const primary = funding.positions.find((position) => position.primary) ?? null;
+  const pending = funding.analysisStatus === 'analysis_pending';
+  const vehicle = funding.vehicle ?? null;
+  const impacts = funding.programElementImpacts;
+  const hasEvidence = funding.positions.length > 0 || impacts.length > 0;
+  const firstImpact = impacts[0];
+  const track = firstImpact?.vehicleTrack ?? vehicle?.track ?? null;
+  const houseLabel =
+    firstImpact?.houseLabel ??
+    (track === 'authorization'
+      ? 'House authorization (HASC)'
+      : track === 'appropriation'
+        ? 'House appropriation (HAC-D)'
+        : 'House amount (track not verified)');
+  const senateLabel =
+    firstImpact?.senateLabel ??
+    (track === 'authorization'
+      ? 'Senate authorization (SASC)'
+      : track === 'appropriation'
+        ? 'Senate appropriation (SAC-D)'
+        : 'Senate amount (track not verified)');
+  const conferenceLabel =
+    firstImpact?.conferenceLabel ??
+    (track === 'authorization'
+      ? 'NDAA conference authorization'
+      : track === 'appropriation'
+        ? 'Appropriations conference'
+        : 'Conference amount (track not verified)');
+  const showConference = impacts.some((impact) => impact.conferenceMillions != null);
+  const showEnacted = impacts.some((impact) => impact.enactedMillions != null);
+
   return (
     <section>
-      <h3 className="lw-sect__title">Funding lines</h3>
-      {lines.length === 0 ? (
-        <p className="lw-state__body">No funding lines are carried by this vehicle.</p>
-      ) : (
-        // Authorization and appropriation are parallel columns and must stay
-        // side by side to read correctly (§8.3), so the table scrolls inside
-        // the drawer rather than stacking or being squeezed on a phone sheet.
+      <h3 className="lw-sect__title">
+        {vehicle ? drawerFundingLabel(vehicle.stage, vehicle.track) : 'Funding analysis'}
+      </h3>
+
+      {pending ? (
+        <div className="lw-state__body" style={{ marginBottom: 16 }}>
+          <LwPill tone="warning" size="22">
+            ANALYSIS PENDING
+          </LwPill>
+          <p style={{ margin: '8px 0 4px' }}>
+            {funding.status ?? 'Funding tables are available; amounts await verification.'}
+          </p>
+          {vehicle ? (
+            <p style={{ margin: 0 }}>
+              {'FY' + vehicle.fiscalYear + ' · ' + drawerAmountTreatment(vehicle.amountTreatment)}
+              {vehicle.sourceDocumentTitle || vehicle.sourceDocumentKey
+                ? ' · Source: ' +
+                  [
+                    vehicle.sourceDocumentTitle ?? vehicle.label,
+                    vehicle.sourceDocumentKey,
+                    vehicle.sourceDocumentVersion
+                      ? 'version ' + vehicle.sourceDocumentVersion.slice(0, 12)
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : ''}
+            </p>
+          ) : null}
+        </div>
+      ) : primary ? (
+        <div className="lw-state__body" style={{ marginBottom: 16 }}>
+          <strong>{fmtAmt(primary.amountMillions)}</strong>
+          <span>
+            {' · FY' +
+              (primary.fiscalYear ?? vehicle?.fiscalYear ?? '—') +
+              ' · ' +
+              drawerAmountTreatment(primary.amountTreatment) +
+              ' · ' +
+              primary.verification}
+          </span>
+        </div>
+      ) : null}
+
+      {funding.guardrail ? (
+        <p className="lw-state__body" style={{ marginBottom: 16 }}>
+          <strong>Verification guardrail:</strong> {funding.guardrail}
+        </p>
+      ) : null}
+
+      {funding.overrideReconciliation === 'reconciled' ? (
+        <p className="lw-state__body" style={{ marginBottom: 16 }}>
+          <strong>Override reconciliation:</strong> Verified against the bill&apos;s
+          amount-changing provisions.
+        </p>
+      ) : null}
+
+      {!hasEvidence ? (
+        <p className="lw-state__body">
+          {funding.status ??
+            'No reviewed funding positions or linked funding tables are available for this vehicle.'}
+        </p>
+      ) : impacts.length ? (
         <div className="capiro-scroll-x lw-tablewrap">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ textAlign: 'left' }}>
-                {['Line', 'Request', 'Authorization', 'Appropriation', 'Delta'].map((h) => (
+                {[
+                  'Program element',
+                  'FY request',
+                  houseLabel,
+                  senateLabel,
+                  ...(showConference ? [conferenceLabel] : []),
+                  ...(showEnacted ? ['Enacted appropriation'] : []),
+                  'Change vs. request',
+                ].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -431,30 +553,78 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
               </tr>
             </thead>
             <tbody>
-              {lines.map((ln, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--lw-hover)' }}>
+              {impacts.map((impact) => (
+                <tr key={impact.pe} style={{ borderBottom: '1px solid var(--lw-hover)' }}>
                   <td style={{ padding: '10px 12px', fontSize: 13 }}>
-                    {String(ln.label ?? ln.peCode ?? '—')}
+                    <span className="lw-mono">{impact.pe}</span>
+                    {impact.name ? <span> · {impact.name}</span> : null}
+                    {impact.source ? (
+                      <div style={{ marginTop: 3, fontSize: 10, color: 'var(--lw-meta)' }}>
+                        {impact.source}
+                      </div>
+                    ) : null}
                   </td>
-                  {(['request', 'authorization', 'appropriation'] as const).map((k) => (
-                    <td
-                      key={k}
-                      style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}
-                    >
-                      {ln[k] == null ? 'Not filed' : String(ln[k])}
-                    </td>
-                  ))}
                   <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
-                    {ln.delta == null ? '—' : String(ln.delta)}
+                    {fmtAmt(impact.requestMillions)}
+                  </td>
+                  <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    {fmtAmt(impact.houseMillions)}
+                  </td>
+                  <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    {fmtAmt(impact.senateMillions)}
+                  </td>
+                  {showConference ? (
+                    <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                      {fmtAmt(impact.conferenceMillions ?? null)}
+                    </td>
+                  ) : null}
+                  {showEnacted ? (
+                    <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                      {fmtAmt(impact.enactedMillions ?? null)}
+                    </td>
+                  ) : null}
+                  <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    {fmtDelta(impact.deltaVsRequestMillions)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </section>
   );
+}
+
+function drawerFundingLabel(stage: string, track: string): string {
+  const stageLabel =
+    stage === 'house'
+      ? 'House'
+      : stage === 'senate'
+        ? 'Senate'
+        : stage === 'conference'
+          ? 'Conference'
+          : stage === 'enacted'
+            ? 'Enacted'
+            : stage === 'president'
+              ? "President's"
+              : stage;
+  const trackLabel =
+    track === 'authorization'
+      ? 'authorization'
+      : track === 'appropriation'
+        ? 'appropriation'
+        : track.replaceAll('_', ' ');
+  return stageLabel + ' ' + trackLabel;
+}
+
+function drawerAmountTreatment(treatment: string | null | undefined): string {
+  if (treatment === 'proposed_authorization') {
+    return 'Proposed authorization level — not appropriated funding';
+  }
+  if (treatment === 'appropriated_funding') return 'Appropriated funding';
+  if (treatment === 'request') return 'Executive budget request';
+  return 'Funding treatment not verified';
 }
 
 function HearingsTabView({

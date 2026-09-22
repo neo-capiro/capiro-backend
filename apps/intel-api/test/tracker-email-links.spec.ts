@@ -83,6 +83,17 @@ describe('renderAlertEmail (P1-06)', () => {
     expect(text).not.toContain('Open in LegiWatch:');
     expect(text).toContain(`View official source: ${EVENT.url}`);
   });
+
+  it('presents "Why it matters" once when it is already composed into the narrative', () => {
+    const why = 'Matches the client defense watchlist.';
+    const { html, text } = renderAlertEmail({
+      ...EVENT,
+      why,
+      summary: `The House passed the bill. Why it matters: ${why} Next step: not verified.`,
+    });
+    expect(html.split(why).length - 1).toBe(1);
+    expect(text.split(why).length - 1).toBe(1);
+  });
 });
 
 describe('no rendered template names the old product or the old CTA (P1-06)', () => {
@@ -112,6 +123,7 @@ function digestItem(over: Partial<DigestItem> = {}): DigestItem {
     label: 'Amended',
     severity: 'notable',
     detail: 'Amended',
+    narrative: 'The amendment changed the bill text. Next step: not verified.',
     actionDate: null,
     deadline: null,
     recommendedAction: null,
@@ -129,6 +141,15 @@ describe('renderDigestEmail (RB-03)', () => {
     expect(text).toContain('/legiwatch?tab=feed&client=c1&alert=a1');
     expect(html).not.toContain('/clients/c1?tab=tracker');
     expect(text).not.toContain('/clients/c1?tab=tracker');
+  });
+
+  it('renders narrative copy in both HTML and text', () => {
+    const { html, text } = renderDigestEmail('weekly', [
+      digestItem({ narrative: 'Persisted grounded narrative.' }),
+    ]);
+    expect(html).toContain('Capiro analysis');
+    expect(html).toContain('Persisted grounded narrative.');
+    expect(text).toContain('Capiro analysis: Persisted grounded narrative.');
   });
 });
 

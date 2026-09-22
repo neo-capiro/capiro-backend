@@ -326,6 +326,12 @@ export interface PeImpactRow {
   requestMillions: number | null;
   houseMillions: number | null;
   senateMillions: number | null;
+  conferenceMillions?: number | null;
+  enactedMillions?: number | null;
+  vehicleTrack?: string | null;
+  houseLabel?: string;
+  senateLabel?: string;
+  conferenceLabel?: string;
   deltaVsRequestMillions: number | null;
   basis: 'explicit' | 'inferred';
 }
@@ -348,6 +354,31 @@ export function FundingPositionTable({
   rows: PeImpactRow[];
   onOpenPe?: (pe: string) => void;
 }) {
+  const first = rows[0];
+  const authorization = first?.vehicleTrack === 'authorization';
+  const houseLabel =
+    first?.houseLabel ??
+    (authorization
+      ? 'House authorization'
+      : first?.vehicleTrack === 'appropriation'
+        ? 'House appropriation'
+        : 'House amount (track not verified)');
+  const senateLabel =
+    first?.senateLabel ??
+    (authorization
+      ? 'Senate authorization'
+      : first?.vehicleTrack === 'appropriation'
+        ? 'Senate appropriation'
+        : 'Senate amount (track not verified)');
+  const conferenceLabel =
+    first?.conferenceLabel ??
+    (authorization
+      ? 'NDAA conference authorization'
+      : first?.vehicleTrack === 'appropriation'
+        ? 'Appropriations conference'
+        : 'Conference amount (track not verified)');
+  const hasConference = rows.some((row) => row.conferenceMillions != null);
+  const hasEnacted = rows.some((row) => row.enactedMillions != null);
   return (
     <div className="b360-petable">
       <div className="b360-petable-title">
@@ -360,8 +391,14 @@ export function FundingPositionTable({
             <tr>
               <CapiroTableHeaderCell>Program element</CapiroTableHeaderCell>
               <CapiroTableHeaderCell className="b360-col-num">Request</CapiroTableHeaderCell>
-              <CapiroTableHeaderCell className="b360-col-num">House</CapiroTableHeaderCell>
-              <CapiroTableHeaderCell className="b360-col-num">Senate</CapiroTableHeaderCell>
+              <CapiroTableHeaderCell className="b360-col-num">{houseLabel}</CapiroTableHeaderCell>
+              <CapiroTableHeaderCell className="b360-col-num">{senateLabel}</CapiroTableHeaderCell>
+              {hasConference ? (
+                <CapiroTableHeaderCell className="b360-col-num">{conferenceLabel}</CapiroTableHeaderCell>
+              ) : null}
+              {hasEnacted ? (
+                <CapiroTableHeaderCell className="b360-col-num">Enacted appropriation</CapiroTableHeaderCell>
+              ) : null}
               <CapiroTableHeaderCell className="b360-col-num">Δ vs req</CapiroTableHeaderCell>
             </tr>
           </CapiroTableHead>
@@ -385,6 +422,16 @@ export function FundingPositionTable({
                 <CapiroTableCell className="b360-num-cell muted">{fmtAmt(r.requestMillions)}</CapiroTableCell>
                 <CapiroTableCell className="b360-num-cell strong">{fmtAmt(r.houseMillions)}</CapiroTableCell>
                 <CapiroTableCell className="b360-num-cell muted">{fmtAmt(r.senateMillions)}</CapiroTableCell>
+                {hasConference ? (
+                  <CapiroTableCell className="b360-num-cell muted">
+                    {fmtAmt(r.conferenceMillions ?? null)}
+                  </CapiroTableCell>
+                ) : null}
+                {hasEnacted ? (
+                  <CapiroTableCell className="b360-num-cell strong">
+                    {fmtAmt(r.enactedMillions ?? null)}
+                  </CapiroTableCell>
+                ) : null}
                 <CapiroTableCell
                   className="b360-num-cell strong"
                   style={{ color: deltaColorVNext(r.deltaVsRequestMillions) }}

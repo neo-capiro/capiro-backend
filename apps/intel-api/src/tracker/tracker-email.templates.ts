@@ -52,6 +52,9 @@ export function renderAlertEmail(event: IntelAlertEvent): {
   const client = event.clientName ? ` · ${event.clientName}` : '';
   const subject = `${event.displayNum}: ${event.label}${client}`;
   const color = (event.tone && toneColor[event.tone]) ?? BRAND;
+  const narrativeIncludesRelevance = /\b(?:why it matters|tracked topics):/i.test(
+    event.summary ?? '',
+  );
   const inner = `
     <div style="display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${color};background:${color}1a;padding:3px 9px;border-radius:999px">${esc(event.label)}</div>
     <div style="margin-top:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:700;color:${INK}">${esc(event.displayNum)}</div>
@@ -60,11 +63,11 @@ export function renderAlertEmail(event: IntelAlertEvent): {
     ${event.actionDate ? `<div style="margin-top:8px;font-size:12px;color:${MUTED}">Latest action · ${esc(event.actionDate)}</div>` : ''}
     ${
       event.summary
-        ? `<div style="margin-top:14px"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:${MUTED}">What happened</span><div style="margin-top:4px;font-size:13px;line-height:1.55;color:${INK}">${esc(event.summary)}</div></div>`
+        ? `<div style="margin-top:14px"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:${MUTED}">Capiro analysis</span><div style="margin-top:4px;font-size:13px;line-height:1.55;color:${INK}">${esc(event.summary)}</div></div>`
         : ''
     }
     ${
-      event.why
+      event.why && !narrativeIncludesRelevance
         ? `<div style="margin-top:14px;padding:11px 13px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:8px;font-size:12px;line-height:1.5;color:${INK}"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:${MUTED}">Why this matters${event.clientName ? ` · ${esc(event.clientName)}` : ''}</span><div style="margin-top:4px">${esc(event.why)}</div></div>`
         : ''
     }
@@ -86,8 +89,8 @@ export function renderAlertEmail(event: IntelAlertEvent): {
     '',
     event.detail,
     event.actionDate ? `Latest action: ${event.actionDate}` : '',
-    event.summary ? `What happened: ${event.summary}` : '',
-    event.why
+    event.summary ? `Capiro analysis: ${event.summary}` : '',
+    event.why && !narrativeIncludesRelevance
       ? `Why this matters${event.clientName ? ` (${event.clientName})` : ''}: ${event.why}`
       : '',
     ...(event.appUrl ? ['', `Open in LegiWatch: ${event.appUrl}`] : []),
@@ -104,9 +107,8 @@ export function renderAlertEmail(event: IntelAlertEvent): {
  * genuinely different evidence shape (intel-alert.types.ts's `hearing` /
  * `linkedBill` / `programElement` / `regulationInfo`), so each gets its own
  * layout rather than being force-fit into `renderAlertEmail`'s bill-shaped
- * fields. None of these fire in production yet — `LEGIWATCH_EMIT_SOURCE_TYPES`
- * still defaults to `bill` only; widening it is a separate, Neo-gated decision
- * (MASTER §7.7). This is pre-work so that flip needs no further code change.
+ * fields. Federal and state bills are enabled by default; the four non-bill
+ * sources remain explicit configuration opt-ins.
  */
 
 function ctaRow(appUrl: string | undefined, officialUrl: string | undefined, officialLabel: string): string {
@@ -303,6 +305,7 @@ export interface DigestItem {
   label: string; // stage
   severity: string; // 'critical'|'notable'|'info'|...
   detail: string; // official action text
+  narrative: string; // persisted LLM narrative or deterministic fallback
   actionDate: string | null;
   deadline: string | null;
   recommendedAction: string | null;
@@ -364,6 +367,7 @@ export function renderDigestEmail(
           <div style="margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:700;color:${INK}">${esc(item.displayNum)}</div>
           <div style="margin-top:2px;font-size:14px;font-weight:600;line-height:1.35;color:${INK}">${esc(item.billTitle)}</div>
           <div style="margin-top:6px;font-size:12.5px;line-height:1.5;color:${MUTED}">${esc(item.detail)}</div>
+          <div style="margin-top:10px"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:9px;color:${MUTED}">Capiro analysis</span><div style="margin-top:3px;font-size:12.5px;line-height:1.5;color:${INK}">${esc(item.narrative)}</div></div>
           ${item.deadline ? `<div style="margin-top:6px;font-size:11.5px;color:${MUTED}">Deadline · ${esc(item.deadline)}</div>` : ''}
           ${item.recommendedAction ? `<div style="margin-top:6px;padding:8px 10px;background:#f6f8fb;border:1px solid #eef1f6;border-radius:6px;font-size:11.5px;line-height:1.45;color:${INK}"><span style="font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:9px;color:${MUTED}">Recommended action</span><div style="margin-top:3px">${esc(item.recommendedAction)}</div></div>` : ''}
           <div style="margin-top:8px">
@@ -374,6 +378,7 @@ export function renderDigestEmail(
       textLines.push(
         `- [${item.label}] ${item.displayNum}: ${item.billTitle}`,
         `  ${item.detail}`,
+        `  Capiro analysis: ${item.narrative}`,
         ...(item.deadline ? [`  Deadline: ${item.deadline}`] : []),
         ...(item.recommendedAction ? [`  Recommended action: ${item.recommendedAction}`] : []),
         `  LegiWatch: ${item.appUrl}${item.url ? ` | Source: ${item.url}` : ''}`,
@@ -407,9 +412,8 @@ export function renderTestEmail(
 /** Per-source email renderers (P1-07, HP-07). A source with NO renderer is
  *  not emailable — fanOut skips it rather than sending a bill-shaped email
  *  for a hearing/PE/regulation event. All 6 source types now have one; only
- *  `LEGIWATCH_EMIT_SOURCE_TYPES` (still `bill` by default) decides which
- *  actually reach this fan-out — widening it is a separate, Neo-gated
- *  decision (MASTER §7.7), not a code change.
+ *  `LEGIWATCH_EMIT_SOURCE_TYPES` defaults to `bill,state_bill`; other
+ *  source types remain explicit configuration opt-ins.
  *
  *  `state_bill` is included: bill-change-detector.service.ts's writeShadowAlert
  *  is the SAME writer for both the federal and state rails (its own doc
