@@ -180,7 +180,7 @@ export function buildCoverageRequirements(input: {
       essential: true,
       rationale: `Readable content${reference ? ` from ${reference.filename}` : ' from the requested document'} is required; metadata or a filename is not evidence.`,
       template: 'transcript_summary',
-      ...(reference ? { route: { documentId: reference.id, clientId: input.clientId } } : {}),
+      ...(reference ? { route: { documentId: reference.id, documentName: reference.filename, clientId: input.clientId } } : {}),
     });
   }
 

@@ -79,7 +79,7 @@ export async function runRepairLoop(input: RunRepairLoopInput): Promise<RepairOu
               claim,
               ledger.version,
               'qualified',
-              `To confirm “${claim.text}”, attach the named transcript.`,
+              documentRequest(claim.text, input.missingDocumentName),
             ));
             status = 'qualified';
           } else {
@@ -149,6 +149,12 @@ export async function runRepairLoop(input: RunRepairLoopInput): Promise<RepairOu
     const assembled = assembleAnswer({ baseReply: input.reply, ledgerVersion: ledger, revisions, trace });
     return { status: finalStatus, reply: assembled.reply, citations: assembled.citations, ledger, trace: assembled.trace, toolCalls, inputTokens };
   }
+}
+
+function documentRequest(claimText: string, documentName?: string): string {
+  return documentName?.trim()
+    ? `To confirm “${claimText}”, attach the '${documentName.trim()}' transcript.`
+    : `To confirm “${claimText}”, attach the named transcript.`;
 }
 
 function fallbackRevision(claim: AssuredClaim, ledgerVersion: number, outcome: 'qualified' | 'omitted', replacementText: string): ClaimRevision {

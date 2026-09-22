@@ -8,6 +8,8 @@ Only material claims whose category is promoted are assessed or revised. Determi
 
 A repair receives at most one pass, three read-only tool calls, 8 seconds, and 60,000 input tokens. The executor requires both registry `readOnly: true` and execution metadata `executionMode: read`, refuses unknown tools and schemas whose required arguments cannot be projected from governed turn identities, and deduplicates failed calls. New results use the normal evidence projection and stable citation numbering. The revision model sees only affected/dependent sentences and the affected claim's listed passages. Form A marker validation and Form B citation checks run again before release.
 
+Generic schema projection can deterministically fill PE code (`peCode`), award identity (`piid` or `contractorName`), client document identity (`documentId`), opportunity identity (`opportunityId`), and committee/bill identity (`committeeId` or `billId`) only when those values already exist in the governed turn context. Tenant, client, conversation, and literal request/query fields are also projected when the schema declares them. A required value absent from that context is never inferred: execution refuses with `no_concrete_route`.
+
 `shadow` performs the same assessment using an empty replay executor and an identity generator: it logs proposed outcomes but emits the original reply and never retrieves. `enforce` may retrieve and revise. Budget or source failure remains claim-local; unrelated supported content is never held. Structured events are `meri.auto_correction.claim` and `meri.auto_correction.turn`.
 
 ## Replay proof

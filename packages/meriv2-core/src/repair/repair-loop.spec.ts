@@ -61,6 +61,21 @@ describe('repair replay scenarios', () => {
     expect(result.reply).not.toMatch(/re-?upload/i);
   });
 
+  it.each([
+    ['known name', 'hearing-2026-09-21.txt', "attach the 'hearing-2026-09-21.txt' transcript"],
+    ['unknown name', undefined, 'attach the named transcript'],
+  ])('requests a specific unavailable document when its name is %s', async (_label, missingDocumentName, expected) => {
+    const c = claim('The transcript says the chair promised action.');
+    const result = await runRepairLoop(base({
+      reply: c.text,
+      claims: [c],
+      ledger: { ...ledger(), ledger: { ...ledger().ledger, claims: [c] } },
+      executor: executor({ ok: false, state: 'document_unavailable', reason: 'transcript unavailable' }),
+      missingDocumentName,
+    }));
+    expect(result.reply).toContain(expected);
+  });
+
   it('leaves supported unrelated claims untouched during an outage', async () => {
     const result = await runRepairLoop(base({ reply: 'The official total is 20. The bill passed the House.', executor: executor({ ok: false, state: 'retrieval_failed', reason: 'source outage' }) }));
     expect(result.reply).toContain('The bill passed the House.');

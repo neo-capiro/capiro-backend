@@ -1,5 +1,6 @@
 import {
   buildClaimSupportQuestion,
+  checkExactSourceEligibility,
   evaluateClaimDeterministically,
   runRepairLoop,
   type AssuredClaim,
@@ -7,6 +8,7 @@ import {
   type ClaimLedger,
   type DecisionProvider,
   type DomainEvidencePlan,
+  type DocumentReference,
   type EvidenceDecision,
   type EvidenceEnvelope,
   type MaterialClaim,
@@ -30,6 +32,7 @@ export interface LiveRepairInput {
   passages: Record<string, { text: string }>;
   evidencePlan: DomainEvidencePlan;
   residualGaps?: readonly unknown[];
+  documentReferences?: readonly DocumentReference[];
   tenantId: string;
   clientId?: string | null;
   conversationId?: string;
@@ -40,7 +43,7 @@ export interface LiveRepairInput {
   budget: RepairBudget;
   signal?: AbortSignal;
   logger: LiveRepairLogger;
-  mode?: 'shadow' | 'enforce';
+  mode?: 'off' | 'shadow' | 'enforce';
   now?: () => number;
 }
 
@@ -56,6 +59,9 @@ export interface LiveRepairResult {
 const COST_PER_INPUT_TOKEN_USD = 0.042 / 1_000_000;
 
 export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepairResult> {
+  if (input.mode === 'off') {
+    return { reply: input.released, citations: input.citations, changed: false, outcomes: {}, toolCalls: 0, passes: 0 };
+  }
   const now = input.now ?? Date.now;
   const startedAt = now();
   const promoted = input.claims.filter(
@@ -85,7 +91,10 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       evidencePassages: current.sourceIds.flatMap((id) => input.passages[id] ? [input.passages[id]!] : []),
       asOf: current.asOf ?? new Date().toISOString(),
     });
-    let decision = deterministicDecision(deterministic, current);
+    const exactSource = checkExactSourceEligibility(claim, input.documentReferences ?? [], input.ledger);
+    let decision = exactSource.eligible
+      ? deterministicDecision(deterministic, current)
+      : failure('exact-source', 'document_unavailable', 'document_unavailable');
     let jev: EvidenceDecision | null = null;
     let legacy: EvidenceDecision | null = null;
     if (!decision) {
@@ -123,13 +132,16 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
 
   const assessmentMs = now() - assessmentStartedAt;
   const repairStartedAt = now();
-  const repairable = assured.filter((claim) => decisions[claim.id]?.kind !== 'outcome' ||
-    (decisions[claim.id] as Extract<EvidenceDecision, { kind: 'outcome' }>).outcome !== 'supported');
+  const repairable = assured.filter((claim) => {
+    const decision = decisions[claim.id];
+    if (decision?.kind === 'failure') return decision.state === 'document_unavailable';
+    return decision?.kind === 'outcome' && decision.outcome !== 'supported';
+  });
   let reply = input.released;
   let toolCalls = 0;
   let passes = 0;
   let status = 'unresolved';
-  if (repairable.length && !input.signal?.aborted) {
+  if (repairable.length && !input.signal?.aborted && input.mode !== 'shadow') {
     const ledger: RepairLedgerVersion = {
       version: 1,
       ledger: input.ledger,
@@ -153,6 +165,9 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       toolRegistry: { get: () => ({ readOnly: true }) },
       tenantId: input.tenantId,
       clientId: input.clientId,
+      ...({
+        missingDocumentName: documentNameFor(repairable[0]!, input.documentReferences ?? []),
+      } as Pick<import('@capiro/meriv2-core').RunRepairLoopInput, never> & { missingDocumentName?: string }),
       signal: input.signal,
       now,
     });
@@ -259,8 +274,17 @@ function selectDecision(jev: EvidenceDecision | null, legacy: EvidenceDecision |
   return legacy ?? jev ?? failure('no-provider', 'judge_unavailable');
 }
 
-function failure(name: string, reason: string): EvidenceDecision {
-  return { kind: 'failure', state: 'judge_unavailable', reasonCodes: [reason], provider: { name, model: 'unknown', questionVersion: 'claim_support.v1' }, latencyMs: 0 };
+function failure(
+  name: string,
+  reason: string,
+  state: Extract<EvidenceDecision, { kind: 'failure' }>['state'] = 'judge_unavailable',
+): EvidenceDecision {
+  return { kind: 'failure', state, reasonCodes: [reason], provider: { name, model: 'unknown', questionVersion: 'claim_support.v1' }, latencyMs: 0 };
+}
+function documentNameFor(claim: Pick<AssuredClaim, 'text' | 'sourceIds'>, references: readonly DocumentReference[]): string | undefined {
+  return references.find((reference) =>
+    claim.sourceIds.includes(reference.id) || claim.text.toLowerCase().includes(reference.filename.toLowerCase()),
+  )?.filename ?? (references.length === 1 ? references[0]?.filename : undefined);
 }
 function usage(decision: EvidenceDecision | null): number { return decision?.kind === 'outcome' ? decision.usage?.inputTokens ?? 0 : 0; }
 function countValues(values: Record<string, string>): Record<string, number> {

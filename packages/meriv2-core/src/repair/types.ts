@@ -142,6 +142,8 @@ export interface RunRepairLoopInput {
   tenantId: string;
   clientId?: string | null;
   scopeQualifiers?: string[];
+  /** Human-visible name of an exact source the user must provide, when known. */
+  missingDocumentName?: string;
   signal?: AbortSignal;
   now?: () => number;
 }

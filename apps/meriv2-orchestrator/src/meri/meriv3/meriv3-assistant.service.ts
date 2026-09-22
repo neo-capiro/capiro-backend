@@ -913,6 +913,7 @@ export class MeriV3AssistantService {
               request: lastUserText,
             },
             citations: released.citations,
+            ledgerEntries,
             invoke: (name, input) => this.registry.invoke(name, input, ctx),
           })
         : new ReplayToolExecutor([]);
@@ -924,6 +925,21 @@ export class MeriV3AssistantService {
         passages,
         evidencePlan,
         residualGaps: residualCoverageGaps,
+        documentReferences: coverageRequirements.flatMap((requirement) => {
+          const id = requirement.route?.documentId;
+          const filename = requirement.route?.documentName;
+          if (typeof id !== 'string' || typeof filename !== 'string') return [];
+          return [{
+            kind: 'attachment' as const,
+            id,
+            filename,
+            version: null,
+            contentState: 'metadata_only' as const,
+            readable: false,
+            relevantPassageIds: [],
+            resolution: 'explicit_id' as const,
+          }];
+        }),
         tenantId: ctx.tenantId,
         clientId: dto.clientId,
         conversationId: dto.conversationId,
@@ -1468,7 +1484,7 @@ export class MeriV3AssistantService {
     complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
     verificationAvailable: boolean;
     coverageRequirements: ReturnType<typeof buildCoverageRequirements>;
-    residualCoverageGaps: CoverageGap[];
+    residualCoverageGaps?: CoverageGap[];
     emit: (event: MeriV3ChatStreamEvent) => void;
   }): { reply: string; citations: MeriCitation[]; held: boolean } {
     const formA = validateCitationMarkers(args.reply, args.citations);
@@ -1584,10 +1600,11 @@ export class MeriV3AssistantService {
       }
     }
 
-    if (args.residualCoverageGaps.length) {
+    const residualCoverageGaps = args.residualCoverageGaps ?? [];
+    if (residualCoverageGaps.length) {
       released = appendClaimTiedCoverageDisclosure(
         released,
-        args.residualCoverageGaps,
+        residualCoverageGaps,
         args.coverageRequirements,
       );
     }

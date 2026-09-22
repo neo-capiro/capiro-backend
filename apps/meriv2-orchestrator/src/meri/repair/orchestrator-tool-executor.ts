@@ -5,6 +5,7 @@ import {
   type RepairToolResult,
   type RepairToolExecutor,
   type ToolRegistry,
+  type LedgerEntry,
 } from '@capiro/meriv2-core';
 import { extractCitationsFromToolResult, type MeriCitation } from '@capiro/shared';
 import { numberMeriEvidenceCitationsForMode } from '../meriv3/meriv3-context-evidence.js';
@@ -62,6 +63,8 @@ export interface OrchestratorToolExecutorInput {
   schemas: readonly RepairToolSchema[];
   context: RemedyProjectionContext;
   citations: MeriCitation[];
+  /** Same mutable Form B ledger used by final validation and claim-ledger rebuilds. */
+  ledgerEntries: LedgerEntry[];
   invoke(name: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
 }
 
@@ -78,7 +81,7 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
     const schema = this.input.schemas.find((item) => item.name === call.name);
     if (!schema) return failed('tool_schema_unavailable');
     const args = projectRemedyArgs(call, schema, this.input.context);
-    if (!args) return failed('required_tool_arguments_unavailable');
+    if (!args) return failed('no_concrete_route');
     try {
       const result = await this.input.invoke(call.name, args, options.signal);
       if (options.signal?.aborted) return failed('cancelled');
@@ -115,6 +118,14 @@ class GovernedRepairToolExecutor implements RepairToolExecutor {
         );
         if (prior < 0) this.input.citations.push(citation);
         else this.input.citations[prior] = citation;
+      }
+      if (evidence.length) {
+        this.input.ledgerEntries.push({
+          tool: call.name,
+          serialized: JSON.stringify(projected),
+          result: projected,
+          rowCount: evidence.length,
+        });
       }
       return evidence.length ? { ok: true, evidence } : failed('no_usable_evidence');
     } catch (error) {
