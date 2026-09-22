@@ -114,6 +114,9 @@ function historyMessage(value: unknown): ChatMessage | null {
     ...(chartArtifacts.length ? { chartArtifacts } : {}),
     ...(documentArtifacts.length ? { documentArtifacts } : {}),
     ...(citations.length ? { citations } : {}),
+    ...(message.metadata?.evidenceAccuracy === 'enforce'
+      ? { evidenceAccuracy: 'enforce' as const }
+      : {}),
     ...(verification ? { verification } : {}),
     ...(groundingCaveat ? { groundingCaveat } : {}),
     ...(contextPacketId ? { contextPacketId } : {}),

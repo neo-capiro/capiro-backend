@@ -23,3 +23,14 @@ Warnings use the structured logger shape `logger.warn('meri.citation_integrity',
 ## Web contract (T7)
 
 When chat evidence accuracy is enforced, the API always emits a citations frame, including when its citation list is empty. That frame contains `evidenceAccuracy: "enforce"`. The same field is persisted in assistant-message metadata for reload. It is absent in off and shadow modes, preserving legacy rendering and frame behavior.
+
+The web treats that field as the complete rendering gate:
+
+| Surface | `evidenceAccuracy: "enforce"` | Signal absent (legacy/off/shadow) |
+| --- | --- | --- |
+| Answer prose | Registered markers become source chips; unresolved markers are removed even when the citation list is empty, with adjacent spacing normalized. | Registered markers become chips and unresolved markers remain literal. |
+| Evidence inspector | Displays only each source's explicit `citationNumber`; unnumbered sources have no bracketed number. | Keeps the positional fallback for older payloads. |
+| Artifact canvas | Registered markers become source chips and unresolved markers are removed in plain-text and structured Word/PDF previews. | Artifact text is unchanged. |
+| Long links | Displayed URL text is shortened to host plus a truncated path while the full `href` and `title` are retained; answer/artifact text can wrap anywhere. | Existing link text and wrapping remain unchanged. |
+
+The browser does not read rollout environment variables. Live turns obtain the signal from the citations frame; history reload obtains it from assistant-message metadata.

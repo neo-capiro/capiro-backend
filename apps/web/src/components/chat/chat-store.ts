@@ -163,6 +163,8 @@ export interface ChatMessage {
   content: string;
   createdAt: Date;
   citations?: MeriCitation[];
+  /** Present only when the server enforced citation integrity for this turn. */
+  evidenceAccuracy?: 'enforce';
   verification?: MeriVerification;
   groundingCaveat?: GroundingCaveat;
   suggestions?: string[];
@@ -379,8 +381,14 @@ export function completeChatMessage(
   notify();
 }
 
-export function setChatMessageCitations(id: string, citations: MeriCitation[]): void {
-  const messages = state.messages.map((m) => (m.id === id ? { ...m, citations } : m));
+export function setChatMessageCitations(
+  id: string,
+  citations: MeriCitation[],
+  evidenceAccuracy?: 'enforce',
+): void {
+  const messages = state.messages.map((m) =>
+    m.id === id ? { ...m, citations, ...(evidenceAccuracy ? { evidenceAccuracy } : {}) } : m,
+  );
   state = { ...state, messages };
   notify();
 }

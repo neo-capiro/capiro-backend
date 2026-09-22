@@ -1,12 +1,15 @@
 import { useState, type CSSProperties } from 'react';
 import { saveMeriDownloadBlob } from './meri-artifact-download.js';
 import { useMeriArtifactDownload } from './useMeriArtifactDownload.js';
+import type { MeriCitation } from './chat-store.js';
 
 export interface CanvasArtifact {
   id?: string;
   title?: string;
   kind?: string;
   bodyText?: string;
+  citations?: MeriCitation[];
+  evidenceAccuracy?: 'enforce';
 }
 
 interface MeriCanvasProps {

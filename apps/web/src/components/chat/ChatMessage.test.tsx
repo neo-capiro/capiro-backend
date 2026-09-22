@@ -66,6 +66,29 @@ describe('ChatMessage citations', () => {
     expect(screen.getByRole('button', { name: '[1]' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '[2]' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '[3]' })).toBeNull();
+    expect(screen.getByText(/Unknown \[3\]/)).toBeTruthy();
+  });
+
+  test('strips unresolved markers and collapsed spacing only under the enforce signal', () => {
+    const { rerender } = render(
+      <ChatMessage role="assistant" content="Known [1]  and missing [53], done." citations={citations} evidenceAccuracy="enforce" />,
+    );
+    expect(screen.getByRole('button', { name: '[1]' })).toBeTruthy();
+    expect(screen.queryByText(/\[53\]/)).toBeNull();
+    expect(screen.getByText(/and missing, done\./)).toBeTruthy();
+    rerender(<ChatMessage role="assistant" content="Empty [53]  map." citations={[]} evidenceAccuracy="enforce" />);
+    expect(screen.getByText('Empty map.')).toBeTruthy();
+  });
+
+  test('truncates a displayed long URL while preserving its href under the enforce signal', () => {
+    const url = 'https://example.gov/a/very/long/path/that/keeps/going/through/many/segments?query=evidence';
+    render(<ChatMessage role="assistant" content={`[${url}](${url})`} evidenceAccuracy="enforce" />);
+    const link = screen.getByRole('link');
+    expect(link).toHaveAttribute('href', url);
+    expect(link).toHaveAttribute('title', url);
+    expect(link.textContent).toContain('example.gov/a/very/long/path');
+    expect(link.textContent).toContain('…');
+    expect(link.textContent).not.toBe(url);
   });
 
   test('clicking a citation chip opens a drawer with the matched source', () => {

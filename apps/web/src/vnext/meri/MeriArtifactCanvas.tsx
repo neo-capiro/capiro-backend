@@ -4,6 +4,7 @@ import { MeriIcon } from './meri-icons.js';
 import { MeriWordArtifactPreview, meriWordArtifactText, readMeriWordArtifact } from './MeriWordArtifactPreview.js';
 import { saveMeriDownloadBlob } from '../../components/chat/meri-artifact-download.js';
 import { useMeriArtifactDownload } from '../../components/chat/useMeriArtifactDownload.js';
+import { splitCitationMarkers } from '../../components/chat/citation-rendering.js';
 
 /**
  * MeriArtifactCanvas — the in-rail "ARTIFACT" panel content, replacing the
@@ -31,6 +32,7 @@ interface MeriArtifactCanvasProps {
 
 export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeaders }: MeriArtifactCanvasProps) {
   const [copied, setCopied] = useState(false);
+  const [activeCitationTitle, setActiveCitationTitle] = useState<string | null>(null);
 
   const title = artifact.title?.trim() || 'Document';
   const body = artifact.bodyText ?? '';
@@ -42,6 +44,13 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
   const docKind = artifact.kind ? DOC_KINDS[artifact.kind] : undefined;
   const isOfficeDoc = Boolean(docKind);
   const metaLabel = docKind?.label ?? 'MARKDOWN DOCUMENT';
+  const citationMap = useMemo(() => new Map((artifact.citations ?? []).map((citation) => [citation.n, citation])), [artifact.citations]);
+  const renderText = (text: string) => splitCitationMarkers(
+    text,
+    citationMap,
+    (citation) => setActiveCitationTitle(citation.title),
+    artifact.evidenceAccuracy,
+  );
 
   const slugify = () =>
     title
@@ -184,6 +193,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
         ) : null}
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px 20px' }}>
+        {activeCitationTitle ? <p role="status" style={{ overflowWrap: 'anywhere' }}>Source: {activeCitationTitle}</p> : null}
         <div
           style={{
             padding: '22px 20px',
@@ -195,11 +205,12 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
             color: '#344054',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
+            ...(artifact.evidenceAccuracy === 'enforce' ? { overflowWrap: 'anywhere' as const } : {}),
           }}
         >
-          {wordDocument ? <MeriWordArtifactPreview document={wordDocument} format={artifact.kind === 'pdf_document' ? 'PDF' : 'Word'} /> : previewUnavailable ? (
+          {wordDocument ? <MeriWordArtifactPreview document={wordDocument} format={artifact.kind === 'pdf_document' ? 'PDF' : 'Word'} renderText={renderText} /> : previewUnavailable ? (
             <p role="status">This document preview is unavailable. Download the Word or PDF file to view its content.</p>
-          ) : body || 'This document has no content yet.'}
+          ) : body ? renderText(body) : 'This document has no content yet.'}
         </div>
       </div>
     </div>

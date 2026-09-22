@@ -3,6 +3,7 @@
  * owns normalization and binary generation; this decoder only checks the stored
  * shape so a malformed/unfinished artifact cannot crash the canvas.
  */
+import type { ReactNode } from 'react';
 interface WordArtifactDocument {
   title: string;
   subtitle?: string | null;
@@ -60,30 +61,34 @@ export function meriWordArtifactText(document: WordArtifactDocument): string {
   ].join('\n\n');
 }
 
-export function MeriWordArtifactPreview({ document, format = 'Word' }: { document: WordArtifactDocument; format?: 'Word' | 'PDF' }) {
+export function MeriWordArtifactPreview({ document, format = 'Word', renderText = (text) => text }: {
+  document: WordArtifactDocument;
+  format?: 'Word' | 'PDF';
+  renderText?: (text: string) => ReactNode;
+}) {
   return (
     <article aria-label={`${format} document preview`}>
       <h1 style={{ margin: '0 0 12px', fontSize: 24, lineHeight: 1.25, color: '#101828', fontWeight: 700 }}>
-        {document.title}
+        {renderText(document.title)}
       </h1>
-      {document.subtitle ? <p style={{ margin: '0 0 20px', fontStyle: 'italic', color: '#667085' }}>{document.subtitle}</p> : null}
+      {document.subtitle ? <p style={{ margin: '0 0 20px', fontStyle: 'italic', color: '#667085' }}>{renderText(document.subtitle)}</p> : null}
       {document.sections.map((section, sectionIndex) => (
         <section key={sectionIndex} style={{ marginTop: 22 }}>
-          <h2 style={{ margin: '0 0 10px', fontSize: 16, lineHeight: 1.4, color: '#1C2E4A', fontWeight: 600 }}>{section.heading}</h2>
-          {(section.paragraphs ?? []).map((paragraph, index) => <p key={index} style={{ margin: '0 0 12px' }}>{paragraph}</p>)}
+          <h2 style={{ margin: '0 0 10px', fontSize: 16, lineHeight: 1.4, color: '#1C2E4A', fontWeight: 600 }}>{renderText(section.heading)}</h2>
+          {(section.paragraphs ?? []).map((paragraph, index) => <p key={index} style={{ margin: '0 0 12px' }}>{renderText(paragraph)}</p>)}
           {section.bullets?.length ? (
             <ul style={{ margin: '0 0 12px', paddingLeft: 22, listStyleType: 'disc' }}>
-              {section.bullets.map((bullet, index) => <li key={index} style={{ marginBottom: 6 }}>{bullet}</li>)}
+              {section.bullets.map((bullet, index) => <li key={index} style={{ marginBottom: 6 }}>{renderText(bullet)}</li>)}
             </ul>
           ) : null}
           {(section.tables ?? []).map((table, index) => (
             <div key={index} style={{ overflowX: 'auto', margin: '12px 0' }}>
               <table aria-label={`${section.heading} table ${index + 1}`} style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead><tr>{table.headers.map((header, column) => (
-                  <th key={column} scope="col" style={{ padding: 8, border: '1px solid #D0D5DD', background: '#EEF1F7', textAlign: 'left' }}>{header}</th>
+                  <th key={column} scope="col" style={{ padding: 8, border: '1px solid #D0D5DD', background: '#EEF1F7', textAlign: 'left' }}>{renderText(header)}</th>
                 ))}</tr></thead>
                 <tbody>{table.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, column) => (
-                  <td key={column} style={{ padding: 8, border: '1px solid #D0D5DD', verticalAlign: 'top' }}>{cell}</td>
+                  <td key={column} style={{ padding: 8, border: '1px solid #D0D5DD', verticalAlign: 'top' }}>{renderText(cell)}</td>
                 ))}</tr>)}</tbody>
               </table>
             </div>

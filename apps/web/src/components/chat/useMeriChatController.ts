@@ -151,7 +151,7 @@ type SseEvent =
   | { type: 'template'; template?: { heading: string; sections: string[] } }
   | { type: 'conflict'; conflict?: { title: string; detail: string } }
   | { type: 'sources'; sources?: Array<MeriSourceAttribution & { label?: string }> }
-  | { type: 'citations'; citations?: MeriCitation[] }
+  | { type: 'citations'; citations?: MeriCitation[]; evidenceAccuracy?: 'enforce' }
   | { type: 'grounding_statement'; statement?: string }
   | {
       type: 'verification';
@@ -2117,6 +2117,8 @@ export function useMeriChatController({
       let turnIntent: string | null = null;
       let turnTier: 'fast' | 'deep' | null = null;
       let turnRuntimeStatus: MeriRuntimeStatus | undefined;
+      let turnCitations: MeriCitation[] = [];
+      let turnEvidenceAccuracy: 'enforce' | undefined;
       let turnCompletionReceived = false;
       let accepted = false;
 
@@ -2352,10 +2354,20 @@ export function useMeriChatController({
                 }
               }
             } else if (event.type === 'citations') {
+              turnCitations = Array.isArray(event.citations) ? event.citations : [];
+              turnEvidenceAccuracy = event.evidenceAccuracy === 'enforce' ? 'enforce' : undefined;
               setChatMessageCitations(
                 assistantId,
-                Array.isArray(event.citations) ? event.citations : [],
+                turnCitations,
+                turnEvidenceAccuracy,
               );
+              setActiveArtifact((artifact) => artifact
+                ? {
+                    ...artifact,
+                    ...(turnCitations.length ? { citations: turnCitations } : {}),
+                    ...(turnEvidenceAccuracy ? { evidenceAccuracy: turnEvidenceAccuracy } : {}),
+                  }
+                : null);
             } else if (event.type === 'grounding_statement') {
               if (typeof event.statement === 'string' && event.statement.trim()) {
                 setChatMessageGroundingStatement(assistantId, event.statement);
@@ -2391,7 +2403,11 @@ export function useMeriChatController({
               } else if (event.artifact?.bodyText) {
                 const savedDocument = readMeriSavedDocumentArtifact(event.artifact);
                 if (savedDocument) addChatMessageDocumentArtifact(assistantId, savedDocument);
-                setActiveArtifact(event.artifact);
+                setActiveArtifact({
+                  ...event.artifact,
+                  ...(turnCitations.length ? { citations: turnCitations } : {}),
+                  ...(turnEvidenceAccuracy ? { evidenceAccuracy: turnEvidenceAccuracy } : {}),
+                });
               }
             } else if (event.type === 'research_offer') {
               // Server short-circuited a report-shaped ask; attach a one-click

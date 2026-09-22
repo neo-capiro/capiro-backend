@@ -2,9 +2,10 @@ import type { ReactNode } from 'react';
 import { meriArtifactDownloadFromUrl, type MeriArtifactAuthHeaders } from '../../components/chat/meri-artifact-download.js';
 import { useMeriArtifactDownload } from '../../components/chat/useMeriArtifactDownload.js';
 
-export function MeriArtifactDownloadLink({ href, children, apiBaseUrl, getAuthHeaders }: {
+export function MeriArtifactDownloadLink({ href, children, title, apiBaseUrl, getAuthHeaders }: {
   href?: string;
   children: ReactNode;
+  title?: string;
   apiBaseUrl: string;
   getAuthHeaders?: MeriArtifactAuthHeaders;
 }) {
@@ -13,7 +14,7 @@ export function MeriArtifactDownloadLink({ href, children, apiBaseUrl, getAuthHe
     artifactId: download?.artifactId, format: download?.format, apiBaseUrl, getAuthHeaders,
   });
   if (!download && href?.trimStart().toLowerCase().startsWith('sandbox:')) return <span>{children}</span>;
-  if (!download) return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+  if (!download) return <a href={href} title={title} target="_blank" rel="noopener noreferrer">{children}</a>;
   return (
     <span>
       <button

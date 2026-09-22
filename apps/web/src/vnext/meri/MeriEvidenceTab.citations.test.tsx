@@ -33,4 +33,18 @@ describe('stable citation markers in the Evidence inspector', () => {
     expect(onOpenSource).toHaveBeenCalledWith(sources[2], 2);
     expect(screen.queryByText('[1] Evidence page 6')).not.toBeInTheDocument();
   });
+
+  it('does not invent a positional marker for an unnumbered enforce source', () => {
+    const source = {
+      icon: 'File05' as const,
+      provider: 'CLIENT FILES',
+      title: 'Unnumbered appendix',
+      snippet: 'Context only',
+      date: 'RETRIEVED THIS TURN',
+      locator: 'APPENDIX',
+    };
+    render(<MeriEvidenceTab sources={[source]} verifyStats={[]} claims={[]} groundingCaveat={null} retrieval={null} evidenceAccuracy="enforce" />);
+    expect(screen.getByText('Unnumbered appendix')).toBeInTheDocument();
+    expect(screen.queryByText('[1] Unnumbered appendix')).not.toBeInTheDocument();
+  });
 });
