@@ -61,7 +61,7 @@ export function resolveJevConfig(env: CapabilityRolloutEnvironment): JevConfig {
   }
 
   return {
-    available: apiKeyPresent && !reasons.includes('moving_alias_or_invalid_model'),
+    available: apiKeyPresent && reasons.length === 0,
     reasons,
     apiKeyPresent,
     model,
