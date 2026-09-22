@@ -75,7 +75,7 @@ describe('MeriV3 clean evidence release', () => {
       citations,
       ledger,
     );
-    const later = numberMeriEvidenceCitations(
+    const { citations: later } = numberMeriEvidenceCitations(
       [
         {
           n: 1,

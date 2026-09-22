@@ -17,6 +17,8 @@ import {
   meriResearchSynthesisInstructions,
 } from '../retrieval/meri-research-director.js';
 import { appendMeriCoverageDisclosure } from '../retrieval/meri-retrieval-coverage.js';
+import { validateCitationMarkers } from '@capiro/shared';
+import { resolveEvidenceAccuracyMode } from '@capiro/meriv2-core';
 import { canonicalizeMeriCompanyResearchPlan } from '../retrieval/meri-retrieval-canonicalization.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
 import {
@@ -457,7 +459,11 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           const schemasExposedButUnused = (semantic?.exposedNames ?? []).filter(
             (name) => !modelToolSet.has(name),
           );
-          const reply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
+          const appendedReply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
+          const reply =
+            resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat') === 'enforce'
+              ? validateCitationMarkers(appendedReply, result.citations ?? []).cleanedText
+              : appendedReply;
           if (originalOnEvent && textEventSeen && !opts.signal?.aborted) {
             originalOnEvent({ type: 'text', text: reply });
           }

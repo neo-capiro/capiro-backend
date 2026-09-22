@@ -604,5 +604,6 @@ export function appendMeriCoverageDisclosure(
       'A required source was temporarily unavailable, so the answer may omit relevant records.';
   }
 
-  return `${reply.trim()}\n\n> **Coverage note:** ${note}`.trim();
+  const markerFreeNote = note.replace(/\[\d{1,3}\]/g, '');
+  return `${reply.trim()}\n\n> **Coverage note:** ${markerFreeNote}`.trim();
 }

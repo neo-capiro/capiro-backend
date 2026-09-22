@@ -2881,6 +2881,8 @@ export interface MeriCitation {
   type: string;
   /** Stable record identifier (best-effort) or '' when none is available. */
   id: string;
+  /** Deterministic fallback identity for sources that do not expose a record id. */
+  stableId?: string;
   /** Human-readable title. */
   title: string;
   /** Source URL when the record exposes one, else null. */
