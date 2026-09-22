@@ -11,6 +11,7 @@ const ctx: TenantContext = {
 
 type ToolHarness = {
   programElement: Record<string, jest.Mock>;
+  logger: { warn: jest.Mock };
   searchProgramElements(ctx: TenantContext, input: Record<string, unknown>): Promise<any>;
   getProgramElementDetail(ctx: TenantContext, input: Record<string, unknown>): Promise<any>;
   getPeBudgetTimeline(input: Record<string, unknown>): Promise<any>;
@@ -20,10 +21,44 @@ type ToolHarness = {
 function harness(programElement: Record<string, jest.Mock>): ToolHarness {
   const service = Object.create(MeriToolsService.prototype) as ToolHarness;
   service.programElement = programElement;
+  service.logger = { warn: jest.fn() };
   return service;
 }
 
 describe('MeriToolsService defense-budget model contract', () => {
+  const accuracyEnv = process.env;
+  afterEach(() => {
+    process.env = accuracyEnv;
+    jest.restoreAllMocks();
+  });
+
+  it('enforces canonical claim semantics and shadow logs once without changing output', async () => {
+    const programElement = {
+      listProgramElements: jest.fn().mockResolvedValue({
+        data: [{ peCode: '0604041F', latestCurrent: 319.2, latestCurrentFy: 2027,
+          latestCurrentStage: 'hacd', latestRequest: 300, latestRequestFy: 2027,
+          latestEnacted: null, latestEnactedFy: null, deltaPct: null }],
+        total: 1, page: 1, limit: 20,
+      }),
+    };
+    process.env = { ...accuracyEnv, MERI_EVIDENCE_ACCURACY_MODE: 'enforce',
+      MERI_EVIDENCE_ACCURACY_TENANTS: ctx.tenantId, MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' };
+    const enforced = await harness(programElement).searchProgramElements(ctx, {});
+    expect(enforced.data[0].currentFundingClaim).toMatchObject({
+      enactmentStatus: 'unknown', vehicleType: 'appropriation',
+      semantics: 'stage=HAC-D (appropriation vehicle) FY2027 $319.2M enactment=unknown source=unknown',
+    });
+
+    process.env = { ...accuracyEnv, MERI_EVIDENCE_ACCURACY_MODE: 'shadow',
+      MERI_EVIDENCE_ACCURACY_TENANTS: ctx.tenantId, MERI_EVIDENCE_ACCURACY_SURFACES: 'chat' };
+    const shadowService = harness(programElement);
+    const shadow = await shadowService.searchProgramElements(ctx, {});
+    expect(shadow.data[0].currentFundingClaim).not.toHaveProperty('enactmentStatus');
+    expect(shadowService.logger.warn).toHaveBeenCalledTimes(1);
+    expect(shadowService.logger.warn).toHaveBeenCalledWith('meri.evidence_accuracy.shadow', expect.objectContaining({
+      tool: 'search_program_elements', claims: 1, unknownEnactment: 1, withSource: 0,
+    }));
+  });
   it('search results use the shared noun and preserve a zero-dollar claim without guessing cycle', async () => {
     const service = harness({
       listProgramElements: jest.fn().mockResolvedValue({

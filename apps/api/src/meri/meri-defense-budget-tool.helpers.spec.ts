@@ -1,4 +1,5 @@
 import {
+  fundingClaimForOutput,
   fundingClaimsForModel,
   modelBudgetLineMetadata,
   noReportLanguageCoverageNote,
@@ -35,6 +36,24 @@ describe('modelBudgetLineMetadata', () => {
 });
 
 describe('fundingClaimsForModel', () => {
+  it('keeps legacy shape under off and adds exact semantics under enforce', () => {
+    const claim = searchFundingClaimForModel({ valueM: 319.2, fy: 2027, stage: 'hacd' })!;
+    expect(fundingClaimForOutput(claim, 'legacy')).toEqual({
+      value: 319.2,
+      fiscalYear: 2027,
+      stage: 'hacd',
+      stageLabel: 'HAC-D',
+      legislativeVehicle: 'appropriations',
+      cycleClass: 'unknown',
+      isProjection: false,
+      unit: 'USD millions',
+    });
+    expect(fundingClaimForOutput(claim, 'enforce')).toMatchObject({
+      enactmentStatus: 'unknown',
+      vehicleType: 'appropriation',
+      semantics: 'stage=HAC-D (appropriation vehicle) FY2027 $319.2M enactment=unknown source=unknown',
+    });
+  });
   it('labels historical, current, and request-only outyear rows without dropping zero', () => {
     const result = fundingClaimsForModel([
       { fy: 2026, request: 5, enacted: 0 },
@@ -97,9 +116,13 @@ describe('searchFundingClaimForModel', () => {
     });
   });
 
-  it('rejects malformed stages and non-finite money', () => {
+  it('rejects non-finite money and preserves unmapped stages as explicit unknown claims', () => {
     expect(searchFundingClaimForModel({ valueM: NaN, fy: 2027, stage: 'request' })).toBeNull();
-    expect(searchFundingClaimForModel({ valueM: 1, fy: 2027, stage: 'mystery' })).toBeNull();
+    expect(searchFundingClaimForModel({ valueM: 1, fy: 2027, stage: 'mystery' })).toMatchObject({
+      stage: 'none',
+      enactmentStatus: 'unknown',
+      vehicleType: 'unknown',
+    });
   });
 });
 

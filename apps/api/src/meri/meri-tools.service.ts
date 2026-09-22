@@ -38,6 +38,7 @@ import {
   type CommitteeCandidate,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { ActionRecommendationReadService } from '../intelligence/actions/action-recommendation-read.service.js';
@@ -106,6 +107,7 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { validateMeriWriteToolInput, type MeriJsonSchema } from './meri-write-tool-input.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
 import {
+  fundingClaimForOutput,
   fundingClaimsForModel,
   modelBudgetLineMetadata,
   reportLanguageNoteForModel,
@@ -2011,7 +2013,7 @@ export class MeriToolsService {
       case 'get_program_element':
         return this.getProgramElementDetail(ctx, input);
       case 'get_pe_budget_timeline':
-        return this.getPeBudgetTimeline(input);
+        return this.getPeBudgetTimeline(input, ctx);
       case 'get_pe_contractors':
         return this.getPeContractors(input);
       case 'get_pe_bills':
@@ -3942,6 +3944,7 @@ export class MeriToolsService {
   // ── Program Element (DoD budget) tools ──────────────────────────────
 
   private async searchProgramElements(ctx: TenantContext, input: Record<string, unknown>) {
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const q = optionalString(input, 'query', 240) ?? optionalString(input, 'q', 240);
     const service = optionalString(input, 'service', 60);
     const budgetActivity = optionalString(input, 'budgetActivity', 120);
@@ -4009,11 +4012,11 @@ export class MeriToolsService {
         // The finder has no trustworthy current-cycle FY. The shared claim is
         // still stage/vehicle labeled, but its cycleClass remains 'unknown'; the
         // model must call get_pe_budget_timeline before calling it current/outyear.
-        currentFundingClaim: searchFundingClaimForModel({
+        currentFundingClaim: fundingClaimForOutput(searchFundingClaimForModel({
           valueM: latestCurrent,
           fy: latestCurrentFy,
           stage: latestCurrentStage,
-        }),
+        }), accuracyMode === 'enforce' ? 'enforce' : 'legacy'),
         funding: buildSearchRowFundingForModel({
           latestCurrent,
           latestCurrentFy,
@@ -4027,6 +4030,23 @@ export class MeriToolsService {
       };
     });
 
+    if (accuracyMode === 'shadow') {
+      const shadowClaims = (result.data as FinderRowForModel[])
+        .map((row) => searchFundingClaimForModel({
+          valueM: row.latestCurrent,
+          fy: row.latestCurrentFy,
+          stage: row.latestCurrentStage,
+        }))
+        .filter((claim) => claim != null);
+      this.logger.warn('meri.evidence_accuracy.shadow', {
+        tool: 'search_program_elements',
+        peCode: null,
+        claims: shadowClaims.length,
+        unknownEnactment: shadowClaims.filter((claim) => claim.enactmentStatus === 'unknown').length,
+        withSource: shadowClaims.filter((claim) => claim.source != null).length,
+      });
+    }
+
     return {
       tool: 'search_program_elements',
       generatedAt: new Date().toISOString(),
@@ -4036,6 +4056,7 @@ export class MeriToolsService {
   }
 
   private async getProgramElementDetail(ctx: TenantContext, input: Record<string, unknown>) {
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const programElement = (await this.programElement.getProgramElement(peCode, ctx)) as Record<
       string,
@@ -4059,7 +4080,11 @@ export class MeriToolsService {
     const claims = fundingClaimsForModel(
       years,
       Number.isInteger(suppliedCurrentCycleFy) ? suppliedCurrentCycleFy : null,
+      accuracyMode === 'enforce' ? 'enforce' : 'legacy',
     );
+    if (accuracyMode === 'shadow') {
+      this.logBudgetSemanticsShadow('get_program_element', peCode, claims.years as unknown[]);
+    }
     return {
       tool: 'get_program_element',
       generatedAt: new Date().toISOString(),
@@ -4070,7 +4095,8 @@ export class MeriToolsService {
     };
   }
 
-  private async getPeBudgetTimeline(input: Record<string, unknown>) {
+  private async getPeBudgetTimeline(input: Record<string, unknown>, ctx?: TenantContext) {
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx?.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const timeline = await this.programElement.getTimeline(peCode);
     const identity = modelBudgetLineMetadata({
@@ -4079,7 +4105,14 @@ export class MeriToolsService {
       budgetActivity: timeline.budgetActivity,
       lineType: (timeline as { lineType?: string | null }).lineType ?? null,
     });
-    const claims = fundingClaimsForModel(timeline.years, timeline.currentCycleFy);
+    const claims = fundingClaimsForModel(
+      timeline.years,
+      timeline.currentCycleFy,
+      accuracyMode === 'enforce' ? 'enforce' : 'legacy',
+    );
+    if (accuracyMode === 'shadow') {
+      this.logBudgetSemanticsShadow('get_pe_budget_timeline', peCode, timeline.years as unknown[]);
+    }
     return {
       tool: 'get_pe_budget_timeline',
       generatedAt: new Date().toISOString(),
@@ -4089,6 +4122,23 @@ export class MeriToolsService {
       currentFundingClaim: claims.currentFundingClaim,
       years: claims.years,
     };
+  }
+
+  private logBudgetSemanticsShadow(
+    tool: string,
+    peCode: string,
+    years: unknown[],
+  ): void {
+    const claims = years
+      .map((year) => (year as { fundingClaim?: unknown }).fundingClaim)
+      .filter((claim): claim is { enactmentStatus?: string; source?: unknown } => claim != null);
+    this.logger.warn('meri.evidence_accuracy.shadow', {
+      tool,
+      peCode,
+      claims: claims.length,
+      unknownEnactment: claims.filter((claim) => claim.enactmentStatus === 'unknown').length,
+      withSource: claims.filter((claim) => claim.source != null).length,
+    });
   }
 
   private async getPeReportLanguage(input: Record<string, unknown>) {

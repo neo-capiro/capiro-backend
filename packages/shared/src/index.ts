@@ -2281,7 +2281,10 @@ export interface ModelFundingInput {
  * as a reduction, an appropriations mark can never be attached to the NDAA, and
  * an outyear projection can never be quoted as "the request".
  */
-export function renderPeFundingForModel(input: ModelFundingInput): string {
+export function renderPeFundingForModel(
+  input: ModelFundingInput,
+  options?: { evidenceAccuracy?: boolean },
+): string {
   const head = [
     input.peCode,
     input.title ? `— ${input.title}` : '',
@@ -2379,6 +2382,11 @@ export function renderPeFundingForModel(input: ModelFundingInput): string {
   lines.push(
     '- Rules: authorization figures (HASC/SASC/NDAA conference) set policy and ceilings; appropriations figures (HAC-D/SAC-D/appropriations conference/enacted) provide the money — never present them as one series, and never attach one vehicle’s figure to the other’s bill. An OUTYEAR figure is an FYDP projection, never “the request”. The absence of a mark is not agreement with the request.',
   );
+  if (options?.evidenceAccuracy) {
+    lines.push(
+      '- Enactment rules: A mark, request, or conference position is NOT enacted funding; enactmentStatus is authoritative. unknown means the data does not establish enactment — say so.',
+    );
+  }
   return lines.join('\n');
 }
 

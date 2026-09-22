@@ -9,6 +9,7 @@ import {
   currentCycleFyPreservingZero,
   partitionContractorEvidence,
   type FundingClaim,
+  type FundingClaimSource,
   type FundingClaimStage,
   type MissingMarkStatus,
 } from '@capiro/shared/funding-claim';
@@ -22,18 +23,26 @@ export {
 };
 export type { FundingClaim, FundingClaimStage, MissingMarkStatus };
 
+export interface FundingClaimProvenance {
+  originalUnit: FundingClaim['originalUnit'];
+  originalValue: number | null;
+  source: FundingClaimSource;
+}
+
 /** Promote ladder pick + year context into a FundingClaim. */
 export function claimForYearLadder(
   values: FundingStageValues,
   fiscalYear: number,
   currentCycleFy: number | null,
+  provenance?: FundingClaimProvenance,
 ): FundingClaim {
   const pick = currentFunding(values);
-  return claimFromLadderPick({
+  return buildFundingClaim({
     value: pick.value,
-    stage: pick.stage,
+    stage: pick.stage === 'conference' ? 'appropriations_conference' : pick.stage,
     fiscalYear,
     currentCycleFy,
+    ...(provenance ?? {}),
   });
 }
 
