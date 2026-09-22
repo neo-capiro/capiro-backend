@@ -747,6 +747,32 @@ export const configSchema = z.object({
   // reviewed static baseline; enforce requires a verified tenant-published pack
   // and fails closed when it cannot be loaded. A code deploy never arms it.
   MERI_POLICY_PACK_SOURCE: z.enum(['off', 'shadow', 'enforce']).default('off'),
+  // Stage 0 evidence-accuracy rollout. Effective mode additionally requires
+  // canonical tenant and assurance-surface enrollment.
+  MERI_EVIDENCE_ACCURACY_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
+  MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
+
+  // Stage 1 claim inventory. Enforce remains shadow-only until a later stage.
+  MERI_CLAIM_ASSESSMENT_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_CLAIM_ASSESSMENT_TENANTS: z.string().optional(),
+  MERI_CLAIM_ASSESSMENT_SURFACES: z.string().optional(),
+
+  // Stage 1d automatic correction control. Replay-only; no live application caller.
+  MERI_AUTO_CORRECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_AUTO_CORRECTION_TENANTS: z.string().optional(),
+  MERI_AUTO_CORRECTION_SURFACES: z.string().optional(),
+
+  // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
+  TYPESAFE_API_KEY: z.string().min(1).optional(),
+  MERI_JEV_MODEL: z.string().optional(),
+  MERI_JEV_TIMEOUT_MS: z.string().optional(),
+  MERI_JEV_MAX_ATTEMPTS: z.string().optional(),
+  MERI_JEV_PROVIDER_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_JEV_PROVIDER_TENANTS: z.string().optional(),
+  MERI_JEV_PROVIDER_SURFACES: z.string().optional(),
+  MERI_CHAT_EVIDENCE_JUDGE: z.enum(['llm', 'jev', 'paired', 'cascade']).optional(),
+  MERI_JEV_TASKS: z.string().optional(),
 
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the

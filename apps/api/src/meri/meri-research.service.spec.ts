@@ -171,7 +171,7 @@ function makeAiCredentials() {
  * resolve to minimal shapes. findFirst returns the session (for ensureSession);
  * create returns ids; update is a no-op.
  */
-function makePrisma() {
+function makePrisma(capturedArtifacts?: Array<Record<string, any>>) {
   let session = { ...SESSION };
   const tx = {
     clioResearchSession: {
@@ -186,7 +186,10 @@ function makePrisma() {
       create: async () => ({ id: 'conv-1' }),
     },
     clioArtifact: {
-      create: async () => ({ id: 'artifact-1' }),
+      create: async ({ data }: any) => {
+        capturedArtifacts?.push(data);
+        return { id: 'artifact-1' };
+      },
       findFirst: async () => null,
     },
     client: {
@@ -334,6 +337,61 @@ describe('MeriResearchService — forced synthesis', () => {
 
     // 5. A synthesize phase was announced.
     expect(events.some((e) => e.type === 'phase' && e.phase === 'synthesize')).toBe(true);
+  });
+
+  it.each([
+    ['off', 'Supported prose with an orphan [53].'],
+    ['enforce', 'Supported prose with an orphan .'],
+  ])('persists FORM A markers according to %s mode', async (mode, expected) => {
+    const prior = {
+      mode: process.env.MERI_EVIDENCE_ACCURACY_MODE,
+      tenants: process.env.MERI_EVIDENCE_ACCURACY_TENANTS,
+      surfaces: process.env.MERI_EVIDENCE_ACCURACY_SURFACES,
+    };
+    const tenantId = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_EVIDENCE_ACCURACY_MODE = mode;
+    process.env.MERI_EVIDENCE_ACCURACY_TENANTS = tenantId;
+    process.env.MERI_EVIDENCE_ACCURACY_SURFACES = 'research';
+    const artifacts: Array<Record<string, any>> = [];
+    fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+      return okResponse(sseBody(proseRound('# Findings\n\nSupported prose with an orphan [53].')));
+    }) as unknown as jest.Mock;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new MeriResearchService(
+      makePrisma(artifacts),
+      makeConfig(),
+      makeTools(),
+      makeAiCredentials(),
+      makeReviews(),
+    );
+    const logger = { warn: jest.fn() };
+    Object.assign(svc as object, { logger });
+
+    try {
+      await svc.streamResearch({ ...CTX, tenantId } as TenantContext, 'sess-1', { write: jest.fn() });
+      expect(artifacts[0]?.bodyText).toContain(expected);
+      if (mode === 'off') {
+        expect(logger.warn).not.toHaveBeenCalledWith('meri.citation_integrity', expect.anything());
+      } else {
+        expect(logger.warn).toHaveBeenCalledWith('meri.citation_integrity', {
+          conversationId: null,
+          turnId: 'sess-1',
+          surface: 'research_report',
+          dropped: [53],
+          registered: 0,
+          mode: 'enforce',
+        });
+      }
+    } finally {
+      if (prior.mode === undefined) delete process.env.MERI_EVIDENCE_ACCURACY_MODE;
+      else process.env.MERI_EVIDENCE_ACCURACY_MODE = prior.mode;
+      if (prior.tenants === undefined) delete process.env.MERI_EVIDENCE_ACCURACY_TENANTS;
+      else process.env.MERI_EVIDENCE_ACCURACY_TENANTS = prior.tenants;
+      if (prior.surfaces === undefined) delete process.env.MERI_EVIDENCE_ACCURACY_SURFACES;
+      else process.env.MERI_EVIDENCE_ACCURACY_SURFACES = prior.surfaces;
+    }
   });
 
   it('strips unresolved FORM B citation tokens from the delivered report, keeping valid ones', async () => {

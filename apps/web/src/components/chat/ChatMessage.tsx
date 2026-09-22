@@ -1,4 +1,4 @@
-import { Children, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Alert, Drawer, Tag, Tooltip, Typography } from 'antd';
 import { ExportOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
@@ -14,12 +14,14 @@ import type {
 import { attachmentKindIcon, truncateFilenameMiddle } from './ChatInput.js';
 import meriBubbleImage from '../../assets/chat/meri-bubble.png';
 import './meri-source-strip.css';
+import { accuracyLinkPresentation, injectCitationMarkers, type EvidenceAccuracy } from './citation-rendering.js';
 
 interface ChatMessageProps {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
   citations?: MeriCitation[];
+  evidenceAccuracy?: EvidenceAccuracy;
   verification?: MeriVerification;
   groundingCaveat?: GroundingCaveat;
   attachments?: ChatMessageAttachment[];
@@ -40,6 +42,7 @@ export function ChatMessage({
   content,
   isStreaming,
   citations,
+  evidenceAccuracy,
   verification,
   groundingCaveat,
   attachments,
@@ -73,8 +76,8 @@ export function ChatMessage({
   // [N] citation markers are turned into clickable chips inside every text node so
   // the click-to-open-source behavior is preserved across all block types.
   const components = useMemo<Components>(
-    () => buildMarkdownComponents(citationMap, setActiveCitation),
-    [citationMap],
+    () => buildMarkdownComponents(citationMap, setActiveCitation, evidenceAccuracy),
+    [citationMap, evidenceAccuracy],
   );
 
   return (
@@ -105,7 +108,7 @@ export function ChatMessage({
         {isUser ? (
           <span className="chat-msg-text">{content}</span>
         ) : (
-          <div className="chat-msg-markdown">
+          <div className={`chat-msg-markdown${evidenceAccuracy === 'enforce' ? ' chat-msg-markdown--accuracy' : ''}`}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeSanitize]}
@@ -292,98 +295,47 @@ function citationSourceLabel(citation: MeriCitation): string {
  * real citation) with clickable chips. Non-string children pass through
  * unchanged so nested formatting (bold, links) is preserved.
  */
-function injectCitations(
-  children: ReactNode,
-  citationMap: Map<number, MeriCitation>,
-  onOpen: (c: MeriCitation) => void,
-): ReactNode {
-  if (citationMap.size === 0) return children;
-  return Children.map(children, (child) => {
-    if (typeof child === 'string') {
-      return splitCitations(child, citationMap, onOpen);
-    }
-    return child;
-  });
-}
-
-function splitCitations(
-  text: string,
-  citationMap: Map<number, MeriCitation>,
-  onOpen: (c: MeriCitation) => void,
-): ReactNode[] {
-  const parts: ReactNode[] = [];
-  const re = /\[(\d{1,3})\]/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  let key = 0;
-  while ((m = re.exec(text)) !== null) {
-    const n = Number(m[1]);
-    const citation = citationMap.get(n);
-    if (!citation) continue;
-    if (m.index > last) parts.push(text.slice(last, m.index));
-    parts.push(
-      <button
-        key={`cite-${key++}`}
-        type="button"
-        className="chat-citation"
-        data-cite={n}
-        title={`View source ${n}`}
-        onClick={() => onOpen(citation)}
-      >
-        [{n}]
-      </button>,
-    );
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts.length ? parts : [text];
-}
-
 /** Recursively inject citations into a node's children for block elements. */
 function kids(
   children: ReactNode,
   citationMap: Map<number, MeriCitation>,
   onOpen: (c: MeriCitation) => void,
+  evidenceAccuracy?: EvidenceAccuracy,
 ): ReactNode {
-  return injectCitations(children, citationMap, onOpen);
+  return injectCitationMarkers(children, citationMap, onOpen, evidenceAccuracy);
 }
 
 function buildMarkdownComponents(
   citationMap: Map<number, MeriCitation>,
   onOpen: (c: MeriCitation) => void,
+  evidenceAccuracy?: EvidenceAccuracy,
 ): Components {
+  const renderKids = (children: ReactNode) => kids(children, citationMap, onOpen, evidenceAccuracy);
   return {
-    p: ({ children }) => <p className="chat-md-p">{kids(children, citationMap, onOpen)}</p>,
-    li: ({ children }) => <li>{kids(children, citationMap, onOpen)}</li>,
+    p: ({ children }) => <p className="chat-md-p">{renderKids(children)}</p>,
+    li: ({ children }) => <li>{renderKids(children)}</li>,
     h1: ({ children }) => (
-      <div className="chat-md-h chat-md-h1">{kids(children, citationMap, onOpen)}</div>
+      <div className="chat-md-h chat-md-h1">{renderKids(children)}</div>
     ),
     h2: ({ children }) => (
-      <div className="chat-md-h chat-md-h2">{kids(children, citationMap, onOpen)}</div>
+      <div className="chat-md-h chat-md-h2">{renderKids(children)}</div>
     ),
     h3: ({ children }) => (
-      <div className="chat-md-h chat-md-h3">{kids(children, citationMap, onOpen)}</div>
+      <div className="chat-md-h chat-md-h3">{renderKids(children)}</div>
     ),
-    h4: ({ children }) => (
-      <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>
-    ),
-    h5: ({ children }) => (
-      <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>
-    ),
-    h6: ({ children }) => (
-      <div className="chat-md-h chat-md-h4">{kids(children, citationMap, onOpen)}</div>
-    ),
+    h4: ({ children }) => <div className="chat-md-h chat-md-h4">{renderKids(children)}</div>,
+    h5: ({ children }) => <div className="chat-md-h chat-md-h4">{renderKids(children)}</div>,
+    h6: ({ children }) => <div className="chat-md-h chat-md-h4">{renderKids(children)}</div>,
     ul: ({ children }) => <ul className="chat-md-list">{children}</ul>,
     ol: ({ children }) => <ol className="chat-md-list">{children}</ol>,
     hr: () => <hr className="chat-md-hr" />,
     blockquote: ({ children }) => (
-      <blockquote className="chat-md-quote">{kids(children, citationMap, onOpen)}</blockquote>
+      <blockquote className="chat-md-quote">{renderKids(children)}</blockquote>
     ),
-    a: ({ href, children }) => (
-      <a href={href} target="_blank" rel="noopener noreferrer">
-        {children}
-      </a>
-    ),
+    a: ({ href, children }) => {
+      const presentation = accuracyLinkPresentation(href, children, evidenceAccuracy);
+      return <a href={href} title={presentation.title} target="_blank" rel="noopener noreferrer">{presentation.children}</a>;
+    },
     code: ({ children, className }) => {
       // Block code carries a language- className; inline code does not.
       const isBlock = typeof className === 'string' && className.includes('language-');
@@ -399,9 +351,9 @@ function buildMarkdownComponents(
     thead: ({ children }) => <thead>{children}</thead>,
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => <tr>{children}</tr>,
-    th: ({ children }) => <th>{kids(children, citationMap, onOpen)}</th>,
-    td: ({ children }) => <td>{kids(children, citationMap, onOpen)}</td>,
-    strong: ({ children }) => <strong>{kids(children, citationMap, onOpen)}</strong>,
-    em: ({ children }) => <em>{kids(children, citationMap, onOpen)}</em>,
+    th: ({ children }) => <th>{renderKids(children)}</th>,
+    td: ({ children }) => <td>{renderKids(children)}</td>,
+    strong: ({ children }) => <strong>{renderKids(children)}</strong>,
+    em: ({ children }) => <em>{renderKids(children)}</em>,
   };
 }

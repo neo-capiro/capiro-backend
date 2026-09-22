@@ -206,6 +206,15 @@ describe('MeriArtifactCanvas Word preview', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  test('injects registered markers and strips unresolved markers only for enforce artifacts', () => {
+    const citation = { n: 6, type: 'file', id: 'file-6', title: 'Evidence page 6', url: null, snippet: null, tool: 'open_file' };
+    const { rerender } = render(<MeriArtifactCanvas artifact={{ kind: 'markdown_document', bodyText: 'Supported [6] and missing [53].', citations: [citation], evidenceAccuracy: 'enforce' }} onClose={vi.fn()} />);
+    expect(screen.getByRole('button', { name: '[6]' })).toBeVisible();
+    expect(screen.queryByText(/\[53\]/)).not.toBeInTheDocument();
+    rerender(<MeriArtifactCanvas artifact={{ kind: 'markdown_document', bodyText: 'Legacy [53].', citations: [citation] }} onClose={vi.fn()} />);
+    expect(screen.getByText('Legacy [53].')).toBeVisible();
+  });
+
   test('renders embedded PNGs and escapes document text rather than executing HTML or remote images', () => {
     const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6GQAAAAASUVORK5CYII=';
     const bodyText = JSON.stringify({

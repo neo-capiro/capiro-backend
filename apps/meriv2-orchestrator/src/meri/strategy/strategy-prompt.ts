@@ -5,6 +5,7 @@ import {
   resolveGovernmentAffairsOperatingFrame,
   truncateToTokens,
 } from '@capiro/meriv2-core';
+import { renderScheduleConstraints, type ScheduleDeadlineFact } from '@capiro/shared';
 import type { SystemPromptParts } from '../prompt-cache.helpers.js';
 
 /*
@@ -108,6 +109,7 @@ export interface StrategyDraftInput {
   reference?: ReferenceGrounding;
   stewardFacts?: StewardFactLite[];
   stewardHealth?: StewardHealth;
+  scheduleDeadlines?: ScheduleDeadlineFact[];
 }
 
 export interface StrategyStateNode {
@@ -746,6 +748,9 @@ export function composeDraftSystemPrompt(
       : '# Goal\n(none stated — do not invent one; propose a discovery step or generic options and identify the required client decision)',
     input.meriContext ? `# Extra context from the user\n${input.meriContext}` : '',
     input.targetDate ? `# Target outcome date\n${input.targetDate}` : '',
+    input.scheduleDeadlines?.length
+      ? renderScheduleConstraints(input.fiscal?.today ?? '', input.scheduleDeadlines)
+      : '',
     `# Fiscal calendar\n${renderFiscal(input.fiscal)}`,
     `# Firm phases\n${renderFirmPhases(input.firmPhases)}`,
     `# Reference calendars\n${renderReference(input.reference)}`,

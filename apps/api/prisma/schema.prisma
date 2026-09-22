@@ -7916,6 +7916,7 @@ model SyncRun {
   errorCount   Int       @default(0) @map("error_count")
   status       String    @default("running")
   errorMessage String?   @map("error_message")
+  stats        Json      @default("{}") @map("stats_jsonb")
 
   @@index([source, startedAt(sort: Desc)], map: "sync_run_source_started_at_idx")
   @@map("sync_run")
@@ -8021,6 +8022,13 @@ model FederalAward {
   actionDate                     DateTime? @map("action_date") @db.Date
   awardedAt                      DateTime? @map("awarded_at") @db.Timestamptz(6)
   raw                            Json      @default("{}") @map("raw_jsonb")
+  baseAwardSignedDate            DateTime? @map("base_award_signed_date") @db.Date
+  latestActionDate               DateTime? @map("latest_action_date") @db.Date
+  sourceLastModifiedDate         DateTime? @map("source_last_modified_date") @db.Timestamptz(6)
+  popStartDate                   DateTime? @map("pop_start_date") @db.Date
+  popEndDate                     DateTime? @map("pop_end_date") @db.Date
+  dateSemanticsVersion           Int?      @map("date_semantics_version")
+  sourceRecord                   Json?     @map("source_record_jsonb")
   lastSyncedAt                   DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
 
   @@index([peCode], map: "federal_award_pe_code_idx")
@@ -11411,6 +11419,8 @@ model BudgetLineRelationship {
   /// Human-readable evidence ("P-40 'Related PEs' lists 0604011A").
   evidence     String   @db.Text
   evidenceJson Json     @default("{}") @map("evidence_jsonb")
+  transitionFyFrom Int? @map("transition_fy_from")
+  transitionFyTo   Int? @map("transition_fy_to")
   derivedBy    String   @map("derived_by") @db.VarChar(48)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

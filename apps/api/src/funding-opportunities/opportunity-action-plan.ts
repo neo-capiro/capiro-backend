@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { proposeFeasibleSchedule } from '@capiro/shared';
 import type { InboxSource } from './funding-opportunity-access.js';
 import { FORECAST_INBOX_SOURCE } from './funding-opportunity-access.js';
 import type { V2ActionIntent } from './funding-opportunity-v2-workflow.service.js';
@@ -149,6 +150,8 @@ export interface ActionPlan {
   /** Stable over the actions. Same inputs, same plan, same hash. */
   fingerprint: string;
   generatedAt: string;
+  feasibility?: { feasible: boolean; reason: string | null };
+  proposedSchedule?: ReturnType<typeof proposeFeasibleSchedule>['milestones'];
 }
 
 /**
@@ -201,6 +204,8 @@ export interface PlanInput {
   hasVehicleAccess: boolean;
   /** The caller's clock. There is deliberately no `new Date()` in this module. */
   asOf: Date;
+  /** Effective T1 mode supplied by the caller; omitted remains legacy/off. */
+  evidenceAccuracyMode?: 'off' | 'shadow' | 'enforce';
 }
 
 /**
@@ -637,6 +642,23 @@ function finish(input: PlanInput, stage: PlanStage, actions: ProposedAction[]): 
     return byTitle !== 0 ? byTitle : a.id.localeCompare(b.id);
   });
 
+  const schedule =
+    input.evidenceAccuracyMode === 'enforce' && input.responseDeadline
+      ? proposeFeasibleSchedule({
+          asOf: input.asOf.toISOString(),
+          deadline: input.responseDeadline,
+          offsets: ordered
+            .filter((action) => action.dueDate != null)
+            .map((action) => ({
+              id: action.id,
+              label: action.title,
+              daysBefore: Math.max(
+                0,
+                Math.round((Date.parse(input.responseDeadline!) - Date.parse(action.dueDate!)) / 86_400_000),
+              ),
+            })),
+        })
+      : null;
   return {
     source: input.source,
     sourceRecordId: input.sourceRecordId,
@@ -664,6 +686,12 @@ function finish(input: PlanInput, stage: PlanStage, actions: ProposedAction[]): 
       )
       .digest('hex'),
     generatedAt: input.asOf.toISOString(),
+    ...(schedule
+      ? {
+          feasibility: { feasible: schedule.feasible, reason: schedule.reason },
+          proposedSchedule: schedule.milestones,
+        }
+      : {}),
   };
 }
 

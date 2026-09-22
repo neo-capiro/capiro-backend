@@ -17,6 +17,8 @@ import {
   meriResearchSynthesisInstructions,
 } from '../retrieval/meri-research-director.js';
 import { appendMeriCoverageDisclosure } from '../retrieval/meri-retrieval-coverage.js';
+import { validateCitationMarkers } from '@capiro/shared';
+import { resolveEvidenceAccuracyMode } from '@capiro/meriv2-core';
 import { canonicalizeMeriCompanyResearchPlan } from '../retrieval/meri-retrieval-canonicalization.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
 import {
@@ -139,6 +141,16 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
     };
   }
   return schema;
+}
+
+export function finalizeMeriRetrievalReply(
+  reply: string,
+  citations: Parameters<typeof validateCitationMarkers>[1],
+  mode: ReturnType<typeof resolveEvidenceAccuracyMode>,
+  appendDisclosure: (text: string) => string,
+): string {
+  const appended = appendDisclosure(reply);
+  return mode === 'enforce' ? validateCitationMarkers(appended, citations).cleanedText : appended;
 }
 
 /**
@@ -442,6 +454,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
                   forcedFirstTool: 'research_federal_market_strategy',
                   criticInstructions: meriResearchCriticInstructions(researchDirectorPlan),
                   synthesisInstructions: meriResearchSynthesisInstructions(researchDirectorPlan),
+                  scheduleMode: resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'research'),
+                  asOf: new Date().toISOString(),
                 },
                 runAssistant,
               )
@@ -457,7 +471,12 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           const schemasExposedButUnused = (semantic?.exposedNames ?? []).filter(
             (name) => !modelToolSet.has(name),
           );
-          const reply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
+          const reply = finalizeMeriRetrievalReply(
+            result.reply,
+            result.citations ?? [],
+            resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat'),
+            (text) => appendMeriCoverageDisclosure(text, retrievalPlan, coverage),
+          );
           if (originalOnEvent && textEventSeen && !opts.signal?.aborted) {
             originalOnEvent({ type: 'text', text: reply });
           }

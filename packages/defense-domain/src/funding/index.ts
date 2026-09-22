@@ -56,6 +56,26 @@ export interface FundingClaim {
   readonly cycleClass: FundingCycleClass;
   readonly isProjection: boolean;
   readonly unit: 'USD millions';
+  readonly enactmentStatus?: 'enacted' | 'not_enacted' | 'unknown';
+  readonly vehicleType?: 'budget_request' | 'authorization' | 'appropriation' | 'unknown';
+}
+
+export function deriveEnactmentStatus(
+  stage: FundingClaimStage,
+  cycleClass: FundingCycleClass,
+): NonNullable<FundingClaim['enactmentStatus']> {
+  if (stage === 'enacted') return 'enacted';
+  if (stage === 'none' || cycleClass === 'historical') return 'unknown';
+  return cycleClass === 'current' || cycleClass === 'outyear' ? 'not_enacted' : 'unknown';
+}
+
+export function deriveVehicleType(
+  stage: FundingClaimStage,
+): NonNullable<FundingClaim['vehicleType']> {
+  if (stage === 'request') return 'budget_request';
+  if (stage === 'hasc' || stage === 'sasc' || stage === 'ndaa_conference') return 'authorization';
+  if (stage === 'hacd' || stage === 'sacd' || stage === 'appropriations_conference' || stage === 'enacted') return 'appropriation';
+  return 'unknown';
 }
 
 export type MissingMarkStatus =
@@ -94,6 +114,8 @@ export function buildFundingClaim(input: {
     cycleClass,
     isProjection: cycleClass === 'outyear',
     unit: 'USD millions',
+    enactmentStatus: deriveEnactmentStatus(input.stage, cycleClass),
+    vehicleType: deriveVehicleType(input.stage),
   };
 }
 

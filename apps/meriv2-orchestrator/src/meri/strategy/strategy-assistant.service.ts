@@ -4,9 +4,10 @@ import {
   assuranceMetric,
   assuranceReleaseArmedFor,
   metricLogLine,
+  resolveEvidenceAccuracyMode,
   type MeriContext,
 } from '@capiro/meriv2-core';
-import { recordAiUsageEvent } from '@capiro/shared';
+import { collectScheduleDeadlines, recordAiUsageEvent } from '@capiro/shared';
 import { assessStrategyDocumentClaims } from './strategy-assurance.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import {
@@ -125,6 +126,8 @@ export class StrategyAssistantService {
   }
 
   async draft(ctx: MeriContext, input: StrategyDraftInput, opts: StrategyDraftOptions = {}) {
+    const enforcePastDates =
+      resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'strategy') === 'enforce';
     const pack = await this.pack.compile({
       ctx,
       clientId: input.clientId,
@@ -138,8 +141,11 @@ export class StrategyAssistantService {
     // grounding kernel, shared across ALL strategy operations, not just this
     // one), so repeats within this call — and calls from other tenants/turns
     // within the ~5-minute cache TTL — reuse that prefix.
+    const promptInput = enforcePastDates
+      ? { ...input, scheduleDeadlines: collectScheduleDeadlines(pack.text) }
+      : input;
     const systemParts = composeDraftSystemPrompt(
-      input,
+      promptInput,
       pack.text,
       healthNoteFrom(pack.health, input.stewardHealth),
     );
@@ -204,7 +210,7 @@ export class StrategyAssistantService {
       const rawNodeCount = Array.isArray(rawNodes) ? rawNodes.length : 0;
       const attemptNodes = sanitizeDraftNodes(rawNodes);
       let verifierInput = this.draftVerifierInput(input, attemptNodes);
-      let check = verifyPlan(verifierInput);
+      let check = verifyPlan(verifierInput, { enforcePastDates });
       // Phase 5 §4.2: before spending another model repair attempt, deterministically
       // correct simple dependency-order violations (dep-order / gate-before-dependents)
       // — a pure retiming pass, never a model round. Refuses on a cycle (no valid
@@ -216,7 +222,7 @@ export class StrategyAssistantService {
         if (!repair.refused && repair.changedIds.length > 0) {
           applyRepairedDates(attemptNodes, repair.nodes);
           verifierInput = this.draftVerifierInput(input, attemptNodes);
-          check = verifyPlan(verifierInput);
+          check = verifyPlan(verifierInput, { enforcePastDates });
           this.logger.log(
             `strategy draft attempt ${attempt + 1}: deterministic repair retimed ` +
               `${repair.changedIds.length} node(s), ${check.errorCount} error(s) remain`,

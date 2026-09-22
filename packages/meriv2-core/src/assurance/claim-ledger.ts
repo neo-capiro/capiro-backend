@@ -67,7 +67,7 @@ export interface ClaimLedgerOptions {
   highRiskCategories?: readonly string[];
 }
 
-const DEFAULT_HIGH_RISK_CATEGORIES = new Set<string>([
+export const DEFAULT_HIGH_RISK_CATEGORIES: ReadonlySet<string> = new Set<string>([
   'bill_status',
   'member_vote',
   'current_role',
@@ -76,6 +76,7 @@ const DEFAULT_HIGH_RISK_CATEGORIES = new Set<string>([
   'enactment',
   'report_language',
   'regulatory_deadline',
+  'schedule_commitment',
   'regulatory_stage',
   'district_representation',
   'grant_award',

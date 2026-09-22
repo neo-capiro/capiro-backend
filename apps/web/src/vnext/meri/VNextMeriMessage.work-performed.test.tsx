@@ -86,6 +86,14 @@ function props(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Meri message work performed', () => {
+  test('strips unresolved markers only for enforce messages', () => {
+    const { rerender } = render(<VNextMeriMessage {...props({ message: message({ content: 'Verified [6] and missing [53].', citations: [{ n: 6, type: 'file', id: '6', title: 'Page 6', url: null, snippet: null, tool: 'open_file' }], evidenceAccuracy: 'enforce' }) })} />);
+    expect(screen.getByRole('button', { name: '[6]' })).toBeTruthy();
+    expect(screen.queryByText(/\[53\]/)).toBeNull();
+    rerender(<VNextMeriMessage {...props({ message: message({ content: 'Legacy [53].' }) })} />);
+    expect(screen.getByText('Legacy [53].')).toBeTruthy();
+  });
+
   test.each([
     ['', 'Word', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
     ['?format=pdf', 'PDF', 'application/pdf', 'pdf'],

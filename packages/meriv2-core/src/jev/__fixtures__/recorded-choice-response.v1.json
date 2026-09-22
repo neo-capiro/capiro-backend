@@ -1,0 +1,23 @@
+{
+  "recording": "synthetic-schema-derived — replace with a live recording",
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "claim_support": {
+        "type": "choice",
+        "choice": "supported",
+        "probabilities": {
+          "supported": 0.7,
+          "contradicted": 0.1,
+          "insufficient_evidence": 0.15,
+          "conflicting_evidence": 0.05
+        },
+        "confidence": 0.6
+      }
+    },
+    "usage": {
+      "input_tokens": 296,
+      "output_tokens": 20
+    }
+  }
+}

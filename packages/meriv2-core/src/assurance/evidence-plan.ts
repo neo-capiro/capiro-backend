@@ -28,6 +28,7 @@ export type ClaimCategory =
   | 'enactment'
   | 'report_language'
   | 'regulatory_deadline'
+  | 'schedule_commitment'
   | 'regulatory_stage'
   | 'district_representation'
   | 'grant_opportunity'
@@ -208,6 +209,7 @@ const REQUIREMENTS: Readonly<Record<ClaimCategory, readonly EvidenceRequirement[
       ['docketId', 'deadline', 'timezone', 'stage', 'asOf'],
     ),
   ],
+  schedule_commitment: [],
   regulatory_stage: [
     requirement(
       'regulatory-stage.official',

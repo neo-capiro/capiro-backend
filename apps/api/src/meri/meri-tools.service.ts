@@ -1,5 +1,11 @@
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
-import { MERI_CAPABILITY_REGISTRY, MERI_CORE_TOOL_DEFINITIONS } from '@capiro/shared';
+import {
+  deadlineStatus as structuredDeadlineStatus,
+  daysUntil as structuredDaysUntil,
+  MERI_CAPABILITY_REGISTRY,
+  MERI_CORE_TOOL_DEFINITIONS,
+  normalizeDeadline,
+} from '@capiro/shared';
 import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
@@ -38,6 +44,8 @@ import {
   type CommitteeCandidate,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import { serializeFederalAwardDates } from '../common/federal-award-date-serialization.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { ActionRecommendationReadService } from '../intelligence/actions/action-recommendation-read.service.js';
@@ -81,6 +89,10 @@ import {
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
 import { FederalSpendingService } from '../federal-spending/federal-spending.service.js';
 import { ProgramElementReadService } from '../program-element/program-element-read.service.js';
+import {
+  listBudgetLineLineage,
+  type BudgetLineLineage,
+} from '../program-element/budget-line-lineage.js';
 import { AcquisitionPersonnelReadService } from '../acquisition-personnel/acquisition-personnel-read.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
 import {
@@ -106,6 +118,7 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { validateMeriWriteToolInput, type MeriJsonSchema } from './meri-write-tool-input.js';
 import { buildSavedMemoryRecord } from './meri-memory.helpers.js';
 import {
+  fundingClaimForOutput,
   fundingClaimsForModel,
   modelBudgetLineMetadata,
   reportLanguageNoteForModel,
@@ -141,6 +154,8 @@ import { MeetingPrepJobService } from '../engagement/meeting-prep-job.service.js
 import { meetingPrepEnabled } from '../engagement/meeting-prep-policy.js';
 
 const PRODUCT_NAME = 'Meri';
+const LINEAGE_NOTE =
+  'Candidate lineage is unverified. A changed stage label or a shared narrative does not establish that one line was consolidated into another.';
 
 /**
  * The three fields the Funding Opportunities adapter needs from a turn.
@@ -1945,9 +1960,9 @@ export class MeriToolsService {
       case 'search_fara_registrations':
         return this.searchFaraRegistrations(input);
       case 'search_federal_grants':
-        return this.searchFederalGrants(input);
+        return this.searchFederalGrants(ctx, input);
       case 'search_federal_awards':
-        return this.searchFederalAwards(input);
+        return this.searchFederalAwards(ctx, input);
       case 'search_gao_reports':
         return this.searchGaoReports(input);
       case 'search_state_bills':
@@ -2011,7 +2026,7 @@ export class MeriToolsService {
       case 'get_program_element':
         return this.getProgramElementDetail(ctx, input);
       case 'get_pe_budget_timeline':
-        return this.getPeBudgetTimeline(input);
+        return this.getPeBudgetTimeline(input, ctx);
       case 'get_pe_contractors':
         return this.getPeContractors(input);
       case 'get_pe_bills':
@@ -3895,7 +3910,7 @@ export class MeriToolsService {
     };
   }
 
-  private async searchFederalAwards(input: Record<string, unknown>) {
+  private async searchFederalAwards(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const peCode = optionalString(input, 'peCode', 16);
@@ -3919,29 +3934,50 @@ export class MeriToolsService {
       this.prisma.withSystem((tx) => tx.federalAward.count({ where })),
     ]);
 
+    const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    if (mode === 'shadow') {
+      this.logger.warn('meri.evidence_accuracy.shadow', {
+        tool: 'search_federal_awards',
+        rows: data.length,
+        missingBaseDateCount: data.filter((award) => !award.baseAwardSignedDate).length,
+      });
+    }
+
     return {
       tool: 'search_federal_awards',
       generatedAt: new Date().toISOString(),
       total,
-      data: data.map((a) => ({
-        id: a.id,
-        contractorName: a.contractorName,
-        awardingAgency: a.awardingAgency,
-        awardingSubTier: a.awardingSubTier,
-        amount: a.amount != null ? Number(a.amount) : null,
-        description: summarizeText(a.description ?? '', 240),
-        peCode: a.peCode,
-        recipientState: a.recipientState,
-        popCongressionalDistrict: a.popCongressionalDistrict,
-        actionDate: a.actionDate,
-        piid: a.piid,
-      })),
+      data: data.map((a) =>
+        serializeFederalAwardDates(
+          {
+            id: a.id,
+            contractorName: a.contractorName,
+            awardingAgency: a.awardingAgency,
+            awardingSubTier: a.awardingSubTier,
+            amount: a.amount != null ? Number(a.amount) : null,
+            description: summarizeText(a.description ?? '', 240),
+            peCode: a.peCode,
+            recipientState: a.recipientState,
+            popCongressionalDistrict: a.popCongressionalDistrict,
+            actionDate: a.actionDate,
+            piid: a.piid,
+            latestActionDate: a.latestActionDate,
+            baseAwardSignedDate: a.baseAwardSignedDate,
+            sourceLastModifiedDate: a.sourceLastModifiedDate,
+            popStartDate: a.popStartDate,
+            popEndDate: a.popEndDate,
+            lastSyncedAt: a.lastSyncedAt,
+          },
+          mode === 'enforce',
+        ),
+      ),
     };
   }
 
   // ── Program Element (DoD budget) tools ──────────────────────────────
 
   private async searchProgramElements(ctx: TenantContext, input: Record<string, unknown>) {
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const q = optionalString(input, 'query', 240) ?? optionalString(input, 'q', 240);
     const service = optionalString(input, 'service', 60);
     const budgetActivity = optionalString(input, 'budgetActivity', 120);
@@ -4009,11 +4045,17 @@ export class MeriToolsService {
         // The finder has no trustworthy current-cycle FY. The shared claim is
         // still stage/vehicle labeled, but its cycleClass remains 'unknown'; the
         // model must call get_pe_budget_timeline before calling it current/outyear.
-        currentFundingClaim: searchFundingClaimForModel({
-          valueM: latestCurrent,
-          fy: latestCurrentFy,
-          stage: latestCurrentStage,
-        }),
+        currentFundingClaim: fundingClaimForOutput(
+          searchFundingClaimForModel(
+            {
+              valueM: latestCurrent,
+              fy: latestCurrentFy,
+              stage: latestCurrentStage,
+            },
+            accuracyMode === 'enforce' ? 'enforce' : 'legacy',
+          ),
+          accuracyMode === 'enforce' ? 'enforce' : 'legacy',
+        ),
         funding: buildSearchRowFundingForModel({
           latestCurrent,
           latestCurrentFy,
@@ -4027,6 +4069,28 @@ export class MeriToolsService {
       };
     });
 
+    if (accuracyMode === 'shadow') {
+      const shadowClaims = (result.data as FinderRowForModel[])
+        .map((row) =>
+          searchFundingClaimForModel(
+            {
+              valueM: row.latestCurrent,
+              fy: row.latestCurrentFy,
+              stage: row.latestCurrentStage,
+            },
+            'enforce',
+          ),
+        )
+        .filter((claim) => claim != null);
+      this.logger.warn('meri.evidence_accuracy.shadow', {
+        tool: 'search_program_elements',
+        peCode: null,
+        claims: shadowClaims.length,
+        unknownEnactment: shadowClaims.filter((claim) => claim.enactmentStatus === 'unknown').length,
+        withSource: shadowClaims.filter((claim) => claim.source != null).length,
+      });
+    }
+
     return {
       tool: 'search_program_elements',
       generatedAt: new Date().toISOString(),
@@ -4036,6 +4100,7 @@ export class MeriToolsService {
   }
 
   private async getProgramElementDetail(ctx: TenantContext, input: Record<string, unknown>) {
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const programElement = (await this.programElement.getProgramElement(peCode, ctx)) as Record<
       string,
@@ -4059,7 +4124,15 @@ export class MeriToolsService {
     const claims = fundingClaimsForModel(
       years,
       Number.isInteger(suppliedCurrentCycleFy) ? suppliedCurrentCycleFy : null,
+      accuracyMode === 'enforce' ? 'enforce' : 'legacy',
     );
+    const lineageRows =
+      accuracyMode === 'off' ? [] : await listBudgetLineLineage(this.prisma, { peCode });
+    if (accuracyMode === 'shadow') {
+      this.logBudgetSemanticsShadow(
+        'get_program_element', peCode, claims.years as unknown[], lineageRows,
+      );
+    }
     return {
       tool: 'get_program_element',
       generatedAt: new Date().toISOString(),
@@ -4067,10 +4140,12 @@ export class MeriToolsService {
       currentCycleFy: claims.currentCycleFy,
       currentFundingClaim: claims.currentFundingClaim,
       programElement: { ...programElement, years: claims.years },
+      ...(accuracyMode === 'enforce' ? { lineage: this.lineageForOutput(lineageRows) } : {}),
     };
   }
 
-  private async getPeBudgetTimeline(input: Record<string, unknown>) {
+  private async getPeBudgetTimeline(input: Record<string, unknown>, ctx?: TenantContext) {
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx?.tenantId, 'chat');
     const peCode = requiredString(input, 'peCode', 32);
     const timeline = await this.programElement.getTimeline(peCode);
     const identity = modelBudgetLineMetadata({
@@ -4079,7 +4154,18 @@ export class MeriToolsService {
       budgetActivity: timeline.budgetActivity,
       lineType: (timeline as { lineType?: string | null }).lineType ?? null,
     });
-    const claims = fundingClaimsForModel(timeline.years, timeline.currentCycleFy);
+    const claims = fundingClaimsForModel(
+      timeline.years,
+      timeline.currentCycleFy,
+      accuracyMode === 'enforce' ? 'enforce' : 'legacy',
+    );
+    const lineageRows =
+      accuracyMode === 'off' ? [] : await listBudgetLineLineage(this.prisma, { peCode });
+    if (accuracyMode === 'shadow') {
+      this.logBudgetSemanticsShadow(
+        'get_pe_budget_timeline', peCode, timeline.years as unknown[], lineageRows,
+      );
+    }
     return {
       tool: 'get_pe_budget_timeline',
       generatedAt: new Date().toISOString(),
@@ -4088,7 +4174,36 @@ export class MeriToolsService {
       currentCycleFy: claims.currentCycleFy,
       currentFundingClaim: claims.currentFundingClaim,
       years: claims.years,
+      ...(accuracyMode === 'enforce' ? { lineage: this.lineageForOutput(lineageRows) } : {}),
     };
+  }
+
+  private lineageForOutput(rows: BudgetLineLineage[]) {
+    return {
+      accepted: rows.filter((row) => row.status === 'accepted'),
+      candidates: rows.filter((row) => row.status === 'candidate'),
+      note: LINEAGE_NOTE,
+    };
+  }
+
+  private logBudgetSemanticsShadow(
+    tool: string,
+    peCode: string,
+    years: unknown[],
+    lineage: BudgetLineLineage[] = [],
+  ): void {
+    const claims = years
+      .map((year) => (year as { fundingClaim?: unknown }).fundingClaim)
+      .filter((claim): claim is { enactmentStatus?: string; source?: unknown } => claim != null);
+    this.logger.warn('meri.evidence_accuracy.shadow', {
+      tool,
+      peCode,
+      claims: claims.length,
+      unknownEnactment: claims.filter((claim) => claim.enactmentStatus === 'unknown').length,
+      withSource: claims.filter((claim) => claim.source != null).length,
+      lineageAccepted: lineage.filter((row) => row.status === 'accepted').length,
+      lineageCandidates: lineage.filter((row) => row.status === 'candidate').length,
+    });
   }
 
   private async getPeReportLanguage(input: Record<string, unknown>) {
@@ -4166,7 +4281,7 @@ export class MeriToolsService {
     };
   }
 
-  private async searchFederalGrants(input: Record<string, unknown>) {
+  private async searchFederalGrants(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const status = optionalString(input, 'status', 30);
@@ -4201,8 +4316,10 @@ export class MeriToolsService {
     // ET), so we compare the ET calendar date of "now" to the grant's UTC-read
     // date. The model gets a deterministic deadlineStatus + the as-of anchor
     // (generatedAt) rather than doing its own date math with no clock.
-    const nowIso = new Date().toISOString();
-    const todayYmdEt = ymdInZone(new Date(), 'America/New_York');
+    const asOf = new Date();
+    const nowIso = asOf.toISOString();
+    const todayYmdEt = ymdInZone(asOf, 'America/New_York');
+    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
     const deadlineStatus = (closeDate: Date | null): 'open' | 'closed' | 'unknown' => {
       if (!closeDate) return 'unknown';
       const closeYmd = ymdInZone(closeDate, 'UTC');
@@ -4217,7 +4334,11 @@ export class MeriToolsService {
       // closed decisions; a null closeDate is 'unknown', never assume "no deadline".
       asOf: nowIso,
       total,
-      data: data.map((g) => ({
+      data: data.map((g) => {
+        const normalized = g.responseDateDesc
+          ? normalizeDeadline({ value: null, kind: 'date', source: 'grants.gov' })
+          : normalizeDeadline({ value: g.closeDate, kind: 'date', source: 'grants.gov' });
+        return {
         id: g.id,
         title: summarizeText(g.title, 240),
         agency: g.agency,
@@ -4230,10 +4351,17 @@ export class MeriToolsService {
         openDate: g.openDate,
         closeDate: g.closeDate,
         deadlineStatus: deadlineStatus(g.closeDate),
+        ...(enforce ? { deadline: {
+          ...normalized,
+          daysRemaining: structuredDaysUntil(nowIso, normalized),
+          status: structuredDeadlineStatus(nowIso, normalized),
+          ...(g.responseDateDesc ? { rawText: g.responseDateDesc } : {}),
+        } } : {}),
         syncedStatus: g.status,
         eligibility: g.eligibility,
         url: g.url,
-      })),
+        };
+      }),
     };
   }
 
@@ -6787,9 +6915,11 @@ export class MeriToolsService {
           ? 'unknown'
           : 'degraded';
 
+    const asOf = new Date().toISOString();
+    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
     return {
       tool: 'search_sam_opportunities',
-      generatedAt: new Date().toISOString(),
+      generatedAt: asOf,
       total: result.total,
       sourceFreshness,
       sourceStatus,
@@ -6802,10 +6932,14 @@ export class MeriToolsService {
             ]
           : []),
       ],
-      results: result.data.map((opp) => ({
-        ...opp,
-        description: summarizeText(opp.description, 300),
-      })),
+      results: result.data.map((opp) => {
+        const normalized = normalizeDeadline({ value: opp.responseDeadline, kind: 'datetime', source: 'sam.gov' });
+        return {
+          ...opp,
+          description: summarizeText(opp.description, 300),
+          ...(enforce ? { deadline: { ...normalized, daysRemaining: structuredDaysUntil(asOf, normalized), status: structuredDeadlineStatus(asOf, normalized) } } : {}),
+        };
+      }),
     };
   }
 

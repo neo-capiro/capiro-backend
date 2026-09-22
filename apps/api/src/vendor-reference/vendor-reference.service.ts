@@ -9,6 +9,8 @@ import {
   type CensusGeocodeResult,
 } from '../external/census-geocoder/census-geocoder.client.js';
 import { toUsaSpendingDistrictCode } from '../common/district-code.util.js';
+import { federalAwardDates } from '../common/federal-award-date-serialization.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import {
   VendorReferenceSamClient,
   type SamEntityRecord,
@@ -106,6 +108,8 @@ export class VendorReferenceService {
     const warnings: string[] = [];
     const now = new Date();
     const asOf = now.toISOString().slice(0, 10);
+    const enforceDateSemantics =
+      resolveEvidenceAccuracyModeForTenant(tenantId, 'strategy') === 'enforce';
 
     const { identity, sam } = await this.resolveIdentity(input, warnings);
 
@@ -122,7 +126,7 @@ export class VendorReferenceService {
     ]);
 
     const [contracting, lobbying, delegation] = await Promise.all([
-      this.guard('federal contracting history', warnings, () => this.contractingHistory(identity), [
+      this.guard('federal contracting history', warnings, () => this.contractingHistory(identity, enforceDateSemantics), [
         notSourcedListRow('federal_contracting_history', 'Federal award records unavailable', 'USAspending / Tango'),
       ]),
       this.guard('federal lobbying representation', warnings, () => this.lobbying(identity, sam), [
@@ -557,7 +561,10 @@ export class VendorReferenceService {
 
   // ── Federal contracting history ──────────────────────────────────────────
 
-  private async contractingHistory(identity: VendorIdentity): Promise<VendorReferenceRow[]> {
+  private async contractingHistory(
+    identity: VendorIdentity,
+    enforceDateSemantics: boolean,
+  ): Promise<VendorReferenceRow[]> {
     const section = 'federal_contracting_history' as const;
     const rows: VendorReferenceRow[] = [];
     const uei = identity.uei;
@@ -589,6 +596,9 @@ export class VendorReferenceService {
           amount: true,
           description: true,
           actionDate: true,
+          ...(enforceDateSemantics
+            ? { baseAwardSignedDate: true, latestActionDate: true }
+            : {}),
           lastSyncedAt: true,
         },
       }),
@@ -619,11 +629,23 @@ export class VendorReferenceService {
       // Name path double-check in memory: Prisma's insensitive equality is not
       // our normalizer, so a row that only matches loosely is dropped.
       if (!uei && !names.some((n) => normalizeCompanyName(n) === normalizeCompanyName(a.contractorName))) continue;
+      const dates = federalAwardDates(a);
       const detail: ContractingDetail = {
         agency: joinAgency(a.awardingAgency, a.awardingSubTier),
         type: 'Contract',
         value: toNum(a.amount),
         awardDate: isoDate(a.actionDate),
+        ...(enforceDateSemantics
+          ? {
+              awardDate:
+                dates.baseAwardSignedDate?.slice(0, 10) ??
+                dates.latestActionDate?.slice(0, 10) ??
+                null,
+              awardDateSemantics: dates.baseAwardSignedDate
+                ? ('base_award_signed' as const)
+                : ('latest_action' as const),
+            }
+          : {}),
         periodOfPerformance: null, // not carried by the DoD contract ingestion
         matchBasis: basis,
         recordId: a.awardUniqueId,

@@ -41,6 +41,8 @@ import {
 import { reasoningModeFromConversationMetadata } from './meriv3-conversation.helpers.js';
 import { buildMeriGroundingStatement } from './meri-grounding-statement.js';
 import { MERI_TURN_MAINTENANCE, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
+import { describeAttachmentContentState, retryAttachmentExtraction } from './meri-attachment-content-state.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -444,8 +446,12 @@ export class MeriV3ProxyService {
       emit({ type: 'text', text: assistantContent });
     }
     if (frame?.usage && !aborted) emit({ type: 'usage', usage: frame.usage });
-    if (frame?.citations?.length && !aborted) {
-      emit({ type: 'citations', citations: frame.citations });
+    if ((frame?.citations?.length || frame?.evidenceAccuracy === 'enforce') && !aborted) {
+      emit({
+        type: 'citations',
+        citations: frame?.citations ?? [],
+        ...(frame?.evidenceAccuracy === 'enforce' ? { evidenceAccuracy: 'enforce' } : {}),
+      });
     }
     const groundingStatement = buildMeriGroundingStatement({
       citations: frame?.citations ?? [],
@@ -509,6 +515,7 @@ export class MeriV3ProxyService {
           toolsUsed: steps.map((step) => step.tool),
           usage: frame?.usage ?? {},
           citations: (frame?.citations ?? []) as unknown as Prisma.InputJsonValue,
+          ...(frame?.evidenceAccuracy === 'enforce' ? { evidenceAccuracy: 'enforce' } : {}),
           groundingStatement,
           turnScope: turnScope as unknown as Prisma.InputJsonValue,
           ...(groundingCaveat
@@ -722,8 +729,22 @@ export class MeriV3ProxyService {
     const sourceMessageIds = messages.filter(message => message.role === 'user').map(message => message.id);
     const currentTurnImages: Array<{ mediaType: string; dataBase64: string }> = [];
     if (allIds.length) {
-      const documents = await authorizedAttachmentSources(this.prisma, ctx, conversationId, allIds, sourceMessageIds);
+      const enforceContentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+      const documents = await authorizedAttachmentSources(this.prisma, ctx, conversationId, allIds,
+        sourceMessageIds, enforceContentState);
       for (const document of documents) {
+        const initial = describeAttachmentContentState(document);
+        if (enforceContentState &&
+          !initial.readable && document.data) {
+          await retryAttachmentExtraction(this.prisma, document.id, ctx.tenantId, ctx.userId,
+            () => this.aiCredentials.resolveProvider(ctx, 'openai'));
+          const refreshed = await this.prisma.withTenant(ctx.tenantId, tx => tx.clioAttachment.findFirst({
+            where: { id: document.id, tenantId: ctx.tenantId, userId: ctx.userId },
+            select: { id: true, filename: true, kind: true, textContent: true, status: true, reason: true,
+              messageId: true, pages: true, data: true, createdAt: true },
+          }));
+          if (refreshed) Object.assign(document, refreshed);
+        }
         filingSources.set(document.id, document);
         if (document.kind === 'image' || document.textContent == null) continue;
         documentText.set(document.id, {
@@ -765,13 +786,15 @@ export class MeriV3ProxyService {
       const parts = [message.body];
       for (const ref of refsByMessage.get(message.id) ?? []) {
         const document = documentText.get(ref.id);
+        const contentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce'
+          && filingSources.has(ref.id) ? describeAttachmentContentState(filingSources.get(ref.id)!).state : undefined;
         if (document)
           parts.push(
-            formatAttachmentContext(document.filename, document.text, undefined, document),
+            formatAttachmentContext(document.filename, document.text, undefined, document, contentState),
           );
         else if (filingSources.has(ref.id)) {
           const imageVisible = message.id === lastUser?.id && visibleImageIds.has(ref.id);
-          parts.push(formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible));
+          parts.push(formatAttachmentFilingReference(filingSources.get(ref.id)!, imageVisible, contentState));
         } else {
           parts.push(
             `Attachment ${JSON.stringify(ref.filename)} (ID ${ref.id}) is unavailable for this turn. Ask for that file again; do not claim to have read it.`,

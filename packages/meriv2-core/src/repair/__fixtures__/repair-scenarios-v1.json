@@ -1,0 +1,10 @@
+[
+  {"id":"recoverable-factual-error","description":"authoritative evidence corrects a factual error","expected":"corrected"},
+  {"id":"missing-exact-transcript","description":"missing transcript produces a precise limitation without demanding re-upload","expected":"qualified"},
+  {"id":"unrelated-source-outage","description":"supported claims survive an unrelated source outage","expected":"qualified"},
+  {"id":"new-unsupported-fact","description":"a new material assertion is independently assessed and qualified","expected":"qualified"},
+  {"id":"failed-retrieval-dedupe","description":"an identical failed retrieval executes once","expected":"qualified"},
+  {"id":"cancel-mid-repair","description":"abort after retrieval prevents a late replacement","expected":"cancelled"},
+  {"id":"budget-exhausted","description":"an exhausted budget returns a useful qualified answer","expected":"budget_exhausted"},
+  {"id":"conflicting-sources","description":"dated authoritative sources preserve a disclosed disagreement","expected":"qualified"}
+]

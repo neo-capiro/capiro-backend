@@ -11,7 +11,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import type { MeriCitation, TenantContext } from '@capiro/shared';
-import { validateFormBCitations } from '@capiro/shared';
+import { validateCitationMarkers, validateFormBCitations } from '@capiro/shared';
 import {
   runAuditor,
   ledgerToToolResultMap,
@@ -19,6 +19,7 @@ import {
   type MeriEvidenceManifest,
 } from '@capiro/meriv2-core';
 import { resolveTenantAuditorMode } from '../common/auditor-mode.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -1567,6 +1568,22 @@ export class MeriResearchService {
         );
         reportBody = formB.sanitizedText;
       }
+    }
+
+    const evidenceAccuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'research');
+    if (evidenceAccuracyMode === 'enforce' && reportBody.trim().length > 0) {
+      const formA = validateCitationMarkers(reportBody, result.citations ?? []);
+      if (formA.dropped.length) {
+        this.logger.warn('meri.citation_integrity', {
+          conversationId: readResearchHandoff(session.metadata)?.conversationId ?? null,
+          turnId: session.id,
+          surface: 'research_report',
+          dropped: formA.dropped,
+          registered: result.citations?.length ?? 0,
+          mode: evidenceAccuracyMode,
+        });
+      }
+      reportBody = formA.cleanedText;
     }
 
     // Wave-2 post-hoc auditor on the RESEARCH surface — SHADOW by default

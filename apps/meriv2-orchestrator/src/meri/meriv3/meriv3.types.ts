@@ -77,6 +77,7 @@ export interface MeriV3ChatResult extends ChatResult {
   reasoningEffort: MeriV3ReasoningEffort | null;
   telemetry?: MeriV3ProviderTelemetry;
   retrieval?: MeriV3RetrievalSummary;
+  evidenceAccuracy?: 'enforce';
 }
 
 export type MeriV3ChatStreamEvent =

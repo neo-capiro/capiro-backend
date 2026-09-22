@@ -77,6 +77,41 @@ export interface FundingClaim {
   /** True only when cycleClass === 'outyear' (FYDP projection). */
   isProjection: boolean;
   unit: 'USD millions';
+  enactmentStatus?: 'enacted' | 'not_enacted' | 'unknown';
+  vehicleType?: 'budget_request' | 'authorization' | 'appropriation' | 'unknown';
+  originalUnit?: 'dollars' | 'thousands' | 'millions' | null;
+  originalValue?: number | null;
+  source?: FundingClaimSource;
+}
+
+export interface FundingClaimSource {
+  sourceDocumentId: string | null;
+  documentType: string | null;
+  budgetCycle: string | null;
+  publisher: string | null;
+  sourceUrl: string | null;
+  pageNumber: number | null;
+  observedAt: string | null;
+}
+
+export function deriveEnactmentStatus(
+  stage: FundingClaimStage,
+  cycleClass: FundingCycleClass,
+): NonNullable<FundingClaim['enactmentStatus']> {
+  if (stage === 'enacted') return 'enacted';
+  if (stage === 'none' || cycleClass === 'historical') return 'unknown';
+  return cycleClass === 'current' || cycleClass === 'outyear' ? 'not_enacted' : 'unknown';
+}
+
+export function deriveVehicleType(
+  stage: FundingClaimStage,
+): NonNullable<FundingClaim['vehicleType']> {
+  if (stage === 'request') return 'budget_request';
+  if (stage === 'hasc' || stage === 'sasc' || stage === 'ndaa_conference') return 'authorization';
+  if (stage === 'hacd' || stage === 'sacd' || stage === 'appropriations_conference' || stage === 'enacted') {
+    return 'appropriation';
+  }
+  return 'unknown';
 }
 
 /**
@@ -270,6 +305,9 @@ export function buildFundingClaim(input: {
   fiscalYear: number | null | undefined;
   stage: FundingClaimStage;
   currentCycleFy?: number | null;
+  originalUnit?: FundingClaim['originalUnit'];
+  originalValue?: number | null;
+  source?: FundingClaimSource;
 }): FundingClaim {
   const value =
     input.value == null || (typeof input.value === 'number' && !Number.isFinite(input.value))
@@ -278,7 +316,7 @@ export function buildFundingClaim(input: {
   const fiscalYear = input.fiscalYear ?? null;
   const cycleClass = classifyCycleClass(fiscalYear, input.currentCycleFy ?? null);
   const stage = input.stage;
-  return {
+  const claim: FundingClaim = {
     value,
     fiscalYear,
     stage,
@@ -287,7 +325,13 @@ export function buildFundingClaim(input: {
     cycleClass,
     isProjection: cycleClass === 'outyear',
     unit: 'USD millions',
+    enactmentStatus: deriveEnactmentStatus(stage, cycleClass),
+    vehicleType: deriveVehicleType(stage),
   };
+  if ('originalUnit' in input) claim.originalUnit = input.originalUnit ?? null;
+  if ('originalValue' in input) claim.originalValue = input.originalValue ?? null;
+  if (input.source !== undefined) claim.source = input.source;
+  return claim;
 }
 
 /**

@@ -12,7 +12,7 @@ import { EvidenceSourceService, type SelectedContextItemRef } from './evidence-s
 
 const NOW = new Date('2026-07-26T00:00:00.000Z');
 const CTX = {
-  tenantId: 't1',
+  tenantId: '00000000-0000-4000-8000-000000000001',
   tenantSlug: 'tenant',
   userId: 'u1',
   clerkUserId: 'clerk_u1',
@@ -39,10 +39,17 @@ function makeService(opts: {
   attachmentBytes?: Buffer | null;
   readiness?: { usable: boolean; code: string | null; disclosure: string | null };
   extraction?: unknown;
+  peSourceRows?: Array<{
+    lastObservedAt: Date;
+    sourceDocument: { downloadedAt: Date | null } | null;
+  }>;
 } = {}) {
   const tables = opts.tables ?? {};
   const prisma = {
     withTenant: async (_t: string, fn: (tx: unknown) => Promise<unknown>) => fn(tables),
+    programElementYearSourceValue: {
+      findMany: jest.fn(async () => opts.peSourceRows ?? []),
+    },
   };
   const truth = {
     billTruthBlock: jest.fn(async () => opts.bill ?? null),
@@ -474,6 +481,85 @@ describe('determinism and ordering', () => {
     expect(out.evidence[0]!.ref.retrievedAt).toBe(NOW.toISOString());
   });
 });
+
+describe('program-element authoritative as-of', () => {
+  const pe = {
+    text: 'PE TRUTH',
+    raw: { peCode: '0603285F', title: 'PE', years: [], currentCycleFy: 2027 },
+  };
+
+  test('off keeps the fiscal-year start and omits the derivation basis', async () => {
+    const { svc } = makeService({ pe });
+    const out = await svc.resolveSelectedItems(
+      CTX,
+      resolveInput([{ id: 'pe-0603285F', kind: 'programElement', scope: 'all' }]),
+    );
+    expect(out.evidence[0]?.ref).toMatchObject({ authoritativeAsOf: '2026-10-01' });
+    expect(out.evidence[0]?.ref).not.toHaveProperty('asOfBasis');
+  });
+
+  test('enforce uses the newest source observation or download and declares its basis', async () => {
+    const prior = {
+      mode: process.env.MERI_EVIDENCE_ACCURACY_MODE,
+      tenants: process.env.MERI_EVIDENCE_ACCURACY_TENANTS,
+      surfaces: process.env.MERI_EVIDENCE_ACCURACY_SURFACES,
+    };
+    process.env.MERI_EVIDENCE_ACCURACY_MODE = 'enforce';
+    process.env.MERI_EVIDENCE_ACCURACY_TENANTS = CTX.tenantId;
+    process.env.MERI_EVIDENCE_ACCURACY_SURFACES = 'outreach';
+    try {
+      const { svc } = makeService({
+        pe,
+        peSourceRows: [
+          {
+            lastObservedAt: new Date('2026-04-03T00:00:00.000Z'),
+            sourceDocument: { downloadedAt: new Date('2026-04-05T00:00:00.000Z') },
+          },
+        ],
+      });
+      const out = await svc.resolveSelectedItems(
+        CTX,
+        resolveInput([{ id: 'pe-0603285F', kind: 'programElement', scope: 'all' }]),
+      );
+      expect(out.evidence[0]?.ref).toMatchObject({
+        authoritativeAsOf: '2026-04-05T00:00:00.000Z',
+        asOfBasis: 'source_observed',
+      });
+    } finally {
+      restoreEnv('MERI_EVIDENCE_ACCURACY_MODE', prior.mode);
+      restoreEnv('MERI_EVIDENCE_ACCURACY_TENANTS', prior.tenants);
+      restoreEnv('MERI_EVIDENCE_ACCURACY_SURFACES', prior.surfaces);
+    }
+  });
+
+  test('enforce reports unknown rather than inventing an as-of when provenance is absent', async () => {
+    const prior = {
+      mode: process.env.MERI_EVIDENCE_ACCURACY_MODE,
+      tenants: process.env.MERI_EVIDENCE_ACCURACY_TENANTS,
+      surfaces: process.env.MERI_EVIDENCE_ACCURACY_SURFACES,
+    };
+    process.env.MERI_EVIDENCE_ACCURACY_MODE = 'enforce';
+    process.env.MERI_EVIDENCE_ACCURACY_TENANTS = CTX.tenantId;
+    process.env.MERI_EVIDENCE_ACCURACY_SURFACES = 'outreach';
+    try {
+      const { svc } = makeService({ pe, peSourceRows: [] });
+      const out = await svc.resolveSelectedItems(
+        CTX,
+        resolveInput([{ id: 'pe-0603285F', kind: 'programElement', scope: 'all' }]),
+      );
+      expect(out.evidence[0]?.ref).toMatchObject({ authoritativeAsOf: null, asOfBasis: 'unknown' });
+    } finally {
+      restoreEnv('MERI_EVIDENCE_ACCURACY_MODE', prior.mode);
+      restoreEnv('MERI_EVIDENCE_ACCURACY_TENANTS', prior.tenants);
+      restoreEnv('MERI_EVIDENCE_ACCURACY_SURFACES', prior.surfaces);
+    }
+  });
+});
+
+function restoreEnv(key: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+}
 
 describe('non-rehydratable kinds', () => {
   test('the retired "meeting" kind is reported, not silently dropped', async () => {

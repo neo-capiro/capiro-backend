@@ -50,6 +50,8 @@ export interface EvidenceSourceRef {
    * fetched a second ago can still assert a six-month-old fact.
    */
   authoritativeAsOf?: string | null;
+  /** How authoritativeAsOf was derived; emitted only by evidence-accuracy enforcement. */
+  asOfBasis?: 'source_observed' | 'fiscal_year_start' | 'unknown';
   /** When THIS packet read the source (ISO). */
   retrievedAt: string;
   trust: EvidenceTrust;

@@ -47,6 +47,8 @@ const CONTRACT = {
   amount: '1234567.89',
   description: 'F-35 SUSTAINMENT',
   actionDate: new Date('2026-03-01T00:00:00Z'),
+  baseAwardSignedDate: new Date('2026-02-15T00:00:00Z'),
+  latestActionDate: new Date('2026-03-01T00:00:00Z'),
   lastSyncedAt: new Date('2026-09-10T00:00:00Z'),
 };
 const GRANT = {
@@ -474,6 +476,54 @@ describe('VendorReferenceService.pull — facility placement precedence', () => 
     const d = await service.pull('tenant-1', { name: 'Lockheed Martin Corporation', uei: UEI, facilityAddress: 'nowhere' });
     expect(d.warnings).toEqual([expect.stringContaining('could not place "nowhere" (no_match)')]);
     expect(rows(d, 'congressional_delegation')[0]!.detail).toEqual(expect.objectContaining({ districtBasis: 'sam_physical_address' }));
+  });
+});
+
+describe('VendorReferenceService.pull — award-date rollout', () => {
+  const rolloutTenant = '00000000-0000-4000-8000-000000000001';
+  test('off mode retains the exact legacy contract detail', async () => {
+    const { service } = makeService(
+      fakePrisma({ awards: [CONTRACT] }),
+      fakeSam({ byUei: { ok: true, entities: [SAM_LMT] } }),
+    );
+    const dossier = await service.pull('tenant-1', { name: 'Lockheed', uei: UEI });
+    expect(rows(dossier, 'federal_contracting_history')[0]!.detail).toEqual({
+      agency: 'Department of Defense / Department of the Air Force',
+      type: 'Contract',
+      value: 1234567.89,
+      awardDate: '2026-03-01',
+      periodOfPerformance: null,
+      matchBasis: 'exact_uei',
+      recordId: 'CONT_AWD_1',
+    });
+  });
+
+  test('enforce mode uses and labels the authoritative base signed date', async () => {
+    const keys = ['MERI_EVIDENCE_ACCURACY_MODE', 'MERI_EVIDENCE_ACCURACY_TENANTS', 'MERI_EVIDENCE_ACCURACY_SURFACES'];
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    Object.assign(process.env, {
+      MERI_EVIDENCE_ACCURACY_MODE: 'enforce',
+      MERI_EVIDENCE_ACCURACY_TENANTS: rolloutTenant,
+      MERI_EVIDENCE_ACCURACY_SURFACES: 'strategy',
+    });
+    try {
+      const { service } = makeService(
+        fakePrisma({ awards: [CONTRACT] }),
+        fakeSam({ byUei: { ok: true, entities: [SAM_LMT] } }),
+      );
+      const dossier = await service.pull(rolloutTenant, { name: 'Lockheed', uei: UEI });
+      expect(rows(dossier, 'federal_contracting_history')[0]!.detail).toEqual(
+        expect.objectContaining({
+          awardDate: '2026-02-15',
+          awardDateSemantics: 'base_award_signed',
+        }),
+      );
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 });
 

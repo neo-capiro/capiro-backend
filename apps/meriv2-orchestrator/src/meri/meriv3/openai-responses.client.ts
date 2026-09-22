@@ -415,8 +415,15 @@ export class OpenAiResponsesClient {
             ...(params.signal ? { signal: params.signal } : {}),
             ...(params.safetyIdentifier ? { safetyIdentifier: params.safetyIdentifier } : {}),
           });
+          const validatedSynthesis = MeriV3ResearchRuntimeStore.validateDraft(synthesis.outputText);
+          if (validatedSynthesis.issueCount > 0) {
+            this.logger.warn(
+              JSON.stringify({ event: 'meri.schedule_integrity', issueCount: validatedSynthesis.issueCount }),
+            );
+          }
           return {
             ...synthesis,
+            outputText: validatedSynthesis.text,
             usage: combinedUsage(draft.usage, critic.usage, synthesis.usage),
             usedTenantKey: draft.usedTenantKey || critic.usedTenantKey || synthesis.usedTenantKey,
             providerCalls: [

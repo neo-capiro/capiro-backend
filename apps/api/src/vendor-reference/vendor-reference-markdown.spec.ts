@@ -177,6 +177,24 @@ describe('renderVendorReferenceMarkdown — template contract', () => {
     expect(md).toContain('- Identity: caller supplied UEI.');
     expect(md).toContain('> **Identity basis:** Exact UEI (caller-supplied)');
   });
+
+  test('labels enforced base-award semantics', () => {
+    const enforced = dossier();
+    enforced.rows[3]!.detail = {
+      ...enforced.rows[3]!.detail,
+      awardDateSemantics: 'base_award_signed',
+    };
+    expect(renderVendorReferenceMarkdown(enforced)).toContain('| Value | Award date (base signed) |');
+  });
+
+  test('labels enforced latest-action semantics', () => {
+    const enforced = dossier();
+    enforced.rows[3]!.detail = {
+      ...enforced.rows[3]!.detail,
+      awardDateSemantics: 'latest_action',
+    };
+    expect(renderVendorReferenceMarkdown(enforced)).toContain('| Value | Latest action date |');
+  });
 });
 
 describe('buildFrontmatter — flat grammar + scope/id consistency', () => {

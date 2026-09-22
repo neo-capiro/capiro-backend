@@ -29,7 +29,7 @@ import {
   meriHermesConfigurationError,
   meriHermesRuntimeConfig,
 } from '../../common/meri-hermes-flags.js';
-import { assertAttachmentConversation } from '../meri-attachment-continuity.js';
+import { assertAttachmentConversation, previousAttachmentManifest } from '../meri-attachment-continuity.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../meri-attachment.helpers.js';
 import { complianceRefusalBody, screenComplianceBlock } from '../meri-compliance.helpers.js';
 import { currentMeriGovernedRuntime } from '../meri-context-plane-runtime.js';
@@ -77,6 +77,8 @@ import {
   MeriHermesProfileLeaseService,
 } from './meri-hermes-profile-lease.service.js';
 import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './meri-hermes-db-governor.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
+import { describeAttachmentContentState } from '../meri-attachment-content-state.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -94,7 +96,8 @@ export interface TerminalOutcome {
 interface PreparedTurn {
   content: string;
   sourceMessageId: string | null;
-  attachments: Array<{ id: string; filename: string; kind: string; status: string }>;
+  attachments: Array<{ id: string; filename: string; kind: string; status: string;
+    contentState?: string; limitation?: string | null }>;
 }
 
 type ConversationRow = {
@@ -482,7 +485,8 @@ export class MeriHermesRuntimeAdapter {
     const pendingAnswers = await this.resolvePendingClarifications(ctx, conversationId, turn.content);
     const governed = currentMeriGovernedRuntime();
     const instructions = this.composeInstructions(governed?.context.prompt ?? null, envelope);
-    const input = this.composeInput(turn.content, turn.attachments, pendingAnswers);
+    const input = await this.composeInput(ctx, conversation.id, turn.sourceMessageId,
+      turn.content, turn.attachments, pendingAnswers);
     const boundSessionId = this.boundSessionId(conversation);
 
     await this.runs.update(run.runId, { status: 'provisioning' });
@@ -1649,13 +1653,19 @@ export class MeriHermesRuntimeAdapter {
         if (attachmentIds.length) {
           const found = await tx.clioAttachment.findMany({
             where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId },
-            select: { id: true, filename: true, kind: true, status: true, byteSize: true, messageId: true },
+            select: { id: true, filename: true, kind: true, status: true, byteSize: true, messageId: true,
+              textContent: true, reason: true, pages: true },
           });
           if (found.length !== new Set(attachmentIds).size) {
             throw new BadRequestException('One or more attachments were not found');
           }
           await assertAttachmentConversation(tx, ctx, conversation.id, found);
-          rows = found.map((r) => ({ id: r.id, filename: r.filename, kind: r.kind, status: r.status }));
+          const enforced = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+          rows = found.map((r) => {
+            const content = describeAttachmentContentState(r);
+            return { id: r.id, filename: r.filename, kind: r.kind, status: r.status,
+              ...(enforced ? { contentState: content.state, limitation: content.limitation } : {}) };
+          });
         }
         const message = await tx.clioMessage.create({
           data: {
@@ -1945,14 +1955,30 @@ export class MeriHermesRuntimeAdapter {
     return notes;
   }
 
-  private composeInput(content: string, attachments: PreparedTurn['attachments'], pendingAnswers: string[]): string {
+  private async composeInput(ctx: TenantContext, conversationId: string, currentMessageId: string | null,
+    content: string, attachments: PreparedTurn['attachments'], pendingAnswers: string[]): Promise<string> {
     const parts = [content];
     if (attachments.length) {
       parts.push(
         '',
         '[Meri attachments for this turn — read them with the meri_fetch_attachment tool, which writes the file into your workspace and returns its path:]',
-        ...attachments.map((a) => `- attachment_id=${a.id} filename=${JSON.stringify(a.filename)} kind=${a.kind} status=${a.status}`),
+        ...attachments.map((a) => `- attachment_id=${a.id} filename=${JSON.stringify(a.filename)} kind=${a.kind} status=${a.status}${a.contentState ? ` state=${a.contentState}${a.limitation ? ` limitation=${JSON.stringify(a.limitation)}` : ''}` : ''}`),
       );
+    }
+    const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat', this.env);
+    if (mode !== 'off') {
+      const manifest = await previousAttachmentManifest(this.prisma, ctx, conversationId, currentMessageId);
+      if (mode === 'shadow') {
+        this.logger.log('meri.evidence_accuracy.shadow', { change: 'prior_attachment_manifest', size: manifest.length });
+      } else if (manifest.length) {
+        const duplicateNames = new Set(manifest
+          .filter((item, index) => manifest.findIndex(other =>
+            other.filename.toLocaleLowerCase() === item.filename.toLocaleLowerCase()) !== index)
+          .map(item => item.filename.toLocaleLowerCase()));
+        parts.push('', 'Previous attachments in this conversation:',
+          ...manifest.map(item => `- attachment_id=${item.id} filename=${JSON.stringify(item.filename)} turn=${item.turn} state=${item.state} chars=${item.extractedChars}${duplicateNames.has(item.filename.toLocaleLowerCase()) ? ' (duplicate name — distinguish by turn/date)' : ''}`),
+          'Fetch a previous attachment by id with meri_fetch_attachment when the user refers to it; do not ask the user to re-upload a listed document.');
+      }
     }
     if (pendingAnswers.length) parts.unshift(...pendingAnswers, '');
     return parts.join('\n');

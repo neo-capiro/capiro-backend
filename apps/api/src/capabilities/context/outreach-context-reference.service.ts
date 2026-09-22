@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { federalAwardDates } from '../../common/federal-award-date-serialization.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { AttachmentContentService } from '../../engagement/attachment-content.service.js';
 import { AttachmentScannerService } from '../../engagement/attachment-scanner.service.js';
@@ -167,7 +169,7 @@ export class OutreachContextReferenceService {
       case 'document':
         return this.resolveDocument(tx, ctx, locator);
       case 'government_record':
-        return this.resolveGovernmentRecord(tx, locator);
+        return this.resolveGovernmentRecord(tx, ctx, locator);
       case 'target_profile_fact':
         return this.resolveTargetFact(tx, ctx, locator, scope);
       case 'manual':
@@ -479,9 +481,15 @@ export class OutreachContextReferenceService {
 
   private async resolveGovernmentRecord(
     tx: Prisma.TransactionClient,
+    ctx: TenantContext,
     locator: Extract<OutreachContextLocatorV1, { source: 'government_record' }>,
   ): Promise<ResolvedSourceContext> {
-    const record = await governmentRecord(tx, locator.category, locator.id);
+    const record = await governmentRecord(
+      tx,
+      locator.category,
+      locator.id,
+      resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'outreach') === 'enforce',
+    );
     if (!record) throw contextNotFound();
     return {
       title: record.title,
@@ -643,6 +651,7 @@ async function governmentRecord(
   tx: Prisma.TransactionClient,
   category: Extract<OutreachContextLocatorV1, { source: 'government_record' }>['category'],
   id: string,
+  enforceDateSemantics: boolean,
 ): Promise<GovernmentRecordSnapshot | null> {
   switch (category) {
     case 'bill': {
@@ -667,14 +676,28 @@ async function governmentRecord(
     case 'award': {
       const row = await tx.federalAward.findUnique({
         where: { id },
-        select: { contractorName: true, awardingAgency: true, awardedAt: true },
+        select: {
+          contractorName: true,
+          awardingAgency: true,
+          awardedAt: true,
+          ...(enforceDateSemantics
+            ? { baseAwardSignedDate: true, latestActionDate: true }
+            : {}),
+        },
       });
+      const dates = row ? federalAwardDates(row) : null;
+      const date = dates?.baseAwardSignedDate ?? dates?.latestActionDate ?? null;
       return row
         ? gov(
             row.contractorName ?? 'Federal award',
-            [row.awardingAgency, dateLabel(row.awardedAt)],
+            [
+              row.awardingAgency,
+              enforceDateSemantics
+                ? labeledDate(dates?.baseAwardSignedDate ? 'Base award signed' : 'Latest action', date)
+                : dateLabel(row.awardedAt),
+            ],
             'usaspending.gov',
-            row.awardedAt,
+            enforceDateSemantics && date ? new Date(date) : row.awardedAt,
           )
         : null;
     }
@@ -875,6 +898,13 @@ function gov(
 
 function dateLabel(value: Date | null | undefined): string | null {
   return value ? value.toISOString().slice(0, 10) : null;
+}
+
+function labeledDate(label: string, value: Date | string | null): string {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime())
+    ? `${label}: ${date.toISOString().slice(0, 10)}`
+    : `${label}: unknown`;
 }
 
 function targetFact(

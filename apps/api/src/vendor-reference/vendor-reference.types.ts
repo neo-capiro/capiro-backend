@@ -53,6 +53,8 @@ export interface ContractingDetail {
   type: string | null;
   value: number | null;
   awardDate: string | null;
+  /** Present only when evidence-accuracy enforcement is active. */
+  awardDateSemantics?: 'latest_action' | 'base_award_signed';
   periodOfPerformance: string | null;
   matchBasis: 'exact_uei' | 'exact_name';
   recordId: string;

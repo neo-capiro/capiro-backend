@@ -48,6 +48,7 @@ export interface MeriEvidenceTabProps {
   claims: MeriEvidenceClaim[];
   groundingCaveat: GroundingCaveat | null;
   retrieval: ChatMessageRetrieval | null;
+  evidenceAccuracy?: 'enforce';
   onOpenSource?: (source: MeriEvidenceSource, index: number) => void;
 }
 
@@ -57,6 +58,7 @@ export function MeriEvidenceTab({
   claims,
   groundingCaveat,
   retrieval,
+  evidenceAccuracy,
   onOpenSource,
 }: MeriEvidenceTabProps) {
   const groundingItems = groundingCaveat?.findings ?? [];
@@ -165,7 +167,9 @@ export function MeriEvidenceTab({
                     <span className="vnext-meri__evidence-source-date">{source.date}</span>
                   </span>
                   <span className="vnext-meri__evidence-source-title">
-                    [{source.citationNumber ?? index + 1}] {source.title}
+                    {evidenceAccuracy === 'enforce'
+                      ? <>{source.citationNumber != null ? `[${source.citationNumber}] ` : null}{source.title}</>
+                      : <>[{source.citationNumber ?? index + 1}] {source.title}</>}
                   </span>
                   <span className="vnext-meri__evidence-source-snippet">{source.snippet}</span>
                 </span>

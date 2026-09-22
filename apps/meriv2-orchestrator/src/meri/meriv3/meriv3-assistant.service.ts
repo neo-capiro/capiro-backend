@@ -20,11 +20,14 @@ import {
 import {
   buildAssurancePromptBlock,
   buildClaimLedgerFromToolResults,
+  extractMaterialClaims,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
   ledgerToToolResultMap,
   planGovernmentAffairsEvidence,
   resolveAssuranceRolloutMode,
+  resolveClaimAssessmentMode,
+  resolveEvidenceAccuracyMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -53,7 +56,7 @@ import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js'
 import {
   meriEvidenceManifest,
   seedMeriContextEvidence,
-  numberMeriEvidenceCitations,
+  numberMeriEvidenceCitationsForMode,
 } from './meriv3-context-evidence.js';
 import { projectMeriToolEvidence, wrapMeriToolEvidence } from './meriv3-tool-evidence.js';
 import {
@@ -82,11 +85,17 @@ import type {
   MeriV3ProviderTelemetry,
   OpenAiResponsesResult,
 } from './meriv3.types.js';
+import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
+import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
+import { createChatDecisionProviders } from '../jev/jev-provider.factory.js';
+import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
   signal?: AbortSignal;
   deadlineAt?: number;
+  /** Original transport signal retained for post-release shadow cancellation. */
+  requestSignal?: AbortSignal;
 }
 
 const TOOL_RESULT_CHARS = 12_000;
@@ -183,6 +192,7 @@ function isModelTimeoutError(error: unknown): boolean {
 export class MeriV3AssistantService {
   private readonly logger = new Logger(MeriV3AssistantService.name);
   private readonly registry: ToolRegistry;
+  private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
 
   constructor(
@@ -193,6 +203,7 @@ export class MeriV3AssistantService {
     config: ConfigService,
   ) {
     this.registry = registryService.registry;
+    this.llm = registryService.llm;
     this.apiBaseUrl = (
       config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
     ).replace(/\/+$/, '');
@@ -217,6 +228,7 @@ export class MeriV3AssistantService {
         ...opts,
         signal: control.signal,
         deadlineAt: control.deadlineAt,
+        requestSignal: opts.signal,
       });
     } finally {
       control.dispose();
@@ -307,6 +319,7 @@ export class MeriV3AssistantService {
       tenantId: ctx.tenantId,
       surface: 'chat',
     });
+    const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat');
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
 
@@ -482,10 +495,12 @@ export class MeriV3AssistantService {
         emit,
         prePersistRefusal,
         noteComplianceOutcome,
+        evidenceAccuracyMode,
         control: opts,
       });
       gatheredToolOutput = gatheredToolOutput || executions.length > 0;
       for (const execution of executions) {
+        MeriV3ResearchRuntimeStore.observeToolResult(execution.result);
         input.push({
           type: 'function_call_output',
           call_id: execution.call.call_id,
@@ -733,6 +748,7 @@ export class MeriV3AssistantService {
       evidencePlan,
       assuranceRisk,
       assuranceMode,
+      evidenceAccuracyMode,
       complianceOutcome,
       verificationAvailable,
       emit,
@@ -740,12 +756,73 @@ export class MeriV3AssistantService {
 
     if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
       emit({ type: 'text', text: released.reply });
+    // Always schedule after text emission. Stage 1 enforce is intentionally
+    // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
+    if (resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat') !== 'off') {
+      const asOf = new Date().toISOString();
+      scheduleClaimInventoryShadow({
+        conversationId: dto.conversationId,
+        turnId: undefined,
+        replyText: released.reply,
+        citations: released.citations,
+        asOf,
+        logger: this.logger,
+        afterInventory: async () => {
+          const claimLedger = buildClaimLedgerFromToolResults({
+            output: released.reply,
+            ledgerEntries,
+            citations: released.citations,
+            plan: evidencePlan,
+          });
+          const claims = extractMaterialClaims({
+            replyText: released.reply,
+            citations: released.citations,
+            ledger: claimLedger,
+            asOf,
+          }).filter((claim) => claim.material);
+          const passages = Object.fromEntries(claimLedger.evidence.map((evidence) => {
+            const citation = released.citations.find((item) => item.id === evidence.sourceId);
+            const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
+            return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
+          }));
+          const providers = createChatDecisionProviders({
+            env: process.env,
+            tenantId: ctx.tenantId,
+            surface: 'chat',
+            llm: this.llm,
+            logger: this.logger,
+          });
+          await assessReleasedClaims({
+            claims,
+            ledger: claimLedger,
+            citations: released.citations,
+            passages,
+            tenantId: ctx.tenantId,
+            clientId: dto.clientId,
+            conversationId: dto.conversationId,
+            turnId: undefined,
+            asOf,
+            providers,
+            budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
+            signal: opts.requestSignal ?? opts.signal,
+            logger: this.logger,
+          });
+        },
+      });
+    }
     if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
+      const pageWrite = this.validateCitationText(
+        pageWriteState.payload.body,
+        citations,
+        evidenceAccuracyMode,
+        'page_write',
+        dto.conversationId,
+      );
       emit({
         type: 'page_write',
         target: 'outreach_draft',
         subject: pageWriteState.payload.subject,
-        body: pageWriteState.payload.body,
+        body: pageWrite,
       });
     }
 
@@ -804,6 +881,7 @@ export class MeriV3AssistantService {
       reasoningEffort: actualEffort,
       telemetry,
       providerCalls,
+      ...(evidenceAccuracyMode === 'enforce' ? { evidenceAccuracy: 'enforce' as const } : {}),
       ...(dto.toolPolicy ? { held: released.held } : {}),
       ...(dto.toolPolicy === 'read-only' ? { ledgerEntries } : {}),
     };
@@ -861,6 +939,7 @@ export class MeriV3AssistantService {
     emit: (event: MeriV3ChatStreamEvent) => void;
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
+    evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
     control?: ToolExecutionControl;
   }): Promise<FunctionExecution[]> {
     const executions: FunctionExecution[] = [];
@@ -934,6 +1013,8 @@ export class MeriV3AssistantService {
         noteComplianceOutcome: args.noteComplianceOutcome,
         scopeViolation: augmented.scopeViolation,
         control: args.control,
+        citations: args.citations,
+        evidenceAccuracyMode: args.evidenceAccuracyMode,
       });
       const visibleResult = projectMeriToolEvidence({
         result,
@@ -944,16 +1025,42 @@ export class MeriV3AssistantService {
       if (this.registry.get(call.name)?.readOnly === true) {
         args.toolCoverage.push(...observeMeriTurnToolCoverage(call.name, visibleResult));
       }
-      const cites = numberMeriEvidenceCitations(
-        extractCitationsFromToolResult(call.name, visibleResult, 1),
+      const citationCandidates = extractCitationsFromToolResult(call.name, visibleResult, 1);
+      const { citations: cites } = numberMeriEvidenceCitationsForMode(
+        citationCandidates,
         args.citations,
+        args.evidenceAccuracyMode,
+        ({ collisions, overflow }) => {
+          this.logger.warn('meri.citation_integrity', {
+            conversationId: args.dto.conversationId ?? null,
+            turnId: null,
+            surface: 'numbering',
+            collisions,
+            overflow,
+            mode: 'shadow',
+          });
+        },
       );
       for (const cite of cites) {
-        const index = args.citations.findIndex(
-          (source) => source.tool === cite.tool && source.id === cite.id,
+        const index = args.citations.findIndex((source) =>
+          cite.stableId
+            ? source.tool === cite.tool &&
+              (source as MeriCitation & { stableId?: string }).stableId === cite.stableId
+            : source.tool === cite.tool && source.id === cite.id,
         );
         if (index < 0) args.citations.push(cite);
         else args.citations[index] = cite;
+      }
+      for (const artifact of extractChatArtifacts(result)) {
+        const releasedArtifact = this.validateCitationExposure(
+          artifact,
+          args.citations,
+          args.evidenceAccuracyMode,
+          'artifact',
+          args.dto.conversationId,
+        );
+        args.artifacts.push(releasedArtifact);
+        args.emit({ type: 'artifact', artifact: releasedArtifact });
       }
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
@@ -1012,6 +1119,8 @@ export class MeriV3AssistantService {
     noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
     scopeViolation?: string;
     control?: ToolExecutionControl;
+    citations: MeriCitation[];
+    evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
   }): Promise<unknown> {
     assertToolExecutionActive(args.control);
     const label = toolLabel(args.name);
@@ -1062,10 +1171,6 @@ export class MeriV3AssistantService {
           args.noteComplianceOutcome('PASS');
           args.steps.push({ tool: args.name, label, status: 'done' });
           args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
-          for (const artifact of extractChatArtifacts(authority.executionResult)) {
-            args.artifacts.push(artifact);
-            args.emit({ type: 'artifact', artifact });
-          }
           return authority.executionResult;
         }
         if (authority.disposition === 'pending_approval') {
@@ -1145,10 +1250,6 @@ export class MeriV3AssistantService {
       const result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
       args.steps.push({ tool: args.name, label, status: 'done' });
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
-      for (const artifact of extractChatArtifacts(result)) {
-        args.artifacts.push(artifact);
-        args.emit({ type: 'artifact', artifact });
-      }
       return result;
     } catch (error) {
       assertToolExecutionActive(args.control);
@@ -1169,11 +1270,19 @@ export class MeriV3AssistantService {
     evidencePlan: ReturnType<typeof planGovernmentAffairsEvidence>;
     assuranceRisk: ReturnType<typeof classifyAssuranceRisk>;
     assuranceMode: ReturnType<typeof resolveAssuranceRolloutMode>;
+    evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
     complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
     verificationAvailable: boolean;
     emit: (event: MeriV3ChatStreamEvent) => void;
   }): { reply: string; citations: MeriCitation[]; held: boolean } {
     const formA = validateCitationMarkers(args.reply, args.citations);
+    this.logCitationIntegrity(
+      formA.dropped,
+      args.citations.length,
+      args.evidenceAccuracyMode,
+      'reply',
+      args.dto.conversationId,
+    );
     const formB = validateFormBCitations(
       formA.cleanedText,
       ledgerToToolResultMap(args.ledgerEntries),
@@ -1280,6 +1389,57 @@ export class MeriV3AssistantService {
     }
 
     return { reply: released, citations: usedCitations, held };
+  }
+
+  private validateCitationExposure(
+    artifact: ChatArtifact,
+    citations: MeriCitation[],
+    mode: ReturnType<typeof resolveEvidenceAccuracyMode>,
+    surface: 'artifact',
+    conversationId?: string,
+  ): ChatArtifact {
+    if (!artifact.bodyText) return artifact;
+    return {
+      ...artifact,
+      bodyText: this.validateCitationText(
+        artifact.bodyText,
+        citations,
+        mode,
+        surface,
+        conversationId,
+      ),
+    };
+  }
+
+  private validateCitationText(
+    text: string,
+    citations: MeriCitation[],
+    mode: ReturnType<typeof resolveEvidenceAccuracyMode>,
+    surface: 'artifact' | 'page_write',
+    conversationId?: string,
+  ): string {
+    if (mode === 'off') return text;
+    const validated = validateCitationMarkers(text, citations);
+    this.logCitationIntegrity(validated.dropped, citations.length, mode, surface, conversationId);
+    return mode === 'enforce' ? validated.cleanedText : text;
+  }
+
+  private logCitationIntegrity(
+    dropped: number[],
+    registered: number,
+    mode: ReturnType<typeof resolveEvidenceAccuracyMode>,
+    surface: 'reply' | 'artifact' | 'page_write',
+    conversationId?: string,
+  ): void {
+    if (mode === 'off' || dropped.length === 0) return;
+    this.logger.warn('meri.citation_integrity', {
+      conversationId: conversationId ?? null,
+      turnId: null,
+      surface,
+      dropped,
+      registered,
+      mode,
+    });
   }
 
   private async assertResearchRunActive(

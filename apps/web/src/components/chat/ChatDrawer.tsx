@@ -355,6 +355,7 @@ export function MeriLegacyDrawer({
                   role={msg.role}
                   content={msg.content}
                   citations={msg.citations}
+                  evidenceAccuracy={msg.evidenceAccuracy}
                   verification={msg.verification}
                   groundingCaveat={msg.groundingCaveat}
                   attachments={msg.attachments}

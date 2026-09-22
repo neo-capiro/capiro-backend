@@ -1,5 +1,5 @@
 import { messageMeriTurnScope, type MeriTurnScope } from '../../components/chat/meri-turn-scope.js';
-import { Children, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -39,6 +39,7 @@ import { MeriArtifactDownloadLink } from './MeriArtifactDownloadLink.js';
 import { canonicalMeriArtifactSandboxUrl } from '../../components/chat/meri-artifact-download.js';
 import { config } from '../../env.js';
 import { MeriSavePromptButton } from './MeriSavedPromptWorkflow.js';
+import { accuracyLinkPresentation, injectCitationMarkers } from '../../components/chat/citation-rendering.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
@@ -261,8 +262,8 @@ function VNextMeriAssistantMessage({
     return map;
   }, [citations]);
   const markdownComponents = useMemo<Components>(
-    () => buildMarkdownComponents(citationMap, setActiveCitation, controller.authHeaders),
-    [citationMap, controller.authHeaders],
+    () => buildMarkdownComponents(citationMap, setActiveCitation, controller.authHeaders, message.evidenceAccuracy),
+    [citationMap, controller.authHeaders, message.evidenceAccuracy],
   );
 
   const markdownSource = visibleMarkdown(
@@ -320,6 +321,7 @@ function VNextMeriAssistantMessage({
     claims: evidenceClaims,
     groundingCaveat: message.groundingCaveat ?? null,
     retrieval: message.retrieval ?? null,
+    evidenceAccuracy: message.evidenceAccuracy,
     onOpenSource: (_source, index) => setActiveCitation(citations[index] ?? null),
   };
   const openThisTurnInspector = (tab: MeriTurnInspectorTab) =>
@@ -420,7 +422,7 @@ function VNextMeriAssistantMessage({
           />
         ) : null}
 
-        <div className="vnext-meri__assistant-body" data-meri-answer-body>
+        <div className={`vnext-meri__assistant-body${message.evidenceAccuracy === 'enforce' ? ' vnext-meri__assistant-body--accuracy' : ''}`} data-meri-answer-body>
           <AttachmentList attachments={message.attachments} />
           {markdownSource ? (
             <ReactMarkdown
@@ -547,7 +549,11 @@ function VNextMeriAssistantMessage({
                   type="button"
                   className="vnext-meri__doc-card"
                   aria-label={`Open ${artifact.title}`}
-                  onClick={() => controller.setActiveArtifact(artifact)}
+                  onClick={() => controller.setActiveArtifact({
+                    ...artifact,
+                    ...(citations.length ? { citations } : {}),
+                    ...(message.evidenceAccuracy ? { evidenceAccuracy: message.evidenceAccuracy } : {}),
+                  })}
                 >
                   <span className="vnext-meri__doc-card-icon" aria-hidden="true">
                     <MeriIcon name="File04" size={20} />
@@ -765,40 +771,6 @@ function ComposingCursor() {
   );
 }
 
-function injectCitations(
-  children: ReactNode,
-  citationMap: Map<number, MeriCitation>,
-  onOpen: (citation: MeriCitation) => void,
-): ReactNode {
-  if (citationMap.size === 0) return children;
-  return Children.map(children, (child) => {
-    if (typeof child !== 'string') return child;
-    const parts: ReactNode[] = [];
-    const pattern = /\[(\d{1,3})\]/g;
-    let last = 0;
-    let match: RegExpExecArray | null;
-    let key = 0;
-    while ((match = pattern.exec(child)) !== null) {
-      const citation = citationMap.get(Number(match[1]));
-      if (!citation) continue;
-      if (match.index > last) parts.push(child.slice(last, match.index));
-      parts.push(
-        <button
-          key={`citation-${citation.n}-${key++}`}
-          type="button"
-          className="chat-citation"
-          title={`View source ${citation.n}`}
-          onClick={() => onOpen(citation)}
-        >
-          [{citation.n}]
-        </button>,
-      );
-      last = match.index + match[0].length;
-    }
-    if (last < child.length) parts.push(child.slice(last));
-    return parts.length ? parts : child;
-  });
-}
 
 /** Rewrite the narrow saved-artifact alias before either Markdown sanitizer
  * removes its scheme. All other URLs still pass through the default rules. */
@@ -825,8 +797,9 @@ function buildMarkdownComponents(
   citationMap: Map<number, MeriCitation>,
   onOpen: (citation: MeriCitation) => void,
   getAuthHeaders: MeriChatController['authHeaders'],
+  evidenceAccuracy?: 'enforce',
 ): Components {
-  const withCitations = (children: ReactNode) => injectCitations(children, citationMap, onOpen);
+  const withCitations = (children: ReactNode) => injectCitationMarkers(children, citationMap, onOpen, evidenceAccuracy);
   return {
     p: ({ children }) => <p className="vnext-meri-md__p">{withCitations(children)}</p>,
     li: ({ children }) => <li className="vnext-meri-md__li">{withCitations(children)}</li>,
@@ -839,11 +812,10 @@ function buildMarkdownComponents(
     blockquote: ({ children }) => (
       <blockquote className="vnext-meri-md__quote">{withCitations(children)}</blockquote>
     ),
-    a: ({ href, children }) => (
-      <MeriArtifactDownloadLink href={href} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={getAuthHeaders}>
-        {children}
-      </MeriArtifactDownloadLink>
-    ),
+    a: ({ href, children }) => {
+      const presentation = accuracyLinkPresentation(href, children, evidenceAccuracy);
+      return <MeriArtifactDownloadLink href={href} title={presentation.title} apiBaseUrl={config.apiBaseUrl} getAuthHeaders={getAuthHeaders}>{presentation.children}</MeriArtifactDownloadLink>;
+    },
     code: ({ children, className }) =>
       className?.includes('language-') ? (
         <code className={className}>{children}</code>
