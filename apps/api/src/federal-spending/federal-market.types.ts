@@ -31,6 +31,11 @@ export interface FederalContractMarketRow {
   amount: number | null;
   description: string | null;
   actionDate: string | null;
+  latestActionDate: string | null;
+  baseAwardSignedDate: string | null;
+  sourceLastModifiedDate: string | null;
+  popStartDate: string | null;
+  popEndDate: string | null;
   state: string | null;
   district: string | null;
   districtKey: string | null;

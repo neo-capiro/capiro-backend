@@ -45,6 +45,12 @@ function serviceWith(market = marketMock(), geography = geographyMock()) {
 }
 
 describe('FederalMarketMeriToolsService', () => {
+  const originalEnv = process.env;
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
   it.each([
     ['search_federal_contract_awards', 'listContracts'],
     ['search_federal_subawards', 'listSubawards'],
@@ -106,6 +112,46 @@ describe('FederalMarketMeriToolsService', () => {
 
     expect(market.listForecasts).toHaveBeenCalledWith(
       expect.not.objectContaining({ clientId: expect.anything() }),
+    );
+  });
+
+  it('keeps contract items deep-equal in off mode and adds explicit dates only in enforce mode', async () => {
+    const enforceCtx = { ...ctx, tenantId: '17b63099-bc0f-4ac5-b596-496161e9481e' };
+    const item = {
+      id: 'award-1',
+      actionDate: '2026-01-02',
+      latestActionDate: '2026-01-01',
+      baseAwardSignedDate: '2025-12-01',
+      sourceLastModifiedDate: '2026-02-01',
+      popStartDate: null,
+      popEndDate: null,
+      sourceUpdatedAt: '2026-02-02',
+    };
+    const market = marketMock();
+    market.listContracts.mockResolvedValue({ items: [item], total: 1, page: 1, pageSize: 10 });
+    const { service } = serviceWith(market);
+
+    process.env = { ...originalEnv };
+    const off = await service.execute(ctx, 'search_federal_contract_awards', {});
+    if (off.tool !== 'search_federal_contract_awards') throw new Error('wrong tool shape');
+    expect(off.items).toEqual([item]);
+
+    process.env = {
+      ...originalEnv,
+      MERI_EVIDENCE_ACCURACY_MODE: 'enforce',
+      MERI_EVIDENCE_ACCURACY_TENANTS: enforceCtx.tenantId,
+      MERI_EVIDENCE_ACCURACY_SURFACES: 'chat',
+    };
+    const enforce = await service.execute(enforceCtx, 'search_federal_contract_awards', {});
+    if (enforce.tool !== 'search_federal_contract_awards') throw new Error('wrong tool shape');
+    expect(enforce.items[0]).toEqual(
+      expect.objectContaining({
+        actionDate: '2026-01-02',
+        dates: expect.objectContaining({
+          baseAwardSignedDate: '2025-12-01T00:00:00.000Z',
+          capiroSyncedAt: '2026-02-02T00:00:00.000Z',
+        }),
+      }),
     );
   });
 

@@ -177,6 +177,11 @@ export class FederalMarketService {
           amount: number | null;
           description: string | null;
           actionDate: Date | null;
+          latestActionDate: Date | null;
+          baseAwardSignedDate: Date | null;
+          sourceLastModifiedDate: Date | null;
+          popStartDate: Date | null;
+          popEndDate: Date | null;
           state: string | null;
           district: string | null;
           sourceUpdatedAt: Date | null;
@@ -190,6 +195,11 @@ export class FederalMarketService {
                amount::float8 AS amount,
                description,
                action_date AS "actionDate",
+               latest_action_date AS "latestActionDate",
+               base_award_signed_date AS "baseAwardSignedDate",
+               source_last_modified_date AS "sourceLastModifiedDate",
+               pop_start_date AS "popStartDate",
+               pop_end_date AS "popEndDate",
                pop_state AS state,
                pop_congressional_district AS district,
                last_synced_at AS "sourceUpdatedAt"
@@ -203,6 +213,11 @@ export class FederalMarketService {
       items: rows.map((row) => ({
         ...row,
         actionDate: iso(row.actionDate),
+        latestActionDate: iso(row.latestActionDate),
+        baseAwardSignedDate: iso(row.baseAwardSignedDate),
+        sourceLastModifiedDate: iso(row.sourceLastModifiedDate),
+        popStartDate: iso(row.popStartDate),
+        popEndDate: iso(row.popEndDate),
         districtKey: districtKey(row.state, row.district),
         source: 'usaspending' as const,
         sourceUpdatedAt: iso(row.sourceUpdatedAt),

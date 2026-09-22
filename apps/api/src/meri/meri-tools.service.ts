@@ -38,6 +38,8 @@ import {
   type CommitteeCandidate,
 } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import { serializeFederalAwardDates } from '../common/federal-award-date-serialization.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { ActionRecommendationReadService } from '../intelligence/actions/action-recommendation-read.service.js';
@@ -1947,7 +1949,7 @@ export class MeriToolsService {
       case 'search_federal_grants':
         return this.searchFederalGrants(input);
       case 'search_federal_awards':
-        return this.searchFederalAwards(input);
+        return this.searchFederalAwards(ctx, input);
       case 'search_gao_reports':
         return this.searchGaoReports(input);
       case 'search_state_bills':
@@ -3895,7 +3897,7 @@ export class MeriToolsService {
     };
   }
 
-  private async searchFederalAwards(input: Record<string, unknown>) {
+  private async searchFederalAwards(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const peCode = optionalString(input, 'peCode', 16);
@@ -3919,23 +3921,43 @@ export class MeriToolsService {
       this.prisma.withSystem((tx) => tx.federalAward.count({ where })),
     ]);
 
+    const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+    if (mode === 'shadow') {
+      this.logger.warn('meri.evidence_accuracy.shadow', {
+        tool: 'search_federal_awards',
+        rows: data.length,
+        missingBaseDateCount: data.filter((award) => !award.baseAwardSignedDate).length,
+      });
+    }
+
     return {
       tool: 'search_federal_awards',
       generatedAt: new Date().toISOString(),
       total,
-      data: data.map((a) => ({
-        id: a.id,
-        contractorName: a.contractorName,
-        awardingAgency: a.awardingAgency,
-        awardingSubTier: a.awardingSubTier,
-        amount: a.amount != null ? Number(a.amount) : null,
-        description: summarizeText(a.description ?? '', 240),
-        peCode: a.peCode,
-        recipientState: a.recipientState,
-        popCongressionalDistrict: a.popCongressionalDistrict,
-        actionDate: a.actionDate,
-        piid: a.piid,
-      })),
+      data: data.map((a) =>
+        serializeFederalAwardDates(
+          {
+            id: a.id,
+            contractorName: a.contractorName,
+            awardingAgency: a.awardingAgency,
+            awardingSubTier: a.awardingSubTier,
+            amount: a.amount != null ? Number(a.amount) : null,
+            description: summarizeText(a.description ?? '', 240),
+            peCode: a.peCode,
+            recipientState: a.recipientState,
+            popCongressionalDistrict: a.popCongressionalDistrict,
+            actionDate: a.actionDate,
+            piid: a.piid,
+            latestActionDate: a.latestActionDate,
+            baseAwardSignedDate: a.baseAwardSignedDate,
+            sourceLastModifiedDate: a.sourceLastModifiedDate,
+            popStartDate: a.popStartDate,
+            popEndDate: a.popEndDate,
+            lastSyncedAt: a.lastSyncedAt,
+          },
+          mode === 'enforce',
+        ),
+      ),
     };
   }
 

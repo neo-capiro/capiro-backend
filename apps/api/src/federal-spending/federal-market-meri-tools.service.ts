@@ -4,6 +4,8 @@ import type { TenantContext } from '@capiro/shared';
 import { FederalMarketGeographyService } from './federal-market-geography.service.js';
 import { FederalMarketService } from './federal-market.service.js';
 import type { FederalMarketQuery } from './federal-market.types.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
+import { serializeFederalAwardDates } from '../common/federal-award-date-serialization.js';
 
 export const FEDERAL_MARKET_MERI_TOOL_DEFINITIONS = MERI_FEDERAL_MARKET_TOOL_DEFINITIONS;
 
@@ -158,8 +160,14 @@ export class FederalMarketMeriToolsService {
     const generatedAt = new Date().toISOString();
 
     if (name === 'search_federal_contract_awards') {
+      const result = await this.market.listContracts(ctx.tenantId, query);
+      const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
       return {
-        ...(await this.market.listContracts(ctx.tenantId, query)),
+        ...result,
+        items:
+          mode === 'enforce'
+            ? result.items.map((row) => serializeFederalAwardDates(row, true))
+            : result.items,
         tool: name,
         generatedAt,
       };

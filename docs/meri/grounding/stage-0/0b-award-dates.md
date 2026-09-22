@@ -57,3 +57,27 @@ only for rows populated under the corrected contract. Consumer labels, serializa
 sorting, prompts, and streaming must switch to these columns only under the evidence
 accuracy feature contract. T5 must not reinterpret legacy `action_date` or `awarded_at`
 as reliable transaction/base dates.
+
+## Backfill runbook
+
+The backfill is dry-run by default and re-reads the USAspending award detail endpoint;
+it never derives corrected semantics from `raw_jsonb`.
+
+1. Preview a highest-dollar batch and produce both reports:
+   `tsx scripts/backfill-federal-award-dates.ts --limit 500 --report ./award-dates-batch-1.md`.
+2. Review the Markdown and JSON impact reports, including fallback suspects, date-difference
+   buckets, incident awards, and the top awards' before/after values.
+3. Commit the reviewed batch with an append-only snapshot taken before writes:
+   `tsx scripts/backfill-federal-award-dates.ts --commit --limit 500 --snapshot ./award-dates-batch-1.jsonl --report ./award-dates-batch-1-commit.md`.
+   Continue in bounded batches using `--ids` or `--since` as appropriate.
+4. If the review or post-write checks fail, restore exactly the corrected columns from the
+   snapshot: `tsx scripts/backfill-federal-award-dates.ts --rollback ./award-dates-batch-1.jsonl`.
+
+`--commit` requires `--snapshot`. Writes are limited to `base_award_signed_date`,
+`latest_action_date`, `source_last_modified_date`, `pop_start_date`, `pop_end_date`, and
+`date_semantics_version`; legacy columns and JSON are untouched. The detail rail leaves latest
+action null because that endpoint does not expose an authoritative transaction action date.
+The bulk rail is explicitly not implemented.
+
+The Stage 0 implementation was **not executed against any database**. Its required three-record
+acceptance dry run used the live public USAspending detail API with `DATABASE_URL` unset.
