@@ -27,6 +27,7 @@ import {
   planGovernmentAffairsEvidence,
   resolveAssuranceRolloutMode,
   resolveClaimAssessmentMode,
+  resolveCoverageRetrievalMode,
   resolveEvidenceAccuracyMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
@@ -89,6 +90,13 @@ import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
 import { createChatDecisionProviders } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
+import {
+  appendClaimTiedCoverageDisclosure,
+  buildCoverageRequirements,
+  compareCoverage,
+  planFollowUp,
+  type CoverageGap,
+} from '../retrieval/meri-evidence-requirements.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -320,6 +328,11 @@ export class MeriV3AssistantService {
       surface: 'chat',
     });
     const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat');
+    const coverageRetrievalMode = resolveCoverageRetrievalMode(
+      process.env,
+      ctx.tenantId,
+      'chat',
+    );
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
 
@@ -354,6 +367,15 @@ export class MeriV3AssistantService {
     const availableSchemas = toolSchemas.filter(
       (schema) => schema.name !== 'get_research_evidence' || Boolean(dto.researchRun),
     );
+    const coverageRequirements =
+      coverageRetrievalMode === 'off'
+        ? []
+        : buildCoverageRequirements({
+            plan: evidencePlan,
+            request: lastUserText,
+            frame: operatingFrame,
+            clientId: dto.clientId,
+          });
 
     const tools = availableSchemas.map(anthropicSchemaToResponsesTool);
     const verificationAvailable = availableSchemas.length > 0;
@@ -474,6 +496,7 @@ export class MeriV3AssistantService {
     let gatheredToolOutput = false;
     let completionRepairs = 0;
     let automaticReads = 0;
+    let residualCoverageGaps: CoverageGap[] = [];
     const MAX_AUTOMATIC_DOCUMENT_READS = 24;
     const canReadDocuments =
       availableSchemas.some((schema) => schema.name === 'read_client_documents') &&
@@ -640,6 +663,87 @@ export class MeriV3AssistantService {
         await continueDocumentReads();
       }
 
+      if (coverageRetrievalMode !== 'off') {
+        const coverageStartedAt = Date.now();
+        let gaps = compareCoverage({
+          requirements: coverageRequirements,
+          toolsUsed,
+          receipts: toolCoverage,
+          ledgerEntries,
+          citations,
+        });
+        const readOnlySchemas = availableSchemas.flatMap((schema) => {
+          const metadata = this.registry.executionMetadata?.(schema.name);
+          return metadata?.readOnly === true && metadata.executionMode === 'read'
+            ? [{ ...schema, readOnly: true }]
+            : [];
+        });
+        const followUp = planFollowUp({
+          gaps,
+          requirements: coverageRequirements,
+          toolSchemas: readOnlySchemas,
+          request: lastUserText,
+          frame: operatingFrame,
+        });
+        let executed = 0;
+        const attempted = new Set<string>();
+        if (coverageRetrievalMode === 'enforce' && followUp) {
+          for (const planned of followUp.calls.slice(0, 2)) {
+            const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
+            if (remainingMs <= reserveMs) break;
+            const key = `${planned.name}:${JSON.stringify(planned.arguments)}`;
+            if (attempted.has(key)) continue;
+            attempted.add(key);
+            const call: OpenAiResponsesFunctionCall = {
+              type: 'function_call',
+              call_id: `coverage_follow_up_${executed}`,
+              name: planned.name,
+              arguments: JSON.stringify(planned.arguments),
+            };
+            input.push(call as unknown as Record<string, unknown>);
+            await executeCalls([call]);
+            executed++;
+          }
+          gaps = compareCoverage({
+            requirements: coverageRequirements,
+            toolsUsed,
+            receipts: toolCoverage,
+            ledgerEntries,
+            citations,
+          });
+          // The prior prose was produced before the server-coordinated evidence
+          // arrived. Force one no-tools synthesis over the augmented input.
+          if (executed > 0) finalText = '';
+        }
+        const essentialResiduals = gaps.filter(
+          (gap) => gap.essential && gap.status !== 'satisfied',
+        );
+        residualCoverageGaps =
+          coverageRetrievalMode === 'enforce' ? essentialResiduals : [];
+        this.logger.log('meri.coverage.turn', {
+          conversationId: dto.conversationId ?? null,
+          requirements: coverageRequirements.map((requirement) => ({
+            requirementId: requirement.requirementId,
+            essential: requirement.essential,
+            template: requirement.template ?? null,
+          })),
+          gaps: gaps.map((gap) => ({
+            requirementId: gap.requirementId,
+            status: gap.status,
+            essential: gap.essential,
+            materiality: gap.materiality,
+          })),
+          followUpPlanned: followUp?.calls.length ?? 0,
+          executed,
+          satisfiedAfter: gaps.filter((gap) => gap.status === 'satisfied').length,
+          changedAnswer:
+            coverageRetrievalMode === 'enforce' &&
+            essentialResiduals.some((gap) => gap.materiality === 'changes_answer'),
+          durationMs: Date.now() - coverageStartedAt,
+          mode: coverageRetrievalMode,
+        });
+      }
+
       if (!finalText && !opts.signal?.aborted) {
         finalText = await runForcedSynthesis(
           gatheredToolOutput || toolsUsed.length
@@ -751,6 +855,8 @@ export class MeriV3AssistantService {
       evidenceAccuracyMode,
       complianceOutcome,
       verificationAvailable,
+      coverageRequirements,
+      residualCoverageGaps,
       emit,
     });
 
@@ -1273,6 +1379,8 @@ export class MeriV3AssistantService {
     evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
     complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
     verificationAvailable: boolean;
+    coverageRequirements: ReturnType<typeof buildCoverageRequirements>;
+    residualCoverageGaps: CoverageGap[];
     emit: (event: MeriV3ChatStreamEvent) => void;
   }): { reply: string; citations: MeriCitation[]; held: boolean } {
     const formA = validateCitationMarkers(args.reply, args.citations);
@@ -1388,6 +1496,13 @@ export class MeriV3AssistantService {
       }
     }
 
+    if (args.residualCoverageGaps.length) {
+      released = appendClaimTiedCoverageDisclosure(
+        released,
+        args.residualCoverageGaps,
+        args.coverageRequirements,
+      );
+    }
     return { reply: released, citations: usedCitations, held };
   }
 

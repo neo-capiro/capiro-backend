@@ -753,6 +753,11 @@ export const configSchema = z.object({
   MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
   MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
 
+  // Stage 2a coverage-driven follow-up retrieval. Dark unless independently enrolled.
+  MERI_COVERAGE_RETRIEVAL_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_COVERAGE_RETRIEVAL_TENANTS: z.string().optional(),
+  MERI_COVERAGE_RETRIEVAL_SURFACES: z.string().optional(),
+
   // Stage 1 claim inventory. Enforce remains shadow-only until a later stage.
   MERI_CLAIM_ASSESSMENT_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
   MERI_CLAIM_ASSESSMENT_TENANTS: z.string().optional(),

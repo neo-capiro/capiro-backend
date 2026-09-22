@@ -169,6 +169,20 @@ function registry(definitions: Array<{ name: string; readOnly: boolean }>, invok
   return {
     list: () => definitions.map((definition) => definition.name),
     get: (name: string) => byName.get(name),
+    executionMetadata: (name: string) => {
+      const definition = byName.get(name);
+      return definition
+        ? {
+            name,
+            readOnly: definition.readOnly,
+            executionMode: definition.readOnly ? 'read' : 'approval_required',
+            externalEffect: definition.readOnly ? 'none' : 'external_send',
+            reversible: definition.readOnly,
+            riskTier: definition.readOnly ? 'low' : 'high',
+            displayVerb: name,
+          }
+        : undefined;
+    },
     invoke,
   } as unknown as ToolRegistry;
 }
@@ -183,6 +197,9 @@ describe('MeriV3AssistantService', () => {
     delete process.env.MERI_CLAIM_ASSESSMENT_MODE;
     delete process.env.MERI_CLAIM_ASSESSMENT_TENANTS;
     delete process.env.MERI_CLAIM_ASSESSMENT_SURFACES;
+    delete process.env.MERI_COVERAGE_RETRIEVAL_MODE;
+    delete process.env.MERI_COVERAGE_RETRIEVAL_TENANTS;
+    delete process.env.MERI_COVERAGE_RETRIEVAL_SURFACES;
     delete process.env.MERI_JEV_PROVIDER_MODE;
     delete process.env.MERI_JEV_PROVIDER_TENANTS;
     delete process.env.MERI_JEV_PROVIDER_SURFACES;
@@ -832,6 +849,52 @@ describe('MeriV3AssistantService', () => {
     );
     expect(JSON.stringify(secondInput)).toContain('Kestrel');
     expect(result.reply).toBe('The stored name is Kestrel.');
+  });
+
+  test('coverage shadow logs a routed gap without executing the follow-up', async () => {
+    process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'shadow';
+    process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
+    const complete = jest.fn().mockResolvedValue(response({ outputText: 'Senate mark only.' }));
+    const invoke = jest.fn();
+    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
+    const log = jest.spyOn((assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger, 'log');
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{
+      name: 'get_pe_budget_timeline', description: 'Read budget marks',
+      input_schema: { type: 'object', properties: { peCode: { type: 'string' } }, required: ['peCode'] },
+    }] }), { status: 200 })) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
+      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+      { conversationId: 'coverage-shadow', messages: [{ role: 'user', text: 'Compare House vs Senate marks for PE 0603851F.' }] },
+    ));
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.reply).toBe('Senate mark only.');
+    expect(log).toHaveBeenCalledWith('meri.coverage.turn', expect.objectContaining({ mode: 'shadow', executed: 0, followUpPlanned: 2 }));
+  });
+
+  test('coverage enforce executes a deduplicated read-only follow-up and re-synthesizes', async () => {
+    process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
+    process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
+    const complete = jest.fn()
+      .mockResolvedValueOnce(response({ outputText: 'Senate mark only.' }))
+      .mockResolvedValueOnce(response({ outputText: 'House and Senate marks compared.' }));
+    const invoke = jest.fn(async () => ({ records: [{ id: '0603851F', text: 'House and Senate marks' }] }));
+    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [{
+      name: 'get_pe_budget_timeline', description: 'Read budget marks',
+      input_schema: { type: 'object', properties: { peCode: { type: 'string' } }, required: ['peCode'] },
+    }] }), { status: 200 })) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
+      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+      { conversationId: 'coverage-enforce', messages: [{ role: 'user', text: 'Compare House vs Senate marks for PE 0603851F.' }] },
+    ));
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledWith('get_pe_budget_timeline', { peCode: '0603851F' }, expect.anything(), expect.anything());
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(result.reply).toBe('House and Senate marks compared.');
   });
 
   test('holds a governed write as an opaque proposal instead of invoking it', async () => {
