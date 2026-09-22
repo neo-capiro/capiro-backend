@@ -76,6 +76,7 @@ export interface ModelFundingYearLike {
   sacDMark?: unknown;
   conference?: unknown;
   enacted?: unknown;
+  fundingClaim?: FundingClaim | null;
 }
 
 export interface SearchFundingClaimInput {
@@ -84,10 +85,45 @@ export interface SearchFundingClaimInput {
   stage: unknown;
 }
 
-function normalizeSearchStage(stage: unknown): FundingClaimStage | null {
-  if (typeof stage !== 'string') return null;
-  const mapped = fundingStageToClaimStage(stage.toLowerCase());
-  return mapped === 'none' ? null : mapped;
+export type BudgetClaimOutputMode = 'legacy' | 'enforce';
+
+function legacyFundingClaim(claim: FundingClaim): FundingClaim {
+  const {
+    enactmentStatus: _enactmentStatus,
+    vehicleType: _vehicleType,
+    originalUnit: _originalUnit,
+    originalValue: _originalValue,
+    source: _source,
+    ...legacy
+  } = claim;
+  return legacy;
+}
+
+function semanticsForClaim(claim: FundingClaim): string {
+  if (claim.stage === 'none') {
+    return `stage=unmapped (unknown vehicle) FY${claim.fiscalYear ?? 'unknown'} ${claim.value == null ? 'amount unavailable' : `$${claim.value}M`} enactment=unknown source=unknown`;
+  }
+  const amount = claim.value == null ? 'amount unavailable' : `$${claim.value}M`;
+  const original = claim.originalUnit ? ` (source printed in ${claim.originalUnit})` : '';
+  const source = claim.source
+    ? ` source=${claim.source.documentType ?? 'unknown'}/${claim.source.publisher ?? 'unknown'}${claim.source.pageNumber == null ? '' : ` p.${claim.source.pageNumber}`}`
+    : ' source=unknown';
+  return `stage=${claim.stageLabel} (${claim.vehicleType ?? 'unknown'} vehicle) FY${claim.fiscalYear ?? 'unknown'} ${amount}${original} enactment=${claim.enactmentStatus ?? 'unknown'}${source}`;
+}
+
+export function fundingClaimForOutput(
+  claim: FundingClaim | null,
+  mode: BudgetClaimOutputMode,
+): (FundingClaim & { semantics?: string }) | null {
+  if (!claim) return null;
+  return mode === 'legacy'
+    ? legacyFundingClaim(claim)
+    : { ...claim, semantics: semanticsForClaim(claim) };
+}
+
+function normalizeSearchStage(stage: unknown): FundingClaimStage {
+  if (typeof stage !== 'string') return 'none';
+  return fundingStageToClaimStage(stage.toLowerCase());
 }
 
 /**
@@ -95,11 +131,14 @@ function normalizeSearchStage(stage: unknown): FundingClaimStage | null {
  * shared FundingClaim with cycleClass='unknown' rather than guessing that the
  * latest row is the current request or an outyear.
  */
-export function searchFundingClaimForModel(input: SearchFundingClaimInput): FundingClaim | null {
+export function searchFundingClaimForModel(
+  input: SearchFundingClaimInput,
+  outputMode: BudgetClaimOutputMode = 'legacy',
+): FundingClaim | null {
   const valueM = finiteNumber(input.valueM);
   const fy = finiteFy(input.fy);
   const stage = normalizeSearchStage(input.stage);
-  if (valueM == null || fy == null || stage == null) return null;
+  if (valueM == null || fy == null || (stage === 'none' && outputMode === 'legacy')) return null;
   return buildFundingClaim({
     value: valueM,
     fiscalYear: fy,
@@ -134,6 +173,7 @@ function stageValues(row: ModelFundingYearLike): FundingStageValues {
 export function fundingClaimsForModel<T extends ModelFundingYearLike>(
   rows: readonly T[],
   suppliedCurrentCycleFy?: number | null,
+  outputMode: BudgetClaimOutputMode = 'legacy',
 ): FundingClaimsForModel<T> {
   const marks: FundingYearMarks[] = rows.flatMap((row) => {
     const fy = finiteFy(row.fy);
@@ -151,14 +191,16 @@ export function fundingClaimsForModel<T extends ModelFundingYearLike>(
       return { ...row, fundingClaim: null };
     }
     const pick = currentFunding(stageValues(row));
+    const ladderClaim = claimFromLadderPick({
+      value: pick.value,
+      stage: pick.stage,
+      fiscalYear: fy,
+      currentCycleFy,
+    });
+    const claim = outputMode === 'enforce' ? row.fundingClaim ?? ladderClaim : ladderClaim;
     return {
       ...row,
-      fundingClaim: claimFromLadderPick({
-        value: pick.value,
-        stage: pick.stage,
-        fiscalYear: fy,
-        currentCycleFy,
-      }),
+      fundingClaim: fundingClaimForOutput(claim, outputMode),
     };
   });
   const currentFundingClaim =

@@ -371,6 +371,24 @@ describe('action plan — due dates', () => {
     expect(new Date(decision!.dueDate!).getTime()).toBeLessThan(AS_OF.getTime());
   });
 
+  it('adds deterministic feasibility only under enforce', () => {
+    const legacy = buildActionPlan(input({ responseDeadline: '2026-08-10T17:00:00.000Z' }));
+    expect(legacy).not.toHaveProperty('feasibility');
+    expect(legacy).not.toHaveProperty('proposedSchedule');
+
+    const enforced = buildActionPlan(
+      input({
+        responseDeadline: '2026-08-10T17:00:00.000Z',
+        evidenceAccuracyMode: 'enforce',
+      }),
+    );
+    expect(enforced.feasibility).toEqual({
+      feasible: true,
+      reason: 'Milestones were compressed proportionally to fit the available runway.',
+    });
+    expect(enforced.proposedSchedule).toHaveLength(enforced.actions.filter((a) => a.dueDate).length);
+  });
+
   it('gives a forecast no due date at all', () => {
     const plan = buildActionPlan(
       input({

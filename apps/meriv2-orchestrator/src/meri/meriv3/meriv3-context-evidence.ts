@@ -3,11 +3,14 @@ import {
   formatCitationsForPrompt,
   type MeriCitation,
 } from '@capiro/shared';
+import { createHash } from 'node:crypto';
 import type {
   LedgerEntry,
   MeriEvidenceManifest,
   MeriGovernedTurnContext,
 } from '@capiro/meriv2-core';
+
+type NumberedMeriCitation = MeriCitation & { stableId?: string };
 
 /** The controller authenticates this context before putting it in request-local storage. */
 export function seedMeriContextEvidence(governed: MeriGovernedTurnContext | null): {
@@ -19,7 +22,7 @@ export function seedMeriContextEvidence(governed: MeriGovernedTurnContext | null
   const inherited = (governed?.inheritedDocumentEvidence ?? []).filter(
     (source) => source.tool === 'read_client_documents' && Boolean(source.documentEvidence),
   );
-  const citations = numberMeriEvidenceCitations(
+  const { citations } = numberMeriEvidenceCitations(
     extractCitationsFromToolResult('context_plane', envelope, 1, envelope?.records.length ?? 0),
     inherited,
   );
@@ -139,18 +142,87 @@ function record(value: unknown): Record<string, unknown> | null {
 export function numberMeriEvidenceCitations(
   candidates: readonly MeriCitation[],
   existing: readonly MeriCitation[],
-): MeriCitation[] {
-  const identities = new Map(existing.map((source) => [`${source.tool}:${source.id}`, source]));
+  options?: { stableIdentity?: boolean },
+): { citations: NumberedMeriCitation[]; overflow: NumberedMeriCitation[] } {
+  const identify = (source: NumberedMeriCitation): { key: string; stableId?: string } => {
+    if (source.id || !options?.stableIdentity) return { key: `${source.tool}:${source.id}` };
+    const stableId = createHash('sha1')
+      .update(`${source.tool}|${source.url ?? ''}|${source.title ?? ''}|${source.snippet ?? ''}`)
+      .digest('hex')
+      .slice(0, 16);
+    return { key: `${source.tool}:${stableId}`, stableId };
+  };
+  const identities = new Map(existing.map((source) => [identify(source).key, source]));
   const reserved = new Set(existing.map((source) => source.n));
   let next = 1;
-  return candidates.flatMap((source) => {
-    const prior = identities.get(`${source.tool}:${source.id}`);
-    if (prior) return [{ ...source, n: prior.n }];
+  const citations: NumberedMeriCitation[] = [];
+  const overflow: NumberedMeriCitation[] = [];
+  for (const source of candidates) {
+    const identity = identify(source);
+    const prior = identities.get(identity.key);
+    if (prior) {
+      citations.push({
+        ...source,
+        n: prior.n,
+        ...(identity.stableId ? { stableId: identity.stableId } : {}),
+      });
+      continue;
+    }
     while (reserved.has(next)) next += 1;
-    if (next > 999) return [];
-    const assigned = { ...source, n: next };
+    if (next > 999) {
+      overflow.push({ ...source, ...(identity.stableId ? { stableId: identity.stableId } : {}) });
+      continue;
+    }
+    const assigned = {
+      ...source,
+      n: next,
+      ...(identity.stableId ? { stableId: identity.stableId } : {}),
+    };
     reserved.add(next);
-    identities.set(`${source.tool}:${source.id}`, assigned);
-    return [assigned];
-  });
+    identities.set(identity.key, assigned);
+    citations.push(assigned);
+  }
+  return { citations, overflow };
+}
+
+export function compareMeriCitationNumbering(
+  candidates: readonly MeriCitation[],
+  existing: readonly MeriCitation[],
+): {
+  legacy: ReturnType<typeof numberMeriEvidenceCitations>;
+  stable: ReturnType<typeof numberMeriEvidenceCitations>;
+  collisions: number;
+  overflow: number;
+} {
+  const legacy = numberMeriEvidenceCitations(candidates, existing);
+  const stable = numberMeriEvidenceCitations(candidates, existing, { stableIdentity: true });
+  const legacyIdless = new Set(
+    legacy.citations.filter((source) => !source.id).map((source) => `${source.tool}:${source.n}`),
+  ).size;
+  const stableIdless = new Set(
+    stable.citations
+      .filter((source) => !source.id)
+      .map((source) => `${source.tool}:${source.stableId ?? source.n}`),
+  ).size;
+  return {
+    legacy,
+    stable,
+    collisions: Math.max(0, stableIdless - legacyIdless),
+    overflow: stable.overflow.length,
+  };
+}
+
+export function numberMeriEvidenceCitationsForMode(
+  candidates: readonly MeriCitation[],
+  existing: readonly MeriCitation[],
+  mode: 'off' | 'shadow' | 'enforce',
+  onShadowDifference?: (counts: { collisions: number; overflow: number }) => void,
+): ReturnType<typeof numberMeriEvidenceCitations> {
+  if (mode === 'enforce')
+    return numberMeriEvidenceCitations(candidates, existing, { stableIdentity: true });
+  if (mode === 'off') return numberMeriEvidenceCitations(candidates, existing);
+  const comparison = compareMeriCitationNumbering(candidates, existing);
+  if (comparison.collisions > 0 || comparison.overflow > 0)
+    onShadowDifference?.({ collisions: comparison.collisions, overflow: comparison.overflow });
+  return comparison.legacy;
 }

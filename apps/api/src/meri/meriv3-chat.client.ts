@@ -187,6 +187,7 @@ export type MeriV3ChatStreamEvent =
         cacheCreationTokens?: number;
       };
       citations?: MeriCitation[];
+      evidenceAccuracy?: 'enforce';
       steps: Array<{
         tool: string;
         label: string;

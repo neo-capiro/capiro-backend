@@ -126,6 +126,81 @@ describe('MeriV3ProxyService — done frame carries the persisted message id', (
     expect(JSON.parse(JSON.stringify(saved.metadata)).citations).toEqual([citation]);
   });
 
+  it('emits an empty enforce citations map and persists the reload signal', async () => {
+    const { service, client, sse, tx, frames } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'done',
+        reply: 'No registered sources.',
+        citations: [],
+        evidenceAccuracy: 'enforce',
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+
+    await service.streamMessage(CTX, CONVERSATION, 'Answer', sse, undefined, 'new', [], 'token');
+
+    expect(frames().find((frame) => frame.type === 'citations')).toEqual({
+      type: 'citations',
+      citations: [],
+      evidenceAccuracy: 'enforce',
+    });
+    const saved = tx.clioMessage.create.mock.calls
+      .map(([arg]: any) => arg.data)
+      .find((data: any) => data.role === 'assistant');
+    expect(saved.metadata.evidenceAccuracy).toBe('enforce');
+  });
+
+  it('emits an empty enforce citations map when the answer is held', async () => {
+    const { service, client, sse, frames } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'done',
+        reply: 'Verification held this answer.',
+        citations: [],
+        evidenceAccuracy: 'enforce',
+        held: true,
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+
+    await service.streamMessage(CTX, CONVERSATION, 'Answer', sse, undefined, 'new', [], 'token');
+
+    expect(frames().find((frame) => frame.type === 'citations')).toEqual({
+      type: 'citations',
+      citations: [],
+      evidenceAccuracy: 'enforce',
+    });
+  });
+
+  it('keeps the legacy empty-citation behavior when the enforce signal is absent', async () => {
+    const { service, client, sse, frames } = buildHarness();
+    client.streamChat.mockImplementationOnce(async ({ onEvent }: any) => {
+      onEvent({
+        type: 'done',
+        reply: 'Legacy answer.',
+        citations: [],
+        steps: [],
+        runtime: 'meriv3',
+        model: 'configured-model',
+        reasoningMode: 'fast',
+        reasoningEffort: 'low',
+      });
+    });
+
+    await service.streamMessage(CTX, CONVERSATION, 'Answer', sse, undefined, 'new', [], 'token');
+
+    expect(frames().find((frame) => frame.type === 'citations')).toBeUndefined();
+  });
+
   it.each(['runtime-url', 'bearer'])(
     'explicitly rejects %s setup failure before accepting or persisting a turn',
     async (missing) => {

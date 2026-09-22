@@ -3,7 +3,9 @@ import { extractCitationsFromToolResult, validateFormBCitations } from '@capiro/
 import {
   seedMeriContextEvidence,
   meriEvidenceManifest,
+  compareMeriCitationNumbering,
   numberMeriEvidenceCitations,
+  numberMeriEvidenceCitationsForMode,
 } from './meriv3-context-evidence.js';
 import {
   buildMeriV3ReleaseCitations,
@@ -168,12 +170,100 @@ describe('initial evidence stays in the same citation and grounding ledger', () 
       tool: 'read_client_documents',
     };
     const current = { ...source, id: 'meeting-1', tool: 'context_plane', n: 1 };
-    const numbered = numberMeriEvidenceCitations([{ ...source, n: 1 }, current], [source]);
+    const { citations: numbered } = numberMeriEvidenceCitations(
+      [{ ...source, n: 1 }, current],
+      [source],
+    );
     expect(numbered.map(({ id, n }) => ({ id, n }))).toEqual([
       { id: 'doc-page-22', n: 999 },
       { id: 'meeting-1', n: 1 },
     ]);
-    expect(numberMeriEvidenceCitations([current], numbered)[0]?.n).toBe(1);
+    expect(numberMeriEvidenceCitations([current], numbered).citations[0]?.n).toBe(1);
+  });
+
+  it('uses stable fallback identities for id-less evidence without collapsing distinct rows', () => {
+    const base = {
+      n: 1,
+      type: 'web',
+      id: '',
+      title: 'First result',
+      url: 'https://example.gov/first',
+      snippet: 'First snippet',
+      tool: 'search_public_web',
+    };
+    const second = { ...base, title: 'Second result', url: 'https://example.gov/second' };
+    const result = numberMeriEvidenceCitations([base, second, base], [], {
+      stableIdentity: true,
+    });
+
+    expect(result.citations.map(({ n, stableId }) => ({ n, stableId }))).toEqual([
+      { n: 1, stableId: expect.stringMatching(/^[a-f0-9]{16}$/) },
+      { n: 2, stableId: expect.stringMatching(/^[a-f0-9]{16}$/) },
+      { n: 1, stableId: expect.stringMatching(/^[a-f0-9]{16}$/) },
+    ]);
+    expect(result.citations[0]?.stableId).not.toBe(result.citations[1]?.stableId);
+    expect(result.citations[0]?.stableId).toBe(result.citations[2]?.stableId);
+  });
+
+  it('keeps shadow numbering equal to legacy while measuring enforce collisions', () => {
+    const base = {
+      n: 1,
+      type: 'web',
+      id: '',
+      title: 'First result',
+      url: 'https://example.gov/first',
+      snippet: 'First snippet',
+      tool: 'search_public_web',
+    };
+    const rows = [base, { ...base, title: 'Second result', url: 'https://example.gov/second' }];
+
+    const comparison = compareMeriCitationNumbering(rows, []);
+
+    expect(comparison.legacy).toEqual(numberMeriEvidenceCitations(rows, []));
+    expect(comparison.legacy.citations.map(({ n }) => n)).toEqual([1, 1]);
+    expect(comparison.stable.citations.map(({ n }) => n)).toEqual([1, 2]);
+    expect(comparison.collisions).toBe(1);
+    expect(comparison.overflow).toBe(0);
+  });
+
+  it('returns off-identical shadow output, enforce differences, and reports shadow counts once', () => {
+    const base = {
+      n: 1,
+      type: 'web',
+      id: '',
+      title: 'First result',
+      url: 'https://example.gov/first',
+      snippet: 'First snippet',
+      tool: 'search_public_web',
+    };
+    const rows = [base, { ...base, title: 'Second result', url: 'https://example.gov/second' }];
+    const observe = jest.fn();
+
+    const off = numberMeriEvidenceCitationsForMode(rows, [], 'off');
+    const shadow = numberMeriEvidenceCitationsForMode(rows, [], 'shadow', observe);
+    const enforce = numberMeriEvidenceCitationsForMode(rows, [], 'enforce');
+
+    expect(shadow).toEqual(off);
+    expect(enforce).not.toEqual(off);
+    expect(observe).toHaveBeenCalledTimes(1);
+    expect(observe).toHaveBeenCalledWith({ collisions: 1, overflow: 0 });
+  });
+
+  it('records sources beyond marker 999 as overflow', () => {
+    const existing = Array.from({ length: 999 }, (_, index) => ({
+      n: index + 1,
+      type: 'source',
+      id: `source-${index + 1}`,
+      title: `Source ${index + 1}`,
+      url: null,
+      snippet: null,
+      tool: 'search_memory',
+    }));
+    const candidate = { ...existing[0]!, id: 'source-1000', title: 'Overflow source' };
+    const result = numberMeriEvidenceCitations([candidate], existing, { stableIdentity: true });
+
+    expect(result.citations).toEqual([]);
+    expect(result.overflow).toEqual([candidate]);
   });
 
   it('numbers subsequent tool evidence after initial sources and saves a body-free manifest', () => {

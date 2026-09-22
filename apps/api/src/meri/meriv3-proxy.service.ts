@@ -446,8 +446,12 @@ export class MeriV3ProxyService {
       emit({ type: 'text', text: assistantContent });
     }
     if (frame?.usage && !aborted) emit({ type: 'usage', usage: frame.usage });
-    if (frame?.citations?.length && !aborted) {
-      emit({ type: 'citations', citations: frame.citations });
+    if ((frame?.citations?.length || frame?.evidenceAccuracy === 'enforce') && !aborted) {
+      emit({
+        type: 'citations',
+        citations: frame?.citations ?? [],
+        ...(frame?.evidenceAccuracy === 'enforce' ? { evidenceAccuracy: 'enforce' } : {}),
+      });
     }
     const groundingStatement = buildMeriGroundingStatement({
       citations: frame?.citations ?? [],
@@ -511,6 +515,7 @@ export class MeriV3ProxyService {
           toolsUsed: steps.map((step) => step.tool),
           usage: frame?.usage ?? {},
           citations: (frame?.citations ?? []) as unknown as Prisma.InputJsonValue,
+          ...(frame?.evidenceAccuracy === 'enforce' ? { evidenceAccuracy: 'enforce' } : {}),
           groundingStatement,
           turnScope: turnScope as unknown as Prisma.InputJsonValue,
           ...(groundingCaveat

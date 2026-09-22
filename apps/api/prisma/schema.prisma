@@ -11419,6 +11419,8 @@ model BudgetLineRelationship {
   /// Human-readable evidence ("P-40 'Related PEs' lists 0604011A").
   evidence     String   @db.Text
   evidenceJson Json     @default("{}") @map("evidence_jsonb")
+  transitionFyFrom Int? @map("transition_fy_from")
+  transitionFyTo   Int? @map("transition_fy_to")
   derivedBy    String   @map("derived_by") @db.VarChar(48)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

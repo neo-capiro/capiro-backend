@@ -1,3 +1,8 @@
+import {
+  dayBoundsInZone as sharedDayBoundsInZone,
+  ymdInZone as sharedYmdInZone,
+} from '@capiro/shared';
+
 /**
  * Day-bound helpers for IANA-timezone-aware queries.
  *
@@ -14,20 +19,7 @@
  * columns (e.g. `intelligence_change.detected_at`).
  */
 export function dayBoundsInZone(now: Date, timeZone: string): { start: Date; end: Date } {
-  const ymd = formatYMD(now, timeZone);
-  const offsetParts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    timeZoneName: 'longOffset',
-  }).formatToParts(now);
-  const offsetRaw = offsetParts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-05:00';
-  const offsetMatch = offsetRaw.match(/GMT([+-])(\d{2}):?(\d{2})?/);
-  const offset = offsetMatch
-    ? `${offsetMatch[1]}${offsetMatch[2]}:${offsetMatch[3] ?? '00'}`
-    : '-05:00';
-  return {
-    start: new Date(`${ymd}T00:00:00${offset}`),
-    end: new Date(`${ymd}T23:59:59.999${offset}`),
-  };
+  return sharedDayBoundsInZone(now, timeZone);
 }
 
 /**
@@ -60,7 +52,7 @@ export function addDateInZone(base: Date, days: number, timeZone: string): Date 
  * intended calendar date without shifting it a day earlier.
  */
 export function ymdInZone(now: Date, timeZone: string): string {
-  return formatYMD(now, timeZone);
+  return sharedYmdInZone(now, timeZone);
 }
 
 function formatYMD(now: Date, timeZone: string): string {

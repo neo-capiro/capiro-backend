@@ -59,6 +59,7 @@ import {
   type EmailThreadCandidate,
 } from './relevant-email-ranker.js';
 import { freshnessThresholdDays } from './evidence-freshness.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
 
 /** The context-item kinds the wizard can send. Mirrors the web ContextKind union. */
 export type ContextKind =
@@ -203,7 +204,7 @@ export class EvidenceSourceService {
       case 'stateBill':
         return this.resolveStateBill(item, input);
       case 'programElement':
-        return this.resolveProgramElement(item, input);
+        return this.resolveProgramElement(ctx, item, input);
       case 'capability':
         return this.resolveCapability(ctx, item, input);
       case 'email':
@@ -357,6 +358,7 @@ export class EvidenceSourceService {
   }
 
   private async resolveProgramElement(
+    ctx: TenantContext,
     item: SelectedContextItemRef,
     input: ResolveSelectedItemsInput,
   ): Promise<Partial<ResolveSelectedItemsResult>> {
@@ -379,6 +381,20 @@ export class EvidenceSourceService {
     }
 
     const currentFy = block.raw.currentCycleFy;
+    const accuracyMode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'outreach');
+    const sourceAsOf =
+      accuracyMode === 'off' ? null : await this.latestProgramElementSourceAsOf(peCode);
+    if (accuracyMode === 'shadow') {
+      this.logger.warn('meri.evidence_accuracy.shadow', {
+        surface: 'outreach',
+        sourceType: 'programElement',
+        sourceId: peCode,
+        legacyAuthoritativeAsOf: currentFy ? `${currentFy - 1}-10-01` : null,
+        enforcedAuthoritativeAsOf: sourceAsOf,
+        asOfBasis: sourceAsOf ? 'source_observed' : 'unknown',
+      });
+    }
+    const enforce = accuracyMode === 'enforce';
     const ref = this.ref({
       sourceType: 'programElement',
       sourceId: peCode,
@@ -386,7 +402,14 @@ export class EvidenceSourceService {
       trust: 'authoritative_structured',
       // A budget series' as-of is its cycle, not a timestamp; represent the
       // current cycle FY as its start so freshness math has something real.
-      authoritativeAsOf: currentFy ? `${currentFy - 1}-10-01` : null,
+      authoritativeAsOf: enforce
+        ? sourceAsOf
+        : currentFy
+          ? `${currentFy - 1}-10-01`
+          : null,
+      ...(enforce
+        ? { asOfBasis: sourceAsOf ? ('source_observed' as const) : ('unknown' as const) }
+        : {}),
       scope: item.scope,
       now: input.now,
       provenance: {
@@ -402,6 +425,22 @@ export class EvidenceSourceService {
         }),
       ],
     };
+  }
+
+  private async latestProgramElementSourceAsOf(peCode: string): Promise<string | null> {
+    const rows = await this.prisma.programElementYearSourceValue.findMany({
+      where: { peCode, isWinner: true },
+      select: {
+        lastObservedAt: true,
+        sourceDocument: { select: { downloadedAt: true } },
+      },
+    });
+    const timestamps = rows
+      .flatMap((row) => [row.lastObservedAt, row.sourceDocument?.downloadedAt])
+      .filter((value): value is Date => value instanceof Date)
+      .map((value) => value.getTime())
+      .filter(Number.isFinite);
+    return timestamps.length === 0 ? null : new Date(Math.max(...timestamps)).toISOString();
   }
 
   /**
@@ -1572,6 +1611,7 @@ export class EvidenceSourceService {
     title: string;
     trust: EvidenceTrust;
     authoritativeAsOf: string | null;
+    asOfBasis?: EvidenceSourceRef['asOfBasis'];
     scope: 'all' | string;
     now: Date;
     clientId?: string | null;
@@ -1585,6 +1625,7 @@ export class EvidenceSourceService {
       recipientKeys: o.scope === 'all' ? [] : [o.scope],
       sourceCreatedAt: null,
       authoritativeAsOf: o.authoritativeAsOf,
+      ...(o.asOfBasis ? { asOfBasis: o.asOfBasis } : {}),
       // `now` is injected, so two identical requests produce an identical packet
       // hash. A live `new Date()` here would make the hash change every call and
       // defeat both the determinism test and the prompt cache.

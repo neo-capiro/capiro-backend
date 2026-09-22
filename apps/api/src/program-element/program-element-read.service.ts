@@ -30,6 +30,7 @@ import {
   missingMarksForYear,
   requestClaim,
   enactedClaim,
+  type FundingClaimProvenance,
 } from './funding-claim.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
@@ -1074,7 +1075,7 @@ export class ProgramElementReadService {
     });
     if (!programElement) throw new NotFoundException(`Program element ${peCode} not found`);
 
-    const [years, milestones] = await Promise.all([
+    const [years, milestones, sourceValues, peSources] = await Promise.all([
       this.prisma.programElementYear.findMany({
         where: { peCode },
         orderBy: { fy: 'asc' },
@@ -1083,7 +1084,60 @@ export class ProgramElementReadService {
         where: { peCode },
         orderBy: [{ plannedDate: 'asc' }, { milestoneType: 'asc' }],
       }),
+      this.prisma.programElementYearSourceValue.findMany({
+        where: { peCode, isWinner: true },
+        include: { sourceDocument: true },
+        orderBy: [
+          { fy: 'asc' },
+          { fieldName: 'asc' },
+          { lastObservedAt: 'desc' },
+          { sourceDocumentId: 'asc' },
+          { pageNumber: 'asc' },
+        ],
+      }),
+      this.prisma.programElementSource.findMany({
+        where: { peCode },
+        orderBy: [{ observedAt: 'desc' }, { sourceDocumentId: 'asc' }, { pageNumber: 'asc' }],
+      }),
     ]);
+
+    const provenanceFor = (fy: number, fieldName: string): FundingClaimProvenance | undefined => {
+      const value = sourceValues.find((row) => row.fy === fy && row.fieldName === fieldName);
+      if (!value) {
+        return {
+          originalUnit: null,
+          originalValue: null,
+          source: {
+            sourceDocumentId: null,
+            documentType: null,
+            budgetCycle: null,
+            publisher: null,
+            sourceUrl: null,
+            pageNumber: null,
+            observedAt: null,
+          },
+        };
+      }
+      const citation = peSources.find((row) =>
+        row.sourceDocumentId === value.sourceDocumentId &&
+        (row.fy == null || row.fy === fy) &&
+        (value.pageNumber == null || row.pageNumber === value.pageNumber));
+      const unit = value.originalUnit;
+      const originalUnit = unit === 'dollars' || unit === 'thousands' || unit === 'millions' ? unit : null;
+      return {
+        originalUnit,
+        originalValue: value.originalValueDecimal == null ? null : Number(value.originalValueDecimal),
+        source: {
+          sourceDocumentId: value.sourceDocumentId,
+          documentType: value.sourceDocument?.documentType ?? null,
+          budgetCycle: value.sourceDocument?.budgetCycle ?? null,
+          publisher: citation?.publisher ?? null,
+          sourceUrl: citation?.sourceUrl ?? value.sourceDocument?.sourceUrl ?? null,
+          pageNumber: value.pageNumber ?? citation?.pageNumber ?? null,
+          observedAt: citation?.observedAt.toISOString() ?? value.lastObservedAt.toISOString(),
+        },
+      };
+    };
 
     // Current budget CYCLE FY via shared helper (zeros + NDAA conference count as
     // real marks). Congress only marks the year in process; later FYs are FYDP
@@ -1127,7 +1181,13 @@ export class ProgramElementReadService {
               : year.fy === currentCycleFy
                 ? 'current'
                 : 'outyear';
-        const claim = claimForYearLadder(values, year.fy, currentCycleFy);
+        const claimField = pick.stage === 'conference' ? 'conference' : pick.stage;
+        const claim = claimForYearLadder(
+          values,
+          year.fy,
+          currentCycleFy,
+          provenanceFor(year.fy, claimField),
+        );
         const marks = missingMarksForYear({
           request: values.request,
           hascMark: values.hascMark,

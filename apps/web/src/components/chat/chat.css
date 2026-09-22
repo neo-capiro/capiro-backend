@@ -762,6 +762,11 @@
   word-break: break-word;
 }
 
+.chat-msg-markdown--accuracy,
+.chat-msg-markdown--accuracy a {
+  overflow-wrap: anywhere;
+}
+
 /* First/last block flush to the bubble edges — no orphaned top/bottom gap. */
 .chat-msg-markdown > :first-child { margin-top: 0 !important; }
 .chat-msg-markdown > :last-child { margin-bottom: 0 !important; }

@@ -5939,6 +5939,11 @@ width: 30px;
   text-wrap: pretty;
 }
 
+.capiro-vnext-root .vnext-meri__assistant-body--accuracy,
+.capiro-vnext-root .vnext-meri__assistant-body--accuracy a {
+  overflow-wrap: anywhere;
+}
+
 .capiro-vnext-root .vnext-meri-md__p + .vnext-meri-md__p {
   margin-top: 10px;
 }

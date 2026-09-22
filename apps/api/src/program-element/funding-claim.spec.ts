@@ -10,6 +10,8 @@ import {
   classifyCycleClass,
   classifyMissingMark,
   currentCycleFyPreservingZero,
+  deriveEnactmentStatus,
+  deriveVehicleType,
   FUNDING_CLAIM_VEHICLE,
   listEnactedVsRequestDeltaPct,
   markupMonitorTrackDivergence,
@@ -22,6 +24,51 @@ import {
 } from '@capiro/shared/funding-claim';
 
 describe('FundingClaim (Phase G)', () => {
+  test('derives enactment status for every stage and cycle class', () => {
+    const stages = ['request', 'hasc', 'sasc', 'ndaa_conference', 'hacd', 'sacd',
+      'appropriations_conference', 'enacted', 'none'] as const;
+    const cycles = ['historical', 'current', 'outyear', 'unknown'] as const;
+    for (const stage of stages) {
+      for (const cycle of cycles) {
+        const expected = stage === 'enacted'
+          ? 'enacted'
+          : stage !== 'none' && (cycle === 'current' || cycle === 'outyear')
+            ? 'not_enacted'
+            : 'unknown';
+        expect(deriveEnactmentStatus(stage, cycle)).toBe(expected);
+      }
+    }
+  });
+
+  test('derives vehicle type and preserves supplied original provenance', () => {
+    expect(deriveVehicleType('request')).toBe('budget_request');
+    expect(deriveVehicleType('hasc')).toBe('authorization');
+    expect(deriveVehicleType('hacd')).toBe('appropriation');
+    expect(deriveVehicleType('none')).toBe('unknown');
+    expect(buildFundingClaim({
+      value: 1.2,
+      fiscalYear: 2027,
+      stage: 'hacd',
+      currentCycleFy: 2027,
+      originalUnit: 'thousands',
+      originalValue: 1200,
+      source: {
+        sourceDocumentId: 'doc-1',
+        documentType: 'committee_report',
+        budgetCycle: 'hac_d',
+        publisher: 'HAC',
+        sourceUrl: 'https://example.test/doc.pdf',
+        pageNumber: 12,
+        observedAt: '2026-06-01T00:00:00.000Z',
+      },
+    })).toMatchObject({
+      enactmentStatus: 'not_enacted',
+      vehicleType: 'appropriation',
+      originalUnit: 'thousands',
+      originalValue: 1200,
+      source: { sourceDocumentId: 'doc-1', pageNumber: 12 },
+    });
+  });
   test('buildFundingClaim preserves zero and tags outyear projection', () => {
     const zero = buildFundingClaim({
       value: 0,
