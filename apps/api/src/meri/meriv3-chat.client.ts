@@ -229,6 +229,7 @@ export class MeriV3ChatClient {
       clientKbSnapshot?: string;
       pageWrite?: boolean;
       currentTurnImages?: Array<{ mediaType: string; dataBase64: string }>;
+      selectedDocumentIds?: string[];
       reasoningMode: MeriV3ReasoningMode;
       toolPolicy?: 'none' | 'read-only';
       researchRun?: { sessionId: string; runId: string };

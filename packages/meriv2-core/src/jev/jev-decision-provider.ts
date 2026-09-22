@@ -51,7 +51,7 @@ export function createJevDecisionProvider(options: JevDecisionProviderOptions): 
       try {
         const result = await options.client.systemOne(question, callOptions);
         const answer = result.response.answers[CLAIM_SUPPORT_QUESTION_ID];
-        if (!answer) throw new JevMalformedResponseError();
+        if (!answer || answer.type !== 'choice') throw new JevMalformedResponseError();
         const outcome = answer.choice as EvidenceOutcome;
         const probabilities = Object.fromEntries(
           EVIDENCE_OUTCOMES.map((key) => [key, answer.probabilities[key]]),

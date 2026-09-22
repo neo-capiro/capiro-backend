@@ -49,6 +49,7 @@ export * from './rollout/evidence-accuracy';
 export * from './rollout/claim-assessment';
 export * from './rollout/auto-correction';
 export * from './rollout/coverage-retrieval';
+export * from './rollout/passage-selection';
 export * from './jev/index';
 export * from './repair/types';
 export {
