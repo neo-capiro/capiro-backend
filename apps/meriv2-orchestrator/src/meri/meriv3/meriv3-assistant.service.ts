@@ -25,6 +25,7 @@ import {
   ledgerToToolResultMap,
   planGovernmentAffairsEvidence,
   resolveAssuranceRolloutMode,
+  resolveClaimAssessmentMode,
   resolveEvidenceAccuracyMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
@@ -84,6 +85,7 @@ import type {
   OpenAiResponsesResult,
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
+import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -746,6 +748,18 @@ export class MeriV3AssistantService {
 
     if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
       emit({ type: 'text', text: released.reply });
+    // Always schedule after text emission. Stage 1 enforce is intentionally
+    // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
+    if (resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat') !== 'off') {
+      scheduleClaimInventoryShadow({
+        conversationId: dto.conversationId,
+        turnId: undefined,
+        replyText: released.reply,
+        citations: released.citations,
+        asOf: new Date().toISOString(),
+        logger: this.logger,
+      });
+    }
     if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
       const pageWrite = this.validateCitationText(
         pageWriteState.payload.body,

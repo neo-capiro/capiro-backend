@@ -171,7 +171,25 @@ describe('MeriV3AssistantService', () => {
     global.fetch = originalFetch;
     delete process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_RELEASE_GATE;
+    delete process.env.MERI_CLAIM_ASSESSMENT_MODE;
+    delete process.env.MERI_CLAIM_ASSESSMENT_TENANTS;
+    delete process.env.MERI_CLAIM_ASSESSMENT_SURFACES;
     jest.restoreAllMocks();
+  });
+
+  test('off mode emits the identical reply without scheduling claim inventory work', async () => {
+    const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
+    const assistant = build(registry([]), complete);
+    const claimLog = jest.spyOn((assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger, 'log');
+    const events: unknown[] = [];
+    const result = await assistant.run(context, {
+      conversationId: 'thread-off',
+      messages: [{ role: 'user', text: 'What happened?' }],
+    }, { onEvent: (event) => events.push(event) });
+    expect(result.reply).toBe('H.R. 1 passed.');
+    expect(events).toContainEqual({ type: 'text', text: 'H.R. 1 passed.' });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(claimLog).not.toHaveBeenCalledWith('meri.claim_inventory', expect.anything());
   });
 
   test('does not emit or persist a client note success before any write ran', async () => {
