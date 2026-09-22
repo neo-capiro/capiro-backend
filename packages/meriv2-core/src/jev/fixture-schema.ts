@@ -14,7 +14,10 @@ export const jevClaimEvidenceFixtureSchema = z.object({
     expectedOutcome: z.enum(EVIDENCE_OUTCOMES),
     expectedOperationalState: z.string().optional(),
     rationale: z.string().min(1),
-    humanReview: z.object({ status: z.literal('proposed'), reviewer: z.null(), reviewedAt: z.null() }),
+    humanReview: z.discriminatedUnion('status', [
+      z.object({ status: z.literal('proposed'), reviewer: z.null(), reviewedAt: z.null() }),
+      z.object({ status: z.literal('approved'), reviewer: z.string().min(1), reviewedAt: z.string().datetime() }),
+    ]),
   })).min(24),
 });
 export type JevClaimEvidenceFixture = z.infer<typeof jevClaimEvidenceFixtureSchema>;

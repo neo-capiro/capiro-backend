@@ -1,0 +1,99 @@
+import { Logger } from '@nestjs/common';
+import {
+  RecordedDecisionStore,
+  createJevClient,
+  createJevDecisionProvider,
+  createLlmSkepticJudge,
+  createRecordingDecisionProvider,
+  createSkepticDecisionProvider,
+  resolveJevConfig,
+  resolveJevProviderMode,
+  type CapabilityRolloutEnvironment,
+  type DecisionProvider,
+  type JevRouting,
+  type LlmClient,
+} from '@capiro/meriv2-core';
+
+const loggedReasons = new Set<string>();
+const defaultLogger = new Logger('JevProviderFactory');
+
+export interface ChatDecisionProviderLogger {
+  warn(message: string, context?: Record<string, unknown>): unknown;
+}
+
+export interface CreateChatDecisionProvidersInput {
+  env: CapabilityRolloutEnvironment;
+  tenantId: string;
+  surface: 'chat';
+  llm: LlmClient;
+  logger?: ChatDecisionProviderLogger;
+  fetchImpl?: typeof fetch;
+}
+
+export interface ChatDecisionProviders {
+  jev: DecisionProvider | null;
+  legacy: DecisionProvider;
+  routing: JevRouting;
+}
+
+function logUnavailableOnce(logger: ChatDecisionProviderLogger, reason: string): void {
+  if (loggedReasons.has(reason)) return;
+  loggedReasons.add(reason);
+  logger.warn('meri.jev.provider_unavailable', { reason });
+}
+
+export function createChatDecisionProviders(
+  input: CreateChatDecisionProvidersInput,
+): ChatDecisionProviders {
+  const config = resolveJevConfig(input.env);
+  const logger = input.logger ?? defaultLogger;
+  const legacyLive = createSkepticDecisionProvider(
+    createLlmSkepticJudge(input.llm, { maxTokens: 512 }),
+    'request-scoped-llm',
+  );
+  const recordingPath = input.env.MERI_JEV_RECORDING_PATH?.trim();
+  const store = recordingPath ? new RecordedDecisionStore(recordingPath) : null;
+  const legacy = store
+    ? createRecordingDecisionProvider({
+        live: legacyLive,
+        store,
+        model: 'request-scoped-llm',
+        provider: 'legacy-skeptic',
+      })
+    : legacyLive;
+
+  const providerMode = resolveJevProviderMode(input.env, input.tenantId, input.surface);
+  let unavailableReason: string | null = null;
+  if (!config.available) unavailableReason = config.reasons.join(',') || 'config_unavailable';
+  else if (providerMode === 'off') unavailableReason = 'rollout_off';
+  else if (!['paired', 'jev', 'cascade'].includes(config.routing)) unavailableReason = `routing:${config.routing}`;
+  else if (!config.tasks.includes('claim_support')) unavailableReason = 'task_not_enabled:claim_support';
+
+  if (unavailableReason) {
+    logUnavailableOnce(logger, unavailableReason);
+    return { jev: null, legacy, routing: config.routing };
+  }
+
+  const client = createJevClient({
+    apiKey: input.env.TYPESAFE_API_KEY!,
+    model: config.model,
+    baseUrl: config.baseUrl,
+    timeoutMs: config.timeoutMs,
+    maxAttempts: config.maxAttempts,
+    ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+  });
+  const jevLive = createJevDecisionProvider({
+    client,
+    model: config.model,
+    scope: { tenantId: input.tenantId, surface: input.surface },
+  });
+  const jev = store
+    ? createRecordingDecisionProvider({ live: jevLive, store, model: config.model, provider: 'jev' })
+    : jevLive;
+  return { jev, legacy, routing: config.routing };
+}
+
+/** Tests only: preserves production once-per-process rate limiting. */
+export function resetJevProviderFactoryWarningsForTest(): void {
+  loggedReasons.clear();
+}

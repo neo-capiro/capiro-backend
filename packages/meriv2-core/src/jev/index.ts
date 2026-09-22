@@ -10,3 +10,6 @@ export * from './replay/recorded-decision-store';
 export * from './replay/replay-decision-provider';
 export * from './replay/recording-decision-provider';
 export * from './replay/paired-evaluation';
+export * from './evaluation/shadow-events';
+export * from './evaluation/shadow-report';
+export * from './evaluation/calibration';
