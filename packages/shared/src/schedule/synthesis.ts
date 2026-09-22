@@ -27,7 +27,10 @@ const STANDARD_OFFSETS = [
 const MONTHS: Record<string, string> = {
   january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
   july: '07', august: '08', september: '09', october: '10', november: '11', december: '12',
+  jan: '01', feb: '02', mar: '03', apr: '04', jun: '06', jul: '07', aug: '08', sep: '09',
+  sept: '09', oct: '10', nov: '11', dec: '12',
 };
+const MONTH_PATTERN = 'January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec';
 const SECTION_RE = /(?:^|\n)(#{1,6}\s+[^\n]*(?:capture plan|timeline|roadmap|schedule)[^\n]*\n)([\s\S]*?)(?=\n#{1,6}\s|$)/gi;
 
 export function collectScheduleDeadlines(value: unknown): ScheduleDeadlineFact[] {
@@ -91,7 +94,7 @@ export function extractScheduleDates(text: string): ExtractedScheduleDate[] {
     const body = section[2] ?? '';
     for (const [index, line] of body.split(/\r?\n/).entries()) {
       const iso = line.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-      const named = line.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s+(\d{4})\b/i);
+      const named = line.match(new RegExp(`\\b(${MONTH_PATTERN})\\.?\\s+(\\d{1,2}),\\s+(\\d{4})\\b`, 'i'));
       const rawDate = iso?.[1] ?? named?.[0];
       if (!rawDate) continue;
       const date = iso?.[1] ?? `${named![3]}-${MONTHS[named![1]!.toLowerCase()]}-${named![2]!.padStart(2, '0')}`;
