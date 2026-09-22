@@ -144,7 +144,7 @@ export function renderVendorReferenceMarkdown(
     out.push(SECTION_HEADINGS[section], '');
     switch (section) {
       case 'federal_contracting_history':
-        out.push(CONTRACTING_TABLE_HEADER, CONTRACTING_TABLE_SEPARATOR, ...rows.map(contractingRow));
+        out.push(contractingTableHeader(rows), CONTRACTING_TABLE_SEPARATOR, ...rows.map(contractingRow));
         break;
       case 'federal_lobbying_representation':
         out.push(LOBBYING_TABLE_HEADER, LOBBYING_TABLE_SEPARATOR, ...rows.map(lobbyingRow));
@@ -223,6 +223,17 @@ function contractingRow(r: VendorReferenceRow): string {
     r.source,
     verificationLabel(r.verification),
   ]);
+}
+
+function contractingTableHeader(rows: VendorReferenceRow[]): string {
+  const semantics = rows
+    .map((r) => ((r.detail ?? {}) as Partial<ContractingDetail>).awardDateSemantics)
+    .find(Boolean);
+  if (!semantics) return CONTRACTING_TABLE_HEADER;
+  return CONTRACTING_TABLE_HEADER.replace(
+    'Award date',
+    semantics === 'base_award_signed' ? 'Award date (base signed)' : 'Latest action date',
+  );
 }
 
 function lobbyingRow(r: VendorReferenceRow): string {

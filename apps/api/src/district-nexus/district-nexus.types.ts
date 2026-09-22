@@ -429,6 +429,10 @@ export interface TopAward {
   counterparty: string | null;
   amount: Money;
   awardedAt: IsoTimestamp | null;
+  /** Present only when evidence-accuracy enforcement is active. */
+  awardedAtSemantics?: 'latest_action' | 'base_award_signed';
+  /** Authoritative original signing date; never inferred from `awardedAt`. */
+  baseAwardSignedDate?: IsoTimestamp | null;
   /** USAspending profile. Existing award rails link out rather than drill in. */
   externalUrl: string | null;
 }

@@ -405,7 +405,7 @@ function ClientsSection({ clients, facilities }: { clients: DistrictNexusDistric
   );
 }
 
-function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: string }) {
+export function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: string }) {
   if (!awards.length) {
     return <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{emptyText}</div>;
   }
@@ -416,7 +416,7 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
           <tr>
             <th>Award</th>
             <th className="dn-right">Amount</th>
-            <th>Awarded</th>
+            <th>{awardDateHeader(awards)}</th>
           </tr>
         </thead>
         <tbody>
@@ -435,13 +435,29 @@ function AwardsSection({ awards, emptyText }: { awards: TopAward[]; emptyText: s
                 {a.counterparty ? <div className="dn-sub">{a.counterparty}</div> : null}
               </td>
               <td className="dn-right dn-num">{formatMoney(a.amount)}</td>
-              <td className="dn-sub">{a.awardedAt ? new Date(a.awardedAt).toLocaleDateString('en-US') : '—'}</td>
+              <td className="dn-sub">{formatAwardDate(a)}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
+}
+
+function awardDateHeader(awards: TopAward[]): string {
+  if (awards.some((award) => award.awardedAtSemantics === 'base_award_signed')) {
+    return 'Awarded (base signed)';
+  }
+  return awards.some((award) => award.awardedAtSemantics === 'latest_action')
+    ? 'Latest action'
+    : 'Awarded';
+}
+
+function formatAwardDate(award: TopAward): string {
+  const value = award.awardedAtSemantics === 'base_award_signed'
+    ? award.baseAwardSignedDate
+    : award.awardedAt;
+  return value ? new Date(value).toLocaleDateString('en-US') : '—';
 }
 
 function DemographicsSection({ demographics }: { demographics: DistrictNexusDistrictDetailResponse['demographics'] }) {

@@ -63,6 +63,12 @@ as reliable transaction/base dates.
 The backfill is dry-run by default and re-reads the USAspending award detail endpoint;
 it never derives corrected semantics from `raw_jsonb`.
 
+Before rolling code that reads the corrected columns, apply the T4 migration and run
+`prisma migrate status` against the target environment. Do not infer success from a
+completed application deploy: this repository has a known trap where a deploy can
+complete while its migration was silently not applied. Migration status must show the
+award-date migration applied before the consumer code rolls.
+
 1. Preview a highest-dollar batch and produce both reports:
    `tsx scripts/backfill-federal-award-dates.ts --limit 500 --report ./award-dates-batch-1.md`.
 2. Review the Markdown and JSON impact reports, including fallback suspects, date-difference

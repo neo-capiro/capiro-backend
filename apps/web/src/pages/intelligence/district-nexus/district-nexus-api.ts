@@ -293,6 +293,8 @@ export interface TopAward {
   counterparty: string | null;
   amount: Money;
   awardedAt: IsoTimestamp | null;
+  awardedAtSemantics?: 'latest_action' | 'base_award_signed';
+  baseAwardSignedDate?: string | null;
   externalUrl: string | null;
 }
 
