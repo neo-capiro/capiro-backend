@@ -1,5 +1,5 @@
 import { MERI_FEDERAL_MARKET_TOOL_DEFINITIONS } from '@capiro/shared';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { FederalMarketGeographyService } from './federal-market-geography.service.js';
 import { FederalMarketService } from './federal-market.service.js';
@@ -137,6 +137,8 @@ function queryOf(input: Record<string, unknown>): FederalMarketQuery {
 
 @Injectable()
 export class FederalMarketMeriToolsService {
+  private readonly logger = new Logger(FederalMarketMeriToolsService.name);
+
   constructor(
     private readonly market: FederalMarketService,
     private readonly geographyMarket: FederalMarketGeographyService,
@@ -162,6 +164,13 @@ export class FederalMarketMeriToolsService {
     if (name === 'search_federal_contract_awards') {
       const result = await this.market.listContracts(ctx.tenantId, query);
       const mode = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat');
+      if (mode === 'shadow') {
+        this.logger.warn('meri.evidence_accuracy.shadow', {
+          tool: name,
+          rows: result.items.length,
+          missingBaseDateCount: result.items.filter((row) => !row.baseAwardSignedDate).length,
+        });
+      }
       return {
         ...result,
         items:

@@ -28,6 +28,12 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
 }
 
 describe('SearchService', () => {
+  const originalEnv = process.env;
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
   it('returns empty for a query shorter than the minimum length', async () => {
     const svc = new SearchService(makePrisma());
     const res = await svc.search('a');
@@ -116,5 +122,47 @@ describe('SearchService', () => {
     expect(pe!.subtitle).toContain('Army');
     expect(pe!.href).toBe('/program-elements/0604645A');
     expect(res.byCategory.program_element).toBe(1);
+  });
+
+  it('keeps award output legacy-identical off and labels date meaning under enforce', async () => {
+    const award = {
+      id: 'a1',
+      contractorName: 'Acme',
+      awardingAgency: 'Army',
+      awardedAt: new Date('2026-02-01'),
+      baseAwardSignedDate: new Date('2025-12-01'),
+      latestActionDate: new Date('2026-01-15'),
+    };
+    const prisma = makePrisma({ federalAward: { findMany: jest.fn(async () => [award]) } });
+    const svc = new SearchService(prisma);
+
+    process.env = { ...originalEnv };
+    const offAward = (await svc.search('acme')).results.find((row) => row.category === 'award');
+    expect(offAward).toEqual({
+      category: 'award',
+      id: 'a1',
+      title: 'Acme',
+      subtitle: 'Agency: Army',
+      date: '2026-02-01',
+      href: '/explorer/contractors?q=Acme',
+    });
+
+    const tenantId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+    process.env = {
+      ...originalEnv,
+      MERI_EVIDENCE_ACCURACY_MODE: 'enforce',
+      MERI_EVIDENCE_ACCURACY_TENANTS: tenantId,
+      MERI_EVIDENCE_ACCURACY_SURFACES: 'chat',
+    };
+    const enforcedAward = (await svc.search('acme', 5, tenantId)).results.find(
+      (row) => row.category === 'award',
+    );
+    expect(enforcedAward).toEqual(
+      expect.objectContaining({
+        date: '2026-02-01',
+        dateSemantics: 'base_award_signed',
+        baseAwardSignedDate: '2025-12-01',
+      }),
+    );
   });
 });
