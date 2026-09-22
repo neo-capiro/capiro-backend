@@ -363,6 +363,7 @@ function assertDarkTaskDefinition(key, taskDefinition) {
     'MERIV2_CONTEXT_PACKET_V2',
     'MERI_POLICY_PACK_SOURCE',
     'MERI_RELEASE_GATE',
+    'MERI_EVIDENCE_ACCURACY_MODE',
   ];
   for (const name of mustBeOff) {
     const value = controlled.get(name);
@@ -375,6 +376,8 @@ function assertDarkTaskDefinition(key, taskDefinition) {
     'MERI_POLICY_PACK_TENANTS',
     'MERI_RELEASE_GATE_TENANTS',
     'MERI_RELEASE_GATE_SURFACES',
+    'MERI_EVIDENCE_ACCURACY_TENANTS',
+    'MERI_EVIDENCE_ACCURACY_SURFACES',
     'CONTEXT_PACKET_V2',
   ]) {
     if ((controlled.get(name) ?? '') !== '') {

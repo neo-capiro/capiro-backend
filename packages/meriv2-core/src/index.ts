@@ -42,6 +42,8 @@ export * from './learning/conflict-contract';
 export * from './quality-telemetry/contract';
 export * from './evaluation/contract';
 export * from './assurance/index';
+export * from './rollout/capability-rollout';
+export * from './rollout/evidence-accuracy';
 export * from './llm/llm-client';
 export * from './tools/client/get-client-context';
 export * from './tools/delegated/delegated-tool';
