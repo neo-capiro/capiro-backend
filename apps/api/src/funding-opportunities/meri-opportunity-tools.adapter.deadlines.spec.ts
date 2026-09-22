@@ -42,6 +42,8 @@ describe('Meri opportunity adapter schedule deadlines', () => {
     const legacy = await adapter.searchFundingOpportunities(actor, { clientId: 'client-1' }, AS_OF);
     expect(legacy.data?.counts.deadlinesIn30Days).toBeNull();
     expect(legacy.data?.opportunities.every((row) => !('deadline' in row))).toBe(true);
+    const legacyContext = await adapter.getOpportunityClientContext(actor, { clientId: 'client-1' }, AS_OF);
+    expect(legacyContext.data).toMatchObject({ nextDeadline: null, counts: { deadlinesIn30Days: null } });
 
     Object.assign(process.env, {
       MERI_EVIDENCE_ACCURACY_MODE: 'enforce', MERI_EVIDENCE_ACCURACY_TENANTS: TENANT,
@@ -51,6 +53,11 @@ describe('Meri opportunity adapter schedule deadlines', () => {
     expect(enforced.data?.counts.deadlinesIn30Days).toBe(1);
     expect(enforced.data?.opportunities[0]).toMatchObject({
       deadline: { at: '2026-09-20T17:00:00.000Z', status: 'open', daysRemaining: 11 },
+    });
+    const enforcedContext = await adapter.getOpportunityClientContext(actor, { clientId: 'client-1' }, AS_OF);
+    expect(enforcedContext.data).toMatchObject({
+      counts: { deadlinesIn30Days: 1 },
+      nextDeadline: { at: '2026-09-20T17:00:00.000Z', status: 'open', daysRemaining: 11 },
     });
   });
 
