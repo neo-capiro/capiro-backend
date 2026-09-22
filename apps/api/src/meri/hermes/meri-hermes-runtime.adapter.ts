@@ -77,6 +77,8 @@ import {
   MeriHermesProfileLeaseService,
 } from './meri-hermes-profile-lease.service.js';
 import { MeriHermesDbGovernor, meriHermesSharedDbGovernor } from './meri-hermes-db-governor.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../../common/meri-evidence-accuracy-flags.js';
+import { describeAttachmentContentState } from '../meri-attachment-content-state.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -94,7 +96,8 @@ export interface TerminalOutcome {
 interface PreparedTurn {
   content: string;
   sourceMessageId: string | null;
-  attachments: Array<{ id: string; filename: string; kind: string; status: string }>;
+  attachments: Array<{ id: string; filename: string; kind: string; status: string;
+    contentState?: string; limitation?: string | null }>;
 }
 
 type ConversationRow = {
@@ -1649,13 +1652,19 @@ export class MeriHermesRuntimeAdapter {
         if (attachmentIds.length) {
           const found = await tx.clioAttachment.findMany({
             where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, userId: ctx.userId },
-            select: { id: true, filename: true, kind: true, status: true, byteSize: true, messageId: true },
+            select: { id: true, filename: true, kind: true, status: true, byteSize: true, messageId: true,
+              textContent: true, reason: true, pages: true },
           });
           if (found.length !== new Set(attachmentIds).size) {
             throw new BadRequestException('One or more attachments were not found');
           }
           await assertAttachmentConversation(tx, ctx, conversation.id, found);
-          rows = found.map((r) => ({ id: r.id, filename: r.filename, kind: r.kind, status: r.status }));
+          const enforced = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
+          rows = found.map((r) => {
+            const content = describeAttachmentContentState(r);
+            return { id: r.id, filename: r.filename, kind: r.kind, status: r.status,
+              ...(enforced ? { contentState: content.state, limitation: content.limitation } : {}) };
+          });
         }
         const message = await tx.clioMessage.create({
           data: {
@@ -1951,7 +1960,7 @@ export class MeriHermesRuntimeAdapter {
       parts.push(
         '',
         '[Meri attachments for this turn — read them with the meri_fetch_attachment tool, which writes the file into your workspace and returns its path:]',
-        ...attachments.map((a) => `- attachment_id=${a.id} filename=${JSON.stringify(a.filename)} kind=${a.kind} status=${a.status}`),
+        ...attachments.map((a) => `- attachment_id=${a.id} filename=${JSON.stringify(a.filename)} kind=${a.kind} status=${a.status}${a.contentState ? ` state=${a.contentState}${a.limitation ? ` limitation=${JSON.stringify(a.limitation)}` : ''}` : ''}`),
       );
     }
     if (pendingAnswers.length) parts.unshift(...pendingAnswers, '');

@@ -133,6 +133,8 @@ import { MeriV2ChatClient, type MeriV2ChatStreamEvent } from './meriv2-chat.clie
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { extractMeriDocument } from './meri-attachment-document.js';
+import { describeAttachmentContentState } from './meri-attachment-content-state.js';
+import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_IMAGE_BYTES,
@@ -4906,7 +4908,10 @@ export class MeriService implements MeriTurnMaintenance {
     truncated: boolean;
     reason: string | null;
     chars: number;
+    contentState?: string;
+    limitation?: string | null;
   }> {
+    const enforceContentState = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
     const filename = file.originalname || 'untitled';
     const reject = (kind: string, reason: string) => ({
       id: null,
@@ -4930,6 +4935,9 @@ export class MeriService implements MeriTurnMaintenance {
     const magic = verifyMagicBytes(validation.kind, new Uint8Array(file.buffer.subarray(0, 256)));
     if (!magic.ok) {
       return reject(validation.kind, magic.reason ?? 'File contents do not match its type');
+    }
+    if (validation.kind === 'unsupported') {
+      return reject(validation.kind, 'Unsupported attachment type');
     }
 
     // Opportunistic sweep: unconsumed uploads older than 24h are dead weight.
@@ -4989,13 +4997,20 @@ export class MeriService implements MeriTurnMaintenance {
       });
     } catch {
       this.logger.warn(`Attachment extraction failed [${validation.kind}]`);
-      return reject(
-        validation.kind,
-        `Could not read this ${validation.kind === 'pdf' ? 'PDF' : 'document'} — it may be corrupted, encrypted, or password-protected.`,
-      );
+      const reason = `Could not read this ${validation.kind === 'pdf' ? 'PDF' : 'document'} — it may be corrupted, encrypted, or password-protected.`;
+      if (!enforceContentState) return reject(validation.kind, reason);
+      resolved = { status: 'failed', pages: null, text: null, truncated: false, reason };
     }
     const pages = resolved.pages;
     if (resolved.status === 'scanned' || resolved.status === 'unsupported') {
+      if (enforceContentState) {
+        const row = await this.createAttachmentRow(ctx, file, filename, validation.kind, resolved);
+        const content = describeAttachmentContentState({ status: resolved.status, textContent: null,
+          reason: resolved.reason, kind: validation.kind, pages });
+        return { id: row.id, filename, kind: validation.kind, status: resolved.status, pages,
+          truncated: false, reason: resolved.reason, chars: 0,
+          contentState: content.state, limitation: content.limitation };
+      }
       return {
         id: null,
         filename,
@@ -5007,27 +5022,9 @@ export class MeriService implements MeriTurnMaintenance {
         chars: 0,
       };
     }
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioAttachment.create({
-        data: {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          filename,
-          kind: validation.kind,
-          status: resolved.status,
-          mediaType: validation.kind === 'pdf' ? 'application/pdf'
-            : validation.kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            : validation.kind === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-            : 'text/plain',
-          byteSize: file.buffer.length,
-          data: file.buffer,
-          pages,
-          textContent: resolved.text,
-          reason: resolved.reason,
-        },
-        select: { id: true },
-      }),
-    );
+    const row = await this.createAttachmentRow(ctx, file, filename, validation.kind, resolved);
+    const content = describeAttachmentContentState({ status: resolved.status, textContent: resolved.text,
+      reason: resolved.reason, kind: validation.kind, pages });
     return {
       id: row.id,
       filename,
@@ -5037,7 +5034,38 @@ export class MeriService implements MeriTurnMaintenance {
       truncated: resolved.truncated,
       reason: resolved.reason,
       chars: resolved.text?.length ?? 0,
+      ...(enforceContentState ? { contentState: content.state, limitation: content.limitation } : {}),
     };
+  }
+
+  private createAttachmentRow(
+    ctx: TenantContext,
+    file: { buffer: Buffer; mimetype: string; originalname: string; size: number },
+    filename: string,
+    kind: Exclude<import('./meri-attachment.helpers.js').AttachmentKind, 'image' | 'unsupported'>,
+    resolved: Awaited<ReturnType<typeof extractMeriDocument>>,
+  ): Promise<{ id: string }> {
+    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioAttachment.create({
+        data: {
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          filename,
+          kind,
+          status: resolved.status,
+          mediaType: kind === 'pdf' ? 'application/pdf'
+            : kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : kind === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            : 'text/plain',
+          byteSize: file.buffer.length,
+          data: file.buffer,
+          pages: resolved.pages,
+          textContent: resolved.text,
+          reason: resolved.reason,
+        },
+        select: { id: true },
+      }),
+    );
   }
 
   // ── Proactive Alert Generation ────────────────────────────────────────
