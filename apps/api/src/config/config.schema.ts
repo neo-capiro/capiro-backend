@@ -747,6 +747,11 @@ export const configSchema = z.object({
   // reviewed static baseline; enforce requires a verified tenant-published pack
   // and fails closed when it cannot be loaded. A code deploy never arms it.
   MERI_POLICY_PACK_SOURCE: z.enum(['off', 'shadow', 'enforce']).default('off'),
+  // Stage 0 evidence-accuracy rollout. Effective mode additionally requires
+  // canonical tenant and assurance-surface enrollment.
+  MERI_EVIDENCE_ACCURACY_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
+  MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
 
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
   // RECALL_API_KEY authenticates outbound bot dispatch/poll calls (sent as the

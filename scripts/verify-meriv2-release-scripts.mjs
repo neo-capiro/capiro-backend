@@ -39,6 +39,9 @@ async function main() {
     "MERI_POLICY_PACK_TENANTS: ''",
     "MERI_RELEASE_GATE_TENANTS: ''",
     "MERI_RELEASE_GATE_SURFACES: ''",
+    "MERI_EVIDENCE_ACCURACY_MODE: 'off'",
+    "MERI_EVIDENCE_ACCURACY_TENANTS: ''",
+    "MERI_EVIDENCE_ACCURACY_SURFACES: ''",
     "MEMORY_AUTOLEARN_GOVERNED: 'false'",
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);

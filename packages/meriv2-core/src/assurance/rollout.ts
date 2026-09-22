@@ -1,3 +1,4 @@
+import { parseRolloutTokens } from '../rollout/tokens';
 import { ASSURANCE_SURFACES, type AssuranceSurface } from './risk-gate';
 
 export type AssuranceRolloutMode = 'off' | 'shadow' | 'enforce';
@@ -46,7 +47,7 @@ export function assuranceRolloutEnforced(mode: AssuranceRolloutMode): boolean {
 }
 
 export function resolveAssuranceTenantCanaries(raw: string | undefined): ReadonlySet<string> {
-  const tokens = parseTokens(raw);
+  const tokens = parseRolloutTokens(raw);
   if (tokens.includes('all')) return new Set(['all']);
   return new Set(tokens.filter((token) => token !== 'all'));
 }
@@ -54,7 +55,7 @@ export function resolveAssuranceTenantCanaries(raw: string | undefined): Readonl
 export function resolveAssuranceCanarySurfaces(
   raw: string | undefined,
 ): ReadonlySet<AssuranceSurface> {
-  const tokens = parseTokens(raw);
+  const tokens = parseRolloutTokens(raw);
   if (tokens.includes('all')) return new Set(ASSURANCE_SURFACES);
   const known = new Set<string>(ASSURANCE_SURFACES);
   return new Set(tokens.filter((token): token is AssuranceSurface => known.has(token)));
@@ -71,11 +72,4 @@ function tokenSelected(raw: string | undefined, expected: string): boolean {
 
 function surfaceSelected(raw: string | undefined, surface: AssuranceSurface): boolean {
   return resolveAssuranceCanarySurfaces(raw).has(surface);
-}
-
-function parseTokens(raw: string | undefined): string[] {
-  return String(raw ?? '')
-    .split(/[,\s]+/)
-    .map((token) => token.trim().toLowerCase())
-    .filter((token) => token.length > 0);
 }
