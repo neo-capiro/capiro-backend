@@ -1,5 +1,11 @@
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
-import { MERI_CAPABILITY_REGISTRY, MERI_CORE_TOOL_DEFINITIONS } from '@capiro/shared';
+import {
+  deadlineStatus as structuredDeadlineStatus,
+  daysUntil as structuredDaysUntil,
+  MERI_CAPABILITY_REGISTRY,
+  MERI_CORE_TOOL_DEFINITIONS,
+  normalizeDeadline,
+} from '@capiro/shared';
 import {
   assertMeriToolRequestActive,
   meriToolRequestControl,
@@ -1953,7 +1959,7 @@ export class MeriToolsService {
       case 'search_fara_registrations':
         return this.searchFaraRegistrations(input);
       case 'search_federal_grants':
-        return this.searchFederalGrants(input);
+        return this.searchFederalGrants(ctx, input);
       case 'search_federal_awards':
         return this.searchFederalAwards(input);
       case 'search_gao_reports':
@@ -4254,7 +4260,7 @@ export class MeriToolsService {
     };
   }
 
-  private async searchFederalGrants(input: Record<string, unknown>) {
+  private async searchFederalGrants(ctx: TenantContext, input: Record<string, unknown>) {
     const query = optionalString(input, 'query', 240);
     const agency = optionalString(input, 'agency', 240);
     const status = optionalString(input, 'status', 30);
@@ -4289,8 +4295,10 @@ export class MeriToolsService {
     // ET), so we compare the ET calendar date of "now" to the grant's UTC-read
     // date. The model gets a deterministic deadlineStatus + the as-of anchor
     // (generatedAt) rather than doing its own date math with no clock.
-    const nowIso = new Date().toISOString();
-    const todayYmdEt = ymdInZone(new Date(), 'America/New_York');
+    const asOf = new Date();
+    const nowIso = asOf.toISOString();
+    const todayYmdEt = ymdInZone(asOf, 'America/New_York');
+    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
     const deadlineStatus = (closeDate: Date | null): 'open' | 'closed' | 'unknown' => {
       if (!closeDate) return 'unknown';
       const closeYmd = ymdInZone(closeDate, 'UTC');
@@ -4305,7 +4313,11 @@ export class MeriToolsService {
       // closed decisions; a null closeDate is 'unknown', never assume "no deadline".
       asOf: nowIso,
       total,
-      data: data.map((g) => ({
+      data: data.map((g) => {
+        const normalized = g.responseDateDesc
+          ? normalizeDeadline({ value: null, kind: 'date', source: 'grants.gov' })
+          : normalizeDeadline({ value: g.closeDate, kind: 'date', source: 'grants.gov' });
+        return {
         id: g.id,
         title: summarizeText(g.title, 240),
         agency: g.agency,
@@ -4318,10 +4330,17 @@ export class MeriToolsService {
         openDate: g.openDate,
         closeDate: g.closeDate,
         deadlineStatus: deadlineStatus(g.closeDate),
+        ...(enforce ? { deadline: {
+          ...normalized,
+          daysRemaining: structuredDaysUntil(nowIso, normalized),
+          status: structuredDeadlineStatus(nowIso, normalized),
+          ...(g.responseDateDesc ? { rawText: g.responseDateDesc } : {}),
+        } } : {}),
         syncedStatus: g.status,
         eligibility: g.eligibility,
         url: g.url,
-      })),
+        };
+      }),
     };
   }
 
@@ -6875,9 +6894,11 @@ export class MeriToolsService {
           ? 'unknown'
           : 'degraded';
 
+    const asOf = new Date().toISOString();
+    const enforce = resolveEvidenceAccuracyModeForTenant(ctx.tenantId, 'chat') === 'enforce';
     return {
       tool: 'search_sam_opportunities',
-      generatedAt: new Date().toISOString(),
+      generatedAt: asOf,
       total: result.total,
       sourceFreshness,
       sourceStatus,
@@ -6890,10 +6911,14 @@ export class MeriToolsService {
             ]
           : []),
       ],
-      results: result.data.map((opp) => ({
-        ...opp,
-        description: summarizeText(opp.description, 300),
-      })),
+      results: result.data.map((opp) => {
+        const normalized = normalizeDeadline({ value: opp.responseDeadline, kind: 'datetime', source: 'sam.gov' });
+        return {
+          ...opp,
+          description: summarizeText(opp.description, 300),
+          ...(enforce ? { deadline: { ...normalized, daysRemaining: structuredDaysUntil(asOf, normalized), status: structuredDeadlineStatus(asOf, normalized) } } : {}),
+        };
+      }),
     };
   }
 

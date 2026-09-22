@@ -67,7 +67,10 @@ jest.mock('../memory/memory-store.service.js', () => ({ MemoryStoreService: jest
  * model sees, (d) branch selection (list vs detail vs deadlines) is correct.
  */
 
-const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
+const ctx = {
+  tenantId: '11111111-1111-1111-1111-111111111111',
+  userId: 'user-1',
+} as TenantContext;
 
 function makeMocks(
   extra: {
@@ -344,7 +347,7 @@ describe('search_tracked_bills', () => {
     const result = (await m.service.execute(ctx, 'search_tracked_bills', {
       clientId: 'client-1',
     })) as { total: number; bills: unknown[] };
-    expect(m.intelligence.listTrackedBills).toHaveBeenCalledWith('client-1', 'tenant-1');
+    expect(m.intelligence.listTrackedBills).toHaveBeenCalledWith('client-1', ctx.tenantId);
     expect(result.total).toBe(1);
   });
 });
@@ -397,6 +400,40 @@ describe('search_sam_opportunities', () => {
       limit: 20,
     });
     expect(result.results[0]!.description.length).toBeLessThanOrEqual(300);
+  });
+
+  it('keeps off output identical and adds deterministic deadline facts only under enforce', async () => {
+    const previous = {
+      mode: process.env.MERI_EVIDENCE_ACCURACY_MODE,
+      tenants: process.env.MERI_EVIDENCE_ACCURACY_TENANTS,
+      surfaces: process.env.MERI_EVIDENCE_ACCURACY_SURFACES,
+    };
+    try {
+      const m = makeMocks();
+      m.programElement.listSamOpportunities.mockResolvedValue({
+        data: [{ id: 'opp-1', title: 'Radar RFI', description: 'short', responseDeadline: new Date('2099-07-15T21:00:00Z') }],
+        total: 1,
+      });
+      process.env.MERI_EVIDENCE_ACCURACY_MODE = 'off';
+      const off = (await m.service.execute(ctx, 'search_sam_opportunities', {})) as { results: Array<Record<string, unknown>> };
+      expect(off.results[0]).toEqual({ id: 'opp-1', title: 'Radar RFI', description: 'short', responseDeadline: new Date('2099-07-15T21:00:00Z') });
+
+      process.env.MERI_EVIDENCE_ACCURACY_MODE = 'enforce';
+      process.env.MERI_EVIDENCE_ACCURACY_TENANTS = 'all';
+      process.env.MERI_EVIDENCE_ACCURACY_SURFACES = 'chat';
+      const enforced = (await m.service.execute(ctx, 'search_sam_opportunities', {})) as { results: Array<{ deadline: Record<string, unknown> }> };
+      expect(enforced.results[0]!.deadline).toMatchObject({
+        at: '2099-07-15T21:00:00.000Z',
+        basis: 'explicit_datetime',
+        status: 'open',
+      });
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        const envKey = `MERI_EVIDENCE_ACCURACY_${key.toUpperCase()}`;
+        if (value == null) delete process.env[envKey];
+        else process.env[envKey] = value;
+      }
+    }
   });
 
   it.each([
