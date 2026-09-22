@@ -1,6 +1,7 @@
 import type { AssuredClaim, AssuredEvidence, ClaimLedger } from '../assurance/claim-ledger';
 import type { DomainEvidencePlan, EvidenceClass, EvidenceRequirement } from '../assurance/evidence-plan';
 import type { EvidenceDecision, EvidenceEnvelope } from '../jev/decision-contract';
+import type { DeterministicClaimEvaluation } from '../assurance/deterministic-evaluation';
 
 export type RepairRequirementKind =
   | 'missing_evidence'
@@ -150,4 +151,5 @@ export interface DerivedRequirementInput {
   claim: AssuredClaim;
   envelope: EvidenceEnvelope;
   evidencePlan: DomainEvidencePlan;
+  deterministic?: DeterministicClaimEvaluation;
 }

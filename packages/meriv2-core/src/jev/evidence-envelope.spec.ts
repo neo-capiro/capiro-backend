@@ -20,4 +20,12 @@ describe('buildEvidenceEnvelope', () => {
     expect(result.envelope.truncation?.truncatedEvidenceIds).toEqual(['e1']);
     expect(result.envelope.truncation?.estimatedTokens).toBeGreaterThan(0);
   });
+
+  it('carries publication, effective, and retrieval dates separately', () => {
+    const datedLedger = { ...ledger, evidence: [{ ...ledger.evidence[0]!, publishedAt: '2026-01-01', effectiveAt: '2026-02-01', retrievedAt: '2026-02-02' }] };
+    const result = buildEvidenceEnvelope({ claim, ledger: datedLedger, citations: [], passages: { e1: { text: 'The amount is 42.' } }, tenantId: 'tenant-1' });
+    expect(result.envelope.sources[0]).toEqual(expect.objectContaining({
+      publishedAt: '2026-01-01', effectiveAt: '2026-02-01', retrievedAt: '2026-02-02',
+    }));
+  });
 });

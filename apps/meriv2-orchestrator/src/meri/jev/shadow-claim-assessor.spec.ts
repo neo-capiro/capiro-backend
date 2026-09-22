@@ -49,7 +49,10 @@ describe('assessReleasedClaims', () => {
       claimCategory: 'grant_award', envelopeHash: expect.any(String), eligibility: { eligible: true, reason: 'ok' },
       jev: expect.objectContaining({ kind: 'outcome', outcome: 'supported', confidence: 1, inputTokens: 20 }),
       legacy: expect.objectContaining({ kind: 'outcome', outcome: 'supported', confidence: 1, inputTokens: 20 }),
-      agreement: true, proposedAction: { jev: 'retain', legacy: 'retain' },
+      agreement: true,
+      freshness: { state: 'fresh', ageDays: null, basis: 'none' },
+      exact: { result: 'match', kind: 'amount' },
+      proposedAction: { jev: 'retain', legacy: 'retain' },
     });
     expect(args.logger.log).toHaveBeenNthCalledWith(2, 'meri.evidence_shadow.turn', {
       conversationId: 'conversation-1', turnId: 'turn-1', selected: 1, skipped: 0,

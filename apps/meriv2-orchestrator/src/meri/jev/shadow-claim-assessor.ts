@@ -3,6 +3,7 @@ import {
   DEFAULT_HIGH_RISK_CATEGORIES,
   buildClaimSupportQuestion,
   buildEvidenceEnvelope,
+  evaluateClaimDeterministically,
   checkExactSourceEligibility,
   isDocumentSpecificClaim,
   type ClaimLedger,
@@ -207,11 +208,23 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       const actualTokens = (jev.kind === 'outcome' ? jev.usage?.inputTokens ?? 0 : 0)
         + (legacy.kind === 'outcome' ? legacy.usage?.inputTokens ?? 0 : 0);
       if (actualTokens > claimTokens) estimatedInputTokens += actualTokens - claimTokens;
+      const evidence = input.ledger.evidence.filter((item) => assuredClaim.sourceIds.includes(item.id))
+        .map((item) => ({ ...item, passage: input.passages[item.id]?.text }));
+      const deterministic = evaluateClaimDeterministically({
+        claim: assuredClaim, evidence, asOf: input.asOf,
+        evidencePassages: assuredClaim.sourceIds.flatMap((id) => input.passages[id] ? [input.passages[id]!] : []),
+      });
       input.logger.log('meri.evidence_shadow', {
         conversationId: input.conversationId ?? null, turnId: input.turnId ?? null,
         claimId: claim.id, claimKind: claim.kind, claimCategory: claim.category,
         envelopeHash: hash, eligibility, jev: loggedDecision(jev), legacy: loggedDecision(legacy),
         agreement: resultKey(jev) === resultKey(legacy),
+        freshness: {
+          state: deterministic.freshness.state,
+          ageDays: deterministic.freshness.ageDays,
+          basis: deterministic.freshness.basis,
+        },
+        exact: { result: deterministic.exact.result, kind: deterministic.exact.kind },
         proposedAction: { jev: proposedAction(jev, claim), legacy: proposedAction(legacy, claim) },
       });
     }

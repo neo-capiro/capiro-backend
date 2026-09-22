@@ -7,6 +7,7 @@ import {
   type ClaimLedger,
 } from './claim-ledger';
 import { inferClaimCategories, type DomainEvidencePlan, type EvidenceClass } from './evidence-plan';
+import { deriveEvidenceDates } from './evidence-dates';
 
 export interface CitationLike {
   n: number;
@@ -15,6 +16,9 @@ export interface CitationLike {
   title?: string | null;
   url?: string | null;
   snippet?: string | null;
+  type?: string;
+  source?: { observedAt?: string };
+  documentEvidence?: { observedAt: string | null };
 }
 
 const FORM_B_RE = /\[S:([a-zA-Z0-9_\-]+):([^\]\s]+)\]/g;
@@ -83,6 +87,7 @@ export function evidenceFromToolResults(
   for (const citation of citations) {
     const entries = entryByTool.get(citation.tool) ?? [];
     const resolves = entries.some((entry) => entry.serialized.includes(citation.id));
+    const dates = deriveEvidenceDates({ citation: citation as Parameters<typeof deriveEvidenceDates>[0]['citation'] });
     evidence.push({
       id: citationEvidenceId(citation),
       sourceType: citation.tool,
@@ -90,6 +95,9 @@ export function evidenceFromToolResults(
       evidenceClass: evidenceClassForTool(citation.tool),
       ...(citation.title ? { title: citation.title } : {}),
       ...(citation.url ? { url: citation.url } : {}),
+      ...(dates.publishedAt ? { publishedAt: dates.publishedAt } : {}),
+      ...(dates.effectiveAt ? { effectiveAt: dates.effectiveAt } : {}),
+      ...(dates.retrievedAt ? { retrievedAt: dates.retrievedAt } : {}),
       primary: primaryTool(citation.tool),
       authoritative: resolves && authoritativeTool(citation.tool),
       requirementIds: requirementIdsForTool(citation.tool, plan),

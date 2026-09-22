@@ -15,6 +15,9 @@ export interface EvidencePassage {
   documentId?: string;
   version?: string;
   sourceDate?: string;
+  publishedAt?: string;
+  effectiveAt?: string;
+  retrievedAt?: string;
 }
 
 export interface BuildEvidenceEnvelopeInput {
@@ -85,7 +88,10 @@ export function buildEvidenceEnvelope(
       locator: passage?.locator ?? citation?.source?.section ?? null,
       passage: text,
       sourceDate: passage?.sourceDate ?? evidence.asOf ?? null,
-      retrievedAt: evidence.retrievedAt ?? citation?.source?.observedAt ?? null,
+      publishedAt: passage?.publishedAt ?? evidence.publishedAt ?? null,
+      effectiveAt: passage?.effectiveAt ?? evidence.effectiveAt ?? null,
+      retrievedAt: passage?.retrievedAt ?? evidence.retrievedAt ?? citation?.source?.observedAt
+        ?? citation?.documentEvidence?.observedAt ?? null,
     });
   }
 

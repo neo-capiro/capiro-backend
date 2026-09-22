@@ -14,3 +14,7 @@ export * from './feedback-fixtures';
 export * from './prompt-block';
 export * from './observability';
 export * from './control-metrics';
+export * from './evidence-dates';
+export * from './freshness';
+export * from './exact-comparison';
+export * from './deterministic-evaluation';
