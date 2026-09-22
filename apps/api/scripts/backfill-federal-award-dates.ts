@@ -182,24 +182,36 @@ async function databaseAwards(prisma: PrismaClient, options: Options): Promise<S
   }));
 }
 
-async function fetchDetail(awardUniqueId: string): Promise<DetailResponse> {
+const FETCH_TIMEOUT_MS = Number(process.env.USASPENDING_FETCH_TIMEOUT_MS ?? 30_000);
+
+/**
+ * Returns the detail record, or `null` when USAspending answers with a non-OK status for this
+ * award after the retry budget (an "unavailable" award: it must stay NULL, never be written as
+ * verified). Network-level failures still throw after the retry budget.
+ *
+ * Every non-OK body is drained before retrying or returning: an unconsumed body wedges the shared
+ * keep-alive connection and made every following request in the process fail with
+ * `UND_ERR_SOCKET` (observed 2026-09-22 during the production backfill).
+ */
+async function fetchDetail(awardUniqueId: string): Promise<DetailResponse | null> {
+  let lastStatus = 0;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      const response = await fetch(`${DETAIL_URL}/${encodeURIComponent(awardUniqueId)}/`);
-      if (response.status === 429 || response.status >= 500) {
-        if (attempt < MAX_ATTEMPTS) {
-          await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** (attempt - 1)));
-          continue;
-        }
-      }
-      if (!response.ok) throw new Error(`USAspending ${response.status}`);
-      return (await response.json()) as DetailResponse;
+      const response = await fetch(`${DETAIL_URL}/${encodeURIComponent(awardUniqueId)}/`, {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (response.ok) return (await response.json()) as DetailResponse;
+      await response.arrayBuffer().catch(() => undefined);
+      lastStatus = response.status;
+      const retryable = response.status === 429 || response.status >= 500;
+      if (!retryable || attempt === MAX_ATTEMPTS) break;
     } catch (error) {
       if (attempt === MAX_ATTEMPTS) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** (attempt - 1)));
     }
+    await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** (attempt - 1)));
   }
-  throw new Error('unreachable');
+  console.log(`[award-date-backfill] unavailable awardUniqueId=${awardUniqueId} status=${lastStatus}`);
+  return null;
 }
 
 function impactRow(row: SelectedAward, detail: DetailResponse): AwardDateImpactRow {
@@ -314,19 +326,31 @@ async function main(): Promise<void> {
     console.log(
       `[award-date-backfill] mode=${options.commit ? 'COMMIT' : 'DRY-RUN'} rail=detail rows=${selected.length} database=${useDatabase}`,
     );
+    let unavailable = 0;
     for (const [index, row] of selected.entries()) {
       if (index > 0 && DELAY_MS > 0) await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
-      rows.push(impactRow(row, await fetchDetail(row.awardUniqueId)));
+      const detail = await fetchDetail(row.awardUniqueId);
+      // Unavailable source records are skipped entirely: their columns stay NULL and they never
+      // receive date_semantics_version = 1.
+      if (detail === null) {
+        unavailable += 1;
+        continue;
+      }
+      rows.push(impactRow(row, detail));
     }
     await writeReports(options.report, rows);
     if (options.commit) await commitRows(prisma!, rows, options.snapshot!);
-    console.log(`[award-date-backfill] complete examined=${rows.length} written=${options.commit ? rows.length : 0}`);
+    console.log(
+      `[award-date-backfill] complete examined=${selected.length} fetched=${rows.length} unavailable=${unavailable} written=${options.commit ? rows.length : 0}`,
+    );
   } finally {
     await prisma?.$disconnect();
   }
 }
 
 void main().catch((error: unknown) => {
-  console.error(`[award-date-backfill] ${(error as Error).message}`);
+  const cause = (error as { cause?: { code?: string; message?: string } }).cause;
+  const causeText = cause ? ` cause=${cause.code ?? cause.message ?? 'unknown'}` : '';
+  console.error(`[award-date-backfill] ${(error as Error).message}${causeText}`);
   process.exitCode = 1;
 });
