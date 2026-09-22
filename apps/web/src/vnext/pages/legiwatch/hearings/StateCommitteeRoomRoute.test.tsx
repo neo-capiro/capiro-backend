@@ -1,12 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiGet = vi.fn();
-vi.mock('../../../../lib/use-api.js', () => ({ useApi: () => ({ get: apiGet }) }));
+const apiPut = vi.fn();
+const apiDelete = vi.fn();
+let apiScope = 'tenant-test:self:user-test';
+vi.mock('../../../../lib/use-api.js', () => ({
+  useApi: () => ({ get: apiGet, put: apiPut, delete: apiDelete }),
+}));
 vi.mock('../../../../lib/use-api-scope.js', () => ({
-  useApiScope: () => 'tenant-test:self:user-test',
+  useApiScope: () => apiScope,
 }));
 import { readableDate, StateCommitteeRoomRoute } from './StateCommitteeRoomRoute.js';
 
@@ -101,6 +106,30 @@ const detail = {
       },
     ],
   },
+  updates: {
+    returned: 1,
+    total: 2,
+    truncated: true,
+    asOf: '2026-09-21T13:00:00.000Z',
+    rows: [
+      {
+        id: 'update-1',
+        committeeSystemCode: 'state:FL:legacy-health',
+        attributedFromAlias: 'state:FL:legacy-health',
+        hearingId: null,
+        updateType: 'document_published',
+        title: 'Staff analysis published',
+        summary: 'The committee published a new staff analysis.',
+        sourceUrl: 'https://www.flhouse.gov/analysis.pdf',
+        publishedAt: '2026-09-21T12:30:00.000Z',
+        firstSeenAt: '2026-09-21T12:31:00.000Z',
+        lastSeenAt: '2026-09-21T12:31:00.000Z',
+        contentHash: 'hash-1',
+        previousValue: null,
+        newValue: null,
+      },
+    ],
+  },
   directoryProfile: {
     contacts: [
       {
@@ -134,43 +163,89 @@ function LocationProbe() {
     </output>
   );
 }
-function renderRoom() {
+function renderRoom(
+  initialEntry = '/legiwatch/committees/FL/fl-lower-health?client=client-7',
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  const result = render(
+  const room = () => (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/legiwatch/committees/FL/fl-lower-health?client=client-7']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route
             path="/legiwatch/committees/FL/:stateCommitteeId"
-            element={<StateCommitteeRoomRoute />}
+            element={
+              <>
+                <StateCommitteeRoomRoute />
+                <LocationProbe />
+              </>
+            }
           />
           <Route path="*" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
-  return { ...result, queryClient };
+  const result = render(room());
+  return { ...result, queryClient, rerenderRoom: () => result.rerender(room()) };
 }
 
 beforeEach(() => {
+  apiScope = 'tenant-test:self:user-test';
   apiGet.mockReset();
-  apiGet.mockResolvedValue({ data: detail });
+  apiPut.mockReset();
+  apiDelete.mockReset();
+  apiGet.mockImplementation((url: string) => {
+    if (url === '/api/clients')
+      return Promise.resolve({
+        data: [
+          {
+            id: `client-${apiScope}`,
+            name: `Client ${apiScope}`,
+            status: 'active',
+          },
+        ],
+      });
+    if (url.includes('/committees/')) {
+      return Promise.resolve({
+        data: {
+          committeeSystemCode: 'state:FL:fl-lower-health',
+          following: false,
+          clientIds: [],
+          clients: [],
+          notifyOnNewHearing: true,
+          notifyOnScheduleChange: true,
+          notifyOnTranscriptReady: false,
+          notifyOnHighPriorityMatch: true,
+          notifyOnPublication: true,
+        },
+      });
+    }
+    return Promise.resolve({ data: detail });
+  });
+  apiPut.mockResolvedValue({ data: { following: true } });
+  apiDelete.mockResolvedValue({ data: { following: false } });
 });
 afterEach(() => vi.clearAllMocks());
 
 describe('StateCommitteeRoomRoute', () => {
-  it('renders source-backed Florida committee facts and labels unsupported alerts', async () => {
+  it('renders source-backed Florida committee facts, updates, and Follow controls', async () => {
     const { queryClient } = renderRoom();
     expect(
       await screen.findByRole('heading', { name: 'Health & Human Services Committee' }),
     ).toBeTruthy();
-    expect(
-      screen.getByRole('status', { name: 'Florida committee alerts unavailable' }),
-    ).toHaveTextContent('Alerts unavailable for Florida');
-    expect(
-      screen.queryByRole('button', { name: 'Florida committee alerts unavailable' }),
-    ).toBeNull();
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Follow committee' })).toHaveLength(2),
+    );
+    expect(screen.queryByText('Alerts unavailable for Florida')).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'What has been published' })).toBeTruthy();
+    expect(screen.getByText('1 OF 2 CHANGES')).toBeTruthy();
+    expect(screen.getByText('Showing the 1 most recent of 2 recorded changes.')).toBeTruthy();
+    expect(screen.getByText('ATTRIBUTED FROM state:FL:legacy-health')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Staff analysis published' })).toHaveAttribute(
+      'href',
+      'https://www.flhouse.gov/analysis.pdf',
+    );
     expect(screen.getAllByText(/SOURCE HEALTHY/i).length).toBeGreaterThan(0);
     expect(screen.getByText('Taylor Morgan')).toBeTruthy();
     expect(screen.getByText(/850-555-0101/)).toBeTruthy();
@@ -193,6 +268,62 @@ describe('StateCommitteeRoomRoute', () => {
         'fl-lower-health',
       ]),
     ).toEqual(detail);
+  });
+
+  it('opens legacy update deep links, preserves the client lens, and normalizes section navigation', async () => {
+    renderRoom(
+      '/legiwatch/committees/FL/fl-lower-health?tab=updates&client=client-7',
+    );
+
+    expect(await screen.findByRole('heading', { name: 'What has been published' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Proceedings' })).toBeNull();
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/legiwatch/committees/FL/fl-lower-health?tab=updates&client=client-7',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/legiwatch/committees/FL/fl-lower-health?client=client-7',
+      ),
+    );
+  });
+
+  it('uses the canonical namespaced Florida key for Follow settings', async () => {
+    renderRoom();
+    const followButton = (await screen.findAllByRole('button', { name: 'Follow committee' }))[0]!;
+    await waitFor(() =>
+      expect(apiGet).toHaveBeenCalledWith(
+        '/api/legiwatch/live-hearings/committees/state%3AFL%3Afl-lower-health/follow',
+      ),
+    );
+
+    fireEvent.click(followButton);
+    expect(await screen.findByText('Follow this committee')).toBeTruthy();
+    expect(screen.getByText('Committee publications')).toBeTruthy();
+    expect(screen.getAllByText('Health & Human Services Committee').length).toBeGreaterThan(1);
+  });
+
+  it('refetches the Follow dialog client list when the tenant API scope changes', async () => {
+    const { queryClient, rerenderRoom } = renderRoom();
+    const followButton = (await screen.findAllByRole('button', { name: 'Follow committee' }))[0]!;
+    await waitFor(() => expect(followButton).not.toBeDisabled());
+    fireEvent.click(followButton);
+    expect(await screen.findByText('Follow this committee')).toBeTruthy();
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['clients', 'tenant-test:self:user-test'])).toEqual([
+        expect.objectContaining({ id: 'client-tenant-test:self:user-test' }),
+      ]),
+    );
+
+    apiScope = 'tenant-other:self:user-other';
+    rerenderRoom();
+
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['clients', 'tenant-other:self:user-other'])).toEqual([
+        expect.objectContaining({ id: 'client-tenant-other:self:user-other' }),
+      ]),
+    );
   });
 
   it('links members to state profiles and preserves the client lens', async () => {

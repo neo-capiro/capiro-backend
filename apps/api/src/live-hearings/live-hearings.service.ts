@@ -37,6 +37,7 @@ import {
   preferNonBlank,
 } from '../hearing-discovery/florida-directory-profile.js';
 import { loadFloridaDirectoryResources } from '../hearing-discovery/florida-directory-resources.js';
+import { stateCommitteeFollowKey } from '../hearing-discovery/florida-committee-alerts.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
 
 /** One canonical hearing as the master calendar renders it. */
@@ -517,8 +518,18 @@ export class LiveHearingsService {
           ? ['senate']
           : ['house', 'senate'];
 
-    const [upcomingEvents, recentEvents, coverageRows, referredBills, referredBillCount] =
-      await Promise.all([
+    const stateCommitteeKeys = sourceCommitteeIds.map((committeeId) =>
+      stateCommitteeFollowKey('FL', committeeId),
+    );
+    const [
+      upcomingEvents,
+      recentEvents,
+      coverageRows,
+      referredBills,
+      referredBillCount,
+      committeeUpdates,
+      committeeUpdateCount,
+    ] = await Promise.all([
         this.calendar(ctx, {
           jurisdiction: 'FL',
           stateCommitteeIds: sourceCommitteeIds,
@@ -585,6 +596,14 @@ export class LiveHearingsService {
         this.prisma.stateBill.count({
           where: { state: 'FL', currentCommitteeId: { in: sourceCommitteeIds } },
         }),
+        this.prisma.committeeSiteUpdate.findMany({
+          where: { committeeSystemCode: { in: stateCommitteeKeys } },
+          orderBy: [{ lastSeenAt: 'desc' }, { id: 'desc' }],
+          take: 100,
+        }),
+        this.prisma.committeeSiteUpdate.count({
+          where: { committeeSystemCode: { in: stateCommitteeKeys } },
+        }),
       ]);
 
     const sourceIds = [...new Set(coverageRows.map((row) => row.sourceId))];
@@ -632,6 +651,31 @@ export class LiveHearingsService {
         pageSize: 400,
       },
       sourceCoverage,
+      updates: {
+        rows: committeeUpdates.map((update) => ({
+          id: update.id,
+          committeeSystemCode: update.committeeSystemCode,
+          attributedFromAlias:
+            update.committeeSystemCode !== stateCommitteeFollowKey('FL', body.id)
+              ? update.committeeSystemCode
+              : null,
+          hearingId: update.hearingId,
+          updateType: update.updateType,
+          title: update.normalizedTitle,
+          summary: update.normalizedSummary,
+          sourceUrl: update.sourceUrl,
+          publishedAt: update.officialPublishedAt?.toISOString() ?? null,
+          firstSeenAt: update.firstSeenAt.toISOString(),
+          lastSeenAt: update.lastSeenAt.toISOString(),
+          contentHash: update.contentHash,
+          previousValue: update.previousValue,
+          newValue: update.newValue,
+        })),
+        returned: committeeUpdates.length,
+        total: Math.max(committeeUpdateCount, committeeUpdates.length),
+        truncated: committeeUpdateCount > committeeUpdates.length,
+        asOf: new Date().toISOString(),
+      },
       referredBills: {
         rows: referredBills.map((bill) => ({
           ...bill,

@@ -16,6 +16,7 @@ const USER = '22222222-2222-4222-8222-222222222222';
 // browser actually sends (congress.gov's own display casing).
 const SENATE = 'SSAS00';
 const HOUSE = 'HSAS00';
+const FLORIDA = 'state:FL:official-committee-1';
 
 /**
  * HTTP-level proof that the Wave 1 committee routes are MOUNTED and survive the
@@ -121,6 +122,23 @@ describe('LegiWatch Wave 1 committee routes through the real HTTP pipeline', () 
     const res = await request(app.getHttpServer()).delete(`${base}/${code}/follow`);
     expect(res.status).toBe(200);
     expect(unfollowCommittee).toHaveBeenCalledWith(expect.anything(), code);
+  });
+
+  it('round-trips an encoded Florida committee key through every follow verb', async () => {
+    const route = `${base}/${encodeURIComponent(FLORIDA)}/follow`;
+    await request(app.getHttpServer()).get(route).expect(200);
+    await request(app.getHttpServer())
+      .put(route)
+      .send({ clientIds: [], notifyOnPublication: true })
+      .expect(200);
+    await request(app.getHttpServer()).delete(route).expect(200);
+    expect(committeeFollowState).toHaveBeenCalledWith(expect.anything(), FLORIDA);
+    expect(upsertCommitteeFollow).toHaveBeenCalledWith(
+      expect.anything(),
+      FLORIDA,
+      expect.objectContaining({ notifyOnPublication: true }),
+    );
+    expect(unfollowCommittee).toHaveBeenCalledWith(expect.anything(), FLORIDA);
   });
 
   it.each([SENATE, HOUSE])(

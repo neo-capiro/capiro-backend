@@ -10,6 +10,8 @@ import {
 } from './legislative-calendar.js';
 import type { SourceDescriptor } from './hearing-discovery.types.js';
 import type { ReconcileOutcome } from './hearing-reconciler.service.js';
+import { insertSiteUpdates } from './canonical-hearing.repository.js';
+import { stateCalendarCommitteeUpdates } from './florida-committee-alerts.js';
 
 const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value));
 
@@ -186,6 +188,11 @@ export class LegislativeCalendarRepository {
         const revision = (existing?.calendarRevision ?? 0) + (changed ? 1 : 0);
         const payloadHash = contentHash(observation);
         const observationChanged = priorObservation?.rawContentHash !== payloadHash;
+        const projectedStateCommitteeId =
+          observation.stateCommitteeId ?? existing?.stateCommitteeId ?? null;
+        const firstCommitteeAttribution = Boolean(
+          existing && !existing.stateCommitteeId && projectedStateCommitteeId,
+        );
         const projectedColumns = {
           geographicJurisdiction: observation.jurisdiction,
           legislativeSession: observation.session ?? existing?.legislativeSession ?? null,
@@ -207,7 +214,7 @@ export class LegislativeCalendarRepository {
                   ? (existing?.bodySourceKey ?? observation.bodySourceKey)
                   : observation.bodySourceKey
                 : observation.bodySourceKey,
-          stateCommitteeId: observation.stateCommitteeId ?? existing?.stateCommitteeId ?? null,
+          stateCommitteeId: projectedStateCommitteeId,
           chamber: displayChamber(observation.chamber),
           committeeName:
             provenAttachment && TFC_BODY.test(observation.bodySourceKey) && existing
@@ -303,6 +310,28 @@ export class LegislativeCalendarRepository {
             });
           }
         }
+        let siteUpdatesInserted = 0;
+        if ((changed || firstCommitteeAttribution) && projectedStateCommitteeId) {
+          siteUpdatesInserted = await insertSiteUpdates(
+            tx,
+            stateCalendarCommitteeUpdates({
+              jurisdiction: observation.jurisdiction,
+              stateCommitteeId: projectedStateCommitteeId,
+              hearingId: id,
+              revision,
+              existed: Boolean(existing),
+              firstCommitteeAttribution,
+              before,
+              after: facts,
+              changedFields,
+              sourceUrl: observation.sourceUrl,
+              publishedAt: observation.publishedAt,
+              parserVersion: source.parserVersion,
+            }),
+            now,
+            source.id,
+          );
+        }
         if (changed)
           await tx.legislativeCalendarTransition.create({
             data: {
@@ -324,7 +353,7 @@ export class LegislativeCalendarRepository {
           hearingCreated: !existing,
           changedFields,
           filledFields: [],
-          siteUpdatesInserted: 0,
+          siteUpdatesInserted,
           streamCandidatesCreated: 0,
         };
       },

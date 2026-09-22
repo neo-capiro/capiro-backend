@@ -3,6 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import type { AppConfig } from '../config/config.schema.js';
+import {
+  committeeUpdatesDeepLink,
+  parseStateCommitteeFollowKey,
+  stateCommitteeFollowKey,
+  verifiedStateCommitteeAliasIds,
+} from '../hearing-discovery/florida-committee-alerts.js';
+import { lockCommitteeUpdateStreams } from '../hearing-discovery/committee-update-serialization.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrackerEmailService } from '../tracker/notifications/tracker-email.service.js';
 
@@ -26,6 +33,17 @@ interface Follow {
   tenantId: string;
   userId: string;
   startedAt: Date | null;
+  committeeSystemCode: string;
+}
+interface IntakeObservation {
+  id: string;
+  updateType: string;
+  hearingId: string | null;
+  committeeSystemCode: string;
+  normalizedTitle: string;
+  normalizedSummary: string | null;
+  contentHash: string;
+  queueEmail: boolean | null;
 }
 interface Claim {
   id: string;
@@ -35,6 +53,7 @@ interface Claim {
   body: string | null;
   deepLink: string;
   dedupKey: string;
+  committeeSystemCode: string | null;
   attempts: number;
   leaseId: string;
   claimedAt: Date;
@@ -90,7 +109,8 @@ export class LegiWatchCommitteeNotificationService {
     // states its tenant explicitly because raw SQL bypasses Prisma's query hook.
     const follows = await this.prisma.withSystem(
       (tx) => tx.$queryRaw<Follow[]>`
-      SELECT id::text, tenant_id::text AS "tenantId", user_id AS "userId"
+      SELECT id::text, tenant_id::text AS "tenantId", user_id AS "userId",
+        alert_started_at AS "startedAt", committee_system_code AS "committeeSystemCode"
       FROM legiwatch_committee_follow
       WHERE lower(committee_system_code)=lower(${input.committeeSystemCode})`,
     );
@@ -110,44 +130,153 @@ export class LegiWatchCommitteeNotificationService {
     userId: string;
     committeeSystemCode: string;
   }): Promise<{ inserted: number }> {
-    const follows = await this.prisma.withTenant(
-      input.tenantId,
-      (tx) => tx.$queryRaw<Follow[]>`
-      SELECT id::text, tenant_id::text AS "tenantId", user_id AS "userId"
+    return this.prisma.withTenant(input.tenantId, async (tx) => ({
+      inserted: await this.initializeFollow(tx, input),
+    }));
+  }
+
+  /**
+   * Expand one canonical follow into the update streams it is allowed to
+   * consume. State aliases come only from the official directory evidence and
+   * must resolve to rows in the same jurisdiction. This keeps provider aliases
+   * useful without turning arbitrary JSON into an alert authorization.
+   */
+  private async committeeUpdateStreamCodes(
+    tx: Prisma.TransactionClient,
+    committeeSystemCode: string,
+  ): Promise<string[]> {
+    const state = parseStateCommitteeFollowKey(committeeSystemCode);
+    if (state) {
+      const committee = await tx.stateCommittee.findUnique({
+        where: { id: state.stateCommitteeId },
+        select: {
+          id: true,
+          state: true,
+          officialSourceKey: true,
+          sourceEvidence: true,
+        },
+      });
+      if (!committee || committee.state.toUpperCase() !== state.jurisdiction)
+        return [committeeSystemCode];
+      const aliases = committee.officialSourceKey
+        ? verifiedStateCommitteeAliasIds(committee.sourceEvidence)
+        : [];
+      const verifiedAliases = aliases.length
+        ? await tx.stateCommittee.findMany({
+            where: {
+              id: { in: aliases },
+              state: state.jurisdiction,
+            },
+            select: { id: true, state: true },
+          })
+        : [];
+      return [
+        ...new Set([
+          stateCommitteeFollowKey(committee.state, committee.id),
+          ...verifiedAliases.map((alias) => stateCommitteeFollowKey(alias.state, alias.id)),
+        ]),
+      ];
+    }
+
+    const parent = await tx.$queryRaw<Array<{ parentCode: string | null }>>`
+      SELECT parent_system_code AS "parentCode"
+      FROM congress_committee
+      WHERE lower(system_code)=lower(${committeeSystemCode})
+      LIMIT 1`;
+    return [
+      ...new Set(
+        [committeeSystemCode, parent[0]?.parentCode].filter((code): code is string =>
+          Boolean(code),
+        ),
+      ),
+    ];
+  }
+
+  /**
+   * Establish the follow boundary and bounded catch-up inside the caller's
+   * follow-create transaction. A publication committed on either side of this
+   * boundary is classified by its own database timestamp, so it can never be
+   * silently converted from a new/email-eligible update into catch-up history.
+   */
+  async initializeFollow(
+    tx: Prisma.TransactionClient,
+    input: { tenantId: string; userId: string; committeeSystemCode: string },
+  ): Promise<number> {
+    // A subcommittee follow receives its parent committee's publications too,
+    // so both update streams participate in the same boundary. State keys have
+    // no congress row and lock only their own namespaced stream.
+    const streamCodes = await this.committeeUpdateStreamCodes(tx, input.committeeSystemCode);
+    await lockCommitteeUpdateStreams(tx, streamCodes);
+
+    const locked = await tx.$queryRaw<Follow[]>`
+      SELECT id::text,tenant_id::text AS "tenantId",user_id AS "userId",
+        alert_started_at AS "startedAt",committee_system_code AS "committeeSystemCode"
       FROM legiwatch_committee_follow
       WHERE tenant_id=${input.tenantId}::uuid AND user_id=${input.userId}
-        AND lower(committee_system_code)=lower(${input.committeeSystemCode})`,
-    );
-    return { inserted: follows[0] ? await this.intake(follows[0], true) : 0 };
+        AND lower(committee_system_code)=lower(${input.committeeSystemCode})
+      FOR UPDATE`;
+    if (!locked[0] || locked[0].startedAt) return 0;
+    return this.initializeLocked(tx, locked[0], streamCodes);
   }
 
   private async intake(follow: Follow, catchupOnly: boolean): Promise<number> {
     return this.prisma.withTenant(follow.tenantId, async (tx) => {
       const locked = await tx.$queryRaw<Follow[]>`
-        SELECT id::text, alert_started_at AS "startedAt"
+        SELECT id::text,tenant_id::text AS "tenantId",user_id AS "userId",
+          alert_started_at AS "startedAt",committee_system_code AS "committeeSystemCode"
         FROM legiwatch_committee_follow
         WHERE id=${follow.id}::uuid AND tenant_id=${follow.tenantId}::uuid
           AND user_id=${follow.userId} FOR UPDATE`;
-      if (!locked[0] || (catchupOnly && locked[0].startedAt)) return 0;
-      const initial = !locked[0].startedAt;
-      // New follows and existing follows at rollout get bounded recent in-app
-      // history. This marker never advances: NOT EXISTS supplies durable progress
-      // without dropping late commits or bursts larger than a worker batch.
-      if (initial)
-        await tx.$executeRaw`
-        UPDATE legiwatch_committee_follow SET alert_started_at=now()
-        WHERE id=${follow.id}::uuid AND tenant_id=${follow.tenantId}::uuid`;
-      const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      if (!locked[0]) return 0;
+      const streamCodes = await this.committeeUpdateStreamCodes(tx, locked[0].committeeSystemCode);
+      if (!locked[0].startedAt) {
+        await lockCommitteeUpdateStreams(tx, streamCodes);
+        return this.initializeLocked(tx, locked[0], streamCodes);
+      }
+      if (catchupOnly) return 0;
+      return this.insertBatch(tx, locked[0], false, streamCodes);
+    });
+  }
+
+  private async initializeLocked(
+    tx: Prisma.TransactionClient,
+    follow: Follow,
+    streamCodes: readonly string[],
+  ): Promise<number> {
+    const initialized = await tx.$queryRaw<Array<{ startedAt: Date }>>`
+      UPDATE legiwatch_committee_follow
+      SET alert_started_at=clock_timestamp()
+      WHERE id=${follow.id}::uuid AND tenant_id=${follow.tenantId}::uuid
+        AND user_id=${follow.userId} AND alert_started_at IS NULL
+      RETURNING alert_started_at AS "startedAt"`;
+    if (!initialized[0]) return 0;
+    const bounded = { ...follow, startedAt: initialized[0].startedAt };
+    const historical = await this.insertBatch(tx, bounded, true, streamCodes);
+    const current = await this.insertBatch(tx, bounded, false, streamCodes);
+    return historical + current;
+  }
+
+  private async insertBatch(
+    tx: Prisma.TransactionClient,
+    follow: Follow,
+    catchup: boolean,
+    streamCodes: readonly string[],
+  ): Promise<number> {
+    const rows = await tx.$queryRaw<IntakeObservation[]>(Prisma.sql`
         WITH observations AS (
-          SELECT DISTINCT ON (u.content_hash) u.*,
-            (NOT ${initial} AND p.committee_email_enabled=true
-              AND u.first_seen_at>p.updated_at AND u.first_seen_at>f.updated_at
+          SELECT DISTINCT ON (u.content_hash) u.id,u.update_type AS "updateType",
+            u.hearing_id AS "hearingId",u.committee_system_code AS "committeeSystemCode",
+            u.normalized_title AS "normalizedTitle",u.normalized_summary AS "normalizedSummary",
+            u.content_hash AS "contentHash",u.first_seen_at,u.created_at,
+            (${!catchup} AND p.committee_email_enabled=true
+              AND u.created_at>=f.alert_started_at
+              AND u.created_at>p.updated_at AND u.created_at>f.updated_at
               AND p.email_address IS NOT NULL) AS queue_email
           FROM legiwatch_committee_follow f
-          LEFT JOIN congress_committee c ON lower(c.system_code)=lower(f.committee_system_code)
-          JOIN committee_site_update u ON (
-            lower(u.committee_system_code)=lower(f.committee_system_code)
-            OR lower(u.committee_system_code)=lower(c.parent_system_code))
+          JOIN committee_site_update u
+            ON lower(u.committee_system_code) IN (
+              ${Prisma.join(streamCodes.map((code) => Prisma.sql`lower(${code})`))}
+            )
           LEFT JOIN legiwatch_committee_email_preference p
             ON p.tenant_id=f.tenant_id AND p.user_id=f.user_id
           WHERE f.id=${follow.id}::uuid AND f.tenant_id=${follow.tenantId}::uuid
@@ -156,8 +285,9 @@ export class LegiWatchCommitteeNotificationService {
               WHERE m.tenant_id=f.tenant_id AND m.user_id::text=f.user_id AND m.status='active')
             AND (${categoryEnabled})
             AND ${
-              initial
-                ? Prisma.sql`u.first_seen_at>=now()-interval '30 days'`
+              catchup
+                ? Prisma.sql`u.created_at<f.alert_started_at
+                  AND u.first_seen_at>=f.alert_started_at-interval '30 days'`
                 : Prisma.sql`u.created_at>=f.alert_started_at`
             }
             AND NOT EXISTS (SELECT 1 FROM legiwatch_notification_event n
@@ -166,22 +296,28 @@ export class LegiWatchCommitteeNotificationService {
           ORDER BY u.content_hash,u.first_seen_at DESC,u.id DESC
         ), batch AS (
           SELECT * FROM observations
-          ORDER BY ${initial ? Prisma.sql`first_seen_at DESC,id DESC` : Prisma.sql`created_at ASC,id ASC`}
-          LIMIT ${initial ? CATCHUP_SIZE : PAGE_SIZE}
+          ORDER BY ${catchup ? Prisma.sql`first_seen_at DESC,id DESC` : Prisma.sql`created_at ASC,id ASC`}
+          LIMIT ${catchup ? CATCHUP_SIZE : PAGE_SIZE}
         )
-        INSERT INTO legiwatch_notification_event
-          (tenant_id,user_id,event_type,hearing_id,committee_system_code,title,body,deep_link,dedup_key,
-           email_delivery_status,email_delivery_next_attempt_at)
-        SELECT ${follow.tenantId}::uuid,${follow.userId},
-          CASE WHEN update_type='hearing_announced' THEN 'new_hearing' ELSE 'committee_publication' END,
-          hearing_id,committee_system_code,left(normalized_title,500),normalized_summary,
-          '/legiwatch/committees/'||committee_system_code||'?tab=updates',
-          'committee_update:'||content_hash,
-          CASE WHEN queue_email THEN 'queued' ELSE NULL END,
-          CASE WHEN queue_email THEN now() ELSE NULL END
-        FROM batch ON CONFLICT (tenant_id,user_id,dedup_key) DO NOTHING RETURNING id`);
-      return rows.length;
-    });
+        SELECT id,"updateType","hearingId","committeeSystemCode","normalizedTitle",
+          "normalizedSummary","contentHash",queue_email AS "queueEmail" FROM batch`);
+    if (!rows.length) return 0;
+    const values = rows.map(
+      (row) => Prisma.sql`(
+      ${follow.tenantId}::uuid,${follow.userId},
+      ${row.updateType === 'hearing_announced' ? 'new_hearing' : 'committee_publication'},
+      ${row.hearingId},${follow.committeeSystemCode},${row.normalizedTitle.slice(0, 500)},
+      ${row.normalizedSummary},${committeeUpdatesDeepLink(follow.committeeSystemCode)},
+      ${`committee_update:${row.contentHash}`},${row.queueEmail ? 'queued' : null},
+      ${row.queueEmail ? new Date() : null})`,
+    );
+    const inserted = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      INSERT INTO legiwatch_notification_event
+        (tenant_id,user_id,event_type,hearing_id,committee_system_code,title,body,deep_link,dedup_key,
+         email_delivery_status,email_delivery_next_attempt_at)
+      VALUES ${Prisma.join(values)}
+      ON CONFLICT (tenant_id,user_id,dedup_key) DO NOTHING RETURNING id::text`);
+    return inserted.length;
   }
 
   async drainEmail(now?: Date): Promise<DrainResult> {
@@ -272,6 +408,7 @@ export class LegiWatchCommitteeNotificationService {
       FROM candidate WHERE n.id=candidate.id
       RETURNING n.id::text,n.tenant_id::text AS "tenantId",n.user_id AS "userId",n.title,n.body,
         n.deep_link AS "deepLink",n.dedup_key AS "dedupKey",
+        n.committee_system_code AS "committeeSystemCode",
         n.email_delivery_attempts AS attempts,n.email_delivery_lease_id AS "leaseId",
         COALESCE(${now ?? null}::timestamptz,now()) AS "claimedAt"`,
     );
@@ -290,21 +427,37 @@ export class LegiWatchCommitteeNotificationService {
       const email = rows[0]?.email;
       return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
     }
-    const rows = await this.prisma.withTenant(row.tenantId, (tx) =>
-      tx.$queryRaw<Array<{ email: string }>>(Prisma.sql`
+    if (!row.committeeSystemCode) return null;
+    const followRows = await this.prisma.withTenant(
+      row.tenantId,
+      (tx) =>
+        tx.$queryRaw<Follow[]>`
+      SELECT id::text,tenant_id::text AS "tenantId",user_id AS "userId",
+        alert_started_at AS "startedAt",committee_system_code AS "committeeSystemCode"
+      FROM legiwatch_committee_follow
+      WHERE tenant_id=${row.tenantId}::uuid AND user_id=${row.userId}
+        AND lower(committee_system_code)=lower(${row.committeeSystemCode})
+      LIMIT 1`,
+    );
+    const follow = followRows[0];
+    if (!follow) return null;
+    const rows = await this.prisma.withTenant(row.tenantId, async (tx) => {
+      const streamCodes = await this.committeeUpdateStreamCodes(tx, follow.committeeSystemCode);
+      return tx.$queryRaw<Array<{ email: string }>>(Prisma.sql`
       SELECT account.email FROM users account
       JOIN tenant_memberships m ON m.user_id=account.id AND m.tenant_id=${row.tenantId}::uuid AND m.status='active'
       JOIN legiwatch_committee_email_preference p ON p.user_id=account.id::text AND p.tenant_id=m.tenant_id
         AND p.committee_email_enabled=true
       JOIN legiwatch_committee_follow f ON f.user_id=account.id::text AND f.tenant_id=m.tenant_id
-      LEFT JOIN congress_committee c ON lower(c.system_code)=lower(f.committee_system_code)
+        AND lower(f.committee_system_code)=lower(${follow.committeeSystemCode})
       JOIN committee_site_update u ON 'committee_update:'||u.content_hash=${row.dedupKey}
-        AND (lower(u.committee_system_code)=lower(f.committee_system_code)
-          OR lower(u.committee_system_code)=lower(c.parent_system_code))
+        AND lower(u.committee_system_code) IN (
+          ${Prisma.join(streamCodes.map((code) => Prisma.sql`lower(${code})`))}
+        )
       WHERE account.id::text=${row.userId} AND (${categoryEnabled})
-        AND u.first_seen_at>p.updated_at AND u.first_seen_at>f.updated_at
-      LIMIT 1`),
-    );
+        AND u.created_at>p.updated_at AND u.created_at>f.updated_at
+      LIMIT 1`);
+    });
     const email = rows[0]?.email;
     return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
   }

@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
+import { useApiScope } from '../../../../lib/use-api-scope.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
@@ -99,12 +100,13 @@ export function CommitteeFollowDialog({
   onClose: () => void;
 }) {
   const api = useApi();
+  const apiScope = useApiScope();
   const existing = useCommitteeFollow(systemCode);
   const save = useSaveCommitteeFollow(systemCode);
   const unfollow = useUnfollowCommittee(systemCode);
 
   const clients = useQuery<Client[]>({
-    queryKey: ['clients'],
+    queryKey: ['clients', apiScope],
     queryFn: async () => (await api.get<Client[]>('/api/clients')).data,
     staleTime: 5 * 60_000,
     retry: false,

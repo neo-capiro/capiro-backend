@@ -8,8 +8,8 @@
  *    fail-closed policy guard. There is no second capture scheduler here.
  *  - the public transcript and public intelligence rails are read, never
  *    written or copied per tenant.
- *  - committee identity comes from `CongressCommittee`, never inferred from
- *    whichever hearings happen to fall in a date window.
+ *  - committee identity comes from the canonical federal/state directory,
+ *    never inferred from whichever hearings happen to fall in a date window.
  *
  * Tenant safety: every tenant-owned read/write runs inside
  * `PrismaService.withTenant`, which injects `where.tenantId` and sets the RLS
@@ -18,6 +18,10 @@
  * being persisted or used as a filter.
  */
 import { resolveCanonicalHearingId } from '../hearing-discovery/hearing-alias.js';
+import {
+  parseStateCommitteeFollowKey,
+  stateCommitteeFollowKey,
+} from '../hearing-discovery/florida-committee-alerts.js';
 import {
   BadRequestException,
   ConflictException,
@@ -1079,8 +1083,8 @@ export class LegiWatchWave1Service {
     const { systemCode: canonicalCode } = await this.requireCommittee(ctx, systemCode);
     const clientIds = await this.resolveClientIds(ctx, input.clientIds ?? []);
 
-    const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.legiWatchCommitteeFollow.upsert({
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const followed = await tx.legiWatchCommitteeFollow.upsert({
         where: {
           tenantId_userId_committeeSystemCode: {
             tenantId: ctx.tenantId,
@@ -1118,14 +1122,17 @@ export class LegiWatchWave1Service {
             : { notifyOnPublication: input.notifyOnPublication }),
           updatedAt: new Date(),
         },
-      }),
-    );
-    // Initial follow catches up on recent publications in-app. The service
-    // persists its initialization boundary and never emails this history.
-    await this.committeeAlerts.catchUpFollow({
-      tenantId: ctx.tenantId,
-      userId: ctx.userId,
-      committeeSystemCode: canonicalCode,
+      });
+      // The boundary and bounded historical catch-up commit with the follow.
+      // A publication racing this transaction is classified by its database
+      // timestamp against that boundary and can never inherit catch-up's
+      // email suppression merely because the worker reached it first.
+      await this.committeeAlerts.initializeFollow(tx, {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        committeeSystemCode: canonicalCode,
+      });
+      return followed;
     });
     return this.toCommitteeFollowState(ctx, canonicalCode, row);
   }
@@ -2351,7 +2358,9 @@ export class LegiWatchWave1Service {
   }
 
   /**
-   * Committee identity comes from CongressCommittee, never from hearing rows.
+   * Committee identity comes from the canonical federal/state directory, never
+   * from hearing display text. State follows use `state:FL:<stateCommitteeId>`
+   * in the existing soft-reference column so federal codes cannot collide.
    *
    * Resolved case-insensitively and returns the row's CANONICAL stored
    * `systemCode` — mirroring `CommitteeDirectoryService`'s `normalizeCode()`
@@ -2368,7 +2377,17 @@ export class LegiWatchWave1Service {
     ctx: TenantContext,
     systemCode: string,
   ): Promise<{ systemCode: string }> {
-    void ctx;
+    const state = parseStateCommitteeFollowKey(systemCode);
+    if (state) {
+      await requireStateCalendar(this.prisma, ctx.tenantId);
+      const found = await this.prisma.stateCommittee.findUnique({
+        where: { id: state.stateCommitteeId },
+        select: { id: true, state: true },
+      });
+      if (!found || found.state.toUpperCase() !== state.jurisdiction)
+        throw new NotFoundException(`committee ${systemCode} not found`);
+      return { systemCode: stateCommitteeFollowKey(found.state, found.id) };
+    }
     const found = await this.prisma.congressCommittee.findFirst({
       where: { systemCode: { equals: systemCode, mode: 'insensitive' } },
       select: { systemCode: true },

@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
+import { useApiScope } from '../../../../lib/use-api-scope.js';
 import { useHearingQueryIdentity, type SavedHearingSession } from './saved-hearing-sessions.js';
 import { useCreateHearing } from '../../../../lib/hearing-watch-api.js';
 import {
@@ -318,7 +319,8 @@ export const w1Keys = {
     ['lw-w1', 'relevance', hearingId, clientId] as const,
   archive: (params: unknown, identity: string | null) =>
     ['lw-w1', 'archive', params, identity] as const,
-  committeeFollow: (systemCode: string) => ['lw-w1', 'committee-follow', systemCode] as const,
+  committeeFollow: (systemCode: string, apiScope: string) =>
+    ['lw-w1', 'committee-follow', apiScope, systemCode] as const,
   committeeIntel: (systemCode: string, params: unknown) =>
     ['lw-w1', 'committee-intel', systemCode, params] as const,
   calendar: (hearingId: string) => ['lw-w1', 'calendar', hearingId] as const,
@@ -719,8 +721,9 @@ export function useCommitteeFollow(
   systemCode: string,
 ): UseQueryResult<CommitteeFollowConfig, Error> {
   const api = useApi();
+  const apiScope = useApiScope();
   return useQuery<CommitteeFollowConfig, Error>({
-    queryKey: w1Keys.committeeFollow(systemCode),
+    queryKey: w1Keys.committeeFollow(systemCode, apiScope),
     queryFn: async () =>
       (await api.get<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`)).data,
     enabled: Boolean(systemCode),
@@ -740,13 +743,14 @@ export interface CommitteeFollowInput {
 
 export function useSaveCommitteeFollow(systemCode: string) {
   const api = useApi();
+  const apiScope = useApiScope();
   const qc = useQueryClient();
   return useMutation<CommitteeFollowConfig, Error, CommitteeFollowInput>({
     mutationFn: async (input) =>
       (await api.put<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`, input))
         .data,
     onSuccess: (data) => {
-      qc.setQueryData(w1Keys.committeeFollow(systemCode), data);
+      qc.setQueryData(w1Keys.committeeFollow(systemCode, apiScope), data);
       // A follow lets the server generate catch-up notifications for recent
       // publications — refresh the shared inbox/bell/dashboard feed now.
       void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
@@ -756,13 +760,14 @@ export function useSaveCommitteeFollow(systemCode: string) {
 
 export function useUnfollowCommittee(systemCode: string) {
   const api = useApi();
+  const apiScope = useApiScope();
   const qc = useQueryClient();
   return useMutation<CommitteeFollowConfig, Error, void>({
     mutationFn: async () =>
       (await api.delete<CommitteeFollowConfig>(`${BASE}/committees/${enc(systemCode)}/follow`))
         .data,
     onSuccess: (data) => {
-      qc.setQueryData(w1Keys.committeeFollow(systemCode), data);
+      qc.setQueryData(w1Keys.committeeFollow(systemCode, apiScope), data);
       void qc.invalidateQueries({ queryKey: ['lw-w1', 'notifications'] });
     },
   });

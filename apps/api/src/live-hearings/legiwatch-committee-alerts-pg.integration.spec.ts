@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
+import { insertSiteUpdates } from '../hearing-discovery/canonical-hearing.repository.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrackerEmailService } from '../tracker/notifications/tracker-email.service.js';
 import { LegiWatchCommitteeNotificationService } from './legiwatch-committee-notification.service.js';
@@ -255,6 +256,425 @@ describeDatabase('committee alerts through production PrismaService and Postgres
       );
     } finally {
       await db.$disconnect();
+    }
+  }, 30_000);
+
+  it('delivers namespaced Florida committee updates idempotently and tenant-locally', async () => {
+    const db = new PrismaService({ datasources: { db: { url: testUrl! } } });
+    const deliveries: string[] = [];
+    const service = new LegiWatchCommitteeNotificationService(
+      db,
+      {
+        send: async (to: string) => {
+          deliveries.push(to);
+          return { sent: true, messageId: randomUUID() };
+        },
+      } as unknown as TrackerEmailService,
+      new ConfigService<AppConfig, true>({ LEGIWATCH_APP_BASE_URL: 'https://os.capiro.ai' }),
+    );
+    const run = randomUUID();
+    const committeeId = `official-${run}`;
+    const committeeKey = `state:FL:${committeeId}`;
+    const aliasId = `legacy-${run}`;
+    const aliasKey = `state:FL:${aliasId}`;
+    const tenants = [randomUUID(), randomUUID()];
+    const users = [randomUUID(), randomUUID()];
+    try {
+      await db.$executeRawUnsafe(
+        "INSERT INTO state_committee(id,state,chamber,name,official_source_key,legislative_session,source_evidence,last_synced_at) VALUES($1,'FL','senate','Florida proof',$2,'2099',$3::jsonb,now())",
+        committeeId,
+        `FL:2099:${run}`,
+        JSON.stringify({ directory: { aliasIds: [aliasId] } }),
+      );
+      await db.$executeRawUnsafe(
+        "INSERT INTO state_committee(id,state,chamber,name,legislative_session,last_synced_at) VALUES($1,'FL','senate','Legacy Florida proof','2099',now())",
+        aliasId,
+      );
+      for (let i = 0; i < tenants.length; i++) {
+        await db.$executeRawUnsafe(
+          "INSERT INTO tenants(id,slug,name,status,updated_at) VALUES($1::uuid,$2,'Florida alert proof','active',now())",
+          tenants[i],
+          `fl-alert-${tenants[i]}`,
+        );
+        await db.$executeRawUnsafe(
+          'INSERT INTO users(id,clerk_user_id,email,updated_at) VALUES($1::uuid,$2,$3,now())',
+          users[i],
+          `clerk-${users[i]}`,
+          `${users[i]}@example.invalid`,
+        );
+        await db.$executeRawUnsafe(
+          "INSERT INTO tenant_memberships(id,tenant_id,user_id,role,status,updated_at) VALUES(gen_random_uuid(),$1::uuid,$2::uuid,'user_admin','active',now())",
+          tenants[i],
+          users[i],
+        );
+        await db.$executeRawUnsafe(
+          "INSERT INTO legiwatch_committee_email_preference(tenant_id,user_id,committee_email_enabled,email_address,updated_at) VALUES($1::uuid,$2,true,$3,clock_timestamp()-interval '1 second')",
+          tenants[i],
+          users[i],
+          `${users[i]}@example.invalid`,
+        );
+        await db.$executeRawUnsafe(
+          'INSERT INTO legiwatch_committee_follow(tenant_id,user_id,committee_system_code,client_ids) VALUES($1::uuid,$2,$3,ARRAY[]::uuid[])',
+          tenants[i],
+          users[i],
+          committeeKey,
+        );
+      }
+      const publish = async (label: string, streamCode = committeeKey) => {
+        const hash = `${run}:${label}`;
+        await db.$executeRawUnsafe(
+          "INSERT INTO committee_site_update(id,committee_system_code,update_type,normalized_title,source_url,content_hash,first_seen_at,last_seen_at,created_at,updated_at) VALUES($1,$2,'committee_memo_published',$3,'https://www.flsenate.gov/Committees/',$1,now(),now(),now(),now())",
+          hash,
+          streamCode,
+          label,
+        );
+      };
+      const count = async (index: number) =>
+        (
+          await db.$queryRawUnsafe<Array<{ n: number }>>(
+            'SELECT count(*)::int AS n FROM legiwatch_notification_event WHERE tenant_id=$1::uuid AND user_id=$2',
+            tenants[index],
+            users[index],
+          )
+        )[0]!.n;
+
+      await publish('Initial Florida packet');
+      for (let i = 0; i < tenants.length; i++)
+        expect(
+          await service.catchUpFollow({
+            tenantId: tenants[i]!,
+            userId: users[i]!,
+            committeeSystemCode: committeeKey,
+          }),
+        ).toEqual({ inserted: 1 });
+      expect(await count(0)).toBe(1);
+      expect(await count(1)).toBe(1);
+      const links = await db.$queryRawUnsafe<Array<{ link: string }>>(
+        'SELECT deep_link AS link FROM legiwatch_notification_event WHERE tenant_id=$1::uuid',
+        tenants[0],
+      );
+      expect(links[0]!.link).toBe(`/legiwatch/committees/FL/${committeeId}?tab=updates`);
+
+      // The official room aggregates this verified legacy/provider alias. Its
+      // official Follow must consume the same stream and keep an official deep
+      // link rather than stranding the alert on the alias identity.
+      await publish('Fresh Florida packet', aliasKey);
+      expect(await service.syncFollow({ committeeSystemCode: committeeKey })).toEqual({
+        recipients: 2,
+        inserted: 2,
+      });
+      expect(await service.syncFollow({ committeeSystemCode: committeeKey })).toEqual({
+        recipients: 2,
+        inserted: 0,
+      });
+      expect(await count(0)).toBe(2);
+      expect(await count(1)).toBe(2);
+      const fresh = await db.$queryRawUnsafe<
+        Array<{ code: string; link: string; status: string | null }>
+      >(
+        'SELECT committee_system_code AS code,deep_link AS link,email_delivery_status AS status FROM legiwatch_notification_event WHERE tenant_id=$1::uuid AND dedup_key=$2',
+        tenants[0],
+        `committee_update:${run}:Fresh Florida packet`,
+      );
+      expect(fresh).toEqual([
+        {
+          code: committeeKey,
+          link: `/legiwatch/committees/FL/${committeeId}?tab=updates`,
+          status: 'queued',
+        },
+      ]);
+      expect(await service.drainEmail()).toMatchObject({ sent: 2 });
+      expect(new Set(deliveries)).toEqual(
+        new Set(users.map((userId) => `${userId}@example.invalid`)),
+      );
+
+      await db.$executeRawUnsafe(
+        'DELETE FROM legiwatch_committee_follow WHERE tenant_id=$1::uuid AND user_id=$2',
+        tenants[0],
+        users[0],
+      );
+      await publish('After tenant A unfollowed', aliasKey);
+      expect(await service.syncFollow({ committeeSystemCode: committeeKey })).toEqual({
+        recipients: 1,
+        inserted: 1,
+      });
+      expect(await count(0)).toBe(2);
+      expect(await count(1)).toBe(3);
+      expect(await service.drainEmail()).toMatchObject({ sent: 1 });
+      expect(deliveries).toHaveLength(3);
+    } finally {
+      await db.$disconnect();
+    }
+  }, 30_000);
+
+  it('classifies a publication racing follow creation against the atomic boundary', async () => {
+    const db = new PrismaService({ datasources: { db: { url: testUrl! } } });
+    const deliveries: string[] = [];
+    const service = new LegiWatchCommitteeNotificationService(
+      db,
+      {
+        send: async (to: string) => {
+          deliveries.push(to);
+          return { sent: true, messageId: randomUUID() };
+        },
+      } as unknown as TrackerEmailService,
+      new ConfigService<AppConfig, true>({ LEGIWATCH_APP_BASE_URL: 'https://os.capiro.ai' }),
+    );
+    const run = randomUUID();
+    const tenant = randomUUID();
+    const user = randomUUID();
+    const committeeKey = `state:FL:budget/../rules?client=${run}#top`;
+    let release!: () => void;
+    let boundaryStored!: () => void;
+    let boundaryError: unknown;
+    const releaseGate = new Promise<void>((resolve) => (release = resolve));
+    const boundaryGate = new Promise<void>((resolve) => (boundaryStored = resolve));
+    try {
+      await db.$executeRawUnsafe(
+        "INSERT INTO tenants(id,slug,name,status,updated_at) VALUES($1::uuid,$2,'Boundary proof','active',now())",
+        tenant,
+        `boundary-${tenant}`,
+      );
+      await db.$executeRawUnsafe(
+        'INSERT INTO users(id,clerk_user_id,email,updated_at) VALUES($1::uuid,$2,$3,now())',
+        user,
+        `clerk-${user}`,
+        `${user}@example.invalid`,
+      );
+      await db.$executeRawUnsafe(
+        "INSERT INTO tenant_memberships(id,tenant_id,user_id,role,status,updated_at) VALUES(gen_random_uuid(),$1::uuid,$2::uuid,'user_admin','active',now())",
+        tenant,
+        user,
+      );
+      await db.$executeRawUnsafe(
+        "INSERT INTO legiwatch_committee_email_preference(tenant_id,user_id,committee_email_enabled,email_address,updated_at) VALUES($1::uuid,$2,true,$3,clock_timestamp()-interval '1 second')",
+        tenant,
+        user,
+        `${user}@example.invalid`,
+      );
+      const historicalHash = `${run}:historical`;
+      await db.$executeRawUnsafe(
+        "INSERT INTO committee_site_update(id,committee_system_code,update_type,normalized_title,source_url,content_hash,first_seen_at,last_seen_at,created_at,updated_at) VALUES($1,$2,'committee_memo_published','Historical packet','https://www.flsenate.gov/',$1,clock_timestamp()-interval '1 second',clock_timestamp(),clock_timestamp()-interval '1 second',clock_timestamp())",
+        historicalHash,
+        committeeKey,
+      );
+
+      const followTransaction = db
+        .withTenant(tenant, async (tx) => {
+          await tx.$executeRaw`
+            INSERT INTO legiwatch_committee_follow
+              (tenant_id,user_id,committee_system_code,client_ids,created_at,updated_at)
+            VALUES (${tenant}::uuid,${user},${committeeKey},ARRAY[]::uuid[],clock_timestamp(),clock_timestamp())`;
+          expect(
+            await service.initializeFollow(tx, {
+              tenantId: tenant,
+              userId: user,
+              committeeSystemCode: committeeKey,
+            }),
+          ).toBe(1);
+          boundaryStored();
+          await releaseGate;
+        })
+        .catch((error) => {
+          boundaryError = error;
+          boundaryStored();
+        });
+      await boundaryGate;
+      if (boundaryError) throw boundaryError;
+
+      const freshHash = `${run}:fresh`;
+      await db.$executeRawUnsafe(
+        "INSERT INTO committee_site_update(id,committee_system_code,update_type,normalized_title,source_url,content_hash,first_seen_at,last_seen_at,created_at,updated_at) VALUES($1,$2,'committee_memo_published','Fresh packet','https://www.flsenate.gov/',$1,clock_timestamp(),clock_timestamp(),clock_timestamp(),clock_timestamp())",
+        freshHash,
+        committeeKey,
+      );
+      release();
+      await followTransaction;
+
+      expect(await service.syncFollow({ committeeSystemCode: committeeKey })).toEqual({
+        recipients: 1,
+        inserted: 1,
+      });
+      const rows = await db.$queryRawUnsafe<
+        Array<{ key: string; status: string | null; link: string }>
+      >(
+        'SELECT dedup_key AS key,email_delivery_status AS status,deep_link AS link FROM legiwatch_notification_event WHERE tenant_id=$1::uuid ORDER BY created_at,id',
+        tenant,
+      );
+      expect(rows).toEqual([
+        {
+          key: `committee_update:${historicalHash}`,
+          status: null,
+          link: `/legiwatch/committees/FL/budget%2F..%2Frules%3Fclient%3D${run}%23top?tab=updates`,
+        },
+        {
+          key: `committee_update:${freshHash}`,
+          status: 'queued',
+          link: `/legiwatch/committees/FL/budget%2F..%2Frules%3Fclient%3D${run}%23top?tab=updates`,
+        },
+      ]);
+      expect((await service.drainEmail()).sent).toBe(1);
+      expect(deliveries).toEqual([`${user}@example.invalid`]);
+    } finally {
+      release?.();
+      await db.$disconnect();
+    }
+  }, 30_000);
+
+  it('delivers a producer transaction that begins before the follow boundary and commits after it', async () => {
+    const db = new PrismaService({ datasources: { db: { url: testUrl! } } });
+    const producer = new PrismaService({ datasources: { db: { url: testUrl! } } });
+    const deliveries: string[] = [];
+    const service = new LegiWatchCommitteeNotificationService(
+      db,
+      {
+        send: async (to: string) => {
+          deliveries.push(to);
+          return { sent: true, messageId: randomUUID() };
+        },
+      } as unknown as TrackerEmailService,
+      new ConfigService<AppConfig, true>({ LEGIWATCH_APP_BASE_URL: 'https://os.capiro.ai' }),
+    );
+    const run = randomUUID();
+    const tenant = randomUUID();
+    const user = randomUUID();
+    const committeeKey = `state:FL:late-commit-${run}`;
+    const updateHash = `${run}:late-commit`;
+
+    let producerStarted!: () => void;
+    let allowProducerInsert!: () => void;
+    let producerAttempted!: () => void;
+    let boundaryStored!: () => void;
+    let allowFollowCommit!: () => void;
+    const producerStartedGate = new Promise<void>((resolve) => (producerStarted = resolve));
+    const producerInsertGate = new Promise<void>((resolve) => (allowProducerInsert = resolve));
+    const producerAttemptGate = new Promise<void>((resolve) => (producerAttempted = resolve));
+    const boundaryGate = new Promise<void>((resolve) => (boundaryStored = resolve));
+    const followCommitGate = new Promise<void>((resolve) => (allowFollowCommit = resolve));
+    let producerTransaction: Promise<void> | undefined;
+    let followTransaction: Promise<void> | undefined;
+
+    try {
+      await db.$executeRawUnsafe(
+        "INSERT INTO tenants(id,slug,name,status,updated_at) VALUES($1::uuid,$2,'Late commit proof','active',clock_timestamp())",
+        tenant,
+        `late-commit-${tenant}`,
+      );
+      await db.$executeRawUnsafe(
+        'INSERT INTO users(id,clerk_user_id,email,updated_at) VALUES($1::uuid,$2,$3,clock_timestamp())',
+        user,
+        `clerk-${user}`,
+        `${user}@example.invalid`,
+      );
+      await db.$executeRawUnsafe(
+        "INSERT INTO tenant_memberships(id,tenant_id,user_id,role,status,updated_at) VALUES(gen_random_uuid(),$1::uuid,$2::uuid,'user_admin','active',clock_timestamp())",
+        tenant,
+        user,
+      );
+      await db.$executeRawUnsafe(
+        "INSERT INTO legiwatch_committee_email_preference(tenant_id,user_id,committee_email_enabled,email_address,updated_at) VALUES($1::uuid,$2,true,$3,clock_timestamp()-interval '1 second')",
+        tenant,
+        user,
+        `${user}@example.invalid`,
+      );
+
+      // Connection 1 starts before the follow exists, establishing the exact
+      // PostgreSQL transaction_timestamp() ordering that previously lost rows.
+      producerTransaction = producer.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT transaction_timestamp()`;
+        producerStarted();
+        await producerInsertGate;
+        producerAttempted();
+        expect(
+          await insertSiteUpdates(
+            tx,
+            [
+              {
+                committeeSystemCode: committeeKey,
+                hearingId: null,
+                updateType: 'committee_memo_published',
+                normalizedTitle: 'Late-committing Florida packet',
+                normalizedSummary: 'Committed after the follow boundary.',
+                sourceUrl: 'https://www.flsenate.gov/Committees/',
+                officialPublishedAt: null,
+                previousValue: null,
+                newValue: null,
+                contentHash: updateHash,
+                parserVersion: 'late-commit-proof',
+              },
+            ],
+            // Deliberately old source-observation time. Alert ordering must use
+            // the post-lock persisted timestamp, not this caller timestamp.
+            new Date('2000-01-01T00:00:00.000Z'),
+            null,
+          ),
+        ).toBe(1);
+      });
+      await producerStartedGate;
+
+      // Connection 2 wins the committee-stream lock, records the boundary and
+      // holds the transaction open while the older producer attempts its write.
+      followTransaction = db.withTenant(tenant, async (tx) => {
+        await tx.$executeRaw`
+          INSERT INTO legiwatch_committee_follow
+            (tenant_id,user_id,committee_system_code,client_ids,created_at,updated_at)
+          VALUES (${tenant}::uuid,${user},${committeeKey},ARRAY[]::uuid[],
+            clock_timestamp(),clock_timestamp())`;
+        expect(
+          await service.initializeFollow(tx, {
+            tenantId: tenant,
+            userId: user,
+            committeeSystemCode: committeeKey,
+          }),
+        ).toBe(0);
+        boundaryStored();
+        await followCommitGate;
+      });
+      await boundaryGate;
+
+      allowProducerInsert();
+      await producerAttemptGate;
+      // The producer is now blocked on the follow's advisory lock. Releasing
+      // this gate commits the boundary first; producer persistence follows.
+      allowFollowCommit();
+      await followTransaction;
+      await producerTransaction;
+
+      expect(await service.syncFollow({ committeeSystemCode: committeeKey })).toEqual({
+        recipients: 1,
+        inserted: 1,
+      });
+      const rows = await db.$queryRawUnsafe<
+        Array<{ key: string; status: string | null; createdAt: Date; boundary: Date }>
+      >(
+        `SELECT n.dedup_key AS key,n.email_delivery_status AS status,
+          u.created_at AS "createdAt",f.alert_started_at AS boundary
+         FROM legiwatch_notification_event n
+         JOIN committee_site_update u ON n.dedup_key='committee_update:'||u.content_hash
+         JOIN legiwatch_committee_follow f
+           ON f.tenant_id=n.tenant_id AND f.user_id=n.user_id
+          AND lower(f.committee_system_code)=lower(n.committee_system_code)
+         WHERE n.tenant_id=$1::uuid AND n.user_id=$2`,
+        tenant,
+        user,
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        key: `committee_update:${updateHash}`,
+        status: 'queued',
+      });
+      expect(rows[0]!.createdAt.getTime()).toBeGreaterThanOrEqual(rows[0]!.boundary.getTime());
+      expect((await service.drainEmail()).sent).toBe(1);
+      expect(deliveries).toEqual([`${user}@example.invalid`]);
+    } finally {
+      allowProducerInsert?.();
+      allowFollowCommit?.();
+      await Promise.allSettled(
+        [producerTransaction, followTransaction].filter((promise): promise is Promise<void> =>
+          Boolean(promise),
+        ),
+      );
+      await Promise.all([producer.$disconnect(), db.$disconnect()]);
     }
   }, 30_000);
 });

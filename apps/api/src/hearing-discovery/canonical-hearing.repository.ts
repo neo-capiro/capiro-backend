@@ -35,6 +35,10 @@ import {
   type ProjectedHearing,
 } from './canonical-diff.js';
 import { ET_ZONE } from './hearing-time.js';
+import {
+  committeeUpdateStatementTime,
+  lockCommitteeUpdateStreams,
+} from './committee-update-serialization.js';
 import { recordFederalCalendar } from './federal-calendar-transition.js';
 import type { CommitteeUpdateObservation, SourceEvent } from './hearing-discovery.types.js';
 
@@ -307,6 +311,14 @@ async function insertSiteUpdates(
   now: Date,
   sourceId: string | null,
 ): Promise<number> {
+  // Follow initialization takes the same ordered advisory locks before it
+  // records its alert boundary. This removes the invisible late-commit window:
+  // either these rows commit before the boundary scan, or their persisted
+  // timestamp is established after the follow transaction releases the lock.
+  await lockCommitteeUpdateStreams(
+    tx,
+    updates.map((update) => update.committeeSystemCode),
+  );
   let inserted = 0;
   for (const u of updates) {
     const existing = await tx.committeeSiteUpdate.findFirst({
@@ -320,6 +332,7 @@ async function insertSiteUpdates(
       });
       continue;
     }
+    const persistedAt = await committeeUpdateStatementTime(tx);
     await tx.committeeSiteUpdate.create({
       data: {
         committeeSystemCode: u.committeeSystemCode,
@@ -331,6 +344,10 @@ async function insertSiteUpdates(
         officialPublishedAt: u.officialPublishedAt ?? null,
         firstSeenAt: now,
         lastSeenAt: now,
+        // Prisma's database default is transaction_timestamp(). A producer can
+        // begin before a follow, wait on the stream lock, and commit afterward;
+        // use the post-lock database clock as the durable alert-order marker.
+        createdAt: persistedAt,
         contentHash: u.contentHash,
         previousValue: u.previousValue ?? null,
         newValue: u.newValue ?? null,

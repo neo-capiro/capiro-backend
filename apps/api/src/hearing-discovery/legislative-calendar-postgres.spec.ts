@@ -99,6 +99,9 @@ describe('Phase 3 calendar persistence on PostgreSQL', () => {
     await prisma.legislativeObservationRevision.deleteMany({
       where: { hearingId: { in: [hearingId, refinementId] } },
     });
+    await prisma.committeeSiteUpdate.deleteMany({
+      where: { hearingId: { in: [hearingId, refinementId] } },
+    });
     await prisma.hearingSourceObservation.deleteMany({ where: { sourceId: source.id } });
     await prisma.committeeHearing.deleteMany({ where: { id: { in: [hearingId, refinementId] } } });
     await prisma.stateCommittee.deleteMany({ where: { id: bodyId } });
@@ -189,13 +192,24 @@ describe('Phase 3 calendar persistence on PostgreSQL', () => {
       bodySourceKey: 'fl:senate:qualified',
       stateCommitteeId: bodyId,
     };
-    expect((await repo.reconcile(source, 'refinement', qualified, now)).hearingId).toBe(
-      refinementId,
-    );
+    const attributed = await repo.reconcile(source, 'refinement', qualified, now);
+    expect(attributed.hearingId).toBe(refinementId);
+    expect(attributed.siteUpdatesInserted).toBe(1);
+    const announcement = await prisma.committeeSiteUpdate.findMany({
+      where: { hearingId: refinementId, updateType: 'hearing_announced' },
+      select: { contentHash: true },
+    });
+    expect(announcement).toHaveLength(1);
     // A second upstream reference citing the same exact notice also preserves it.
     expect((await repo.reconcile(source, 'second-reference', qualified, now)).hearingId).toBe(
       refinementId,
     );
+    expect(
+      await prisma.committeeSiteUpdate.findMany({
+        where: { hearingId: refinementId, updateType: 'hearing_announced' },
+        select: { contentHash: true },
+      }),
+    ).toEqual(announcement);
     await expect(
       repo.reconcile(source, 'refinement', { ...qualified, session: '2097' }, now),
     ).rejects.toThrow('identity');

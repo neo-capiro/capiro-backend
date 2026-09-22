@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import { useApiScope } from '../../../../lib/use-api-scope.js';
 import { DIRECTORY_PROFILE_ROUTES } from '../../directory/directory-routes.js';
 import { safeOfficialHttpUrl } from '../lib/canonical-hearings.js';
-import { LwPill, LwSkeleton } from '../lib/primitives.js';
+import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
+import { useCommitteeFollow } from '../lib/wave1-api.js';
+import { CommitteeFollowDialog } from './CommitteeFollow.js';
 import {
   SOURCE_HEALTH_LABEL,
   SOURCE_HEALTH_TONE,
@@ -119,6 +121,22 @@ interface ReferredBill {
     description: string | null;
   }>;
 }
+interface StateCommitteeUpdate {
+  id: string;
+  committeeSystemCode: string;
+  attributedFromAlias?: string | null;
+  hearingId?: string | null;
+  updateType: string;
+  title: string;
+  summary?: string | null;
+  sourceUrl?: string | null;
+  publishedAt?: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  contentHash: string;
+  previousValue?: string | null;
+  newValue?: string | null;
+}
 interface StateCommitteeDetail {
   body: StateCommitteeBody;
   members: StateMember[];
@@ -132,12 +150,20 @@ interface StateCommitteeDetail {
   sourceCoverage?: SourceCoverage[];
   referredBills?: { rows: ReferredBill[]; total: number };
   directoryProfile?: DirectoryProfile | null;
+  updates?: {
+    rows: StateCommitteeUpdate[];
+    returned?: number;
+    total: number;
+    truncated?: boolean;
+    asOf?: string;
+  };
 }
 
-type Section = 'overview' | 'proceedings' | 'members' | 'records' | 'sources';
+type Section = 'overview' | 'proceedings' | 'updates' | 'members' | 'records' | 'sources';
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'overview', label: 'Overview' },
   { id: 'proceedings', label: 'Proceedings' },
+  { id: 'updates', label: 'Updates' },
   { id: 'members', label: 'Members' },
   { id: 'records', label: 'Agendas & records' },
   { id: 'sources', label: 'Source health' },
@@ -239,7 +265,7 @@ export function StateCommitteeRoomRoute() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client') ?? '';
-  const sectionParam = searchParams.get('section');
+  const sectionParam = searchParams.get('section') ?? searchParams.get('tab');
   const section: Section = SECTIONS.some((item) => item.id === sectionParam)
     ? (sectionParam as Section)
     : 'overview';
@@ -255,6 +281,9 @@ export function StateCommitteeRoomRoute() {
         )
       ).data,
   });
+  const followSystemCode = detail.data?.body.id ? `state:FL:${detail.data.body.id}` : '';
+  const follow = useCommitteeFollow(followSystemCode);
+  const [followOpen, setFollowOpen] = useState(false);
 
   if (detail.isLoading)
     return (
@@ -297,6 +326,7 @@ export function StateCommitteeRoomRoute() {
   const upcoming = data.upcomingEvents ?? { rows: [], total: 0 };
   const recent = data.recentEvents ?? data.events ?? { rows: [], total: 0 };
   const coverage = data.sourceCoverage ?? [];
+  const updates = data.updates ?? { rows: [], returned: 0, total: 0, truncated: false };
   const health = sourceHealth(coverage);
   const links = (data.sourceRecords?.length ? data.sourceRecords : [body])
     .flatMap(evidenceLinks)
@@ -317,6 +347,7 @@ export function StateCommitteeRoomRoute() {
 
   const openSection = (next: Section) => {
     const params = new URLSearchParams(searchParams);
+    params.delete('tab');
     if (next === 'overview') params.delete('section');
     else params.set('section', next);
     navigate({ search: params.toString() ? `?${params}` : '' }, { replace: true });
@@ -357,11 +388,17 @@ export function StateCommitteeRoomRoute() {
               <h1 className="lwcr-title">{body.name}</h1>
             </div>
             <div className="lwcr-actions">
-              <span role="status" aria-label="Florida committee alerts unavailable">
-                <LwPill tone="gray" size="24">
-                  Alerts unavailable for Florida
-                </LwPill>
-              </span>
+              <LwButton
+                variant={follow.data?.following ? undefined : 'primary'}
+                onClick={() => setFollowOpen(true)}
+                disabled={!followSystemCode || follow.isLoading}
+              >
+                {follow.isLoading
+                  ? 'Loading…'
+                  : follow.data?.following
+                    ? 'Following · edit'
+                    : 'Follow committee'}
+              </LwButton>
               {primarySource ? (
                 <a
                   className="lwcr-extlink"
@@ -422,6 +459,9 @@ export function StateCommitteeRoomRoute() {
             {item.id === 'proceedings' ? (
               <span className="lwcr-tab__count">{upcoming.total + recent.total}</span>
             ) : null}
+            {item.id === 'updates' ? (
+              <span className="lwcr-tab__count">{updates.total}</span>
+            ) : null}
             {item.id === 'members' ? (
               <span className="lwcr-tab__count">{data.members.length}</span>
             ) : null}
@@ -433,6 +473,9 @@ export function StateCommitteeRoomRoute() {
         <div className="lwcr__main">
           {section === 'overview' || section === 'proceedings' ? (
             <Proceedings upcoming={upcoming} recent={recent} onOpen={openHearing} />
+          ) : null}
+          {section === 'overview' || section === 'updates' ? (
+            <CommitteeUpdates updates={updates} />
           ) : null}
           {section === 'overview' || section === 'members' ? (
             <Roster
@@ -454,14 +497,27 @@ export function StateCommitteeRoomRoute() {
         </div>
         <aside className="lwcr__rail">
           <div className="lwcr-follow-card">
-            <div className="lwcr-follow-card__eyebrow">Florida capabilities</div>
+            <div className="lwcr-follow-card__eyebrow">Your follow</div>
             <p className="lwcr-follow-card__lead">
-              Committee records and proceedings are available.
+              {follow.isLoading
+                ? 'Loading your follow settings…'
+                : follow.data?.following
+                  ? 'You are following this committee.'
+                  : 'You are not following this committee.'}
             </p>
             <p className="lwcr-follow-card__body">
-              Open a proceeding for its verified stream, recording, transcript, agenda and hearing
-              intelligence. Committee-level Follow and alerts are not connected for Florida yet.
+              Following can notify you about new hearings, schedule changes, transcripts,
+              high-priority client matches and committee publications.
             </p>
+            <button
+              type="button"
+              className="lwcr-follow-card__cta"
+              onClick={() => setFollowOpen(true)}
+              disabled={!followSystemCode || follow.isLoading}
+            >
+              {follow.data?.following ? 'Edit follow settings' : 'Follow committee'}
+            </button>
+            <p className="lwcr-follow-card__fine">Only your workspace sees your follows.</p>
           </div>
           {data.directoryProfile ? (
             <DirectoryFacts profile={data.directoryProfile} />
@@ -501,7 +557,115 @@ export function StateCommitteeRoomRoute() {
           </div>
         </aside>
       </div>
+
+      {followOpen && followSystemCode ? (
+        <CommitteeFollowDialog
+          systemCode={followSystemCode}
+          committeeName={body.name}
+          onClose={() => setFollowOpen(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function CommitteeUpdates({
+  updates,
+}: {
+  updates: {
+    rows: StateCommitteeUpdate[];
+    returned?: number;
+    total: number;
+    truncated?: boolean;
+    asOf?: string;
+  };
+}) {
+  const returned = updates.returned ?? updates.rows.length;
+  return (
+    <section className="lwcr-card" aria-label="Florida committee updates">
+      <div className="lwcr-card__head">
+        <h2 className="lwcr-card__title">What has been published</h2>
+        <span className="lwcr-card__meta">
+          {updates.truncated
+            ? `${returned} OF ${updates.total} CHANGES`
+            : `${updates.total} CHANGES`}
+        </span>
+      </div>
+      <div className="lwcr-card__body">
+        <p style={{ margin: '0 0 14px', color: 'var(--lw-body)', fontSize: 13 }}>
+          Committee-source changes observed by Capiro, newest first.
+        </p>
+        {updates.truncated ? (
+          <p style={{ margin: '0 0 14px', color: 'var(--lw-meta)', fontSize: 12 }}>
+            Showing the {returned} most recent of {updates.total} recorded changes.
+          </p>
+        ) : null}
+        {updates.rows.length ? (
+          <ul
+            className="lwcr-updates"
+            aria-label="Official Florida committee updates"
+            style={{ listStyle: 'none', margin: 0, padding: 0 }}
+          >
+            {updates.rows.map((update) => {
+              const href = safeOfficialHttpUrl(update.sourceUrl);
+              const hasDiff = Boolean(update.previousValue && update.newValue);
+              return (
+                <li key={update.id} style={{ borderBottom: '1px solid var(--lw-hover)' }}>
+                  <div className="lwcr-update">
+                    <span className="lwcr-update__date">
+                      {readableDate(update.publishedAt ?? update.lastSeenAt)}
+                    </span>
+                    <span className="lwcr-update__node" aria-hidden="true" />
+                    <span className="lwcr-update__body">
+                      {href ? (
+                        <a
+                          className="lwcr-update__title"
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        >
+                          {update.title || 'Committee update'}
+                        </a>
+                      ) : (
+                        <span className="lwcr-update__title">
+                          {update.title || 'Committee update'}
+                        </span>
+                      )}
+                      <span className="lwcr-update__meta">
+                        <span className="lwcr-update__type">{titleCase(update.updateType)}</span>
+                        {update.attributedFromAlias ? (
+                          <span className="lwcr-update__from">
+                            ATTRIBUTED FROM {update.attributedFromAlias}
+                          </span>
+                        ) : null}
+                      </span>
+                      {update.summary ? (
+                        <span style={{ display: 'block', marginTop: 6, fontSize: 13 }}>
+                          {update.summary}
+                        </span>
+                      ) : null}
+                      {hasDiff ? (
+                        <details style={{ marginTop: 8 }}>
+                          <summary>View published change</summary>
+                          <div style={{ marginTop: 6, fontSize: 12 }}>
+                            <div><strong>Previous:</strong> {update.previousValue}</div>
+                            <div><strong>Current:</strong> {update.newValue}</div>
+                          </div>
+                        </details>
+                      ) : null}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p style={{ margin: 0, color: 'var(--lw-meta)', fontSize: 13 }}>
+            No official committee-page updates have been recorded yet.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 
