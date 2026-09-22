@@ -1031,6 +1031,9 @@ export class MeriService implements MeriTurnMaintenance {
         // Current-turn images → attached as native Anthropic vision blocks on the
         // orchestrator's last user message (2.2).
         currentTurnImages,
+        selectedDocumentIds: lastUserMessage
+          ? (attachmentRefsByMessage.get(lastUserMessage.id) ?? []).map((reference) => reference.id)
+          : [],
         // Impersonation → forwarded so the orchestrator re-sends it on delegated
         // apps/api calls; apps/api re-validates the impersonation authz (2.5).
         ...(impersonateTenantId ? { impersonateTenantId } : {}),
@@ -2193,6 +2196,7 @@ export class MeriService implements MeriTurnMaintenance {
     traceEnabled: boolean;
     pageWriteEnabled: boolean;
     currentTurnImages: Array<{ filename: string; mediaType: string; dataBase64: string }>;
+    selectedDocumentIds: string[];
     impersonateTenantId?: string;
     conversationSummary: string | null;
   }): Promise<void> {
@@ -2424,6 +2428,7 @@ export class MeriService implements MeriTurnMaintenance {
                 })),
               }
             : {}),
+          ...(args.selectedDocumentIds.length ? { selectedDocumentIds: args.selectedDocumentIds } : {}),
         },
         ...(aiProvider ? { aiProvider } : {}),
         ...(args.impersonateTenantId ? { impersonateTenantId: args.impersonateTenantId } : {}),

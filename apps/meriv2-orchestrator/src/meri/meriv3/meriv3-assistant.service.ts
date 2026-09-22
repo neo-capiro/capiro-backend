@@ -28,6 +28,7 @@ import {
   resolveAssuranceRolloutMode,
   resolveClaimAssessmentMode,
   resolveEvidenceAccuracyMode,
+  resolvePassageSelectionMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -87,8 +88,16 @@ import type {
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
-import { createChatDecisionProviders } from '../jev/jev-provider.factory.js';
+import { createChatDecisionProviders, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
+import {
+  askPassageQuestions,
+  applyPassageSelectionToSynthesis,
+  buildPassageCandidates,
+  PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+  rebuildSynthesisEvidence,
+  selectPassages,
+} from '../jev/passage-selector.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -320,6 +329,7 @@ export class MeriV3AssistantService {
       surface: 'chat',
     });
     const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat');
+    const passageSelectionMode = resolvePassageSelectionMode(process.env, ctx.tenantId, 'chat');
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
 
@@ -566,10 +576,78 @@ export class MeriV3AssistantService {
         status: 'done',
         detail: reason,
       });
+      let synthesisInput = input;
+      let synthesisInstructions = instructions;
+      if (passageSelectionMode !== 'off') {
+        const selectionStartedAt = Date.now();
+        const candidates = buildPassageCandidates({
+          ledgerEntries,
+          citations,
+          requiredToolFamilies: evidencePlan.requirements
+            .filter((requirement) => requirement.level === 'required')
+            .flatMap((requirement) => requirement.toolFamilies),
+          userSelectedDocumentIds: dto.selectedDocumentIds,
+        });
+        const provider = createPassageSelectionClient({
+          env: process.env, tenantId: ctx.tenantId, surface: 'chat',
+        });
+        const answers = await askPassageQuestions({
+          question: lastUserText,
+          clientId: dto.clientId,
+          candidates,
+          provider: provider.client,
+          signal: opts.signal,
+          deadlineAt: Math.min(opts.deadlineAt ?? Infinity, Date.now() + Math.max(0, remainingMs - 1_000)),
+        });
+        const selection = selectPassages({ candidates, answers });
+        const rebuilt = rebuildSynthesisEvidence({
+          input,
+          baseInstructions: instructions,
+          citationPrompt: initialEvidence.citationPrompt,
+          candidates,
+          kept: selection.kept,
+          citations,
+        });
+        const promptCharsBefore = instructions.length + JSON.stringify(input).length;
+        const promptCharsAfter = rebuilt.instructions.length + JSON.stringify(rebuilt.input).length;
+        const requiredCount = candidates.filter((candidate) => candidate.required).length;
+        const evidenceRecall = requiredCount ? selection.retainedRequired / requiredCount : 1;
+        if (evidenceRecall !== 1) throw new Error('Passage selection required-evidence recall invariant failed');
+        this.logger.log('meri.passage_selection', {
+          conversationId: dto.conversationId ?? null,
+          candidates: candidates.length,
+          kept: selection.kept.length,
+          dropped: selection.dropped.length,
+          retainedRequired: selection.retainedRequired,
+          retainedUserSelected: selection.retainedUserSelected,
+          retainedContradictory: selection.retainedContradictory,
+          evidenceRecall,
+          conflictRetention: candidates.some((candidate) => candidate.deterministicConflict)
+            ? selection.retainedContradictory / candidates.filter((candidate) => candidate.deterministicConflict).length
+            : 1,
+          fallback: selection.fallback,
+          promptCharsBefore,
+          promptCharsAfter,
+          latencyMs: Date.now() - selectionStartedAt,
+          inputTokens: answers.inputTokens,
+          estimatedCostUsd: answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+          questionVersion: answers.questionVersion,
+          model: answers.model || provider.model,
+        });
+        const selectedSynthesis = applyPassageSelectionToSynthesis({
+          mode: passageSelectionMode,
+          originalInput: input,
+          originalInstructions: instructions,
+          rebuilt,
+          fallback: selection.fallback,
+        });
+        synthesisInput = selectedSynthesis.input;
+        synthesisInstructions = selectedSynthesis.instructions;
+      }
       const synthesis = await this.openai.complete({
         profile,
-        instructions: `${instructions}\n\n${finishInstructions()}`,
-        input,
+        instructions: `${synthesisInstructions}\n\n${finishInstructions()}`,
+        input: synthesisInput,
         tools: [],
         toolChoice: 'none',
         timeoutMs,

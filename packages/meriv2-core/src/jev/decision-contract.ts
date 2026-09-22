@@ -129,11 +129,16 @@ export interface EvidenceQuestion {
   questions: Record<string, JevQuestion>;
 }
 
-export interface JevQuestion {
-  type: 'choice';
-  instructions: string | object | unknown[];
-  criteria: Record<string, string | object | unknown[] | null>;
-}
+export type JevQuestion =
+  | {
+      type: 'choice';
+      instructions: string | object | unknown[];
+      criteria: Record<string, string | object | unknown[] | null>;
+    }
+  | {
+      type: 'noul';
+      instructions: string | object | unknown[];
+    };
 
 export interface DecisionProviderOptions {
   signal?: AbortSignal;

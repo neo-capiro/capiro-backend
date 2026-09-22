@@ -763,6 +763,11 @@ export const configSchema = z.object({
   MERI_AUTO_CORRECTION_TENANTS: z.string().optional(),
   MERI_AUTO_CORRECTION_SURFACES: z.string().optional(),
 
+  // Stage 2b Jev passage selection. Effective mode also requires Jev enrollment/task availability.
+  MERI_PASSAGE_SELECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_PASSAGE_SELECTION_TENANTS: z.string().optional(),
+  MERI_PASSAGE_SELECTION_SURFACES: z.string().optional(),
+
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
   TYPESAFE_API_KEY: z.string().min(1).optional(),
   MERI_JEV_MODEL: z.string().optional(),
