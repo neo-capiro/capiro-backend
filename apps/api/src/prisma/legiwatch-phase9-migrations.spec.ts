@@ -10,13 +10,11 @@ const MIGRATIONS = [
   '20261123045000_legiwatch_phase9_audit_scope',
   '20261123045100_legiwatch_phase9_audit_scope_trigger',
   '20261123045200_legiwatch_phase9_safe_observation_timestamp',
+  '20280920070000_legiwatch_florida_runtime_jobs',
 ] as const;
 
 function migration(name: (typeof MIGRATIONS)[number]): string {
-  return readFileSync(
-    join(__dirname, '../../prisma/migrations', name, 'migration.sql'),
-    'utf8',
-  );
+  return readFileSync(join(__dirname, '../../prisma/migrations', name, 'migration.sql'), 'utf8');
 }
 
 function allSql(): string {
@@ -24,9 +22,7 @@ function allSql(): string {
 }
 
 function code(value = allSql()): string {
-  return value
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/--[^\n\r]*/g, '');
+  return value.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n\r]*/g, '');
 }
 
 function shellCode(value: string): string {
@@ -59,9 +55,9 @@ describe('LegiWatch Phase 9 migrations and activation contract', () => {
   it('seeds a dark fail-closed singleton', () => {
     const sql = code();
     expect(sql).toContain("'global', 'SHADOW', false, false, true, false, 3, 168, 0");
-    expect(sql).toContain('production_default = false OR phase = \'CUTOVER\'');
-    expect(sql).toContain('kill_switch_engaged = true OR phase = \'CUTOVER\'');
-    expect(sql).toContain('capture_all_public_events = false OR phase = \'CUTOVER\'');
+    expect(sql).toContain("production_default = false OR phase = 'CUTOVER'");
+    expect(sql).toContain("kill_switch_engaged = true OR phase = 'CUTOVER'");
+    expect(sql).toContain("capture_all_public_events = false OR phase = 'CUTOVER'");
     expect(sql).toContain('LegiWatch cutover state cannot be deleted');
   });
 
@@ -70,9 +66,7 @@ describe('LegiWatch Phase 9 migrations and activation contract', () => {
   });
 
   it('registers the complete required runtime matrix dark', () => {
-    const sql = code(
-      migration('20261123043000_legiwatch_phase9_runtime_and_evidence'),
-    );
+    const sql = code(migration('20261123043000_legiwatch_phase9_runtime_and_evidence'));
     for (const key of [
       'central-discovery',
       'committee-enrichment',
@@ -89,6 +83,45 @@ describe('LegiWatch Phase 9 migrations and activation contract', () => {
       expect(sql).toContain(`'${key}'`);
     }
     expect(sql.match(/'disabled', false, false/g)?.length).toBe(11);
+  });
+
+  it('registers Florida calendar and archive runtime jobs dark with bounded cadences', () => {
+    const migrationName = '20280920070000_legiwatch_florida_runtime_jobs';
+    const sql = code(migration(migrationName));
+    expect(
+      migrationName.localeCompare('20280920060000_florida_directory_pdf_enrichment'),
+    ).toBeGreaterThan(0);
+    expect(sql).toContain('BEGIN;');
+    expect(sql).toContain('DROP CONSTRAINT IF EXISTS "legiwatch_runtime_heartbeat_type_check"');
+    for (const jobType of [
+      'central_discovery',
+      'committee_enrichment',
+      'committee_updates',
+      'source_probe',
+      'coverage_audit',
+      'stream_preflight',
+      'capture_worker',
+      'archive_reconciliation',
+      'intelligence_worker',
+      'relevance_worker',
+      'parallel_comparison',
+      'metrics',
+      'hearing_media_worker',
+      'hearing_delivery_worker',
+      'notification_drain',
+      'florida_calendar',
+      'florida_archive',
+    ]) {
+      expect(sql).toContain(`'${jobType}'`);
+    }
+    expect(sql).toContain(
+      "'florida-calendar', 'florida_calendar', 'disabled', false, false,  600, 1800",
+    );
+    expect(sql).toContain(
+      "'florida-archive',  'florida_archive',  'disabled', false, false, 1800, 5400",
+    );
+    expect(sql).not.toMatch(/enabled[^\n]*true/i);
+    expect(sql.trim()).toMatch(/COMMIT;\s*$/);
   });
 
   it('makes observation disposition explicit and auto-aligns canonical links', () => {

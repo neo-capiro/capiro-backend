@@ -1,4 +1,7 @@
-import { LegiWatchPhase9RuntimeService } from './legiwatch-phase9-runtime.service.js';
+import {
+  LegiWatchPhase9PartialFailure,
+  LegiWatchPhase9RuntimeService,
+} from './legiwatch-phase9-runtime.service.js';
 import { LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS } from './legiwatch-phase9.types.js';
 
 function runtimeRow(overrides: Record<string, unknown> = {}) {
@@ -131,6 +134,23 @@ describe('LegiWatchPhase9RuntimeService', () => {
     ).rejects.toThrow(/Duplicate Phase 9 runtime registration/);
   });
 
+  it('registers Florida ingestion jobs without changing the federal cutover gate', async () => {
+    const { service, execute } = harness();
+    await service.registerSchedules({
+      registrations: [
+        { jobKey: 'florida-calendar', enabled: true, scheduleEnabled: true },
+        { jobKey: 'florida-archive', enabled: true, scheduleEnabled: true },
+      ],
+      actor: 'admin-user',
+      confirmation: 'ENABLE LEGIWATCH SCHEDULES',
+    });
+    expect(execute.mock.calls.some((call) => call[1] === 'florida-calendar')).toBe(true);
+    expect(execute.mock.calls.some((call) => call[1] === 'florida-archive')).toBe(true);
+    expect(
+      execute.mock.calls.some(([sql]) => String(sql).includes('UPDATE legiwatch_cutover_state')),
+    ).toBe(false);
+  });
+
   it('requires the exact enable or disable confirmation', async () => {
     const { service } = harness();
     await expect(
@@ -233,6 +253,69 @@ describe('LegiWatchPhase9RuntimeService', () => {
       'central-discovery',
       'smoke-worker',
     );
+  });
+
+  it('atomically skips an overlapping leased archive run', async () => {
+    const { service, execute } = harness();
+    execute.mockResolvedValueOnce(0);
+    const work = jest.fn(async () => ({ accepted: 1 }));
+
+    await expect(
+      service.run({
+        jobKey: 'florida-archive',
+        workerId: 'archive-worker-2',
+        skipIfRunning: true,
+        leaseSeconds: 5_400,
+        execute: work,
+      }),
+    ).resolves.toEqual({
+      skipped: true,
+      skipReason: 'already_running',
+      leaseSeconds: 5_400,
+    });
+    expect(work).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining("status <> 'running'"),
+      'florida-archive',
+      'archive-worker-2',
+      5_400,
+      false,
+    );
+  });
+
+  it('records flat source metrics when a job reports partial health', async () => {
+    const { service, execute } = harness();
+    const error = new LegiWatchPhase9PartialFailure('archive partial', {
+      archiveErrors: 2,
+      archiveIssues: 3,
+      archivePartial: true,
+      nested: { ignored: true },
+    });
+
+    await expect(
+      service.run({
+        jobKey: 'florida-archive',
+        workerId: 'archive-worker',
+        execute: async () => {
+          throw error;
+        },
+      }),
+    ).rejects.toBe(error);
+    expect(execute).toHaveBeenCalledWith(
+      expect.stringContaining("status='failed'"),
+      'florida-archive',
+      'archive partial',
+      expect.stringContaining('"archiveErrors":2'),
+    );
+    const failure = execute.mock.calls.find(([sql]) => String(sql).includes("status='failed'"));
+    expect(JSON.parse(String(failure?.[3]))).toEqual(
+      expect.objectContaining({
+        archiveErrors: 2,
+        archiveIssues: 3,
+        archivePartial: true,
+      }),
+    );
+    expect(JSON.parse(String(failure?.[3]))).not.toHaveProperty('nested');
   });
 
   it('records success and failure without leaking raw error formatting', async () => {

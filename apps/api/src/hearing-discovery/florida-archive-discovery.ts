@@ -18,15 +18,18 @@ import {
   isFloridaChannelVideoPage,
   senateMediaArchive,
 } from './adapters/florida-calendar.adapter.js';
-import { discoverFloridaCalendar } from './florida-calendar-discovery.js';
+import {
+  discoverFloridaCalendar,
+  floridaCalendarDate,
+  floridaCalendarSessions,
+  isFloridaSessionCode,
+} from './florida-calendar-discovery.js';
 
 /** Rate limit between publisher reads. */
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The meeting day an observation was projected onto (from its stored snapshot). */
-function observationLegislative(
-  sourceMetadata: unknown,
-):
+function observationLegislative(sourceMetadata: unknown):
   | {
       officialIdentity?: string;
       bodySourceKey?: string;
@@ -68,6 +71,9 @@ export type FloridaArchiveOptions = {
   log?: (message: string) => void;
   fetchChamber?: (url: string) => Promise<Uint8Array>;
   fetchChannel?: (url: string) => Promise<{ bytes: Uint8Array; totalPages: number | null }>;
+  /** Shared by a multi-session fall pass. A video tagged to both adjacent
+   * session taxonomies is processed once by its stable WordPress id. */
+  seenVideoIds?: Set<number>;
 };
 
 export type FloridaArchiveReport = {
@@ -81,8 +87,32 @@ export type FloridaArchiveReport = {
   ambiguous: string[];
   issues: string[];
   errors: number;
-  catalog: { rows: number; attached: number; reported: number };
+  catalog: { rows: number; attached: number; reported: number; failures: number };
 };
+
+type FloridaChannelArchiveRecord = {
+  id: number;
+  date: string;
+  link: string;
+  title: { rendered: string };
+  content: { rendered: string };
+  video_programs: number[];
+};
+
+/** TFC is requested newest-first. Once every publisher timestamp on a page is
+ * older than the lower bound, every later page is out of range too. Invalid
+ * timestamps keep pagination going rather than making an unsafe assumption. */
+export function floridaArchivePageBefore(
+  records: ReadonlyArray<Pick<FloridaChannelArchiveRecord, 'date'>>,
+  from: string,
+): boolean {
+  return (
+    records.length > 0 &&
+    records.every(
+      (record) => /^\d{4}-\d{2}-\d{2}/.test(record.date) && record.date.slice(0, 10) < from,
+    )
+  );
+}
 
 /**
  * Historical Florida backfill. The TFC WP archive is the PRIMARY inventory;
@@ -97,10 +127,11 @@ export async function backfillFloridaArchive(
   prisma: PrismaClient,
   options: FloridaArchiveOptions,
 ): Promise<{ archive: FloridaArchiveReport; notices: unknown[] | null }> {
-  if (!/^\d{4}$/.test(options.session)) throw new Error('explicit regular session is required');
+  if (!isFloridaSessionCode(options.session))
+    throw new Error('valid Florida session code is required');
   // Default to the September interim that opens the session's archive (the
   // 2026 taxonomy holds 2025-09 interim weeks) rather than the calendar year.
-  const from = options.from ?? `${Number(options.session) - 1}-09-01`;
+  const from = options.from ?? `${Number(options.session.slice(0, 4)) - 1}-09-01`;
   const to = options.to ?? new Date().toISOString().slice(0, 10);
   const DAY = /^\d{4}-\d{2}-\d{2}$/;
   if (
@@ -130,7 +161,9 @@ export async function backfillFloridaArchive(
     enabled: true,
   });
   if (
-    !(await repo.listEnabled({ adapterKey: 'florida-channel-archive' })).some((s) => s.id === source.id)
+    !(await repo.listEnabled({ adapterKey: 'florida-channel-archive' })).some(
+      (s) => s.id === source.id,
+    )
   ) {
     throw new Error('florida-channel-archive source disabled by operator');
   }
@@ -147,7 +180,7 @@ export async function backfillFloridaArchive(
     ambiguous: [] as string[],
     issues: [] as string[],
     errors: 0,
-    catalog: { rows: 0, attached: 0, reported: 0 },
+    catalog: { rows: 0, attached: 0, reported: 0, failures: 0 },
   };
   const reject = (reason: string) =>
     totals.rejected.set(reason, (totals.rejected.get(reason) ?? 0) + 1);
@@ -157,9 +190,7 @@ export async function backfillFloridaArchive(
     if (!probeCache.has(page)) {
       try {
         const isChannel = new URL(page).hostname.toLowerCase() === 'thefloridachannel.org';
-        const bytes = isChannel
-          ? (await fetchChannel(page)).bytes
-          : await fetchChamber(page);
+        const bytes = isChannel ? (await fetchChannel(page)).bytes : await fetchChamber(page);
         probeCache.set(page, floridaKalturaEntryId(new TextDecoder().decode(bytes)));
       } catch {
         probeCache.set(page, null); // an unreadable page proves nothing either way
@@ -183,7 +214,9 @@ export async function backfillFloridaArchive(
     totals.pages++;
     const programId = floridaChannelSessionProgramId(programs, options.session);
     if (!programId)
-      throw new Error(`The Florida Channel has no "${options.session} Legislative Session" program`);
+      throw new Error(
+        `The Florida Channel has no "${options.session} Legislative Session" program`,
+      );
 
     // 2. Bound through the archive pages. `X-WP-TotalPages` caps the walk when
     //    the publisher reports it; a WP 400 on a paged request is the end.
@@ -199,20 +232,16 @@ export async function backfillFloridaArchive(
       await pause(delay);
       const response = await fetchChannel(
         `${FL_CHANNEL}/api/wp/v2/videos?video_programs=${programId}&per_page=100&page=${page}` +
-          `&_fields=id,date,link,title,content,video_programs`,
+          `&orderby=date&order=desc&_fields=id,date,link,title,content,video_programs`,
       );
       if (!response.bytes.length) break; // HTTP 400 end-of-pagination
       totals.pages++;
       if (response.totalPages) totalPages = response.totalPages;
-      const records = JSON.parse(new TextDecoder().decode(response.bytes)) as Array<{
-        id: number;
-        date: string;
-        link: string;
-        title: { rendered: string };
-        content: { rendered: string };
-        video_programs: number[];
-      }>;
+      const records = JSON.parse(
+        new TextDecoder().decode(response.bytes),
+      ) as FloridaChannelArchiveRecord[];
       if (!Array.isArray(records) || !records.length) break;
+      if (floridaArchivePageBefore(records, from)) break;
       if (page === MAX_ARCHIVE_PAGES)
         totals.issues.push(`Archive pagination hit the ${MAX_ARCHIVE_PAGES}-page safety bound`);
       for (const record of records) {
@@ -224,6 +253,16 @@ export async function backfillFloridaArchive(
         const classification = classifyFloridaChannelTitle(record.title.rendered);
         const inProgram = record.video_programs.includes(programId);
         const titleDate = floridaChannelTitleDate(record.title.rendered);
+        if (
+          inProgram &&
+          titleDate !== null &&
+          titleDate >= from &&
+          titleDate <= to &&
+          options.seenVideoIds
+        ) {
+          if (options.seenVideoIds.has(record.id)) continue;
+          options.seenVideoIds.add(record.id);
+        }
         // The WP content usually carries the player; when it does not, the
         // rendered video page can still embed it (TFC 78898). ONE bounded
         // fetch, and only after the record is source/title/session-qualified
@@ -269,8 +308,7 @@ export async function backfillFloridaArchive(
         // Persist the publisher's own media identity on the observation: the
         // notice-path crosswalk and later reimports match on it without ever
         // refetching every archive page (JSON-only; no migration).
-        (observation as { publisherMediaEntryId?: string }).publisherMediaEntryId =
-          kalturaEntryId;
+        (observation as { publisherMediaEntryId?: string }).publisherMediaEntryId = kalturaEntryId;
         const date = observation.fields.time!.date;
         if (date < from || date > to) continue;
         totals.accepted++;
@@ -382,10 +420,16 @@ export async function backfillFloridaArchive(
         log,
         from,
         to,
+        fetchChamber,
       });
       totals.issues.push(...catalog.issues);
       totals.ambiguous.push(...catalog.ambiguous);
-      totals.catalog = { rows: catalog.rows, attached: catalog.attached, reported: catalog.reported };
+      totals.catalog = {
+        rows: catalog.rows,
+        attached: catalog.attached,
+        reported: catalog.reported,
+        failures: catalog.issues.length,
+      };
     }
   } catch (e) {
     await repo.recordOutcome(
@@ -441,6 +485,110 @@ export async function backfillFloridaArchive(
     }
   }
   return { archive: report, notices };
+}
+
+export type FloridaArchiveBatchMetrics = {
+  archiveSessions: number;
+  archiveSessionsCompleted: number;
+  archiveSessionFailures: number;
+  archivePages: number;
+  archiveListed: number;
+  archiveAccepted: number;
+  archiveInserted: number;
+  archiveUpdated: number;
+  archiveUnchanged: number;
+  archiveRejected: number;
+  archiveErrors: number;
+  archiveIssues: number;
+  archiveAmbiguous: number;
+  archiveCatalogRows: number;
+  archiveCatalogAttached: number;
+  archiveCatalogReported: number;
+  archiveCatalogFailures: number;
+  archivePartial: boolean;
+  archiveFailedSessions: string;
+};
+
+/** Run the recurring archive against every active/default session. Adjacent
+ * fall taxonomies can contain the same TFC video, so a shared stable-id set
+ * prevents duplicate processing while each taxonomy is still probed. */
+export async function backfillFloridaArchiveSessions(
+  prisma: PrismaClient,
+  options: Omit<FloridaArchiveOptions, 'session' | 'seenVideoIds'> & { sessions: string[] },
+  dependency: typeof backfillFloridaArchive = backfillFloridaArchive,
+): Promise<FloridaArchiveBatchMetrics> {
+  const sessions = [...new Set(options.sessions.map((session) => session.trim().toUpperCase()))];
+  if (
+    !sessions.length ||
+    sessions.length > 2 ||
+    sessions.some((session) => !isFloridaSessionCode(session))
+  ) {
+    throw new Error('Florida archive requires one or two valid Florida session codes');
+  }
+  const metrics: FloridaArchiveBatchMetrics = {
+    archiveSessions: sessions.length,
+    archiveSessionsCompleted: 0,
+    archiveSessionFailures: 0,
+    archivePages: 0,
+    archiveListed: 0,
+    archiveAccepted: 0,
+    archiveInserted: 0,
+    archiveUpdated: 0,
+    archiveUnchanged: 0,
+    archiveRejected: 0,
+    archiveErrors: 0,
+    archiveIssues: 0,
+    archiveAmbiguous: 0,
+    archiveCatalogRows: 0,
+    archiveCatalogAttached: 0,
+    archiveCatalogReported: 0,
+    archiveCatalogFailures: 0,
+    archivePartial: false,
+    archiveFailedSessions: '',
+  };
+  const seenVideoIds = new Set<number>();
+  const failedSessions: string[] = [];
+  let catalogPending = options.catalog === true;
+  const { sessions: _sessions, ...archiveOptions } = options;
+  for (const session of sessions) {
+    try {
+      const result = await dependency(prisma, {
+        ...archiveOptions,
+        session,
+        catalog: catalogPending,
+        seenVideoIds,
+      });
+      catalogPending = false;
+      const report = result.archive;
+      metrics.archiveSessionsCompleted++;
+      metrics.archivePages += report.pages;
+      metrics.archiveListed += report.listed;
+      metrics.archiveAccepted += report.accepted;
+      metrics.archiveInserted += report.inserted;
+      metrics.archiveUpdated += report.updated;
+      metrics.archiveUnchanged += report.unchanged;
+      metrics.archiveRejected += report.rejected.reduce((sum, row) => sum + row.count, 0);
+      metrics.archiveErrors += report.errors;
+      metrics.archiveIssues += report.issues.length;
+      metrics.archiveAmbiguous += report.ambiguous.length;
+      metrics.archiveCatalogRows += report.catalog.rows;
+      metrics.archiveCatalogAttached += report.catalog.attached;
+      metrics.archiveCatalogReported += report.catalog.reported;
+      metrics.archiveCatalogFailures += report.catalog.failures;
+    } catch (error) {
+      metrics.archiveSessionFailures++;
+      metrics.archiveErrors++;
+      failedSessions.push(`${session}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  metrics.archiveFailedSessions = failedSessions.join('; ').slice(0, 1000);
+  metrics.archivePartial =
+    metrics.archiveSessionFailures > 0 ||
+    metrics.archiveErrors > 0 ||
+    metrics.archiveIssues > 0 ||
+    metrics.archiveAmbiguous > 0 ||
+    metrics.archiveCatalogFailures > 0;
+  return metrics;
 }
 
 /** The proceeding an archive record is PROVEN to belong to. Callers consume
@@ -650,9 +798,22 @@ async function reconcileSenateMediaCatalog(
     log: (message: string) => void;
     from: string;
     to: string;
+    fetchChamber: (url: string) => Promise<Uint8Array>;
   },
-): Promise<{ rows: number; attached: number; reported: number; ambiguous: string[]; issues: string[] }> {
-  const result = { rows: 0, attached: 0, reported: 0, ambiguous: [] as string[], issues: [] as string[] };
+): Promise<{
+  rows: number;
+  attached: number;
+  reported: number;
+  ambiguous: string[];
+  issues: string[];
+}> {
+  const result = {
+    rows: 0,
+    attached: 0,
+    reported: 0,
+    ambiguous: [] as string[],
+    issues: [] as string[],
+  };
   // Page 1 establishes the pager; older pages are bounded by it AND by the
   // archive window — pages whose rows are all older than `from` end the walk.
   let maxPage = 1;
@@ -662,7 +823,7 @@ async function reconcileSenateMediaCatalog(
       page === 1 ? `${FL_SENATE}/Media/Videos` : `${FL_SENATE}/Media/Videos/Committees/${page}`;
     let parsed: ReturnType<typeof senateMediaArchive>;
     try {
-      const bytes = await fetchFloridaSource(url);
+      const bytes = await deps.fetchChamber(url);
       parsed = senateMediaArchive(new TextDecoder().decode(bytes));
     } catch (e) {
       result.issues.push(`${url}: ${e instanceof Error ? e.message : String(e)}`);
@@ -760,10 +921,27 @@ async function reconcileSenateMediaCatalog(
   return result;
 }
 
-/** CLI: `discover:hearings -- --source=florida-archive --session=2026 [--from= --to= --notices]`. */
-export async function runFloridaArchiveBackfill(args: string[]) {
+/** CLI: `discover:hearings -- --source=florida-archive [--session=2026A] [--from= --to= --catalog --notices]`. */
+export function floridaArchiveCliWindow(
+  args: string[],
+  now = new Date(),
+): { from: string; to: string; lookbackDays: number } {
   const value = (key: string) => args.find((v) => v.startsWith(`--${key}=`))?.slice(key.length + 3);
-  const session = value('session') ?? process.env.FL_CALENDAR_SESSION ?? '';
+  const to = value('to') ?? floridaCalendarDate(now);
+  const lookbackDays = Number(value('lookback-days') ?? '30');
+  if (!Number.isInteger(lookbackDays) || lookbackDays < 1 || lookbackDays > 366)
+    throw new Error('--lookback-days must be an integer in 1..366');
+  const from =
+    value('from') ??
+    new Date(Date.parse(`${to}T00:00:00Z`) - (lookbackDays - 1) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+  return { from, to, lookbackDays };
+}
+
+export async function runFloridaArchiveBackfill(args: string[]) {
+  const session = floridaCalendarSessions(args)[0]!;
+  const { from, to } = floridaArchiveCliWindow(args);
   const prisma = new PrismaClient();
   try {
     const result = await runWithSyncRun(
@@ -772,9 +950,10 @@ export async function runFloridaArchiveBackfill(args: string[]) {
       async () => {
         const res = await backfillFloridaArchive(prisma, {
           session,
-          from: value('from'),
-          to: value('to'),
+          from,
+          to,
           notices: args.includes('--notices'),
+          catalog: args.includes('--catalog'),
           log: console.log,
         });
         return {

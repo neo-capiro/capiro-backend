@@ -26,6 +26,57 @@ import {
   houseDailyCalendar,
 } from './adapters/florida-calendar.adapter.js';
 
+const FLORIDA_TIME_ZONE = 'America/New_York';
+// Florida publishes regular sessions as YYYY and special/organizational
+// sessions as YYYY plus one letter (for example 2025C). Reject invented
+// multi-character suffixes before they are interpolated into publisher URLs.
+const FLORIDA_SESSION_CODE = /^\d{4}[A-Z]?$/;
+
+/** Validate an official regular or special-session key used in Florida URLs. */
+export function isFloridaSessionCode(value: string): boolean {
+  return FLORIDA_SESSION_CODE.test(value.trim().toUpperCase());
+}
+
+/**
+ * Default regular sessions for the Tallahassee calendar date. Florida starts
+ * publishing the next regular session's committee material in the preceding
+ * fall, so September through December probes both bounded session keys.
+ */
+export function defaultFloridaRegularSessions(now = new Date()): string[] {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FLORIDA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(now);
+  const year = Number(parts.find((part) => part.type === 'year')?.value);
+  const month = Number(parts.find((part) => part.type === 'month')?.value);
+  if (!Number.isInteger(year) || !Number.isInteger(month)) {
+    throw new Error('Unable to derive the Florida legislative session date');
+  }
+  return month >= 9 ? [String(year), String(year + 1)] : [String(year)];
+}
+
+/** Calendar day in Tallahassee, independent of the worker's UTC boundary. */
+export function floridaCalendarDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: FLORIDA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = (type: 'year' | 'month' | 'day') => parts.find((part) => part.type === type)?.value;
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+/** Default recurring window, expressed as Florida calendar days. */
+export function defaultFloridaCalendarWindow(now = new Date()): { from: string; to: string } {
+  const today = floridaCalendarDate(now);
+  const base = new Date(`${today}T00:00:00Z`);
+  const day = (offset: number) =>
+    new Date(base.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+  return { from: day(-7), to: day(14) };
+}
+
 /**
  * The official Florida watch page as a first-class browser stream candidate.
  *
@@ -99,9 +150,9 @@ export async function discoverFloridaCalendar(
     !floridaDate(options.to) ||
     options.from > options.to ||
     Date.parse(options.to) - Date.parse(options.from) > 31 * 86400000 ||
-    !/^\d{4}$/.test(options.session)
+    !isFloridaSessionCode(options.session)
   )
-    throw new Error('Florida source requires a valid <=32-day window and explicit regular session');
+    throw new Error('Florida source requires a valid <=32-day window and Florida session code');
   const fetchSource = options.fetchSource ?? fetchFloridaSource;
   const text = async (url: string) => new TextDecoder().decode(await fetchSource(url));
   const log = options.log ?? (() => {});
@@ -606,10 +657,13 @@ async function resolveFloridaAgenda(prisma: PrismaClient, observation: Legislati
 export async function runFloridaCalendarDiscovery(args: string[]) {
   const value = (key: string) => args.find((v) => v.startsWith(`--${key}=`))?.slice(key.length + 3);
   const explicitFrom = value('from');
-  const from = explicitFrom ?? new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const defaultWindow = defaultFloridaCalendarWindow();
+  const from = explicitFrom ?? defaultWindow.from;
   const to =
     value('to') ??
-    new Date(Date.parse(from) + (explicitFrom ? 14 : 21) * 86400000).toISOString().slice(0, 10);
+    (explicitFrom
+      ? new Date(Date.parse(from) + 14 * 86400000).toISOString().slice(0, 10)
+      : defaultWindow.to);
   const sessions = floridaCalendarSessions(args);
   const dryRun = args.includes('--dry-run');
   if (!dryRun && process.env.FL_CALENDAR_INGEST_ENABLED !== 'true')
@@ -621,6 +675,7 @@ export async function runFloridaCalendarDiscovery(args: string[]) {
         from,
         to,
         sessions,
+        includeArchive: !args.includes('--calendar-only'),
         dryRun,
         log: console.log,
       });
@@ -637,6 +692,8 @@ type FloridaCalendarSessionRunOptions = {
   from: string;
   to: string;
   sessions: readonly string[];
+  /** Keep the latency-sensitive calendar pass independent from archive work. */
+  includeArchive?: boolean;
   dryRun?: boolean;
   log?: (message: string) => void;
 };
@@ -650,6 +707,7 @@ type FloridaCalendarSessionDependencies = {
       from: string;
       to: string;
       delayMs: number;
+      catalog: boolean;
       log?: (message: string) => void;
     },
   ) => Promise<{
@@ -667,31 +725,39 @@ type FloridaCalendarSessionDependencies = {
 /**
  * Parse the bounded set of official Florida sessions requested by the worker.
  *
- * `--session=YYYY` remains supported for one-session repair/backfill commands.
- * Recurring rollover jobs keep the existing primary `--session=YYYY` and may
- * add one `--additional-session=YYYY`. The explicit primary remains the owner
- * of shared daily/House/archive reads; this is never an open-ended crawl.
+ * Explicit CLI values win over environment values. Without either override,
+ * the Tallahassee-date default covers the current regular session and, during
+ * the fall publication rollover, the next regular session. Official special-
+ * session codes are accepted only when an operator supplies them explicitly.
  */
 export function floridaCalendarSessions(
   args: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
+  now = new Date(),
 ): string[] {
   const value = (key: string) =>
     args.find((candidate) => candidate.startsWith(`--${key}=`))?.slice(key.length + 3);
-  const primary = (value('session') ?? env.FL_CALENDAR_SESSION ?? '').trim();
-  const additional = (
-    value('additional-session') ??
-    env.FL_CALENDAR_ADDITIONAL_SESSION ??
-    ''
-  ).trim();
-  const sessions = [...new Set([primary, additional].filter(Boolean))];
+  const cliPrimary = value('session');
+  const cliAdditional = value('additional-session');
+  const hasCliOverride = cliPrimary !== undefined || cliAdditional !== undefined;
+  const envPrimary = env.FL_CALENDAR_SESSION?.trim();
+  const envAdditional = env.FL_CALENDAR_ADDITIONAL_SESSION?.trim();
+  const hasEnvOverride = Boolean(envPrimary || envAdditional);
+  const requested = hasCliOverride
+    ? [cliPrimary ?? '', cliAdditional ?? '']
+    : hasEnvOverride
+      ? [envPrimary ?? '', envAdditional ?? '']
+      : defaultFloridaRegularSessions(now);
+  const sessions = [
+    ...new Set(requested.map((session) => session.trim().toUpperCase()).filter(Boolean)),
+  ];
   if (
-    !primary ||
+    ((hasCliOverride || hasEnvOverride) && !requested[0]?.trim()) ||
     !sessions.length ||
     sessions.length > 2 ||
-    sessions.some((session) => !/^\d{4}$/.test(session))
+    sessions.some((session) => !isFloridaSessionCode(session))
   )
-    throw new Error('Florida source requires one or two explicit four-digit regular sessions');
+    throw new Error('Florida source requires one or two valid Florida session codes');
   return sessions;
 }
 
@@ -713,9 +779,9 @@ export async function discoverFloridaCalendarSessions(
   if (
     !sessions.length ||
     sessions.length > 2 ||
-    sessions.some((session) => !/^\d{4}$/.test(session))
+    sessions.some((session) => !isFloridaSessionCode(session))
   )
-    throw new Error('Florida source requires one or two explicit four-digit regular sessions');
+    throw new Error('Florida source requires one or two valid Florida session codes');
   const discover = dependencies.discover ?? discoverFloridaCalendar;
   const primarySession = sessions[0]!;
   const results: Awaited<ReturnType<typeof discoverFloridaCalendar>> = [];
@@ -752,7 +818,7 @@ export async function discoverFloridaCalendarSessions(
     issues: 0,
     ambiguous: [] as readonly string[],
   };
-  if (prisma) {
+  if (prisma && options.includeArchive !== false) {
     const backfill =
       dependencies.archive ??
       (await import('./florida-archive-discovery.js')).backfillFloridaArchive;
@@ -761,6 +827,7 @@ export async function discoverFloridaCalendarSessions(
       from: options.from,
       to: options.to,
       delayMs: 400,
+      catalog: true,
       log: options.log,
     });
     archive = {

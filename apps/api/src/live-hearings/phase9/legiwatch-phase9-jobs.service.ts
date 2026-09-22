@@ -7,6 +7,13 @@ import {
 } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../../hearing-discovery/adapters/house-repository.adapter.js';
 import { SenateScheduleAdapter } from '../../hearing-discovery/adapters/senate-schedule.adapter.js';
+import { backfillFloridaArchiveSessions } from '../../hearing-discovery/florida-archive-discovery.js';
+import {
+  defaultFloridaCalendarWindow,
+  discoverFloridaCalendarSessions,
+  floridaCalendarDate,
+  floridaCalendarSessions,
+} from '../../hearing-discovery/florida-calendar-discovery.js';
 import {
   DiscoveryJobsService,
   type ProbeAdapterMap,
@@ -20,7 +27,10 @@ import { LegiWatchPhase9PreflightService } from './legiwatch-phase9-preflight.se
 import { LegiWatchPhase9ProvenanceBackfillService } from './legiwatch-phase9-provenance-backfill.service.js';
 import { LegiWatchPhase9OfficialTimeObservationService } from './legiwatch-phase9-official-time-observation.service.js';
 import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.service.js';
-import { LegiWatchPhase9RuntimeService } from './legiwatch-phase9-runtime.service.js';
+import {
+  LegiWatchPhase9PartialFailure,
+  LegiWatchPhase9RuntimeService,
+} from './legiwatch-phase9-runtime.service.js';
 import { LegiWatchCommitteeNotificationService } from '../legiwatch-committee-notification.service.js';
 import type {
   LegiWatchPhase9EvidenceSource,
@@ -29,6 +39,8 @@ import type {
 
 export const LEGIWATCH_PHASE9_API_JOBS = [
   'central-discovery',
+  'florida-calendar',
+  'florida-archive',
   'committee-enrichment',
   'committee-updates',
   'source-probe',
@@ -73,7 +85,48 @@ export class LegiWatchPhase9JobsService {
       jobKey: input.job,
       workerId,
       manual: input.manual,
+      skipIfRunning: input.job === 'florida-archive',
+      leaseSeconds:
+        input.job === 'florida-archive' ? integerEnv('FL_ARCHIVE_LEASE_SECONDS', 5_400) : undefined,
       execute: async () => {
+        if (input.job === 'florida-calendar') {
+          const now = new Date();
+          const window = defaultFloridaCalendarWindow(now);
+          return discoverFloridaCalendarSessions(this.prisma, {
+            ...window,
+            sessions: floridaCalendarSessions([], process.env, now),
+            includeArchive: false,
+            log: console.log,
+          });
+        }
+        if (input.job === 'florida-archive') {
+          const now = new Date();
+          const to = floridaCalendarDate(now);
+          const lookbackDays = Math.min(
+            366,
+            Math.max(1, integerEnv('FL_ARCHIVE_LOOKBACK_DAYS', 30)),
+          );
+          const from = new Date(Date.parse(`${to}T00:00:00Z`) - (lookbackDays - 1) * 86_400_000)
+            .toISOString()
+            .slice(0, 10);
+          const metrics = await backfillFloridaArchiveSessions(this.prisma, {
+            sessions: floridaCalendarSessions([], process.env, now),
+            from,
+            to,
+            catalog: true,
+            delayMs: integerEnv('FL_ARCHIVE_DELAY_MS', 400),
+            log: console.log,
+          });
+          if (metrics.archivePartial) {
+            throw new LegiWatchPhase9PartialFailure(
+              `Florida archive was partial: ${metrics.archiveErrors} error(s), ` +
+                `${metrics.archiveIssues} issue(s), ${metrics.archiveAmbiguous} ambiguity, ` +
+                `${metrics.archiveCatalogFailures} catalog failure(s)`,
+              metrics,
+            );
+          }
+          return metrics;
+        }
         if (input.job === 'central-discovery') {
           return this.central.run({
             daysAhead: integerEnv('LEGIWATCH_DISCOVERY_DAYS_AHEAD', 60),

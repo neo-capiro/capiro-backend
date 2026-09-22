@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import {
+  defaultFloridaCalendarWindow,
+  defaultFloridaRegularSessions,
   discoverFloridaCalendar,
   discoverFloridaCalendarSessions,
   floridaCalendarSessions,
@@ -35,13 +37,44 @@ describe('Florida recurring calendar session rollover', () => {
     ]);
   });
 
+  it('derives bounded regular-session defaults from the Tallahassee date', () => {
+    expect(defaultFloridaRegularSessions(new Date('2027-08-31T23:59:00-04:00'))).toEqual(['2027']);
+    expect(defaultFloridaRegularSessions(new Date('2027-09-01T00:00:00-04:00'))).toEqual([
+      '2027',
+      '2028',
+    ]);
+    expect(floridaCalendarSessions([], {}, new Date('2027-10-15T12:00:00Z'))).toEqual([
+      '2027',
+      '2028',
+    ]);
+  });
+
+  it('uses Florida calendar days for the recurring window around a UTC boundary', () => {
+    expect(defaultFloridaCalendarWindow(new Date('2027-09-01T02:00:00Z'))).toEqual({
+      from: '2027-08-24',
+      to: '2027-09-14',
+    });
+  });
+
+  it('accepts explicit official special-session codes and lets CLI override env defaults', () => {
+    expect(floridaCalendarSessions(['--session=2027a'], {})).toEqual(['2027A']);
+    expect(
+      floridaCalendarSessions(['--session=2027B'], {
+        FL_CALENDAR_SESSION: '2026',
+        FL_CALENDAR_ADDITIONAL_SESSION: '2027',
+      }),
+    ).toEqual(['2027B']);
+  });
+
   it.each([
     ['missing primary', ['--additional-session=2027']],
-    ['malformed primary', ['--session=2026F']],
+    ['malformed primary', ['--session=FY2026']],
     ['malformed additional', ['--session=2026', '--additional-session=special']],
+    ['invented multi-letter special session', ['--session=2027AB']],
+    ['invented hyphenated special session', ['--session=2027-A']],
   ])('rejects %s', (_label, args) => {
     expect(() => floridaCalendarSessions(args, {})).toThrow(
-      'one or two explicit four-digit regular sessions',
+      'one or two valid Florida session codes',
     );
   });
 
@@ -130,7 +163,7 @@ describe('Florida recurring calendar session rollover', () => {
       },
     ]);
     expect(archive).toHaveBeenCalledTimes(1);
-    expect(archive.mock.calls[0]![1]).toMatchObject({ session: '2026' });
+    expect(archive.mock.calls[0]![1]).toMatchObject({ session: '2026', catalog: true });
     expect([...writes]).toEqual([
       'senate-committees:2026',
       'senate-daily:shared',
@@ -139,6 +172,27 @@ describe('Florida recurring calendar session rollover', () => {
       'archive:shared',
     ]);
     expect(result).toMatchObject({ inserted: 0, updated: 0, skipped: 0, complete: true });
+  });
+
+  it('keeps the fast calendar pass independent from archive ingestion', async () => {
+    const discover = jest.fn(async () => []);
+    const archive = jest.fn(async () => {
+      throw new Error('archive must not run');
+    });
+
+    await expect(
+      discoverFloridaCalendarSessions(
+        {} as PrismaClient,
+        {
+          from: '2027-09-01',
+          to: '2027-09-15',
+          sessions: ['2027', '2028'],
+          includeArchive: false,
+        },
+        { discover: discover as typeof discoverFloridaCalendar, archive },
+      ),
+    ).resolves.toMatchObject({ complete: true });
+    expect(archive).not.toHaveBeenCalled();
   });
 
   it('marks an unpublished additional session unavailable instead of parsing its fallback', async () => {

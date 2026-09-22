@@ -8,6 +8,9 @@
 # SAFETY:
 #   plan/status are read-only.
 #   register-dark creates task definitions, IAM role, DISABLED rules and alarms.
+#   An `adopt` row preserves an already-running physical rule until the guarded
+#   enable-shadow transition repoints that exact rule; it never creates a
+#   second rule with a competing schedule.
 #   enable-shadow requires an exact confirmation and updates the guarded DB
 #   runtime registry before enabling rules.
 #   disable rules first, then marks the DB registry dark.
@@ -37,6 +40,7 @@ INTEL_FAMILY="capiro-${ENVIRONMENT}-legiwatch-phase9-intel"
 EVENT_ROLE="capiro-${ENVIRONMENT}-legiwatch-phase9-events"
 AWS=(aws --region "$REGION")
 PREFIX="capiro-${ENVIRONMENT}-legiwatch"
+ADOPTION_SNAPSHOT_DIR=""
 # Canonical Congress.gov credential. This is the SAME secret already wired
 # into capiro-<env>-api-pe-enrichment, capiro-<env>-api-c1-sql-v6,
 # capiro-<env>-api-migrate, and capiro-<env>-intel-api — verified live and
@@ -57,6 +61,8 @@ confirm(){ [ "${CONFIRM:-}" = "$1" ] || die "Set CONFIRM=$1"; }
 
 RULE_ROWS=(
   "central-discovery|rate(10 minutes)|api|central-discovery"
+  "florida-calendar|rate(10 minutes)|api|florida-calendar|adopt"
+  "florida-archive|rate(30 minutes)|api|florida-archive"
   "committee-enrichment|rate(15 minutes)|api|committee-enrichment"
   "committee-updates|rate(30 minutes)|api|committee-updates"
   "notification-drain|rate(5 minutes)|api|notification-drain"
@@ -232,6 +238,13 @@ JSON
   EVENT_ROLE_ARN="arn:aws:iam::${account}:role/${EVENT_ROLE}"
 }
 
+resolve_event_role_arn(){
+  local arn
+  arn=$("${AWS[@]}" iam get-role --role-name "$EVENT_ROLE" --query 'Role.Arn' --output text 2>/dev/null) || true
+  [ -n "$arn" ] && [ "$arn" != None ] || die "EventBridge role not found: $EVENT_ROLE; run register-dark first"
+  printf '%s' "$arn"
+}
+
 command_json(){ printf '%s\n' "$@" | jq -R . | jq -cs .; }
 
 target_json(){
@@ -251,16 +264,202 @@ target_json(){
       Input:$input}]'
 }
 
+rule_exists(){
+  local error_file status
+  error_file=$(mktemp "${TMPDIR:-/tmp}/legiwatch-rule-status.XXXXXX") || return 1
+  if "${AWS[@]}" events describe-rule --name "$1" >/dev/null 2>"$error_file"; then
+    rm -f "$error_file"
+    return 0
+  else
+    status=$?
+  fi
+  if grep -q 'ResourceNotFoundException' "$error_file"; then
+    rm -f "$error_file"
+    return 3
+  fi
+  cat "$error_file" >&2
+  rm -f "$error_file"
+  return "${status:-1}"
+}
+
+remove_all_rule_targets(){
+  local rule="$1" response failed raw_ids
+  local -a ids=()
+  raw_ids=$("${AWS[@]}" events list-targets-by-rule --rule "$rule" --query 'Targets[].Id' --output text) || return 1
+  mapfile -t ids < <(printf '%s\n' "$raw_ids" | tr '\t' '\n' | sed '/^$/d;/^None$/d')
+  [ "${#ids[@]}" -gt 0 ] || return 0
+  response=$("${AWS[@]}" events remove-targets --rule "$rule" --ids "${ids[@]}" --output json) || return 1
+  failed=$(echo "$response" | jq -r '.FailedEntryCount // 0') || return 1
+  [ "$failed" = 0 ] || {
+    echo "remove-targets failed for $rule: $response" >&2
+    return 1
+  }
+}
+
+put_single_rule_target(){
+  local rule="$1" kind="$2" job="$3" command="$4" target response failed targets count id attempt
+  target=$(target_json "$kind" "$command") || return 1
+  response=$("${AWS[@]}" events put-targets --rule "$rule" --targets "$target" --output json) || return 1
+  failed=$(echo "$response" | jq -r '.FailedEntryCount // 0') || return 1
+  [ "$failed" = 0 ] || {
+    echo "put-targets failed for $rule: $response" >&2
+    return 1
+  }
+  for attempt in 1 2 3; do
+    targets=$("${AWS[@]}" events list-targets-by-rule --rule "$rule" --output json) || return 1
+    count=$(echo "$targets" | jq -r '.Targets | length') || return 1
+    id=$(echo "$targets" | jq -r '.Targets[0].Id // empty') || return 1
+    if [ "$count" = 1 ] && [ "$id" = "$job" ]; then return 0; fi
+    [ "$attempt" -eq 3 ] || sleep 1
+  done
+  echo "expected exactly target '$job' on $rule, found: $targets" >&2
+  return 1
+}
+
 ensure_rules_disabled(){
-  local row job schedule kind command rule
+  local row job schedule kind command ownership rule status
   for row in "${RULE_ROWS[@]}"; do
-    IFS='|' read -r job schedule kind command <<<"$row"
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
     rule="${PREFIX}-${job}"
+    if [ "${ownership:-}" = adopt ]; then
+      if rule_exists "$rule"; then
+        echo "adopted rule preserved until enable-shadow: $rule"
+        continue
+      else
+        status=$?
+        [ "$status" -eq 3 ] || return "$status"
+      fi
+    fi
     "${AWS[@]}" events put-rule --name "$rule" --schedule-expression "$schedule" --state DISABLED \
-      --description "LegiWatch Phase 9 $job (dark until guarded shadow activation)" >/dev/null
-    "${AWS[@]}" events put-targets --rule "$rule" --targets "$(target_json "$kind" "$command")" >/dev/null
+      --description "LegiWatch Phase 9 $job (dark until guarded shadow activation)" >/dev/null || return 1
+    remove_all_rule_targets "$rule" || return 1
+    put_single_rule_target "$rule" "$kind" "$job" "$command" || return 1
     echo "dark rule: $rule $schedule"
   done
+}
+
+prepare_adopted_rules(){
+  local row job schedule kind command ownership rule
+  for row in "${RULE_ROWS[@]}"; do
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
+    [ "${ownership:-}" = adopt ] || continue
+    rule="${PREFIX}-${job}"
+    # The existing Florida calendar rule is disabled only inside the explicit
+    # enable transition, then repointed and re-enabled below. `put-rule` uses
+    # the same exact physical name, so adoption cannot create a competing rule.
+    if [ "$(cat "${ADOPTION_SNAPSHOT_DIR}/${job}.state")" = exists ]; then
+      "${AWS[@]}" events disable-rule --name "$rule" || return 1
+    fi
+    "${AWS[@]}" events put-rule --name "$rule" --schedule-expression "$schedule" --state DISABLED \
+      --description "LegiWatch Phase 9 $job (adopted existing physical rule)" >/dev/null || return 1
+    # EventBridge put-targets is an upsert by Id and does not delete targets
+    # with different Ids. Remove every legacy target deliberately, install the
+    # one Phase 9 target, then read it back so adoption cannot double-fire.
+    remove_all_rule_targets "$rule" || return 1
+    put_single_rule_target "$rule" "$kind" "$job" "$command" || return 1
+    echo "adopted rule target: $rule $schedule"
+  done
+}
+
+snapshot_adopted_rules(){
+  local row job schedule kind command ownership rule file error_file
+  ADOPTION_SNAPSHOT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/legiwatch-phase9-adoption.XXXXXX") || return 1
+  for row in "${RULE_ROWS[@]}"; do
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
+    [ "${ownership:-}" = adopt ] || continue
+    rule="${PREFIX}-${job}"
+    file="${ADOPTION_SNAPSHOT_DIR}/${job}"
+    error_file="${file}.describe.err"
+    if "${AWS[@]}" events describe-rule --name "$rule" --output json >"${file}.rule.json" 2>"$error_file"; then
+      printf 'exists\n' >"${file}.state"
+      "${AWS[@]}" events list-targets-by-rule --rule "$rule" --output json >"${file}.targets.json" || return 1
+    elif grep -q 'ResourceNotFoundException' "$error_file"; then
+      rm -f "${file}.rule.json"
+      printf 'absent\n' >"${file}.state"
+    else
+      cat "$error_file" >&2
+      return 1
+    fi
+  done
+}
+
+restore_adopted_rules(){
+  local row job schedule kind command ownership rule file original disabled targets response failed current expected actual status
+  local restore_failed=0
+  [ -n "$ADOPTION_SNAPSHOT_DIR" ] && [ -d "$ADOPTION_SNAPSHOT_DIR" ] || return 1
+  for row in "${RULE_ROWS[@]}"; do
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
+    [ "${ownership:-}" = adopt ] || continue
+    rule="${PREFIX}-${job}"
+    file="${ADOPTION_SNAPSHOT_DIR}/${job}"
+    if [ "$(cat "${file}.state")" = absent ]; then
+      if rule_exists "$rule"; then
+        "${AWS[@]}" events disable-rule --name "$rule" >/dev/null 2>&1 || restore_failed=1
+        remove_all_rule_targets "$rule" || restore_failed=1
+        "${AWS[@]}" events delete-rule --name "$rule" >/dev/null 2>&1 || restore_failed=1
+      else
+        status=$?
+        [ "$status" -eq 3 ] || restore_failed=1
+      fi
+      continue
+    fi
+
+    # Restore metadata while dark, restore the exact target set, then restore
+    # the original enabled state last. This avoids a rollback window where the
+    # legacy cadence could fire against a partially restored target list.
+    original="${file}.restore.json"
+    disabled="${file}.disabled.json"
+    jq '{Name,EventPattern,ScheduleExpression,State,Description,RoleArn,EventBusName}
+        | with_entries(select(.value != null))' "${file}.rule.json" >"$original" || return 1
+    jq '.State="DISABLED"' "$original" >"$disabled" || return 1
+    "${AWS[@]}" events disable-rule --name "$rule" >/dev/null 2>&1 || restore_failed=1
+    remove_all_rule_targets "$rule" || restore_failed=1
+    "${AWS[@]}" events put-rule --cli-input-json "file://$(norm_path "$disabled")" >/dev/null 2>&1 || restore_failed=1
+    targets=$(jq -c '.Targets // []' "${file}.targets.json") || return 1
+    if [ "$(echo "$targets" | jq -r 'length')" -gt 0 ]; then
+      response=$("${AWS[@]}" events put-targets --rule "$rule" --targets "$targets" --output json) || {
+        restore_failed=1
+        response='{}'
+      }
+      failed=$(echo "$response" | jq -r '.FailedEntryCount // 0') || failed=1
+      [ "$failed" = 0 ] || restore_failed=1
+    fi
+    "${AWS[@]}" events put-rule --cli-input-json "file://$(norm_path "$original")" >/dev/null 2>&1 || restore_failed=1
+
+    current=$("${AWS[@]}" events describe-rule --name "$rule" --output json 2>/dev/null) || {
+      restore_failed=1
+      current='{}'
+    }
+    expected=$(jq -S -c . "$original") || return 1
+    actual=$(echo "$current" | jq -S -c '{Name,EventPattern,ScheduleExpression,State,Description,RoleArn,EventBusName} | with_entries(select(.value != null))') || return 1
+    [ "$actual" = "$expected" ] || restore_failed=1
+    current=$("${AWS[@]}" events list-targets-by-rule --rule "$rule" --output json 2>/dev/null) || {
+      restore_failed=1
+      current='{}'
+    }
+    expected=$(jq -S -c '(.Targets // []) | sort_by(.Id)' "${file}.targets.json") || return 1
+    actual=$(echo "$current" | jq -S -c '(.Targets // []) | sort_by(.Id)') || return 1
+    [ "$actual" = "$expected" ] || restore_failed=1
+  done
+  return "$restore_failed"
+}
+
+disable_non_adopted_rules(){
+  local row job schedule kind command ownership rule failed=0
+  for row in "${RULE_ROWS[@]}"; do
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
+    [ "${ownership:-}" = adopt ] && continue
+    rule="${PREFIX}-${job}"
+    "${AWS[@]}" events disable-rule --name "$rule" >/dev/null 2>&1 || failed=1
+  done
+  return "$failed"
+}
+
+enable_all_rules(){
+  local rule
+  while read -r rule; do
+    "${AWS[@]}" events enable-rule --name "$rule" || return 1
+  done < <(all_rule_names)
 }
 
 all_rule_names(){
@@ -269,9 +468,9 @@ all_rule_names(){
 }
 
 runtime_registrations(){
-  local enabled="$1" rows='[]' row job schedule kind command family
+  local enabled="$1" rows='[]' row job schedule kind command ownership family
   for row in "${RULE_ROWS[@]}"; do
-    IFS='|' read -r job schedule kind command <<<"$row"
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
     if [ "$kind" = api ]; then family="$API_FAMILY"; else family="$INTEL_FAMILY"; fi
     rows=$(echo "$rows" | jq \
       --arg key "$job" --arg rule "${PREFIX}-${job}" --arg family "$family" --argjson enabled "$enabled" \
@@ -345,11 +544,12 @@ prepare(){
 
 cmd_plan(){
   discover
-  printf '%-28s %-18s %-7s %s\n' JOB CADENCE APP COMMAND
-  local row job schedule kind command
+  printf '%-28s %-18s %-7s %-10s %s\n' JOB CADENCE APP OWNERSHIP COMMAND
+  local row job schedule kind command ownership
   for row in "${RULE_ROWS[@]}"; do
-    IFS='|' read -r job schedule kind command <<<"$row"
-    printf '%-28s %-18s %-7s %s\n' "$job" "$schedule" "$kind" "$command"
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
+    printf '%-28s %-18s %-7s %-10s %s\n' \
+      "$job" "$schedule" "$kind" "${ownership:-managed}" "$command"
   done
   echo 'No resources changed.'
 }
@@ -367,7 +567,7 @@ cmd_register_dark(){
   ensure_role
   ensure_rules_disabled
   put_alarms
-  echo "Registered dark. API=$API_TD INTEL=$INTEL_TD. No rule was enabled."
+  echo "Registered dark. API=$API_TD INTEL=$INTEL_TD. New rules are disabled; adopted rules retain their prior state until enable-shadow."
 }
 
 cmd_refresh_api_td(){
@@ -378,22 +578,22 @@ cmd_refresh_api_td(){
   # touching rule enabled/disabled state, without calling put-rule, without
   # calling register-runtime, and without creating/deleting any rule. This
   # exists specifically so a Phase 9 API TD defect (e.g. a missing secret)
-  # can be corrected while 11 EventBridge rules are ENABLED and SHADOW is
+  # can be corrected while the EventBridge rules are ENABLED and SHADOW is
   # actively running — register-dark is NOT safe for that because
-  # ensure_rules_disabled unconditionally calls put-rule with --state DISABLED
-  # on every rule, which would silently dark all 11 schedules mid-shadow.
+  # ensure_rules_disabled calls put-rule with --state DISABLED on every
+  # Phase-9-managed rule. Adopted rules are handled by enable-shadow instead.
   #
   # Intel-side jobs are untouched by this command; use it only when the API
   # task definition itself needs a fix. It does not enable/disable any
   # schedule and does not write to the DB runtime registry.
   confirm REFRESH_LEGIWATCH_PHASE9_API_TD
   discover
-  local congress_arn new_api_td row job schedule kind command rule target
+  local congress_arn new_api_td row job schedule kind command ownership rule target
   congress_arn=$(resolve_secret_arn "$CONGRESS_API_KEY_SECRET_ID")
   new_api_td=$(clone_td "$API_SOURCE_TD" "$API_FAMILY" /tmp/legiwatch-phase9-api-refresh-td.json "$API_CONTAINER" CONGRESS_API_KEY "$congress_arn")
   echo "new_api_td=$new_api_td"
   for row in "${RULE_ROWS[@]}"; do
-    IFS='|' read -r job schedule kind command <<<"$row"
+    IFS='|' read -r job schedule kind command ownership <<<"$row"
     [ "$kind" = api ] || continue
     rule="${PREFIX}-${job}"
     target=$("${AWS[@]}" events list-targets-by-rule --rule "$rule" --query 'Targets[0]' --output json)
@@ -408,13 +608,23 @@ cmd_enable_shadow(){
   confirm ENABLE_LEGIWATCH_PHASE9_SHADOW
   prepare
   [ -n "$API_TD" ] && [ -n "$INTEL_TD" ] || die 'Run register-dark first'
+  # enable-shadow starts in a fresh shell; reconstruct the role ARN before the
+  # adopted target JSON is built (set -u would otherwise abort mid-transition).
+  EVENT_ROLE_ARN=$(resolve_event_role_arn)
+  snapshot_adopted_rules || die 'Could not snapshot adopted rule state'
   register_db_runtime true
-  local rule
-  if ! while read -r rule; do "${AWS[@]}" events enable-rule --name "$rule"; done < <(all_rule_names); then
-    while read -r rule; do "${AWS[@]}" events disable-rule --name "$rule" || true; done < <(all_rule_names)
-    register_db_runtime false || true
-    die 'Rule activation failed; rollback to dark attempted'
+  local rollback_failed=0
+  if ! prepare_adopted_rules || ! enable_all_rules; then
+    disable_non_adopted_rules || rollback_failed=1
+    restore_adopted_rules || rollback_failed=1
+    register_db_runtime false || rollback_failed=1
+    if [ "$rollback_failed" -ne 0 ]; then
+      die "Rule activation failed and rollback was incomplete; inspect EventBridge and retained snapshot $ADOPTION_SNAPSHOT_DIR"
+    fi
+    rm -rf "$ADOPTION_SNAPSHOT_DIR"
+    die 'Rule activation failed; original adopted rule metadata, targets, and state restored'
   fi
+  rm -rf "$ADOPTION_SNAPSHOT_DIR"
   echo 'Shadow schedules enabled. Production default, kill switch, and the public-events blanket-capture flag are all left exactly as they were.'
 }
 

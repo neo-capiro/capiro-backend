@@ -57,22 +57,14 @@ describe('Florida OpenStates committee-event coverage', () => {
 });
 
 describe('Florida official calendar discovery', () => {
-  test('records the deployed 15-minute EventBridge rate and guarded command', () => {
+  test('records the deployed 10-minute fast-calendar rate without fixed session years', () => {
     const florida = INGESTION_JOBS.find((job) => job.id === 'LegiwatchFloridaCalendar')!;
-    expect(florida.command).toEqual([
-      'discover-hearings',
-      '--source=florida',
-      '--session=2026',
-      '--additional-session=2027',
-    ]);
-    expect(florida.rateMinutes).toBe(15);
+    expect(florida.command).toEqual(['discover-hearings', '--source=florida', '--calendar-only']);
+    expect(florida.rateMinutes).toBe(10);
     expect(florida.enabled ?? true).toBe(true);
     expect(florida.managedOutOfBand).toBe(true);
-    expect(florida.environment).toEqual({
-      FL_CALENDAR_INGEST_ENABLED: 'true',
-      FL_CALENDAR_SESSION: '2026',
-      FL_CALENDAR_ADDITIONAL_SESSION: '2027',
-    });
+    expect(florida.environment).toEqual({ FL_CALENDAR_INGEST_ENABLED: 'true' });
+    expect(florida.command.join(' ')).not.toMatch(/--(?:additional-)?session=/);
 
     const app = new cdk.App();
     const stack = new cdk.Stack(app, 'FloridaCalendarScheduleStack');
@@ -127,7 +119,7 @@ describe('Florida official calendar discovery', () => {
 
     Template.fromStack(stack).hasResourceProperties('AWS::Events::Rule', {
       Name: 'capiro-dev-legiwatch-florida-calendar',
-      ScheduleExpression: 'rate(15 minutes)',
+      ScheduleExpression: 'rate(10 minutes)',
       State: 'ENABLED',
     });
   });

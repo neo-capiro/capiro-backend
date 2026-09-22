@@ -352,26 +352,18 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   {
     // Record the enabled out-of-band rule under its existing physical name:
     // `capiro-<env>-legiwatch-florida-calendar`. The deployed rule runs every
-    // 15 minutes (a fixed EventBridge rate, not a quarter-hour cron). Its live
-    // task definition supplies the guard/session environment; repeat those
-    // effective values here so any future explicit CFN import preserves them.
+    // 10 minutes (a fixed EventBridge rate, not a cron). Session selection is
+    // derived at runtime in America/New_York unless an operator explicitly
+    // supplies FL_CALENDAR_SESSION / FL_CALENDAR_ADDITIONAL_SESSION. The fast
+    // calendar pass excludes archive work; Phase 9 owns that slower cadence.
     id: 'LegiwatchFloridaCalendar',
-    command: [
-      'discover-hearings',
-      '--source=florida',
-      '--session=2026',
-      '--additional-session=2027',
-    ],
-    cron: { minute: '0/15', hour: '*' },
-    rateMinutes: 15,
+    command: ['discover-hearings', '--source=florida', '--calendar-only'],
+    cron: { minute: '0/10', hour: '*' },
+    rateMinutes: 10,
     managedOutOfBand: true,
     tier: 'daily',
     description: 'LegiWatch Phase 3 bounded official Florida calendar ingestion',
-    environment: {
-      FL_CALENDAR_INGEST_ENABLED: 'true',
-      FL_CALENDAR_SESSION: '2026',
-      FL_CALENDAR_ADDITIONAL_SESSION: '2027',
-    },
+    environment: { FL_CALENDAR_INGEST_ENABLED: 'true' },
   },
   {
     id: 'EnrichCommitteeHearings',

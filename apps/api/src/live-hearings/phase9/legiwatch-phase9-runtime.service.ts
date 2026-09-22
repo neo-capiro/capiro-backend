@@ -35,6 +35,24 @@ export interface LegiWatchRuntimeRegistration {
   taskFamily?: string | null;
 }
 
+export type LegiWatchRuntimeSkipReceipt = {
+  skipped: true;
+  skipReason: 'already_running';
+  leaseSeconds: number;
+};
+
+/** A source pass completed only partially. Runtime health records the flat
+ * source metrics on the failed heartbeat instead of losing them in the throw. */
+export class LegiWatchPhase9PartialFailure extends Error {
+  constructor(
+    message: string,
+    readonly runtimeMetrics: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = 'LegiWatchPhase9PartialFailure';
+  }
+}
+
 @Injectable()
 export class LegiWatchPhase9RuntimeService {
   constructor(private readonly prisma: PrismaService) {}
@@ -158,14 +176,36 @@ export class LegiWatchPhase9RuntimeService {
     jobKey: string;
     workerId: string;
     manual?: boolean;
+    skipIfRunning?: boolean;
+    leaseSeconds?: number;
     execute: () => Promise<T>;
     metrics?: (result: T) => Record<string, unknown>;
-  }): Promise<T> {
-    await this.begin({
-      jobKey: input.jobKey,
-      workerId: input.workerId,
-      manual: input.manual,
-    });
+  }): Promise<T | LegiWatchRuntimeSkipReceipt> {
+    const leaseSeconds = Math.max(1, Math.floor(input.leaseSeconds ?? 5_400));
+    if (input.skipIfRunning) {
+      const acquired = await this.tryBeginLease({
+        jobKey: input.jobKey,
+        workerId: input.workerId,
+        manual: input.manual,
+        leaseSeconds,
+      });
+      if (!acquired) {
+        console.log(
+          `LEGIWATCH_RUNTIME_SKIP ${JSON.stringify({
+            jobKey: input.jobKey,
+            reason: 'already_running',
+            leaseSeconds,
+          })}`,
+        );
+        return { skipped: true, skipReason: 'already_running', leaseSeconds };
+      }
+    } else {
+      await this.begin({
+        jobKey: input.jobKey,
+        workerId: input.workerId,
+        manual: input.manual,
+      });
+    }
     const started = Date.now();
     try {
       const result = await input.execute();
@@ -181,10 +221,62 @@ export class LegiWatchPhase9RuntimeService {
       await this.fail({
         jobKey: input.jobKey,
         error,
-        metrics: { durationMs: Date.now() - started },
+        metrics: {
+          durationMs: Date.now() - started,
+          ...runtimeMetricsFromError(error),
+        },
       });
       throw error;
     }
+  }
+
+  private async tryBeginLease(input: {
+    jobKey: string;
+    workerId: string;
+    manual?: boolean;
+    leaseSeconds: number;
+  }): Promise<boolean> {
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{ enabled: boolean; scheduleEnabled: boolean }>
+    >(
+      `SELECT enabled,
+              schedule_enabled AS "scheduleEnabled"
+       FROM legiwatch_runtime_heartbeat
+       WHERE job_key=$1
+       LIMIT 1`,
+      input.jobKey,
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    if (!input.manual && (!row.enabled || !row.scheduleEnabled)) {
+      throw new Error(`LegiWatch runtime job ${input.jobKey} is dark/disabled`);
+    }
+    const count = await this.prisma.$executeRawUnsafe(
+      `UPDATE legiwatch_runtime_heartbeat
+       SET status='running',
+           last_started_at=now(),
+           last_heartbeat_at=now(),
+           last_error=NULL,
+           metrics=jsonb_set(
+             COALESCE(metrics, '{}'::jsonb),
+             '{workerId}',
+             to_jsonb($2::text),
+             true
+           ),
+           updated_at=now()
+       WHERE job_key=$1
+         AND ($4::boolean OR (enabled=true AND schedule_enabled=true))
+         AND (
+           status <> 'running'
+           OR last_started_at IS NULL
+           OR last_started_at < now() - ($3::int * interval '1 second')
+         )`,
+      input.jobKey,
+      bounded(input.workerId, 200),
+      input.leaseSeconds,
+      input.manual === true,
+    );
+    return count > 0;
   }
 
   async registerSchedules(input: {
@@ -201,11 +293,14 @@ export class LegiWatchPhase9RuntimeService {
     if (!input.registrations.length) {
       throw new Error('At least one runtime registration is required');
     }
-    // Notification delivery is independently scheduled and must not become a
-    // prerequisite for hearing capture readiness.
+    // Notification delivery and Florida source ingestion are independently
+    // scheduled. They are observable Phase 9 jobs without becoming new
+    // prerequisites for the existing federal cutover readiness contract.
     const allowedKeys = new Set<string>([
       ...LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS,
       'notification-drain',
+      'florida-calendar',
+      'florida-archive',
     ]);
     const seen = new Set<string>();
     for (const registration of input.registrations) {
@@ -307,6 +402,17 @@ export class LegiWatchPhase9RuntimeService {
       jobKey ?? null,
     );
   }
+}
+
+function runtimeMetricsFromError(error: unknown): Record<string, unknown> {
+  if (!(error instanceof LegiWatchPhase9PartialFailure)) return {};
+  const metrics: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(error.runtimeMetrics)) {
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
+      metrics[key] = value;
+    }
+  }
+  return metrics;
 }
 
 function mapRow(row: RuntimeRow, now: Date): LegiWatchPhase9RuntimeJob {
