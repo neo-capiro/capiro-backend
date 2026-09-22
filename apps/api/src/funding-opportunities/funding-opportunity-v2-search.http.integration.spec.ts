@@ -182,6 +182,17 @@ describeDb('Funding Opportunity v2 search HTTP and canonical profile (isolated P
     await request(app.getHttpServer()).get('/api/intelligence/opportunities/v2/search').query({ unsupportedFilter: 'x' }).expect(400);
   });
 
+  test('accepts a full client-profile import as 100 repeated keyword parameters', async () => {
+    const params = new URLSearchParams({ mode: 'matched', clientId: visibleClientId });
+    for (let i = 0; i < 99; i += 1) params.append('keyword', `not-present-${i}`);
+    params.append('keyword', namespace);
+    const response = await request(app.getHttpServer())
+      .get(`/api/intelligence/opportunities/v2/search?${params.toString()}`)
+      .expect(200);
+    expect(response.body.criteria.keywordTerms).toHaveLength(100);
+    expect(response.body.opportunities.some((row: { sourceRecordId: string }) => row.sourceRecordId === samId)).toBe(true);
+  });
+
   test('uses visible-client access and keeps All capability while suppressing relevance', async () => {
     const all = await request(app.getHttpServer()).get('/api/intelligence/opportunities/v2/search').query({ mode: 'all', clientId: visibleClientId, sources: 'sam_gov', q: namespace }).expect(200);
     expect(all.body.opportunities.find((row: { sourceRecordId: string }) => row.sourceRecordId === samId)).toMatchObject({ relevanceScore: null, matchedSignals: [], clientCapability: { allowed: true } });

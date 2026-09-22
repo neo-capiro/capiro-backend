@@ -1,5 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import {
+  MAX_OPPORTUNITY_KEYWORD_TERMS,
   normalizeOpportunitySearchCriteria,
   OPPORTUNITY_LIFECYCLES_V2,
   OPPORTUNITY_SOURCES_V2,
@@ -330,13 +331,27 @@ export function createPrismaOpportunityCatalogAdapters(prisma: PrismaService): O
   }));
 }
 
+function repeatedKeywordTerms(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  // Express's extended query parser converts 21+ repeated `keyword` params
+  // into an object with numeric keys. Reconstitute only a contiguous, bounded
+  // sequence; arbitrary nested objects must still fail validation.
+  const entries = Object.entries(value);
+  return entries.length > 0
+    && entries.length <= MAX_OPPORTUNITY_KEYWORD_TERMS
+    && entries.every(([key, term], index) => key === String(index) && typeof term === 'string')
+    ? entries.map(([, term]) => term)
+    : value;
+}
+
 export function normalizeOpportunitySearchQuery(query: Record<string, unknown>): OpportunitySearchCriteriaV2 {
   const aliases: Record<string, string> = { source: 'sources', type: 'types', agency: 'agencies', sector: 'sectors', naics: 'naicsCodes', psc: 'pscCodes', setAside: 'setAsideCodes', applicantType: 'applicantTypes', method: 'methods', grantPrereq: 'grantPrerequisites', grantPrerequisite: 'grantPrerequisites', code: 'codes', keyword: 'keywordTerms', q: 'query', size: 'pageSize', dir: 'direction' };
   const listKeys = new Set(['sources', 'types', 'lifecycle', 'agencies', 'sectors', 'naicsCodes', 'pscCodes', 'setAsideCodes', 'eligibility', 'posted', 'geography', 'applicantTypes', 'funding', 'costShare', 'methods', 'disbursement', 'grantPrerequisites', 'codes']);
   const input: Record<string, unknown> = {};
   for (const [rawKey, value] of Object.entries(query)) {
     const key = aliases[rawKey] ?? rawKey;
-    input[key] = listKeys.has(key) && typeof value === 'string' && value.includes(',') ? value.split(',') : value;
+    input[key] = key === 'keywordTerms' ? repeatedKeywordTerms(value)
+      : listKeys.has(key) && typeof value === 'string' && value.includes(',') ? value.split(',') : value;
   }
   const normalized = normalizeOpportunitySearchCriteria(input);
   if (normalized.warnings.length) throw new BadRequestException('Invalid or unsupported opportunity search criteria.');

@@ -87,6 +87,10 @@ function escapeLike(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** Explicit query modes augment, but do not alter, legacy omitted-mode searches. */
 function queryTerms(query: string, queryMatch: OpportunitySearchCriteriaV2['queryMatch']): string[] {
   const trimmed = query.trim();
@@ -119,8 +123,10 @@ function queryFilter(criteria: OpportunitySearchCriteriaV2): Prisma.Sql | null {
   const query = terms.length
     ? Prisma.sql`(${Prisma.join(terms.map(contains), ' AND ')})`
     : null;
+  // A single literal alternation avoids reevaluating searchable text once
+  // for each imported term (up to 100) in the correlated LIKE loop.
   const keywords = criteria.keywordTerms?.length
-    ? Prisma.sql`EXISTS (SELECT 1 FROM unnest(${list(criteria.keywordTerms.map((term) => `%${escapeLike(term.toLowerCase())}%`))}) AS wanted(pattern) WHERE ${searchable} LIKE wanted.pattern ESCAPE chr(92))`
+    ? Prisma.sql`${searchable} ~ ${criteria.keywordTerms.map((term) => escapeRegex(term.toLowerCase())).join('|')}`
     : null;
   if (!query) return keywords;
   if (!keywords) return query;
