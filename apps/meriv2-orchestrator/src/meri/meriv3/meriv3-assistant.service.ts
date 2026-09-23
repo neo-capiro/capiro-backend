@@ -45,7 +45,6 @@ import {
   type AssuredEvidence,
   type AuditorMode,
   type CapabilityRolloutMode,
-  type DocumentReference,
   type LedgerEntry,
   type MeriContext,
   type ToolRegistry,
@@ -83,7 +82,7 @@ import {
 } from './openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import { enforceClientFilingConfirmation } from '../chat/client-filing-confirmation.js';
-import { MeriDocumentCompletion, completeDocumentPages } from './meriv3-document-completion.js';
+import { MeriDocumentCompletion } from './meriv3-document-completion.js';
 import { classifyMeriRetrievalIntent } from '../retrieval/meri-retrieval-intent.js';
 import {
   elevateMeriResearchReasoningMode,
@@ -110,7 +109,7 @@ import {
   type CoverageGap,
   type CoverageRequirement,
 } from '../retrieval/meri-evidence-requirements.js';
-import { applyLiveRepair } from '../repair/live-repair.service.js';
+import { applyLiveRepair, buildRepairDocumentReferences } from '../repair/live-repair.service.js';
 import { createOrchestratorToolExecutor } from '../repair/orchestrator-tool-executor.js';
 import { createRevisionGenerator } from '../repair/revision-generator.js';
 import {
@@ -416,131 +415,6 @@ function buildRepairPassages(
   return passages;
 }
 
-function documentPageLocator(page: { documentId: string; section: number; start: number; end: number }): string {
-  return `${page.documentId}#${page.section}:${page.start}-${page.end}`;
-}
-
-/**
- * Document references for exact-source eligibility, with `readable` and
- * `contentState` taken from what this turn actually read: a reauthorized or
- * fresh page observation is extracted text, a document the user selected or a
- * coverage route named but nobody read is metadata only. A turn with no
- * document yields no references.
- */
-function buildTurnDocumentReferences(args: {
-  citations: readonly MeriCitation[];
-  selectedDocumentIds?: readonly string[];
-  coverageRequirements: readonly CoverageRequirement[];
-  documentCompletion: MeriDocumentCompletion | null;
-  clientId?: string | null;
-}): DocumentReference[] {
-  const byId = new Map<string, DocumentReference>();
-  const scope = (clientId: string | null | undefined): Pick<DocumentReference, 'clientId' | 'requestedClientId'> =>
-    typeof clientId === 'string' && clientId
-      ? { clientId, ...(args.clientId ? { requestedClientId: args.clientId } : {}) }
-      : {};
-  const upsert = (reference: DocumentReference): void => {
-    const existing = byId.get(reference.id);
-    if (!existing) {
-      byId.set(reference.id, { ...reference, relevantPassageIds: [...new Set(reference.relevantPassageIds)] });
-      return;
-    }
-    const readable = existing.readable || reference.readable;
-    const readableStates = new Set(['ready', 'partial', 'indexed_or_extracted']);
-    byId.set(reference.id, {
-      ...existing,
-      filename: existing.filename === existing.id && reference.filename !== reference.id ? reference.filename : existing.filename,
-      version: existing.version ?? reference.version,
-      contentState: readableStates.has(existing.contentState)
-        ? existing.contentState
-        : reference.contentState,
-      readable,
-      relevantPassageIds: [...new Set([...existing.relevantPassageIds, ...reference.relevantPassageIds])],
-      ...(existing.clientId === undefined && reference.clientId !== undefined ? { clientId: reference.clientId } : {}),
-      ...(existing.requestedClientId === undefined && reference.requestedClientId !== undefined
-        ? { requestedClientId: reference.requestedClientId }
-        : {}),
-    });
-  };
-  const pagesFor = (documentId: string) => args.documentCompletion?.documents.get(documentId)?.pages ?? [];
-  const stateFor = (documentId: string, extracted: boolean): DocumentReference['contentState'] => {
-    const pages = pagesFor(documentId);
-    if (pages.length && pages.some((page) => page.readable)) {
-      return completeDocumentPages(pages) ? 'ready' : 'partial';
-    }
-    if (extracted) return 'indexed_or_extracted';
-    return pages.length ? 'failed' : 'metadata_only';
-  };
-
-  for (const citation of args.citations) {
-    const evidence = citation.documentEvidence;
-    if (!evidence) continue;
-    const record = asRecord(evidence.record);
-    const recordId =
-      typeof record?.recordId === 'string' ? record.recordId
-        : typeof record?.id === 'string' ? record.id
-          : citation.id || null;
-    const extracted = Boolean(recordId);
-    upsert({
-      kind: 'client_document',
-      id: evidence.documentId,
-      filename: citation.title || evidence.documentId,
-      version: evidence.contentHash,
-      contentState: stateFor(evidence.documentId, extracted),
-      readable: extracted || pagesFor(evidence.documentId).some((page) => page.readable),
-      relevantPassageIds: recordId ? [recordId] : [],
-      resolution: 'explicit_id',
-      ...scope(evidence.clientId),
-    });
-  }
-  for (const [documentId, state] of args.documentCompletion?.documents ?? []) {
-    const readablePages = state.pages.filter((page) => page.readable);
-    upsert({
-      kind: 'client_document',
-      id: documentId,
-      filename: state.name,
-      version: state.pages[0]?.contentHash ?? null,
-      contentState: stateFor(documentId, false),
-      readable: readablePages.length > 0,
-      relevantPassageIds: readablePages.map(documentPageLocator),
-      resolution: 'explicit_id',
-      ...scope(args.documentCompletion?.clientId),
-    });
-  }
-  for (const documentId of args.selectedDocumentIds ?? []) {
-    if (byId.has(documentId)) continue;
-    upsert({
-      kind: 'client_document',
-      id: documentId,
-      filename: documentId,
-      version: null,
-      contentState: 'metadata_only',
-      readable: false,
-      relevantPassageIds: [],
-      resolution: 'explicit_id',
-      ...scope(args.clientId),
-    });
-  }
-  for (const requirement of args.coverageRequirements) {
-    const documentId = requirement.route?.documentId;
-    if (typeof documentId !== 'string' || !documentId) continue;
-    const documentName = requirement.route?.documentName;
-    const routeClient = requirement.route?.clientId;
-    upsert({
-      kind: 'attachment',
-      id: documentId,
-      filename: typeof documentName === 'string' && documentName ? documentName : documentId,
-      version: null,
-      contentState: 'metadata_only',
-      readable: false,
-      relevantPassageIds: [],
-      resolution: 'explicit_id',
-      ...scope(typeof routeClient === 'string' ? routeClient : args.clientId),
-    });
-  }
-  return [...byId.values()];
-}
-
 const rolloutDiagnosticsLogged = new Set<string>();
 
 /** Tests only: clears the once-per-process rollout diagnostics. */
@@ -759,6 +633,7 @@ export class MeriV3AssistantService {
             plan: evidencePlan,
             request: lastUserText,
             frame: operatingFrame,
+            selectedDocumentIds: dto.selectedDocumentIds,
             clientId: dto.clientId,
           });
 
@@ -1464,7 +1339,8 @@ export class MeriV3AssistantService {
         residualCoverageGaps,
         availableSchemas,
         lastUserText,
-        documentCompletion,
+        evidenceAccuracyMode,
+        synthesisModel: actualModel,
         canary,
       });
       released = { ...released, reply: corrected.reply, citations: corrected.citations };
@@ -1692,7 +1568,9 @@ export class MeriV3AssistantService {
     residualCoverageGaps: CoverageGap[];
     availableSchemas: ToolSchema[];
     lastUserText: string;
-    documentCompletion: MeriDocumentCompletion | null;
+    evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
+    /** Model that wrote this turn; prices legacy-judge, recheck and revision tokens. */
+    synthesisModel: string;
     canary: CanaryTurnCollector;
   }): Promise<{ reply: string; citations: MeriCitation[]; documentRequests: number }> {
     const { ctx, dto, opts, released } = args;
@@ -1786,6 +1664,17 @@ export class MeriV3AssistantService {
         llm: this.llm,
         logger: this.logger,
       });
+      // Document references are built only from what this turn observed
+      // (readable content reads, selected or named listings); a turn that
+      // touched no document passes none. The repair loop reads their
+      // `readable`/`contentState` before deciding what a document claim needs.
+      const documentReferences = buildRepairDocumentReferences({
+        ledgerEntries: args.ledgerEntries,
+        citations: released.citations,
+        selectedDocumentIds: dto.selectedDocumentIds,
+        request: args.lastUserText,
+        clientId: dto.clientId,
+      });
       const executor =
         args.mode === 'enforce'
           ? createOrchestratorToolExecutor({
@@ -1804,6 +1693,8 @@ export class MeriV3AssistantService {
                   signal: signal ?? controller.signal,
                   deadlineAt,
                 }),
+              evidenceAccuracyMode: args.evidenceAccuracyMode,
+              documentReferences,
             })
           : new ReplayToolExecutor([]);
       const repairLogger = {
@@ -1812,20 +1703,9 @@ export class MeriV3AssistantService {
         warn: (message: string, fields: Record<string, unknown>) =>
           this.logStructured('warn', message, fields),
       };
-      // Document references reflect what this turn actually read; the repair
-      // loop decides what an unreadable or absent document means for a claim.
-      const documentReferences = buildTurnDocumentReferences({
-        citations: args.citations,
-        selectedDocumentIds: dto.selectedDocumentIds,
-        coverageRequirements: args.coverageRequirements,
-        documentCompletion: args.documentCompletion,
-        clientId: dto.clientId,
-      });
-      // TODO(stage2-fix-c): the repair agent's live-repair deltas land here
-      // (remaining-budget/deadline forwarding into the assessment phase, honoring
-      // `documentReferences.readable`/`contentState`, and any generator budget
-      // contract change). Until then this call site codes against the current
-      // `applyLiveRepair` signature and fences it from the outside.
+      // The stage is fenced from the outside regardless of what the repair
+      // loop does with its own budget: `settleWithinBudget` below stops waiting
+      // at `deadlineAt` or on abort and the finalized reply is released.
       const work = applyLiveRepair({
         released: released.reply,
         claims,
@@ -1840,8 +1720,8 @@ export class MeriV3AssistantService {
         conversationId: dto.conversationId,
         providers,
         executor,
-        // TODO(stage2-fix-c): `runRepairLoop` restarts its own `maxMs` clock, so
-        // the generator's remaining time is measured from this stage's deadline.
+        // Remaining time is measured from this stage's deadline, never from a
+        // budget clock the repair loop restarts for itself.
         generate:
           args.mode === 'enforce'
             ? createRevisionGenerator(this.llm, () => Math.max(1, deadlineAt - Date.now()))
@@ -1850,7 +1730,11 @@ export class MeriV3AssistantService {
         budget: { ...AUTO_CORRECTION_BUDGET, maxMs: Math.max(1, deadlineAt - Date.now()) },
         signal: controller.signal,
         logger: repairLogger,
+        // An omitted mode is treated as enforce by the repair service; always explicit.
         mode: args.mode,
+        // Real read-only classification for remedy planning; unknown tools fail closed.
+        toolRegistry: this.registry,
+        pricing: { llmModel: args.synthesisModel },
       });
       const settled = await settleWithinBudget(work, { deadlineAt, signal: controller.signal });
       if (settled.kind !== 'settled') {
@@ -1858,6 +1742,8 @@ export class MeriV3AssistantService {
         return failed(settled.kind, { claims: claims.length });
       }
       const repair = settled.value;
+      // Repair counts come from the per-claim outcomes the repair service
+      // reports (corrected + qualified + omitted + unresolved === attempted).
       args.canary.noteRepair({
         ...repair.metrics.repairs,
         assessmentMs: repair.metrics.assessmentMs,
@@ -1867,6 +1753,17 @@ export class MeriV3AssistantService {
         sampled: repair.metrics.sampled,
       });
       args.canary.noteLegacy(repair.metrics.legacyInputTokens);
+      this.logStructured('log', 'meri.auto_correction.stage', {
+        conversationId,
+        mode: args.mode,
+        claimsAssessed: claims.length,
+        attempted: repair.metrics.repairs.attempted,
+        wouldAttempt: repair.metrics.wouldAttempt,
+        unresolved: repair.metrics.unresolved,
+        documentRequested: repair.metrics.repairs.documentRequested,
+        replyChanged: repair.changed,
+        elapsedMs: Date.now() - startedAt,
+      });
       const documentRequests = repair.metrics.repairs.documentRequested;
       if (args.mode !== 'enforce' || !repair.changed) return { ...original, documentRequests };
 
