@@ -136,6 +136,7 @@ model Tenant {
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
+  mobileDeviceTokens         MobileDeviceToken[]
   id                         String                      @id @default(uuid()) @db.Uuid
   slug                       String                      @unique @db.Citext
   name                       String
@@ -505,6 +506,7 @@ model User {
   clientNotetakerPreferences ClientNotetakerPreference[]
   meetingPrepJobs            MeetingPrepJob[]
   meetingPrepMondayMappings  MeetingPrepMondayMapping[]
+  mobileDeviceTokens         MobileDeviceToken[]
   id                         String                      @id @default(uuid()) @db.Uuid
   clerkUserId                String                      @unique @map("clerk_user_id")
   email                      String                      @unique @db.Citext
@@ -1298,6 +1300,33 @@ model MailMessage {
   @@index([tenantId, sentAt], map: "mail_messages_tenant_sent_idx")
   @@index([threadId, removedAt, receivedAt], map: "mail_messages_thread_removed_received_idx")
   @@map("mail_messages")
+}
+
+/// APNs registration only. Notification payload policy lives in the mobile
+/// service and permits opaque run/meeting identifiers, never confidential
+/// content. Logout/access revocation sets revokedAt instead of deleting the
+/// audit record.
+model MobileDeviceToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  deviceId    String    @map("device_id") @db.VarChar(128)
+  environment String    @db.VarChar(16)
+  token       String    @db.Text
+  tokenHash   String    @map("token_hash") @db.Char(64)
+  appVersion  String?   @map("app_version") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, deviceId, environment], map: "mobile_device_tokens_owner_device_env_key")
+  @@index([tenantId, userId, revokedAt], map: "mobile_device_tokens_owner_active_idx")
+  @@index([tokenHash, environment], map: "mobile_device_tokens_hash_env_idx")
+  @@map("mobile_device_tokens")
 }
 
 model EngagementAttachment {

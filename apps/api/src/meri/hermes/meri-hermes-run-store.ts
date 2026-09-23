@@ -425,7 +425,7 @@ export class MeriHermesRunStore implements MeriHermesRunRepository {
     await this.append(record.runId, 'run.accepted', {
       idempotencyKey: input.idempotencyKey,
       executionScopeId: input.envelope.executionScopeId,
-      frames: [],
+      frames: [{ type: 'run_accepted', runId: record.runId, status: 'queued', seq: 1 }],
     });
     return record;
   }
