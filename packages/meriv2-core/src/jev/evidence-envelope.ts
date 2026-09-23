@@ -29,6 +29,41 @@ export interface BuildEvidenceEnvelopeInput {
   clientId?: string | null;
   asOf?: string | null;
   scopeQualifiers?: string[];
+  /** Include ledger provenance on sources for opt-in Stage 4 question builders. */
+  includeProvenance?: boolean;
+}
+
+export type JevEvidenceSource = Pick<
+  EvidenceEnvelope['sources'][number],
+  | 'evidenceId'
+  | 'sourceType'
+  | 'sourceId'
+  | 'documentId'
+  | 'version'
+  | 'locator'
+  | 'passage'
+  | 'sourceDate'
+  | 'retrievedAt'
+> & {
+  provenance?: EvidenceEnvelope['sources'][number]['provenance'];
+};
+
+export function envelopeSourcesForJev(
+  envelope: EvidenceEnvelope,
+  options: { includeProvenance: boolean },
+): JevEvidenceSource[] {
+  return envelope.sources.map((source) => ({
+    evidenceId: source.evidenceId,
+    sourceType: source.sourceType,
+    sourceId: source.sourceId,
+    documentId: source.documentId,
+    version: source.version,
+    locator: source.locator,
+    passage: source.passage,
+    sourceDate: source.sourceDate,
+    retrievedAt: source.retrievedAt,
+    ...(options.includeProvenance && source.provenance ? { provenance: source.provenance } : {}),
+  }));
 }
 
 function truncateAtBoundary(text: string, cap: number): string {
@@ -92,6 +127,15 @@ export function buildEvidenceEnvelope(
       effectiveAt: passage?.effectiveAt ?? evidence.effectiveAt ?? null,
       retrievedAt: passage?.retrievedAt ?? evidence.retrievedAt ?? citation?.source?.observedAt
         ?? citation?.documentEvidence?.observedAt ?? null,
+      ...(input.includeProvenance
+        ? {
+            provenance: {
+              evidenceClass: evidence.evidenceClass,
+              primary: evidence.primary,
+              authoritative: evidence.authoritative,
+            },
+          }
+        : {}),
     });
   }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import type { AssuredClaim, ClaimLedger } from '../assurance/claim-ledger';
-import { buildEvidenceEnvelope } from './evidence-envelope';
+import { evidenceEnvelopeSchema, hashEvidenceEnvelope } from './decision-contract';
+import { buildEvidenceEnvelope, envelopeSourcesForJev } from './evidence-envelope';
 
 const claim: AssuredClaim = { id: 'claim-1', text: 'The amount is 42.', type: 'fact', category: 'budget_amount', sourceIds: ['e1'], primarySourcePresent: true, confidence: 'high', asOf: '2026-01-01' };
 const ledger: ClaimLedger = { version: 'ga-claim-ledger-v1', claims: [claim], evidence: [{ id: 'e1', sourceType: 'record', sourceId: 'r1', evidenceClass: 'official_government_data', primary: true, authoritative: true, requirementIds: [] }, { id: 'e2', sourceType: 'record', sourceId: 'r2', evidenceClass: 'official_government_data', primary: true, authoritative: true, requirementIds: [] }], unsupportedClaimIds: [], conflictedClaimIds: [], highRiskUnsupportedClaimIds: [], requiredEvidenceGaps: [], hash: 'ledger' };
@@ -12,6 +13,38 @@ describe('buildEvidenceEnvelope', () => {
     expect(first.envelope.sources.map((source) => source.evidenceId)).toEqual(['e1']);
     expect(buildEvidenceEnvelope(input).hash).toBe(first.hash);
     expect(buildEvidenceEnvelope({ ...input, passages: { e1: { text: 'The amount is 43.' } } }).hash).not.toBe(first.hash);
+  });
+
+  it('accepts legacy and provenance-bearing envelopes without changing the content hash', () => {
+    const input = { claim, ledger, citations: [], passages: { e1: { text: 'The amount is 42.' } }, tenantId: 'tenant-1' };
+    const legacy = buildEvidenceEnvelope(input).envelope;
+    const withProvenance = buildEvidenceEnvelope({ ...input, includeProvenance: true }).envelope;
+
+    expect(evidenceEnvelopeSchema.parse(legacy)).toEqual(legacy);
+    expect(evidenceEnvelopeSchema.parse(withProvenance)).toEqual(withProvenance);
+    expect(withProvenance.sources[0]?.provenance).toEqual({
+      evidenceClass: 'official_government_data', primary: true, authoritative: true,
+    });
+    expect(hashEvidenceEnvelope(withProvenance)).toBe(hashEvidenceEnvelope(legacy));
+    expect(hashEvidenceEnvelope({
+      ...withProvenance,
+      sources: withProvenance.sources.map((source) => ({ ...source, passage: 'The amount is 43.' })),
+    })).not.toBe(hashEvidenceEnvelope(legacy));
+  });
+
+  it('exposes provenance to Jev only when requested', () => {
+    const envelope = buildEvidenceEnvelope({
+      claim, ledger, citations: [], passages: { e1: { text: 'The amount is 42.' } },
+      tenantId: 'tenant-1', includeProvenance: true,
+    }).envelope;
+
+    expect(envelopeSourcesForJev(envelope, { includeProvenance: false })[0]).toEqual({
+      evidenceId: 'e1', sourceType: 'record', sourceId: 'r1', documentId: null, version: null,
+      locator: null, passage: 'The amount is 42.', sourceDate: null, retrievedAt: null,
+    });
+    expect(envelopeSourcesForJev(envelope, { includeProvenance: true })[0]?.provenance).toEqual({
+      evidenceClass: 'official_government_data', primary: true, authoritative: true,
+    });
   });
 
   it('caps a passage and records explicit truncation', () => {

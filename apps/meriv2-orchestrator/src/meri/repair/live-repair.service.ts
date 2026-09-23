@@ -467,6 +467,11 @@ function envelopeFor(claim: AssuredClaim, input: LiveRepairInput): EvidenceEnvel
         documentId: null, version: null, locator: null, passage: input.passages[id]?.text ?? '',
         sourceDate: item.asOf ?? null, publishedAt: item.publishedAt ?? null,
         effectiveAt: item.effectiveAt ?? null, retrievedAt: item.retrievedAt ?? null,
+        provenance: {
+          evidenceClass: item.evidenceClass,
+          primary: item.primary,
+          authoritative: item.authoritative,
+        },
       }] : [];
     }),
   };
