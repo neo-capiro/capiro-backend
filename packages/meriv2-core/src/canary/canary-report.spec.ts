@@ -125,7 +125,7 @@ describe('canary report', () => {
     expect(report.limits.repairLatencyP50Ms).toEqual({ status: 'fail', observed: 12_000, threshold: 3_000 });
     expect(report.limits.repairLatencyP95Ms).toEqual({ status: 'fail', observed: 12_000, threshold: 8_000 });
     expect(report.current.latencyMs.timeToText).toEqual({ p50: 100, p95: 100 });
-    expect(report.markdown).toContain('5 turn(s) with an attempted repair');
+    expect(report.markdown).toContain('5 turn(s) with an attempted repair or outer-fence timeout');
   });
 
   it('reports insufficient data, never pass, for repair latency when no turn attempted a repair', () => {
@@ -153,5 +153,31 @@ describe('canary report', () => {
     const inconsistent = buildCanaryReport([event({ repair: repair({ attempted: 1, corrected: 1, qualified: 1 }) })]);
     expect(inconsistent.current.repair).toMatchObject({ successful: 1, unresolved: 0 });
     expect(inconsistent.current.repair.successRate.value).toBe(1);
+  });
+
+  it('applies V2 completion, failure and passage-intervention limits while V1 remains unchanged', () => {
+    const intervention = event({ passageSelection: {
+      ...event().passageSelection,
+      safetyIntervention: { evaluated: true, intervened: true, reasons: ['required_candidate_restored'] },
+    } });
+    const incomplete = event({ outcome: 'incomplete' });
+    const report = buildCanaryReport([intervention, incomplete], [event(), event()], { limitsVersion: 'v2' });
+    expect(report.limitsVersion).toBe('stage2-canary-limits-v2');
+    expect(report.current.outcomes.incomplete).toBe(1);
+    expect(report.current.passage.selectionsEvaluated).toBe(1);
+    expect(report.current.passage.safetyInterventionReasons).toEqual({ required_candidate_restored: 1 });
+    expect(report.limits.passageSafetyInterventionRate.status).toBe('fail');
+    expect(report.limits.completionRateDropPp.status).toBe('fail');
+    expect(report.limits.incompleteRateDeltaPp.status).toBe('fail');
+    expect(buildCanaryReport([intervention], [event()]).limits).not.toHaveProperty('passageSafetyInterventionRate');
+  });
+
+  it('keeps an outer-fence timeout in the repair latency sample without claiming an attempted claim', () => {
+    const timedOut = event({ repair: repair({ timedOut: true, budgetExhausted: 1 }),
+      latencyMs: latency({ repair: 8_000 }) });
+    const report = buildCanaryReport([timedOut], [], { limitsVersion: 'v2' });
+    expect(report.current.repair.turnsAttempted).toBe(0);
+    expect(report.current.latencyMs.repair).toEqual({ p50: 8_000, p95: 8_000 });
+    expect(report.limits.repairLatencyP50Ms.status).toBe('fail');
   });
 });

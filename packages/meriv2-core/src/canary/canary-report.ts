@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
-import { CANARY_LIMITS_V1, CANARY_LIMITS_VERSION } from './limits';
+import {
+  CANARY_LIMITS_V1,
+  CANARY_LIMITS_V2,
+  CANARY_LIMITS_V2_VERSION,
+  CANARY_LIMITS_VERSION,
+} from './limits';
 
 const count = z.number().int().nonnegative();
 export const canaryTurnEventSchema = z.object({
@@ -9,13 +14,15 @@ export const canaryTurnEventSchema = z.object({
   surface: z.string(), modes: z.record(z.string()),
   registryVersion: z.string().optional(),
   jevTasks: z.record(z.object({ questionVersion: z.string(), modelVersion: z.string() })).optional(),
-  outcome: z.enum(['released', 'held', 'error', 'aborted']), clarificationRequested: z.boolean(),
+  outcome: z.enum(['released', 'held', 'error', 'aborted', 'incomplete']), clarificationRequested: z.boolean(),
   heldReason: z.string().nullable(),
   coverage: z.object({ gaps: count, followUps: count, residual: count }),
   passageSelection: z.object({ candidates: count, kept: count, dropped: count,
-    requiredCandidates: count, requiredRetained: count, contradictoryRetained: count, fallback: z.boolean() }),
+    requiredCandidates: count, requiredRetained: count, contradictoryRetained: count, fallback: z.boolean(),
+    safetyIntervention: z.object({ evaluated: z.boolean().optional(), intervened: z.boolean(),
+      reasons: z.array(z.string()) }).optional() }),
   repair: z.object({ attempted: count, corrected: count, qualified: count, omitted: count,
-    documentRequested: count, budgetExhausted: count }),
+    documentRequested: count, budgetExhausted: count, timedOut: z.boolean().optional() }),
   latencyMs: z.object({ timeToText: count, assessment: count, passageSelection: count,
     coverageFollowUp: count, repair: count, total: count }),
   tokens: z.object({ synthesis: count, jev: count, legacy: count, repair: count }),
@@ -72,43 +79,62 @@ function aggregate(events: CanaryTurnEvent[]) {
   const turnsFullyRepaired = repairs.filter((repair) => repair.attempted > 0 && repair.resolved === repair.attempted).length;
   // The collector leaves latencyMs.repair at 0 on turns that never ran a repair; sampling
   // those would let the repair-latency gates pass on zeros.
-  const repairTurns = events.filter((event) => event.repair.attempted > 0);
+  const repairTurns = events.filter((event) => event.repair.attempted > 0 || event.repair.timedOut === true);
   const requiredCandidates = events.reduce((sum, event) => sum + event.passageSelection.requiredCandidates, 0);
   const requiredRetained = events.reduce((sum, event) => sum + event.passageSelection.requiredRetained, 0);
+  const passageSelections = events.filter((event) => event.passageSelection.safetyIntervention?.evaluated === true);
   const component = (key: LatencyComponent, sample: CanaryTurnEvent[]): Percentiles => ({
     p50: percentile(sample.map((event) => event.latencyMs[key]), .5),
     p95: percentile(sample.map((event) => event.latencyMs[key]), .95),
   });
   return {
     turns: events.length,
-    outcomes: Object.fromEntries(['released', 'held', 'error', 'aborted'].map((outcome) =>
+    outcomes: Object.fromEntries(['released', 'held', 'error', 'aborted', 'incomplete'].map((outcome) =>
       [outcome, events.filter((event) => event.outcome === outcome).length])),
     holds: events.filter((event) => event.outcome === 'held').length,
     clarification: rate(events.filter((event) => event.clarificationRequested).length, events.length),
     repair: { attempted, successful, unresolved: attempted - successful, successRate: rate(successful, attempted),
       turnsAttempted, turnsFullyRepaired, turnSuccessRate: rate(turnsFullyRepaired, turnsAttempted),
+      latencyTurns: repairTurns.length,
       corrected: events.reduce((s, e) => s + e.repair.corrected, 0),
       qualified: events.reduce((s, e) => s + e.repair.qualified, 0),
       omitted: events.reduce((s, e) => s + e.repair.omitted, 0) },
     passage: { candidates: events.reduce((s, e) => s + e.passageSelection.candidates, 0),
       dropped: events.reduce((s, e) => s + e.passageSelection.dropped, 0), requiredCandidates,
-      requiredRetained, requiredRetention: rate(requiredRetained, requiredCandidates) },
+      requiredRetained, requiredRetention: rate(requiredRetained, requiredCandidates),
+      selectionsEvaluated: passageSelections.length,
+      safetyInterventions: passageSelections.filter((event) => event.passageSelection.safetyIntervention?.intervened).length,
+      safetyInterventionRate: rate(passageSelections.filter((event) =>
+        event.passageSelection.safetyIntervention?.intervened).length, passageSelections.length),
+      safetyInterventionReasons: events.flatMap((event) => event.passageSelection.safetyIntervention?.reasons ?? [])
+        .reduce<Record<string, number>>((counts, reason) => ({ ...counts, [reason]: (counts[reason] ?? 0) + 1 }), {}) },
     coverageFollowUps: events.reduce((sum, event) => sum + event.coverage.followUps, 0),
     latencyMs: Object.fromEntries(LATENCY_COMPONENTS.map((key) =>
       [key, component(key, key === 'repair' ? repairTurns : events)])) as Record<LatencyComponent, Percentiles>,
     released: released.length,
+    completionRate: rate(released.length, events.length),
+    errorRate: rate(events.filter((event) => event.outcome === 'error').length, events.length),
+    abortRate: rate(events.filter((event) => event.outcome === 'aborted').length, events.length),
+    incompleteRate: rate(events.filter((event) => event.outcome === 'incomplete').length, events.length),
     costPerReleasedTurn: released.length ? released.reduce((sum, event) => sum + event.estimatedCostUsd, 0) / released.length : null,
   };
 }
 
 type Status = 'pass' | 'fail' | 'insufficient_data';
-export function buildCanaryReport(canary: CanaryTurnEvent[], baseline: CanaryTurnEvent[] = []) {
+export type CanaryLimitsVersion = 'v1' | 'v2';
+export function buildCanaryReport(
+  canary: CanaryTurnEvent[],
+  baseline: CanaryTurnEvent[] = [],
+  options: { limitsVersion?: CanaryLimitsVersion } = {},
+) {
   const current = aggregate(canary); const prior = aggregate(baseline);
+  const selectedVersion = options.limitsVersion ?? 'v1';
+  const configured = selectedVersion === 'v2' ? CANARY_LIMITS_V2 : CANARY_LIMITS_V1;
   const limit = (status: Status, observed: number | null, threshold: number) => ({ status, observed, threshold });
   const clarificationDelta = current.clarification.value === null || prior.clarification.value === null ? null
     : (current.clarification.value - prior.clarification.value) * 100;
   const repairLatency = current.latencyMs.repair;
-  const repairSampled = current.repair.turnsAttempted > 0;
+  const repairSampled = repairLatency.p50 !== null;
   const currentTtt = current.latencyMs.timeToText;
   const priorTtt = prior.latencyMs.timeToText;
   const tttDelta = currentTtt.p95 === null || priorTtt.p95 === null ? null : currentTtt.p95 - priorTtt.p95;
@@ -118,18 +144,40 @@ export function buildCanaryReport(canary: CanaryTurnEvent[], baseline: CanaryTur
   const compare = (value: number | null, threshold: number, direction: 'max' | 'min' = 'max', hasData = true): Status =>
     value === null || !hasData ? 'insufficient_data' : direction === 'max' ? value <= threshold ? 'pass' : 'fail' : value >= threshold ? 'pass' : 'fail';
   const limits = {
-    holds: limit(compare(current.holds, CANARY_LIMITS_V1.holds, 'max', current.turns > 0), current.holds, CANARY_LIMITS_V1.holds),
-    clarificationRateDeltaPp: limit(compare(clarificationDelta, CANARY_LIMITS_V1.clarificationRateDeltaPp), clarificationDelta, CANARY_LIMITS_V1.clarificationRateDeltaPp),
-    repairLatencyP50Ms: limit(compare(repairLatency.p50, CANARY_LIMITS_V1.repairLatencyP50Ms, 'max', repairSampled), repairLatency.p50, CANARY_LIMITS_V1.repairLatencyP50Ms),
-    repairLatencyP95Ms: limit(compare(repairLatency.p95, CANARY_LIMITS_V1.repairLatencyP95Ms, 'max', repairSampled), repairLatency.p95, CANARY_LIMITS_V1.repairLatencyP95Ms),
-    passageRequiredRetention: limit(compare(retention, CANARY_LIMITS_V1.passageRequiredRetention, 'min'), retention, CANARY_LIMITS_V1.passageRequiredRetention),
-    timeToTextP95DeltaMs: limit(compare(tttDelta, CANARY_LIMITS_V1.timeToTextP95DeltaMs), tttDelta, CANARY_LIMITS_V1.timeToTextP95DeltaMs),
-    costPerCompletedTurnDeltaPct: limit(compare(costDelta, CANARY_LIMITS_V1.costPerCompletedTurnDeltaPct), costDelta, CANARY_LIMITS_V1.costPerCompletedTurnDeltaPct),
-  };
-  const payload = { version: 'meri-canary-report-v1', limitsVersion: CANARY_LIMITS_VERSION,
+    holds: limit(compare(current.holds, configured.holds, 'max', current.turns > 0), current.holds, configured.holds),
+    clarificationRateDeltaPp: limit(compare(clarificationDelta, configured.clarificationRateDeltaPp), clarificationDelta, configured.clarificationRateDeltaPp),
+    repairLatencyP50Ms: limit(compare(repairLatency.p50, configured.repairLatencyP50Ms, 'max', repairSampled), repairLatency.p50, configured.repairLatencyP50Ms),
+    repairLatencyP95Ms: limit(compare(repairLatency.p95, configured.repairLatencyP95Ms, 'max', repairSampled), repairLatency.p95, configured.repairLatencyP95Ms),
+    passageRequiredRetention: limit(compare(retention, configured.passageRequiredRetention, 'min'), retention, configured.passageRequiredRetention),
+    timeToTextP95DeltaMs: limit(compare(tttDelta, configured.timeToTextP95DeltaMs), tttDelta, configured.timeToTextP95DeltaMs),
+    costPerCompletedTurnDeltaPct: limit(compare(costDelta, configured.costPerCompletedTurnDeltaPct), costDelta, configured.costPerCompletedTurnDeltaPct),
+  } as Record<'holds' | 'clarificationRateDeltaPp' | 'repairLatencyP50Ms' | 'repairLatencyP95Ms'
+    | 'passageRequiredRetention' | 'timeToTextP95DeltaMs' | 'costPerCompletedTurnDeltaPct'
+    | 'passageSafetyInterventionRate' | 'completionRateDropPp' | 'errorRateDeltaPp'
+    | 'abortRateDeltaPp' | 'incompleteRateDeltaPp', ReturnType<typeof limit>>;
+  if (selectedVersion === 'v2') {
+    const deltaPp = (now: number | null, before: number | null) => now === null || before === null ? null : (now - before) * 100;
+    const completionDrop = current.completionRate.value === null || prior.completionRate.value === null
+      ? null : (prior.completionRate.value - current.completionRate.value) * 100;
+    limits.passageSafetyInterventionRate = limit(compare(current.passage.safetyInterventionRate.value,
+      CANARY_LIMITS_V2.passageSafetyInterventionRate), current.passage.safetyInterventionRate.value,
+    CANARY_LIMITS_V2.passageSafetyInterventionRate);
+    limits.completionRateDropPp = limit(compare(completionDrop, CANARY_LIMITS_V2.completionRateDropPp),
+      completionDrop, CANARY_LIMITS_V2.completionRateDropPp);
+    for (const [name, currentRate, priorRate, threshold] of [
+      ['errorRateDeltaPp', current.errorRate.value, prior.errorRate.value, CANARY_LIMITS_V2.errorRateDeltaPp],
+      ['abortRateDeltaPp', current.abortRate.value, prior.abortRate.value, CANARY_LIMITS_V2.abortRateDeltaPp],
+      ['incompleteRateDeltaPp', current.incompleteRate.value, prior.incompleteRate.value, CANARY_LIMITS_V2.incompleteRateDeltaPp],
+    ] as const) {
+      const observed = deltaPp(currentRate, priorRate);
+      limits[name] = limit(compare(observed, threshold), observed, threshold);
+    }
+  }
+  const payload = { version: 'meri-canary-report-v1',
+    limitsVersion: selectedVersion === 'v2' ? CANARY_LIMITS_V2_VERSION : CANARY_LIMITS_VERSION,
     sampleSizes: { canary: canary.length, baseline: baseline.length }, current, baseline: prior, limits };
   const hash = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-  const repairNote = `Repair latency percentiles are taken over ${current.repair.turnsAttempted} turn(s) with an attempted repair; `
+  const repairNote = `Repair latency percentiles are taken over ${current.repair.latencyTurns} turn(s) with an attempted repair or outer-fence timeout; `
     + `repair success is per claim (${current.repair.successful}/${current.repair.attempted} resolved), `
     + `with ${current.repair.turnsFullyRepaired}/${current.repair.turnsAttempted} attempted turn(s) fully repaired.`;
   const markdown = `# Meri Stage 2 canary report\n\nHash: \`${hash}\`\n\nCanary turns: ${canary.length}; baseline turns: ${baseline.length}.\n\n## Limits\n\n| Limit | Status | Observed | Threshold |\n| --- | --- | ---: | ---: |\n${Object.entries(limits).map(([name, row]) => `| ${name} | ${row.status} | ${row.observed ?? 'n/a'} | ${row.threshold} |`).join('\n')}\n\n${repairNote}\n`;

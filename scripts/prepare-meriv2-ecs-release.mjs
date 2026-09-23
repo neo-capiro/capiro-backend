@@ -14,6 +14,12 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { resolveAwsCli } from './lib/resolve-aws-cli.mjs';
+import {
+  computeControlChanges,
+  controlledEnvironment,
+  replaceControlledEnvironment,
+  resolveControlPolicy,
+} from './lib/meriv2-release-controls.mjs';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -74,7 +80,7 @@ async function main() {
   const registry = `${account}.dkr.ecr.${region}.${partitionDns(region)}`;
   await mkdir(outputDir, { recursive: true });
 
-  const prepared = [];
+  const candidates = [];
   for (const definition of definitions) {
     await assertImage(definition.repository, sha);
     const serviceResponse = await awsJson([
@@ -88,18 +94,45 @@ async function main() {
     const service = serviceResponse.services?.[0];
     if (!service?.taskDefinition) throw new Error(`Service ${definition.service} is missing.`);
     const current = await describeTask(service.taskDefinition);
-    const proposed = prepareTaskDefinition(
-      current,
+    candidates.push({
       definition,
-      `${registry}/${definition.repository}:${sha}`,
-    );
+      current,
+      service,
+      image: `${registry}/${definition.repository}:${sha}`,
+      controlChanges: computeControlChanges(targetEnvironment(current, definition), definition.environment),
+    });
+  }
+
+  const migrationFamily = args.migrationFamily ?? `capiro-${envName}-api-migrate`;
+  const migrationCurrent = await describeTask(migrationFamily);
+  const apiDefinition = definitions[0];
+  const migrationDefinition = {
+    ...apiDefinition,
+    key: 'api-migrate',
+    containers: ['api-migrate', 'api'],
+  };
+  const migrationControlChanges = computeControlChanges(
+    targetEnvironment(migrationCurrent, migrationDefinition),
+    migrationDefinition.environment,
+  );
+  const allControlChanges = candidates.flatMap(({ definition, controlChanges }) =>
+    controlChanges.map((change) => ({ service: definition.key, ...change })),
+  );
+  allControlChanges.push(
+    ...migrationControlChanges.map((change) => ({ service: migrationDefinition.key, ...change })),
+  );
+  const controlPolicy = resolveControlPolicy(allControlChanges, args);
+  const prepared = [];
+  for (const candidate of candidates) {
+    const { definition, current, service, image, controlChanges } = candidate;
+    const proposed = prepareTaskDefinition(current, definition, image, controlPolicy);
     const file = path.join(outputDir, `${definition.key}.task-definition.json`);
     await writeFile(file, `${JSON.stringify(proposed, null, 2)}\n`, 'utf8');
     prepared.push({
       key: definition.key,
       service: definition.service,
       repository: definition.repository,
-      image: `${registry}/${definition.repository}:${sha}`,
+      image,
       currentTaskDefinitionArn: service.taskDefinition,
       desiredCount: service.desiredCount,
       runningCount: service.runningCount,
@@ -109,17 +142,18 @@ async function main() {
       capacityProviderStrategy: service.capacityProviderStrategy,
       launchType: service.launchType,
       proposedFile: path.relative(ROOT, file),
+      containerNames: definition.containers,
       darkEnvironment: definition.environment,
+      liveControls: controlledEnvironment(targetEnvironment(current, definition)),
+      controlChanges,
     });
   }
 
-  const migrationFamily = args.migrationFamily ?? `capiro-${envName}-api-migrate`;
-  const migrationCurrent = await describeTask(migrationFamily);
-  const apiDefinition = definitions[0];
   const migrationProposed = prepareTaskDefinition(
     migrationCurrent,
-    { ...apiDefinition, key: 'api-migrate', containers: ['api-migrate', 'api'] },
+    migrationDefinition,
     `${registry}/${apiDefinition.repository}:${sha}`,
+    controlPolicy,
   );
   const migrationFile = path.join(outputDir, 'api-migrate.task-definition.json');
   await writeFile(migrationFile, `${JSON.stringify(migrationProposed, null, 2)}\n`, 'utf8');
@@ -137,6 +171,8 @@ async function main() {
     callerArn: identity.Arn,
     awsMutation: false,
     secretValuesRead: false,
+    controlPolicy,
+    controlChanges: allControlChanges,
     services: prepared,
     migration: {
       family: migrationFamily,
@@ -145,6 +181,10 @@ async function main() {
       networkConfiguration: apiService?.networkConfiguration,
       capacityProviderStrategy: apiService?.capacityProviderStrategy,
       launchType: apiService?.launchType,
+      containerNames: migrationDefinition.containers,
+      darkEnvironment: migrationDefinition.environment,
+      liveControls: controlledEnvironment(targetEnvironment(migrationCurrent, migrationDefinition)),
+      controlChanges: migrationControlChanges,
     },
     registrationOrder: [
       'api-migrate',
@@ -185,7 +225,7 @@ async function describeTask(taskDefinition) {
   return { ...response.taskDefinition, tags: response.tags ?? [] };
 }
 
-function prepareTaskDefinition(current, definition, image) {
+function prepareTaskDefinition(current, definition, image, controlPolicy) {
   const allowed = [
     'family',
     'taskRoleArn',
@@ -222,58 +262,22 @@ function prepareTaskDefinition(current, definition, image) {
     containers[0];
   if (!target) throw new Error(`${definition.key} task definition has no container.`);
   target.image = image;
-  target.environment = replaceEnvironment(target.environment ?? [], definition.environment);
+  target.environment = replaceControlledEnvironment(
+    target.environment ?? [],
+    definition.environment,
+    controlPolicy,
+  );
   return proposed;
 }
 
-function replaceEnvironment(existing, intended) {
-  const controlled = new Set([
-    'MEMORY_GOVERNANCE_TENANTS',
-    'MEMORY_GOVERNANCE_LIFECYCLE',
-    'MEMORY_GOVERNANCE_ENFORCE',
-    'MEMORY_CLIENT_REVIEW',
-    'MEMORY_GOVERNANCE_CENTER',
-    'MERIV2_CONTEXT_PACKET_V2',
-    'CONTEXT_PACKET_V2',
-    'MERI_POLICY_PACK_SOURCE',
-    'MERI_POLICY_PACK_TENANTS',
-    'MERI_RELEASE_GATE',
-    'MERI_RELEASE_GATE_TENANTS',
-    'MERI_RELEASE_GATE_SURFACES',
-    'MERI_EVIDENCE_ACCURACY_MODE',
-    'MERI_EVIDENCE_ACCURACY_TENANTS',
-    'MERI_EVIDENCE_ACCURACY_SURFACES',
-    'MERI_COVERAGE_RETRIEVAL_MODE',
-    'MERI_COVERAGE_RETRIEVAL_TENANTS',
-    'MERI_COVERAGE_RETRIEVAL_SURFACES',
-    'MERI_CLAIM_ASSESSMENT_MODE',
-    'MERI_CLAIM_ASSESSMENT_TENANTS',
-    'MERI_CLAIM_ASSESSMENT_SURFACES',
-    'MERI_AUTO_CORRECTION_MODE',
-    'MERI_AUTO_CORRECTION_TENANTS',
-    'MERI_AUTO_CORRECTION_SURFACES',
-    'MERI_AUTO_CORRECTION_CATEGORIES',
-    'MERI_PASSAGE_SELECTION_MODE',
-    'MERI_PASSAGE_SELECTION_TENANTS',
-    'MERI_PASSAGE_SELECTION_SURFACES',
-    'MERI_JEV_PROVIDER_MODE',
-    'MERI_JEV_PROVIDER_TENANTS',
-    'MERI_JEV_PROVIDER_SURFACES',
-    'MERI_JEV_MODEL',
-    'MERI_JEV_TIMEOUT_MS',
-    'MERI_JEV_MAX_ATTEMPTS',
-    'MERI_CHAT_EVIDENCE_JUDGE',
-    'MERI_JEV_TASKS',
-    'MEMORY_AUTOLEARN_GOVERNED',
-    'MERIV2_CONTROL_METRICS',
-  ]);
-  const values = new Map(
-    existing
-      .filter((item) => !controlled.has(item.name))
-      .map((item) => [item.name, { name: item.name, value: String(item.value ?? '') }]),
-  );
-  for (const [name, value] of Object.entries(intended)) values.set(name, { name, value });
-  return [...values.values()].sort((left, right) => left.name.localeCompare(right.name));
+function targetEnvironment(taskDefinition, definition) {
+  const containers = taskDefinition.containerDefinitions ?? [];
+  const target =
+    containers.find((item) => definition.containers.includes(item.name)) ??
+    containers.find((item) => item.essential) ??
+    containers[0];
+  if (!target) throw new Error(`${definition.key} task definition has no container.`);
+  return target.environment ?? [];
 }
 
 function darkApiEnvironment() {
@@ -386,6 +390,11 @@ function parse(values) {
     if (!arg.startsWith('--')) throw new Error(`Unexpected argument: ${arg}`);
     const [raw, inline] = arg.slice(2).split('=', 2);
     const key = raw.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+    if (raw === 'preserve-live-controls' || raw === 'reset-controls') {
+      if (inline !== undefined) throw new Error(`--${raw} does not take a value.`);
+      output[key] = true;
+      continue;
+    }
     const value = inline ?? values[++index];
     if (!value || value.startsWith('--')) throw new Error(`Missing value for --${raw}`);
     output[key] = value;

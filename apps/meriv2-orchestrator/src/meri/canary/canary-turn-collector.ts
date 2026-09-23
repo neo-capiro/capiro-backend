@@ -20,7 +20,7 @@ export interface CanaryTurnEvent {
   };
   registryVersion: typeof JEV_TASK_REGISTRY_VERSION;
   jevTasks: Record<string, { questionVersion: string; modelVersion: string }>;
-  outcome: 'released' | 'held' | 'error' | 'aborted';
+  outcome: 'released' | 'held' | 'error' | 'aborted' | 'incomplete';
   clarificationRequested: boolean;
   heldReason: string | null;
   coverage: { gaps: number; followUps: number; residual: number };
@@ -32,6 +32,7 @@ export interface CanaryTurnEvent {
     requiredRetained: number;
     contradictoryRetained: number;
     fallback: boolean;
+    safetyIntervention?: { evaluated: boolean; intervened: boolean; reasons: string[] };
   };
   repair: {
     attempted: number;
@@ -40,6 +41,7 @@ export interface CanaryTurnEvent {
     omitted: number;
     documentRequested: number;
     budgetExhausted: number;
+    timedOut?: boolean;
   };
   latencyMs: {
     timeToText: number;
@@ -69,10 +71,11 @@ export class CanaryTurnCollector {
     passageSelection: {
       candidates: 0, kept: 0, dropped: 0, requiredCandidates: 0, requiredRetained: 0,
       contradictoryRetained: 0, fallback: false,
+      safetyIntervention: { evaluated: false, intervened: false, reasons: [] },
     },
     repair: {
       attempted: 0, corrected: 0, qualified: 0, omitted: 0,
-      documentRequested: 0, budgetExhausted: 0,
+      documentRequested: 0, budgetExhausted: 0, timedOut: false,
     },
     latencyMs: {
       timeToText: 0, assessment: 0, passageSelection: 0,

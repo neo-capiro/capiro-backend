@@ -12,8 +12,10 @@ import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/
  */
 const blankToUndefined = (value: unknown): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
+const normalizeOptionalSwitch = (value: unknown): unknown =>
+  typeof value === 'string' ? blankToUndefined(value.trim().toLowerCase()) : value;
 const rolloutModeSwitch = () =>
-  z.preprocess(blankToUndefined, z.enum(['off', 'shadow', 'enforce']).optional());
+  z.preprocess(normalizeOptionalSwitch, z.enum(['off', 'shadow', 'enforce']).optional());
 
 export const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
@@ -788,14 +790,17 @@ export const configSchema = z.object({
   MERI_PASSAGE_SELECTION_SURFACES: z.string().optional(),
 
   // Stage 0e Jev provider foundation. Validation-only until an app-side factory exists.
-  TYPESAFE_API_KEY: z.string().min(1).optional(),
+  TYPESAFE_API_KEY: z.preprocess(blankToUndefined, z.string().min(1).optional()),
   MERI_JEV_MODEL: z.string().optional(),
   MERI_JEV_TIMEOUT_MS: z.string().optional(),
   MERI_JEV_MAX_ATTEMPTS: z.string().optional(),
   MERI_JEV_PROVIDER_MODE: rolloutModeSwitch(),
   MERI_JEV_PROVIDER_TENANTS: z.string().optional(),
   MERI_JEV_PROVIDER_SURFACES: z.string().optional(),
-  MERI_CHAT_EVIDENCE_JUDGE: z.preprocess(blankToUndefined, z.enum(['llm', 'jev', 'paired', 'cascade']).optional()),
+  MERI_CHAT_EVIDENCE_JUDGE: z.preprocess(
+    normalizeOptionalSwitch,
+    z.enum(['llm', 'jev', 'paired', 'cascade']).optional(),
+  ),
   MERI_JEV_TASKS: z.string().optional(),
 
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).

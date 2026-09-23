@@ -177,6 +177,10 @@ describe('passage selector', () => {
     const result = selectPassages({ candidates, answers: assessed });
     expect(result.kept.map(({ id }) => id)).toEqual(['p0', 'p1', 'p2', 'p3']);
     expect(result.dropped.map(({ id }) => id)).toEqual(['p4']);
+    expect(result.safetyIntervention).toEqual({
+      intervened: true,
+      reasons: ['contradictory_candidate_restored', 'required_candidate_restored'],
+    });
     expect(result.retainedRequired).toBe(1); // Required evidence recall is exactly 1/1.
     expect(result.retainedUserSelected).toBe(1);
     expect(result.retainedContradictory).toBe(2);
@@ -282,7 +286,11 @@ describe('passage selector', () => {
   it('falls back unfiltered for unavailable provider and budget overflow', async () => {
     const candidates = [candidate('p0'), candidate('p1')];
     const unavailable = await askPassageQuestions({ question: 'q', candidates, provider: null });
-    expect(selectPassages({ candidates, answers: unavailable })).toMatchObject({ fallback: true, kept: candidates });
+    expect(selectPassages({ candidates, answers: unavailable })).toMatchObject({
+      fallback: true,
+      kept: candidates,
+      safetyIntervention: { intervened: true, reasons: ['fallback_unfiltered:provider_unavailable'] },
+    });
     const provider = createJevClient({ apiKey: 'test', model: 'jev-1.13.0', timeoutMs: 100,
       maxAttempts: 1, fetchImpl: jest.fn() as typeof fetch });
     const budget = await askPassageQuestions({ question: 'q', candidates, provider,
