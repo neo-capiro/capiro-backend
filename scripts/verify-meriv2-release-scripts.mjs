@@ -121,12 +121,27 @@ async function main() {
     'additiveMigrationsRetained',
     'validateLiveControlPolicy',
     'assertPreservedControlsStillLive',
+    'assertServiceControlsStillLive',
   ]) {
     assert.ok(execute.includes(fragment), `Dark ECS executor is missing ${fragment}.`);
   }
   assert.ok(
     execute.indexOf('runMigration') < execute.indexOf("'update-service'"),
     'Migration execution must precede service updates.',
+  );
+  // R6 finding 1: a single upfront preserve-live check cannot catch drift introduced while six
+  // registrations and a migration run. assertServiceControlsStillLive must be called both once
+  // up front (fail fast) AND again immediately before EACH service's own update-service call, so
+  // exactly 3 occurrences are expected: the definition plus two call sites.
+  assert.strictEqual(
+    execute.split('assertServiceControlsStillLive').length - 1,
+    3,
+    'assertServiceControlsStillLive must be called once up front and once per service immediately before update-service (plus its definition).',
+  );
+  assert.ok(
+    execute.indexOf('assertServiceControlsStillLive(manifest, service)')
+      < execute.indexOf("'update-service'", execute.indexOf('for (const key of SERVICE_ORDER)')),
+    'The per-service control re-check must run before that service\'s update-service call.',
   );
 
   const operations = await text('scripts/deploy-meriv2-operations-dark.mjs');

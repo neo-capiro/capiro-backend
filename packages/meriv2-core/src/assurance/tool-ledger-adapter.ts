@@ -246,6 +246,11 @@ export const TOOL_EVIDENCE_PROFILES: Readonly<Record<string, ToolEvidenceProfile
   query_regulatory_dockets: official('committee_agency_guidance'),
   get_committee_roster: official('committee_agency_guidance'),
 
+  // ── Controlled certification status (Stage 4b) ─────────────────────────
+  // Reads the official FedRAMP Marketplace registry directly; not a Capiro-derived
+  // summary. See docs/meri/grounding/stage-4/4b-status-provenance.md.
+  get_certification_status: official('official_government_data'),
+
   // ── Other independently-sourced government/public records ─────────────
   get_acquisition_person: official('official_government_data'),
   search_acquisition_personnel: official('official_government_data'),

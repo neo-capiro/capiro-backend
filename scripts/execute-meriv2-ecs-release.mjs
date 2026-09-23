@@ -127,6 +127,7 @@ async function main() {
     for (const key of SERVICE_ORDER) {
       const service = serviceByKey(manifest, key);
       const taskDefinitionArn = registrations[key].arn;
+      await assertServiceControlsStillLive(manifest, service);
       await awsJson([
         'ecs',
         'update-service',
@@ -435,14 +436,23 @@ async function validateLiveControlPolicy(manifest) {
       intendedControls: service.darkEnvironment,
       proposedControls: controlledTaskEnvironment(proposed, service.containerNames),
     });
-    if (manifest.controlPolicy !== 'preserve-live' || service.key === 'web') continue;
-    const liveService = await describeService(manifest.cluster, service.service);
-    const liveTask = await describeTaskDefinition(liveService.taskDefinition);
-    assertPreservedControlsStillLive(
-      service.liveControls,
-      controlledTaskEnvironment(liveTask, service.containerNames),
-    );
+    await assertServiceControlsStillLive(manifest, service);
   }
+}
+
+// Re-reads ONE service's current live controls and compares them against what the manifest
+// recorded at prepare time. Called once up front (fail fast before any mutation) AND again
+// immediately before that service's own update-service call: registering six task definitions
+// plus running a migration can take minutes, during which an operator can legitimately change a
+// live control (R6 finding 1) — a single upfront check cannot catch that later drift.
+async function assertServiceControlsStillLive(manifest, service) {
+  if (manifest.controlPolicy !== 'preserve-live' || service.key === 'web') return;
+  const liveService = await describeService(manifest.cluster, service.service);
+  const liveTask = await describeTaskDefinition(liveService.taskDefinition);
+  assertPreservedControlsStillLive(
+    service.liveControls,
+    controlledTaskEnvironment(liveTask, service.containerNames),
+  );
 }
 
 function controlledTaskEnvironment(taskDefinition, containerNames) {
