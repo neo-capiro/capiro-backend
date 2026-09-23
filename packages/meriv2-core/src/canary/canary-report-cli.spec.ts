@@ -22,9 +22,20 @@ describe('canary report CLI', () => {
     writeFileSync(events, `${JSON.stringify(sample)}\n`);
     const packageRoot = path.resolve(__dirname, '../..');
     const output = execFileSync(process.execPath, [path.join(packageRoot, 'node_modules/tsx/dist/cli.mjs'),
-      path.join(packageRoot, 'scripts/canary-report.ts'), '--events', events, '--out', out], { encoding: 'utf8' });
+      path.join(packageRoot, 'scripts/canary-report.ts'), '--events', events, '--limits-version', 'v2',
+      '--out', out], { encoding: 'utf8' });
     expect(output).toContain('1 canary, 0 baseline');
     expect(JSON.parse(readFileSync(path.join(out, 'canary-report.json'), 'utf8')).hash).toHaveLength(64);
     expect(readFileSync(path.join(out, 'canary-report.md'), 'utf8')).toContain('passageRequiredRetention | pass');
+  });
+
+  it('requires an explicit limits version', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'canary-cli-version-')); directories.push(directory);
+    const events = path.join(directory, 'events.jsonl');
+    writeFileSync(events, `${JSON.stringify(sample)}\n`);
+    const packageRoot = path.resolve(__dirname, '../..');
+    expect(() => execFileSync(process.execPath, [path.join(packageRoot, 'node_modules/tsx/dist/cli.mjs'),
+      path.join(packageRoot, 'scripts/canary-report.ts'), '--events', events, '--out', path.join(directory, 'out')],
+    { encoding: 'utf8', stdio: 'pipe' })).toThrow();
   });
 });

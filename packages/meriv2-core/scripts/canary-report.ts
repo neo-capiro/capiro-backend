@@ -15,7 +15,11 @@ function main(): void {
   const baselinePath = argument('--baseline');
   const baseline = baselinePath ? readCanaryEvents(path.resolve(baselinePath))
     : { events: [], rejected: 0, unrelated: 0 };
-  const report = buildCanaryReport(current.events, baseline.events);
+  const limitsVersion = argument('--limits-version');
+  if (limitsVersion !== 'v1' && limitsVersion !== 'v2') {
+    throw new Error('--limits-version <v1|v2> is required');
+  }
+  const report = buildCanaryReport(current.events, baseline.events, { limitsVersion });
   const output = path.resolve(out);
   mkdirSync(output, { recursive: true });
   const { markdown, ...json } = report;

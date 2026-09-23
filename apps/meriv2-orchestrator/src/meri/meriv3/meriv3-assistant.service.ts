@@ -965,6 +965,12 @@ export class MeriV3AssistantService {
           requiredRetained,
           contradictoryRetained: selection.retainedContradictory,
           fallback,
+          safetyIntervention: {
+            evaluated: true,
+            intervened: selection.safetyIntervention.intervened || rebuilt.fallback,
+            reasons: [...selection.safetyIntervention.reasons,
+              ...(rebuilt.fallback ? [`fallback_unfiltered:${rebuilt.fallbackReason ?? 'rebuild_failed'}`] : [])],
+          },
           latencyMs,
           tokens: answers.inputTokens,
           costUsd,
@@ -1415,8 +1421,9 @@ export class MeriV3AssistantService {
       canary.noteTextEmitted();
     }
     const canaryEvent = canary.build({
-      outcome: opts.signal?.aborted ? 'aborted' : released.held ? 'held'
-        : telemetry.finishReason === 'runtime_error' ? 'error' : 'released',
+      outcome: opts.signal?.aborted && telemetry.finishReason !== 'deadline_exceeded' ? 'aborted'
+        : released.held ? 'held' : telemetry.finishReason === 'runtime_error' ? 'error'
+          : telemetry.finishReason === 'deadline_exceeded' ? 'incomplete' : 'released',
       clarificationRequested: replyRequestsClarification(released.reply, documentRequests),
       heldReason: released.held ? complianceOutcome ?? 'release_gate' : null,
     });
@@ -1696,6 +1703,7 @@ export class MeriV3AssistantService {
         omitted: 0,
         documentRequested: 0,
         budgetExhausted: reason === 'deadline' ? 1 : 0,
+        timedOut: reason === 'deadline',
         assessmentMs: 0,
         repairMs: Date.now() - startedAt,
         tokens: 0,
@@ -1817,6 +1825,7 @@ export class MeriV3AssistantService {
       // reports (corrected + qualified + omitted + unresolved === attempted).
       args.canary.noteRepair({
         ...repair.metrics.repairs,
+        timedOut: false,
         assessmentMs: repair.metrics.assessmentMs,
         repairMs: repair.metrics.repairMs,
         tokens: repair.metrics.inputTokens,

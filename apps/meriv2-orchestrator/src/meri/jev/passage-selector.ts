@@ -464,6 +464,7 @@ export interface PassageSelectionResult {
   retainedUserSelected: number;
   retainedContradictory: number;
   fallback: boolean;
+  safetyIntervention: { intervened: boolean; reasons: string[] };
 }
 
 export function selectPassages(input: {
@@ -477,6 +478,10 @@ export function selectPassages(input: {
     retainedUserSelected: input.candidates.filter((item) => item.userSelected).length,
     retainedContradictory: input.candidates.filter((item) => item.deterministicConflict).length,
     fallback: true,
+    safetyIntervention: {
+      intervened: true,
+      reasons: [`fallback_unfiltered:${input.answers.fallbackReason ?? 'unknown'}`],
+    },
   };
   const registryThresholds = JEV_TASK_REGISTRY.passage_relevance.thresholds;
   const thresholds = input.thresholds ?? {
@@ -486,14 +491,18 @@ export function selectPassages(input: {
   };
   const kept: PassageCandidate[] = [];
   const dropped: PassageSelectionResult['dropped'] = [];
+  const safetyReasons = new Set<string>();
   let retainedContradictory = 0;
   for (const candidate of input.candidates) {
     const probabilities = input.answers.probabilities[candidate.id];
     if (!probabilities) return selectPassages({ candidates: input.candidates,
       answers: { ...input.answers, fallback: true } });
     const contradictory = candidate.deterministicConflict || probabilities.contradicts >= thresholds.contradicts;
-    const retained = candidate.required || candidate.userSelected || contradictory
-      || probabilities.usable >= thresholds.usable || probabilities.relevant >= thresholds.relevant;
+    const proposed = candidate.userSelected || probabilities.usable >= thresholds.usable
+      || probabilities.relevant >= thresholds.relevant;
+    if (!proposed && candidate.required) safetyReasons.add('required_candidate_restored');
+    if (!proposed && contradictory) safetyReasons.add('contradictory_candidate_restored');
+    const retained = candidate.required || contradictory || proposed;
     if (retained) {
       kept.push(candidate);
       if (contradictory) retainedContradictory += 1;
@@ -506,7 +515,8 @@ export function selectPassages(input: {
   if (retainedRequired !== requiredCount) throw new Error('Passage selection violated required evidence recall');
   return { kept, dropped, retainedRequired,
     retainedUserSelected: kept.filter((item) => item.userSelected).length,
-    retainedContradictory, fallback: false };
+    retainedContradictory, fallback: false,
+    safetyIntervention: { intervened: safetyReasons.size > 0, reasons: [...safetyReasons].sort() } };
 }
 
 export interface SynthesisEvidenceRebuild {

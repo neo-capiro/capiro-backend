@@ -36,4 +36,9 @@ describe('shadow report', () => {
     changed.legacy.questionVersion = 'claim_support.v2';
     expect(() => buildShadowReport({ events: [changed], labels, split: 'all' })).toThrow('claim_support.v1, claim_support.v2');
   });
+
+  it('accepts an empty fixture list for live-only reports', () => {
+    const report = buildShadowReport({ events: [row('a', 'supported', 'supported')], fixtures: [], split: 'all' });
+    expect(report.counts).toMatchObject({ liveClaimEvents: 1, replayClaimEvents: 0 });
+  });
 });

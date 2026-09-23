@@ -122,7 +122,7 @@ function providerReport(rows: readonly JoinedShadowRow[], provider: ProviderName
 
 export interface ShadowReportInput {
   events: readonly ShadowEvent[];
-  fixtures?: JevClaimEvidenceFixture;
+  fixtures?: JevClaimEvidenceFixture | readonly [];
   labels?: HumanLabels;
   split: 'tuning' | 'heldout' | 'all';
   rejectedLines?: number;
@@ -181,7 +181,8 @@ function buildReportPayload(input: ShadowReportInput, rows: JoinedShadowRow[], t
 export function buildShadowReport(input: ShadowReportInput): ShadowReport {
   const claims = input.events.filter((event): event is EvidenceShadowEvent => event.event === 'meri.evidence_shadow');
   const turns = input.events.filter((event): event is EvidenceShadowTurnEvent => event.event === 'meri.evidence_shadow.turn');
-  const joined = joinWithLabels(claims, input.fixtures, input.labels);
+  const fixtures = Array.isArray(input.fixtures) ? undefined : input.fixtures as JevClaimEvidenceFixture | undefined;
+  const joined = joinWithLabels(claims, fixtures, input.labels);
   const rows = input.split === 'all' ? joined : joined.filter((row) => row.split === input.split);
   assertCrossProviderQuestionVersion(rows);
   const payload = buildReportPayload(input, rows, turns);

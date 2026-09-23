@@ -2,7 +2,7 @@
 
 ## Preconditions
 
-Do not begin until additive migrations are applied by the release owner, `TYPESAFE_API_KEY` is provisioned, the CDK Jev-provider opt-in is enabled, Stage 1 fixture labels are adjudicated, and a human owner has approved the repair claim categories. Limit version `stage2-canary-limits-v1` is frozen before observing canary results. Scope every control to pilot tenant `17b63099-bc0f-4ac5-b596-496161e9481e` and `chat`; never use `all`.
+Do not begin until additive migrations are applied by the release owner, `TYPESAFE_API_KEY` is provisioned, the CDK Jev-provider opt-in is enabled, Stage 1 fixture labels are adjudicated, and a human owner has approved the repair claim categories. Limit version `stage2-canary-limits-v2` is frozen before observing intervention or incomplete-outcome canary results. V1 remains available unchanged for historical reproduction. Scope every control to pilot tenant `17b63099-bc0f-4ac5-b596-496161e9481e` and `chat`; never use `all`.
 
 ## Baseline
 
@@ -19,7 +19,9 @@ Export the later canary window with the same pipeline into `canary.jsonl`. `read
 
 Run offline:
 
-`pnpm --filter @capiro/meriv2-core eval:canary-report -- --events canary.jsonl --baseline baseline.jsonl --out report`
+`pnpm --filter @capiro/meriv2-core eval:canary-report -- --events canary.jsonl --baseline baseline.jsonl --limits-version v2 --out report`
+
+The limits version is mandatory. V2 adds a maximum 5% passage safety-intervention rate, a maximum 2 percentage-point completion-rate drop, and maximum 1 percentage-point increases for each error, abort, and incomplete rate. `deadline_exceeded` is incomplete rather than released. The intervention metric counts unfiltered fallback and cases where the safety net restored a required or contradictory passage that the proposed kept set omitted; `current.passage.safetyInterventionReasons` gives the reason breakdown. These measurements do not weaken the runtime invariant that required and contradictory passages are retained.
 
 ## Enablement order
 
