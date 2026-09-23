@@ -8,6 +8,15 @@ Do not begin until additive migrations are applied by the release owner, `TYPESA
 
 With all capability modes `off`, export complete `meri.canary.turn` structured records for at least seven days and at least 100 released turns. Preserve the immutable JSONL and generate the baseline report. Record traffic mix and incident periods; do not silently remove failed or held turns. A later canary window should match the baseline duration and traffic mix.
 
+Every Meri structured event, `meri.canary.turn` included, is one JSON object per log line with an `event` field, printed behind the Nest console logger header which the export strips. From an authenticated shell with read access to the log group, export the window (`--start-time` is epoch milliseconds; when the response carries a `nextToken`, repeat with `--next-token <token>` and append with `>>` until it is absent):
+
+```bash
+START=$(( ($(date +%s) - 7*24*3600) * 1000 ))   # seven days back, in epoch milliseconds
+aws logs filter-log-events --log-group-name /capiro/dev/api --start-time "$START" --filter-pattern '"meri.canary.turn"' --output json | jq -r '.events[].message' | sed 's/\x1b\[[0-9;]*m//g' | grep -o '{"event":.*}' > baseline.jsonl
+```
+
+Export the later canary window with the same pipeline into `canary.jsonl`. `readCanaryEvents` parses each line with `JSON.parse` and keys on its `event` field: a line that is not one JSON object is rejected and any other event name is counted as unrelated.
+
 Run offline:
 
 `pnpm --filter @capiro/meriv2-core eval:canary-report -- --events canary.jsonl --baseline baseline.jsonl --out report`

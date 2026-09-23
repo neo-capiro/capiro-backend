@@ -415,6 +415,16 @@ function buildRepairPassages(
   return passages;
 }
 
+/**
+ * The `(name, fields)` sink the Stage 1/2 components log through. The service
+ * turns every call into one `logStructured` line, so each Meri event those
+ * components emit is a single JSON object on one log line.
+ */
+interface MeriStructuredEventLogger {
+  log(event: string, fields?: Record<string, unknown>): void;
+  warn(event: string, fields?: Record<string, unknown>): void;
+}
+
 const rolloutDiagnosticsLogged = new Set<string>();
 
 /** Tests only: clears the once-per-process rollout diagnostics. */
@@ -1370,7 +1380,7 @@ export class MeriV3AssistantService {
         replyText: released.reply,
         citations: released.citations,
         asOf,
-        logger: this.logger,
+        logger: this.structuredLogger,
         afterInventory: async () => {
           const claimLedger = buildClaimLedgerFromToolResults({
             output: released.reply,
@@ -1394,7 +1404,7 @@ export class MeriV3AssistantService {
             tenantId: ctx.tenantId,
             surface: 'chat',
             llm: this.llm,
-            logger: this.logger,
+            logger: this.structuredLogger,
           });
           await assessReleasedClaims({
             claims,
@@ -1409,7 +1419,7 @@ export class MeriV3AssistantService {
             providers,
             budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
             signal: opts.requestSignal ?? opts.signal,
-            logger: this.logger,
+            logger: this.structuredLogger,
           });
         },
       });
@@ -1543,6 +1553,20 @@ export class MeriV3AssistantService {
   }
 
   /**
+   * The logger handed to the claim inventory shadow, the Jev provider factory,
+   * the shadow claim assessor and the live repair stage. Every `(name, fields)`
+   * call becomes one `logStructured` line, never a two-argument Nest call. A
+   * getter rather than a field so it lives on the prototype and also serves a
+   * service instance built without running the constructor.
+   */
+  private get structuredLogger(): MeriStructuredEventLogger {
+    return {
+      log: (event, fields) => this.logStructured('log', event, fields ?? {}),
+      warn: (event, fields) => this.logStructured('warn', event, fields ?? {}),
+    };
+  }
+
+  /**
    * Stage 2c. Assesses promoted claims and, in enforce, applies a bounded
    * claim-local repair. It runs after finalization and before the single text
    * emission, so it is fenced: a hard deadline, the turn and transport signals,
@@ -1662,7 +1686,7 @@ export class MeriV3AssistantService {
         tenantId: ctx.tenantId,
         surface: 'chat',
         llm: this.llm,
-        logger: this.logger,
+        logger: this.structuredLogger,
       });
       // Document references are built only from what this turn observed
       // (readable content reads, selected or named listings); a turn that
@@ -1697,12 +1721,6 @@ export class MeriV3AssistantService {
               documentReferences,
             })
           : new ReplayToolExecutor([]);
-      const repairLogger = {
-        log: (message: string, fields: Record<string, unknown>) =>
-          this.logStructured('log', message, fields),
-        warn: (message: string, fields: Record<string, unknown>) =>
-          this.logStructured('warn', message, fields),
-      };
       // The stage is fenced from the outside regardless of what the repair
       // loop does with its own budget: `settleWithinBudget` below stops waiting
       // at `deadlineAt` or on abort and the finalized reply is released.
@@ -1729,7 +1747,7 @@ export class MeriV3AssistantService {
         promotedCategories: args.categories,
         budget: { ...AUTO_CORRECTION_BUDGET, maxMs: Math.max(1, deadlineAt - Date.now()) },
         signal: controller.signal,
-        logger: repairLogger,
+        logger: this.structuredLogger,
         // An omitted mode is treated as enforce by the repair service; always explicit.
         mode: args.mode,
         // Real read-only classification for remedy planning; unknown tools fail closed.
@@ -1955,7 +1973,7 @@ export class MeriV3AssistantService {
         args.citations,
         args.evidenceAccuracyMode,
         ({ collisions, overflow }) => {
-          this.logger.warn('meri.citation_integrity', {
+          this.logStructured('warn', 'meri.citation_integrity', {
             conversationId: args.dto.conversationId ?? null,
             turnId: null,
             surface: 'numbering',
@@ -2398,7 +2416,7 @@ export class MeriV3AssistantService {
     conversationId?: string,
   ): void {
     if (mode === 'off' || dropped.length === 0) return;
-    this.logger.warn('meri.citation_integrity', {
+    this.logStructured('warn', 'meri.citation_integrity', {
       conversationId: conversationId ?? null,
       turnId: null,
       surface,

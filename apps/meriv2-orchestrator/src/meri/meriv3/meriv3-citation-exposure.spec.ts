@@ -40,7 +40,13 @@ function expectIntegrity(
   mode: 'shadow' | 'enforce',
 ) {
   expect(logger.warn).toHaveBeenCalledTimes(1);
-  expect(logger.warn).toHaveBeenCalledWith('meri.citation_integrity', {
+  // One JSON object on one log line: the event name is a field, never a second argument.
+  const call = logger.warn.mock.calls[0] as unknown[];
+  expect(call).toHaveLength(1);
+  const [line] = call as [string];
+  expect(line).not.toMatch(/\n/);
+  expect(JSON.parse(line)).toEqual({
+    event: 'meri.citation_integrity',
     conversationId: 'conversation-1',
     turnId: null,
     surface,

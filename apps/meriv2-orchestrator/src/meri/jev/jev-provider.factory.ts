@@ -16,7 +16,14 @@ import {
 } from '@capiro/meriv2-core';
 
 const loggedReasons = new Set<string>();
-const defaultLogger = new Logger('JevProviderFactory');
+const nestLogger = new Logger('JevProviderFactory');
+// One JSON object per line, the shape the orchestrator's structured logger
+// produces: a caller that omits `logger` must never hand the event name and
+// its fields to Nest as two arguments, which prints a multi-line `Object:`
+// block that `readShadowEvents` and `readCanaryEvents` cannot parse.
+const defaultLogger: ChatDecisionProviderLogger = {
+  warn: (message, context) => nestLogger.warn(JSON.stringify({ event: message, ...context })),
+};
 
 export interface ChatDecisionProviderLogger {
   warn(message: string, context?: Record<string, unknown>): unknown;

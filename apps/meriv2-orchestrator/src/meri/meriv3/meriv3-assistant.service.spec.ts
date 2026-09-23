@@ -2,7 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
-import { MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT, readCanaryEvents } from '@capiro/meriv2-core';
+import {
+  MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
+  readCanaryEvents,
+  readShadowEvents,
+} from '@capiro/meriv2-core';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
@@ -203,6 +207,19 @@ function registry(definitions: Array<{ name: string; readOnly: boolean }>, invok
   } as unknown as ToolRegistry;
 }
 
+/** The `event` field of a structured (single JSON line) log message, or null for any other message. */
+function eventNameOf(message: unknown): string | null {
+  if (typeof message !== 'string' || !message.startsWith('{')) return null;
+  try {
+    const event = (JSON.parse(message) as { event?: unknown }).event;
+    return typeof event === 'string' ? event : null;
+  } catch {
+    return null;
+  }
+}
+
+const SHADOW_EVENTS = new Set(['meri.evidence_shadow', 'meri.evidence_shadow.turn']);
+
 describe('MeriV3AssistantService', () => {
   const originalFetch = global.fetch;
 
@@ -238,7 +255,7 @@ describe('MeriV3AssistantService', () => {
     expect(result.reply).toBe('H.R. 1 passed.');
     expect(events).toContainEqual({ type: 'text', text: 'H.R. 1 passed.' });
     await new Promise((resolve) => setImmediate(resolve));
-    expect(claimLog).not.toHaveBeenCalledWith('meri.claim_inventory', expect.anything());
+    expect(claimLog.mock.calls.map(([message]) => eventNameOf(message))).not.toContain('meri.claim_inventory');
   });
 
   test('emits the reply before legacy-only shadow provider work begins', async () => {
@@ -252,7 +269,7 @@ describe('MeriV3AssistantService', () => {
     const order: string[] = [];
     const logger = (assistant as unknown as { logger: { log: (...args: unknown[]) => void } }).logger;
     jest.spyOn(logger, 'log').mockImplementation((message: unknown) => {
-      if (message === 'meri.evidence_shadow') order.push('provider');
+      if (eventNameOf(message) === 'meri.evidence_shadow') order.push('provider');
     });
     await assistant.run({ ...context, tenantId } as MeriContext, {
       conversationId: 'thread-shadow',
@@ -1990,6 +2007,82 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(canaries).toHaveLength(2);
       expect(canaries[0]!.modes).toMatchObject({ jevProvider: 'off', routing: 'llm' });
       expect(canaries[1]!.modes).toMatchObject({ jevProvider: 'enforce', routing: 'llm' });
+    });
+  });
+
+  describe('shadow events (Stage 1)', () => {
+    test('emits meri.evidence_shadow and meri.evidence_shadow.turn as JSON lines that readShadowEvents parses back', async () => {
+      const tenantId = '17b63099-bc0f-4ac5-b596-496161e9481e';
+      process.env.MERI_CLAIM_ASSESSMENT_MODE = 'shadow';
+      process.env.MERI_CLAIM_ASSESSMENT_TENANTS = tenantId;
+      process.env.MERI_CLAIM_ASSESSMENT_SURFACES = 'chat';
+      process.env.MERI_CHAT_EVIDENCE_JUDGE = 'llm';
+      const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
+      const assistant = build(registry([]), complete);
+      const spies = logSpies(assistant);
+      // The payloads exactly as the shadow assessor handed them to the service's structured logger.
+      const structured = jest.spyOn(
+        assistant as unknown as {
+          logStructured: (level: 'log' | 'warn', event: string, fields: Record<string, unknown>) => void;
+        },
+        'logStructured',
+      );
+      await assistant.run({ ...context, tenantId } as MeriContext, {
+        conversationId: 'thread-shadow-jsonl',
+        messages: [{ role: 'user', text: 'What happened?' }],
+      });
+      // Shadow assessment is scheduled after the text emission; the turn summary is its last event.
+      const shadowLines = () =>
+        spies.log.mock.calls
+          .map(([message]) => message)
+          .filter((message): message is string => SHADOW_EVENTS.has(eventNameOf(message) ?? ''));
+      const deadline = Date.now() + 5_000;
+      while (
+        !shadowLines().some((line) => eventNameOf(line) === 'meri.evidence_shadow.turn') &&
+        Date.now() < deadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      const lines = shadowLines();
+      const payloads = structured.mock.calls
+        .filter(([level, event]) => level === 'log' && SHADOW_EVENTS.has(event))
+        .map(([, event, fields]) => ({ event, ...fields }));
+      expect(lines.map((line) => eventNameOf(line))).toContain('meri.evidence_shadow');
+      expect(eventNameOf(lines[lines.length - 1])).toBe('meri.evidence_shadow.turn');
+      expect(lines).toHaveLength(payloads.length);
+      lines.forEach((line, index) => {
+        // One JSON object on one line, carrying the event name as a field.
+        expect(line).not.toMatch(/\n/);
+        expect(JSON.parse(line)).toEqual(payloads[index]);
+      });
+      const dir = mkdtempSync(join(tmpdir(), 'meri-shadow-'));
+      try {
+        const file = join(dir, 'shadow.jsonl');
+        writeFileSync(file, `${lines.join('\n')}\n`, 'utf8');
+        const parsed = readShadowEvents(file);
+        expect(parsed).toMatchObject({ rejected: 0, unrelated: 0 });
+        expect(parsed.events.map((event) => event.event)).toEqual(payloads.map((payload) => payload.event));
+        parsed.events.forEach((event, index) => {
+          // Every field the report reads back is the field the service emitted;
+          // `source: 'live'` is the parser's default for an exported event.
+          expect({ ...payloads[index], source: 'live' }).toEqual(expect.objectContaining(event));
+        });
+        expect(parsed.events[0]).toMatchObject({
+          event: 'meri.evidence_shadow',
+          conversationId: 'thread-shadow-jsonl',
+          claimId: expect.any(String),
+          envelopeHash: expect.any(String),
+          agreement: expect.any(Boolean),
+        });
+        expect(parsed.events[parsed.events.length - 1]).toMatchObject({
+          event: 'meri.evidence_shadow.turn',
+          conversationId: 'thread-shadow-jsonl',
+          selected: expect.any(Number),
+          skipped: expect.any(Number),
+        });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 
