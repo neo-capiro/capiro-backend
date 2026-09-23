@@ -10,6 +10,7 @@ Date: 2026-09-23
 - Published contract suite: `pnpm --filter @capiro/api exec jest --runInBand --forceExit src/mobile/meri-mobile-contract.spec.ts` — passed, 1 suite / 3 tests.
 - Prisma schema validation with the local fixture URL: `pnpm --filter @capiro/api exec prisma validate` — passed.
 - Conditional-write/upload retry regression: `DATABASE_URL=<local fixture> pnpm --filter @capiro/api exec jest --runInBand --forceExit src/engagement/meeting-client-reassignment.spec.ts src/meri/hermes/meri-hermes-scaling-adapter-wiring.integration.spec.ts --testNamePattern='stale conditional|exact attachment|disconnect while queued'` — passed, 2 suites / 3 selected tests (24 unrelated tests skipped by the filter).
+- Full relevant web/mobile regression: `pnpm --filter @capiro/api exec jest --runInBand --forceExit src/engagement/meeting-client-reassignment.spec.ts src/mobile/meri-mobile.service.spec.ts` — passed, 2 suites / 25 tests.
 
 ## Aggregate typecheck baseline
 
