@@ -1,4 +1,4 @@
-import { createJevClient, type LedgerEntry, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { createJevClient, JEV_TASK_REGISTRY, type LedgerEntry, type MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { formatCitationsForPrompt, type MeriCitation } from '@capiro/shared';
 import { seedMeriContextEvidence } from '../meriv3/meriv3-context-evidence';
 import { wrapMeriToolEvidence } from '../meriv3/meriv3-tool-evidence';
@@ -149,6 +149,26 @@ function expectValidResponsesInput(input: readonly Record<string, unknown>[]): v
 }
 
 describe('passage selector', () => {
+  it('uses registry values for the live model without changing selection', () => {
+    expect(JEV_TASK_REGISTRY.passage_relevance).toMatchObject({
+      modelVersion: 'jev-1.13.0', questionVersion: 'passage_selection.v1',
+      thresholds: { relevant: 0.35, usable: 0.5, contradicts: 0.5 },
+    });
+    const passage = candidate('p0');
+    const assessed = answers([passage], 0.35);
+    expect(selectPassages({ candidates: [passage], answers: assessed }).kept).toEqual([passage]);
+  });
+
+  it('returns the registry model-mismatch reason with an unfiltered fallback', async () => {
+    const passage = candidate('p0');
+    await expect(askPassageQuestions({
+      question: 'Question?', candidates: [passage], provider: null,
+      providerUnavailableReason: 'registry_model_mismatch',
+    })).resolves.toMatchObject({
+      fallback: true, fallbackReason: 'registry_model_mismatch', probabilities: {},
+    });
+  });
+
   it('retains required, selected and deterministic/Jev contradictory passages under aggressive drops', () => {
     const candidates = [candidate('p0', { required: true }), candidate('p1', { userSelected: true }),
       candidate('p2', { deterministicConflict: true }), candidate('p3'), candidate('p4')];

@@ -22,6 +22,8 @@ import {
   AUTO_CORRECTION_CAPABILITY,
   COVERAGE_RETRIEVAL_CAPABILITY,
   PASSAGE_SELECTION_CAPABILITY,
+  JEV_TASK_REGISTRY,
+  JEV_TASK_REGISTRY_VERSION,
   buildAssurancePromptBlock,
   buildClaimLedgerFromToolResults,
   extractMaterialClaims,
@@ -117,6 +119,7 @@ import {
   applyPassageSelectionToSynthesis,
   buildPassageCandidates,
   PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+  PASSAGE_SELECTION_QUESTION_VERSION,
   rebuildSynthesisEvidence,
   selectPassages,
 } from '../jev/passage-selector.js';
@@ -886,6 +889,7 @@ export class MeriV3AssistantService {
         });
         const provider = createPassageSelectionClient({
           env: process.env, tenantId: ctx.tenantId, surface: 'chat',
+          logger: this.structuredLogger,
         });
         const remainingMs = turnDeadlineAt() - selectionStartedAt;
         const answers = await askPassageQuestions({
@@ -893,6 +897,7 @@ export class MeriV3AssistantService {
           clientId: dto.clientId,
           candidates,
           provider: provider.client,
+          providerUnavailableReason: provider.reason,
           signal: opts.signal,
           // Observe the turn deadline and keep a synthesis floor free of selection.
           deadlineAt: Math.min(
@@ -946,6 +951,9 @@ export class MeriV3AssistantService {
           latencyMs,
           inputTokens: answers.inputTokens,
           estimatedCostUsd: costUsd,
+          registryVersion: JEV_TASK_REGISTRY_VERSION,
+          task: { questionVersion: PASSAGE_SELECTION_QUESTION_VERSION,
+            modelVersion: JEV_TASK_REGISTRY.passage_relevance.modelVersion },
           questionVersion: answers.questionVersion,
           model: answers.model || provider.model,
         });

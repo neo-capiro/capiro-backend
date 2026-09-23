@@ -6,6 +6,7 @@ import {
   evaluateClaimDeterministically,
   checkExactSourceEligibility,
   isDocumentSpecificClaim,
+  JEV_TASK_REGISTRY,
   type ClaimLedger,
   type DecisionProvider,
   type DocumentReference,
@@ -76,7 +77,8 @@ function priority(claim: MaterialClaim, ledger: ClaimLedger): number {
 function failure(provider: string, model: string, state: EvidenceOperationalState, reason: string): EvidenceDecision {
   return {
     kind: 'failure', state, reasonCodes: [reason],
-    provider: { name: provider, model, questionVersion: 'claim_support.v1' }, latencyMs: 0,
+    provider: { name: provider, model,
+      questionVersion: JEV_TASK_REGISTRY.claim_support.questionVersion }, latencyMs: 0,
   };
 }
 

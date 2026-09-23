@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import type { LlmClient } from '@capiro/meriv2-core';
 import {
   createChatDecisionProviders,
+  createPassageSelectionClient,
   resetJevProviderFactoryWarningsForTest,
 } from './jev-provider.factory';
 
@@ -58,6 +59,32 @@ describe('createChatDecisionProviders', () => {
       surface: 'chat', llm, logger,
     });
     expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the unfiltered passage fallback and emits one event on a model mismatch', () => {
+    const logger = { warn: jest.fn() };
+    const env = { ...baseEnv, MERI_JEV_TASKS: 'passage_relevance', MERI_JEV_MODEL: 'jev-1.14.0' };
+    const first = createPassageSelectionClient({ env, tenantId: TENANT, surface: 'chat', logger });
+    const second = createPassageSelectionClient({ env, tenantId: TENANT, surface: 'chat', logger });
+    expect(first).toMatchObject({ client: null, reason: 'registry_model_mismatch' });
+    expect(second).toMatchObject({ client: null, reason: 'registry_model_mismatch' });
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith('meri.jev.registry_mismatch', {
+      task: 'passage_relevance', configuredModel: 'jev-1.14.0', registeredModel: 'jev-1.13.0',
+    });
+  });
+
+  it('disables claim-support Jev for live use on a model mismatch', () => {
+    const logger = { warn: jest.fn() };
+    const result = createChatDecisionProviders({
+      env: { ...baseEnv, MERI_JEV_PROVIDER_MODE: 'enforce', MERI_CHAT_EVIDENCE_JUDGE: 'jev',
+        MERI_JEV_MODEL: 'jev-1.14.0' },
+      tenantId: TENANT, surface: 'chat', llm, logger,
+    });
+    expect(result.jev).toBeNull();
+    expect(logger.warn).toHaveBeenCalledWith('meri.jev.registry_mismatch', expect.objectContaining({
+      task: 'claim_support',
+    }));
   });
 
   it('records only when a path is set and excludes credential material', async () => {

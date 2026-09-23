@@ -2,6 +2,7 @@ import {
   buildClaimSupportQuestion,
   checkExactSourceEligibility,
   evaluateClaimDeterministically,
+  JEV_TASK_REGISTRY,
   runRepairLoop,
   type AssuredClaim,
   type ClaimCategory,
@@ -252,6 +253,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   let jevInputTokens = 0;
   let legacyInputTokens = 0;
   const assessmentStartedAt = now();
+  const cascade = JEV_TASK_REGISTRY.claim_support.cascade!;
 
   for (const claim of promoted) {
     if (input.signal?.aborted) break;
@@ -286,8 +288,10 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
         inputTokens += usage(jev);
       }
       const shouldCascade = !jev || jev.kind === 'failure' ||
-        (jev.kind === 'outcome' && jev.confidence < 0.5) || claim.compound ||
-        (jev?.kind === 'outcome' && jev.outcome === 'supported' && sampled(input.conversationId, claim.id));
+        (jev.kind === 'outcome' && jev.confidence < cascade.escalateBelowConfidence) ||
+        (cascade.escalateCompound && claim.compound) ||
+        (jev?.kind === 'outcome' && jev.outcome === 'supported'
+          && sampled(input.conversationId, claim.id, cascade.auditSampleRate));
       if (shouldCascade) {
         if (jev?.kind === 'outcome' && jev.outcome === 'supported') sampledApprovals += 1;
         legacyCalls += 1;
@@ -440,10 +444,16 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   };
 }
 
-export function sampled(conversationId: string | undefined, claimId: string): boolean {
+export function sampled(
+  conversationId: string | undefined,
+  claimId: string,
+  rate = JEV_TASK_REGISTRY.claim_support.cascade!.auditSampleRate,
+): boolean {
   let hash = 2166136261;
   for (const char of `${conversationId ?? ''}:${claimId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  return (hash >>> 0) % 10 === 0;
+  if (rate <= 0) return false;
+  if (rate >= 1) return true;
+  return (hash >>> 0) % Math.round(1 / rate) === 0;
 }
 
 function toAssuredClaim(claim: MaterialClaim): AssuredClaim {

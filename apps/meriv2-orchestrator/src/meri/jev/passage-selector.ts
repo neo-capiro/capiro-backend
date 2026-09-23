@@ -1,6 +1,7 @@
 import type { MeriCitation } from '@capiro/shared';
 import {
   extractExactValues,
+  JEV_TASK_REGISTRY,
   type ExactValue,
   type LedgerEntry,
 } from '@capiro/meriv2-core';
@@ -18,7 +19,7 @@ interface PassageJevClient {
   }>;
 }
 
-export const PASSAGE_SELECTION_QUESTION_VERSION = 'passage_selection.v1' as const;
+export const PASSAGE_SELECTION_QUESTION_VERSION = JEV_TASK_REGISTRY.passage_relevance.questionVersion;
 export const PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN = 0.042 / 1_000_000;
 
 /**
@@ -392,6 +393,7 @@ export async function askPassageQuestions(input: {
   clientId?: string | null;
   candidates: readonly PassageCandidate[];
   provider: PassageJevClient | null;
+  providerUnavailableReason?: string | null;
   budget?: PassageSelectionBudget;
   signal?: AbortSignal;
   deadlineAt?: number;
@@ -406,7 +408,7 @@ export async function askPassageQuestions(input: {
     probabilities: {}, inputTokens, latencyMs: Date.now() - startedAt, model,
     questionVersion: PASSAGE_SELECTION_QUESTION_VERSION, fallback: true, fallbackReason: reason,
   });
-  if (!input.provider) return fallback('provider_unavailable');
+  if (!input.provider) return fallback(input.providerUnavailableReason ?? 'provider_unavailable');
   if (input.candidates.length > budget.maxPassages) return fallback('passage_budget_exceeded');
   const deadlineAt = Math.min(input.deadlineAt ?? Infinity, startedAt + budget.deadlineMs);
   const batches: PassageCandidate[][] = [];
@@ -476,7 +478,12 @@ export function selectPassages(input: {
     retainedContradictory: input.candidates.filter((item) => item.deterministicConflict).length,
     fallback: true,
   };
-  const thresholds = input.thresholds ?? { relevant: 0.35, usable: 0.5, contradicts: 0.5 };
+  const registryThresholds = JEV_TASK_REGISTRY.passage_relevance.thresholds;
+  const thresholds = input.thresholds ?? {
+    relevant: registryThresholds.relevant!,
+    usable: registryThresholds.usable!,
+    contradicts: registryThresholds.contradicts!,
+  };
   const kept: PassageCandidate[] = [];
   const dropped: PassageSelectionResult['dropped'] = [];
   let retainedContradictory = 0;

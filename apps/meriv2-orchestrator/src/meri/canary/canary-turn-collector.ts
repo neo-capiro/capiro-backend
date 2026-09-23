@@ -1,3 +1,5 @@
+import { JEV_TASK_REGISTRY, JEV_TASK_REGISTRY_VERSION } from '@capiro/meriv2-core';
+
 export type CanaryMode = 'off' | 'shadow' | 'enforce' | string;
 /** The surface the turn was enrolled under; Deep Research runs are `research`, never `chat`. */
 export type CanaryTurnSurface = 'chat' | 'research';
@@ -16,6 +18,8 @@ export interface CanaryTurnEvent {
     jevProvider: CanaryMode;
     routing: CanaryMode;
   };
+  registryVersion: typeof JEV_TASK_REGISTRY_VERSION;
+  jevTasks: Record<string, { questionVersion: string; modelVersion: string }>;
   outcome: 'released' | 'held' | 'error' | 'aborted';
   clarificationRequested: boolean;
   heldReason: string | null;
@@ -137,9 +141,20 @@ export class CanaryTurnCollector {
     // (cancelled, empty) reports the whole duration rather than a fictitious 0.
     const timeToText =
       this.textEmittedAt === null ? total : Math.max(0, this.textEmittedAt - this.startedAt);
+    const usedTasks = [
+      ...(this.identity.modes.passageSelection !== 'off' ? ['passage_relevance' as const] : []),
+      ...(this.identity.modes.claimAssessment !== 'off' || this.identity.modes.autoCorrection !== 'off'
+        ? ['claim_support' as const] : []),
+    ];
     return {
       event: 'meri.canary.turn',
       ...this.identity,
+      registryVersion: JEV_TASK_REGISTRY_VERSION,
+      jevTasks: Object.fromEntries(usedTasks.map((task) => {
+        const registration = JEV_TASK_REGISTRY[task];
+        return [task, { questionVersion: registration.questionVersion,
+          modelVersion: registration.modelVersion }];
+      })),
       outcome: input.outcome,
       clarificationRequested: input.clarificationRequested,
       heldReason: input.heldReason ?? null,
