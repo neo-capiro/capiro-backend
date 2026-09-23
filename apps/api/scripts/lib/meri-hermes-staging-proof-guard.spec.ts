@@ -16,11 +16,12 @@ function validEvidence(): MeriHermesStagingProofEvidence {
     queued: {
       runId: '10000000-0000-4000-8000-000000000001', terminalStatus: 'completed', detached: true,
       freshProcessReconnect: true, duplicateRetryReattached: true, oneRun: true,
-      oneUserMessage: true, monotonicUniqueEvents: true,
+      oneUserMessage: true, terminalOutputPersisted: true, monotonicUniqueEvents: true,
     },
     active: {
       runId: '10000000-0000-4000-8000-000000000002', terminalStatus: 'completed', detached: true,
       freshProcessReconnect: true, outputSnapshotReplay: true, monotonicUniqueEvents: true,
+      terminalOutputPersisted: true,
     },
     authorization: { crossOwnerDenied: true, crossTenantDenied: true },
     stop: {

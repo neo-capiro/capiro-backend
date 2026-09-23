@@ -20,6 +20,7 @@ export interface MeriHermesStagingProofEvidence {
     duplicateRetryReattached: boolean;
     oneRun: boolean;
     oneUserMessage: boolean;
+    terminalOutputPersisted: boolean;
     monotonicUniqueEvents: boolean;
   };
   active: {
@@ -28,6 +29,7 @@ export interface MeriHermesStagingProofEvidence {
     detached: boolean;
     freshProcessReconnect: boolean;
     outputSnapshotReplay: boolean;
+    terminalOutputPersisted: boolean;
     monotonicUniqueEvents: boolean;
   };
   authorization: {
@@ -125,10 +127,12 @@ export function assertMeriHermesStagingProofEvidence(
     evidence.queued.duplicateRetryReattached,
     evidence.queued.oneRun,
     evidence.queued.oneUserMessage,
+    evidence.queued.terminalOutputPersisted,
     evidence.queued.monotonicUniqueEvents,
     evidence.active.detached,
     evidence.active.freshProcessReconnect,
     evidence.active.outputSnapshotReplay,
+    evidence.active.terminalOutputPersisted,
     evidence.active.monotonicUniqueEvents,
     evidence.authorization.crossOwnerDenied,
     evidence.authorization.crossTenantDenied,

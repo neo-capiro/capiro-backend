@@ -526,6 +526,7 @@ async function runProof(): Promise<void> {
         duplicateRetryReattached: queuedRuns.length === 1,
         oneRun: queuedRuns.length === 1,
         oneUserMessage: queuedUserMessages === 1,
+        terminalOutputPersisted: queuedFinal.output.length > 0 && Boolean(queuedFinal.assistantMessageId),
         monotonicUniqueEvents: monotonicUnique(queuedEvents),
       },
       active: {
@@ -534,6 +535,7 @@ async function runProof(): Promise<void> {
         detached: activeFinal.detached,
         freshProcessReconnect: activeFreshProcessReconnect,
         outputSnapshotReplay,
+        terminalOutputPersisted: activeFinal.output.length > 0 && Boolean(activeFinal.assistantMessageId),
         monotonicUniqueEvents: monotonicUnique(activeEvents),
       },
       authorization: { crossOwnerDenied, crossTenantDenied },
