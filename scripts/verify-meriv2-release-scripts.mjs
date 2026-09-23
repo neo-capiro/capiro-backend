@@ -55,6 +55,15 @@ async function main() {
     "MERI_PASSAGE_SELECTION_MODE: 'off'",
     "MERI_PASSAGE_SELECTION_TENANTS: ''",
     "MERI_PASSAGE_SELECTION_SURFACES: ''",
+    "MERI_EVIDENCE_PROFILES_MODE: 'off'",
+    "MERI_EVIDENCE_PROFILES_TENANTS: ''",
+    "MERI_EVIDENCE_PROFILES_SURFACES: ''",
+    "MERI_MATCH_LABEL_MODE: 'off'",
+    "MERI_MATCH_LABEL_TENANTS: ''",
+    "MERI_MATCH_LABEL_SURFACES: ''",
+    "MERI_STATUS_PROVENANCE_MODE: 'off'",
+    "MERI_STATUS_PROVENANCE_TENANTS: ''",
+    "MERI_STATUS_PROVENANCE_SURFACES: ''",
     "MERI_JEV_PROVIDER_MODE: 'off'",
     "MERI_JEV_PROVIDER_TENANTS: ''",
     "MERI_JEV_PROVIDER_SURFACES: ''",
@@ -67,7 +76,19 @@ async function main() {
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);
   }
-  for (const fragment of ["MERI_JEV_TIMEOUT_MS: '8000'", "MERI_JEV_MAX_ATTEMPTS: '2'"]) {
+  for (const fragment of [
+    "MERI_EVIDENCE_PROFILES_MODE: 'off'",
+    "MERI_EVIDENCE_PROFILES_TENANTS: ''",
+    "MERI_EVIDENCE_PROFILES_SURFACES: ''",
+    "MERI_MATCH_LABEL_MODE: 'off'",
+    "MERI_MATCH_LABEL_TENANTS: ''",
+    "MERI_MATCH_LABEL_SURFACES: ''",
+    "MERI_STATUS_PROVENANCE_MODE: 'off'",
+    "MERI_STATUS_PROVENANCE_TENANTS: ''",
+    "MERI_STATUS_PROVENANCE_SURFACES: ''",
+    "MERI_JEV_TIMEOUT_MS: '8000'",
+    "MERI_JEV_MAX_ATTEMPTS: '2'",
+  ]) {
     assert.ok(
       prepare.split(fragment).length - 1 >= 2,
       `Both dark-default objects must contain ${fragment}.`,
