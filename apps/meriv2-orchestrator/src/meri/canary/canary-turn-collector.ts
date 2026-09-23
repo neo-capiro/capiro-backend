@@ -1,10 +1,12 @@
 export type CanaryMode = 'off' | 'shadow' | 'enforce' | string;
+/** The surface the turn was enrolled under; Deep Research runs are `research`, never `chat`. */
+export type CanaryTurnSurface = 'chat' | 'research';
 
 export interface CanaryTurnEvent {
   event: 'meri.canary.turn';
   conversationId: string | null;
   tenantId: string;
-  surface: 'chat';
+  surface: CanaryTurnSurface;
   modes: {
     evidenceAccuracy: CanaryMode;
     claimAssessment: CanaryMode;
@@ -56,6 +58,8 @@ type MutableMetrics = Pick<CanaryTurnEvent,
 
 export class CanaryTurnCollector {
   private readonly startedAt: number;
+  /** When the turn's text frame was emitted; `null` until (or unless) it is. */
+  private textEmittedAt: number | null = null;
   private readonly metrics: MutableMetrics = {
     coverage: { gaps: 0, followUps: 0, residual: 0 },
     passageSelection: {
@@ -118,12 +122,21 @@ export class CanaryTurnCollector {
     this.metrics.tokens.legacy += tokens;
   }
 
+  /** Call exactly when the text frame is emitted; the first call is the measurement. */
+  noteTextEmitted(): void {
+    if (this.textEmittedAt === null) this.textEmittedAt = this.now();
+  }
+
   build(input: {
     outcome: CanaryTurnEvent['outcome'];
     clarificationRequested: boolean;
     heldReason?: string | null;
   }): CanaryTurnEvent {
     const total = Math.max(0, this.now() - this.startedAt);
+    // Time-to-text is measured at the text frame. A turn that emitted no text
+    // (cancelled, empty) reports the whole duration rather than a fictitious 0.
+    const timeToText =
+      this.textEmittedAt === null ? total : Math.max(0, this.textEmittedAt - this.startedAt);
     return {
       event: 'meri.canary.turn',
       ...this.identity,
@@ -131,7 +144,7 @@ export class CanaryTurnCollector {
       clarificationRequested: input.clarificationRequested,
       heldReason: input.heldReason ?? null,
       ...this.metrics,
-      latencyMs: { ...this.metrics.latencyMs, timeToText: total, total },
+      latencyMs: { ...this.metrics.latencyMs, timeToText, total },
       estimatedCostUsd: Number(this.metrics.estimatedCostUsd.toFixed(9)),
     };
   }
