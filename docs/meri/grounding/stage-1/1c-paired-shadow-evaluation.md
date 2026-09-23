@@ -4,7 +4,14 @@ Stage 1c is offline reporting only. It consumes the post-release events document
 
 ## Export pilot events
 
-In the approved pilot log system, query the structured event-name field for `meri.evidence_shadow` and `meri.evidence_shadow.turn`, constrain the time range and canonical pilot tenant, and export each complete structured record as one JSON line. Include both claim and turn events. Do not export free-form surrounding logs, credentials, headers, prompts beyond the bounded logged claim fields, or events for other tenants. Store the export in an access-controlled local working directory and run:
+Every Meri structured event is one JSON object per log line with an `event` field, for example `{"event":"meri.evidence_shadow","conversationId":...}`, printed behind the Nest console logger header (`[Nest] <pid>  - <timestamp>     LOG [MeriV3AssistantService] `) which the export strips. Emission is already scoped by the rollout flags to the canonical pilot tenant and the `chat` surface; constrain the time range with `--start-time` (epoch milliseconds). From an authenticated shell with read access to the pilot log group, export the claim and turn events in one pass (the filter pattern `"meri.evidence_shadow"` matches both `meri.evidence_shadow` and `meri.evidence_shadow.turn`):
+
+```bash
+START=$(( ($(date +%s) - 24*3600) * 1000 ))   # 24 hours back, in epoch milliseconds
+aws logs filter-log-events --log-group-name /capiro/dev/api --start-time "$START" --filter-pattern '"meri.evidence_shadow"' --output json | jq -r '.events[].message' | sed 's/\x1b\[[0-9;]*m//g' | grep -o '{"event":.*}' > events.jsonl
+```
+
+`jq` extracts each log message, `sed` removes ANSI colour codes and `grep -o` keeps only the JSON object, so the logger header, free-form surrounding logs, credentials, headers and prompts never enter the export. When the response carries a `nextToken`, repeat the command with `--next-token <token>` and append (`>>`) until it is absent. `meri.evidence_shadow.failed` lines that match the pattern are counted as unrelated by the report and need no removal. Do not widen the log group, time range or filter pattern to capture other tenants' events. Store the export in an access-controlled local working directory and run:
 
 `pnpm --filter @capiro/meriv2-core eval:jev-shadow-report -- --events <export.jsonl> --recordings <recordings.jsonl> --labels <labels.json> --out <directory>`
 

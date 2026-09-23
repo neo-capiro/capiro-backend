@@ -17,15 +17,18 @@ export function deriveRequirement(input: DerivedRequirementInput): RepairRequire
   const { decision, claim, envelope, evidencePlan } = input;
   const exactResult = input.deterministic?.exact.result;
   const freshnessState = input.deterministic?.freshness.state;
+  // A House/Senate comparison whose evidence lacks one chamber's figure is
+  // incomplete even when the judge accepts the prose (2d: chamber completeness).
+  const chamberComplete = input.deterministic?.houseSenateComplete !== false;
   if (decision.kind === 'outcome' && decision.outcome === 'supported'
-    && exactResult !== 'mismatch' && exactResult !== 'absent' && freshnessState !== 'stale') return null;
+    && exactResult !== 'mismatch' && exactResult !== 'absent' && freshnessState !== 'stale' && chamberComplete) return null;
 
   const requirement = selectRequirement(evidencePlan.requirements, claim.category, envelope);
   if (!requirement) return null;
   let kind: RepairRequirement['kind'] = 'missing_evidence';
   if (freshnessState === 'stale') kind = 'stale_status';
   else if (exactResult === 'mismatch') kind = 'contradiction';
-  else if (exactResult === 'absent') kind = 'missing_evidence';
+  else if (exactResult === 'absent' || !chamberComplete) kind = 'missing_evidence';
   else if (decision.kind === 'failure' && decision.state === 'document_unavailable') kind = 'document_unavailable';
   else if (decision.kind === 'outcome' && decision.outcome === 'contradicted') kind = 'contradiction';
   else if (decision.kind === 'outcome' && decision.outcome === 'conflicting_evidence') kind = 'conflict';
@@ -37,6 +40,7 @@ export function deriveRequirement(input: DerivedRequirementInput): RepairRequire
     toolFamilies: [...requirement.toolFamilies],
     requiredFields: [...requirement.requiredFields],
     freshness: requirement.freshness,
+    ...(input.route && Object.keys(input.route).length ? { route: { ...input.route } } : {}),
   };
 }
 
@@ -81,6 +85,8 @@ function combinedArgs(requirement: RepairRequirement, context: RepairContext): R
     requiredFields: [...new Set(requirement.requiredFields)].sort(),
     freshness: requirement.freshness ?? null,
     ...(requirement.kind === 'stale_status' ? { route: 'current_status' } : {}),
+    // Concrete identities the turn already holds (e.g. documentId); never inferred.
+    ...(requirement.route ?? {}),
     tenantId: context.tenantId,
     ...(context.clientId ? { clientId: context.clientId } : {}),
   };

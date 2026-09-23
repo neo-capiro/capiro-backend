@@ -19,6 +19,9 @@ import {
   type ProviderUsage,
 } from '@capiro/shared';
 import {
+  AUTO_CORRECTION_CAPABILITY,
+  COVERAGE_RETRIEVAL_CAPABILITY,
+  PASSAGE_SELECTION_CAPABILITY,
   buildAssurancePromptBlock,
   buildClaimLedgerFromToolResults,
   extractMaterialClaims,
@@ -28,17 +31,20 @@ import {
   planGovernmentAffairsEvidence,
   resolveAssuranceRolloutMode,
   resolveAutoCorrectionCategories,
-  resolveAutoCorrectionMode,
+  resolveCapabilityRollout,
   resolveClaimAssessmentMode,
-  resolveCoverageRetrievalMode,
   resolveEvidenceAccuracyMode,
-  resolvePassageSelectionMode,
+  resolveJevConfig,
+  resolveJevProviderMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
   assurePreToolPersist,
   KeywordIntentRouter,
+  type AssuranceSurface,
+  type AssuredEvidence,
   type AuditorMode,
+  type CapabilityRolloutMode,
   type LedgerEntry,
   type MeriContext,
   type ToolRegistry,
@@ -101,8 +107,9 @@ import {
   compareCoverage,
   planFollowUp,
   type CoverageGap,
+  type CoverageRequirement,
 } from '../retrieval/meri-evidence-requirements.js';
-import { applyLiveRepair } from '../repair/live-repair.service.js';
+import { applyLiveRepair, buildRepairDocumentReferences } from '../repair/live-repair.service.js';
 import { createOrchestratorToolExecutor } from '../repair/orchestrator-tool-executor.js';
 import { createRevisionGenerator } from '../repair/revision-generator.js';
 import {
@@ -113,7 +120,11 @@ import {
   rebuildSynthesisEvidence,
   selectPassages,
 } from '../jev/passage-selector.js';
-import { CanaryTurnCollector, replyRequestsClarification } from '../canary/canary-turn-collector.js';
+import {
+  CanaryTurnCollector,
+  replyRequestsClarification,
+  type CanaryTurnSurface,
+} from '../canary/canary-turn-collector.js';
 
 export interface MeriV3RunOptions {
   onEvent?: (event: MeriV3ChatStreamEvent) => void;
@@ -124,6 +135,19 @@ export interface MeriV3RunOptions {
 }
 
 const TOOL_RESULT_CHARS = 12_000;
+/**
+ * Stage 2c budget. The repair stage runs between finalization and the single
+ * text emission, so `maxMs` is also the hard ceiling on how long that frame can
+ * be delayed; the stage degrades to the finalized reply when it is exceeded.
+ */
+const AUTO_CORRECTION_BUDGET = {
+  maxPasses: 1 as const,
+  maxToolCalls: 3,
+  maxMs: 8_000,
+  maxInputTokens: 60_000,
+};
+/** Promoted material claims assessed per turn; later claims stay byte-identical. */
+const AUTO_CORRECTION_MAX_CLAIMS = 12;
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
 const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Map([
   ['draft_policy_memo', 'body'],
@@ -140,6 +164,14 @@ interface FunctionExecution {
   call: OpenAiResponsesFunctionCall;
   result: unknown;
   serialized: string;
+}
+
+/** The forced-synthesis request after Stage 2b passage selection. */
+interface SelectedSynthesisEvidence {
+  input: Array<Record<string, unknown>>;
+  instructions: string;
+  /** Enforce only: the verified rebuild removed evidence and is applied to the request. */
+  applied: boolean;
 }
 
 function emptyUsage(): ProviderUsage {
@@ -211,6 +243,193 @@ function isModelTimeoutError(error: unknown): boolean {
   // (no "timed out"/AbortError text) but tags it with structured telemetry —
   // recognize that so this is treated as a recoverable timeout too.
   return readOpenAiResponsesErrorTelemetry(error)?.finishReason === 'deadline_exceeded';
+}
+
+/** Cancellation and research-lease loss keep their legacy handling; a Stage 2 stage must not swallow them. */
+function isTurnAbortError(error: unknown, signal?: AbortSignal): boolean {
+  return (
+    Boolean(signal?.aborted) ||
+    (error instanceof Error && error.name === 'ResearchRunInactiveError')
+  );
+}
+
+function errorReason(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).slice(0, 300);
+}
+
+/**
+ * Deep Research runs reach this runtime through the chat entry point with a
+ * server-owned research lease. Every Stage 0-2 capability is enrolled by exact
+ * surface, so a `chat` enrollment must never reach research traffic.
+ */
+function turnSurface(dto: MeriV3ChatInput): CanaryTurnSurface {
+  return dto.researchRun ? 'research' : 'chat';
+}
+
+/**
+ * Prompt size for the passage-selection event without serializing the request:
+ * message text, replayed function-call arguments and tool outputs.
+ */
+function promptTextChars(items: readonly Record<string, unknown>[]): number {
+  let total = 0;
+  for (const item of items) {
+    if (typeof item.content === 'string') total += item.content.length;
+    else if (Array.isArray(item.content)) {
+      for (const part of item.content) {
+        const text = (part as { text?: unknown } | null)?.text;
+        if (typeof text === 'string') total += text.length;
+      }
+    }
+    if (typeof item.output === 'string') total += item.output.length;
+    if (typeof item.arguments === 'string') total += item.arguments.length;
+  }
+  return total;
+}
+
+type BudgetedSettlement<T> =
+  | { kind: 'settled'; value: T }
+  | { kind: 'deadline' }
+  | { kind: 'aborted' };
+
+/**
+ * Resolve `work`, or stop waiting at `deadlineAt` / on `signal`. The work
+ * itself keeps running; its later settlement is observed and discarded so an
+ * eventual rejection can never surface as an unhandled rejection.
+ */
+function settleWithinBudget<T>(
+  work: Promise<T>,
+  bound: { deadlineAt: number; signal: AbortSignal },
+): Promise<BudgetedSettlement<T>> {
+  return new Promise<BudgetedSettlement<T>>((resolve, reject) => {
+    let done = false;
+    const finish = (settle: () => void): void => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      bound.signal.removeEventListener('abort', onAbort);
+      settle();
+    };
+    const onAbort = () => finish(() => resolve({ kind: 'aborted' }));
+    const timer = setTimeout(
+      () => finish(() => resolve({ kind: 'deadline' })),
+      Math.max(0, Math.min(2_147_483_647, bound.deadlineAt - Date.now())),
+    );
+    if (bound.signal.aborted) onAbort();
+    else bound.signal.addEventListener('abort', onAbort, { once: true });
+    work.then(
+      (value) => finish(() => resolve({ kind: 'settled', value })),
+      (error: unknown) => finish(() => reject(error)),
+    );
+  });
+}
+
+const CITABLE_SOURCES_HEADER = 'Citable sources (cite these in prose as [N] when you use them):';
+
+/** The `[n]` numbers a tool execution listed above its own result body. */
+function citableNumbersOf(serialized: string): Set<number> | null {
+  if (!serialized.startsWith(CITABLE_SOURCES_HEADER)) return null;
+  const end = serialized.indexOf('\n\n');
+  const block = end < 0 ? serialized : serialized.slice(0, end);
+  const numbers = new Set<number>();
+  for (const line of block.split('\n').slice(1)) {
+    const match = /^\[(\d{1,3})\] /.exec(line);
+    if (match) numbers.add(Number(match[1]));
+  }
+  return numbers;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+/**
+ * The ledger entry that produced a citation. Tool executions list their own
+ * citations in a `Citable sources` header, so the entry whose header carries
+ * the citation number is its origin even when the tool ran several times.
+ * Inherited document observations share the citation's record identity.
+ */
+function ledgerEntryForCitation(
+  citation: MeriCitation,
+  ledgerEntries: readonly LedgerEntry[],
+): LedgerEntry | undefined {
+  const sameTool = ledgerEntries.filter((entry) => entry.tool === citation.tool);
+  const numbered = sameTool.find((entry) => citableNumbersOf(entry.serialized)?.has(citation.n));
+  if (numbered) return numbered;
+  const documentId = citation.documentEvidence?.documentId;
+  const recordId = asRecord(citation.documentEvidence?.record)?.recordId;
+  if (documentId) {
+    const byDocument = sameTool.find((entry) => {
+      const result = asRecord(entry.result);
+      if (asRecord(result?.document)?.id !== documentId) return false;
+      if (typeof recordId !== 'string') return true;
+      return entry.serialized.includes(recordId);
+    });
+    if (byDocument) return byDocument;
+  }
+  if (citation.id) return sameTool.find((entry) => entry.serialized.includes(citation.id));
+  return undefined;
+}
+
+/**
+ * Passage text per claim-ledger evidence item, bound to the ledger ENTRY the
+ * evidence came from and carrying that entry's full text. A 240-character
+ * citation snippet or the first same-tool entry would declare supported exact
+ * values absent.
+ */
+function buildRepairPassages(
+  evidence: readonly AssuredEvidence[],
+  citations: readonly MeriCitation[],
+  ledgerEntries: readonly LedgerEntry[],
+): Record<string, { text: string }> {
+  const passages: Record<string, { text: string }> = {};
+  for (const item of evidence) {
+    let text: string | undefined;
+    if (item.id.startsWith('citation:')) {
+      const citation =
+        citations.find((candidate) => `citation:${candidate.n}:${candidate.tool}:${candidate.id}` === item.id) ??
+        citations.find((candidate) => candidate.tool === item.sourceType && candidate.id === item.sourceId);
+      const entry = citation ? ledgerEntryForCitation(citation, ledgerEntries) : undefined;
+      text = entry?.serialized ?? citation?.snippet ?? undefined;
+      if (citation && text) {
+        // `extractMaterialClaims` keys a marker's evidence as `${tool}:${id}` (or
+        // the stable id); expose the same passage under those ids too.
+        const aliases = [`${citation.tool}:${citation.id}`, ...(citation.stableId ? [citation.stableId] : [])];
+        for (const alias of aliases) passages[alias] ??= { text };
+      }
+    } else if (item.id.startsWith('formb:')) {
+      const token = `[S:${item.sourceType}:${item.sourceId}]`;
+      const entry =
+        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(token)) ??
+        ledgerEntries.find((candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId));
+      text = entry?.serialized;
+    } else {
+      const entry = ledgerEntries.find(
+        (candidate) => candidate.tool === item.sourceType && candidate.serialized.includes(item.sourceId),
+      );
+      text = entry?.serialized;
+    }
+    passages[item.id] = { text: text ?? '' };
+  }
+  return passages;
+}
+
+/**
+ * The `(name, fields)` sink the Stage 1/2 components log through. The service
+ * turns every call into one `logStructured` line, so each Meri event those
+ * components emit is a single JSON object on one log line.
+ */
+interface MeriStructuredEventLogger {
+  log(event: string, fields?: Record<string, unknown>): void;
+  warn(event: string, fields?: Record<string, unknown>): void;
+}
+
+const rolloutDiagnosticsLogged = new Set<string>();
+
+/** Tests only: clears the once-per-process rollout diagnostics. */
+export function resetMeriV3RolloutDiagnosticsForTest(): void {
+  rolloutDiagnosticsLogged.clear();
 }
 
 @Injectable()
@@ -344,28 +563,43 @@ export class MeriV3AssistantService {
       tenantId: ctx.tenantId,
       surface: 'chat',
     });
-    const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, 'chat');
-    const autoCorrectionMode = resolveAutoCorrectionMode(process.env, ctx.tenantId, 'chat');
-    const autoCorrectionCategories = resolveAutoCorrectionCategories(process.env);
-    const coverageRetrievalMode = resolveCoverageRetrievalMode(
-      process.env,
+    // Stage 0-2 capabilities are enrolled by the turn's real surface. The release
+    // gate and the evidence plan keep their existing chat-surface semantics.
+    const surface = turnSurface(dto);
+    const evidenceAccuracyMode = resolveEvidenceAccuracyMode(process.env, ctx.tenantId, surface);
+    const autoCorrectionMode = this.resolveStage2Mode(
+      AUTO_CORRECTION_CAPABILITY,
       ctx.tenantId,
-      'chat',
+      surface,
     );
-    const passageSelectionMode = resolvePassageSelectionMode(process.env, ctx.tenantId, 'chat');
-    const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, 'chat');
+    const autoCorrectionCategories = resolveAutoCorrectionCategories(process.env);
+    if (autoCorrectionCategories.unknownTokens.length) {
+      this.warnUnknownAutoCorrectionCategories(autoCorrectionCategories.unknownTokens);
+    }
+    const coverageRetrievalMode = this.resolveStage2Mode(
+      COVERAGE_RETRIEVAL_CAPABILITY,
+      ctx.tenantId,
+      surface,
+    );
+    const passageSelectionMode = this.resolveStage2Mode(
+      PASSAGE_SELECTION_CAPABILITY,
+      ctx.tenantId,
+      surface,
+    );
+    const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, surface);
     const canary = new CanaryTurnCollector({
       conversationId: dto.conversationId ?? null,
       tenantId: ctx.tenantId,
-      surface: 'chat',
+      surface,
       modes: {
         evidenceAccuracy: evidenceAccuracyMode,
         claimAssessment: claimAssessmentMode,
         coverageRetrieval: coverageRetrievalMode,
         passageSelection: passageSelectionMode,
         autoCorrection: autoCorrectionMode,
-        jevProvider: process.env.MERI_JEV_PROVIDER_MODE ?? 'off',
-        routing: process.env.MERI_CHAT_EVIDENCE_JUDGE ?? 'legacy',
+        // The values that governed this turn, not the raw global environment.
+        jevProvider: resolveJevProviderMode(process.env, ctx.tenantId, surface),
+        routing: resolveJevConfig(process.env).routing,
       },
     });
     const evaluateBeforeRelease =
@@ -409,6 +643,7 @@ export class MeriV3AssistantService {
             plan: evidencePlan,
             request: lastUserText,
             frame: operatingFrame,
+            selectedDocumentIds: dto.selectedDocumentIds,
             clientId: dto.clientId,
           });
 
@@ -533,6 +768,7 @@ export class MeriV3AssistantService {
     let automaticReads = 0;
     let residualCoverageGaps: CoverageGap[] = [];
     let latestCoverageGaps: CoverageGap[] = [];
+    let coverageResynthesized = false;
     let documentRequests = 0;
     const MAX_AUTOMATIC_DOCUMENT_READS = 24;
     const canReadDocuments =
@@ -611,33 +847,29 @@ export class MeriV3AssistantService {
       }
     };
 
-    const runForcedSynthesis = async (reason: string): Promise<string> => {
-      assertToolExecutionActive(opts);
-      await this.assertResearchRunActive(dto, opts);
-      const remainingMs = (opts.deadlineAt ?? startedAt + profile.turnBudgetMs) - Date.now();
-      const timeoutMs = Math.max(1, remainingMs);
-      this.logger.warn(
-        `MeriV3 forcing no-tools synthesis (${reason}); timeoutMs=${timeoutMs} reserveMs=${reserveMs} toolsUsed=${toolsUsed.length}`,
-      );
-      emit({
-        type: 'tool_done',
-        tool: 'synthesize',
-        label: 'Writing the answer from gathered evidence',
-        status: 'done',
-        detail: reason,
-      });
-      let synthesisInput = input;
-      let synthesisInstructions = instructions;
-      if (passageSelectionMode !== 'off') {
-        const selectionStartedAt = Date.now();
+    const turnDeadlineAt = (): number => opts.deadlineAt ?? startedAt + profile.turnBudgetMs;
+    const unselectedEvidence = (): SelectedSynthesisEvidence => ({
+      input,
+      instructions,
+      applied: false,
+    });
+
+    /**
+     * Stage 2b. Judges the passages of the forced-synthesis request and, in
+     * enforce, rebuilds it without dropped evidence. Any failure short of turn
+     * cancellation degrades to the unfiltered request.
+     */
+    const selectSynthesisEvidence = async (): Promise<SelectedSynthesisEvidence> => {
+      const selectionStartedAt = Date.now();
+      try {
         const candidates = buildPassageCandidates({
           ledgerEntries,
           citations,
-          requiredToolFamilies: coverageRetrievalMode === 'off'
-            ? evidencePlan.requirements
-                .filter((requirement) => requirement.level === 'required')
-                .flatMap((requirement) => requirement.toolFamilies)
-            : [],
+          // The plan pin protects required evidence in every coverage mode;
+          // satisfied essential coverage gaps add their evidence ids on top.
+          requiredToolFamilies: evidencePlan.requirements
+            .filter((requirement) => requirement.level === 'required')
+            .flatMap((requirement) => requirement.toolFamilies),
           requiredPassageIds: latestCoverageGaps
             .filter((gap) => gap.essential && gap.status === 'satisfied')
             .flatMap((gap) => gap.evidenceIds),
@@ -655,13 +887,18 @@ export class MeriV3AssistantService {
         const provider = createPassageSelectionClient({
           env: process.env, tenantId: ctx.tenantId, surface: 'chat',
         });
+        const remainingMs = turnDeadlineAt() - selectionStartedAt;
         const answers = await askPassageQuestions({
           question: lastUserText,
           clientId: dto.clientId,
           candidates,
           provider: provider.client,
           signal: opts.signal,
-          deadlineAt: Math.min(opts.deadlineAt ?? Infinity, Date.now() + Math.max(0, remainingMs - 1_000)),
+          // Observe the turn deadline and keep a synthesis floor free of selection.
+          deadlineAt: Math.min(
+            turnDeadlineAt(),
+            selectionStartedAt + Math.max(0, remainingMs - 1_000),
+          ),
         });
         const selection = selectPassages({ candidates, answers });
         const rebuilt = rebuildSynthesisEvidence({
@@ -670,60 +907,106 @@ export class MeriV3AssistantService {
           citationPrompt: initialEvidence.citationPrompt,
           candidates,
           kept: selection.kept,
-          citations,
         });
-        const promptCharsBefore = instructions.length + JSON.stringify(input).length;
-        const promptCharsAfter = rebuilt.instructions.length + JSON.stringify(rebuilt.input).length;
+        const fallback = selection.fallback || rebuilt.fallback;
         const requiredCount = candidates.filter((candidate) => candidate.required).length;
-        const evidenceRecall = requiredCount ? selection.retainedRequired / requiredCount : 1;
-        if (evidenceRecall !== 1) throw new Error('Passage selection required-evidence recall invariant failed');
-        this.logger.log('meri.passage_selection', {
+        // Retention is measured on the rebuilt request, not on the candidate list.
+        const requiredRetained = rebuilt.retainedRequired;
+        const evidenceRecall = requiredCount ? requiredRetained / requiredCount : 1;
+        if (evidenceRecall !== 1) {
+          throw new Error('Passage selection required-evidence recall invariant failed');
+        }
+        const changed = rebuilt.removedCallIds.length > 0 || rebuilt.prunedCitationNumbers.length > 0;
+        const applied = passageSelectionMode === 'enforce' && !fallback && changed;
+        const conflictCandidates = candidates.filter((candidate) => candidate.deterministicConflict).length;
+        const latencyMs = Date.now() - selectionStartedAt;
+        const costUsd = answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN;
+        this.logStructured('log', 'meri.passage_selection', {
           conversationId: dto.conversationId ?? null,
+          mode: passageSelectionMode,
           candidates: candidates.length,
           kept: selection.kept.length,
           dropped: selection.dropped.length,
-          retainedRequired: selection.retainedRequired,
-          retainedUserSelected: selection.retainedUserSelected,
+          retainedRequired: requiredRetained,
+          retainedUserSelected: rebuilt.retainedUserSelected,
           retainedContradictory: selection.retainedContradictory,
           evidenceRecall,
-          conflictRetention: candidates.some((candidate) => candidate.deterministicConflict)
-            ? selection.retainedContradictory / candidates.filter((candidate) => candidate.deterministicConflict).length
+          conflictRetention: conflictCandidates
+            ? selection.retainedContradictory / conflictCandidates
             : 1,
-          fallback: selection.fallback,
-          promptCharsBefore,
-          promptCharsAfter,
-          latencyMs: Date.now() - selectionStartedAt,
+          fallback,
+          fallbackReason: answers.fallbackReason ?? rebuilt.fallbackReason ?? null,
+          removedCalls: rebuilt.removedCallIds.length,
+          prunedCitations: rebuilt.prunedCitationNumbers.length,
+          unremovable: rebuilt.unremovable,
+          applied,
+          // Prompt size from the request's text fields; never a serialization pass.
+          promptCharsBefore: instructions.length + promptTextChars(input),
+          promptCharsAfter: rebuilt.instructions.length + promptTextChars(rebuilt.input),
+          latencyMs,
           inputTokens: answers.inputTokens,
-          estimatedCostUsd: answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
+          estimatedCostUsd: costUsd,
           questionVersion: answers.questionVersion,
           model: answers.model || provider.model,
         });
-        const selectedSynthesis = applyPassageSelectionToSynthesis({
+        canary.notePassageSelection({
+          candidates: candidates.length,
+          kept: selection.kept.length,
+          dropped: selection.dropped.length,
+          requiredCandidates: requiredCount,
+          requiredRetained,
+          contradictoryRetained: selection.retainedContradictory,
+          fallback,
+          latencyMs,
+          tokens: answers.inputTokens,
+          costUsd,
+        });
+        const selected = applyPassageSelectionToSynthesis({
           mode: passageSelectionMode,
           originalInput: input,
           originalInstructions: instructions,
           rebuilt,
           fallback: selection.fallback,
         });
-        synthesisInput = selectedSynthesis.input;
-        synthesisInstructions = selectedSynthesis.instructions;
-        canary.notePassageSelection({
-          candidates: candidates.length,
-          kept: selection.kept.length,
-          dropped: selection.dropped.length,
-          requiredCandidates: requiredCount,
-          requiredRetained: selection.retainedRequired,
-          contradictoryRetained: selection.retainedContradictory,
-          fallback: selection.fallback,
+        return { input: selected.input, instructions: selected.instructions, applied };
+      } catch (error) {
+        if (isTurnAbortError(error, opts.signal)) throw error;
+        this.logStructured('warn', 'meri.passage_selection.failed', {
+          conversationId: dto.conversationId ?? null,
+          mode: passageSelectionMode,
+          reason: errorReason(error),
           latencyMs: Date.now() - selectionStartedAt,
-          tokens: answers.inputTokens,
-          costUsd: answers.inputTokens * PASSAGE_SELECTION_MODEL_PRICE_PER_INPUT_TOKEN,
         });
+        return unselectedEvidence();
       }
+    };
+
+    const runForcedSynthesis = async (
+      reason: string,
+      evidence?: SelectedSynthesisEvidence,
+    ): Promise<string> => {
+      assertToolExecutionActive(opts);
+      await this.assertResearchRunActive(dto, opts);
+      const selected =
+        evidence ??
+        (passageSelectionMode !== 'off' ? await selectSynthesisEvidence() : unselectedEvidence());
+      // Selection time is charged to the turn: the synthesis timeout is computed
+      // from the deadline after selection, never from a pre-selection remainder.
+      const timeoutMs = Math.max(1, turnDeadlineAt() - Date.now());
+      this.logger.warn(
+        `MeriV3 forcing no-tools synthesis (${reason}); timeoutMs=${timeoutMs} reserveMs=${reserveMs} toolsUsed=${toolsUsed.length}`,
+      );
+      emit({
+        type: 'tool_done',
+        tool: 'synthesize',
+        label: 'Writing the answer from gathered evidence',
+        status: 'done',
+        detail: reason,
+      });
       const synthesis = await this.openai.complete({
         profile,
-        instructions: `${synthesisInstructions}\n\n${finishInstructions()}`,
-        input: synthesisInput,
+        instructions: `${selected.instructions}\n\n${finishInstructions()}`,
+        input: selected.input,
         tools: [],
         toolChoice: 'none',
         timeoutMs,
@@ -851,8 +1134,48 @@ export class MeriV3AssistantService {
             citations,
           });
           // The prior prose was produced before the server-coordinated evidence
-          // arrived. Force one no-tools synthesis over the augmented input.
-          if (executed > 0) finalText = '';
+          // arrived. Force one no-tools synthesis over the augmented input. A
+          // completed answer already in `finalText` is protected the same way
+          // as the passage-selection block below: on any synthesis failure the
+          // turn releases the prose the model already produced, never a generic
+          // failure/timeout message (contract: a Stage 2 failure degrades to
+          // legacy, it never turns a working answer into no answer). Passage
+          // selection (when enforce) runs inside this same synthesis call via
+          // runForcedSynthesis's own selectSynthesisEvidence() call, so the
+          // later passage-selection block is skipped once this one already
+          // produced (or safely restored) text.
+          if (executed > 0) {
+            const preCoverageText = finalText;
+            finalText = '';
+            if (preCoverageText) {
+              try {
+                const rewritten = await runForcedSynthesis('coverage follow-up added evidence');
+                if (rewritten.trim()) {
+                  finalText = rewritten;
+                  coverageResynthesized = true;
+                } else {
+                  this.logStructured('warn', 'meri.coverage.failed', {
+                    conversationId: dto.conversationId ?? null,
+                    mode: coverageRetrievalMode,
+                    reason: 'empty_synthesis',
+                    keptCompletedProse: true,
+                  });
+                  finalText = preCoverageText;
+                  coverageResynthesized = true;
+                }
+              } catch (error) {
+                if (isTurnAbortError(error, opts.signal)) throw error;
+                this.logStructured('warn', 'meri.coverage.failed', {
+                  conversationId: dto.conversationId ?? null,
+                  mode: coverageRetrievalMode,
+                  reason: errorReason(error),
+                  keptCompletedProse: true,
+                });
+                finalText = preCoverageText;
+                coverageResynthesized = true;
+              }
+            }
+          }
         }
         const essentialResiduals = gaps.filter(
           (gap) => gap.essential && gap.status !== 'satisfied',
@@ -866,7 +1189,7 @@ export class MeriV3AssistantService {
           residual: essentialResiduals.length,
           latencyMs: Date.now() - coverageStartedAt,
         });
-        this.logger.log('meri.coverage.turn', {
+        this.logStructured('log', 'meri.coverage.turn', {
           conversationId: dto.conversationId ?? null,
           requirements: coverageRequirements.map((requirement) => ({
             requirementId: requirement.requirementId,
@@ -891,8 +1214,44 @@ export class MeriV3AssistantService {
       }
 
       // Coverage and its follow-up evidence must exist before enforce selection.
-      // Shadow remains output-identical and observes selection on forced-synthesis turns.
-      if (passageSelectionMode === 'enforce' && !opts.signal?.aborted) finalText = '';
+      // Shadow remains output-identical and observes selection on forced-synthesis
+      // turns only, so it never delays a completed answer. Enforce re-synthesizes
+      // only when the verified rebuild actually removed evidence, and a failed
+      // re-synthesis releases the prose the model had already completed.
+      // Skipped when the coverage follow-up above already ran a governed forced
+      // synthesis (it calls selectSynthesisEvidence() internally): re-running
+      // Jev scoring here would be redundant and would pay for a second synthesis
+      // call on a request whose evidence set has not changed since.
+      if (passageSelectionMode === 'enforce' && finalText && !coverageResynthesized && !opts.signal?.aborted) {
+        const preSelectionText = finalText;
+        try {
+          const selected = await selectSynthesisEvidence();
+          if (selected.applied) {
+            const rewritten = await runForcedSynthesis(
+              'passage selection removed evidence from the synthesis request',
+              selected,
+            );
+            if (rewritten.trim()) finalText = rewritten;
+            else {
+              this.logStructured('warn', 'meri.passage_selection.failed', {
+                conversationId: dto.conversationId ?? null,
+                mode: passageSelectionMode,
+                reason: 'empty_synthesis',
+                keptCompletedProse: true,
+              });
+            }
+          }
+        } catch (error) {
+          if (isTurnAbortError(error, opts.signal)) throw error;
+          this.logStructured('warn', 'meri.passage_selection.failed', {
+            conversationId: dto.conversationId ?? null,
+            mode: passageSelectionMode,
+            reason: errorReason(error),
+            keptCompletedProse: true,
+          });
+          finalText = preSelectionText;
+        }
+      }
 
       if (!finalText && !opts.signal?.aborted) {
         finalText = await runForcedSynthesis(
@@ -1010,121 +1369,52 @@ export class MeriV3AssistantService {
       emit,
     });
 
+    // The single text emission is decided from the state at finalization. The
+    // bounded repair stage below can neither hold, empty, nor suppress it.
+    const emitText =
+      Boolean(released.reply) &&
+      (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded');
+
     if (autoCorrectionMode !== 'off' && released.reply && autoCorrectionCategories.categories.size) {
-      if (autoCorrectionCategories.unknownTokens.length) {
-        this.logger.warn('meri.auto_correction.unknown_categories', {
-          tokens: autoCorrectionCategories.unknownTokens,
-        });
-      }
-      const asOf = new Date().toISOString();
-      const claimLedger = buildClaimLedgerFromToolResults({
-        output: released.reply,
-        ledgerEntries,
-        citations: released.citations,
-        plan: evidencePlan,
-      });
-      const claims = extractMaterialClaims({
-        replyText: released.reply,
-        citations: released.citations,
-        ledger: claimLedger,
-        asOf,
-      });
-      const passages = Object.fromEntries(claimLedger.evidence.map((evidence) => {
-        const citation = released.citations.find((item) =>
-          item.id === evidence.sourceId || item.stableId === evidence.id,
-        );
-        const entry = ledgerEntries.find((item) => item.tool === evidence.sourceType);
-        return [evidence.id, { text: citation?.snippet ?? entry?.serialized ?? '' }];
-      }));
-      const providers = createChatDecisionProviders({
-        env: process.env,
-        tenantId: ctx.tenantId,
-        surface: 'chat',
-        llm: this.llm,
-        logger: this.logger,
-      });
-      const repairStartedAt = Date.now();
-      const executor = autoCorrectionMode === 'enforce'
-        ? createOrchestratorToolExecutor({
-            registry: this.registry,
-            schemas: availableSchemas,
-            context: {
-              tenantId: ctx.tenantId,
-              clientId: dto.clientId,
-              conversationId: dto.conversationId,
-              request: lastUserText,
-            },
-            citations: released.citations,
-            ledgerEntries,
-            invoke: (name, input) => this.registry.invoke(name, input, ctx),
-          })
-        : new ReplayToolExecutor([]);
-      const repair = await applyLiveRepair({
-        released: released.reply,
-        claims,
-        ledger: claimLedger,
-        citations: released.citations,
-        passages,
-        evidencePlan,
-        residualGaps: residualCoverageGaps,
-        documentReferences: coverageRequirements.flatMap((requirement) => {
-          const id = requirement.route?.documentId;
-          const filename = requirement.route?.documentName;
-          if (typeof id !== 'string' || typeof filename !== 'string') return [];
-          return [{
-            kind: 'attachment' as const,
-            id,
-            filename,
-            version: null,
-            contentState: 'metadata_only' as const,
-            readable: false,
-            relevantPassageIds: [],
-            resolution: 'explicit_id' as const,
-          }];
-        }),
-        tenantId: ctx.tenantId,
-        clientId: dto.clientId,
-        conversationId: dto.conversationId,
-        providers,
-        executor,
-        generate: autoCorrectionMode === 'enforce'
-          ? createRevisionGenerator(this.llm, () => Math.max(1, 8_000 - (Date.now() - repairStartedAt)))
-          : async ({ affectedText }) => ({ replacementText: affectedText, citedEvidenceIds: [] }),
-        promotedCategories: autoCorrectionCategories.categories,
-        budget: { maxPasses: 1, maxToolCalls: 3, maxMs: 8_000, maxInputTokens: 60_000 },
-        signal: opts.requestSignal ?? opts.signal,
-        logger: this.logger,
+      const corrected = await this.applyBoundedAutoCorrection({
+        ctx,
+        dto,
+        opts,
         mode: autoCorrectionMode,
+        categories: autoCorrectionCategories.categories,
+        released,
+        ledgerEntries,
+        citations,
+        evidencePlan,
+        assuranceRisk,
+        assuranceMode,
+        complianceOutcome,
+        verificationAvailable,
+        coverageRequirements,
+        residualCoverageGaps,
+        availableSchemas,
+        lastUserText,
+        evidenceAccuracyMode,
+        synthesisModel: actualModel,
+        canary,
       });
-      canary.noteRepair({
-        ...repair.metrics.repairs,
-        assessmentMs: repair.metrics.assessmentMs,
-        repairMs: repair.metrics.repairMs,
-        tokens: repair.metrics.inputTokens,
-        costUsd: repair.metrics.estimatedCostUsd,
-        sampled: repair.metrics.sampled,
-      });
-      documentRequests = repair.metrics.repairs.documentRequested;
-      canary.noteLegacy(repair.metrics.legacyInputTokens);
-      if (autoCorrectionMode === 'enforce' && repair.changed) {
-        const formA = validateCitationMarkers(repair.reply, repair.citations);
-        const formB = validateFormBCitations(
-          formA.cleanedText,
-          ledgerToToolResultMap(ledgerEntries),
-        );
-        released = { ...released, reply: formB.sanitizedText, citations: [...formA.used] };
-      }
+      released = { ...released, reply: corrected.reply, citations: corrected.citations };
+      documentRequests = corrected.documentRequests;
     }
 
-    if (released.reply && (!opts.signal?.aborted || telemetry.finishReason === 'deadline_exceeded'))
+    if (emitText && released.reply) {
       emit({ type: 'text', text: released.reply });
+      canary.noteTextEmitted();
+    }
     const canaryEvent = canary.build({
       outcome: opts.signal?.aborted ? 'aborted' : released.held ? 'held'
         : telemetry.finishReason === 'runtime_error' ? 'error' : 'released',
       clarificationRequested: replyRequestsClarification(released.reply, documentRequests),
       heldReason: released.held ? complianceOutcome ?? 'release_gate' : null,
     });
-    this.logger.log('meri.canary.turn', canaryEvent);
+    // One JSON object per log line: the shape `readCanaryEvents` parses from an
+    // exported log line, like the `meriv3.turn` event below.
+    this.logStructured('log', 'meri.canary.turn', { ...canaryEvent });
     // Always schedule after text emission. Stage 1 enforce is intentionally
     // shadow-only: this cannot hold, delay, retrieve for, or rewrite the answer.
     if (claimAssessmentMode !== 'off') {
@@ -1135,7 +1425,7 @@ export class MeriV3AssistantService {
         replyText: released.reply,
         citations: released.citations,
         asOf,
-        logger: this.logger,
+        logger: this.structuredLogger,
         afterInventory: async () => {
           const claimLedger = buildClaimLedgerFromToolResults({
             output: released.reply,
@@ -1159,7 +1449,7 @@ export class MeriV3AssistantService {
             tenantId: ctx.tenantId,
             surface: 'chat',
             llm: this.llm,
-            logger: this.logger,
+            logger: this.structuredLogger,
           });
           await assessReleasedClaims({
             claims,
@@ -1174,7 +1464,7 @@ export class MeriV3AssistantService {
             providers,
             budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
             signal: opts.requestSignal ?? opts.signal,
-            logger: this.logger,
+            logger: this.structuredLogger,
           });
         },
       });
@@ -1254,6 +1544,334 @@ export class MeriV3AssistantService {
       ...(dto.toolPolicy ? { held: released.held } : {}),
       ...(dto.toolPolicy === 'read-only' ? { ledgerEntries } : {}),
     };
+  }
+
+  /**
+   * Stage 2 rollout: the mode that governs this turn. Configuration mistakes
+   * (a tenant slug instead of the canonical UUID, an unknown surface, a
+   * misspelled mode) leave the capability off and are surfaced once per process.
+   */
+  private resolveStage2Mode(
+    capability: string,
+    tenantId: string,
+    surface: AssuranceSurface,
+  ): CapabilityRolloutMode {
+    const rollout = resolveCapabilityRollout({ capability, env: process.env, tenantId, surface });
+    const modeRaw = String(process.env[`MERI_${capability}_MODE`] ?? '').trim();
+    const issues = rollout.reasons.filter(
+      (reason) =>
+        reason.startsWith('invalid_tenant:') ||
+        reason.startsWith('invalid_surface:') ||
+        (reason === 'invalid_mode' && modeRaw !== ''),
+    );
+    if (issues.length) {
+      const key = `${capability}:${issues.join(',')}`;
+      if (!rolloutDiagnosticsLogged.has(key)) {
+        rolloutDiagnosticsLogged.add(key);
+        this.logStructured('warn', 'meri.rollout.invalid_config', { capability, issues });
+      }
+    }
+    return rollout.mode;
+  }
+
+  private warnUnknownAutoCorrectionCategories(tokens: readonly string[]): void {
+    const key = `AUTO_CORRECTION_CATEGORIES:${[...tokens].sort().join(',')}`;
+    if (rolloutDiagnosticsLogged.has(key)) return;
+    rolloutDiagnosticsLogged.add(key);
+    this.logStructured('warn', 'meri.auto_correction.unknown_categories', { tokens: [...tokens] });
+  }
+
+  /**
+   * One JSON object per log line. `readCanaryEvents` and `readShadowEvents`
+   * parse each exported line with `JSON.parse` and read its `event` field, so a
+   * structured event is never passed to the Nest logger as a second argument
+   * (that prints a multi-line `Object:` block, one log line per fragment).
+   */
+  private logStructured(
+    level: 'log' | 'warn',
+    event: string,
+    fields: Record<string, unknown>,
+  ): void {
+    const line = JSON.stringify({ event, ...fields });
+    if (level === 'warn') this.logger.warn(line);
+    else this.logger.log(line);
+  }
+
+  /**
+   * The logger handed to the claim inventory shadow, the Jev provider factory,
+   * the shadow claim assessor and the live repair stage. Every `(name, fields)`
+   * call becomes one `logStructured` line, never a two-argument Nest call. A
+   * getter rather than a field so it lives on the prototype and also serves a
+   * service instance built without running the constructor.
+   */
+  private get structuredLogger(): MeriStructuredEventLogger {
+    return {
+      log: (event, fields) => this.logStructured('log', event, fields ?? {}),
+      warn: (event, fields) => this.logStructured('warn', event, fields ?? {}),
+    };
+  }
+
+  /**
+   * Stage 2c. Assesses promoted claims and, in enforce, applies a bounded
+   * claim-local repair. It runs after finalization and before the single text
+   * emission, so it is fenced: a hard deadline, the turn and transport signals,
+   * a claim cap and a catch-all. Every failure path returns the finalized reply
+   * unchanged; a rewrite is released only when it is non-empty, passes Form A/B
+   * validation and the same release gate the original went through.
+   */
+  private async applyBoundedAutoCorrection(args: {
+    ctx: MeriContext;
+    dto: MeriV3ChatInput;
+    opts: MeriV3RunOptions;
+    mode: 'shadow' | 'enforce';
+    categories: ReturnType<typeof resolveAutoCorrectionCategories>['categories'];
+    released: { reply: string; citations: MeriCitation[]; held: boolean };
+    ledgerEntries: LedgerEntry[];
+    citations: MeriCitation[];
+    evidencePlan: ReturnType<typeof planGovernmentAffairsEvidence>;
+    assuranceRisk: ReturnType<typeof classifyAssuranceRisk>;
+    assuranceMode: ReturnType<typeof resolveAssuranceRolloutMode>;
+    complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
+    verificationAvailable: boolean;
+    coverageRequirements: CoverageRequirement[];
+    residualCoverageGaps: CoverageGap[];
+    availableSchemas: ToolSchema[];
+    lastUserText: string;
+    evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
+    /** Model that wrote this turn; prices legacy-judge, recheck and revision tokens. */
+    synthesisModel: string;
+    canary: CanaryTurnCollector;
+  }): Promise<{ reply: string; citations: MeriCitation[]; documentRequests: number }> {
+    const { ctx, dto, opts, released } = args;
+    const original = { reply: released.reply, citations: released.citations, documentRequests: 0 };
+    const conversationId = dto.conversationId ?? null;
+    if (released.held) {
+      // The held text is the gate's refusal: it carries no claim to repair, and
+      // a rewrite would bypass the gate and auditor that held it.
+      this.logStructured('log', 'meri.auto_correction.skipped', {
+        conversationId,
+        mode: args.mode,
+        reason: 'held',
+      });
+      return original;
+    }
+    if (opts.signal?.aborted || opts.requestSignal?.aborted) {
+      this.logStructured('log', 'meri.auto_correction.skipped', {
+        conversationId,
+        mode: args.mode,
+        reason: 'aborted',
+      });
+      return original;
+    }
+    const startedAt = Date.now();
+    const deadlineAt = Math.min(
+      startedAt + AUTO_CORRECTION_BUDGET.maxMs,
+      opts.deadlineAt ?? Number.POSITIVE_INFINITY,
+    );
+    const controller = new AbortController();
+    const abortFromTurn = () =>
+      controller.abort(opts.signal?.reason ?? opts.requestSignal?.reason);
+    opts.signal?.addEventListener('abort', abortFromTurn, { once: true });
+    opts.requestSignal?.addEventListener('abort', abortFromTurn, { once: true });
+    const failed = (reason: string, extra: Record<string, unknown> = {}) => {
+      this.logStructured('warn', 'meri.auto_correction.failed', {
+        conversationId,
+        mode: args.mode,
+        reason,
+        elapsedMs: Date.now() - startedAt,
+        ...extra,
+      });
+      args.canary.noteRepair({
+        attempted: 0,
+        corrected: 0,
+        qualified: 0,
+        omitted: 0,
+        documentRequested: 0,
+        budgetExhausted: reason === 'deadline' ? 1 : 0,
+        assessmentMs: 0,
+        repairMs: Date.now() - startedAt,
+        tokens: 0,
+        costUsd: 0,
+      });
+      return original;
+    };
+    try {
+      const asOf = new Date().toISOString();
+      const claimLedger = buildClaimLedgerFromToolResults({
+        output: released.reply,
+        ledgerEntries: args.ledgerEntries,
+        citations: released.citations,
+        plan: args.evidencePlan,
+      });
+      const promoted = extractMaterialClaims({
+        replyText: released.reply,
+        citations: released.citations,
+        ledger: claimLedger,
+        asOf,
+      }).filter(
+        (claim) =>
+          claim.material &&
+          claim.category !== 'unclassified' &&
+          args.categories.has(claim.category),
+      );
+      const claims = promoted.slice(0, AUTO_CORRECTION_MAX_CLAIMS);
+      if (promoted.length > claims.length) {
+        this.logStructured('log', 'meri.auto_correction.claims_capped', {
+          conversationId,
+          mode: args.mode,
+          promoted: promoted.length,
+          assessed: claims.length,
+        });
+      }
+      // Passages are bound to the ledger entry each evidence item came from and
+      // carry that entry's full text, so exact comparison sees the cited values.
+      const passages = buildRepairPassages(claimLedger.evidence, released.citations, args.ledgerEntries);
+      const providers = createChatDecisionProviders({
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface: 'chat',
+        llm: this.llm,
+        logger: this.structuredLogger,
+      });
+      // Document references are built only from what this turn observed
+      // (readable content reads, selected or named listings); a turn that
+      // touched no document passes none. The repair loop reads their
+      // `readable`/`contentState` before deciding what a document claim needs.
+      const documentReferences = buildRepairDocumentReferences({
+        ledgerEntries: args.ledgerEntries,
+        citations: released.citations,
+        selectedDocumentIds: dto.selectedDocumentIds,
+        request: args.lastUserText,
+        clientId: dto.clientId,
+      });
+      const executor =
+        args.mode === 'enforce'
+          ? createOrchestratorToolExecutor({
+              registry: this.registry,
+              schemas: args.availableSchemas,
+              context: {
+                tenantId: ctx.tenantId,
+                clientId: dto.clientId,
+                conversationId: dto.conversationId,
+                request: args.lastUserText,
+              },
+              citations: released.citations,
+              ledgerEntries: args.ledgerEntries,
+              invoke: (name, input, signal) =>
+                this.registry.invoke(name, input, ctx, {
+                  signal: signal ?? controller.signal,
+                  deadlineAt,
+                }),
+              evidenceAccuracyMode: args.evidenceAccuracyMode,
+              documentReferences,
+            })
+          : new ReplayToolExecutor([]);
+      // The stage is fenced from the outside regardless of what the repair
+      // loop does with its own budget: `settleWithinBudget` below stops waiting
+      // at `deadlineAt` or on abort and the finalized reply is released.
+      const work = applyLiveRepair({
+        released: released.reply,
+        claims,
+        ledger: claimLedger,
+        citations: released.citations,
+        passages,
+        evidencePlan: args.evidencePlan,
+        residualGaps: args.residualCoverageGaps,
+        documentReferences,
+        tenantId: ctx.tenantId,
+        clientId: dto.clientId,
+        conversationId: dto.conversationId,
+        providers,
+        executor,
+        // Remaining time is measured from this stage's deadline, never from a
+        // budget clock the repair loop restarts for itself.
+        generate:
+          args.mode === 'enforce'
+            ? createRevisionGenerator(this.llm, () => Math.max(1, deadlineAt - Date.now()))
+            : async ({ affectedText }) => ({ replacementText: affectedText, citedEvidenceIds: [] }),
+        promotedCategories: args.categories,
+        budget: { ...AUTO_CORRECTION_BUDGET, maxMs: Math.max(1, deadlineAt - Date.now()) },
+        signal: controller.signal,
+        logger: this.structuredLogger,
+        // An omitted mode is treated as enforce by the repair service; always explicit.
+        mode: args.mode,
+        // Real read-only classification for remedy planning; unknown tools fail closed.
+        toolRegistry: this.registry,
+        pricing: { llmModel: args.synthesisModel },
+      });
+      const settled = await settleWithinBudget(work, { deadlineAt, signal: controller.signal });
+      if (settled.kind !== 'settled') {
+        controller.abort(new DOMException('Auto-correction budget exceeded', 'TimeoutError'));
+        return failed(settled.kind, { claims: claims.length });
+      }
+      const repair = settled.value;
+      // Repair counts come from the per-claim outcomes the repair service
+      // reports (corrected + qualified + omitted + unresolved === attempted).
+      args.canary.noteRepair({
+        ...repair.metrics.repairs,
+        assessmentMs: repair.metrics.assessmentMs,
+        repairMs: repair.metrics.repairMs,
+        tokens: repair.metrics.inputTokens,
+        costUsd: repair.metrics.estimatedCostUsd,
+        sampled: repair.metrics.sampled,
+      });
+      args.canary.noteLegacy(repair.metrics.legacyInputTokens);
+      this.logStructured('log', 'meri.auto_correction.stage', {
+        conversationId,
+        mode: args.mode,
+        claimsAssessed: claims.length,
+        attempted: repair.metrics.repairs.attempted,
+        wouldAttempt: repair.metrics.wouldAttempt,
+        unresolved: repair.metrics.unresolved,
+        documentRequested: repair.metrics.repairs.documentRequested,
+        replyChanged: repair.changed,
+        elapsedMs: Date.now() - startedAt,
+      });
+      const documentRequests = repair.metrics.repairs.documentRequested;
+      if (args.mode !== 'enforce' || !repair.changed) return { ...original, documentRequests };
+
+      const formA = validateCitationMarkers(repair.reply, repair.citations);
+      const formB = validateFormBCitations(
+        formA.cleanedText,
+        ledgerToToolResultMap(args.ledgerEntries),
+      );
+      const rewritten = formB.sanitizedText;
+      if (!rewritten.trim()) {
+        this.logStructured('warn', 'meri.auto_correction.rewrite_rejected', {
+          conversationId,
+          reason: 'empty',
+        });
+        return { ...original, documentRequests };
+      }
+      const seen = new Set(args.citations.map((item) => `${item.tool}:${item.n}:${item.id}`));
+      const gateCitations = [
+        ...args.citations,
+        ...repair.citations.filter((item) => !seen.has(`${item.tool}:${item.n}:${item.id}`)),
+      ];
+      const gate = this.evaluateReleaseGate({
+        released: rewritten,
+        ledgerEntries: args.ledgerEntries,
+        citations: gateCitations,
+        evidencePlan: args.evidencePlan,
+        assuranceRisk: args.assuranceRisk,
+        assuranceMode: args.assuranceMode,
+        complianceOutcome: args.complianceOutcome,
+        verificationAvailable: args.verificationAvailable,
+      });
+      if (gate.held) {
+        this.logStructured('warn', 'meri.auto_correction.rewrite_rejected', {
+          conversationId,
+          reason: 'release_gate',
+        });
+        return { ...original, documentRequests };
+      }
+      return { reply: rewritten, citations: [...formA.used], documentRequests };
+    } catch (error) {
+      return failed(errorReason(error));
+    } finally {
+      opts.signal?.removeEventListener('abort', abortFromTurn);
+      opts.requestSignal?.removeEventListener('abort', abortFromTurn);
+    }
   }
 
   private toResponsesInput(dto: MeriV3ChatInput): Array<Record<string, unknown>> {
@@ -1400,7 +2018,7 @@ export class MeriV3AssistantService {
         args.citations,
         args.evidenceAccuracyMode,
         ({ collisions, overflow }) => {
-          this.logger.warn('meri.citation_integrity', {
+          this.logStructured('warn', 'meri.citation_integrity', {
             conversationId: args.dto.conversationId ?? null,
             turnId: null,
             surface: 'numbering',
@@ -1702,6 +2320,47 @@ export class MeriV3AssistantService {
       }
     }
 
+    const gate = this.evaluateReleaseGate({
+      released,
+      ledgerEntries: args.ledgerEntries,
+      citations: args.citations,
+      evidencePlan: args.evidencePlan,
+      assuranceRisk: args.assuranceRisk,
+      assuranceMode: args.assuranceMode,
+      complianceOutcome: args.complianceOutcome,
+      verificationAvailable: args.verificationAvailable,
+    });
+    released = gate.released;
+    held = gate.held;
+
+    const residualCoverageGaps = args.residualCoverageGaps ?? [];
+    // A held or refused reply carries no released claim for the note to attach to.
+    if (residualCoverageGaps.length && !held) {
+      released = appendClaimTiedCoverageDisclosure(
+        released,
+        residualCoverageGaps,
+        args.coverageRequirements,
+      );
+    }
+    return { reply: released, citations: usedCitations, held };
+  }
+
+  /**
+   * The assurance release gate exactly as finalization runs it. Repaired text
+   * goes through the same check before it may replace the finalized reply.
+   */
+  private evaluateReleaseGate(args: {
+    released: string;
+    ledgerEntries: LedgerEntry[];
+    citations: MeriCitation[];
+    evidencePlan: ReturnType<typeof planGovernmentAffairsEvidence>;
+    assuranceRisk: ReturnType<typeof classifyAssuranceRisk>;
+    assuranceMode: ReturnType<typeof resolveAssuranceRolloutMode>;
+    complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
+    verificationAvailable: boolean;
+  }): { released: string; held: boolean } {
+    let released = args.released;
+    let held = false;
     if (
       args.assuranceMode !== 'off' &&
       args.assuranceRisk.requiresBufferBeforeRelease &&
@@ -1758,16 +2417,7 @@ export class MeriV3AssistantService {
         }
       }
     }
-
-    const residualCoverageGaps = args.residualCoverageGaps ?? [];
-    if (residualCoverageGaps.length) {
-      released = appendClaimTiedCoverageDisclosure(
-        released,
-        residualCoverageGaps,
-        args.coverageRequirements,
-      );
-    }
-    return { reply: released, citations: usedCitations, held };
+    return { released, held };
   }
 
   private validateCitationExposure(
@@ -1811,7 +2461,7 @@ export class MeriV3AssistantService {
     conversationId?: string,
   ): void {
     if (mode === 'off' || dropped.length === 0) return;
-    this.logger.warn('meri.citation_integrity', {
+    this.logStructured('warn', 'meri.citation_integrity', {
       conversationId: conversationId ?? null,
       turnId: null,
       surface,

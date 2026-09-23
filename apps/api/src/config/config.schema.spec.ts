@@ -153,3 +153,63 @@ describe('configSchema — LegiStorm Legislative Districts (WS-B)', () => {
     ).toThrow();
   });
 });
+
+/**
+ * Meri rollout mode switches. docs/meri/grounding/stage-0/FEATURE-FLAG.md promises
+ * that blank values fail closed to `off`. The meriv2-core resolver does exactly
+ * that, but `validateConfig` runs `configSchema.parse` at Nest bootstrap and a bare
+ * `z.enum([...]).optional()` accepts `undefined` while rejecting `''`, so a task
+ * definition hand-edited to `{"value": ""}` (the runbook's rollback step) would
+ * crash-loop the API over variables it never reads. Typos must stay rejected.
+ */
+describe('configSchema — Meri rollout mode switches fail closed on blank', () => {
+  const MODE_KEYS = [
+    'MERI_EVIDENCE_ACCURACY_MODE',
+    'MERI_COVERAGE_RETRIEVAL_MODE',
+    'MERI_CLAIM_ASSESSMENT_MODE',
+    'MERI_AUTO_CORRECTION_MODE',
+    'MERI_PASSAGE_SELECTION_MODE',
+    'MERI_JEV_PROVIDER_MODE',
+    'MERI_CHAT_EVIDENCE_JUDGE',
+  ] as const;
+  const requiredCore = {
+    DATABASE_URL: 'postgresql://localhost:5432/capiro',
+    CLERK_SECRET_KEY: 'sk_test',
+    CLERK_WEBHOOK_SIGNING_SECRET: 'whsec_test',
+  };
+
+  for (const key of MODE_KEYS) {
+    test(`${key}: blank and whitespace-only values parse as unset`, () => {
+      const field = configSchema.shape[key];
+      expect(field.parse(undefined)).toBeUndefined();
+      expect(field.parse('')).toBeUndefined();
+      expect(field.parse('   ')).toBeUndefined();
+    });
+
+    test(`${key}: a non-blank unknown value is still rejected`, () => {
+      expect(() => configSchema.shape[key].parse('bogus')).toThrow();
+    });
+  }
+
+  test('valid values still round-trip unchanged', () => {
+    expect(configSchema.shape.MERI_PASSAGE_SELECTION_MODE.parse('shadow')).toBe('shadow');
+    expect(configSchema.shape.MERI_JEV_PROVIDER_MODE.parse('enforce')).toBe('enforce');
+    expect(configSchema.shape.MERI_CHAT_EVIDENCE_JUDGE.parse('cascade')).toBe('cascade');
+  });
+
+  test('the full schema boots with every switch blank, as a hand-edited task definition sets it', () => {
+    const result = configSchema.safeParse({
+      ...requiredCore,
+      ...Object.fromEntries(MODE_KEYS.map((key) => [key, ''])),
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      for (const key of MODE_KEYS) expect(result.data[key]).toBeUndefined();
+    }
+  });
+
+  test('the full schema still refuses a typo in a switch', () => {
+    const result = configSchema.safeParse({ ...requiredCore, MERI_AUTO_CORRECTION_MODE: 'enabled' });
+    expect(result.success).toBe(false);
+  });
+});

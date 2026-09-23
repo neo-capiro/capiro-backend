@@ -4,22 +4,50 @@ const identity = { conversationId: 'c', tenantId: 't', surface: 'chat' as const,
   modes: { evidenceAccuracy: 'off', claimAssessment: 'off', coverageRetrieval: 'shadow',
     passageSelection: 'enforce', autoCorrection: 'off', jevProvider: 'shadow', routing: 'cascade' } };
 
+function collectorAt(times: number[]): CanaryTurnCollector {
+  const last = times[times.length - 1] ?? 0;
+  return new CanaryTurnCollector(identity, () => times.shift() ?? last);
+}
+
+// The text-frame-before-canary-event ordering is asserted against the real
+// turn loop in meriv3-assistant.service.spec.ts ('emits the text frame before
+// the canary event ...'); this file covers the collector's own measurements.
 describe('CanaryTurnCollector', () => {
-  it('assembles fakes without changing reply/frame ordering', () => {
-    const times = [100, 220]; const collector = new CanaryTurnCollector(identity, () => times.shift() ?? 220);
+  it('measures time-to-text at the text frame and the total at build', () => {
+    // started 100, text frame 150, build 220
+    const collector = collectorAt([100, 150, 220]);
     collector.noteCoverage({ gaps: 2, followUps: 1, residual: 1, latencyMs: 10 });
     collector.notePassageSelection({ candidates: 3, kept: 2, dropped: 1, requiredCandidates: 1,
       requiredRetained: 1, contradictoryRetained: 1, fallback: false, latencyMs: 20, tokens: 5, costUsd: .2 });
     collector.noteRepair({ attempted: 1, corrected: 1, qualified: 0, omitted: 0, documentRequested: 0,
       budgetExhausted: 0, assessmentMs: 30, repairMs: 40, tokens: 6, costUsd: .3 });
-    const order: string[] = [];
-    const emit = (_frame: { type: string; text: string }) => { order.push('text'); };
-    emit({ type: 'text', text: 'unchanged' });
+    collector.noteTextEmitted();
     const logged = collector.build({ outcome: 'released', clarificationRequested: false });
-    order.push('canary');
-    expect(order).toEqual(['text', 'canary']);
-    expect(logged).toMatchObject({ coverage: { followUps: 1 }, passageSelection: { requiredRetained: 1 },
-      repair: { corrected: 1 }, latencyMs: { total: 120 }, estimatedCostUsd: .5 });
+    expect(logged.latencyMs).toEqual({
+      timeToText: 50, assessment: 30, passageSelection: 20, coverageFollowUp: 10, repair: 40, total: 120,
+    });
+    expect(logged).toMatchObject({ event: 'meri.canary.turn', surface: 'chat', coverage: { followUps: 1 },
+      passageSelection: { requiredRetained: 1 }, repair: { corrected: 1 }, tokens: { jev: 5, repair: 6 },
+      estimatedCostUsd: .5 });
+  });
+
+  it('keeps the first text-frame measurement if the frame is noted again', () => {
+    const collector = collectorAt([100, 150, 220]);
+    collector.noteTextEmitted();
+    collector.noteTextEmitted();
+    expect(collector.build({ outcome: 'released', clarificationRequested: false }).latencyMs)
+      .toMatchObject({ timeToText: 50, total: 120 });
+  });
+
+  it('reports the whole duration as time-to-text when no text frame was emitted', () => {
+    const collector = collectorAt([100, 220]);
+    expect(collector.build({ outcome: 'aborted', clarificationRequested: false }).latencyMs)
+      .toMatchObject({ timeToText: 120, total: 120 });
+  });
+
+  it('records the research surface for a Deep Research turn', () => {
+    const collector = new CanaryTurnCollector({ ...identity, surface: 'research' }, () => 0);
+    expect(collector.build({ outcome: 'released', clarificationRequested: false }).surface).toBe('research');
   });
 
   it('detects explicit deterministic questions and document requests', () => {

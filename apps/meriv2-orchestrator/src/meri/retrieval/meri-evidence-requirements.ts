@@ -4,7 +4,11 @@ import type {
   GovernmentAffairsOperatingFrame,
   LedgerEntry,
 } from '@capiro/meriv2-core';
-import { resolveDocumentReferences, type DocumentReferenceCandidate } from '@capiro/meriv2-core';
+import {
+  resolveDocumentReferences,
+  type DocumentReference,
+  type DocumentReferenceCandidate,
+} from '@capiro/meriv2-core';
 import type { MeriCitation } from '@capiro/shared';
 import type { MeriToolCoverageReceipt } from '../meriv3/meriv3-turn-coverage.js';
 
@@ -62,6 +66,21 @@ export interface CoverageAttachment extends DocumentReferenceCandidate {
   kind?: 'attachment' | 'client_document';
 }
 
+/** Content evidence from a document read: the document identity plus non-empty text. */
+export interface DocumentContentEvidence {
+  documentId: string;
+  recordIds: string[];
+}
+
+/** Tools whose result without a `documentId` is a file listing, never document content. */
+const DOCUMENT_CONTENT_TOOLS = new Set(['read_client_documents']);
+const DOCUMENT_KEYWORD =
+  /\b(?:summari[sz]e|review|extract|from)\b[\s\S]{0,80}\b(?:transcript|document|attachment|file|memo|report|minutes)\b/i;
+const CHAMBER_PATTERNS: Readonly<Record<string, RegExp>> = {
+  house: /\b(?:house|hasc|hac[-_\s]?d)\b/i,
+  senate: /\b(?:senate|sasc|sac[-_\s]?d)\b/i,
+};
+
 const object = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -85,6 +104,62 @@ function payloadHasUsableContent(value: unknown): boolean {
   // A document object commonly contains only id/filename metadata. Its content
   // is usable only through text/records checked above.
   return Boolean(object(record.record) || object(record.resolvedEntity));
+}
+
+/**
+ * A document read is content only when it names the document AND carries
+ * extracted text. A file listing (`documents: [...]`), a metadata-only document
+ * object, or an empty extraction never counts as content.
+ */
+export function documentContentEvidence(value: unknown): DocumentContentEvidence | null {
+  const record = object(value);
+  if (!record || record.error || record.blocked) return null;
+  const document = object(record.document);
+  const documentId =
+    typeof document?.id === 'string'
+      ? document.id
+      : typeof record.documentId === 'string'
+        ? record.documentId
+        : null;
+  if (!documentId) return null;
+  const rows = Array.isArray(record.records) ? record.records.map(object) : [];
+  const texts = [record.text, record.content, ...rows.map((row) => object(row?.payload)?.text)].filter(
+    (text): text is string => typeof text === 'string' && text.trim().length > 0,
+  );
+  if (!texts.length) return null;
+  const recordIds = rows.flatMap((row) => {
+    const id = row?.recordId ?? row?.id;
+    return typeof id === 'string' ? [id] : [];
+  });
+  return { documentId, recordIds };
+}
+
+function isDocumentContentRequirement(requirement: CoverageRequirement): boolean {
+  return requirement.template === 'transcript_summary' || typeof requirement.route?.documentId === 'string';
+}
+
+/** Whether one ledger entry supplies evidence for the requirement (and its route). */
+function entryProvidesEvidence(entry: LedgerEntry, requirement: CoverageRequirement): boolean {
+  if (isDocumentContentRequirement(requirement) || DOCUMENT_CONTENT_TOOLS.has(entry.tool)) {
+    const content = documentContentEvidence(entry.result);
+    if (!content) return false;
+    const documentId = requirement.route?.documentId;
+    return typeof documentId === 'string' ? content.documentId === documentId : true;
+  }
+  if (!payloadHasUsableContent(entry.result)) return false;
+  const chamber = requirement.route?.chamber;
+  const pattern = typeof chamber === 'string' ? CHAMBER_PATTERNS[chamber] : undefined;
+  if (!pattern) return true;
+  const haystack = entry.result !== undefined ? safeJson(entry.result) : entry.serialized;
+  return pattern.test(haystack);
+}
+
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 function idsForTool(
@@ -111,6 +186,29 @@ function idsForTool(
   ];
 }
 
+function evidenceIdsFor(
+  requirement: CoverageRequirement,
+  called: readonly string[],
+  usable: readonly LedgerEntry[],
+  input: { ledgerEntries: readonly LedgerEntry[]; citations: readonly MeriCitation[] },
+): string[] {
+  const documentId = requirement.route?.documentId;
+  if (typeof documentId === 'string') {
+    return [
+      ...new Set([
+        ...input.citations
+          .filter((citation) => citation.documentEvidence?.documentId === documentId)
+          .flatMap((citation) => [citation.id, ...(citation.stableId ? [citation.stableId] : [])]),
+        ...usable.flatMap((entry) => documentContentEvidence(entry.result)?.recordIds ?? []),
+      ]),
+    ];
+  }
+  if (isDocumentContentRequirement(requirement)) {
+    return [...new Set(usable.flatMap((entry) => documentContentEvidence(entry.result)?.recordIds ?? []))];
+  }
+  return [...new Set(called.flatMap((tool) => idsForTool(tool, input.ledgerEntries, input.citations)))];
+}
+
 function add(
   output: CoverageRequirement[],
   requirement: CoverageRequirement,
@@ -118,11 +216,32 @@ function add(
   if (!output.some((item) => item.id === requirement.id)) output.push(requirement);
 }
 
+function documentRequirement(
+  reference: DocumentReference,
+  essential: boolean,
+  clientId: string | null | undefined,
+): CoverageRequirement {
+  return {
+    id: `template:transcript_summary:${reference.id}`,
+    requirementId: `document-content.${reference.id}`,
+    claimCategory: 'report_language',
+    toolFamilies: ['read_client_documents'],
+    essential,
+    rationale: essential
+      ? `Readable content from ${reference.filename} is required; metadata or a filename is not evidence.`
+      : `Readable content from ${reference.filename} would confirm the document-specific parts of the answer; the reference is heuristic.`,
+    template: 'transcript_summary',
+    route: { documentId: reference.id, documentName: reference.filename, clientId },
+  };
+}
+
 export function buildCoverageRequirements(input: {
   plan: DomainEvidencePlan;
   request: string;
   frame: GovernmentAffairsOperatingFrame;
   attachments?: readonly CoverageAttachment[];
+  /** Document ids the user selected for this turn (apps/api forwards them). */
+  selectedDocumentIds?: readonly string[];
   clientId: string | null | undefined;
 }): CoverageRequirement[] {
   const output: CoverageRequirement[] = [];
@@ -158,30 +277,75 @@ export function buildCoverageRequirements(input: {
     }
   }
 
+  // A document requirement is essential only for a concrete document the turn
+  // actually references: a selected/attached id or a filename that resolves
+  // against the provided references. Keyword matches alone are a hint.
   const attachments = input.attachments ?? [];
+  const selectedIds = [
+    ...new Set([
+      ...(input.selectedDocumentIds ?? []),
+      ...attachments.filter((item) => item.selected).map((item) => item.id),
+    ]),
+  ];
   const references = resolveDocumentReferences({
     userText: input.request,
-    selectedAttachmentIds: attachments.filter((item) => item.selected).map((item) => item.id),
+    selectedAttachmentIds: selectedIds,
     priorTurnManifest: attachments.filter((item) => item.kind !== 'client_document'),
     clientDocuments: attachments.filter((item) => item.kind === 'client_document'),
     clientId: input.clientId,
   });
-  const documentSpecific =
-    /\b(?:summari[sz]e|review|extract|from)\b[\s\S]{0,80}\b(?:transcript|document|attachment|file|memo|report|minutes)\b/i.test(
-      input.request,
-    ) || references.length > 0;
-  if (documentSpecific) {
-    const reference = references[0];
+  const concrete = references.filter((item) => item.resolution !== 'pronoun_heuristic');
+  const heuristic = references.filter((item) => item.resolution === 'pronoun_heuristic');
+  for (const reference of concrete) add(output, documentRequirement(reference, true, input.clientId));
+  // A selected id that resolves against no candidate manifest is not a confirmed,
+  // fetchable client document — apps/api's only current producer for
+  // `selectedDocumentIds` is the message's own chat attachments (their content is
+  // already inlined into the turn's prompt by meri.service.ts), which live in a
+  // different id space than `read_client_documents` reads from. Treating an
+  // unresolvable id as essential+routed guarantees a follow-up 404, which forces
+  // a re-synthesis and appends a false "evidence limitation" footer to an answer
+  // that already used the real content. Only promote it to essential+routed when
+  // an actual manifest entry confirms it names a real document; otherwise it is a
+  // non-essential hint, same treatment as an unresolved keyword mention.
+  for (const id of selectedIds.filter((selected) => !references.some((item) => item.id === selected))) {
+    if (!attachments.length) {
+      add(output, {
+        id: `template:transcript_summary:${id}`,
+        requirementId: `document-content.${id}.hint`,
+        claimCategory: 'report_language',
+        toolFamilies: ['read_client_documents'],
+        essential: false,
+        rationale:
+          'A document was attached to this turn; its content was already provided in context and is not confirmed as a separately fetchable client document.',
+        template: 'transcript_summary',
+      });
+      continue;
+    }
     add(output, {
-      id: `template:transcript_summary:${reference?.id ?? 'unresolved'}`,
-      requirementId: `document-content.${reference?.id ?? 'requested'}`,
+      id: `template:transcript_summary:${id}`,
+      requirementId: `document-content.${id}`,
       claimCategory: 'report_language',
       toolFamilies: ['read_client_documents'],
       essential: true,
-      rationale: `Readable content${reference ? ` from ${reference.filename}` : ' from the requested document'} is required; metadata or a filename is not evidence.`,
+      rationale: 'Readable content from the selected document is required; metadata or a filename is not evidence.',
       template: 'transcript_summary',
-      ...(reference ? { route: { documentId: reference.id, documentName: reference.filename, clientId: input.clientId } } : {}),
+      route: { documentId: id, clientId: input.clientId },
     });
+  }
+  if (!output.some((item) => item.template === 'transcript_summary')) {
+    if (heuristic[0]) add(output, documentRequirement(heuristic[0], false, input.clientId));
+    else if (DOCUMENT_KEYWORD.test(input.request)) {
+      add(output, {
+        id: 'template:transcript_summary:hint',
+        requirementId: 'document-content.hint',
+        claimCategory: 'report_language',
+        toolFamilies: ['read_client_documents'],
+        essential: false,
+        rationale:
+          'The request mentions a document, but no attached or selected client document was referenced; reading a client file is optional.',
+        template: 'transcript_summary',
+      });
+    }
   }
 
   if (/\b(?:currently|current status|in production|latest status|as of (?:now|today))\b/i.test(input.request)) {
@@ -213,7 +377,7 @@ export function compareCoverage(input: {
     const called = requirement.toolFamilies.filter((tool) => input.toolsUsed.includes(tool));
     const receipts = input.receipts.filter((receipt) => called.includes(receipt.tool));
     const entries = input.ledgerEntries.filter((entry) => called.includes(entry.tool));
-    const evidenceIds = called.flatMap((tool) => idsForTool(tool, input.ledgerEntries, input.citations));
+    const usable = entries.filter((entry) => entryProvidesEvidence(entry, requirement));
     const unavailable = receipts.some((receipt) => receipt.status === 'unavailable');
     const failed = receipts.some((receipt) => receipt.status === 'error') || entries.some((entry) => {
       const result = object(entry.result);
@@ -222,25 +386,27 @@ export function compareCoverage(input: {
     const truncated = receipts.some(
       (receipt) => receipt.truncated || receipt.paginationComplete === false,
     );
-    const usable = entries.some((entry) => payloadHasUsableContent(entry.result));
+    // Any usable result satisfies the requirement. Failed, unavailable or
+    // truncated reads classify the gap only when nothing usable was retrieved,
+    // so one paginated listing or one retried error never pins the status.
     const status: CoverageGapStatus =
       called.length === 0
         ? 'never_called'
-        : unavailable
-          ? 'unavailable'
-          : failed
-            ? 'extraction_failed'
-            : truncated
-              ? 'truncated'
-              : usable
-                ? 'satisfied'
+        : usable.length
+          ? 'satisfied'
+          : unavailable
+            ? 'unavailable'
+            : failed
+              ? 'extraction_failed'
+              : truncated
+                ? 'truncated'
                 : 'called_no_usable_content';
     return {
       requirementId: requirement.requirementId,
       essential: requirement.essential,
       status,
       materiality: requirement.essential ? 'changes_answer' : 'supplementary',
-      evidenceIds: [...new Set(evidenceIds)],
+      evidenceIds: evidenceIdsFor(requirement, called, usable, input),
     };
   });
 }
@@ -272,11 +438,12 @@ export function planFollowUp(input: {
   for (const gap of input.gaps) {
     if (!gap.essential || gap.status === 'satisfied') continue;
     const requirement = input.requirements?.find((item) => item.requirementId === gap.requirementId);
-    for (const name of requirement?.toolFamilies ?? []) {
+    if (!requirement) continue;
+    for (const name of requirement.toolFamilies) {
       const schema = input.toolSchemas.find((item) => item.name === name && item.readOnly !== false);
       if (!schema) continue;
       const properties = requestedProperties(schema);
-      const candidates = { ...identity, ...requirement?.route };
+      const candidates = { ...identity, ...requirement.route };
       const args = Object.fromEntries(
         Object.entries(candidates).filter(
           ([key, value]) => properties.has(key) && value !== undefined && value !== null,
@@ -286,6 +453,13 @@ export function planFollowUp(input: {
         ? schema.input_schema.required.filter((key): key is string => typeof key === 'string')
         : [];
       if (required.some((key) => args[key] === undefined)) continue;
+      // A document-content follow-up needs the document itself. A call with only
+      // the client id would be a file listing, which can never satisfy content.
+      if (
+        (DOCUMENT_CONTENT_TOOLS.has(name) || isDocumentContentRequirement(requirement)) &&
+        (typeof args.documentId !== 'string' || !args.documentId.trim())
+      )
+        continue;
       calls.push({ name, arguments: args, requirementId: gap.requirementId });
       break;
     }

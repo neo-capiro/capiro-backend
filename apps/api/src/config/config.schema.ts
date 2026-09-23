@@ -2,6 +2,19 @@ import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { z } from 'zod';
 import { ENGAGEMENT_API_PROMOTION_ACKNOWLEDGEMENT } from '../engagement/runtime/engagement-runtime-env.js';
 
+/**
+ * Meri rollout mode switches (docs/meri/grounding/stage-0/FEATURE-FLAG.md): a
+ * blank or whitespace-only value means "unset" and fails closed to `off` in the
+ * meriv2-core resolver, so it must not crash API boot here either — this schema
+ * is the Nest bootstrap gate, and the runbook's rollback step hand-edits ECS task
+ * definitions to `""`. Non-blank unknown values stay rejected: a typo must never
+ * silently read as `off`.
+ */
+const blankToUndefined = (value: unknown): unknown =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
+const rolloutModeSwitch = () =>
+  z.preprocess(blankToUndefined, z.enum(['off', 'shadow', 'enforce']).optional());
+
 export const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
@@ -749,28 +762,28 @@ export const configSchema = z.object({
   MERI_POLICY_PACK_SOURCE: z.enum(['off', 'shadow', 'enforce']).default('off'),
   // Stage 0 evidence-accuracy rollout. Effective mode additionally requires
   // canonical tenant and assurance-surface enrollment.
-  MERI_EVIDENCE_ACCURACY_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_EVIDENCE_ACCURACY_MODE: rolloutModeSwitch(),
   MERI_EVIDENCE_ACCURACY_TENANTS: z.string().optional(),
   MERI_EVIDENCE_ACCURACY_SURFACES: z.string().optional(),
 
   // Stage 2a coverage-driven follow-up retrieval. Dark unless independently enrolled.
-  MERI_COVERAGE_RETRIEVAL_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_COVERAGE_RETRIEVAL_MODE: rolloutModeSwitch(),
   MERI_COVERAGE_RETRIEVAL_TENANTS: z.string().optional(),
   MERI_COVERAGE_RETRIEVAL_SURFACES: z.string().optional(),
 
   // Stage 1 claim inventory. Enforce remains shadow-only until a later stage.
-  MERI_CLAIM_ASSESSMENT_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_CLAIM_ASSESSMENT_MODE: rolloutModeSwitch(),
   MERI_CLAIM_ASSESSMENT_TENANTS: z.string().optional(),
   MERI_CLAIM_ASSESSMENT_SURFACES: z.string().optional(),
 
   // Stage 2c bounded live correction. Category promotion remains human-controlled and dark.
-  MERI_AUTO_CORRECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_AUTO_CORRECTION_MODE: rolloutModeSwitch(),
   MERI_AUTO_CORRECTION_TENANTS: z.string().optional(),
   MERI_AUTO_CORRECTION_SURFACES: z.string().optional(),
   MERI_AUTO_CORRECTION_CATEGORIES: z.string().optional(),
 
   // Stage 2b Jev passage selection. Effective mode also requires Jev enrollment/task availability.
-  MERI_PASSAGE_SELECTION_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_PASSAGE_SELECTION_MODE: rolloutModeSwitch(),
   MERI_PASSAGE_SELECTION_TENANTS: z.string().optional(),
   MERI_PASSAGE_SELECTION_SURFACES: z.string().optional(),
 
@@ -779,10 +792,10 @@ export const configSchema = z.object({
   MERI_JEV_MODEL: z.string().optional(),
   MERI_JEV_TIMEOUT_MS: z.string().optional(),
   MERI_JEV_MAX_ATTEMPTS: z.string().optional(),
-  MERI_JEV_PROVIDER_MODE: z.enum(['off', 'shadow', 'enforce']).optional(),
+  MERI_JEV_PROVIDER_MODE: rolloutModeSwitch(),
   MERI_JEV_PROVIDER_TENANTS: z.string().optional(),
   MERI_JEV_PROVIDER_SURFACES: z.string().optional(),
-  MERI_CHAT_EVIDENCE_JUDGE: z.enum(['llm', 'jev', 'paired', 'cascade']).optional(),
+  MERI_CHAT_EVIDENCE_JUDGE: z.preprocess(blankToUndefined, z.enum(['llm', 'jev', 'paired', 'cascade']).optional()),
   MERI_JEV_TASKS: z.string().optional(),
 
   // Recall.ai meeting-notetaker bot (docs/plans/meeting-notetaker-bot-plan.md).
