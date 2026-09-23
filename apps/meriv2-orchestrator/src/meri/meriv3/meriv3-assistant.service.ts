@@ -768,6 +768,7 @@ export class MeriV3AssistantService {
     let automaticReads = 0;
     let residualCoverageGaps: CoverageGap[] = [];
     let latestCoverageGaps: CoverageGap[] = [];
+    let coverageResynthesized = false;
     let documentRequests = 0;
     const MAX_AUTOMATIC_DOCUMENT_READS = 24;
     const canReadDocuments =
@@ -1133,8 +1134,48 @@ export class MeriV3AssistantService {
             citations,
           });
           // The prior prose was produced before the server-coordinated evidence
-          // arrived. Force one no-tools synthesis over the augmented input.
-          if (executed > 0) finalText = '';
+          // arrived. Force one no-tools synthesis over the augmented input. A
+          // completed answer already in `finalText` is protected the same way
+          // as the passage-selection block below: on any synthesis failure the
+          // turn releases the prose the model already produced, never a generic
+          // failure/timeout message (contract: a Stage 2 failure degrades to
+          // legacy, it never turns a working answer into no answer). Passage
+          // selection (when enforce) runs inside this same synthesis call via
+          // runForcedSynthesis's own selectSynthesisEvidence() call, so the
+          // later passage-selection block is skipped once this one already
+          // produced (or safely restored) text.
+          if (executed > 0) {
+            const preCoverageText = finalText;
+            finalText = '';
+            if (preCoverageText) {
+              try {
+                const rewritten = await runForcedSynthesis('coverage follow-up added evidence');
+                if (rewritten.trim()) {
+                  finalText = rewritten;
+                  coverageResynthesized = true;
+                } else {
+                  this.logStructured('warn', 'meri.coverage.failed', {
+                    conversationId: dto.conversationId ?? null,
+                    mode: coverageRetrievalMode,
+                    reason: 'empty_synthesis',
+                    keptCompletedProse: true,
+                  });
+                  finalText = preCoverageText;
+                  coverageResynthesized = true;
+                }
+              } catch (error) {
+                if (isTurnAbortError(error, opts.signal)) throw error;
+                this.logStructured('warn', 'meri.coverage.failed', {
+                  conversationId: dto.conversationId ?? null,
+                  mode: coverageRetrievalMode,
+                  reason: errorReason(error),
+                  keptCompletedProse: true,
+                });
+                finalText = preCoverageText;
+                coverageResynthesized = true;
+              }
+            }
+          }
         }
         const essentialResiduals = gaps.filter(
           (gap) => gap.essential && gap.status !== 'satisfied',
@@ -1177,7 +1218,11 @@ export class MeriV3AssistantService {
       // turns only, so it never delays a completed answer. Enforce re-synthesizes
       // only when the verified rebuild actually removed evidence, and a failed
       // re-synthesis releases the prose the model had already completed.
-      if (passageSelectionMode === 'enforce' && finalText && !opts.signal?.aborted) {
+      // Skipped when the coverage follow-up above already ran a governed forced
+      // synthesis (it calls selectSynthesisEvidence() internally): re-running
+      // Jev scoring here would be redundant and would pay for a second synthesis
+      // call on a request whose evidence set has not changed since.
+      if (passageSelectionMode === 'enforce' && finalText && !coverageResynthesized && !opts.signal?.aborted) {
         const preSelectionText = finalText;
         try {
           const selected = await selectSynthesisEvidence();

@@ -330,6 +330,49 @@ describe('passage selector', () => {
     expect(rebuilt.retainedRequired).toBe(0);
   });
 
+  it('finds every citation bundled in one tool call even when an earlier one embeds a blank line', () => {
+    // formatCitationsForPrompt (packages/shared) joins a citation's title and
+    // snippet verbatim with no newline handling, so an ordinary two-paragraph
+    // summary embeds a literal blank line in the serialized "Citable sources"
+    // block. Cutting that block at the first blank line in the whole text
+    // mistakes the embedded one for the block's end and silently drops every
+    // citation bundled after it -- with no independent fallback, since a
+    // citation that was never recognized never reaches the required/kept
+    // checks at all.
+    const turn = new TurnFixture().round([
+      { callId: 'call_bundle', name: 'search_congress_bills', arguments: { query: 'defense' },
+        cites: [
+          { id: 'hr-1', title: 'H.R. 1', snippet: 'Summary line one.\n\nSummary line two, still about H.R. 1.' },
+          { id: 'hr-2', title: 'H.R. 2', snippet: 'The bill this turn actually needs.' },
+        ] },
+    ]);
+    expect(turn.ledgerEntries[0]!.serialized).toContain('\n\nSummary line two');
+    const candidates = turn.candidates({ requiredPassageIds: ['hr-2'] });
+    expect(candidates).toHaveLength(1); // one ledger entry -> one candidate; both citations bundle into it
+    expect(candidates[0]!.required).toBe(true);
+  });
+
+  it('treats the domain_specific_tools sentinel as a wildcard match, not a literal tool name', () => {
+    // evidence-plan.ts's client-recommendation.policy-basis and negative-claim.coverage
+    // requirements are 'required' with toolFamilies: ['domain_specific_tools'] — a
+    // sentinel meaning "any domain-specific tool call", not a real tool name.
+    // entry.tool is always a real name, so a literal Set.has comparison never
+    // matches it; without the wildcard these two categories would get zero
+    // passage-selection retention protection. tool-ledger-adapter.ts's
+    // requirementIdsForTool already treats it as an unconditional wildcard —
+    // this must match that semantics.
+    const turn = new TurnFixture().round([
+      { callId: 'call_basis', name: 'get_pe_budget_timeline', arguments: { peCode: '0603851F' },
+        cites: [{ id: 'pe-1', title: 'PE 0603851F budget timeline', snippet: 'HAC-D marked $10 million for FY2026.' }] },
+      { callId: 'call_noise', name: 'search_congress_bills', arguments: { query: 'unrelated' },
+        cites: [{ id: 'hr-9', title: 'Unrelated bill', snippet: 'A bill about something else.' }] },
+    ]);
+    const candidates = turn.candidates({ requiredToolFamilies: ['domain_specific_tools'] });
+    expect(candidates.map(({ id, required }) => [id, required])).toEqual([
+      ['get_pe_budget_timeline#0', true], ['search_congress_bills#1', true],
+    ]);
+  });
+
   it('maps candidates to their outputs by call_id when a tool call produced no ledger entry', () => {
     const turn = new TurnFixture().round([
       { callId: 'call_bad', name: 'hallucinated_tool', error: 'This tool is not available for this operation.' },

@@ -965,6 +965,45 @@ describe('MeriV3AssistantService', () => {
     expect(result.citations?.map((citation) => citation.id)).toEqual(['0603851F-house', '0603851F-senate']);
   });
 
+  test.each([
+    ['rejects', () => Promise.reject(new Error('coverage synthesis provider unavailable'))],
+    ['returns empty prose', () => Promise.resolve(response({ outputText: '' }))],
+  ])('coverage enforce releases the completed prose when the follow-up re-synthesis %s', async (_label, secondCall) => {
+    process.env.MERI_COVERAGE_RETRIEVAL_MODE = 'enforce';
+    process.env.MERI_COVERAGE_RETRIEVAL_TENANTS = '11111111-1111-4111-8111-111111111111';
+    process.env.MERI_COVERAGE_RETRIEVAL_SURFACES = 'chat';
+    const complete = jest.fn()
+      .mockResolvedValueOnce(response({ outputText: 'Senate position only.' }))
+      .mockImplementationOnce(secondCall);
+    const invoke = jest.fn(async (_name: string, args: Record<string, unknown>) => chamberMark(args.chamber));
+    const assistant = build(registry([{ name: 'get_pe_budget_timeline', readOnly: true }], invoke), complete);
+    const warn = jest.spyOn(
+      (assistant as unknown as { logger: { warn: (...args: unknown[]) => void } }).logger,
+      'warn',
+    );
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({ schemas: [chamberBudgetSchema] }), { status: 200 })) as typeof fetch;
+
+    const events: Array<{ type: string; text?: string }> = [];
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () => assistant.run(
+      { ...context, tenantId: '11111111-1111-4111-8111-111111111111' },
+      { conversationId: 'coverage-enforce-failed', messages: [{ role: 'user', text: 'Compare House vs Senate positions on PE 0603851F.' }] },
+      { onEvent: (event) => events.push(event as { type: string; text?: string }) },
+    ));
+    // The follow-up executed (evidence was fetched) but the forced re-synthesis over
+    // it failed: the model's already-completed answer is released, never a generic
+    // "reasoning runtime unavailable" message and never a held/empty/duplicated turn.
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(result.reply).toBe('Senate position only.');
+    expect(result.reply).not.toContain('reasoning runtime was unavailable');
+    expect(events.filter((event) => event.type === 'text')).toEqual([
+      { type: 'text', text: 'Senate position only.' },
+    ]);
+    expect(structuredLogEvents(warn, 'meri.coverage.failed')).toEqual([
+      expect.objectContaining({ mode: 'enforce', keptCompletedProse: true }),
+    ]);
+  });
+
   test('holds a governed write as an opaque proposal instead of invoking it', async () => {
     const call = {
       type: 'function_call',

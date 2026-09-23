@@ -188,7 +188,11 @@ describe('coverage requirements', () => {
       clientId: 'client-1',
     });
     expect(requirements.filter((item) => item.template === 'transcript_summary')).toEqual([
-      expect.objectContaining({ essential: true, requirementId: 'document-content.doc-9', route: { documentId: 'doc-9', clientId: 'client-1' } }),
+      expect.objectContaining({
+        essential: true,
+        requirementId: 'document-content.doc-9',
+        route: expect.objectContaining({ documentId: 'doc-9', clientId: 'client-1' }),
+      }),
     ]);
   });
 

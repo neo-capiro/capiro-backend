@@ -141,12 +141,30 @@ interface CitableList {
   rest: string;
 }
 
+const CITATION_LINE_START_RE = /^\[\d{1,3}\] /gm;
+
 function parseCitableList(text: string): CitableList | null {
   if (!text.startsWith(CITABLE_SOURCES_HEADER)) return null;
-  const end = text.indexOf('\n\n');
-  const block = end < 0 ? text : text.slice(0, end);
-  const rest = end < 0 ? '' : text.slice(end);
-  const lines = block.split('\n').slice(1).map((line) => {
+  // A citation's own title/snippet is not newline-sanitized upstream
+  // (packages/shared's formatCitationsForPrompt joins it verbatim), so a
+  // multi-paragraph snippet can embed a blank line. Cutting the block at the
+  // FIRST blank line in the whole text mistakes that embedded blank line for
+  // the block's end and silently drops every citation bundled after it (with
+  // no fallback: a wrongly-unlisted citation never reaches the required/kept
+  // checks at all). Citation numbers only ever appear inside the list, so the
+  // block instead ends at the first blank line at or after the LAST `[n] `
+  // line-start in the text — nothing can follow the last citation's own
+  // content except the true tail, so that blank line unambiguously ends it.
+  CITATION_LINE_START_RE.lastIndex = 0;
+  let lastMatchIndex = -1;
+  for (let match = CITATION_LINE_START_RE.exec(text); match; match = CITATION_LINE_START_RE.exec(text)) {
+    lastMatchIndex = match.index;
+  }
+  const searchFrom = lastMatchIndex >= 0 ? lastMatchIndex : CITABLE_SOURCES_HEADER.length;
+  const cut = text.indexOf('\n\n', searchFrom);
+  const end = cut < 0 ? text.length : cut;
+  const rest = cut < 0 ? '' : text.slice(cut);
+  const lines = text.slice(0, end).split('\n').slice(1).map((line) => {
     const match = CITATION_LINE_RE.exec(line);
     return { n: match ? Number(match[1]) : null, text: line };
   });
@@ -309,7 +327,17 @@ export function buildPassageCandidates(input: PassageCandidateInput): PassageCan
     if (!text) continue;
     const documentIds = related.flatMap((citation) => citation.documentEvidence?.documentId
       ? [citation.documentEvidence.documentId] : []);
+    // 'domain_specific_tools' is a sentinel family (evidence-plan.ts:
+    // client-recommendation.policy-basis, negative-claim.coverage) meaning "any
+    // domain-specific tool call satisfies this", not a real tool name — entry.tool
+    // is always a real name, so a literal Set.has comparison can never match it.
+    // packages/meriv2-core/src/assurance/tool-ledger-adapter.ts's
+    // requirementIdsForTool already treats it as an unconditional wildcard
+    // (toolFamilies.includes(tool) || toolFamilies.includes('domain_specific_tools'));
+    // mirror that here so these two required categories keep a retention floor
+    // instead of silently losing passage-selection's protection entirely.
     const required = requiredTools.has(entry.tool)
+      || requiredTools.has('domain_specific_tools')
       || related.some((citation) => Boolean(citation.id && requiredIds.has(citation.id))
         || Boolean(citation.stableId && requiredIds.has(citation.stableId)))
       || (requiredIds.size > 0 && [...rowIds(entry.result)].some((id) => requiredIds.has(id)));
