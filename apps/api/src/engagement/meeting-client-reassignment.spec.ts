@@ -10,6 +10,7 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
   const meeting = {
     id: 'm1', tenantId: ctx.tenantId, clientId: 'client-a', isInternal: false,
     associationScore: 0.9, visibility: 'shared', sharedAt: new Date(), sharedByUserId: 'user-1',
+    updatedAt: new Date('2026-09-23T12:00:00.000Z'),
     ...options,
   };
   const initialArtifact = {
@@ -33,6 +34,7 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
   const events: string[] = [];
   const tx: Row = {
     $queryRaw: jest.fn(async () => { events.push('lock'); return [{ id: 'm1' }]; }),
+    $executeRaw: jest.fn(async () => 1),
     meeting: {
       findFirst: jest.fn(async (_args: Row) => { events.push('read'); return options.missingMeeting ? null : { ...state.meeting }; }),
       update: jest.fn(async ({ where, data }: Row) => {
@@ -57,6 +59,9 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
       }),
     };
   }
+  tx.engagementAttachment.findFirst = jest.fn(async ({ where }: Row) =>
+    state.engagementAttachment.find((row: Row) => row.s3Key === where.s3Key) ?? null,
+  );
   const withTenant = jest.fn(async (tenantId: string, fn: (tx: Row) => Promise<unknown>) => {
     expect(tenantId).toBe(ctx.tenantId);
     const snapshot = structuredClone(state);
@@ -167,6 +172,18 @@ describe('meeting client reassignment', () => {
     expect(h.writes).toEqual([]);
   });
 
+  test('a stale conditional meeting edit returns conflict without overwriting the canonical row', async () => {
+    const h = harness();
+    await expect(
+      h.service.updateMeeting(ctx, 'm1', {
+        subject: 'Stale edit',
+        expectedRevision: '2026-09-23T11:59:59.000Z',
+      }),
+    ).rejects.toMatchObject({ status: 409, response: expect.objectContaining({ code: 'stale_revision' }) });
+    expect(h.state.meeting.subject).toBeUndefined();
+    expect(h.writes).toEqual([]);
+  });
+
   test('propagates a child failure through the transaction and never queues reindexing', async () => {
     const h = harness({ failOn: 'meetingDebrief' });
     const before = structuredClone(h.state);
@@ -204,6 +221,31 @@ describe('meeting client reassignment', () => {
     expect(h.events).toEqual(['lock', 'read', 'create']);
     expect(h.state.engagementAttachment[1].clientId).toBeNull();
     expect(h.index).not.toHaveBeenCalled();
+  });
+
+  test('an exact attachment confirmation retry returns one row and conflicting metadata is refused', async () => {
+    const h = harness({ clientId: null });
+    Object.assign(h.service, {
+      bucket: 'bucket',
+      validateAttachmentParents: async () => undefined,
+      s3: { send: async () => ({ ContentLength: 4 }) },
+      readAttachmentBytes: async () => Buffer.from('test'),
+      attachmentContent: { sha256: () => 'digest', detectContentType: () => 'text/plain', contentTypeConflicts: () => false },
+      scanner: { getStatus: async () => 'clean', providerName: 'scanner' },
+    });
+    const input = {
+      meetingId: 'm1',
+      fileName: 'notes.txt',
+      contentType: 'text/plain',
+      s3Key: `tenants/${ctx.tenantId}/engagement/file/retry.txt`,
+    };
+    const first = await h.service.confirmAttachment(ctx, input);
+    const replay = await h.service.confirmAttachment(ctx, input);
+    expect(replay.id).toBe(first.id);
+    expect(h.state.engagementAttachment.filter((row: Row) => row.s3Key === input.s3Key)).toHaveLength(1);
+    await expect(
+      h.service.confirmAttachment(ctx, { ...input, fileName: 'different.txt' }),
+    ).rejects.toMatchObject({ status: 409, response: expect.objectContaining({ code: 'attachment_confirm_conflict' }) });
   });
 });
 

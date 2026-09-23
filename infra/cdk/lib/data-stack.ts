@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import * as cloudformation from 'aws-cdk-lib/aws-cloudformation';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as rds from 'aws-cdk-lib/aws-rds';
@@ -11,6 +12,12 @@ export interface DataStackProps extends cdk.StackProps {
   cfg: EnvConfig;
   vpc: ec2.IVpc;
   dbSecurityGroup: ec2.ISecurityGroup;
+  /**
+   * Existing SG for the staging hosted-rotation Lambda. It must have egress
+   * to Secrets Manager and already be authorized to reach the DB SG on 5432.
+   * Dev/prod retain their existing hosted-rotation wiring.
+   */
+  rotationSecurityGroup?: ec2.ISecurityGroup;
 }
 
 /**
@@ -69,10 +76,19 @@ export class DataStack extends cdk.Stack {
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
-    const { cfg, vpc, dbSecurityGroup } = props;
+    const { cfg, vpc, dbSecurityGroup, rotationSecurityGroup } = props;
     this.databaseName = 'capiro';
 
     Object.entries(commonTags(cfg)).forEach(([k, v]) => cdk.Tags.of(this).add(k, v));
+
+    // AWS no longer offers 16.4 for new Aurora PostgreSQL clusters in the
+    // staging region. Keep existing dev/prod templates pinned while allowing
+    // the isolated staging environment to be rebuilt on the oldest available
+    // compatible 16.x minor.
+    const auroraPostgresVersion =
+      cfg.envName === 'staging'
+        ? rds.AuroraPostgresEngineVersion.VER_16_8
+        : rds.AuroraPostgresEngineVersion.VER_16_4;
 
     this.key = new kms.Key(this, 'DataKey', {
       alias: `alias/capiro/${cfg.envName}/data`,
@@ -85,7 +101,7 @@ export class DataStack extends cdk.Stack {
     // migration still runs CREATE EXTENSION to register them in the database.
     const parameterGroup = new rds.ParameterGroup(this, 'DbParameterGroup', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_16_4,
+        version: auroraPostgresVersion,
       }),
       description: 'Capiro Aurora Postgres 16 with pgvector and pg_trgm preloaded',
       parameters: {
@@ -119,7 +135,7 @@ export class DataStack extends cdk.Stack {
 
     this.cluster = new rds.DatabaseCluster(this, 'AuroraCluster', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_16_4,
+        version: auroraPostgresVersion,
       }),
       credentials: rds.Credentials.fromSecret(masterSecret),
       defaultDatabaseName: this.databaseName,
@@ -156,15 +172,74 @@ export class DataStack extends cdk.Stack {
 
     // `Credentials.fromSecret(masterSecret)` attaches the secret to the cluster
     // automatically, calling masterSecret.attach() again throws.
-    masterSecret.addRotationSchedule('Rotation', {
-      hostedRotation: secretsmanager.HostedRotation.postgreSqlSingleUser({
-        functionName: `capiro-${cfg.envName}-aurora-rotation`,
-        vpc,
-        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-        securityGroups: [dbSecurityGroup as ec2.SecurityGroup],
-      }),
-      automaticallyAfter: cdk.Duration.days(30),
-    });
+    if (cfg.envName === 'staging') {
+      // The retained staging rotation was created by the hosted-rotation
+      // transform. Re-expanding that transform during drift repair produces a
+      // spurious nested-stack update, which in turn attempts to rewrite the
+      // legacy schedule and is rejected by Secrets Manager. Model the exact
+      // processed resources for staging so CloudFormation leaves the healthy
+      // 30-day schedule and its Lambda untouched. Dev/prod keep the normal CDK
+      // hosted-rotation construct below.
+      const privateSubnetIds = vpc.selectSubnets({
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+      }).subnetIds;
+      const stagingRotationSecurityGroup = rotationSecurityGroup ?? dbSecurityGroup;
+      const commaSeparatedSubnetIds = privateSubnetIds.flatMap((subnetId, index) =>
+        index === 0 ? [subnetId] : [',', subnetId],
+      );
+      const hostedRotationStack = new cloudformation.CfnStack(
+        this,
+        'StagingMasterRotationLambda',
+        {
+          templateUrl: `https://secrets-manager-rotation-apps-c0de1e0412b469545054417cc38af3c3.s3.${cfg.region}.amazonaws.com/SecretsManagerRDSPostgreSQLRotationSingleUser/sam_template_v2.yml`,
+          parameters: {
+            endpoint: `https://secretsmanager.${cfg.region}.amazonaws.com`,
+            functionName: `capiro-${cfg.envName}-aurora-rotation`,
+            excludeCharacters: " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
+            kmsKeyArn: this.key.keyArn,
+            vpcSecurityGroupIds: stagingRotationSecurityGroup.securityGroupId,
+            vpcSubnetIds: cdk.Fn.join('', commaSeparatedSubnetIds),
+          },
+        },
+      );
+      hostedRotationStack.overrideLogicalId(
+        'DbMasterSecretRotationCECF4B07HostedRotationLambda',
+      );
+      hostedRotationStack.cfnOptions.metadata = {
+        'aws:cdk:path': `${this.node.path}/DbMasterSecret/Rotation/Resource`,
+      };
+      for (const tagKey of ['Project', 'Environment', 'ManagedBy']) {
+        cdk.Tags.of(hostedRotationStack).remove(tagKey, { priority: 200 });
+      }
+
+      const rotationSchedule = new secretsmanager.CfnRotationSchedule(
+        this,
+        'StagingMasterRotationSchedule',
+        {
+          rotationLambdaArn: cdk.Fn.getAtt(
+            'DbMasterSecretRotationCECF4B07HostedRotationLambda',
+            'Outputs.RotationLambdaARN',
+          ).toString(),
+          rotationRules: { scheduleExpression: 'rate(30 days)' },
+          secretId: masterSecret.secretArn,
+        },
+      );
+      rotationSchedule.overrideLogicalId('DbMasterSecretRotationCECF4B07');
+      rotationSchedule.cfnOptions.metadata = {
+        'aws:cdk:path': `${this.node.path}/DbMasterSecret/Rotation/Resource`,
+      };
+      masterSecret.denyAccountRootDelete();
+    } else {
+      masterSecret.addRotationSchedule('Rotation', {
+        hostedRotation: secretsmanager.HostedRotation.postgreSqlSingleUser({
+          functionName: `capiro-${cfg.envName}-aurora-rotation`,
+          vpc,
+          vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+          securityGroups: [dbSecurityGroup as ec2.SecurityGroup],
+        }),
+        automaticallyAfter: cdk.Duration.days(30),
+      });
+    }
 
     // App-role credential. Auto-generated password (32 chars, alphanumeric)
     // so the bootstrap-roles task can use it as a SQL literal without extra
@@ -188,38 +263,56 @@ export class DataStack extends cdk.Stack {
     // from both master (DDL) and app (general serve). No LLM/vendor/parser
     // secrets attach to this role's task; this Secret is the only credential
     // it needs.
-    const promoterSecret = new secretsmanager.Secret(this, 'PromoterSecret', {
-      secretName: `/capiro/${cfg.envName}/aurora/promoter`,
-      description:
-        'Capiro Aurora capiro_pe_promoter runtime credentials (Phase 7 canonical promotion)',
-      encryptionKey: this.key,
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({ username: 'capiro_pe_promoter' }),
-        generateStringKey: 'password',
-        excludePunctuation: true,
-        passwordLength: 32,
-      },
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
+    const promoterSecret =
+      cfg.envName === 'staging'
+        ? secretsmanager.Secret.fromSecretNameV2(
+            this,
+            'PromoterSecret',
+            `/capiro/${cfg.envName}/aurora/promoter`,
+          )
+        : new secretsmanager.Secret(this, 'PromoterSecret', {
+            secretName: `/capiro/${cfg.envName}/aurora/promoter`,
+            description:
+              'Capiro Aurora capiro_pe_promoter runtime credentials (Phase 7 canonical promotion)',
+            encryptionKey: this.key,
+            generateSecretString: {
+              secretStringTemplate: JSON.stringify({ username: 'capiro_pe_promoter' }),
+              generateStringKey: 'password',
+              excludePunctuation: true,
+              passwordLength: 32,
+            },
+            removalPolicy: cfg.protectFromDestroy
+              ? cdk.RemovalPolicy.RETAIN
+              : cdk.RemovalPolicy.DESTROY,
+          });
     this.promoterSecret = promoterSecret;
 
     // Meri query_global_data's own secret. Deliberately separate from master
     // (DDL), app (general serve), and promoter (canonical write) — no
     // capability beyond SELECT on the global-dataset-registry allowlist ever
     // attaches to this credential.
-    const analyticsSecret = new secretsmanager.Secret(this, 'AnalyticsSecret', {
-      secretName: `/capiro/${cfg.envName}/aurora/analytics-ro`,
-      description:
-        'Capiro Aurora capiro_analytics_ro runtime credentials (Meri query_global_data, SELECT-only)',
-      encryptionKey: this.key,
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({ username: 'capiro_analytics_ro' }),
-        generateStringKey: 'password',
-        excludePunctuation: true,
-        passwordLength: 32,
-      },
-      removalPolicy: cfg.protectFromDestroy ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-    });
+    const analyticsSecret =
+      cfg.envName === 'staging'
+        ? secretsmanager.Secret.fromSecretNameV2(
+            this,
+            'AnalyticsSecret',
+            `/capiro/${cfg.envName}/aurora/analytics-ro`,
+          )
+        : new secretsmanager.Secret(this, 'AnalyticsSecret', {
+            secretName: `/capiro/${cfg.envName}/aurora/analytics-ro`,
+            description:
+              'Capiro Aurora capiro_analytics_ro runtime credentials (Meri query_global_data, SELECT-only)',
+            encryptionKey: this.key,
+            generateSecretString: {
+              secretStringTemplate: JSON.stringify({ username: 'capiro_analytics_ro' }),
+              generateStringKey: 'password',
+              excludePunctuation: true,
+              passwordLength: 32,
+            },
+            removalPolicy: cfg.protectFromDestroy
+              ? cdk.RemovalPolicy.RETAIN
+              : cdk.RemovalPolicy.DESTROY,
+          });
     this.analyticsSecret = analyticsSecret;
     this.readerEndpoint = this.cluster.clusterReadEndpoint.hostname;
 

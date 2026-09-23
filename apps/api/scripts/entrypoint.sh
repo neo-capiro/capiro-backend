@@ -94,6 +94,12 @@ case "${1:-serve}" in
     echo "Seeding workflow templates"
     exec ./node_modules/.bin/tsx prisma/seed-workflows.ts
     ;;
+  meri-hermes-staging-continuity-proof)
+    shift
+    compose_database_url
+    echo "Running guarded Meri Hermes staging continuity proof (synthetic tenant only)"
+    exec ./node_modules/.bin/tsx scripts/meri-hermes-staging-continuity-proof.ts "$@"
+    ;;
   sync-florida-official-committees)
     shift
     compose_database_url

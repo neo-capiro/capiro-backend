@@ -26,6 +26,7 @@ import { EngagementWorkersModule } from './engagement-workers/engagement-workers
 import { CapabilitiesModule } from './capabilities/capabilities.module.js';
 import { DemoRequestsModule } from './demo-requests/demo-requests.module.js';
 import { MeriModule } from './meri/meri.module.js';
+import { MeriMobileModule } from './mobile/meri-mobile.module.js';
 import { LobbyIntelModule } from './lobby-intel/lobby-intel.module.js';
 import { FederalSpendingModule } from './federal-spending/federal-spending.module.js';
 import { LdaIntelModule } from './lda-intel/lda-intel.module.js';
@@ -100,6 +101,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     CapabilitiesModule,
     DemoRequestsModule,
     MeriModule,
+    MeriMobileModule,
     LobbyIntelModule,
     FederalSpendingModule,
     LdaIntelModule,

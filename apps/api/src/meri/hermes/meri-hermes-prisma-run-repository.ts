@@ -240,7 +240,11 @@ export class MeriHermesPrismaRunRepository implements MeriHermesRunRepository {
             seq: 1,
             kind: 'run.accepted',
             visibility: 'public',
-            payload: { idempotencyKey, executionScopeId: scopeId, frames: [] } as Prisma.InputJsonValue,
+            payload: {
+              idempotencyKey,
+              executionScopeId: scopeId,
+              frames: [{ type: 'run_accepted', runId: created.id, status: 'queued', seq: 1 }],
+            } as Prisma.InputJsonValue,
           },
         });
         return this.toRecord(created, []);
