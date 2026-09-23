@@ -1,10 +1,9 @@
 /**
  * PR D / LW-QA-009 — product-label consistency contract.
  *
- * `/program-elements` must have exactly ONE user-facing product name per
- * tenant: "Defense Budget" inside the capiro-internal shell, "Program
- * Elements" for every other tenant. It must never be surfaced under BOTH
- * names in the same shell.
+ * `/program-elements` has one user-facing product name across tenants:
+ * "Defense Budget". "Program element(s)" remains valid only when it names the
+ * underlying budget-line data type.
  *
  * NOT covered (deliberately): "Program element(s)" where it names the
  * budget-line DATA TYPE — source-type labels, outreach context tabs,
@@ -20,7 +19,7 @@ function repo(relative: string): string {
   return readFileSync(new URL(relative, import.meta.url), 'utf8');
 }
 
-describe('LW-QA-009 — /program-elements has one product name per tenant', () => {
+describe('LW-QA-009 — /program-elements has one product name across tenants', () => {
   const appShell = repo('../../../components/AppShell.tsx');
   const appShellV2 = repo('../../../components/AppShellV2.tsx');
   const routeManifest = repo('../../adapters/routes/routeManifest.ts');
@@ -54,11 +53,10 @@ describe('LW-QA-009 — /program-elements has one product name per tenant', () =
     expect(peWorkspace).toContain('Defense Budget');
   });
 
-  it('external tenants keep the Program Elements label where tenant naming requires it', () => {
-    // routeManifest's tenant override only remaps capiro-internal; the base
-    // label for everyone else stays Program Elements.
-    expect(routeManifest).toMatch(/tenantLabels: \{ 'capiro-internal': 'Defense Budget' \}/);
-    expect(routeManifest).toMatch(/label: 'Program Elements'/);
+  it('vNext navigation uses Defense Budget for every tenant', () => {
+    expect(routeManifest).not.toMatch(/tenantLabels: \{ 'capiro-internal': 'Defense Budget' \}/);
+    expect(routeManifest).toMatch(/label: 'Defense Budget'/);
+    expect(routeManifest).not.toMatch(/label: 'Program Elements'/);
   });
 
   it('the workspace page header itself says Defense Budget (single source already migrated)', () => {

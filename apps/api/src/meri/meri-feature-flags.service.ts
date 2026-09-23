@@ -25,13 +25,21 @@ export function meriQuickActionSkillsEnvironmentEnabled(
 export function meriQuickActionSkillsTenantSlugs(
   env: NodeJS.ProcessEnv = process.env,
 ): Set<string> {
-  const raw = env.MERI_QUICK_ACTION_SKILLS_TENANTS?.trim() || 'capiro-internal';
+  const raw = env.MERI_QUICK_ACTION_SKILLS_TENANTS?.trim() || '*';
   return new Set(
     raw
       .split(',')
       .map((slug) => slug.trim().toLowerCase())
       .filter(Boolean),
   );
+}
+
+export function meriQuickActionSkillsTenantEnabled(
+  tenantSlug: string,
+  cohort: ReadonlySet<string>,
+): boolean {
+  const slug = tenantSlug.trim().toLowerCase();
+  return Boolean(slug) && (cohort.has('*') || cohort.has(slug));
 }
 
 /**
@@ -56,9 +64,9 @@ export class MeriFeatureFlagsService {
       return tenantFeatureEnabled(cached.settings, flag, defaultValue);
     }
     try {
-      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+      const tenant = (await this.prisma.withTenant(tenantId, (tx) =>
         tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
-      );
+      )) as { settings: unknown } | null;
       this.cache.set(tenantId, { settings: tenant?.settings ?? {}, fetchedAt: Date.now() });
       return tenantFeatureEnabled(tenant?.settings, flag, defaultValue);
     } catch {
@@ -100,14 +108,15 @@ export class MeriFeatureFlagsService {
 
   /**
    * User-facing Quick Actions are independently reversible from the MeriV3
-   * runtime. The global environment switch is the emergency off, the slug
-   * allowlist controls the rollout cohort, and an explicit tenant false can
-   * carve one tenant back out without a deploy.
+   * runtime. The global environment switch is the emergency off, the cohort
+   * defaults fleet-wide, and an explicit allowlist or tenant false remains a
+   * rollback carve-out without a deploy.
    */
   async isMeriQuickActionSkillsEnabled(tenantId: string, tenantSlug: string): Promise<boolean> {
     if (!meriQuickActionSkillsEnvironmentEnabled()) return false;
-    const slug = tenantSlug.trim().toLowerCase();
-    if (!slug || !meriQuickActionSkillsTenantSlugs().has(slug)) return false;
+    if (!meriQuickActionSkillsTenantEnabled(tenantSlug, meriQuickActionSkillsTenantSlugs())) {
+      return false;
+    }
     return this.isEnabled(tenantId, MERI_QUICK_ACTION_SKILLS_FLAG, true);
   }
 }

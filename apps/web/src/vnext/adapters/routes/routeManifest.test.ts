@@ -6,20 +6,20 @@ function intelligenceProgramElementsEntry(routes: ReturnType<typeof visibleVNext
   return intelligence?.children?.find((c) => c.id === 'program-elements');
 }
 
-describe('routeManifest — Defense Budget vNext nav label', () => {
+describe('routeManifest — all-tenant Defense Budget navigation', () => {
   it('shows "Defense Budget" for the capiro-internal tenant', () => {
     const visible = visibleVNextRoutes(VNEXT_ROUTE_MANIFEST, { tenantSlug: 'capiro-internal' });
     expect(intelligenceProgramElementsEntry(visible)?.label).toBe('Defense Budget');
   });
 
-  it('shows "Program Elements" for every other tenant', () => {
+  it('shows "Defense Budget" for every other tenant', () => {
     const visible = visibleVNextRoutes(VNEXT_ROUTE_MANIFEST, { tenantSlug: 'acme-federal' });
-    expect(intelligenceProgramElementsEntry(visible)?.label).toBe('Program Elements');
+    expect(intelligenceProgramElementsEntry(visible)?.label).toBe('Defense Budget');
   });
 
-  it('shows "Program Elements" when no tenant slug is known yet', () => {
+  it('shows "Defense Budget" when no tenant slug is known yet', () => {
     const visible = visibleVNextRoutes(VNEXT_ROUTE_MANIFEST, {});
-    expect(intelligenceProgramElementsEntry(visible)?.label).toBe('Program Elements');
+    expect(intelligenceProgramElementsEntry(visible)?.label).toBe('Defense Budget');
   });
 
   it('never changes the route id or path for either tenant', () => {
@@ -48,7 +48,7 @@ describe('routeManifest — Portfolio inline navigation', () => {
     const portfolio = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio');
     expect(portfolio?.children?.map((child) => child.label)).toEqual([
       'Clients',
-      'Program elements',
+      'Defense Budget',
       'Coalitions',
     ]);
     expect(portfolio?.children?.map((child) => child.path)).toEqual([
