@@ -26,13 +26,27 @@ export function evaluateClaimDeterministically(input: {
     evidence,
     asOf: input.asOf,
   }));
-  const freshness = evaluations.find((item) => item.state === 'stale')
-    ?? evaluations.find((item) => item.state === 'fresh')
-    ?? evaluations[0]
-    ?? { state: 'unknown' as const, ageDays: null, basis: 'none' as const, reason: 'No evidence was provided.' };
   return {
     exact: compareExactValues({ claim: input.claim.text, evidencePassages: passages }),
-    freshness,
+    freshness: aggregateFreshness(evaluations),
     houseSenateComplete: houseSenateComparisonComplete({ claimText: input.claim.text, evidence: passages }),
   };
+}
+
+/**
+ * A claim is as fresh as its freshest supporting source. One current source
+ * keeps the claim fresh; the claim is stale only when no source is fresh and the
+ * freshest dated source is itself stale. Undated sources prove nothing either way.
+ */
+export function aggregateFreshness(evaluations: readonly FreshnessEvaluation[]): FreshnessEvaluation {
+  const fresh = evaluations.filter((item) => item.state === 'fresh');
+  if (fresh.length) return freshest(fresh);
+  const stale = evaluations.filter((item) => item.state === 'stale');
+  if (stale.length) return freshest(stale);
+  return evaluations[0]
+    ?? { state: 'unknown', ageDays: null, basis: 'none', reason: 'No evidence was provided.' };
+}
+
+function freshest(evaluations: readonly FreshnessEvaluation[]): FreshnessEvaluation {
+  return [...evaluations].sort((a, b) => (a.ageDays ?? Number.POSITIVE_INFINITY) - (b.ageDays ?? Number.POSITIVE_INFINITY))[0]!;
 }

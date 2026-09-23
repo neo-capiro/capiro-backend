@@ -1,11 +1,31 @@
 import { buildClaimLedgerFromToolResults, ledgerToToolResultMap } from '@capiro/meriv2-core';
 import { validateCitationMarkers, validateFormBCitations } from '@capiro/shared';
-import { createOrchestratorToolExecutor, projectRemedyArgs } from './orchestrator-tool-executor';
+import * as contextEvidence from '../meriv3/meriv3-context-evidence';
+import {
+  createOrchestratorToolExecutor,
+  documentContentReadable,
+  projectRemedyArgs,
+  requestIdentities,
+} from './orchestrator-tool-executor';
 
 const schema = {
   name: 'get_bill_status',
   input_schema: { properties: { billId: {}, clientId: {} }, required: ['billId'] },
 };
+const documentSchema = {
+  name: 'read_client_documents',
+  input_schema: { properties: { clientId: {}, documentId: {}, query: {} }, required: ['clientId'] },
+};
+
+/** The exact shape production passes: scope ids plus the governed request text; no `identities`. */
+function productionContext(request?: string) {
+  return { tenantId: 'tenant', clientId: 'client-1', conversationId: 'conversation-1', ...(request ? { request } : {}) };
+}
+
+/** Arguments plan-remedy actually emits: abstract fields plus scope and an optional route. */
+function remedyArgs(route: Record<string, unknown> = {}) {
+  return { claimIds: ['c'], evidenceClass: 'official_government_data', requiredFields: [], freshness: null, tenantId: 'tenant', clientId: 'client-1', ...route };
+}
 
 function registry(readOnly = true, metadata = true) {
   return {
@@ -14,50 +34,79 @@ function registry(readOnly = true, metadata = true) {
   } as never;
 }
 
+const contentRead = {
+  tool: 'read_client_documents', clientId: 'client-1',
+  document: { id: 'doc-7', fileName: 'hearing.txt', contentHash: 'abc' },
+  coverage: { complete: true, truncated: false },
+  records: [{ recordId: 'doc-7:abc:1:0-38', payload: { id: 'doc-7:abc:1:0-38', documentId: 'doc-7', text: 'The chair promised action on the bill.' } }],
+};
+const metadataOnlyRead = {
+  tool: 'read_client_documents', clientId: 'client-1',
+  document: { id: 'doc-7', fileName: 'hearing.txt', contentHash: 'abc' },
+  coverage: { extractedSectionEmpty: true, continuationBlocked: true, missingContent: true },
+  records: [],
+};
+const fileListing = {
+  tool: 'read_client_documents', clientId: 'client-1',
+  coverage: { total: 2, returned: 2, truncated: false },
+  documents: [{ id: 'doc-7', fileName: 'hearing.txt', usable: true }],
+};
+
 describe('orchestrator repair tool executor', () => {
-  it('projects governed identities and refuses unfillable required fields', () => {
+  it('projects identities present in the governed request and refuses unfillable required fields', () => {
     expect(projectRemedyArgs(
-      { name: schema.name, args: { claimIds: ['c'] } }, schema,
-      { tenantId: 'tenant', identities: { billId: '119-hr-1' } },
-    )).toEqual({ billId: '119-hr-1' });
+      { name: schema.name, args: remedyArgs() }, schema,
+      productionContext('What is the status of H.R. 1 for this client?'),
+    )).toEqual({ billId: 'H.R. 1', clientId: 'client-1' });
     expect(projectRemedyArgs(
-      { name: schema.name, args: { claimIds: ['c'] } }, schema,
-      { tenantId: 'tenant' },
+      { name: schema.name, args: remedyArgs() }, schema,
+      productionContext('What changed this week?'),
     )).toBeNull();
+    expect(projectRemedyArgs({ name: schema.name, args: remedyArgs() }, schema, { tenantId: 'tenant' })).toBeNull();
   });
 
   it.each([
-    ['PE code', 'peCode', '0601234A'],
-    ['award PIID', 'piid', 'FA1234-26-C-0001'],
-    ['document id', 'documentId', 'doc-7'],
-    ['opportunity id', 'opportunityId', 'opp-9'],
-    ['committee', 'committeeId', 'HSAS'],
-    ['bill', 'billId', '119-hr-1'],
-  ])('projects the %s family only from governed identities', (_family, field, value) => {
+    ['PE code', 'peCode', 'Compare the marks for PE 0601234A this cycle', {}, '0601234A'],
+    ['award PIID', 'piid', 'Was award FA1234-26-C-0001 modified?', {}, 'FA1234-26-C-0001'],
+    ['document id', 'documentId', 'Summarize the transcript', { documentId: 'doc-7' }, 'doc-7'],
+    ['opportunity id', 'opportunityId', 'Is opportunity id W912DY-26-R-0009 still open?', {}, 'W912DY-26-R-0009'],
+    ['bill', 'billId', 'Did S. 2296 pass?', {}, 'S. 2296'],
+  ])('projects the %s family from the request text or the planned route', (_family, field, request, route, value) => {
     const familySchema = {
       name: `family_${field}`,
       input_schema: { properties: { [field]: {} }, required: [field] },
     };
     expect(projectRemedyArgs(
-      { name: familySchema.name, args: { claimIds: ['c'] } },
+      { name: familySchema.name, args: remedyArgs(route) },
       familySchema,
-      { tenantId: 'tenant', identities: { [field]: value } },
+      productionContext(request),
     )).toEqual({ [field]: value });
     expect(projectRemedyArgs(
-      { name: familySchema.name, args: { claimIds: ['c'] } },
+      { name: familySchema.name, args: remedyArgs() },
       familySchema,
-      { tenantId: 'tenant' },
+      productionContext('Tell me about the program.'),
     )).toBeNull();
+  });
+
+  it('never guesses a committee id, and explicit identities still win over request text', () => {
+    const committee = { name: 'get_committee_roster', input_schema: { properties: { committeeId: {} }, required: ['committeeId'] } };
+    expect(projectRemedyArgs({ name: committee.name, args: remedyArgs() }, committee, productionContext('Who sits on HASC?'))).toBeNull();
+    expect(projectRemedyArgs(
+      { name: committee.name, args: remedyArgs() }, committee,
+      { ...productionContext('Who sits on HASC?'), identities: { committeeId: 'HSAS' } },
+    )).toEqual({ committeeId: 'HSAS' });
+    expect(requestIdentities('The award summary is due')).toEqual({});
   });
 
   it('refuses an unfillable schema with no_concrete_route rather than guessing', async () => {
     const invoke = jest.fn();
     const executor = createOrchestratorToolExecutor({
-      registry: registry(), schemas: [schema], context: { tenantId: 'tenant' },
+      registry: registry(), schemas: [schema], context: productionContext('What changed this week?'),
       citations: [], ledgerEntries: [], invoke,
     });
-    await expect(executor.execute({ name: schema.name, args: {} }, {})).resolves.toMatchObject({
+    await expect(executor.execute({ name: schema.name, args: remedyArgs() }, {})).resolves.toMatchObject({
       ok: false,
+      state: 'retrieval_failed',
       reason: 'no_concrete_route',
     });
     expect(invoke).not.toHaveBeenCalled();
@@ -71,11 +120,86 @@ describe('orchestrator repair tool executor', () => {
     const invoke = jest.fn();
     const executor = createOrchestratorToolExecutor({
       registry: readOnly === undefined ? { get: () => undefined, executionMetadata: () => undefined } as never : registry(readOnly, metadata),
-      schemas: [schema], context: { tenantId: 'tenant', identities: { billId: '119-hr-1' } },
+      schemas: [schema], context: productionContext('Status of H.R. 1?'),
       citations: [], ledgerEntries: [], invoke,
     });
-    expect(await executor.execute({ name: schema.name, args: {} }, {})).toMatchObject({ ok: false });
+    expect(await executor.execute({ name: schema.name, args: remedyArgs() }, {})).toMatchObject({ ok: false, reason: 'tool_not_read_only' });
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  describe('document routes', () => {
+    function documentExecutor(invoke: jest.Mock, extra: Record<string, unknown> = {}) {
+      return createOrchestratorToolExecutor({
+        registry: registry(), schemas: [documentSchema], context: productionContext('Summarize the transcript'),
+        citations: [], ledgerEntries: [], invoke, ...extra,
+      });
+    }
+
+    it('refuses a document read without the document id instead of issuing a listing', async () => {
+      const invoke = jest.fn();
+      const result = await documentExecutor(invoke).execute({ name: documentSchema.name, args: remedyArgs() }, {});
+      expect(result).toMatchObject({ ok: false, state: 'retrieval_failed', reason: 'no_concrete_route' });
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('returns content evidence for a readable document', async () => {
+      const invoke = jest.fn(async () => contentRead);
+      const result = await documentExecutor(invoke).execute({ name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) }, {});
+      expect(invoke).toHaveBeenCalledWith(documentSchema.name, { clientId: 'client-1', documentId: 'doc-7' }, undefined);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.evidence.length).toBeGreaterThan(0);
+    });
+
+    it.each([
+      ['metadata-only extraction', metadataOnlyRead],
+      ['a file listing', fileListing],
+    ])('reports document_unavailable when a concrete route yields %s', async (_label, payload) => {
+      const invoke = jest.fn(async () => payload);
+      const result = await documentExecutor(invoke).execute({ name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) }, {});
+      expect(result).toMatchObject({ ok: false, state: 'document_unavailable', reason: 'document_content_unavailable' });
+    });
+
+    it('reports document_unavailable when the document read itself fails', async () => {
+      const invoke = jest.fn(async () => { throw new Error('Attachment is not ready'); });
+      const result = await documentExecutor(invoke).execute({ name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) }, {});
+      expect(result).toMatchObject({ ok: false, state: 'document_unavailable', reason: 'Attachment is not ready' });
+    });
+
+    it('refuses a document the turn already knows is unreadable without a tool call', async () => {
+      const invoke = jest.fn(async () => contentRead);
+      const executor = documentExecutor(invoke, {
+        documentReferences: [{ id: 'doc-7', filename: 'hearing.txt', readable: false, contentState: 'metadata_only' }],
+      });
+      const result = await executor.execute({ name: documentSchema.name, args: remedyArgs({ documentId: 'doc-7' }) }, {});
+      expect(result).toMatchObject({ ok: false, state: 'document_unavailable', reason: 'document_not_readable' });
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('classifies document payloads by extracted text, never by metadata', () => {
+      expect(documentContentReadable(contentRead)).toBe(true);
+      expect(documentContentReadable(metadataOnlyRead)).toBe(false);
+      expect(documentContentReadable(fileListing)).toBe(false);
+      expect(documentContentReadable({ error: 'forbidden' })).toBe(false);
+    });
+  });
+
+  it('numbers repaired evidence with the mode the caller resolved, defaulting to stable numbering', async () => {
+    const spy = jest.spyOn(contextEvidence, 'numberMeriEvidenceCitationsForMode');
+    try {
+      const invoke = async () => ({ data: [{ id: '119-hr-1', title: 'H.R. 1', url: 'https://example.test/hr1', snippet: 'Status: Enacted' }] });
+      await createOrchestratorToolExecutor({
+        registry: registry(), schemas: [schema], context: productionContext('Status of H.R. 1?'),
+        citations: [], ledgerEntries: [], invoke, evidenceAccuracyMode: 'off',
+      }).execute({ name: schema.name, args: remedyArgs() }, {});
+      expect(spy).toHaveBeenLastCalledWith(expect.any(Array), expect.any(Array), 'off');
+      await createOrchestratorToolExecutor({
+        registry: registry(), schemas: [schema], context: productionContext('Status of H.R. 1?'),
+        citations: [], ledgerEntries: [], invoke,
+      }).execute({ name: schema.name, args: remedyArgs() }, {});
+      expect(spy).toHaveBeenLastCalledWith(expect.any(Array), expect.any(Array), 'enforce');
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('registers projected evidence with a stable citation marker', async () => {
@@ -83,12 +207,12 @@ describe('orchestrator repair tool executor', () => {
     const ledgerEntries: import('@capiro/meriv2-core').LedgerEntry[] = [];
     const executor = createOrchestratorToolExecutor({
       registry: registry(), schemas: [schema],
-      context: { tenantId: 'tenant', identities: { billId: '119-hr-1' } },
+      context: productionContext('Status of H.R. 1?'),
       citations,
       ledgerEntries,
       invoke: async () => ({ data: [{ id: '119-hr-1', title: 'H.R. 1', url: 'https://example.test/hr1', snippet: 'Status: Enacted' }] }),
     });
-    const result = await executor.execute({ name: schema.name, args: {} }, {});
+    const result = await executor.execute({ name: schema.name, args: remedyArgs() }, {});
     if (!result.ok) throw new Error(result.reason);
     expect(result).toMatchObject({ ok: true, evidence: [expect.objectContaining({ locator: '[1]' })] });
     expect(citations).toHaveLength(1);

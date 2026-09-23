@@ -12,6 +12,8 @@ export interface RevisionGenerationInput {
 export interface RevisionGenerationResult {
   replacementText: string;
   citedEvidenceIds: string[];
+  /** Token usage of the revision model call, when the generator can report it. */
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 export type RevisionGenerator = (
