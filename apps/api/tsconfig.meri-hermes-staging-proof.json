@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/meri-hermes-staging-continuity-proof.ts",
+    "scripts/lib/meri-hermes-staging-proof-guard.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

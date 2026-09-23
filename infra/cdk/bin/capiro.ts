@@ -36,6 +36,7 @@ const data = new DataStack(app, stackName(cfg.envName, 'Data'), {
   cfg,
   vpc: network.vpc,
   dbSecurityGroup: network.dbSecurityGroup,
+  rotationSecurityGroup: cfg.envName === 'staging' ? network.serviceSecurityGroup : undefined,
 });
 data.addDependency(network);
 
