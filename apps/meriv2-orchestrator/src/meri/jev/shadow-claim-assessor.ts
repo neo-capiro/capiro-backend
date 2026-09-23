@@ -177,9 +177,10 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       const { envelope, hash } = buildEvidenceEnvelope({
         claim: assuredClaim, ledger: input.ledger, citations: [...input.citations],
         passages: input.passages, tenantId: input.tenantId, clientId: input.clientId,
-        asOf: input.asOf,
+        asOf: input.asOf, includeProvenance: true,
       });
-      const claimTokens = Math.ceil(JSON.stringify(envelope).length / 4);
+      const question = buildClaimSupportQuestion(envelope);
+      const claimTokens = Math.ceil(JSON.stringify(question.state).length / 4);
       if (estimatedInputTokens + claimTokens > input.budget.maxInputTokens) {
         budgetExhausted = true;
         break;
@@ -193,7 +194,6 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         jev = failure('jev', 'not-called', 'document_unavailable', eligibility.reason);
         legacy = failure('legacy-skeptic', 'not-called', 'document_unavailable', eligibility.reason);
       } else {
-        const question = buildClaimSupportQuestion(envelope);
         const calls = [
           input.providers.jev?.assess(envelope, question, { signal: linked.signal, deadlineAt }),
           input.providers.legacy.assess(envelope, question, { signal: linked.signal, deadlineAt }),

@@ -96,6 +96,15 @@ Once those two are fixed, exposing the distinction to the client is a matter of 
 (`evidenceClass`/`primary`) alongside the status in the tool response and UI contract — deliberately deferred until
 the underlying data is trustworthy, per "ship later."
 
+### Provenance in the evidence envelope
+
+`EvidenceEnvelope.sources[]` can now optionally carry `provenance` with the ledger's `evidenceClass`, `primary`,
+and `authoritative` values. Builders opt in explicitly; existing envelopes remain valid, and
+`envelopeSourcesForJev` includes the field only when a future question builder requests it. The
+`claim_support.v1` question continues to omit provenance, and envelope hashing strips it, preserving both today's
+Jev request state and existing `envelopeHash` label joins. These values depend on the separate
+`tool-ledger-adapter.ts` classification fix before they are truthful enough for status-selection or client display.
+
 ## "Comprehensive" scope-qualification
 
 The plan calls out this exact word as needing a defined, satisfied scope rather than a blanket claim. This already

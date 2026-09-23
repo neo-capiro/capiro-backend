@@ -2,6 +2,8 @@ import {
   buildAssuredClaimLedger,
   type DecisionProvider,
   type EvidenceDecision,
+  type EvidenceEnvelope,
+  type EvidenceQuestion,
   type MaterialClaim,
 } from '@capiro/meriv2-core';
 import { assessReleasedClaims } from './shadow-claim-assessor';
@@ -59,6 +61,35 @@ describe('assessReleasedClaims', () => {
       budgetExhausted: false, durationMs: expect.any(Number), inputTokens: expect.any(Number),
       estimatedCostUsd: expect.any(Number), sampled: expect.any(Boolean),
     });
+  });
+
+  it('keeps the claim_support Jev request state unchanged while carrying provenance', async () => {
+    const assess = jest.fn<Promise<EvidenceDecision>, [EvidenceEnvelope, EvidenceQuestion]>(
+      async () => outcome('jev'),
+    );
+    const args = input({ providers: { jev: provider('jev', assess), legacy: provider('legacy', assess) } });
+    await assessReleasedClaims(args);
+
+    expect(assess).toHaveBeenCalledTimes(2);
+    const [sentEnvelope, sentQuestion] = assess.mock.calls[0]!;
+    expect(sentEnvelope.sources[0]?.provenance).toEqual({
+      evidenceClass: 'official_government_data', primary: true, authoritative: true,
+    });
+    expect(sentQuestion.state).toEqual({
+      claim: {
+        id: 'c1', text: 'The award was $42.', kind: 'fact', category: 'grant_award',
+        asOf: '2026-09-22T00:00:00.000Z',
+      },
+      scope: {
+        qualifiers: ['as-of:2026-09-22T00:00:00.000Z', 'category:grant_award'],
+        tenantId: TENANT, clientId: null,
+      },
+      sources: [{
+        evidenceId: 'e1', sourceType: 'search_grants', sourceId: 'record-1', documentId: null,
+        version: null, locator: null, passage: 'The award was $42.', sourceDate: null, retrievedAt: null,
+      }],
+    });
+    expect((sentQuestion.state as { sources: unknown[] }).sources[0]).not.toHaveProperty('provenance');
   });
 
   it('short-circuits unavailable document evidence without provider calls', async () => {

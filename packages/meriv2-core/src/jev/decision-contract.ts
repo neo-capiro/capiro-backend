@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AssuredClaim } from '../assurance/claim-ledger';
+import { EVIDENCE_CLASSES, type EvidenceClass } from '../assurance/evidence-plan';
 import type { AssuranceSurface } from '../assurance/risk-gate';
 import { hashEvidenceContent } from '../grounding/evidence';
 
@@ -60,6 +61,13 @@ const evidenceSourceSchema = z.object({
   publishedAt: z.string().nullable(),
   effectiveAt: z.string().nullable(),
   retrievedAt: z.string().nullable(),
+  provenance: z
+    .object({
+      evidenceClass: z.enum(EVIDENCE_CLASSES),
+      primary: z.boolean(),
+      authoritative: z.boolean(),
+    })
+    .optional(),
 });
 
 export const evidenceEnvelopeSchema = z.object({
@@ -108,6 +116,11 @@ export interface EvidenceEnvelope {
     publishedAt: string | null;
     effectiveAt: string | null;
     retrievedAt: string | null;
+    provenance?: {
+      evidenceClass: EvidenceClass;
+      primary: boolean;
+      authoritative: boolean;
+    };
   }>;
   truncation?: {
     truncated: boolean;
@@ -121,7 +134,11 @@ export interface EvidenceEnvelope {
 }
 
 export function hashEvidenceEnvelope(envelope: EvidenceEnvelope): string {
-  return hashEvidenceContent(evidenceEnvelopeSchema.parse(envelope));
+  const parsed = evidenceEnvelopeSchema.parse(envelope);
+  return hashEvidenceContent({
+    ...parsed,
+    sources: parsed.sources.map(({ provenance: _provenance, ...source }) => source),
+  });
 }
 
 export interface EvidenceQuestion {
