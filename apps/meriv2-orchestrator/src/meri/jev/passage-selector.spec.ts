@@ -336,6 +336,25 @@ describe('passage selector', () => {
     expect(selectPassages({ candidates, answers: result }).kept).toEqual(candidates);
   });
 
+  it('does not start a pending passage batch after the request aborts', async () => {
+    const candidates = [candidate('p0'), candidate('p1'), candidate('p2')];
+    const controller = new AbortController();
+    const fetchImpl = jest.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      controller.abort();
+      const request = JSON.parse(String(init?.body)) as { questions: Record<string, unknown> };
+      return new Response(JSON.stringify({ model: 'jev-1.13.0',
+        answers: Object.fromEntries(Object.keys(request.questions).map((id) => [id, { type: 'noul', noul: 0.8 }])),
+        usage: { input_tokens: 20, output_tokens: 0 } }),
+      { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    const provider = createJevClient({ apiKey: 'test-key', model: 'jev-1.13.0', timeoutMs: 100,
+      maxAttempts: 2, fetchImpl: fetchImpl as typeof fetch });
+    const result = await askPassageQuestions({ question: 'q', candidates, provider, signal: controller.signal,
+      budget: { maxPassages: 4, maxRequests: 2, maxInputTokens: 60_000, deadlineMs: 1_000 } });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ fallback: true, fallbackReason: 'AbortError' });
+  });
+
   it('removes a dropped passage as a function_call/function_call_output pair and leaves reasoning and messages alone', () => {
     const turn = new TurnFixture().round([
       { callId: 'call_keep', name: 'get_pe_budget_timeline', arguments: { peCode: '0603851F' },

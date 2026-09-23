@@ -358,6 +358,16 @@ describe('live bounded repair', () => {
     expect(result.toolCalls).toBe(0);
   });
 
+  it('starts neither Jev nor legacy when already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const jev = provider(insufficient);
+    const legacy = provider(supported);
+    await applyLiveRepair(base({ signal: controller.signal, providers: { jev, legacy } }));
+    expect(jev.assess).not.toHaveBeenCalled();
+    expect(legacy.assess).not.toHaveBeenCalled();
+  });
+
   it('never retrieves or changes the reply in shadow mode and reports no attempt', async () => {
     const executor = { execute: jest.fn() };
     const result = await applyLiveRepair(base({ mode: 'shadow', executor }));

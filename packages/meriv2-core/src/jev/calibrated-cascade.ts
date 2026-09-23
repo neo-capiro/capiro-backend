@@ -6,6 +6,8 @@ import type {
   EvidenceQuestion,
 } from './decision-contract';
 import type { JevTaskRegistration } from './task-registry';
+import { assessWithJevCache, jevDecisionCacheKey, JevDecisionCache,
+  type JevCacheMode, type JevCacheObservation } from './decision-cache';
 
 export const CASCADE_ESCALATION_REASONS = [
   'jev_unavailable',
@@ -36,6 +38,7 @@ export interface CalibratedCascadeInput {
   legacyLiveRepairCompatibility?: boolean;
   signal?: AbortSignal;
   deadlineAt?: number;
+  cache?: { mode: JevCacheMode; instance: JevDecisionCache };
 }
 
 export interface CalibratedCascadeResult {
@@ -46,6 +49,7 @@ export interface CalibratedCascadeResult {
   escalationReasons: CascadeEscalationReason[];
   audited: boolean;
   auditDisagreement: boolean;
+  cache?: JevCacheObservation & { mode: JevCacheMode };
 }
 
 export async function runCalibratedCascade(input: CalibratedCascadeInput): Promise<CalibratedCascadeResult> {
@@ -53,13 +57,27 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
   if (!cascade) throw new Error(`Jev task ${input.registration.task} has no cascade registration`);
 
   let jev: EvidenceDecision | null = null;
+  let cache: CalibratedCascadeResult['cache'];
   const reasons: CascadeEscalationReason[] = [];
   if (abortedOrExpired(input.signal, input.deadlineAt)) {
     reasons.push('jev_unavailable');
   } else if (!input.jev || !providerAvailable(input.jev)) {
     reasons.push('jev_unavailable');
   } else {
-    jev = await safeAssess(input.jev, input);
+    if (input.cache) {
+      const assessed = await assessWithJevCache({
+        mode: input.cache.mode,
+        cache: input.cache.instance,
+        key: jevDecisionCacheKey({ tenantId: input.envelope.tenantId, clientId: input.envelope.clientId,
+          envelope: input.envelope, claim: { id: input.claim.id, text: input.envelope.claimText },
+          questionVersion: input.registration.questionVersion, modelVersion: input.registration.modelVersion }),
+        assess: () => safeAssess(input.jev!, input),
+      });
+      jev = assessed.decision;
+      cache = { mode: input.cache.mode, ...assessed.observation };
+    } else {
+      jev = await safeAssess(input.jev, input);
+    }
     if (jev.kind === 'failure') reasons.push('jev_failure');
   }
 
@@ -101,6 +119,7 @@ export async function runCalibratedCascade(input: CalibratedCascadeInput): Promi
     auditDisagreement: Boolean(
       audited && jev?.kind === 'outcome' && legacy?.kind === 'outcome' && jev.outcome !== legacy.outcome,
     ),
+    ...(cache ? { cache } : {}),
   };
 }
 

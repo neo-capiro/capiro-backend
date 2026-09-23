@@ -430,6 +430,7 @@ export async function askPassageQuestions(input: {
   const probabilities: Record<string, PassageProbabilities> = {};
   try {
     for (const batch of batches) {
+      if (input.signal?.aborted) return fallback('AbortError');
       if (Date.now() >= deadlineAt) return fallback('deadline_exceeded');
       const request = requestFor(input.question, input.clientId, batch);
       const result = await input.provider.systemOne(request, { signal: input.signal, deadlineAt });

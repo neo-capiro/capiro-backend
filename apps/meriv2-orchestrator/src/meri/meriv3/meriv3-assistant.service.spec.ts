@@ -1796,6 +1796,9 @@ describe('Stage 2 orchestrator hardening', () => {
       recheckInputTokens: 0,
       estimatedCostUsd: 0,
       sampled: false,
+      jevCalls: 0,
+      legacyCalls: 1,
+      repairLoops: 0,
     },
     ...overrides,
   });

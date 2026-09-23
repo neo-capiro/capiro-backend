@@ -3,6 +3,7 @@ import {
   checkExactSourceEligibility,
   evaluateClaimDeterministically,
   JEV_TASK_REGISTRY,
+  JevDecisionCache,
   runCalibratedCascade,
   sampledCascadeKey,
   runRepairLoop,
@@ -25,6 +26,7 @@ import {
   type RepairOutcomeStatus,
   type RevisionGenerator,
   type RepairToolExecutor,
+  type JevCacheMode,
 } from '@capiro/meriv2-core';
 import { MERI_CAPABILITY_REGISTRY, computeAiCostUsd, type MeriCitation } from '@capiro/shared';
 
@@ -76,6 +78,7 @@ export interface LiveRepairInput {
   toolRegistry?: LiveRepairToolRegistry;
   pricing?: LiveRepairPricing;
   now?: () => number;
+  cache?: { mode: JevCacheMode; instance: JevDecisionCache };
 }
 
 export interface LiveRepairResult {
@@ -104,6 +107,10 @@ export interface LiveRepairResult {
     recheckInputTokens: number;
     estimatedCostUsd: number;
     sampled: boolean;
+    jevCalls: number;
+    legacyCalls: number;
+    repairLoops: number;
+    cache?: { mode: JevCacheMode; lookups: number; hits: number; agreements: number };
   };
 }
 
@@ -233,7 +240,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
         wouldAttempt: 0, unresolved: 0, claimOutcomes: [],
         assessmentMs: 0, repairMs: 0, inputTokens: 0, jevInputTokens: 0, legacyInputTokens: 0,
         revisionInputTokens: 0, revisionOutputTokens: 0, recheckInputTokens: 0,
-        estimatedCostUsd: 0, sampled: false,
+        estimatedCostUsd: 0, sampled: false, jevCalls: 0, legacyCalls: 0, repairLoops: 0,
       },
     };
   }
@@ -249,6 +256,7 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   const outcomes: Record<string, string> = {};
   let jevCalls = 0;
   let legacyCalls = 0;
+  const cacheCounts = { lookups: 0, hits: 0, agreements: 0 };
   let sampledApprovals = 0;
   let sampledDisagreements = 0;
   let inputTokens = 0;
@@ -291,9 +299,15 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
         sampleKey: `${input.conversationId ?? ''}:${claim.id}`,
         legacyLiveRepairCompatibility: true,
         signal: input.signal,
+        cache: input.cache,
       });
       jev = cascadeResult.jev;
       legacy = cascadeResult.legacy;
+      if (cascadeResult.cache) {
+        cacheCounts.lookups += cascadeResult.cache.lookups;
+        cacheCounts.hits += cascadeResult.cache.hits;
+        cacheCounts.agreements += cascadeResult.cache.agreements;
+      }
       if (jev) jevCalls += 1;
       if (legacy) legacyCalls += 1;
       jevInputTokens += usage(jev);
@@ -443,6 +457,10 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
       recheckInputTokens: tokens.recheckInput,
       estimatedCostUsd,
       sampled: sampledApprovals > 0,
+      jevCalls,
+      legacyCalls,
+      repairLoops: passes,
+      ...(input.cache ? { cache: { mode: input.cache.mode, ...cacheCounts } } : {}),
     },
   };
 }

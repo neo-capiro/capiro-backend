@@ -52,6 +52,7 @@ export * from './rollout/coverage-retrieval';
 export * from './rollout/passage-selection';
 export * from './rollout/match-label';
 export * from './rollout/status-provenance';
+export * from './rollout/jev-cache';
 export * from './jev/index';
 export * from './repair/types';
 export {

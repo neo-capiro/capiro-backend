@@ -32,6 +32,8 @@ describe('CanaryTurnCollector', () => {
       passageSelection: { requiredRetained: 1,
         safetyIntervention: { evaluated: true, intervened: true, reasons: ['required_candidate_restored'] } },
       repair: { corrected: 1 }, tokens: { jev: 5, repair: 6 },
+      cost: { retrievalToolCalls: 1, retrievalLatencyMs: 10, coverageFollowUpTokens: 0,
+        jevCalls: 1, legacyCalls: 0, repairLoops: 1 },
       registryVersion: 'jev-task-registry.v1',
       jevTasks: {
         passage_relevance: { questionVersion: 'passage_selection.v1', modelVersion: 'jev-1.13.0' },

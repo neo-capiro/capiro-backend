@@ -26,6 +26,9 @@ export const canaryTurnEventSchema = z.object({
   latencyMs: z.object({ timeToText: count, assessment: count, passageSelection: count,
     coverageFollowUp: count, repair: count, total: count }),
   tokens: z.object({ synthesis: count, jev: count, legacy: count, repair: count }),
+  cost: z.object({ retrievalToolCalls: count, retrievalLatencyMs: count, coverageFollowUpTokens: count,
+    jevCalls: count, legacyCalls: count, repairLoops: count }).optional(),
+  cache: z.object({ mode: z.enum(['shadow', 'enforce']), lookups: count, hits: count, agreements: count }).optional(),
   estimatedCostUsd: z.number().nonnegative(), sampled: z.boolean(),
 });
 export type CanaryTurnEvent = z.infer<typeof canaryTurnEventSchema>;
@@ -59,11 +62,24 @@ function rate(successes: number, n: number) {
   return { value, n, confidence95: [Math.max(0, center - margin), Math.min(1, center + margin)] };
 }
 const LATENCY_COMPONENTS = ['timeToText', 'assessment', 'passageSelection', 'coverageFollowUp', 'repair', 'total'] as const;
+const COST_COMPONENTS = ['retrievalToolCalls', 'retrievalLatencyMs', 'coverageFollowUpTokens',
+  'jevCalls', 'legacyCalls', 'repairLoops'] as const;
 type LatencyComponent = (typeof LATENCY_COMPONENTS)[number];
 type Percentiles = { p50: number | null; p95: number | null };
 
-function aggregate(events: CanaryTurnEvent[]) {
+function aggregate(events: CanaryTurnEvent[], humanLabels?: Readonly<Record<string, boolean>>) {
   const released = events.filter((event) => event.outcome === 'released');
+  const completed = released;
+  const costValue = (event: CanaryTurnEvent, key: (typeof COST_COMPONENTS)[number]) => event.cost?.[key] ?? 0;
+  const costMetric = (key: (typeof COST_COMPONENTS)[number]) => ({
+    total: completed.reduce((sum, event) => sum + costValue(event, key), 0),
+    perCompletedTask: completed.length
+      ? completed.reduce((sum, event) => sum + costValue(event, key), 0) / completed.length : null,
+    p50: percentile(completed.map((event) => costValue(event, key)), .5),
+    p95: percentile(completed.map((event) => costValue(event, key)), .95),
+  });
+  const correctlyLabelled = humanLabels === undefined ? [] : completed.filter((event) =>
+    event.conversationId !== null && humanLabels[event.conversationId] === true);
   // Repair counters are per claim: `attempted` counts repairable claims and a claim is
   // resolved when it ended corrected, qualified or omitted (never more than attempted).
   // A turn is fully repaired only when every attempted claim resolved, so a single
@@ -117,6 +133,23 @@ function aggregate(events: CanaryTurnEvent[]) {
     abortRate: rate(events.filter((event) => event.outcome === 'aborted').length, events.length),
     incompleteRate: rate(events.filter((event) => event.outcome === 'incomplete').length, events.length),
     costPerReleasedTurn: released.length ? released.reduce((sum, event) => sum + event.estimatedCostUsd, 0) / released.length : null,
+    costPerCompletedTask: {
+      completed: completed.length,
+      estimatedCostUsd: {
+        total: completed.reduce((sum, event) => sum + event.estimatedCostUsd, 0),
+        perCompletedTask: completed.length
+          ? completed.reduce((sum, event) => sum + event.estimatedCostUsd, 0) / completed.length : null,
+        p50: percentile(completed.map((event) => event.estimatedCostUsd), .5),
+        p95: percentile(completed.map((event) => event.estimatedCostUsd), .95),
+      },
+      components: Object.fromEntries(COST_COMPONENTS.map((key) => [key, costMetric(key)])),
+    },
+    costPerCorrectCompletedTask: humanLabels === undefined
+      ? { value: null, correctCompleted: 0, reason: 'human_labels_not_supplied' }
+      : correctlyLabelled.length === 0
+        ? { value: null, correctCompleted: 0, reason: 'no_correct_completed_tasks' }
+        : { value: correctlyLabelled.reduce((sum, event) => sum + event.estimatedCostUsd, 0)
+            / correctlyLabelled.length, correctCompleted: correctlyLabelled.length, reason: null },
   };
 }
 
@@ -125,9 +158,9 @@ export type CanaryLimitsVersion = 'v1' | 'v2';
 export function buildCanaryReport(
   canary: CanaryTurnEvent[],
   baseline: CanaryTurnEvent[] = [],
-  options: { limitsVersion?: CanaryLimitsVersion } = {},
+  options: { limitsVersion?: CanaryLimitsVersion; humanLabels?: Readonly<Record<string, boolean>> } = {},
 ) {
-  const current = aggregate(canary); const prior = aggregate(baseline);
+  const current = aggregate(canary, options.humanLabels); const prior = aggregate(baseline);
   const selectedVersion = options.limitsVersion ?? 'v1';
   const configured = selectedVersion === 'v2' ? CANARY_LIMITS_V2 : CANARY_LIMITS_V1;
   const limit = (status: Status, observed: number | null, threshold: number) => ({ status, observed, threshold });

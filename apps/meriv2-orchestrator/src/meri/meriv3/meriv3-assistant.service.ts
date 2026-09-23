@@ -38,6 +38,8 @@ import {
   resolveEvidenceAccuracyMode,
   resolveJevConfig,
   resolveJevProviderMode,
+  resolveJevCacheMode,
+  JevDecisionCache,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -441,6 +443,12 @@ export class MeriV3AssistantService {
   private readonly registry: ToolRegistry;
   private readonly llm: MeriRegistryService['llm'];
   private readonly apiBaseUrl: string;
+  private readonly jevDecisionCache = new JevDecisionCache();
+
+  private liveRepairCache(tenantId: string) {
+    const mode = resolveJevCacheMode(process.env, tenantId, 'chat');
+    return mode === 'off' ? undefined : { mode, instance: this.jevDecisionCache };
+  }
 
   constructor(
     registryService: MeriRegistryService,
@@ -1202,6 +1210,7 @@ export class MeriV3AssistantService {
           followUps: executed,
           residual: essentialResiduals.length,
           latencyMs: Date.now() - coverageStartedAt,
+          retrievalToolCalls: executed,
         });
         this.logStructured('log', 'meri.coverage.turn', {
           conversationId: dto.conversationId ?? null,
@@ -1815,6 +1824,7 @@ export class MeriV3AssistantService {
         // Real read-only classification for remedy planning; unknown tools fail closed.
         toolRegistry: this.registry,
         pricing: { llmModel: args.synthesisModel },
+        cache: this.liveRepairCache(ctx.tenantId),
       });
       const settled = await settleWithinBudget(work, { deadlineAt, signal: controller.signal });
       if (settled.kind !== 'settled') {
@@ -1832,6 +1842,10 @@ export class MeriV3AssistantService {
         tokens: repair.metrics.inputTokens,
         costUsd: repair.metrics.estimatedCostUsd,
         sampled: repair.metrics.sampled,
+        jevCalls: repair.metrics.jevCalls,
+        legacyCalls: repair.metrics.legacyCalls,
+        repairLoops: repair.metrics.repairLoops,
+        cache: repair.metrics.cache,
       });
       args.canary.noteLegacy(repair.metrics.legacyInputTokens);
       this.logStructured('log', 'meri.auto_correction.stage', {

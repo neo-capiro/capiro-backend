@@ -40,6 +40,7 @@ export type EvidenceDecision =
       provider: DecisionProviderMetadata;
       latencyMs: number;
       usage?: { inputTokens: number; outputTokens: number };
+      cached?: boolean;
     }
   | {
       kind: 'failure';

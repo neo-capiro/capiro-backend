@@ -52,12 +52,17 @@ export interface CanaryTurnEvent {
     total: number;
   };
   tokens: { synthesis: number; jev: number; legacy: number; repair: number };
+  cost: {
+    retrievalToolCalls: number; retrievalLatencyMs: number; coverageFollowUpTokens: number;
+    jevCalls: number; legacyCalls: number; repairLoops: number;
+  };
+  cache?: { mode: 'shadow' | 'enforce'; lookups: number; hits: number; agreements: number };
   estimatedCostUsd: number;
   sampled: boolean;
 }
 
 type MutableMetrics = Pick<CanaryTurnEvent,
-  'coverage' | 'passageSelection' | 'repair' | 'latencyMs' | 'tokens'> & {
+  'coverage' | 'passageSelection' | 'repair' | 'latencyMs' | 'tokens' | 'cost' | 'cache'> & {
   estimatedCostUsd: number;
   sampled: boolean;
 };
@@ -82,6 +87,8 @@ export class CanaryTurnCollector {
       coverageFollowUp: 0, repair: 0, total: 0,
     },
     tokens: { synthesis: 0, jev: 0, legacy: 0, repair: 0 },
+    cost: { retrievalToolCalls: 0, retrievalLatencyMs: 0, coverageFollowUpTokens: 0,
+      jevCalls: 0, legacyCalls: 0, repairLoops: 0 },
     estimatedCostUsd: 0,
     sampled: false,
   };
@@ -93,31 +100,43 @@ export class CanaryTurnCollector {
     this.startedAt = now();
   }
 
-  noteCoverage(value: CanaryTurnEvent['coverage'] & { latencyMs: number }): void {
+  noteCoverage(value: CanaryTurnEvent['coverage'] & {
+    latencyMs: number; retrievalToolCalls?: number; coverageFollowUpTokens?: number;
+  }): void {
     this.metrics.coverage = { gaps: value.gaps, followUps: value.followUps, residual: value.residual };
     this.metrics.latencyMs.coverageFollowUp = value.latencyMs;
+    this.metrics.cost.retrievalToolCalls += value.retrievalToolCalls ?? value.followUps;
+    this.metrics.cost.retrievalLatencyMs += value.latencyMs;
+    this.metrics.cost.coverageFollowUpTokens += value.coverageFollowUpTokens ?? 0;
   }
 
   notePassageSelection(value: CanaryTurnEvent['passageSelection'] & {
-    latencyMs: number; tokens: number; costUsd: number;
+    latencyMs: number; tokens: number; costUsd: number; calls?: number;
   }): void {
-    const { latencyMs, tokens, costUsd, ...selection } = value;
+    const { latencyMs, tokens, costUsd, calls, ...selection } = value;
     this.metrics.passageSelection = selection;
     this.metrics.latencyMs.passageSelection = latencyMs;
     this.metrics.tokens.jev += tokens;
     this.metrics.estimatedCostUsd += costUsd;
+    this.metrics.cost.jevCalls += calls ?? (tokens > 0 ? 1 : 0);
   }
 
   noteRepair(value: CanaryTurnEvent['repair'] & {
     assessmentMs: number; repairMs: number; tokens: number; costUsd: number; sampled?: boolean;
+    jevCalls?: number; legacyCalls?: number; repairLoops?: number;
+    cache?: CanaryTurnEvent['cache'];
   }): void {
-    const { assessmentMs, repairMs, tokens, costUsd, sampled, ...repair } = value;
+    const { assessmentMs, repairMs, tokens, costUsd, sampled, jevCalls, legacyCalls, repairLoops, cache, ...repair } = value;
     this.metrics.repair = repair;
     this.metrics.latencyMs.assessment = assessmentMs;
     this.metrics.latencyMs.repair = repairMs;
     this.metrics.tokens.repair += tokens;
     this.metrics.estimatedCostUsd += costUsd;
     this.metrics.sampled = this.metrics.sampled || Boolean(sampled);
+    this.metrics.cost.jevCalls += jevCalls ?? 0;
+    this.metrics.cost.legacyCalls += legacyCalls ?? 0;
+    this.metrics.cost.repairLoops += repairLoops ?? repair.attempted;
+    if (cache) this.metrics.cache = cache;
   }
 
   noteSynthesis(tokens: number, costUsd: number): void {

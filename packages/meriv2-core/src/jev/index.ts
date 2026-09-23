@@ -2,6 +2,7 @@ export * from './decision-contract';
 export * from './jev-config';
 export * from './task-registry';
 export * from './calibrated-cascade';
+export * from './decision-cache';
 export * from './jev-client';
 export * from './claim-support-question';
 export * from './jev-decision-provider';

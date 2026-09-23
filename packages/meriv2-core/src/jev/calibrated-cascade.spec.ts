@@ -3,6 +3,7 @@ import type { ClaimCategory } from '../assurance/evidence-plan';
 import type { DecisionProvider, EvidenceDecision, EvidenceEnvelope, EvidenceQuestion } from './decision-contract';
 import { runCalibratedCascade, sampledCascadeKey } from './calibrated-cascade';
 import { JEV_TASK_REGISTRY, type JevTaskRegistration } from './task-registry';
+import { JevDecisionCache } from './decision-cache';
 
 const probabilities = {
   supported: 0.9,
@@ -115,5 +116,16 @@ describe('runCalibratedCascade', () => {
     expect(result.escalationReasons).toEqual(['jev_unavailable']);
     expect(result.decision).toBe(legacyDecision);
     expect(broken.assess).not.toHaveBeenCalled();
+  });
+
+  it('uses the optional cache without adding a caller retry or legacy call on an enforce hit', async () => {
+    const cache = new JevDecisionCache();
+    const jev = provider(outcome());
+    const first = await run({ jev, cache: { mode: 'shadow', instance: cache } });
+    const second = await run({ jev, cache: { mode: 'enforce', instance: cache } });
+    expect(first.cache).toEqual({ mode: 'shadow', lookups: 1, hits: 0, agreements: 0 });
+    expect(second).toMatchObject({ cache: { mode: 'enforce', lookups: 1, hits: 1 },
+      decision: { cached: true, latencyMs: 0 } });
+    expect(jev.assess).toHaveBeenCalledTimes(1);
   });
 });

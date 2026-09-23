@@ -72,7 +72,31 @@ describe('canary report', () => {
     expect(report.current.repair.successRate.value).toBe(1);
     expect(report.current.latencyMs.timeToText).toEqual({ p50: 100, p95: 300 });
     expect(report.current.costPerReleasedTurn).toBe(2);
+    expect(report.current.costPerCompletedTask.estimatedCostUsd).toEqual({
+      total: 4, perCompletedTask: 2, p50: 1, p95: 3,
+    });
+    expect(report.current.costPerCorrectCompletedTask).toEqual({
+      value: null, correctCompleted: 0, reason: 'human_labels_not_supplied',
+    });
     expect(report.current.passage.requiredRetention.value).toBe(1);
+  });
+
+  it('reports component cost distributions and only computes correctness from supplied human labels', () => {
+    const first = event({ conversationId: 'correct', estimatedCostUsd: 2,
+      cost: { retrievalToolCalls: 2, retrievalLatencyMs: 20, coverageFollowUpTokens: 30,
+        jevCalls: 1, legacyCalls: 0, repairLoops: 1 } });
+    const second = event({ conversationId: 'incorrect', estimatedCostUsd: 6,
+      cost: { retrievalToolCalls: 4, retrievalLatencyMs: 40, coverageFollowUpTokens: 50,
+        jevCalls: 2, legacyCalls: 1, repairLoops: 2 } });
+    const old = event({ conversationId: 'old', estimatedCostUsd: 1 });
+    const report = buildCanaryReport([first, second, old], [], {
+      humanLabels: { correct: true, incorrect: false },
+    });
+    expect(report.current.costPerCompletedTask.components.retrievalToolCalls).toEqual({
+      total: 6, perCompletedTask: 2, p50: 2, p95: 4,
+    });
+    expect(report.current.costPerCorrectCompletedTask).toEqual({ value: 2, correctCompleted: 1, reason: null });
+    expect(canaryTurnEventSchema.safeParse(old).success).toBe(true);
   });
 
   it('evaluates pass, fail and insufficient data', () => {
