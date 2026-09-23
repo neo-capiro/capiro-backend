@@ -1237,7 +1237,7 @@ export class MeriService implements MeriTurnMaintenance {
       // env kill-switch CLIO_ANALYSIS_SANDBOX_ENABLED.
       const analysisEnabled = await this.tools.analysisSandboxEnabled(ctx.tenantId);
       const nativeSchemas = this.tools
-        .anthropicToolSchemas()
+        .anthropicToolSchemas({ tenantId: ctx.tenantId, surface: 'chat' })
         .filter((schema) => analysisEnabled || schema.name !== 'run_analysis')
         // The legacy in-process chat is READ-ONLY: it has no B1–B4 compliance/
         // approval gate (that lives only in the MeriV2 orchestrator), so it must

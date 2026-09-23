@@ -412,7 +412,7 @@ export class InEditorAssistantService {
       return [];
     }
     try {
-      const res = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas`, {
+      const res = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas?surface=in-editor`, {
         headers: { authorization: `Bearer ${bearer}`, accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

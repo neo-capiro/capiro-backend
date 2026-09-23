@@ -1,6 +1,7 @@
 import {
   compilePeFundingEvidence,
   compileBillStatusEvidence,
+  compileCertificationStatusEvidence,
   hashEvidenceContent,
   vehicleClassForStage,
   predicateCoverage,
@@ -140,6 +141,29 @@ describe('compileBillStatusEvidence', () => {
       capturedAt: CAPTURED,
     });
     expect(p!.entity.entityType).toBe('floor_rule');
+  });
+});
+
+describe('compileCertificationStatusEvidence', () => {
+  it('preserves exact status and authoritative public-web provenance', () => {
+    const [packet] = compileCertificationStatusEvidence({
+      program: 'fedramp',
+      productId: 'FR2335047392',
+      status: 'FedRAMP Certified',
+      observedAt: CAPTURED,
+      sourceUrl: 'https://fedramp.gov/marketplace/products/',
+    });
+    expect(packet).toMatchObject({
+      evidenceId: 'fedramp:FR2335047392:status',
+      source: { tool: 'get_certification_status', recordId: 'FR2335047392' },
+      entity: { entityType: 'certification_product', entityId: 'FR2335047392' },
+      semantics: { status: 'FedRAMP Certified', asOf: CAPTURED },
+      provenance: { extractionMethod: 'public_web', evidenceClass: 'authoritative' },
+    });
+    expect(PREDICATE_REGISTRY.certification_status).toMatchObject({
+      checker: 'deterministic',
+      evidenceFields: ['program', 'entityId', 'status', 'asOf'],
+    });
   });
 });
 

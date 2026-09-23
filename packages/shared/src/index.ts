@@ -3826,6 +3826,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'get_certification_status',
+    description:
+      'Search the official FedRAMP Marketplace by exact product id or by product/CSP name. Returns source status and impact strings verbatim with sourceUrl and observedAt. If multiple products match, present the bounded candidates and ask the user to disambiguate; NEVER select one yourself. Cite the returned productId verbatim and do not paraphrase a controlled status. Self-reported set-aside/certification fields are separate and are not verified by this tool.',
+    backend: 'meri',
+    readOnly: true,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'search_floor_votes',
     description:
       "Search congressional roll-call votes (House + Senate) in the Capiro database. Filter by bill (id/designation), keyword over the vote question/title, chamber, congress, or a specific member (Bioguide id or name). Returns each vote's question, result, yea/nay/present tally, party splits, date, and source link — and the member's own position when a member is given. Explicitly reports when NO matching roll call exists; never infer a vote outcome.",

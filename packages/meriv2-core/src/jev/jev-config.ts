@@ -15,6 +15,7 @@ export const JEV_TASKS = [
   'passage_relevance',
   'conflict_detection',
   'client_fit',
+  'status_selection',
 ] as const;
 export type JevTask = (typeof JEV_TASKS)[number];
 export type JevRouting = 'llm' | 'jev' | 'paired' | 'cascade';

@@ -4,7 +4,7 @@ The Jev task registry is the source of truth for every task token accepted by
 `MERI_JEV_TASKS`. Each record pins the task and question version, answer
 primitive, model version, thresholds, failure fallback, rollout capability,
 and calibration basis. Cascade tasks also record their confidence and audit
-sampling policy. Registry version `jev-task-registry.v2` is emitted with task
+sampling policy. Registry version `jev-task-registry.v3` is emitted with task
 versions in canary and passage-selection telemetry.
 
 ## Adding a task

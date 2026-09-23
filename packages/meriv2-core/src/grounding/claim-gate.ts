@@ -131,13 +131,14 @@ function judgeClaim(claim: PlannedClaim, byId: Map<string, EvidencePacket>): Cla
             reason: `Claimed $${amt}M, packet has $${pkt.semantics.amount.value}M.`,
           };
     }
-    case 'bill_status': {
+    case 'bill_status':
+    case 'certification_status': {
       const pkt = packets.find((p) => typeof p.semantics.status === 'string');
       if (!pkt?.semantics.status)
         return {
           ...base,
           verdict: 'unsupported',
-          reason: 'No cited packet carries a bill status.',
+          reason: 'No cited packet carries the asserted status.',
         };
       return o.status === pkt.semantics.status
         ? { ...base, verdict: 'approved', reason: `Matches status ${pkt.semantics.status}.` }

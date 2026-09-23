@@ -25,7 +25,7 @@ describe('match label control', () => {
     const result = await applyMatchLabelControl({ mode: 'shadow', reply, citations, evidence });
     expect(result.reply).toBe(reply);
     expect(matchLabelEvent(result, 4)).toMatchObject({ findings: 1, assertedTiers: { direct_match: 1 },
-      downgraded: 1, jevUsed: false, latencyMs: 4, registryVersion: 'jev-task-registry.v2' });
+      downgraded: 1, jevUsed: false, latencyMs: 4, registryVersion: 'jev-task-registry.v3' });
     expect(JSON.stringify(matchLabelEvent(result, 4))).not.toContain('secure sustainment');
   });
 

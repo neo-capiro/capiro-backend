@@ -59,7 +59,15 @@ describe('complete native API capability manifest', () => {
       .tools.map((tool) => tool.name)
       .sort();
     const schemaNames = governed
-      .anthropicToolSchemas()
+      .anthropicToolSchemas({
+        tenantId: '11111111-1111-4111-8111-111111111111',
+        surface: 'chat',
+        env: {
+          MERI_STATUS_PROVENANCE_MODE: 'enforce',
+          MERI_STATUS_PROVENANCE_TENANTS: 'all',
+          MERI_STATUS_PROVENANCE_SURFACES: 'chat',
+        },
+      })
       .map((tool) => tool.name)
       .sort();
     expect(manifestNames).toEqual(Object.keys(MERI_TOOL_MANIFEST).sort());

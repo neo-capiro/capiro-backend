@@ -21,6 +21,7 @@ import { currentCycleFyOf } from '@capiro/shared';
 
 export type EvidenceEntityType =
   | 'bill'
+  | 'certification_product'
   | 'floor_rule'
   | 'program_element'
   | 'procurement_line_item'
@@ -357,6 +358,46 @@ export function compileBillStatusEvidence(record: BillStatusRecord): EvidencePac
   ];
 }
 
+export interface CertificationStatusRecord {
+  program: string;
+  productId: string;
+  status: string;
+  observedAt: string;
+  sourceUrl: string;
+  sourceVersion?: string;
+}
+
+/** Compile an exact status from an authoritative structured public registry. */
+export function compileCertificationStatusEvidence(
+  record: CertificationStatusRecord,
+): EvidencePacket[] {
+  return [
+    {
+      evidenceId: `${record.program}:${record.productId}:status`,
+      source: {
+        tool: 'get_certification_status',
+        recordId: record.productId,
+        sourceVersion: record.sourceVersion,
+        contentHash: hashEvidenceContent({
+          program: record.program,
+          productId: record.productId,
+          status: record.status,
+          asOf: record.observedAt,
+          sourceUrl: record.sourceUrl,
+        }),
+        capturedAt: record.observedAt,
+      },
+      entity: {
+        entityType: 'certification_product',
+        entityId: record.productId,
+        identifierKind: 'other',
+      },
+      semantics: { status: record.status, asOf: record.observedAt },
+      provenance: { extractionMethod: 'public_web', evidenceClass: 'authoritative' },
+    },
+  ];
+}
+
 // ── Versioned predicate taxonomy (v3 plan §3.3) ──────────────────────────────
 
 export interface PredicateSpec {
@@ -396,6 +437,14 @@ export const PREDICATE_REGISTRY: Readonly<Record<string, PredicateSpec>> = {
     predicate: 'bill_status',
     objectSchema: '{ status: string, asOf: string }',
     evidenceFields: ['status', 'asOf'],
+    checker: 'deterministic',
+    check: 'D6',
+  },
+  certification_status: {
+    predicate: 'certification_status',
+    objectSchema:
+      '{ program: string, entityId: string, status: string, asOf: string | null, sourceUrl: string | null }',
+    evidenceFields: ['program', 'entityId', 'status', 'asOf'],
     checker: 'deterministic',
     check: 'D6',
   },

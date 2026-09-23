@@ -1,7 +1,7 @@
 import type { ClaimCategory } from '../assurance/evidence-plan';
 import { DEFAULT_JEV_MODEL, JEV_TASKS, type JevConfig, type JevTask } from './jev-config';
 
-export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v2' as const;
+export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v3' as const;
 
 export interface JevTaskRegistration {
   task: JevTask;
@@ -107,6 +107,21 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
     calibration: {
       status: 'provisional',
       basis: 'No human-labelled client_fit.v1 evaluation has been completed.',
+    },
+  },
+  status_selection: {
+    task: 'status_selection',
+    questionVersion: 'status_selection.v1',
+    questionId: 'status_selection',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'STATUS_PROVENANCE',
+    calibration: {
+      status: 'provisional',
+      basis: 'Registry placeholder for bounded-candidate status selection; not wired to any live source '
+        + 'adapter (FedRAMP resolves deterministically and does not call this task). No production calibration.',
     },
   },
 };

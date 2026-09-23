@@ -7,6 +7,7 @@ export * from './jev-client';
 export * from './claim-support-question';
 export * from './client-fit-question';
 export * from './client-fit-provider';
+export * from './status-selection-question';
 export * from './jev-decision-provider';
 export * from './skeptic-adapter';
 export * from './evidence-envelope';

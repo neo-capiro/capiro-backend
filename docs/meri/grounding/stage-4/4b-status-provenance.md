@@ -1,8 +1,18 @@
 # Stage 4b: exact status and provenance language
 
-Design only. Nothing in this document is wired into a live code path or enabled for any tenant. It defines the
-target contract for a future `MERI_STATUS_PROVENANCE` capability, gated the same way as every Stage 0-2 capability,
-so it can be reviewed and built incrementally without touching `runTurn`.
+## What was built
+
+`MERI_STATUS_PROVENANCE_MODE|TENANTS|SURFACES` is dark by default. `off` does no work and preserves the prior
+tool schema list. `shadow` also preserves that list and the released reply byte-for-byte; after the text frame is
+released it performs bounded lookups and emits one `meri.status_provenance.shadow` JSON event containing only
+outcome counts, lookup success and latency. `enforce` alone offers `get_certification_status`; before the single
+text frame is assembled it deterministically replaces non-exact controlled wording with the marketplace string,
+impact level and observation attribution. Lookup or deadline failure releases the original reply.
+
+Enablement requires `EVIDENCE_PROFILES=enforce` for the same tenant and surface, a truthful
+`TOOL_EVIDENCE_PROFILES` entry for `get_certification_status` (`official_government_data`, primary and
+authoritative), and a human spot-check of shadow outcomes before enforce. The FedRAMP adapter is structured, so
+the provisional `status_selection.v1` bounded-candidate Jev task is registered but deliberately unwired.
 
 ## What exists today
 
@@ -42,6 +52,26 @@ certification_status: {
   checker: 'deterministic',  // exact match when a structured parser resolved it; see fallback below
 }
 ```
+
+## FedRAMP source (verified 2026-09-23)
+
+The old `https://marketplace.fedramp.gov/` Svelte shell now redirects to the official
+`https://fedramp.gov/marketplace/products/` page. No `/api/products` endpoint exists. The new page is a roughly
+5 MB server-prerendered Svelte document. Its hydration payload contains one JavaScript assignment object per
+product (616 observed), rather than a separately published JSON/CSV endpoint. The adapter fetches that official
+page and parses assignments without executing JavaScript. This is structured public-web data, but the embedding
+inside framework output is more fragile than a documented API; the parser fails closed if required fields move.
+
+Observed fields are `id`, `csp`, `cso`, `status`, `cert_date`, `impact_level`, and
+`agency_authorizations`. `status_date` and numerous additional marketplace fields are present but are not part of
+this record contract. `cert_date` is used as authorization date when present; observation time is the fetch time.
+The source page states no update cadence.
+
+Exact status strings observed across the full payload: `Agency Authorization In Process`, `FedRAMP Certified`,
+`FedRAMP In Process`, `Initial Implementation`, `Legacy FedRAMP Ready`, and `Unknown`. Exact impact-level strings:
+`High`, `LI-SaaS`, `Low`, `Moderate`, and `Unknown`. These are retained byte-for-byte, not normalized to older
+labels such as “FedRAMP Authorized.” A reduced public-record fixture with four status variants is at
+`apps/api/src/external/fedramp/__fixtures__/marketplace-products.fixture.html`.
 
 `entityId` is deliberately generic (a company, a product, a specific system) since a status program is not always
 about the same kind of entity, unlike a bill. `sourceUrl` is mandatory when the checker is `deterministic` and
