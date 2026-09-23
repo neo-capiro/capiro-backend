@@ -1470,6 +1470,7 @@ export class MeriV3AssistantService {
             turnId: undefined,
             asOf,
             providers,
+            routing: resolveJevConfig(process.env).routing,
             budget: { maxClaims: 12, maxInputTokens: 60_000, deadlineMs: 6_000 },
             signal: opts.requestSignal ?? opts.signal,
             logger: this.structuredLogger,

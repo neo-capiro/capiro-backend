@@ -33,6 +33,22 @@ describe('shadow event ingestion', () => {
     expect(result.unrelated).toBe(1);
   });
 
+  it('preserves additive cascade fields when reading shadow events', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'jev-cascade-events-'));
+    directories.push(directory);
+    const file = path.join(directory, 'events.jsonl');
+    writeFileSync(file, JSON.stringify({
+      message: 'meri.evidence_shadow', fields: {
+        ...event(), escalated: true, escalationReasons: ['low_confidence', 'audit_sample'],
+        audited: true, auditDisagreement: true,
+      },
+    }));
+    expect(readShadowEvents(file).events[0]).toMatchObject({
+      escalated: true, escalationReasons: ['low_confidence', 'audit_sample'],
+      audited: true, auditDisagreement: true,
+    });
+  });
+
   it('prefers approved override labels and ignores proposed labels', () => {
     const rows = joinWithLabels([event()], undefined, {
       version: 'jev_human_labels_v1', labels: [

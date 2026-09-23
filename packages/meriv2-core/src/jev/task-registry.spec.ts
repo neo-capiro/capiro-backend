@@ -26,6 +26,7 @@ describe('Jev task registry', () => {
       cascade: { escalateBelowConfidence: 0.5, auditSampleRate: 0.1, escalateCompound: true,
         highImpactCategories: [] },
     });
+    expect(JEV_TASK_REGISTRY.claim_support.calibration.status).toBe('provisional');
     expect(JEV_TASK_REGISTRY.passage_relevance).toMatchObject({
       questionVersion: 'passage_selection.v1', primitive: 'noul', modelVersion: 'jev-1.13.0',
       thresholds: { relevant: 0.35, usable: 0.5, contradicts: 0.5 },

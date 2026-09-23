@@ -7,6 +7,7 @@ import {
   checkExactSourceEligibility,
   isDocumentSpecificClaim,
   JEV_TASK_REGISTRY,
+  runCalibratedCascade,
   type ClaimLedger,
   type DecisionProvider,
   type DocumentReference,
@@ -15,6 +16,7 @@ import {
   type EvidencePassage,
   type ExactSourceEligibility,
   type MaterialClaim,
+  type JevRouting,
 } from '@capiro/meriv2-core';
 
 export interface EvidenceShadowLogger {
@@ -39,6 +41,7 @@ export interface AssessReleasedClaimsInput {
   turnId?: string;
   asOf: string;
   providers: { jev: DecisionProvider | null; legacy: DecisionProvider };
+  routing?: JevRouting;
   budget: ShadowAssessmentBudget;
   signal?: AbortSignal;
   logger: EvidenceShadowLogger;
@@ -190,21 +193,49 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
       const eligibility: ExactSourceEligibility = checkExactSourceEligibility(claim, references, input.ledger);
       let jev: EvidenceDecision;
       let legacy: EvidenceDecision;
+      let cascadeFields: Record<string, unknown> = {};
       if (!eligibility.eligible) {
         jev = failure('jev', 'not-called', 'document_unavailable', eligibility.reason);
         legacy = failure('legacy-skeptic', 'not-called', 'document_unavailable', eligibility.reason);
       } else {
-        const calls = [
-          input.providers.jev?.assess(envelope, question, { signal: linked.signal, deadlineAt }),
-          input.providers.legacy.assess(envelope, question, { signal: linked.signal, deadlineAt }),
-        ].filter((call): call is Promise<EvidenceDecision> => Boolean(call));
-        const settled = await Promise.allSettled(calls.map((call) => settleBeforeAbort(call, linked.signal)));
-        if (input.providers.jev) {
-          jev = normalizeSettled(settled[0], input.providers.jev);
-          legacy = normalizeSettled(settled[1], input.providers.legacy);
+        if (input.routing === 'cascade') {
+          const result = await runCalibratedCascade({
+            claim: {
+              id: claim.id,
+              category: claim.category,
+              compound: claim.compound,
+              materialHighImpact: DEFAULT_HIGH_RISK_CATEGORIES.has(claim.category),
+            },
+            jev: input.providers.jev,
+            legacy: input.providers.legacy,
+            envelope,
+            question,
+            registration: JEV_TASK_REGISTRY.claim_support,
+            sampleKey: `${input.conversationId ?? ''}:${claim.id}`,
+            signal: linked.signal,
+            deadlineAt,
+          });
+          jev = result.jev ?? failure('jev', 'unavailable', 'judge_unavailable', 'provider_disabled');
+          legacy = result.legacy ?? failure('legacy-skeptic', 'not-called', 'not_checked', 'cascade_not_escalated');
+          cascadeFields = {
+            escalated: result.escalated,
+            escalationReasons: result.escalationReasons,
+            audited: result.audited,
+            auditDisagreement: result.auditDisagreement,
+          };
         } else {
-          jev = normalizeSettled(undefined, null);
-          legacy = normalizeSettled(settled[0], input.providers.legacy);
+          const calls = [
+            input.providers.jev?.assess(envelope, question, { signal: linked.signal, deadlineAt }),
+            input.providers.legacy.assess(envelope, question, { signal: linked.signal, deadlineAt }),
+          ].filter((call): call is Promise<EvidenceDecision> => Boolean(call));
+          const settled = await Promise.allSettled(calls.map((call) => settleBeforeAbort(call, linked.signal)));
+          if (input.providers.jev) {
+            jev = normalizeSettled(settled[0], input.providers.jev);
+            legacy = normalizeSettled(settled[1], input.providers.legacy);
+          } else {
+            jev = normalizeSettled(undefined, null);
+            legacy = normalizeSettled(settled[0], input.providers.legacy);
+          }
         }
       }
       const actualTokens = (jev.kind === 'outcome' ? jev.usage?.inputTokens ?? 0 : 0)
@@ -228,6 +259,7 @@ export async function assessReleasedClaims(input: AssessReleasedClaimsInput): Pr
         },
         exact: { result: deterministic.exact.result, kind: deterministic.exact.kind },
         proposedAction: { jev: proposedAction(jev, claim), legacy: proposedAction(legacy, claim) },
+        ...cascadeFields,
       });
     }
   } finally {

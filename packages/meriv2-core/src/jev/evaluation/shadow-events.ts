@@ -53,6 +53,13 @@ export const evidenceShadowEventSchema = z.object({
   legacy: shadowLoggedDecisionSchema,
   agreement: z.boolean(),
   proposedAction: z.object({ jev: z.string(), legacy: z.string() }),
+  escalated: z.boolean().optional(),
+  escalationReasons: z.array(z.enum([
+    'jev_unavailable', 'jev_failure', 'low_confidence', 'compound_claim', 'conflict',
+    'high_impact_category', 'out_of_distribution', 'audit_sample',
+  ])).optional(),
+  audited: z.boolean().optional(),
+  auditDisagreement: z.boolean().optional(),
   claimText: z.string().optional(),
   split: z.enum(['tuning', 'heldout']).optional(),
   source: z.enum(['live', 'replay']).default('live'),

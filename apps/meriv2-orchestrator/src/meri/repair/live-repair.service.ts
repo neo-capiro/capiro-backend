@@ -3,6 +3,8 @@ import {
   checkExactSourceEligibility,
   evaluateClaimDeterministically,
   JEV_TASK_REGISTRY,
+  runCalibratedCascade,
+  sampledCascadeKey,
   runRepairLoop,
   type AssuredClaim,
   type ClaimCategory,
@@ -253,8 +255,6 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
   let jevInputTokens = 0;
   let legacyInputTokens = 0;
   const assessmentStartedAt = now();
-  const cascade = JEV_TASK_REGISTRY.claim_support.cascade!;
-
   for (const claim of promoted) {
     if (input.signal?.aborted) break;
     const current = toAssuredClaim(claim);
@@ -281,28 +281,31 @@ export async function applyLiveRepair(input: LiveRepairInput): Promise<LiveRepai
     let jev: EvidenceDecision | null = null;
     let legacy: EvidenceDecision | null = null;
     if (!decision) {
-      if (input.providers.jev?.available()) {
-        jevCalls += 1;
-        jev = await safeAssess(input.providers.jev, envelope, input.signal);
-        jevInputTokens += usage(jev);
-        inputTokens += usage(jev);
+      const cascadeResult = await runCalibratedCascade({
+        claim: { id: claim.id, category: claim.category, compound: claim.compound },
+        jev: input.providers.jev,
+        legacy: input.providers.legacy,
+        envelope,
+        question: buildClaimSupportQuestion(envelope),
+        registration: JEV_TASK_REGISTRY.claim_support,
+        sampleKey: `${input.conversationId ?? ''}:${claim.id}`,
+        legacyLiveRepairCompatibility: true,
+        signal: input.signal,
+      });
+      jev = cascadeResult.jev;
+      legacy = cascadeResult.legacy;
+      if (jev) jevCalls += 1;
+      if (legacy) legacyCalls += 1;
+      jevInputTokens += usage(jev);
+      legacyInputTokens += usage(legacy);
+      inputTokens += usage(jev) + usage(legacy);
+      // Preserve the pre-refactor counters: they included every supported Jev
+      // decision that reached legacy, not only hash-audit escalations.
+      if (jev?.kind === 'outcome' && jev.outcome === 'supported' && legacy) sampledApprovals += 1;
+      if (jev?.kind === 'outcome' && legacy?.kind === 'outcome' && jev.outcome !== legacy.outcome) {
+        sampledDisagreements += 1;
       }
-      const shouldCascade = !jev || jev.kind === 'failure' ||
-        (jev.kind === 'outcome' && jev.confidence < cascade.escalateBelowConfidence) ||
-        (cascade.escalateCompound && claim.compound) ||
-        (jev?.kind === 'outcome' && jev.outcome === 'supported'
-          && sampled(input.conversationId, claim.id, cascade.auditSampleRate));
-      if (shouldCascade) {
-        if (jev?.kind === 'outcome' && jev.outcome === 'supported') sampledApprovals += 1;
-        legacyCalls += 1;
-        legacy = await safeAssess(input.providers.legacy, envelope, input.signal);
-        legacyInputTokens += usage(legacy);
-        inputTokens += usage(legacy);
-        if (jev?.kind === 'outcome' && legacy.kind === 'outcome' && jev.outcome !== legacy.outcome) {
-          sampledDisagreements += 1;
-        }
-      }
-      decision = selectDecision(jev, legacy);
+      decision = cascadeResult.decision;
     }
     decisions[current.id] = decision;
     outcomes[current.id] = decision.kind === 'outcome' ? decision.outcome : decision.state;
@@ -449,11 +452,7 @@ export function sampled(
   claimId: string,
   rate = JEV_TASK_REGISTRY.claim_support.cascade!.auditSampleRate,
 ): boolean {
-  let hash = 2166136261;
-  for (const char of `${conversationId ?? ''}:${claimId}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
-  if (rate <= 0) return false;
-  if (rate >= 1) return true;
-  return (hash >>> 0) % Math.round(1 / rate) === 0;
+  return sampledCascadeKey(`${conversationId ?? ''}:${claimId}`, rate);
 }
 
 function toAssuredClaim(claim: MaterialClaim): AssuredClaim {
@@ -505,20 +504,6 @@ function deterministicDecision(
     evidenceIds: claim.sourceIds,
     provider: { name: 'deterministic', model: 'rules', questionVersion: 'claim_support.v1' }, latencyMs: 0,
   };
-}
-
-async function safeAssess(provider: DecisionProvider, envelope: EvidenceEnvelope, signal?: AbortSignal): Promise<EvidenceDecision> {
-  try {
-    return await provider.assess(envelope, buildClaimSupportQuestion(envelope), { signal });
-  } catch {
-    return failure(provider.name, 'provider_failure');
-  }
-}
-
-function selectDecision(jev: EvidenceDecision | null, legacy: EvidenceDecision | null): EvidenceDecision {
-  if (legacy?.kind === 'outcome') return legacy;
-  if (jev?.kind === 'outcome') return jev;
-  return legacy ?? jev ?? failure('no-provider', 'judge_unavailable');
 }
 
 function failure(

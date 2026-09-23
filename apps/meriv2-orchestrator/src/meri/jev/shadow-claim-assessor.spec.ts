@@ -9,7 +9,10 @@ import {
 import { assessReleasedClaims } from './shadow-claim-assessor';
 
 const TENANT = '17b63099-bc0f-4ac5-b596-496161e9481e';
-const outcome = (name: string, value: EvidenceDecision extends infer _ ? 'supported' : never = 'supported'): EvidenceDecision => ({
+const outcome = (
+  name: string,
+  value: 'supported' | 'contradicted' | 'insufficient_evidence' | 'conflicting_evidence' = 'supported',
+): EvidenceDecision => ({
   kind: 'outcome', outcome: value,
   probabilities: { supported: 1, contradicted: 0, insufficient_evidence: 0, conflicting_evidence: 0 },
   confidence: 1, reasonCodes: [], evidenceIds: ['e1'],
@@ -61,6 +64,38 @@ describe('assessReleasedClaims', () => {
       budgetExhausted: false, durationMs: expect.any(Number), inputTokens: expect.any(Number),
       estimatedCostUsd: expect.any(Number), sampled: expect.any(Boolean),
     });
+  });
+
+  it('keeps paired routing byte-identical to the existing event and calls both providers', async () => {
+    const jev = provider('jev');
+    const legacy = provider('legacy');
+    const implicit = input({ providers: { jev, legacy } });
+    await assessReleasedClaims(implicit);
+    const implicitEvent = (implicit.logger.log as jest.Mock).mock.calls[0];
+
+    const explicit = input({ providers: { jev: provider('jev'), legacy: provider('legacy') }, routing: 'paired' });
+    await assessReleasedClaims(explicit);
+    const explicitEvent = (explicit.logger.log as jest.Mock).mock.calls[0];
+    expect(explicitEvent).toEqual(implicitEvent);
+    expect(explicitEvent?.[1]).not.toHaveProperty('escalationReasons');
+    expect(jev.assess).toHaveBeenCalledTimes(1);
+    expect(legacy.assess).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs the calibrated cascade only under cascade routing and logs its reasons', async () => {
+    const jevAssess = jest.fn(async () => outcome('jev'));
+    const legacyAssess = jest.fn(async () => outcome('legacy', 'contradicted'));
+    const args = input({
+      routing: 'cascade',
+      providers: { jev: provider('jev', jevAssess), legacy: provider('legacy', legacyAssess) },
+      claims: [materialClaim('c1', { category: 'general_background', compound: true })],
+    });
+    await assessReleasedClaims(args);
+    expect(jevAssess).toHaveBeenCalledTimes(1);
+    expect(legacyAssess).toHaveBeenCalledTimes(1);
+    expect(args.logger.log).toHaveBeenCalledWith('meri.evidence_shadow', expect.objectContaining({
+      escalated: true, escalationReasons: ['compound_claim'], audited: false, auditDisagreement: false,
+    }));
   });
 
   it('keeps the claim_support Jev request state unchanged while carrying provenance', async () => {
