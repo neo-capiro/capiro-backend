@@ -41,10 +41,13 @@ export interface MeriHermesStagingProofEvidence {
     terminalStatus: string;
     stopRequested: boolean;
     noSuccessAfterStop: boolean;
+    stopAfterRollbackGateClosed: boolean;
   };
   disabledPath: {
     wrongTenantGateDenied: boolean;
     tenantFlagOffDenied: boolean;
+    rollbackGateClosedWhileActive: boolean;
+    inFlightCompletedAfterRollback: boolean;
   };
   cleanup: { syntheticTenantDeleted: boolean };
 }
@@ -138,8 +141,11 @@ export function assertMeriHermesStagingProofEvidence(
     evidence.authorization.crossTenantDenied,
     evidence.stop.stopRequested,
     evidence.stop.noSuccessAfterStop,
+    evidence.stop.stopAfterRollbackGateClosed,
     evidence.disabledPath.wrongTenantGateDenied,
     evidence.disabledPath.tenantFlagOffDenied,
+    evidence.disabledPath.rollbackGateClosedWhileActive,
+    evidence.disabledPath.inFlightCompletedAfterRollback,
     evidence.cleanup.syntheticTenantDeleted,
   ];
   if (required.some((value) => value !== true)) {

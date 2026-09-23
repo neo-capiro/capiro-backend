@@ -473,6 +473,14 @@ async function runProof(): Promise<void> {
       const current = await runs.get(candidate.runId);
       return current && current.outputSeq > 0 ? current : null;
     });
+    await prisma.withSystem((tx) => tx.tenant.update({
+      where: { id: MERI_HERMES_STAGING_PROOF_TENANT_ID },
+      data: { settings: { clioFeatureFlags: { [MERI_HERMES_RUNTIME_FLAG]: false } } },
+    }));
+    flags.invalidate(MERI_HERMES_STAGING_PROOF_TENANT_ID);
+    const rollbackGateClosedWhileActive = !(await flags.isMeriHermesRuntimeEnabled(
+      MERI_HERMES_STAGING_PROOF_TENANT_ID,
+    ));
     activeAbort.abort();
     await activeTurn;
     const activeFreshProcessReconnect = await reconnectInFreshProcess(
@@ -492,6 +500,11 @@ async function runProof(): Promise<void> {
     const crossTenantDenied = (await runs.requireOwned(activeFinal.runId, randomUUID(), ctx.userId)) === null;
 
     // Explicit Stop: cancelling reaches a single terminal cancellation, never a later success.
+    await prisma.withSystem((tx) => tx.tenant.update({
+      where: { id: MERI_HERMES_STAGING_PROOF_TENANT_ID },
+      data: { settings: { clioFeatureFlags: { [MERI_HERMES_RUNTIME_FLAG]: true } } },
+    }));
+    flags.invalidate(MERI_HERMES_STAGING_PROOF_TENANT_ID);
     const stopConversation = await createConversation(prisma, ctx.tenantId, ctx.userId, 'explicit stop');
     const stopCollector = collector();
     const stopTurn = adapter.streamMessage(
@@ -504,6 +517,14 @@ async function runProof(): Promise<void> {
       const current = await runs.get(candidate.runId);
       return current?.status === 'running' && current.hermesRunId ? current : null;
     });
+    await prisma.withSystem((tx) => tx.tenant.update({
+      where: { id: MERI_HERMES_STAGING_PROOF_TENANT_ID },
+      data: { settings: { clioFeatureFlags: { [MERI_HERMES_RUNTIME_FLAG]: false } } },
+    }));
+    flags.invalidate(MERI_HERMES_STAGING_PROOF_TENANT_ID);
+    const stopAfterRollbackGateClosed = !(await flags.isMeriHermesRuntimeEnabled(
+      MERI_HERMES_STAGING_PROOF_TENANT_ID,
+    ));
     await adapter.requestStop(runningStop);
     await stopTurn;
     const stopFinal = await waitFor('stopped run terminal', async () => {
@@ -545,8 +566,14 @@ async function runProof(): Promise<void> {
         stopRequested: Boolean(stopFinal.stopRequestedAt),
         noSuccessAfterStop: stopFinal.status === 'cancelled'
           && !stopEvents.some((event) => event.kind === 'run.completed'),
+        stopAfterRollbackGateClosed,
       },
-      disabledPath: { wrongTenantGateDenied, tenantFlagOffDenied },
+      disabledPath: {
+        wrongTenantGateDenied,
+        tenantFlagOffDenied,
+        rollbackGateClosedWhileActive,
+        inFlightCompletedAfterRollback: activeFinal.status === 'completed',
+      },
     };
   } finally {
     await runtime.close().catch(() => undefined);

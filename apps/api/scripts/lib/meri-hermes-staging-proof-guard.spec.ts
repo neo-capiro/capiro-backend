@@ -26,9 +26,12 @@ function validEvidence(): MeriHermesStagingProofEvidence {
     authorization: { crossOwnerDenied: true, crossTenantDenied: true },
     stop: {
       runId: '10000000-0000-4000-8000-000000000003', terminalStatus: 'cancelled',
-      stopRequested: true, noSuccessAfterStop: true,
+      stopRequested: true, noSuccessAfterStop: true, stopAfterRollbackGateClosed: true,
     },
-    disabledPath: { wrongTenantGateDenied: true, tenantFlagOffDenied: true },
+    disabledPath: {
+      wrongTenantGateDenied: true, tenantFlagOffDenied: true,
+      rollbackGateClosedWhileActive: true, inFlightCompletedAfterRollback: true,
+    },
     cleanup: { syntheticTenantDeleted: true },
   } as const;
   return result;
