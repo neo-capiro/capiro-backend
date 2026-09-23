@@ -10,7 +10,7 @@ import {
   resolveGovernmentAffairsOperatingFrame,
   planGovernmentAffairsEvidence,
   buildAssurancePromptBlock,
-  buildClaimLedgerFromToolResults,
+  buildControlledClaimLedger,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
   assurePreToolPersist,
@@ -140,6 +140,18 @@ export class ChatAssistantService {
       tenantId: ctx.tenantId,
       surface: 'chat',
     });
+    const buildEvidenceLedger = (
+      input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
+      callSite: string,
+      surface: 'chat' | 'memo',
+    ) => buildControlledClaimLedger({
+      ...input,
+      env: process.env,
+      tenantId: ctx.tenantId,
+      surface,
+      callSite,
+      logShadow: (event, fields) => this.logger.log(JSON.stringify({ event, ...fields })),
+    });
     const evaluateBeforeRelease =
       assuranceMode !== 'off' && assuranceRisk.requiresBufferBeforeRelease;
     const bufferBeforeRelease =
@@ -194,12 +206,12 @@ export class ChatAssistantService {
       const body = typeof raw === 'string' ? raw.trim() : '';
       if (!body) return null;
       try {
-        const claimLedger = buildClaimLedgerFromToolResults({
+        const claimLedger = buildEvidenceLedger({
           output: body,
           ledgerEntries,
           citations,
           plan: evidencePlan,
-        });
+        }, 'prePersistRefusal', 'memo');
         const grounding = runAuditor({
           output: body,
           ledger: { entries: ledgerEntries },
@@ -283,12 +295,12 @@ export class ChatAssistantService {
 
       if (evaluateBeforeRelease && cleanedText.trim()) {
         try {
-          const claimLedger = buildClaimLedgerFromToolResults({
+          const claimLedger = buildEvidenceLedger({
             output: cleanedText,
             ledgerEntries,
             citations,
             plan: evidencePlan,
-          });
+          }, 'finalize', 'chat');
           const grounding = runAuditor({
             output: cleanedText,
             ledger: { entries: ledgerEntries },

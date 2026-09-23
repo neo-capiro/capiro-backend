@@ -25,7 +25,7 @@ import {
   JEV_TASK_REGISTRY,
   JEV_TASK_REGISTRY_VERSION,
   buildAssurancePromptBlock,
-  buildClaimLedgerFromToolResults,
+  buildControlledClaimLedger,
   extractMaterialClaims,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
@@ -590,6 +590,18 @@ export class MeriV3AssistantService {
       surface,
     );
     const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, surface);
+    const buildEvidenceLedger = (
+      input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
+      callSite: string,
+      ledgerSurface: AssuranceSurface = surface,
+    ) => buildControlledClaimLedger({
+      ...input,
+      env: process.env,
+      tenantId: ctx.tenantId,
+      surface: ledgerSurface,
+      callSite,
+      logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
+    });
     const canary = new CanaryTurnCollector({
       conversationId: dto.conversationId ?? null,
       tenantId: ctx.tenantId,
@@ -716,12 +728,12 @@ export class MeriV3AssistantService {
       const body = typeof toolInput[field] === 'string' ? String(toolInput[field]).trim() : '';
       if (!body) return null;
       try {
-        const claimLedger = buildClaimLedgerFromToolResults({
+        const claimLedger = buildEvidenceLedger({
           output: body,
           ledgerEntries,
           citations,
           plan: evidencePlan,
-        });
+        }, 'prePersistRefusal', 'memo');
         const grounding = runAuditor({
           output: body,
           ledger: { entries: ledgerEntries },
@@ -1435,12 +1447,12 @@ export class MeriV3AssistantService {
         asOf,
         logger: this.structuredLogger,
         afterInventory: async () => {
-          const claimLedger = buildClaimLedgerFromToolResults({
+          const claimLedger = buildEvidenceLedger({
             output: released.reply,
             ledgerEntries,
             citations: released.citations,
             plan: evidencePlan,
-          });
+          }, 'claimInventory');
           const claims = extractMaterialClaims({
             replyText: released.reply,
             citations: released.citations,
@@ -1705,11 +1717,16 @@ export class MeriV3AssistantService {
     };
     try {
       const asOf = new Date().toISOString();
-      const claimLedger = buildClaimLedgerFromToolResults({
+      const claimLedger = buildControlledClaimLedger({
         output: released.reply,
         ledgerEntries: args.ledgerEntries,
         citations: released.citations,
         plan: args.evidencePlan,
+        env: process.env,
+        tenantId: ctx.tenantId,
+        surface: turnSurface(dto),
+        callSite: 'autoCorrection',
+        logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
       });
       const promoted = extractMaterialClaims({
         replyText: released.reply,
@@ -1865,6 +1882,8 @@ export class MeriV3AssistantService {
         assuranceMode: args.assuranceMode,
         complianceOutcome: args.complianceOutcome,
         verificationAvailable: args.verificationAvailable,
+        tenantId: ctx.tenantId,
+        surface: turnSurface(dto),
       });
       if (gate.held) {
         this.logStructured('warn', 'meri.auto_correction.rewrite_rejected', {
@@ -2337,6 +2356,8 @@ export class MeriV3AssistantService {
       assuranceMode: args.assuranceMode,
       complianceOutcome: args.complianceOutcome,
       verificationAvailable: args.verificationAvailable,
+      tenantId: args.ctx.tenantId,
+      surface: turnSurface(args.dto),
     });
     released = gate.released;
     held = gate.held;
@@ -2366,6 +2387,8 @@ export class MeriV3AssistantService {
     assuranceMode: ReturnType<typeof resolveAssuranceRolloutMode>;
     complianceOutcome?: 'PASS' | 'WARN' | 'BLOCK';
     verificationAvailable: boolean;
+    tenantId: string;
+    surface: AssuranceSurface;
   }): { released: string; held: boolean } {
     let released = args.released;
     let held = false;
@@ -2375,11 +2398,16 @@ export class MeriV3AssistantService {
       released.trim()
     ) {
       try {
-        const claimLedger = buildClaimLedgerFromToolResults({
+        const claimLedger = buildControlledClaimLedger({
           output: released,
           ledgerEntries: args.ledgerEntries,
           citations: args.citations,
           plan: args.evidencePlan,
+          env: process.env,
+          tenantId: args.tenantId,
+          surface: args.surface,
+          callSite: 'evaluateReleaseGate',
+          logShadow: (event, fields) => this.logStructured('log', event, { ...fields }),
         });
         const grounding = runAuditor({
           output: released,

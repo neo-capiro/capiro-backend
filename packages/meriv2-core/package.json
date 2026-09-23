@@ -17,6 +17,12 @@
       "import": "./dist/assurance/index.js",
       "default": "./dist/assurance/index.js"
     },
+    "./assurance/generation": {
+      "types": "./dist/assurance/generation.d.ts",
+      "require": "./dist/assurance/generation.js",
+      "import": "./dist/assurance/generation.js",
+      "default": "./dist/assurance/generation.js"
+    },
     "./grounding/auditor": {
       "types": "./dist/grounding/auditor.d.ts",
       "require": "./dist/grounding/auditor.js",

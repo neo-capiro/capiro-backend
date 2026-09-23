@@ -2,11 +2,15 @@ import { describe, expect, it } from '@jest/globals';
 import type { LedgerEntry } from '../grounding/auditor';
 import {
   buildClaimLedgerFromToolResults,
+  compareEvidenceClassification,
   evidenceFromToolResults,
+  legacyAuthoritativeTool,
+  legacyEvidenceClassForTool,
+  legacyPrimaryTool,
+  TOOL_EVIDENCE_PROFILES,
   type CitationLike,
 } from './tool-ledger-adapter';
 
-/** One resolvable citation for `tool`/`id`, plus the ledger entry it resolves against. */
 function citationFixture(
   tool: string,
   id = 'rec-1',
@@ -17,113 +21,151 @@ function citationFixture(
   };
 }
 
-/** Asserts exactly one item and returns it, so callers get a real value instead of `T | undefined`. */
 function only<T>(items: readonly T[]): T {
   expect(items).toHaveLength(1);
   return items[0] as T;
 }
 
-describe('evidenceClassForTool / primaryTool / authoritativeTool (via evidenceFromToolResults)', () => {
-  describe('Capiro-computed/derived tools are never primary or authoritative', () => {
-    const derivedTools = [
-      // Funding Opportunities (P37) — the tools found feeding claim confidence
-      // as if they were official government records.
-      'explain_opportunity_match',
-      'get_opportunity_client_context',
-      'get_opportunity_government_landscape',
-      'compare_funding_opportunities',
-      'build_opportunity_action_plan',
-      // Research & strategy synthesis.
-      'research_federal_market_strategy',
-      'run_analysis',
-      'search_capiro_data',
-      // meriv2-orchestrator retrieval recipes that self-report their own name
-      // as the citation tool (confirmed to leak into this exact path).
-      'query_relationship_brief',
-      'query_client_changes',
-      'query_portfolio_changes',
-      'research_external_company',
-      'query_portfolio_overlap',
-      'query_funding_opportunity_match',
-    ];
+function profileEvidence(tool: string) {
+  const { citations, ledgerEntries } = citationFixture(tool);
+  return only(
+    evidenceFromToolResults(ledgerEntries, citations, undefined, { classification: 'profiles' }),
+  );
+}
 
-    it.each(derivedTools)('%s is capiro_system_of_record, non-primary, non-authoritative', (tool) => {
-      const { citations, ledgerEntries } = citationFixture(tool);
-      const evidence = only(evidenceFromToolResults(ledgerEntries, citations));
-      expect(evidence.evidenceClass).toBe('capiro_system_of_record');
-      expect(evidence.primary).toBe(false);
-      expect(evidence.authoritative).toBe(false);
+describe('profile evidence classification', () => {
+  const derivedTools = [
+    'explain_opportunity_match',
+    'get_opportunity_client_context',
+    'get_opportunity_government_landscape',
+    'compare_funding_opportunities',
+    'build_opportunity_action_plan',
+    'research_federal_market_strategy',
+    'run_analysis',
+    'search_capiro_data',
+    'query_relationship_brief',
+    'query_client_changes',
+    'query_portfolio_changes',
+    'research_external_company',
+    'query_portfolio_overlap',
+    'query_funding_opportunity_match',
+  ];
+
+  it.each(derivedTools)('%s is Capiro-derived, non-primary, and non-authoritative', (tool) => {
+    expect(profileEvidence(tool)).toMatchObject({
+      evidenceClass: 'capiro_system_of_record',
+      primary: false,
+      authoritative: false,
     });
   });
 
-  describe('independently-sourced tools stay authoritative (regression guard)', () => {
-    const officialTools: Array<[tool: string, evidenceClass: string]> = [
-      ['get_bill_status', 'official_action_vote_status'],
-      ['search_congress_bills', 'primary_legislative_legal_text'],
-      ['get_pe_budget_timeline', 'official_budget_exhibit_mark_law'],
-      ['get_committee_roster', 'committee_agency_guidance'],
-      // Previously fell through to the (buggy) default and happened to land
-      // on the right class by accident; now explicit.
-      ['search_sam_opportunities', 'official_government_data'],
-      ['search_funding_opportunities', 'official_government_data'],
-      ['get_funding_opportunity', 'official_government_data'],
-    ];
+  const officialTools: Array<[string, string]> = [
+    ['get_bill_status', 'official_action_vote_status'],
+    ['search_congress_bills', 'primary_legislative_legal_text'],
+    ['get_pe_budget_timeline', 'official_budget_exhibit_mark_law'],
+    ['get_committee_roster', 'committee_agency_guidance'],
+    ['search_sam_opportunities', 'official_government_data'],
+    ['search_funding_opportunities', 'official_government_data'],
+    ['get_funding_opportunity', 'official_government_data'],
+  ];
 
-    it.each(officialTools)('%s is %s, primary and authoritative', (tool, evidenceClass) => {
-      const { citations, ledgerEntries } = citationFixture(tool);
-      const evidence = only(evidenceFromToolResults(ledgerEntries, citations));
-      expect(evidence.evidenceClass).toBe(evidenceClass);
-      expect(evidence.primary).toBe(true);
-      expect(evidence.authoritative).toBe(true);
-    });
+  it.each(officialTools)('%s is %s, primary, and authoritative', (tool, evidenceClass) => {
+    expect(profileEvidence(tool)).toMatchObject({ evidenceClass, primary: true, authoritative: true });
+  });
 
-    it('get_client_context (Capiro\'s own operational record) stays primary and authoritative', () => {
-      const { citations, ledgerEntries } = citationFixture('get_client_context');
-      const evidence = only(evidenceFromToolResults(ledgerEntries, citations));
-      expect(evidence.evidenceClass).toBe('capiro_system_of_record');
-      expect(evidence.primary).toBe(true);
-      expect(evidence.authoritative).toBe(true);
+  it('keeps Capiro operational records self-authoritative', () => {
+    expect(profileEvidence('get_client_context')).toMatchObject({
+      evidenceClass: 'capiro_system_of_record',
+      primary: true,
+      authoritative: true,
     });
   });
 
-  it('an unrecognized tool name defaults to non-primary, non-authoritative — not official_government_data', () => {
-    const { citations, ledgerEntries } = citationFixture('some_future_unclassified_tool');
-    const evidence = only(evidenceFromToolResults(ledgerEntries, citations));
-    expect(evidence.evidenceClass).toBe('capiro_system_of_record');
-    expect(evidence.evidenceClass).not.toBe('official_government_data');
-    expect(evidence.primary).toBe(false);
-    expect(evidence.authoritative).toBe(false);
+  it('fails unknown tools closed', () => {
+    expect(profileEvidence('some_future_unclassified_tool')).toMatchObject({
+      evidenceClass: 'capiro_system_of_record',
+      primary: false,
+      authoritative: false,
+    });
+  });
+
+  it('changes derived claim support while official support remains high-confidence', () => {
+    const derived = citationFixture('explain_opportunity_match', 'opp-1');
+    const derivedLedger = buildClaimLedgerFromToolResults({
+      output: 'This opportunity matches the client profile [1].',
+      ...derived,
+      classification: 'profiles',
+    });
+    expect(only(derivedLedger.claims)).toMatchObject({
+      primarySourcePresent: false,
+      unsupportedReason: 'The cited material is not authoritative enough to support this factual claim.',
+      confidence: 'unknown',
+    });
+
+    const official = citationFixture('get_bill_status', 'bill-1');
+    const officialLedger = buildClaimLedgerFromToolResults({
+      output: 'The bill advanced [1].',
+      ...official,
+      classification: 'profiles',
+    });
+    expect(only(officialLedger.claims)).toMatchObject({
+      primarySourcePresent: true,
+      confidence: 'high',
+    });
   });
 });
 
-describe('claim confidence calibration for Capiro-derived evidence (end-to-end)', () => {
-  it('a factual claim citing only a Capiro-derived tool is unsupported, not high-confidence', () => {
-    const { citations, ledgerEntries } = citationFixture('explain_opportunity_match', 'opp-1');
-    const ledger = buildClaimLedgerFromToolResults({
-      output: 'This opportunity matches the client profile [1].',
-      ledgerEntries,
-      citations,
-    });
-    const claim = only(ledger.claims);
-    expect(claim.type).toBe('fact');
-    expect(claim.primarySourcePresent).toBe(false);
-    expect(claim.unsupportedReason).toBe(
-      'The cited material is not authoritative enough to support this factual claim.',
+describe('legacy evidence classification compatibility', () => {
+  function oldEvidenceClass(tool: string) {
+    if (/^(?:get_bill_status|get_state_bill_status|search_floor_votes|search_state_floor_votes|get_state_rule_status)$/.test(tool)) return 'official_action_vote_status';
+    if (/^(?:search_congress_bills|search_state_bills)$/.test(tool)) return 'primary_legislative_legal_text';
+    if (/^(?:get_pe_budget_timeline|get_program_element|get_pe_report_language|get_pe_bills|get_funding_positions)$/.test(tool)) return 'official_budget_exhibit_mark_law';
+    if (/^(?:query_regulatory_dockets|get_committee_roster)$/.test(tool)) return 'committee_agency_guidance';
+    if (/^(?:get_client_context|query_tasks|query_debriefs|query_outreach|list_emails|search_emails)$/.test(tool)) return 'capiro_system_of_record';
+    if (/^(?:search_memory|search_client_knowledge|read_client_documents)$/.test(tool)) return 'institutional_memory';
+    if (/^(?:search_public_web|scrape_web_page|search_intel_articles)$/.test(tool)) return 'secondary_reporting';
+    return 'official_government_data';
+  }
+
+  const tools = [...Object.keys(TOOL_EVIDENCE_PROFILES), 'unknown_tool', 'future_search', ''];
+  it.each(tools)('%s exactly retains the pre-profile regex behavior', (tool) => {
+    expect(legacyEvidenceClassForTool(tool)).toBe(oldEvidenceClass(tool));
+    expect(legacyPrimaryTool(tool)).toBe(
+      !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory)$/.test(tool),
     );
-    expect(claim.confidence).toBe('unknown');
-    expect(ledger.unsupportedClaimIds).toContain(claim.id);
+    expect(legacyAuthoritativeTool(tool)).toBe(
+      !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory|query_knowledge_graph)$/.test(tool),
+    );
   });
 
-  it('the same factual claim shape citing an official record IS treated as high-confidence', () => {
-    const { citations, ledgerEntries } = citationFixture('get_bill_status', 'bill-1');
-    const ledger = buildClaimLedgerFromToolResults({
-      output: 'This opportunity matches the client profile [1].',
+  it('default and explicit legacy ledgers are deeply identical on realistic tools', () => {
+    const citations = ['search_capiro_data', 'run_analysis', 'get_bill_status', 'search_public_web'].map(
+      (tool, index) => ({ n: index + 1, tool, id: `id-${index + 1}` }),
+    );
+    const ledgerEntries = citations.map(({ tool, id }) => ({ tool, serialized: JSON.stringify({ id }) }));
+    const input = {
+      output: 'Capiro found a match [1]. Analysis confirms it [2]. The bill advanced [3]. Reporting agrees [4].',
       ledgerEntries,
       citations,
+    };
+    expect(buildClaimLedgerFromToolResults(input)).toEqual(
+      buildClaimLedgerFromToolResults({ ...input, classification: 'legacy' }),
+    );
+  });
+
+  it('returns count-only comparison data when a derived source loses support', () => {
+    const fixture = citationFixture('search_capiro_data', 'match-1');
+    expect(compareEvidenceClassification({
+      output: 'The client is a strong match [1].',
+      ...fixture,
+    })).toEqual({
+      evidenceItems: 1,
+      evidenceChanged: 1,
+      toolsChanged: ['search_capiro_data'],
+      claims: 1,
+      claimSupportChanged: 1,
+      claimConfidenceChanged: 1,
+      primarySourcePresentChanged: 1,
     });
-    const claim = only(ledger.claims);
-    expect(claim.primarySourcePresent).toBe(true);
-    expect(claim.unsupportedReason).toBeUndefined();
-    expect(claim.confidence).toBe('high');
   });
 });

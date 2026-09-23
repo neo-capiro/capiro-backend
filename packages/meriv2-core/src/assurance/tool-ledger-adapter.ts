@@ -34,8 +34,11 @@ export function buildClaimLedgerFromToolResults(input: {
   ledgerEntries: readonly LedgerEntry[];
   citations?: readonly CitationLike[];
   plan?: DomainEvidencePlan;
+  classification?: EvidenceClassification;
 }): ClaimLedger {
-  const evidence = evidenceFromToolResults(input.ledgerEntries, input.citations ?? [], input.plan);
+  const evidence = evidenceFromToolResults(input.ledgerEntries, input.citations ?? [], input.plan, {
+    classification: input.classification,
+  });
   const formBByToken = new Map<string, string>();
   for (const item of evidence) {
     if (item.id.startsWith('formb:')) {
@@ -76,7 +79,12 @@ export function evidenceFromToolResults(
   ledgerEntries: readonly LedgerEntry[],
   citations: readonly CitationLike[],
   plan?: DomainEvidencePlan,
+  options: { classification?: EvidenceClassification } = {},
 ): AssuredEvidence[] {
+  const classification = options.classification ?? 'legacy';
+  const classify = classification === 'profiles' ? evidenceClassForTool : legacyEvidenceClassForTool;
+  const isPrimary = classification === 'profiles' ? primaryTool : legacyPrimaryTool;
+  const isAuthoritative = classification === 'profiles' ? authoritativeTool : legacyAuthoritativeTool;
   const evidence: AssuredEvidence[] = [];
   const entryByTool = new Map<string, LedgerEntry[]>();
   for (const entry of ledgerEntries) {
@@ -92,14 +100,14 @@ export function evidenceFromToolResults(
       id: citationEvidenceId(citation),
       sourceType: citation.tool,
       sourceId: citation.id,
-      evidenceClass: evidenceClassForTool(citation.tool),
+      evidenceClass: classify(citation.tool),
       ...(citation.title ? { title: citation.title } : {}),
       ...(citation.url ? { url: citation.url } : {}),
       ...(dates.publishedAt ? { publishedAt: dates.publishedAt } : {}),
       ...(dates.effectiveAt ? { effectiveAt: dates.effectiveAt } : {}),
       ...(dates.retrievedAt ? { retrievedAt: dates.retrievedAt } : {}),
-      primary: primaryTool(citation.tool),
-      authoritative: resolves && authoritativeTool(citation.tool),
+      primary: isPrimary(citation.tool),
+      authoritative: resolves && isAuthoritative(citation.tool),
       requirementIds: requirementIdsForTool(citation.tool, plan),
       // The ordinary citation extractor does not prove result-set completeness.
       // Negative/exhaustive claims therefore stay unsupported unless a future
@@ -124,9 +132,9 @@ export function evidenceFromToolResults(
         id,
         sourceType: tool,
         sourceId,
-        evidenceClass: evidenceClassForTool(tool),
-        primary: primaryTool(tool),
-        authoritative: authoritativeTool(tool) && entry.serialized.includes(sourceId),
+        evidenceClass: classify(tool),
+        primary: isPrimary(tool),
+        authoritative: isAuthoritative(tool) && entry.serialized.includes(sourceId),
         requirementIds: requirementIdsForTool(tool, plan),
         coverage: {
           description: 'Exact cited record; result-set completeness not established.',
@@ -159,7 +167,9 @@ export function classifyClaimType(text: string): AssuredClaimType {
   return 'fact';
 }
 
-interface ToolEvidenceProfile {
+export type EvidenceClassification = 'legacy' | 'profiles';
+
+export interface ToolEvidenceProfile {
   evidenceClass: EvidenceClass;
   primary: boolean;
   authoritative: boolean;
@@ -211,7 +221,7 @@ const SECONDARY_REPORTING: ToolEvidenceProfile = {
  * every tool must be reviewed and listed here on purpose. See CAPIRO_DERIVED for
  * what happens to a tool that is not.
  */
-const TOOL_EVIDENCE_PROFILES: Record<string, ToolEvidenceProfile> = {
+export const TOOL_EVIDENCE_PROFILES: Readonly<Record<string, ToolEvidenceProfile>> = {
   // ── Official action / vote status ─────────────────────────────────────
   get_bill_status: official('official_action_vote_status'),
   get_state_bill_status: official('official_action_vote_status'),
@@ -367,6 +377,102 @@ function primaryTool(tool: string): boolean {
 
 function authoritativeTool(tool: string): boolean {
   return toolProfile(tool).authoritative;
+}
+
+export function legacyEvidenceClassForTool(tool: string): EvidenceClass {
+  if (
+    /^(?:get_bill_status|get_state_bill_status|search_floor_votes|search_state_floor_votes|get_state_rule_status)$/.test(
+      tool,
+    )
+  ) {
+    return 'official_action_vote_status';
+  }
+  if (/^(?:search_congress_bills|search_state_bills)$/.test(tool)) {
+    return 'primary_legislative_legal_text';
+  }
+  if (
+    /^(?:get_pe_budget_timeline|get_program_element|get_pe_report_language|get_pe_bills|get_funding_positions)$/.test(
+      tool,
+    )
+  ) {
+    return 'official_budget_exhibit_mark_law';
+  }
+  if (/^(?:query_regulatory_dockets|get_committee_roster)$/.test(tool)) {
+    return 'committee_agency_guidance';
+  }
+  if (
+    /^(?:get_client_context|query_tasks|query_debriefs|query_outreach|list_emails|search_emails)$/.test(
+      tool,
+    )
+  ) {
+    return 'capiro_system_of_record';
+  }
+  if (/^(?:search_memory|search_client_knowledge|read_client_documents)$/.test(tool)) {
+    return 'institutional_memory';
+  }
+  if (/^(?:search_public_web|scrape_web_page|search_intel_articles)$/.test(tool)) {
+    return 'secondary_reporting';
+  }
+  return 'official_government_data';
+}
+
+export function legacyPrimaryTool(tool: string): boolean {
+  return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory)$/.test(tool);
+}
+
+export function legacyAuthoritativeTool(tool: string): boolean {
+  return !/^(?:search_public_web|scrape_web_page|search_intel_articles|search_memory|query_knowledge_graph)$/.test(
+    tool,
+  );
+}
+
+export interface EvidenceClassificationComparison {
+  evidenceItems: number;
+  evidenceChanged: number;
+  toolsChanged: string[];
+  claims: number;
+  claimSupportChanged: number;
+  claimConfidenceChanged: number;
+  primarySourcePresentChanged: number;
+}
+
+export function compareEvidenceClassification(input: {
+  ledgerEntries: readonly LedgerEntry[];
+  citations?: readonly CitationLike[];
+  plan?: DomainEvidencePlan;
+  output: string;
+}): EvidenceClassificationComparison {
+  const legacy = buildClaimLedgerFromToolResults({ ...input, classification: 'legacy' });
+  const profiles = buildClaimLedgerFromToolResults({ ...input, classification: 'profiles' });
+  const profileEvidence = new Map(profiles.evidence.map((item) => [item.id, item]));
+  const changedEvidence = legacy.evidence.filter((item) => {
+    const other = profileEvidence.get(item.id);
+    return Boolean(other) && (
+      item.evidenceClass !== other!.evidenceClass ||
+      item.primary !== other!.primary ||
+      item.authoritative !== other!.authoritative
+    );
+  });
+  const profileClaims = new Map(profiles.claims.map((claim) => [claim.id, claim]));
+  let claimSupportChanged = 0;
+  let claimConfidenceChanged = 0;
+  let primarySourcePresentChanged = 0;
+  for (const claim of legacy.claims) {
+    const other = profileClaims.get(claim.id);
+    if (!other) continue;
+    if (Boolean(claim.unsupportedReason) !== Boolean(other.unsupportedReason)) claimSupportChanged += 1;
+    if (claim.confidence !== other.confidence) claimConfidenceChanged += 1;
+    if (claim.primarySourcePresent !== other.primarySourcePresent) primarySourcePresentChanged += 1;
+  }
+  return {
+    evidenceItems: legacy.evidence.length,
+    evidenceChanged: changedEvidence.length,
+    toolsChanged: [...new Set(changedEvidence.map((item) => item.sourceType))].sort(),
+    claims: legacy.claims.length,
+    claimSupportChanged,
+    claimConfidenceChanged,
+    primarySourcePresentChanged,
+  };
 }
 
 function requirementIdsForTool(tool: string, plan?: DomainEvidencePlan): string[] {
