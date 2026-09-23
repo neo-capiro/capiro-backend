@@ -4,6 +4,7 @@ import type { JevQuestion } from './decision-contract';
 const MAX_REQUEST_BYTES = 64_000;
 const MAX_RESPONSE_BYTES = 1_000_000;
 const MAX_RETRY_DELAY_MS = 30_000;
+/** The TypeSafe HTTP contract retries rate limiting and overload only. */
 const RETRYABLE_STATUS = new Set([429, 529]);
 
 export interface JevSystemOneRequest {
@@ -47,12 +48,17 @@ export interface JevClientOptions {
   timeoutMs: number;
   maxAttempts: number;
   fetchImpl?: JevFetch;
+  /**
+   * Replaces the built-in timer for the 429/529 backoff wait (tests). The wait is
+   * still refused when it cannot fit before `deadlineAt` and raced against `signal`.
+   */
   sleepImpl?: (ms: number) => Promise<void>;
   now?: () => number;
 }
 
 export interface JevCallOptions {
   signal?: AbortSignal;
+  /** Absolute time (same clock as `now`) after which no attempt or backoff may run. */
   deadlineAt?: number;
 }
 
@@ -178,6 +184,39 @@ function retryAfterMs(response: Response, attempt: number, now: number): number 
   return Math.min(500 * 2 ** (attempt - 1), MAX_RETRY_DELAY_MS);
 }
 
+/**
+ * Wait `ms` before a retry, rejecting with JevCancelledError the moment `signal`
+ * aborts. The built-in timer is cleared on abort so nothing keeps the process or a
+ * turn alive; an injected `sleep` keeps its single-argument contract and is raced.
+ */
+function waitForRetry(
+  ms: number,
+  signal: AbortSignal | undefined,
+  sleep: ((ms: number) => Promise<void>) | undefined,
+): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new JevCancelledError());
+  return new Promise<void>((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onAbort = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      reject(new JevCancelledError());
+    };
+    const done = () => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    if (sleep) {
+      sleep(ms).then(done, (error: unknown) => {
+        signal?.removeEventListener('abort', onAbort);
+        reject(error);
+      });
+    } else {
+      timer = setTimeout(done, ms);
+    }
+  });
+}
+
 async function responseText(response: Response): Promise<string> {
   if (!response.body) return '';
   const reader = response.body.getReader();
@@ -213,7 +252,6 @@ export function createJevClient(options: JevClientOptions): {
   systemOne(request: JevSystemOneRequest, callOptions?: JevCallOptions): Promise<JevClientResult>;
 } {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  const sleepImpl = options.sleepImpl ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const now = options.now ?? Date.now;
   const baseUrl = (options.baseUrl ?? 'https://api.typesafe.ai').replace(/\/$/, '');
   if (!/^https:\/\/[^/]+$/i.test(baseUrl)) throw new JevRequestError('Jev base URL must be an HTTPS origin');
@@ -229,17 +267,18 @@ export function createJevClient(options: JevClientOptions): {
       if (Buffer.byteLength(body, 'utf8') > MAX_REQUEST_BYTES) {
         throw new JevRequestError('Jev request exceeds the byte limit');
       }
+      const remainingMs = () => (callOptions.deadlineAt == null ? Infinity : callOptions.deadlineAt - now());
       for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
         if (callOptions.signal?.aborted) throw new JevCancelledError();
-        const remaining = callOptions.deadlineAt == null ? Infinity : callOptions.deadlineAt - now();
+        const remaining = remainingMs();
         if (remaining <= 0) throw new JevTimeoutError();
         const controller = new AbortController();
         const cancel = () => controller.abort(callOptions.signal?.reason);
         callOptions.signal?.addEventListener('abort', cancel, { once: true });
         const timeout = setTimeout(() => controller.abort(), Math.min(options.timeoutMs, remaining));
-        let response: Response;
+        let retry: { status: number; delayMs: number };
         try {
-          response = await fetchImpl(`${baseUrl}/v1/systemone`, {
+          const response = await fetchImpl(`${baseUrl}/v1/systemone`, {
             method: 'POST',
             redirect: 'error',
             headers: {
@@ -251,39 +290,45 @@ export function createJevClient(options: JevClientOptions): {
             signal: controller.signal,
           });
           const text = await responseText(response);
-          if (!response.ok) {
-            if (RETRYABLE_STATUS.has(response.status) && attempt < options.maxAttempts) {
-              await sleepImpl(retryAfterMs(response, attempt, now()));
-              continue;
+          if (response.ok) {
+            if (!response.headers.get('content-type')?.toLowerCase().includes('application/json')) {
+              throw new JevMalformedResponseError();
             }
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(text);
+            } catch {
+              throw new JevMalformedResponseError();
+            }
+            return {
+              response: validateResponse(parsed, request.questions, options.model),
+              latencyMs: Math.max(0, now() - startedAt),
+              attempts: attempt,
+            };
+          }
+          if (!RETRYABLE_STATUS.has(response.status) || attempt >= options.maxAttempts) {
             throw httpError(response.status);
           }
-          if (!response.headers.get('content-type')?.toLowerCase().includes('application/json')) {
-            throw new JevMalformedResponseError();
-          }
-          let parsed: unknown;
-          try {
-            parsed = JSON.parse(text);
-          } catch {
-            throw new JevMalformedResponseError();
-          }
-          return {
-            response: validateResponse(parsed, request.questions, options.model),
-            latencyMs: Math.max(0, now() - startedAt),
-            attempts: attempt,
-          };
+          retry = { status: response.status, delayMs: retryAfterMs(response, attempt, now()) };
         } catch (error) {
           if (error instanceof JevError) throw error;
           if (callOptions.signal?.aborted) throw new JevCancelledError();
           if (controller.signal.aborted) throw new JevTimeoutError();
-          if (attempt >= options.maxAttempts) {
-            throw new JevError('Jev network request failed', 'network_error');
-          }
-          await sleepImpl(Math.min(500 * 2 ** (attempt - 1), MAX_RETRY_DELAY_MS));
+          // Transport failures are not retried: the contract retries 429/529 only, and a
+          // POST that failed after its bytes left may already have been processed and
+          // billed. The caller's fallback owns this case.
+          throw new JevError('Jev network request failed', 'network_error');
         } finally {
           clearTimeout(timeout);
           callOptions.signal?.removeEventListener('abort', cancel);
         }
+        // Only a retryable 429/529 reaches this point. The backoff has to fit inside the
+        // caller's deadline: a retry that could not even start before it is refused now,
+        // with the rate-limit/overload error, instead of sleeping the turn's budget away.
+        const budget = remainingMs();
+        if (budget <= 0) throw new JevTimeoutError();
+        if (retry.delayMs >= budget) throw httpError(retry.status);
+        await waitForRetry(retry.delayMs, callOptions.signal, options.sleepImpl);
       }
       throw new JevError('Jev request failed', 'network_error');
     },

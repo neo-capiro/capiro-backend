@@ -1,10 +1,11 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { buildClaimSupportQuestion } from './claim-support-question';
 import type { EvidenceEnvelope } from './decision-contract';
 import { createJevDecisionProvider } from './jev-decision-provider';
 import {
   createJevClient,
   JevCancelledError,
+  JevRateLimitError,
   JevRequestError,
   JevTimeoutError,
   type JevFetch,
@@ -136,6 +137,102 @@ describe('Jev client', () => {
       return jsonResponse(validResponse());
     }) as unknown as JevFetch;
     await client(fetchImpl).systemOne(question);
+  });
+});
+
+describe('Jev client retry budget', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** Body-less responses keep the fake-timer flow free of stream reads. */
+  const statusOnly = (status: number, headers: Record<string, string> = {}) => new Response(null, { status, headers });
+  /** Built-in timer sleep and Date.now, both driven by the fake clock. */
+  const timerClient = (fetchImpl: JevFetch, maxAttempts = 2) =>
+    createJevClient({ apiKey: 'test-key', model: 'jev-1.13.0', timeoutMs: 100, maxAttempts, fetchImpl });
+  const useFakeTimers = () => jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'] });
+  /** Observes settlement without awaiting, so a client that wrongly keeps sleeping fails fast instead of hanging. */
+  const observe = <T>(promise: Promise<T>) => {
+    const outcome: { settled: boolean; value?: T; error?: unknown } = { settled: false };
+    promise.then(
+      (value) => { outcome.settled = true; outcome.value = value; },
+      (error) => { outcome.settled = true; outcome.error = error; },
+    );
+    return outcome;
+  };
+
+  it('fails a 429 immediately when Retry-After cannot fit before deadlineAt, instead of sleeping up to 30 s', async () => {
+    useFakeTimers();
+    const start = Date.now();
+    const fetchImpl = jest.fn<JevFetch>().mockResolvedValue(statusOnly(429, { 'retry-after': '99' }));
+    const outcome = observe(timerClient(fetchImpl).systemOne(question, { deadlineAt: start + 4_000 }));
+    await jest.advanceTimersByTimeAsync(0);
+    expect(outcome.settled).toBe(true);
+    expect(outcome.error).toBeInstanceOf(JevRateLimitError);
+    expect(Date.now() - start).toBe(0);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('sleeps only a backoff that fits the deadline and retries within the remaining budget', async () => {
+    useFakeTimers();
+    const start = Date.now();
+    const fetchImpl = jest
+      .fn<JevFetch>()
+      .mockResolvedValueOnce(statusOnly(429, { 'retry-after': '3' }))
+      .mockResolvedValueOnce(jsonResponse(validResponse()));
+    const pending = timerClient(fetchImpl).systemOne(question, { deadlineAt: start + 4_000 });
+    const outcome = observe(pending);
+    await jest.advanceTimersByTimeAsync(2_999);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(outcome.settled).toBe(false);
+    await jest.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toMatchObject({ attempts: 2, latencyMs: 3_000 });
+    expect(Date.now() - start).toBe(3_000);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('rejects promptly with JevCancelledError when the caller aborts during the backoff sleep', async () => {
+    useFakeTimers();
+    const start = Date.now();
+    const fetchImpl = jest.fn<JevFetch>().mockResolvedValue(statusOnly(429, { 'retry-after': '3' }));
+    const controller = new AbortController();
+    const outcome = observe(
+      timerClient(fetchImpl).systemOne(question, { signal: controller.signal, deadlineAt: start + 10_000 }),
+    );
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(outcome.settled).toBe(false);
+    controller.abort();
+    await jest.advanceTimersByTimeAsync(0);
+    expect(outcome.settled).toBe(true);
+    expect(outcome.error).toBeInstanceOf(JevCancelledError);
+    expect(Date.now() - start).toBe(1_000);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('gives up with JevTimeoutError rather than a new attempt when an injected sleep overshoots the deadline', async () => {
+    useFakeTimers();
+    const start = Date.now();
+    const fetchImpl = jest.fn<JevFetch>().mockResolvedValue(statusOnly(429, { 'retry-after': '1' }));
+    const sleep = jest.fn(async (_ms: number) => {
+      jest.setSystemTime(start + 5_000);
+    });
+    await expect(
+      client(fetchImpl, { sleepImpl: sleep }).systemOne(question, { deadlineAt: start + 4_000 }),
+    ).rejects.toBeInstanceOf(JevTimeoutError);
+    expect(sleep).toHaveBeenCalledWith(1_000);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a transport failure: the request may already have been processed and billed', async () => {
+    const sleep = jest.fn(async () => undefined);
+    const fetchImpl = jest.fn<JevFetch>().mockRejectedValue(new TypeError('fetch failed'));
+    await expect(client(fetchImpl, { maxAttempts: 3, sleepImpl: sleep }).systemOne(question)).rejects.toMatchObject({
+      code: 'network_error',
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
   });
 });
 
