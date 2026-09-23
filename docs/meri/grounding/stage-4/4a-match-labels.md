@@ -1,9 +1,24 @@
 # Stage 4a: evidence-based match labels
 
-Design only. Nothing in this document is wired into a live code path or enabled for any tenant. It defines the
-target contract for a future `MERI_MATCH_LABEL` capability, gated the same way as every Stage 0-2 capability
-(`off`/`shadow`/`enforce`, per-tenant, per-surface, defaulting `off`), so it can be reviewed and built incrementally
-without touching `runTurn`.
+## What was built
+
+`client_fit` is registered as the provisional `client_fit.v1` Jev task, with its category and ordered
+capability-class questions sent together. Strategic relevance question #3 remains intentionally unbuilt because
+the product owner has not defined that business judgment. A pure deterministic policy derives one of the five
+labels from asserted tier, cited evidence provenance, Jev category/confidence, and eligibility. A tolerant
+extractor recognizes tier headings, bullets, and inline forms.
+
+MeriV3 resolves `MERI_MATCH_LABEL_MODE|_TENANTS|_SURFACES`, dark by default. `off` performs no extraction and keeps
+the existing reply byte-identical. `shadow` starts only after the text frame is emitted and logs one single-line
+`meri.match_label.shadow` event containing counts, reason counts, Jev-used, latency and registry version, never
+reply text, names, or passages. `enforce` runs before the one text frame and deterministically replaces overstated
+tier display text while preserving the recommendation; failure returns the original reply. Jev use in this first
+implementation is deterministic-only until the `client_fit` task-specific answer adapter is connected; the task
+and question contract are present but no generic claim-support adapter is misused.
+
+Enablement requires `EVIDENCE_PROFILES` enforce for the same tenant/surface, `client_fit` explicitly present in
+`MERI_JEV_TASKS`, a matching pinned registry model, and a human-labelled evaluation of `client_fit.v1`. Enforcement
+must remain dark until those prerequisites and the task-specific adapter are complete.
 
 ## What exists today and why it needs reconciling, not replacing
 

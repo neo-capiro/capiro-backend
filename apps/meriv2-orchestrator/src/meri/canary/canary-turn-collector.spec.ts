@@ -28,7 +28,7 @@ describe('CanaryTurnCollector', () => {
     });
     expect(logged).toMatchObject({ event: 'meri.canary.turn', surface: 'chat', coverage: { followUps: 1 },
       passageSelection: { requiredRetained: 1 }, repair: { corrected: 1 }, tokens: { jev: 5, repair: 6 },
-      registryVersion: 'jev-task-registry.v1',
+      registryVersion: 'jev-task-registry.v2',
       jevTasks: {
         passage_relevance: { questionVersion: 'passage_selection.v1', modelVersion: 'jev-1.13.0' },
       }, estimatedCostUsd: .5 });

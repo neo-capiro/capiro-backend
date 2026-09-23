@@ -1,7 +1,7 @@
 import type { ClaimCategory } from '../assurance/evidence-plan';
 import { DEFAULT_JEV_MODEL, JEV_TASKS, type JevConfig, type JevTask } from './jev-config';
 
-export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v1' as const;
+export const JEV_TASK_REGISTRY_VERSION = 'jev-task-registry.v2' as const;
 
 export interface JevTaskRegistration {
   task: JevTask;
@@ -86,6 +86,20 @@ export const JEV_TASK_REGISTRY: Readonly<Record<JevTask, JevTaskRegistration>> =
     calibration: {
       status: 'provisional',
       basis: 'Registry placeholder only; there is no live consumer or production calibration.',
+    },
+  },
+  client_fit: {
+    task: 'client_fit',
+    questionVersion: 'client_fit.v1',
+    questionId: 'client_fit',
+    primitive: 'choice',
+    modelVersion: DEFAULT_JEV_MODEL,
+    thresholds: {},
+    fallback: 'no_change',
+    rolloutCapability: 'MATCH_LABEL',
+    calibration: {
+      status: 'provisional',
+      basis: 'No human-labelled client_fit.v1 evaluation has been completed.',
     },
   },
 };

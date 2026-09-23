@@ -38,6 +38,7 @@ import {
   resolveEvidenceAccuracyMode,
   resolveJevConfig,
   resolveJevProviderMode,
+  resolveMatchLabelMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -103,6 +104,7 @@ import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
 import { createChatDecisionProviders, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
+import { applyMatchLabelControl, matchLabelEvent } from './match-label-control.js';
 import {
   appendClaimTiedCoverageDisclosure,
   buildCoverageRequirements,
@@ -590,6 +592,7 @@ export class MeriV3AssistantService {
       surface,
     );
     const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, surface);
+    const matchLabelMode = resolveMatchLabelMode(process.env, ctx.tenantId, surface);
     const buildEvidenceLedger = (
       input: Omit<Parameters<typeof buildControlledClaimLedger>[0], 'env' | 'tenantId' | 'surface' | 'callSite' | 'logShadow'>,
       callSite: string,
@@ -1422,9 +1425,53 @@ export class MeriV3AssistantService {
       documentRequests = corrected.documentRequests;
     }
 
+    if (matchLabelMode === 'enforce' && released.reply) {
+      const started = Date.now();
+      const matchLedger = buildEvidenceLedger({
+        output: released.reply,
+        ledgerEntries,
+        citations: released.citations,
+        plan: evidencePlan,
+      }, 'matchLabelEnforce');
+      const matchResult = await applyMatchLabelControl({
+        mode: 'enforce',
+        reply: released.reply,
+        citations: released.citations,
+        evidence: matchLedger.evidence,
+      });
+      released = { ...released, reply: matchResult.reply };
+      if (matchResult.failureReason) {
+        this.logStructured('warn', 'meri.match_label.failed', {
+          reason: matchResult.failureReason,
+          latencyMs: Date.now() - started,
+        });
+      }
+    }
+
     if (emitText && released.reply) {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
+    }
+    if (matchLabelMode === 'shadow' && released.reply) {
+      const reply = released.reply;
+      const releasedCitations = released.citations;
+      const started = Date.now();
+      queueMicrotask(() => {
+        void Promise.resolve().then(async () => {
+          const matchLedger = buildEvidenceLedger({
+            output: reply,
+            ledgerEntries,
+            citations: releasedCitations,
+            plan: evidencePlan,
+          }, 'matchLabelShadow');
+          const result = await applyMatchLabelControl({
+            mode: 'shadow', reply, citations: releasedCitations, evidence: matchLedger.evidence,
+          });
+          if (result.findings > 0) {
+            this.logStructured('log', 'meri.match_label.shadow', matchLabelEvent(result, Date.now() - started));
+          }
+        }).catch(() => undefined);
+      });
     }
     const canaryEvent = canary.build({
       outcome: opts.signal?.aborted ? 'aborted' : released.held ? 'held'

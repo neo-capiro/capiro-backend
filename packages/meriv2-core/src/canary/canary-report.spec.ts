@@ -89,7 +89,7 @@ describe('canary report', () => {
 
   it('fails passageRequiredRetention from a collector-shaped event read back through readCanaryEvents', () => {
     const dropped = collectorEvent(droppedRequired, {
-      registryVersion: 'jev-task-registry.v1',
+      registryVersion: 'jev-task-registry.v2',
       jevTasks: {
         claim_support: { questionVersion: 'claim_support.v1', modelVersion: 'jev-1.13.0' },
         passage_relevance: { questionVersion: 'passage_selection.v1', modelVersion: 'jev-1.13.0' },
