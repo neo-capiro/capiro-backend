@@ -51,4 +51,9 @@ describe('Jev configuration', () => {
     logJevConfigIssues({ warn }, { TYPESAFE_API_KEY: 'super-secret' });
     expect(JSON.stringify(warn.mock.calls)).not.toContain('super-secret');
   });
+
+  it('recognizes the provisional status-selection task', () => {
+    expect(resolveJevConfig({ TYPESAFE_API_KEY: 'secret', MERI_JEV_TASKS: 'status_selection' }))
+      .toMatchObject({ available: true, tasks: ['status_selection'] });
+  });
 });

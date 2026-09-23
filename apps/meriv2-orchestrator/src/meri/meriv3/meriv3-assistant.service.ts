@@ -36,6 +36,7 @@ import {
   resolveEvidenceAccuracyMode,
   resolveJevConfig,
   resolveJevProviderMode,
+  resolveStatusProvenanceMode,
   resolveGovernmentAffairsOperatingFrame,
   runAuditor,
   runGovernmentAffairsChecks,
@@ -99,6 +100,7 @@ import type {
 } from './meriv3.types.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { scheduleClaimInventoryShadow } from './meriv3-claim-inventory-shadow.js';
+import { runStatusProvenance } from './status-provenance-runtime.js';
 import { createChatDecisionProviders, createPassageSelectionClient } from '../jev/jev-provider.factory.js';
 import { assessReleasedClaims } from '../jev/shadow-claim-assessor.js';
 import {
@@ -587,6 +589,7 @@ export class MeriV3AssistantService {
       surface,
     );
     const claimAssessmentMode = resolveClaimAssessmentMode(process.env, ctx.tenantId, surface);
+    const statusProvenanceMode = resolveStatusProvenanceMode(process.env, ctx.tenantId, surface);
     const canary = new CanaryTurnCollector({
       conversationId: dto.conversationId ?? null,
       tenantId: ctx.tenantId,
@@ -1402,6 +1405,25 @@ export class MeriV3AssistantService {
       documentRequests = corrected.documentRequests;
     }
 
+    // Enforce is pre-release and bounded. Any lookup/deadline failure returns the original reply.
+    if (statusProvenanceMode === 'enforce' && released.reply) {
+      const statusResult = await runStatusProvenance({
+        reply: released.reply,
+        mode: 'enforce',
+        registry: this.registry,
+        ctx,
+        deadlineAt: Math.min(opts.deadlineAt ?? Date.now() + 8_000, Date.now() + 8_000),
+        signal: opts.signal,
+      });
+      released = { ...released, reply: statusResult.reply };
+      if (!statusResult.lookupOk) {
+        this.logStructured('warn', 'meri.status_provenance.failed', {
+          reason: statusResult.failureReason,
+          latencyMs: statusResult.latencyMs,
+        });
+      }
+    }
+
     if (emitText && released.reply) {
       emit({ type: 'text', text: released.reply });
       canary.noteTextEmitted();
@@ -1468,6 +1490,24 @@ export class MeriV3AssistantService {
           });
         },
       });
+    }
+    // Shadow starts only after text emission and is deliberately not awaited.
+    if (statusProvenanceMode === 'shadow' && released.reply) {
+      void runStatusProvenance({
+        reply: released.reply,
+        mode: 'shadow',
+        registry: this.registry,
+        ctx,
+        deadlineAt: Date.now() + 8_000,
+        signal: opts.requestSignal ?? opts.signal,
+      }).then((result) => {
+        if (!result.detected) return;
+        this.logStructured('log', 'meri.status_provenance.shadow', {
+          counts: result.outcomes,
+          lookupOk: result.lookupOk,
+          latencyMs: result.latencyMs,
+        });
+      }).catch(() => undefined);
     }
     if (dto.pageWrite && pageWriteState.payload && !released.held && !opts.signal?.aborted) {
       const pageWrite = this.validateCitationText(

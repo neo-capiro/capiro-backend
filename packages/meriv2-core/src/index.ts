@@ -22,6 +22,7 @@ export * from './grounding/evidence';
 export * from './grounding/claim-gate';
 export * from './grounding/claim-inventory';
 export * from './grounding/exact-source';
+export * from './grounding/status-provenance';
 export * from './grounding/skeptic';
 export * from './grounding/skeptic-audit';
 export * from './context/contract';

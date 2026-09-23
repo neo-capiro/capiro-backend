@@ -1,3 +1,10 @@
+import {
+  FEDRAMP_IMPACT_LEVEL_VOCABULARY,
+  FEDRAMP_STATUS_VOCABULARY,
+} from '@capiro/meriv2-core';
+
+export { FEDRAMP_IMPACT_LEVEL_VOCABULARY, FEDRAMP_STATUS_VOCABULARY };
+
 export const FEDRAMP_MARKETPLACE_URL = 'https://fedramp.gov/marketplace/products/';
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
@@ -60,6 +67,12 @@ export function parseFedrampMarketplaceProducts(
     const impactLevel = stringField(body, variable!, 'impact_level');
     if (!cspName || !csoName || !status || !impactLevel) {
       throw new FedrampMarketplaceError(`Incomplete marketplace record ${productId}`);
+    }
+    if (!(FEDRAMP_STATUS_VOCABULARY as readonly string[]).includes(status)) {
+      throw new FedrampMarketplaceError(`Unknown marketplace status for ${productId}`);
+    }
+    if (!(FEDRAMP_IMPACT_LEVEL_VOCABULARY as readonly string[]).includes(impactLevel)) {
+      throw new FedrampMarketplaceError(`Unknown marketplace impact level for ${productId}`);
     }
     records.push({
       productId: productId!,

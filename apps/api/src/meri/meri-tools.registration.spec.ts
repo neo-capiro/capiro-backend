@@ -501,6 +501,17 @@ describe('Meri tool registration', () => {
     expect(enabled.filter((schema) => !baseline.some((item) => item.name === schema.name))).toEqual([
       expect.objectContaining({ name: 'get_certification_status' }),
     ]);
+    expect(
+      service.anthropicToolSchemas({
+        tenantId: 'tenant-1',
+        surface: 'chat',
+        env: {
+          MERI_STATUS_PROVENANCE_MODE: 'shadow',
+          MERI_STATUS_PROVENANCE_TENANTS: 'all',
+          MERI_STATUS_PROVENANCE_SURFACES: 'chat',
+        },
+      }),
+    ).toEqual(baseline);
   });
 
   it('legacy read-only chat excludes every side-effecting (write) tool from the model surface', () => {

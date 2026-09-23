@@ -1587,7 +1587,7 @@ export class MeriToolsService {
         rollout.env ?? process.env,
         rollout.tenantId,
         rollout.surface,
-      ) !== 'off';
+      ) === 'enforce';
     return TOOL_DEFINITIONS.filter(
       (tool) => tool.name !== 'get_certification_status' || statusProvenanceEnabled,
     ).map((tool) => ({

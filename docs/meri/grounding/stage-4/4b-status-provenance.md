@@ -1,8 +1,18 @@
 # Stage 4b: exact status and provenance language
 
-Design only. Nothing in this document is wired into a live code path or enabled for any tenant. It defines the
-target contract for a future `MERI_STATUS_PROVENANCE` capability, gated the same way as every Stage 0-2 capability,
-so it can be reviewed and built incrementally without touching `runTurn`.
+## What was built
+
+`MERI_STATUS_PROVENANCE_MODE|TENANTS|SURFACES` is dark by default. `off` does no work and preserves the prior
+tool schema list. `shadow` also preserves that list and the released reply byte-for-byte; after the text frame is
+released it performs bounded lookups and emits one `meri.status_provenance.shadow` JSON event containing only
+outcome counts, lookup success and latency. `enforce` alone offers `get_certification_status`; before the single
+text frame is assembled it deterministically replaces non-exact controlled wording with the marketplace string,
+impact level and observation attribution. Lookup or deadline failure releases the original reply.
+
+Enablement requires `EVIDENCE_PROFILES=enforce` for the same tenant and surface, a truthful
+`TOOL_EVIDENCE_PROFILES` entry for `get_certification_status` (`official_government_data`, primary and
+authoritative), and a human spot-check of shadow outcomes before enforce. The FedRAMP adapter is structured, so
+the provisional `status_selection.v1` bounded-candidate Jev task is registered but deliberately unwired.
 
 ## What exists today
 
