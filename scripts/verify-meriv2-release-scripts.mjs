@@ -59,13 +59,30 @@ async function main() {
     "MERI_JEV_PROVIDER_TENANTS: ''",
     "MERI_JEV_PROVIDER_SURFACES: ''",
     "MERI_JEV_MODEL: 'jev-1.13.0'",
+    "MERI_JEV_TIMEOUT_MS: '8000'",
+    "MERI_JEV_MAX_ATTEMPTS: '2'",
     "MERI_CHAT_EVIDENCE_JUDGE: 'llm'",
     "MERI_JEV_TASKS: ''",
     "MEMORY_AUTOLEARN_GOVERNED: 'false'",
   ]) {
     assert.ok(prepare.includes(fragment), `Dark task preparation is missing ${fragment}.`);
   }
+  for (const fragment of ["MERI_JEV_TIMEOUT_MS: '8000'", "MERI_JEV_MAX_ATTEMPTS: '2'"]) {
+    assert.ok(
+      prepare.split(fragment).length - 1 >= 2,
+      `Both dark-default objects must contain ${fragment}.`,
+    );
+  }
   assert.doesNotMatch(code(prepare), /register-task-definition|update-service|run-task/);
+  for (const fragment of [
+    'preserve-live-controls',
+    'reset-controls',
+    'controlPolicy',
+    'controlChanges',
+    'resolveControlPolicy',
+  ]) {
+    assert.ok(prepare.includes(fragment), `Release control guard is missing ${fragment}.`);
+  }
 
   const execute = await text('scripts/execute-meriv2-ecs-release.mjs');
   for (const fragment of [
@@ -75,6 +92,8 @@ async function main() {
     'rollbackServices',
     'DEPLOY_CAPIRO_',
     'additiveMigrationsRetained',
+    'validateLiveControlPolicy',
+    'assertPreservedControlsStillLive',
   ]) {
     assert.ok(execute.includes(fragment), `Dark ECS executor is missing ${fragment}.`);
   }

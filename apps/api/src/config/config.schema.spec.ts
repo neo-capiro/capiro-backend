@@ -197,6 +197,19 @@ describe('configSchema — Meri rollout mode switches fail closed on blank', () 
     expect(configSchema.shape.MERI_CHAT_EVIDENCE_JUDGE.parse('cascade')).toBe('cascade');
   });
 
+  test('valid switches normalize surrounding whitespace and case', () => {
+    expect(configSchema.shape.MERI_COVERAGE_RETRIEVAL_MODE.parse(' Off ')).toBe('off');
+    expect(configSchema.shape.MERI_JEV_PROVIDER_MODE.parse(' ENFORCE ')).toBe('enforce');
+    expect(configSchema.shape.MERI_CHAT_EVIDENCE_JUDGE.parse(' Paired ')).toBe('paired');
+  });
+
+  test('an explicitly empty TYPESAFE_API_KEY is treated as absent', () => {
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse(undefined)).toBeUndefined();
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse('')).toBeUndefined();
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse('   ')).toBeUndefined();
+    expect(configSchema.shape.TYPESAFE_API_KEY.parse('configured')).toBe('configured');
+  });
+
   test('the full schema boots with every switch blank, as a hand-edited task definition sets it', () => {
     const result = configSchema.safeParse({
       ...requiredCore,
