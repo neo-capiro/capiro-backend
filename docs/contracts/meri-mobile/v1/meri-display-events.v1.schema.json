@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://capiro.example/contracts/meri-mobile/v1/meri-display-events.v1.schema.json",
   "title": "Meri durable display event v1",
-  "description": "Public SSE frame derived from one durable run event. Clients de-duplicate by (runId, seq), render outputSnapshot through outputSeq before replay, ignore unknown fields and types, and advance the cursor only after applying the full frame.",
+  "description": "Public SSE frame derived from one durable run event. Before run_accepted the start request can emit unsequenced setup/rejection frames; those are not accepted work. After run_accepted, clients apply only frames matching this schema, de-duplicate by (runId, seq), render outputSnapshot through outputSeq before replay, ignore unknown fields and types, and advance the cursor only after applying the full frame.",
   "type": "object",
   "required": ["schemaVersion", "type", "kind", "runId", "seq", "at"],
   "properties": {

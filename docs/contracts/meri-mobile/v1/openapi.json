@@ -29,7 +29,7 @@
     "/meri/conversations/{conversationId}/runs": {
       "post": {
         "operationId": "startMeriRun",
-        "description": "Acceptance occurs only when run_accepted is received. Retry the same authenticated actor/conversation/key to attach to the same message and run.",
+        "description": "Acceptance occurs only when the versioned run_accepted frame is received. Retry the same authenticated actor/conversation/key to attach to the same message and run. Setup/rejection frames before acceptance can be unsequenced; after acceptance, consumers apply only versioned frames with a sequence and ignore unsequenced live duplicates.",
         "parameters": [
           { "$ref": "#/components/parameters/ConversationId" },
           { "$ref": "#/components/parameters/IdempotencyKey" }

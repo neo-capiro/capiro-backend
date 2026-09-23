@@ -134,6 +134,7 @@ export class MeriMobileService {
       this.flags.isMeriMobileCapabilityEnabled(ctx.tenantId, 'deviceTokens'),
     ]);
     if (!userTenant.user || !userTenant.tenant) throw new NotFoundException('Mobile principal not found');
+    const runAvailable = runs && (await this.flags.isMeriHermesRuntimeEnabled(ctx.tenantId));
     const clients = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.findMany({
         where: { id: { in: security.authorizedClientIds }, status: 'active' },
@@ -149,13 +150,13 @@ export class MeriMobileService {
       tenant: userTenant.tenant,
       clients,
       features: {
-        runs: runs && (await this.flags.isMeriHermesRuntimeEnabled(ctx.tenantId)),
+        runs: runAvailable,
         meetings,
         files,
         deviceTokens,
       },
       actions: {
-        runStart: { available: runs, confirmation: 'none', onlineRequired: true },
+        runStart: { available: runAvailable, confirmation: 'none', onlineRequired: true },
         runStop: { available: true, confirmation: 'explicit_tap', onlineRequired: true },
         meetingWrite: { available: meetings, confirmation: 'explicit_save', onlineRequired: true },
         fileConfirm: { available: files, confirmation: 'explicit_upload', onlineRequired: true },
