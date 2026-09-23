@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import type { LlmClient } from '@capiro/meriv2-core';
 import {
   createChatDecisionProviders,
+  createClientFitClient,
   createPassageSelectionClient,
   resetJevProviderFactoryWarningsForTest,
 } from './jev-provider.factory';
@@ -72,6 +73,28 @@ describe('createChatDecisionProviders', () => {
     expect(logger.warn).toHaveBeenCalledWith('meri.jev.registry_mismatch', {
       task: 'passage_relevance', configuredModel: 'jev-1.14.0', registeredModel: 'jev-1.13.0',
     });
+  });
+
+  it.each([
+    [{ ...baseEnv, MERI_MATCH_LABEL_MODE: 'off', MERI_JEV_TASKS: 'client_fit' }, 'rollout_off'],
+    [{ ...baseEnv, MERI_MATCH_LABEL_MODE: 'shadow', MERI_MATCH_LABEL_TENANTS: TENANT,
+      MERI_MATCH_LABEL_SURFACES: 'chat' }, 'task_not_enabled:client_fit'],
+    [{ ...baseEnv, MERI_MATCH_LABEL_MODE: 'shadow', MERI_MATCH_LABEL_TENANTS: TENANT,
+      MERI_MATCH_LABEL_SURFACES: 'chat', MERI_JEV_TASKS: 'client_fit',
+      MERI_JEV_MODEL: 'jev-1.14.0' }, 'registry_model_mismatch'],
+  ] as const)('keeps client-fit unavailable when its gates fail', (env, reason) => {
+    expect(createClientFitClient({ env, tenantId: TENANT, surface: 'chat' }))
+      .toMatchObject({ client: null, reason });
+  });
+
+  it('constructs the task-specific client only when match-label and client_fit are enabled', () => {
+    const result = createClientFitClient({
+      env: { ...baseEnv, MERI_MATCH_LABEL_MODE: 'shadow', MERI_MATCH_LABEL_TENANTS: TENANT,
+        MERI_MATCH_LABEL_SURFACES: 'chat', MERI_JEV_TASKS: 'client_fit' },
+      tenantId: TENANT, surface: 'chat',
+    });
+    expect(result.reason).toBeNull();
+    expect(result.client?.name).toBe('jev-client-fit');
   });
 
   it('disables claim-support Jev for live use on a model mismatch', () => {

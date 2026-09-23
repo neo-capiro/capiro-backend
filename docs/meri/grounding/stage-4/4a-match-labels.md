@@ -1,9 +1,24 @@
 # Stage 4a: evidence-based match labels
 
-Design only. Nothing in this document is wired into a live code path or enabled for any tenant. It defines the
-target contract for a future `MERI_MATCH_LABEL` capability, gated the same way as every Stage 0-2 capability
-(`off`/`shadow`/`enforce`, per-tenant, per-surface, defaulting `off`), so it can be reviewed and built incrementally
-without touching `runTurn`.
+## What was built
+
+`client_fit` is registered as the provisional `client_fit.v1` Jev task, with its category and ordered
+capability-class questions sent together. Strategic relevance question #3 remains intentionally unbuilt because
+the product owner has not defined that business judgment. A pure deterministic policy derives one of the five
+labels from asserted tier, cited evidence provenance, Jev category/confidence, and eligibility. A tolerant
+extractor recognizes tier headings, bullets, and inline forms.
+
+MeriV3 resolves `MERI_MATCH_LABEL_MODE|_TENANTS|_SURFACES`, dark by default. `off` performs no extraction and keeps
+the existing reply byte-identical. `shadow` starts only after the text frame is emitted and logs one single-line
+`meri.match_label.shadow` event containing counts, reason counts, Jev-used, latency and registry version, never
+reply text, names, or passages. `enforce` runs before the one text frame and deterministically replaces overstated
+tier display text while preserving the recommendation; failure returns the original reply. Jev use in this first
+implementation uses a task-specific `client_fit` provider that maps both the category and alignment answers without
+coercing either into claim-support outcomes. When its gates are unavailable, deterministic behavior is unchanged.
+
+Enablement requires `EVIDENCE_PROFILES` enforce for the same tenant/surface, `client_fit` explicitly present in
+`MERI_JEV_TASKS`, a matching pinned registry model, and a human-labelled evaluation of `client_fit.v1`. Enforcement
+must remain dark until the human-labelled evaluation prerequisite is complete.
 
 ## What exists today and why it needs reconciling, not replacing
 
@@ -111,13 +126,9 @@ Unsupported direct-match claims are corrected while useful recommendations remai
 resolves to a real, checkable source reference or is downgraded; eligibility and strategic attractiveness never
 substitute for missing linkage.
 
-## Open prerequisite, not fixed in this change set
+## Remaining rollout prerequisite
 
-`packages/meriv2-core/src/assurance/tool-ledger-adapter.ts:evidenceClassForTool` and `primaryTool` fall through to
-`'official_government_data'` / `primary: true` for ANY tool name they don't explicitly recognize — which includes
-every Capiro-computed tool (`explain_opportunity_match`, `build_opportunity_action_plan`,
-`research_federal_market_strategy`, and others). A `client_fit` claim citing one of these tools would today be
-misclassified as independently-sourced, authoritative government data rather than Capiro's own derived judgment.
-This must be fixed (an explicit exclusion list, not a fallthrough default) before `client_fit` enforcement can be
-trusted, and affects claim confidence calibration for any EXISTING claim category that cites these tools too — see
-the separately flagged task rather than this design fixing it inline.
+The task-specific adapter is complete, and explicit evidence profiles now fail closed for unknown/computed tools.
+`MERI_MATCH_LABEL_MODE` still defaults to `off`, and `client_fit` is absent from production's `MERI_JEV_TASKS`.
+Therefore this wiring changes no tenant behavior until both controls are explicitly enabled with a matching registry
+model. Before any promotion, complete the human-labelled `client_fit.v1` evaluation/calibration described above.

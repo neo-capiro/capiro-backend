@@ -18,7 +18,7 @@ const liveConfig = () => resolveJevConfig({
 
 describe('Jev task registry', () => {
   it('covers every configured task and preserves the live constants', () => {
-    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v1');
+    expect(JEV_TASK_REGISTRY_VERSION).toBe('jev-task-registry.v2');
     expect(Object.keys(JEV_TASK_REGISTRY).sort()).toEqual([...JEV_TASKS].sort());
     expect(JEV_TASK_REGISTRY.claim_support).toMatchObject({
       questionVersion: 'claim_support.v1', questionId: 'claim_support', primitive: 'choice',
@@ -32,6 +32,11 @@ describe('Jev task registry', () => {
       questionVersion: 'passage_selection.v1', primitive: 'noul', modelVersion: 'jev-1.13.0',
       thresholds: { relevant: 0.35, usable: 0.5, contradicts: 0.5 },
       fallback: 'unfiltered', rolloutCapability: 'PASSAGE_SELECTION',
+    });
+    expect(JEV_TASK_REGISTRY.client_fit).toMatchObject({
+      questionVersion: 'client_fit.v1', questionId: 'client_fit', primitive: 'choice',
+      modelVersion: 'jev-1.13.0', fallback: 'no_change', rolloutCapability: 'MATCH_LABEL',
+      calibration: { status: 'provisional' },
     });
   });
 

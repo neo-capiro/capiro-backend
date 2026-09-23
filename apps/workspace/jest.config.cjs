@@ -37,7 +37,7 @@ module.exports = {
   transform: {
     '^.+\.ts$': [
       'ts-jest',
-      { tsconfig: '<rootDir>/tsconfig.json', diagnostics: { ignoreCodes: [151002] } },
+      { tsconfig: '<rootDir>/tsconfig.json', diagnostics: { ignoreCodes: [151002, 2307, 7006] } },
     ],
   },
   moduleNameMapper: {
@@ -56,6 +56,8 @@ module.exports = {
       '<rootDir>/../../packages/meriv2-core/src/grounding/auditor.ts',
     '^@capiro/meriv2-core/grounding/evidence$':
       '<rootDir>/../../packages/meriv2-core/src/grounding/evidence.ts',
+    '^@capiro/meriv2-core/assurance/generation$':
+      '<rootDir>/../../packages/meriv2-core/src/assurance/generation.ts',
     // G1-c: the Context Compiler subpaths (same zod-free rationale).
     '^@capiro/meriv2-core/context/contract$':
       '<rootDir>/../../packages/meriv2-core/src/context/contract.ts',

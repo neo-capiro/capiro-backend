@@ -6,7 +6,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 // jest resolver.
 import {
   buildAssuranceEnvelope,
-  buildClaimLedgerFromToolResults,
+  buildControlledClaimLedger,
   classifyAssuranceRisk,
   evaluateAssuranceRelease,
   planGovernmentAffairsEvidence,
@@ -17,7 +17,7 @@ import {
   type AssurancePolicyBinding,
   type AssuranceReleaseDecision,
   type AssuranceRolloutMode,
-} from '@capiro/meriv2-core/assurance';
+} from '@capiro/meriv2-core/assurance/generation';
 import type { AuditFinding, LedgerEntry } from '@capiro/meriv2-core/grounding/auditor';
 import type { PeStructuralWarning } from './domain-grounding.helpers.js';
 import type { SectionCitation } from './citations.js';
@@ -147,6 +147,7 @@ export function assessGeneratedSectionsForRelease(input: {
   policyBinding?: AssurancePolicyBinding | null;
   generatedAt?: string | Date;
 }): GeneratedSectionsAssurance {
+  const tenantId = generationAssuranceTenant.getStore();
   const verdicts: SectionClaimVerdict[] = [];
   const generatedText = new Map(
     input.generated.map(({ section, html }) => [section, stripHtml(html)] as const),
@@ -214,11 +215,16 @@ export function assessGeneratedSectionsForRelease(input: {
         })
       : bare;
     const { entries, citationLikes } = ledgerFromCitations(input.sectionCitations?.[section] ?? []);
-    const ledger = buildClaimLedgerFromToolResults({
+    const ledger = buildControlledClaimLedger({
       output: text,
       ledgerEntries: entries,
       citations: citationLikes,
       plan,
+      env: process.env,
+      tenantId,
+      surface: 'workspace-gen',
+      callSite: 'assessGeneratedSectionsForRelease',
+      logShadow: (event, fields) => console.log(JSON.stringify({ event, ...fields })),
     });
     const structuralFindings: AuditFinding[] = [...runStructural, ...sectionStructural].map(
       (warning) => ({
